@@ -7,7 +7,7 @@ pub use diesel_models::mandate::{
 use diesel_models::{errors, schema::mandate::dsl};
 use error_stack::{IntoReport, ResultExt};
 
-use crate::{connection::PgPooledConn, logger, types::transformers::ForeignInto};
+use crate::{connection::PgPooledConn, logger};
 
 #[async_trait::async_trait]
 pub trait MandateDbExt: Sized {
@@ -49,9 +49,7 @@ impl MandateDbExt for Mandate {
             filter = filter.filter(dsl::connector.eq(connector));
         }
         if let Some(mandate_status) = mandate_list_constraints.mandate_status {
-            let storage_mandate_status: diesel_models::enums::MandateStatus =
-                mandate_status.foreign_into();
-            filter = filter.filter(dsl::mandate_status.eq(storage_mandate_status));
+            filter = filter.filter(dsl::mandate_status.eq(mandate_status));
         }
         if let Some(limit) = mandate_list_constraints.limit {
             filter = filter.limit(limit);

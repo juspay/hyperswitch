@@ -17,11 +17,7 @@ use crate::{
     consts,
     core::errors,
     pii::Secret,
-    types::{
-        self, api,
-        storage::enums,
-        transformers::{ForeignInto, ForeignTryFrom},
-    },
+    types::{self, api, storage::enums, transformers::ForeignTryFrom},
     utils::{Encode, OptionExt},
 };
 
@@ -267,13 +263,49 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for BluesnapPaymentsRequest {
                         )?,
                     ))
                 }
-                _ => Err(errors::ConnectorError::NotImplemented(
-                    "Wallets".to_string(),
-                )),
+                payments::WalletData::AliPayQr(_)
+                | payments::WalletData::AliPayRedirect(_)
+                | payments::WalletData::AliPayHkRedirect(_)
+                | payments::WalletData::MomoRedirect(_)
+                | payments::WalletData::KakaoPayRedirect(_)
+                | payments::WalletData::GoPayRedirect(_)
+                | payments::WalletData::GcashRedirect(_)
+                | payments::WalletData::ApplePayRedirect(_)
+                | payments::WalletData::ApplePayThirdPartySdk(_)
+                | payments::WalletData::DanaRedirect {}
+                | payments::WalletData::GooglePayRedirect(_)
+                | payments::WalletData::GooglePayThirdPartySdk(_)
+                | payments::WalletData::MbWayRedirect(_)
+                | payments::WalletData::MobilePayRedirect(_)
+                | payments::WalletData::PaypalRedirect(_)
+                | payments::WalletData::PaypalSdk(_)
+                | payments::WalletData::SamsungPay(_)
+                | payments::WalletData::TwintRedirect {}
+                | payments::WalletData::VippsRedirect {}
+                | payments::WalletData::TouchNGoRedirect(_)
+                | payments::WalletData::WeChatPayRedirect(_)
+                | payments::WalletData::CashappQr(_)
+                | payments::WalletData::SwishQr(_)
+                | payments::WalletData::WeChatPayQr(_) => {
+                    Err(errors::ConnectorError::NotImplemented(
+                        utils::get_unimplemented_payment_method_error_message("bluesnap"),
+                    ))
+                }
             },
-            _ => Err(errors::ConnectorError::NotImplemented(
-                "payment method".to_string(),
-            )),
+            payments::PaymentMethodData::PayLater(_)
+            | payments::PaymentMethodData::BankRedirect(_)
+            | payments::PaymentMethodData::BankDebit(_)
+            | payments::PaymentMethodData::BankTransfer(_)
+            | payments::PaymentMethodData::Crypto(_)
+            | payments::PaymentMethodData::MandatePayment
+            | payments::PaymentMethodData::Reward(_)
+            | payments::PaymentMethodData::Upi(_)
+            | payments::PaymentMethodData::Voucher(_)
+            | payments::PaymentMethodData::GiftCard(_) => {
+                Err(errors::ConnectorError::NotImplemented(
+                    utils::get_unimplemented_payment_method_error_message("bluesnap"),
+                ))
+            }
         }?;
         Ok(Self {
             amount: utils::to_currency_base_unit(item.request.amount, item.request.currency)?,
@@ -353,7 +385,7 @@ impl TryFrom<types::PaymentsSessionResponseRouterData<BluesnapWalletTokenRespons
                             ),
                         payment_request_data: Some(api_models::payments::ApplePayPaymentRequest {
                             country_code: item.data.get_billing_country()?,
-                            currency_code: item.data.request.currency.foreign_into(),
+                            currency_code: item.data.request.currency,
                             total: api_models::payments::AmountInfo {
                                 label: applepay_metadata.data.payment_request_data.label,
                                 total_type: Some("final".to_string()),
@@ -520,8 +552,8 @@ impl TryFrom<&types::PaymentsCaptureRouterData> for BluesnapCaptureRequest {
 
 // Auth Struct
 pub struct BluesnapAuthType {
-    pub(super) api_key: String,
-    pub(super) key1: String,
+    pub(super) api_key: Secret<String>,
+    pub(super) key1: Secret<String>,
 }
 
 impl TryFrom<&types::ConnectorAuthType> for BluesnapAuthType {
@@ -529,8 +561,8 @@ impl TryFrom<&types::ConnectorAuthType> for BluesnapAuthType {
     fn try_from(auth_type: &types::ConnectorAuthType) -> Result<Self, Self::Error> {
         if let types::ConnectorAuthType::BodyKey { api_key, key1 } = auth_type {
             Ok(Self {
-                api_key: api_key.to_string(),
-                key1: key1.to_string(),
+                api_key: api_key.to_owned(),
+                key1: key1.to_owned(),
             })
         } else {
             Err(errors::ConnectorError::FailedToObtainAuthType.into())
@@ -814,8 +846,9 @@ pub struct BluesnapAuthErrorResponse {
 #[derive(Debug, Clone, Deserialize)]
 #[serde(untagged)]
 pub enum BluesnapErrors {
-    PaymentError(BluesnapErrorResponse),
-    AuthError(BluesnapAuthErrorResponse),
+    Payment(BluesnapErrorResponse),
+    Auth(BluesnapAuthErrorResponse),
+    General(String),
 }
 
 fn get_card_holder_info(

@@ -32,9 +32,11 @@ pub struct MerchantConnectorAccount {
     pub business_country: storage_enums::CountryAlpha2,
     pub business_label: String,
     pub business_sub_label: Option<String>,
-    pub frm_configs: Option<Secret<serde_json::Value>>,
+    #[diesel(deserialize_as = super::OptionalDieselArray<pii::SecretSerdeValue>)]
+    pub frm_configs: Option<Vec<Secret<serde_json::Value>>>,
     pub created_at: time::PrimitiveDateTime,
     pub modified_at: time::PrimitiveDateTime,
+    pub connector_webhook_details: Option<pii::SecretSerdeValue>,
 }
 
 #[derive(Clone, Debug, Insertable, router_derive::DebugAsDisplay)]
@@ -53,12 +55,14 @@ pub struct MerchantConnectorAccountNew {
     pub business_country: storage_enums::CountryAlpha2,
     pub business_label: String,
     pub business_sub_label: Option<String>,
-    pub frm_configs: Option<Secret<serde_json::Value>>,
+    #[diesel(deserialize_as = super::OptionalDieselArray<pii::SecretSerdeValue>)]
+    pub frm_configs: Option<Vec<Secret<serde_json::Value>>>,
     pub created_at: time::PrimitiveDateTime,
     pub modified_at: time::PrimitiveDateTime,
+    pub connector_webhook_details: Option<pii::SecretSerdeValue>,
 }
 
-#[derive(Clone, Debug, Default, AsChangeset, router_derive::DebugAsDisplay)]
+#[derive(Clone, Debug, AsChangeset, router_derive::DebugAsDisplay)]
 #[diesel(table_name = merchant_connector_account)]
 pub struct MerchantConnectorAccountUpdateInternal {
     pub merchant_id: Option<String>,
@@ -70,8 +74,10 @@ pub struct MerchantConnectorAccountUpdateInternal {
     pub merchant_connector_id: Option<String>,
     pub payment_methods_enabled: Option<Vec<serde_json::Value>>,
     pub metadata: Option<pii::SecretSerdeValue>,
-    pub frm_configs: Option<Secret<serde_json::Value>>,
+    #[diesel(deserialize_as = super::OptionalDieselArray<pii::SecretSerdeValue>)]
+    pub frm_configs: Option<Vec<Secret<serde_json::Value>>>,
     pub modified_at: Option<time::PrimitiveDateTime>,
+    pub connector_webhook_details: Option<pii::SecretSerdeValue>,
 }
 
 impl MerchantConnectorAccountUpdateInternal {

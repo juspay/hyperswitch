@@ -20,10 +20,11 @@ impl utils::Connector for PowertranzTest {
     }
 
     fn get_auth_token(&self) -> types::ConnectorAuthType {
-        types::ConnectorAuthType::from(
+        utils::to_connector_auth_type(
             connector_auth::ConnectorAuthentication::new()
                 .powertranz
-                .expect("Missing connector authentication configuration"),
+                .expect("Missing connector authentication configuration")
+                .into(),
         )
     }
 
@@ -65,6 +66,7 @@ async fn should_capture_authorized_payment() {
 
 // Partially captures a payment using the manual capture flow (Non 3DS).
 #[actix_web::test]
+#[ignore = "Connector does not support partial capture"]
 async fn should_partially_capture_authorized_payment() {
     let response = CONNECTOR
         .authorize_and_capture_payment(
@@ -82,6 +84,7 @@ async fn should_partially_capture_authorized_payment() {
 
 // Synchronizes a payment using the manual capture flow (Non 3DS).
 #[actix_web::test]
+#[ignore = "Connector does not support payment sync"]
 async fn should_sync_authorized_payment() {
     let authorize_response = CONNECTOR
         .authorize_payment(payment_method_details(), get_default_payment_info())
@@ -163,6 +166,7 @@ async fn should_partially_refund_manually_captured_payment() {
 
 // Synchronizes a refund using the manual capture flow (Non 3DS).
 #[actix_web::test]
+#[ignore = "Connector does not support payment sync"]
 async fn should_sync_manually_captured_refund() {
     let refund_response = CONNECTOR
         .capture_payment_and_refund(
@@ -200,6 +204,7 @@ async fn should_make_payment() {
 
 // Synchronizes a payment using the automatic capture flow (Non 3DS).
 #[actix_web::test]
+#[ignore = "Connector does not support payment sync"]
 async fn should_sync_auto_captured_payment() {
     let authorize_response = CONNECTOR
         .make_payment(payment_method_details(), get_default_payment_info())
@@ -260,6 +265,7 @@ async fn should_partially_refund_succeeded_payment() {
 
 // Creates multiple refunds against a payment using the automatic capture flow (Non 3DS).
 #[actix_web::test]
+#[ignore = "Connector does not support multiple refund"]
 async fn should_refund_succeeded_payment_multiple_times() {
     CONNECTOR
         .make_payment_and_multiple_refund(
@@ -275,6 +281,7 @@ async fn should_refund_succeeded_payment_multiple_times() {
 
 // Synchronizes a refund using the automatic capture flow (Non 3DS).
 #[actix_web::test]
+#[ignore = "Connector does not support refund sync"]
 async fn should_sync_refund() {
     let refund_response = CONNECTOR
         .make_payment_and_refund(payment_method_details(), None, get_default_payment_info())
@@ -314,7 +321,7 @@ async fn should_fail_payment_for_incorrect_cvc() {
         .unwrap();
     assert_eq!(
         response.response.unwrap_err().message,
-        "Your card's security code is invalid.".to_string(),
+        "Field is invalid: CardCvv".to_string(),
     );
 }
 
@@ -336,7 +343,7 @@ async fn should_fail_payment_for_invalid_exp_month() {
         .unwrap();
     assert_eq!(
         response.response.unwrap_err().message,
-        "Your card's expiration month is invalid.".to_string(),
+        "Field is invalid: CardExpiration".to_string(),
     );
 }
 
@@ -356,10 +363,7 @@ async fn should_fail_payment_for_incorrect_expiry_year() {
         )
         .await
         .unwrap();
-    assert_eq!(
-        response.response.unwrap_err().message,
-        "Your card's expiration year is invalid.".to_string(),
-    );
+    assert_eq!(response.status, enums::AttemptStatus::Failure,);
 }
 
 // Voids a payment using automatic capture flow (Non 3DS).
@@ -376,10 +380,7 @@ async fn should_fail_void_payment_for_auto_capture() {
         .void_payment(txn_id.unwrap(), None, get_default_payment_info())
         .await
         .unwrap();
-    assert_eq!(
-        void_response.response.unwrap_err().message,
-        "You cannot cancel this PaymentIntent because it has a status of succeeded."
-    );
+    assert_eq!(void_response.status, enums::AttemptStatus::VoidFailed);
 }
 
 // Captures a payment using invalid connector payment id.
@@ -391,7 +392,7 @@ async fn should_fail_capture_for_invalid_payment() {
         .unwrap();
     assert_eq!(
         capture_response.response.unwrap_err().message,
-        String::from("No such payment_intent: '123456789'")
+        String::from("Original auth not found")
     );
 }
 
@@ -409,10 +410,7 @@ async fn should_fail_for_refund_amount_higher_than_payment_amount() {
         )
         .await
         .unwrap();
-    assert_eq!(
-        response.response.unwrap_err().message,
-        "Refund amount (₹1.50) is greater than charge amount (₹1.00)",
-    );
+    assert_eq!(response.response.unwrap_err().message, "Invalid amount",);
 }
 
 // Connector dependent test cases goes here

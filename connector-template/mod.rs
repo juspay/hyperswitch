@@ -2,6 +2,7 @@ mod transformers;
 
 use std::fmt::Debug;
 use error_stack::{ResultExt, IntoReport};
+use masking::ExposeInterface;
 
 use crate::{
     configs::settings,
@@ -76,11 +77,19 @@ impl ConnectorCommon for {{project-name | downcase | pascal_case}} {
     fn base_url<'a>(&self, connectors: &'a settings::Connectors) -> &'a str {
         connectors.{{project-name}}.base_url.as_ref()
     }
+    
+    fn validate_auth_type(
+        &self,
+        val: &types::ConnectorAuthType,
+    ) -> Result<(), error_stack::Report<errors::ConnectorError>> {
+        {{project-name | downcase}}::{{project-name | downcase | pascal_case}}AuthType::try_from(val)?;
+        Ok(())
+    }
 
     fn get_auth_header(&self, auth_type:&types::ConnectorAuthType)-> CustomResult<Vec<(String,request::Maskable<String>)>,errors::ConnectorError> {
         let auth =  {{project-name | downcase}}::{{project-name | downcase | pascal_case}}AuthType::try_from(auth_type)
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
-        Ok(vec![(headers::AUTHORIZATION.to_string(), auth.api_key.into_masked())])
+        Ok(vec![(headers::AUTHORIZATION.to_string(), auth.api_key.expose().into_masked())])
     }
 
     fn build_error_response(

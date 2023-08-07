@@ -24,10 +24,11 @@ impl utils::Connector for PaymeTest {
     }
 
     fn get_auth_token(&self) -> types::ConnectorAuthType {
-        types::ConnectorAuthType::from(
+        utils::to_connector_auth_type(
             connector_auth::ConnectorAuthentication::new()
                 .payme
-                .expect("Missing connector authentication configuration"),
+                .expect("Missing connector authentication configuration")
+                .into(),
         )
     }
 
@@ -61,6 +62,11 @@ fn get_default_payment_info() -> Option<utils::PaymentInfo> {
         access_token: None,
         connector_meta_data: None,
         return_url: None,
+        connector_customer: None,
+        payment_method_token: None,
+        country: None,
+        currency: None,
+        payout_method_data: None,
     })
 }
 

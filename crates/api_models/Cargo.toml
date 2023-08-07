@@ -8,16 +8,15 @@ readme = "README.md"
 license.workspace = true
 
 [features]
-default = []
+default = ["payouts"]
 errors = ["dep:actix-web", "dep:reqwest"]
-multiple_mca = []
-dummy_connector = []
+dummy_connector = ["common_enums/dummy_connector"]
 detailed_errors = []
+payouts = []
 
 [dependencies]
 actix-web = { version = "4.3.1", optional = true }
-frunk = "0.4.1"
-frunk_core = "0.4.1"
+error-stack = "0.3.1"
 mime = "0.3.17"
 reqwest = { version = "0.11.18", optional = true }
 serde = { version = "1.0.163", features = ["derive"] }

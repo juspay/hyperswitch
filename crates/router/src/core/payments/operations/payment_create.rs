@@ -1,5 +1,6 @@
 use std::marker::PhantomData;
 
+use api_models::enums::CancelTransaction;
 use async_trait::async_trait;
 use common_utils::ext_traits::{AsyncExt, Encode, ValueExt};
 use diesel_models::ephemeral_key;
@@ -46,6 +47,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
         mandate_type: Option<api::MandateTransactionType>,
         merchant_account: &domain::MerchantAccount,
         merchant_key_store: &domain::MerchantKeyStore,
+        _auth_flow: services::AuthFlow,
     ) -> RouterResult<(
         BoxedOperation<'a, F, api::PaymentsRequest>,
         PaymentData<F>,
@@ -63,14 +65,20 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
             .get_payment_intent_id()
             .change_context(errors::ApiErrorResponse::PaymentNotFound)?;
 
-        let (token, payment_method, payment_method_type, setup_mandate, mandate_connector) =
-            helpers::get_token_pm_type_mandate_details(
-                state,
-                request,
-                mandate_type,
-                merchant_account,
-            )
-            .await?;
+        let (
+            token,
+            payment_method,
+            payment_method_type,
+            setup_mandate,
+            recurring_mandate_payment_data,
+            mandate_connector,
+        ) = helpers::get_token_pm_type_mandate_details(
+            state,
+            request,
+            mandate_type,
+            merchant_account,
+        )
+        .await?;
 
         let customer_details = helpers::get_customer_details_from_request(request);
 
@@ -251,6 +259,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
                 payment_method_data: request.payment_method_data.clone(),
                 refunds: vec![],
                 disputes: vec![],
+                attempts: None,
                 force_sync: None,
                 connector_response,
                 sessions_token: vec![],
@@ -258,8 +267,10 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
                 creds_identifier,
                 pm_token: None,
                 connector_customer_id: None,
+                recurring_mandate_payment_data,
                 ephemeral_key,
                 redirect_response: None,
+                frm_message: None,
             },
             Some(customer_details),
         ))
@@ -340,6 +351,7 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
         storage_scheme: enums::MerchantStorageScheme,
         _updated_customer: Option<storage::CustomerUpdate>,
         _merchant_key_store: &domain::MerchantKeyStore,
+        _should_cancel_transaction: Option<CancelTransaction>,
     ) -> RouterResult<(BoxedOperation<'b, F, api::PaymentsRequest>, PaymentData<F>)>
     where
         F: 'b + Send,
@@ -532,15 +544,15 @@ impl PaymentCreate {
             currency,
             amount: amount.into(),
             payment_method,
-            capture_method: request.capture_method.map(ForeignInto::foreign_into),
+            capture_method: request.capture_method,
             capture_on: request.capture_on,
             confirm: request.confirm.unwrap_or(false),
             created_at,
             modified_at,
             last_synced,
-            authentication_type: request.authentication_type.map(ForeignInto::foreign_into),
+            authentication_type: request.authentication_type,
             browser_info,
-            payment_experience: request.payment_experience.map(ForeignInto::foreign_into),
+            payment_experience: request.payment_experience,
             payment_method_type,
             payment_method_data: additional_pm_data,
             amount_to_capture: request.amount_to_capture,
@@ -577,11 +589,29 @@ impl PaymentCreate {
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to convert order details to value")?;
 
-        let (business_country, business_label) = helpers::get_business_details(
-            request.business_country,
-            request.business_label.as_ref(),
-            merchant_account,
-        )?;
+        let (business_country, business_label) =
+            match (request.business_country, request.business_label.as_ref()) {
+                (Some(business_country), Some(business_label)) => {
+                    helpers::validate_business_details(
+                        business_country,
+                        business_label,
+                        merchant_account,
+                    )?;
+
+                    Ok((business_country, business_label.clone()))
+                }
+                (None, Some(_)) => Err(errors::ApiErrorResponse::MissingRequiredField {
+                    field_name: "business_country",
+                }),
+                (Some(_), None) => Err(errors::ApiErrorResponse::MissingRequiredField {
+                    field_name: "business_label",
+                }),
+                (None, None) => Ok(helpers::get_business_details(
+                    request.business_country,
+                    request.business_label.as_ref(),
+                    merchant_account,
+                )?),
+            }?;
 
         let allowed_payment_method_types = request
             .get_allowed_payment_method_types_as_value()
@@ -609,7 +639,7 @@ impl PaymentCreate {
             modified_at,
             last_synced,
             client_secret: Some(client_secret),
-            setup_future_usage: request.setup_future_usage.map(ForeignInto::foreign_into),
+            setup_future_usage: request.setup_future_usage,
             off_session: request.off_session,
             return_url: request.return_url.as_ref().map(|a| a.to_string()),
             shipping_address_id,
@@ -678,10 +708,7 @@ impl PaymentCreate {
 pub fn payments_create_request_validation(
     req: &api::PaymentsRequest,
 ) -> RouterResult<(api::Amount, enums::Currency)> {
-    let currency = req
-        .currency
-        .map(ForeignInto::foreign_into)
-        .get_required_value("currency")?;
+    let currency = req.currency.get_required_value("currency")?;
     let amount = req.amount.get_required_value("amount")?;
     Ok((amount, currency))
 }

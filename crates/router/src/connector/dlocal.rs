@@ -1,4 +1,4 @@
-mod transformers;
+pub mod transformers;
 
 use std::fmt::Debug;
 
@@ -67,7 +67,7 @@ where
         let auth = dlocal::DlocalAuthType::try_from(&req.connector_auth_type)?;
         let sign_req: String = format!(
             "{}{}{}",
-            auth.x_login,
+            auth.x_login.peek(),
             date,
             types::RequestBody::get_inner_value(dlocal_req)
                 .peek()
@@ -75,7 +75,7 @@ where
         );
         let authz = crypto::HmacSha256::sign_message(
             &crypto::HmacSha256,
-            auth.secret.as_bytes(),
+            auth.secret.peek().as_bytes(),
             sign_req.as_bytes(),
         )
         .change_context(errors::ConnectorError::RequestEncodingFailed)

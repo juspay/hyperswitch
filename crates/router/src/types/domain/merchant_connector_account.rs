@@ -24,13 +24,14 @@ pub struct MerchantConnectorAccount {
     pub payment_methods_enabled: Option<Vec<serde_json::Value>>,
     pub connector_type: enums::ConnectorType,
     pub metadata: Option<pii::SecretSerdeValue>,
-    pub frm_configs: Option<Secret<serde_json::Value>>, //Option<FrmConfigs>
+    pub frm_configs: Option<Vec<Secret<serde_json::Value>>>,
     pub connector_label: String,
     pub business_country: enums::CountryAlpha2,
     pub business_label: String,
     pub business_sub_label: Option<String>,
     pub created_at: time::PrimitiveDateTime,
     pub modified_at: time::PrimitiveDateTime,
+    pub connector_webhook_details: Option<pii::SecretSerdeValue>,
 }
 
 #[derive(Debug)]
@@ -45,7 +46,8 @@ pub enum MerchantConnectorAccountUpdate {
         merchant_connector_id: Option<String>,
         payment_methods_enabled: Option<Vec<serde_json::Value>>,
         metadata: Option<pii::SecretSerdeValue>,
-        frm_configs: Option<Secret<serde_json::Value>>,
+        frm_configs: Option<Vec<Secret<serde_json::Value>>>,
+        connector_webhook_details: Option<pii::SecretSerdeValue>,
     },
 }
 
@@ -76,6 +78,7 @@ impl behaviour::Conversion for MerchantConnectorAccount {
                 business_sub_label: self.business_sub_label,
                 created_at: self.created_at,
                 modified_at: self.modified_at,
+                connector_webhook_details: self.connector_webhook_details,
             },
         )
     }
@@ -111,6 +114,7 @@ impl behaviour::Conversion for MerchantConnectorAccount {
             business_sub_label: other.business_sub_label,
             created_at: other.created_at,
             modified_at: other.modified_at,
+            connector_webhook_details: other.connector_webhook_details,
         })
     }
 
@@ -133,6 +137,7 @@ impl behaviour::Conversion for MerchantConnectorAccount {
             business_sub_label: self.business_sub_label,
             created_at: now,
             modified_at: now,
+            connector_webhook_details: self.connector_webhook_details,
         })
     }
 }
@@ -151,6 +156,7 @@ impl From<MerchantConnectorAccountUpdate> for MerchantConnectorAccountUpdateInte
                 payment_methods_enabled,
                 metadata,
                 frm_configs,
+                connector_webhook_details,
             } => Self {
                 merchant_id,
                 connector_type,
@@ -163,6 +169,7 @@ impl From<MerchantConnectorAccountUpdate> for MerchantConnectorAccountUpdateInte
                 metadata,
                 frm_configs,
                 modified_at: Some(common_utils::date_time::now()),
+                connector_webhook_details,
             },
         }
     }

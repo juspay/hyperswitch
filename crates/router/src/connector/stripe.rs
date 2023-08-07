@@ -1,22 +1,21 @@
-mod transformers;
+pub mod transformers;
 
 use std::{collections::HashMap, fmt::Debug, ops::Deref};
 
 use diesel_models::enums;
 use error_stack::{IntoReport, ResultExt};
+use masking::PeekInterface;
 use router_env::{instrument, tracing};
 
 use self::transformers as stripe;
 use super::utils::RefundsRequestData;
 use crate::{
     configs::settings,
-    connector::utils as conn_utils,
     consts,
     core::{
         errors::{self, CustomResult},
         payments,
     },
-    db::StorageInterface,
     headers, logger,
     services::{
         self,
@@ -55,7 +54,7 @@ impl ConnectorCommon for Stripe {
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
         Ok(vec![(
             headers::AUTHORIZATION.to_string(),
-            format!("Bearer {}", auth.api_key).into_masked(),
+            format!("Bearer {}", auth.api_key.peek()).into_masked(),
         )])
     }
 }
@@ -195,12 +194,13 @@ impl
             code: response
                 .error
                 .code
+                .clone()
                 .unwrap_or_else(|| consts::NO_ERROR_CODE.to_string()),
             message: response
                 .error
-                .message
+                .code
                 .unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
-            reason: None,
+            reason: response.error.message,
         })
     }
 }
@@ -312,12 +312,13 @@ impl
             code: response
                 .error
                 .code
+                .clone()
                 .unwrap_or_else(|| consts::NO_ERROR_CODE.to_string()),
             message: response
                 .error
-                .message
+                .code
                 .unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
-            reason: None,
+            reason: response.error.message,
         })
     }
 }
@@ -425,12 +426,13 @@ impl
             code: response
                 .error
                 .code
+                .clone()
                 .unwrap_or_else(|| consts::NO_ERROR_CODE.to_string()),
             message: response
                 .error
-                .message
+                .code
                 .unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
-            reason: None,
+            reason: response.error.message,
         })
     }
 }
@@ -518,9 +520,9 @@ impl
         types::PaymentsCaptureData: Clone,
         types::PaymentsResponseData: Clone,
     {
-        let response: stripe::PaymentIntentSyncResponse = res
+        let response: stripe::PaymentIntentResponse = res
             .response
-            .parse_struct("PaymentIntentSyncResponse")
+            .parse_struct("PaymentIntentResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         logger::info!(connector_response=?response);
         types::RouterData::try_from(types::ResponseRouterData {
@@ -546,12 +548,13 @@ impl
             code: response
                 .error
                 .code
+                .clone()
                 .unwrap_or_else(|| consts::NO_ERROR_CODE.to_string()),
             message: response
                 .error
-                .message
+                .code
                 .unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
-            reason: None,
+            reason: response.error.message,
         })
     }
 }
@@ -595,10 +598,11 @@ impl
                 x
             )),
             Ok(x) => Ok(format!(
-                "{}{}/{}",
+                "{}{}/{}{}",
                 self.base_url(connectors),
                 "v1/payment_intents",
-                x
+                x,
+                "?expand[0]=latest_charge" //updated payment_id(if present) reside inside latest_charge field
             )),
             x => x.change_context(errors::ConnectorError::MissingConnectorTransactionID),
         }
@@ -676,12 +680,13 @@ impl
             code: response
                 .error
                 .code
+                .clone()
                 .unwrap_or_else(|| consts::NO_ERROR_CODE.to_string()),
             message: response
                 .error
-                .message
+                .code
                 .unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
-            reason: None,
+            reason: response.error.message,
         })
     }
 }
@@ -821,12 +826,13 @@ impl
             code: response
                 .error
                 .code
+                .clone()
                 .unwrap_or_else(|| consts::NO_ERROR_CODE.to_string()),
             message: response
                 .error
-                .message
+                .code
                 .unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
-            reason: None,
+            reason: response.error.message,
         })
     }
 }
@@ -931,12 +937,13 @@ impl
             code: response
                 .error
                 .code
+                .clone()
                 .unwrap_or_else(|| consts::NO_ERROR_CODE.to_string()),
             message: response
                 .error
-                .message
+                .code
                 .unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
-            reason: None,
+            reason: response.error.message,
         })
     }
 }
@@ -1060,12 +1067,13 @@ impl
             code: response
                 .error
                 .code
+                .clone()
                 .unwrap_or_else(|| consts::NO_ERROR_CODE.to_string()),
             message: response
                 .error
-                .message
+                .code
                 .unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
-            reason: None,
+            reason: response.error.message,
         })
     }
 }
@@ -1168,12 +1176,13 @@ impl services::ConnectorIntegration<api::Execute, types::RefundsData, types::Ref
             code: response
                 .error
                 .code
+                .clone()
                 .unwrap_or_else(|| consts::NO_ERROR_CODE.to_string()),
             message: response
                 .error
-                .message
+                .code
                 .unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
-            reason: None,
+            reason: response.error.message,
         })
     }
 }
@@ -1262,12 +1271,13 @@ impl services::ConnectorIntegration<api::RSync, types::RefundsData, types::Refun
             code: response
                 .error
                 .code
+                .clone()
                 .unwrap_or_else(|| consts::NO_ERROR_CODE.to_string()),
             message: response
                 .error
-                .message
+                .code
                 .unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
-            reason: None,
+            reason: response.error.message,
         })
     }
 }
@@ -1397,12 +1407,13 @@ impl
             code: response
                 .error
                 .code
+                .clone()
                 .unwrap_or_else(|| consts::NO_ERROR_CODE.to_string()),
             message: response
                 .error
-                .message
+                .code
                 .unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
-            reason: None,
+            reason: response.error.message,
         })
     }
 }
@@ -1490,12 +1501,13 @@ impl
             code: response
                 .error
                 .code
+                .clone()
                 .unwrap_or_else(|| consts::NO_ERROR_CODE.to_string()),
             message: response
                 .error
-                .message
+                .code
                 .unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
-            reason: None,
+            reason: response.error.message,
         })
     }
 }
@@ -1606,12 +1618,13 @@ impl
             code: response
                 .error
                 .code
+                .clone()
                 .unwrap_or_else(|| consts::NO_ERROR_CODE.to_string()),
             message: response
                 .error
-                .message
+                .code
                 .unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
-            reason: None,
+            reason: response.error.message,
         })
     }
 }
@@ -1690,24 +1703,6 @@ impl api::IncomingWebhook for Stripe {
             String::from_utf8_lossy(request.body)
         )
         .into_bytes())
-    }
-
-    async fn get_webhook_source_verification_merchant_secret(
-        &self,
-        db: &dyn StorageInterface,
-        merchant_id: &str,
-    ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
-        let key = conn_utils::get_webhook_merchant_secret_key(self.id(), merchant_id);
-        let secret = match db.find_config_by_key(&key).await {
-            Ok(config) => Some(config),
-            Err(e) => {
-                crate::logger::warn!("Unable to fetch merchant webhook secret from DB: {:#?}", e);
-                None
-            }
-        };
-        Ok(secret
-            .map(|conf| conf.config.into_bytes())
-            .unwrap_or_default())
     }
 
     fn get_webhook_object_reference_id(
@@ -1903,7 +1898,9 @@ impl services::ConnectorRedirectResponse for Stripe {
             .map_or(
                 payments::CallConnectorAction::Trigger,
                 |status| match status {
-                    transformers::StripePaymentStatus::Failed => {
+                    transformers::StripePaymentStatus::Failed
+                    | transformers::StripePaymentStatus::Pending
+                    | transformers::StripePaymentStatus::Succeeded => {
                         payments::CallConnectorAction::Trigger
                     }
                     _ => payments::CallConnectorAction::StatusUpdate {

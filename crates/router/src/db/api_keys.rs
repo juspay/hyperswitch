@@ -246,7 +246,7 @@ impl ApiKeyInterface for MockDb {
     ) -> CustomResult<storage::ApiKey, errors::StorageError> {
         let mut locked_api_keys = self.api_keys.lock().await;
         // find a key with the given merchant_id and key_id and update, otherwise return an error
-        let mut key_to_update = locked_api_keys
+        let key_to_update = locked_api_keys
             .iter_mut()
             .find(|k| k.merchant_id == merchant_id && k.key_id == key_id)
             .ok_or(errors::StorageError::MockDbError)?;
@@ -470,7 +470,7 @@ mod tests {
     async fn test_api_keys_cache() {
         let db = MockDb::new(&Default::default()).await;
 
-        let redis_conn = db.get_redis_conn();
+        let redis_conn = db.get_redis_conn().unwrap();
         redis_conn
             .subscribe("hyperswitch_invalidate")
             .await

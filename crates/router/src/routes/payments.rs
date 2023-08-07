@@ -84,7 +84,7 @@ pub async fn payments_create(
 //     tag = "Payments",
 //     operation_id = "Start a Redirection Payment"
 // )]
-#[instrument(skip(state), fields(flow = ?Flow::PaymentsStart))]
+#[instrument(skip(state, req), fields(flow = ?Flow::PaymentsStart))]
 pub async fn payments_start(
     state: web::Data<app::AppState>,
     req: actix_web::HttpRequest,
@@ -135,7 +135,7 @@ pub async fn payments_start(
     operation_id = "Retrieve a Payment",
     security(("api_key" = []), ("publishable_key" = []))
 )]
-#[instrument(skip(state), fields(flow = ?Flow::PaymentsRetrieve))]
+#[instrument(skip(state, req), fields(flow = ?Flow::PaymentsRetrieve))]
 // #[get("/{payment_id}")]
 pub async fn payments_retrieve(
     state: web::Data<app::AppState>,
@@ -149,6 +149,7 @@ pub async fn payments_retrieve(
         merchant_id: json_payload.merchant_id.clone(),
         force_sync: json_payload.force_sync.unwrap_or(false),
         client_secret: json_payload.client_secret.clone(),
+        expand_attempts: json_payload.expand_attempts,
         ..Default::default()
     };
     let (auth_type, auth_flow) =
@@ -193,7 +194,7 @@ pub async fn payments_retrieve(
     operation_id = "Retrieve a Payment",
     security(("api_key" = []))
 )]
-#[instrument(skip(state), fields(flow = ?Flow::PaymentsRetrieve))]
+#[instrument(skip(state, req), fields(flow = ?Flow::PaymentsRetrieve))]
 // #[post("/sync")]
 pub async fn payments_retrieve_with_gateway_creds(
     state: web::Data<app::AppState>,
@@ -707,6 +708,28 @@ pub async fn payments_list(
         &req,
         payload,
         |state, auth, req| payments::list_payments(&*state.store, auth.merchant_account, req),
+        &auth::ApiKeyAuth,
+    )
+    .await
+}
+
+#[instrument(skip_all, fields(flow = ?Flow::PaymentsList))]
+#[cfg(feature = "olap")]
+pub async fn payments_list_by_filter(
+    state: web::Data<app::AppState>,
+    req: actix_web::HttpRequest,
+    payload: web::Json<payment_types::PaymentListFilterConstraints>,
+) -> impl Responder {
+    let flow = Flow::PaymentsList;
+    let payload = payload.into_inner();
+    api::server_wrap(
+        flow,
+        state.get_ref(),
+        &req,
+        payload,
+        |state, auth, req| {
+            payments::apply_filters_on_payments(&*state.store, auth.merchant_account, req)
+        },
         &auth::ApiKeyAuth,
     )
     .await

@@ -8,6 +8,7 @@ pub mod transformers;
 
 use std::{fmt::Debug, marker::PhantomData, ops::Deref, time::Instant};
 
+use api_models::payments::FrmMessage;
 use common_utils::pii;
 use diesel_models::ephemeral_key;
 use error_stack::{IntoReport, ResultExt};
@@ -49,6 +50,7 @@ pub async fn payments_operation_core<F, Req, Op, FData>(
     operation: Op,
     req: Req,
     call_connector_action: CallConnectorAction,
+    auth_flow: services::AuthFlow,
 ) -> RouterResult<(PaymentData<F>, Req, Option<domain::Customer>)>
 where
     F: Send + Clone + Sync,
@@ -70,7 +72,6 @@ where
     let operation: BoxedOperation<'_, F, Req> = Box::new(operation);
 
     tracing::Span::current().record("merchant_id", merchant_account.merchant_id.as_str());
-
     let (operation, validate_result) = operation
         .to_validate_request()?
         .validate_request(&req, &merchant_account)?;
@@ -85,6 +86,7 @@ where
             validate_result.mandate_type.to_owned(),
             &merchant_account,
             &key_store,
+            auth_flow,
         )
         .await?;
 
@@ -205,6 +207,7 @@ where
                 validate_result.storage_scheme,
                 updated_customer,
                 &key_store,
+                None,
             )
             .await?;
     }
@@ -246,6 +249,7 @@ where
         operation.clone(),
         req,
         call_connector_action,
+        auth_flow,
     )
     .await?;
 
@@ -256,6 +260,7 @@ where
         auth_flow,
         &state.conf.server,
         operation,
+        &state.conf.connector_request_reference_id_config,
     )
 }
 
@@ -424,7 +429,9 @@ impl PaymentRedirectFlow for PaymentRedirectCompleteAuthorize {
                         api_models::payments::NextActionData::RedirectToUrl { redirect_to_url } => Some(redirect_to_url),
                         api_models::payments::NextActionData::DisplayBankTransferInformation { .. } => None,
                         api_models::payments::NextActionData::ThirdPartySdkSessionToken { .. } => None,
-                        api_models::payments::NextActionData::QrCodeInformation{..} => None
+                        api_models::payments::NextActionData::QrCodeInformation{..} => None,
+                        api_models::payments::NextActionData::DisplayVoucherInformation{ .. } => None,
+                        api_models::payments::NextActionData::WaitScreenInformation{..} => None,
                     })
                     .ok_or(errors::ApiErrorResponse::InternalServerError)
                     .into_report()
@@ -442,7 +449,7 @@ impl PaymentRedirectFlow for PaymentRedirectCompleteAuthorize {
             // If the status is terminal status, then redirect to merchant return url to provide status
             api_models::enums::IntentStatus::Succeeded
             | api_models::enums::IntentStatus::Failed
-            | api_models::enums::IntentStatus::Cancelled | api_models::enums::IntentStatus::RequiresCapture=> helpers::get_handle_response_url(
+            | api_models::enums::IntentStatus::Cancelled | api_models::enums::IntentStatus::RequiresCapture| api_models::enums::IntentStatus::Processing=> helpers::get_handle_response_url(
                 payment_id,
                 &merchant_account,
                 payments_response,
@@ -479,6 +486,7 @@ impl PaymentRedirectFlow for PaymentRedirectSync {
                 }
             }),
             client_secret: None,
+            expand_attempts: None,
         };
         payments_core::<api::PSync, api::PaymentsResponse, _, _, _>(
             state,
@@ -623,6 +631,7 @@ where
             merchant_account.storage_scheme,
             updated_customer,
             key_store,
+            None,
         )
         .await?;
 
@@ -833,7 +842,9 @@ where
     let router_data_and_should_continue_payment = match payment_data.payment_method_data.clone() {
         Some(api_models::payments::PaymentMethodData::BankTransfer(data)) => match data.deref() {
             api_models::payments::BankTransferData::AchBankTransfer { .. }
-            | api_models::payments::BankTransferData::MultibancoBankTransfer { .. } => {
+            | api_models::payments::BankTransferData::MultibancoBankTransfer { .. }
+                if connector.connector_name == types::Connector::Stripe =>
+            {
                 if payment_data.payment_attempt.preprocessing_step_id.is_none() {
                     (
                         router_data.preprocessing_steps(state, connector).await?,
@@ -887,7 +898,7 @@ fn is_payment_method_type_allowed_for_connector(
     current_pm_type: &Option<storage::enums::PaymentMethodType>,
     pm_type_filter: Option<PaymentMethodTypeTokenFilter>,
 ) -> bool {
-    match current_pm_type.clone().zip(pm_type_filter) {
+    match (*current_pm_type).zip(pm_type_filter) {
         Some((pm_type, type_filter)) => match type_filter {
             PaymentMethodTypeTokenFilter::AllAccepted => true,
             PaymentMethodTypeTokenFilter::EnableOnly(enabled) => enabled.contains(&pm_type),
@@ -913,7 +924,12 @@ async fn decide_payment_method_tokenize_action(
             }
         }
         Some(token) => {
-            let redis_conn = state.store.get_redis_conn();
+            let redis_conn = state
+                .store
+                .get_redis_conn()
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Failed to get redis connection")?;
+
             let key = format!(
                 "pm_token_{}_{}_{}",
                 token.to_owned(),
@@ -1003,7 +1019,6 @@ where
                         .to_domain()?
                         .make_pm_data(state, &mut payment_data, validate_result.storage_scheme)
                         .await?;
-
                     payment_data.payment_method_data = payment_method_data;
                     TokenizationAction::SkipConnectorTokenization
                 }
@@ -1033,7 +1048,6 @@ where
                 .to_domain()?
                 .make_pm_data(state, &mut payment_data, validate_result.storage_scheme)
                 .await?;
-
             payment_data.payment_method_data = payment_method_data;
             (payment_data, TokenizationAction::SkipConnectorTokenization)
         }
@@ -1081,17 +1095,25 @@ where
     pub payment_method_data: Option<api::PaymentMethodData>,
     pub refunds: Vec<storage::Refund>,
     pub disputes: Vec<storage::Dispute>,
+    pub attempts: Option<Vec<storage::PaymentAttempt>>,
     pub sessions_token: Vec<api::SessionToken>,
     pub card_cvc: Option<Secret<String>>,
     pub email: Option<pii::Email>,
     pub creds_identifier: Option<String>,
     pub pm_token: Option<String>,
     pub connector_customer_id: Option<String>,
+    pub recurring_mandate_payment_data: Option<RecurringMandatePaymentData>,
     pub ephemeral_key: Option<ephemeral_key::EphemeralKey>,
     pub redirect_response: Option<api_models::payments::RedirectResponse>,
+    pub frm_message: Option<FrmMessage>,
 }
 
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Clone)]
+pub struct RecurringMandatePaymentData {
+    pub payment_method_type: Option<storage_enums::PaymentMethodType>, //required for making recurring payment using saved payment method through stripe
+}
+
+#[derive(Debug, Default, Clone)]
 pub struct CustomerDetails {
     pub customer_id: Option<String>,
     pub name: Option<Secret<String, masking::WithType>>,
@@ -1242,6 +1264,33 @@ pub async fn list_payments(
         .into_iter()
         .map(ForeignFrom::foreign_from)
         .collect();
+
+    Ok(services::ApplicationResponse::Json(
+        api::PaymentListResponse {
+            size: data.len(),
+            data,
+        },
+    ))
+}
+#[cfg(feature = "olap")]
+pub async fn apply_filters_on_payments(
+    db: &dyn StorageInterface,
+    merchant: domain::MerchantAccount,
+    constraints: api::PaymentListFilterConstraints,
+) -> RouterResponse<api::PaymentListResponse> {
+    use crate::types::transformers::ForeignFrom;
+
+    let list: Vec<(storage::PaymentIntent, storage::PaymentAttempt)> = db
+        .apply_filters_on_payments_list(
+            &merchant.merchant_id,
+            &constraints,
+            merchant.storage_scheme,
+        )
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
+
+    let data: Vec<api::PaymentsResponse> =
+        list.into_iter().map(ForeignFrom::foreign_from).collect();
 
     Ok(services::ApplicationResponse::Json(
         api::PaymentListResponse {

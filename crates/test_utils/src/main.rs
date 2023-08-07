@@ -4,8 +4,8 @@ use std::{
 };
 
 use clap::{arg, command, Parser};
-use router::types::ConnectorAuthType;
-use test_utils::connector_auth::ConnectorAuthenticationMap;
+use masking::PeekInterface;
+use test_utils::connector_auth::{ConnectorAuthType, ConnectorAuthenticationMap};
 
 // Just by the name of the connector, this function generates the name of the collection
 // Example: CONNECTOR_NAME="stripe" -> OUTPUT: postman/stripe.postman_collection.json
@@ -46,7 +46,6 @@ fn main() {
     // variables set up for certificate, will consider those variables and will fail.
 
     let mut newman_command = cmd::new("newman");
-
     newman_command.args(["run", &collection_path]);
     newman_command.args(["--env-var", &format!("admin_api_key={admin_api_key}")]);
     newman_command.args(["--env-var", &format!("baseUrl={base_url}")]);
@@ -54,14 +53,18 @@ fn main() {
     if let Some(auth_type) = inner_map.get(&connector_name) {
         match auth_type {
             ConnectorAuthType::HeaderKey { api_key } => {
-                newman_command.args(["--env-var", &format!("connector_api_key={api_key}")]);
+                // newman_command.args(["--env-var", &format!("connector_api_key={}", api_key.map(|val| val))]);
+                newman_command.args([
+                    "--env-var",
+                    &format!("connector_api_key={}", api_key.peek()),
+                ]);
             }
             ConnectorAuthType::BodyKey { api_key, key1 } => {
                 newman_command.args([
                     "--env-var",
-                    &format!("connector_api_key={api_key}"),
+                    &format!("connector_api_key={}", api_key.peek()),
                     "--env-var",
-                    &format!("connector_key1={key1}"),
+                    &format!("connector_key1={}", key1.peek()),
                 ]);
             }
             ConnectorAuthType::SignatureKey {
@@ -71,11 +74,11 @@ fn main() {
             } => {
                 newman_command.args([
                     "--env-var",
-                    &format!("connector_api_key={api_key}"),
+                    &format!("connector_api_key={}", api_key.peek()),
                     "--env-var",
-                    &format!("connector_key1={key1}"),
+                    &format!("connector_key1={}", key1.peek()),
                     "--env-var",
-                    &format!("connector_api_secret={api_secret}"),
+                    &format!("connector_api_secret={}", api_secret.peek()),
                 ]);
             }
             ConnectorAuthType::MultiAuthKey {
@@ -86,13 +89,13 @@ fn main() {
             } => {
                 newman_command.args([
                     "--env-var",
-                    &format!("connector_api_key={api_key}"),
+                    &format!("connector_api_key={}", api_key.peek()),
                     "--env-var",
-                    &format!("connector_key1={key1}"),
+                    &format!("connector_key1={}", key1.peek()),
                     "--env-var",
-                    &format!("connector_key1={key2}"),
+                    &format!("connector_key1={}", key2.peek()),
                     "--env-var",
-                    &format!("connector_api_secret={api_secret}"),
+                    &format!("connector_api_secret={}", api_secret.peek()),
                 ]);
             }
             // Handle other ConnectorAuthType variants
@@ -125,6 +128,8 @@ fn main() {
 
     newman_command.arg("--delay-request").arg("5");
 
+    newman_command.arg("--color").arg("on");
+
     // Execute the newman command
     let output = newman_command.spawn();
     let mut child = match output {
@@ -147,7 +152,7 @@ fn main() {
             }
         }
         Err(err) => {
-            eprintln!("Failed to wait for command execution: {}", err);
+            eprintln!("Failed to wait for command execution: {err}");
             exit(1);
         }
     };

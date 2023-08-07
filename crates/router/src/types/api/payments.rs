@@ -2,13 +2,13 @@ pub use api_models::payments::{
     AcceptanceType, Address, AddressDetails, Amount, AuthenticationForStartResponse, Card,
     CryptoData, CustomerAcceptance, MandateData, MandateTransactionType, MandateType,
     MandateValidationFields, NextActionType, OnlineMandate, PayLaterData, PaymentIdType,
-    PaymentListConstraints, PaymentListFilters, PaymentListResponse, PaymentMethodData,
-    PaymentMethodDataResponse, PaymentOp, PaymentRetrieveBody, PaymentRetrieveBodyWithCredentials,
-    PaymentsCancelRequest, PaymentsCaptureRequest, PaymentsRedirectRequest,
-    PaymentsRedirectionResponse, PaymentsRequest, PaymentsResponse, PaymentsResponseForm,
-    PaymentsRetrieveRequest, PaymentsSessionRequest, PaymentsSessionResponse, PaymentsStartRequest,
-    PgRedirectResponse, PhoneDetails, RedirectionResponse, SessionToken, TimeRange, UrlDetails,
-    VerifyRequest, VerifyResponse, WalletData,
+    PaymentListConstraints, PaymentListFilterConstraints, PaymentListFilters, PaymentListResponse,
+    PaymentMethodData, PaymentMethodDataResponse, PaymentOp, PaymentRetrieveBody,
+    PaymentRetrieveBodyWithCredentials, PaymentsCancelRequest, PaymentsCaptureRequest,
+    PaymentsRedirectRequest, PaymentsRedirectionResponse, PaymentsRequest, PaymentsResponse,
+    PaymentsResponseForm, PaymentsRetrieveRequest, PaymentsSessionRequest, PaymentsSessionResponse,
+    PaymentsStartRequest, PgRedirectResponse, PhoneDetails, RedirectionResponse, SessionToken,
+    TimeRange, UrlDetails, VerifyRequest, VerifyResponse, WalletData,
 };
 use error_stack::{IntoReport, ResultExt};
 use masking::PeekInterface;
@@ -69,8 +69,13 @@ pub struct AuthorizeSessionToken;
 #[derive(Debug, Clone)]
 pub struct CompleteAuthorize;
 
+// Used in gift cards balance check
+#[derive(Debug, Clone)]
+pub struct Balance;
+
 #[derive(Debug, Clone)]
 pub struct InitPayment;
+
 #[derive(Debug, Clone)]
 pub struct Capture;
 

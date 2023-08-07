@@ -1,10 +1,9 @@
-mod transformers;
+pub mod transformers;
 
 use std::fmt::Debug;
 
 use diesel_models::enums;
 use error_stack::{IntoReport, ResultExt};
-use transformers as dummyconnector;
 
 use super::utils::RefundsRequestData;
 use crate::{
@@ -74,16 +73,7 @@ where
 
 impl<const T: u8> ConnectorCommon for DummyConnector<T> {
     fn id(&self) -> &'static str {
-        match T {
-            1 => "phonypay",
-            2 => "fauxpay",
-            3 => "pretendpay",
-            4 => "stripe_test",
-            5 => "adyen_test",
-            6 => "checkout_test",
-            7 => "paypal_test",
-            _ => "phonypay",
-        }
+        Into::<transformers::DummyConnectors>::into(T).get_dummy_connector_id()
     }
 
     fn common_get_content_type(&self) -> &'static str {
@@ -98,7 +88,7 @@ impl<const T: u8> ConnectorCommon for DummyConnector<T> {
         &self,
         auth_type: &types::ConnectorAuthType,
     ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
-        let auth = dummyconnector::DummyConnectorAuthType::try_from(auth_type)
+        let auth = transformers::DummyConnectorAuthType::try_from(auth_type)
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
         Ok(vec![(
             headers::AUTHORIZATION.to_string(),
@@ -110,7 +100,7 @@ impl<const T: u8> ConnectorCommon for DummyConnector<T> {
         &self,
         res: Response,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        let response: dummyconnector::DummyConnectorErrorResponse = res
+        let response: transformers::DummyConnectorErrorResponse = res
             .response
             .parse_struct("DummyConnectorErrorResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
@@ -166,10 +156,12 @@ impl<const T: u8>
     ) -> CustomResult<String, errors::ConnectorError> {
         match req.payment_method {
             enums::PaymentMethod::Card => Ok(format!("{}/payment", self.base_url(connectors))),
+            enums::PaymentMethod::Wallet => Ok(format!("{}/payment", self.base_url(connectors))),
+            enums::PaymentMethod::PayLater => Ok(format!("{}/payment", self.base_url(connectors))),
             _ => Err(error_stack::report!(errors::ConnectorError::NotSupported {
                 message: format!("The payment method {} is not supported", req.payment_method),
-                connector: "dummyconnector",
-                payment_experience: api::enums::PaymentExperience::InvokeSdkClient.to_string(),
+                connector: Into::<transformers::DummyConnectors>::into(T).get_dummy_connector_id(),
+                payment_experience: api::enums::PaymentExperience::RedirectToUrl.to_string(),
             })),
         }
     }
@@ -178,12 +170,12 @@ impl<const T: u8>
         &self,
         req: &types::PaymentsAuthorizeRouterData,
     ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
-        let connector_request = dummyconnector::DummyConnectorPaymentsRequest::try_from(req)?;
+        let connector_request = transformers::DummyConnectorPaymentsRequest::<T>::try_from(req)?;
         let dummmy_payments_request = types::RequestBody::log_and_get_request_body(
-                &connector_request,
-                utils::Encode::<dummyconnector::DummyConnectorPaymentsRequest>::encode_to_string_of_json,
-            )
-            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+            &connector_request,
+            utils::Encode::<transformers::DummyConnectorPaymentsRequest::<T>>::encode_to_string_of_json,
+        )
+        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(Some(dummmy_payments_request))
     }
 
@@ -212,10 +204,11 @@ impl<const T: u8>
         data: &types::PaymentsAuthorizeRouterData,
         res: Response,
     ) -> CustomResult<types::PaymentsAuthorizeRouterData, errors::ConnectorError> {
-        let response: dummyconnector::PaymentsResponse = res
+        let response: transformers::PaymentsResponse = res
             .response
-            .parse_struct("DummyConnector PaymentsAuthorizeResponse")
+            .parse_struct("DummyConnector PaymentsResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        println!("handle_response: {:#?}", response);
         types::RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
@@ -289,7 +282,7 @@ impl<const T: u8>
         data: &types::PaymentsSyncRouterData,
         res: Response,
     ) -> CustomResult<types::PaymentsSyncRouterData, errors::ConnectorError> {
-        let response: dummyconnector::PaymentsResponse = res
+        let response: transformers::PaymentsResponse = res
             .response
             .parse_struct("dummyconnector PaymentsSyncResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
@@ -362,9 +355,9 @@ impl<const T: u8>
         data: &types::PaymentsCaptureRouterData,
         res: Response,
     ) -> CustomResult<types::PaymentsCaptureRouterData, errors::ConnectorError> {
-        let response: dummyconnector::PaymentsResponse = res
+        let response: transformers::PaymentsResponse = res
             .response
-            .parse_struct("DummyConnector PaymentsCaptureResponse")
+            .parse_struct("transformers PaymentsCaptureResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         types::RouterData::try_from(types::ResponseRouterData {
             response,
@@ -419,10 +412,10 @@ impl<const T: u8> ConnectorIntegration<api::Execute, types::RefundsData, types::
         &self,
         req: &types::RefundsRouterData<api::Execute>,
     ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
-        let connector_request = dummyconnector::DummyConnectorRefundRequest::try_from(req)?;
+        let connector_request = transformers::DummyConnectorRefundRequest::try_from(req)?;
         let dummmy_refund_request = types::RequestBody::log_and_get_request_body(
             &connector_request,
-            utils::Encode::<dummyconnector::DummyConnectorRefundRequest>::encode_to_string_of_json,
+            utils::Encode::<transformers::DummyConnectorRefundRequest>::encode_to_string_of_json,
         )
         .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(Some(dummmy_refund_request))
@@ -450,9 +443,9 @@ impl<const T: u8> ConnectorIntegration<api::Execute, types::RefundsData, types::
         data: &types::RefundsRouterData<api::Execute>,
         res: Response,
     ) -> CustomResult<types::RefundsRouterData<api::Execute>, errors::ConnectorError> {
-        let response: dummyconnector::RefundResponse = res
+        let response: transformers::RefundResponse = res
             .response
-            .parse_struct("dummyconnector RefundResponse")
+            .parse_struct("transformers RefundResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         types::RouterData::try_from(types::ResponseRouterData {
             response,
@@ -519,9 +512,9 @@ impl<const T: u8> ConnectorIntegration<api::RSync, types::RefundsData, types::Re
         data: &types::RefundSyncRouterData,
         res: Response,
     ) -> CustomResult<types::RefundSyncRouterData, errors::ConnectorError> {
-        let response: dummyconnector::RefundResponse = res
+        let response: transformers::RefundResponse = res
             .response
-            .parse_struct("dummyconnector RefundSyncResponse")
+            .parse_struct("transformers RefundSyncResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         types::RouterData::try_from(types::ResponseRouterData {
             response,

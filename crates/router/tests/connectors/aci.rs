@@ -11,7 +11,7 @@ use router::{
 };
 use tokio::sync::oneshot;
 
-use crate::connector_auth::ConnectorAuthentication;
+use crate::{connector_auth::ConnectorAuthentication, utils};
 
 fn construct_payment_router_data() -> types::PaymentsAuthorizeRouterData {
     let auth = ConnectorAuthentication::new()
@@ -28,7 +28,7 @@ fn construct_payment_router_data() -> types::PaymentsAuthorizeRouterData {
         status: enums::AttemptStatus::default(),
         auth_type: enums::AuthenticationType::NoThreeDs,
         payment_method: enums::PaymentMethod::Card,
-        connector_auth_type: auth.into(),
+        connector_auth_type: utils::to_connector_auth_type(auth.into()),
         description: Some("This is a test".to_string()),
         return_url: None,
         request: types::PaymentsAuthorizeData {
@@ -79,8 +79,15 @@ fn construct_payment_router_data() -> types::PaymentsAuthorizeRouterData {
         reference_id: None,
         payment_method_token: None,
         connector_customer: None,
+        recurring_mandate_payment_data: None,
         preprocessing_id: None,
         connector_request_reference_id: uuid::Uuid::new_v4().to_string(),
+        #[cfg(feature = "payouts")]
+        payout_method_data: None,
+        #[cfg(feature = "payouts")]
+        quote_id: None,
+        test_mode: None,
+        payment_method_balance: None,
     }
 }
 
@@ -99,7 +106,7 @@ fn construct_refund_router_data<F>() -> types::RefundsRouterData<F> {
         status: enums::AttemptStatus::default(),
         payment_method: enums::PaymentMethod::Card,
         auth_type: enums::AuthenticationType::NoThreeDs,
-        connector_auth_type: auth.into(),
+        connector_auth_type: utils::to_connector_auth_type(auth.into()),
         description: Some("This is a test".to_string()),
         return_url: None,
         request: types::RefundsData {
@@ -124,8 +131,15 @@ fn construct_refund_router_data<F>() -> types::RefundsRouterData<F> {
         reference_id: None,
         payment_method_token: None,
         connector_customer: None,
+        recurring_mandate_payment_data: None,
         preprocessing_id: None,
         connector_request_reference_id: uuid::Uuid::new_v4().to_string(),
+        #[cfg(feature = "payouts")]
+        payout_method_data: None,
+        #[cfg(feature = "payouts")]
+        quote_id: None,
+        test_mode: None,
+        payment_method_balance: None,
     }
 }
 

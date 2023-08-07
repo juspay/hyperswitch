@@ -10,6 +10,7 @@ pub mod payment_start;
 pub mod payment_status;
 pub mod payment_update;
 
+use api_models::enums::CancelTransaction;
 use async_trait::async_trait;
 use error_stack::{report, ResultExt};
 use router_env::{instrument, tracing};
@@ -26,6 +27,7 @@ use crate::{
     core::errors::{self, CustomResult, RouterResult},
     db::StorageInterface,
     routes::AppState,
+    services,
     types::{
         self, api, domain,
         storage::{self, enums},
@@ -94,6 +96,7 @@ pub trait GetTracker<F, D, R>: Send {
         mandate_type: Option<api::MandateTransactionType>,
         merchant_account: &domain::MerchantAccount,
         mechant_key_store: &domain::MerchantKeyStore,
+        auth_flow: services::AuthFlow,
     ) -> RouterResult<(BoxedOperation<'a, F, R>, D, Option<CustomerDetails>)>;
 }
 
@@ -147,6 +150,7 @@ pub trait UpdateTracker<F, D, Req>: Send {
         storage_scheme: enums::MerchantStorageScheme,
         updated_customer: Option<storage::CustomerUpdate>,
         mechant_key_store: &domain::MerchantKeyStore,
+        should_cancel_transaction: Option<CancelTransaction>,
     ) -> RouterResult<(BoxedOperation<'b, F, Req>, D)>
     where
         F: 'b + Send;
