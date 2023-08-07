@@ -101,8 +101,13 @@ jobs:
         run: sed -i 's/rustflags = \[/rustflags = \[\n    "-Dwarnings",/' .cargo/config.toml
 
       - name: Cargo hack
+        if: ${{ github.event.pull_request.merged }}
         shell: bash
         run: cargo hack check --each-feature --no-dev-deps
+      
+      - name: Cargo build release
+        shell: bash
+        run: cargo hack check --features "release" --no-dev-deps
 
   # cargo-deny:
   #   name: Run cargo-deny
@@ -179,8 +184,13 @@ jobs:
         run: cargo clippy --all-features --all-targets
 
       - name: Cargo hack
+        if: ${{ github.event.pull_request.merged }}
         shell: bash
         run: cargo hack check --each-feature --no-dev-deps
+
+      - name: Cargo build release
+        shell: bash
+        run: cargo hack check --features "release" --no-dev-deps
 
   typos:
     name: Spell check
