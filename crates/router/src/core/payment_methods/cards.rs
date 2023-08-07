@@ -1453,8 +1453,6 @@ fn filter_pm_card_network_based(
     request_card_networks: Option<&Vec<api_enums::CardNetwork>>,
     pm_type: &api_enums::PaymentMethodType,
 ) -> bool {
-    logger::debug!(pm_card_networks=?pm_card_networks);
-    logger::debug!(request_card_networks=?request_card_networks);
     match pm_type {
         api_enums::PaymentMethodType::Credit | api_enums::PaymentMethodType::Debit => {
             match (pm_card_networks, request_card_networks) {
