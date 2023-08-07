@@ -129,7 +129,6 @@ jobs:
           CONNECTORS_PATH: ${{ secrets.CONNECTORS_PATH }}
         shell: bash
         run: |
-          # Get connectors from secrets
           apt install net-tools
           sh .github/scripts/connector_validate.sh
 
