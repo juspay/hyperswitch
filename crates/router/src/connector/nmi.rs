@@ -1,4 +1,4 @@
-mod transformers;
+pub mod transformers;
 
 use std::fmt::Debug;
 
@@ -58,13 +58,6 @@ impl ConnectorCommon for Nmi {
 
     fn base_url<'a>(&self, connectors: &'a settings::Connectors) -> &'a str {
         connectors.nmi.base_url.as_ref()
-    }
-    fn validate_auth_type(
-        &self,
-        val: &types::ConnectorAuthType,
-    ) -> Result<(), error_stack::Report<errors::ConnectorError>> {
-        nmi::NmiAuthType::try_from(val)?;
-        Ok(())
     }
 
     fn build_error_response(

@@ -1,4 +1,4 @@
-mod transformers;
+pub mod transformers;
 use std::fmt::Debug;
 
 use api_models::payments as api_payments;
@@ -33,14 +33,6 @@ impl ConnectorCommon for Klarna {
 
     fn common_get_content_type(&self) -> &'static str {
         "application/json"
-    }
-
-    fn validate_auth_type(
-        &self,
-        val: &types::ConnectorAuthType,
-    ) -> Result<(), error_stack::Report<errors::ConnectorError>> {
-        klarna::KlarnaAuthType::try_from(val)?;
-        Ok(())
     }
 
     fn base_url<'a>(&self, connectors: &'a settings::Connectors) -> &'a str {
