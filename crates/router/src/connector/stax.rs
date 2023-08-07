@@ -1,4 +1,4 @@
-mod transformers;
+pub mod transformers;
 
 use std::fmt::Debug;
 
@@ -65,13 +65,6 @@ where
 impl ConnectorCommon for Stax {
     fn id(&self) -> &'static str {
         "stax"
-    }
-    fn validate_auth_type(
-        &self,
-        val: &types::ConnectorAuthType,
-    ) -> Result<(), error_stack::Report<errors::ConnectorError>> {
-        stax::StaxAuthType::try_from(val)?;
-        Ok(())
     }
 
     fn common_get_content_type(&self) -> &'static str {
