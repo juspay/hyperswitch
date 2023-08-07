@@ -978,10 +978,22 @@
                 "$ref": "#/components/schemas/PaymentsCreateRequest"
               },
               "examples": {
+                "Create a 3DS payment": {
+                  "value": "{\n    \"amount\": 6540,\n    \"currency\": \"USD\",\n    \"authentication_type\" : \"three_ds\"\n}"
+                },
                 "Create a manual capture payment": {
                   "value": "{\n    \"amount\": 6540,\n    \"currency\": \"USD\",\n    \"capture_method\":\"manual\"\n}"
                 },
                 "Create a payment": {
+                  "value": "{\n    \"amount\": 6540,\n    \"currency\": \"USD\",\n    \"customer\": {\n        \"id\":\"cus_abcdefgh\",\n        \"name\":\"John Dough\",\n        \"phone\":\"9999999999\",\n        \"email\":\"john@example.com\"\n    },\n    \"description\": \"Its my first payment request\",\n    \"statement_descriptor_name\": \"joseph\",\n    \"statement_descriptor_suffix\": \"JS\",\n}"
+                },
+                "Create a payment with address": {
+                  "value": "{\n    \"amount\": 6540,\n    \"currency\": \"USD\",\n    \"customer\": {\n        \"id\" : \"cus_abcdefgh\"\n    },\n    \"billing\": {\n        \"address\": {\n            \"line1\": \"1467\",\n            \"line2\": \"Harrison Street\",\n            \"line3\": \"Harrison Street\",\n            \"city\": \"San Fransico\",\n            \"state\": \"California\",\n            \"zip\": \"94122\",\n            \"country\": \"US\",\n            \"first_name\": \"joseph\",\n            \"last_name\": \"Doe\"\n        },\n        \"phone\": {\n            \"number\": \"8056594427\",\n            \"country_code\": \"+91\"\n        }\n  }\n}"
+                },
+                "Create a payment with customer details": {
+                  "value": "{\n    \"amount\": 6540,\n    \"currency\": \"USD\",\n    \"customer\": {\n        \"id\":\"cus_abcdefgh\",\n        \"name\":\"John Dough\",\n        \"phone\":\"9999999999\",\n        \"email\":\"john@example.com\"\n    }\n}"
+                },
+                "Create a payment with minimul fields": {
                   "value": "{\n    \"amount\": 6540,\n    \"currency\": \"USD\",\n}"
                 }
               }
