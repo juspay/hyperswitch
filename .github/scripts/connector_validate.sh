@@ -93,23 +93,16 @@ fi
 failed_connectors=()
 validated_connectors=()
 
-for i in $(echo "$CONNECTORS" | tr "," "\n"); do
-    for j in "$FOLDERS"; do
-        connector_folder="$j%%:*"
-        if [[ " ${validated_connectors[*]} " =~ " $connector_folder " ]]; then
-            continue
-        else
-            validated_connectors+=("$connector_folder")
-            if ! cargo run --bin test_utils -- --connector_name="$i" --base_url="$BASE_URL" --admin_api_key="$ADMIN_API_KEY" --folder_name="$j"; then
+for i in $(echo "$FILTERED_CONNECTORS" | tr "," "\n"); do
+    if [[ -n $FOLDERS && ! " ${validated_connectors[*]} " =~ " $connector " ]]; then
+            for j in "$FOLDERS"; do
+                IFS=':' read -r connector connector_folder <<< "$j"
+                only_folders="${j//$connector:/}"
+                echo "cargo run --bin test_utils -- --connector_name=$connector --base_url=$BASE_URL --admin_api_key=$ADMIN_API_KEY --folder_name=$only_folders"
                 failed_connectors+=("$i")
-            fi
-        fi
-    done
+            done
+            validated_connectors+=("$connector")
+    fi
+    echo "cargo run --bin test_utils -- --connector_name=$i --base_url=$BASE_URL --admin_api_key=$ADMIN_API_KEY"
+    failed_connectors+=("$i")
 done
-
-if [ ${#failed_connectors[@]} -gt 0 ]; then
-    echo -e "${RED}One or more connectors failed to run:${RESET}"
-    printf '%s\n' "${failed_connectors[@]}"
-    exit 1
-fi
-    

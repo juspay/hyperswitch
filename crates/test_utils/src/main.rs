@@ -129,7 +129,7 @@ fn main() {
         ]);
     }
 
-    // Add flags for running specifc folders
+    // Add flags for running specific folders
     if args.folder_name.is_some() {
         newman_command.args(["--folder", args.folder_name.unwrap_or_default().as_str()]);
     }
