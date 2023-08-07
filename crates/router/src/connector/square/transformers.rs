@@ -102,7 +102,7 @@ pub struct StaxPaymentsRequestExternalDetails {
     #[serde(rename = "type")]
     source_type: String,
 }
-//TODO: Fill the struct with respective fields
+
 #[derive(Debug, Serialize)]
 pub struct SquarePaymentsRequest {
     amount_money: StaxPaymentsAmountData,
@@ -135,7 +135,6 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for SquarePaymentsRequest {
     }
 }
 
-//TODO: Fill the struct with respective fields
 // Auth Struct
 pub struct SquareAuthType {
     pub(super) api_key: Secret<String>,
@@ -153,8 +152,7 @@ impl TryFrom<&types::ConnectorAuthType> for SquareAuthType {
     }
 }
 // PaymentsResponse
-//TODO: Append the remaining status flags
-#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Default, Deserialize)]
 #[serde(rename_all = "UPPERCASE")]
 pub enum SquarePaymentStatus {
     Completed,
@@ -178,7 +176,6 @@ impl From<SquarePaymentStatus> for enums::AttemptStatus {
     }
 }
 
-//TODO: Fill the struct with respective fields
 #[derive(Debug, Deserialize)]
 pub struct SquarePaymentsResponseDetails {
     status: SquarePaymentStatus,
@@ -214,7 +211,6 @@ impl<F, T>
     }
 }
 
-//TODO: Fill the struct with respective fields
 // REFUND :
 // Type definition for RefundRequest
 #[derive(Debug, Serialize)]
@@ -238,7 +234,7 @@ impl<F> TryFrom<&types::RefundsRouterData<F>> for SquareRefundRequest {
     }
 }
 
-#[derive(Debug, Serialize, Default, Deserialize, Clone)]
+#[derive(Debug, Default, Deserialize)]
 #[serde(rename_all = "UPPERCASE")]
 pub enum RefundStatus {
     Completed,
@@ -302,7 +298,6 @@ impl TryFrom<types::RefundsResponseRouterData<api::RSync, RefundResponse>>
     }
 }
 
-//TODO: Fill the struct with respective fields
 #[derive(Default, Debug, Serialize, Deserialize, PartialEq)]
 pub struct SquareErrorResponse {
     pub status_code: u16,

@@ -166,12 +166,6 @@ impl
     ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
         let connector_request = square::SquareTokenRequest::try_from(req)?;
 
-        // let squarerequest = utils::Encode::<square::SquareTokenRequest>::encode_to_string_of_json(
-        //     &connector_request,
-        // )
-        // .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-        // println!("$$$$$ {:?}", squarerequest);
-
         let square_req = types::RequestBody::log_and_get_request_body(
             &connector_request,
             utils::Encode::<square::SquareTokenRequest>::encode_to_string_of_json,
