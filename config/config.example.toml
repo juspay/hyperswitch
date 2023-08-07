@@ -294,7 +294,7 @@ base_url = "" # Base url used when adding links that should redirect to self
 #tokenization configuration which describe token lifetime and payment method for specific connector
 [tokenization]
 stripe = { long_lived_token = false, payment_method = "wallet", payment_method_type = { type = "disable_only", list = "google_pay" } }
-checkout = { long_lived_token = false, payment_method = "wallet" }
+checkout = { long_lived_token = false, payment_method = "wallet", payment_method_type = { type = "disable_only", list = "apple_pay" } }
 mollie = {long_lived_token = false, payment_method = "card"}
 stax = { long_lived_token = true, payment_method = "card" }
 
@@ -380,3 +380,6 @@ adyen.banks = "affin_bank,agro_bank,alliance_bank,am_bank,bank_islam,bank_muamal
 
 [bank_config.online_banking_thailand]
 adyen.banks = "bangkok_bank,krungsri_bank,krung_thai_bank,the_siam_commercial_bank,kasikorn_bank"
+
+[apple_pay_predecrypt]
+connectors_with_apple_pay_predecrypt = "checkout" #List of connectors which supports Apple Pay predecrypt

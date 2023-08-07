@@ -93,6 +93,7 @@ pub struct Settings {
     pub connector_request_reference_id_config: ConnectorRequestReferenceIdConfig,
     #[cfg(feature = "payouts")]
     pub payouts: Payouts,
+    pub apple_pay_predecrypt: ApplePayPredecryptConfig,
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
@@ -598,8 +599,14 @@ pub struct FileUploadConfig {
 
 #[derive(Debug, Deserialize, Clone, Default)]
 pub struct DelayedSessionConfig {
-    #[serde(deserialize_with = "delayed_session_deser")]
+    #[serde(deserialize_with = "deser_to_get_connectors")]
     pub connectors_with_delayed_session_response: HashSet<api_models::enums::Connector>,
+}
+
+#[derive(Debug, Deserialize, Clone, Default)]
+pub struct ApplePayPredecryptConfig {
+    #[serde(deserialize_with = "deser_to_get_connectors")]
+    pub connectors_with_apple_pay_predecrypt: HashSet<api_models::enums::Connector>,
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
@@ -607,7 +614,7 @@ pub struct ConnectorRequestReferenceIdConfig {
     pub merchant_ids_send_payment_id_as_connector_request_id: HashSet<String>,
 }
 
-fn delayed_session_deser<'a, D>(
+fn deser_to_get_connectors<'a, D>(
     deserializer: D,
 ) -> Result<HashSet<api_models::enums::Connector>, D::Error>
 where

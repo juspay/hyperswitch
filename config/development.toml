@@ -345,7 +345,7 @@ debit = { currency = "USD" }
 
 [tokenization]
 stripe = { long_lived_token = false, payment_method = "wallet", payment_method_type = { type = "disable_only", list = "google_pay" } }
-checkout = { long_lived_token = false, payment_method = "wallet" }
+checkout = { long_lived_token = false, payment_method = "wallet", payment_method_type = { type = "disable_only", list = "apple_pay" } }
 stax = { long_lived_token = true, payment_method = "card" }
 mollie = {long_lived_token = false, payment_method = "card"}
 
@@ -388,3 +388,6 @@ merchant_ids_send_payment_id_as_connector_request_id = []
 
 [payouts]
 payout_eligibility = true
+
+[apple_pay_predecrypt]
+connectors_with_apple_pay_predecrypt = "checkout"

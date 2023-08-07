@@ -577,6 +577,13 @@ where
         router_data.payment_method_token = Some(payment_method_token);
     };
 
+    // Tokenization Action will be DecryptApplePayToken, only when payment method type is Apple Pay
+    // and the connector supports Apple Pay predecrypt
+    if tokenization_action.eq(&TokenizationAction::DecryptApplePayToken) {
+        // Decrypt the payment token and use it in payment_method_token
+        println!("Apple Pay Predecrypt");
+    }
+
     (router_data, should_continue_further) = complete_preprocessing_steps_if_required(
         state,
         &connector,
@@ -894,6 +901,26 @@ fn is_payment_method_tokenization_enabled_for_connector(
         .unwrap_or(false))
 }
 
+fn is_apple_pay_predecrypt_enabled(
+    state: &AppState,
+    connector_name: &str,
+    payment_method_type: &Option<storage::enums::PaymentMethodType>,
+) -> RouterResult<bool> {
+    let apple_pay_predecrypt = &state.conf.apple_pay_predecrypt;
+    let connector = api::ConnectorData::get_connector_by_name(
+        &state.conf.connectors,
+        connector_name,
+        api::GetToken::Connector,
+    )?;
+    let is_connector_supporting_apple_pay_predecrypt = apple_pay_predecrypt
+        .connectors_with_apple_pay_predecrypt
+        .contains(&connector.connector_name);
+    let is_pmt_apple_pay = payment_method_type
+        .map(|pmt| pmt.eq(&storage::enums::PaymentMethodType::ApplePay))
+        .unwrap_or(false);
+    Ok(is_connector_supporting_apple_pay_predecrypt && is_pmt_apple_pay)
+}
+
 fn is_payment_method_type_allowed_for_connector(
     current_pm_type: &Option<storage::enums::PaymentMethodType>,
     pm_type_filter: Option<PaymentMethodTypeTokenFilter>,
@@ -914,11 +941,14 @@ async fn decide_payment_method_tokenize_action(
     payment_method: &storage::enums::PaymentMethod,
     pm_parent_token: Option<&String>,
     is_connector_tokenization_enabled: bool,
+    is_apple_pay_predecrypt_supported: bool,
 ) -> RouterResult<TokenizationAction> {
     match pm_parent_token {
         None => {
             if is_connector_tokenization_enabled {
                 Ok(TokenizationAction::TokenizeInConnectorAndRouter)
+            } else if is_apple_pay_predecrypt_supported {
+                Ok(TokenizationAction::DecryptApplePayToken)
             } else {
                 Ok(TokenizationAction::TokenizeInRouter)
             }
@@ -948,6 +978,8 @@ async fn decide_payment_method_tokenize_action(
                 None => {
                     if is_connector_tokenization_enabled {
                         Ok(TokenizationAction::TokenizeInConnector)
+                    } else if is_apple_pay_predecrypt_supported {
+                        Ok(TokenizationAction::DecryptApplePayToken)
                     } else {
                         Ok(TokenizationAction::TokenizeInRouter)
                     }
@@ -957,13 +989,14 @@ async fn decide_payment_method_tokenize_action(
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Eq, PartialEq)]
 pub enum TokenizationAction {
     TokenizeInRouter,
     TokenizeInConnector,
     TokenizeInConnectorAndRouter,
     ConnectorToken(String),
     SkipConnectorTokenization,
+    DecryptApplePayToken,
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -1004,12 +1037,16 @@ where
                     payment_method_type,
                 )?;
 
+            let is_apple_pay_predecrypt =
+                is_apple_pay_predecrypt_enabled(state, &connector, payment_method_type)?;
+
             let payment_method_action = decide_payment_method_tokenize_action(
                 state,
                 &connector,
                 payment_method,
                 payment_data.token.as_ref(),
                 is_connector_tokenization_enabled,
+                is_apple_pay_predecrypt,
             )
             .await?;
 
@@ -1039,6 +1076,9 @@ where
                 }
                 TokenizationAction::SkipConnectorTokenization => {
                     TokenizationAction::SkipConnectorTokenization
+                }
+                TokenizationAction::DecryptApplePayToken => {
+                    TokenizationAction::DecryptApplePayToken
                 }
             };
             (payment_data, connector_tokenization_action)
