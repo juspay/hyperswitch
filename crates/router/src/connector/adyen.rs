@@ -385,6 +385,17 @@ impl
                             ),
                         }
                     }
+                    adyen::AdyenRedirectRequestTypes::AdyenRefusal(req) => {
+                        adyen::AdyenRedirectRequest {
+                            details: adyen::AdyenRedirectRequestTypes::AdyenRefusal(
+                                adyen::AdyenRefusal {
+                                    payload: req.payload,
+                                    type_of_redirection_result: None,
+                                    result_code: None,
+                                },
+                            ),
+                        }
+                    }
                 };
 
                 let adyen_request = types::RequestBody::log_and_get_request_body(
