@@ -101,12 +101,12 @@ jobs:
         run: sed -i 's/rustflags = \[/rustflags = \[\n    "-Dwarnings",/' .cargo/config.toml
 
       - name: Cargo hack
-        if: ${{ github.event.pull_request.merged }}
+        if: ${{ github.event_name == 'push' }}
         shell: bash
         run: cargo hack check --each-feature --no-dev-deps
       
       - name: Cargo build release
-        if: ${{ !github.event.pull_request.merged }}
+        if: ${{ github.event_name == 'merge_group' }}
         shell: bash
         run: cargo check --features "release"
 
@@ -185,12 +185,12 @@ jobs:
         run: cargo clippy --all-features --all-targets
 
       - name: Cargo hack
-        if: ${{ github.event.pull_request.merged }}
+        if: ${{ github.event_name == 'merge_group' }}
         shell: bash
         run: cargo hack check --each-feature --no-dev-deps
 
       - name: Cargo build release
-        if: ${{ !github.event.pull_request.merged }}
+        if: ${{ github.event_name == 'merge_group' }}
         shell: bash
         run: cargo check --features "release"
 
