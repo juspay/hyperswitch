@@ -19,17 +19,32 @@ use crate::{
 type Error = error_stack::Report<errors::ConnectorError>;
 
 #[derive(Debug, Serialize)]
+pub struct Shift4PaymentsRequest {
+    amount: String,
+    currency: enums::Currency,
+    captured: bool,
+    #[serde(flatten)]
+    payment_method: Shift4PaymentMethod,
+}
+
+#[derive(Debug, Serialize)]
 #[serde(untagged)]
-pub enum Shift4PaymentsRequest {
-    Non3DSRequest(Box<Shift4Non3DSRequest>),
-    ThreeDSRequest(Box<Shift43DSRequest>),
+pub enum Shift4PaymentMethod {
+    CardsNon3DSRequest(Box<CardsNon3DSRequest>),
+    Shift4BankRedirectRequest(Box<Shift4BankRedirectRequest>),
+    CardsThreeDSRequest(Box<CardsThreeDSRequest>),
 }
 
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
-pub struct Shift43DSRequest {
-    amount: String,
-    currency: String,
+pub struct Shift4BankRedirectRequest {
+    payment_method: PaymentMethod,
+    flow: Flow,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CardsThreeDSRequest {
     #[serde(rename = "card[number]")]
     pub card_number: CardNumber,
     #[serde(rename = "card[expMonth]")]
@@ -42,14 +57,9 @@ pub struct Shift43DSRequest {
 #[serde_with::skip_serializing_none]
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
-pub struct Shift4Non3DSRequest {
-    amount: String,
-    card: Option<CardPayment>,
-    currency: String,
+pub struct CardsNon3DSRequest {
+    card: CardPayment,
     description: Option<String>,
-    payment_method: Option<PaymentMethod>,
-    captured: bool,
-    flow: Option<Flow>,
 }
 
 #[derive(Debug, Serialize)]
@@ -71,7 +81,7 @@ pub enum PaymentMethodType {
 pub struct PaymentMethod {
     #[serde(rename = "type")]
     method_type: PaymentMethodType,
-    billing: Option<Billing>,
+    billing: Billing,
 }
 
 #[derive(Debug, Serialize)]
@@ -138,15 +148,17 @@ impl<T> TryFrom<&types::RouterData<T, types::CompleteAuthorizeData, types::Payme
             Some(api::PaymentMethodData::Card(_)) => {
                 let card_token: Shift4CardToken =
                     to_connector_meta(item.request.connector_meta.clone())?;
-                Ok(Self::Non3DSRequest(Box::new(Shift4Non3DSRequest {
+                Ok(Self {
                     amount: item.request.amount.to_string(),
-                    card: Some(CardPayment::CardToken(card_token.id)),
-                    currency: item.request.currency.to_string(),
-                    description: item.description.clone(),
+                    currency: item.request.currency,
+                    payment_method: Shift4PaymentMethod::CardsNon3DSRequest(Box::new(
+                        CardsNon3DSRequest {
+                            card: CardPayment::CardToken(card_token.id),
+                            description: item.description.clone(),
+                        },
+                    )),
                     captured: item.request.is_auto_capture()?,
-                    payment_method: None,
-                    flow: None,
-                })))
+                })
             }
             _ => Err(errors::ConnectorError::NotImplemented("Payment Method".to_string()).into()),
         }
@@ -157,66 +169,63 @@ fn get_card_payment_request<T>(
     item: &types::RouterData<T, types::PaymentsAuthorizeData, types::PaymentsResponseData>,
     card: &api_models::payments::Card,
 ) -> Result<Shift4PaymentsRequest, Error> {
-    let submit_for_settlement = item.request.is_auto_capture()?;
+    let captured = item.request.is_auto_capture()?;
     let card = Card {
         number: card.card_number.clone(),
         exp_month: card.card_exp_month.clone(),
         exp_year: card.card_exp_year.clone(),
         cardholder_name: card.card_holder_name.clone(),
     };
-    if item.is_three_ds() {
-        Ok(Shift4PaymentsRequest::ThreeDSRequest(Box::new(
-            Shift43DSRequest {
-                amount: item.request.amount.to_string(),
-                currency: item.request.currency.to_string(),
-                card_number: card.number,
-                card_exp_month: card.exp_month,
-                card_exp_year: card.exp_year,
-                return_url: item
-                    .request
-                    .complete_authorize_url
-                    .clone()
-                    .ok_or_else(|| errors::ConnectorError::RequestEncodingFailed)?,
-            },
-        )))
+    let amount = item.request.amount.to_string();
+    let currency = item.request.currency;
+    let payment_method = if item.is_three_ds() {
+        Shift4PaymentMethod::CardsThreeDSRequest(Box::new(CardsThreeDSRequest {
+            card_number: card.number,
+            card_exp_month: card.exp_month,
+            card_exp_year: card.exp_year,
+            return_url: item
+                .request
+                .complete_authorize_url
+                .clone()
+                .ok_or_else(|| errors::ConnectorError::RequestEncodingFailed)?,
+        }))
     } else {
-        Ok(Shift4PaymentsRequest::Non3DSRequest(Box::new(
-            Shift4Non3DSRequest {
-                amount: item.request.amount.to_string(),
-                card: Some(CardPayment::RawCard(Box::new(card))),
-                currency: item.request.currency.to_string(),
-                description: item.description.clone(),
-                captured: submit_for_settlement,
-                payment_method: None,
-                flow: None,
-            },
-        )))
-    }
+        Shift4PaymentMethod::CardsNon3DSRequest(Box::new(CardsNon3DSRequest {
+            card: CardPayment::RawCard(Box::new(card)),
+            description: item.description.clone(),
+        }))
+    };
+    Ok(Shift4PaymentsRequest {
+        amount,
+        currency,
+        payment_method,
+        captured,
+    })
 }
 
 fn get_bank_redirect_request<T>(
     item: &types::RouterData<T, types::PaymentsAuthorizeData, types::PaymentsResponseData>,
     redirect_data: &payments::BankRedirectData,
 ) -> Result<Shift4PaymentsRequest, Error> {
-    let submit_for_settlement = item.request.is_auto_capture()?;
+    let captured = item.request.is_auto_capture()?;
     let method_type = PaymentMethodType::try_from(redirect_data)?;
     let billing = get_billing(item)?;
-    let payment_method = Some(PaymentMethod {
+    let payment_method = PaymentMethod {
         method_type,
         billing,
-    });
+    };
     let flow = get_flow(item);
-    Ok(Shift4PaymentsRequest::Non3DSRequest(Box::new(
-        Shift4Non3DSRequest {
-            amount: item.request.amount.to_string(),
-            card: None,
-            currency: item.request.currency.to_string(),
-            description: item.description.clone(),
-            captured: submit_for_settlement,
-            payment_method,
-            flow: Some(flow),
-        },
-    )))
+    Ok(Shift4PaymentsRequest {
+        amount: item.request.amount.to_string(),
+        currency: item.request.currency,
+        payment_method: Shift4PaymentMethod::Shift4BankRedirectRequest(Box::new(
+            Shift4BankRedirectRequest {
+                payment_method,
+                flow,
+            },
+        )),
+        captured,
+    })
 }
 
 impl TryFrom<&payments::BankRedirectData> for PaymentMethodType {
@@ -242,20 +251,20 @@ fn get_flow<T>(
 
 fn get_billing<T>(
     item: &types::RouterData<T, types::PaymentsAuthorizeData, types::PaymentsResponseData>,
-) -> Result<Option<Billing>, Error> {
+) -> Result<Billing, Error> {
     let billing_address = item
         .address
         .billing
         .as_ref()
         .and_then(|billing| billing.address.as_ref());
     let address = get_address_details(billing_address);
-    Ok(Some(Billing {
+    Ok(Billing {
         name: billing_address.map(|billing| {
             Secret::new(format!("{:?} {:?}", billing.first_name, billing.last_name))
         }),
         email: item.request.email.clone(),
         address,
-    }))
+    })
 }
 
 fn get_address_details(address_details: Option<&payments::AddressDetails>) -> Option<Address> {
