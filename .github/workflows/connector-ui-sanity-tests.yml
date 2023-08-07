@@ -2,9 +2,9 @@ name: Connector UI Sanity Tests
 
 on:
   workflow_dispatch:
-
+  
   pull_request_review:
-    types:
+    types: 
       - submitted
   merge_group:
     types:
@@ -26,7 +26,7 @@ env:
   #
   # See https://matklad.github.io/2021/09/04/fast-rust-builds.html#ci-workflow
   # for details.
-  CARGO_INCREMENTAL: 0
+  CARGO_INCREMENTAL: 1
   # Allow more retries for network requests in cargo (downloading crates) and
   # rustup (installing toolchains). This should help to reduce flaky CI failures
   # from transient network timeouts or other issues.
@@ -36,9 +36,6 @@ env:
   RUST_BACKTRACE: short
   # Use cargo's sparse index protocol
   CARGO_REGISTRIES_CRATES_IO_PROTOCOL: sparse
-  # Enable and use the sccache action for caching
-  SCCACHE_GHA_ENABLED: "true"
-  RUSTC_WRAPPER: "sccache"
 
 jobs:
   test_connectors:
@@ -76,13 +73,14 @@ jobs:
           # do not use more than 2 runners, try to group less time taking connectors together
           - stripe,airwallex,bluesnap,checkout,trustpay_3ds,payu,authorizedotnet,aci,noon
           - adyen_uk,shift4,worldline,multisafepay,paypal,mollie,nexinets
+          
 
     steps:
       - name: Ignore Tests incase of pull request
         if: github.event_name == 'pull_request' || github.event_name == 'merge_group'
         shell: bash
         run: |
-          echo "Skipped tests as the event is pull request"
+          echo "Skipped tests as the event is pull request" 
           exit 0
 
       - name: Checkout repository
@@ -107,34 +105,34 @@ jobs:
         run: echo "CONNECTOR_TESTS_FILE_PATH=$HOME/target/test/connector_tests.json" >> $GITHUB_ENV
 
       - name: Set ignore_browser_profile usage in env
-        if: (github.event_name == 'pull_request_review' && github.event.review.state == 'approved') || (github.event_name == 'workflow_dispatch')
+        if: (github.event_name == 'pull_request_review' && github.event.review.state == 'approved') || (github.event_name == 'workflow_dispatch')  
         shell: bash
         run: echo "IGNORE_BROWSER_PROFILE=true" >> $GITHUB_ENV
 
       - name: Install latest compiler
-        if: (github.event_name == 'pull_request_review' && github.event.review.state == 'approved') || (github.event_name == 'workflow_dispatch')
+        if: (github.event_name == 'pull_request_review' && github.event.review.state == 'approved') || (github.event_name == 'workflow_dispatch')  
         uses: actions-rs/toolchain@v1
         with:
           toolchain: stable
 
-      - uses: mozilla-actions/sccache-action@v0.0.3
+      - uses: Swatinem/rust-cache@v2.4.0
 
       - uses: baptiste0928/cargo-install@v2.1.0
-        if: (github.event_name == 'pull_request_review' && github.event.review.state == 'approved') || (github.event_name == 'workflow_dispatch')
+        if: (github.event_name == 'pull_request_review' && github.event.review.state == 'approved') || (github.event_name == 'workflow_dispatch')  
         with:
           crate: diesel_cli
           features: postgres
           args: "--no-default-features"
 
       - name: Diesel migration run
-        if: (github.event_name == 'pull_request_review' && github.event.review.state == 'approved') || (github.event_name == 'workflow_dispatch')
+        if: (github.event_name == 'pull_request_review' && github.event.review.state == 'approved') || (github.event_name == 'workflow_dispatch')  
         shell: bash
         env:
           DATABASE_URL: postgres://db_user:db_pass@localhost:5432/hyperswitch_db
         run: diesel migration run
 
       - name: Start server and run tests
-        if: (github.event_name == 'pull_request_review' && github.event.review.state == 'approved') || (github.event_name == 'workflow_dispatch')
+        if: (github.event_name == 'pull_request_review' && github.event.review.state == 'approved') || (github.event_name == 'workflow_dispatch')  
         env:
           UI_TESTCASES_PATH: ${{ secrets.UI_TESTCASES_PATH }}
           INPUT: ${{ matrix.connector }}
@@ -142,12 +140,12 @@ jobs:
         run: sh .github/scripts/run_ui_tests.sh
 
       - name: View test results
-        if: (github.event_name == 'pull_request_review' && github.event.review.state == 'approved') || (github.event_name == 'workflow_dispatch')
+        if: (github.event_name == 'pull_request_review' && github.event.review.state == 'approved') || (github.event_name == 'workflow_dispatch')  
         shell: bash
         run: cat tests/test_results.log
 
       - name: Check test results
-        if: (github.event_name == 'pull_request_review' && github.event.review.state == 'approved') || (github.event_name == 'workflow_dispatch')
+        if: (github.event_name == 'pull_request_review' && github.event.review.state == 'approved') || (github.event_name == 'workflow_dispatch')  
         shell: bash
         run: |
           if test "$( grep 'test result: FAILED' -r tests/test_results.log | wc -l )" -gt "0"; then
