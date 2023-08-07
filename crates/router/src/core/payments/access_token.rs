@@ -4,6 +4,7 @@ use common_utils::ext_traits::AsyncExt;
 use error_stack::{IntoReport, ResultExt};
 
 use crate::{
+    consts,
     core::{
         errors::{self, RouterResult},
         payments,
@@ -168,9 +169,9 @@ pub async fn refresh_connector_auth(
             // further payment flow will not be continued
             if connector_error.current_context().is_connector_timeout() {
                 let error_response = types::ErrorResponse {
-                    code: "Request timed out".to_string(),
-                    message: "Upstream request time out".to_string(),
-                    reason: None,
+                    code: consts::REQUEST_TIMEOUT_ERROR_CODE.to_string(),
+                    message: consts::REQUEST_TIMEOUT_ERROR_MESSAGE.to_string(),
+                    reason: Some(consts::REQUEST_TIMEOUT_ERROR_MESSAGE.to_string()),
                     status_code: 200,
                 };
 
