@@ -4,7 +4,7 @@ use std::fmt::Debug;
 
 use api_models::webhooks::IncomingWebhookEvent;
 use base64::Engine;
-use diesel_models::enums as storage_enums;
+use diesel_models::{enums as storage_enums, enums};
 use error_stack::{IntoReport, ResultExt};
 use ring::hmac;
 use router_env::{instrument, tracing};
@@ -492,9 +492,12 @@ impl
 
     fn get_url(
         &self,
-        _req: &types::PaymentsAuthorizeRouterData,
+        req: &types::PaymentsAuthorizeRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
+        if req.request.capture_method == Some(enums::CaptureMethod::ManualMultiple) {
+            return Err(errors::ConnectorError::CaptureMethodNotSupported.into());
+        }
         Ok(format!("{}{}", self.base_url(connectors), "v68/payments"))
     }
 

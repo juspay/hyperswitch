@@ -3,6 +3,7 @@ use std::fmt::Debug;
 
 use base64::Engine;
 use common_utils::{date_time, ext_traits::StringExt};
+use diesel_models::enums;
 use error_stack::{IntoReport, ResultExt};
 use masking::{ExposeInterface, PeekInterface};
 use rand::distributions::{Alphanumeric, DistString};
@@ -146,9 +147,12 @@ impl
 
     fn get_url(
         &self,
-        _req: &types::PaymentsAuthorizeRouterData,
+        req: &types::PaymentsAuthorizeRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
+        if req.request.capture_method == Some(enums::CaptureMethod::ManualMultiple) {
+            return Err(errors::ConnectorError::CaptureMethodNotSupported.into());
+        }
         Ok(format!("{}/v1/payments", self.base_url(connectors)))
     }
 

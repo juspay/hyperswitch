@@ -18,6 +18,7 @@ use crate::{
     types::{
         self,
         api::{self, ConnectorCommon, ConnectorCommonExt},
+        storage::enums,
         ErrorResponse, Response,
     },
     utils::{self, BytesExt},
@@ -222,6 +223,9 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         req: &types::PaymentsAuthorizeRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
+        if req.request.capture_method == Some(enums::CaptureMethod::ManualMultiple) {
+            return Err(errors::ConnectorError::CaptureMethodNotSupported.into());
+        }
         let url = self.base_url(connectors);
         let api_key = multisafepay::MultisafepayAuthType::try_from(&req.connector_auth_type)
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?

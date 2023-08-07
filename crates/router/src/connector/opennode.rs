@@ -3,6 +3,7 @@ mod transformers;
 use std::fmt::Debug;
 
 use common_utils::crypto;
+use diesel_models::enums;
 use error_stack::{IntoReport, ResultExt};
 use transformers as opennode;
 
@@ -153,9 +154,12 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
 
     fn get_url(
         &self,
-        _req: &types::PaymentsAuthorizeRouterData,
+        req: &types::PaymentsAuthorizeRouterData,
         _connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
+        if req.request.capture_method == Some(enums::CaptureMethod::ManualMultiple) {
+            return Err(errors::ConnectorError::CaptureMethodNotSupported.into());
+        }
         Ok(format!("{}/v1/charges", self.base_url(_connectors)))
     }
 

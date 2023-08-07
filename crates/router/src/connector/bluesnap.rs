@@ -7,6 +7,7 @@ use common_utils::{
     crypto,
     ext_traits::{StringExt, ValueExt},
 };
+use diesel_models::enums;
 use error_stack::{IntoReport, ResultExt};
 use masking::PeekInterface;
 use transformers as bluesnap;
@@ -31,9 +32,7 @@ use crate::{
     types::{
         self,
         api::{self, ConnectorCommon, ConnectorCommonExt},
-        domain,
-        storage::enums,
-        ErrorResponse, Response,
+        domain, ErrorResponse, Response,
     },
     utils::{self, BytesExt},
 };
@@ -601,6 +600,9 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         req: &types::PaymentsAuthorizeRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
+        if req.request.capture_method == Some(enums::CaptureMethod::ManualMultiple) {
+            return Err(errors::ConnectorError::CaptureMethodNotSupported.into());
+        }
         match req.is_three_ds() && !req.request.is_wallet() {
             true => Ok(format!(
                 "{}{}{}",

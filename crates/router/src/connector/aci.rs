@@ -2,6 +2,7 @@ mod result_codes;
 mod transformers;
 use std::fmt::Debug;
 
+use diesel_models::enums;
 use error_stack::{IntoReport, ResultExt};
 use masking::PeekInterface;
 use transformers as aci;
@@ -250,6 +251,9 @@ impl
         req: &types::PaymentsAuthorizeRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
+        if req.request.capture_method == Some(enums::CaptureMethod::ManualMultiple) {
+            return Err(errors::ConnectorError::CaptureMethodNotSupported.into());
+        }
         match req.request.connector_mandate_id() {
             Some(mandate_id) => Ok(format!(
                 "{}v1/registrations/{}/payments",

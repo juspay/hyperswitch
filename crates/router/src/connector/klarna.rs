@@ -2,6 +2,7 @@ mod transformers;
 use std::fmt::Debug;
 
 use api_models::payments as api_payments;
+use diesel_models::enums;
 use error_stack::{IntoReport, ResultExt};
 use transformers as klarna;
 
@@ -261,6 +262,9 @@ impl
         req: &types::PaymentsAuthorizeRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
+        if req.request.capture_method == Some(enums::CaptureMethod::ManualMultiple) {
+            return Err(errors::ConnectorError::CaptureMethodNotSupported.into());
+        }
         let payment_method_data = &req.request.payment_method_data;
         let payment_experience = req
             .request

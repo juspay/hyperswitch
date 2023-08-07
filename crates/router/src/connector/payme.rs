@@ -3,6 +3,7 @@ mod transformers;
 use std::fmt::Debug;
 
 use common_utils::{crypto, ext_traits::ByteSliceExt};
+use diesel_models::enums;
 use error_stack::{IntoReport, ResultExt};
 use masking::ExposeInterface;
 use transformers as payme;
@@ -132,13 +133,16 @@ impl
 
     fn get_url(
         &self,
-        _req: &types::RouterData<
+        req: &types::RouterData<
             api::InitPayment,
             types::PaymentsAuthorizeData,
             types::PaymentsResponseData,
         >,
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
+        if req.request.capture_method == Some(enums::CaptureMethod::ManualMultiple) {
+            return Err(errors::ConnectorError::CaptureMethodNotSupported.into());
+        }
         Ok(format!("{}api/generate-sale", self.base_url(connectors)))
     }
 

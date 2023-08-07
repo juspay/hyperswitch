@@ -4,6 +4,7 @@ use std::fmt::Debug;
 
 use base64::Engine;
 use common_utils::{crypto, errors::ReportSwitchExt, ext_traits::ByteSliceExt};
+use diesel_models::enums;
 use error_stack::{IntoReport, ResultExt};
 use masking::PeekInterface;
 use transformers as trustpay;
@@ -490,6 +491,9 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         req: &types::PaymentsAuthorizeRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
+        if req.request.capture_method == Some(enums::CaptureMethod::ManualMultiple) {
+            return Err(errors::ConnectorError::CaptureMethodNotSupported.into());
+        }
         match req.payment_method {
             diesel_models::enums::PaymentMethod::BankRedirect => Ok(format!(
                 "{}{}",

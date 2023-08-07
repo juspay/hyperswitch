@@ -3,6 +3,7 @@ mod transformers;
 use std::fmt::Debug;
 
 use base64::Engine;
+use diesel_models::enums;
 use error_stack::{IntoReport, ResultExt};
 use masking::PeekInterface;
 use transformers as forte;
@@ -165,6 +166,9 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         req: &types::PaymentsAuthorizeRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
+        if req.request.capture_method == Some(enums::CaptureMethod::ManualMultiple) {
+            return Err(errors::ConnectorError::CaptureMethodNotSupported.into());
+        }
         let auth: forte::ForteAuthType = forte::ForteAuthType::try_from(&req.connector_auth_type)?;
         Ok(format!(
             "{}/organizations/{}/locations/{}/transactions",

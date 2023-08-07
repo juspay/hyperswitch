@@ -164,6 +164,9 @@ impl<const T: u8>
         req: &types::PaymentsAuthorizeRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
+        if req.request.capture_method == Some(enums::CaptureMethod::ManualMultiple) {
+            return Err(errors::ConnectorError::CaptureMethodNotSupported.into());
+        }
         match req.payment_method {
             enums::PaymentMethod::Card => Ok(format!("{}/payment", self.base_url(connectors))),
             _ => Err(error_stack::report!(errors::ConnectorError::NotSupported {

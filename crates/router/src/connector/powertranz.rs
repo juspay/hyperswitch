@@ -4,6 +4,7 @@ use std::fmt::Debug;
 
 use api_models::enums::AuthenticationType;
 use common_utils::ext_traits::ValueExt;
+use diesel_models::enums;
 use error_stack::{IntoReport, ResultExt};
 use masking::ExposeInterface;
 use transformers as powertranz;
@@ -156,6 +157,9 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         req: &types::PaymentsAuthorizeRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
+        if req.request.capture_method == Some(enums::CaptureMethod::ManualMultiple) {
+            return Err(errors::ConnectorError::CaptureMethodNotSupported.into());
+        }
         let mut endpoint = match req.request.is_auto_capture()? {
             true => "sale",
             false => "auth",
