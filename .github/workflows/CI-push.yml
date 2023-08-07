@@ -185,7 +185,7 @@ jobs:
         run: cargo clippy --all-features --all-targets
 
       - name: Cargo hack
-        if: ${{ github.event_name == 'merge_group' }}
+        if: ${{ github.event_name == 'push' }}
         shell: bash
         run: cargo hack check --each-feature --no-dev-deps
 
