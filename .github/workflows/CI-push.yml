@@ -108,7 +108,7 @@ jobs:
       - name: Cargo build release
         if: ${{ !github.event.pull_request.merged }}
         shell: bash
-        run: cargo check --features "release" --no-dev-deps
+        run: cargo check --features "release"
 
   # cargo-deny:
   #   name: Run cargo-deny
@@ -192,7 +192,7 @@ jobs:
       - name: Cargo build release
         if: ${{ !github.event.pull_request.merged }}
         shell: bash
-        run: cargo check --features "release" --no-dev-deps
+        run: cargo check --features "release"
 
   typos:
     name: Spell check
