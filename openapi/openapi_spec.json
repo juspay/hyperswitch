@@ -4314,7 +4314,8 @@
           "customer_id",
           "payment_method",
           "recurring_enabled",
-          "installment_payment_enabled"
+          "installment_payment_enabled",
+          "requires_cvv"
         ],
         "properties": {
           "payment_token": {
@@ -4400,6 +4401,11 @@
               }
             ],
             "nullable": true
+          },
+          "requires_cvv": {
+            "type": "boolean",
+            "description": "Whether this payment method requires CVV to be collected",
+            "example": true
           }
         }
       },
@@ -5067,6 +5073,32 @@
         "type": "object"
       },
       "GiftCardData": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "givex"
+            ],
+            "properties": {
+              "givex": {
+                "$ref": "#/components/schemas/GiftCardDetails"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "pay_safe_card"
+            ],
+            "properties": {
+              "pay_safe_card": {
+                "type": "object"
+              }
+            }
+          }
+        ]
+      },
+      "GiftCardDetails": {
         "type": "object",
         "required": [
           "number",
@@ -7708,6 +7740,7 @@
           "eps",
           "evoucher",
           "giropay",
+          "givex",
           "google_pay",
           "go_pay",
           "gcash",
@@ -7727,12 +7760,14 @@
           "online_banking_fpx",
           "online_banking_poland",
           "online_banking_slovakia",
+          "oxxo",
           "pago_efectivo",
           "permata_bank_transfer",
           "open_banking_uk",
           "pay_bright",
           "paypal",
           "pix",
+          "pay_safe_card",
           "przelewy24",
           "pse",
           "red_compra",
@@ -10374,6 +10409,12 @@
                 "$ref": "#/components/schemas/IndomaretVoucherData"
               }
             }
+          },
+          {
+            "type": "string",
+            "enum": [
+              "oxxo"
+            ]
           }
         ]
       },

@@ -1,4 +1,4 @@
-mod transformers;
+pub mod transformers;
 
 use std::fmt::Debug;
 
@@ -74,14 +74,6 @@ impl ConnectorCommon for Coinbase {
 
     fn common_get_content_type(&self) -> &'static str {
         "application/json"
-    }
-
-    fn validate_auth_type(
-        &self,
-        val: &types::ConnectorAuthType,
-    ) -> Result<(), error_stack::Report<errors::ConnectorError>> {
-        coinbase::CoinbaseAuthType::try_from(val)?;
-        Ok(())
     }
 
     fn base_url<'a>(&self, connectors: &'a settings::Connectors) -> &'a str {

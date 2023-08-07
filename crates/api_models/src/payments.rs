@@ -725,8 +725,16 @@ pub enum PaymentMethodData {
     GiftCard(Box<GiftCardData>),
 }
 
-#[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema)]
-pub struct GiftCardData {
+#[derive(serde::Deserialize, serde::Serialize, Debug, Clone, ToSchema, Eq, PartialEq)]
+#[serde(rename_all = "snake_case")]
+pub enum GiftCardData {
+    Givex(GiftCardDetails),
+    PaySafeCard {},
+}
+
+#[derive(serde::Deserialize, serde::Serialize, Debug, Clone, ToSchema, Eq, PartialEq)]
+#[serde(rename_all = "snake_case")]
+pub struct GiftCardDetails {
     /// The gift card number
     #[schema(value_type = String)]
     pub number: Secret<String>,
@@ -1292,6 +1300,7 @@ pub enum VoucherData {
     RedPagos,
     Alfamart(Box<AlfamartVoucherData>),
     Indomaret(Box<IndomaretVoucherData>),
+    Oxxo,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
@@ -2506,7 +2515,7 @@ pub struct PaymentsCancelRequest {
     pub merchant_connector_details: Option<admin::MerchantConnectorDetailsWrap>,
 }
 
-#[derive(Default, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
+#[derive(Default, Debug, serde::Deserialize, serde::Serialize, ToSchema, Clone)]
 pub struct PaymentsStartRequest {
     /// Unique identifier for the payment. This ensures idempotency for multiple payments
     /// that have been done by a single merchant. This field is auto generated and is returned in the API response.

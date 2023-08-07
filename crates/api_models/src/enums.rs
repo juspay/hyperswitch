@@ -107,6 +107,7 @@ pub enum Connector {
     Powertranz,
     Rapyd,
     Shift4,
+    // Square, added as template code for future usage,
     Stax,
     Stripe,
     Trustpay,
@@ -156,7 +157,6 @@ impl Connector {
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
 pub enum RoutableConnectors {
-    Stax,
     #[cfg(feature = "dummy_connector")]
     #[serde(rename = "phonypay")]
     #[strum(serialize = "phonypay")]
@@ -221,6 +221,8 @@ pub enum RoutableConnectors {
     Powertranz,
     Rapyd,
     Shift4,
+    //Square, added as template code for future usage
+    Stax,
     Stripe,
     Trustpay,
     // Tsys,
