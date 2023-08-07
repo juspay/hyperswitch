@@ -13,6 +13,7 @@ use crate::{
     configs::settings,
     consts,
     core::errors::{self, CustomResult},
+    db::StorageInterface,
     headers,
     services::{
         self,
@@ -22,9 +23,9 @@ use crate::{
     types::{
         self,
         api::{self, ConnectorCommon, ConnectorCommonExt},
-        ErrorResponse, Response, domain,
+        domain, ErrorResponse, Response,
     },
-    utils::{self, BytesExt}, db::StorageInterface,
+    utils::{self, BytesExt},
 };
 
 #[derive(Debug, Clone)]
@@ -770,7 +771,7 @@ impl api::IncomingWebhook for Stax {
     ) -> CustomResult<bool, errors::ConnectorError> {
         Ok(false)
     }
-    
+
     fn get_webhook_object_reference_id(
         &self,
         request: &api::IncomingWebhookRequestDetails<'_>,
@@ -785,6 +786,9 @@ impl api::IncomingWebhook for Stax {
                 Ok(api_models::webhooks::ObjectReferenceId::RefundId(
                     api_models::webhooks::RefundIdType::ConnectorRefundId(webhook_body.id),
                 ))
+            }
+            stax::StaxWebhookEventType::Unknown => {
+                Err(errors::ConnectorError::WebhookEventTypeNotFound.into())
             }
             _ => Ok(api_models::webhooks::ObjectReferenceId::PaymentId(
                 api_models::payments::PaymentIdType::ConnectorTransactionId(

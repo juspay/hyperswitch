@@ -674,7 +674,7 @@ pub enum BankDebitData {
         bank_account_holder_name: Option<Secret<String>>,
 
         #[schema(value_type = String, example = "ACH")]
-        bank_name: Option<Secret<String>>,
+        bank_name: Option<enums::BankNames>,
 
         #[schema(value_type = String, example = "Checking")]
         bank_type: Option<Secret<String>>,

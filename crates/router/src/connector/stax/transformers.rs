@@ -1,5 +1,5 @@
 use common_utils::pii::Email;
-use error_stack::IntoReport;
+use error_stack::{IntoReport, ResultExt};
 use masking::{ExposeInterface, Secret};
 use serde::{Deserialize, Serialize};
 
@@ -7,6 +7,7 @@ use crate::{
     connector::utils::{CardData, PaymentsAuthorizeRequestData, RouterData},
     core::errors,
     types::{self, api, storage::enums},
+    utils::OptionExt,
 };
 
 #[derive(Debug, Serialize)]
@@ -128,12 +129,12 @@ pub struct StaxTokenizeData {
     customer_id: Secret<String>,
 }
 
-#[derive(Default, Debug, Serialize, Eq, PartialEq)]
+#[derive(Debug, Serialize)]
 pub struct StaxBankTokenizeData {
     person_name: Secret<String>,
     bank_account: Secret<String>,
     bank_routing: Secret<String>,
-    bank_name: Secret<String>,
+    bank_name: api_models::enums::BankNames,
     bank_type: Secret<String>,
     bank_holder_type: Secret<String>,
     customer_id: Secret<String>,
@@ -178,9 +179,21 @@ impl TryFrom<&types::TokenizationRouterData> for StaxTokenRequest {
                     person_name: billing_details.name,
                     bank_account: account_number,
                     bank_routing: routing_number,
-                    bank_name: bank_name.unwrap_or(Secret::new("".to_string())),
-                    bank_type: bank_type.unwrap_or(Secret::new("".to_string())),
-                    bank_holder_type: bank_holder_type.unwrap_or(Secret::new("".to_string())),
+                    bank_name: bank_name.get_required_value("bank_name").change_context(
+                        errors::ConnectorError::MissingRequiredField {
+                            field_name: "bank_name",
+                        },
+                    )?,
+                    bank_type: bank_type.get_required_value("bank_type").change_context(
+                        errors::ConnectorError::MissingRequiredField {
+                            field_name: "bank_type",
+                        },
+                    )?,
+                    bank_holder_type: bank_holder_type
+                        .get_required_value("bank_holder_type")
+                        .change_context(errors::ConnectorError::MissingRequiredField {
+                            field_name: "bank_holder_type",
+                        })?,
                     customer_id: Secret::new(customer_id),
                 };
                 Ok(Self::Bank(stax_bank_data))
