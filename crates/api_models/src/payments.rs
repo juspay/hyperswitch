@@ -725,8 +725,16 @@ pub enum PaymentMethodData {
     GiftCard(Box<GiftCardData>),
 }
 
-#[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema)]
-pub struct GiftCardData {
+#[derive(serde::Deserialize, serde::Serialize, Debug, Clone, ToSchema, Eq, PartialEq)]
+#[serde(rename_all = "snake_case")]
+pub enum GiftCardData {
+    Givex(GiftCardDetails),
+    PaySafeCard {},
+}
+
+#[derive(serde::Deserialize, serde::Serialize, Debug, Clone, ToSchema, Eq, PartialEq)]
+#[serde(rename_all = "snake_case")]
+pub struct GiftCardDetails {
     /// The gift card number
     #[schema(value_type = String)]
     pub number: Secret<String>,
@@ -765,8 +773,8 @@ pub enum AdditionalPaymentData {
     MandatePayment {},
     Reward {},
     Upi {},
-    Voucher {},
     GiftCard {},
+    Voucher {},
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema)]
@@ -901,9 +909,48 @@ pub enum BankRedirectData {
     },
 }
 
+#[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
+pub struct AlfamartVoucherData {
+    /// The billing first name for Alfamart
+    #[schema(value_type = String, example = "Jane")]
+    pub first_name: Secret<String>,
+    /// The billing second name for Alfamart
+    #[schema(value_type = String, example = "Doe")]
+    pub last_name: Option<Secret<String>>,
+    /// The Email ID for Alfamart
+    #[schema(value_type = String, example = "example@me.com")]
+    pub email: Email,
+}
+
+#[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
+pub struct IndomaretVoucherData {
+    /// The billing first name for Alfamart
+    #[schema(value_type = String, example = "Jane")]
+    pub first_name: Secret<String>,
+    /// The billing second name for Alfamart
+    #[schema(value_type = String, example = "Doe")]
+    pub last_name: Option<Secret<String>>,
+    /// The Email ID for Alfamart
+    #[schema(value_type = String, example = "example@me.com")]
+    pub email: Email,
+}
+
 #[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema)]
 pub struct AchBillingDetails {
     /// The Email ID for ACH billing
+    #[schema(value_type = String, example = "example@me.com")]
+    pub email: Email,
+}
+
+#[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema)]
+pub struct DokuBillingDetails {
+    /// The billing first name for Doku
+    #[schema(value_type = String, example = "Jane")]
+    pub first_name: Secret<String>,
+    /// The billing second name for Doku
+    #[schema(value_type = String, example = "Doe")]
+    pub last_name: Option<Secret<String>>,
+    /// The Email ID for Doku billing
     #[schema(value_type = String, example = "example@me.com")]
     pub email: Email,
 }
@@ -976,6 +1023,34 @@ pub enum BankTransferData {
     MultibancoBankTransfer {
         /// The billing details for Multibanco
         billing_details: MultibancoBillingDetails,
+    },
+    PermataBankTransfer {
+        /// The billing details for Permata Bank Transfer
+        billing_details: DokuBillingDetails,
+    },
+    BcaBankTransfer {
+        /// The billing details for BCA Bank Transfer
+        billing_details: DokuBillingDetails,
+    },
+    BniVaBankTransfer {
+        /// The billing details for BniVa Bank Transfer
+        billing_details: DokuBillingDetails,
+    },
+    BriVaBankTransfer {
+        /// The billing details for BniVa Bank Transfer
+        billing_details: DokuBillingDetails,
+    },
+    CimbVaBankTransfer {
+        /// The billing details for BniVa Bank Transfer
+        billing_details: DokuBillingDetails,
+    },
+    DanamonVaBankTransfer {
+        /// The billing details for BniVa Bank Transfer
+        billing_details: DokuBillingDetails,
+    },
+    MandiriVaBankTransfer {
+        /// The billing details for BniVa Bank Transfer
+        billing_details: DokuBillingDetails,
     },
     Pix {},
     Pse {},
@@ -1215,6 +1290,9 @@ pub enum VoucherData {
     PagoEfectivo,
     RedCompra,
     RedPagos,
+    Alfamart(Box<AlfamartVoucherData>),
+    Indomaret(Box<IndomaretVoucherData>),
+    Oxxo,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
@@ -1408,11 +1486,13 @@ pub struct BankTransferNextStepsData {
     #[serde(flatten)]
     pub bank_transfer_instructions: BankTransferInstructions,
     /// The details received by the receiver
-    pub receiver: ReceiverDetails,
+    pub receiver: Option<ReceiverDetails>,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
 pub struct VoucherNextStepData {
+    /// Voucher expiry date and time
+    pub expires_at: Option<String>,
     /// Reference number required for the transaction
     pub reference: String,
     /// Url to download the payment instruction
@@ -1434,6 +1514,8 @@ pub struct WaitScreenInstructions {
 #[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum BankTransferInstructions {
+    /// The instructions for Doku bank transactions
+    DokuBankTransferInstructions(Box<DokuBankTransferInstructions>),
     /// The credit transfer for ACH transactions
     AchCreditTransfer(Box<AchTransfer>),
     /// The instructions for SEPA bank transactions
@@ -1471,6 +1553,16 @@ pub struct MultibancoTransferInstructions {
     pub reference: Secret<String>,
     #[schema(value_type = String, example = "12345")]
     pub entity: String,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
+pub struct DokuBankTransferInstructions {
+    #[schema(value_type = String, example = "2023-07-26T17:33:00-07-21")]
+    pub expires_at: Option<String>,
+    #[schema(value_type = String, example = "122385736258")]
+    pub reference: Secret<String>,
+    #[schema(value_type = String)]
+    pub instructions_url: Option<Url>,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
@@ -2415,7 +2507,7 @@ pub struct PaymentsCancelRequest {
     pub merchant_connector_details: Option<admin::MerchantConnectorDetailsWrap>,
 }
 
-#[derive(Default, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
+#[derive(Default, Debug, serde::Deserialize, serde::Serialize, ToSchema, Clone)]
 pub struct PaymentsStartRequest {
     /// Unique identifier for the payment. This ensures idempotency for multiple payments
     /// that have been done by a single merchant. This field is auto generated and is returned in the API response.
