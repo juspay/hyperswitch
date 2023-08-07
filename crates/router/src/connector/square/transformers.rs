@@ -3,7 +3,7 @@ use masking::{ExposeInterface, PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    connector::utils::{CardData, RouterData},
+    connector::utils::{CardData, PaymentsAuthorizeRequestData, RouterData},
     core::errors,
     types::{self, api, storage::enums},
 };
@@ -42,12 +42,12 @@ impl TryFrom<&types::TokenizationRouterData> for SquareTokenRequest {
                 let square_card_data = SquareTokenizeData {
                     client_id,
                     session_id: Secret::new("ADD_SESSION_ID_HERE".to_string()),
-                    card_data: SquareCardData{
+                    card_data: SquareCardData {
                         exp_year: card_data.get_expiry_year_4_digit().peek().parse().unwrap(),
                         exp_month: card_data.card_exp_month.peek().parse().unwrap(),
                         number: card_data.card_number,
                         cvv: card_data.card_cvc,
-                    }
+                    },
                 };
                 Ok(Self::Card(square_card_data))
             }
@@ -91,8 +91,8 @@ impl<F, T>
     }
 }
 
-#[derive(Debug, Serialize)]
-pub struct StaxPaymentsRequestAmountData {
+#[derive(Debug, Deserialize, Serialize)]
+pub struct StaxPaymentsAmountData {
     amount: i64,
     currency: enums::Currency,
 }
@@ -105,25 +105,26 @@ pub struct StaxPaymentsRequestExternalDetails {
 //TODO: Fill the struct with respective fields
 #[derive(Debug, Serialize)]
 pub struct SquarePaymentsRequest {
-    amount_money: StaxPaymentsRequestAmountData,
+    amount_money: StaxPaymentsAmountData,
     idempotency_key: Secret<String>,
     source_id: Secret<String>,
-    accept_partial_authorization: bool,
+    autocomplete: bool,
     external_details: StaxPaymentsRequestExternalDetails,
 }
 
 impl TryFrom<&types::PaymentsAuthorizeRouterData> for SquarePaymentsRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::PaymentsAuthorizeRouterData) -> Result<Self, Self::Error> {
+        let autocomplete = item.request.is_auto_capture()?;
         match item.request.payment_method_data.clone() {
             api::PaymentMethodData::Card(_) => Ok(Self {
                 idempotency_key: Secret::new(item.payment_id.clone()),
                 source_id: Secret::new(item.get_payment_method_token()?),
-                amount_money: StaxPaymentsRequestAmountData {
+                amount_money: StaxPaymentsAmountData {
                     amount: item.request.amount,
                     currency: item.request.currency,
                 },
-                accept_partial_authorization: false,
+                autocomplete,
                 external_details: StaxPaymentsRequestExternalDetails {
                     source: "Hyperswitch".to_string(),
                     source_type: "Card".to_string(),
@@ -158,6 +159,9 @@ impl TryFrom<&types::ConnectorAuthType> for SquareAuthType {
 pub enum SquarePaymentStatus {
     Completed,
     Failed,
+    Approved,
+    Canceled,
+    Pending,
     #[default]
     Processing,
 }
@@ -166,8 +170,10 @@ impl From<SquarePaymentStatus> for enums::AttemptStatus {
     fn from(item: SquarePaymentStatus) -> Self {
         match item {
             SquarePaymentStatus::Completed => Self::Charged,
+            SquarePaymentStatus::Approved => Self::Authorized,
             SquarePaymentStatus::Failed => Self::Failure,
-            SquarePaymentStatus::Processing => Self::Authorizing,
+            SquarePaymentStatus::Canceled => Self::Voided,
+            SquarePaymentStatus::Processing | SquarePaymentStatus::Pending => Self::Authorizing,
         }
     }
 }
@@ -177,6 +183,7 @@ impl From<SquarePaymentStatus> for enums::AttemptStatus {
 pub struct SquarePaymentsResponseDetails {
     status: SquarePaymentStatus,
     id: String,
+    amount_money: StaxPaymentsAmountData,
 }
 #[derive(Debug, Deserialize)]
 pub struct SquarePaymentsResponse {
@@ -201,6 +208,7 @@ impl<F, T>
                 network_txn_id: None,
                 connector_response_reference_id: None,
             }),
+            amount_captured: Some(item.response.payment.amount_money.amount),
             ..item.data
         })
     }
@@ -209,27 +217,33 @@ impl<F, T>
 //TODO: Fill the struct with respective fields
 // REFUND :
 // Type definition for RefundRequest
-#[derive(Default, Debug, Serialize)]
+#[derive(Debug, Serialize)]
 pub struct SquareRefundRequest {
-    pub amount: i64,
+    amount_money: StaxPaymentsAmountData,
+    idempotency_key: Secret<String>,
+    payment_id: Secret<String>,
 }
 
 impl<F> TryFrom<&types::RefundsRouterData<F>> for SquareRefundRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::RefundsRouterData<F>) -> Result<Self, Self::Error> {
         Ok(Self {
-            amount: item.request.refund_amount,
+            amount_money: StaxPaymentsAmountData {
+                amount: item.request.refund_amount,
+                currency: item.request.currency,
+            },
+            idempotency_key: Secret::new(item.request.refund_id.clone()),
+            payment_id: Secret::new(item.request.connector_transaction_id.clone()),
         })
     }
 }
 
-// Type definition for Refund Response
-
-#[allow(dead_code)]
 #[derive(Debug, Serialize, Default, Deserialize, Clone)]
+#[serde(rename_all = "UPPERCASE")]
 pub enum RefundStatus {
-    Succeeded,
+    Completed,
     Failed,
+    Pending,
     #[default]
     Processing,
 }
@@ -237,19 +251,21 @@ pub enum RefundStatus {
 impl From<RefundStatus> for enums::RefundStatus {
     fn from(item: RefundStatus) -> Self {
         match item {
-            RefundStatus::Succeeded => Self::Success,
+            RefundStatus::Completed => Self::Success,
             RefundStatus::Failed => Self::Failure,
-            RefundStatus::Processing => Self::Pending,
-            //TODO: Review mapping
+            RefundStatus::Processing | RefundStatus::Pending => Self::Pending,
         }
     }
 }
 
-//TODO: Fill the struct with respective fields
-#[derive(Default, Debug, Clone, Serialize, Deserialize)]
-pub struct RefundResponse {
-    id: String,
+#[derive(Debug, Deserialize)]
+pub struct SquareRefundResponseDetails {
     status: RefundStatus,
+    id: String,
+}
+#[derive(Debug, Deserialize)]
+pub struct RefundResponse {
+    refund: SquareRefundResponseDetails,
 }
 
 impl TryFrom<types::RefundsResponseRouterData<api::Execute, RefundResponse>>
@@ -261,8 +277,8 @@ impl TryFrom<types::RefundsResponseRouterData<api::Execute, RefundResponse>>
     ) -> Result<Self, Self::Error> {
         Ok(Self {
             response: Ok(types::RefundsResponseData {
-                connector_refund_id: item.response.id.to_string(),
-                refund_status: enums::RefundStatus::from(item.response.status),
+                connector_refund_id: item.response.refund.id,
+                refund_status: enums::RefundStatus::from(item.response.refund.status),
             }),
             ..item.data
         })
@@ -278,8 +294,8 @@ impl TryFrom<types::RefundsResponseRouterData<api::RSync, RefundResponse>>
     ) -> Result<Self, Self::Error> {
         Ok(Self {
             response: Ok(types::RefundsResponseData {
-                connector_refund_id: item.response.id.to_string(),
-                refund_status: enums::RefundStatus::from(item.response.status),
+                connector_refund_id: item.response.refund.id,
+                refund_status: enums::RefundStatus::from(item.response.refund.status),
             }),
             ..item.data
         })
