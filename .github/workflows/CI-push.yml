@@ -106,6 +106,7 @@ jobs:
         run: cargo hack check --each-feature --no-dev-deps
       
       - name: Cargo build release
+        if: ${{ !github.event.pull_request.merged }}
         shell: bash
         run: cargo hack check --features "release" --no-dev-deps
 
@@ -189,6 +190,7 @@ jobs:
         run: cargo hack check --each-feature --no-dev-deps
 
       - name: Cargo build release
+        if: ${{ !github.event.pull_request.merged }}
         shell: bash
         run: cargo hack check --features "release" --no-dev-deps
 
