@@ -16,7 +16,9 @@ env:
   RUSTUP_MAX_RETRIES: 10
   RUST_BACKTRACE: short
   CARGO_REGISTRIES_CRATES_IO_PROTOCOL: sparse
-  CONNECTORS: aci, adyen_uk, airwallex, authorizedotnet, bambora, bambora_3ds, bluesnap, checkout, globalpay, mollie, nexinets, nmi, shift4, stripe, trustpay, worldline
+  CONNECTORS: "aci, adyen_uk, airwallex, authorizedotnet, bambora, bambora_3ds, bluesnap, checkout, globalpay, mollie, nexinets, nmi, shift4, stripe, trustpay, worldline"
+  SCCACHE_GHA_ENABLED: "true"
+  RUSTC_WRAPPER: "sccache"
 
 jobs:
   runner:
@@ -33,6 +35,7 @@ jobs:
           --health-retries 5
         ports:
           - 6379:6379
+
       postgres:
         image: "${{ github.event_name != 'pull_request' && 'postgres:14.5' || '' }}"
         env:
@@ -52,7 +55,7 @@ jobs:
         if: github.event_name == 'pull_request'
         shell: bash
         run: |
-          echo "Skipped tests as the event is pull request" 
+          echo "Skipped tests as the event is pull request"
           exit 0
 
       - name: Repository checkout
@@ -87,9 +90,8 @@ jobs:
         with:
           toolchain: stable
 
-      - name: Build and Cache Rust Dependencies
+      - uses: mozilla-actions/sccache-action@v0.0.3
         if: github.event_name != 'pull_request'
-        uses: Swatinem/rust-cache@v2.4.0
 
       - name: Install Diesel CLI with Postgres Support
         if: github.event_name != 'pull_request'
@@ -112,12 +114,12 @@ jobs:
           cargo run &
           COUNT=0
           # Wait for the server to start in port 8080
-          while netstat -lnt | awk '$4 ~ /:8080$/ {exit 1}'; do 
+          while netstat -lnt | awk '$4 ~ /:8080$/ {exit 1}'; do
               # Wait for 15 mins to start otherwise kill the task
               if [ $COUNT -gt 90 ];
               then
                   exit 1
-              else 
+              else
                   COUNT=$((COUNT+1))
                   sleep 10
               fi
