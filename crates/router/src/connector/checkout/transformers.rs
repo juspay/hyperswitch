@@ -6,7 +6,7 @@ use time::PrimitiveDateTime;
 use url::Url;
 
 use crate::{
-    connector::utils::{RouterData, WalletData},
+    connector::utils::{self, RouterData, WalletData},
     core::errors,
     services,
     types::{self, api, storage::enums, transformers::ForeignFrom},
@@ -59,15 +59,52 @@ impl TryFrom<&types::TokenizationRouterData> for TokenRequest {
                         wallet_data.get_wallet_token_as_json()?;
                     Ok(Self::Applepay(json_wallet_data))
                 }
-                _ => Err(errors::ConnectorError::NotImplemented(
-                    "Payment Method".to_string(),
-                ))
-                .into_report(),
+                api_models::payments::WalletData::AliPayQr(_)
+                | api_models::payments::WalletData::AliPayRedirect(_)
+                | api_models::payments::WalletData::AliPayHkRedirect(_)
+                | api_models::payments::WalletData::MomoRedirect(_)
+                | api_models::payments::WalletData::KakaoPayRedirect(_)
+                | api_models::payments::WalletData::GoPayRedirect(_)
+                | api_models::payments::WalletData::GcashRedirect(_)
+                | api_models::payments::WalletData::ApplePayRedirect(_)
+                | api_models::payments::WalletData::ApplePayThirdPartySdk(_)
+                | api_models::payments::WalletData::DanaRedirect {}
+                | api_models::payments::WalletData::GooglePayRedirect(_)
+                | api_models::payments::WalletData::GooglePayThirdPartySdk(_)
+                | api_models::payments::WalletData::MbWayRedirect(_)
+                | api_models::payments::WalletData::MobilePayRedirect(_)
+                | api_models::payments::WalletData::PaypalRedirect(_)
+                | api_models::payments::WalletData::PaypalSdk(_)
+                | api_models::payments::WalletData::SamsungPay(_)
+                | api_models::payments::WalletData::TwintRedirect {}
+                | api_models::payments::WalletData::VippsRedirect {}
+                | api_models::payments::WalletData::TouchNGoRedirect(_)
+                | api_models::payments::WalletData::WeChatPayRedirect(_)
+                | api_models::payments::WalletData::CashappQr(_)
+                | api_models::payments::WalletData::SwishQr(_)
+                | api_models::payments::WalletData::WeChatPayQr(_) => {
+                    Err(errors::ConnectorError::NotImplemented(
+                        utils::get_unimplemented_payment_method_error_message("checkout"),
+                    )
+                    .into())
+                }
             },
-            _ => Err(errors::ConnectorError::NotImplemented(
-                "Payment Method".to_string(),
-            ))
-            .into_report(),
+            api_models::payments::PaymentMethodData::Card(_)
+            | api_models::payments::PaymentMethodData::PayLater(_)
+            | api_models::payments::PaymentMethodData::BankRedirect(_)
+            | api_models::payments::PaymentMethodData::BankDebit(_)
+            | api_models::payments::PaymentMethodData::BankTransfer(_)
+            | api_models::payments::PaymentMethodData::Crypto(_)
+            | api_models::payments::PaymentMethodData::MandatePayment
+            | api_models::payments::PaymentMethodData::Reward(_)
+            | api_models::payments::PaymentMethodData::Upi(_)
+            | api_models::payments::PaymentMethodData::Voucher(_)
+            | api_models::payments::PaymentMethodData::GiftCard(_) => {
+                Err(errors::ConnectorError::NotImplemented(
+                    utils::get_unimplemented_payment_method_error_message("checkout"),
+                )
+                .into())
+            }
         }
     }
 }
@@ -198,13 +235,50 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PaymentsRequest {
                         token: item.get_payment_method_token()?,
                     }))
                 }
-                _ => Err(errors::ConnectorError::NotImplemented(
-                    "Payment Method".to_string(),
-                )),
+                api_models::payments::WalletData::AliPayQr(_)
+                | api_models::payments::WalletData::AliPayRedirect(_)
+                | api_models::payments::WalletData::AliPayHkRedirect(_)
+                | api_models::payments::WalletData::MomoRedirect(_)
+                | api_models::payments::WalletData::KakaoPayRedirect(_)
+                | api_models::payments::WalletData::GoPayRedirect(_)
+                | api_models::payments::WalletData::GcashRedirect(_)
+                | api_models::payments::WalletData::ApplePayRedirect(_)
+                | api_models::payments::WalletData::ApplePayThirdPartySdk(_)
+                | api_models::payments::WalletData::DanaRedirect {}
+                | api_models::payments::WalletData::GooglePayRedirect(_)
+                | api_models::payments::WalletData::GooglePayThirdPartySdk(_)
+                | api_models::payments::WalletData::MbWayRedirect(_)
+                | api_models::payments::WalletData::MobilePayRedirect(_)
+                | api_models::payments::WalletData::PaypalRedirect(_)
+                | api_models::payments::WalletData::PaypalSdk(_)
+                | api_models::payments::WalletData::SamsungPay(_)
+                | api_models::payments::WalletData::TwintRedirect {}
+                | api_models::payments::WalletData::VippsRedirect {}
+                | api_models::payments::WalletData::TouchNGoRedirect(_)
+                | api_models::payments::WalletData::WeChatPayRedirect(_)
+                | api_models::payments::WalletData::CashappQr(_)
+                | api_models::payments::WalletData::SwishQr(_)
+                | api_models::payments::WalletData::WeChatPayQr(_) => {
+                    Err(errors::ConnectorError::NotImplemented(
+                        utils::get_unimplemented_payment_method_error_message("checkout"),
+                    ))
+                }
             },
-            _ => Err(errors::ConnectorError::NotImplemented(
-                "Payment Method".to_string(),
-            )),
+
+            api_models::payments::PaymentMethodData::PayLater(_)
+            | api_models::payments::PaymentMethodData::BankRedirect(_)
+            | api_models::payments::PaymentMethodData::BankDebit(_)
+            | api_models::payments::PaymentMethodData::BankTransfer(_)
+            | api_models::payments::PaymentMethodData::Crypto(_)
+            | api_models::payments::PaymentMethodData::MandatePayment
+            | api_models::payments::PaymentMethodData::Reward(_)
+            | api_models::payments::PaymentMethodData::Upi(_)
+            | api_models::payments::PaymentMethodData::Voucher(_)
+            | api_models::payments::PaymentMethodData::GiftCard(_) => {
+                Err(errors::ConnectorError::NotImplemented(
+                    utils::get_unimplemented_payment_method_error_message("checkout"),
+                ))
+            }
         }?;
 
         let three_ds = match item.auth_type {

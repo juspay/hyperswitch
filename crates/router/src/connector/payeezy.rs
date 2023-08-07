@@ -91,13 +91,6 @@ impl ConnectorCommon for Payeezy {
     fn common_get_content_type(&self) -> &'static str {
         "application/json"
     }
-    fn validate_auth_type(
-        &self,
-        val: &types::ConnectorAuthType,
-    ) -> Result<(), error_stack::Report<errors::ConnectorError>> {
-        payeezy::PayeezyAuthType::try_from(val)?;
-        Ok(())
-    }
 
     fn base_url<'a>(&self, connectors: &'a settings::Connectors) -> &'a str {
         connectors.payeezy.base_url.as_ref()
@@ -242,17 +235,7 @@ impl api::PaymentSync for Payeezy {}
 impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsResponseData>
     for Payeezy
 {
-    fn build_request(
-        &self,
-        _req: &types::PaymentsSyncRouterData,
-        _connectors: &settings::Connectors,
-    ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
-        Err(errors::ConnectorError::FlowNotSupported {
-            flow: "Psync".to_owned(),
-            connector: "payeezy".to_owned(),
-        }
-        .into())
-    }
+    // default implementation of build_request method will be executed
 }
 
 impl api::PaymentCapture for Payeezy {}
@@ -516,17 +499,7 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
 }
 
 impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponseData> for Payeezy {
-    fn build_request(
-        &self,
-        _req: &types::RefundSyncRouterData,
-        _connectors: &settings::Connectors,
-    ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
-        Err(errors::ConnectorError::FlowNotSupported {
-            flow: "Rsync".to_owned(),
-            connector: "payeezy".to_owned(),
-        }
-        .into())
-    }
+    // default implementation of build_request method will be executed
 }
 
 #[async_trait::async_trait]

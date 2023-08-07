@@ -1,4 +1,4 @@
-mod transformers;
+pub mod transformers;
 
 use std::fmt::Debug;
 
@@ -70,14 +70,6 @@ impl ConnectorCommon for Airwallex {
 
     fn base_url<'a>(&self, connectors: &'a settings::Connectors) -> &'a str {
         connectors.airwallex.base_url.as_ref()
-    }
-
-    fn validate_auth_type(
-        &self,
-        val: &types::ConnectorAuthType,
-    ) -> Result<(), error_stack::Report<errors::ConnectorError>> {
-        airwallex::AirwallexAuthType::try_from(val)?;
-        Ok(())
     }
 
     fn build_error_response(
@@ -467,11 +459,11 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
         res: Response,
     ) -> CustomResult<types::PaymentsSyncRouterData, errors::ConnectorError> {
         logger::debug!(payment_sync_response=?res);
-        let response: airwallex::AirwallexPaymentsResponse = res
+        let response: airwallex::AirwallexPaymentsSyncResponse = res
             .response
-            .parse_struct("airwallex PaymentsResponse")
+            .parse_struct("airwallex AirwallexPaymentsSyncResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-        types::RouterData::try_from(types::ResponseRouterData {
+        types::PaymentsSyncRouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
