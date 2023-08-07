@@ -1062,7 +1062,7 @@ pub fn get_apple_pay_session<F, T>(
                             next_action: api_models::payments::NextActionCall::Sync,
                         }
                     },
-                    connector_transaction_id: None,
+                    connector_reference_id: None,
                 },
             ))),
             connector_response_reference_id: None,

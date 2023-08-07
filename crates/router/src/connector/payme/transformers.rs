@@ -270,7 +270,7 @@ impl<F>
                         sdk_next_action: api_models::payments::SdkNextAction {
                             next_action: api_models::payments::NextActionCall::InvokeSdkAndEnd,
                         },
-                        connector_transaction_id: Some(item.response.payme_sale_id),
+                        connector_reference_id: Some(item.response.payme_sale_id),
                     },
                 ))),
                 connector_response_reference_id: None,
