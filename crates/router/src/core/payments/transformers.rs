@@ -879,10 +879,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsCaptureD
                 .ok_or(errors::ApiErrorResponse::ResourceIdNotFound)?,
             payment_amount: payment_data.amount.into(),
             connector_meta: payment_data.payment_attempt.connector_metadata,
-            capture_method: payment_data
-                .payment_attempt
-                .capture_method
-                .unwrap_or_default(),
+            multiple_capture_data: payment_data.multiple_capture_data,
         })
     }
 }

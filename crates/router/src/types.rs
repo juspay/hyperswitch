@@ -26,7 +26,10 @@ pub use crate::core::payments::{CustomerDetails, PaymentAddress};
 #[cfg(feature = "payouts")]
 use crate::core::utils::IRRELEVANT_CONNECTOR_REQUEST_REFERENCE_ID_IN_DISPUTE_FLOW;
 use crate::{
-    core::{errors, payments::RecurringMandatePaymentData},
+    core::{
+        errors,
+        payments::{MultipleCaptureData, RecurringMandatePaymentData},
+    },
     services,
 };
 
@@ -317,7 +320,7 @@ pub struct PaymentsCaptureData {
     pub currency: storage_enums::Currency,
     pub connector_transaction_id: String,
     pub payment_amount: i64,
-    pub capture_method: storage_enums::CaptureMethod,
+    pub multiple_capture_data: Option<MultipleCaptureData>,
     pub connector_meta: Option<serde_json::Value>,
 }
 
