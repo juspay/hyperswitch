@@ -300,6 +300,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for BluesnapPaymentsRequest {
             | payments::PaymentMethodData::MandatePayment
             | payments::PaymentMethodData::Reward(_)
             | payments::PaymentMethodData::Upi(_)
+            | payments::PaymentMethodData::CardRedirect(_)
             | payments::PaymentMethodData::Voucher(_)
             | payments::PaymentMethodData::GiftCard(_) => {
                 Err(errors::ConnectorError::NotImplemented(
