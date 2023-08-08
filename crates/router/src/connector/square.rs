@@ -106,11 +106,34 @@ impl ConnectorCommon for Square {
             .parse_struct("SquareErrorResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
 
+        let default_error_details = square::SquareErrorDetails {
+            category: Some("".to_string()),
+            code: Some("".to_string()),
+            detail: Some("".to_string()),
+        };
+
         Ok(ErrorResponse {
             status_code: res.status_code,
-            code: response.code,
-            message: response.message,
-            reason: response.reason,
+            code: response
+                .errors
+                .first()
+                .unwrap_or(&default_error_details.clone())
+                .code
+                .clone()
+                .unwrap_or("".to_string()),
+            message: response
+                .errors
+                .first()
+                .unwrap_or(&default_error_details.clone())
+                .detail
+                .clone()
+                .unwrap_or("".to_string()),
+            reason: response
+                .errors
+                .first()
+                .unwrap_or(&default_error_details.clone())
+                .category
+                .clone(),
         })
     }
 }

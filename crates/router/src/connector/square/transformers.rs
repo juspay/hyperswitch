@@ -326,10 +326,13 @@ impl TryFrom<types::RefundsResponseRouterData<api::RSync, RefundResponse>>
     }
 }
 
-#[derive(Default, Debug, Serialize, Deserialize, PartialEq)]
+#[derive(Clone, Default, Debug, Serialize, Deserialize, PartialEq)]
+pub struct SquareErrorDetails {
+    pub category: Option<String>,
+    pub code: Option<String>,
+    pub detail: Option<String>,
+}
+#[derive(Clone, Default, Debug, Serialize, Deserialize, PartialEq)]
 pub struct SquareErrorResponse {
-    pub status_code: u16,
-    pub code: String,
-    pub message: String,
-    pub reason: Option<String>,
+    pub errors: Vec<SquareErrorDetails>,
 }
