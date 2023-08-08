@@ -1,3 +1,4 @@
+#[cfg(feature = "openapi")]
 #[derive(utoipa::OpenApi)]
 #[openapi(
     info(
@@ -79,13 +80,13 @@ Never share your secret api keys. Keep them guarded and secure.
         crate::routes::mandates::get_mandate,
         crate::routes::mandates::revoke_mandate,
         crate::routes::payments::payments_create,
-       // crate::routes::payments::payments_start,
+    // crate::routes::payments::payments_start,
         crate::routes::payments::payments_retrieve,
         crate::routes::payments::payments_update,
         crate::routes::payments::payments_confirm,
         crate::routes::payments::payments_capture,
         crate::routes::payments::payments_connector_session,
-       // crate::routes::payments::payments_redirect_response,
+    // crate::routes::payments::payments_redirect_response,
         crate::routes::payments::payments_cancel,
         crate::routes::payments::payments_list,
         crate::routes::payment_methods::create_payment_method_api,
@@ -343,46 +344,44 @@ impl utoipa::Modify for SecurityAddon {
 
         if let Some(components) = openapi.components.as_mut() {
             components.add_security_schemes_from_iter([
-                (
-                    "api_key",
-                    SecurityScheme::ApiKey(ApiKey::Header(ApiKeyValue::with_description(
-                        "api-key",
-                        "API keys are the most common method of authentication and can be obtained \
-                         from the HyperSwitch dashboard."
-                    ))),
-                ),
-                (
-                    "admin_api_key",
-                    SecurityScheme::ApiKey(ApiKey::Header(ApiKeyValue::with_description(
-                        "api-key",
-                        "Admin API keys allow you to perform some privileged actions such as \
-                         creating a merchant account and Merchant Connector account."
-                    ))),
-                ),
-                (
-                    "publishable_key",
-                    SecurityScheme::ApiKey(ApiKey::Header(ApiKeyValue::with_description(
-                        "api-key",
-                        "Publishable keys are a type of keys that can be public and have limited \
-                         scope of usage."
-                    ))),
-                ),
-                (
-                    "ephemeral_key",
-                    SecurityScheme::ApiKey(ApiKey::Header(ApiKeyValue::with_description(
-                        "api-key",
-                        "Ephemeral keys provide temporary access to singular data, such as access \
-                         to a single customer object for a short period of time."
-                    ))),
-                ),
-            ]);
+                    (
+                        "api_key",
+                        SecurityScheme::ApiKey(ApiKey::Header(ApiKeyValue::with_description(
+                            "api-key",
+                            "API keys are the most common method of authentication and can be obtained \
+                            from the HyperSwitch dashboard."
+                        ))),
+                    ),
+                    (
+                        "admin_api_key",
+                        SecurityScheme::ApiKey(ApiKey::Header(ApiKeyValue::with_description(
+                            "api-key",
+                            "Admin API keys allow you to perform some privileged actions such as \
+                            creating a merchant account and Merchant Connector account."
+                        ))),
+                    ),
+                    (
+                        "publishable_key",
+                        SecurityScheme::ApiKey(ApiKey::Header(ApiKeyValue::with_description(
+                            "api-key",
+                            "Publishable keys are a type of keys that can be public and have limited \
+                            scope of usage."
+                        ))),
+                    ),
+                    (
+                        "ephemeral_key",
+                        SecurityScheme::ApiKey(ApiKey::Header(ApiKeyValue::with_description(
+                            "api-key",
+                            "Ephemeral keys provide temporary access to singular data, such as access \
+                            to a single customer object for a short period of time."
+                        ))),
+                    ),
+                ]);
         }
     }
 }
 
 pub mod examples {
-    //! This file contains the examples to be used for openapi
-
     /// Creating the payment with minimal fields
     pub const PAYMENTS_CREATE_MINIMUM_FIELDS: &str = r#"{
         "amount": 6540,
