@@ -15,7 +15,7 @@ use crate::{
     consts,
     core::errors::{self, CustomResult},
     db::StorageInterface,
-    headers,
+    headers, logger,
     services::{
         self,
         request::{self, Mask},
@@ -95,8 +95,8 @@ impl ConnectorCommon for Rapyd {
                 reason: response_data.status.message,
             }),
             Err(error_msg) => {
-                crate::logger::error!("{}", error_msg);
-                utils::get_json_deserialized(res, "rapyd".to_owned())
+                logger::error!("deserialization_error = {}", error_msg);
+                utils::handle_json_response_deserialization_failure(res, "rapyd".to_owned())
             }
         }
     }

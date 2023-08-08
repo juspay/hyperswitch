@@ -10,7 +10,7 @@ use crate::{
     configs::settings,
     consts,
     core::errors::{self, CustomResult},
-    headers,
+    headers, logger,
     services::{
         self,
         request::{self, Mask},
@@ -62,8 +62,8 @@ impl ConnectorCommon for Braintree {
                 reason: None,
             }),
             Err(error_msg) => {
-                crate::logger::error!("{}", error_msg);
-                utils::get_json_deserialized(res, "braintree".to_owned())
+                logger::error!("deserialization_error : {}", error_msg);
+                utils::handle_json_response_deserialization_failure(res, "braintree".to_owned())
             }
         }
     }

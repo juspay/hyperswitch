@@ -181,7 +181,7 @@ mod tests {
 }
 
 // validate json format for the error
-pub fn get_json_deserialized(
+pub fn handle_json_response_deserialization_failure(
     res: types::Response,
     connector: String,
 ) -> CustomResult<types::ErrorResponse, errors::ConnectorError> {
@@ -200,7 +200,8 @@ pub fn get_json_deserialized(
         // in case of unexpected response but in json format
         Ok(_) => Err(errors::ConnectorError::ResponseDeserializationFailed)?,
         // in case of unexpected response but in html or string format
-        Err(_) => {
+        Err(error_msg) => {
+            logger::error!("Deserialization failed at {}", error_msg);
             logger::error!("UNEXPECTED RESPONSE FROM CONNECTOR: {}", response_data);
             Ok(types::ErrorResponse {
                 status_code: res.status_code,

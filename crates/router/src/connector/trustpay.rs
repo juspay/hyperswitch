@@ -19,7 +19,7 @@ use crate::{
         errors::{self, CustomResult},
         payments,
     },
-    headers,
+    headers, logger,
     services::{
         self,
         request::{self, Mask},
@@ -137,8 +137,8 @@ impl ConnectorCommon for Trustpay {
                 })
             }
             Err(error_msg) => {
-                crate::logger::error!("{}", error_msg);
-                utils::get_json_deserialized(res, "trustpay".to_owned())
+                logger::error!("deserialization_error : {}", error_msg);
+                utils::handle_json_response_deserialization_failure(res, "trustpay".to_owned())
             }
         }
     }
