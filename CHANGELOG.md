@@ -3,6 +3,23 @@
 All notable changes to HyperSwitch will be documented here.
 
 - - -
+## 1.14.1+hotfix.2 (2023-08-08)
+
+### Features
+
+- **router:**
+  - Handle webhook source verification for multiple mca of the same connector ([#1890](https://github.com/juspay/hyperswitch/pull/1890)) ([`f413d6f`](https://github.com/juspay/hyperswitch/commit/f413d6f6edfdee88b1e10afc57f4ee59047654b8))
+  - Skip payment_intent fetch for single business details merchant in webhook source verification ([#1896](https://github.com/juspay/hyperswitch/pull/1896)) ([`f0c00b2`](https://github.com/juspay/hyperswitch/commit/f0c00b25e85bd2a2d8d5d935fb438dac578712e9))
+
+### Bug Fixes
+
+- **webhooks:**
+  - Add temporary support to acknowledge webhooks whose pa… ([#1887](https://github.com/juspay/hyperswitch/pull/1887)) ([`a59911e`](https://github.com/juspay/hyperswitch/commit/a59911e1b923e71f09e1607394cbc0e9f8f643e7))
+  - Fix duplicate webhooks from being sent ([#1860](https://github.com/juspay/hyperswitch/pull/1860)) ([`2b4b377`](https://github.com/juspay/hyperswitch/commit/2b4b3776c13d7634390fa5e0234831f2b2efd2b0))
+
+**Full Changelog:** [`v1.14.1+hotfix.1...v1.14.1+hotfix.2`](https://github.com/juspay/hyperswitch/compare/v1.14.1+hotfix.1...v1.14.1+hotfix.2)
+
+- - -
 
 ## 1.14.1+hotfix.1 (2023-08-03)
 
