@@ -461,9 +461,9 @@ pub enum FieldType {
     UserAddressState,
     UserAddressCountry,
     UserBlikCode,
-    FieldsComplete,
     UserBillingName,
     UserBank,
+    UserCurrency { options: Vec<String> },
     Text,
     DropDown { options: Vec<String> },
 }

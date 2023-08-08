@@ -695,6 +695,55 @@ impl Default for super::settings::RequiredFields {
                 ])),
             ),
             (
+                enums::PaymentMethod::Crypto,
+                PaymentMethodType(HashMap::from([
+                    (
+                        enums::PaymentMethodType::CryptoCurrency,
+                        ConnectorFields {
+                            fields: HashMap::from([
+                                (
+                                    enums::Connector::Cryptopay,
+                                    RequiredFieldFinal {
+                                        mandate : HashMap::new(),
+                                        non_mandate: HashMap::from([
+                                            (
+                                                "payment_method_data.crypto.pay_currency".to_string(),
+                                                RequiredFieldInfo {
+                                                    required_field: "payment_method_data.crypto.pay_currency".to_string(),
+                                                    display_name: "currency".to_string(),
+                                                    field_type: enums::FieldType::UserCurrency{
+                                                        options: vec![
+                                                            "BTC".to_string(),
+                                                            "LTC".to_string(),
+                                                            "ETH".to_string(),
+                                                            "XRP".to_string(),
+                                                            "XLM".to_string(),
+                                                            "BCH".to_string(),
+                                                            "ADA".to_string(),
+                                                            "SOL".to_string(),
+                                                            "SHIB".to_string(),
+                                                            "TRX".to_string(),
+                                                            "DOGE".to_string(),
+                                                            "BNB".to_string(),
+                                                            "BUSD".to_string(),
+                                                            "USDT".to_string(),
+                                                            "USDC".to_string(),
+                                                            "DAI".to_string(),
+                                                        ]
+                                                    },
+                                                    value: None,
+                                                }
+                                            ),
+                                        ]),
+                                        common : HashMap::new(),
+                                    }
+                                ),
+                            ]),
+                        },
+                    ),
+                ])),
+            ),
+            (
                 enums::PaymentMethod::BankDebit,
                 PaymentMethodType(HashMap::from([(
                     enums::PaymentMethodType::Ach,
