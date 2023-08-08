@@ -1,4 +1,4 @@
-mod transformers;
+pub mod transformers;
 
 use std::{collections::HashMap, fmt::Debug, ops::Deref};
 
@@ -194,12 +194,13 @@ impl
             code: response
                 .error
                 .code
+                .clone()
                 .unwrap_or_else(|| consts::NO_ERROR_CODE.to_string()),
             message: response
                 .error
-                .message
+                .code
                 .unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
-            reason: None,
+            reason: response.error.message,
         })
     }
 }
@@ -311,12 +312,13 @@ impl
             code: response
                 .error
                 .code
+                .clone()
                 .unwrap_or_else(|| consts::NO_ERROR_CODE.to_string()),
             message: response
                 .error
-                .message
+                .code
                 .unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
-            reason: None,
+            reason: response.error.message,
         })
     }
 }
@@ -424,12 +426,13 @@ impl
             code: response
                 .error
                 .code
+                .clone()
                 .unwrap_or_else(|| consts::NO_ERROR_CODE.to_string()),
             message: response
                 .error
-                .message
+                .code
                 .unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
-            reason: None,
+            reason: response.error.message,
         })
     }
 }
@@ -545,12 +548,13 @@ impl
             code: response
                 .error
                 .code
+                .clone()
                 .unwrap_or_else(|| consts::NO_ERROR_CODE.to_string()),
             message: response
                 .error
-                .message
+                .code
                 .unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
-            reason: None,
+            reason: response.error.message,
         })
     }
 }
@@ -676,12 +680,13 @@ impl
             code: response
                 .error
                 .code
+                .clone()
                 .unwrap_or_else(|| consts::NO_ERROR_CODE.to_string()),
             message: response
                 .error
-                .message
+                .code
                 .unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
-            reason: None,
+            reason: response.error.message,
         })
     }
 }
@@ -824,12 +829,13 @@ impl
             code: response
                 .error
                 .code
+                .clone()
                 .unwrap_or_else(|| consts::NO_ERROR_CODE.to_string()),
             message: response
                 .error
-                .message
+                .code
                 .unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
-            reason: None,
+            reason: response.error.message,
         })
     }
 }
@@ -934,12 +940,13 @@ impl
             code: response
                 .error
                 .code
+                .clone()
                 .unwrap_or_else(|| consts::NO_ERROR_CODE.to_string()),
             message: response
                 .error
-                .message
+                .code
                 .unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
-            reason: None,
+            reason: response.error.message,
         })
     }
 }
@@ -1063,12 +1070,13 @@ impl
             code: response
                 .error
                 .code
+                .clone()
                 .unwrap_or_else(|| consts::NO_ERROR_CODE.to_string()),
             message: response
                 .error
-                .message
+                .code
                 .unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
-            reason: None,
+            reason: response.error.message,
         })
     }
 }
@@ -1171,12 +1179,13 @@ impl services::ConnectorIntegration<api::Execute, types::RefundsData, types::Ref
             code: response
                 .error
                 .code
+                .clone()
                 .unwrap_or_else(|| consts::NO_ERROR_CODE.to_string()),
             message: response
                 .error
-                .message
+                .code
                 .unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
-            reason: None,
+            reason: response.error.message,
         })
     }
 }
@@ -1265,12 +1274,13 @@ impl services::ConnectorIntegration<api::RSync, types::RefundsData, types::Refun
             code: response
                 .error
                 .code
+                .clone()
                 .unwrap_or_else(|| consts::NO_ERROR_CODE.to_string()),
             message: response
                 .error
-                .message
+                .code
                 .unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
-            reason: None,
+            reason: response.error.message,
         })
     }
 }
@@ -1400,12 +1410,13 @@ impl
             code: response
                 .error
                 .code
+                .clone()
                 .unwrap_or_else(|| consts::NO_ERROR_CODE.to_string()),
             message: response
                 .error
-                .message
+                .code
                 .unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
-            reason: None,
+            reason: response.error.message,
         })
     }
 }
@@ -1493,12 +1504,13 @@ impl
             code: response
                 .error
                 .code
+                .clone()
                 .unwrap_or_else(|| consts::NO_ERROR_CODE.to_string()),
             message: response
                 .error
-                .message
+                .code
                 .unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
-            reason: None,
+            reason: response.error.message,
         })
     }
 }
@@ -1609,12 +1621,13 @@ impl
             code: response
                 .error
                 .code
+                .clone()
                 .unwrap_or_else(|| consts::NO_ERROR_CODE.to_string()),
             message: response
                 .error
-                .message
+                .code
                 .unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
-            reason: None,
+            reason: response.error.message,
         })
     }
 }

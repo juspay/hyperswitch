@@ -27,19 +27,22 @@ const API_KEY_EXPIRY_NAME: &str = "API_KEY_EXPIRY";
 #[cfg(feature = "email")]
 const API_KEY_EXPIRY_RUNNER: &str = "API_KEY_EXPIRY_WORKFLOW";
 
+#[cfg(feature = "kms")]
+use external_services::kms::decrypt::KmsDecrypt;
+
 static HASH_KEY: tokio::sync::OnceCell<StrongSecret<[u8; PlaintextApiKey::HASH_KEY_LEN]>> =
     tokio::sync::OnceCell::const_new();
 
 pub async fn get_hash_key(
     api_key_config: &settings::ApiKeys,
-    #[cfg(feature = "kms")] kms_config: &kms::KmsConfig,
+    #[cfg(feature = "kms")] kms_client: &kms::KmsClient,
 ) -> errors::RouterResult<&'static StrongSecret<[u8; PlaintextApiKey::HASH_KEY_LEN]>> {
     HASH_KEY
         .get_or_try_init(|| async {
             #[cfg(feature = "kms")]
-            let hash_key = kms::get_kms_client(kms_config)
-                .await
-                .decrypt(&api_key_config.kms_encrypted_hash_key)
+            let hash_key = api_key_config
+                .kms_encrypted_hash_key
+                .decrypt_inner(kms_client)
                 .await
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("Failed to KMS decrypt API key hashing key")?;
@@ -130,7 +133,7 @@ impl PlaintextApiKey {
 pub async fn create_api_key(
     state: &AppState,
     api_key_config: &settings::ApiKeys,
-    #[cfg(feature = "kms")] kms_config: &kms::KmsConfig,
+    #[cfg(feature = "kms")] kms_client: &kms::KmsClient,
     api_key: api::CreateApiKeyRequest,
     merchant_id: String,
 ) -> RouterResponse<api::CreateApiKeyResponse> {
@@ -150,7 +153,7 @@ pub async fn create_api_key(
     let hash_key = get_hash_key(
         api_key_config,
         #[cfg(feature = "kms")]
-        kms_config,
+        kms_client,
     )
     .await?;
     let plaintext_api_key = PlaintextApiKey::new(consts::API_KEY_LENGTH);
@@ -555,7 +558,7 @@ mod tests {
         let hash_key = get_hash_key(
             &settings.api_keys,
             #[cfg(feature = "kms")]
-            &settings.kms,
+            external_services::kms::get_kms_client(&settings.kms).await,
         )
         .await
         .unwrap();

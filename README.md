@@ -53,7 +53,7 @@ Using HyperSwitch, you can:
 ## Quick Start Guide
 
 
-<a href="https://app.hyperswitch.io"><img src="./docs/imgs/signup-to-hs.svg" height="35"></a>
+<a href="https://app.hyperswitch.io/register"><img src="./docs/imgs/signup-to-hs.svg" height="35"></a>
 
 Ways to get started with Hyperswitch:
 
@@ -62,7 +62,7 @@ Ways to get started with Hyperswitch:
    No code or setup required in your system, [learn more](/docs/try_sandbox.md)
 
 
-<a href="https://app.hyperswitch.io"><img src="./docs/imgs/get-api-keys.svg" height="35"></a>
+<a href="https://app.hyperswitch.io/register"><img src="./docs/imgs/get-api-keys.svg" height="35"></a>
 
 2. A simple demo of integrating Hyperswitch with your React App, Try our React [Demo App](https://github.com/aashu331998/hyperswitch-react-demo-app/archive/refs/heads/main.zip).
 
@@ -81,7 +81,7 @@ Try the steps below to get a feel for how quick the setup is:
 2. Follow the instructions detailed on our
    [documentation page][migrate-from-stripe].
 
-[dashboard]: https://app.hyperswitch.io/
+[dashboard]: https://app.hyperswitch.io/register
 [migrate-from-stripe]: https://hyperswitch.io/docs/migrateFromStripe
 
 ## Supported Features

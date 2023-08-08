@@ -1,4 +1,4 @@
-mod transformers;
+pub mod transformers;
 use std::fmt::Debug;
 
 use api_models::payments as api_payments;

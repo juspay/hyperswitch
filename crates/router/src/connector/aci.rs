@@ -1,5 +1,5 @@
 mod result_codes;
-mod transformers;
+pub mod transformers;
 use std::fmt::Debug;
 
 use diesel_models::enums;

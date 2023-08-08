@@ -1,4 +1,4 @@
-mod transformers;
+pub mod transformers;
 
 use std::fmt::Debug;
 
@@ -9,7 +9,10 @@ use error_stack::{IntoReport, ResultExt};
 use masking::PeekInterface;
 use transformers as trustpay;
 
-use super::utils::collect_and_sort_values_by_removing_signature;
+use super::utils::{
+    collect_and_sort_values_by_removing_signature, get_error_code_error_message_based_on_priority,
+    ConnectorErrorType, ConnectorErrorTypeMapping,
+};
 use crate::{
     configs::settings,
     consts,
@@ -106,23 +109,29 @@ impl ConnectorCommon for Trustpay {
             .response
             .parse_struct("trustpay ErrorResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-        let default_error = trustpay::Errors {
-            code: 0,
-            description: consts::NO_ERROR_CODE.to_string(),
-        };
+        let error_list = response.errors.clone().unwrap_or(vec![]);
+        let option_error_code_message = get_error_code_error_message_based_on_priority(
+            self.clone(),
+            error_list.into_iter().map(|errors| errors.into()).collect(),
+        );
+        let reason = response.errors.map(|errors| {
+            errors
+                .iter()
+                .map(|error| error.description.clone())
+                .collect::<Vec<String>>()
+                .join(" & ")
+        });
         Ok(ErrorResponse {
             status_code: res.status_code,
-            code: response.status.to_string(),
-            message: format!(
-                "{:?}",
-                response
-                    .errors
-                    .as_ref()
-                    .unwrap_or(&vec![])
-                    .first()
-                    .unwrap_or(&default_error)
-            ),
-            reason: response.errors.map(|errors| format!("{:?}", errors)),
+            code: option_error_code_message
+                .clone()
+                .map(|error_code_message| error_code_message.error_code)
+                .unwrap_or(consts::NO_ERROR_CODE.to_string()),
+            // message vary for the same code, so relying on code alone as it is unique
+            message: option_error_code_message
+                .map(|error_code_message| error_code_message.error_code)
+                .unwrap_or(consts::NO_ERROR_MESSAGE.to_string()),
+            reason: reason.or(response.description),
         })
     }
 }
@@ -259,11 +268,8 @@ impl ConnectorIntegration<api::AccessTokenAuth, types::AccessTokenRequestData, t
         Ok(ErrorResponse {
             status_code: res.status_code,
             code: response.result_info.result_code.to_string(),
-            message: response
-                .result_info
-                .additional_info
-                .clone()
-                .unwrap_or_default(),
+            // message vary for the same code, so relying on code alone as it is unique
+            message: response.result_info.result_code.to_string(),
             reason: response.result_info.additional_info,
         })
     }
@@ -335,7 +341,8 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
         Ok(ErrorResponse {
             status_code: res.status_code,
             code: response.status.to_string(),
-            message: response.payment_description.clone(),
+            // message vary for the same code, so relying on code alone as it is unique
+            message: response.status.to_string(),
             reason: Some(response.payment_description),
         })
     }
@@ -932,5 +939,63 @@ impl services::ConnectorRedirectResponse for Trustpay {
                 _ => payments::CallConnectorAction::Trigger,
             },
         ))
+    }
+}
+
+impl ConnectorErrorTypeMapping for Trustpay {
+    fn get_connector_error_type(
+        &self,
+        error_code: String,
+        error_message: String,
+    ) -> ConnectorErrorType {
+        match (error_code.as_str(), error_message.as_str()) {
+            // 2xx card api error codes and messages mapping
+            ("100.100.600", "Empty CVV for VISA, MASTER not allowed") => ConnectorErrorType::UserError,
+            ("100.350.100", "Referenced session is rejected (no action possible)") => ConnectorErrorType::TechnicalError,
+            ("100.380.401", "User authentication failed") => ConnectorErrorType::UserError,
+            ("100.380.501", "Risk management transaction timeout") => ConnectorErrorType::TechnicalError,
+            ("100.390.103", "PARes validation failed - problem with signature") => ConnectorErrorType::TechnicalError,
+            ("100.390.111", "Communication error to VISA/Mastercard Directory Server") => ConnectorErrorType::TechnicalError,
+            ("100.390.112", "Technical error in 3D system") => ConnectorErrorType::TechnicalError,
+            ("100.390.115", "Authentication failed due to invalid message format") => ConnectorErrorType::TechnicalError,
+            ("100.390.118", "Authentication failed due to suspected fraud") => ConnectorErrorType::UserError,
+            ("100.400.304", "Invalid input data") => ConnectorErrorType::UserError,
+            ("200.300.404", "Invalid or missing parameter") => ConnectorErrorType::UserError,
+            ("300.100.100", "Transaction declined (additional customer authentication required)") => ConnectorErrorType::UserError,
+            ("400.001.301", "Card not enrolled in 3DS") => ConnectorErrorType::UserError,
+            ("400.001.600", "Authentication error") => ConnectorErrorType::UserError,
+            ("400.001.601", "Transaction declined (auth. declined)") => ConnectorErrorType::UserError,
+            ("400.001.602", "Invalid transaction") => ConnectorErrorType::UserError,
+            ("400.001.603", "Invalid transaction") => ConnectorErrorType::UserError,
+            ("700.400.200", "Cannot refund (refund volume exceeded or tx reversed or invalid workflow)") => ConnectorErrorType::BusinessError,
+            ("700.500.001", "Referenced session contains too many transactions") => ConnectorErrorType::TechnicalError,
+            ("700.500.003", "Test accounts not allowed in production") => ConnectorErrorType::UserError,
+            ("800.100.151", "Transaction declined (invalid card)") => ConnectorErrorType::UserError,
+            ("800.100.152", "Transaction declined by authorization system") => ConnectorErrorType::UserError,
+            ("800.100.153", "Transaction declined (invalid CVV)") => ConnectorErrorType::UserError,
+            ("800.100.155", "Transaction declined (amount exceeds credit)") => ConnectorErrorType::UserError,
+            ("800.100.157", "Transaction declined (wrong expiry date)") => ConnectorErrorType::UserError,
+            ("800.100.162", "Transaction declined (limit exceeded)") => ConnectorErrorType::BusinessError,
+            ("800.100.163", "Transaction declined (maximum transaction frequency exceeded)") => ConnectorErrorType::BusinessError,
+            ("800.100.168", "Transaction declined (restricted card)") => ConnectorErrorType::UserError,
+            ("800.100.170", "Transaction declined (transaction not permitted)") => ConnectorErrorType::UserError,
+            ("800.100.172", "Transaction declined (account blocked)") => ConnectorErrorType::BusinessError,
+            ("800.100.190", "Transaction declined (invalid configuration data)") => ConnectorErrorType::BusinessError,
+            ("800.120.100", "Rejected by throttling") => ConnectorErrorType::TechnicalError,
+            ("800.300.401", "Bin blacklisted") => ConnectorErrorType::BusinessError,
+            ("800.700.100", "Transaction for the same session is currently being processed, please try again later") => ConnectorErrorType::TechnicalError,
+            ("900.100.300", "Timeout, uncertain result") => ConnectorErrorType::TechnicalError,
+            // 4xx error codes for cards api are unique and messages vary, so we are relying only on error code to decide an error type
+            ("4" | "5" | "6" | "7" | "8" | "9" | "10" | "11" | "12" | "13" | "14" | "15" | "16" | "17" | "18" | "19" | "26" | "34" | "39" | "48" | "52" | "85" | "86", _) => ConnectorErrorType::UserError,
+            ("21" | "22" | "23" | "30" | "31" | "32" | "35" | "37" | "40" | "41" | "45" | "46" | "49" | "50" | "56" | "60" | "67" | "81" | "82" | "83" | "84" | "87", _) => ConnectorErrorType::BusinessError,
+            ("59", _) => ConnectorErrorType::TechnicalError,
+            ("1", _) => ConnectorErrorType::UnknownError,
+            // Error codes for bank redirects api are unique and messages vary, so we are relying only on error code to decide an error type
+            ("1112008" | "1132000" | "1152000", _) => ConnectorErrorType::UserError,
+            ("1112009" | "1122006" | "1132001" | "1132002" | "1132003" | "1132004" | "1132005" | "1132006" | "1132008" | "1132009" | "1132010" | "1132011" | "1132012" | "1132013" | "1133000" | "1133001" | "1133002" | "1133003" | "1133004", _) => ConnectorErrorType::BusinessError,
+            ("1132014", _) => ConnectorErrorType::TechnicalError,
+            ("1132007", _) => ConnectorErrorType::UnknownError,
+            _ => ConnectorErrorType::UnknownError,
+        }
     }
 }
