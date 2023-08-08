@@ -217,7 +217,7 @@ adyen = { banks = "e_platby_vub,postova_banka,sporo_pay,tatra_pay,viamo" }
 [bank_config.online_banking_poland]
 adyen = { banks = "blik_psp,place_zipko,m_bank,pay_with_ing,santander_przelew24,bank_pekaosa,bank_millennium,pay_with_alior_bank,banki_spoldzielcze,pay_with_inteligo,bnp_paribas_poland,bank_nowy_sa,credit_agricole,pay_with_bos,pay_with_citi_handlowy,pay_with_plus_bank,toyota_bank,velo_bank,e_transfer_pocztowy24"}
 
-# Bank redirect configs for allowed banks through online_banking_poland payment method
+# Bank redirect configs for allowed banks through open_banking_uk payment method
 [bank_config.open_banking_uk]
 adyen = { banks = "aib,bank_of_scotland,danske_bank,first_direct,first_trust,halifax,lloyds,monzo,nat_west,nationwide_bank,royal_bank_of_scotland,starling,tsb_bank,tesco_bank,ulster_bank,barclays,hsbc_bank,revolut,santander_przelew24,open_bank_success,open_bank_failure,open_bank_cancelled"}
 

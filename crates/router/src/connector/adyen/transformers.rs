@@ -408,6 +408,7 @@ pub enum AdyenPaymentMethod<'a> {
     OnlineBankingFpx(Box<OnlineBankingFpxData>),
     #[serde(rename = "molpay_ebanking_TH")]
     OnlineBankingThailand(Box<OnlineBankingThailandData>),
+    #[serde(rename = "paybybank")]
     OpenBankingUK(Box<OpenBankingUKData>),
     #[serde(rename = "oxxo")]
     Oxxo,
@@ -700,8 +701,6 @@ pub struct OnlineBankingThailandData {
 
 #[derive(Debug, Clone, Serialize)]
 pub struct OpenBankingUKData {
-    #[serde(rename = "type")]
-    payment_type: PaymentType,
     issuer: OpenBankingUKIssuer,
 }
 
@@ -1957,7 +1956,6 @@ impl<'a> TryFrom<&api_models::payments::BankRedirectData> for AdyenPaymentMethod
             ),
             api_models::payments::BankRedirectData::OpenBankingUk { issuer, .. } => Ok(
                 AdyenPaymentMethod::OpenBankingUK(Box::new(OpenBankingUKData {
-                    payment_type: PaymentType::OpenBankingUK,
                     issuer: OpenBankingUKIssuer::try_from(issuer)?,
                 })),
             ),
