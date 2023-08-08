@@ -3625,6 +3625,17 @@
                 "type": "object"
               }
             }
+          },
+          {
+            "type": "object",
+            "required": [
+              "momo_atm"
+            ],
+            "properties": {
+              "momo_atm": {
+                "type": "object"
+              }
+            }
           }
         ]
       },

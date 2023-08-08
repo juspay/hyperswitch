@@ -500,12 +500,6 @@ pub struct SepaDirectDebitData {
 }
 
 #[derive(Debug, Clone, Serialize)]
-pub struct PmdForPaymentType {
-    #[serde(rename = "type")]
-    payment_type: PaymentType,
-}
-
-#[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct BacsDirectDebitData {
     #[serde(rename = "type")]

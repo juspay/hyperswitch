@@ -141,7 +141,7 @@
     "id": "24",
     "name": "Stripe Wechatpay",
     "connector": "stripe",
-    "request": "{\"amount\":7000,\"currency\":\"CNY\",\"confirm\":true,\"capture_method\":\"automatic\",\"capture_on\":\"2022-09-10T10:11:12Z\",\"customer_id\":\"StripeCustomer\",\"email\":\"abcdef123@gmail.com\",\"name\":\"John Doe\",\"phone\":\"999999999\",\"phone_country_code\":\"+65\",\"description\":\"Its my first payment request\",\"authentication_type\":\"three_ds\",\"return_url\":\"https://google.com\",\"billing\":{\"address\":{\"line1\":\"1467\",\"line2\":\"Harrison Street\",\"line3\":\"Harrison Street\",\"city\":\"San Fransico\",\"state\":\"California\",\"zip\":\"94122\",\"first_name\":\"John\",\"last_name\":\"Doe\",\"country\":\"SE\"}},\"browser_info\":{\"user_agent\":\"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/70.0.3538.110 Safari/537.36\",\"accept_header\":\"text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8\",\"language\":\"nl-NL\",\"color_depth\":24,\"screen_height\":723,\"screen_width\":1536,\"time_zone\":0,\"java_enabled\":true,\"java_script_enabled\":true,\"ip_address\":\"127.0.0.1\"},\"shipping\":{\"address\":{\"line1\":\"1467\",\"line2\":\"Harrison Street\",\"line3\":\"Harrison Street\",\"city\":\"San Fransico\",\"state\":\"California\",\"zip\":\"94122\",\"country\":\"SE\",\"first_name\":\"John\",\"last_name\":\"Doe\"}},\"statement_descriptor_name\":\"joseph\",\"statement_descriptor_suffix\":\"JS\",\"metadata\":{\"order_details\":{\"product_name\":\"Socks\",\"amount\":7000,\"quantity\":1}},\"payment_method\":\"wallet\",\"payment_method_type\":\"we_chat_pay\",\"payment_experience\":\"redirect_to_url\",\"payment_method_data\":{\"wallet\":{\"we_chat_pay\":{}}}}"
+    "request": "{\"amount\":7000,\"currency\":\"CNY\",\"confirm\":true,\"capture_method\":\"automatic\",\"capture_on\":\"2022-09-10T10:11:12Z\",\"customer_id\":\"StripeCustomer\",\"email\":\"abcdef123@gmail.com\",\"name\":\"John Doe\",\"phone\":\"999999999\",\"phone_country_code\":\"+65\",\"description\":\"Its my first payment request\",\"authentication_type\":\"three_ds\",\"return_url\":\"https://google.com\",\"billing\":{\"address\":{\"line1\":\"1467\",\"line2\":\"Harrison Street\",\"line3\":\"Harrison Street\",\"city\":\"San Fransico\",\"state\":\"California\",\"zip\":\"94122\",\"first_name\":\"John\",\"last_name\":\"Doe\",\"country\":\"SE\"}},\"browser_info\":{\"user_agent\":\"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/70.0.3538.110 Safari/537.36\",\"accept_header\":\"text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8\",\"language\":\"nl-NL\",\"color_depth\":24,\"screen_height\":723,\"screen_width\":1536,\"time_zone\":0,\"java_enabled\":true,\"java_script_enabled\":true,\"ip_address\":\"127.0.0.1\"},\"shipping\":{\"address\":{\"line1\":\"1467\",\"line2\":\"Harrison Street\",\"line3\":\"Harrison Street\",\"city\":\"San Fransico\",\"state\":\"California\",\"zip\":\"94122\",\"country\":\"SE\",\"first_name\":\"John\",\"last_name\":\"Doe\"}},\"statement_descriptor_name\":\"joseph\",\"statement_descriptor_suffix\":\"JS\",\"metadata\":{\"order_details\":{\"product_name\":\"Socks\",\"amount\":7000,\"quantity\":1}},\"payment_method\":\"wallet\",\"payment_method_type\":\"we_chat_pay\",\"payment_experience\":\"redirect_to_url\",\"payment_method_data\":{\"wallet\":{\"we_chat_pay_qr\":{}}}}"
   },
   "25": {
     "id": 25,
@@ -1341,7 +1341,7 @@
     "id": 224,
     "name": "Oxxo",
     "connector": "adyen_uk",
-    "request": "{\"amount\":6540,\"currency\":\"MXN\",\"confirm\":true,\"capture_method\":\"automatic\",\"capture_on\":\"2022-09-10T10:11:12Z\",\"amount_to_capture\":6540,\"customer_id\":\"StripeCustomer\",\"email\":\"guest@example.com\",\"name\":\"John Doe\",\"phone\":\"999999999\",\"phone_country_code\":\"+1\",\"description\":\"Its my first payment request\",\"authentication_type\":\"no_three_ds\",\"return_url\":\"https://google.com/\",\"payment_method\":\"voucher\",\"payment_method_type\":\"oxxo\",\"payment_method_data\":{\"voucher\":{\"oxxo\":{}}}}"
+    "request": "{\"amount\":6540,\"currency\":\"MXN\",\"confirm\":true,\"capture_method\":\"automatic\",\"capture_on\":\"2022-09-10T10:11:12Z\",\"amount_to_capture\":6540,\"customer_id\":\"StripeCustomer\",\"email\":\"guest@example.com\",\"name\":\"John Doe\",\"phone\":\"999999999\",\"phone_country_code\":\"+1\",\"description\":\"Its my first payment request\",\"authentication_type\":\"no_three_ds\",\"return_url\":\"https://google.com/\",\"payment_method\":\"voucher\",\"payment_method_type\":\"oxxo\",\"payment_method_data\":{\"voucher\":\"oxxo\"}}"
   },
   "225": {
     "id": 225,
@@ -1363,7 +1363,7 @@
   },
   "229": {
     "id": 229,
-    "name": "pay_JbukS3WUqF6MVjTp2fe1",
+    "name": "adyen klarna redirect",
     "connector": "adyen",
     "request": "{\"amount\":7000,\"currency\":\"SEK\",\"confirm\":true,\"capture_method\":\"automatic\",\"capture_on\":\"2022-09-10T10:11:12Z\",\"customer_id\":\"StripeCustomer\",\"email\":\"abcdef123@gmail.com\",\"name\":\"John Doe\",\"phone\":\"999999999\",\"phone_country_code\":\"+65\",\"description\":\"Its my first payment request\",\"authentication_type\":\"three_ds\",\"return_url\":\"https://hs-payments-test.netlify.app/payments\",\"billing\":{\"address\":{\"line1\":\"1467\",\"line2\":\"Harrison Street\",\"line3\":\"Harrison Street\",\"city\":\"San Fransico\",\"state\":\"California\",\"zip\":\"94122\",\"first_name\":\"John\",\"last_name\":\"Doe\",\"country\":\"SE\"}},\"browser_info\":{\"user_agent\":\"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/70.0.3538.110 Safari/537.36\",\"accept_header\":\"text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8\",\"language\":\"nl-NL\",\"color_depth\":24,\"screen_height\":723,\"screen_width\":1536,\"time_zone\":0,\"java_enabled\":true,\"java_script_enabled\":true,\"ip_address\":\"127.0.0.1\"},\"shipping\":{\"address\":{\"line1\":\"1467\",\"line2\":\"Harrison Street\",\"line3\":\"Harrison Street\",\"city\":\"San Fransico\",\"state\":\"California\",\"zip\":\"94122\",\"country\":\"SE\",\"first_name\":\"John\",\"last_name\":\"Doe\"}},\"statement_descriptor_name\":\"joseph\",\"statement_descriptor_suffix\":\"JS\",\"metadata\":{\"order_details\":{\"product_name\":\"Socks\",\"amount\":7000,\"quantity\":1}},\"payment_method\":\"pay_later\",\"payment_method_type\":\"klarna\",\"payment_experience\":\"redirect_to_url\",\"payment_method_data\":{\"pay_later\":{\"klarna_redirect\":{\"billing_email\":\"example@example.com\",\"billing_country\":\"SE\"}}}}"
   },
@@ -1409,13 +1409,82 @@
     "connector": "adyen_uk",
     "request": "{\"amount\":6540,\"currency\":\"JPY\",\"confirm\":true,\"capture_method\":\"automatic\",\"capture_on\":\"2022-09-10T10:11:12Z\",\"amount_to_capture\":6540,\"customer_id\":\"StripeCustomer\",\"email\":\"guest@example.com\",\"name\":\"John Doe\",\"phone\":\"999999999\",\"phone_country_code\":\"+1\",\"description\":\"Its my first payment request\",\"authentication_type\":\"no_three_ds\",\"return_url\":\"https://google.com/\",\"payment_method\":\"voucher\",\"payment_method_type\":\"seven_eleven\",\"payment_method_data\":{\"voucher\":{\"seven_eleven\":{\"first_name\":\"Some\",\"last_name\":\"One\",\"email\":\"someone@something.com\",\"phone_number\":\"1234567890\"}}}}"
   },
+  "237": {
+    "id": 237,
+    "name": "Japanese convenience stores LAWSON",
+    "connector": "adyen_uk",
+    "request": "{\"amount\":6540,\"currency\":\"JPY\",\"confirm\":true,\"capture_method\":\"automatic\",\"capture_on\":\"2022-09-10T10:11:12Z\",\"amount_to_capture\":6540,\"customer_id\":\"StripeCustomer\",\"email\":\"guest@example.com\",\"name\":\"John Doe\",\"phone\":\"999999999\",\"phone_country_code\":\"+1\",\"description\":\"Its my first payment request\",\"authentication_type\":\"no_three_ds\",\"return_url\":\"https://google.com/\",\"payment_method\":\"voucher\",\"payment_method_type\":\"lawson\",\"payment_method_data\":{\"voucher\":{\"lawson\":{\"first_name\":\"Some\",\"last_name\":\"One\",\"email\":\"someone@something.com\",\"phone_number\":\"1234567890\"}}}}"
+  },
+  "238": {
+    "id": 238,
+    "name": "Adyen Momo Atm(Napas)",
+    "connector": "adyen_uk",
+    "request": "{\"amount\":65400,\"currency\":\"VND\",\"confirm\":true,\"capture_method\":\"automatic\",\"capture_on\":\"2022-09-10T10:11:12Z\",\"amount_to_capture\":6540,\"customer_id\":\"StripeCustomer\",\"email\":\"guest@example.com\",\"name\":\"John Doe\",\"phone\":\"999999999\",\"phone_country_code\":\"+1\",\"description\":\"Its my first payment request\",\"authentication_type\":\"no_three_ds\",\"return_url\":\"https://hs-payments-test.netlify.app/payments\",\"payment_method\":\"card_redirect\",\"payment_method_type\":\"momo_atm\",\"payment_method_data\":{\"card_redirect\":{\"momo_atm\":{}}},\"billing\":{\"address\":{\"line1\":\"1467\",\"line2\":\"Harrison Street\",\"line3\":\"Harrison Street\",\"city\":\"San Fransico\",\"state\":\"California\",\"zip\":\"94122\",\"country\":\"ES\",\"first_name\":\"joseph\",\"last_name\":\"Doe\"},\"phone\":{\"number\":\"8056594427\",\"country_code\":\"+91\"}},\"browser_info\":{\"user_agent\":\"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/70.0.3538.110 Safari/537.36\",\"accept_header\":\"text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8\",\"language\":\"nl-NL\",\"color_depth\":24,\"screen_height\":723,\"screen_width\":1536,\"time_zone\":0,\"java_enabled\":true,\"java_script_enabled\":true,\"ip_address\":\"127.0.0.1\"},\"shipping\":{\"address\":{\"line1\":\"1467\",\"line2\":\"Harrison Street\",\"line3\":\"Harrison Street\",\"city\":\"San Fransico\",\"state\":\"California\",\"zip\":\"94122\",\"country\":\"ES\",\"first_name\":\"joseph\",\"last_name\":\"Doe\"},\"phone\":{\"number\":\"8056594427\",\"country_code\":\"+91\"}},\"statement_descriptor_name\":\"joseph\",\"statement_descriptor_suffix\":\"JS\",\"metadata\":{\"udf1\":\"value1\",\"new_customer\":\"true\",\"login_date\":\"2019-09-10T10:11:12Z\"}}"
+  },
+  "239": {
+    "id": 239,
+    "name": "should_fail_recurring_payment_due_to_authentication",
+    "connector": "stripe",
+    "request": "{\"mandate_data\":{\"customer_acceptance\":{\"acceptance_type\":\"offline\",\"accepted_at\":\"1963-05-03T04:07:52.723Z\",\"online\":{\"ip_address\":\"127.0.0.1\",\"user_agent\":\"amet irure esse\"}},\"mandate_type\":{\"multi_use\":{\"amount\":700000000,\"currency\":\"USD\"}}},\"amount\":1000,\"currency\":\"USD\",\"confirm\":true,\"capture_method\":\"automatic\",\"capture_on\":\"2022-09-10T10:11:12Z\",\"customer_id\":\"StripeCustomer\",\"email\":\"abcdef123@gmail.com\",\"name\":\"John Doe\",\"phone\":\"999999999\",\"phone_country_code\":\"+65\",\"description\":\"Its my first payment request\",\"authentication_type\":\"three_ds\",\"return_url\":\"https://hs-payments-test.netlify.app/payments\",\"setup_future_usage\":\"off_session\",\"billing\":{\"address\":{\"line1\":\"1467\",\"line2\":\"Harrison Street\",\"line3\":\"Harrison Street\",\"city\":\"San Fransico\",\"state\":\"California\",\"zip\":\"94122\",\"country\":\"US\"}},\"browser_info\":{\"user_agent\":\"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/70.0.3538.110 Safari/537.36\",\"accept_header\":\"text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8\",\"language\":\"nl-NL\",\"color_depth\":24,\"screen_height\":723,\"screen_width\":1536,\"time_zone\":0,\"java_enabled\":true,\"java_script_enabled\":true,\"ip_address\":\"127.0.0.1\"},\"shipping\":{\"address\":{\"line1\":\"1467\",\"line2\":\"Harrison Street\",\"line3\":\"Harrison Street\",\"city\":\"San Fransico\",\"state\":\"California\",\"zip\":\"94122\",\"country\":\"US\",\"first_name\":\"John\",\"last_name\":\"Doe\"}},\"statement_descriptor_name\":\"joseph\",\"statement_descriptor_suffix\":\"JS\",\"metadata\":{\"udf1\":\"value1\",\"new_customer\":\"true\",\"login_date\":\"2019-09-10T10:11:12Z\"},\"payment_method\":\"card\",\"payment_method_data\":{\"card\":{\"card_number\":\"4000002760003184\",\"card_exp_month\":\"10\",\"card_exp_year\":\"25\",\"card_holder_name\":\"CL-BRW1\",\"card_cvc\":\"123\"}}}"
+  },
+  "240": {
+    "id": 240,
+    "name": "Stripe Cashapp",
+    "connector": "stripe",
+    "request": "{\"amount\":6540,\"currency\":\"USD\",\"confirm\":true,\"capture_method\":\"automatic\",\"capture_on\":\"2022-09-10T10:11:12Z\",\"amount_to_capture\":6540,\"customer_id\":\"StripeCustomer\",\"email\":\"guest@example.com\",\"name\":\"John Doe\",\"phone\":\"999999999\",\"phone_country_code\":\"+1\",\"description\":\"Its my first payment request\",\"authentication_type\":\"no_three_ds\",\"return_url\":\"https://google.com/\",\"payment_method\":\"wallet\",\"payment_method_type\":\"cashapp\",\"payment_method_data\":{\"wallet\":{\"cashapp_qr\":{}}}}"
+  },
+  "241": {
+    "id": 241,
+    "name": "Givex",
+    "connector": "adyen_uk",
+    "request": "{\"amount\":4100,\"currency\":\"EUR\",\"confirm\":true,\"capture_method\":\"automatic\",\"capture_on\":\"2022-09-10T10:11:12Z\",\"amount_to_capture\":4100,\"customer_id\":\"StripeCustomer\",\"email\":\"guest@example.com\",\"name\":\"John Doe\",\"phone\":\"999999999\",\"phone_country_code\":\"+1\",\"description\":\"Its my first payment request\",\"authentication_type\":\"no_three_ds\",\"return_url\":\"https://google.com/\",\"payment_method\":\"gift_card\",\"payment_method_type\":\"givex\",\"payment_method_data\":{\"gift_card\":{\"givex\":{\"number\":\"6036280000000000000\",\"cvc\":\"122222\"}}}}"
+  },
+  "242": {
+    "id": 242,
+    "name": "Card",
+    "connector": "braintree",
+    "request": "{\"amount\":10000,\"currency\":\"USD\",\"confirm\":true,\"capture_method\":\"automatic\",\"capture_on\":\"2022-09-10T10:11:12Z\",\"customer_id\":\"StripeCustomer\",\"email\":\"abcdef123@gmail.com\",\"name\":\"John Doe\",\"phone\":\"999999999\",\"phone_country_code\":\"+65\",\"description\":\"Its my first payment request\",\"authentication_type\":\"three_ds\",\"return_url\":\"https://hs-payments-test.netlify.app/payments\",\"billing\":{\"address\":{\"line1\":\"1467\",\"line2\":\"Harrison Street\",\"line3\":\"Harrison Street\",\"city\":\"San Fransico\",\"state\":\"California\",\"zip\":\"94122\",\"country\":\"US\"}},\"browser_info\":{\"user_agent\":\"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/70.0.3538.110 Safari/537.36\",\"accept_header\":\"text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8\",\"language\":\"nl-NL\",\"color_depth\":24,\"screen_height\":723,\"screen_width\":1536,\"time_zone\":0,\"java_enabled\":true,\"java_script_enabled\":true,\"ip_address\":\"127.0.0.1\"},\"shipping\":{\"address\":{\"line1\":\"1467\",\"line2\":\"Harrison Street\",\"line3\":\"Harrison Street\",\"city\":\"San Fransico\",\"state\":\"California\",\"zip\":\"94122\",\"country\":\"US\",\"first_name\":\"John\",\"last_name\":\"Doe\"}},\"statement_descriptor_name\":\"joseph\",\"statement_descriptor_suffix\":\"JS\",\"metadata\":{\"udf1\":\"value1\",\"new_customer\":\"true\",\"login_date\":\"2019-09-10T10:11:12Z\"},\"payment_method\":\"card\",\"payment_method_data\":{\"card\":{\"card_number\":\"378282246310005\",\"card_exp_month\":\"10\",\"card_exp_year\":\"25\",\"card_holder_name\":\"CL-BRW1\",\"card_cvc\":\"1234\"}}}"
+  },
+  "243": {
+    "id": 243,
+    "name": "Mini Stop",
+    "connector": "adyen_uk",
+    "request": "{\"amount\":6540,\"currency\":\"JPY\",\"confirm\":true,\"capture_method\":\"automatic\",\"capture_on\":\"2022-09-10T10:11:12Z\",\"amount_to_capture\":6540,\"customer_id\":\"StripeCustomer\",\"email\":\"guest@example.com\",\"name\":\"John Doe\",\"phone\":\"999999999\",\"phone_country_code\":\"+1\",\"description\":\"Its my first payment request\",\"authentication_type\":\"no_three_ds\",\"return_url\":\"https://google.com/\",\"payment_method\":\"voucher\",\"payment_method_type\":\"mini_stop\",\"payment_method_data\":{\"voucher\":{\"mini_stop\":{\"first_name\":\"Some\",\"last_name\":\"One\",\"email\":\"someone@something.com\",\"phone_number\":\"1234567890\"}}}}"
+  },
+  "244": {
+    "id": 244,
+    "name": "Family Mart",
+    "connector": "adyen_uk",
+    "request": "{\"amount\":6540,\"currency\":\"JPY\",\"confirm\":true,\"capture_method\":\"automatic\",\"capture_on\":\"2022-09-10T10:11:12Z\",\"amount_to_capture\":6540,\"customer_id\":\"StripeCustomer\",\"email\":\"guest@example.com\",\"name\":\"John Doe\",\"phone\":\"999999999\",\"phone_country_code\":\"+1\",\"description\":\"Its my first payment request\",\"authentication_type\":\"no_three_ds\",\"return_url\":\"https://google.com/\",\"payment_method\":\"voucher\",\"payment_method_type\":\"family_mart\",\"payment_method_data\":{\"voucher\":{\"family_mart\":{\"first_name\":\"Some\",\"last_name\":\"One\",\"email\":\"someone@something.com\",\"phone_number\":\"1234567890\"}}}}"
+  },
+  "245": {
+    "id": 245,
+    "name": "Seicomart",
+    "connector": "adyen_uk",
+    "request": "{\"amount\":6540,\"currency\":\"JPY\",\"confirm\":true,\"capture_method\":\"automatic\",\"capture_on\":\"2022-09-10T10:11:12Z\",\"amount_to_capture\":6540,\"customer_id\":\"StripeCustomer\",\"email\":\"guest@example.com\",\"name\":\"John Doe\",\"phone\":\"999999999\",\"phone_country_code\":\"+1\",\"description\":\"Its my first payment request\",\"authentication_type\":\"no_three_ds\",\"return_url\":\"https://google.com/\",\"payment_method\":\"voucher\",\"payment_method_type\":\"seicomart\",\"payment_method_data\":{\"voucher\":{\"seicomart\":{\"first_name\":\"Some\",\"last_name\":\"One\",\"email\":\"someone@something.com\",\"phone_number\":\"1234567890\"}}}}"
+  },
+  "246": {
+    "id": 246,
+    "name": "PayEasy",
+    "connector": "adyen_uk",
+    "request": "{\"amount\":6540,\"currency\":\"JPY\",\"confirm\":true,\"capture_method\":\"automatic\",\"capture_on\":\"2022-09-10T10:11:12Z\",\"amount_to_capture\":6540,\"customer_id\":\"StripeCustomer\",\"email\":\"guest@example.com\",\"name\":\"John Doe\",\"phone\":\"999999999\",\"phone_country_code\":\"+1\",\"description\":\"Its my first payment request\",\"authentication_type\":\"no_three_ds\",\"return_url\":\"https://google.com/\",\"payment_method\":\"voucher\",\"payment_method_type\":\"pay_easy\",\"payment_method_data\":{\"voucher\":{\"pay_easy\":{\"first_name\":\"Some\",\"last_name\":\"One\",\"email\":\"someone@something.com\",\"phone_number\":\"1234567890\"}}}}"
+  },
   "tests_to_ignore": [
-    "noon_ui::should_make_noon_3ds_payment_test",
+    "noon_ui::*",
     "adyen_uk_ui::should_make_adyen_online_banking_thailand_payment_test",
     "adyen_uk_ui::should_make_adyen_blik_payment_test",
+    "adyen_uk_ui::should_make_adyen_clearpay_payment_test",
+    "adyen_uk_ui::should_make_adyen_touch_n_go_payment_test",
+    "adyen_uk_ui::should_make_adyen_paypal_payment",
+    "adyen_uk_ui::should_make_adyen_paypal_payment_test",
+    "adyen_uk_ui::should_make_adyen_ebanking_fi_payment_test",
     "authorizedotnet_ui::should_make_paypal_payment_test",
     "multisafepay_ui::should_make_multisafepay_3ds_payment_failed_test",
     "multisafepay_ui::should_make_multisafepay_3ds_payment_success_test",
-    "nexinets_ui::*"
+    "nexinets_ui::*",
+    "paypal_ui::*",
+    "aci_ui::should_make_aci_trustly_payment_test",
+    "checkout_ui::should_make_3ds_payment_test",
+    "checkout_ui::should_make_frictionless_3ds_payment_test"
   ]
 }
