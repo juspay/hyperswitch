@@ -80,7 +80,7 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
 
             metrics::PAYMENT_COUNT.add(&metrics::CONTEXT, 1, &[]); // Metrics
 
-            let pm_id = tokenization::save_payment_method(
+            let save_payment_result = tokenization::save_payment_method(
                 state,
                 connector,
                 resp.to_owned(),
@@ -88,7 +88,19 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
                 merchant_account,
                 self.request.payment_method_type,
             )
-            .await?;
+            .await;
+
+            let pm_id = match save_payment_result {
+                Ok(payment_method_id) => Ok(payment_method_id),
+                Err(error) => {
+                    if resp.request.setup_mandate_details.clone().is_some() {
+                        Err(error)
+                    } else {
+                        logger::error!(save_payment_method_error=?error);
+                        Ok(None)
+                    }
+                }
+            }?;
 
             Ok(mandate::mandate_procedure(state, resp, maybe_customer, pm_id).await?)
         } else {
