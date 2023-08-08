@@ -201,7 +201,7 @@ pub fn handle_json_response_deserialization_failure(
         Ok(_) => Err(errors::ConnectorError::ResponseDeserializationFailed)?,
         // in case of unexpected response but in html or string format
         Err(error_msg) => {
-            logger::error!("Deserialization failed : {}", error_msg);
+            logger::error!(deserialization_error=?error_msg);
             logger::error!("UNEXPECTED RESPONSE FROM CONNECTOR: {}", response_data);
             Ok(types::ErrorResponse {
                 status_code: res.status_code,

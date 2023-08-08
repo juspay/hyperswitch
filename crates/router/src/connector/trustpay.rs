@@ -137,7 +137,7 @@ impl ConnectorCommon for Trustpay {
                 })
             }
             Err(error_msg) => {
-                logger::error!("deserialization_error = {}", error_msg);
+                logger::error!(deserialization_error =? error_msg);
                 utils::handle_json_response_deserialization_failure(res, "trustpay".to_owned())
             }
         }

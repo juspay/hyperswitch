@@ -95,7 +95,7 @@ impl ConnectorCommon for Rapyd {
                 reason: response_data.status.message,
             }),
             Err(error_msg) => {
-                logger::error!("deserialization_error = {}", error_msg);
+                logger::error!(deserialization_error =? error_msg);
                 utils::handle_json_response_deserialization_failure(res, "rapyd".to_owned())
             }
         }
