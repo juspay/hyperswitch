@@ -28,7 +28,7 @@ struct Args {
     admin_api_key: String,
     /// Folder name of specific tests
     #[arg(short, long = "folder_name")]
-    folder_name: Option<String>,
+    folder_name_s: Option<String>,
 }
 
 fn main() {
@@ -131,7 +131,10 @@ fn main() {
 
     // Add flags for running specific folders
     if args.folder_name.is_some() {
-        newman_command.args(["--folder", args.folder_name.unwrap_or_default().as_str()]);
+        let folder_names = args.folder_name_s.unwrap_or_default().split(',');
+        for folder_name in folder_names {
+            newman_command.args(["--folder", folder_name.trim()]);
+        }
     }
 
     newman_command.arg("--delay-request").arg("5");
