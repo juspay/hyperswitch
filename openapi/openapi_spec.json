@@ -5431,7 +5431,7 @@
           "phone_number": {
             "type": "string",
             "description": "The telephone number for Japanese convenience stores",
-            "example": "example@me.com"
+            "example": "9999999999"
           }
         }
       },
