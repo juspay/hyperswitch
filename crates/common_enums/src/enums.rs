@@ -878,6 +878,7 @@ pub enum PaymentMethodType {
     Bacs,
     BancontactCard,
     Becs,
+    Benefit,
     Bizum,
     Blik,
     Boleto,
@@ -907,6 +908,7 @@ pub enum PaymentMethodType {
     Klarna,
     KakaoPay,
     MandiriVa,
+    Knet,
     MbWay,
     MobilePay,
     Momo,
@@ -963,6 +965,7 @@ pub enum PaymentMethodType {
 pub enum PaymentMethod {
     #[default]
     Card,
+    CardRedirect,
     PayLater,
     Wallet,
     BankRedirect,
