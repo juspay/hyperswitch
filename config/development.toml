@@ -363,12 +363,18 @@ payment_duration = 1000
 payment_tolerance = 100
 payment_retrieve_duration = 500
 payment_retrieve_tolerance = 100
+payment_complete_duration = 500
+payment_complete_tolerance = 100
 refund_ttl = 172800
 refund_duration = 1000
 refund_tolerance = 100
 refund_retrieve_duration = 500
 refund_retrieve_tolerance = 100
 authorize_ttl = 36000
+assets_base_url = "https://app.hyperswitch.io/assets/TestProcessor/"
+default_return_url = "https://app.hyperswitch.io/"
+slack_invite_url = "https://join.slack.com/t/hyperswitch-io/shared_invite/zt-1k6cz4lee-SAJzhz6bjmpp4jZCDOtOIg"
+discord_invite_url = "https://discord.gg/wJZ7DVW8mm"
 
 [delayed_session_response]
 connectors_with_delayed_session_response = "trustpay"

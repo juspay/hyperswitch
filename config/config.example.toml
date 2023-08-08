@@ -308,12 +308,18 @@ payment_duration = 1000          # Fake delay duration for dummy connector payme
 payment_tolerance = 100          # Fake delay tolerance for dummy connector payment
 payment_retrieve_duration = 500  # Fake delay duration for dummy connector payment sync
 payment_retrieve_tolerance = 100 # Fake delay tolerance for dummy connector payment sync
+payment_complete_duration = 500  # Fake delay duration for dummy connector payment complete
+payment_complete_tolerance = 100 # Fake delay tolerance for dummy connector payment complete
 refund_ttl = 172800              # Time to live for dummy connector refund in redis
 refund_duration = 1000           # Fake delay duration for dummy connector refund
 refund_tolerance = 100           # Fake delay tolerance for dummy connector refund
 refund_retrieve_duration = 500   # Fake delay duration for dummy connector refund sync
 refund_retrieve_tolerance = 100  # Fake delay tolerance for dummy connector refund sync
 authorize_ttl = 36000            # Time to live for dummy connector authorize request in redis
+assets_base_url = "https://www.example.com/"    # Base url for dummy connector assets
+default_return_url = "https://www.example.com/" # Default return url when no return url is passed while payment
+slack_invite_url = "https://www.example.com/"   # Slack invite url for hyperswitch
+discord_invite_url = "https://www.example.com/" # Discord invite url for hyperswitch
 
 [mandates.supported_payment_methods]
 card.credit = {connector_list = "stripe,adyen"}     # Mandate supported payment method type and connector for card
