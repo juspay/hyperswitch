@@ -111,6 +111,7 @@ payu.base_url = "https://secure.snd.payu.com/"
 powertranz.base_url = "https://staging.ptranz.com/api/"
 rapyd.base_url = "https://sandboxapi.rapyd.net"
 shift4.base_url = "https://api.shift4.com/"
+square.base_url = "https://connect.squareupsandbox.com/"
 stax.base_url = "https://apiprod.fattlabs.com/"
 stripe.base_url = "https://api.stripe.com/"
 stripe.base_url_file_upload = "https://files.stripe.com/"
@@ -165,6 +166,7 @@ cards = [
     "payu",
     "powertranz",
     "shift4",
+    "square",
     "stax",
     "stripe",
     "trustpay",
@@ -199,12 +201,18 @@ payment_duration = 1000
 payment_tolerance = 100
 payment_retrieve_duration = 500
 payment_retrieve_tolerance = 100
+payment_complete_duration = 500
+payment_complete_tolerance = 100
 refund_ttl = 172800
 refund_duration = 1000
 refund_tolerance = 100
 refund_retrieve_duration = 500
 refund_retrieve_tolerance = 100
 authorize_ttl = 36000
+assets_base_url = "https://app.hyperswitch.io/assets/TestProcessor/"
+default_return_url = "https://app.hyperswitch.io/"
+slack_invite_url = "https://join.slack.com/t/hyperswitch-io/shared_invite/zt-1k6cz4lee-SAJzhz6bjmpp4jZCDOtOIg"
+discord_invite_url = "https://discord.gg/wJZ7DVW8mm"
 
 [payouts]
 payout_eligibility = true
@@ -215,6 +223,17 @@ online_banking_thailand = {country = "TH", currency = "THB"}
 touch_n_go = {country = "MY", currency = "MYR"}
 atome = {country = "MY,SG", currency = "MYR,SGD"}
 swish = {country = "SE", currency = "SEK"}
+permata_bank_transfer = {country = "ID", currency = "IDR"}
+bca_bank_transfer = {country = "ID", currency = "IDR"}
+bni_va = {country = "ID", currency = "IDR"}
+bri_va = {country = "ID", currency = "IDR"}
+cimb_va = {country = "ID", currency = "IDR"}
+danamon_va = {country = "ID", currency = "IDR"}
+mandiri_va = {country = "ID", currency = "IDR"}
+alfamart = {country = "ID", currency = "IDR"}
+indomaret = {country = "ID", currency = "IDR"}
+oxxo = {country = "MX", currency = "MXN"}
+pay_safe_card = {country = "AT,AU,BE,BR,BE,CA,HR,CY,CZ,DK,FI,FR,GE,DE,GI,HU,IS,IE,KW,LV,IE,LI,LT,LU,MT,MX,MD,ME,NL,NZ,NO,PY,PE,PL,PT,RO,SA,RS,SK,SI,ES,SE,CH,TR,UAE,UK,US,UY", currency = "EUR,AUD,BRL,CAD,CZK,DKK,GEL,GIP,HUF,ISK,KWD,CHF,MXN,MDL,NZD,NOK,PYG,PEN,PLN,RON,SAR,RSD,SEK,TRY,AED,GBP,USD,UYU"}
 
 [pm_filters.zen]
 credit = { not_available_flows = { capture_method = "manual" } }

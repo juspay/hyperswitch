@@ -149,6 +149,7 @@ impl TryFrom<&types::TokenizationRouterData> for StaxTokenRequest {
             | api::PaymentMethodData::Reward(_)
             | api::PaymentMethodData::Voucher(_)
             | api::PaymentMethodData::GiftCard(_)
+            | api::PaymentMethodData::CardRedirect(_)
             | api::PaymentMethodData::Upi(_) => Err(errors::ConnectorError::NotImplemented(
                 "Payment Method".to_string(),
             ))

@@ -223,13 +223,26 @@ impl ForeignFrom<api_enums::PaymentMethodType> for api_enums::PaymentMethod {
             | api_enums::PaymentMethodType::Efecty
             | api_enums::PaymentMethodType::PagoEfectivo
             | api_enums::PaymentMethodType::RedCompra
+            | api_enums::PaymentMethodType::Alfamart
+            | api_enums::PaymentMethodType::Indomaret
+            | api_enums::PaymentMethodType::Oxxo
             | api_enums::PaymentMethodType::RedPagos => Self::Voucher,
-            api_enums::PaymentMethodType::Multibanco
-            | api_enums::PaymentMethodType::Pix
-            | api_enums::PaymentMethodType::Pse => Self::BankTransfer,
-            api_enums::PaymentMethodType::Benefit
-            | api_enums::PaymentMethodType::Knet
-            | api_enums::PaymentMethodType::MomoAtm => Self::CardRedirect,
+            api_enums::PaymentMethodType::Pse
+            | api_enums::PaymentMethodType::Multibanco
+            | api_enums::PaymentMethodType::PermataBankTransfer
+            | api_enums::PaymentMethodType::BcaBankTransfer
+            | api_enums::PaymentMethodType::BniVa
+            | api_enums::PaymentMethodType::BriVa
+            | api_enums::PaymentMethodType::CimbVa
+            | api_enums::PaymentMethodType::DanamonVa
+            | api_enums::PaymentMethodType::MandiriVa
+            | api_enums::PaymentMethodType::Pix => Self::BankTransfer,
+            api_enums::PaymentMethodType::Givex | api_enums::PaymentMethodType::PaySafeCard => {
+                Self::GiftCard
+            }
+            api_enums::PaymentMethodType::Benefit | api_enums::PaymentMethodType::Knet => {
+                Self::CardRedirect
+            }
         }
     }
 }

@@ -181,6 +181,7 @@ pub async fn construct_payout_router_data<'a, F>(
         payout_method_data: payout_data.payout_method_data.to_owned(),
         quote_id: None,
         test_mode,
+        payment_method_balance: None,
     };
 
     Ok(router_data)
@@ -287,6 +288,7 @@ pub async fn construct_refund_router_data<'a, F>(
         #[cfg(feature = "payouts")]
         quote_id: None,
         test_mode,
+        payment_method_balance: None,
     };
 
     Ok(router_data)
@@ -503,6 +505,7 @@ pub async fn construct_accept_dispute_router_data<'a>(
         #[cfg(feature = "payouts")]
         quote_id: None,
         test_mode,
+        payment_method_balance: None,
     };
     Ok(router_data)
 }
@@ -566,6 +569,7 @@ pub async fn construct_submit_evidence_router_data<'a>(
         customer_id: None,
         recurring_mandate_payment_data: None,
         preprocessing_id: None,
+        payment_method_balance: None,
         connector_request_reference_id: get_connector_request_reference_id(
             &state.conf,
             &merchant_account.merchant_id,
@@ -640,6 +644,7 @@ pub async fn construct_upload_file_router_data<'a>(
         customer_id: None,
         recurring_mandate_payment_data: None,
         preprocessing_id: None,
+        payment_method_balance: None,
         connector_request_reference_id: get_connector_request_reference_id(
             &state.conf,
             &merchant_account.merchant_id,
@@ -716,6 +721,7 @@ pub async fn construct_defend_dispute_router_data<'a>(
         connector_customer: None,
         recurring_mandate_payment_data: None,
         preprocessing_id: None,
+        payment_method_balance: None,
         connector_request_reference_id: get_connector_request_reference_id(
             &state.conf,
             &merchant_account.merchant_id,
@@ -790,6 +796,7 @@ pub async fn construct_retrieve_file_router_data<'a>(
         payment_method_token: None,
         recurring_mandate_payment_data: None,
         preprocessing_id: None,
+        payment_method_balance: None,
         connector_request_reference_id: IRRELEVANT_CONNECTOR_REQUEST_REFERENCE_ID_IN_DISPUTE_FLOW
             .to_string(),
         #[cfg(feature = "payouts")]

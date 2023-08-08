@@ -48,6 +48,7 @@ pub struct ConnectorAuthentication {
     pub powertranz: Option<BodyKey>,
     pub rapyd: Option<BodyKey>,
     pub shift4: Option<HeaderKey>,
+    pub square: Option<HeaderKey>,
     pub stax: Option<HeaderKey>,
     pub stripe: Option<HeaderKey>,
     pub stripe_au: Option<HeaderKey>,
@@ -268,6 +269,9 @@ impl From<MultiAuthKey> for ConnectorAuthType {
 pub struct AutomationConfigs {
     pub hs_base_url: Option<String>,
     pub hs_api_key: Option<String>,
+    pub hs_api_keys: Option<String>,
+    pub hs_webhook_url: Option<String>,
+    pub hs_test_env: Option<String>,
     pub hs_test_browser: Option<String>,
     pub chrome_profile_path: Option<String>,
     pub firefox_profile_path: Option<String>,

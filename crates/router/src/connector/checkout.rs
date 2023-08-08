@@ -1,6 +1,4 @@
-#![allow(dead_code)]
-
-mod transformers;
+pub mod transformers;
 
 use std::fmt::Debug;
 
@@ -9,7 +7,9 @@ use error_stack::{IntoReport, ResultExt};
 use masking::PeekInterface;
 
 use self::transformers as checkout;
-use super::utils::{self as conn_utils, RefundsRequestData};
+use super::utils::{
+    self as conn_utils, ConnectorErrorType, ConnectorErrorTypeMapping, RefundsRequestData,
+};
 use crate::{
     configs::settings,
     consts,
@@ -62,13 +62,7 @@ impl ConnectorCommon for Checkout {
     fn common_get_content_type(&self) -> &'static str {
         "application/json"
     }
-    fn validate_auth_type(
-        &self,
-        val: &types::ConnectorAuthType,
-    ) -> Result<(), error_stack::Report<errors::ConnectorError>> {
-        checkout::CheckoutAuthType::try_from(val)?;
-        Ok(())
-    }
+
     fn get_auth_header(
         &self,
         auth_type: &types::ConnectorAuthType,
@@ -110,18 +104,27 @@ impl ConnectorCommon for Checkout {
         };
 
         router_env::logger::info!(error_response=?response);
+        let errors_list = response.error_codes.clone().unwrap_or(vec![]);
+        let option_error_code_message = conn_utils::get_error_code_error_message_based_on_priority(
+            self.clone(),
+            errors_list
+                .into_iter()
+                .map(|errors| errors.into())
+                .collect(),
+        );
         Ok(types::ErrorResponse {
             status_code: res.status_code,
-            code: response
-                .error_type
+            code: option_error_code_message
                 .clone()
-                .unwrap_or_else(|| consts::NO_ERROR_CODE.to_string()),
-            message: response
+                .map(|error_code_message| error_code_message.error_code)
+                .unwrap_or(consts::NO_ERROR_CODE.to_string()),
+            message: option_error_code_message
+                .map(|error_code_message| error_code_message.error_message)
+                .unwrap_or(consts::NO_ERROR_MESSAGE.to_string()),
+            reason: response
                 .error_codes
-                .as_ref()
-                .and_then(|error_codes| error_codes.first().cloned())
-                .unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
-            reason: response.error_codes.map(|errors| errors.join(" & ")),
+                .map(|errors| errors.join(" & "))
+                .or(response.error_type),
         })
     }
 }
@@ -1217,5 +1220,130 @@ impl services::ConnectorRedirectResponse for Checkout {
             )
             .unwrap_or(payments::CallConnectorAction::Trigger);
         Ok(connector_action)
+    }
+}
+
+impl ConnectorErrorTypeMapping for Checkout {
+    fn get_connector_error_type(
+        &self,
+        error_code: String,
+        _error_message: String,
+    ) -> ConnectorErrorType {
+        match error_code.as_str() {
+            "action_failure_limit_exceeded" => ConnectorErrorType::BusinessError,
+            "address_invalid" => ConnectorErrorType::UserError,
+            "amount_exceeds_balance" => ConnectorErrorType::BusinessError,
+            "amount_invalid" => ConnectorErrorType::UserError,
+            "api_calls_quota_exceeded" => ConnectorErrorType::TechnicalError,
+            "billing_descriptor_city_invalid" => ConnectorErrorType::UserError,
+            "billing_descriptor_city_required" => ConnectorErrorType::UserError,
+            "billing_descriptor_name_invalid" => ConnectorErrorType::UserError,
+            "billing_descriptor_name_required" => ConnectorErrorType::UserError,
+            "business_invalid" => ConnectorErrorType::BusinessError,
+            "business_settings_missing" => ConnectorErrorType::BusinessError,
+            "capture_value_greater_than_authorized" => ConnectorErrorType::BusinessError,
+            "capture_value_greater_than_remaining_authorized" => ConnectorErrorType::BusinessError,
+            "card_authorization_failed" => ConnectorErrorType::UserError,
+            "card_disabled" => ConnectorErrorType::UserError,
+            "card_expired" => ConnectorErrorType::UserError,
+            "card_expiry_month_invalid" => ConnectorErrorType::UserError,
+            "card_expiry_month_required" => ConnectorErrorType::UserError,
+            "card_expiry_year_invalid" => ConnectorErrorType::UserError,
+            "card_expiry_year_required" => ConnectorErrorType::UserError,
+            "card_holder_invalid" => ConnectorErrorType::UserError,
+            "card_not_found" => ConnectorErrorType::UserError,
+            "card_number_invalid" => ConnectorErrorType::UserError,
+            "card_number_required" => ConnectorErrorType::UserError,
+            "channel_details_invalid" => ConnectorErrorType::BusinessError,
+            "channel_url_missing" => ConnectorErrorType::BusinessError,
+            "charge_details_invalid" => ConnectorErrorType::BusinessError,
+            "city_invalid" => ConnectorErrorType::BusinessError,
+            "country_address_invalid" => ConnectorErrorType::UserError,
+            "country_invalid" => ConnectorErrorType::UserError,
+            "country_phone_code_invalid" => ConnectorErrorType::UserError,
+            "country_phone_code_length_invalid" => ConnectorErrorType::UserError,
+            "currency_invalid" => ConnectorErrorType::UserError,
+            "currency_required" => ConnectorErrorType::UserError,
+            "customer_already_exists" => ConnectorErrorType::BusinessError,
+            "customer_email_invalid" => ConnectorErrorType::UserError,
+            "customer_id_invalid" => ConnectorErrorType::BusinessError,
+            "customer_not_found" => ConnectorErrorType::BusinessError,
+            "customer_number_invalid" => ConnectorErrorType::UserError,
+            "customer_plan_edit_failed" => ConnectorErrorType::BusinessError,
+            "customer_plan_id_invalid" => ConnectorErrorType::BusinessError,
+            "cvv_invalid" => ConnectorErrorType::UserError,
+            "email_in_use" => ConnectorErrorType::BusinessError,
+            "email_invalid" => ConnectorErrorType::UserError,
+            "email_required" => ConnectorErrorType::UserError,
+            "endpoint_invalid" => ConnectorErrorType::TechnicalError,
+            "expiry_date_format_invalid" => ConnectorErrorType::UserError,
+            "fail_url_invalid" => ConnectorErrorType::TechnicalError,
+            "first_name_required" => ConnectorErrorType::UserError,
+            "last_name_required" => ConnectorErrorType::UserError,
+            "ip_address_invalid" => ConnectorErrorType::UserError,
+            "issuer_network_unavailable" => ConnectorErrorType::TechnicalError,
+            "metadata_key_invalid" => ConnectorErrorType::BusinessError,
+            "parameter_invalid" => ConnectorErrorType::UserError,
+            "password_invalid" => ConnectorErrorType::UserError,
+            "payment_expired" => ConnectorErrorType::BusinessError,
+            "payment_invalid" => ConnectorErrorType::BusinessError,
+            "payment_method_invalid" => ConnectorErrorType::UserError,
+            "payment_source_required" => ConnectorErrorType::UserError,
+            "payment_type_invalid" => ConnectorErrorType::UserError,
+            "phone_number_invalid" => ConnectorErrorType::UserError,
+            "phone_number_length_invalid" => ConnectorErrorType::UserError,
+            "previous_payment_id_invalid" => ConnectorErrorType::BusinessError,
+            "recipient_account_number_invalid" => ConnectorErrorType::BusinessError,
+            "recipient_account_number_required" => ConnectorErrorType::UserError,
+            "recipient_dob_required" => ConnectorErrorType::UserError,
+            "recipient_last_name_required" => ConnectorErrorType::UserError,
+            "recipient_zip_invalid" => ConnectorErrorType::UserError,
+            "recipient_zip_required" => ConnectorErrorType::UserError,
+            "recurring_plan_exists" => ConnectorErrorType::BusinessError,
+            "recurring_plan_not_exist" => ConnectorErrorType::BusinessError,
+            "recurring_plan_removal_failed" => ConnectorErrorType::BusinessError,
+            "request_invalid" => ConnectorErrorType::UserError,
+            "request_json_invalid" => ConnectorErrorType::UserError,
+            "risk_enabled_required" => ConnectorErrorType::BusinessError,
+            "server_api_not_allowed" => ConnectorErrorType::TechnicalError,
+            "source_email_invalid" => ConnectorErrorType::UserError,
+            "source_email_required" => ConnectorErrorType::UserError,
+            "source_id_invalid" => ConnectorErrorType::BusinessError,
+            "source_id_or_email_required" => ConnectorErrorType::UserError,
+            "source_id_required" => ConnectorErrorType::UserError,
+            "source_id_unknown" => ConnectorErrorType::BusinessError,
+            "source_invalid" => ConnectorErrorType::BusinessError,
+            "source_or_destination_required" => ConnectorErrorType::BusinessError,
+            "source_token_invalid" => ConnectorErrorType::BusinessError,
+            "source_token_required" => ConnectorErrorType::UserError,
+            "source_token_type_required" => ConnectorErrorType::UserError,
+            "source_token_type_invalid" => ConnectorErrorType::BusinessError,
+            "source_type_required" => ConnectorErrorType::UserError,
+            "sub_entities_count_invalid" => ConnectorErrorType::BusinessError,
+            "success_url_invalid" => ConnectorErrorType::BusinessError,
+            "3ds_malfunction" => ConnectorErrorType::TechnicalError,
+            "3ds_not_configured" => ConnectorErrorType::BusinessError,
+            "3ds_not_enabled_for_card" => ConnectorErrorType::BusinessError,
+            "3ds_not_supported" => ConnectorErrorType::BusinessError,
+            "3ds_payment_required" => ConnectorErrorType::BusinessError,
+            "token_expired" => ConnectorErrorType::BusinessError,
+            "token_in_use" => ConnectorErrorType::BusinessError,
+            "token_invalid" => ConnectorErrorType::BusinessError,
+            "token_required" => ConnectorErrorType::UserError,
+            "token_type_required" => ConnectorErrorType::UserError,
+            "token_used" => ConnectorErrorType::BusinessError,
+            "void_amount_invalid" => ConnectorErrorType::BusinessError,
+            "wallet_id_invalid" => ConnectorErrorType::BusinessError,
+            "zip_invalid" => ConnectorErrorType::UserError,
+            "processing_key_required" => ConnectorErrorType::BusinessError,
+            "processing_value_required" => ConnectorErrorType::BusinessError,
+            "3ds_version_invalid" => ConnectorErrorType::BusinessError,
+            "3ds_version_not_supported" => ConnectorErrorType::BusinessError,
+            "processing_error" => ConnectorErrorType::TechnicalError,
+            "service_unavailable" => ConnectorErrorType::TechnicalError,
+            "token_type_invalid" => ConnectorErrorType::UserError,
+            "token_data_invalid" => ConnectorErrorType::UserError,
+            _ => ConnectorErrorType::UnknownError,
+        }
     }
 }
