@@ -7,8 +7,7 @@ use serde::{Deserialize, Serialize};
 use crate::{
     connector::utils::{
         self, missing_field_err, AddressDetailsData, CardData, PaymentsAuthorizeRequestData,
-        PaymentsSyncRequestData,
-        RouterData,
+        PaymentsSyncRequestData, RouterData,
     },
     core::errors,
     types::{self, api, storage::enums, MandateReference},
@@ -337,7 +336,8 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PayRequest {
                     payme_sale_id,
                 })
             }
-            api::PaymentMethodData::Wallet(_)
+            api::PaymentMethodData::CardRedirect(_)
+            | api::PaymentMethodData::Wallet(_)
             | api::PaymentMethodData::PayLater(_)
             | api::PaymentMethodData::BankRedirect(_)
             | api::PaymentMethodData::BankDebit(_)

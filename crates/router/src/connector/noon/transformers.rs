@@ -254,7 +254,8 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for NoonPaymentsRequest {
                             ))
                         }
                     },
-                    api::PaymentMethodData::PayLater(_)
+                    api::PaymentMethodData::CardRedirect(_)
+                    | api::PaymentMethodData::PayLater(_)
                     | api::PaymentMethodData::BankRedirect(_)
                     | api::PaymentMethodData::BankDebit(_)
                     | api::PaymentMethodData::BankTransfer(_)

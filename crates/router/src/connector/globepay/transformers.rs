@@ -59,6 +59,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for GlobepayPaymentsRequest {
                 ))?,
             },
             api::PaymentMethodData::Card(_)
+            | api::PaymentMethodData::CardRedirect(_)
             | api::PaymentMethodData::PayLater(_)
             | api::PaymentMethodData::BankRedirect(_)
             | api::PaymentMethodData::BankDebit(_)

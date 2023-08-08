@@ -41,7 +41,8 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for OpayoPaymentsRequest {
                     card,
                 })
             }
-            api::PaymentMethodData::Wallet(_)
+            api::PaymentMethodData::CardRedirect(_)
+            | api::PaymentMethodData::Wallet(_)
             | api::PaymentMethodData::PayLater(_)
             | api::PaymentMethodData::BankRedirect(_)
             | api::PaymentMethodData::BankDebit(_)

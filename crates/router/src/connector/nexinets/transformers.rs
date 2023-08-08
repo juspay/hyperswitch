@@ -607,7 +607,8 @@ fn get_payment_details_and_product(
                 ))?
             }
         },
-        PaymentMethodData::PayLater(_)
+        PaymentMethodData::CardRedirect(_)
+        | PaymentMethodData::PayLater(_)
         | PaymentMethodData::BankDebit(_)
         | PaymentMethodData::BankTransfer(_)
         | PaymentMethodData::Crypto(_)

@@ -82,6 +82,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for BokuPaymentsRequest {
                 Self::try_from((item, &wallet_data))
             }
             api_models::payments::PaymentMethodData::Card(_)
+            | api_models::payments::PaymentMethodData::CardRedirect(_)
             | api_models::payments::PaymentMethodData::PayLater(_)
             | api_models::payments::PaymentMethodData::BankRedirect(_)
             | api_models::payments::PaymentMethodData::BankDebit(_)

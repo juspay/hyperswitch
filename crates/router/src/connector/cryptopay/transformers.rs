@@ -33,6 +33,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for CryptopayPaymentsRequest {
                 })
             }
             api::PaymentMethodData::Card(_)
+            | api::PaymentMethodData::CardRedirect(_)
             | api::PaymentMethodData::Wallet(_)
             | api::PaymentMethodData::PayLater(_)
             | api::PaymentMethodData::BankRedirect(_)

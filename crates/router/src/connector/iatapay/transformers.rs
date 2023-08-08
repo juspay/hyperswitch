@@ -94,6 +94,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for IatapayPaymentsRequest {
                 token_id: id.switch_strategy(),
             }),
             api::PaymentMethodData::Card(_)
+            | api::PaymentMethodData::CardRedirect(_)
             | api::PaymentMethodData::Wallet(_)
             | api::PaymentMethodData::PayLater(_)
             | api::PaymentMethodData::BankRedirect(_)

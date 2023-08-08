@@ -191,7 +191,8 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PaymentsRequest {
                     make_bank_redirect_request(&item.request, bank_redirect)?,
                 ))
             }
-            api::PaymentMethodData::Wallet(_)
+            api::PaymentMethodData::CardRedirect(_)
+            | api::PaymentMethodData::Wallet(_)
             | api::PaymentMethodData::PayLater(_)
             | api::PaymentMethodData::BankDebit(_)
             | api::PaymentMethodData::BankTransfer(_)
