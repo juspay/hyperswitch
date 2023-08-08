@@ -97,6 +97,7 @@ payu.base_url = "https://secure.snd.payu.com/"
 powertranz.base_url = "https://staging.ptranz.com/api/"
 rapyd.base_url = "https://sandboxapi.rapyd.net"
 shift4.base_url = "https://api.shift4.com/"
+square.base_url = "https://connect.squareupsandbox.com/"
 stax.base_url = "https://apiprod.fattlabs.com/"
 stripe.base_url = "https://api.stripe.com/"
 stripe.base_url_file_upload = "https://files.stripe.com/"
@@ -108,6 +109,9 @@ wise.base_url = "https://api.sandbox.transferwise.tech/"
 trustpay.base_url_bank_redirects = "https://aapi.trustpay.eu/"
 zen.base_url = "https://api.zen-test.com/"
 zen.secondary_base_url = "https://secure.zen-test.com/"
+
+[pm_filters.default]
+apple_pay = { country = "AU,CN,HK,JP,MO,MY,NZ,SG,TW,AM,AT,AZ,BY,BE,BG,HR,CY,CZ,DK,EE,FO,FI,FR,GE,DE,GR,GL,GG,HU,IS,IE,IM,IT,KZ,JE,LV,LI,LT,LU,MT,MD,MC,ME,NL,NO,PL,PT,RO,SM,RS,SK,SI,ES,SE,CH,UA,GB,AR,CO,CR,BR,MX,PE,BH,IL,JO,KW,PS,QA,SA,AE,CA,UM,US", currency = "AED,AUD,CHF,CAD,EUR,GBP,HKD,SGD,USD" }
 
 [connectors.supported]
 wallets = ["klarna", "braintree", "applepay"]
@@ -147,6 +151,7 @@ cards = [
     "payu",
     "powertranz",
     "shift4",
+    "square",
     "stax",
     "stripe",
     "trustpay",
@@ -181,11 +186,18 @@ payment_duration = 1000
 payment_tolerance = 100
 payment_retrieve_duration = 500
 payment_retrieve_tolerance = 100
+payment_complete_duration = 500
+payment_complete_tolerance = 100
 refund_ttl = 172800
 refund_duration = 1000
 refund_tolerance = 100
 refund_retrieve_duration = 500
 refund_retrieve_tolerance = 100
+authorize_ttl = 36000
+assets_base_url = "https://app.hyperswitch.io/assets/TestProcessor/"
+default_return_url = "https://app.hyperswitch.io/"
+slack_invite_url = "https://join.slack.com/t/hyperswitch-io/shared_invite/zt-1k6cz4lee-SAJzhz6bjmpp4jZCDOtOIg"
+discord_invite_url = "https://discord.gg/wJZ7DVW8mm"
 
 [payouts]
 payout_eligibility = true

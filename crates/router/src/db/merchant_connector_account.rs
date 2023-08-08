@@ -689,7 +689,7 @@ mod merchant_connector_account_cache_tests {
     async fn test_connector_label_cache() {
         let db = MockDb::new(&Default::default()).await;
 
-        let redis_conn = db.get_redis_conn();
+        let redis_conn = db.get_redis_conn().unwrap();
         let master_key = db.get_master_key();
         redis_conn
             .subscribe("hyperswitch_invalidate")

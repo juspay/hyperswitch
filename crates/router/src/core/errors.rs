@@ -313,6 +313,8 @@ pub enum ConnectorError {
     FailedAtConnector { message: String, code: String },
     #[error("Payment Method Type not found")]
     MissingPaymentMethodType,
+    #[error("Balance in the payment method is low")]
+    InSufficientBalanceInPaymentMethod,
 }
 
 #[derive(Debug, thiserror::Error)]

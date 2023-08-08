@@ -1,5 +1,6 @@
 use std::marker::PhantomData;
 
+use api_models::enums::CancelTransaction;
 use async_trait::async_trait;
 use common_utils::ext_traits::AsyncExt;
 use diesel_models::connector_response::ConnectorResponse;
@@ -252,6 +253,7 @@ impl<F: Clone> UpdateTracker<F, payments::PaymentData<F>, api::PaymentsCaptureRe
         storage_scheme: enums::MerchantStorageScheme,
         _updated_customer: Option<storage::CustomerUpdate>,
         _mechant_key_store: &domain::MerchantKeyStore,
+        _should_cancel_transaction: Option<CancelTransaction>,
     ) -> RouterResult<(
         BoxedOperation<'b, F, api::PaymentsCaptureRequest>,
         payments::PaymentData<F>,
