@@ -130,12 +130,17 @@ fn main() {
     }
 
     // Add flags for running specific folders
-    if args.folder_name.is_some() {
-        let folder_names = args.folder_name_s.unwrap_or_default().split(',');
+    if args.folder_name_s.is_some() {
+        let folder_names: Vec<String> = args.folder_name_s.unwrap_or_default()
+            .split(',')
+            .map(|s| s.trim().to_string())
+            .collect();
+    
         for folder_name in folder_names {
-            newman_command.args(["--folder", folder_name.trim()]);
+            newman_command.args(["--folder", &folder_name]);
         }
     }
+    
 
     newman_command.arg("--delay-request").arg("5");
 
