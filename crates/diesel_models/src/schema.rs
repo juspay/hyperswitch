@@ -354,7 +354,7 @@ diesel::table! {
         locker_id -> Nullable<Varchar>,
         metadata -> Nullable<Jsonb>,
         routing_algorithm -> Nullable<Json>,
-        primary_business_details -> Json,
+        primary_business_details -> Nullable<Json>,
         intent_fulfillment_time -> Nullable<Int8>,
         created_at -> Timestamp,
         modified_at -> Timestamp,
@@ -386,9 +386,9 @@ diesel::table! {
         metadata -> Nullable<Jsonb>,
         #[max_length = 255]
         connector_label -> Varchar,
-        business_country -> CountryAlpha2,
+        business_country -> Nullable<CountryAlpha2>,
         #[max_length = 255]
-        business_label -> Varchar,
+        business_label -> Nullable<Varchar>,
         #[max_length = 64]
         business_sub_label -> Nullable<Varchar>,
         frm_configs -> Nullable<Array<Nullable<Jsonb>>>,
@@ -511,9 +511,9 @@ diesel::table! {
         client_secret -> Nullable<Varchar>,
         #[max_length = 64]
         active_attempt_id -> Varchar,
-        business_country -> CountryAlpha2,
+        business_country -> Nullable<CountryAlpha2>,
         #[max_length = 64]
-        business_label -> Varchar,
+        business_label -> Nullable<Varchar>,
         order_details -> Nullable<Array<Nullable<Jsonb>>>,
         allowed_payment_method_types -> Nullable<Json>,
         connector_metadata -> Nullable<Json>,
@@ -554,7 +554,7 @@ diesel::table! {
         created_at -> Timestamp,
         last_modified -> Timestamp,
         payment_method -> Varchar,
-        #[max_length = 64]
+        #[max_length = 255]
         payment_method_type -> Nullable<Varchar>,
         #[max_length = 128]
         payment_method_issuer -> Nullable<Varchar>,
