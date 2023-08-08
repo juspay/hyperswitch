@@ -1290,6 +1290,7 @@ pub async fn make_pm_data<'a, F: Clone, R>(
         (pm @ Some(api::PaymentMethodData::Upi(_)), _) => Ok(pm.to_owned()),
         (pm @ Some(api::PaymentMethodData::Voucher(_)), _) => Ok(pm.to_owned()),
         (pm @ Some(api::PaymentMethodData::Reward(_)), _) => Ok(pm.to_owned()),
+        (pm @ Some(api::PaymentMethodData::CardRedirect(_)), _) => Ok(pm.to_owned()),
         (pm @ Some(api::PaymentMethodData::GiftCard(_)), _) => Ok(pm.to_owned()),
         (pm_opt @ Some(pm @ api::PaymentMethodData::BankTransfer(_)), _) => {
             let token = vault::Vault::store_payment_method_data_in_locker(
@@ -1415,7 +1416,6 @@ pub(crate) fn validate_payment_method_fields_present(
             })
         },
     )?;
-
     utils::when(
         req.payment_method.is_some() && req.payment_method_type.is_some(),
         || {
@@ -1506,6 +1506,7 @@ pub fn validate_payment_method_type_against_payment_method(
                 | api_enums::PaymentMethodType::Gcash
                 | api_enums::PaymentMethodType::Momo
                 | api_enums::PaymentMethodType::KakaoPay
+                | api_enums::PaymentMethodType::Cashapp
         ),
         api_enums::PaymentMethod::BankRedirect => matches!(
             payment_method_type,
@@ -1570,8 +1571,18 @@ pub fn validate_payment_method_type_against_payment_method(
                 | api_enums::PaymentMethodType::RedPagos
                 | api_enums::PaymentMethodType::Indomaret
                 | api_enums::PaymentMethodType::Alfamart
+                | api_enums::PaymentMethodType::Oxxo
         ),
-        api_enums::PaymentMethod::GiftCard => false,
+        api_enums::PaymentMethod::GiftCard => {
+            matches!(
+                payment_method_type,
+                api_enums::PaymentMethodType::Givex | api_enums::PaymentMethodType::PaySafeCard
+            )
+        }
+        api_enums::PaymentMethod::CardRedirect => matches!(
+            payment_method_type,
+            api_enums::PaymentMethodType::Knet | api_enums::PaymentMethodType::Benefit
+        ),
     }
 }
 
@@ -2406,6 +2417,7 @@ pub fn router_data_type_conversion<F1, F2, Req1, Req2, Res1, Res2>(
         customer_id: router_data.customer_id,
         connector_customer: router_data.connector_customer,
         preprocessing_id: router_data.preprocessing_id,
+        payment_method_balance: router_data.payment_method_balance,
         recurring_mandate_payment_data: router_data.recurring_mandate_payment_data,
         connector_request_reference_id: router_data.connector_request_reference_id,
         #[cfg(feature = "payouts")]
@@ -2831,6 +2843,9 @@ pub async fn get_additional_payment_data(
         }
         api_models::payments::PaymentMethodData::Upi(_) => {
             api_models::payments::AdditionalPaymentData::Upi {}
+        }
+        api_models::payments::PaymentMethodData::CardRedirect(_) => {
+            api_models::payments::AdditionalPaymentData::CardRedirect {}
         }
         api_models::payments::PaymentMethodData::Voucher(_) => {
             api_models::payments::AdditionalPaymentData::Voucher {}

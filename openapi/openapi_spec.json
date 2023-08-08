@@ -3602,6 +3602,32 @@
           "Maestro"
         ]
       },
+      "CardRedirectData": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "knet"
+            ],
+            "properties": {
+              "knet": {
+                "type": "object"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "benefit"
+            ],
+            "properties": {
+              "benefit": {
+                "type": "object"
+              }
+            }
+          }
+        ]
+      },
       "CashappQr": {
         "type": "object"
       },
@@ -4273,7 +4299,8 @@
           "customer_id",
           "payment_method",
           "recurring_enabled",
-          "installment_payment_enabled"
+          "installment_payment_enabled",
+          "requires_cvv"
         ],
         "properties": {
           "payment_token": {
@@ -4359,6 +4386,11 @@
               }
             ],
             "nullable": true
+          },
+          "requires_cvv": {
+            "type": "boolean",
+            "description": "Whether this payment method requires CVV to be collected",
+            "example": true
           }
         }
       },
@@ -4854,12 +4886,6 @@
           {
             "type": "string",
             "enum": [
-              "fields_complete"
-            ]
-          },
-          {
-            "type": "string",
-            "enum": [
               "user_billing_name"
             ]
           },
@@ -4868,6 +4894,28 @@
             "enum": [
               "user_bank"
             ]
+          },
+          {
+            "type": "object",
+            "required": [
+              "user_currency"
+            ],
+            "properties": {
+              "user_currency": {
+                "type": "object",
+                "required": [
+                  "options"
+                ],
+                "properties": {
+                  "options": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
           },
           {
             "type": "string",
@@ -5026,6 +5074,32 @@
         "type": "object"
       },
       "GiftCardData": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "givex"
+            ],
+            "properties": {
+              "givex": {
+                "$ref": "#/components/schemas/GiftCardDetails"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "pay_safe_card"
+            ],
+            "properties": {
+              "pay_safe_card": {
+                "type": "object"
+              }
+            }
+          }
+        ]
+      },
+      "GiftCardDetails": {
         "type": "object",
         "required": [
           "number",
@@ -7258,6 +7332,7 @@
         "type": "string",
         "enum": [
           "card",
+          "card_redirect",
           "pay_later",
           "wallet",
           "bank_redirect",
@@ -7338,6 +7413,17 @@
             "properties": {
               "card": {
                 "$ref": "#/components/schemas/Card"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "card_redirect"
+            ],
+            "properties": {
+              "card_redirect": {
+                "$ref": "#/components/schemas/CardRedirectData"
               }
             }
           },
@@ -7649,6 +7735,7 @@
           "bacs",
           "bancontact_card",
           "becs",
+          "benefit",
           "bizum",
           "blik",
           "boleto",
@@ -7667,6 +7754,7 @@
           "eps",
           "evoucher",
           "giropay",
+          "givex",
           "google_pay",
           "go_pay",
           "gcash",
@@ -7676,6 +7764,7 @@
           "klarna",
           "kakao_pay",
           "mandiri_va",
+          "knet",
           "mb_way",
           "mobile_pay",
           "momo",
@@ -7686,11 +7775,13 @@
           "online_banking_fpx",
           "online_banking_poland",
           "online_banking_slovakia",
+          "oxxo",
           "pago_efectivo",
           "permata_bank_transfer",
           "pay_bright",
           "paypal",
           "pix",
+          "pay_safe_card",
           "przelewy24",
           "pse",
           "red_compra",
@@ -10332,6 +10423,12 @@
                 "$ref": "#/components/schemas/IndomaretVoucherData"
               }
             }
+          },
+          {
+            "type": "string",
+            "enum": [
+              "oxxo"
+            ]
           }
         ]
       },

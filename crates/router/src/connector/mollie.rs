@@ -1,4 +1,4 @@
-mod transformers;
+pub mod transformers;
 
 use std::fmt::Debug;
 
@@ -64,13 +64,6 @@ impl ConnectorCommon for Mollie {
 
     fn base_url<'a>(&self, connectors: &'a settings::Connectors) -> &'a str {
         connectors.mollie.base_url.as_ref()
-    }
-    fn validate_auth_type(
-        &self,
-        val: &types::ConnectorAuthType,
-    ) -> Result<(), error_stack::Report<errors::ConnectorError>> {
-        mollie::MollieAuthType::try_from(val)?;
-        Ok(())
     }
 
     fn get_auth_header(
