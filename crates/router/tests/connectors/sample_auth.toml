@@ -167,4 +167,7 @@ api_key="API Key"
 
 [boku]
 api_key="API Key"
-key1 = "MERCHANT ID"
+key1 = "transaction key"
+
+[square]
+api_key="API Key"

@@ -40,6 +40,8 @@ pub type PaymentsCompleteAuthorizeRouterData =
     RouterData<api::CompleteAuthorize, CompleteAuthorizeData, PaymentsResponseData>;
 pub type PaymentsInitRouterData =
     RouterData<api::InitPayment, PaymentsAuthorizeData, PaymentsResponseData>;
+pub type PaymentsBalanceRouterData =
+    RouterData<api::Balance, PaymentsAuthorizeData, PaymentsResponseData>;
 pub type PaymentsSyncRouterData = RouterData<api::PSync, PaymentsSyncData, PaymentsResponseData>;
 pub type PaymentsCaptureRouterData =
     RouterData<api::Capture, PaymentsCaptureData, PaymentsResponseData>;
@@ -61,6 +63,8 @@ pub type PaymentsResponseRouterData<R> =
     ResponseRouterData<api::Authorize, R, PaymentsAuthorizeData, PaymentsResponseData>;
 pub type PaymentsCancelResponseRouterData<R> =
     ResponseRouterData<api::Void, R, PaymentsCancelData, PaymentsResponseData>;
+pub type PaymentsBalanceResponseRouterData<R> =
+    ResponseRouterData<api::Balance, R, PaymentsAuthorizeData, PaymentsResponseData>;
 pub type PaymentsSyncResponseRouterData<R> =
     ResponseRouterData<api::PSync, R, PaymentsSyncData, PaymentsResponseData>;
 pub type PaymentsSessionResponseRouterData<R> =
@@ -109,6 +113,8 @@ pub type PaymentsInitType = dyn services::ConnectorIntegration<
     PaymentsAuthorizeData,
     PaymentsResponseData,
 >;
+pub type PaymentsBalanceType =
+    dyn services::ConnectorIntegration<api::Balance, PaymentsAuthorizeData, PaymentsResponseData>;
 pub type PaymentsSyncType =
     dyn services::ConnectorIntegration<api::PSync, PaymentsSyncData, PaymentsResponseData>;
 pub type PaymentsCaptureType =
@@ -230,7 +236,8 @@ pub struct RouterData<Flow, Request, Response> {
     pub payment_method_token: Option<String>,
     pub recurring_mandate_payment_data: Option<RecurringMandatePaymentData>,
     pub preprocessing_id: Option<String>,
-
+    /// This is the balance amount for gift cards or voucher
+    pub payment_method_balance: Option<PaymentMethodBalance>,
     /// Contains flow-specific data required to construct a request and send it to the connector.
     pub request: Request,
 
@@ -252,6 +259,12 @@ pub struct RouterData<Flow, Request, Response> {
     pub quote_id: Option<String>,
 
     pub test_mode: Option<bool>,
+}
+
+#[derive(Debug, Clone)]
+pub struct PaymentMethodBalance {
+    pub amount: i64,
+    pub currency: String,
 }
 
 #[cfg(feature = "payouts")]
@@ -899,6 +912,7 @@ impl<F1, F2, T1, T2> From<(&RouterData<F1, T1, PaymentsResponseData>, T2)>
             #[cfg(feature = "payouts")]
             quote_id: data.quote_id.clone(),
             test_mode: data.test_mode,
+            payment_method_balance: data.payment_method_balance.clone(),
         }
     }
 }
@@ -969,6 +983,7 @@ impl<F1, F2>
             payout_method_data: data.payout_method_data.clone(),
             quote_id: data.quote_id.clone(),
             test_mode: data.test_mode,
+            payment_method_balance: None,
         }
     }
 }

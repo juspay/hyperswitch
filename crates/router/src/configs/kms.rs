@@ -13,9 +13,9 @@ impl KmsDecrypt for settings::Jwekey {
         kms_client: &KmsClient,
     ) -> CustomResult<Self::Output, KmsError> {
         (
+            self.locker_encryption_key1,
             self.locker_encryption_key2,
             self.locker_decryption_key1,
-            self.locker_encryption_key1,
             self.locker_decryption_key2,
             self.vault_encryption_key,
             self.vault_private_key,

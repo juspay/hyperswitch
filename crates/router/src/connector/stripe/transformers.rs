@@ -15,7 +15,7 @@ use uuid::Uuid;
 
 use crate::{
     collect_missing_value_keys,
-    connector::utils::{ApplePay, PaymentsPreProcessingData, RouterData},
+    connector::utils::{self as connector_util, ApplePay, PaymentsPreProcessingData, RouterData},
     core::errors,
     services,
     types::{self, api, storage::enums, transformers::ForeignFrom},
@@ -560,8 +560,62 @@ impl TryFrom<enums::PaymentMethodType> for StripePaymentMethodType {
             enums::PaymentMethodType::Blik => Ok(Self::Blik),
             enums::PaymentMethodType::AliPay => Ok(Self::Alipay),
             enums::PaymentMethodType::Przelewy24 => Ok(Self::Przelewy24),
-            _ => Err(errors::ConnectorError::NotImplemented(
-                "this payment method for stripe".to_string(),
+            enums::PaymentMethodType::AliPayHk
+            | enums::PaymentMethodType::Atome
+            | enums::PaymentMethodType::Bizum
+            | enums::PaymentMethodType::Alma
+            | enums::PaymentMethodType::Boleto
+            | enums::PaymentMethodType::ClassicReward
+            | enums::PaymentMethodType::CryptoCurrency
+            | enums::PaymentMethodType::Dana
+            | enums::PaymentMethodType::Efecty
+            | enums::PaymentMethodType::Evoucher
+            | enums::PaymentMethodType::GooglePay
+            | enums::PaymentMethodType::GoPay
+            | enums::PaymentMethodType::Gcash
+            | enums::PaymentMethodType::Interac
+            | enums::PaymentMethodType::KakaoPay
+            | enums::PaymentMethodType::MbWay
+            | enums::PaymentMethodType::MobilePay
+            | enums::PaymentMethodType::Momo
+            | enums::PaymentMethodType::Multibanco
+            | enums::PaymentMethodType::OnlineBankingThailand
+            | enums::PaymentMethodType::OnlineBankingCzechRepublic
+            | enums::PaymentMethodType::OnlineBankingFinland
+            | enums::PaymentMethodType::OnlineBankingFpx
+            | enums::PaymentMethodType::OnlineBankingPoland
+            | enums::PaymentMethodType::OnlineBankingSlovakia
+            | enums::PaymentMethodType::PagoEfectivo
+            | enums::PaymentMethodType::PayBright
+            | enums::PaymentMethodType::Paypal
+            | enums::PaymentMethodType::Pix
+            | enums::PaymentMethodType::Pse
+            | enums::PaymentMethodType::RedCompra
+            | enums::PaymentMethodType::RedPagos
+            | enums::PaymentMethodType::SamsungPay
+            | enums::PaymentMethodType::Swish
+            | enums::PaymentMethodType::TouchNGo
+            | enums::PaymentMethodType::Trustly
+            | enums::PaymentMethodType::Twint
+            | enums::PaymentMethodType::UpiCollect
+            | enums::PaymentMethodType::Vipps
+            | enums::PaymentMethodType::Cashapp
+            | enums::PaymentMethodType::Alfamart
+            | enums::PaymentMethodType::BcaBankTransfer
+            | enums::PaymentMethodType::BniVa
+            | enums::PaymentMethodType::CimbVa
+            | enums::PaymentMethodType::BriVa
+            | enums::PaymentMethodType::DanamonVa
+            | enums::PaymentMethodType::Indomaret
+            | enums::PaymentMethodType::MandiriVa
+            | enums::PaymentMethodType::PermataBankTransfer
+            | enums::PaymentMethodType::PaySafeCard
+            | enums::PaymentMethodType::Givex
+            | enums::PaymentMethodType::Oxxo
+            | enums::PaymentMethodType::Benefit
+            | enums::PaymentMethodType::Knet
+            | enums::PaymentMethodType::Walley => Err(errors::ConnectorError::NotImplemented(
+                connector_util::get_unimplemented_payment_method_error_message("stripe"),
             )
             .into()),
         }
@@ -791,11 +845,79 @@ fn infer_stripe_pay_later_type(
             enums::PaymentMethodType::AfterpayClearpay => {
                 Ok(StripePaymentMethodType::AfterpayClearpay)
             }
-            _ => Err(errors::ConnectorError::NotSupported {
-                message: pm_type.to_string(),
-                connector: "stripe",
-                payment_experience: experience.to_string(),
-            }),
+            enums::PaymentMethodType::Ach
+            | enums::PaymentMethodType::AliPay
+            | enums::PaymentMethodType::AliPayHk
+            | enums::PaymentMethodType::Alma
+            | enums::PaymentMethodType::ApplePay
+            | enums::PaymentMethodType::Atome
+            | enums::PaymentMethodType::Bacs
+            | enums::PaymentMethodType::BancontactCard
+            | enums::PaymentMethodType::Becs
+            | enums::PaymentMethodType::Bizum
+            | enums::PaymentMethodType::Blik
+            | enums::PaymentMethodType::Boleto
+            | enums::PaymentMethodType::ClassicReward
+            | enums::PaymentMethodType::Credit
+            | enums::PaymentMethodType::CryptoCurrency
+            | enums::PaymentMethodType::Dana
+            | enums::PaymentMethodType::Debit
+            | enums::PaymentMethodType::Efecty
+            | enums::PaymentMethodType::Eps
+            | enums::PaymentMethodType::Evoucher
+            | enums::PaymentMethodType::Giropay
+            | enums::PaymentMethodType::GooglePay
+            | enums::PaymentMethodType::GoPay
+            | enums::PaymentMethodType::Gcash
+            | enums::PaymentMethodType::Ideal
+            | enums::PaymentMethodType::Interac
+            | enums::PaymentMethodType::KakaoPay
+            | enums::PaymentMethodType::MbWay
+            | enums::PaymentMethodType::MobilePay
+            | enums::PaymentMethodType::Momo
+            | enums::PaymentMethodType::Multibanco
+            | enums::PaymentMethodType::OnlineBankingThailand
+            | enums::PaymentMethodType::OnlineBankingCzechRepublic
+            | enums::PaymentMethodType::OnlineBankingFinland
+            | enums::PaymentMethodType::OnlineBankingFpx
+            | enums::PaymentMethodType::OnlineBankingPoland
+            | enums::PaymentMethodType::OnlineBankingSlovakia
+            | enums::PaymentMethodType::PagoEfectivo
+            | enums::PaymentMethodType::PayBright
+            | enums::PaymentMethodType::Paypal
+            | enums::PaymentMethodType::Pix
+            | enums::PaymentMethodType::Przelewy24
+            | enums::PaymentMethodType::Pse
+            | enums::PaymentMethodType::RedCompra
+            | enums::PaymentMethodType::RedPagos
+            | enums::PaymentMethodType::SamsungPay
+            | enums::PaymentMethodType::Sepa
+            | enums::PaymentMethodType::Sofort
+            | enums::PaymentMethodType::Swish
+            | enums::PaymentMethodType::TouchNGo
+            | enums::PaymentMethodType::Trustly
+            | enums::PaymentMethodType::Twint
+            | enums::PaymentMethodType::UpiCollect
+            | enums::PaymentMethodType::Vipps
+            | enums::PaymentMethodType::Walley
+            | enums::PaymentMethodType::Cashapp
+            | enums::PaymentMethodType::Alfamart
+            | enums::PaymentMethodType::BcaBankTransfer
+            | enums::PaymentMethodType::BniVa
+            | enums::PaymentMethodType::CimbVa
+            | enums::PaymentMethodType::BriVa
+            | enums::PaymentMethodType::DanamonVa
+            | enums::PaymentMethodType::Indomaret
+            | enums::PaymentMethodType::MandiriVa
+            | enums::PaymentMethodType::Benefit
+            | enums::PaymentMethodType::Knet
+            | enums::PaymentMethodType::PermataBankTransfer
+            | enums::PaymentMethodType::PaySafeCard
+            | enums::PaymentMethodType::Givex
+            | enums::PaymentMethodType::Oxxo
+            | enums::PaymentMethodType::WeChatPay => Err(errors::ConnectorError::NotImplemented(
+                connector_util::get_unimplemented_payment_method_error_message("stripe"),
+            )),
         }
     } else {
         Err(errors::ConnectorError::NotSupported {
@@ -968,7 +1090,16 @@ impl TryFrom<&payments::BankRedirectData> for StripeBillingAddress {
                 email: billing_details.email.clone(),
                 ..Self::default()
             }),
-            _ => Ok(Self::default()),
+            payments::BankRedirectData::Bizum {}
+            | payments::BankRedirectData::Blik { .. }
+            | payments::BankRedirectData::Interac { .. }
+            | payments::BankRedirectData::OnlineBankingCzechRepublic { .. }
+            | payments::BankRedirectData::OnlineBankingFinland { .. }
+            | payments::BankRedirectData::OnlineBankingPoland { .. }
+            | payments::BankRedirectData::OnlineBankingSlovakia { .. }
+            | payments::BankRedirectData::Trustly { .. }
+            | payments::BankRedirectData::OnlineBankingFpx { .. }
+            | payments::BankRedirectData::OnlineBankingThailand { .. } => Ok(Self::default()),
         }
     }
 }
@@ -1164,10 +1295,32 @@ fn create_stripe_payment_method(
                 Some(StripePaymentMethodType::Card),
                 StripeBillingAddress::default(),
             )),
-            _ => Err(errors::ConnectorError::NotImplemented(
-                "This wallet is not implemented for stripe".to_string(),
-            )
-            .into()),
+            payments::WalletData::AliPayQr(_)
+            | payments::WalletData::AliPayHkRedirect(_)
+            | payments::WalletData::MomoRedirect(_)
+            | payments::WalletData::KakaoPayRedirect(_)
+            | payments::WalletData::GoPayRedirect(_)
+            | payments::WalletData::GcashRedirect(_)
+            | payments::WalletData::ApplePayRedirect(_)
+            | payments::WalletData::ApplePayThirdPartySdk(_)
+            | payments::WalletData::DanaRedirect {}
+            | payments::WalletData::GooglePayRedirect(_)
+            | payments::WalletData::GooglePayThirdPartySdk(_)
+            | payments::WalletData::MbWayRedirect(_)
+            | payments::WalletData::MobilePayRedirect(_)
+            | payments::WalletData::PaypalRedirect(_)
+            | payments::WalletData::PaypalSdk(_)
+            | payments::WalletData::SamsungPay(_)
+            | payments::WalletData::TwintRedirect {}
+            | payments::WalletData::VippsRedirect {}
+            | payments::WalletData::TouchNGoRedirect(_)
+            | payments::WalletData::SwishQr(_)
+            | payments::WalletData::WeChatPayRedirect(_) => {
+                Err(errors::ConnectorError::NotImplemented(
+                    connector_util::get_unimplemented_payment_method_error_message("stripe"),
+                )
+                .into())
+            }
         },
         payments::PaymentMethodData::BankDebit(bank_debit_data) => {
             let (pm_type, bank_debit_data, billing_address) = get_bank_debit_data(bank_debit_data);
@@ -1256,14 +1409,22 @@ fn create_stripe_payment_method(
                 | payments::BankTransferData::BriVaBankTransfer { .. }
                 | payments::BankTransferData::CimbVaBankTransfer { .. }
                 | payments::BankTransferData::DanamonVaBankTransfer { .. }
-                | payments::BankTransferData::MandiriVaBankTransfer { .. } => Err(
-                    errors::ConnectorError::NotImplemented("this payment method".to_string())
-                        .into(),
-                ),
+                | payments::BankTransferData::MandiriVaBankTransfer { .. } => {
+                    Err(errors::ConnectorError::NotImplemented(
+                        connector_util::get_unimplemented_payment_method_error_message("stripe"),
+                    )
+                    .into())
+                }
             }
         }
-        _ => Err(errors::ConnectorError::NotImplemented(
-            "this payment method for stripe".to_string(),
+        payments::PaymentMethodData::Crypto(_)
+        | payments::PaymentMethodData::MandatePayment
+        | payments::PaymentMethodData::Reward(_)
+        | payments::PaymentMethodData::Upi(_)
+        | payments::PaymentMethodData::CardRedirect(_)
+        | payments::PaymentMethodData::Voucher(_)
+        | payments::PaymentMethodData::GiftCard(_) => Err(errors::ConnectorError::NotImplemented(
+            connector_util::get_unimplemented_payment_method_error_message("stripe"),
         )
         .into()),
     }
@@ -2530,13 +2691,32 @@ impl TryFrom<&types::PaymentsPreProcessingRouterData> for StripeCreditTransferSo
                     | payments::BankTransferData::DanamonVaBankTransfer { .. }
                     | payments::BankTransferData::MandiriVaBankTransfer { .. }
                     | payments::BankTransferData::Pix { .. }
-                    | payments::BankTransferData::Pse { .. } => Err(
-                        errors::ConnectorError::NotImplemented("Bank Transfer Method".to_string())
-                            .into(),
-                    ),
+                    | payments::BankTransferData::Pse { .. } => {
+                        Err(errors::ConnectorError::NotImplemented(
+                            connector_util::get_unimplemented_payment_method_error_message(
+                                "stripe",
+                            ),
+                        )
+                        .into())
+                    }
                 }
             }
-            _ => Err(errors::ConnectorError::NotImplemented("Payment Method".to_string()).into()),
+            Some(payments::PaymentMethodData::Card(..))
+            | Some(payments::PaymentMethodData::Wallet(..))
+            | Some(payments::PaymentMethodData::BankDebit(..))
+            | Some(payments::PaymentMethodData::BankRedirect(..))
+            | Some(payments::PaymentMethodData::PayLater(..))
+            | Some(payments::PaymentMethodData::Crypto(..))
+            | Some(payments::PaymentMethodData::Reward(..))
+            | Some(payments::PaymentMethodData::MandatePayment)
+            | Some(payments::PaymentMethodData::Upi(..))
+            | Some(payments::PaymentMethodData::GiftCard(..))
+            | Some(payments::PaymentMethodData::CardRedirect(..))
+            | Some(payments::PaymentMethodData::Voucher(..))
+            | None => Err(errors::ConnectorError::NotImplemented(
+                connector_util::get_unimplemented_payment_method_error_message("stripe"),
+            )
+            .into()),
         }
     }
 }
@@ -2925,7 +3105,33 @@ impl
                     Ok(Self::Wallet(wallet_info))
                 }
                 payments::WalletData::GooglePay(gpay_data) => Self::try_from(&gpay_data),
-                _ => Err(errors::ConnectorError::InvalidWallet.into()),
+                payments::WalletData::AliPayQr(_)
+                | payments::WalletData::AliPayHkRedirect(_)
+                | payments::WalletData::MomoRedirect(_)
+                | payments::WalletData::KakaoPayRedirect(_)
+                | payments::WalletData::GoPayRedirect(_)
+                | payments::WalletData::GcashRedirect(_)
+                | payments::WalletData::ApplePayRedirect(_)
+                | payments::WalletData::ApplePayThirdPartySdk(_)
+                | payments::WalletData::DanaRedirect {}
+                | payments::WalletData::GooglePayRedirect(_)
+                | payments::WalletData::GooglePayThirdPartySdk(_)
+                | payments::WalletData::MbWayRedirect(_)
+                | payments::WalletData::MobilePayRedirect(_)
+                | payments::WalletData::PaypalRedirect(_)
+                | payments::WalletData::PaypalSdk(_)
+                | payments::WalletData::SamsungPay(_)
+                | payments::WalletData::TwintRedirect {}
+                | payments::WalletData::VippsRedirect {}
+                | payments::WalletData::TouchNGoRedirect(_)
+                | payments::WalletData::SwishQr(_)
+                | payments::WalletData::CashappQr(_)
+                | payments::WalletData::WeChatPayRedirect(_) => {
+                    Err(errors::ConnectorError::NotImplemented(
+                        connector_util::get_unimplemented_payment_method_error_message("stripe"),
+                    )
+                    .into())
+                }
             },
             api::PaymentMethodData::BankDebit(bank_debit_data) => {
                 let (_pm_type, bank_data, _) = get_bank_debit_data(&bank_debit_data);
@@ -2969,10 +3175,9 @@ impl
                             payment_method_type: StripePaymentMethodType::CustomerBalance,
                         })),
                     )),
-                    payments::BankTransferData::Pix {} | payments::BankTransferData::Pse {} => Err(
-                        errors::ConnectorError::NotImplemented("payment method".to_string()).into(),
-                    ),
-                    payments::BankTransferData::PermataBankTransfer { .. }
+                    payments::BankTransferData::Pix {}
+                    | payments::BankTransferData::Pse {}
+                    | payments::BankTransferData::PermataBankTransfer { .. }
                     | payments::BankTransferData::BcaBankTransfer { .. }
                     | payments::BankTransferData::BniVaBankTransfer { .. }
                     | payments::BankTransferData::BriVaBankTransfer { .. }
@@ -2980,7 +3185,9 @@ impl
                     | payments::BankTransferData::DanamonVaBankTransfer { .. }
                     | payments::BankTransferData::MandiriVaBankTransfer { .. } => {
                         Err(errors::ConnectorError::NotImplemented(
-                            "this payment method for stripe".to_string(),
+                            connector_util::get_unimplemented_payment_method_error_message(
+                                "stripe",
+                            ),
                         )
                         .into())
                     }
@@ -2991,6 +3198,7 @@ impl
             | api::PaymentMethodData::Reward(_)
             | api::PaymentMethodData::GiftCard(_)
             | api::PaymentMethodData::Upi(_)
+            | api::PaymentMethodData::CardRedirect(_)
             | api::PaymentMethodData::Voucher(_) => Err(errors::ConnectorError::NotSupported {
                 message: format!("{pm_type:?}"),
                 connector: "Stripe",
