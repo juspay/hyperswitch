@@ -217,6 +217,10 @@ adyen = { banks = "e_platby_vub,postova_banka,sporo_pay,tatra_pay,viamo" }
 [bank_config.online_banking_poland]
 adyen = { banks = "blik_psp,place_zipko,m_bank,pay_with_ing,santander_przelew24,bank_pekaosa,bank_millennium,pay_with_alior_bank,banki_spoldzielcze,pay_with_inteligo,bnp_paribas_poland,bank_nowy_sa,credit_agricole,pay_with_bos,pay_with_citi_handlowy,pay_with_plus_bank,toyota_bank,velo_bank,e_transfer_pocztowy24"}
 
+# Bank redirect configs for allowed banks through open_banking_uk payment method
+[bank_config.open_banking_uk]
+adyen = { banks = "aib,bank_of_scotland,danske_bank,first_direct,first_trust,halifax,lloyds,monzo,nat_west,nationwide_bank,royal_bank_of_scotland,starling,tsb_bank,tesco_bank,ulster_bank,barclays,hsbc_bank,revolut,santander_przelew24,open_bank_success,open_bank_failure,open_bank_cancelled"}
+
 # Bank redirect configs for allowed banks through przelewy24 payment method
 [bank_config.przelewy24]
 stripe = { banks = "alior_bank,bank_millennium,bank_nowy_bfg_sa,bank_pekao_sa,banki_spbdzielcze,blik,bnp_paribas,boz,citi,credit_agricole,e_transfer_pocztowy24,getin_bank,idea_bank,inteligo,mbank_mtransfer,nest_przelew,noble_pay,pbac_z_ipko,plus_bank,santander_przelew24,toyota_bank,volkswagen_bank" }
@@ -296,7 +300,7 @@ base_url = "" # Base url used when adding links that should redirect to self
 stripe = { long_lived_token = false, payment_method = "wallet", payment_method_type = { type = "disable_only", list = "google_pay" } }
 checkout = { long_lived_token = false, payment_method = "wallet" }
 mollie = {long_lived_token = false, payment_method = "card"}
-stax = { long_lived_token = true, payment_method = "card" }
+stax = { long_lived_token = true, payment_method = "card,bank_debit" }
 
 [dummy_connector]
 payment_ttl = 172800             # Time to live for dummy connector payment in redis
@@ -349,6 +353,7 @@ danamon_va = {country = "ID", currency = "IDR"}
 mandiri_va = {country = "ID", currency = "IDR"}
 alfamart = {country = "ID", currency = "IDR"}
 indomaret = {country = "ID", currency = "IDR"}
+open_banking_uk = {country = "GB", currency = "GBP"}
 oxxo = {country = "MX", currency = "MXN"}
 pay_safe_card = {country = "AT,AU,BE,BR,BE,CA,HR,CY,CZ,DK,FI,FR,GE,DE,GI,HU,IS,IE,KW,LV,IE,LI,LT,LU,MT,MX,MD,ME,NL,NZ,NO,PY,PE,PL,PT,RO,SA,RS,SK,SI,ES,SE,CH,TR,UAE,UK,US,UY", currency = "EUR,AUD,BRL,CAD,CZK,DKK,GEL,GIP,HUF,ISK,KWD,CHF,MXN,MDL,NZD,NOK,PYG,PEN,PLN,RON,SAR,RSD,SEK,TRY,AED,GBP,USD,UYU"}
 
