@@ -63,13 +63,17 @@ impl ConnectorCommon for Aci {
             status_code: res.status_code,
             code: response.result.code,
             message: response.result.description,
-            reason: response.result.parameter_errors.and_then(|errors| {
-                errors.first().map(|error_description| {
-                    format!(
-                        "Field is {} and the message is {}",
-                        error_description.name, error_description.message
-                    )
-                })
+            reason: response.result.parameter_errors.map(|errors| {
+                errors
+                    .into_iter()
+                    .map(|error_description| {
+                        format!(
+                            "Field is {} and the message is {}",
+                            error_description.name, error_description.message
+                        )
+                    })
+                    .collect::<Vec<String>>()
+                    .join("\n")
             }),
         })
     }
