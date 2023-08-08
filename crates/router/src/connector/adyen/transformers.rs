@@ -453,6 +453,10 @@ pub enum AdyenPaymentMethod<'a> {
     AdyenGiftCard(Box<GiftCardData>),
     #[serde(rename = "swish")]
     Swish,
+    #[serde(rename = "benefit")]
+    Benefit,
+    #[serde(rename = "knet")]
+    Knet,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -1003,6 +1007,8 @@ pub enum PaymentType {
     Twint,
     Vipps,
     Giftcard,
+    Knet,
+    Benefit,
     Swish,
     #[serde(rename = "doku_permata_lite_atm")]
     PermataBankTransfer,
@@ -1180,6 +1186,9 @@ impl<'a> TryFrom<&types::PaymentsAuthorizeRouterData> for AdyenPaymentRequest<'a
                 }
                 api_models::payments::PaymentMethodData::BankTransfer(ref bank_transfer) => {
                     AdyenPaymentRequest::try_from((item, bank_transfer.as_ref()))
+                }
+                api_models::payments::PaymentMethodData::CardRedirect(ref card_redirect_data) => {
+                    AdyenPaymentRequest::try_from((item, card_redirect_data))
                 }
                 api_models::payments::PaymentMethodData::Voucher(ref voucher_data) => {
                     AdyenPaymentRequest::try_from((item, voucher_data))
@@ -1933,6 +1942,18 @@ impl<'a> TryFrom<&api_models::payments::BankTransferData> for AdyenPaymentMethod
     }
 }
 
+impl<'a> TryFrom<&api_models::payments::CardRedirectData> for AdyenPaymentMethod<'a> {
+    type Error = Error;
+    fn try_from(
+        card_redirect_data: &api_models::payments::CardRedirectData,
+    ) -> Result<Self, Self::Error> {
+        match card_redirect_data {
+            payments::CardRedirectData::Knet {} => Ok(AdyenPaymentMethod::Knet),
+            payments::CardRedirectData::Benefit {} => Ok(AdyenPaymentMethod::Benefit),
+        }
+    }
+}
+
 impl<'a>
     TryFrom<(
         &types::PaymentsAuthorizeRouterData,
@@ -2445,6 +2466,60 @@ impl<'a> TryFrom<(&types::PaymentsAuthorizeRouterData, &api::PayLaterData)>
     }
 }
 
+impl<'a>
+    TryFrom<(
+        &types::PaymentsAuthorizeRouterData,
+        &api_models::payments::CardRedirectData,
+    )> for AdyenPaymentRequest<'a>
+{
+    type Error = Error;
+    fn try_from(
+        value: (
+            &types::PaymentsAuthorizeRouterData,
+            &api_models::payments::CardRedirectData,
+        ),
+    ) -> Result<Self, Self::Error> {
+        let (item, card_redirect_data) = value;
+        let amount = get_amount_data(item);
+        let auth_type = AdyenAuthType::try_from(&item.connector_auth_type)?;
+        let payment_method = AdyenPaymentMethod::try_from(card_redirect_data)?;
+        let shopper_interaction = AdyenShopperInteraction::from(item);
+        let return_url = item.request.get_return_url()?;
+        let shopper_name = get_shopper_name(item.address.billing.as_ref());
+        let shopper_email = item.request.email.clone();
+        let telephone_number = item
+            .get_billing_phone()
+            .change_context(errors::ConnectorError::MissingRequiredField {
+                field_name: "billing.phone",
+            })?
+            .number
+            .to_owned();
+        Ok(AdyenPaymentRequest {
+            amount,
+            merchant_account: auth_type.merchant_account,
+            payment_method,
+            reference: item.payment_id.to_string(),
+            return_url,
+            shopper_interaction,
+            recurring_processing_model: None,
+            browser_info: None,
+            additional_data: None,
+            telephone_number,
+            shopper_name,
+            shopper_email,
+            shopper_locale: None,
+            billing_address: None,
+            delivery_address: None,
+            country_code: None,
+            line_items: None,
+            shopper_reference: None,
+            store_payment_method: None,
+            channel: None,
+            social_security_number: None,
+        })
+    }
+}
+
 impl TryFrom<&types::PaymentsCancelRouterData> for AdyenCancelRequest {
     type Error = Error;
     fn try_from(item: &types::PaymentsCancelRouterData) -> Result<Self, Self::Error> {
@@ -2845,6 +2920,8 @@ pub fn get_wait_screen_metadata(
         | PaymentType::Twint
         | PaymentType::Vipps
         | PaymentType::Swish
+        | PaymentType::Knet
+        | PaymentType::Benefit
         | PaymentType::PermataBankTransfer
         | PaymentType::BcaBankTransfer
         | PaymentType::BniVa
@@ -2921,6 +2998,8 @@ pub fn get_present_to_shopper_metadata(
         | PaymentType::Klarna
         | PaymentType::Kakaopay
         | PaymentType::Mbway
+        | PaymentType::Knet
+        | PaymentType::Benefit
         | PaymentType::MobilePay
         | PaymentType::Momo
         | PaymentType::OnlineBankingCzechRepublic
