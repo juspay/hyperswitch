@@ -147,6 +147,7 @@ pub struct DeleteCardResponse {
 }
 
 #[derive(Debug, Deserialize, Serialize)]
+#[serde(transparent)]
 pub struct PaymentMethodMetadata {
     pub payment_method_tokenization: std::collections::HashMap<String, String>,
 }
