@@ -6,7 +6,6 @@ edition.workspace = true
 rust-version.workspace = true
 readme = "README.md"
 license.workspace = true
-edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
