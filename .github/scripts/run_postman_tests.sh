@@ -2,7 +2,7 @@
 sudo apt update
 apt install net-tools
 
-wget $CONNECTORS_PATH && mv Connectors Connectors.json
+wget $POSTMAN_CONNECTOR_PATHS && mv $POSTMAN_CONNECTOR_NAMES Connectors.json
 
 # Read the JSON file content into a variable
 JSON_DATA=$(cat Connectors.json)
