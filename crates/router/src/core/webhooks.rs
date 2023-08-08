@@ -42,7 +42,7 @@ pub async fn payments_incoming_webhook_flow<W: types::OutgoingWebhookType>(
     };
     let payments_response = match webhook_details.object_reference_id {
         api_models::webhooks::ObjectReferenceId::PaymentId(id) => {
-            payments::payments_core::<api::PSync, api::PaymentsResponse, _, _, _>(
+            let response = payments::payments_core::<api::PSync, api::PaymentsResponse, _, _, _>(
                 &state,
                 merchant_account.clone(),
                 key_store,
@@ -60,7 +60,20 @@ pub async fn payments_incoming_webhook_flow<W: types::OutgoingWebhookType>(
                 services::AuthFlow::Merchant,
                 consume_or_trigger_flow,
             )
-            .await?
+            .await;
+
+            match response {
+                Ok(value) => value,
+                Err(err)
+                    if matches!(
+                        err.current_context(),
+                        &errors::ApiErrorResponse::PaymentNotFound
+                    ) =>
+                {
+                    return Ok(())
+                }
+                error @ Err(_) => error?,
+            }
         }
         _ => Err(errors::ApiErrorResponse::WebhookProcessingFailure)
             .into_report()
@@ -726,13 +739,19 @@ pub async fn webhooks_core<W: types::OutgoingWebhookType>(
 
     let flow_type: api::WebhookFlow = event_type.to_owned().into();
     if process_webhook_further && !matches!(flow_type, api::WebhookFlow::ReturnResponse) {
+        let object_ref_id = connector
+            .get_webhook_object_reference_id(&request_details)
+            .switch()
+            .attach_printable("Could not find object reference id in incoming webhook body")?;
+
         let source_verified = connector
             .verify_webhook_source(
                 &*state.store,
                 &request_details,
-                &merchant_account.merchant_id,
+                &merchant_account,
                 connector_name,
                 &key_store,
+                object_ref_id.clone(),
             )
             .await
             .switch()
@@ -750,10 +769,6 @@ pub async fn webhooks_core<W: types::OutgoingWebhookType>(
         }
 
         logger::info!(source_verified=?source_verified);
-        let object_ref_id = connector
-            .get_webhook_object_reference_id(&request_details)
-            .switch()
-            .attach_printable("Could not find object reference id in incoming webhook body")?;
 
         let event_object = connector
             .get_webhook_resource_object(&request_details)
