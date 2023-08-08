@@ -6587,8 +6587,7 @@
         "type": "string",
         "enum": [
           "confirm",
-          "sync",
-          "invoke_sdk_and_end"
+          "sync"
         ]
       },
       "NextActionData": {

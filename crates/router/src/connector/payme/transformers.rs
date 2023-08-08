@@ -20,6 +20,7 @@ pub struct PayRequest {
     payme_sale_id: String,
     #[serde(flatten)]
     card: PaymeCard,
+    language: String,
 }
 
 #[derive(Debug, Serialize)]
@@ -32,6 +33,7 @@ pub struct MandateRequest {
     seller_payme_id: Secret<String>,
     sale_callback_url: String,
     buyer_key: Secret<String>,
+    language: String,
 }
 
 #[derive(Debug, Serialize)]
@@ -71,6 +73,7 @@ pub struct GenerateSaleRequest {
     seller_payme_id: Secret<String>,
     sale_callback_url: String,
     sale_payment_method: SalePaymentMethod,
+    language: String,
 }
 
 #[derive(Debug, Deserialize)]
@@ -207,6 +210,7 @@ impl TryFrom<&types::PaymentsInitRouterData> for GenerateSaleRequest {
             seller_payme_id,
             sale_callback_url: item.request.get_webhook_url()?,
             sale_payment_method: SalePaymentMethod::try_from(&item.request.payment_method_data)?,
+            language: "en".to_string(),
         })
     }
 }
@@ -237,6 +241,7 @@ impl TryFrom<&types::PaymentsPreProcessingRouterData> for GenerateSaleRequest {
             transaction_id: item.payment_id.clone(),
             sale_return_url: item.request.get_return_url()?,
             sale_callback_url: item.request.get_webhook_url()?,
+            language: "en".to_string(),
         })
     }
 }
@@ -263,7 +268,7 @@ impl TryFrom<&PaymentMethodData> for SalePaymentMethod {
     fn try_from(item: &PaymentMethodData) -> Result<Self, Self::Error> {
         match item {
             PaymentMethodData::Card(_) => Ok(Self::CreditCard),
-            PaymentMethodData::Wallet(_) => Ok(Self::ApplePay), //Later when Google Pay comes, we can have a check for wallets
+            PaymentMethodData::Wallet(_) => Ok(Self::ApplePay),
             PaymentMethodData::PayLater(_)
             | PaymentMethodData::BankRedirect(_)
             | PaymentMethodData::BankDebit(_)
@@ -367,7 +372,7 @@ impl<F>
                         connector: "payme".to_string(),
                         delayed_session_token: true,
                         sdk_next_action: api_models::payments::SdkNextAction {
-                            next_action: api_models::payments::NextActionCall::InvokeSdkAndEnd,
+                            next_action: api_models::payments::NextActionCall::Sync,
                         },
                         connector_reference_id: Some(item.response.payme_sale_id),
                     },
@@ -398,6 +403,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for MandateRequest {
             seller_payme_id,
             sale_callback_url: item.request.get_webhook_url()?,
             buyer_key: Secret::new(item.request.get_connector_mandate_id()?),
+            language: "en".to_string(),
         })
     }
 }
@@ -425,6 +431,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PayRequest {
                     buyer_email,
                     buyer_name,
                     payme_sale_id,
+                    language: "en".to_string(),
                 })
             }
             _ => Err(errors::ConnectorError::NotImplemented("Payment methods".to_string()).into()),
@@ -589,6 +596,7 @@ pub struct PaymeRefundRequest {
     sale_refund_amount: i64,
     payme_sale_id: String,
     seller_payme_id: Secret<String>,
+    language: String,
 }
 
 impl<F> TryFrom<&types::RefundsRouterData<F>> for PaymeRefundRequest {
@@ -599,6 +607,7 @@ impl<F> TryFrom<&types::RefundsRouterData<F>> for PaymeRefundRequest {
             payme_sale_id: item.request.connector_transaction_id.clone(),
             seller_payme_id: auth_type.seller_payme_id,
             sale_refund_amount: item.request.refund_amount,
+            language: "en".to_string(),
         })
     }
 }

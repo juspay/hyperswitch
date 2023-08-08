@@ -2371,8 +2371,6 @@ pub enum NextActionCall {
     Confirm,
     /// The next action call is sync
     Sync,
-    /// The next action call is to invoke sdk and end
-    InvokeSdkAndEnd,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, ToSchema)]
