@@ -1290,6 +1290,7 @@ pub async fn make_pm_data<'a, F: Clone, R>(
         (pm @ Some(api::PaymentMethodData::Upi(_)), _) => Ok(pm.to_owned()),
         (pm @ Some(api::PaymentMethodData::Voucher(_)), _) => Ok(pm.to_owned()),
         (pm @ Some(api::PaymentMethodData::Reward(_)), _) => Ok(pm.to_owned()),
+        (pm @ Some(api::PaymentMethodData::CardRedirect(_)), _) => Ok(pm.to_owned()),
         (pm @ Some(api::PaymentMethodData::GiftCard(_)), _) => Ok(pm.to_owned()),
         (pm_opt @ Some(pm @ api::PaymentMethodData::BankTransfer(_)), _) => {
             let token = vault::Vault::store_payment_method_data_in_locker(
@@ -1525,6 +1526,7 @@ pub fn validate_payment_method_type_against_payment_method(
                 | api_enums::PaymentMethodType::Trustly
                 | api_enums::PaymentMethodType::Bizum
                 | api_enums::PaymentMethodType::Interac
+                | api_enums::PaymentMethodType::OpenBankingUk
         ),
         api_enums::PaymentMethod::BankTransfer => matches!(
             payment_method_type,
@@ -1578,6 +1580,12 @@ pub fn validate_payment_method_type_against_payment_method(
                 api_enums::PaymentMethodType::Givex | api_enums::PaymentMethodType::PaySafeCard
             )
         }
+        api_enums::PaymentMethod::CardRedirect => matches!(
+            payment_method_type,
+            api_enums::PaymentMethodType::Knet
+                | api_enums::PaymentMethodType::Benefit
+                | api_enums::PaymentMethodType::MomoAtm
+        ),
     }
 }
 
@@ -2838,6 +2846,9 @@ pub async fn get_additional_payment_data(
         }
         api_models::payments::PaymentMethodData::Upi(_) => {
             api_models::payments::AdditionalPaymentData::Upi {}
+        }
+        api_models::payments::PaymentMethodData::CardRedirect(_) => {
+            api_models::payments::AdditionalPaymentData::CardRedirect {}
         }
         api_models::payments::PaymentMethodData::Voucher(_) => {
             api_models::payments::AdditionalPaymentData::Voucher {}
