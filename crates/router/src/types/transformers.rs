@@ -241,9 +241,9 @@ impl ForeignFrom<api_enums::PaymentMethodType> for api_enums::PaymentMethod {
             api_enums::PaymentMethodType::Givex | api_enums::PaymentMethodType::PaySafeCard => {
                 Self::GiftCard
             }
-            api_enums::PaymentMethodType::Benefit | api_enums::PaymentMethodType::Knet => {
-                Self::CardRedirect
-            }
+            api_enums::PaymentMethodType::Benefit
+            | api_enums::PaymentMethodType::Knet
+            | api_enums::PaymentMethodType::MomoAtm => Self::CardRedirect,
         }
     }
 }
