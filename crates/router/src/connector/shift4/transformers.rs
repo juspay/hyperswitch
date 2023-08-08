@@ -31,13 +31,13 @@ pub struct Shift4PaymentsRequest {
 #[serde(untagged)]
 pub enum Shift4PaymentMethod {
     CardsNon3DSRequest(Box<CardsNon3DSRequest>),
-    Shift4BankRedirectRequest(Box<Shift4BankRedirectRequest>),
+    BankRedirectRequest(Box<BankRedirectRequest>),
     Cards3DSRequest(Box<Cards3DSRequest>),
 }
 
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
-pub struct Shift4BankRedirectRequest {
+pub struct BankRedirectRequest {
     payment_method: PaymentMethod,
     flow: Flow,
 }
@@ -218,8 +218,8 @@ fn get_bank_redirect_request<T>(
     Ok(Shift4PaymentsRequest {
         amount: item.request.amount.to_string(),
         currency: item.request.currency,
-        payment_method: Shift4PaymentMethod::Shift4BankRedirectRequest(Box::new(
-            Shift4BankRedirectRequest {
+        payment_method: Shift4PaymentMethod::BankRedirectRequest(Box::new(
+            BankRedirectRequest {
                 payment_method,
                 flow,
             },
