@@ -470,7 +470,7 @@ mod tests {
     async fn test_api_keys_cache() {
         let db = MockDb::new(&Default::default()).await;
 
-        let redis_conn = db.get_redis_conn();
+        let redis_conn = db.get_redis_conn().unwrap();
         redis_conn
             .subscribe("hyperswitch_invalidate")
             .await

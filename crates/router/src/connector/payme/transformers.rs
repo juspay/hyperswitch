@@ -6,7 +6,8 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     connector::utils::{
-        missing_field_err, AddressDetailsData, CardData, PaymentsAuthorizeRequestData, RouterData,
+        missing_field_err, AddressDetailsData, CardData, PaymentsAuthorizeRequestData,
+        PaymentsSyncRequestData, RouterData,
     },
     core::errors,
     types::{self, api, storage::enums, MandateReference},
@@ -41,6 +42,18 @@ pub enum PaymePaymentRequest {
 }
 
 #[derive(Debug, Serialize)]
+pub struct PaymeQuerySaleRequest {
+    sale_payme_id: String,
+    seller_payme_id: Secret<String>,
+}
+
+#[derive(Debug, Serialize)]
+pub struct PaymeQueryTransactionRequest {
+    payme_transaction_id: String,
+    seller_payme_id: Secret<String>,
+}
+
+#[derive(Debug, Serialize)]
 pub struct PaymeCard {
     credit_card_cvv: Secret<String>,
     credit_card_exp: Secret<String>,
@@ -63,6 +76,35 @@ pub struct GenerateSaleRequest {
 #[derive(Debug, Deserialize)]
 pub struct GenerateSaleResponse {
     payme_sale_id: String,
+}
+
+impl<F, T>
+    TryFrom<types::ResponseRouterData<F, PaymePaymentsResponse, T, types::PaymentsResponseData>>
+    for types::RouterData<F, T, types::PaymentsResponseData>
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        item: types::ResponseRouterData<F, PaymePaymentsResponse, T, types::PaymentsResponseData>,
+    ) -> Result<Self, Self::Error> {
+        match item.response {
+            // To handle webhook response
+            PaymePaymentsResponse::PaymePaySaleResponse(response) => {
+                Self::try_from(types::ResponseRouterData {
+                    response,
+                    data: item.data,
+                    http_code: item.http_code,
+                })
+            }
+            // To handle PSync response
+            PaymePaymentsResponse::SaleQueryResponse(response) => {
+                Self::try_from(types::ResponseRouterData {
+                    response,
+                    data: item.data,
+                    http_code: item.http_code,
+                })
+            }
+        }
+    }
 }
 
 impl<F, T>
@@ -89,6 +131,38 @@ impl<F, T>
                     .into_report()
                     .change_context(errors::ConnectorError::ResponseHandlingFailed)?,
                 ),
+                network_txn_id: None,
+                connector_response_reference_id: None,
+            }),
+            ..item.data
+        })
+    }
+}
+
+impl<F, T> TryFrom<types::ResponseRouterData<F, SaleQueryResponse, T, types::PaymentsResponseData>>
+    for types::RouterData<F, T, types::PaymentsResponseData>
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        item: types::ResponseRouterData<F, SaleQueryResponse, T, types::PaymentsResponseData>,
+    ) -> Result<Self, Self::Error> {
+        // Only one element would be present since we are passing one transaction id in the PSync request
+        let transaction_response = item
+            .response
+            .items
+            .first()
+            .cloned()
+            .ok_or(errors::ConnectorError::ResponseHandlingFailed)?;
+        Ok(Self {
+            status: enums::AttemptStatus::from(transaction_response.sale_status),
+            response: Ok(types::PaymentsResponseData::TransactionResponse {
+                resource_id: types::ResponseId::ConnectorTransactionId(
+                    transaction_response.sale_payme_id,
+                ),
+                redirection_data: None,
+                // mandate reference will be updated with webhooks only. That has been handled with PaymePaySaleResponse struct
+                mandate_reference: None,
+                connector_metadata: None,
                 network_txn_id: None,
                 connector_response_reference_id: None,
             }),
@@ -167,6 +241,7 @@ impl TryFrom<&PaymentMethodData> for SalePaymentMethod {
             | PaymentMethodData::MandatePayment
             | PaymentMethodData::Reward(_)
             | PaymentMethodData::GiftCard(_)
+            | PaymentMethodData::CardRedirect(_)
             | PaymentMethodData::Upi(_)
             | api::PaymentMethodData::Voucher(_) => {
                 Err(errors::ConnectorError::NotImplemented("Payment methods".to_string()).into())
@@ -184,6 +259,32 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PaymePaymentRequest {
             Self::PayRequest(PayRequest::try_from(value)?)
         };
         Ok(payme_request)
+    }
+}
+
+impl TryFrom<&types::PaymentsSyncRouterData> for PaymeQuerySaleRequest {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(value: &types::PaymentsSyncRouterData) -> Result<Self, Self::Error> {
+        let seller_payme_id = PaymeAuthType::try_from(&value.connector_auth_type)?.seller_payme_id;
+        Ok(Self {
+            sale_payme_id: value.request.get_connector_transaction_id()?,
+            seller_payme_id,
+        })
+    }
+}
+
+impl TryFrom<&types::RefundSyncRouterData> for PaymeQueryTransactionRequest {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(value: &types::RefundSyncRouterData) -> Result<Self, Self::Error> {
+        let seller_payme_id = PaymeAuthType::try_from(&value.connector_auth_type)?.seller_payme_id;
+        Ok(Self {
+            payme_transaction_id: value
+                .request
+                .connector_refund_id
+                .clone()
+                .ok_or(errors::ConnectorError::MissingConnectorRefundID)?,
+            seller_payme_id,
+        })
     }
 }
 
@@ -242,6 +343,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PayRequest {
 
 // Auth Struct
 pub struct PaymeAuthType {
+    #[allow(dead_code)]
     pub(super) payme_client_key: Secret<String>,
     pub(super) seller_payme_id: Secret<String>,
 }
@@ -259,7 +361,7 @@ impl TryFrom<&types::ConnectorAuthType> for PaymeAuthType {
     }
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 pub enum SaleStatus {
     Initial,
@@ -285,6 +387,24 @@ impl From<SaleStatus> for enums::AttemptStatus {
             SaleStatus::Chargeback => Self::AutoRefunded,
         }
     }
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(untagged)]
+pub enum PaymePaymentsResponse {
+    PaymePaySaleResponse(PaymePaySaleResponse),
+    SaleQueryResponse(SaleQueryResponse),
+}
+
+#[derive(Clone, Debug, Deserialize)]
+pub struct SaleQueryResponse {
+    items: Vec<SaleQuery>,
+}
+
+#[derive(Clone, Debug, Deserialize)]
+pub struct SaleQuery {
+    sale_status: SaleStatus,
+    sale_payme_id: String,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -361,7 +481,6 @@ pub struct PaymeRefundRequest {
     sale_refund_amount: i64,
     payme_sale_id: String,
     seller_payme_id: Secret<String>,
-    payme_client_key: Secret<String>,
 }
 
 impl<F> TryFrom<&types::RefundsRouterData<F>> for PaymeRefundRequest {
@@ -371,7 +490,6 @@ impl<F> TryFrom<&types::RefundsRouterData<F>> for PaymeRefundRequest {
         Ok(Self {
             payme_sale_id: item.request.connector_transaction_id.clone(),
             seller_payme_id: auth_type.seller_payme_id,
-            payme_client_key: auth_type.payme_client_key,
             sale_refund_amount: item.request.refund_amount,
         })
     }
@@ -394,28 +512,64 @@ impl TryFrom<SaleStatus> for enums::RefundStatus {
 }
 
 #[derive(Debug, Deserialize)]
-pub struct RefundResponse {
+pub struct PaymeRefundResponse {
     sale_status: SaleStatus,
+    payme_transaction_id: String,
 }
 
-impl
-    TryFrom<(
-        &types::RefundsData,
-        types::RefundsResponseRouterData<api::Execute, RefundResponse>,
-    )> for types::RefundsRouterData<api::Execute>
+impl TryFrom<types::RefundsResponseRouterData<api::Execute, PaymeRefundResponse>>
+    for types::RefundsRouterData<api::Execute>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        (req, item): (
-            &types::RefundsData,
-            types::RefundsResponseRouterData<api::Execute, RefundResponse>,
-        ),
+        item: types::RefundsResponseRouterData<api::Execute, PaymeRefundResponse>,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
             response: Ok(types::RefundsResponseData {
-                // Connector doesn't give refund id, So using connector_transaction_id as connector_refund_id. Since refund webhook will also have this id as reference
-                connector_refund_id: req.connector_transaction_id.clone(),
+                connector_refund_id: item.response.payme_transaction_id,
                 refund_status: enums::RefundStatus::try_from(item.response.sale_status)?,
+            }),
+            ..item.data
+        })
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct PaymeQueryTransactionResponse {
+    items: Vec<TransactionQuery>,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct TransactionQuery {
+    sale_status: SaleStatus,
+    payme_transaction_id: String,
+}
+
+impl<F, T>
+    TryFrom<
+        types::ResponseRouterData<F, PaymeQueryTransactionResponse, T, types::RefundsResponseData>,
+    > for types::RouterData<F, T, types::RefundsResponseData>
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        item: types::ResponseRouterData<
+            F,
+            PaymeQueryTransactionResponse,
+            T,
+            types::RefundsResponseData,
+        >,
+    ) -> Result<Self, Self::Error> {
+        let pay_sale_response = item
+            .response
+            .items
+            .first()
+            .ok_or(errors::ConnectorError::ResponseHandlingFailed)?;
+        Ok(Self {
+            response: Ok(types::RefundsResponseData {
+                refund_status: enums::RefundStatus::try_from(
+                    pay_sale_response.sale_status.clone(),
+                )?,
+                connector_refund_id: pay_sale_response.payme_transaction_id.clone(),
             }),
             ..item.data
         })
@@ -430,7 +584,7 @@ pub struct PaymeErrorResponse {
     pub reason: Option<String>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 pub enum NotifyType {
     SaleComplete,
@@ -441,7 +595,7 @@ pub enum NotifyType {
     SaleChargebackRefund,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct WebhookEventDataResource {
     pub sale_status: SaleStatus,
     pub payme_signature: Secret<String>,
@@ -461,15 +615,26 @@ pub struct WebhookEventDataResourceSignature {
     pub payme_signature: Secret<String>,
 }
 
-impl TryFrom<WebhookEventDataResource> for PaymePaySaleResponse {
-    type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(value: WebhookEventDataResource) -> Result<Self, Self::Error> {
-        Ok(Self {
+/// This try_from will ensure that webhook body would be properly parsed into PSync response
+impl From<WebhookEventDataResource> for PaymePaySaleResponse {
+    fn from(value: WebhookEventDataResource) -> Self {
+        Self {
             sale_status: value.sale_status,
             payme_sale_id: value.payme_sale_id,
             payme_transaction_id: value.payme_transaction_id,
             buyer_key: value.buyer_key,
-        })
+        }
+    }
+}
+
+/// This try_from will ensure that webhook body would be properly parsed into RSync response
+impl From<WebhookEventDataResource> for PaymeQueryTransactionResponse {
+    fn from(value: WebhookEventDataResource) -> Self {
+        let item = TransactionQuery {
+            sale_status: value.sale_status,
+            payme_transaction_id: value.payme_transaction_id,
+        };
+        Self { items: vec![item] }
     }
 }
 

@@ -177,8 +177,13 @@ where
 }
 
 impl services::RedisConnInterface for MockDb {
-    fn get_redis_conn(&self) -> Arc<redis_interface::RedisConnectionPool> {
-        self.redis.clone()
+    fn get_redis_conn(
+        &self,
+    ) -> Result<
+        Arc<redis_interface::RedisConnectionPool>,
+        error_stack::Report<redis_interface::errors::RedisError>,
+    > {
+        Ok(self.redis.clone())
     }
 }
 

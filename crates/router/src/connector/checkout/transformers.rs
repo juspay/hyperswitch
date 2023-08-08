@@ -6,7 +6,8 @@ use time::PrimitiveDateTime;
 use url::Url;
 
 use crate::{
-    connector::utils::{RouterData, WalletData},
+    connector::utils::{self, RouterData, WalletData},
+    consts,
     core::errors,
     services,
     types::{self, api, storage::enums, transformers::ForeignFrom},
@@ -59,15 +60,53 @@ impl TryFrom<&types::TokenizationRouterData> for TokenRequest {
                         wallet_data.get_wallet_token_as_json()?;
                     Ok(Self::Applepay(json_wallet_data))
                 }
-                _ => Err(errors::ConnectorError::NotImplemented(
-                    "Payment Method".to_string(),
-                ))
-                .into_report(),
+                api_models::payments::WalletData::AliPayQr(_)
+                | api_models::payments::WalletData::AliPayRedirect(_)
+                | api_models::payments::WalletData::AliPayHkRedirect(_)
+                | api_models::payments::WalletData::MomoRedirect(_)
+                | api_models::payments::WalletData::KakaoPayRedirect(_)
+                | api_models::payments::WalletData::GoPayRedirect(_)
+                | api_models::payments::WalletData::GcashRedirect(_)
+                | api_models::payments::WalletData::ApplePayRedirect(_)
+                | api_models::payments::WalletData::ApplePayThirdPartySdk(_)
+                | api_models::payments::WalletData::DanaRedirect {}
+                | api_models::payments::WalletData::GooglePayRedirect(_)
+                | api_models::payments::WalletData::GooglePayThirdPartySdk(_)
+                | api_models::payments::WalletData::MbWayRedirect(_)
+                | api_models::payments::WalletData::MobilePayRedirect(_)
+                | api_models::payments::WalletData::PaypalRedirect(_)
+                | api_models::payments::WalletData::PaypalSdk(_)
+                | api_models::payments::WalletData::SamsungPay(_)
+                | api_models::payments::WalletData::TwintRedirect {}
+                | api_models::payments::WalletData::VippsRedirect {}
+                | api_models::payments::WalletData::TouchNGoRedirect(_)
+                | api_models::payments::WalletData::WeChatPayRedirect(_)
+                | api_models::payments::WalletData::CashappQr(_)
+                | api_models::payments::WalletData::SwishQr(_)
+                | api_models::payments::WalletData::WeChatPayQr(_) => {
+                    Err(errors::ConnectorError::NotImplemented(
+                        utils::get_unimplemented_payment_method_error_message("checkout"),
+                    )
+                    .into())
+                }
             },
-            _ => Err(errors::ConnectorError::NotImplemented(
-                "Payment Method".to_string(),
-            ))
-            .into_report(),
+            api_models::payments::PaymentMethodData::Card(_)
+            | api_models::payments::PaymentMethodData::PayLater(_)
+            | api_models::payments::PaymentMethodData::BankRedirect(_)
+            | api_models::payments::PaymentMethodData::BankDebit(_)
+            | api_models::payments::PaymentMethodData::BankTransfer(_)
+            | api_models::payments::PaymentMethodData::Crypto(_)
+            | api_models::payments::PaymentMethodData::MandatePayment
+            | api_models::payments::PaymentMethodData::Reward(_)
+            | api_models::payments::PaymentMethodData::Upi(_)
+            | api_models::payments::PaymentMethodData::Voucher(_)
+            | api_models::payments::PaymentMethodData::CardRedirect(_)
+            | api_models::payments::PaymentMethodData::GiftCard(_) => {
+                Err(errors::ConnectorError::NotImplemented(
+                    utils::get_unimplemented_payment_method_error_message("checkout"),
+                )
+                .into())
+            }
         }
     }
 }
@@ -198,13 +237,51 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PaymentsRequest {
                         token: item.get_payment_method_token()?,
                     }))
                 }
-                _ => Err(errors::ConnectorError::NotImplemented(
-                    "Payment Method".to_string(),
-                )),
+                api_models::payments::WalletData::AliPayQr(_)
+                | api_models::payments::WalletData::AliPayRedirect(_)
+                | api_models::payments::WalletData::AliPayHkRedirect(_)
+                | api_models::payments::WalletData::MomoRedirect(_)
+                | api_models::payments::WalletData::KakaoPayRedirect(_)
+                | api_models::payments::WalletData::GoPayRedirect(_)
+                | api_models::payments::WalletData::GcashRedirect(_)
+                | api_models::payments::WalletData::ApplePayRedirect(_)
+                | api_models::payments::WalletData::ApplePayThirdPartySdk(_)
+                | api_models::payments::WalletData::DanaRedirect {}
+                | api_models::payments::WalletData::GooglePayRedirect(_)
+                | api_models::payments::WalletData::GooglePayThirdPartySdk(_)
+                | api_models::payments::WalletData::MbWayRedirect(_)
+                | api_models::payments::WalletData::MobilePayRedirect(_)
+                | api_models::payments::WalletData::PaypalRedirect(_)
+                | api_models::payments::WalletData::PaypalSdk(_)
+                | api_models::payments::WalletData::SamsungPay(_)
+                | api_models::payments::WalletData::TwintRedirect {}
+                | api_models::payments::WalletData::VippsRedirect {}
+                | api_models::payments::WalletData::TouchNGoRedirect(_)
+                | api_models::payments::WalletData::WeChatPayRedirect(_)
+                | api_models::payments::WalletData::CashappQr(_)
+                | api_models::payments::WalletData::SwishQr(_)
+                | api_models::payments::WalletData::WeChatPayQr(_) => {
+                    Err(errors::ConnectorError::NotImplemented(
+                        utils::get_unimplemented_payment_method_error_message("checkout"),
+                    ))
+                }
             },
-            _ => Err(errors::ConnectorError::NotImplemented(
-                "Payment Method".to_string(),
-            )),
+
+            api_models::payments::PaymentMethodData::PayLater(_)
+            | api_models::payments::PaymentMethodData::BankRedirect(_)
+            | api_models::payments::PaymentMethodData::BankDebit(_)
+            | api_models::payments::PaymentMethodData::BankTransfer(_)
+            | api_models::payments::PaymentMethodData::Crypto(_)
+            | api_models::payments::PaymentMethodData::MandatePayment
+            | api_models::payments::PaymentMethodData::Reward(_)
+            | api_models::payments::PaymentMethodData::Upi(_)
+            | api_models::payments::PaymentMethodData::Voucher(_)
+            | api_models::payments::PaymentMethodData::CardRedirect(_)
+            | api_models::payments::PaymentMethodData::GiftCard(_) => {
+                Err(errors::ConnectorError::NotImplemented(
+                    utils::get_unimplemented_payment_method_error_message("checkout"),
+                ))
+            }
         }?;
 
         let three_ds = match item.auth_type {
@@ -326,6 +403,8 @@ pub struct PaymentsResponse {
     links: Links,
     balances: Option<Balances>,
     reference: Option<String>,
+    response_code: Option<String>,
+    response_summary: Option<String>,
 }
 
 #[derive(Clone, Debug, Default, Eq, PartialEq, Deserialize)]
@@ -343,22 +422,40 @@ impl TryFrom<types::PaymentsResponseRouterData<PaymentsResponse>>
         let redirection_data = item.response.links.redirect.map(|href| {
             services::RedirectForm::from((href.redirection_url, services::Method::Get))
         });
-
+        let status = enums::AttemptStatus::foreign_from((
+            item.response.status,
+            item.data.request.capture_method,
+        ));
+        let error_response = if status == enums::AttemptStatus::Failure {
+            Some(types::ErrorResponse {
+                status_code: item.http_code,
+                code: item
+                    .response
+                    .response_code
+                    .unwrap_or_else(|| consts::NO_ERROR_CODE.to_string()),
+                message: item
+                    .response
+                    .response_summary
+                    .clone()
+                    .unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
+                reason: item.response.response_summary,
+            })
+        } else {
+            None
+        };
+        let payments_response_data = types::PaymentsResponseData::TransactionResponse {
+            resource_id: types::ResponseId::ConnectorTransactionId(item.response.id.clone()),
+            redirection_data,
+            mandate_reference: None,
+            connector_metadata: None,
+            network_txn_id: None,
+            connector_response_reference_id: Some(
+                item.response.reference.unwrap_or(item.response.id),
+            ),
+        };
         Ok(Self {
-            status: enums::AttemptStatus::foreign_from((
-                item.response.status,
-                item.data.request.capture_method,
-            )),
-            response: Ok(types::PaymentsResponseData::TransactionResponse {
-                resource_id: types::ResponseId::ConnectorTransactionId(item.response.id.clone()),
-                redirection_data,
-                mandate_reference: None,
-                connector_metadata: None,
-                network_txn_id: None,
-                connector_response_reference_id: Some(
-                    item.response.reference.unwrap_or(item.response.id),
-                ),
-            }),
+            status,
+            response: error_response.map_or_else(|| Ok(payments_response_data), Err),
             ..item.data
         })
     }
@@ -374,22 +471,38 @@ impl TryFrom<types::PaymentsSyncResponseRouterData<PaymentsResponse>>
         let redirection_data = item.response.links.redirect.map(|href| {
             services::RedirectForm::from((href.redirection_url, services::Method::Get))
         });
-
+        let status =
+            enums::AttemptStatus::foreign_from((item.response.status, item.response.balances));
+        let error_response = if status == enums::AttemptStatus::Failure {
+            Some(types::ErrorResponse {
+                status_code: item.http_code,
+                code: item
+                    .response
+                    .response_code
+                    .unwrap_or_else(|| consts::NO_ERROR_CODE.to_string()),
+                message: item
+                    .response
+                    .response_summary
+                    .clone()
+                    .unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
+                reason: item.response.response_summary,
+            })
+        } else {
+            None
+        };
+        let payments_response_data = types::PaymentsResponseData::TransactionResponse {
+            resource_id: types::ResponseId::ConnectorTransactionId(item.response.id.clone()),
+            redirection_data,
+            mandate_reference: None,
+            connector_metadata: None,
+            network_txn_id: None,
+            connector_response_reference_id: Some(
+                item.response.reference.unwrap_or(item.response.id),
+            ),
+        };
         Ok(Self {
-            status: enums::AttemptStatus::foreign_from((
-                item.response.status,
-                item.response.balances,
-            )),
-            response: Ok(types::PaymentsResponseData::TransactionResponse {
-                resource_id: types::ResponseId::ConnectorTransactionId(item.response.id.clone()),
-                redirection_data,
-                mandate_reference: None,
-                connector_metadata: None,
-                network_txn_id: None,
-                connector_response_reference_id: Some(
-                    item.response.reference.unwrap_or(item.response.id),
-                ),
-            }),
+            status,
+            response: error_response.map_or_else(|| Ok(payments_response_data), Err),
             ..item.data
         })
     }
@@ -909,5 +1022,14 @@ impl TryFrom<&types::SubmitEvidenceRouterData> for Evidence {
             additional_evidence_file: submit_evidence_request_data
                 .uncategorized_file_provider_file_id,
         })
+    }
+}
+
+impl From<String> for utils::ErrorCodeAndMessage {
+    fn from(error: String) -> Self {
+        Self {
+            error_code: error.clone(),
+            error_message: error,
+        }
     }
 }

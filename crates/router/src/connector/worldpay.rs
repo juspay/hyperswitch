@@ -1,6 +1,6 @@
 mod requests;
 mod response;
-mod transformers;
+pub mod transformers;
 
 use std::fmt::Debug;
 

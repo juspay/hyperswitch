@@ -21,7 +21,7 @@ use crate::{
     core::errors::{self, CustomResult},
     pii::PeekInterface,
     types::{self, api, transformers::ForeignTryFrom, PaymentsCancelData, ResponseId},
-    utils::{self, OptionExt, ValueExt},
+    utils::{OptionExt, ValueExt},
 };
 
 pub fn missing_field_err(
@@ -72,6 +72,10 @@ pub trait RouterData {
     fn get_payout_method_data(&self) -> Result<api::PayoutMethodData, Error>;
     #[cfg(feature = "payouts")]
     fn get_quote_id(&self) -> Result<String, Error>;
+}
+
+pub fn get_unimplemented_payment_method_error_message(connector: &str) -> String {
+    format!("Selected payment method through {}", connector)
 }
 
 impl<Flow, Request, Response> RouterData for types::RouterData<Flow, Request, Response> {
@@ -795,6 +799,18 @@ impl AddressDetailsData for api::AddressDetails {
     }
 }
 
+pub trait BankRedirectBillingData {
+    fn get_billing_name(&self) -> Result<Secret<String>, Error>;
+}
+
+impl BankRedirectBillingData for payments::BankRedirectBilling {
+    fn get_billing_name(&self) -> Result<Secret<String>, Error> {
+        self.billing_name
+            .clone()
+            .ok_or_else(missing_field_err("billing_details.billing_name"))
+    }
+}
+
 pub trait MandateData {
     fn get_end_date(&self, format: date_time::DateFormat) -> Result<String, Error>;
     fn get_metadata(&self) -> Result<pii::SecretSerdeValue, Error>;
@@ -924,7 +940,9 @@ pub fn to_currency_base_unit(
     amount: i64,
     currency: diesel_models::enums::Currency,
 ) -> Result<String, error_stack::Report<errors::ConnectorError>> {
-    utils::to_currency_base_unit(amount, currency)
+    currency
+        .to_currency_base_unit(amount)
+        .into_report()
         .change_context(errors::ConnectorError::RequestEncodingFailed)
 }
 
@@ -932,7 +950,9 @@ pub fn to_currency_base_unit_with_zero_decimal_check(
     amount: i64,
     currency: diesel_models::enums::Currency,
 ) -> Result<String, error_stack::Report<errors::ConnectorError>> {
-    utils::to_currency_base_unit_with_zero_decimal_check(amount, currency)
+    currency
+        .to_currency_base_unit_with_zero_decimal_check(amount)
+        .into_report()
         .change_context(errors::ConnectorError::RequestEncodingFailed)
 }
 
@@ -940,7 +960,9 @@ pub fn to_currency_base_unit_asf64(
     amount: i64,
     currency: diesel_models::enums::Currency,
 ) -> Result<f64, error_stack::Report<errors::ConnectorError>> {
-    utils::to_currency_base_unit_asf64(amount, currency)
+    currency
+        .to_currency_base_unit_asf64(amount)
+        .into_report()
         .change_context(errors::ConnectorError::RequestEncodingFailed)
 }
 
