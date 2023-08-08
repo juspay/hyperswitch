@@ -237,8 +237,12 @@ impl ForeignFrom<api_enums::PaymentMethodType> for api_enums::PaymentMethod {
             | api_enums::PaymentMethodType::DanamonVa
             | api_enums::PaymentMethodType::MandiriVa
             | api_enums::PaymentMethodType::Pix => Self::BankTransfer,
-            api_enums::PaymentMethodType::Givex => Self::GiftCard,
-            api_enums::PaymentMethodType::PaySafeCard => Self::GiftCard,
+            api_enums::PaymentMethodType::Givex | api_enums::PaymentMethodType::PaySafeCard => {
+                Self::GiftCard
+            }
+            api_enums::PaymentMethodType::Benefit | api_enums::PaymentMethodType::Knet => {
+                Self::CardRedirect
+            }
         }
     }
 }
@@ -260,6 +264,7 @@ impl ForeignTryFrom<api_models::payments::PaymentMethodData> for api_enums::Paym
             api_models::payments::PaymentMethodData::Upi(..) => Ok(Self::Upi),
             api_models::payments::PaymentMethodData::Voucher(..) => Ok(Self::Voucher),
             api_models::payments::PaymentMethodData::GiftCard(..) => Ok(Self::GiftCard),
+            api_models::payments::PaymentMethodData::CardRedirect(..) => Ok(Self::CardRedirect),
             api_models::payments::PaymentMethodData::MandatePayment => {
                 Err(errors::ApiErrorResponse::InvalidRequestData {
                     message: ("Mandate payments cannot have payment_method_data field".to_string()),

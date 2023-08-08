@@ -15,6 +15,7 @@ payouts = []
 [dependencies]
 async-trait = "0.1.68"
 actix-web = "4.3.1"
+base64 = "0.21.2"
 clap = { version = "4.3.2", default-features = false, features = ["std", "derive", "help", "usage"] }
 serde = { version = "1.0.163", features = ["derive"] }
 serde_json = "1.0.96"
@@ -26,6 +27,7 @@ actix-http = "3.3.1"
 awc = { version = "3.1.1", features = ["rustls"] }
 derive_deref = "1.1.1"
 rand = "0.8.5"
+reqwest = { version = "0.11.18", features = ["native-tls"] }
 thirtyfour = "0.31.0"
 time = { version = "0.3.21", features = ["macros"] }
 tokio = "1.28.2"

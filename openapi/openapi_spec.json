@@ -3602,6 +3602,32 @@
           "Maestro"
         ]
       },
+      "CardRedirectData": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "knet"
+            ],
+            "properties": {
+              "knet": {
+                "type": "object"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "benefit"
+            ],
+            "properties": {
+              "benefit": {
+                "type": "object"
+              }
+            }
+          }
+        ]
+      },
       "CashappQr": {
         "type": "object"
       },
@@ -7306,6 +7332,7 @@
         "type": "string",
         "enum": [
           "card",
+          "card_redirect",
           "pay_later",
           "wallet",
           "bank_redirect",
@@ -7386,6 +7413,17 @@
             "properties": {
               "card": {
                 "$ref": "#/components/schemas/Card"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "card_redirect"
+            ],
+            "properties": {
+              "card_redirect": {
+                "$ref": "#/components/schemas/CardRedirectData"
               }
             }
           },
@@ -7697,6 +7735,7 @@
           "bacs",
           "bancontact_card",
           "becs",
+          "benefit",
           "bizum",
           "blik",
           "boleto",
@@ -7725,6 +7764,7 @@
           "klarna",
           "kakao_pay",
           "mandiri_va",
+          "knet",
           "mb_way",
           "mobile_pay",
           "momo",
