@@ -7,6 +7,7 @@ pub mod customers;
 pub mod disputes;
 pub mod errors;
 pub mod files;
+#[cfg(feature = "locking")]
 pub mod locking;
 pub mod mandate;
 pub mod metrics;

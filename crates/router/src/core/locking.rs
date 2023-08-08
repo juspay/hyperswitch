@@ -1,23 +1,65 @@
 use actix_web::rt::time as actix_time;
 use error_stack::{IntoReport, ResultExt};
 use redis_interface as redis;
-use router_env::logger;
+use router_env::{instrument, logger, tracing};
 
 use super::errors::{self, RouterResult};
 use crate::routes;
 
-// pr: should there be 2 enums AcquireLockStatus and ReleaseLockStatus ?
-pub enum LockStatus {
-    Acquired,
-    AlreadyLocked,
-    NotEnabled,
-    AcquireFailedRetriesExhausted,
-    Released,
-    ReleaseFailedRetriesExhausted,
+#[derive(Debug)]
+pub enum Lock {
+    Acquired(String),
+    Release(String),
 }
 
-pub enum ActionOnWaitTimeout {}
+pub struct LockingError {}
 
+// pr: should there be 2 enums AcquireLockStatus and ReleaseLockStatus ?
+#[derive(Clone, Debug)]
+pub enum LockStatus {
+    Acquired(String),
+    AlreadyLocked(String),
+    NotEnabled,
+    AcquireFailedRetriesExhausted(String),
+    Released(String),
+    ReleaseFailedRetriesExhausted(String),
+}
+
+#[derive(Debug)]
+pub enum ActionOnWaitTimeout {
+    Default,
+}
+
+// data LockingEnv = LockingEnv
+//   { acquiredLocks  :: TVar [Text]
+//   , sessionId      :: Text
+//   , rsMetricLogger :: Metric.LockCounterHandle
+//   }
+
+// data LockStatus = ACQUIRED | RELEASED | ERROR
+//   deriving stock (
+
+// data LockingInput = LockingInput
+//     { uniqueLockingKey                :: Text
+//     , apiIdentifier                   :: Text
+//     , useApiIdentifierToEnableLocking :: Maybe Text -- previously Decision = TrueD | FalseD String
+//     , actionOnWaitTimeout             :: ActionOnWaitTimeout
+//     , merchantId                      :: Text
+//     }
+// deriving stock (Show, Generic)
+
+// data ActionOnWaitTimeout
+//     = REDIRECT_TO_MERCHANT TXN_UUID MERCHANT_ID
+//     | THROW_EXCEPTION Errs.ECErrorResponse
+//   deriving stock (Show, Generic)
+
+// newtype TXN_UUID = TXN_UUID Text
+//   deriving stock (Show, Generic)
+
+// newtype MERCHANT_ID = MERCHANT_ID Text
+//   deriving stock (Show, Generic)
+
+#[derive(Debug)]
 pub struct LockingInput {
     pub unique_locking_key: String,
     pub api_identifier: String,
@@ -25,6 +67,7 @@ pub struct LockingInput {
     pub merchant_id: String,
 }
 
+#[instrument(skip(state))]
 pub async fn get_key_and_lock_resource(
     state: &routes::AppState,
     locking_input: LockingInput,
@@ -37,7 +80,7 @@ pub async fn get_key_and_lock_resource(
 
     // let get_expiry_time = get_expiry_time_from_redis_based_on_connector_pmd_pm();
     if is_locking_enabled_for_merchant && is_locking_enabled_on_api {
-        let expiry_in_seconds = 100; // get it from redis
+        let expiry_in_seconds = 60; // get it from redis
         let delay_between_retries_in_seconds = 10; // get it from redis
         let retries = 1; // get from redis based on should_retry, if not present in redis default 1?
         let locking_key = locking_input.unique_locking_key;
@@ -60,6 +103,7 @@ pub async fn get_key_and_lock_resource(
     }
 }
 
+#[instrument(skip(state))]
 pub async fn lock_resource(
     state: &routes::AppState,
     locking_key: String,
@@ -69,11 +113,12 @@ pub async fn lock_resource(
     _api_identifier: &str,
 ) -> RouterResult<LockStatus> {
     let redis_key_for_lock = get_redis_key_for_locks(locking_key);
-    let redis_value_for_lock = true; // should get session id or request_id as we need info of who acquired the lock.
+
+    // let request_id_header = RequestId::extract(&req).await.ok(); // should get session id or request_id as we need info of who acquired the lock.
     acquire_lock_on_resource_in_redis(
         state,
         redis_key_for_lock.as_str(),
-        redis_value_for_lock,
+        true,
         expiry_in_seconds,
         delay_between_retries_in_seconds,
         retries,
@@ -83,9 +128,10 @@ pub async fn lock_resource(
 
 #[inline]
 fn get_redis_key_for_locks(a: String) -> String {
-    format!("SYNCHRONIZED_LOCK_{}", a)
+    format!("API_LOCK_{}", a)
 }
 
+#[instrument(skip(state))]
 pub async fn acquire_lock_on_resource_in_redis(
     state: &routes::AppState,
     key: &str,
@@ -104,17 +150,19 @@ pub async fn acquire_lock_on_resource_in_redis(
             .set_key_if_not_exists_with_expiry(
                 key,
                 value,
-                Some(expiry_in_seconds
-                    .try_into()
-                    .into_report()
-                    .change_context(errors::ApiErrorResponse::InternalServerError)?), // todo:  throw an appropriate error
+                Some(
+                    expiry_in_seconds
+                        .try_into()
+                        .into_report()
+                        .change_context(errors::ApiErrorResponse::InternalServerError)?,
+                ), // todo:  throw an appropriate error
             )
             .await;
 
         match is_lock_acquired {
             Ok(redis::SetnxReply::KeySet) => {
                 // (addAquiredLockInfoToState redisKey >>= logLockAcquired)
-                return Ok(LockStatus::Acquired);
+                return Ok(LockStatus::Acquired(key.to_owned()));
             }
             Ok(redis::SetnxReply::KeyNotSet) => {
                 logger::error!("Lock not acquired, retrying");
@@ -129,24 +177,51 @@ pub async fn acquire_lock_on_resource_in_redis(
         }
     }
 
-    Ok(LockStatus::AcquireFailedRetriesExhausted)
+    Ok(LockStatus::AcquireFailedRetriesExhausted(key.to_owned()))
 }
 
+#[instrument(skip(state))]
 pub async fn release_lock(
     state: &routes::AppState,
     mut retries: i32,
-    key: &str,
+    lock: LockStatus,
 ) -> RouterResult<LockStatus> {
     let redis_conn = state.store.clone().get_redis_conn();
-    while retries != 0 {
-        retries -= 1;
 
-        match redis_conn.delete_key(key).await {
-            Ok(_) => return Ok(LockStatus::Released),
-            Err(error) => {
-                logger::error!(error=%error.current_context(), "Error while locking");
+    match lock {
+        LockStatus::Acquired(key) | LockStatus::AlreadyLocked(key) => {
+            while retries != 0 {
+                retries -= 1;
+
+                match redis_conn.delete_key(key.as_str()).await {
+                    Ok(_) => return Ok(LockStatus::Released(key.to_owned())),
+                    Err(error) => {
+                        logger::error!(error=%error.current_context(), "Error while releasing lock");
+                    }
+                }
+                // if the key is not found
+                // should we wait before retrying again ?
             }
+            Ok(LockStatus::ReleaseFailedRetriesExhausted(key.to_owned()))
+        }
+        LockStatus::NotEnabled => Ok(LockStatus::NotEnabled),
+        LockStatus::AcquireFailedRetriesExhausted(key)
+        | LockStatus::Released(key)
+        | LockStatus::ReleaseFailedRetriesExhausted(key) => Ok(LockStatus::Released(key)),
+    }
+}
+
+pub trait GetLockingInput {
+    fn get_locking_input(&self) -> RouterResult<LockingInput>;
+}
+
+impl LockStatus {
+    pub fn is_acquired(self) -> RouterResult<Self> {
+        match self {
+            a @ Self::Acquired(_) => Ok(a),
+            b => Err(errors::ApiErrorResponse::InternalServerError)
+                .into_report()
+                .attach_printable(format!("Lock Status is not `Acquired` it is {:?}", b)),
         }
     }
-    Ok(LockStatus::ReleaseFailedRetriesExhausted)
 }

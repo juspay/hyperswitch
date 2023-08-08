@@ -25,7 +25,9 @@ use self::{
     helpers::authenticate_client_secret,
     operations::{payment_complete_authorize, BoxedOperation, Operation},
 };
-use super::errors::StorageErrorExt;
+use super::{errors::StorageErrorExt, locking::GetLockingInput};
+#[cfg(feature = "locking")]
+use crate::core::locking;
 use crate::{
     configs::settings::PaymentMethodTypeTokenFilter,
     core::errors::{self, CustomResult, RouterResponse, RouterResult},
@@ -76,6 +78,16 @@ where
         .validate_request(&req, &merchant_account)?;
 
     tracing::Span::current().record("payment_id", &format!("{}", validate_result.payment_id));
+
+    #[cfg(feature = "locking")]
+    let acquired_lock = locking::get_key_and_lock_resource(
+        &state.clone(),
+        validate_result.get_locking_input()?,
+        true,
+    )
+    .await?
+    .is_acquired()?; // probably raise Resource Busy.
+
     let (operation, mut payment_data, customer_details) = operation
         .to_get_tracker()?
         .get_trackers(
@@ -209,6 +221,17 @@ where
             )
             .await?;
     }
+
+    #[cfg(feature = "locking")]
+    let _p = locking::release_lock(state, 3, acquired_lock.to_owned())
+        .await
+        .map_err(|err| {
+            logger::error!(
+                "Failed to release lock for {:?}, err = {:?}",
+                acquired_lock,
+                err
+            )
+        });
 
     Ok((payment_data, req, customer))
 }

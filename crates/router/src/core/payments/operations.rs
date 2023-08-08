@@ -22,6 +22,8 @@ pub use self::{
     payment_update::PaymentUpdate,
 };
 use super::{helpers, CustomerDetails, PaymentData};
+#[cfg(feature = "locking")]
+use crate::core::locking;
 use crate::{
     core::errors::{self, CustomResult, RouterResult},
     db::StorageInterface,
@@ -73,6 +75,18 @@ pub struct ValidateResult<'a> {
     pub mandate_type: Option<api::MandateTransactionType>,
     pub storage_scheme: enums::MerchantStorageScheme,
     pub requeue: bool,
+}
+
+#[cfg(feature = "locking")]
+impl locking::GetLockingInput for ValidateResult<'_> {
+    fn get_locking_input(&self) -> RouterResult<locking::LockingInput> {
+        Ok(locking::LockingInput {
+            unique_locking_key: self.payment_id.get_id(),
+            api_identifier: "PAYMENTS".to_string(),
+            action_on_wait_timeout: locking::ActionOnWaitTimeout::Default,
+            merchant_id: self.merchant_id.to_string(),
+        })
+    }
 }
 
 #[allow(clippy::type_complexity)]
