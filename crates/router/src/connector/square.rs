@@ -9,7 +9,10 @@ use transformers as square;
 use super::utils::RefundsRequestData;
 use crate::{
     configs::settings,
-    core::errors::{self, CustomResult},
+    core::{
+        errors::{self, CustomResult},
+        payments,
+    },
     headers,
     services::{
         self,
@@ -19,7 +22,7 @@ use crate::{
     types::{
         self,
         api::{self, ConnectorCommon, ConnectorCommonExt},
-        ErrorResponse, Response,
+        storage, ErrorResponse, Response,
     },
     utils::{self, BytesExt},
 };
@@ -128,6 +131,7 @@ impl ConnectorIntegration<api::Verify, types::VerifyRequestData, types::Payments
 {
 }
 
+#[async_trait::async_trait]
 impl
     ConnectorIntegration<
         api::PaymentMethodToken,
@@ -135,6 +139,46 @@ impl
         types::PaymentsResponseData,
     > for Square
 {
+    async fn execute_pretasks(
+        &self,
+        router_data: &mut types::TokenizationRouterData,
+        app_state: &crate::routes::AppState,
+    ) -> CustomResult<(), errors::ConnectorError> {
+        let integ: Box<
+            &(dyn ConnectorIntegration<
+                api::AuthorizeSessionToken,
+                types::AuthorizeSessionTokenData,
+                types::PaymentsResponseData,
+            > + Send
+                  + Sync
+                  + 'static),
+        > = Box::new(&Self);
+
+        let authorize_session_token_data = types::AuthorizeSessionTokenData {
+            connector_transaction_id: router_data.payment_id.clone(),
+            amount_to_capture: None,
+            currency: storage::enums::Currency::USD,
+            amount: 0,
+        };
+
+        let authorize_data = &types::PaymentsAuthorizeSessionTokenRouterData::from((
+            &router_data.to_owned(),
+            authorize_session_token_data,
+        ));
+
+        let resp = services::execute_connector_processing_step(
+            app_state,
+            integ,
+            authorize_data,
+            payments::CallConnectorAction::Trigger,
+            None,
+        )
+        .await?;
+
+        router_data.session_token = resp.session_token;
+        Ok(())
+    }
+
     fn get_headers(
         &self,
         _req: &types::TokenizationRouterData,
@@ -218,6 +262,88 @@ impl
     }
 }
 
+impl
+    ConnectorIntegration<
+        api::AuthorizeSessionToken,
+        types::AuthorizeSessionTokenData,
+        types::PaymentsResponseData,
+    > for Square
+{
+    fn get_headers(
+        &self,
+        _req: &types::PaymentsAuthorizeSessionTokenRouterData,
+        _connectors: &settings::Connectors,
+    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
+        Ok(vec![(
+            headers::CONTENT_TYPE.to_string(),
+            types::PaymentsAuthorizeType::get_content_type(self)
+                .to_string()
+                .into(),
+        )])
+    }
+
+    fn get_content_type(&self) -> &'static str {
+        self.common_get_content_type()
+    }
+
+    fn get_url(
+        &self,
+        req: &types::PaymentsAuthorizeSessionTokenRouterData,
+        _connectors: &settings::Connectors,
+    ) -> CustomResult<String, errors::ConnectorError> {
+        let auth = square::SquareAuthType::try_from(&req.connector_auth_type)
+            .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
+
+        Ok(format!(
+            "https://pci-connect.squareupsandbox.com/payments/hydrate?applicationId={}",
+            auth.key1.peek()
+        ))
+    }
+
+    fn build_request(
+        &self,
+        req: &types::PaymentsAuthorizeSessionTokenRouterData,
+        connectors: &settings::Connectors,
+    ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
+        Ok(Some(
+            services::RequestBuilder::new()
+                .method(services::Method::Get)
+                .url(&types::PaymentsPreAuthorizeType::get_url(
+                    self, req, connectors,
+                )?)
+                .attach_default_headers()
+                .headers(types::PaymentsPreAuthorizeType::get_headers(
+                    self, req, connectors,
+                )?)
+                .build(),
+        ))
+    }
+
+    fn handle_response(
+        &self,
+        data: &types::PaymentsAuthorizeSessionTokenRouterData,
+        res: Response,
+    ) -> CustomResult<types::PaymentsAuthorizeSessionTokenRouterData, errors::ConnectorError> {
+        let response: square::SquareSessionResponse = res
+            .response
+            .parse_struct("SquareSessionResponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+
+        types::RouterData::try_from(types::ResponseRouterData {
+            response,
+            data: data.clone(),
+            http_code: res.status_code,
+        })
+    }
+
+    fn get_error_response(
+        &self,
+        res: Response,
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        self.build_error_response(res)
+    }
+}
+
 impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::PaymentsResponseData>
     for Square
 {
@@ -238,7 +364,7 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         _req: &types::PaymentsAuthorizeRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Ok(format!("{}v2/payments", self.base_url(connectors),))
+        Ok(format!("{}v2/payments", self.base_url(connectors)))
     }
 
     fn get_request_body(
@@ -628,6 +754,7 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
             .response
             .parse_struct("SquareRefundSyncResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+
         types::RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),

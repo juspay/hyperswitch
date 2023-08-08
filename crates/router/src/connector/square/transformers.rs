@@ -1,11 +1,14 @@
-use error_stack::IntoReport;
+use error_stack::{IntoReport, ResultExt};
 use masking::{ExposeInterface, PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 
 use crate::{
     connector::utils::{CardData, PaymentsAuthorizeRequestData, RouterData},
     core::errors,
-    types::{self, api, storage::enums},
+    types::{
+        self, api,
+        storage::{self, enums},
+    },
 };
 
 //Should i make exp year and exp month secret?
@@ -32,16 +35,14 @@ pub enum SquareTokenRequest {
 impl TryFrom<&types::TokenizationRouterData> for SquareTokenRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::TokenizationRouterData) -> Result<Self, Self::Error> {
-        // Handle this error properly
-        let client_id = match &item.connector_auth_type {
-            types::ConnectorAuthType::BodyKey { key1, .. } => key1.to_owned(),
-            _ => Secret::new("".to_string()),
-        };
+        let auth = SquareAuthType::try_from(&item.connector_auth_type)
+            .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
+
         match item.request.payment_method_data.clone() {
             api::PaymentMethodData::Card(card_data) => {
                 let square_card_data = SquareTokenizeData {
-                    client_id,
-                    session_id: Secret::new("ADD_SESSION_ID_HERE".to_string()),
+                    client_id: auth.key1,
+                    session_id: Secret::new(item.session_token.clone().unwrap()),
                     card_data: SquareCardData {
                         exp_year: card_data.get_expiry_year_4_digit().peek().parse().unwrap(),
                         exp_month: card_data.card_exp_month.peek().parse().unwrap(),
@@ -66,6 +67,31 @@ impl TryFrom<&types::TokenizationRouterData> for SquareTokenRequest {
             ))
             .into_report(),
         }
+    }
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SquareSessionResponse {
+    session_id: String,
+}
+
+impl<F, T>
+    TryFrom<types::ResponseRouterData<F, SquareSessionResponse, T, types::PaymentsResponseData>>
+    for types::RouterData<F, T, types::PaymentsResponseData>
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        item: types::ResponseRouterData<F, SquareSessionResponse, T, types::PaymentsResponseData>,
+    ) -> Result<Self, Self::Error> {
+        Ok(Self {
+            status: storage::enums::AttemptStatus::Pending,
+            session_token: Some(item.response.session_id.clone()),
+            response: Ok(types::PaymentsResponseData::SessionTokenResponse {
+                session_token: item.response.session_id,
+            }),
+            ..item.data
+        })
     }
 }
 
@@ -138,14 +164,16 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for SquarePaymentsRequest {
 // Auth Struct
 pub struct SquareAuthType {
     pub(super) api_key: Secret<String>,
+    pub(super) key1: Secret<String>,
 }
 
 impl TryFrom<&types::ConnectorAuthType> for SquareAuthType {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(auth_type: &types::ConnectorAuthType) -> Result<Self, Self::Error> {
         match auth_type {
-            types::ConnectorAuthType::BodyKey { api_key, .. } => Ok(Self {
+            types::ConnectorAuthType::BodyKey { api_key, key1, .. } => Ok(Self {
                 api_key: api_key.to_owned(),
+                key1: key1.to_owned(),
             }),
             _ => Err(errors::ConnectorError::FailedToObtainAuthType.into()),
         }

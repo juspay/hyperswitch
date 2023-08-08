@@ -843,6 +843,40 @@ impl From<&&mut PaymentsAuthorizeRouterData> for ConnectorCustomerData {
     }
 }
 
+impl<F> From<&RouterData<F, PaymentsAuthorizeData, PaymentsResponseData>>
+    for PaymentMethodTokenizationData
+{
+    fn from(data: &RouterData<F, PaymentsAuthorizeData, PaymentsResponseData>) -> Self {
+        Self {
+            payment_method_data: data.request.payment_method_data.clone(),
+            browser_info: None,
+        }
+    }
+}
+
+pub trait Tokenizable {
+    fn get_pm_data(&self) -> payments::PaymentMethodData;
+    fn set_session_token(&mut self, token: Option<String>);
+}
+
+impl Tokenizable for VerifyRequestData {
+    fn get_pm_data(&self) -> payments::PaymentMethodData {
+        self.payment_method_data.clone()
+    }
+    fn set_session_token(&mut self, _token: Option<String>) {
+        ()
+    }
+}
+
+impl Tokenizable for PaymentsAuthorizeData {
+    fn get_pm_data(&self) -> payments::PaymentMethodData {
+        self.payment_method_data.clone()
+    }
+    fn set_session_token(&mut self, token: Option<String>) {
+        self.session_token = token;
+    }
+}
+
 impl From<&VerifyRouterData> for PaymentsAuthorizeData {
     fn from(data: &VerifyRouterData) -> Self {
         Self {
