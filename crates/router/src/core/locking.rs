@@ -30,35 +30,6 @@ pub enum ActionOnWaitTimeout {
     Default,
 }
 
-// data LockingEnv = LockingEnv
-//   { acquiredLocks  :: TVar [Text]
-//   , sessionId      :: Text
-//   , rsMetricLogger :: Metric.LockCounterHandle
-//   }
-
-// data LockStatus = ACQUIRED | RELEASED | ERROR
-//   deriving stock (
-
-// data LockingInput = LockingInput
-//     { uniqueLockingKey                :: Text
-//     , apiIdentifier                   :: Text
-//     , useApiIdentifierToEnableLocking :: Maybe Text -- previously Decision = TrueD | FalseD String
-//     , actionOnWaitTimeout             :: ActionOnWaitTimeout
-//     , merchantId                      :: Text
-//     }
-// deriving stock (Show, Generic)
-
-// data ActionOnWaitTimeout
-//     = REDIRECT_TO_MERCHANT TXN_UUID MERCHANT_ID
-//     | THROW_EXCEPTION Errs.ECErrorResponse
-//   deriving stock (Show, Generic)
-
-// newtype TXN_UUID = TXN_UUID Text
-//   deriving stock (Show, Generic)
-
-// newtype MERCHANT_ID = MERCHANT_ID Text
-//   deriving stock (Show, Generic)
-
 #[derive(Debug)]
 pub struct LockingInput {
     pub unique_locking_key: String,
