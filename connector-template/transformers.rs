@@ -89,7 +89,7 @@ pub struct {{project-name | downcase | pascal_case}}PaymentsResponse {
 
 impl<F,T> TryFrom<types::ResponseRouterData<F, {{project-name | downcase | pascal_case}}PaymentsResponse, T, types::PaymentsResponseData>> for types::RouterData<F, T, types::PaymentsResponseData> {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(item: types::ResponseRouterData<F, {{project-name | downcase | pascal_case}}=, T, types::PaymentsResponseData>) -> Result<Self,Self::Error> {
+    fn try_from(item: types::ResponseRouterData<F, {{project-name | downcase | pascal_case}}PaymentsResponse, T, types::PaymentsResponseData>) -> Result<Self,Self::Error> {
         Ok(Self {
             status: enums::AttemptStatus::from(item.response.status),
             response: Ok(types::PaymentsResponseData::TransactionResponse {
