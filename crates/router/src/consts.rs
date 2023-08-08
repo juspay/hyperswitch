@@ -12,7 +12,7 @@ pub(crate) const ALPHABETS: [char; 62] = [
 /// API client request timeout (in seconds)
 pub const REQUEST_TIME_OUT: u64 = 30;
 pub const REQUEST_TIMEOUT_ERROR_CODE: &str = "TIMEOUT";
-pub const REQUEST_TIMEOUT_ERROR_MESSAGE: &str = "Upstream did not respond in specified time";
+pub const REQUEST_TIMEOUT_ERROR_MESSAGE: &str = "Connector did not respond in specified time";
 
 ///Payment intent fulfillment default timeout (in seconds)
 pub const DEFAULT_FULFILLMENT_TIME: i64 = 15 * 60;
