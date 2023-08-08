@@ -32,7 +32,7 @@ pub struct Shift4PaymentsRequest {
 pub enum Shift4PaymentMethod {
     CardsNon3DSRequest(Box<CardsNon3DSRequest>),
     Shift4BankRedirectRequest(Box<Shift4BankRedirectRequest>),
-    CardsThreeDSRequest(Box<CardsThreeDSRequest>),
+    Cards3DSRequest(Box<Cards3DSRequest>),
 }
 
 #[derive(Debug, Serialize)]
@@ -44,7 +44,7 @@ pub struct Shift4BankRedirectRequest {
 
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
-pub struct CardsThreeDSRequest {
+pub struct Cards3DSRequest {
     #[serde(rename = "card[number]")]
     pub card_number: CardNumber,
     #[serde(rename = "card[expMonth]")]
@@ -179,7 +179,7 @@ fn get_card_payment_request<T>(
     let amount = item.request.amount.to_string();
     let currency = item.request.currency;
     let payment_method = if item.is_three_ds() {
-        Shift4PaymentMethod::CardsThreeDSRequest(Box::new(CardsThreeDSRequest {
+        Shift4PaymentMethod::Cards3DSRequest(Box::new(Cards3DSRequest {
             card_number: card.number,
             card_exp_month: card.exp_month,
             card_exp_year: card.exp_year,
