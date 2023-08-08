@@ -263,7 +263,11 @@ impl
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         if req.request.capture_method == Some(enums::CaptureMethod::ManualMultiple) {
-            return Err(errors::ConnectorError::CaptureMethodNotSupported.into());
+            return Err(errors::ConnectorError::NotImplemented(format!(
+                "capture method of manual_multiple for {}",
+                self.id()
+            ))
+            .into());
         }
         let payment_method_data = &req.request.payment_method_data;
         let payment_experience = req

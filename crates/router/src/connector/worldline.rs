@@ -458,7 +458,11 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         if req.request.capture_method == Some(enums::CaptureMethod::ManualMultiple) {
-            return Err(errors::ConnectorError::CaptureMethodNotSupported.into());
+            return Err(errors::ConnectorError::NotImplemented(format!(
+                "capture method of manual_multiple for {}",
+                self.id()
+            ))
+            .into());
         }
         let base_url = self.base_url(connectors);
         let auth = worldline::WorldlineAuthType::try_from(&req.connector_auth_type)?;

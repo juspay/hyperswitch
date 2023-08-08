@@ -155,7 +155,11 @@ impl<const T: u8>
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         if req.request.capture_method == Some(enums::CaptureMethod::ManualMultiple) {
-            return Err(errors::ConnectorError::CaptureMethodNotSupported.into());
+            return Err(errors::ConnectorError::NotImplemented(format!(
+                "capture method of manual_multiple for {}",
+                self.id()
+            ))
+            .into());
         }
         match req.payment_method {
             enums::PaymentMethod::Card => Ok(format!("{}/payment", self.base_url(connectors))),
