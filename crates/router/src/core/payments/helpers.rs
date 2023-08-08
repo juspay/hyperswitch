@@ -1293,14 +1293,14 @@ pub async fn make_pm_data<'a, F: Clone, R>(
                     .payment_method
                     .map(|payment_method| {
                         ParentPaymentMethodToken::create_key_for_token((
-                            parent_payment_method_token.clone(),
+                            &parent_payment_method_token,
                             payment_method,
                         ))
                     });
             if let Some(key_for_hyperswitch_token) = key_for_hyperswitch_token {
                 key_for_hyperswitch_token
                     .insert(
-                        Some(payment_data.payment_intent.clone()),
+                        Some(payment_data.payment_intent.created_at),
                         hyperswitch_token,
                         state,
                     )

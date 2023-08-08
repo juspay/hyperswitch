@@ -200,7 +200,7 @@ where
         payment_data
             .payment_attempt
             .payment_token
-            .clone()
+            .as_ref()
             .zip(payment_data.payment_attempt.payment_method)
             .map(ParentPaymentMethodToken::create_key_for_token)
             .async_map(|key_for_hyperswitch_token| async move {

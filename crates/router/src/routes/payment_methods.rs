@@ -2,6 +2,7 @@ use actix_web::{web, HttpRequest, HttpResponse};
 use common_utils::{consts::TOKEN_TTL, errors::CustomResult};
 use error_stack::{IntoReport, ResultExt};
 use router_env::{instrument, logger, tracing, Flow};
+use time::PrimitiveDateTime;
 
 use super::app::AppState;
 use crate::{
@@ -9,7 +10,7 @@ use crate::{
     services::{api, authentication as auth},
     types::{
         api::payment_methods::{self, PaymentMethodId},
-        storage::{self, enums as storage_enums},
+        storage::enums as storage_enums,
     },
 };
 
@@ -367,7 +368,7 @@ pub struct ParentPaymentMethodToken {
 
 impl ParentPaymentMethodToken {
     pub fn create_key_for_token(
-        (parent_pm_token, payment_method): (String, api_models::enums::PaymentMethod),
+        (parent_pm_token, payment_method): (&String, api_models::enums::PaymentMethod),
     ) -> Self {
         Self {
             key_for_token: format!(
@@ -378,7 +379,7 @@ impl ParentPaymentMethodToken {
     }
     pub async fn insert(
         &self,
-        payment_intent: Option<storage::PaymentIntent>,
+        intent_created_at: Option<PrimitiveDateTime>,
         token: String,
         state: &AppState,
     ) -> CustomResult<(), errors::ApiErrorResponse> {
@@ -388,11 +389,7 @@ impl ParentPaymentMethodToken {
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to get redis connection")?;
         let current_datetime_utc = common_utils::date_time::now();
-        let time_elapsed = current_datetime_utc
-            - payment_intent
-                .as_ref()
-                .map(|intent| intent.created_at)
-                .unwrap_or_else(|| current_datetime_utc);
+        let time_elapsed = current_datetime_utc - intent_created_at.unwrap_or(current_datetime_utc);
         redis_conn
             .set_key_with_expiry(
                 &self.key_for_token,

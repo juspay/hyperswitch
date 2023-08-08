@@ -1795,16 +1795,18 @@ pub async fn list_customer_payment_method(
         };
         customer_pms.push(pma.to_owned());
 
+        let intent_created = payment_intent.as_ref().map(|intent| intent.created_at);
+
         let redis_conn = state
             .store
             .get_redis_conn()
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to get redis connection")?;
         ParentPaymentMethodToken::create_key_for_token((
-            parent_payment_method_token.clone(),
+            &parent_payment_method_token,
             pma.payment_method,
         ))
-        .insert(payment_intent.clone(), hyperswitch_token, state)
+        .insert(intent_created, hyperswitch_token, state)
         .await?;
 
         if let Some(metadata) = pma.metadata {
