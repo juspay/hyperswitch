@@ -691,7 +691,8 @@ impl<F>
                 | payments::BankRedirectData::Przelewy24 { .. }
                 | payments::BankRedirectData::Trustly { .. }
                 | payments::BankRedirectData::OnlineBankingFpx { .. }
-                | payments::BankRedirectData::OnlineBankingThailand { .. } => {
+                | payments::BankRedirectData::OnlineBankingThailand { .. }
+                | payments::BankRedirectData::OpenBankingUk { .. } => {
                     Err(errors::ConnectorError::NotImplemented(
                         utils::get_unimplemented_payment_method_error_message("nuvei"),
                     )
