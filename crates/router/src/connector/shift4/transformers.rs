@@ -218,12 +218,10 @@ fn get_bank_redirect_request<T>(
     Ok(Shift4PaymentsRequest {
         amount: item.request.amount.to_string(),
         currency: item.request.currency,
-        payment_method: Shift4PaymentMethod::BankRedirectRequest(Box::new(
-            BankRedirectRequest {
-                payment_method,
-                flow,
-            },
-        )),
+        payment_method: Shift4PaymentMethod::BankRedirectRequest(Box::new(BankRedirectRequest {
+            payment_method,
+            flow,
+        })),
         captured,
     })
 }
