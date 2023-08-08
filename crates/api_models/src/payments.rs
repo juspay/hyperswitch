@@ -1529,7 +1529,7 @@ pub struct VoucherNextStepData {
     pub reference: String,
     /// Url to download the payment instruction
     pub download_url: Option<Url>,
-    /// Url for payment instruction page
+    /// Url to payment instruction page
     pub instructions_url: Option<Url>,
 }
 
