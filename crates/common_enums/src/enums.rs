@@ -951,6 +951,7 @@ pub enum PaymentMethodType {
     Oxxo,
     PagoEfectivo,
     PermataBankTransfer,
+    OpenBankingUk,
     PayBright,
     Paypal,
     Pix,
