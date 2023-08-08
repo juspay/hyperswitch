@@ -912,6 +912,7 @@ pub enum PaymentMethodType {
     MbWay,
     MobilePay,
     Momo,
+    MomoAtm,
     Multibanco,
     OnlineBankingThailand,
     OnlineBankingCzechRepublic,

@@ -578,6 +578,7 @@ impl TryFrom<enums::PaymentMethodType> for StripePaymentMethodType {
             | enums::PaymentMethodType::MbWay
             | enums::PaymentMethodType::MobilePay
             | enums::PaymentMethodType::Momo
+            | enums::PaymentMethodType::MomoAtm
             | enums::PaymentMethodType::Multibanco
             | enums::PaymentMethodType::OnlineBankingThailand
             | enums::PaymentMethodType::OnlineBankingCzechRepublic
@@ -876,6 +877,7 @@ fn infer_stripe_pay_later_type(
             | enums::PaymentMethodType::MbWay
             | enums::PaymentMethodType::MobilePay
             | enums::PaymentMethodType::Momo
+            | enums::PaymentMethodType::MomoAtm
             | enums::PaymentMethodType::Multibanco
             | enums::PaymentMethodType::OnlineBankingThailand
             | enums::PaymentMethodType::OnlineBankingCzechRepublic

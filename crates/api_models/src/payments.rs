@@ -621,6 +621,7 @@ pub struct Card {
 pub enum CardRedirectData {
     Knet {},
     Benefit {},
+    MomoAtm {},
 }
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]

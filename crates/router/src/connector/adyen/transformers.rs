@@ -398,6 +398,8 @@ pub enum AdyenPaymentMethod<'a> {
     MobilePay(Box<MobilePayData>),
     #[serde(rename = "momo_wallet")]
     Momo(Box<MomoData>),
+    #[serde(rename = "momo_atm")]
+    MomoAtm,
     #[serde(rename = "touchngo")]
     TouchNGo(Box<TouchNGoData>),
     OnlineBankingCzechRepublic(Box<OnlineBankingCzechRepublicData>),
@@ -1011,6 +1013,8 @@ pub enum PaymentType {
     MobilePay,
     #[serde(rename = "momo_wallet")]
     Momo,
+    #[serde(rename = "momo_atm")]
+    MomoAtm,
     #[serde(rename = "onlineBanking_CZ")]
     OnlineBankingCzechRepublic,
     #[serde(rename = "ebanking_FI")]
@@ -2047,6 +2051,7 @@ impl<'a> TryFrom<&api_models::payments::CardRedirectData> for AdyenPaymentMethod
         match card_redirect_data {
             payments::CardRedirectData::Knet {} => Ok(AdyenPaymentMethod::Knet),
             payments::CardRedirectData::Benefit {} => Ok(AdyenPaymentMethod::Benefit),
+            payments::CardRedirectData::MomoAtm {} => Ok(AdyenPaymentMethod::MomoAtm),
         }
     }
 }
@@ -2996,6 +3001,7 @@ pub fn get_wait_screen_metadata(
         | PaymentType::Kakaopay
         | PaymentType::MobilePay
         | PaymentType::Momo
+        | PaymentType::MomoAtm
         | PaymentType::OnlineBankingCzechRepublic
         | PaymentType::OnlineBankingFinland
         | PaymentType::OnlineBankingPoland
@@ -3101,6 +3107,7 @@ pub fn get_present_to_shopper_metadata(
         | PaymentType::Benefit
         | PaymentType::MobilePay
         | PaymentType::Momo
+        | PaymentType::MomoAtm
         | PaymentType::OnlineBankingCzechRepublic
         | PaymentType::OnlineBankingFinland
         | PaymentType::OnlineBankingPoland
