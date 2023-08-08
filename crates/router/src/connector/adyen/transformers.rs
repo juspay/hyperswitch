@@ -1396,17 +1396,6 @@ fn get_telephone_number(item: &types::PaymentsAuthorizeRouterData) -> Option<Sec
     })
 }
 
-fn get_telephone_number_without_country_code(
-    item: &types::PaymentsAuthorizeRouterData,
-) -> Option<Secret<String>> {
-    let phone = item
-        .address
-        .billing
-        .as_ref()
-        .and_then(|billing| billing.phone.as_ref());
-    phone.as_ref().and_then(|phone| phone.number.to_owned())
-}
-
 fn get_shopper_name(address: Option<&api_models::payments::Address>) -> Option<ShopperName> {
     let billing = address.and_then(|billing| billing.address.as_ref());
     Some(ShopperName {
@@ -1971,6 +1960,7 @@ impl<'a> TryFrom<&api_models::payments::CardRedirectData> for AdyenPaymentMethod
         match card_redirect_data {
             payments::CardRedirectData::Knet {} => Ok(AdyenPaymentMethod::Knet),
             payments::CardRedirectData::Benefit {} => Ok(AdyenPaymentMethod::Benefit),
+            payments::CardRedirectData::MomoAtm {} => Ok(AdyenPaymentMethod::MomoAtm),
         }
     }
 }
@@ -2919,6 +2909,7 @@ pub fn get_wait_screen_metadata(
         | PaymentType::Kakaopay
         | PaymentType::MobilePay
         | PaymentType::Momo
+        | PaymentType::MomoAtm
         | PaymentType::OnlineBankingCzechRepublic
         | PaymentType::OnlineBankingFinland
         | PaymentType::OnlineBankingPoland
@@ -3023,6 +3014,7 @@ pub fn get_present_to_shopper_metadata(
         | PaymentType::Benefit
         | PaymentType::MobilePay
         | PaymentType::Momo
+        | PaymentType::MomoAtm
         | PaymentType::OnlineBankingCzechRepublic
         | PaymentType::OnlineBankingFinland
         | PaymentType::OnlineBankingPoland
