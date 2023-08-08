@@ -705,7 +705,8 @@ impl Default for super::settings::RequiredFields {
                                     enums::Connector::Cryptopay,
                                     RequiredFieldFinal {
                                         mandate : HashMap::new(),
-                                        non_mandate: HashMap::from([
+                                        non_mandate: HashMap::new(),
+                                        common : HashMap::from([
                                             (
                                                 "payment_method_data.crypto.pay_currency".to_string(),
                                                 RequiredFieldInfo {
@@ -735,7 +736,6 @@ impl Default for super::settings::RequiredFields {
                                                 }
                                             ),
                                         ]),
-                                        common : HashMap::new(),
                                     }
                                 ),
                             ]),
