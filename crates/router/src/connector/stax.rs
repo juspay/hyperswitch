@@ -783,16 +783,21 @@ impl api::IncomingWebhook for Stax {
             stax::StaxWebhookEventType::Unknown => {
                 Err(errors::ConnectorError::WebhookEventTypeNotFound.into())
             }
-            _ => Ok(api_models::webhooks::ObjectReferenceId::PaymentId(
-                api_models::payments::PaymentIdType::ConnectorTransactionId(
-                    match webhook_body.transaction_type {
+            stax::StaxWebhookEventType::PreAuth
+            | stax::StaxWebhookEventType::Capture
+            | stax::StaxWebhookEventType::Charge
+            | stax::StaxWebhookEventType::Void => {
+                Ok(api_models::webhooks::ObjectReferenceId::PaymentId(
+                    api_models::payments::PaymentIdType::ConnectorTransactionId(match webhook_body
+                        .transaction_type
+                    {
                         stax::StaxWebhookEventType::Capture => webhook_body
                             .auth_id
                             .ok_or(errors::ConnectorError::WebhookReferenceIdNotFound)?,
                         _ => webhook_body.id,
-                    },
-                ),
-            )),
+                    }),
+                ))
+            }
         }
     }
 
@@ -816,7 +821,9 @@ impl api::IncomingWebhook for Stax {
                     false => api::IncomingWebhookEvent::PaymentIntentFailure,
                 }
             }
-            _ => api::IncomingWebhookEvent::EventNotSupported,
+            StaxWebhookEventType::PreAuth
+            | StaxWebhookEventType::Void
+            | StaxWebhookEventType::Unknown => api::IncomingWebhookEvent::EventNotSupported,
         })
     }
 

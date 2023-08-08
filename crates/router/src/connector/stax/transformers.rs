@@ -1,13 +1,12 @@
 use common_utils::pii::Email;
-use error_stack::{IntoReport, ResultExt};
+use error_stack::IntoReport;
 use masking::{ExposeInterface, Secret};
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    connector::utils::{CardData, PaymentsAuthorizeRequestData, RouterData},
+    connector::utils::{CardData, PaymentsAuthorizeRequestData, RouterData, missing_field_err},
     core::errors,
     types::{self, api, storage::enums},
-    utils::OptionExt,
 };
 
 #[derive(Debug, Serialize)]
@@ -39,10 +38,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for StaxPaymentsRequest {
                 })
             }
             api::PaymentMethodData::BankDebit(_) => {
-                let mut pre_auth = false;
-                if let Some(enums::CaptureMethod::Manual) = item.request.capture_method {
-                    pre_auth = true;
-                }
+                let pre_auth = !item.request.is_auto_capture()?;
                 Ok(Self {
                     meta: StaxPaymentsRequestMetaData { tax: 0 },
                     total: item.request.amount,
@@ -135,8 +131,8 @@ pub struct StaxBankTokenizeData {
     bank_account: Secret<String>,
     bank_routing: Secret<String>,
     bank_name: api_models::enums::BankNames,
-    bank_type: Secret<String>,
-    bank_holder_type: Secret<String>,
+    bank_type: api_models::enums::BankType,
+    bank_holder_type: api_models::enums::BankHolderType,
     customer_id: Secret<String>,
 }
 
@@ -179,21 +175,9 @@ impl TryFrom<&types::TokenizationRouterData> for StaxTokenRequest {
                     person_name: billing_details.name,
                     bank_account: account_number,
                     bank_routing: routing_number,
-                    bank_name: bank_name.get_required_value("bank_name").change_context(
-                        errors::ConnectorError::MissingRequiredField {
-                            field_name: "bank_name",
-                        },
-                    )?,
-                    bank_type: bank_type.get_required_value("bank_type").change_context(
-                        errors::ConnectorError::MissingRequiredField {
-                            field_name: "bank_type",
-                        },
-                    )?,
-                    bank_holder_type: bank_holder_type
-                        .get_required_value("bank_holder_type")
-                        .change_context(errors::ConnectorError::MissingRequiredField {
-                            field_name: "bank_holder_type",
-                        })?,
+                    bank_name: bank_name.ok_or_else(missing_field_err("bank_name"))?,
+                    bank_type: bank_type.ok_or_else(missing_field_err("bank_type"))?,
+                    bank_holder_type: bank_holder_type.ok_or_else(missing_field_err("bank_holder_type"))?,
                     customer_id: Secret::new(customer_id),
                 };
                 Ok(Self::Bank(stax_bank_data))

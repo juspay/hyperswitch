@@ -677,10 +677,10 @@ pub enum BankDebitData {
         bank_name: Option<enums::BankNames>,
 
         #[schema(value_type = String, example = "Checking")]
-        bank_type: Option<Secret<String>>,
+        bank_type: Option<enums::BankType>,
 
         #[schema(value_type = String, example = "Personal")]
-        bank_holder_type: Option<Secret<String>>,
+        bank_holder_type: Option<enums::BankHolderType>,
     },
     SepaBankDebit {
         /// Billing details for bank debit
