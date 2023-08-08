@@ -1,7 +1,6 @@
 use std::{collections::HashMap, env};
 
 use masking::Secret;
-use router::types::ConnectorAuthType;
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -49,6 +48,7 @@ pub struct ConnectorAuthentication {
     pub powertranz: Option<BodyKey>,
     pub rapyd: Option<BodyKey>,
     pub shift4: Option<HeaderKey>,
+    pub square: Option<HeaderKey>,
     pub stax: Option<HeaderKey>,
     pub stripe: Option<HeaderKey>,
     pub stripe_au: Option<HeaderKey>,
@@ -269,6 +269,9 @@ impl From<MultiAuthKey> for ConnectorAuthType {
 pub struct AutomationConfigs {
     pub hs_base_url: Option<String>,
     pub hs_api_key: Option<String>,
+    pub hs_api_keys: Option<String>,
+    pub hs_webhook_url: Option<String>,
+    pub hs_test_env: Option<String>,
     pub hs_test_browser: Option<String>,
     pub chrome_profile_path: Option<String>,
     pub firefox_profile_path: Option<String>,
@@ -288,4 +291,29 @@ pub struct AutomationConfigs {
     pub airwallex_merchant_name: Option<String>,
     pub adyen_bancontact_username: Option<String>,
     pub adyen_bancontact_pass: Option<String>,
+}
+
+#[derive(Default, Debug, Clone, serde::Deserialize)]
+#[serde(tag = "auth_type")]
+pub enum ConnectorAuthType {
+    HeaderKey {
+        api_key: Secret<String>,
+    },
+    BodyKey {
+        api_key: Secret<String>,
+        key1: Secret<String>,
+    },
+    SignatureKey {
+        api_key: Secret<String>,
+        key1: Secret<String>,
+        api_secret: Secret<String>,
+    },
+    MultiAuthKey {
+        api_key: Secret<String>,
+        key1: Secret<String>,
+        api_secret: Secret<String>,
+        key2: Secret<String>,
+    },
+    #[default]
+    NoKey,
 }

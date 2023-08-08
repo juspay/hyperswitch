@@ -84,7 +84,7 @@ pub async fn payments_create(
 //     tag = "Payments",
 //     operation_id = "Start a Redirection Payment"
 // )]
-#[instrument(skip(state), fields(flow = ?Flow::PaymentsStart))]
+#[instrument(skip(state, req), fields(flow = ?Flow::PaymentsStart))]
 pub async fn payments_start(
     state: web::Data<app::AppState>,
     req: actix_web::HttpRequest,
@@ -135,7 +135,7 @@ pub async fn payments_start(
     operation_id = "Retrieve a Payment",
     security(("api_key" = []), ("publishable_key" = []))
 )]
-#[instrument(skip(state), fields(flow = ?Flow::PaymentsRetrieve))]
+#[instrument(skip(state, req), fields(flow = ?Flow::PaymentsRetrieve))]
 // #[get("/{payment_id}")]
 pub async fn payments_retrieve(
     state: web::Data<app::AppState>,
@@ -194,7 +194,7 @@ pub async fn payments_retrieve(
     operation_id = "Retrieve a Payment",
     security(("api_key" = []))
 )]
-#[instrument(skip(state), fields(flow = ?Flow::PaymentsRetrieve))]
+#[instrument(skip(state, req), fields(flow = ?Flow::PaymentsRetrieve))]
 // #[post("/sync")]
 pub async fn payments_retrieve_with_gateway_creds(
     state: web::Data<app::AppState>,

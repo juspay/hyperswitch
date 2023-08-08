@@ -446,9 +446,9 @@ dependencies = [
 
 [[package]]
 name = "async-channel"
-version = "1.8.0"
+version = "1.9.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "cf46fee83e5ccffc220104713af3292ff9bc7c64c7de289f66dae8e38d826833"
+checksum = "81953c529336010edd6d8e358f886d9581267795c61b19475b71314bffa46d35"
 dependencies = [
  "concurrent-queue",
  "event-listener",
@@ -1811,6 +1811,7 @@ dependencies = [
  "diesel_models",
  "error-stack",
  "external_services",
+ "masking",
  "once_cell",
  "redis_interface",
  "router_env",
@@ -3999,6 +4000,7 @@ dependencies = [
  "ring",
  "router_derive",
  "router_env",
+ "roxmltree",
  "serde",
  "serde_json",
  "serde_path_to_error",
@@ -4061,6 +4063,15 @@ dependencies = [
  "tracing-opentelemetry",
  "tracing-subscriber",
  "vergen",
+]
+
+[[package]]
+name = "roxmltree"
+version = "0.18.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d8f595a457b6b8c6cda66a48503e92ee8d19342f905948f29c383200ec9eb1d8"
+dependencies = [
+ "xmlparser",
 ]
 
 [[package]]
@@ -4733,14 +4744,27 @@ dependencies = [
 name = "test_utils"
 version = "0.1.0"
 dependencies = [
+ "actix-http",
+ "actix-web",
  "api_models",
+ "async-trait",
+ "awc",
+ "base64 0.21.2",
  "clap",
+ "derive_deref",
  "masking",
- "router",
+ "rand 0.8.5",
+ "reqwest",
  "serde",
  "serde_json",
  "serde_path_to_error",
+ "serde_urlencoded",
+ "serial_test",
+ "thirtyfour",
+ "time 0.3.22",
+ "tokio",
  "toml 0.7.4",
+ "uuid",
 ]
 
 [[package]]

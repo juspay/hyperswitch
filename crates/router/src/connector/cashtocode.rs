@@ -1,4 +1,4 @@
-mod transformers;
+pub mod transformers;
 
 use std::fmt::Debug;
 
@@ -95,14 +95,6 @@ impl ConnectorCommon for Cashtocode {
 
     fn common_get_content_type(&self) -> &'static str {
         "application/json"
-    }
-
-    fn validate_auth_type(
-        &self,
-        val: &types::ConnectorAuthType,
-    ) -> Result<(), error_stack::Report<errors::ConnectorError>> {
-        cashtocode::CashtocodeAuthType::try_from(val)?;
-        Ok(())
     }
 
     fn base_url<'a>(&self, connectors: &'a settings::Connectors) -> &'a str {
@@ -254,18 +246,7 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
 impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsResponseData>
     for Cashtocode
 {
-    fn build_request(
-        &self,
-        _req: &types::PaymentsSyncRouterData,
-        _connectors: &settings::Connectors,
-    ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
-        Err(errors::ConnectorError::FlowNotSupported {
-            flow: "Payments Sync".to_string(),
-            connector: "Cashtocode".to_string(),
-        }
-        .into())
-    }
-
+    // default implementation of build_request method will be executed
     fn handle_response(
         &self,
         data: &types::PaymentsSyncRouterData,
@@ -443,19 +424,5 @@ impl ConnectorIntegration<api::refunds::Execute, types::RefundsData, types::Refu
 impl ConnectorIntegration<api::refunds::RSync, types::RefundsData, types::RefundsResponseData>
     for Cashtocode
 {
-    fn build_request(
-        &self,
-        _req: &types::RouterData<
-            api::refunds::RSync,
-            types::RefundsData,
-            types::RefundsResponseData,
-        >,
-        _connectors: &settings::Connectors,
-    ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
-        Err(errors::ConnectorError::FlowNotSupported {
-            flow: "Refund Sync".to_string(),
-            connector: "Cashtocode".to_string(),
-        }
-        .into())
-    }
+    // default implementation of build_request method will be executed
 }

@@ -1,4 +1,4 @@
-mod transformers;
+pub mod transformers;
 
 use std::fmt::Debug;
 
@@ -88,13 +88,6 @@ impl ConnectorCommon for Cybersource {
         "application/json;charset=utf-8"
     }
 
-    fn validate_auth_type(
-        &self,
-        val: &types::ConnectorAuthType,
-    ) -> Result<(), error_stack::Report<errors::ConnectorError>> {
-        cybersource::CybersourceAuthType::try_from(val)?;
-        Ok(())
-    }
     fn base_url<'a>(&self, connectors: &'a settings::Connectors) -> &'a str {
         connectors.cybersource.base_url.as_ref()
     }
