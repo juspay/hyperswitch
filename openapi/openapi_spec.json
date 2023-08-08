@@ -2485,7 +2485,10 @@
                   "account_number",
                   "routing_number",
                   "card_holder_name",
-                  "bank_account_holder_name"
+                  "bank_account_holder_name",
+                  "bank_name",
+                  "bank_type",
+                  "bank_holder_type"
                 ],
                 "properties": {
                   "billing_details": {
@@ -2508,6 +2511,18 @@
                   "bank_account_holder_name": {
                     "type": "string",
                     "example": "John Doe"
+                  },
+                  "bank_name": {
+                    "type": "string",
+                    "example": "ACH"
+                  },
+                  "bank_type": {
+                    "type": "string",
+                    "example": "Checking"
+                  },
+                  "bank_holder_type": {
+                    "type": "string",
+                    "example": "Personal"
                   }
                 }
               }

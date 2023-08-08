@@ -350,7 +350,7 @@ debit = { currency = "USD" }
 [tokenization]
 stripe = { long_lived_token = false, payment_method = "wallet", payment_method_type = { type = "disable_only", list = "google_pay" } }
 checkout = { long_lived_token = false, payment_method = "wallet" }
-stax = { long_lived_token = true, payment_method = "card" }
+stax = { long_lived_token = true, payment_method = "card,bank_debit" }
 mollie = {long_lived_token = false, payment_method = "card"}
 
 [connector_customer]
