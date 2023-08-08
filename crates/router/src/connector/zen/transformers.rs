@@ -245,9 +245,7 @@ impl
                 ZenPaymentChannels::PclBoacompraRedcompra
             }
             api_models::payments::VoucherData::RedPagos => ZenPaymentChannels::PclBoacompraRedpagos,
-            api_models::payments::VoucherData::Alfamart { .. }
-            | api_models::payments::VoucherData::Indomaret { .. }
-            | api_models::payments::VoucherData::Oxxo { .. }
+            api_models::payments::VoucherData::Oxxo { .. }
             | api_models::payments::VoucherData::Alfamart { .. }
             | api_models::payments::VoucherData::Indomaret { .. }
             | api_models::payments::VoucherData::SevenEleven { .. }

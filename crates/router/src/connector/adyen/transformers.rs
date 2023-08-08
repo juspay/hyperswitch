@@ -200,9 +200,9 @@ impl ForeignFrom<(bool, AdyenStatus)> for storage_enums::AttemptStatus {
                 false => Self::Charged,
             },
             AdyenStatus::Cancelled => Self::Voided,
-            AdyenStatus::ChallengeShopper
-            | AdyenStatus::RedirectShopper
-            | AdyenStatus::PresentToShopper => Self::AuthenticationPending,
+            AdyenStatus::ChallengeShopper | AdyenStatus::RedirectShopper => {
+                Self::AuthenticationPending
+            }
             AdyenStatus::Error | AdyenStatus::Refused => Self::Failure,
             AdyenStatus::Pending => Self::Pending,
             AdyenStatus::Received => Self::Started,
@@ -279,8 +279,7 @@ pub struct RedirectionErrorResponse {
 
 #[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct AdyenNextActionResponse {
-    psp_reference: Option<String>,
+pub struct RedirectionResponse {
     result_code: AdyenStatus,
     action: AdyenRedirectAction,
     refusal_reason: Option<String>,
@@ -342,10 +341,6 @@ pub struct AdyenRedirectAction {
     type_of_response: ActionType,
     data: Option<std::collections::HashMap<String, String>>,
     payment_data: Option<String>,
-    qr_code_data: Option<String>,
-    reference: Option<String>,
-    pass_creation_token: Option<String>,
-    total_amount: Option<Amount>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -462,6 +457,7 @@ pub enum AdyenPaymentMethod<'a> {
     Benefit,
     #[serde(rename = "knet")]
     Knet,
+    #[serde(rename = "econtext_seven_eleven")]
     SevenEleven(Box<JCSVoucherData>),
     #[serde(rename = "econtext_stores")]
     Lawson(Box<JCSVoucherData>),
@@ -473,6 +469,15 @@ pub enum AdyenPaymentMethod<'a> {
     Seicomart(Box<JCSVoucherData>),
     #[serde(rename = "econtext_stores")]
     PayEasy(Box<JCSVoucherData>),
+}
+
+#[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct JCSVoucherData {
+    first_name: Secret<String>,
+    last_name: Option<Secret<String>>,
+    shopper_email: Email,
+    telephone_number: String,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -1040,6 +1045,7 @@ pub enum PaymentType {
     DanamonVa,
     #[serde(rename = "doku_mandiri_va")]
     MandiriVa,
+    #[serde(rename = "econtext_seven_eleven")]
     SevenEleven,
     #[serde(rename = "econtext_stores")]
     Lawson,
@@ -1452,7 +1458,13 @@ fn get_social_security_number(
         | payments::VoucherData::PagoEfectivo
         | payments::VoucherData::RedCompra
         | payments::VoucherData::Oxxo
-        | payments::VoucherData::RedPagos => None,
+        | payments::VoucherData::RedPagos
+        | payments::VoucherData::SevenEleven { .. }
+        | payments::VoucherData::Lawson { .. }
+        | payments::VoucherData::MiniStop { .. }
+        | payments::VoucherData::FamilyMart { .. }
+        | payments::VoucherData::Seicomart { .. }
+        | payments::VoucherData::PayEasy { .. } => None,
     }
 }
 
@@ -1535,72 +1547,54 @@ impl<'a> TryFrom<&api_models::payments::VoucherData> for AdyenPaymentMethod<'a> 
                 })))
             }
             payments::VoucherData::Oxxo => Ok(AdyenPaymentMethod::Oxxo),
-            payments::VoucherData::SevenEleven(payments::JCSVoucherData {
-                first_name,
-                last_name,
-                email,
-                phone_number,
-            }) => Ok(AdyenPaymentMethod::SevenEleven(Box::new(JCSVoucherData {
-                first_name: first_name.clone(),
-                last_name: last_name.clone(),
-                shopper_email: email.clone(),
-                telephone_number: phone_number.clone(),
-            }))),
-            payments::VoucherData::Lawson(payments::JCSVoucherData {
-                first_name,
-                last_name,
-                email,
-                phone_number,
-            }) => Ok(AdyenPaymentMethod::Lawson(Box::new(JCSVoucherData {
-                first_name: first_name.clone(),
-                last_name: last_name.clone(),
-                shopper_email: email.clone(),
-                telephone_number: phone_number.clone(),
-            }))),
-            payments::VoucherData::MiniStop(payments::JCSVoucherData {
-                first_name,
-                last_name,
-                email,
-                phone_number,
-            }) => Ok(AdyenPaymentMethod::MiniStop(Box::new(JCSVoucherData {
-                first_name: first_name.clone(),
-                last_name: last_name.clone(),
-                shopper_email: email.clone(),
-                telephone_number: phone_number.clone(),
-            }))),
-            payments::VoucherData::FamilyMart(payments::JCSVoucherData {
-                first_name,
-                last_name,
-                email,
-                phone_number,
-            }) => Ok(AdyenPaymentMethod::FamilyMart(Box::new(JCSVoucherData {
-                first_name: first_name.clone(),
-                last_name: last_name.clone(),
-                shopper_email: email.clone(),
-                telephone_number: phone_number.clone(),
-            }))),
-            payments::VoucherData::Seicomart(payments::JCSVoucherData {
-                first_name,
-                last_name,
-                email,
-                phone_number,
-            }) => Ok(AdyenPaymentMethod::Seicomart(Box::new(JCSVoucherData {
-                first_name: first_name.clone(),
-                last_name: last_name.clone(),
-                shopper_email: email.clone(),
-                telephone_number: phone_number.clone(),
-            }))),
-            payments::VoucherData::PayEasy(payments::JCSVoucherData {
-                first_name,
-                last_name,
-                email,
-                phone_number,
-            }) => Ok(AdyenPaymentMethod::PayEasy(Box::new(JCSVoucherData {
-                first_name: first_name.clone(),
-                last_name: last_name.clone(),
-                shopper_email: email.clone(),
-                telephone_number: phone_number.clone(),
-            }))),
+            payments::VoucherData::SevenEleven(jcs_data) => {
+                Ok(AdyenPaymentMethod::SevenEleven(Box::new(JCSVoucherData {
+                    first_name: jcs_data.first_name.clone(),
+                    last_name: jcs_data.last_name.clone(),
+                    shopper_email: jcs_data.email.clone(),
+                    telephone_number: jcs_data.phone_number.clone(),
+                })))
+            }
+            payments::VoucherData::Lawson(jcs_data) => {
+                Ok(AdyenPaymentMethod::Lawson(Box::new(JCSVoucherData {
+                    first_name: jcs_data.first_name.clone(),
+                    last_name: jcs_data.last_name.clone(),
+                    shopper_email: jcs_data.email.clone(),
+                    telephone_number: jcs_data.phone_number.clone(),
+                })))
+            }
+            payments::VoucherData::MiniStop(jcs_data) => {
+                Ok(AdyenPaymentMethod::MiniStop(Box::new(JCSVoucherData {
+                    first_name: jcs_data.first_name.clone(),
+                    last_name: jcs_data.last_name.clone(),
+                    shopper_email: jcs_data.email.clone(),
+                    telephone_number: jcs_data.phone_number.clone(),
+                })))
+            }
+            payments::VoucherData::FamilyMart(jcs_data) => {
+                Ok(AdyenPaymentMethod::FamilyMart(Box::new(JCSVoucherData {
+                    first_name: jcs_data.first_name.clone(),
+                    last_name: jcs_data.last_name.clone(),
+                    shopper_email: jcs_data.email.clone(),
+                    telephone_number: jcs_data.phone_number.clone(),
+                })))
+            }
+            payments::VoucherData::Seicomart(jcs_data) => {
+                Ok(AdyenPaymentMethod::Seicomart(Box::new(JCSVoucherData {
+                    first_name: jcs_data.first_name.clone(),
+                    last_name: jcs_data.last_name.clone(),
+                    shopper_email: jcs_data.email.clone(),
+                    telephone_number: jcs_data.phone_number.clone(),
+                })))
+            }
+            payments::VoucherData::PayEasy(jcs_data) => {
+                Ok(AdyenPaymentMethod::PayEasy(Box::new(JCSVoucherData {
+                    first_name: jcs_data.first_name.clone(),
+                    last_name: jcs_data.last_name.clone(),
+                    shopper_email: jcs_data.email.clone(),
+                    telephone_number: jcs_data.phone_number.clone(),
+                })))
+            }
             payments::VoucherData::Efecty
             | payments::VoucherData::PagoEfectivo
             | payments::VoucherData::RedCompra
@@ -2732,8 +2726,8 @@ pub fn get_adyen_response(
     Ok((status, error, payments_response_data))
 }
 
-pub fn get_next_action_response(
-    response: AdyenNextActionResponse,
+pub fn get_redirection_response(
+    response: RedirectionResponse,
     is_manual_capture: bool,
     status_code: u16,
 ) -> errors::CustomResult<
@@ -2783,10 +2777,7 @@ pub fn get_next_action_response(
 
     // We don't get connector transaction id for redirections in Adyen.
     let payments_response_data = types::PaymentsResponseData::TransactionResponse {
-        resource_id: match response.psp_reference.as_ref() {
-            Some(psp) => types::ResponseId::ConnectorTransactionId(psp.to_string()),
-            None => types::ResponseId::NoResponseId,
-        },
+        resource_id: types::ResponseId::NoResponseId,
         redirection_data,
         mandate_reference: None,
         connector_metadata,
@@ -2889,12 +2880,6 @@ pub fn get_qr_code_response(
         connector_response_reference_id: None,
     };
     Ok((status, error, payments_response_data))
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct VoucherNextStepData {
-    download_url: Option<Url>,
-    reference: Secret<String>,
 }
 
 pub fn get_redirection_error_response(
@@ -3032,7 +3017,13 @@ pub fn get_wait_screen_metadata(
         | PaymentType::DanamonVa
         | PaymentType::Giftcard
         | PaymentType::MandiriVa
-        | PaymentType::PaySafeCard => Ok(None),
+        | PaymentType::PaySafeCard
+        | PaymentType::SevenEleven
+        | PaymentType::Lawson
+        | PaymentType::MiniStop
+        | PaymentType::FamilyMart
+        | PaymentType::Seicomart
+        | PaymentType::PayEasy => Ok(None),
     }
 }
 
@@ -3045,11 +3036,17 @@ pub fn get_present_to_shopper_metadata(
         PaymentType::Alfamart
         | PaymentType::Indomaret
         | PaymentType::BoletoBancario
-        | PaymentType::Oxxo => {
+        | PaymentType::Oxxo
+        | PaymentType::Lawson
+        | PaymentType::MiniStop
+        | PaymentType::FamilyMart
+        | PaymentType::Seicomart
+        | PaymentType::PayEasy => {
             let voucher_data = payments::VoucherNextStepData {
                 expires_at: response.action.expires_at.clone(),
                 reference,
                 download_url: response.action.download_url.clone(),
+                instructions_url: response.action.instructions_url.clone(),
             };
 
             Some(common_utils::ext_traits::Encode::<
@@ -3126,7 +3123,8 @@ pub fn get_present_to_shopper_metadata(
         | PaymentType::Twint
         | PaymentType::Vipps
         | PaymentType::Swish
-        | PaymentType::PaySafeCard => Ok(None),
+        | PaymentType::PaySafeCard
+        | PaymentType::SevenEleven => Ok(None),
     }
 }
 

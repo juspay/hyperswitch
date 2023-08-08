@@ -1323,7 +1323,7 @@ pub enum VoucherData {
     MiniStop(Box<JCSVoucherData>),
     FamilyMart(Box<JCSVoucherData>),
     Seicomart(Box<JCSVoucherData>),
-    PayEasy(Box<JCSVoucherData>)
+    PayEasy(Box<JCSVoucherData>),
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
@@ -1509,7 +1509,7 @@ pub enum NextActionData {
     WaitScreenInformation {
         display_from_timestamp: i128,
         display_to_timestamp: Option<i128>,
-    }
+    },
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
@@ -1529,6 +1529,8 @@ pub struct VoucherNextStepData {
     pub reference: String,
     /// Url to download the payment instruction
     pub download_url: Option<Url>,
+    /// Url for payment instruction page
+    pub instructions_url: Option<Url>,
 }
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]

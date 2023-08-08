@@ -6728,6 +6728,48 @@
                 ]
               }
             }
+          },
+          {
+            "type": "object",
+            "description": "Contains the download url and the reference number for transaction",
+            "required": [
+              "voucher_details",
+              "type"
+            ],
+            "properties": {
+              "voucher_details": {
+                "type": "string"
+              },
+              "type": {
+                "type": "string",
+                "enum": [
+                  "display_voucher_information"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "description": "Contains duration for displaying a wait screen, wait screen with timer is displayed by sdk",
+            "required": [
+              "display_from_timestamp",
+              "type"
+            ],
+            "properties": {
+              "display_from_timestamp": {
+                "type": "integer"
+              },
+              "display_to_timestamp": {
+                "type": "integer",
+                "nullable": true
+              },
+              "type": {
+                "type": "string",
+                "enum": [
+                  "wait_screen_information"
+                ]
+              }
+            }
           }
         ],
         "discriminator": {
@@ -10380,6 +10422,100 @@
             "enum": [
               "red_pagos"
             ]
+          },
+          {
+            "type": "object",
+            "required": [
+              "alfamart"
+            ],
+            "properties": {
+              "alfamart": {
+                "$ref": "#/components/schemas/AlfamartVoucherData"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "indomaret"
+            ],
+            "properties": {
+              "indomaret": {
+                "$ref": "#/components/schemas/IndomaretVoucherData"
+              }
+            }
+          },
+          {
+            "type": "string",
+            "enum": [
+              "oxxo"
+            ]
+          },
+          {
+            "type": "object",
+            "required": [
+              "seven_eleven"
+            ],
+            "properties": {
+              "seven_eleven": {
+                "$ref": "#/components/schemas/JCSVoucherData"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "lawson"
+            ],
+            "properties": {
+              "lawson": {
+                "$ref": "#/components/schemas/JCSVoucherData"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "mini_stop"
+            ],
+            "properties": {
+              "mini_stop": {
+                "$ref": "#/components/schemas/JCSVoucherData"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "family_mart"
+            ],
+            "properties": {
+              "family_mart": {
+                "$ref": "#/components/schemas/JCSVoucherData"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "seicomart"
+            ],
+            "properties": {
+              "seicomart": {
+                "$ref": "#/components/schemas/JCSVoucherData"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "pay_easy"
+            ],
+            "properties": {
+              "pay_easy": {
+                "$ref": "#/components/schemas/JCSVoucherData"
+              }
+            }
           }
         ]
       },

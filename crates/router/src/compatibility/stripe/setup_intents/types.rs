@@ -379,7 +379,6 @@ pub enum StripeNextAction {
         display_from_timestamp: i128,
         display_to_timestamp: Option<i128>,
     },
-    DisplayVoucherInformation,
 }
 
 pub(crate) fn into_stripe_next_action(

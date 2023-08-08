@@ -1572,6 +1572,12 @@ pub fn validate_payment_method_type_against_payment_method(
                 | api_enums::PaymentMethodType::Indomaret
                 | api_enums::PaymentMethodType::Alfamart
                 | api_enums::PaymentMethodType::Oxxo
+                | api_enums::PaymentMethodType::SevenEleven
+                | api_enums::PaymentMethodType::Lawson
+                | api_enums::PaymentMethodType::MiniStop
+                | api_enums::PaymentMethodType::FamilyMart
+                | api_enums::PaymentMethodType::Seicomart
+                | api_enums::PaymentMethodType::PayEasy
         ),
         api_enums::PaymentMethod::GiftCard => {
             matches!(
