@@ -1526,6 +1526,7 @@ pub fn validate_payment_method_type_against_payment_method(
                 | api_enums::PaymentMethodType::Trustly
                 | api_enums::PaymentMethodType::Bizum
                 | api_enums::PaymentMethodType::Interac
+                | api_enums::PaymentMethodType::OpenBankingUk
         ),
         api_enums::PaymentMethod::BankTransfer => matches!(
             payment_method_type,

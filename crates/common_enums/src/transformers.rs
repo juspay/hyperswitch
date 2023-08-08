@@ -1610,6 +1610,7 @@ impl From<PaymentMethodType> for PaymentMethod {
             PaymentMethodType::Cashapp => Self::Wallet,
             PaymentMethodType::Givex => Self::GiftCard,
             PaymentMethodType::Oxxo => Self::Voucher,
+            PaymentMethodType::OpenBankingUk => Self::BankRedirect,
         }
     }
 }
