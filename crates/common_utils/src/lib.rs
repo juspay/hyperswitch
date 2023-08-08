@@ -8,7 +8,6 @@ pub mod custom_serde;
 pub mod errors;
 pub mod ext_traits;
 pub mod fp_utils;
-pub mod openapi_consts;
 pub mod pii;
 #[cfg(feature = "signals")]
 pub mod signals;

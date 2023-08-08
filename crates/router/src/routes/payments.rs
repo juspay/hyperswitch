@@ -1,12 +1,6 @@
 pub mod helpers;
 
 use actix_web::{web, Responder};
-use common_utils::openapi_consts::{
-    PAYMENTS_CREATE, PAYMENTS_CREATE_MINIMUM_FIELDS, PAYMENTS_CREATE_WITH_ADDRESS,
-    PAYMENTS_CREATE_WITH_CUSTOMER_DATA, PAYMENTS_CREATE_WITH_FORCED_3DS,
-    PAYMENTS_CREATE_WITH_MANUAL_CAPTURE, PAYMENTS_CREATE_WITH_NOON_ORDER_CATETORY,
-    PAYMENTS_CREATE_WITH_ORDER_DETAILS,
-};
 use error_stack::report;
 use router_env::{instrument, tracing, Flow};
 
@@ -15,6 +9,12 @@ use crate::{
     core::{
         errors::http_not_implemented,
         payments::{self, PaymentRedirectFlow},
+    },
+    openapi::examples::{
+        PAYMENTS_CREATE, PAYMENTS_CREATE_MINIMUM_FIELDS, PAYMENTS_CREATE_WITH_ADDRESS,
+        PAYMENTS_CREATE_WITH_CUSTOMER_DATA, PAYMENTS_CREATE_WITH_FORCED_3DS,
+        PAYMENTS_CREATE_WITH_MANUAL_CAPTURE, PAYMENTS_CREATE_WITH_NOON_ORDER_CATETORY,
+        PAYMENTS_CREATE_WITH_ORDER_DETAILS,
     },
     services::{api, authentication as auth},
     types::{
