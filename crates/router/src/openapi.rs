@@ -344,39 +344,39 @@ impl utoipa::Modify for SecurityAddon {
 
         if let Some(components) = openapi.components.as_mut() {
             components.add_security_schemes_from_iter([
-                    (
-                        "api_key",
-                        SecurityScheme::ApiKey(ApiKey::Header(ApiKeyValue::with_description(
-                            "api-key",
-                            "API keys are the most common method of authentication and can be obtained \
-                            from the HyperSwitch dashboard."
-                        ))),
-                    ),
-                    (
-                        "admin_api_key",
-                        SecurityScheme::ApiKey(ApiKey::Header(ApiKeyValue::with_description(
-                            "api-key",
-                            "Admin API keys allow you to perform some privileged actions such as \
-                            creating a merchant account and Merchant Connector account."
-                        ))),
-                    ),
-                    (
-                        "publishable_key",
-                        SecurityScheme::ApiKey(ApiKey::Header(ApiKeyValue::with_description(
-                            "api-key",
-                            "Publishable keys are a type of keys that can be public and have limited \
-                            scope of usage."
-                        ))),
-                    ),
-                    (
-                        "ephemeral_key",
-                        SecurityScheme::ApiKey(ApiKey::Header(ApiKeyValue::with_description(
-                            "api-key",
-                            "Ephemeral keys provide temporary access to singular data, such as access \
-                            to a single customer object for a short period of time."
-                        ))),
-                    ),
-                ]);
+                (
+                    "api_key",
+                    SecurityScheme::ApiKey(ApiKey::Header(ApiKeyValue::with_description(
+                        "api-key",
+                        "API keys are the most common method of authentication and can be obtained \
+                        from the HyperSwitch dashboard."
+                    ))),
+                ),
+                (
+                    "admin_api_key",
+                    SecurityScheme::ApiKey(ApiKey::Header(ApiKeyValue::with_description(
+                        "api-key",
+                        "Admin API keys allow you to perform some privileged actions such as \
+                        creating a merchant account and Merchant Connector account."
+                    ))),
+                ),
+                (
+                    "publishable_key",
+                    SecurityScheme::ApiKey(ApiKey::Header(ApiKeyValue::with_description(
+                        "api-key",
+                        "Publishable keys are a type of keys that can be public and have limited \
+                        scope of usage."
+                    ))),
+                ),
+                (
+                    "ephemeral_key",
+                    SecurityScheme::ApiKey(ApiKey::Header(ApiKeyValue::with_description(
+                        "api-key",
+                        "Ephemeral keys provide temporary access to singular data, such as access \
+                        to a single customer object for a short period of time."
+                    ))),
+                ),
+            ]);
         }
     }
 }
