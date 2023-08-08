@@ -4,7 +4,7 @@ use masking::{ExposeInterface, Secret};
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    connector::utils::{CardData, PaymentsAuthorizeRequestData, RouterData, missing_field_err},
+    connector::utils::{missing_field_err, CardData, PaymentsAuthorizeRequestData, RouterData},
     core::errors,
     types::{self, api, storage::enums},
 };
@@ -177,7 +177,8 @@ impl TryFrom<&types::TokenizationRouterData> for StaxTokenRequest {
                     bank_routing: routing_number,
                     bank_name: bank_name.ok_or_else(missing_field_err("bank_name"))?,
                     bank_type: bank_type.ok_or_else(missing_field_err("bank_type"))?,
-                    bank_holder_type: bank_holder_type.ok_or_else(missing_field_err("bank_holder_type"))?,
+                    bank_holder_type: bank_holder_type
+                        .ok_or_else(missing_field_err("bank_holder_type"))?,
                     customer_id: Secret::new(customer_id),
                 };
                 Ok(Self::Bank(stax_bank_data))

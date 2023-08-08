@@ -279,7 +279,7 @@ impl From<PayoutConnectors> for RoutableConnectors {
 )]
 #[strum(serialize_all = "snake_case")]
 #[serde(rename_all = "snake_case")]
-pub enum BankType{
+pub enum BankType {
     Checking,
     Savings,
 }
@@ -299,7 +299,7 @@ pub enum BankType{
 )]
 #[strum(serialize_all = "snake_case")]
 #[serde(rename_all = "snake_case")]
-pub enum BankHolderType{
+pub enum BankHolderType {
     Personal,
     Business,
 }
