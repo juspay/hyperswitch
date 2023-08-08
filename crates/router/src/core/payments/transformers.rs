@@ -2,7 +2,7 @@ use std::{fmt::Debug, marker::PhantomData};
 
 use common_utils::fp_utils;
 use diesel_models::{ephemeral_key, payment_attempt::PaymentListFilters};
-use error_stack::ResultExt;
+use error_stack::{IntoReport, ResultExt};
 use router_env::{instrument, tracing};
 
 use super::{flows::Feature, PaymentAddress, PaymentData};
@@ -21,7 +21,7 @@ use crate::{
         storage::{self, enums},
         transformers::{ForeignFrom, ForeignInto},
     },
-    utils::{self, OptionExt, ValueExt},
+    utils::{OptionExt, ValueExt},
 };
 
 #[instrument(skip_all)]
@@ -137,6 +137,7 @@ where
         #[cfg(feature = "payouts")]
         quote_id: None,
         test_mode,
+        payment_method_balance: None,
     };
 
     Ok(router_data)
@@ -303,11 +304,12 @@ where
         .currency
         .as_ref()
         .get_required_value("currency")?;
-    let amount = utils::to_currency_base_unit(payment_attempt.amount, *currency).change_context(
-        errors::ApiErrorResponse::InvalidDataValue {
+    let amount = currency
+        .to_currency_base_unit(payment_attempt.amount)
+        .into_report()
+        .change_context(errors::ApiErrorResponse::InvalidDataValue {
             field_name: "amount",
-        },
-    )?;
+        })?;
     let mandate_id = payment_attempt.mandate_id.clone();
     let refunds_response = if refunds.is_empty() {
         None
@@ -374,11 +376,17 @@ where
 
                 let next_action_voucher = voucher_next_steps_check(payment_attempt.clone())?;
 
-                let next_action_containing_qr_code =
+                let next_action_containing_qr_code_url =
                     qr_code_next_steps_check(payment_attempt.clone())?;
+
+                let next_action_containing_wait_screen =
+                    wait_screen_next_steps_check(payment_attempt.clone())?;
 
                 if payment_intent.status == enums::IntentStatus::RequiresCustomerAction
                     || bank_transfer_next_steps.is_some()
+                    || next_action_voucher.is_some()
+                    || next_action_containing_qr_code_url.is_some()
+                    || next_action_containing_wait_screen.is_some()
                 {
                     next_action_response = bank_transfer_next_steps
                         .map(|bank_transfer| {
@@ -391,9 +399,16 @@ where
                                 voucher_details: voucher_data,
                             }
                         }))
-                        .or(next_action_containing_qr_code.map(|qr_code_data| {
+                        .or(next_action_containing_qr_code_url.map(|qr_code_data| {
                             api_models::payments::NextActionData::QrCodeInformation {
                                 image_data_url: qr_code_data.image_data_url,
+                                display_to_timestamp: qr_code_data.display_to_timestamp,
+                            }
+                        }))
+                        .or(next_action_containing_wait_screen.map(|wait_screen_data| {
+                            api_models::payments::NextActionData::WaitScreenInformation {
+                                display_from_timestamp: wait_screen_data.display_from_timestamp,
+                                display_to_timestamp: wait_screen_data.display_to_timestamp,
                             }
                         }))
                         .or(redirection_data.map(|_| {
@@ -619,6 +634,20 @@ pub fn qr_code_next_steps_check(
 
     let qr_code_instructions = qr_code_steps.transpose().ok().flatten();
     Ok(qr_code_instructions)
+}
+
+pub fn wait_screen_next_steps_check(
+    payment_attempt: storage::PaymentAttempt,
+) -> RouterResult<Option<api_models::payments::WaitScreenInstructions>> {
+    let display_info_with_timer_steps: Option<
+        Result<api_models::payments::WaitScreenInstructions, _>,
+    > = payment_attempt
+        .connector_metadata
+        .map(|metadata| metadata.parse_value("WaitScreenInstructions"));
+
+    let display_info_with_timer_instructions =
+        display_info_with_timer_steps.transpose().ok().flatten();
+    Ok(display_info_with_timer_instructions)
 }
 
 impl ForeignFrom<(storage::PaymentIntent, storage::PaymentAttempt)> for api::PaymentsResponse {

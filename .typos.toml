@@ -16,6 +16,7 @@ RegioBank = "RegioBank"
 SOM = "SOM"  # Somalia country code
 THA = "THA"  # Thailand country code
 ZAR = "ZAR"  # South African Rand currency code
+SUR = "SUR"  # Single South American currency code
 passord = "passord" # name of a css class for adyen ui test
 bottm = "bottm" # name of a css class for nexinets ui test
 klick = "klick" # Swedish word for clicks

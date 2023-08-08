@@ -1,6 +1,4 @@
-#![allow(dead_code)]
-
-mod transformers;
+pub mod transformers;
 
 use std::fmt::Debug;
 
@@ -62,13 +60,7 @@ impl ConnectorCommon for Checkout {
     fn common_get_content_type(&self) -> &'static str {
         "application/json"
     }
-    fn validate_auth_type(
-        &self,
-        val: &types::ConnectorAuthType,
-    ) -> Result<(), error_stack::Report<errors::ConnectorError>> {
-        checkout::CheckoutAuthType::try_from(val)?;
-        Ok(())
-    }
+
     fn get_auth_header(
         &self,
         auth_type: &types::ConnectorAuthType,

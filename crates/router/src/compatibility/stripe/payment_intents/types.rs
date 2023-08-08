@@ -5,7 +5,7 @@ use common_utils::{
     crypto::Encryptable,
     date_time,
     ext_traits::StringExt,
-    pii::{IpAddress, SecretSerdeValue},
+    pii::{IpAddress, SecretSerdeValue, UpiVpaMaskingStrategy},
 };
 use error_stack::{IntoReport, ResultExt};
 use serde::{Deserialize, Serialize};
@@ -63,7 +63,7 @@ pub enum StripeWallet {
 
 #[derive(Default, Serialize, PartialEq, Eq, Deserialize, Clone, Debug)]
 pub struct StripeUpi {
-    pub vpa_id: masking::Secret<String>,
+    pub vpa_id: masking::Secret<String, UpiVpaMaskingStrategy>,
 }
 
 #[derive(Debug, Default, Serialize, PartialEq, Eq, Deserialize, Clone)]
@@ -769,8 +769,15 @@ pub enum StripeNextAction {
     },
     QrCodeInformation {
         image_data_url: url::Url,
+        display_to_timestamp: Option<i64>,
     },
-    DisplayVoucherInformation,
+    DisplayVoucherInformation {
+        voucher_details: payments::VoucherNextStepData,
+    },
+    WaitScreenInformation {
+        display_from_timestamp: i128,
+        display_to_timestamp: Option<i128>,
+    },
 }
 
 pub(crate) fn into_stripe_next_action(
@@ -794,12 +801,23 @@ pub(crate) fn into_stripe_next_action(
         payments::NextActionData::ThirdPartySdkSessionToken { session_token } => {
             StripeNextAction::ThirdPartySdkSessionToken { session_token }
         }
-        payments::NextActionData::QrCodeInformation { image_data_url } => {
-            StripeNextAction::QrCodeInformation { image_data_url }
+        payments::NextActionData::QrCodeInformation {
+            image_data_url,
+            display_to_timestamp,
+        } => StripeNextAction::QrCodeInformation {
+            image_data_url,
+            display_to_timestamp,
+        },
+        payments::NextActionData::DisplayVoucherInformation { voucher_details } => {
+            StripeNextAction::DisplayVoucherInformation { voucher_details }
         }
-        payments::NextActionData::DisplayVoucherInformation { .. } => {
-            StripeNextAction::DisplayVoucherInformation
-        }
+        payments::NextActionData::WaitScreenInformation {
+            display_from_timestamp,
+            display_to_timestamp,
+        } => StripeNextAction::WaitScreenInformation {
+            display_from_timestamp,
+            display_to_timestamp,
+        },
     })
 }
 

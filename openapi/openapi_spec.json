@@ -2852,7 +2852,8 @@
                 "type": "object",
                 "required": [
                   "billing_details",
-                  "bank_name"
+                  "bank_name",
+                  "country"
                 ],
                 "properties": {
                   "billing_details": {
@@ -2860,6 +2861,9 @@
                   },
                   "bank_name": {
                     "$ref": "#/components/schemas/BankNames"
+                  },
+                  "country": {
+                    "$ref": "#/components/schemas/CountryAlpha2"
                   }
                 }
               }
@@ -2874,7 +2878,8 @@
               "giropay": {
                 "type": "object",
                 "required": [
-                  "billing_details"
+                  "billing_details",
+                  "country"
                 ],
                 "properties": {
                   "billing_details": {
@@ -2889,6 +2894,9 @@
                     "type": "string",
                     "description": "Bank account iban",
                     "nullable": true
+                  },
+                  "country": {
+                    "$ref": "#/components/schemas/CountryAlpha2"
                   }
                 }
               }
@@ -2904,7 +2912,8 @@
                 "type": "object",
                 "required": [
                   "billing_details",
-                  "bank_name"
+                  "bank_name",
+                  "country"
                 ],
                 "properties": {
                   "billing_details": {
@@ -2912,6 +2921,9 @@
                   },
                   "bank_name": {
                     "$ref": "#/components/schemas/BankNames"
+                  },
+                  "country": {
+                    "$ref": "#/components/schemas/CountryAlpha2"
                   }
                 }
               }
@@ -3068,17 +3080,6 @@
                     "example": "en"
                   }
                 }
-              }
-            }
-          },
-          {
-            "type": "object",
-            "required": [
-              "swish"
-            ],
-            "properties": {
-              "swish": {
-                "type": "object"
               }
             }
           },
@@ -3601,6 +3602,9 @@
           "Maestro"
         ]
       },
+      "CashappQr": {
+        "type": "object"
+      },
       "Connector": {
         "type": "string",
         "enum": [
@@ -3618,6 +3622,7 @@
           "bitpay",
           "bambora",
           "bluesnap",
+          "boku",
           "braintree",
           "cashtocode",
           "checkout",
@@ -4268,7 +4273,8 @@
           "customer_id",
           "payment_method",
           "recurring_enabled",
-          "installment_payment_enabled"
+          "installment_payment_enabled",
+          "requires_cvv"
         ],
         "properties": {
           "payment_token": {
@@ -4354,6 +4360,11 @@
               }
             ],
             "nullable": true
+          },
+          "requires_cvv": {
+            "type": "boolean",
+            "description": "Whether this payment method requires CVV to be collected",
+            "example": true
           }
         }
       },
@@ -5021,6 +5032,32 @@
         "type": "object"
       },
       "GiftCardData": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "givex"
+            ],
+            "properties": {
+              "givex": {
+                "$ref": "#/components/schemas/GiftCardDetails"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "pay_safe_card"
+            ],
+            "properties": {
+              "pay_safe_card": {
+                "type": "object"
+              }
+            }
+          }
+        ]
+      },
+      "GiftCardDetails": {
         "type": "object",
         "required": [
           "number",
@@ -6033,7 +6070,9 @@
         "required": [
           "connector_type",
           "connector_name",
-          "connector_label"
+          "connector_label",
+          "business_country",
+          "business_label"
         ],
         "properties": {
           "connector_type": {
@@ -6130,16 +6169,10 @@
             "nullable": true
           },
           "business_country": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/CountryAlpha2"
-              }
-            ],
-            "nullable": true
+            "$ref": "#/components/schemas/CountryAlpha2"
           },
           "business_label": {
-            "type": "string",
-            "nullable": true
+            "type": "string"
           },
           "business_sub_label": {
             "type": "string",
@@ -6657,28 +6690,15 @@
               "image_data_url": {
                 "type": "string"
               },
-              "type": {
-                "type": "string",
-                "enum": [
-                  "qr_code_information"
-                ]
-              }
-            }
-          },
-          {
-            "type": "object",
-            "required": [
-              "voucher_details",
-              "type"
-            ],
-            "properties": {
-              "voucher_details": {
-                "type": "string"
+              "display_to_timestamp": {
+                "type": "integer",
+                "format": "int64",
+                "nullable": true
               },
               "type": {
                 "type": "string",
                 "enum": [
-                  "display_voucher_information"
+                  "qr_code_information"
                 ]
               }
             }
@@ -6695,7 +6715,8 @@
           "display_qr_code",
           "invoke_sdk_client",
           "trigger_api",
-          "display_bank_transfer_information"
+          "display_bank_transfer_information",
+          "display_wait_screen"
         ]
       },
       "NoThirdPartySdkSessionResponse": {
@@ -7114,7 +7135,8 @@
           "display_qr_code",
           "one_click",
           "link_wallet",
-          "invoke_payment_app"
+          "invoke_payment_app",
+          "display_wait_screen"
         ]
       },
       "PaymentIdType": {
@@ -7265,7 +7287,8 @@
           "bank_debit",
           "reward",
           "upi",
-          "voucher"
+          "voucher",
+          "gift_card"
         ]
       },
       "PaymentMethodCreate": {
@@ -7657,6 +7680,7 @@
           "classic",
           "credit",
           "crypto_currency",
+          "cashapp",
           "dana",
           "danamon_va",
           "debit",
@@ -7664,6 +7688,7 @@
           "eps",
           "evoucher",
           "giropay",
+          "givex",
           "google_pay",
           "go_pay",
           "gcash",
@@ -7683,11 +7708,13 @@
           "online_banking_fpx",
           "online_banking_poland",
           "online_banking_slovakia",
+          "oxxo",
           "pago_efectivo",
           "permata_bank_transfer",
           "pay_bright",
           "paypal",
           "pix",
+          "pay_safe_card",
           "przelewy24",
           "pse",
           "red_compra",
@@ -9831,6 +9858,10 @@
           },
           "field_type": {
             "$ref": "#/components/schemas/FieldType"
+          },
+          "value": {
+            "type": "string",
+            "nullable": true
           }
         }
       },
@@ -10199,6 +10230,9 @@
           }
         }
       },
+      "SwishQrData": {
+        "type": "object"
+      },
       "ThirdPartySdkSessionResponse": {
         "type": "object",
         "required": [
@@ -10306,94 +10340,6 @@
             "enum": [
               "red_pagos"
             ]
-          },
-          {
-            "type": "object",
-            "required": [
-              "alfamart"
-            ],
-            "properties": {
-              "alfamart": {
-                "$ref": "#/components/schemas/AlfamartVoucherData"
-              }
-            }
-          },
-          {
-            "type": "object",
-            "required": [
-              "indomaret"
-            ],
-            "properties": {
-              "indomaret": {
-                "$ref": "#/components/schemas/IndomaretVoucherData"
-              }
-            }
-          },
-          {
-            "type": "object",
-            "required": [
-              "seven_eleven"
-            ],
-            "properties": {
-              "seven_eleven": {
-                "$ref": "#/components/schemas/JCSVoucherData"
-              }
-            }
-          },
-          {
-            "type": "object",
-            "required": [
-              "lawson"
-            ],
-            "properties": {
-              "lawson": {
-                "$ref": "#/components/schemas/JCSVoucherData"
-              }
-            }
-          },
-          {
-            "type": "object",
-            "required": [
-              "mini_stop"
-            ],
-            "properties": {
-              "mini_stop": {
-                "$ref": "#/components/schemas/JCSVoucherData"
-              }
-            }
-          },
-          {
-            "type": "object",
-            "required": [
-              "family_mart"
-            ],
-            "properties": {
-              "family_mart": {
-                "$ref": "#/components/schemas/JCSVoucherData"
-              }
-            }
-          },
-          {
-            "type": "object",
-            "required": [
-              "seicomart"
-            ],
-            "properties": {
-              "seicomart": {
-                "$ref": "#/components/schemas/JCSVoucherData"
-              }
-            }
-          },
-          {
-            "type": "object",
-            "required": [
-              "pay_easy"
-            ],
-            "properties": {
-              "pay_easy": {
-                "$ref": "#/components/schemas/JCSVoucherData"
-              }
-            }
           }
         ]
       },
@@ -10658,22 +10604,33 @@
           {
             "type": "object",
             "required": [
-              "we_chat_pay"
+              "we_chat_pay_qr"
             ],
             "properties": {
-              "we_chat_pay": {
-                "$ref": "#/components/schemas/WeChatPay"
+              "we_chat_pay_qr": {
+                "$ref": "#/components/schemas/WeChatPayQr"
               }
             }
           },
           {
             "type": "object",
             "required": [
-              "we_chat_pay_qr"
+              "cashapp_qr"
             ],
             "properties": {
-              "we_chat_pay_qr": {
-                "$ref": "#/components/schemas/WeChatPayQr"
+              "cashapp_qr": {
+                "$ref": "#/components/schemas/CashappQr"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "swish_qr"
+            ],
+            "properties": {
+              "swish_qr": {
+                "$ref": "#/components/schemas/SwishQrData"
               }
             }
           }
