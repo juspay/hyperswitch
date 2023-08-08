@@ -956,7 +956,7 @@ pub struct JCSVoucherData {
     #[schema(value_type = String, example = "example@me.com")]
     pub email: Email,
     /// The telephone number for Japanese convenience stores
-    #[schema(value_type = String, example = "example@me.com")]
+    #[schema(value_type = String, example = "9999999999")]
     pub phone_number: String,
 }
 
