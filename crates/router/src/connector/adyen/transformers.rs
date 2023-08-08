@@ -601,6 +601,18 @@ pub enum OnlineBankingCzechRepublicBanks {
     C,
 }
 
+impl TryFrom<&Box<payments::JCSVoucherData>> for JCSVoucherData {
+    type Error = Error;
+    fn try_from(jcs_data: &Box<payments::JCSVoucherData>) -> Result<Self, Self::Error> {
+        Ok(Self {
+            first_name: jcs_data.first_name.clone(),
+            last_name: jcs_data.last_name.clone(),
+            shopper_email: jcs_data.email.clone(),
+            telephone_number: jcs_data.phone_number.clone(),
+        })
+    }
+}
+
 impl TryFrom<&api_enums::BankNames> for OnlineBankingCzechRepublicBanks {
     type Error = Error;
     fn try_from(bank_name: &api_enums::BankNames) -> Result<Self, Self::Error> {
@@ -1547,54 +1559,24 @@ impl<'a> TryFrom<&api_models::payments::VoucherData> for AdyenPaymentMethod<'a> 
                 })))
             }
             payments::VoucherData::Oxxo => Ok(AdyenPaymentMethod::Oxxo),
-            payments::VoucherData::SevenEleven(jcs_data) => {
-                Ok(AdyenPaymentMethod::SevenEleven(Box::new(JCSVoucherData {
-                    first_name: jcs_data.first_name.clone(),
-                    last_name: jcs_data.last_name.clone(),
-                    shopper_email: jcs_data.email.clone(),
-                    telephone_number: jcs_data.phone_number.clone(),
-                })))
-            }
-            payments::VoucherData::Lawson(jcs_data) => {
-                Ok(AdyenPaymentMethod::Lawson(Box::new(JCSVoucherData {
-                    first_name: jcs_data.first_name.clone(),
-                    last_name: jcs_data.last_name.clone(),
-                    shopper_email: jcs_data.email.clone(),
-                    telephone_number: jcs_data.phone_number.clone(),
-                })))
-            }
-            payments::VoucherData::MiniStop(jcs_data) => {
-                Ok(AdyenPaymentMethod::MiniStop(Box::new(JCSVoucherData {
-                    first_name: jcs_data.first_name.clone(),
-                    last_name: jcs_data.last_name.clone(),
-                    shopper_email: jcs_data.email.clone(),
-                    telephone_number: jcs_data.phone_number.clone(),
-                })))
-            }
-            payments::VoucherData::FamilyMart(jcs_data) => {
-                Ok(AdyenPaymentMethod::FamilyMart(Box::new(JCSVoucherData {
-                    first_name: jcs_data.first_name.clone(),
-                    last_name: jcs_data.last_name.clone(),
-                    shopper_email: jcs_data.email.clone(),
-                    telephone_number: jcs_data.phone_number.clone(),
-                })))
-            }
-            payments::VoucherData::Seicomart(jcs_data) => {
-                Ok(AdyenPaymentMethod::Seicomart(Box::new(JCSVoucherData {
-                    first_name: jcs_data.first_name.clone(),
-                    last_name: jcs_data.last_name.clone(),
-                    shopper_email: jcs_data.email.clone(),
-                    telephone_number: jcs_data.phone_number.clone(),
-                })))
-            }
-            payments::VoucherData::PayEasy(jcs_data) => {
-                Ok(AdyenPaymentMethod::PayEasy(Box::new(JCSVoucherData {
-                    first_name: jcs_data.first_name.clone(),
-                    last_name: jcs_data.last_name.clone(),
-                    shopper_email: jcs_data.email.clone(),
-                    telephone_number: jcs_data.phone_number.clone(),
-                })))
-            }
+            payments::VoucherData::SevenEleven(jcs_data) => Ok(AdyenPaymentMethod::SevenEleven(
+                Box::new(JCSVoucherData::try_from(jcs_data)?),
+            )),
+            payments::VoucherData::Lawson(jcs_data) => Ok(AdyenPaymentMethod::Lawson(Box::new(
+                JCSVoucherData::try_from(jcs_data)?,
+            ))),
+            payments::VoucherData::MiniStop(jcs_data) => Ok(AdyenPaymentMethod::MiniStop(
+                Box::new(JCSVoucherData::try_from(jcs_data)?),
+            )),
+            payments::VoucherData::FamilyMart(jcs_data) => Ok(AdyenPaymentMethod::FamilyMart(
+                Box::new(JCSVoucherData::try_from(jcs_data)?),
+            )),
+            payments::VoucherData::Seicomart(jcs_data) => Ok(AdyenPaymentMethod::Seicomart(
+                Box::new(JCSVoucherData::try_from(jcs_data)?),
+            )),
+            payments::VoucherData::PayEasy(jcs_data) => Ok(AdyenPaymentMethod::PayEasy(Box::new(
+                JCSVoucherData::try_from(jcs_data)?,
+            ))),
             payments::VoucherData::Efecty
             | payments::VoucherData::PagoEfectivo
             | payments::VoucherData::RedCompra
