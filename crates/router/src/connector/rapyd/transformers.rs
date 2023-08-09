@@ -87,6 +87,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for RapydPaymentsRequest {
                 )
             }
             diesel_models::enums::PaymentMethod::PayLater
+            | diesel_models::enums::PaymentMethod::CardRedirect
             | diesel_models::enums::PaymentMethod::Wallet
             | diesel_models::enums::PaymentMethod::BankRedirect
             | diesel_models::enums::PaymentMethod::BankTransfer

@@ -144,16 +144,21 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for FiservPaymentsRequest {
             api::PaymentMethodData::Wallet(_)
             | api::PaymentMethodData::PayLater(_)
             | api::PaymentMethodData::BankRedirect(_)
-            | api::PaymentMethodData::BankDebit(_)
+            | api::PaymentMethodData::BankDebit(_) => Err(errors::ConnectorError::NotImplemented(
+                utils::get_unimplemented_payment_method_error_message("fiserv"),
+            ))?,
+            api::PaymentMethodData::CardRedirect(_)
             | api::PaymentMethodData::BankTransfer(_)
             | api::PaymentMethodData::Crypto(_)
             | api::PaymentMethodData::MandatePayment
             | api::PaymentMethodData::Reward(_)
             | api::PaymentMethodData::Upi(_)
             | api::PaymentMethodData::Voucher(_)
-            | api::PaymentMethodData::GiftCard(_) => Err(errors::ConnectorError::NotImplemented(
-                utils::get_unimplemented_payment_method_error_message("fiserv"),
-            ))?,
+            | api::PaymentMethodData::GiftCard(_) => Err(errors::ConnectorError::NotSupported {
+                message: format!("{:?}", item.request.payment_method_data),
+                connector: "Fiserv",
+                payment_experience: api_models::enums::PaymentExperience::RedirectToUrl.to_string(),
+            })?,
         };
         Ok(Self {
             amount,

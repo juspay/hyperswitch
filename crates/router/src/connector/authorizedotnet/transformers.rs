@@ -133,7 +133,8 @@ fn get_pm_and_subsequent_auth_detail(
                     });
                     Ok((payment_details, processing_options, subseuent_auth_info))
                 }
-                api::PaymentMethodData::Wallet(_)
+                api::PaymentMethodData::CardRedirect(_)
+                | api::PaymentMethodData::Wallet(_)
                 | api::PaymentMethodData::PayLater(_)
                 | api::PaymentMethodData::BankRedirect(_)
                 | api::PaymentMethodData::BankDebit(_)
@@ -144,9 +145,12 @@ fn get_pm_and_subsequent_auth_detail(
                 | api::PaymentMethodData::Upi(_)
                 | api::PaymentMethodData::Voucher(_)
                 | api::PaymentMethodData::GiftCard(_) => {
-                    Err(errors::ConnectorError::NotImplemented(
-                        utils::get_unimplemented_payment_method_error_message("authorizedotnet"),
-                    ))?
+                    Err(errors::ConnectorError::NotSupported {
+                        message: format!("{:?}", item.request.payment_method_data),
+                        connector: "AuthorizeDotNet",
+                        payment_experience: api_models::enums::PaymentExperience::RedirectToUrl
+                            .to_string(),
+                    })?
                 }
             }
         }
@@ -170,7 +174,8 @@ fn get_pm_and_subsequent_auth_detail(
                 None,
                 None,
             )),
-            api::PaymentMethodData::PayLater(_)
+            api::PaymentMethodData::CardRedirect(_)
+            | api::PaymentMethodData::PayLater(_)
             | api::PaymentMethodData::BankRedirect(_)
             | api::PaymentMethodData::BankDebit(_)
             | api::PaymentMethodData::BankTransfer(_)
@@ -179,9 +184,11 @@ fn get_pm_and_subsequent_auth_detail(
             | api::PaymentMethodData::Reward(_)
             | api::PaymentMethodData::Upi(_)
             | api::PaymentMethodData::Voucher(_)
-            | api::PaymentMethodData::GiftCard(_) => Err(errors::ConnectorError::NotImplemented(
-                utils::get_unimplemented_payment_method_error_message("authorizedotnet"),
-            ))?,
+            | api::PaymentMethodData::GiftCard(_) => Err(errors::ConnectorError::NotSupported {
+                message: format!("{:?}", item.request.payment_method_data),
+                connector: "AuthorizeDotNet",
+                payment_experience: api_models::enums::PaymentExperience::RedirectToUrl.to_string(),
+            })?,
         },
     }
 }
@@ -1118,9 +1125,11 @@ fn get_wallet_data(
         | api_models::payments::WalletData::WeChatPayQr(_)
         | api_models::payments::WalletData::CashappQr(_)
         | api_models::payments::WalletData::SwishQr(_) => {
-            Err(errors::ConnectorError::NotImplemented(
-                utils::get_unimplemented_payment_method_error_message("authorizedotnet"),
-            ))?
+            Err(errors::ConnectorError::NotSupported {
+                message: utils::get_unsupported_payment_method_error_message(),
+                connector: "AuthorizeDotNet",
+                payment_experience: api_models::enums::PaymentExperience::RedirectToUrl.to_string(),
+            })?
         }
     }
 }

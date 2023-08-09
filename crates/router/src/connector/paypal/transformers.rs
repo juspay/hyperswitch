@@ -271,9 +271,12 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PaypalPaymentsRequest {
                 | api_models::payments::WalletData::WeChatPayQr(_)
                 | api_models::payments::WalletData::CashappQr(_)
                 | api_models::payments::WalletData::SwishQr(_) => {
-                    Err(errors::ConnectorError::NotImplemented(
-                        utils::get_unimplemented_payment_method_error_message("paypal"),
-                    ))?
+                    Err(errors::ConnectorError::NotSupported {
+                        message: utils::get_unsupported_payment_method_error_message(),
+                        connector: "Paypal",
+                        payment_experience: api_models::enums::PaymentExperience::RedirectToUrl
+                            .to_string(),
+                    })?
                 }
             },
             api::PaymentMethodData::BankRedirect(ref bank_redirection_data) => {
@@ -301,7 +304,13 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PaypalPaymentsRequest {
                     payment_source,
                 })
             }
-            api_models::payments::PaymentMethodData::PayLater(_)
+            api_models::payments::PaymentMethodData::PayLater(_) => {
+                Err(errors::ConnectorError::NotImplemented(
+                    utils::get_unimplemented_payment_method_error_message("paypal"),
+                )
+                .into())
+            }
+            api_models::payments::PaymentMethodData::CardRedirect(_)
             | api_models::payments::PaymentMethodData::BankDebit(_)
             | api_models::payments::PaymentMethodData::BankTransfer(_)
             | api_models::payments::PaymentMethodData::Crypto(_)
@@ -310,9 +319,12 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PaypalPaymentsRequest {
             | api_models::payments::PaymentMethodData::Upi(_)
             | api_models::payments::PaymentMethodData::Voucher(_)
             | api_models::payments::PaymentMethodData::GiftCard(_) => {
-                Err(errors::ConnectorError::NotImplemented(
-                    utils::get_unimplemented_payment_method_error_message("paypal"),
-                )
+                Err(errors::ConnectorError::NotSupported {
+                    message: utils::get_unsupported_payment_method_error_message(),
+                    connector: "Paypal",
+                    payment_experience: api_models::enums::PaymentExperience::RedirectToUrl
+                        .to_string(),
+                }
                 .into())
             }
         }

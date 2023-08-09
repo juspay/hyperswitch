@@ -363,13 +363,18 @@ fn get_payment_method_data(
         | api::PaymentMethodData::BankDebit(_)
         | api::PaymentMethodData::BankTransfer(_)
         | api::PaymentMethodData::Crypto(_)
-        | api::PaymentMethodData::MandatePayment
-        | api::PaymentMethodData::Reward(_)
-        | api::PaymentMethodData::Upi(_)
-        | api::PaymentMethodData::Voucher(_)
         | api::PaymentMethodData::GiftCard(_) => Err(errors::ConnectorError::NotImplemented(
             utils::get_unimplemented_payment_method_error_message("globalpay"),
         ))?,
+        api::PaymentMethodData::CardRedirect(_)
+        | api::PaymentMethodData::MandatePayment
+        | api::PaymentMethodData::Reward(_)
+        | api::PaymentMethodData::Upi(_)
+        | api::PaymentMethodData::Voucher(_) => Err(errors::ConnectorError::NotSupported {
+            message: format!("{:?}", item.request.payment_method_data),
+            connector: "Globalpay",
+            payment_experience: api_models::enums::PaymentExperience::RedirectToUrl.to_string(),
+        })?,
     }
 }
 
@@ -428,7 +433,6 @@ fn get_wallet_data(
             }))
         }
         api_models::payments::WalletData::AliPayQr(_)
-        | api_models::payments::WalletData::AliPayRedirect(_)
         | api_models::payments::WalletData::AliPayHkRedirect(_)
         | api_models::payments::WalletData::MomoRedirect(_)
         | api_models::payments::WalletData::KakaoPayRedirect(_)
@@ -447,10 +451,17 @@ fn get_wallet_data(
         | api_models::payments::WalletData::TwintRedirect {}
         | api_models::payments::WalletData::VippsRedirect {}
         | api_models::payments::WalletData::TouchNGoRedirect(_)
-        | api_models::payments::WalletData::WeChatPayRedirect(_)
         | api_models::payments::WalletData::WeChatPayQr(_)
         | api_models::payments::WalletData::CashappQr(_)
         | api_models::payments::WalletData::SwishQr(_) => {
+            Err(errors::ConnectorError::NotSupported {
+                message: utils::get_unsupported_payment_method_error_message(),
+                connector: "Globalpay",
+                payment_experience: api_models::enums::PaymentExperience::RedirectToUrl.to_string(),
+            })?
+        }
+        api_models::payments::WalletData::AliPayRedirect(_)
+        | api_models::payments::WalletData::WeChatPayRedirect(_) => {
             Err(errors::ConnectorError::NotImplemented(
                 utils::get_unimplemented_payment_method_error_message("globalpay"),
             ))?
@@ -476,21 +487,30 @@ impl TryFrom<&api_models::payments::BankRedirectData> for PaymentMethodData {
             api_models::payments::BankRedirectData::Sofort { .. } => Ok(Self::Apm(requests::Apm {
                 provider: Some(ApmProvider::Sofort),
             })),
+
+            api_models::payments::BankRedirectData::Przelewy24 { .. }
+            | api_models::payments::BankRedirectData::Trustly { .. } => {
+                Err(errors::ConnectorError::NotImplemented(
+                    utils::get_unimplemented_payment_method_error_message("globalpay"),
+                ))
+                .into_report()
+            }
             api_models::payments::BankRedirectData::BancontactCard { .. }
             | api_models::payments::BankRedirectData::Bizum {}
             | api_models::payments::BankRedirectData::Blik { .. }
             | api_models::payments::BankRedirectData::Interac { .. }
+            | api_models::payments::BankRedirectData::OnlineBankingFpx { .. }
             | api_models::payments::BankRedirectData::OnlineBankingCzechRepublic { .. }
             | api_models::payments::BankRedirectData::OnlineBankingFinland { .. }
             | api_models::payments::BankRedirectData::OnlineBankingPoland { .. }
             | api_models::payments::BankRedirectData::OnlineBankingSlovakia { .. }
-            | api_models::payments::BankRedirectData::Przelewy24 { .. }
-            | api_models::payments::BankRedirectData::Trustly { .. }
-            | api_models::payments::BankRedirectData::OnlineBankingFpx { .. }
             | api_models::payments::BankRedirectData::OnlineBankingThailand { .. } => {
-                Err(errors::ConnectorError::NotImplemented(
-                    utils::get_unimplemented_payment_method_error_message("globalpay"),
-                ))
+                Err(errors::ConnectorError::NotSupported {
+                    message: utils::get_unsupported_payment_method_error_message(),
+                    connector: "Globalpay",
+                    payment_experience: api_models::enums::PaymentExperience::RedirectToUrl
+                        .to_string(),
+                })
                 .into_report()
             }
         }

@@ -133,17 +133,24 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for BamboraPaymentsRequest {
                     term_url: item.request.complete_authorize_url.clone(),
                 })
             }
-            api::PaymentMethodData::Wallet(_)
+            api::PaymentMethodData::CardRedirect(_)
             | api::PaymentMethodData::PayLater(_)
-            | api::PaymentMethodData::BankRedirect(_)
-            | api::PaymentMethodData::BankDebit(_)
-            | api::PaymentMethodData::BankTransfer(_)
             | api::PaymentMethodData::Crypto(_)
             | api::PaymentMethodData::MandatePayment
             | api::PaymentMethodData::Reward(_)
             | api::PaymentMethodData::Upi(_)
             | api::PaymentMethodData::Voucher(_)
-            | api::PaymentMethodData::GiftCard(_) => Err(errors::ConnectorError::NotImplemented(
+            | api::PaymentMethodData::GiftCard(_) => Err(errors::ConnectorError::NotSupported {
+                message: format!("{:?}", item.request.payment_method_data),
+                connector: "Bambora",
+                payment_experience: api_models::enums::PaymentExperience::RedirectToUrl.to_string(),
+            }
+            .into()),
+
+            api::PaymentMethodData::BankTransfer(_)
+            | api::PaymentMethodData::Wallet(_)
+            | api::PaymentMethodData::BankRedirect(_)
+            | api::PaymentMethodData::BankDebit(_) => Err(errors::ConnectorError::NotImplemented(
                 utils::get_unimplemented_payment_method_error_message("bambora"),
             )
             .into()),

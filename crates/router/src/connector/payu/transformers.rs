@@ -97,6 +97,12 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PayuPaymentsRequest {
                         }
                     }),
                 }),
+
+                api_models::payments::WalletData::PaypalRedirect(_) => {
+                    Err(errors::ConnectorError::NotImplemented(
+                        utils::get_unimplemented_payment_method_error_message("payu"),
+                    ))
+                }
                 api_models::payments::WalletData::AliPayQr(_)
                 | api_models::payments::WalletData::AliPayRedirect(_)
                 | api_models::payments::WalletData::AliPayHkRedirect(_)
@@ -111,7 +117,6 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PayuPaymentsRequest {
                 | api_models::payments::WalletData::GooglePayThirdPartySdk(_)
                 | api_models::payments::WalletData::MbWayRedirect(_)
                 | api_models::payments::WalletData::MobilePayRedirect(_)
-                | api_models::payments::WalletData::PaypalRedirect(_)
                 | api_models::payments::WalletData::PaypalSdk(_)
                 | api_models::payments::WalletData::SamsungPay(_)
                 | api_models::payments::WalletData::TwintRedirect {}
@@ -121,23 +126,31 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PayuPaymentsRequest {
                 | api_models::payments::WalletData::WeChatPayQr(_)
                 | api_models::payments::WalletData::CashappQr(_)
                 | api_models::payments::WalletData::SwishQr(_) => {
-                    Err(errors::ConnectorError::NotImplemented(
-                        utils::get_unimplemented_payment_method_error_message("payu"),
-                    ))
+                    Err(errors::ConnectorError::NotSupported {
+                        message: utils::get_unsupported_payment_method_error_message(),
+                        connector: "Payu",
+                        payment_experience: api_models::enums::PaymentExperience::RedirectToUrl
+                            .to_string(),
+                    })
                 }
             },
-            api::PaymentMethodData::PayLater(_)
+            api::PaymentMethodData::BankDebit(_)
             | api::PaymentMethodData::BankRedirect(_)
-            | api::PaymentMethodData::BankDebit(_)
             | api::PaymentMethodData::BankTransfer(_)
-            | api::PaymentMethodData::Crypto(_)
-            | api::PaymentMethodData::MandatePayment
-            | api::PaymentMethodData::Reward(_)
             | api::PaymentMethodData::Upi(_)
-            | api::PaymentMethodData::Voucher(_)
+            | api::PaymentMethodData::PayLater(_)
             | api::PaymentMethodData::GiftCard(_) => Err(errors::ConnectorError::NotImplemented(
                 utils::get_unimplemented_payment_method_error_message("payu"),
             )),
+            api::PaymentMethodData::CardRedirect(_)
+            | api::PaymentMethodData::Crypto(_)
+            | api::PaymentMethodData::MandatePayment
+            | api::PaymentMethodData::Reward(_)
+            | api::PaymentMethodData::Voucher(_) => Err(errors::ConnectorError::NotSupported {
+                message: utils::get_unsupported_payment_method_error_message(),
+                connector: "Payu",
+                payment_experience: api_models::enums::PaymentExperience::RedirectToUrl.to_string(),
+            }),
         }?;
         let browser_info = item.request.browser_info.clone().ok_or(
             errors::ConnectorError::MissingRequiredField {

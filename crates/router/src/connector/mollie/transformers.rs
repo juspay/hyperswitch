@@ -147,17 +147,26 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for MolliePaymentsRequest {
                 api_models::payments::PaymentMethodData::BankDebit(ref directdebit_data) => {
                     PaymentMethodData::try_from(directdebit_data)
                 }
-                api_models::payments::PaymentMethodData::PayLater(_)
+                api_models::payments::PaymentMethodData::CardRedirect(_)
                 | api_models::payments::PaymentMethodData::BankTransfer(_)
                 | api_models::payments::PaymentMethodData::Crypto(_)
-                | api_models::payments::PaymentMethodData::MandatePayment
-                | api_models::payments::PaymentMethodData::Reward(_)
-                | api_models::payments::PaymentMethodData::Upi(_)
                 | api_models::payments::PaymentMethodData::Voucher(_)
-                | api_models::payments::PaymentMethodData::GiftCard(_) => {
+                | api_models::payments::PaymentMethodData::GiftCard(_)
+                | api_models::payments::PaymentMethodData::PayLater(_)
+                | api_models::payments::PaymentMethodData::MandatePayment => {
                     Err(errors::ConnectorError::NotImplemented(
                         utils::get_unimplemented_payment_method_error_message("mollie"),
                     ))
+                    .into_report()
+                }
+                api_models::payments::PaymentMethodData::Reward(_)
+                | api_models::payments::PaymentMethodData::Upi(_) => {
+                    Err(errors::ConnectorError::NotSupported {
+                        message: utils::get_unsupported_payment_method_error_message(),
+                        connector: "Mollie",
+                        payment_experience: api_models::enums::PaymentExperience::RedirectToUrl
+                            .to_string(),
+                    })
                     .into_report()
                 }
             },
@@ -216,9 +225,12 @@ impl TryFrom<&api_models::payments::BankRedirectData> for PaymentMethodData {
             | api_models::payments::BankRedirectData::Trustly { .. }
             | api_models::payments::BankRedirectData::OnlineBankingFpx { .. }
             | api_models::payments::BankRedirectData::OnlineBankingThailand { .. } => {
-                Err(errors::ConnectorError::NotImplemented(
-                    utils::get_unimplemented_payment_method_error_message("mollie"),
-                )
+                Err(errors::ConnectorError::NotSupported {
+                    message: utils::get_unsupported_payment_method_error_message(),
+                    connector: "Mollie",
+                    payment_experience: api_models::enums::PaymentExperience::RedirectToUrl
+                        .to_string(),
+                }
                 .into())
             }
         }
@@ -240,9 +252,12 @@ impl TryFrom<&api_models::payments::BankDebitData> for PaymentMethodData {
             api_models::payments::BankDebitData::AchBankDebit { .. }
             | api_models::payments::BankDebitData::BecsBankDebit { .. }
             | api_models::payments::BankDebitData::BacsBankDebit { .. } => {
-                Err(errors::ConnectorError::NotImplemented(
-                    utils::get_unimplemented_payment_method_error_message("mollie"),
-                )
+                Err(errors::ConnectorError::NotSupported {
+                    message: utils::get_unsupported_payment_method_error_message(),
+                    connector: "Mollie",
+                    payment_experience: api_models::enums::PaymentExperience::RedirectToUrl
+                        .to_string(),
+                }
                 .into())
             }
         }
@@ -297,6 +312,7 @@ impl TryFrom<&types::TokenizationRouterData> for MollieCardTokenRequest {
                 })
             }
             api_models::payments::PaymentMethodData::Wallet(_)
+            | api_models::payments::PaymentMethodData::CardRedirect(_)
             | api_models::payments::PaymentMethodData::PayLater(_)
             | api_models::payments::PaymentMethodData::BankRedirect(_)
             | api_models::payments::PaymentMethodData::BankDebit(_)
@@ -355,9 +371,11 @@ fn get_payment_method_for_wallet(
         | api_models::payments::WalletData::WeChatPayQr(_)
         | api_models::payments::WalletData::CashappQr(_)
         | api_models::payments::WalletData::SwishQr(_) => {
-            Err(errors::ConnectorError::NotImplemented(
-                utils::get_unimplemented_payment_method_error_message("mollie"),
-            ))
+            Err(errors::ConnectorError::NotSupported {
+                message: utils::get_unsupported_payment_method_error_message(),
+                connector: "Mollie",
+                payment_experience: api_models::enums::PaymentExperience::RedirectToUrl.to_string(),
+            })
             .into_report()
         }
     }

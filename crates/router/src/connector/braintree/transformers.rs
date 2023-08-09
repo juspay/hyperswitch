@@ -114,6 +114,13 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for BraintreePaymentsRequest {
                         api_models::payments::WalletData::PaypalSdk(wallet_data) => {
                             Ok(wallet_data.token.to_owned())
                         }
+                        api_models::payments::WalletData::ApplePay(_)
+                        | api_models::payments::WalletData::GooglePay(_)
+                        | api_models::payments::WalletData::SamsungPay(_) => {
+                            Err(errors::ConnectorError::NotImplemented(
+                                utils::get_unimplemented_payment_method_error_message("braintree"),
+                            ))
+                        }
                         api_models::payments::WalletData::AliPayQr(_)
                         | api_models::payments::WalletData::AliPayRedirect(_)
                         | api_models::payments::WalletData::AliPayHkRedirect(_)
@@ -121,17 +128,14 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for BraintreePaymentsRequest {
                         | api_models::payments::WalletData::KakaoPayRedirect(_)
                         | api_models::payments::WalletData::GoPayRedirect(_)
                         | api_models::payments::WalletData::GcashRedirect(_)
-                        | api_models::payments::WalletData::ApplePay(_)
                         | api_models::payments::WalletData::ApplePayRedirect(_)
                         | api_models::payments::WalletData::ApplePayThirdPartySdk(_)
                         | api_models::payments::WalletData::DanaRedirect {}
-                        | api_models::payments::WalletData::GooglePay(_)
                         | api_models::payments::WalletData::GooglePayRedirect(_)
                         | api_models::payments::WalletData::GooglePayThirdPartySdk(_)
                         | api_models::payments::WalletData::MbWayRedirect(_)
                         | api_models::payments::WalletData::MobilePayRedirect(_)
                         | api_models::payments::WalletData::PaypalRedirect(_)
-                        | api_models::payments::WalletData::SamsungPay(_)
                         | api_models::payments::WalletData::TwintRedirect {}
                         | api_models::payments::WalletData::VippsRedirect {}
                         | api_models::payments::WalletData::TouchNGoRedirect(_)
@@ -139,9 +143,12 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for BraintreePaymentsRequest {
                         | api_models::payments::WalletData::WeChatPayQr(_)
                         | api_models::payments::WalletData::CashappQr(_)
                         | api_models::payments::WalletData::SwishQr(_) => {
-                            Err(errors::ConnectorError::NotImplemented(
-                                utils::get_unimplemented_payment_method_error_message("braintree"),
-                            ))
+                            Err(errors::ConnectorError::NotSupported {
+                                message: utils::get_unsupported_payment_method_error_message(),
+                                connector: "Braintree",
+                                payment_experience:
+                                    api_models::enums::PaymentExperience::RedirectToUrl.to_string(),
+                            })?
                         }
                     }?,
                 }))
@@ -149,15 +156,22 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for BraintreePaymentsRequest {
             api::PaymentMethodData::PayLater(_)
             | api::PaymentMethodData::BankRedirect(_)
             | api::PaymentMethodData::BankDebit(_)
-            | api::PaymentMethodData::BankTransfer(_)
-            | api::PaymentMethodData::Crypto(_)
+            | api::PaymentMethodData::BankTransfer(_) => {
+                Err(errors::ConnectorError::NotImplemented(
+                    utils::get_unimplemented_payment_method_error_message("braintree"),
+                ))
+            }
+            api::PaymentMethodData::Crypto(_)
+            | api::PaymentMethodData::CardRedirect(_)
             | api::PaymentMethodData::MandatePayment
             | api::PaymentMethodData::Reward(_)
             | api::PaymentMethodData::Upi(_)
             | api::PaymentMethodData::Voucher(_)
-            | api::PaymentMethodData::GiftCard(_) => Err(errors::ConnectorError::NotImplemented(
-                utils::get_unimplemented_payment_method_error_message("braintree"),
-            )),
+            | api::PaymentMethodData::GiftCard(_) => Err(errors::ConnectorError::NotSupported {
+                message: utils::get_unsupported_payment_method_error_message(),
+                connector: "Braintree",
+                payment_experience: api_models::enums::PaymentExperience::RedirectToUrl.to_string(),
+            })?,
         }?;
         let braintree_transaction_body = TransactionBody {
             amount,
