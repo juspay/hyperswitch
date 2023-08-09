@@ -121,7 +121,9 @@ impl<F: Send + Clone> GetTracker<F, payments::PaymentData<F>, api::PaymentsCaptu
                         storage_scheme,
                     )
                     .await
-                    .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
+                    .to_not_found_response(errors::ApiErrorResponse::DuplicatePayment {
+                        payment_id: payment_id.clone(),
+                    })?;
                 let new_connector_response = db
                     .insert_connector_response(
                         ConnectorResponse::make_new_connector_response(
@@ -133,7 +135,9 @@ impl<F: Send + Clone> GetTracker<F, payments::PaymentData<F>, api::PaymentsCaptu
                         storage_scheme,
                     )
                     .await
-                    .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
+                    .to_not_found_response(errors::ApiErrorResponse::DuplicatePayment {
+                        payment_id: payment_id.clone(),
+                    })?;
                 (
                     Some(payments::MultipleCaptureData {
                         previous_captures,

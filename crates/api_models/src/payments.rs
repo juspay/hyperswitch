@@ -621,6 +621,7 @@ pub struct Card {
 pub enum CardRedirectData {
     Knet {},
     Benefit {},
+    MomoAtm {},
 }
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
@@ -679,6 +680,15 @@ pub enum BankDebitData {
 
         #[schema(value_type = String, example = "John Doe")]
         bank_account_holder_name: Option<Secret<String>>,
+
+        #[schema(value_type = String, example = "ACH")]
+        bank_name: Option<enums::BankNames>,
+
+        #[schema(value_type = String, example = "Checking")]
+        bank_type: Option<enums::BankType>,
+
+        #[schema(value_type = String, example = "Personal")]
+        bank_holder_type: Option<enums::BankHolderType>,
     },
     SepaBankDebit {
         /// Billing details for bank debit
@@ -881,6 +891,14 @@ pub enum BankRedirectData {
         // Issuer value corresponds to the bank
         #[schema(value_type = BankNames)]
         issuer: api_enums::BankNames,
+    },
+    OpenBankingUk {
+        // Issuer banks
+        #[schema(value_type = BankNames)]
+        issuer: api_enums::BankNames,
+        /// The country for bank payment
+        #[schema(value_type = CountryAlpha2, example = "US")]
+        country: api_enums::CountryAlpha2,
     },
     Przelewy24 {
         //Issuer banks

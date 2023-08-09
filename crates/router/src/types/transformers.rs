@@ -243,6 +243,7 @@ impl ForeignFrom<api_enums::PaymentMethodType> for api_enums::PaymentMethod {
             | api_enums::PaymentMethodType::OnlineBankingFpx
             | api_enums::PaymentMethodType::OnlineBankingPoland
             | api_enums::PaymentMethodType::OnlineBankingSlovakia
+            | api_enums::PaymentMethodType::OpenBankingUk
             | api_enums::PaymentMethodType::Przelewy24
             | api_enums::PaymentMethodType::Trustly
             | api_enums::PaymentMethodType::Bizum
@@ -279,9 +280,9 @@ impl ForeignFrom<api_enums::PaymentMethodType> for api_enums::PaymentMethod {
             api_enums::PaymentMethodType::Givex | api_enums::PaymentMethodType::PaySafeCard => {
                 Self::GiftCard
             }
-            api_enums::PaymentMethodType::Benefit | api_enums::PaymentMethodType::Knet => {
-                Self::CardRedirect
-            }
+            api_enums::PaymentMethodType::Benefit
+            | api_enums::PaymentMethodType::Knet
+            | api_enums::PaymentMethodType::MomoAtm => Self::CardRedirect,
         }
     }
 }
