@@ -1,10 +1,13 @@
+pub mod kv_store;
+
 use std::sync::Arc;
 
 use error_stack::{IntoReport, ResultExt};
 use redis_interface::PubsubInterface;
 
 pub struct CacheStore {
-    redis_conn: Arc<redis_interface::RedisConnectionPool>,
+    // Maybe expose the redis_conn via traits instead of the making the field public
+    pub(crate) redis_conn: Arc<redis_interface::RedisConnectionPool>,
 }
 
 impl CacheStore {

@@ -196,26 +196,28 @@ impl Store {
             )
             .await,
             #[cfg(feature = "olap")]
-            diesel_store: diesel_impl::store::ReplicaStore::new((
-                #[cfg(not(feature = "kms"))]
-                config.master_database.clone().into(),
-                #[cfg(feature = "kms")]
-                config
-                    .master_database
-                    .clone()
-                    .decrypt_inner(kms_client)
-                    .await
-                    .expect("Failed to decrypt master database"),
-                #[cfg(not(feature = "kms"))]
-                config.replica_database.clone().into(),
-                #[cfg(feature = "kms")]
-                config
-                    .replica_database
-                    .clone()
-                    .decrypt_inner(kms_client)
-                    .await
-                    .expect("Failed to decrypt replica database")),
-                    test_transaction,
+            diesel_store: diesel_impl::store::ReplicaStore::new(
+                (
+                    #[cfg(not(feature = "kms"))]
+                    config.master_database.clone().into(),
+                    #[cfg(feature = "kms")]
+                    config
+                        .master_database
+                        .clone()
+                        .decrypt_inner(kms_client)
+                        .await
+                        .expect("Failed to decrypt master database"),
+                    #[cfg(not(feature = "kms"))]
+                    config.replica_database.clone().into(),
+                    #[cfg(feature = "kms")]
+                    config
+                        .replica_database
+                        .clone()
+                        .decrypt_inner(kms_client)
+                        .await
+                        .expect("Failed to decrypt replica database"),
+                ),
+                test_transaction,
             )
             .await,
             redis_conn,
