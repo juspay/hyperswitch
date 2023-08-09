@@ -18,7 +18,7 @@ use crate::{
 };
 
 #[async_trait::async_trait]
-impl OutgoingWebhookTrigger for PaymentIntent {
+impl<const Async: bool> OutgoingWebhookTrigger<Async> for PaymentIntent {
     async fn construct_outgoing_webhook_content(
         &self,
         state: &AppState,
@@ -31,8 +31,8 @@ impl OutgoingWebhookTrigger for PaymentIntent {
             merchant_key_store,
             payments::operations::PaymentStatus,
             api::PaymentsRetrieveRequest {
-                resource_id: api_models::payments::PaymentIdType::PaymentIntentId(
-                    self.payment_id.clone(),
+                resource_id: api_models::payments::PaymentIdType::PaymentAttemptId(
+                    self.active_attempt_id.clone(),
                 ),
                 merchant_id: Some(self.merchant_id.clone()),
                 force_sync: false,
@@ -76,8 +76,13 @@ impl OutgoingWebhookTrigger for PaymentIntent {
             .await
             .change_context(errors::ApiErrorResponse::MerchantAccountNotFound)?;
 
-        let webhook_content = self
-            .construct_outgoing_webhook_content(state, merchant_account.clone(), merchant_key_store)
+        let webhook_content =
+            <_ as OutgoingWebhookTrigger<false>>::construct_outgoing_webhook_content(
+                self,
+                state,
+                merchant_account.clone(),
+                merchant_key_store,
+            )
             .await?;
 
         create_event_and_trigger_outgoing_webhook::<W>(
@@ -92,13 +97,14 @@ impl OutgoingWebhookTrigger for PaymentIntent {
             self.payment_id.clone(),
             enums::EventObjectType::PaymentDetails,
             webhook_content,
+            Async,
         )
         .await
     }
 }
 
 #[async_trait::async_trait]
-impl OutgoingWebhookTrigger for refund::Refund {
+impl<const Async: bool> OutgoingWebhookTrigger<Async> for refund::Refund {
     async fn construct_outgoing_webhook_content(
         &self,
         _state: &AppState,
@@ -132,8 +138,13 @@ impl OutgoingWebhookTrigger for refund::Refund {
             .await
             .change_context(errors::ApiErrorResponse::MerchantAccountNotFound)?;
 
-        let webhook_content = self
-            .construct_outgoing_webhook_content(state, merchant_account.clone(), merchant_key_store)
+        let webhook_content =
+            <_ as OutgoingWebhookTrigger<false>>::construct_outgoing_webhook_content(
+                self,
+                state,
+                merchant_account.clone(),
+                merchant_key_store,
+            )
             .await?;
 
         create_event_and_trigger_outgoing_webhook::<W>(
@@ -148,13 +159,14 @@ impl OutgoingWebhookTrigger for refund::Refund {
             self.refund_id.clone(),
             enums::EventObjectType::RefundDetails,
             webhook_content,
+            Async,
         )
         .await
     }
 }
 
 #[async_trait::async_trait]
-impl OutgoingWebhookTrigger for dispute::Dispute {
+impl<const Async: bool> OutgoingWebhookTrigger<Async> for dispute::Dispute {
     async fn construct_outgoing_webhook_content(
         &self,
         _state: &AppState,
@@ -188,8 +200,13 @@ impl OutgoingWebhookTrigger for dispute::Dispute {
             .await
             .change_context(errors::ApiErrorResponse::MerchantAccountNotFound)?;
 
-        let webhook_content = self
-            .construct_outgoing_webhook_content(state, merchant_account.clone(), merchant_key_store)
+        let webhook_content =
+            <_ as OutgoingWebhookTrigger<false>>::construct_outgoing_webhook_content(
+                self,
+                state,
+                merchant_account.clone(),
+                merchant_key_store,
+            )
             .await?;
 
         create_event_and_trigger_outgoing_webhook::<W>(
@@ -204,6 +221,7 @@ impl OutgoingWebhookTrigger for dispute::Dispute {
             self.dispute_id.clone(),
             enums::EventObjectType::DisputeDetails,
             webhook_content,
+            Async,
         )
         .await
     }

@@ -106,22 +106,22 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsSyncData> for
         )
         .await?;
 
-        #[cfg(feature = "db_webhooks")]
-        {
-            match actix_rt::Arbiter::try_current() {
-                Some(arbiter) => {
-                    let state = state.clone();
-                    let payment_intent = output.payment_intent.clone();
-                    arbiter.spawn(async move {
-                        match payment_intent.trigger_outgoing_webhook::<webhooks::OutgoingWebhook>(&state).await {
-                            Ok(_) => crate::logger::info!("webhook successfully triggered"),
-                            Err(err) => crate::logger::error!(error =? err, "Error while triggering state change webhook"),
-                        }
-                    });
-                }
-                None => crate::logger::error!("Unable to fetch the arbiter"),
-            }
-        }
+        // #[cfg(feature = "db_webhooks")]
+        // {
+        //     match actix_rt::Arbiter::try_current() {
+        //         Some(arbiter) => {
+        //             let state = state.clone();
+        //             let payment_intent = output.payment_intent.clone();
+        //             arbiter.spawn(async move {
+        //                 match payment_intent.trigger_outgoing_webhook::<webhooks::OutgoingWebhook>(&state).await {
+        //                     Ok(_) => crate::logger::info!("webhook successfully triggered"),
+        //                     Err(err) => crate::logger::error!(error =? err, "Error while triggering state change webhook"),
+        //                 }
+        //             });
+        //         }
+        //         None => crate::logger::error!("Unable to fetch the arbiter"),
+        //     }
+        // }
 
         Ok(output)
     }

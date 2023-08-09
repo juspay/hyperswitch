@@ -64,7 +64,7 @@ impl From<diesel_models::dispute::Dispute> for WebhookWorkflowData {
 }
 
 #[async_trait::async_trait]
-impl OutgoingWebhookTrigger for WebhookWorkflowData {
+impl OutgoingWebhookTrigger<false> for WebhookWorkflowData {
     async fn construct_outgoing_webhook_content(
         &self,
         state: &AppState,
@@ -74,19 +74,31 @@ impl OutgoingWebhookTrigger for WebhookWorkflowData {
     {
         match self {
             Self::PaymentWebhook(payment_intent) => {
-                payment_intent
-                    .construct_outgoing_webhook_content(state, merchant_account, merchant_key_store)
-                    .await
+                <_ as OutgoingWebhookTrigger<false>>::construct_outgoing_webhook_content(
+                    payment_intent,
+                    state,
+                    merchant_account,
+                    merchant_key_store,
+                )
+                .await
             }
             Self::RefundWebhook(refund) => {
-                refund
-                    .construct_outgoing_webhook_content(state, merchant_account, merchant_key_store)
-                    .await
+                <_ as OutgoingWebhookTrigger<false>>::construct_outgoing_webhook_content(
+                    refund,
+                    state,
+                    merchant_account,
+                    merchant_key_store,
+                )
+                .await
             }
             Self::DisputeWebhook(dispute) => {
-                dispute
-                    .construct_outgoing_webhook_content(state, merchant_account, merchant_key_store)
-                    .await
+                <_ as OutgoingWebhookTrigger<false>>::construct_outgoing_webhook_content(
+                    dispute,
+                    state,
+                    merchant_account,
+                    merchant_key_store,
+                )
+                .await
             }
         }
     }
@@ -97,10 +109,22 @@ impl OutgoingWebhookTrigger for WebhookWorkflowData {
     ) -> errors::CustomResult<(), errors::ApiErrorResponse> {
         match self {
             Self::PaymentWebhook(payment_intent) => {
-                payment_intent.trigger_outgoing_webhook::<W>(state).await
+                <_ as OutgoingWebhookTrigger<false>>::trigger_outgoing_webhook::<W>(
+                    payment_intent,
+                    state,
+                )
+                .await
             }
-            Self::RefundWebhook(refund) => refund.trigger_outgoing_webhook::<W>(state).await,
-            Self::DisputeWebhook(dispute) => dispute.trigger_outgoing_webhook::<W>(state).await,
+            Self::RefundWebhook(refund) => {
+                <_ as OutgoingWebhookTrigger<false>>::
+                    trigger_outgoing_webhook::<W>(refund, state)
+                    .await
+            }
+            Self::DisputeWebhook(dispute) => {
+                <_ as OutgoingWebhookTrigger<false>>::
+                    trigger_outgoing_webhook::<W>(dispute, state)
+                    .await
+            }
         }
     }
 }

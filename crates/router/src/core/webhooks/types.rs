@@ -50,7 +50,7 @@ impl OutgoingWebhookType for webhooks::OutgoingWebhook {
 /// webhooks
 ///
 #[async_trait::async_trait]
-pub trait OutgoingWebhookTrigger {
+pub trait OutgoingWebhookTrigger<const Async: bool = false> {
     async fn construct_outgoing_webhook_content(
         &self,
         state: &AppState,

@@ -96,6 +96,7 @@ pub async fn payments_incoming_webhook_flow<W: types::OutgoingWebhookType>(
                 payment_id,
                 enums::EventObjectType::PaymentDetails,
                 api::OutgoingWebhookContent::PaymentDetails(payments_response),
+                true,
             )
             .await?;
         }
@@ -208,6 +209,7 @@ pub async fn refunds_incoming_webhook_flow<W: types::OutgoingWebhookType>(
         refund_id,
         enums::EventObjectType::RefundDetails,
         api::OutgoingWebhookContent::RefundDetails(refund_response),
+        true,
     )
     .await?;
     Ok(())
@@ -379,6 +381,7 @@ pub async fn disputes_incoming_webhook_flow<W: types::OutgoingWebhookType>(
             dispute_object.dispute_id,
             enums::EventObjectType::DisputeDetails,
             api::OutgoingWebhookContent::DisputeDetails(disputes_response),
+            true,
         )
         .await?;
         metrics::INCOMING_DISPUTE_WEBHOOK_MERCHANT_NOTIFIED_METRIC.add(&metrics::CONTEXT, 1, &[]);
@@ -452,6 +455,7 @@ async fn bank_transfer_webhook_flow<W: types::OutgoingWebhookType>(
                 payment_id,
                 enums::EventObjectType::PaymentDetails,
                 api::OutgoingWebhookContent::PaymentDetails(payments_response),
+                true,
             )
             .await?;
         }
@@ -475,6 +479,7 @@ pub async fn create_event_and_trigger_outgoing_webhook<W: types::OutgoingWebhook
     primary_object_id: String,
     primary_object_type: enums::EventObjectType,
     content: api::OutgoingWebhookContent,
+    is_async: bool,
 ) -> CustomResult<(), errors::ApiErrorResponse> {
     let event_id = format!("{primary_object_id}_{}", event_type);
     let new_event = storage::EventNew {
@@ -505,11 +510,6 @@ pub async fn create_event_and_trigger_outgoing_webhook<W: types::OutgoingWebhook
     }?;
 
     if state.conf.webhooks.outgoing_enabled {
-        let arbiter = actix::Arbiter::try_current()
-            .ok_or(errors::ApiErrorResponse::WebhookProcessingFailure)
-            .into_report()
-            .attach_printable("arbiter retrieval failure")?;
-
         let outgoing_webhook = api::OutgoingWebhook {
             merchant_id: merchant_account.merchant_id.clone(),
             event_id: event.event_id,
@@ -518,14 +518,26 @@ pub async fn create_event_and_trigger_outgoing_webhook<W: types::OutgoingWebhook
             timestamp: event.created_at,
         };
 
-        arbiter.spawn(async move {
+        let execution = async move {
             let result =
                 trigger_webhook_to_merchant::<W>(merchant_account, outgoing_webhook, &state).await;
 
             if let Err(e) = result {
                 logger::error!(?e);
             }
-        });
+        };
+
+        match is_async {
+            true => {
+                let arbiter = actix::Arbiter::try_current()
+                    .ok_or(errors::ApiErrorResponse::WebhookProcessingFailure)
+                    .into_report()
+                    .attach_printable("arbiter retrieval failure")?;
+
+                arbiter.spawn(execution);
+            }
+            false => execution.await,
+        }
     }
 
     Ok(())
