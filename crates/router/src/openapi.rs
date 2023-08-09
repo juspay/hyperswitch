@@ -1,3 +1,4 @@
+#[cfg(feature = "openapi")]
 #[derive(utoipa::OpenApi)]
 #[openapi(
     info(
@@ -79,13 +80,13 @@ Never share your secret api keys. Keep them guarded and secure.
         crate::routes::mandates::get_mandate,
         crate::routes::mandates::revoke_mandate,
         crate::routes::payments::payments_create,
-       // crate::routes::payments::payments_start,
+    // crate::routes::payments::payments_start,
         crate::routes::payments::payments_retrieve,
         crate::routes::payments::payments_update,
         crate::routes::payments::payments_confirm,
         crate::routes::payments::payments_capture,
         crate::routes::payments::payments_connector_session,
-       // crate::routes::payments::payments_redirect_response,
+    // crate::routes::payments::payments_redirect_response,
         crate::routes::payments::payments_cancel,
         crate::routes::payments::payments_list,
         crate::routes::payment_methods::create_payment_method_api,
@@ -319,6 +320,9 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::enums::PayoutStatus,
         api_models::enums::PayoutType,
         api_models::payments::FrmMessage,
+        api_models::webhooks::OutgoingWebhook,
+        api_models::webhooks::OutgoingWebhookContent,
+        api_models::enums::EventType,
         crate::types::api::admin::MerchantAccountResponse,
         crate::types::api::admin::MerchantConnectorId,
         crate::types::api::admin::MerchantDetails,
@@ -347,7 +351,7 @@ impl utoipa::Modify for SecurityAddon {
                     SecurityScheme::ApiKey(ApiKey::Header(ApiKeyValue::with_description(
                         "api-key",
                         "API keys are the most common method of authentication and can be obtained \
-                         from the HyperSwitch dashboard."
+                        from the HyperSwitch dashboard."
                     ))),
                 ),
                 (
@@ -355,7 +359,7 @@ impl utoipa::Modify for SecurityAddon {
                     SecurityScheme::ApiKey(ApiKey::Header(ApiKeyValue::with_description(
                         "api-key",
                         "Admin API keys allow you to perform some privileged actions such as \
-                         creating a merchant account and Merchant Connector account."
+                        creating a merchant account and Merchant Connector account."
                     ))),
                 ),
                 (
@@ -363,7 +367,7 @@ impl utoipa::Modify for SecurityAddon {
                     SecurityScheme::ApiKey(ApiKey::Header(ApiKeyValue::with_description(
                         "api-key",
                         "Publishable keys are a type of keys that can be public and have limited \
-                         scope of usage."
+                        scope of usage."
                     ))),
                 ),
                 (
@@ -371,10 +375,114 @@ impl utoipa::Modify for SecurityAddon {
                     SecurityScheme::ApiKey(ApiKey::Header(ApiKeyValue::with_description(
                         "api-key",
                         "Ephemeral keys provide temporary access to singular data, such as access \
-                         to a single customer object for a short period of time."
+                        to a single customer object for a short period of time."
                     ))),
                 ),
             ]);
         }
     }
+}
+
+pub mod examples {
+    /// Creating the payment with minimal fields
+    pub const PAYMENTS_CREATE_MINIMUM_FIELDS: &str = r#"{
+        "amount": 6540,
+        "currency": "USD",
+    }"#;
+
+    /// Creating a manual capture payment
+    pub const PAYMENTS_CREATE_WITH_MANUAL_CAPTURE: &str = r#"{
+        "amount": 6540,
+        "currency": "USD",
+        "capture_method":"manual"
+    }"#;
+
+    /// Creating a payment with billing and shipping address
+    pub const PAYMENTS_CREATE_WITH_ADDRESS: &str = r#"{
+        "amount": 6540,
+        "currency": "USD",
+        "customer": {
+            "id" : "cus_abcdefgh"
+        },
+        "billing": {
+            "address": {
+                "line1": "1467",
+                "line2": "Harrison Street",
+                "line3": "Harrison Street",
+                "city": "San Fransico",
+                "state": "California",
+                "zip": "94122",
+                "country": "US",
+                "first_name": "joseph",
+                "last_name": "Doe"
+            },
+            "phone": {
+                "number": "8056594427",
+                "country_code": "+91"
+            }
+        }
+    }"#;
+
+    /// Creating a payment with customer details
+    pub const PAYMENTS_CREATE_WITH_CUSTOMER_DATA: &str = r#"{
+        "amount": 6540,
+        "currency": "USD",
+        "customer": {
+            "id":"cus_abcdefgh",
+            "name":"John Dough",
+            "phone":"9999999999",
+            "email":"john@example.com"
+        }
+    }"#;
+
+    /// 3DS force payment
+    pub const PAYMENTS_CREATE_WITH_FORCED_3DS: &str = r#"{
+        "amount": 6540,
+        "currency": "USD",
+        "authentication_type" : "three_ds"
+    }"#;
+
+    /// A payment with other fields
+    pub const PAYMENTS_CREATE: &str = r#"{
+        "amount": 6540,
+        "currency": "USD",
+        "payment_id": "abcdefghijklmnopqrstuvwxyz",
+        "customer": {
+            "id":"cus_abcdefgh",
+            "name":"John Dough",
+            "phone":"9999999999",
+            "email":"john@example.com"
+        },
+        "description": "Its my first payment request",
+        "statement_descriptor_name": "joseph",
+        "statement_descriptor_suffix": "JS",
+        "metadata": {
+            "udf1": "some-value",
+            "udf2": "some-value"
+        }
+    }"#;
+
+    /// Creating the payment with order details
+    pub const PAYMENTS_CREATE_WITH_ORDER_DETAILS: &str = r#"{
+        "amount": 6540,
+        "currency": "USD",
+        "order_details": [
+            {
+                "product_name": "Apple iPhone 15",
+                "quantity": 1,
+                "amount" : 6540
+            }
+        ]
+    }"#;
+
+    /// Creating the payment with connector metadata for noon
+    pub const PAYMENTS_CREATE_WITH_NOON_ORDER_CATETORY: &str = r#"{
+        "amount": 6540,
+        "currency": "USD",
+        "connector_metadata": {
+            "noon": {
+                "order_category":"shoes"
+            }
+        }
+    }"#;
 }

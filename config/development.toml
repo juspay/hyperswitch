@@ -204,6 +204,9 @@ adyen = { banks = "blik_psp,place_zipko,m_bank,pay_with_ing,santander_przelew24,
 [bank_config.przelewy24]
 stripe = { banks = "alior_bank,bank_millennium,bank_nowy_bfg_sa,bank_pekao_sa,banki_spbdzielcze,blik,bnp_paribas,boz,citi,credit_agricole,e_transfer_pocztowy24,getin_bank,idea_bank,inteligo,mbank_mtransfer,nest_przelew,noble_pay,pbac_z_ipko,plus_bank,santander_przelew24,toyota_bank,volkswagen_bank" }
 
+[bank_config.open_banking_uk]
+adyen = { banks = "aib,bank_of_scotland,danske_bank,first_direct,first_trust,halifax,lloyds,monzo,nat_west,nationwide_bank,royal_bank_of_scotland,starling,tsb_bank,tesco_bank,ulster_bank,barclays,hsbc_bank,revolut,santander_przelew24,open_bank_success,open_bank_failure,open_bank_cancelled"}
+
 [bank_config.online_banking_fpx]
 adyen.banks = "affin_bank,agro_bank,alliance_bank,am_bank,bank_islam,bank_muamalat,bank_rakyat,bank_simpanan_nasional,cimb_bank,hong_leong_bank,hsbc_bank,kuwait_finance_house,may_bank,ocbc_bank,public_bank,rhb_bank,standard_chartered_bank,uob_bank"
 
@@ -281,6 +284,7 @@ danamon_va = {country = "ID", currency = "IDR"}
 mandiri_va = {country = "ID", currency = "IDR"}
 alfamart = {country = "ID", currency = "IDR"}
 indomaret = {country = "ID", currency = "IDR"}
+open_banking_uk = {country = "GB", currency = "GBP"}
 oxxo = {country = "MX", currency = "MXN"}
 pay_safe_card = {country = "AT,AU,BE,BR,BE,CA,HR,CY,CZ,DK,FI,FR,GE,DE,GI,HU,IS,IE,KW,LV,IE,LI,LT,LU,MT,MX,MD,ME,NL,NZ,NO,PY,PE,PL,PT,RO,SA,RS,SK,SI,ES,SE,CH,TR,UAE,UK,US,UY", currency = "EUR,AUD,BRL,CAD,CZK,DKK,GEL,GIP,HUF,ISK,KWD,CHF,MXN,MDL,NZD,NOK,PYG,PEN,PLN,RON,SAR,RSD,SEK,TRY,AED,GBP,USD,UYU"}
 seven_eleven = {country = "JP", currency = "JPY"}
@@ -352,7 +356,7 @@ debit = { currency = "USD" }
 [tokenization]
 stripe = { long_lived_token = false, payment_method = "wallet", payment_method_type = { type = "disable_only", list = "google_pay" } }
 checkout = { long_lived_token = false, payment_method = "wallet" }
-stax = { long_lived_token = true, payment_method = "card" }
+stax = { long_lived_token = true, payment_method = "card,bank_debit" }
 mollie = {long_lived_token = false, payment_method = "card"}
 
 [connector_customer]

@@ -10,6 +10,12 @@ use crate::{
         errors::http_not_implemented,
         payments::{self, PaymentRedirectFlow},
     },
+    openapi::examples::{
+        PAYMENTS_CREATE, PAYMENTS_CREATE_MINIMUM_FIELDS, PAYMENTS_CREATE_WITH_ADDRESS,
+        PAYMENTS_CREATE_WITH_CUSTOMER_DATA, PAYMENTS_CREATE_WITH_FORCED_3DS,
+        PAYMENTS_CREATE_WITH_MANUAL_CAPTURE, PAYMENTS_CREATE_WITH_NOON_ORDER_CATETORY,
+        PAYMENTS_CREATE_WITH_ORDER_DETAILS,
+    },
     services::{api, authentication as auth},
     types::{
         api::{self as api_types, enums as api_enums, payments as payment_types},
@@ -23,17 +29,59 @@ use crate::{
 #[utoipa::path(
     post,
     path = "/payments",
-    request_body=PaymentsCreateRequest,
+    request_body(
+        content = PaymentsCreateRequest,
+        examples(
+            (
+                "Create a payment with minimul fields" = (
+                    value = json!(PAYMENTS_CREATE_MINIMUM_FIELDS)
+                )
+            ),
+            (
+                "Create a manual capture payment" = (
+                    value = json!(PAYMENTS_CREATE_WITH_MANUAL_CAPTURE)
+                )
+            ),
+            (
+                "Create a payment with address" = (
+                    value = json!(PAYMENTS_CREATE_WITH_ADDRESS)
+                )
+            ),
+            (
+                "Create a payment with customer details" = (
+                    value = json!(PAYMENTS_CREATE_WITH_CUSTOMER_DATA)
+                )
+            ),
+            (
+                "Create a 3DS payment" = (
+                    value = json!(PAYMENTS_CREATE_WITH_FORCED_3DS)
+                )
+            ),
+            (
+                "Create a payment" = (
+                    value = json!(PAYMENTS_CREATE)
+                )
+            ),
+            (
+                "Create a payment with order details" = (
+                    value = json!(PAYMENTS_CREATE_WITH_ORDER_DETAILS)
+                )
+            ),
+            (
+                "Create a payment with order category for noon" = (
+                    value = json!(PAYMENTS_CREATE_WITH_NOON_ORDER_CATETORY)
+                )
+            ),
+        )),
     responses(
         (status = 200, description = "Payment created", body = PaymentsResponse),
         (status = 400, description = "Missing Mandatory fields")
     ),
     tag = "Payments",
     operation_id = "Create a Payment",
-    security(("api_key" = []))
+    security(("api_key" = [])),
 )]
 #[instrument(skip_all, fields(flow = ?Flow::PaymentsCreate))]
-// #[post("")]
 pub async fn payments_create(
     state: web::Data<app::AppState>,
     req: actix_web::HttpRequest,
