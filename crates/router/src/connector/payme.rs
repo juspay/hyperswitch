@@ -9,11 +9,8 @@ use transformers as payme;
 
 use crate::{
     configs::settings,
-    core::{
-        errors::{self, CustomResult},
-        payments,
-    },
-    headers, routes,
+    core::errors::{self, CustomResult},
+    headers,
     services::{self, request, ConnectorIntegration},
     types::{
         self,
@@ -207,131 +204,11 @@ impl
         types::PaymentsResponseData,
     > for Payme
 {
-    fn get_headers(
-        &self,
-        req: &types::PaymentsInitRouterData,
-        connectors: &settings::Connectors,
-    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
-        self.build_headers(req, connectors)
-    }
-
-    fn get_content_type(&self) -> &'static str {
-        self.common_get_content_type()
-    }
-
-    fn get_url(
-        &self,
-        _req: &types::RouterData<
-            api::InitPayment,
-            types::PaymentsAuthorizeData,
-            types::PaymentsResponseData,
-        >,
-        connectors: &settings::Connectors,
-    ) -> CustomResult<String, errors::ConnectorError> {
-        Ok(format!("{}api/generate-sale", self.base_url(connectors)))
-    }
-
-    fn get_request_body(
-        &self,
-        req: &types::PaymentsInitRouterData,
-    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
-        let req_obj = payme::GenerateSaleRequest::try_from(req)?;
-        let payme_req = types::RequestBody::log_and_get_request_body(
-            &req_obj,
-            utils::Encode::<payme::GenerateSaleRequest>::encode_to_string_of_json,
-        )
-        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-        Ok(Some(payme_req))
-    }
-
-    fn build_request(
-        &self,
-        req: &types::PaymentsInitRouterData,
-        connectors: &settings::Connectors,
-    ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
-        Ok(Some(
-            services::RequestBuilder::new()
-                .method(services::Method::Post)
-                .url(&types::PaymentsInitType::get_url(self, req, connectors)?)
-                .attach_default_headers()
-                .headers(types::PaymentsInitType::get_headers(self, req, connectors)?)
-                .body(types::PaymentsInitType::get_request_body(self, req)?)
-                .build(),
-        ))
-    }
-
-    fn handle_response(
-        &self,
-        data: &types::PaymentsInitRouterData,
-        res: Response,
-    ) -> CustomResult<
-        types::RouterData<
-            api::InitPayment,
-            types::PaymentsAuthorizeData,
-            types::PaymentsResponseData,
-        >,
-        errors::ConnectorError,
-    >
-    where
-        api::InitPayment: Clone,
-        types::PaymentsAuthorizeData: Clone,
-        types::PaymentsResponseData: Clone,
-    {
-        let response: payme::GenerateSaleResponse = res
-            .response
-            .parse_struct("Payme GenerateSaleResponse")
-            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-        types::RouterData::try_from(types::ResponseRouterData {
-            response,
-            data: data.clone(),
-            http_code: res.status_code,
-        })
-    }
-
-    fn get_error_response(
-        &self,
-        res: Response,
-    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        self.build_error_response(res)
-    }
 }
 
-#[async_trait::async_trait]
 impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::PaymentsResponseData>
     for Payme
 {
-    async fn execute_pretasks(
-        &self,
-        router_data: &mut types::PaymentsAuthorizeRouterData,
-        app_state: &routes::AppState,
-    ) -> CustomResult<(), errors::ConnectorError> {
-        if router_data.request.mandate_id.is_none() {
-            let integ: Box<
-                &(dyn ConnectorIntegration<
-                    api::InitPayment,
-                    types::PaymentsAuthorizeData,
-                    types::PaymentsResponseData,
-                > + Send
-                      + Sync
-                      + 'static),
-            > = Box::new(&Self);
-            let init_data = &types::PaymentsInitRouterData::from((
-                &router_data.to_owned(),
-                router_data.request.clone(),
-            ));
-            let init_res = services::execute_connector_processing_step(
-                app_state,
-                integ,
-                init_data,
-                payments::CallConnectorAction::Trigger,
-                None,
-            )
-            .await?;
-            router_data.request.related_transaction_id = init_res.request.related_transaction_id;
-        }
-        Ok(())
-    }
-
     fn get_headers(
         &self,
         req: &types::PaymentsAuthorizeRouterData,

@@ -2356,6 +2356,8 @@ pub struct ApplepaySessionTokenResponse {
     pub sdk_next_action: SdkNextAction,
     /// The connector transaction id
     pub connector_reference_id: Option<String>,
+    /// The public key id is to invoke third party sdk
+    pub public_key_id: Option<String>,
 }
 
 #[derive(Debug, Eq, PartialEq, serde::Serialize, Clone, ToSchema)]
