@@ -12,27 +12,27 @@ JSON_DATA=$(cat Connectors.json)
 RED='\033[0;31m'
 RESET='\033[0m'
 
-# Extract the connectors and ignore list values using jq
-CONNECTORS=$(echo "$JSON_DATA" | jq -r '.CONNECTORS')
-IGNORE_LIST=$(echo "$JSON_DATA" | jq -r '.IGNORE_LIST')
+# Extract the connectors and ignore_list values using jq
+CONNECTORS=$(echo "$JSON_DATA" | jq -r '.CONNECTORS | @tsv')
+IGNORE_LIST=$(echo "$JSON_DATA" | jq -r '.IGNORE_LIST | @tsv')
 
 # Convert the comma-separated strings into arrays
-IFS=',' read -ra CONNECTORS_ARRAY <<< "$CONNECTORS"
-IFS=',' read -ra IGNORE_LIST_ARRAY <<< "$IGNORE_LIST"
+IFS=$'\t' read -ra CONNECTORS_ARRAY <<< "$CONNECTORS"
+IFS=$'\t' read -ra IGNORE_LIST_ARRAY <<< "$IGNORE_LIST"
+IFS=$'\n'
 
 # This function will exclude the folders since we don't have a way to exclude folders in the newman
 function exclude_folder() {
     local connector_name="$1"
     local exclude_folder="$2"
-    
     # Reads the collection
     local collection_file="postman/$connector_name.postman_collection.json"
-    
+
     # Fetches the folder names and excludes the folder that is passed as an argument
     local filter=$(jq -r --arg exclude "$exclude_folder" '
         def print_folder_names($items; $indent):
         $items[] | select(has("item")) as $folder |
-        if $folder.name != $exclude then
+        if ($exclude | split(",") | index($folder.name) == null) then
             "\($indent)\(.name)",
             ($folder.item | print_folder_names(.; "\($indent)"))
         else
@@ -40,21 +40,19 @@ function exclude_folder() {
         end;
 
       print_folder_names(.item; "")
-    ' $collection_file)
+    ' --arg exclude "$exclude_folder" $collection_file)
 
-    IFS=$'\n'
-    
     # Loop through the folders and exclude the folders Main folders since we want only the folders that contains tests
     for folder in $filter; do
         if [ "$folder" != "Happy Cases" ] && [ "$folder" != "Variation Cases" ] && [ "$folder" != "Flow Testcases" ]; then
-        if [ -n "$filtered_folders" ]; then
-                filtered_folders+=",$connector_name:$folder"
+            if [ -n "$filtered_folders" ]; then
+                filtered_folders+=",$connector_name:\"$folder\""
             else
-                filtered_folders="$connector_name:$folder"
+                filtered_folders="$connector_name:\"$folder\""
             fi
         fi
     done
-
+    
     # Returns the folders that contains tests
     echo "$filtered_folders"
 }
@@ -97,9 +95,10 @@ for i in $(echo "$FILTERED_CONNECTORS" | tr "," "\n"); do
                 IFS=':' read -r connector connector_folder <<< "$j"
                 only_folders="${j//$connector:/}"
                 if [[ "$connector" == "$i" && ! " ${validated_connectors[*]} " =~ " $connector " ]]; then
-                    echo "cargo run --bin test_utils -- --connector_name=$connector --base_url=$BASE_URL --admin_api_key=$ADMIN_API_KEY --folder_name=$only_folders"
-                    FAILED_CONNECTORS+=("$i")
-                    run_connector=true
+                    if ! cargo run --bin test_utils -- --connector_name="$i" --base_url="$BASE_URL" --admin_api_key="$ADMIN_API_KEY" --folder_name="$only_folders"; then
+                        FAILED_CONNECTORS+=("$i")
+                        run_connector=true
+                    fi
                 fi
                 validated_connectors+=("$connector")
             done
@@ -108,8 +107,9 @@ for i in $(echo "$FILTERED_CONNECTORS" | tr "," "\n"); do
     
     if [[ "$run_connector" == "false" ]]; then
         if [[ ! " ${validated_connectors[*]} " =~ " $i " ]]; then
-            echo "cargo run --bin test_utils -- --connector_name=$i --base_url=$BASE_URL --admin_api_key=$ADMIN_API_KEY"
-            FAILED_CONNECTORS+=("$i")
+            if ! cargo run --bin test_utils -- --connector_name="$i" --base_url="$BASE_URL" --admin_api_key="$ADMIN_API_KEY"; then
+              FAILED_CONNECTORS+=("$i")
+            fi
             validated_connectors+=("$i")
         fi
     fi
