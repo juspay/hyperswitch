@@ -213,7 +213,7 @@ and improve control.
 But integrating and maintaining multiple processors needs a lot of dev effort.
 Why should devs across companies repeat the same work?
 Why can't it be unified and reused? Hence, HyperSwitch was born to create that
-reusable core and let companies build and customise it on top of it.
+reusable core and let companies build and customise it as per their specific requirements.
 
 ### Our Values
 
