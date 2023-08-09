@@ -117,21 +117,21 @@ impl ConnectorCommon for Square {
             code: response
                 .errors
                 .first()
-                .unwrap_or(&default_error_details.clone())
+                .unwrap_or(&default_error_details)
                 .code
                 .clone()
                 .unwrap_or("".to_string()),
             message: response
                 .errors
                 .first()
-                .unwrap_or(&default_error_details.clone())
+                .unwrap_or(&default_error_details)
                 .detail
                 .clone()
                 .unwrap_or("".to_string()),
             reason: response
                 .errors
                 .first()
-                .unwrap_or(&default_error_details.clone())
+                .unwrap_or(&default_error_details)
                 .category
                 .clone(),
         })

@@ -11,12 +11,11 @@ use crate::{
     },
 };
 
-//Should i make exp year and exp month secret?
 #[derive(Debug, Serialize)]
 pub struct SquareCardData {
     cvv: Secret<String>,
-    exp_month: u16,
-    exp_year: u16,
+    exp_month: Secret<u16>,
+    exp_year: Secret<u16>,
     number: cards::CardNumber,
 }
 #[derive(Debug, Serialize)]
@@ -40,17 +39,32 @@ impl TryFrom<&types::TokenizationRouterData> for SquareTokenRequest {
 
         match item.request.payment_method_data.clone() {
             api::PaymentMethodData::Card(card_data) => {
-                let square_card_data = SquareTokenizeData {
+                let exp_year = Secret::new(
+                    card_data
+                        .get_expiry_year_4_digit()
+                        .peek()
+                        .parse::<u16>()
+                        .into_report()
+                        .change_context(errors::ConnectorError::DateFormattingFailed)?,
+                );
+                let exp_month = Secret::new(
+                    card_data
+                        .card_exp_month
+                        .peek()
+                        .parse::<u16>()
+                        .into_report()
+                        .change_context(errors::ConnectorError::DateFormattingFailed)?,
+                );
+                Ok(Self::Card(SquareTokenizeData {
                     client_id: auth.key1,
-                    session_id: Secret::new(item.session_token.clone().unwrap()),
+                    session_id: Secret::new(item.session_token.clone().unwrap_or_default()),
                     card_data: SquareCardData {
-                        exp_year: card_data.get_expiry_year_4_digit().peek().parse().unwrap(),
-                        exp_month: card_data.card_exp_month.peek().parse().unwrap(),
+                        exp_year,
+                        exp_month,
                         number: card_data.card_number,
                         cvv: card_data.card_cvc,
                     },
-                };
-                Ok(Self::Card(square_card_data))
+                }))
             }
             api::PaymentMethodData::BankDebit(_)
             | api::PaymentMethodData::Wallet(_)

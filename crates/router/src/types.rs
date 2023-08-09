@@ -863,9 +863,7 @@ impl Tokenizable for VerifyRequestData {
     fn get_pm_data(&self) -> payments::PaymentMethodData {
         self.payment_method_data.clone()
     }
-    fn set_session_token(&mut self, _token: Option<String>) {
-        ()
-    }
+    fn set_session_token(&mut self, _token: Option<String>) {}
 }
 
 impl Tokenizable for PaymentsAuthorizeData {

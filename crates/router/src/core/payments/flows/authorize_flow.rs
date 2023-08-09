@@ -116,7 +116,7 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
             state,
             connector,
             tokenization_action,
-            &mut self,
+            self,
             types::PaymentMethodTokenizationData::try_from(request)?,
         )
         .await

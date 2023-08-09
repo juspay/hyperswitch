@@ -96,7 +96,7 @@ impl Feature<api::Verify, types::VerifyRequestData> for types::VerifyRouterData 
             state,
             connector,
             tokenization_action,
-            &mut self,
+            self,
             types::PaymentMethodTokenizationData::try_from(request)?,
         )
         .await
