@@ -17,7 +17,6 @@ pub mod routes;
 pub mod scheduler;
 
 pub mod middleware;
-#[cfg(feature = "openapi")]
 pub mod openapi;
 pub mod services;
 pub mod types;
