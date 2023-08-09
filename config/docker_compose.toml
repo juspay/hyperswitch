@@ -275,3 +275,4 @@ card.debit = {connector_list = "stripe,adyen,authorizedotnet,globalpay,worldpay,
 
 [connector_customer]
 connector_list = "stax"
+payout_connector_list = "wise"

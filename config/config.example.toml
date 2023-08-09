@@ -379,6 +379,7 @@ cashapp = {country = "US", currency = "USD"}
 
 [connector_customer]
 connector_list = "stax"
+payout_connector_list = "wise"
 
 [bank_config.online_banking_fpx]
 adyen.banks = "affin_bank,agro_bank,alliance_bank,am_bank,bank_islam,bank_muamalat,bank_rakyat,bank_simpanan_nasional,cimb_bank,hong_leong_bank,hsbc_bank,kuwait_finance_house,may_bank,ocbc_bank,public_bank,rhb_bank,standard_chartered_bank,uob_bank"
