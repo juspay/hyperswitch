@@ -264,7 +264,7 @@ pub async fn add_card_hs(
             card_exp_year: card.card_exp_year.to_owned(),
             card_brand: None,
             card_isin: None,
-            nick_name: card.nick_name.to_owned().map(masking::Secret::expose),
+            nick_name: card.nick_name.as_ref().map(masking::Secret::peek).cloned(),
         },
     });
     let store_card_payload = call_to_locker_hs(state, &payload, &customer_id).await?;
