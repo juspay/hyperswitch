@@ -1,4 +1,4 @@
-use api_models::payments::PaymentMethodData;
+use api_models::{enums::AuthenticationType, payments::PaymentMethodData};
 use common_utils::pii;
 use error_stack::{IntoReport, ResultExt};
 use masking::{ExposeInterface, Secret};
@@ -17,7 +17,6 @@ use crate::{
 pub struct PayRequest {
     buyer_name: Secret<String>,
     buyer_email: pii::Email,
-    buyer_key: String,
     payme_sale_id: String,
     #[serde(flatten)]
     card: PaymeCard,
@@ -36,10 +35,19 @@ pub struct MandateRequest {
 }
 
 #[derive(Debug, Serialize)]
+pub struct Pay3dsRequest {
+    buyer_name: Secret<String>,
+    buyer_email: pii::Email,
+    buyer_key: String,
+    payme_sale_id: String,
+}
+
+#[derive(Debug, Serialize)]
 #[serde(untagged)]
 pub enum PaymePaymentRequest {
     MandateRequest(MandateRequest),
     PayRequest(PayRequest),
+    Pay3dsRequest(Pay3dsRequest),
 }
 
 #[derive(Debug, Serialize)]
@@ -269,7 +277,10 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PaymePaymentRequest {
         let payme_request = if value.request.mandate_id.is_some() {
             Self::MandateRequest(MandateRequest::try_from(value)?)
         } else {
-            Self::PayRequest(PayRequest::try_from(value)?)
+            match value.auth_type {
+                AuthenticationType::ThreeDs => Self::Pay3dsRequest(Pay3dsRequest::try_from(value)?),
+                AuthenticationType::NoThreeDs => Self::PayRequest(PayRequest::try_from(value)?),
+            }
         };
         Ok(payme_request)
     }
@@ -342,12 +353,39 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PayRequest {
                         id: "payme_sale_id".to_string(),
                     },
                 )?;
-                let buyer_key = item.payment_method_token.clone().unwrap_or(Err(errors::ConnectorError::MissingRequiredField { field_name: "buyer_key" })?);
                 Ok(Self {
                     card,
                     buyer_email,
                     buyer_name,
+                    payme_sale_id,
+                })
+            }
+            _ => Err(errors::ConnectorError::NotImplemented("Payment methods".to_string()).into()),
+        }
+    }
+}
+
+impl TryFrom<&types::PaymentsAuthorizeRouterData> for Pay3dsRequest {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(item: &types::PaymentsAuthorizeRouterData) -> Result<Self, Self::Error> {
+        match item.request.payment_method_data.clone() {
+            api::PaymentMethodData::Card(_) => {
+                let buyer_email = item.request.get_email()?;
+                let buyer_name = item.get_billing_address()?.get_full_name()?;
+                let payme_sale_id = item.request.related_transaction_id.clone().ok_or(
+                    errors::ConnectorError::MissingConnectorRelatedTransactionID {
+                        id: "payme_sale_id".to_string(),
+                    },
+                )?;
+                let buyer_key = item.payment_method_token.clone().unwrap_or(Err(
+                    errors::ConnectorError::MissingRequiredField {
+                        field_name: "buyer_key",
+                    },
+                )?);
+                Ok(Self {
+                    buyer_email,
                     buyer_key,
+                    buyer_name,
                     payme_sale_id,
                 })
             }
@@ -361,7 +399,8 @@ impl TryFrom<&types::TokenizationRouterData> for CaptureBuyerRequest {
     fn try_from(item: &types::TokenizationRouterData) -> Result<Self, Self::Error> {
         match item.request.payment_method_data.clone() {
             api::PaymentMethodData::Card(req_card) => {
-                let seller_payme_id = PaymeAuthType::try_from(&item.connector_auth_type)?.seller_payme_id;
+                let seller_payme_id =
+                    PaymeAuthType::try_from(&item.connector_auth_type)?.seller_payme_id;
                 let card = PaymeCard {
                     credit_card_cvv: req_card.card_cvc.clone(),
                     credit_card_exp: req_card
@@ -458,23 +497,12 @@ pub struct PaymeMetadata {
 }
 
 impl<F, T>
-    TryFrom<
-        types::ResponseRouterData<
-            F,
-            CaptureBuyerResponse,
-            T,
-            types::PaymentsResponseData,
-        >,
-    > for types::RouterData<F, T, types::PaymentsResponseData>
+    TryFrom<types::ResponseRouterData<F, CaptureBuyerResponse, T, types::PaymentsResponseData>>
+    for types::RouterData<F, T, types::PaymentsResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: types::ResponseRouterData<
-            F,
-            CaptureBuyerResponse,
-            T,
-            types::PaymentsResponseData,
-        >,
+        item: types::ResponseRouterData<F, CaptureBuyerResponse, T, types::PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
             response: Ok(types::PaymentsResponseData::TokenizationResponse {

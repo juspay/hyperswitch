@@ -111,7 +111,10 @@ impl
         _req: &types::TokenizationRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Ok(format!("{}api/capture-buyer-token", self.base_url(connectors)))
+        Ok(format!(
+            "{}api/capture-buyer-token",
+            self.base_url(connectors)
+        ))
     }
 
     fn get_request_body(
@@ -156,7 +159,6 @@ impl
             .response
             .parse_struct("Payme CaptureBuyerResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-        println!("sakilmostak {:?}",response);
 
         types::RouterData::try_from(types::ResponseRouterData {
             response,
