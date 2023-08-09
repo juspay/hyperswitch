@@ -17,13 +17,16 @@ use image::Luma;
 use nanoid::nanoid;
 use qrcode;
 use serde::de::DeserializeOwned;
+use serde_json::Value;
 use uuid::Uuid;
 
 pub use self::ext_traits::{OptionExt, ValidateCall};
 use crate::{
     consts,
-    core::errors::{self, RouterResult},
-    logger, types,
+    core::errors::{self, CustomResult, RouterResult},
+    logger,
+    routes::metrics,
+    types,
 };
 
 pub mod error_parser {
@@ -174,5 +177,38 @@ mod tests {
     fn test_image_data_source_url() {
         let qr_image_data_source_url = utils::QrImage::new_from_data("Hyperswitch".to_string());
         assert!(qr_image_data_source_url.is_ok());
+    }
+}
+
+// validate json format for the error
+pub fn handle_json_response_deserialization_failure(
+    res: types::Response,
+    connector: String,
+) -> CustomResult<types::ErrorResponse, errors::ConnectorError> {
+    metrics::RESPONSE_DESERIALIZATION_FAILURE.add(
+        &metrics::CONTEXT,
+        1,
+        &[metrics::request::add_attributes("connector", connector)],
+    );
+
+    let response_data = String::from_utf8(res.response.to_vec())
+        .into_report()
+        .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+
+    // check for whether the response is in json format
+    match serde_json::from_str::<Value>(&response_data) {
+        // in case of unexpected response but in json format
+        Ok(_) => Err(errors::ConnectorError::ResponseDeserializationFailed)?,
+        // in case of unexpected response but in html or string format
+        Err(error_msg) => {
+            logger::error!(deserialization_error=?error_msg);
+            logger::error!("UNEXPECTED RESPONSE FROM CONNECTOR: {}", response_data);
+            Ok(types::ErrorResponse {
+                status_code: res.status_code,
+                code: consts::NO_ERROR_CODE.to_string(),
+                message: consts::UNSUPPORTED_ERROR_MESSAGE.to_string(),
+                reason: Some(response_data),
+            })
+        }
     }
 }

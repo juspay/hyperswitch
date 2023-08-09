@@ -246,7 +246,8 @@ impl
             }
             api_models::payments::VoucherData::RedPagos => ZenPaymentChannels::PclBoacompraRedpagos,
             api_models::payments::VoucherData::Alfamart { .. }
-            | api_models::payments::VoucherData::Indomaret { .. } => Err(
+            | api_models::payments::VoucherData::Indomaret { .. }
+            | api_models::payments::VoucherData::Oxxo { .. } => Err(
                 errors::ConnectorError::NotImplemented("payment method".to_string()),
             )?,
         };
@@ -650,6 +651,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for ZenPaymentsRequest {
             | api_models::payments::PaymentMethodData::MandatePayment
             | api_models::payments::PaymentMethodData::Reward(_)
             | api_models::payments::PaymentMethodData::Upi(_)
+            | api_models::payments::PaymentMethodData::CardRedirect(_)
             | api_models::payments::PaymentMethodData::GiftCard(_) => {
                 Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("zen"),

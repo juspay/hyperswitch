@@ -1548,6 +1548,7 @@ impl From<PaymentMethodType> for PaymentMethod {
             PaymentMethodType::Becs => Self::BankDebit,
             PaymentMethodType::BniVa => Self::BankTransfer,
             PaymentMethodType::BriVa => Self::BankTransfer,
+            PaymentMethodType::Benefit => Self::CardRedirect,
             PaymentMethodType::Bizum => Self::BankRedirect,
             PaymentMethodType::Blik => Self::BankRedirect,
             PaymentMethodType::Alfamart => Self::Voucher,
@@ -1567,9 +1568,11 @@ impl From<PaymentMethodType> for PaymentMethod {
             PaymentMethodType::Ideal => Self::BankRedirect,
             PaymentMethodType::Klarna => Self::PayLater,
             PaymentMethodType::KakaoPay => Self::Wallet,
+            PaymentMethodType::Knet => Self::CardRedirect,
             PaymentMethodType::MbWay => Self::Wallet,
             PaymentMethodType::MobilePay => Self::Wallet,
             PaymentMethodType::Momo => Self::Wallet,
+            PaymentMethodType::MomoAtm => Self::CardRedirect,
             PaymentMethodType::Multibanco => Self::BankTransfer,
             PaymentMethodType::MandiriVa => Self::BankTransfer,
             PaymentMethodType::Interac => Self::BankRedirect,
@@ -1606,6 +1609,8 @@ impl From<PaymentMethodType> for PaymentMethod {
             PaymentMethodType::RedPagos => Self::Voucher,
             PaymentMethodType::Cashapp => Self::Wallet,
             PaymentMethodType::Givex => Self::GiftCard,
+            PaymentMethodType::Oxxo => Self::Voucher,
+            PaymentMethodType::OpenBankingUk => Self::BankRedirect,
         }
     }
 }

@@ -65,11 +65,6 @@ pub trait ConnectorCommon {
         "application/json"
     }
 
-    fn validate_auth_type(
-        &self,
-        val: &types::ConnectorAuthType,
-    ) -> Result<(), error_stack::Report<errors::ConnectorError>>;
-
     // FIXME write doc - think about this
     // fn headers(&self) -> Vec<(&str, &str)>;
 

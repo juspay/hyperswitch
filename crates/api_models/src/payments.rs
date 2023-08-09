@@ -618,6 +618,14 @@ pub struct Card {
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
 #[serde(rename_all = "snake_case")]
+pub enum CardRedirectData {
+    Knet {},
+    Benefit {},
+    MomoAtm {},
+}
+
+#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
+#[serde(rename_all = "snake_case")]
 pub enum PayLaterData {
     /// For KlarnaRedirect as PayLater Option
     KlarnaRedirect {
@@ -672,6 +680,15 @@ pub enum BankDebitData {
 
         #[schema(value_type = String, example = "John Doe")]
         bank_account_holder_name: Option<Secret<String>>,
+
+        #[schema(value_type = String, example = "ACH")]
+        bank_name: Option<enums::BankNames>,
+
+        #[schema(value_type = String, example = "Checking")]
+        bank_type: Option<enums::BankType>,
+
+        #[schema(value_type = String, example = "Personal")]
+        bank_holder_type: Option<enums::BankHolderType>,
     },
     SepaBankDebit {
         /// Billing details for bank debit
@@ -712,6 +729,7 @@ pub enum BankDebitData {
 #[serde(rename_all = "snake_case")]
 pub enum PaymentMethodData {
     Card(Card),
+    CardRedirect(CardRedirectData),
     Wallet(WalletData),
     PayLater(PayLaterData),
     BankRedirect(BankRedirectData),
@@ -775,6 +793,7 @@ pub enum AdditionalPaymentData {
     Upi {},
     GiftCard {},
     Voucher {},
+    CardRedirect {},
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema)]
@@ -872,6 +891,14 @@ pub enum BankRedirectData {
         // Issuer value corresponds to the bank
         #[schema(value_type = BankNames)]
         issuer: api_enums::BankNames,
+    },
+    OpenBankingUk {
+        // Issuer banks
+        #[schema(value_type = BankNames)]
+        issuer: api_enums::BankNames,
+        /// The country for bank payment
+        #[schema(value_type = CountryAlpha2, example = "US")]
+        country: api_enums::CountryAlpha2,
     },
     Przelewy24 {
         //Issuer banks
@@ -1292,6 +1319,7 @@ pub enum VoucherData {
     RedPagos,
     Alfamart(Box<AlfamartVoucherData>),
     Indomaret(Box<IndomaretVoucherData>),
+    Oxxo,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
@@ -1311,6 +1339,7 @@ pub enum PaymentMethodDataResponse {
     Upi,
     Voucher,
     GiftCard,
+    CardRedirect,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, ToSchema)]
@@ -2036,6 +2065,7 @@ impl From<AdditionalPaymentData> for PaymentMethodDataResponse {
             AdditionalPaymentData::BankTransfer {} => Self::BankTransfer,
             AdditionalPaymentData::Voucher {} => Self::Voucher,
             AdditionalPaymentData::GiftCard {} => Self::GiftCard,
+            AdditionalPaymentData::CardRedirect {} => Self::CardRedirect,
         }
     }
 }
