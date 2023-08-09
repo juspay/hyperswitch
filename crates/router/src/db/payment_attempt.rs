@@ -365,6 +365,7 @@ impl PaymentAttemptInterface for MockDb {
             mandate_details: payment_attempt.mandate_details,
             preprocessing_step_id: payment_attempt.preprocessing_step_id,
             error_reason: payment_attempt.error_reason,
+            multiple_capture_count: payment_attempt.multiple_capture_count,
             connector_response_reference_id: None,
         };
         payment_attempts.push(payment_attempt.clone());
@@ -504,6 +505,7 @@ mod storage {
                         mandate_details: payment_attempt.mandate_details.clone(),
                         preprocessing_step_id: payment_attempt.preprocessing_step_id.clone(),
                         error_reason: payment_attempt.error_reason.clone(),
+                        multiple_capture_count: payment_attempt.multiple_capture_count,
                         connector_response_reference_id: None,
                     };
 

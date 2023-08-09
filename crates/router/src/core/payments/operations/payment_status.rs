@@ -353,6 +353,7 @@ async fn get_tracker_for_sync<
             connector_customer_id: None,
             recurring_mandate_payment_data: None,
             ephemeral_key: None,
+            multiple_capture_data: None,
             redirect_response: None,
             frm_message,
         },
