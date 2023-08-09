@@ -174,6 +174,8 @@ pub enum ConnectorType {
     BankingEntities,
     /// All types of non-banking financial institutions including Insurance, Credit / Lending etc
     NonBankingFinance,
+    /// Acquirers, Gateways etc
+    PayoutProcessor,
 }
 
 #[allow(clippy::upper_case_acronyms)]
