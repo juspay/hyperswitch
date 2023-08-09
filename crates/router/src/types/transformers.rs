@@ -266,6 +266,12 @@ impl ForeignFrom<api_enums::PaymentMethodType> for api_enums::PaymentMethod {
             | api_enums::PaymentMethodType::Alfamart
             | api_enums::PaymentMethodType::Indomaret
             | api_enums::PaymentMethodType::Oxxo
+            | api_enums::PaymentMethodType::SevenEleven
+            | api_enums::PaymentMethodType::Lawson
+            | api_enums::PaymentMethodType::MiniStop
+            | api_enums::PaymentMethodType::FamilyMart
+            | api_enums::PaymentMethodType::Seicomart
+            | api_enums::PaymentMethodType::PayEasy
             | api_enums::PaymentMethodType::RedPagos => Self::Voucher,
             api_enums::PaymentMethodType::Pse
             | api_enums::PaymentMethodType::Multibanco

@@ -1351,7 +1351,6 @@ impl api::IncomingWebhook for Adyen {
             .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
 
         let base64_signature = notif_item.additional_data.hmac_signature;
-
         Ok(base64_signature.as_bytes().to_vec())
     }
 
