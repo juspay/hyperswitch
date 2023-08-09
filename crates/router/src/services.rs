@@ -3,20 +3,18 @@ pub mod authentication;
 pub mod encryption;
 pub mod logger;
 
-use std::sync::{atomic, Arc};
-
 use error_stack::{IntoReport, ResultExt};
 #[cfg(feature = "kms")]
 use external_services::kms::{self, decrypt::KmsDecrypt};
 #[cfg(not(feature = "kms"))]
 use masking::PeekInterface;
+use masking::Secret;
 use redis_interface::{errors as redis_errors, PubsubInterface, RedisValue};
-use storage_impl::{diesel as diesel_impl, DatabaseStore};
+use storage_impl::{KVRouterStore, RouterStore};
 use tokio::sync::oneshot;
 
 pub use self::{api::*, encryption::*};
 use crate::{
-    async_spawn,
     cache::{CacheKind, ACCOUNTS_CACHE, CONFIG_CACHE},
     configs::settings,
     consts,
@@ -107,179 +105,82 @@ impl PubSubInterface for redis_interface::RedisConnectionPool {
     }
 }
 
-pub trait RedisConnInterface {
-    fn get_redis_conn(
-        &self,
-    ) -> common_utils::errors::CustomResult<
-        Arc<redis_interface::RedisConnectionPool>,
-        errors::RedisError,
-    >;
-}
+#[cfg(not(feature = "olap"))]
+type StoreType = storage_impl::database::store::Store;
+#[cfg(feature = "olap")]
+type StoreType = storage_impl::database::store::ReplicaStore;
 
-impl RedisConnInterface for Store {
-    fn get_redis_conn(
-        &self,
-    ) -> common_utils::errors::CustomResult<
-        Arc<redis_interface::RedisConnectionPool>,
-        errors::RedisError,
-    > {
-        self.redis_conn()
-    }
-}
-
-#[derive(Clone)]
-pub struct Store {
-    #[cfg(not(feature = "olap"))]
-    pub diesel_store: diesel_impl::store::Store,
-    #[cfg(feature = "olap")]
-    pub diesel_store: diesel_impl::store::ReplicaStore,
-    pub redis_conn: Arc<redis_interface::RedisConnectionPool>,
-    #[cfg(feature = "kv_store")]
-    pub(crate) config: StoreConfig,
-    pub master_key: Vec<u8>,
-}
-
+#[cfg(not(feature = "kv_store"))]
+pub type Store = RouterStore<StoreType>;
 #[cfg(feature = "kv_store")]
-#[derive(Clone)]
-pub(crate) struct StoreConfig {
-    pub(crate) drainer_stream_name: String,
-    pub(crate) drainer_num_partitions: u8,
-}
+pub type Store = KVRouterStore<StoreType>;
 
-impl Store {
-    pub async fn new(
-        config: &settings::Settings,
-        test_transaction: bool,
-        shut_down_signal: oneshot::Sender<()>,
-    ) -> Self {
-        let redis_conn = Arc::new(crate::connection::redis_connection(config).await);
-        let redis_clone = redis_conn.clone();
+pub async fn get_store(
+    config: &settings::Settings,
+    shut_down_signal: oneshot::Sender<()>,
+    test_transaction: bool,
+) -> Store {
+    #[cfg(feature = "kms")]
+    let kms_client = kms::get_kms_client(&config.kms).await;
 
-        let subscriber_conn = redis_conn.clone();
+    #[cfg(feature = "kms")]
+    let master_config = config
+        .master_database
+        .clone()
+        .decrypt_inner(kms_client)
+        .await;
+    #[cfg(not(feature = "kms"))]
+    let master_config = config.master_database.clone().into();
 
-        if let Err(e) = redis_conn.subscribe(consts::PUB_SUB_CHANNEL).await {
-            logger::error!(subscribe_err=?e);
-        }
-
-        async_spawn!({
-            if let Err(e) = subscriber_conn.on_message().await {
-                logger::error!(pubsub_err=?e);
-            }
-        });
-        async_spawn!({
-            redis_clone.on_error(shut_down_signal).await;
-        });
-        #[cfg(feature = "kms")]
-        let kms_client = kms::get_kms_client(&config.kms).await;
-
-        let master_enc_key = get_master_enc_key(
-            config,
-            #[cfg(feature = "kms")]
-            kms_client,
-        )
+    #[cfg(all(feature = "olap", feature = "kms"))]
+    let replica_config = config
+        .replica_database
+        .clone()
+        .decrypt_inner(kms_client)
         .await;
 
-        #[allow(clippy::expect_used)]
-        Self {
-            #[cfg(not(feature = "olap"))]
-            diesel_store: diesel_impl::store::Store::new(
-                #[cfg(not(feature = "kms"))]
-                config.master_database.clone().into(),
-                #[cfg(feature = "kms")]
-                config
-                    .master_database
-                    .clone()
-                    .decrypt_inner(kms_client)
-                    .await
-                    .expect("Failed to decrypt master database"),
-                test_transaction,
-            )
-            .await,
-            #[cfg(feature = "olap")]
-            diesel_store: diesel_impl::store::ReplicaStore::new(
-                (
-                    #[cfg(not(feature = "kms"))]
-                    config.master_database.clone().into(),
-                    #[cfg(feature = "kms")]
-                    config
-                        .master_database
-                        .clone()
-                        .decrypt_inner(kms_client)
-                        .await
-                        .expect("Failed to decrypt master database"),
-                    #[cfg(not(feature = "kms"))]
-                    config.replica_database.clone().into(),
-                    #[cfg(feature = "kms")]
-                    config
-                        .replica_database
-                        .clone()
-                        .decrypt_inner(kms_client)
-                        .await
-                        .expect("Failed to decrypt replica database"),
-                ),
-                test_transaction,
-            )
-            .await,
-            redis_conn,
-            #[cfg(feature = "kv_store")]
-            config: StoreConfig {
-                drainer_stream_name: config.drainer.stream_name.clone(),
-                drainer_num_partitions: config.drainer.num_partitions,
-            },
-            master_key: master_enc_key,
-        }
-    }
+    #[cfg(all(feature = "olap", not(feature = "kms")))]
+    let replica_config = config.replica_database.clone().into();
+
+    let master_enc_key = get_master_enc_key(
+        config,
+        #[cfg(feature = "kms")]
+        kms_client,
+    )
+    .await;
+    #[cfg(not(feature = "olap"))]
+    let conf = master_config;
+    #[cfg(feature = "olap")]
+    let conf = (master_config, replica_config);
+
+    let store: RouterStore<StoreType> = if test_transaction {
+        RouterStore::test_store(conf, &config.redis, master_enc_key).await
+    } else {
+        RouterStore::from_config(
+            conf,
+            &config.redis,
+            master_enc_key,
+            shut_down_signal,
+            consts::PUB_SUB_CHANNEL,
+        )
+        .await
+    };
 
     #[cfg(feature = "kv_store")]
-    pub fn get_drainer_stream_name(&self, shard_key: &str) -> String {
-        // Example: {shard_5}_drainer_stream
-        format!("{{{}}}_{}", shard_key, self.config.drainer_stream_name,)
-    }
+    let store = KVRouterStore::from_store(
+        store,
+        config.drainer.stream_name.clone(),
+        config.drainer.num_partitions,
+    );
 
-    pub fn redis_conn(
-        &self,
-    ) -> errors::CustomResult<Arc<redis_interface::RedisConnectionPool>, redis_errors::RedisError>
-    {
-        if self
-            .redis_conn
-            .is_redis_available
-            .load(atomic::Ordering::SeqCst)
-        {
-            Ok(self.redis_conn.clone())
-        } else {
-            Err(redis_errors::RedisError::RedisConnectionError.into())
-        }
-    }
-
-    #[cfg(feature = "kv_store")]
-    pub(crate) async fn push_to_drainer_stream<T>(
-        &self,
-        redis_entry: diesel_models::kv::TypedSql,
-        partition_key: crate::utils::storage_partitioning::PartitionKey<'_>,
-    ) -> crate::core::errors::CustomResult<(), crate::core::errors::StorageError>
-    where
-        T: crate::utils::storage_partitioning::KvStorePartition,
-    {
-        let shard_key = T::shard_key(partition_key, self.config.drainer_num_partitions);
-        let stream_name = self.get_drainer_stream_name(&shard_key);
-        self.redis_conn
-            .stream_append_entry(
-                &stream_name,
-                &redis_interface::RedisEntryId::AutoGeneratedID,
-                redis_entry
-                    .to_field_value_pairs()
-                    .change_context(crate::core::errors::StorageError::KVError)?,
-            )
-            .await
-            .change_context(crate::core::errors::StorageError::KVError)
-    }
+    store
 }
 
 #[allow(clippy::expect_used)]
 async fn get_master_enc_key(
     conf: &crate::configs::settings::Settings,
     #[cfg(feature = "kms")] kms_client: &kms::KmsClient,
-) -> Vec<u8> {
+) -> Secret<Vec<u8>> {
     #[cfg(feature = "kms")]
     let master_enc_key = hex::decode(
         conf.secrets
@@ -295,7 +196,7 @@ async fn get_master_enc_key(
     let master_enc_key =
         hex::decode(conf.secrets.master_enc_key.peek()).expect("Failed to decode from hex");
 
-    master_enc_key
+    Secret::new(master_enc_key)
 }
 
 #[inline]
