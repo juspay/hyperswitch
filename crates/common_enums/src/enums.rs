@@ -91,6 +91,34 @@ pub enum AuthenticationType {
     Debug,
     Default,
     Eq,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    strum::EnumString,
+    Hash,
+)]
+#[router_derive::diesel_enum(storage_type = "pg_enum")]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum CaptureStatus {
+    // Capture request initiated
+    #[default]
+    Started,
+    // Capture request was successful
+    Charged,
+    // Capture is pending at connector side
+    Pending,
+    // Capture request failed
+    Failed,
+}
+
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Default,
+    Eq,
     Hash,
     PartialEq,
     serde::Deserialize,
@@ -146,6 +174,8 @@ pub enum ConnectorType {
     BankingEntities,
     /// All types of non-banking financial institutions including Insurance, Credit / Lending etc
     NonBankingFinance,
+    /// Acquirers, Gateways etc
+    PayoutProcessor,
 }
 
 #[allow(clippy::upper_case_acronyms)]
@@ -708,6 +738,7 @@ impl Currency {
     serde::Serialize,
     strum::Display,
     strum::EnumString,
+    ToSchema,
 )]
 #[router_derive::diesel_enum(storage_type = "pg_enum")]
 #[serde(rename_all = "snake_case")]
@@ -756,6 +787,7 @@ pub enum IntentStatus {
     #[default]
     RequiresConfirmation,
     RequiresCapture,
+    PartiallyCaptured,
 }
 
 #[derive(
@@ -912,6 +944,7 @@ pub enum PaymentMethodType {
     MbWay,
     MobilePay,
     Momo,
+    MomoAtm,
     Multibanco,
     OnlineBankingThailand,
     OnlineBankingCzechRepublic,
@@ -922,6 +955,7 @@ pub enum PaymentMethodType {
     Oxxo,
     PagoEfectivo,
     PermataBankTransfer,
+    OpenBankingUk,
     PayBright,
     Paypal,
     Pix,

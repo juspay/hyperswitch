@@ -829,6 +829,7 @@ pub struct BluesnapWebhookObjectResource {
 pub struct ErrorDetails {
     pub code: String,
     pub description: String,
+    pub error_name: String,
 }
 
 #[derive(Default, Debug, Clone, Deserialize)]
@@ -842,6 +843,7 @@ pub struct BluesnapErrorResponse {
 pub struct BluesnapAuthErrorResponse {
     pub error_code: String,
     pub error_description: String,
+    pub error_name: String,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -861,4 +863,13 @@ fn get_card_holder_info(
         last_name: address.get_last_name()?.clone(),
         email,
     }))
+}
+
+impl From<ErrorDetails> for utils::ErrorCodeAndMessage {
+    fn from(error: ErrorDetails) -> Self {
+        Self {
+            error_code: error.code.to_string(),
+            error_message: error.error_name,
+        }
+    }
 }
