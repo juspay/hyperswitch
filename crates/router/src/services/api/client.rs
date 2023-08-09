@@ -1,6 +1,13 @@
-use error_stack::{IntoReport, ResultExt};
-use once_cell::sync::OnceCell;
+use std::time::Duration;
 
+use error_stack::{IntoReport, ResultExt};
+use reqwest::multipart::Form;
+use http::{HeaderName, HeaderValue, Method};
+use masking::PeekInterface;
+use once_cell::sync::OnceCell;
+use reqwest::IntoUrl;
+
+use super::request::Maskable;
 use crate::{
     configs::settings::{Locker, Proxy},
     core::{
@@ -109,4 +116,134 @@ pub(super) fn proxy_bypass_urls(locker: &Locker) -> Vec<String> {
         format!("{basilisk_host}/tokenize/delete"),
         format!("{basilisk_host}/tokenize/delete/token"),
     ]
+}
+
+pub trait RequestBuilder: Send + Sync {
+    fn json(&mut self, body: serde_json::Value) -> CustomResult<(), &'static str>;
+    fn url_encoded_form(&mut self, body: serde_json::Value) -> CustomResult<(), &'static str>;
+    fn timeout(&mut self, timeout: Duration);
+    fn multipart(&mut self, form: Form);
+    fn header(&mut self, key: String, value: Maskable<String>) -> CustomResult<(), &'static str>;
+    fn send(
+        self,
+    ) -> Box<dyn core::future::Future<Output = Result<reqwest::Response, reqwest::Error>>>;
+}
+
+pub trait ApiClient
+where
+    Self: Sized + Send + Sync,
+{
+    fn new(proxy_config: Proxy, whitelisted_urls: Vec<String>) -> CustomResult<Self, &'static str>;
+    fn request<U: IntoUrl>(&self, method: Method, url: U) -> Box<dyn RequestBuilder>;
+}
+
+#[derive(Clone)]
+pub struct ProxyClient {
+    proxy_client: reqwest::Client,
+    non_proxy_client: reqwest::Client,
+    whitelisted_urls: Vec<String>,
+}
+
+impl ProxyClient {
+    fn get_reqwest_client(
+        &self,
+        base_url: String,
+        client_certificate: Option<String>,
+        client_certificate_key: Option<String>,
+    ) -> reqwest::Client {
+        // Fix this shit as well
+        if self.whitelisted_urls.contains(&base_url) {
+            self.non_proxy_client.clone()
+        } else {
+            self.proxy_client.clone()
+        }
+    }
+}
+
+#[derive(Clone)]
+pub struct RouterRequestBuilder {
+    inner: reqwest::Request,
+    client: ProxyClient,
+}
+
+impl RequestBuilder for RouterRequestBuilder {
+    fn json(&mut self, body: serde_json::Value) -> CustomResult<(), &'static str> {
+        let body_bytes = serde_json::to_vec(&body).map_err(ToString::to_string)?;
+        self.inner
+            .body_mut()
+            .replace(reqwest::Body::from(body_bytes));
+        Ok(())
+    }
+    fn url_encoded_form(&mut self, body: serde_json::Value) -> CustomResult<(), &'static str> {
+        let url_encoded_payload = serde_urlencoded::to_string(&body).map_err(ToString::to_string)?;
+        self.inner.body_mut().replace(reqwest::Body::from(url_encoded_payload));
+        Ok(())
+
+    }
+
+    fn timeout(&mut self, timeout: Duration) {
+        self.inner.timeout_mut().replace(timeout);
+    }
+
+    fn multipart(&mut self, form: Form) {
+        self.inner = self.inner.multipart(form);
+    }
+
+    fn header(&mut self, key: String, value: Maskable<String>) -> CustomResult<(), &'static str> {
+        let header_value = match value {
+            Maskable::Masked(hvalue) => {
+                let mut header =
+                    HeaderValue::from_str(hvalue.peek())?;
+                header.set_sensitive(true);
+                Ok(header)
+            }
+            Maskable::Normal(hvalue) => HeaderValue::from_str(&hvalue),
+        }.into_report().change_context("header creation failed")?;
+        let header_key = HeaderName::try_from(key);
+        self.inner.headers_mut().append(header_key, header_value);
+        Ok(())
+    }
+
+    fn send(
+        self,
+    ) -> Box<dyn core::future::Future<Output = Result<reqwest::Response, reqwest::Error>>> {
+        // Add client selection logic here
+        Box::new(self.client.proxy_client.execute(self.inner))
+    }
+}
+
+impl ApiClient for ProxyClient {
+    fn new(proxy_config: Proxy, whitelisted_urls: Vec<String>) -> CustomResult<Self, &'static str> {
+        let non_proxy_client = reqwest::Client::builder()
+            .redirect(reqwest::redirect::Policy::none())
+            .build().into_report().change_context("NON-Proxy client building failed")?;
+
+        let mut proxy_builder =
+            reqwest::Client::builder().redirect(reqwest::redirect::Policy::none());
+
+        if let Some(url) = proxy_config.https_url.as_ref() {
+            proxy_builder =
+                proxy_builder.proxy(reqwest::Proxy::https(url).into_report().change_context("Proxy HTTP URL is invalid"))?;
+        }
+
+        if let Some(url) = proxy_config.http_url.as_ref() {
+            proxy_builder =
+                proxy_builder.proxy(reqwest::Proxy::http(url).into_report().change_context("Proxy HTTP URL is invalid"))?;
+        }
+
+        let proxy_client = proxy_builder.build().into_report().change_context("Proxy client building failed")?;
+
+        Ok(Self {
+            proxy_client,
+            non_proxy_client,
+            whitelisted_urls,
+        })
+    }
+
+    fn request<U: IntoUrl>(&self, method: Method, url: U) -> Box<dyn RequestBuilder> {
+        Box::new(RouterRequestBuilder {
+            inner: self.proxy_client.request(method, url).build().map_err(|er| format!("{er:?}")).unwrap(),
+            client: self.clone(),
+        })
+    }
 }
