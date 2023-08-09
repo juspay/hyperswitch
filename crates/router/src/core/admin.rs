@@ -985,6 +985,10 @@ pub(crate) fn validate_auth_type(
             shift4::transformers::Shift4AuthType::try_from(val)?;
             Ok(())
         }
+        api_enums::Connector::Square => {
+            stax::transformers::StaxAuthType::try_from(val)?;
+            Ok(())
+        }
         api_enums::Connector::Stax => {
             stax::transformers::StaxAuthType::try_from(val)?;
             Ok(())
