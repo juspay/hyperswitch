@@ -83,12 +83,18 @@ impl ConnectorCommon for Payme {
             res.response
                 .parse_struct("PaymeErrorResponse")
                 .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-
+        let status_code = match res.status_code {
+            500..=511 => 200,
+            _ => res.status_code,
+        };
         Ok(ErrorResponse {
-            status_code: res.status_code,
-            code: response.code,
-            message: response.message,
-            reason: response.reason,
+            status_code,
+            code: response.status_error_code.to_string(),
+            message: response.status_error_details.clone(),
+            reason: Some(format!(
+                "{}, additional info: {}",
+                response.status_error_details, response.status_additional_info
+            )),
         })
     }
 }
@@ -180,6 +186,13 @@ impl
     }
 
     fn get_error_response(
+        &self,
+        res: Response,
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        self.build_error_response(res)
+    }
+
+    fn get_5xx_error_response(
         &self,
         res: Response,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
@@ -290,6 +303,13 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
         self.build_error_response(res)
     }
+
+    fn get_5xx_error_response(
+        &self,
+        res: Response,
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        self.build_error_response(res)
+    }
 }
 
 impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsResponseData>
@@ -367,6 +387,13 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
             http_code: res.status_code,
         })
     }
+
+    fn get_5xx_error_response(
+        &self,
+        res: Response,
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        self.build_error_response(res)
+    }
 }
 
 impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::PaymentsResponseData>
@@ -440,6 +467,13 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
     }
 
     fn get_error_response(
+        &self,
+        res: Response,
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        self.build_error_response(res)
+    }
+
+    fn get_5xx_error_response(
         &self,
         res: Response,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
@@ -536,6 +570,13 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
         self.build_error_response(res)
     }
+
+    fn get_5xx_error_response(
+        &self,
+        res: Response,
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        self.build_error_response(res)
+    }
 }
 
 impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponseData> for Payme {
@@ -612,6 +653,13 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
     }
 
     fn get_error_response(
+        &self,
+        res: Response,
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        self.build_error_response(res)
+    }
+
+    fn get_5xx_error_response(
         &self,
         res: Response,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
