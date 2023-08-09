@@ -2,6 +2,7 @@ pub mod api_error_response;
 pub mod error_handlers;
 pub mod transformers;
 pub mod utils;
+pub mod customers_error_response;
 
 use std::fmt::Display;
 
@@ -17,6 +18,7 @@ use router_env::opentelemetry::metrics::MetricsError;
 pub use self::{
     api_error_response::ApiErrorResponse,
     utils::{ConnectorErrorExt, StorageErrorExt},
+    customers_error_response::CustomersErrorResponse,
 };
 use crate::services;
 pub type RouterResult<T> = CustomResult<T, ApiErrorResponse>;

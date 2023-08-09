@@ -2,7 +2,7 @@ use api_models::errors::types::Extra;
 use common_utils::errors::ErrorSwitch;
 use http::StatusCode;
 
-use super::{ApiErrorResponse, ConnectorError};
+use super::{ApiErrorResponse, ConnectorError, CustomersErrorResponse };
 
 impl ErrorSwitch<api_models::errors::types::ApiErrorResponse> for ApiErrorResponse {
     fn switch(&self) -> api_models::errors::types::ApiErrorResponse {
@@ -268,6 +268,23 @@ impl ErrorSwitch<ApiErrorResponse> for ConnectorError {
             | Self::WebhooksNotImplemented => ApiErrorResponse::WebhookBadRequest,
             Self::WebhookEventTypeNotFound => ApiErrorResponse::WebhookUnprocessableEntity,
             _ => ApiErrorResponse::InternalServerError,
+        }
+    }
+}
+
+impl ErrorSwitch<api_models::errors::types::ApiErrorResponse> for CustomersErrorResponse {
+    fn switch(&self) -> api_models::errors::types::ApiErrorResponse {
+        use api_models::errors::types::{ApiError, ApiErrorResponse as AER};
+        match self {
+            Self::CustomerNotFound => {
+                AER::NotFound(ApiError::new("HE", 2, "Customer does not exist in our records", None))
+            }
+            CustomersErrorResponse::CustomerRedacted => {
+                AER::BadRequest(ApiError::new("IR", 11, "Customer has already been redacted", None))
+            }
+            CustomersErrorResponse::InternalServerError => {
+                AER::InternalServerError(ApiError::new("HE", 0, "Something went wrong", None))
+            }
         }
     }
 }

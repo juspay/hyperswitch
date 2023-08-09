@@ -163,7 +163,7 @@ pub async fn retrieve_customer(
             &key_store,
         )
         .await
-        .to_not_found_response(errors::ApiErrorResponse::CustomerNotFound)?;
+        .to_not_found_response(errors::CustomersErrorResponse::CustomerNotFound)?;
 
     Ok(services::ApplicationResponse::Json(response.into()))
 }
