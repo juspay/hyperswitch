@@ -4659,7 +4659,10 @@ dependencies = [
  "async-trait",
  "bb8",
  "diesel",
+ "error-stack",
  "masking",
+ "redis_interface",
+ "tokio",
 ]
 
 [[package]]
