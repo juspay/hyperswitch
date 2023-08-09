@@ -371,6 +371,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for AciPaymentsRequest {
             | api::PaymentMethodData::BankTransfer(_)
             | api::PaymentMethodData::Reward(_)
             | api::PaymentMethodData::GiftCard(_)
+            | api::PaymentMethodData::CardRedirect(_)
             | api::PaymentMethodData::Upi(_)
             | api::PaymentMethodData::Voucher(_) => Err(errors::ConnectorError::NotSupported {
                 message: format!("{:?}", item.payment_method),
@@ -595,6 +596,15 @@ pub struct AciPaymentsResponse {
     build_number: String,
     pub(super) result: ResultCode,
     pub(super) redirect: Option<AciRedirectionData>,
+}
+
+#[derive(Debug, Default, Clone, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub struct AciErrorResponse {
+    ndc: String,
+    timestamp: String,
+    build_number: String,
+    pub(super) result: ResultCode,
 }
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Eq)]
