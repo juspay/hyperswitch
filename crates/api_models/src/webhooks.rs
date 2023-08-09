@@ -66,11 +66,13 @@ impl From<IncomingWebhookEvent> for WebhookFlow {
 
 pub type MerchantWebhookConfig = std::collections::HashSet<IncomingWebhookEvent>;
 
+#[derive(Clone)]
 pub enum RefundIdType {
     RefundId(String),
     ConnectorRefundId(String),
 }
 
+#[derive(Clone)]
 pub enum ObjectReferenceId {
     PaymentId(payments::PaymentIdType),
     RefundId(RefundIdType),

@@ -739,13 +739,19 @@ pub async fn webhooks_core<W: types::OutgoingWebhookType>(
 
     let flow_type: api::WebhookFlow = event_type.to_owned().into();
     if process_webhook_further && !matches!(flow_type, api::WebhookFlow::ReturnResponse) {
+        let object_ref_id = connector
+            .get_webhook_object_reference_id(&request_details)
+            .switch()
+            .attach_printable("Could not find object reference id in incoming webhook body")?;
+
         let source_verified = connector
             .verify_webhook_source(
                 &*state.store,
                 &request_details,
-                &merchant_account.merchant_id,
+                &merchant_account,
                 connector_name,
                 &key_store,
+                object_ref_id.clone(),
             )
             .await
             .switch()
@@ -763,10 +769,6 @@ pub async fn webhooks_core<W: types::OutgoingWebhookType>(
         }
 
         logger::info!(source_verified=?source_verified);
-        let object_ref_id = connector
-            .get_webhook_object_reference_id(&request_details)
-            .switch()
-            .attach_printable("Could not find object reference id in incoming webhook body")?;
 
         let event_object = connector
             .get_webhook_resource_object(&request_details)
