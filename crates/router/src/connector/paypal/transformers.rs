@@ -169,10 +169,13 @@ fn get_payment_source(
         | BankRedirectData::Przelewy24 { .. }
         | BankRedirectData::Trustly { .. }
         | BankRedirectData::OnlineBankingFpx { .. }
-        | BankRedirectData::OnlineBankingThailand { .. } => {
-            Err(errors::ConnectorError::NotImplemented(
-                utils::get_unimplemented_payment_method_error_message("paypal"),
-            )
+        | BankRedirectData::OnlineBankingThailand { .. }
+        | api_models::payments::BankRedirectData::OpenBankingUk { .. } => {
+            Err(errors::ConnectorError::NotSupported {
+                message: utils::get_unsupported_payment_method_error_message(),
+                connector: "Paypal",
+                payment_experience: api_models::enums::PaymentExperience::RedirectToUrl.to_string(),
+            }
             .into())
         }
     }

@@ -504,7 +504,8 @@ impl TryFrom<&api_models::payments::BankRedirectData> for PaymentMethodData {
             | api_models::payments::BankRedirectData::OnlineBankingFinland { .. }
             | api_models::payments::BankRedirectData::OnlineBankingPoland { .. }
             | api_models::payments::BankRedirectData::OnlineBankingSlovakia { .. }
-            | api_models::payments::BankRedirectData::OnlineBankingThailand { .. } => {
+            | api_models::payments::BankRedirectData::OnlineBankingThailand { .. }
+            | api_models::payments::BankRedirectData::OpenBankingUk { .. } => {
                 Err(errors::ConnectorError::NotSupported {
                     message: utils::get_unsupported_payment_method_error_message(),
                     connector: "Globalpay",
