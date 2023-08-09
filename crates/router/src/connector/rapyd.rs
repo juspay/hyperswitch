@@ -4,7 +4,7 @@ use std::fmt::Debug;
 use base64::Engine;
 use common_utils::{date_time, ext_traits::StringExt};
 use diesel_models::enums;
-use error_stack::{IntoReport, ResultExt};
+use error_stack::{IntoReport, Report, ResultExt};
 use masking::{ExposeInterface, PeekInterface};
 use rand::distributions::{Alphanumeric, DistString};
 use ring::hmac;
@@ -16,7 +16,7 @@ use crate::{
     consts,
     core::errors::{self, CustomResult},
     db::StorageInterface,
-    headers,
+    headers, logger,
     services::{
         self,
         request::{self, Mask},
@@ -83,16 +83,23 @@ impl ConnectorCommon for Rapyd {
         &self,
         res: types::Response,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        let response: rapyd::RapydPaymentsResponse = res
-            .response
-            .parse_struct("Rapyd ErrorResponse")
-            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-        Ok(ErrorResponse {
-            status_code: res.status_code,
-            code: response.status.error_code,
-            message: response.status.status.unwrap_or_default(),
-            reason: response.status.message,
-        })
+        let response: Result<
+            rapyd::RapydPaymentsResponse,
+            Report<common_utils::errors::ParsingError>,
+        > = res.response.parse_struct("Rapyd ErrorResponse");
+
+        match response {
+            Ok(response_data) => Ok(ErrorResponse {
+                status_code: res.status_code,
+                code: response_data.status.error_code,
+                message: response_data.status.status.unwrap_or_default(),
+                reason: response_data.status.message,
+            }),
+            Err(error_msg) => {
+                logger::error!(deserialization_error =? error_msg);
+                utils::handle_json_response_deserialization_failure(res, "rapyd".to_owned())
+            }
+        }
     }
 }
 

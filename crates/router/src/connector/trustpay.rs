@@ -5,7 +5,7 @@ use std::fmt::Debug;
 use base64::Engine;
 use common_utils::{crypto, errors::ReportSwitchExt, ext_traits::ByteSliceExt};
 use diesel_models::enums;
-use error_stack::{IntoReport, ResultExt};
+use error_stack::{IntoReport, Report, ResultExt};
 use masking::PeekInterface;
 use transformers as trustpay;
 
@@ -20,7 +20,7 @@ use crate::{
         errors::{self, CustomResult},
         payments,
     },
-    headers,
+    headers, logger,
     services::{
         self,
         request::{self, Mask},
@@ -105,34 +105,43 @@ impl ConnectorCommon for Trustpay {
         &self,
         res: Response,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        let response: trustpay::TrustpayErrorResponse = res
-            .response
-            .parse_struct("trustpay ErrorResponse")
-            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-        let error_list = response.errors.clone().unwrap_or(vec![]);
-        let option_error_code_message = get_error_code_error_message_based_on_priority(
-            self.clone(),
-            error_list.into_iter().map(|errors| errors.into()).collect(),
-        );
-        let reason = response.errors.map(|errors| {
-            errors
-                .iter()
-                .map(|error| error.description.clone())
-                .collect::<Vec<String>>()
-                .join(" & ")
-        });
-        Ok(ErrorResponse {
-            status_code: res.status_code,
-            code: option_error_code_message
-                .clone()
-                .map(|error_code_message| error_code_message.error_code)
-                .unwrap_or(consts::NO_ERROR_CODE.to_string()),
-            // message vary for the same code, so relying on code alone as it is unique
-            message: option_error_code_message
-                .map(|error_code_message| error_code_message.error_code)
-                .unwrap_or(consts::NO_ERROR_MESSAGE.to_string()),
-            reason: reason.or(response.description),
-        })
+        let response: Result<
+            trustpay::TrustpayErrorResponse,
+            Report<common_utils::errors::ParsingError>,
+        > = res.response.parse_struct("trustpay ErrorResponse");
+
+        match response {
+            Ok(response_data) => {
+                let error_list = response_data.errors.clone().unwrap_or(vec![]);
+                let option_error_code_message = get_error_code_error_message_based_on_priority(
+                    self.clone(),
+                    error_list.into_iter().map(|errors| errors.into()).collect(),
+                );
+                let reason = response_data.errors.map(|errors| {
+                    errors
+                        .iter()
+                        .map(|error| error.description.clone())
+                        .collect::<Vec<String>>()
+                        .join(" & ")
+                });
+                Ok(ErrorResponse {
+                    status_code: res.status_code,
+                    code: option_error_code_message
+                        .clone()
+                        .map(|error_code_message| error_code_message.error_code)
+                        .unwrap_or(consts::NO_ERROR_CODE.to_string()),
+                    // message vary for the same code, so relying on code alone as it is unique
+                    message: option_error_code_message
+                        .map(|error_code_message| error_code_message.error_code)
+                        .unwrap_or(consts::NO_ERROR_MESSAGE.to_string()),
+                    reason: reason.or(response_data.description),
+                })
+            }
+            Err(error_msg) => {
+                logger::error!(deserialization_error =? error_msg);
+                utils::handle_json_response_deserialization_failure(res, "trustpay".to_owned())
+            }
+        }
     }
 }
 
