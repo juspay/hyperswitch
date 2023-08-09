@@ -4,9 +4,9 @@ pub mod config;
 pub mod diesel;
 pub mod redis;
 
-use crate::diesel::store::DatabaseStore;
+pub use crate::diesel::store::DatabaseStore;
 
-struct RouterStore<T: DatabaseStore> {
+pub struct RouterStore<T: DatabaseStore> {
     db_store: T,
     cache_store: CacheStore,
     master_encryption_key: Secret<Vec<u8>>,
@@ -47,7 +47,7 @@ impl<T: DatabaseStore> RouterStore<T> {
     }
 }
 
-struct KVRouterStore<T: DatabaseStore> {
+pub struct KVRouterStore<T: DatabaseStore> {
     router_store: RouterStore<T>,
     drainer_stream_name: String,
     drainer_num_partitions: u8,

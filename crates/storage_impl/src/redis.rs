@@ -34,14 +34,14 @@ impl CacheStore {
             .subscribe::<(), _>(channel)
             .await
             .into_report()
-            .change_context(redis_interface::errors::RedisError::SubscribeError);
+            .change_context(redis_interface::errors::RedisError::SubscribeError)?;
 
         // TODO: Handle on message failures
         // let redis_clone = self.redis_conn.clone();
         // tokio::spawn(async move {
-            // if let Err(e) = redis_clone.on_message().await {
-            //     logger::error!(pubsub_err=?e);
-            // }
+        // if let Err(e) = redis_clone.on_message().await {
+        //     logger::error!(pubsub_err=?e);
+        // }
         // });
         Ok(())
     }
