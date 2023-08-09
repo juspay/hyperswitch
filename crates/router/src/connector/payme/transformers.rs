@@ -3,6 +3,7 @@ use common_utils::pii;
 use error_stack::{IntoReport, ResultExt};
 use masking::{ExposeInterface, Secret};
 use serde::{Deserialize, Serialize};
+use url::Url;
 
 use crate::{
     connector::utils::{
@@ -10,6 +11,7 @@ use crate::{
         PaymentsSyncRequestData, RouterData,
     },
     core::errors,
+    services,
     types::{self, api, storage::enums, MandateReference},
 };
 
@@ -136,11 +138,26 @@ impl<F, T>
     fn try_from(
         item: types::ResponseRouterData<F, PaymePaySaleResponse, T, types::PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
+        let redirection_data = if item.response.sale_3ds {
+            item.response.redirect_url.clone().map(|url| {
+                let form_fields = std::collections::HashMap::from_iter(
+                    url.query_pairs()
+                        .map(|(key, value)| (key.to_string(), value.to_string())),
+                );
+                services::RedirectForm::Form {
+                    endpoint: url.to_string(),
+                    method: services::Method::Get,
+                    form_fields,
+                }
+            })
+        } else {
+            None
+        };
         Ok(Self {
             status: enums::AttemptStatus::from(item.response.sale_status),
             response: Ok(types::PaymentsResponseData::TransactionResponse {
                 resource_id: types::ResponseId::ConnectorTransactionId(item.response.payme_sale_id),
-                redirection_data: None,
+                redirection_data,
                 mandate_reference: item.response.buyer_key.map(|buyer_key| MandateReference {
                     connector_mandate_id: Some(buyer_key.expose()),
                     payment_method_id: None,
@@ -489,6 +506,8 @@ pub struct PaymePaySaleResponse {
     payme_sale_id: String,
     payme_transaction_id: String,
     buyer_key: Option<Secret<String>>,
+    sale_3ds: bool,
+    redirect_url: Option<Url>,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -696,6 +715,8 @@ pub struct WebhookEventDataResource {
     pub notify_type: NotifyType,
     pub payme_sale_id: String,
     pub payme_transaction_id: String,
+    pub sale_3ds: bool,
+    pub redirect_url: Option<Url>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -716,6 +737,8 @@ impl From<WebhookEventDataResource> for PaymePaySaleResponse {
             payme_sale_id: value.payme_sale_id,
             payme_transaction_id: value.payme_transaction_id,
             buyer_key: value.buyer_key,
+            sale_3ds: value.sale_3ds,
+            redirect_url: value.redirect_url,
         }
     }
 }
