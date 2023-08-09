@@ -10,6 +10,7 @@ use transformers as payme;
 
 use crate::{
     configs::settings,
+    consts,
     core::{
         errors::{self, CustomResult},
         payments,
@@ -142,7 +143,8 @@ impl
     ) -> CustomResult<String, errors::ConnectorError> {
         if req.request.capture_method == Some(enums::CaptureMethod::ManualMultiple) {
             return Err(errors::ConnectorError::NotImplemented(format!(
-                "capture method of manual_multiple for {}",
+                "{}{}",
+                consts::MANUAL_MULTIPLE_NOT_IMPLEMENTED_ERROR_MESSAGE,
                 self.id()
             ))
             .into());

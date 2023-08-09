@@ -10,6 +10,7 @@ use super::utils::RefundsRequestData;
 use crate::{
     configs::settings,
     connector::utils::{to_connector_meta, PaymentsAuthorizeRequestData, PaymentsSyncRequestData},
+    consts,
     core::{
         errors::{self, CustomResult},
         payments,
@@ -411,7 +412,8 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
     ) -> CustomResult<String, errors::ConnectorError> {
         if req.request.capture_method == Some(enums::CaptureMethod::ManualMultiple) {
             return Err(errors::ConnectorError::NotImplemented(format!(
-                "capture method of manual_multiple for {}",
+                "{}{}",
+                consts::MANUAL_MULTIPLE_NOT_IMPLEMENTED_ERROR_MESSAGE,
                 self.id()
             ))
             .into());

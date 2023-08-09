@@ -8,6 +8,7 @@ use error_stack::{IntoReport, ResultExt};
 use super::utils::RefundsRequestData;
 use crate::{
     configs::settings,
+    consts,
     core::errors::{self, CustomResult},
     headers,
     services::{
@@ -156,7 +157,8 @@ impl<const T: u8>
     ) -> CustomResult<String, errors::ConnectorError> {
         if req.request.capture_method == Some(enums::CaptureMethod::ManualMultiple) {
             return Err(errors::ConnectorError::NotImplemented(format!(
-                "capture method of manual_multiple for {}",
+                "{}{}",
+                consts::MANUAL_MULTIPLE_NOT_IMPLEMENTED_ERROR_MESSAGE,
                 self.id()
             ))
             .into());
