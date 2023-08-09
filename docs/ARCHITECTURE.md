@@ -15,10 +15,10 @@
 
 Hyperswitch comprises two distinct app services: **Router** and **Scheduler** which in turn consists of **Producer** and **Consumer**, where each service has its specific responsibilities to process payment-related tasks efficiently.
 
-<figure align="center">
+<p align="center">
 <img src="../docs/imgs/hyperswitch-architecture.png" alt="HyperSwitch Architecture" style="width:60%">
-<figcaption><b>Fig.1 - Typical Deployment</b></figcaption>
-</figure>
+<p align="center"><b>Fig.1 - Typical Deployment</b></p>
+</p>
 
 ## Router
 
@@ -58,10 +58,10 @@ The application utilizes a Locker, which consists of two distinct services: Temp
 
 ## Monitoring
 
-<figure align="center">
+<p align="center">
 <img src="../docs/imgs/hyperswitch-monitoring-architecture.png" alt="HyperSwitch Monitoring Architecture" style="width:70%">
-<figcaption><b>Fig.2 - HyperSwitch Monitoring Architecture</b></figcaption>
-</figure>
+<p align="center"><b>Fig.2 - HyperSwitch Monitoring Architecture</b></p>
+</p>
 
 The monitoring services in Hyperswitch ensure the effective collection and analysis of metrics to monitor the system's performance.
 
