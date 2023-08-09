@@ -19,6 +19,10 @@ use crate::{
     core::errors::{ApplicationError, ApplicationResult},
     env::{self, logger, Env},
 };
+#[cfg(feature = "kms")]
+pub type Password = kms::KmsValue;
+#[cfg(not(feature = "kms"))]
+pub type Password = masking::Secret<String>;
 
 #[derive(clap::Parser, Default)]
 #[cfg_attr(feature = "vergen", command(version = router_env::version!()))]
@@ -141,11 +145,18 @@ pub struct DummyConnector {
     pub payment_tolerance: u64,
     pub payment_retrieve_duration: u64,
     pub payment_retrieve_tolerance: u64,
+    pub payment_complete_duration: i64,
+    pub payment_complete_tolerance: i64,
     pub refund_ttl: i64,
     pub refund_duration: u64,
     pub refund_tolerance: u64,
     pub refund_retrieve_duration: u64,
     pub refund_retrieve_tolerance: u64,
+    pub authorize_ttl: i64,
+    pub assets_base_url: String,
+    pub default_return_url: String,
+    pub slack_invite_url: String,
+    pub discord_invite_url: String,
 }
 
 #[derive(Debug, Deserialize, Clone)]
@@ -275,7 +286,14 @@ pub struct PaymentMethodType(pub HashMap<enums::PaymentMethodType, ConnectorFiel
 
 #[derive(Debug, Deserialize, Clone)]
 pub struct ConnectorFields {
-    pub fields: HashMap<enums::Connector, Vec<RequiredFieldInfo>>,
+    pub fields: HashMap<enums::Connector, RequiredFieldFinal>,
+}
+
+#[derive(Debug, Deserialize, Clone)]
+pub struct RequiredFieldFinal {
+    pub mandate: HashMap<String, RequiredFieldInfo>,
+    pub non_mandate: HashMap<String, RequiredFieldInfo>,
+    pub common: HashMap<String, RequiredFieldInfo>,
 }
 
 fn string_set_deser<'a, D>(
@@ -330,7 +348,7 @@ where
         .collect())
 }
 
-#[derive(Debug, Deserialize, Clone)]
+#[derive(Debug, Default, Deserialize, Clone)]
 #[serde(default)]
 pub struct Secrets {
     #[cfg(not(feature = "kms"))]
@@ -339,13 +357,13 @@ pub struct Secrets {
     pub admin_api_key: String,
     #[cfg(not(feature = "kms"))]
     pub recon_admin_api_key: String,
-    pub master_enc_key: String,
+    pub master_enc_key: Password,
     #[cfg(feature = "kms")]
-    pub kms_encrypted_jwt_secret: String,
+    pub kms_encrypted_jwt_secret: kms::KmsValue,
     #[cfg(feature = "kms")]
-    pub kms_encrypted_admin_api_key: String,
+    pub kms_encrypted_admin_api_key: kms::KmsValue,
     #[cfg(feature = "kms")]
-    pub kms_encrypted_recon_admin_api_key: String,
+    pub kms_encrypted_recon_admin_api_key: kms::KmsValue,
 }
 
 #[derive(Debug, Deserialize, Clone)]
@@ -406,15 +424,12 @@ pub struct Server {
 #[serde(default)]
 pub struct Database {
     pub username: String,
-    #[cfg(not(feature = "kms"))]
-    pub password: String,
+    pub password: Password,
     pub host: String,
     pub port: u16,
     pub dbname: String,
     pub pool_size: u32,
     pub connection_timeout: u64,
-    #[cfg(feature = "kms")]
-    pub kms_encrypted_password: String,
 }
 
 #[derive(Debug, Deserialize, Clone)]
@@ -468,6 +483,7 @@ pub struct Connectors {
     pub powertranz: ConnectorParams,
     pub rapyd: ConnectorParams,
     pub shift4: ConnectorParams,
+    pub square: ConnectorParams,
     pub stax: ConnectorParams,
     pub stripe: ConnectorParamsWithFileUploadUrl,
     pub trustpay: ConnectorParamsWithMoreUrls,
@@ -558,7 +574,7 @@ pub struct ApiKeys {
     /// Base64-encoded (KMS encrypted) ciphertext of the key used for calculating hashes of API
     /// keys
     #[cfg(feature = "kms")]
-    pub kms_encrypted_hash_key: String,
+    pub kms_encrypted_hash_key: kms::KmsValue,
 
     /// Hex-encoded 32-byte long (64 characters long when hex-encoded) key used for calculating
     /// hashes of API keys

@@ -1,14 +1,16 @@
-mod transformers;
+pub mod transformers;
 
 use std::fmt::Debug;
 
 use common_utils::ext_traits::ByteSliceExt;
+use diesel_models::enums;
 use error_stack::{IntoReport, ResultExt};
 use transformers as nmi;
 
 use self::transformers::NmiCaptureRequest;
 use crate::{
     configs::settings,
+    consts,
     core::errors::{self, CustomResult},
     services::{self, request, ConnectorIntegration},
     types::{
@@ -181,9 +183,17 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
 
     fn get_url(
         &self,
-        _req: &types::PaymentsAuthorizeRouterData,
+        req: &types::PaymentsAuthorizeRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
+        if req.request.capture_method == Some(enums::CaptureMethod::ManualMultiple) {
+            return Err(errors::ConnectorError::NotImplemented(format!(
+                "{}{}",
+                consts::MANUAL_MULTIPLE_NOT_IMPLEMENTED_ERROR_MESSAGE,
+                self.id()
+            ))
+            .into());
+        }
         Ok(format!("{}api/transact.php", self.base_url(connectors)))
     }
 

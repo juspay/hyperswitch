@@ -46,7 +46,12 @@ pub async fn make_payout_method_data<'a>(
             )
         );
 
-        let redis_conn = state.store.get_redis_conn();
+        let redis_conn = state
+            .store
+            .get_redis_conn()
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to get redis connection")?;
+
         let hyperswitch_token_option = redis_conn
             .get_key::<Option<String>>(&key)
             .await

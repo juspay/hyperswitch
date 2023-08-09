@@ -1,5 +1,6 @@
 use std::marker::PhantomData;
 
+use api_models::enums::CancelTransaction;
 use async_trait::async_trait;
 use common_utils::ext_traits::AsyncExt;
 use diesel_models::connector_response::ConnectorResponse;
@@ -120,7 +121,9 @@ impl<F: Send + Clone> GetTracker<F, payments::PaymentData<F>, api::PaymentsCaptu
                         storage_scheme,
                     )
                     .await
-                    .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
+                    .to_not_found_response(errors::ApiErrorResponse::DuplicatePayment {
+                        payment_id: payment_id.clone(),
+                    })?;
                 let new_connector_response = db
                     .insert_connector_response(
                         ConnectorResponse::make_new_connector_response(
@@ -132,7 +135,9 @@ impl<F: Send + Clone> GetTracker<F, payments::PaymentData<F>, api::PaymentsCaptu
                         storage_scheme,
                     )
                     .await
-                    .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
+                    .to_not_found_response(errors::ApiErrorResponse::DuplicatePayment {
+                        payment_id: payment_id.clone(),
+                    })?;
                 (
                     Some(payments::MultipleCaptureData {
                         previous_captures,
@@ -248,6 +253,7 @@ impl<F: Clone> UpdateTracker<F, payments::PaymentData<F>, api::PaymentsCaptureRe
         storage_scheme: enums::MerchantStorageScheme,
         _updated_customer: Option<storage::CustomerUpdate>,
         _mechant_key_store: &domain::MerchantKeyStore,
+        _should_cancel_transaction: Option<CancelTransaction>,
     ) -> RouterResult<(
         BoxedOperation<'b, F, api::PaymentsCaptureRequest>,
         payments::PaymentData<F>,

@@ -1,5 +1,6 @@
 use std::marker::PhantomData;
 
+use api_models::enums::CancelTransaction;
 use async_trait::async_trait;
 use common_utils::ext_traits::AsyncExt;
 use error_stack::ResultExt;
@@ -122,6 +123,7 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
         _storage_scheme: enums::MerchantStorageScheme,
         _updated_customer: Option<storage::CustomerUpdate>,
         _key_store: &domain::MerchantKeyStore,
+        _should_cancel_transaction: Option<CancelTransaction>,
     ) -> RouterResult<(BoxedOperation<'b, F, api::PaymentsRequest>, PaymentData<F>)>
     where
         F: 'b + Send,
@@ -140,6 +142,7 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRetrieveRequest> fo
         _storage_scheme: enums::MerchantStorageScheme,
         _updated_customer: Option<storage::CustomerUpdate>,
         _key_store: &domain::MerchantKeyStore,
+        _should_cancel_transaction: Option<CancelTransaction>,
     ) -> RouterResult<(
         BoxedOperation<'b, F, api::PaymentsRetrieveRequest>,
         PaymentData<F>,
@@ -274,17 +277,25 @@ async fn get_tracker_for_sync<
         .attach_printable_lazy(|| {
             format!("Error while retrieving frm_response, merchant_id: {merchant_id}, payment_id: {payment_id_str}")
         });
-    let frm_message = frm_response
-        .ok()
-        .map(|response| api_models::payments::FrmMessage {
-            frm_name: response.frm_name,
-            frm_transaction_id: response.frm_transaction_id,
-            frm_transaction_type: Some(response.frm_transaction_type.to_string()),
-            frm_status: Some(response.frm_status.to_string()),
-            frm_score: response.frm_score,
-            frm_reason: response.frm_reason,
-            frm_error: response.frm_error,
-        });
+
+    let frm_message = match frm_response.ok() {
+        Some(response) => {
+            if response.frm_status.to_string() == "pending" {
+                None
+            } else {
+                Some(api_models::payments::FrmMessage {
+                    frm_name: response.frm_name,
+                    frm_transaction_id: response.frm_transaction_id,
+                    frm_transaction_type: Some(response.frm_transaction_type.to_string()),
+                    frm_status: Some(response.frm_status.to_string()),
+                    frm_score: response.frm_score,
+                    frm_reason: response.frm_reason,
+                    frm_error: response.frm_error,
+                })
+            }
+        }
+        None => None,
+    };
 
     let contains_encoded_data = connector_response.encoded_data.is_some();
 

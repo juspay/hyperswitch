@@ -75,7 +75,6 @@ impl ConnectorCommon for Opayo {
     fn common_get_content_type(&self) -> &'static str {
         "application/json"
     }
-
     fn base_url<'a>(&self, connectors: &'a settings::Connectors) -> &'a str {
         connectors.opayo.base_url.as_ref()
     }
@@ -146,6 +145,10 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         _req: &types::PaymentsAuthorizeRouterData,
         _connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
+        // should uncomment below if block once implemented
+        // if req.request.capture_method == Some(enums::CaptureMethod::ManualMultiple) {
+        //     return Err(errors::ConnectorError::CaptureMethodNotSupported.into());
+        // }
         Err(errors::ConnectorError::NotImplemented("get_url method".to_string()).into())
     }
 

@@ -1,4 +1,4 @@
-mod transformers;
+pub mod transformers;
 
 use std::fmt::Debug;
 
@@ -8,6 +8,7 @@ use transformers as nexinets;
 use crate::{
     configs::settings,
     connector::utils::{to_connector_meta, PaymentsSyncRequestData},
+    consts,
     core::errors::{self, CustomResult},
     headers,
     services::{
@@ -166,6 +167,14 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         req: &types::PaymentsAuthorizeRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
+        if req.request.capture_method == Some(enums::CaptureMethod::ManualMultiple) {
+            return Err(errors::ConnectorError::NotImplemented(format!(
+                "{}{}",
+                consts::MANUAL_MULTIPLE_NOT_IMPLEMENTED_ERROR_MESSAGE,
+                self.id()
+            ))
+            .into());
+        }
         let url = if req.request.capture_method == Some(enums::CaptureMethod::Automatic) {
             format!("{}/orders/debit", self.base_url(connectors))
         } else {

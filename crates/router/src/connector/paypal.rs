@@ -1,7 +1,8 @@
-mod transformers;
+pub mod transformers;
 use std::fmt::Debug;
 
 use base64::Engine;
+use diesel_models::enums;
 use error_stack::{IntoReport, ResultExt};
 use masking::PeekInterface;
 use transformers as paypal;
@@ -54,7 +55,8 @@ impl Paypal {
         connector_meta: &Option<serde_json::Value>,
     ) -> CustomResult<Option<String>, errors::ConnectorError> {
         match payment_method {
-            Some(diesel_models::enums::PaymentMethod::Wallet) => {
+            Some(diesel_models::enums::PaymentMethod::Wallet)
+            | Some(diesel_models::enums::PaymentMethod::BankRedirect) => {
                 let meta: PaypalMeta = to_connector_meta(connector_meta.clone())?;
                 Ok(Some(meta.order_id))
             }
@@ -333,9 +335,17 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
 
     fn get_url(
         &self,
-        _req: &types::PaymentsAuthorizeRouterData,
+        req: &types::PaymentsAuthorizeRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
+        if req.request.capture_method == Some(enums::CaptureMethod::ManualMultiple) {
+            return Err(errors::ConnectorError::NotImplemented(format!(
+                "{}{}",
+                consts::MANUAL_MULTIPLE_NOT_IMPLEMENTED_ERROR_MESSAGE,
+                self.id()
+            ))
+            .into());
+        }
         Ok(format!("{}v2/checkout/orders", self.base_url(connectors)))
     }
 
@@ -377,7 +387,8 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         res: Response,
     ) -> CustomResult<types::PaymentsAuthorizeRouterData, errors::ConnectorError> {
         match data.payment_method {
-            diesel_models::enums::PaymentMethod::Wallet => {
+            diesel_models::enums::PaymentMethod::Wallet
+            | diesel_models::enums::PaymentMethod::BankRedirect => {
                 let response: paypal::PaypalRedirectResponse = res
                     .response
                     .parse_struct("paypal PaymentsRedirectResponse")
@@ -509,7 +520,8 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
     ) -> CustomResult<String, errors::ConnectorError> {
         let paypal_meta: PaypalMeta = to_connector_meta(req.request.connector_meta.clone())?;
         match req.payment_method {
-            diesel_models::enums::PaymentMethod::Wallet => Ok(format!(
+            diesel_models::enums::PaymentMethod::Wallet
+            | diesel_models::enums::PaymentMethod::BankRedirect => Ok(format!(
                 "{}v2/checkout/orders/{}",
                 self.base_url(connectors),
                 paypal_meta.order_id
@@ -554,7 +566,8 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
         res: Response,
     ) -> CustomResult<types::PaymentsSyncRouterData, errors::ConnectorError> {
         match data.payment_method {
-            diesel_models::enums::PaymentMethod::Wallet => {
+            diesel_models::enums::PaymentMethod::Wallet
+            | diesel_models::enums::PaymentMethod::BankRedirect => {
                 let response: paypal::PaypalOrdersResponse = res
                     .response
                     .parse_struct("paypal PaymentsOrderResponse")

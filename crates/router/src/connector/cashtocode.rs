@@ -1,7 +1,8 @@
-mod transformers;
+pub mod transformers;
 
 use std::fmt::Debug;
 
+use diesel_models::enums;
 use error_stack::{IntoReport, ResultExt};
 use masking::PeekInterface;
 use transformers as cashtocode;
@@ -9,6 +10,7 @@ use transformers as cashtocode;
 use crate::{
     configs::settings,
     connector::utils as conn_utils,
+    consts,
     core::errors::{self, CustomResult},
     db::StorageInterface,
     headers,
@@ -177,9 +179,17 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
 
     fn get_url(
         &self,
-        _req: &types::PaymentsAuthorizeRouterData,
+        req: &types::PaymentsAuthorizeRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
+        if req.request.capture_method == Some(enums::CaptureMethod::ManualMultiple) {
+            return Err(errors::ConnectorError::NotImplemented(format!(
+                "{}{}",
+                consts::MANUAL_MULTIPLE_NOT_IMPLEMENTED_ERROR_MESSAGE,
+                self.id()
+            ))
+            .into());
+        }
         Ok(format!(
             "{}/merchant/paytokens",
             connectors.cashtocode.base_url
@@ -246,18 +256,7 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
 impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsResponseData>
     for Cashtocode
 {
-    fn build_request(
-        &self,
-        _req: &types::PaymentsSyncRouterData,
-        _connectors: &settings::Connectors,
-    ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
-        Err(errors::ConnectorError::FlowNotSupported {
-            flow: "Payments Sync".to_string(),
-            connector: "Cashtocode".to_string(),
-        }
-        .into())
-    }
-
+    // default implementation of build_request method will be executed
     fn handle_response(
         &self,
         data: &types::PaymentsSyncRouterData,
@@ -435,19 +434,5 @@ impl ConnectorIntegration<api::refunds::Execute, types::RefundsData, types::Refu
 impl ConnectorIntegration<api::refunds::RSync, types::RefundsData, types::RefundsResponseData>
     for Cashtocode
 {
-    fn build_request(
-        &self,
-        _req: &types::RouterData<
-            api::refunds::RSync,
-            types::RefundsData,
-            types::RefundsResponseData,
-        >,
-        _connectors: &settings::Connectors,
-    ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
-        Err(errors::ConnectorError::FlowNotSupported {
-            flow: "Refund Sync".to_string(),
-            connector: "Cashtocode".to_string(),
-        }
-        .into())
-    }
+    // default implementation of build_request method will be executed
 }

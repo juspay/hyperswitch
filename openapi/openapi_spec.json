@@ -976,6 +976,32 @@
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/PaymentsCreateRequest"
+              },
+              "examples": {
+                "Create a 3DS payment": {
+                  "value": "{\n        \"amount\": 6540,\n        \"currency\": \"USD\",\n        \"authentication_type\" : \"three_ds\"\n    }"
+                },
+                "Create a manual capture payment": {
+                  "value": "{\n        \"amount\": 6540,\n        \"currency\": \"USD\",\n        \"capture_method\":\"manual\"\n    }"
+                },
+                "Create a payment": {
+                  "value": "{\n        \"amount\": 6540,\n        \"currency\": \"USD\",\n        \"payment_id\": \"abcdefghijklmnopqrstuvwxyz\",\n        \"customer\": {\n            \"id\":\"cus_abcdefgh\",\n            \"name\":\"John Dough\",\n            \"phone\":\"9999999999\",\n            \"email\":\"john@example.com\"\n        },\n        \"description\": \"Its my first payment request\",\n        \"statement_descriptor_name\": \"joseph\",\n        \"statement_descriptor_suffix\": \"JS\",\n        \"metadata\": {\n            \"udf1\": \"some-value\",\n            \"udf2\": \"some-value\"\n        }\n    }"
+                },
+                "Create a payment with address": {
+                  "value": "{\n        \"amount\": 6540,\n        \"currency\": \"USD\",\n        \"customer\": {\n            \"id\" : \"cus_abcdefgh\"\n        },\n        \"billing\": {\n            \"address\": {\n                \"line1\": \"1467\",\n                \"line2\": \"Harrison Street\",\n                \"line3\": \"Harrison Street\",\n                \"city\": \"San Fransico\",\n                \"state\": \"California\",\n                \"zip\": \"94122\",\n                \"country\": \"US\",\n                \"first_name\": \"joseph\",\n                \"last_name\": \"Doe\"\n            },\n            \"phone\": {\n                \"number\": \"8056594427\",\n                \"country_code\": \"+91\"\n            }\n        }\n    }"
+                },
+                "Create a payment with customer details": {
+                  "value": "{\n        \"amount\": 6540,\n        \"currency\": \"USD\",\n        \"customer\": {\n            \"id\":\"cus_abcdefgh\",\n            \"name\":\"John Dough\",\n            \"phone\":\"9999999999\",\n            \"email\":\"john@example.com\"\n        }\n    }"
+                },
+                "Create a payment with minimul fields": {
+                  "value": "{\n        \"amount\": 6540,\n        \"currency\": \"USD\",\n    }"
+                },
+                "Create a payment with order category for noon": {
+                  "value": "{\n        \"amount\": 6540,\n        \"currency\": \"USD\",\n        \"connector_metadata\": {\n            \"noon\": {\n                \"order_category\":\"shoes\"\n            }\n        }\n    }"
+                },
+                "Create a payment with order details": {
+                  "value": "{\n        \"amount\": 6540,\n        \"currency\": \"USD\",\n        \"order_details\": [\n            {\n                \"product_name\": \"Apple iPhone 15\",\n                \"quantity\": 1,\n                \"amount\" : 6540\n            }\n        ]\n    }"
+                }
               }
             }
           },
@@ -2118,6 +2144,31 @@
           }
         }
       },
+      "AlfamartVoucherData": {
+        "type": "object",
+        "required": [
+          "first_name",
+          "last_name",
+          "email"
+        ],
+        "properties": {
+          "first_name": {
+            "type": "string",
+            "description": "The billing first name for Alfamart",
+            "example": "Jane"
+          },
+          "last_name": {
+            "type": "string",
+            "description": "The billing second name for Alfamart",
+            "example": "Doe"
+          },
+          "email": {
+            "type": "string",
+            "description": "The Email ID for Alfamart",
+            "example": "example@me.com"
+          }
+        }
+      },
       "AliPayHkRedirection": {
         "type": "object"
       },
@@ -2460,7 +2511,10 @@
                   "account_number",
                   "routing_number",
                   "card_holder_name",
-                  "bank_account_holder_name"
+                  "bank_account_holder_name",
+                  "bank_name",
+                  "bank_type",
+                  "bank_holder_type"
                 ],
                 "properties": {
                   "billing_details": {
@@ -2483,6 +2537,18 @@
                   "bank_account_holder_name": {
                     "type": "string",
                     "example": "John Doe"
+                  },
+                  "bank_name": {
+                    "type": "string",
+                    "example": "ACH"
+                  },
+                  "bank_type": {
+                    "type": "string",
+                    "example": "Checking"
+                  },
+                  "bank_holder_type": {
+                    "type": "string",
+                    "example": "Personal"
                   }
                 }
               }
@@ -2716,7 +2782,25 @@
           "krungsri_bank",
           "krung_thai_bank",
           "the_siam_commercial_bank",
-          "kasikorn_bank"
+          "kasikorn_bank",
+          "open_bank_success",
+          "open_bank_failure",
+          "open_bank_cancelled",
+          "aib",
+          "bank_of_scotland",
+          "danske_bank",
+          "first_direct",
+          "first_trust",
+          "halifax",
+          "lloyds",
+          "monzo",
+          "nat_west",
+          "nationwide_bank",
+          "royal_bank_of_scotland",
+          "starling",
+          "tsb_bank",
+          "tesco_bank",
+          "ulster_bank"
         ]
       },
       "BankRedirectBilling": {
@@ -2827,7 +2911,8 @@
                 "type": "object",
                 "required": [
                   "billing_details",
-                  "bank_name"
+                  "bank_name",
+                  "country"
                 ],
                 "properties": {
                   "billing_details": {
@@ -2835,6 +2920,9 @@
                   },
                   "bank_name": {
                     "$ref": "#/components/schemas/BankNames"
+                  },
+                  "country": {
+                    "$ref": "#/components/schemas/CountryAlpha2"
                   }
                 }
               }
@@ -2849,7 +2937,8 @@
               "giropay": {
                 "type": "object",
                 "required": [
-                  "billing_details"
+                  "billing_details",
+                  "country"
                 ],
                 "properties": {
                   "billing_details": {
@@ -2864,6 +2953,9 @@
                     "type": "string",
                     "description": "Bank account iban",
                     "nullable": true
+                  },
+                  "country": {
+                    "$ref": "#/components/schemas/CountryAlpha2"
                   }
                 }
               }
@@ -2879,7 +2971,8 @@
                 "type": "object",
                 "required": [
                   "billing_details",
-                  "bank_name"
+                  "bank_name",
+                  "country"
                 ],
                 "properties": {
                   "billing_details": {
@@ -2887,6 +2980,9 @@
                   },
                   "bank_name": {
                     "$ref": "#/components/schemas/BankNames"
+                  },
+                  "country": {
+                    "$ref": "#/components/schemas/CountryAlpha2"
                   }
                 }
               }
@@ -2993,6 +3089,29 @@
           {
             "type": "object",
             "required": [
+              "open_banking_uk"
+            ],
+            "properties": {
+              "open_banking_uk": {
+                "type": "object",
+                "required": [
+                  "issuer",
+                  "country"
+                ],
+                "properties": {
+                  "issuer": {
+                    "$ref": "#/components/schemas/BankNames"
+                  },
+                  "country": {
+                    "$ref": "#/components/schemas/CountryAlpha2"
+                  }
+                }
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
               "przelewy24"
             ],
             "properties": {
@@ -3043,17 +3162,6 @@
                     "example": "en"
                   }
                 }
-              }
-            }
-          },
-          {
-            "type": "object",
-            "required": [
-              "swish"
-            ],
-            "properties": {
-              "swish": {
-                "type": "object"
               }
             }
           },
@@ -3201,6 +3309,139 @@
           {
             "type": "object",
             "required": [
+              "permata_bank_transfer"
+            ],
+            "properties": {
+              "permata_bank_transfer": {
+                "type": "object",
+                "required": [
+                  "billing_details"
+                ],
+                "properties": {
+                  "billing_details": {
+                    "$ref": "#/components/schemas/DokuBillingDetails"
+                  }
+                }
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "bca_bank_transfer"
+            ],
+            "properties": {
+              "bca_bank_transfer": {
+                "type": "object",
+                "required": [
+                  "billing_details"
+                ],
+                "properties": {
+                  "billing_details": {
+                    "$ref": "#/components/schemas/DokuBillingDetails"
+                  }
+                }
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "bni_va_bank_transfer"
+            ],
+            "properties": {
+              "bni_va_bank_transfer": {
+                "type": "object",
+                "required": [
+                  "billing_details"
+                ],
+                "properties": {
+                  "billing_details": {
+                    "$ref": "#/components/schemas/DokuBillingDetails"
+                  }
+                }
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "bri_va_bank_transfer"
+            ],
+            "properties": {
+              "bri_va_bank_transfer": {
+                "type": "object",
+                "required": [
+                  "billing_details"
+                ],
+                "properties": {
+                  "billing_details": {
+                    "$ref": "#/components/schemas/DokuBillingDetails"
+                  }
+                }
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "cimb_va_bank_transfer"
+            ],
+            "properties": {
+              "cimb_va_bank_transfer": {
+                "type": "object",
+                "required": [
+                  "billing_details"
+                ],
+                "properties": {
+                  "billing_details": {
+                    "$ref": "#/components/schemas/DokuBillingDetails"
+                  }
+                }
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "danamon_va_bank_transfer"
+            ],
+            "properties": {
+              "danamon_va_bank_transfer": {
+                "type": "object",
+                "required": [
+                  "billing_details"
+                ],
+                "properties": {
+                  "billing_details": {
+                    "$ref": "#/components/schemas/DokuBillingDetails"
+                  }
+                }
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "mandiri_va_bank_transfer"
+            ],
+            "properties": {
+              "mandiri_va_bank_transfer": {
+                "type": "object",
+                "required": [
+                  "billing_details"
+                ],
+                "properties": {
+                  "billing_details": {
+                    "$ref": "#/components/schemas/DokuBillingDetails"
+                  }
+                }
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
               "pix"
             ],
             "properties": {
@@ -3224,6 +3465,17 @@
       },
       "BankTransferInstructions": {
         "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "doku_bank_transfer_instructions"
+            ],
+            "properties": {
+              "doku_bank_transfer_instructions": {
+                "$ref": "#/components/schemas/DokuBankTransferInstructions"
+              }
+            }
+          },
           {
             "type": "object",
             "required": [
@@ -3277,12 +3529,14 @@
           },
           {
             "type": "object",
-            "required": [
-              "receiver"
-            ],
             "properties": {
               "receiver": {
-                "$ref": "#/components/schemas/ReceiverDetails"
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/ReceiverDetails"
+                  }
+                ],
+                "nullable": true
               }
             }
           }
@@ -3430,6 +3684,46 @@
           "Maestro"
         ]
       },
+      "CardRedirectData": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "knet"
+            ],
+            "properties": {
+              "knet": {
+                "type": "object"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "benefit"
+            ],
+            "properties": {
+              "benefit": {
+                "type": "object"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "momo_atm"
+            ],
+            "properties": {
+              "momo_atm": {
+                "type": "object"
+              }
+            }
+          }
+        ]
+      },
+      "CashappQr": {
+        "type": "object"
+      },
       "Connector": {
         "type": "string",
         "enum": [
@@ -3447,6 +3741,7 @@
           "bitpay",
           "bambora",
           "bluesnap",
+          "boku",
           "braintree",
           "cashtocode",
           "checkout",
@@ -4097,7 +4392,8 @@
           "customer_id",
           "payment_method",
           "recurring_enabled",
-          "installment_payment_enabled"
+          "installment_payment_enabled",
+          "requires_cvv"
         ],
         "properties": {
           "payment_token": {
@@ -4183,6 +4479,11 @@
               }
             ],
             "nullable": true
+          },
+          "requires_cvv": {
+            "type": "boolean",
+            "description": "Whether this payment method requires CVV to be collected",
+            "example": true
           }
         }
       },
@@ -4503,6 +4804,52 @@
           "dispute_lost"
         ]
       },
+      "DokuBankTransferInstructions": {
+        "type": "object",
+        "required": [
+          "expires_at",
+          "reference",
+          "instructions_url"
+        ],
+        "properties": {
+          "expires_at": {
+            "type": "string",
+            "example": "2023-07-26T17:33:00-07-21"
+          },
+          "reference": {
+            "type": "string",
+            "example": "122385736258"
+          },
+          "instructions_url": {
+            "type": "string"
+          }
+        }
+      },
+      "DokuBillingDetails": {
+        "type": "object",
+        "required": [
+          "first_name",
+          "last_name",
+          "email"
+        ],
+        "properties": {
+          "first_name": {
+            "type": "string",
+            "description": "The billing first name for Doku",
+            "example": "Jane"
+          },
+          "last_name": {
+            "type": "string",
+            "description": "The billing second name for Doku",
+            "example": "Doe"
+          },
+          "email": {
+            "type": "string",
+            "description": "The Email ID for Doku billing",
+            "example": "example@me.com"
+          }
+        }
+      },
       "EphemeralKeyCreateResponse": {
         "type": "object",
         "required": [
@@ -4531,6 +4878,24 @@
             "description": "ephemeral key"
           }
         }
+      },
+      "EventType": {
+        "type": "string",
+        "enum": [
+          "payment_succeeded",
+          "payment_failed",
+          "payment_processing",
+          "action_required",
+          "refund_succeeded",
+          "refund_failed",
+          "dispute_opened",
+          "dispute_expired",
+          "dispute_accepted",
+          "dispute_cancelled",
+          "dispute_challenged",
+          "dispute_won",
+          "dispute_lost"
+        ]
       },
       "FeatureMetadata": {
         "type": "object",
@@ -4632,12 +4997,6 @@
           {
             "type": "string",
             "enum": [
-              "fields_complete"
-            ]
-          },
-          {
-            "type": "string",
-            "enum": [
               "user_billing_name"
             ]
           },
@@ -4646,6 +5005,28 @@
             "enum": [
               "user_bank"
             ]
+          },
+          {
+            "type": "object",
+            "required": [
+              "user_currency"
+            ],
+            "properties": {
+              "user_currency": {
+                "type": "object",
+                "required": [
+                  "options"
+                ],
+                "properties": {
+                  "options": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
           },
           {
             "type": "string",
@@ -4804,6 +5185,32 @@
         "type": "object"
       },
       "GiftCardData": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "givex"
+            ],
+            "properties": {
+              "givex": {
+                "$ref": "#/components/schemas/GiftCardDetails"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "pay_safe_card"
+            ],
+            "properties": {
+              "pay_safe_card": {
+                "type": "object"
+              }
+            }
+          }
+        ]
+      },
+      "GiftCardDetails": {
         "type": "object",
         "required": [
           "number",
@@ -5082,6 +5489,31 @@
           "total_price": {
             "type": "string",
             "description": "The total price"
+          }
+        }
+      },
+      "IndomaretVoucherData": {
+        "type": "object",
+        "required": [
+          "first_name",
+          "last_name",
+          "email"
+        ],
+        "properties": {
+          "first_name": {
+            "type": "string",
+            "description": "The billing first name for Alfamart",
+            "example": "Jane"
+          },
+          "last_name": {
+            "type": "string",
+            "description": "The billing second name for Alfamart",
+            "example": "Doe"
+          },
+          "email": {
+            "type": "string",
+            "description": "The Email ID for Alfamart",
+            "example": "example@me.com"
           }
         }
       },
@@ -5761,7 +6193,9 @@
         "required": [
           "connector_type",
           "connector_name",
-          "connector_label"
+          "connector_label",
+          "business_country",
+          "business_label"
         ],
         "properties": {
           "connector_type": {
@@ -5858,16 +6292,10 @@
             "nullable": true
           },
           "business_country": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/CountryAlpha2"
-              }
-            ],
-            "nullable": true
+            "$ref": "#/components/schemas/CountryAlpha2"
           },
           "business_label": {
-            "type": "string",
-            "nullable": true
+            "type": "string"
           },
           "business_sub_label": {
             "type": "string",
@@ -6385,10 +6813,57 @@
               "image_data_url": {
                 "type": "string"
               },
+              "display_to_timestamp": {
+                "type": "integer",
+                "format": "int64",
+                "nullable": true
+              },
               "type": {
                 "type": "string",
                 "enum": [
                   "qr_code_information"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "description": "Contains the download url and the reference number for transaction",
+            "required": [
+              "voucher_details",
+              "type"
+            ],
+            "properties": {
+              "voucher_details": {
+                "type": "string"
+              },
+              "type": {
+                "type": "string",
+                "enum": [
+                  "display_voucher_information"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "description": "Contains duration for displaying a wait screen, wait screen with timer is displayed by sdk",
+            "required": [
+              "display_from_timestamp",
+              "type"
+            ],
+            "properties": {
+              "display_from_timestamp": {
+                "type": "integer"
+              },
+              "display_to_timestamp": {
+                "type": "integer",
+                "nullable": true
+              },
+              "type": {
+                "type": "string",
+                "enum": [
+                  "wait_screen_information"
                 ]
               }
             }
@@ -6405,7 +6880,8 @@
           "display_qr_code",
           "invoke_sdk_client",
           "trigger_api",
-          "display_bank_transfer_information"
+          "display_bank_transfer_information",
+          "display_wait_screen"
         ]
       },
       "NoThirdPartySdkSessionResponse": {
@@ -6552,6 +7028,97 @@
             "format": "int64",
             "description": "the amount per quantity of product"
           }
+        }
+      },
+      "OutgoingWebhook": {
+        "type": "object",
+        "required": [
+          "merchant_id",
+          "event_id",
+          "event_type",
+          "content"
+        ],
+        "properties": {
+          "merchant_id": {
+            "type": "string",
+            "description": "The merchant id of the merchant"
+          },
+          "event_id": {
+            "type": "string",
+            "description": "The unique event id for each webhook"
+          },
+          "event_type": {
+            "$ref": "#/components/schemas/EventType"
+          },
+          "content": {
+            "$ref": "#/components/schemas/OutgoingWebhookContent"
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time",
+            "description": "The time at which webhook was sent"
+          }
+        }
+      },
+      "OutgoingWebhookContent": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "type",
+              "object"
+            ],
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": [
+                  "payment_details"
+                ]
+              },
+              "object": {
+                "$ref": "#/components/schemas/PaymentsResponse"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "type",
+              "object"
+            ],
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": [
+                  "refund_details"
+                ]
+              },
+              "object": {
+                "$ref": "#/components/schemas/RefundResponse"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "type",
+              "object"
+            ],
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": [
+                  "dispute_details"
+                ]
+              },
+              "object": {
+                "$ref": "#/components/schemas/DisputeResponse"
+              }
+            }
+          }
+        ],
+        "discriminator": {
+          "propertyName": "type"
         }
       },
       "PayLaterData": {
@@ -6824,7 +7391,8 @@
           "display_qr_code",
           "one_click",
           "link_wallet",
-          "invoke_payment_app"
+          "invoke_payment_app",
+          "display_wait_screen"
         ]
       },
       "PaymentIdType": {
@@ -6967,6 +7535,7 @@
         "type": "string",
         "enum": [
           "card",
+          "card_redirect",
           "pay_later",
           "wallet",
           "bank_redirect",
@@ -6975,7 +7544,8 @@
           "bank_debit",
           "reward",
           "upi",
-          "voucher"
+          "voucher",
+          "gift_card"
         ]
       },
       "PaymentMethodCreate": {
@@ -7046,6 +7616,17 @@
             "properties": {
               "card": {
                 "$ref": "#/components/schemas/Card"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "card_redirect"
+            ],
+            "properties": {
+              "card_redirect": {
+                "$ref": "#/components/schemas/CardRedirectData"
               }
             }
           },
@@ -7348,6 +7929,7 @@
           "ach",
           "affirm",
           "afterpay_clearpay",
+          "alfamart",
           "ali_pay",
           "ali_pay_hk",
           "alma",
@@ -7356,28 +7938,40 @@
           "bacs",
           "bancontact_card",
           "becs",
+          "benefit",
           "bizum",
           "blik",
           "boleto",
+          "bca_bank_transfer",
+          "bni_va",
+          "bri_va",
+          "cimb_va",
           "classic",
           "credit",
           "crypto_currency",
+          "cashapp",
           "dana",
+          "danamon_va",
           "debit",
           "efecty",
           "eps",
           "evoucher",
           "giropay",
+          "givex",
           "google_pay",
           "go_pay",
           "gcash",
           "ideal",
           "interac",
+          "indomaret",
           "klarna",
           "kakao_pay",
+          "mandiri_va",
+          "knet",
           "mb_way",
           "mobile_pay",
           "momo",
+          "momo_atm",
           "multibanco",
           "online_banking_thailand",
           "online_banking_czech_republic",
@@ -7385,10 +7979,14 @@
           "online_banking_fpx",
           "online_banking_poland",
           "online_banking_slovakia",
+          "oxxo",
           "pago_efectivo",
+          "permata_bank_transfer",
+          "open_banking_uk",
           "pay_bright",
           "paypal",
           "pix",
+          "pay_safe_card",
           "przelewy24",
           "pse",
           "red_compra",
@@ -9526,6 +10124,10 @@
           },
           "field_type": {
             "$ref": "#/components/schemas/FieldType"
+          },
+          "value": {
+            "type": "string",
+            "nullable": true
           }
         }
       },
@@ -9894,6 +10496,9 @@
           }
         }
       },
+      "SwishQrData": {
+        "type": "object"
+      },
       "ThirdPartySdkSessionResponse": {
         "type": "object",
         "required": [
@@ -10000,6 +10605,34 @@
             "type": "string",
             "enum": [
               "red_pagos"
+            ]
+          },
+          {
+            "type": "object",
+            "required": [
+              "alfamart"
+            ],
+            "properties": {
+              "alfamart": {
+                "$ref": "#/components/schemas/AlfamartVoucherData"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "indomaret"
+            ],
+            "properties": {
+              "indomaret": {
+                "$ref": "#/components/schemas/IndomaretVoucherData"
+              }
+            }
+          },
+          {
+            "type": "string",
+            "enum": [
+              "oxxo"
             ]
           }
         ]
@@ -10265,22 +10898,33 @@
           {
             "type": "object",
             "required": [
-              "we_chat_pay"
+              "we_chat_pay_qr"
             ],
             "properties": {
-              "we_chat_pay": {
-                "$ref": "#/components/schemas/WeChatPay"
+              "we_chat_pay_qr": {
+                "$ref": "#/components/schemas/WeChatPayQr"
               }
             }
           },
           {
             "type": "object",
             "required": [
-              "we_chat_pay_qr"
+              "cashapp_qr"
             ],
             "properties": {
-              "we_chat_pay_qr": {
-                "$ref": "#/components/schemas/WeChatPayQr"
+              "cashapp_qr": {
+                "$ref": "#/components/schemas/CashappQr"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "swish_qr"
+            ],
+            "properties": {
+              "swish_qr": {
+                "$ref": "#/components/schemas/SwishQrData"
               }
             }
           }
