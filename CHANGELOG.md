@@ -4,6 +4,20 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 1.17.1+hotfix.1 (2023-08-09)
+
+### Features
+
+- **router:** Add webhook source verification support for multiple mca of the same connector ([#1905](https://github.com/juspay/hyperswitch/pull/1905)) ([`0137a05`](https://github.com/juspay/hyperswitch/commit/0137a0535ddc67fa1bdd3db891fab2ed23c98eef))
+
+### Bug Fixes
+
+- **webhooks:** Add temporary support to acknowledge webhooks whose pa… ([#1907](https://github.com/juspay/hyperswitch/pull/1907)) ([`07ee217`](https://github.com/juspay/hyperswitch/commit/07ee21713e2f34671ff0561389b532af5544637f))
+
+**Full Changelog:** [`v1.17.1...v1.17.1+hotfix.1`](https://github.com/juspay/hyperswitch/compare/v1.17.1...v1.17.1+hotfix.1)
+
+- - -
+
 ## 1.17.1 (2023-08-07)
 
 ### Bug Fixes
