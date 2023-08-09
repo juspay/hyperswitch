@@ -17,6 +17,7 @@ use crate::{
 pub struct PayRequest {
     buyer_name: Secret<String>,
     buyer_email: pii::Email,
+    buyer_key: String,
     payme_sale_id: String,
     #[serde(flatten)]
     card: PaymeCard,
@@ -58,6 +59,18 @@ pub struct PaymeCard {
     credit_card_cvv: Secret<String>,
     credit_card_exp: Secret<String>,
     credit_card_number: cards::CardNumber,
+}
+
+#[derive(Debug, Serialize)]
+pub struct CaptureBuyerRequest {
+    seller_payme_id: Secret<String>,
+    #[serde(flatten)]
+    card: PaymeCard,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct CaptureBuyerResponse {
+    buyer_key: String,
 }
 
 #[derive(Debug, Serialize)]
@@ -329,11 +342,35 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PayRequest {
                         id: "payme_sale_id".to_string(),
                     },
                 )?;
+                let buyer_key = item.payment_method_token.clone().unwrap_or(Err(errors::ConnectorError::MissingRequiredField { field_name: "buyer_key" })?);
                 Ok(Self {
                     card,
                     buyer_email,
                     buyer_name,
+                    buyer_key,
                     payme_sale_id,
+                })
+            }
+            _ => Err(errors::ConnectorError::NotImplemented("Payment methods".to_string()).into()),
+        }
+    }
+}
+
+impl TryFrom<&types::TokenizationRouterData> for CaptureBuyerRequest {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(item: &types::TokenizationRouterData) -> Result<Self, Self::Error> {
+        match item.request.payment_method_data.clone() {
+            api::PaymentMethodData::Card(req_card) => {
+                let seller_payme_id = PaymeAuthType::try_from(&item.connector_auth_type)?.seller_payme_id;
+                let card = PaymeCard {
+                    credit_card_cvv: req_card.card_cvc.clone(),
+                    credit_card_exp: req_card
+                        .get_card_expiry_month_year_2_digit_with_delimiter("".to_string()),
+                    credit_card_number: req_card.card_number,
+                };
+                Ok(Self {
+                    card,
+                    seller_payme_id,
                 })
             }
             _ => Err(errors::ConnectorError::NotImplemented("Payment methods".to_string()).into()),
@@ -418,6 +455,34 @@ pub struct PaymePaySaleResponse {
 #[derive(Serialize, Deserialize)]
 pub struct PaymeMetadata {
     payme_transaction_id: String,
+}
+
+impl<F, T>
+    TryFrom<
+        types::ResponseRouterData<
+            F,
+            CaptureBuyerResponse,
+            T,
+            types::PaymentsResponseData,
+        >,
+    > for types::RouterData<F, T, types::PaymentsResponseData>
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        item: types::ResponseRouterData<
+            F,
+            CaptureBuyerResponse,
+            T,
+            types::PaymentsResponseData,
+        >,
+    ) -> Result<Self, Self::Error> {
+        Ok(Self {
+            response: Ok(types::PaymentsResponseData::TokenizationResponse {
+                token: item.response.buyer_key,
+            }),
+            ..item.data
+        })
+    }
 }
 
 impl<F>
