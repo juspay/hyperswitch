@@ -976,6 +976,32 @@
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/PaymentsCreateRequest"
+              },
+              "examples": {
+                "Create a 3DS payment": {
+                  "value": "{\n        \"amount\": 6540,\n        \"currency\": \"USD\",\n        \"authentication_type\" : \"three_ds\"\n    }"
+                },
+                "Create a manual capture payment": {
+                  "value": "{\n        \"amount\": 6540,\n        \"currency\": \"USD\",\n        \"capture_method\":\"manual\"\n    }"
+                },
+                "Create a payment": {
+                  "value": "{\n        \"amount\": 6540,\n        \"currency\": \"USD\",\n        \"payment_id\": \"abcdefghijklmnopqrstuvwxyz\",\n        \"customer\": {\n            \"id\":\"cus_abcdefgh\",\n            \"name\":\"John Dough\",\n            \"phone\":\"9999999999\",\n            \"email\":\"john@example.com\"\n        },\n        \"description\": \"Its my first payment request\",\n        \"statement_descriptor_name\": \"joseph\",\n        \"statement_descriptor_suffix\": \"JS\",\n        \"metadata\": {\n            \"udf1\": \"some-value\",\n            \"udf2\": \"some-value\"\n        }\n    }"
+                },
+                "Create a payment with address": {
+                  "value": "{\n        \"amount\": 6540,\n        \"currency\": \"USD\",\n        \"customer\": {\n            \"id\" : \"cus_abcdefgh\"\n        },\n        \"billing\": {\n            \"address\": {\n                \"line1\": \"1467\",\n                \"line2\": \"Harrison Street\",\n                \"line3\": \"Harrison Street\",\n                \"city\": \"San Fransico\",\n                \"state\": \"California\",\n                \"zip\": \"94122\",\n                \"country\": \"US\",\n                \"first_name\": \"joseph\",\n                \"last_name\": \"Doe\"\n            },\n            \"phone\": {\n                \"number\": \"8056594427\",\n                \"country_code\": \"+91\"\n            }\n        }\n    }"
+                },
+                "Create a payment with customer details": {
+                  "value": "{\n        \"amount\": 6540,\n        \"currency\": \"USD\",\n        \"customer\": {\n            \"id\":\"cus_abcdefgh\",\n            \"name\":\"John Dough\",\n            \"phone\":\"9999999999\",\n            \"email\":\"john@example.com\"\n        }\n    }"
+                },
+                "Create a payment with minimul fields": {
+                  "value": "{\n        \"amount\": 6540,\n        \"currency\": \"USD\",\n    }"
+                },
+                "Create a payment with order category for noon": {
+                  "value": "{\n        \"amount\": 6540,\n        \"currency\": \"USD\",\n        \"connector_metadata\": {\n            \"noon\": {\n                \"order_category\":\"shoes\"\n            }\n        }\n    }"
+                },
+                "Create a payment with order details": {
+                  "value": "{\n        \"amount\": 6540,\n        \"currency\": \"USD\",\n        \"order_details\": [\n            {\n                \"product_name\": \"Apple iPhone 15\",\n                \"quantity\": 1,\n                \"amount\" : 6540\n            }\n        ]\n    }"
+                }
               }
             }
           },
@@ -4853,6 +4879,24 @@
           }
         }
       },
+      "EventType": {
+        "type": "string",
+        "enum": [
+          "payment_succeeded",
+          "payment_failed",
+          "payment_processing",
+          "action_required",
+          "refund_succeeded",
+          "refund_failed",
+          "dispute_opened",
+          "dispute_expired",
+          "dispute_accepted",
+          "dispute_cancelled",
+          "dispute_challenged",
+          "dispute_won",
+          "dispute_lost"
+        ]
+      },
       "FeatureMetadata": {
         "type": "object",
         "properties": {
@@ -6984,6 +7028,97 @@
             "format": "int64",
             "description": "the amount per quantity of product"
           }
+        }
+      },
+      "OutgoingWebhook": {
+        "type": "object",
+        "required": [
+          "merchant_id",
+          "event_id",
+          "event_type",
+          "content"
+        ],
+        "properties": {
+          "merchant_id": {
+            "type": "string",
+            "description": "The merchant id of the merchant"
+          },
+          "event_id": {
+            "type": "string",
+            "description": "The unique event id for each webhook"
+          },
+          "event_type": {
+            "$ref": "#/components/schemas/EventType"
+          },
+          "content": {
+            "$ref": "#/components/schemas/OutgoingWebhookContent"
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time",
+            "description": "The time at which webhook was sent"
+          }
+        }
+      },
+      "OutgoingWebhookContent": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "type",
+              "object"
+            ],
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": [
+                  "payment_details"
+                ]
+              },
+              "object": {
+                "$ref": "#/components/schemas/PaymentsResponse"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "type",
+              "object"
+            ],
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": [
+                  "refund_details"
+                ]
+              },
+              "object": {
+                "$ref": "#/components/schemas/RefundResponse"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "type",
+              "object"
+            ],
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": [
+                  "dispute_details"
+                ]
+              },
+              "object": {
+                "$ref": "#/components/schemas/DisputeResponse"
+              }
+            }
+          }
+        ],
+        "discriminator": {
+          "propertyName": "type"
         }
       },
       "PayLaterData": {
