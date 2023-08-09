@@ -491,7 +491,11 @@ where
                             auth_flow == services::AuthFlow::Merchant,
                         )
                         .set_payment_token(payment_attempt.payment_token)
-                        .set_error_message(payment_attempt.error_reason)
+                        .set_error_message(
+                            payment_attempt
+                                .error_reason
+                                .or(payment_attempt.error_message),
+                        )
                         .set_error_code(payment_attempt.error_code)
                         .set_shipping(address.shipping)
                         .set_billing(address.billing)
@@ -547,7 +551,9 @@ where
             attempts: attempts_response,
             payment_method: payment_attempt.payment_method,
             capture_method: payment_attempt.capture_method,
-            error_message: payment_attempt.error_message,
+            error_message: payment_attempt
+                .error_reason
+                .or(payment_attempt.error_message),
             error_code: payment_attempt.error_code,
             payment_method_data: payment_method_data_response,
             email: customer
@@ -939,6 +945,10 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsCaptureD
                 .ok_or(errors::ApiErrorResponse::ResourceIdNotFound)?,
             payment_amount: payment_data.amount.into(),
             connector_meta: payment_data.payment_attempt.connector_metadata,
+            capture_method: payment_data
+                .payment_attempt
+                .capture_method
+                .unwrap_or_default(),
         })
     }
 }

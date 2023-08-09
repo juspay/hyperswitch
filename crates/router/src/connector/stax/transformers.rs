@@ -4,7 +4,7 @@ use masking::{ExposeInterface, Secret};
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    connector::utils::{CardData, PaymentsAuthorizeRequestData, RouterData},
+    connector::utils::{missing_field_err, CardData, PaymentsAuthorizeRequestData, RouterData},
     core::errors,
     types::{self, api, storage::enums},
 };
@@ -28,6 +28,16 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for StaxPaymentsRequest {
     fn try_from(item: &types::PaymentsAuthorizeRouterData) -> Result<Self, Self::Error> {
         match item.request.payment_method_data.clone() {
             api::PaymentMethodData::Card(_) => {
+                let pre_auth = !item.request.is_auto_capture()?;
+                Ok(Self {
+                    meta: StaxPaymentsRequestMetaData { tax: 0 },
+                    total: item.request.amount,
+                    is_refundable: true,
+                    pre_auth,
+                    payment_method_id: Secret::new(item.get_payment_method_token()?),
+                })
+            }
+            api::PaymentMethodData::BankDebit(_) => {
                 let pre_auth = !item.request.is_auto_capture()?;
                 Ok(Self {
                     meta: StaxPaymentsRequestMetaData { tax: 0 },
@@ -116,10 +126,22 @@ pub struct StaxTokenizeData {
 }
 
 #[derive(Debug, Serialize)]
+pub struct StaxBankTokenizeData {
+    person_name: Secret<String>,
+    bank_account: Secret<String>,
+    bank_routing: Secret<String>,
+    bank_name: api_models::enums::BankNames,
+    bank_type: api_models::enums::BankType,
+    bank_holder_type: api_models::enums::BankHolderType,
+    customer_id: Secret<String>,
+}
+
+#[derive(Debug, Serialize)]
 #[serde(tag = "method")]
 #[serde(rename_all = "lowercase")]
 pub enum StaxTokenRequest {
     Card(StaxTokenizeData),
+    Bank(StaxBankTokenizeData),
 }
 
 impl TryFrom<&types::TokenizationRouterData> for StaxTokenRequest {
@@ -138,6 +160,29 @@ impl TryFrom<&types::TokenizationRouterData> for StaxTokenRequest {
                 };
                 Ok(Self::Card(stax_card_data))
             }
+            api_models::payments::PaymentMethodData::BankDebit(
+                api_models::payments::BankDebitData::AchBankDebit {
+                    billing_details,
+                    account_number,
+                    routing_number,
+                    bank_name,
+                    bank_type,
+                    bank_holder_type,
+                    ..
+                },
+            ) => {
+                let stax_bank_data = StaxBankTokenizeData {
+                    person_name: billing_details.name,
+                    bank_account: account_number,
+                    bank_routing: routing_number,
+                    bank_name: bank_name.ok_or_else(missing_field_err("bank_name"))?,
+                    bank_type: bank_type.ok_or_else(missing_field_err("bank_type"))?,
+                    bank_holder_type: bank_holder_type
+                        .ok_or_else(missing_field_err("bank_holder_type"))?,
+                    customer_id: Secret::new(customer_id),
+                };
+                Ok(Self::Bank(stax_bank_data))
+            }
             api::PaymentMethodData::BankDebit(_)
             | api::PaymentMethodData::Wallet(_)
             | api::PaymentMethodData::PayLater(_)
@@ -148,6 +193,7 @@ impl TryFrom<&types::TokenizationRouterData> for StaxTokenRequest {
             | api::PaymentMethodData::Reward(_)
             | api::PaymentMethodData::Voucher(_)
             | api::PaymentMethodData::GiftCard(_)
+            | api::PaymentMethodData::CardRedirect(_)
             | api::PaymentMethodData::Upi(_) => Err(errors::ConnectorError::NotImplemented(
                 "Payment Method".to_string(),
             ))
@@ -353,4 +399,25 @@ impl TryFrom<types::RefundsResponseRouterData<api::RSync, RefundResponse>>
             ..item.data
         })
     }
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum StaxWebhookEventType {
+    PreAuth,
+    Capture,
+    Charge,
+    Void,
+    Refund,
+    #[serde(other)]
+    Unknown,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct StaxWebhookBody {
+    #[serde(rename = "type")]
+    pub transaction_type: StaxWebhookEventType,
+    pub id: String,
+    pub auth_id: Option<String>,
+    pub success: bool,
 }
