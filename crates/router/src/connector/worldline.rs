@@ -149,7 +149,12 @@ impl ConnectorValidation for Worldline {
             enums::CaptureMethod::Scheduled => Some("schedule"),
         };
         if let Some(capture_method) = unsupported_capture_method {
-            Err(errors::ConnectorError::NotImplemented(capture_method.into()).into())
+            Err(errors::ConnectorError::NotImplemented(format!(
+                "{} for {}",
+                capture_method,
+                self.id()
+            ))
+            .into())
         } else {
             Ok(())
         }
@@ -475,14 +480,6 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         req: &types::PaymentsAuthorizeRouterData,
         connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        if req.request.capture_method == Some(enums::CaptureMethod::ManualMultiple) {
-            return Err(errors::ConnectorError::NotImplemented(format!(
-                "{}{}",
-                consts::MANUAL_MULTIPLE_NOT_IMPLEMENTED_ERROR_MESSAGE,
-                self.id()
-            ))
-            .into());
-        }
         let base_url = self.base_url(connectors);
         let auth = worldline::WorldlineAuthType::try_from(&req.connector_auth_type)?;
         let merchant_account_id = auth.merchant_account_id.expose();

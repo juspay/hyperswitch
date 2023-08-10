@@ -142,7 +142,12 @@ impl ConnectorValidation for Noon {
             enums::CaptureMethod::Scheduled => Some("schedule"),
         };
         if let Some(capture_method) = unsupported_capture_method {
-            Err(errors::ConnectorError::NotImplemented(capture_method.into()).into())
+            Err(errors::ConnectorError::NotImplemented(format!(
+                "{} for {}",
+                capture_method,
+                self.id()
+            ))
+            .into())
         } else {
             Ok(())
         }
@@ -182,17 +187,9 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
 
     fn get_url(
         &self,
-        req: &types::PaymentsAuthorizeRouterData,
+        _req: &types::PaymentsAuthorizeRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        if req.request.capture_method == Some(enums::CaptureMethod::ManualMultiple) {
-            return Err(errors::ConnectorError::NotImplemented(format!(
-                "{}{}",
-                consts::MANUAL_MULTIPLE_NOT_IMPLEMENTED_ERROR_MESSAGE,
-                self.id()
-            ))
-            .into());
-        }
         Ok(format!("{}payment/v1/order", self.base_url(connectors)))
     }
 

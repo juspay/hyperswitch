@@ -8,7 +8,6 @@ use transformers as multisafepay;
 
 use crate::{
     configs::settings,
-    consts,
     core::errors::{self, CustomResult},
     headers,
     services::{
@@ -96,7 +95,12 @@ impl ConnectorValidation for Multisafepay {
             enums::CaptureMethod::Scheduled => Some("schedule"),
         };
         if let Some(capture_method) = unsupported_capture_method {
-            Err(errors::ConnectorError::NotImplemented(capture_method.into()).into())
+            Err(errors::ConnectorError::NotImplemented(format!(
+                "{} for {}",
+                capture_method,
+                self.id()
+            ))
+            .into())
         } else {
             Ok(())
         }
@@ -243,14 +247,6 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         req: &types::PaymentsAuthorizeRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        if req.request.capture_method == Some(enums::CaptureMethod::ManualMultiple) {
-            return Err(errors::ConnectorError::NotImplemented(format!(
-                "{}{}",
-                consts::MANUAL_MULTIPLE_NOT_IMPLEMENTED_ERROR_MESSAGE,
-                self.id()
-            ))
-            .into());
-        }
         let url = self.base_url(connectors);
         let api_key = multisafepay::MultisafepayAuthType::try_from(&req.connector_auth_type)
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?

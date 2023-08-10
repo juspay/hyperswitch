@@ -2,7 +2,6 @@ mod result_codes;
 pub mod transformers;
 use std::fmt::Debug;
 
-use diesel_models::enums;
 use error_stack::{IntoReport, ResultExt};
 use masking::PeekInterface;
 use transformers as aci;
@@ -10,7 +9,6 @@ use transformers as aci;
 use super::utils::PaymentsAuthorizeRequestData;
 use crate::{
     configs::settings,
-    consts,
     core::errors::{self, CustomResult},
     headers,
     services::{
@@ -266,14 +264,6 @@ impl
         req: &types::PaymentsAuthorizeRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        if req.request.capture_method == Some(enums::CaptureMethod::ManualMultiple) {
-            return Err(errors::ConnectorError::NotImplemented(format!(
-                "{}{}",
-                consts::MANUAL_MULTIPLE_NOT_IMPLEMENTED_ERROR_MESSAGE,
-                self.id()
-            ))
-            .into());
-        }
         match req.request.connector_mandate_id() {
             Some(mandate_id) => Ok(format!(
                 "{}v1/registrations/{}/payments",
