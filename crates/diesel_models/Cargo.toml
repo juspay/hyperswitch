@@ -13,6 +13,7 @@ kv_store = []
 
 [dependencies]
 async-bb8-diesel = { git = "https://github.com/oxidecomputer/async-bb8-diesel", rev = "be3d9bce50051d8c0e0c06078e8066cc27db3001" }
+async-trait = "0.1.68"
 diesel = { version = "2.1.0", features = ["postgres", "serde_json", "time", "64-column-tables"] }
 error-stack = "0.3.1"
 frunk = "0.4.1"

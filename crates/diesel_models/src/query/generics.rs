@@ -71,6 +71,64 @@ pub mod db_metrics {
 
 use db_metrics::*;
 
+#[async_trait::async_trait]
+pub trait Insert<T, V, R>
+where
+    T: HasTable<Table = T> + Table + 'static + Debug,
+    V: Debug + Insertable<T>,
+    <T as QuerySource>::FromClause: QueryFragment<Pg> + Debug,
+    <V as Insertable<T>>::Values: CanInsertInSingleQuery<Pg> + QueryFragment<Pg> + 'static,
+    InsertStatement<T, <V as Insertable<T>>::Values>:
+        AsQuery + LoadQuery<'static, PgConnection, R> + Send,
+    R: Send + 'static,
+{
+    async fn insert(self, conn: &PgPooledConn) -> StorageResult<R>;
+}
+
+#[async_trait::async_trait]
+impl<T,V,R> Insert<T, V, R> for InsertStatement<T, <V as Insertable<T>>::Values>
+where
+    T: HasTable<Table = T> + Table + 'static + Debug,
+    V: Debug + Insertable<T>,
+    <T as QuerySource>::FromClause: QueryFragment<Pg> + Debug,
+    <V as Insertable<T>>::Values: CanInsertInSingleQuery<Pg> + QueryFragment<Pg> + 'static,
+    InsertStatement<T, <V as Insertable<T>>::Values>:
+        AsQuery + LoadQuery<'static, PgConnection, R> + Send,
+    R: Send + 'static,
+{
+    async fn insert(self, conn: &PgPooledConn) -> StorageResult<R> {
+        logger::debug!(query = %debug_query::<Pg, _>(&self).to_string());
+
+        match track_database_call::<T, _, _>(self.get_result_async(conn), DatabaseOperation::Insert)
+            .await
+            .into_report()
+        {
+            Ok(value) => Ok(value),
+            Err(err) => match err.current_context() {
+                ConnectionError::Query(DieselError::DatabaseError(
+                    diesel::result::DatabaseErrorKind::UniqueViolation,
+                    _,
+                )) => Err(err).change_context(errors::DatabaseError::UniqueViolation),
+                _ => Err(err).change_context(errors::DatabaseError::Others),
+            },
+        }
+        .attach_printable_lazy(|| format!("Error while inserting"))
+    }
+}
+// pub struct Wrap<X>(X);
+
+#[instrument(level = "DEBUG", skip_all)]
+pub fn generic_insert_query<T, V, R>(values: V) -> InsertStatement<T, <V as Insertable<T>>::Values>
+where
+    T: HasTable<Table = T> + Table + 'static + Debug,
+    V: Debug + Insertable<T>,
+    <T as QuerySource>::FromClause: QueryFragment<Pg> + Debug,
+    <V as Insertable<T>>::Values: CanInsertInSingleQuery<Pg> + QueryFragment<Pg> + 'static,
+    R: Send + 'static,
+{
+   diesel::insert_into(<T as HasTable>::table()).values(values)
+}
+
 #[instrument(level = "DEBUG", skip_all)]
 pub async fn generic_insert<T, V, R>(conn: &PgPooledConn, values: V) -> StorageResult<R>
 where

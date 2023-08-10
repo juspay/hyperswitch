@@ -1730,6 +1730,7 @@ name = "diesel_models"
 version = "0.1.0"
 dependencies = [
  "async-bb8-diesel",
+ "async-trait",
  "common_enums",
  "common_utils",
  "diesel",
