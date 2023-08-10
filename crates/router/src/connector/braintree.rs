@@ -58,21 +58,18 @@ impl ConnectorCommon for Braintree {
         match response {
             Ok(braintree::ErrorResponse::BraintreeApiErrorResponse(response)) => {
                 let error_object = response.api_error_response.errors;
-                let code = if !error_object.errors.is_empty() {
-                    error_object
-                        .errors
-                        .first()
-                        .map_or(consts::NO_ERROR_CODE.to_string(), |error| {
-                            error.code.clone()
-                        })
-                } else if error_object.transaction.is_some() {
-                    let transaction = error_object.transaction;
-                    transaction.map_or(consts::NO_ERROR_CODE.to_string(), |transaction| {
-                        braintree::get_transaction_error(transaction)
-                    })
-                } else {
-                    consts::NO_ERROR_CODE.to_string()
-                };
+                let error = error_object
+                    .errors
+                    .first()
+                    .or(error_object.transaction.as_ref().and_then(|transaction_error| {
+                        transaction_error.errors.first().or(transaction_error
+                            .credit_card
+                            .as_ref()
+                            .and_then(|credit_card_error| credit_card_error.errors.first()))
+                    }));
+                let code = error.map_or(consts::NO_ERROR_CODE.to_string(), |error| {
+                    error.code.clone()
+                });
                 Ok(ErrorResponse {
                     status_code: res.status_code,
                     code,

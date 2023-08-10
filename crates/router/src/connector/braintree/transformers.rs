@@ -417,30 +417,3 @@ impl TryFrom<types::RefundsResponseRouterData<api::RSync, RefundResponse>>
         })
     }
 }
-
-pub fn get_transaction_error(transaction: TransactionError) -> String {
-    if !transaction.errors.is_empty() {
-        transaction
-            .errors
-            .first()
-            .map_or(consts::NO_ERROR_CODE.to_string(), |error| {
-                error.code.clone()
-            })
-    } else if transaction.credit_card.is_some() {
-        let credit_card = transaction.credit_card;
-        credit_card.map_or(consts::NO_ERROR_CODE.to_string(), |credit_card| {
-            get_credit_card_error(credit_card)
-        })
-    } else {
-        consts::NO_ERROR_CODE.to_string()
-    }
-}
-
-pub fn get_credit_card_error(credit_card: CreditCardError) -> String {
-    credit_card
-        .errors
-        .first()
-        .map_or(consts::NO_ERROR_CODE.to_string(), |error| {
-            error.code.clone()
-        })
-}
