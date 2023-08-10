@@ -25,9 +25,9 @@ use self::{
     helpers::authenticate_client_secret,
     operations::{payment_complete_authorize, BoxedOperation, Operation},
 };
-use super::{errors::StorageErrorExt, locking::GetLockingInput};
+use super::errors::StorageErrorExt;
 #[cfg(feature = "locking")]
-use crate::core::locking;
+use crate::core::locking::{self, GetLockingInput};
 use crate::{
     configs::settings::PaymentMethodTypeTokenFilter,
     core::errors::{self, CustomResult, RouterResponse, RouterResult},
