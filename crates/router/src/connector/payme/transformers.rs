@@ -98,7 +98,25 @@ pub struct GenerateSaleRequest {
     seller_payme_id: Secret<String>,
     sale_callback_url: String,
     sale_payment_method: SalePaymentMethod,
+    services: Option<ThreeDS>,
     language: String,
+}
+
+#[derive(Debug, Serialize)]
+pub struct ThreeDS {
+    name: ThreeDSType,
+    settings: ThreeDSSettings,
+}
+
+#[derive(Debug, Serialize)]
+pub enum ThreeDSType {
+    #[serde(rename = "3D Secure")]
+    ThreeDS,
+}
+
+#[derive(Debug, Serialize)]
+pub struct ThreeDSSettings {
+    active: bool,
 }
 
 #[derive(Debug, Deserialize)]
@@ -235,6 +253,7 @@ impl TryFrom<&types::PaymentsPreProcessingRouterData> for GenerateSaleRequest {
         let sale_type = SaleType::try_from(item)?;
         let seller_payme_id = PaymeAuthType::try_from(&item.connector_auth_type)?.seller_payme_id;
         let order_details = item.request.get_order_details()?;
+        let services = get_services(item);
         let product_name = order_details
             .first()
             .ok_or_else(missing_field_err("order_details"))?
@@ -253,8 +272,11 @@ impl TryFrom<&types::PaymentsPreProcessingRouterData> for GenerateSaleRequest {
             sale_payment_method: SalePaymentMethod::try_from(&pmd)?,
             sale_type,
             transaction_id: item.payment_id.clone(),
-            sale_return_url: item.request.get_return_url()?,
-            sale_callback_url: item.request.get_webhook_url()?,
+            sale_return_url: "https://webhook.site/e505d040-7263-4e7a-9d9d-527adbc01292"
+                .to_string(),
+            sale_callback_url: "https://webhook.site/e505d040-7263-4e7a-9d9d-527adbc01292"
+                .to_string(),
+            services,
             language: LANGUAGE.to_string(),
         })
     }
@@ -465,68 +487,17 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for Pay3dsRequest {
             api::PaymentMethodData::Card(_) => {
                 let buyer_email = item.request.get_email()?;
                 let buyer_name = item.get_billing_address()?.get_full_name()?;
-                let payme_sale_id = item.request.related_transaction_id.clone().ok_or(
+                let payme_sale_id = item.reference_id.to_owned().ok_or(
                     errors::ConnectorError::MissingConnectorRelatedTransactionID {
                         id: "payme_sale_id".to_string(),
                     },
                 )?;
-                let buyer_key = item.payment_method_token.clone().unwrap_or(Err(
-                    errors::ConnectorError::MissingRequiredField {
+                let buyer_key = match item.payment_method_token.clone() {
+                    Some(key) => key,
+                    None => Err(errors::ConnectorError::MissingRequiredField {
                         field_name: "buyer_key",
-                    },
-                )?);
-                Ok(Self {
-                    buyer_email,
-                    buyer_key,
-                    buyer_name,
-                    payme_sale_id,
-                })
-            }
-            _ => Err(errors::ConnectorError::NotImplemented("Payment methods".to_string()).into()),
-        }
-    }
-}
-
-impl TryFrom<&types::TokenizationRouterData> for CaptureBuyerRequest {
-    type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(item: &types::TokenizationRouterData) -> Result<Self, Self::Error> {
-        match item.request.payment_method_data.clone() {
-            api::PaymentMethodData::Card(req_card) => {
-                let seller_payme_id =
-                    PaymeAuthType::try_from(&item.connector_auth_type)?.seller_payme_id;
-                let card = PaymeCard {
-                    credit_card_cvv: req_card.card_cvc.clone(),
-                    credit_card_exp: req_card
-                        .get_card_expiry_month_year_2_digit_with_delimiter("".to_string()),
-                    credit_card_number: req_card.card_number,
+                    })?,
                 };
-                Ok(Self {
-                    card,
-                    seller_payme_id,
-                })
-            }
-            _ => Err(errors::ConnectorError::NotImplemented("Payment methods".to_string()).into()),
-        }
-    }
-}
-
-impl TryFrom<&types::PaymentsAuthorizeRouterData> for Pay3dsRequest {
-    type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(item: &types::PaymentsAuthorizeRouterData) -> Result<Self, Self::Error> {
-        match item.request.payment_method_data.clone() {
-            api::PaymentMethodData::Card(_) => {
-                let buyer_email = item.request.get_email()?;
-                let buyer_name = item.get_billing_address()?.get_full_name()?;
-                let payme_sale_id = item.request.related_transaction_id.clone().ok_or(
-                    errors::ConnectorError::MissingConnectorRelatedTransactionID {
-                        id: "payme_sale_id".to_string(),
-                    },
-                )?;
-                let buyer_key = item.payment_method_token.clone().unwrap_or(Err(
-                    errors::ConnectorError::MissingRequiredField {
-                        field_name: "buyer_key",
-                    },
-                )?);
                 Ok(Self {
                     buyer_email,
                     buyer_key,
@@ -669,6 +640,7 @@ impl<F, T>
         item: types::ResponseRouterData<F, CaptureBuyerResponse, T, types::PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
+            payment_method_token: Some(item.response.buyer_key.clone()),
             response: Ok(types::PaymentsResponseData::TokenizationResponse {
                 token: item.response.buyer_key,
             }),
@@ -794,6 +766,19 @@ impl<F, T>
             }),
             ..item.data
         })
+    }
+}
+
+fn get_services(item: &types::PaymentsPreProcessingRouterData) -> Option<ThreeDS> {
+    match item.auth_type {
+        api_models::enums::AuthenticationType::ThreeDs => {
+            let settings = ThreeDSSettings { active: true };
+            Some(ThreeDS {
+                name: ThreeDSType::ThreeDS,
+                settings,
+            })
+        }
+        api_models::enums::AuthenticationType::NoThreeDs => None,
     }
 }
 

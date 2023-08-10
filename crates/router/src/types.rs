@@ -366,6 +366,7 @@ pub struct PaymentsPreProcessingData {
     pub payment_method_type: Option<storage_enums::PaymentMethodType>,
     pub setup_mandate_details: Option<payments::MandateData>,
     pub capture_method: Option<storage_enums::CaptureMethod>,
+    pub complete_authorize_url: Option<String>,
     pub order_details: Option<Vec<api_models::payments::OrderDetailsWithAmount>>,
     pub router_return_url: Option<String>,
     pub webhook_url: Option<String>,
