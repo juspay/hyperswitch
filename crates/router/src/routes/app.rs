@@ -528,3 +528,19 @@ impl Cache {
             .service(web::resource("/invalidate/{key}").route(web::post().to(invalidate)))
     }
 }
+
+pub struct BusinessProfile;
+
+#[cfg(any(feature = "olap", feature = "oltp"))]
+impl BusinessProfile {
+    pub fn server(state: AppState) -> Scope {
+        web::scope("/business_profile")
+            .app_data(web::Data::new(state))
+            .service(
+                web::resource("/{profile_id}")
+                    .route(web::get().to(business_profile_retrieve))
+                    .route(web::post().to(business_profile_update)),
+            )
+            .service(web::resource("").route(web::post().to(business_profile_create)))
+    }
+}

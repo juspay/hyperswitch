@@ -191,6 +191,12 @@ pub enum Flow {
     RetrieveDisputeEvidence,
     /// Invalidate cache flow
     CacheInvalidate,
+    /// Create a business profile
+    BusinessProfileCreate,
+    /// Update a business profile
+    BusinessProfileUpdate,
+    /// Retrieve a business profile
+    BusinessProfileRetrieve,
 }
 
 ///

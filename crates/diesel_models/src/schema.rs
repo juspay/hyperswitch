@@ -57,6 +57,34 @@ diesel::table! {
     use diesel::sql_types::*;
     use crate::enums::diesel_exports::*;
 
+    business_profile (profile_id) {
+        #[max_length = 64]
+        profile_id -> Varchar,
+        #[max_length = 64]
+        merchant_id -> Varchar,
+        #[max_length = 64]
+        profile_name -> Nullable<Varchar>,
+        created_at -> Timestamp,
+        modified_at -> Timestamp,
+        return_url -> Nullable<Text>,
+        enable_payment_response_hash -> Bool,
+        #[max_length = 255]
+        payment_response_hash_key -> Nullable<Varchar>,
+        redirect_to_merchant_with_http_post -> Bool,
+        webhook_details -> Nullable<Json>,
+        metadata -> Nullable<Json>,
+        routing_algorithm -> Nullable<Json>,
+        intent_fulfillment_time -> Nullable<Int8>,
+        frm_routing_algorithm -> Nullable<Jsonb>,
+        payout_routing_algorithm -> Nullable<Jsonb>,
+        is_recon_enabled -> Bool,
+    }
+}
+
+diesel::table! {
+    use diesel::sql_types::*;
+    use crate::enums::diesel_exports::*;
+
     cards_info (card_iin) {
         #[max_length = 16]
         card_iin -> Varchar,
@@ -718,6 +746,7 @@ diesel::table! {
 diesel::allow_tables_to_appear_in_same_query!(
     address,
     api_keys,
+    business_profile,
     cards_info,
     configs,
     connector_response,

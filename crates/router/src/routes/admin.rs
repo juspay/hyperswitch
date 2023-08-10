@@ -386,6 +386,67 @@ pub async fn merchant_account_toggle_kv(
     .await
 }
 
+#[instrument(skip_all, fields(flow = ?Flow::BusinessProfileCreate))]
+pub async fn business_profile_create(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    json_payload: web::Json<admin::BusinessProfileCreate>,
+) -> HttpResponse {
+    let flow = Flow::BusinessProfileCreate;
+    let payload = json_payload.into_inner();
+
+    api::server_wrap(
+        flow,
+        state.get_ref(),
+        &req,
+        payload,
+        |state, _, req| create_business_profile(&*state.store, req),
+        &auth::AdminApiAuth,
+    )
+    .await
+}
+
+#[instrument(skip_all, fields(flow = ?Flow::BusinessProfileRetrieve))]
+pub async fn business_profile_retrieve(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    path: web::Path<String>,
+) -> HttpResponse {
+    let flow = Flow::BusinessProfileRetrieve;
+    let profile_id = path.into_inner();
+
+    api::server_wrap(
+        flow,
+        state.get_ref(),
+        &req,
+        profile_id,
+        |state, _, profile_id| retrieve_business_profile(&*state.store, profile_id),
+        &auth::AdminApiAuth,
+    )
+    .await
+}
+
+#[instrument(skip_all, fields(flow = ?Flow::BusinessProfileUpdate))]
+pub async fn business_profile_update(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    path: web::Path<String>,
+    json_payload: web::Json<api_models::admin::BusinessProfileUpdate>,
+) -> HttpResponse {
+    let flow = Flow::BusinessProfileUpdate;
+    let profile_id = path.into_inner();
+
+    api::server_wrap(
+        flow,
+        state.get_ref(),
+        &req,
+        json_payload.into_inner(),
+        |state, _, req| update_business_profile(&*state.store, &profile_id, req),
+        &auth::AdminApiAuth,
+    )
+    .await
+}
+
 /// Merchant Account - KV Status
 ///
 /// Toggle KV mode for the Merchant Account

@@ -1,5 +1,6 @@
 pub mod address;
 pub mod api_keys;
+pub mod business_profile;
 pub mod cards_info;
 pub mod configs;
 pub mod connector_response;
