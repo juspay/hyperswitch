@@ -1,33 +1,26 @@
-#!/bin/bash
-sudo apt update
-apt install net-tools
+#! /usr/bin/env bash
 
-JSON_FILE_PATH="$HOME/target/test/Connectors.json"
+mkdir -p $HOME/target/test
+
+JSON_FILE_PATH=$HOME/target/test/Connectors.json
 
 # Fetches the Connector's list and stores it in Connectors.json file
-wget -q "$POSTMAN_CONNECTOR_PATHS" && mv "$POSTMAN_CONNECTOR_NAMES" "$JSON_FILE_PATH"
-
-
-echo "$JSON_FILE_PATH"
-pwd
-ls -la
-ls
+wget -q --output-document "$JSON_FILE_PATH" "$POSTMAN_CONNECTOR_PATHS"
 
 # Read the JSON file content into a variable
 JSON_DATA=$(cat "$JSON_FILE_PATH")
+# Extract the connectors and ignore_list values using jq
+connectors=$(echo "$JSON_DATA" | jq -r '.connectors | @tsv')
+ignore_list=$(echo "$JSON_DATA" | jq -r '.ignore_list | @tsv')
+
+# Convert the comma-separated strings into arrays
+IFS=$'\t' read -ra CONNECTORS_ARRAY <<< "$connectors"
+IFS=$'\t' read -ra IGNORE_LIST_ARRAY <<< "$ignore_list"
+IFS=$'\n'
 
 # Colors for the output
 RED='\033[0;31m'
 RESET='\033[0m'
-
-# Extract the connectors and ignore_list values using jq
-CONNECTORS=$(echo "$JSON_DATA" | jq -r '.CONNECTORS | @tsv')
-IGNORE_LIST=$(echo "$JSON_DATA" | jq -r '.IGNORE_LIST | @tsv')
-
-# Convert the comma-separated strings into arrays
-IFS=$'\t' read -ra CONNECTORS_ARRAY <<< "$CONNECTORS"
-IFS=$'\t' read -ra IGNORE_LIST_ARRAY <<< "$IGNORE_LIST"
-IFS=$'\n'
 
 # This function will exclude the folders since we don't have a way to exclude folders in the newman
 function exclude_folder() {
@@ -68,7 +61,7 @@ function exclude_folder() {
 FILTERED_CONNECTORS=()
 
 # Loop through the connectors' array and add elements that are not in the IGNORE_LIST_ARRAY
-for CONNECTOR in "${connectors_array[@]}"; do
+for CONNECTOR in "${CONNECTORS_ARRAY[@]}"; do
     ignore=false
     for IGNORED_CONNECTOR in "${IGNORE_LIST_ARRAY[@]}"; do
         if [[ "$CONNECTOR" == "$IGNORED_CONNECTOR" ]]; then
@@ -91,10 +84,12 @@ export CONNECTORS="${FILTERED_CONNECTORS[@]}"
 FAILED_CONNECTORS=()
 validated_connectors=()
 
+# Loop through the CONNECTORS_ARRAY and run the tests
 for i in $(echo "$FILTERED_CONNECTORS" | tr "," "\n"); do
     run_connector=false
 
-    for connector in "${ignore_list_array[@]}"; do
+    # Loop through the IGNORE_LIST_ARRAY and exclude the folders that are not needed, run the test for the rest of the folders
+    for connector in "${IGNORE_LIST_ARRAY[@]}"; do
         if [[ "$connector" == *:* ]]; then
             IFS=':' read -r name folder_to_ignore <<< "$connector"
             included_folders="$(exclude_folder "$name" "$folder_to_ignore")"
@@ -113,6 +108,7 @@ for i in $(echo "$FILTERED_CONNECTORS" | tr "," "\n"); do
         fi
     done
     
+    # Run the tests for the rest
     if [[ "$run_connector" == "false" ]]; then
         if [[ ! " ${validated_connectors[*]} " =~ " $i " ]]; then
             if ! cargo run --bin test_utils -- --connector_name="$i" --base_url="$BASE_URL" --admin_api_key="$ADMIN_API_KEY"; then
@@ -123,6 +119,7 @@ for i in $(echo "$FILTERED_CONNECTORS" | tr "," "\n"); do
     fi
 done
 
+# If there are failed connectors, print them and exit with error
 if [ ${#FAILED_CONNECTORS[@]} -gt 0 ]; then
     echo -e "${RED}One or more connectors failed to run:${RESET}"
     printf '%s\n' "${FAILED_CONNECTORS[@]}"
