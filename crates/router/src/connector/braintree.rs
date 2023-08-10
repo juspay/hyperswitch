@@ -58,10 +58,10 @@ impl ConnectorCommon for Braintree {
         match response {
             Ok(braintree::ErrorResponse::BraintreeApiErrorResponse(response)) => {
                 let error_object = response.api_error_response.errors;
-                let error = error_object
-                    .errors
-                    .first()
-                    .or(error_object.transaction.as_ref().and_then(|transaction_error| {
+                let error = error_object.errors.first().or(error_object
+                    .transaction
+                    .as_ref()
+                    .and_then(|transaction_error| {
                         transaction_error.errors.first().or(transaction_error
                             .credit_card
                             .as_ref()
