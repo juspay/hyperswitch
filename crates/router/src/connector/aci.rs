@@ -53,6 +53,33 @@ impl ConnectorCommon for Aci {
             auth.api_key.into_masked(),
         )])
     }
+
+    fn build_error_response(
+        &self,
+        res: types::Response,
+    ) -> CustomResult<types::ErrorResponse, errors::ConnectorError> {
+        let response: aci::AciErrorResponse = res
+            .response
+            .parse_struct("AciErrorResponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        Ok(types::ErrorResponse {
+            status_code: res.status_code,
+            code: response.result.code,
+            message: response.result.description,
+            reason: response.result.parameter_errors.map(|errors| {
+                errors
+                    .into_iter()
+                    .map(|error_description| {
+                        format!(
+                            "Field is {} and the message is {}",
+                            error_description.name, error_description.message
+                        )
+                    })
+                    .collect::<Vec<String>>()
+                    .join("; ")
+            }),
+        })
+    }
 }
 
 impl ConnectorValidation for Aci {}
@@ -203,23 +230,7 @@ impl
         &self,
         res: types::Response,
     ) -> CustomResult<types::ErrorResponse, errors::ConnectorError> {
-        let response: aci::AciPaymentsResponse =
-            res.response
-                .parse_struct("AciPaymentsResponse")
-                .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-        Ok(types::ErrorResponse {
-            code: response.result.code,
-            message: response.result.description,
-            reason: response.result.parameter_errors.and_then(|errors| {
-                errors.first().map(|error_description| {
-                    format!(
-                        "Field is {} and the message is {}",
-                        error_description.name, error_description.message
-                    )
-                })
-            }),
-            status_code: res.status_code,
-        })
+        self.build_error_response(res)
     }
 }
 
@@ -334,23 +345,7 @@ impl
         &self,
         res: types::Response,
     ) -> CustomResult<types::ErrorResponse, errors::ConnectorError> {
-        let response: aci::AciPaymentsResponse =
-            res.response
-                .parse_struct("AciPaymentsResponse")
-                .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-        Ok(types::ErrorResponse {
-            status_code: res.status_code,
-            code: response.result.code,
-            message: response.result.description,
-            reason: response.result.parameter_errors.and_then(|errors| {
-                errors.first().map(|error_description| {
-                    format!(
-                        "Field is {} and the message is {}",
-                        error_description.name, error_description.message
-                    )
-                })
-            }),
-        })
+        self.build_error_response(res)
     }
 }
 
@@ -439,23 +434,7 @@ impl
         &self,
         res: types::Response,
     ) -> CustomResult<types::ErrorResponse, errors::ConnectorError> {
-        let response: aci::AciPaymentsResponse =
-            res.response
-                .parse_struct("AciPaymentsResponse")
-                .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-        Ok(types::ErrorResponse {
-            status_code: res.status_code,
-            code: response.result.code,
-            message: response.result.description,
-            reason: response.result.parameter_errors.and_then(|errors| {
-                errors.first().map(|error_description| {
-                    format!(
-                        "Field is {} and the message is {}",
-                        error_description.name, error_description.message
-                    )
-                })
-            }),
-        })
+        self.build_error_response(res)
     }
 }
 
@@ -550,23 +529,7 @@ impl services::ConnectorIntegration<api::Execute, types::RefundsData, types::Ref
         &self,
         res: types::Response,
     ) -> CustomResult<types::ErrorResponse, errors::ConnectorError> {
-        let response: aci::AciRefundResponse = res
-            .response
-            .parse_struct("AciRefundResponse")
-            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-        Ok(types::ErrorResponse {
-            status_code: res.status_code,
-            code: response.result.code,
-            message: response.result.description,
-            reason: response.result.parameter_errors.and_then(|errors| {
-                errors.first().map(|error_description| {
-                    format!(
-                        "Field is {} and the message is {}",
-                        error_description.name, error_description.message
-                    )
-                })
-            }),
-        })
+        self.build_error_response(res)
     }
 }
 
