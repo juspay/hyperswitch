@@ -84,7 +84,7 @@ pub async fn pg_connection_read(
 > {
     // If only OLAP is enabled get replica pool.
     #[cfg(all(feature = "olap", not(feature = "oltp")))]
-    let pool = &store.replica_pool;
+    let pool = &store.diesel_store.replica_pool;
 
     // If either one of these are true we need to get master pool.
     //  1. Only OLTP is enabled.
@@ -95,7 +95,7 @@ pub async fn pg_connection_read(
         all(feature = "olap", feature = "oltp"),
         all(not(feature = "olap"), not(feature = "oltp"))
     ))]
-    let pool = &store.master_pool;
+    let pool = &store.diesel_store.master_pool;
 
     pool.get()
         .await
@@ -110,7 +110,7 @@ pub async fn pg_connection_write(
     errors::StorageError,
 > {
     // Since all writes should happen to master DB only choose master DB.
-    let pool = &store.master_pool;
+    let pool = &store.diesel_store.master_pool;
 
     pool.get()
         .await
