@@ -14,7 +14,7 @@ use crate::{
         payments, refunds,
     },
     logger,
-    routes::AppState,
+    routes::{metrics::request::add_attributes, AppState},
     services,
     types::{
         self as router_types, api, domain,
@@ -70,7 +70,12 @@ pub async fn payments_incoming_webhook_flow<W: types::OutgoingWebhookType>(
                         &errors::ApiErrorResponse::PaymentNotFound
                     ) =>
                 {
-                    return Ok(())
+                    metrics::WEBHOOK_PAYMENT_NOT_FOUND.add(
+                        &metrics::CONTEXT,
+                        1,
+                        &[add_attributes("merchant_id", merchant_account.merchant_id)],
+                    );
+                    return Ok(());
                 }
                 error @ Err(_) => error?,
             }
