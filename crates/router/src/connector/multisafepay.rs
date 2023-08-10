@@ -84,7 +84,24 @@ impl ConnectorCommon for Multisafepay {
     }
 }
 
-impl ConnectorValidation for Multisafepay {}
+impl ConnectorValidation for Multisafepay {
+    fn validate_capture_method(
+        &self,
+        capture_method: enums::CaptureMethod,
+    ) -> CustomResult<(), errors::ConnectorError> {
+        let unsupported_capture_method = match capture_method {
+            enums::CaptureMethod::Automatic => None,
+            enums::CaptureMethod::Manual => Some("manual_multiple"),
+            enums::CaptureMethod::ManualMultiple => Some("manual_multiple"),
+            enums::CaptureMethod::Scheduled => Some("schedule"),
+        };
+        if let Some(capture_method) = unsupported_capture_method {
+            Err(errors::ConnectorError::NotImplemented(capture_method.into()).into())
+        } else {
+            Ok(())
+        }
+    }
+}
 
 impl api::Payment for Multisafepay {}
 

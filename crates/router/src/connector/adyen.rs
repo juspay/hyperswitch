@@ -84,12 +84,7 @@ impl ConnectorValidation for Adyen {
             enums::CaptureMethod::Scheduled => Some("schedule"),
         };
         if let Some(capture_method) = unsupported_capture_method {
-            Err(errors::ConnectorError::NotSupported {
-                message: capture_method.to_string(),
-                connector: self.id(),
-                payment_experience: "".to_string(),
-            }
-            .into())
+            Err(errors::ConnectorError::NotImplemented(capture_method.into()).into())
         } else {
             Ok(())
         }
