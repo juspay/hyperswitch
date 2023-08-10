@@ -943,6 +943,20 @@ pub async fn retrieve_business_profile(
     ))
 }
 
+pub async fn delete_business_profile(
+    db: &dyn StorageInterface,
+    profile_id: String,
+) -> RouterResponse<bool> {
+    let delete_result = db
+        .delete_business_profile_by_profile_id(&profile_id)
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::BusinessProfileNotFound {
+            id: profile_id,
+        })?;
+
+    Ok(service_api::ApplicationResponse::Json(delete_result))
+}
+
 pub async fn update_business_profile(
     db: &dyn StorageInterface,
     profile_id: &str,

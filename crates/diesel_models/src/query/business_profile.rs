@@ -46,4 +46,15 @@ impl BusinessProfile {
         )
         .await
     }
+
+    pub async fn delete_by_profile_id(
+        conn: &PgPooledConn,
+        profile_id: &str,
+    ) -> StorageResult<bool> {
+        generics::generic_delete::<<Self as HasTable>::Table, _>(
+            &conn,
+            dsl::profile_id.eq(profile_id.to_owned()),
+        )
+        .await
+    }
 }

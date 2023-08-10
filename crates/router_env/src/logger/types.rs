@@ -197,6 +197,8 @@ pub enum Flow {
     BusinessProfileUpdate,
     /// Retrieve a business profile
     BusinessProfileRetrieve,
+    /// Delete a business profile
+    BusinessProfileDelete,
 }
 
 ///

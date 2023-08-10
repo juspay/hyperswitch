@@ -447,6 +447,26 @@ pub async fn business_profile_update(
     .await
 }
 
+#[instrument(skip_all, fields(flow = ?Flow::BusinessProfileDelete))]
+pub async fn business_profile_delete(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    path: web::Path<String>,
+) -> HttpResponse {
+    let flow = Flow::BusinessProfileDelete;
+    let profile_id = path.into_inner();
+
+    api::server_wrap(
+        flow,
+        state.get_ref(),
+        &req,
+        profile_id,
+        |state, _, profile_id| delete_business_profile(&*state.store, profile_id),
+        &auth::AdminApiAuth,
+    )
+    .await
+}
+
 /// Merchant Account - KV Status
 ///
 /// Toggle KV mode for the Merchant Account

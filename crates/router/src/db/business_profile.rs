@@ -25,6 +25,11 @@ pub trait BusinessProfileInterface {
         current_state: business_profile::BusinessProfile,
         business_profile_update: business_profile::BusinessProfileUpdateInternal,
     ) -> CustomResult<business_profile::BusinessProfile, errors::StorageError>;
+
+    async fn delete_business_profile_by_profile_id(
+        &self,
+        profile_id: &str,
+    ) -> CustomResult<bool, errors::StorageError>;
 }
 
 #[async_trait::async_trait]
@@ -67,6 +72,17 @@ impl BusinessProfileInterface for Store {
         .map_err(Into::into)
         .into_report()
     }
+
+    async fn delete_business_profile_by_profile_id(
+        &self,
+        profile_id: &str,
+    ) -> CustomResult<bool, errors::StorageError> {
+        let conn = connection::pg_connection_write(self).await?;
+        storage::business_profile::BusinessProfile::delete_by_profile_id(&conn, profile_id)
+            .await
+            .map_err(Into::into)
+            .into_report()
+    }
 }
 
 #[async_trait::async_trait]
@@ -90,6 +106,13 @@ impl BusinessProfileInterface for MockDb {
         _current_state: business_profile::BusinessProfile,
         _business_profile_update: business_profile::BusinessProfileUpdateInternal,
     ) -> CustomResult<business_profile::BusinessProfile, errors::StorageError> {
+        Err(errors::StorageError::MockDbError)?
+    }
+
+    async fn delete_business_profile_by_profile_id(
+        &self,
+        _profile_id: &str,
+    ) -> CustomResult<bool, errors::StorageError> {
         Err(errors::StorageError::MockDbError)?
     }
 }
