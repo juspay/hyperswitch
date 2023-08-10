@@ -86,7 +86,7 @@ where
         true,
     )
     .await?
-    .is_acquired()?; // probably raise Resource Busy.
+    .is_acquired()?;
 
     let (operation, mut payment_data, customer_details) = operation
         .to_get_tracker()?
@@ -223,7 +223,7 @@ where
     }
 
     #[cfg(feature = "locking")]
-    let _p = locking::release_lock(state, 3, acquired_lock.to_owned())
+    let _ = locking::release_lock(state, 3, acquired_lock.to_owned())
         .await
         .map_err(|err| {
             logger::error!(

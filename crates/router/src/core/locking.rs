@@ -14,7 +14,6 @@ pub enum Lock {
 
 pub struct LockingError {}
 
-// pr: should there be 2 enums AcquireLockStatus and ReleaseLockStatus ?
 #[derive(Clone, Debug)]
 pub enum LockStatus {
     Acquired(String),
@@ -49,7 +48,7 @@ pub async fn get_key_and_lock_resource(
     let is_locking_enabled_for_merchant = true;
     let is_locking_enabled_on_api = true;
 
-    // let get_expiry_time = get_expiry_time_from_redis_based_on_connector_pmd_pm();
+    
     if is_locking_enabled_for_merchant && is_locking_enabled_on_api {
         let expiry_in_seconds = 60; // get it from redis
         let delay_between_retries_in_seconds = 10; // get it from redis
@@ -85,7 +84,6 @@ pub async fn lock_resource(
 ) -> RouterResult<LockStatus> {
     let redis_key_for_lock = get_redis_key_for_locks(locking_key);
 
-    // let request_id_header = RequestId::extract(&req).await.ok(); // should get session id or request_id as we need info of who acquired the lock.
     acquire_lock_on_resource_in_redis(
         state,
         redis_key_for_lock.as_str(),
@@ -114,9 +112,7 @@ pub async fn acquire_lock_on_resource_in_redis(
     let redis_conn = state.store.clone().get_redis_conn();
 
     while retries != 0 {
-        // pr: should these be named as tries instead of retries
         retries -= 1;
-
         let is_lock_acquired = redis_conn
             .set_key_if_not_exists_with_expiry(
                 key,
@@ -126,13 +122,12 @@ pub async fn acquire_lock_on_resource_in_redis(
                         .try_into()
                         .into_report()
                         .change_context(errors::ApiErrorResponse::InternalServerError)?,
-                ), // todo:  throw an appropriate error
+                ),
             )
             .await;
 
         match is_lock_acquired {
             Ok(redis::SetnxReply::KeySet) => {
-                // (addAquiredLockInfoToState redisKey >>= logLockAcquired)
                 return Ok(LockStatus::Acquired(key.to_owned()));
             }
             Ok(redis::SetnxReply::KeyNotSet) => {
@@ -170,8 +165,6 @@ pub async fn release_lock(
                         logger::error!(error=%error.current_context(), "Error while releasing lock");
                     }
                 }
-                // if the key is not found
-                // should we wait before retrying again ?
             }
             Ok(LockStatus::ReleaseFailedRetriesExhausted(key.to_owned()))
         }
