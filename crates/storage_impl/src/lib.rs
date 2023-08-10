@@ -1,5 +1,5 @@
 use error_stack::ResultExt;
-use masking::Secret;
+use masking::StrongSecret;
 use redis::CacheStore;
 pub mod config;
 pub mod diesel;
@@ -11,14 +11,14 @@ pub use crate::diesel::store::DatabaseStore;
 pub struct RouterStore<T: DatabaseStore> {
     db_store: T,
     cache_store: CacheStore,
-    master_encryption_key: Secret<Vec<u8>>,
+    master_encryption_key: StrongSecret<Vec<u8>>,
 }
 
 impl<T: DatabaseStore> RouterStore<T> {
     pub async fn new(
         db_conf: T::Config,
         cache_conf: &redis_interface::RedisSettings,
-        encryption_key: Secret<Vec<u8>>,
+        encryption_key: StrongSecret<Vec<u8>>,
         cache_error_signal: tokio::sync::oneshot::Sender<()>,
         inmemory_cache_stream: &str,
     ) -> Self {
@@ -43,7 +43,7 @@ impl<T: DatabaseStore> RouterStore<T> {
     pub async fn test_store(
         db_conf: T::Config,
         cache_conf: &redis_interface::RedisSettings,
-        encryption_key: Secret<Vec<u8>>,
+        encryption_key: StrongSecret<Vec<u8>>,
     ) -> Self {
         // TODO: create an error enum and return proper error here
         let db_store = T::new(db_conf, true).await;
