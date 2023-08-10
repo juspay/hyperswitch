@@ -1453,8 +1453,6 @@ fn filter_pm_card_network_based(
     request_card_networks: Option<&Vec<api_enums::CardNetwork>>,
     pm_type: &api_enums::PaymentMethodType,
 ) -> bool {
-    logger::debug!(pm_card_networks=?pm_card_networks);
-    logger::debug!(request_card_networks=?request_card_networks);
     match pm_type {
         api_enums::PaymentMethodType::Credit | api_enums::PaymentMethodType::Debit => {
             match (pm_card_networks, request_card_networks) {
@@ -1831,7 +1829,7 @@ pub async fn list_customer_payment_method(
                 .parse_value("PaymentMethodMetadata")
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable(
-                    "Failed to deserialize metadata to PaymmentmethodMetadata struct",
+                    "Failed to deserialize metadata to PaymentmethodMetadata struct",
                 )?;
 
             for pm_metadata in pm_metadata_vec.payment_method_tokenization {

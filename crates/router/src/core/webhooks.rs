@@ -14,7 +14,7 @@ use crate::{
         payments, refunds,
     },
     logger,
-    routes::AppState,
+    routes::{metrics::request::add_attributes, AppState},
     services,
     types::{
         self as router_types, api, domain,
@@ -42,7 +42,7 @@ pub async fn payments_incoming_webhook_flow<W: types::OutgoingWebhookType>(
     };
     let payments_response = match webhook_details.object_reference_id {
         api_models::webhooks::ObjectReferenceId::PaymentId(id) => {
-            payments::payments_core::<api::PSync, api::PaymentsResponse, _, _, _>(
+            let response = payments::payments_core::<api::PSync, api::PaymentsResponse, _, _, _>(
                 &state,
                 merchant_account.clone(),
                 key_store,
@@ -60,7 +60,30 @@ pub async fn payments_incoming_webhook_flow<W: types::OutgoingWebhookType>(
                 services::AuthFlow::Merchant,
                 consume_or_trigger_flow,
             )
-            .await?
+            .await;
+
+            match response {
+                Ok(value) => value,
+                Err(err)
+                    if matches!(
+                        err.current_context(),
+                        &errors::ApiErrorResponse::PaymentNotFound
+                    ) && state
+                        .conf
+                        .webhooks
+                        .ignore_error
+                        .payment_not_found
+                        .unwrap_or(true) =>
+                {
+                    metrics::WEBHOOK_PAYMENT_NOT_FOUND.add(
+                        &metrics::CONTEXT,
+                        1,
+                        &[add_attributes("merchant_id", merchant_account.merchant_id)],
+                    );
+                    return Ok(());
+                }
+                error @ Err(_) => error?,
+            }
         }
         _ => Err(errors::ApiErrorResponse::WebhookProcessingFailure)
             .into_report()
@@ -685,7 +708,9 @@ pub async fn webhooks_core<W: types::OutgoingWebhookType>(
 
     let event_type = match connector
         .get_webhook_event_type(&request_details)
-        .allow_webhook_event_type_not_found()
+        .allow_webhook_event_type_not_found(
+            state.conf.webhooks.ignore_error.event_type.unwrap_or(true),
+        )
         .switch()
         .attach_printable("Could not find event type in incoming webhook body")?
     {
