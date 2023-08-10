@@ -432,6 +432,21 @@ pub struct Database {
     pub connection_timeout: u64,
 }
 
+#[cfg(not(feature = "kms"))]
+impl Into<storage_impl::config::Database> for Database {
+    fn into(self) -> storage_impl::config::Database {
+        storage_impl::config::Database {
+            username: self.username,
+            password: self.password,
+            host: self.host,
+            port: self.port,
+            dbname: self.dbname,
+            pool_size: self.pool_size,
+            connection_timeout: self.connection_timeout,
+        }
+    }
+}
+
 #[derive(Debug, Deserialize, Clone)]
 #[serde(default)]
 pub struct SupportedConnectors {
