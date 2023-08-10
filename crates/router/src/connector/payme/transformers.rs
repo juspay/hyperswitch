@@ -12,7 +12,7 @@ use crate::{
     },
     core::errors,
     services,
-    types::{self, api, storage::enums, MandateReference},
+    types::{self, api, storage::enums, BrowserInformation, MandateReference},
 };
 
 const LANGUAGE: &str = "en";
@@ -41,6 +41,14 @@ pub struct MandateRequest {
 }
 
 #[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct GenerateMetaDataJWT {
+    is_test_mode: Option<bool>,
+    #[serde(flatten)]
+    browser_data: BrowserInformation,
+}
+
+#[derive(Debug, Serialize)]
 pub struct Pay3dsRequest {
     buyer_name: Secret<String>,
     buyer_email: pii::Email,
@@ -53,6 +61,7 @@ pub struct Pay3dsRequest {
 pub enum PaymePaymentRequest {
     MandateRequest(MandateRequest),
     PayRequest(PayRequest),
+    GenerateMetaDataJWT(GenerateMetaDataJWT),
 }
 
 #[derive(Debug, Serialize)]
@@ -230,6 +239,49 @@ impl<F, T> TryFrom<types::ResponseRouterData<F, SaleQueryResponse, T, types::Pay
     }
 }
 
+impl<F>
+    TryFrom<
+        types::ResponseRouterData<
+            F,
+            MetaDataJWTResponse,
+            types::PaymentsAuthorizeData,
+            types::PaymentsResponseData,
+        >,
+    > for types::RouterData<F, types::PaymentsAuthorizeData, types::PaymentsResponseData>
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        item: types::ResponseRouterData<
+            F,
+            MetaDataJWTResponse,
+            types::PaymentsAuthorizeData,
+            types::PaymentsResponseData,
+        >,
+    ) -> Result<Self, Self::Error> {
+        let redirection_data = item.data.request.complete_authorize_url.clone().map(|url| {
+            let mut form_fields = std::collections::HashMap::<String, String>::new();
+            form_fields.insert("meta_data_jwt".to_string(), item.response.hash);
+            services::RedirectForm::Form {
+                endpoint: url,
+                method: services::Method::Get,
+                form_fields,
+            }
+        });
+        Ok(Self {
+            status: enums::AttemptStatus::AuthenticationPending,
+            response: Ok(types::PaymentsResponseData::TransactionResponse {
+                resource_id: types::ResponseId::NoResponseId,
+                redirection_data,
+                mandate_reference: None,
+                connector_metadata: None,
+                network_txn_id: None,
+                connector_response_reference_id: None,
+            }),
+            ..item.data
+        })
+    }
+}
+
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "lowercase")]
 pub enum SaleType {
@@ -314,7 +366,12 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PaymePaymentRequest {
         let payme_request = if value.request.mandate_id.is_some() {
             Self::MandateRequest(MandateRequest::try_from(value)?)
         } else {
-            Self::PayRequest(PayRequest::try_from(value)?)
+            match value.auth_type {
+                AuthenticationType::NoThreeDs => Self::PayRequest(PayRequest::try_from(value)?),
+                AuthenticationType::ThreeDs => {
+                    Self::GenerateMetaDataJWT(GenerateMetaDataJWT::try_from(value)?)
+                }
+            }
         };
         Ok(payme_request)
     }
@@ -441,6 +498,27 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for MandateRequest {
             buyer_key: Secret::new(item.request.get_connector_mandate_id()?),
             language: LANGUAGE.to_string(),
         })
+    }
+}
+
+impl TryFrom<&types::PaymentsAuthorizeRouterData> for GenerateMetaDataJWT {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(item: &types::PaymentsAuthorizeRouterData) -> Result<Self, Self::Error> {
+        match item.request.payment_method_data.clone() {
+            api::PaymentMethodData::Card(_) => {
+                let browser_data = match item.request.browser_info.clone() {
+                    Some(bw_info) => bw_info,
+                    None => Err(errors::ConnectorError::MissingRequiredField {
+                        field_name: "browser_info",
+                    })?,
+                };
+                Ok(Self {
+                    is_test_mode: item.test_mode,
+                    browser_data,
+                })
+            }
+            _ => Err(errors::ConnectorError::NotImplemented("Payment methods".to_string()).into()),
+        }
     }
 }
 
@@ -621,6 +699,11 @@ pub struct SaleQueryResponse {
 pub struct SaleQuery {
     sale_status: SaleStatus,
     sale_payme_id: String,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct MetaDataJWTResponse {
+    hash: String,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
