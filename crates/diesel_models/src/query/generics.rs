@@ -86,8 +86,6 @@ where
     R: Send + 'static,
 {
     let debug_values = format!("{values:?}");
-    let table_name = std::any::type_name::<T>().rsplit("::").nth(1);
-    logger::error!("YEE: {:?}", table_name);
 
     let query = diesel::insert_into(<T as HasTable>::table()).values(values);
     logger::debug!(query = %debug_query::<Pg, _>(&query).to_string());
