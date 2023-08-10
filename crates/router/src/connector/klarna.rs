@@ -15,6 +15,7 @@ use crate::{
     services::{
         self,
         request::{self, Mask},
+        ConnectorValidation,
     },
     types::{
         self,
@@ -74,6 +75,8 @@ impl ConnectorCommon for Klarna {
         })
     }
 }
+
+impl ConnectorValidation for Klarna {}
 
 impl api::Payment for Klarna {}
 

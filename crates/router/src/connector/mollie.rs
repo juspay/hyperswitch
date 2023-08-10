@@ -18,7 +18,7 @@ use crate::{
     services::{
         self,
         request::{self, Mask},
-        ConnectorIntegration,
+        ConnectorIntegration, ConnectorValidation,
     },
     types::{
         self,
@@ -98,6 +98,8 @@ impl ConnectorCommon for Mollie {
         })
     }
 }
+
+impl ConnectorValidation for Mollie {}
 
 impl ConnectorIntegration<api::Session, types::PaymentsSessionData, types::PaymentsResponseData>
     for Mollie

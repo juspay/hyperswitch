@@ -22,6 +22,7 @@ use crate::{
     services::{
         self,
         request::{self, Mask},
+        ConnectorValidation,
     },
     types::{
         self,
@@ -69,6 +70,29 @@ impl ConnectorCommon for Adyen {
             message: response.message,
             reason: None,
         })
+    }
+}
+
+impl ConnectorValidation for Adyen {
+    fn validate_capture_type(
+        &self,
+        capture_method: storage_enums::CaptureMethod,
+    ) -> CustomResult<(), errors::ConnectorError> {
+        let unsupported_capture_method = match capture_method {
+            enums::CaptureMethod::Automatic | enums::CaptureMethod::Manual => None,
+            enums::CaptureMethod::ManualMultiple => Some("manual_multiple"),
+            enums::CaptureMethod::Scheduled => Some("schedule"),
+        };
+        if let Some(capture_method) = unsupported_capture_method {
+            Err(errors::ConnectorError::NotSupported {
+                message: capture_method.to_string(),
+                connector: self.id(),
+                payment_experience: "".to_string(),
+            }
+            .into())
+        } else {
+            Ok(())
+        }
     }
 }
 

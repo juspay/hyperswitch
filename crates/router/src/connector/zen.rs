@@ -23,7 +23,7 @@ use crate::{
     services::{
         self,
         request::{self, Mask},
-        ConnectorIntegration,
+        ConnectorIntegration, ConnectorValidation,
     },
     types::{
         self,
@@ -128,6 +128,8 @@ impl ConnectorCommon for Zen {
         })
     }
 }
+
+impl ConnectorValidation for Zen {}
 
 impl ConnectorIntegration<api::Session, types::PaymentsSessionData, types::PaymentsResponseData>
     for Zen

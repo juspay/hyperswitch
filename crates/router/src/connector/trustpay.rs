@@ -24,7 +24,7 @@ use crate::{
     services::{
         self,
         request::{self, Mask},
-        ConnectorIntegration,
+        ConnectorIntegration, ConnectorValidation,
     },
     types::{
         self,
@@ -144,6 +144,8 @@ impl ConnectorCommon for Trustpay {
         }
     }
 }
+
+impl ConnectorValidation for Trustpay {}
 
 impl api::Payment for Trustpay {}
 

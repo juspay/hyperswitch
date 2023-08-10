@@ -10,6 +10,7 @@ use std::{
 };
 
 use actix_web::{body, HttpRequest, HttpResponse, Responder, ResponseError};
+use api_models::enums::CaptureMethod;
 use common_utils::errors::ReportSwitchExt;
 use error_stack::{report, IntoReport, Report, ResultExt};
 use masking::{ExposeOptionInterface, PeekInterface};
@@ -29,7 +30,11 @@ use crate::{
     logger,
     routes::{app::AppStateInfo, metrics, AppState},
     services::authentication as auth,
-    types::{self, api, ErrorResponse},
+    types::{
+        self,
+        api::{self, ConnectorCommon},
+        ErrorResponse,
+    },
 };
 
 pub type BoxedConnectorIntegration<'a, T, Req, Resp> =
@@ -45,6 +50,25 @@ where
 {
     fn get_connector_integration(&self) -> BoxedConnectorIntegration<'_, T, Req, Resp> {
         Box::new(self)
+    }
+}
+
+pub trait ConnectorValidation: ConnectorCommon {
+    fn validate_capture_type(
+        &self,
+        capture_method: CaptureMethod,
+    ) -> CustomResult<(), errors::ConnectorError> {
+        match capture_method {
+            CaptureMethod::Automatic => Ok(()),
+            CaptureMethod::Manual | CaptureMethod::ManualMultiple | CaptureMethod::Scheduled => {
+                Err(errors::ConnectorError::NotSupported {
+                    message: "manual, manual_multiple and scheduled capture method".into(),
+                    connector: self.id(),
+                    payment_experience: "".to_string(),
+                }
+                .into())
+            }
+        }
     }
 }
 

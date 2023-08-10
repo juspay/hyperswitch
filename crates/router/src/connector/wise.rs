@@ -15,6 +15,7 @@ use crate::{
     services::{
         self,
         request::{self, Mask},
+        ConnectorValidation,
     },
     types::{
         self,
@@ -112,6 +113,8 @@ impl ConnectorCommon for Wise {
         }
     }
 }
+
+impl ConnectorValidation for Wise {}
 
 impl api::Payment for Wise {}
 impl api::PaymentAuthorize for Wise {}

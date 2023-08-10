@@ -16,7 +16,7 @@ use crate::{
     consts,
     core::errors::{self, CustomResult},
     headers,
-    services::{self, request, ConnectorIntegration},
+    services::{self, request, ConnectorIntegration, ConnectorValidation},
     types::{
         self,
         api::{self, ConnectorCommon, ConnectorCommonExt},
@@ -125,6 +125,8 @@ impl ConnectorCommon for Globepay {
         })
     }
 }
+
+impl ConnectorValidation for Globepay {}
 
 impl ConnectorIntegration<api::Session, types::PaymentsSessionData, types::PaymentsResponseData>
     for Globepay

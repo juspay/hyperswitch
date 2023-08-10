@@ -16,7 +16,7 @@ use crate::{
     services::{
         self,
         request::{self, Mask},
-        ConnectorIntegration,
+        ConnectorIntegration, ConnectorValidation,
     },
     types::{
         self,
@@ -110,6 +110,8 @@ impl ConnectorCommon for Opennode {
         })
     }
 }
+
+impl ConnectorValidation for Opennode {}
 
 impl
     ConnectorIntegration<

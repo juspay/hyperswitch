@@ -14,7 +14,7 @@ use crate::{
     services::{
         self,
         request::{self, Mask},
-        ConnectorIntegration,
+        ConnectorIntegration, ConnectorValidation,
     },
     types::{
         self,
@@ -83,6 +83,8 @@ impl ConnectorCommon for Multisafepay {
         })
     }
 }
+
+impl ConnectorValidation for Multisafepay {}
 
 impl api::Payment for Multisafepay {}
 

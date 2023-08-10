@@ -13,7 +13,7 @@ use crate::{
     services::{
         self,
         request::{self, Mask},
-        ConnectorIntegration,
+        ConnectorIntegration, ConnectorValidation,
     },
     types::{
         self,
@@ -112,6 +112,8 @@ impl ConnectorCommon for Square {
         })
     }
 }
+
+impl ConnectorValidation for Square {}
 
 impl ConnectorIntegration<api::Session, types::PaymentsSessionData, types::PaymentsResponseData>
     for Square

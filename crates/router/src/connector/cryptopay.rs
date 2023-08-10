@@ -24,7 +24,7 @@ use crate::{
     services::{
         self,
         request::{self, Mask},
-        ConnectorIntegration,
+        ConnectorIntegration, ConnectorValidation,
     },
     types::{
         self,
@@ -167,6 +167,8 @@ impl ConnectorCommon for Cryptopay {
         })
     }
 }
+
+impl ConnectorValidation for Cryptopay {}
 
 impl ConnectorIntegration<api::Session, types::PaymentsSessionData, types::PaymentsResponseData>
     for Cryptopay

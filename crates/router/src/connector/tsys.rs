@@ -14,7 +14,7 @@ use crate::{
     services::{
         self,
         request::{self},
-        ConnectorIntegration,
+        ConnectorIntegration, ConnectorValidation,
     },
     types::{
         self,
@@ -77,6 +77,29 @@ impl ConnectorCommon for Tsys {
 
     fn base_url<'a>(&self, connectors: &'a settings::Connectors) -> &'a str {
         connectors.tsys.base_url.as_ref()
+    }
+}
+
+impl ConnectorValidation for Tsys {
+    fn validate_capture_type(
+        &self,
+        capture_method: enums::CaptureMethod,
+    ) -> CustomResult<(), errors::ConnectorError> {
+        let unsupported_capture_method = match capture_method {
+            enums::CaptureMethod::Automatic | enums::CaptureMethod::Manual => None,
+            enums::CaptureMethod::ManualMultiple => Some("manual_multiple"),
+            enums::CaptureMethod::Scheduled => Some("schedule"),
+        };
+        if let Some(capture_method) = unsupported_capture_method {
+            Err(errors::ConnectorError::NotSupported {
+                message: capture_method.into(),
+                connector: self.id(),
+                payment_experience: "".to_string(),
+            }
+            .into())
+        } else {
+            Ok(())
+        }
     }
 }
 
