@@ -75,10 +75,12 @@ impl<T: DatabaseStore> RouterStore<T> {
     ) -> Self {
         // TODO: create an error enum and return proper error here
         let db_store = T::new(db_conf, false).await;
+        #[allow(clippy::expect_used)]
         let cache_store = RedisStore::new(cache_conf)
             .await
             .expect("Failed to create cache store");
         cache_store.set_error_callback(cache_error_signal);
+        #[allow(clippy::expect_used)]
         cache_store
             .subscribe_to_channel(inmemory_cache_stream)
             .await
@@ -101,6 +103,7 @@ impl<T: DatabaseStore> RouterStore<T> {
     ) -> Self {
         // TODO: create an error enum and return proper error here
         let db_store = T::new(db_conf, true).await;
+        #[allow(clippy::expect_used)]
         let cache_store = RedisStore::new(cache_conf)
             .await
             .expect("Failed to create cache store");

@@ -616,6 +616,12 @@ impl TryFrom<enums::PaymentMethodType> for StripePaymentMethodType {
             | enums::PaymentMethodType::Oxxo
             | enums::PaymentMethodType::Benefit
             | enums::PaymentMethodType::Knet
+            | enums::PaymentMethodType::SevenEleven
+            | enums::PaymentMethodType::Lawson
+            | enums::PaymentMethodType::MiniStop
+            | enums::PaymentMethodType::FamilyMart
+            | enums::PaymentMethodType::Seicomart
+            | enums::PaymentMethodType::PayEasy
             | enums::PaymentMethodType::Walley => Err(errors::ConnectorError::NotImplemented(
                 connector_util::get_unimplemented_payment_method_error_message("stripe"),
             )
@@ -919,6 +925,12 @@ fn infer_stripe_pay_later_type(
             | enums::PaymentMethodType::PaySafeCard
             | enums::PaymentMethodType::Givex
             | enums::PaymentMethodType::Oxxo
+            | enums::PaymentMethodType::SevenEleven
+            | enums::PaymentMethodType::Lawson
+            | enums::PaymentMethodType::MiniStop
+            | enums::PaymentMethodType::FamilyMart
+            | enums::PaymentMethodType::Seicomart
+            | enums::PaymentMethodType::PayEasy
             | enums::PaymentMethodType::WeChatPay => Err(errors::ConnectorError::NotImplemented(
                 connector_util::get_unimplemented_payment_method_error_message("stripe"),
             )),
