@@ -2,11 +2,19 @@
 sudo apt update
 apt install net-tools
 
+JSON_FILE_PATH="$HOME/target/test/Connectors.json"
+
 # Fetches the Connector's list and stores it in Connectors.json file
-wget -q $POSTMAN_CONNECTOR_PATHS && mv $POSTMAN_CONNECTOR_NAMES Connectors.json
+wget -q "$POSTMAN_CONNECTOR_PATHS" && mv "$POSTMAN_CONNECTOR_NAMES" "$JSON_FILE_PATH"
+
+
+echo "$JSON_FILE_PATH"
+pwd
+ls -la
+ls
 
 # Read the JSON file content into a variable
-JSON_DATA=$(cat Connectors.json)
+JSON_DATA=$(cat "$JSON_FILE_PATH")
 
 # Colors for the output
 RED='\033[0;31m'
@@ -52,7 +60,7 @@ function exclude_folder() {
             fi
         fi
     done
-    
+
     # Returns the folders that contains tests
     echo "$filtered_folders"
 }
