@@ -4778,6 +4778,30 @@
           {
             "type": "string",
             "enum": [
+              "card_number"
+            ]
+          },
+          {
+            "type": "string",
+            "enum": [
+              "card_expiry_month"
+            ]
+          },
+          {
+            "type": "string",
+            "enum": [
+              "card_expiry_year"
+            ]
+          },
+          {
+            "type": "string",
+            "enum": [
+              "card_c_v_c"
+            ]
+          },
+          {
+            "type": "string",
+            "enum": [
               "user_full_name"
             ]
           },
@@ -4791,6 +4815,12 @@
             "type": "string",
             "enum": [
               "user_phone_number"
+            ]
+          },
+          {
+            "type": "string",
+            "enum": [
+              "user_country_code"
             ]
           },
           {
@@ -4814,6 +4844,34 @@
                 }
               }
             }
+          },
+          {
+            "type": "object",
+            "required": [
+              "user_currency"
+            ],
+            "properties": {
+              "user_currency": {
+                "type": "object",
+                "required": [
+                  "options"
+                ],
+                "properties": {
+                  "options": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          {
+            "type": "string",
+            "enum": [
+              "user_billing_name"
+            ]
           },
           {
             "type": "string",
@@ -4846,27 +4904,31 @@
             ]
           },
           {
-            "type": "string",
-            "enum": [
+            "type": "object",
+            "required": [
               "user_address_country"
-            ]
+            ],
+            "properties": {
+              "user_address_country": {
+                "type": "object",
+                "required": [
+                  "options"
+                ],
+                "properties": {
+                  "options": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
           },
           {
             "type": "string",
             "enum": [
               "user_blik_code"
-            ]
-          },
-          {
-            "type": "string",
-            "enum": [
-              "fields_complete"
-            ]
-          },
-          {
-            "type": "string",
-            "enum": [
-              "user_billing_name"
             ]
           },
           {

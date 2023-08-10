@@ -1553,7 +1553,55 @@ impl Default for super::settings::RequiredFields {
                                 enums::Connector::Rapyd,
                                 RequiredFieldFinal {
                                     mandate: HashMap::new(),
-                                    non_mandate: HashMap::new(),
+                                    non_mandate: HashMap::from(
+                                        [
+                                            (
+                                                "payment_method_data.card.card_number".to_string(),
+                                                RequiredFieldInfo {
+                                                    required_field: "payment_method_data.card.card_number".to_string(),
+                                                    display_name: "card_number".to_string(),
+                                                    field_type: enums::FieldType::CardNumber,
+                                                    value: None,
+                                                }
+                                            ),
+                                            (
+                                                "payment_method_data.card.card_exp_month".to_string(),
+                                                RequiredFieldInfo {
+                                                    required_field: "payment_method_data.card.card_exp_month".to_string(),
+                                                    display_name: "card_exp_month".to_string(),
+                                                    field_type: enums::FieldType::CardExpiryMonth,
+                                                    value: None,
+                                                }
+                                            ),
+                                            (
+                                                "payment_method_data.card.card_exp_year".to_string(),
+                                                RequiredFieldInfo {
+                                                    required_field: "payment_method_data.card.card_exp_year".to_string(),
+                                                    display_name: "card_exp_year".to_string(),
+                                                    field_type: enums::FieldType::CardExpiryYear,
+                                                    value: None,
+                                                }
+                                            ),
+                                            (
+                                                "payment_method_data.card.card_exp_cvc".to_string(),
+                                                RequiredFieldInfo {
+                                                    required_field: "payment_method_data.card.card_exp_cvc".to_string(),
+                                                    display_name: "card_exp_cvc".to_string(),
+                                                    field_type: enums::FieldType::CardCVC,
+                                                    value: None,
+                                                }
+                                            ),
+                                            (
+                                                "payment_method_data.card.card_holder_name".to_string(),
+                                                RequiredFieldInfo {
+                                                    required_field: "payment_method_data.card.card_holder_name".to_string(),
+                                                    display_name: "card_holder_name".to_string(),
+                                                    field_type: enums::FieldType::UserFullName,
+                                                    value: None,
+                                                }
+                                            )
+                                        ]
+                                    ),
                                     common: HashMap::new(),
                                 }
                             ),
@@ -1561,69 +1609,345 @@ impl Default for super::settings::RequiredFields {
                                 enums::Connector::Shift4,
                                 RequiredFieldFinal {
                                     mandate: HashMap::new(),
-                                    non_mandate: HashMap::new(),
+                                    non_mandate: HashMap::from(
+                                        [
+                                            (
+                                                "payment_method_data.card.card_number".to_string(),
+                                                RequiredFieldInfo {
+                                                    required_field: "payment_method_data.card.card_number".to_string(),
+                                                    display_name: "card_number".to_string(),
+                                                    field_type: enums::FieldType::CardNumber,
+                                                    value: None,
+                                                }
+                                            ),
+                                            (
+                                                "payment_method_data.card.card_exp_month".to_string(),
+                                                RequiredFieldInfo {
+                                                    required_field: "payment_method_data.card.card_exp_month".to_string(),
+                                                    display_name: "card_exp_month".to_string(),
+                                                    field_type: enums::FieldType::CardExpiryMonth,
+                                                    value: None,
+                                                }
+                                            ),
+                                            (
+                                                "payment_method_data.card.card_exp_year".to_string(),
+                                                RequiredFieldInfo {
+                                                    required_field: "payment_method_data.card.card_exp_year".to_string(),
+                                                    display_name: "card_exp_year".to_string(),
+                                                    field_type: enums::FieldType::CardExpiryYear,
+                                                    value: None,
+                                                }
+                                            ),
+                                            (
+                                                "payment_method_data.card.card_exp_cvc".to_string(),
+                                                RequiredFieldInfo {
+                                                    required_field: "payment_method_data.card.card_exp_cvc".to_string(),
+                                                    display_name: "card_exp_cvc".to_string(),
+                                                    field_type: enums::FieldType::CardCVC,
+                                                    value: None,
+                                                }
+                                            )
+                                        ]
+                                    ),
+                                    common: HashMap::new(),
+                                }
+                            ),(
+                                enums::Connector::Stax,
+                                RequiredFieldFinal {
+                                    mandate: HashMap::new(),
+                                    non_mandate: HashMap::from(
+                                        [
+                                            (
+                                                "payment_method_data.card.card_number".to_string(),
+                                                RequiredFieldInfo {
+                                                    required_field: "payment_method_data.card.card_number".to_string(),
+                                                    display_name: "card_number".to_string(),
+                                                    field_type: enums::FieldType::CardNumber,
+                                                    value: None,
+                                                }
+                                            ),
+                                            (
+                                                "payment_method_data.card.card_exp_month".to_string(),
+                                                RequiredFieldInfo {
+                                                    required_field: "payment_method_data.card.card_exp_month".to_string(),
+                                                    display_name: "card_exp_month".to_string(),
+                                                    field_type: enums::FieldType::CardExpiryMonth,
+                                                    value: None,
+                                                }
+                                            ),
+                                            (
+                                                "payment_method_data.card.card_exp_year".to_string(),
+                                                RequiredFieldInfo {
+                                                    required_field: "payment_method_data.card.card_exp_year".to_string(),
+                                                    display_name: "card_exp_year".to_string(),
+                                                    field_type: enums::FieldType::CardExpiryYear,
+                                                    value: None,
+                                                }
+                                            ),
+                                            (
+                                                "payment_method_data.card.card_exp_cvc".to_string(),
+                                                RequiredFieldInfo {
+                                                    required_field: "payment_method_data.card.card_exp_cvc".to_string(),
+                                                    display_name: "card_exp_cvc".to_string(),
+                                                    field_type: enums::FieldType::CardCVC,
+                                                    value: None,
+                                                }
+                                            ),
+                                            (
+                                                "payment_method_data.card.card_holder_name".to_string(),
+                                                RequiredFieldInfo {
+                                                    required_field: "payment_method_data.card.card_holder_name".to_string(),
+                                                    display_name: "card_holder_name".to_string(),
+                                                    field_type: enums::FieldType::UserFullName,
+                                                    value: None,
+                                                }
+                                            )
+                                        ]
+                                    ),
                                     common: HashMap::new(),
                                 }
                             ),
                             (
                                 enums::Connector::Stripe,
                                 RequiredFieldFinal {
-                                    mandate: HashMap::from([
-                                        (
-                                            "billing.address.line1".to_string(),
-                                            RequiredFieldInfo {
-                                                required_field: "billing.address.line1".to_string(),
-                                                display_name: "billing_line1".to_string(),
-                                                field_type: enums::FieldType::UserFullName,
-                                                value: None,
-                                            }
-                                        ),
-                                        (
-                                            "billing.address.first_name".to_string(),
-                                            RequiredFieldInfo {
-                                                required_field: "billing.address.first_name".to_string(),
-                                                display_name: "billing_first_name".to_string(),
-                                                field_type: enums::FieldType::UserFullName,
-                                                value: None,
-                                            }
-                                        )
-                                    ]),
+                                    mandate: HashMap::new(),
                                     non_mandate: HashMap::new(),
-                                    common:HashMap::from([
-                                        (
-                                            "shipping.address.line1".to_string(),
-                                            RequiredFieldInfo {
-                                                required_field: "shipping.address.line1".to_string(),
-                                                display_name: "shipping_line1".to_string(),
-                                                field_type: enums::FieldType::UserFullName,
-                                                value: None,
-                                            }
-                                        ),
-                                        (
-                                            "shipping.phone.number".to_string(),
-                                            RequiredFieldInfo {
-                                                required_field: "shipping.phone.number".to_string(),
-                                                display_name: "shipping_phone".to_string(),
-                                                field_type: enums::FieldType::UserFullName,
-                                                value: None,
-                                            }
-                                        )
-                                    ]),
+                                    common:HashMap::from(
+                                        [
+                                            (
+                                                "payment_method_data.card.card_number".to_string(),
+                                                RequiredFieldInfo {
+                                                    required_field: "payment_method_data.card.card_number".to_string(),
+                                                    display_name: "card_number".to_string(),
+                                                    field_type: enums::FieldType::CardNumber,
+                                                    value: None,
+                                                }
+                                            ),
+                                            (
+                                                "payment_method_data.card.card_exp_month".to_string(),
+                                                RequiredFieldInfo {
+                                                    required_field: "payment_method_data.card.card_exp_month".to_string(),
+                                                    display_name: "card_exp_month".to_string(),
+                                                    field_type: enums::FieldType::CardExpiryMonth,
+                                                    value: None,
+                                                }
+                                            ),
+                                            (
+                                                "payment_method_data.card.card_exp_year".to_string(),
+                                                RequiredFieldInfo {
+                                                    required_field: "payment_method_data.card.card_exp_year".to_string(),
+                                                    display_name: "card_exp_year".to_string(),
+                                                    field_type: enums::FieldType::CardExpiryYear,
+                                                    value: None,
+                                                }
+                                            ),
+                                            (
+                                                "payment_method_data.card.card_exp_cvc".to_string(),
+                                                RequiredFieldInfo {
+                                                    required_field: "payment_method_data.card.card_exp_cvc".to_string(),
+                                                    display_name: "card_exp_cvc".to_string(),
+                                                    field_type: enums::FieldType::CardCVC,
+                                                    value: None,
+                                                }
+                                            )
+                                        ]
+                                    ),
                                 }
                             ),
                             (
                                 enums::Connector::Trustpay,
                                 RequiredFieldFinal {
                                     mandate: HashMap::new(),
-                                    non_mandate: HashMap::new(),
-                                    common: HashMap::new(),
+                                    non_mandate: HashMap::from(
+                                        [
+                                            (
+                                                "payment_method_data.card.card_number".to_string(),
+                                                RequiredFieldInfo {
+                                                    required_field: "payment_method_data.card.card_number".to_string(),
+                                                    display_name: "card_number".to_string(),
+                                                    field_type: enums::FieldType::CardNumber,
+                                                    value: None,
+                                                }
+                                            ),
+                                            (
+                                                "payment_method_data.card.card_exp_month".to_string(),
+                                                RequiredFieldInfo {
+                                                    required_field: "payment_method_data.card.card_exp_month".to_string(),
+                                                    display_name: "card_exp_month".to_string(),
+                                                    field_type: enums::FieldType::CardExpiryMonth,
+                                                    value: None,
+                                                }
+                                            ),
+                                            (
+                                                "payment_method_data.card.card_exp_year".to_string(),
+                                                RequiredFieldInfo {
+                                                    required_field: "payment_method_data.card.card_exp_year".to_string(),
+                                                    display_name: "card_exp_year".to_string(),
+                                                    field_type: enums::FieldType::CardExpiryYear,
+                                                    value: None,
+                                                }
+                                            ),
+                                            (
+                                                "payment_method_data.card.card_exp_cvc".to_string(),
+                                                RequiredFieldInfo {
+                                                    required_field: "payment_method_data.card.card_exp_cvc".to_string(),
+                                                    display_name: "card_exp_cvc".to_string(),
+                                                    field_type: enums::FieldType::CardCVC,
+                                                    value: None,
+                                                }
+                                            ),
+                                            (
+                                                "payment_method_data.card.card_holder_name".to_string(),
+                                                RequiredFieldInfo {
+                                                    required_field: "payment_method_data.card.card_holder_name".to_string(),
+                                                    display_name: "card_holder_name".to_string(),
+                                                    field_type: enums::FieldType::UserFullName,
+                                                    value: None,
+                                                }
+                                            )
+                                        ]
+                                    ),
+                                    common: HashMap::new()
+                                }
+                            ),
+                            (
+                                enums::Connector::Tsys,
+                                RequiredFieldFinal {
+                                    mandate: HashMap::new(),
+                                    non_mandate: HashMap::from(
+                                        [
+                                            (
+                                                "payment_method_data.card.card_number".to_string(),
+                                                RequiredFieldInfo {
+                                                    required_field: "payment_method_data.card.card_number".to_string(),
+                                                    display_name: "card_number".to_string(),
+                                                    field_type: enums::FieldType::CardNumber,
+                                                    value: None,
+                                                }
+                                            ),
+                                            (
+                                                "payment_method_data.card.card_exp_month".to_string(),
+                                                RequiredFieldInfo {
+                                                    required_field: "payment_method_data.card.card_exp_month".to_string(),
+                                                    display_name: "card_exp_month".to_string(),
+                                                    field_type: enums::FieldType::CardExpiryMonth,
+                                                    value: None,
+                                                }
+                                            ),
+                                            (
+                                                "payment_method_data.card.card_exp_year".to_string(),
+                                                RequiredFieldInfo {
+                                                    required_field: "payment_method_data.card.card_exp_year".to_string(),
+                                                    display_name: "card_exp_year".to_string(),
+                                                    field_type: enums::FieldType::CardExpiryYear,
+                                                    value: None,
+                                                }
+                                            ),
+                                            (
+                                                "payment_method_data.card.card_exp_cvc".to_string(),
+                                                RequiredFieldInfo {
+                                                    required_field: "payment_method_data.card.card_exp_cvc".to_string(),
+                                                    display_name: "card_exp_cvc".to_string(),
+                                                    field_type: enums::FieldType::CardCVC,
+                                                    value: None,
+                                                }
+                                            )
+                                        ]
+                                    ),
+                                    common: HashMap::new()
                                 }
                             ),
                             (
                                 enums::Connector::Worldline,
                                 RequiredFieldFinal {
                                     mandate: HashMap::new(),
-                                    non_mandate: HashMap::new(),
+                                    non_mandate: HashMap::from([
+                                        (
+                                            "payment_method_data.card.card_number".to_string(),
+                                            RequiredFieldInfo {
+                                                required_field: "payment_method_data.card.card_number".to_string(),
+                                                display_name: "card_number".to_string(),
+                                                field_type: enums::FieldType::CardNumber,
+                                                value: None,
+                                            }
+                                        ),
+                                        (
+                                            "payment_method_data.card.card_exp_month".to_string(),
+                                            RequiredFieldInfo {
+                                                required_field: "payment_method_data.card.card_exp_month".to_string(),
+                                                display_name: "card_exp_month".to_string(),
+                                                field_type: enums::FieldType::CardExpiryMonth,
+                                                value: None,
+                                            }
+                                        ),
+                                        (
+                                            "payment_method_data.card.card_exp_year".to_string(),
+                                            RequiredFieldInfo {
+                                                required_field: "payment_method_data.card.card_exp_year".to_string(),
+                                                display_name: "card_exp_year".to_string(),
+                                                field_type: enums::FieldType::CardExpiryYear,
+                                                value: None,
+                                            }
+                                        ),
+                                        (
+                                            "payment_method_data.card.card_exp_cvc".to_string(),
+                                            RequiredFieldInfo {
+                                                required_field: "payment_method_data.card.card_exp_cvc".to_string(),
+                                                display_name: "card_exp_cvc".to_string(),
+                                                field_type: enums::FieldType::CardCVC,
+                                                value: None,
+                                            }
+                                        ),
+                                        (
+                                            "billing.address.country".to_string(),
+                                            RequiredFieldInfo {
+                                                required_field: "billing.address.country".to_string(),
+                                                display_name: "country".to_string(),
+                                                field_type: enums::FieldType::UserAddressCountry{
+                                                    options: vec![
+                                                        "ALL".to_string(),
+                                                    ]
+                                                },
+                                                value: None,
+                                            }
+                                        )
+                                    ]),
+                                    common: HashMap::new(),
+                                }
+                            ),
+                            (
+                                enums::Connector::Worldpay,
+                                RequiredFieldFinal {
+                                    mandate: HashMap::new(),
+                                    non_mandate: HashMap::from([
+                                        (
+                                            "payment_method_data.card.card_number".to_string(),
+                                            RequiredFieldInfo {
+                                                required_field: "payment_method_data.card.card_number".to_string(),
+                                                display_name: "card_number".to_string(),
+                                                field_type: enums::FieldType::CardNumber,
+                                                value: None,
+                                            }
+                                        ),
+                                        (
+                                            "payment_method_data.card.card_exp_month".to_string(),
+                                            RequiredFieldInfo {
+                                                required_field: "payment_method_data.card.card_exp_month".to_string(),
+                                                display_name: "card_exp_month".to_string(),
+                                                field_type: enums::FieldType::CardExpiryMonth,
+                                                value: None,
+                                            }
+                                        ),
+                                        (
+                                            "payment_method_data.card.card_exp_year".to_string(),
+                                            RequiredFieldInfo {
+                                                required_field: "payment_method_data.card.card_exp_year".to_string(),
+                                                display_name: "card_exp_year".to_string(),
+                                                field_type: enums::FieldType::CardExpiryYear,
+                                                value: None,
+                                            }
+                                        )
+                                    ]),
                                     common: HashMap::new(),
                                 }
                             ),
@@ -1631,7 +1955,44 @@ impl Default for super::settings::RequiredFields {
                                 enums::Connector::Zen,
                                 RequiredFieldFinal {
                                     mandate: HashMap::new(),
-                                    non_mandate: HashMap::new(),
+                                    non_mandate: HashMap::from([
+                                        (
+                                            "payment_method_data.card.card_number".to_string(),
+                                            RequiredFieldInfo {
+                                                required_field: "payment_method_data.card.card_number".to_string(),
+                                                display_name: "card_number".to_string(),
+                                                field_type: enums::FieldType::CardNumber,
+                                                value: None,
+                                            }
+                                        ),
+                                        (
+                                            "payment_method_data.card.card_exp_month".to_string(),
+                                            RequiredFieldInfo {
+                                                required_field: "payment_method_data.card.card_exp_month".to_string(),
+                                                display_name: "card_exp_month".to_string(),
+                                                field_type: enums::FieldType::CardExpiryMonth,
+                                                value: None,
+                                            }
+                                        ),
+                                        (
+                                            "payment_method_data.card.card_exp_year".to_string(),
+                                            RequiredFieldInfo {
+                                                required_field: "payment_method_data.card.card_exp_year".to_string(),
+                                                display_name: "card_exp_year".to_string(),
+                                                field_type: enums::FieldType::CardExpiryYear,
+                                                value: None,
+                                            }
+                                        ),
+                                        (
+                                            "email".to_string(),
+                                            RequiredFieldInfo {
+                                                required_field: "email".to_string(),
+                                                display_name: "email".to_string(),
+                                                field_type: enums::FieldType::UserEmailAddress,
+                                                value: None,
+                                            }
+                                        ),
+                                    ]),
                                     common: HashMap::new(),
                                 }
                             ),
