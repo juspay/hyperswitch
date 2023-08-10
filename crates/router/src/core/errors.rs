@@ -27,6 +27,8 @@ pub type RouterResponse<T> = CustomResult<services::ApplicationResponse<T>, ApiE
 pub type ApplicationResult<T> = Result<T, ApplicationError>;
 pub type ApplicationResponse<T> = ApplicationResult<services::ApplicationResponse<T>>;
 
+pub type CustomerResponse<T> = CustomResult<services::ApplicationResponse<T>, CustomersErrorResponse>;
+
 macro_rules! impl_error_display {
     ($st: ident, $arg: tt) => {
         impl Display for $st {

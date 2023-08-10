@@ -155,7 +155,7 @@ pub async fn retrieve_customer(
     merchant_account: domain::MerchantAccount,
     key_store: domain::MerchantKeyStore,
     req: customers::CustomerId,
-) -> RouterResponse<customers::CustomerResponse> {
+) -> errors::CustomerResponse<customers::CustomerResponse> {
     let response = db
         .find_customer_by_customer_id_merchant_id(
             &req.customer_id,

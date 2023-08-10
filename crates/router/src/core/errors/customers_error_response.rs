@@ -1,6 +1,5 @@
 use http::StatusCode;
 
-
 #[derive(Debug, Clone, serde::Serialize)]
 pub enum CustomersErrorType {
     ObjectNotFound,
