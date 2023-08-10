@@ -27,7 +27,7 @@ use crate::{
     PgPooledConn, StorageResult,
 };
 
-mod db_metrics {
+pub mod db_metrics {
     use router_env::opentelemetry::KeyValue;
 
     #[derive(Debug)]
@@ -43,10 +43,7 @@ mod db_metrics {
     }
 
     #[inline]
-    pub(super) async fn track_database_call<T, Fut, U>(
-        future: Fut,
-        operation: DatabaseOperation,
-    ) -> U
+    pub async fn track_database_call<T, Fut, U>(future: Fut, operation: DatabaseOperation) -> U
     where
         Fut: std::future::Future<Output = U>,
     {
