@@ -2366,7 +2366,7 @@
             "description": "The connector transaction id",
             "nullable": true
           },
-          "public_key_id": {
+          "connector_sdk_public_key": {
             "type": "string",
             "description": "The public key id is to invoke third party sdk",
             "nullable": true
