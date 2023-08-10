@@ -588,7 +588,7 @@ diesel::table! {
         created_at -> Timestamp,
         last_modified -> Timestamp,
         payment_method -> Varchar,
-        #[max_length = 255]
+        #[max_length = 64]
         payment_method_type -> Nullable<Varchar>,
         #[max_length = 128]
         payment_method_issuer -> Nullable<Varchar>,
