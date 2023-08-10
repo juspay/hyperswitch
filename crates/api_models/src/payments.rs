@@ -1927,7 +1927,7 @@ pub struct PaymentListResponse {
     pub data: Vec<PaymentsResponse>,
 }
 #[derive(Clone, Debug, serde::Serialize)]
-pub struct PaymentListFilterResponse {
+pub struct PaymentListResponseV2 {
     /// The number of payments included in the list for given constraints
     pub count: usize,
     /// The total number of available payments for given constraints

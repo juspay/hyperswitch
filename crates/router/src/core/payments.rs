@@ -42,7 +42,7 @@ use crate::{
     utils::{Encode, OptionExt, ValueExt},
 };
 
-const JOIN_LIMIT: i64 = 20;
+const PAYMENTS_LIST_MAX_LIMIT: i64 = 20;
 #[instrument(skip_all, fields(payment_id, merchant_id))]
 pub async fn payments_operation_core<F, Req, Op, FData>(
     state: &AppState,
@@ -1384,14 +1384,12 @@ pub async fn apply_filters_on_payments(
     db: &dyn StorageInterface,
     merchant: domain::MerchantAccount,
     constraints: api::PaymentListFilterConstraints,
-) -> RouterResponse<api::PaymentListFilterResponse> {
-    use diesel_models::payment_attempt::PaymentListFilterConstraints;
-
+) -> RouterResponse<api::PaymentListResponseV2> {
     use crate::types::transformers::ForeignFrom;
 
-    let limit = &constraints.limit.unwrap_or(JOIN_LIMIT);
+    let limit = &constraints.limit.unwrap_or(PAYMENTS_LIST_MAX_LIMIT);
 
-    helpers::validate_payment_list_request_for_joins(*limit, JOIN_LIMIT)?;
+    helpers::validate_payment_list_request_for_joins(*limit, PAYMENTS_LIST_MAX_LIMIT)?;
     let list: Vec<(storage::PaymentIntent, storage::PaymentAttempt)> = db
         .apply_filters_on_payments_list(
             &merchant.merchant_id,
@@ -1404,34 +1402,33 @@ pub async fn apply_filters_on_payments(
     let data: Vec<api::PaymentsResponse> =
         list.into_iter().map(ForeignFrom::foreign_from).collect();
 
-    let total_intents = db
+    let filtered_intents = db
         .get_filtered_payment_intents_for_total_count(
             &merchant.merchant_id,
             &constraints,
             merchant.storage_scheme,
         )
         .await
-        .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
+        .to_not_found_response(errors::ApiErrorResponse::InternalServerError)?;
 
-    let active_attempts: Vec<String> = total_intents
+    let active_attempt_ids: Vec<String> = filtered_intents
         .iter()
         .map(|payment_intent| payment_intent.clone().active_attempt_id)
         .collect();
 
-    let constraints: PaymentListFilterConstraints = ForeignFrom::foreign_from(constraints);
-
     let total_count = db
         .get_total_count_of_filtered_payment_attempts(
             &merchant.merchant_id,
-            &constraints,
-            &active_attempts,
+            &active_attempt_ids,
+            constraints.connector,
+            constraints.payment_methods,
             merchant.storage_scheme,
         )
         .await
-        .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
+        .change_context(errors::ApiErrorResponse::InternalServerError)?;
 
     Ok(services::ApplicationResponse::Json(
-        api::PaymentListFilterResponse {
+        api::PaymentListResponseV2 {
             count: data.len(),
             total_count,
             data,

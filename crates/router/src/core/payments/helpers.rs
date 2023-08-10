@@ -1673,11 +1673,11 @@ pub(super) fn validate_payment_list_request(
 #[cfg(feature = "olap")]
 pub(super) fn validate_payment_list_request_for_joins(
     limit: i64,
-    join_limit: i64,
+    max_limit: i64,
 ) -> CustomResult<(), errors::ApiErrorResponse> {
-    utils::when(limit > join_limit || limit < 1, || {
+    utils::when(limit > max_limit || limit < 1, || {
         Err(errors::ApiErrorResponse::InvalidRequestData {
-            message: format!("limit should be in between 1 and {}", join_limit),
+            message: format!("limit should be in between 1 and {}", max_limit),
         })
     })?;
     Ok(())

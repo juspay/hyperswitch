@@ -58,6 +58,13 @@ pub struct PaymentAttempt {
     pub connector_response_reference_id: Option<String>,
 }
 
+#[derive(Clone, Debug, Eq, PartialEq, Queryable, Serialize, Deserialize)]
+pub struct PaymentListFilters {
+    pub connector: Vec<String>,
+    pub currency: Vec<storage_enums::Currency>,
+    pub status: Vec<storage_enums::IntentStatus>,
+    pub payment_method: Vec<storage_enums::PaymentMethod>,
+}
 #[derive(
     Clone, Debug, Default, Insertable, router_derive::DebugAsDisplay, Serialize, Deserialize,
 )]
@@ -446,33 +453,4 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
             },
         }
     }
-}
-
-#[derive(Clone, Debug, Eq, PartialEq, Queryable, Serialize, Deserialize)]
-pub struct PaymentListFilters {
-    pub connector: Vec<String>,
-    pub currency: Vec<storage_enums::Currency>,
-    pub status: Vec<storage_enums::IntentStatus>,
-    pub payment_method: Vec<storage_enums::PaymentMethod>,
-}
-
-#[derive(Clone, Debug, serde::Deserialize)]
-#[serde(deny_unknown_fields)]
-pub struct PaymentListFilterConstraints {
-    pub payment_id: Option<String>,
-    pub offset: Option<i64>,
-    #[serde(flatten)]
-    pub time_range: Option<TimeRange>,
-    pub connector: Option<Vec<String>>,
-    pub currency: Option<Vec<storage_enums::Currency>>,
-    pub status: Option<Vec<storage_enums::IntentStatus>>,
-    pub payment_methods: Option<Vec<storage_enums::PaymentMethod>>,
-}
-
-#[derive(Debug, Clone, Copy, serde::Serialize, serde::Deserialize, PartialEq, Eq, Hash)]
-pub struct TimeRange {
-    #[serde(with = "common_utils::custom_serde::iso8601")]
-    pub start_time: PrimitiveDateTime,
-    #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
-    pub end_time: Option<PrimitiveDateTime>,
 }

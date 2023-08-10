@@ -1,4 +1,4 @@
-use diesel_models::payment_attempt::PaymentListFilterConstraints;
+use api_models::enums::PaymentMethod;
 
 use super::MockDb;
 use crate::{
@@ -82,14 +82,16 @@ pub trait PaymentAttemptInterface {
     async fn get_total_count_of_filtered_payment_attempts(
         &self,
         merchant_id: &str,
-        constraints: &PaymentListFilterConstraints,
-        active_attempts: &[String],
+        active_attempt_ids: &[String],
+        connector: Option<Vec<String>>,
+        payment_methods: Option<Vec<PaymentMethod>>,
         storage_scheme: enums::MerchantStorageScheme,
     ) -> CustomResult<i64, errors::StorageError>;
 }
 
 #[cfg(not(feature = "kv_store"))]
 mod storage {
+    use api_models::payment_methods;
     use error_stack::IntoReport;
 
     use super::PaymentAttemptInterface;
@@ -218,16 +220,18 @@ mod storage {
         async fn get_total_count_of_filtered_payment_attempts(
             &self,
             merchant_id: &str,
-            constraints: &PaymentListFilterConstraints,
-            active_attempts: &[String],
+            active_attempt_ids: &[String],
+            connector: Option<Vec<String>>,
+            payment_methods: Option<Vec<PaymentMethod>>,
             _storage_scheme: enums::MerchantStorageScheme,
         ) -> CustomResult<i64, errors::StorageError> {
             let conn = connection::pg_connection_read(self).await?;
             PaymentAttempt::get_total_count_of_attempts(
                 &conn,
                 merchant_id,
-                constraints,
-                active_attempts,
+                active_attempt_ids,
+                connector,
+                payment_methods,
             )
             .await
             .map_err(Into::into)
@@ -307,8 +311,9 @@ impl PaymentAttemptInterface for MockDb {
     async fn get_total_count_of_filtered_payment_attempts(
         &self,
         _merchant_id: &str,
-        _constraints: &PaymentListFilterConstraints,
-        _active_attempts: &[String],
+        _active_attempt_ids: &[String],
+        _connector: Option<Vec<String>>,
+        _payment_methods: Option<Vec<PaymentMethod>>,
         _storage_scheme: enums::MerchantStorageScheme,
     ) -> CustomResult<i64, errors::StorageError> {
         Err(errors::StorageError::MockDbError)?
@@ -466,9 +471,7 @@ impl PaymentAttemptInterface for MockDb {
 #[cfg(feature = "kv_store")]
 mod storage {
     use common_utils::date_time;
-    use diesel_models::{
-        payment_attempt::PaymentListFilterConstraints, reverse_lookup::ReverseLookup,
-    };
+    use diesel_models::reverse_lookup::ReverseLookup;
     use error_stack::{IntoReport, ResultExt};
     use redis_interface::HsetnxReply;
 
@@ -951,16 +954,18 @@ mod storage {
         async fn get_total_count_of_filtered_payment_attempts(
             &self,
             merchant_id: &str,
-            constraints: &PaymentListFilterConstraints,
-            active_attempts: &[String],
+            active_attempt_ids: &[String],
+            connector: Option<Vec<String>>,
+            payment_methods: Option<Vec<api_models::enums::PaymentMethod>>,
             _storage_scheme: enums::MerchantStorageScheme,
         ) -> CustomResult<i64, errors::StorageError> {
             let conn = connection::pg_connection_read(self).await?;
             PaymentAttempt::get_total_count_of_attempts(
                 &conn,
                 merchant_id,
-                constraints,
-                active_attempts,
+                active_attempt_ids,
+                connector,
+                payment_methods,
             )
             .await
             .map_err(Into::into)

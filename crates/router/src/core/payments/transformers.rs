@@ -1,11 +1,7 @@
 use std::{fmt::Debug, marker::PhantomData};
 
-use api_models::payments::PaymentListFilterConstraints;
 use common_utils::fp_utils;
-use diesel_models::{
-    ephemeral_key,
-    payment_attempt::{PaymentListFilters, TimeRange},
-};
+use diesel_models::{ephemeral_key, payment_attempt::PaymentListFilters};
 use error_stack::{IntoReport, ResultExt};
 use router_env::{instrument, tracing};
 
@@ -692,25 +688,6 @@ impl ForeignFrom<PaymentListFilters> for api_models::payments::PaymentListFilter
             currency: item.currency,
             status: item.status,
             payment_method: item.payment_method,
-        }
-    }
-}
-
-impl ForeignFrom<PaymentListFilterConstraints>
-    for diesel_models::payment_attempt::PaymentListFilterConstraints
-{
-    fn foreign_from(item: PaymentListFilterConstraints) -> Self {
-        Self {
-            connector: item.connector,
-            currency: item.currency,
-            status: item.status,
-            payment_methods: item.payment_methods,
-            payment_id: item.payment_id,
-            offset: item.offset,
-            time_range: item.time_range.map(|data| TimeRange {
-                start_time: data.start_time,
-                end_time: data.end_time,
-            }),
         }
     }
 }

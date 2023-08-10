@@ -14,7 +14,7 @@ use crate::{
     errors::{self, DatabaseError},
     payment_attempt::{
         PaymentAttempt, PaymentAttemptNew, PaymentAttemptUpdate, PaymentAttemptUpdateInternal,
-        PaymentListFilterConstraints, PaymentListFilters,
+        PaymentListFilters,
     },
     payment_intent::PaymentIntent,
     schema::payment_attempt::dsl,
@@ -212,14 +212,14 @@ impl PaymentAttempt {
         pi: &[PaymentIntent],
         merchant_id: &str,
     ) -> StorageResult<PaymentListFilters> {
-        let active_attempts: Vec<String> = pi
+        let active_attempt_ids: Vec<String> = pi
             .iter()
             .map(|payment_intent| payment_intent.clone().active_attempt_id)
             .collect();
 
         let filter = <Self as HasTable>::table()
             .filter(dsl::merchant_id.eq(merchant_id.to_owned()))
-            .filter(dsl::attempt_id.eq_any(active_attempts));
+            .filter(dsl::attempt_id.eq_any(active_attempt_ids));
 
         let intent_status: Vec<IntentStatus> = pi
             .iter()
@@ -279,20 +279,21 @@ impl PaymentAttempt {
     pub async fn get_total_count_of_attempts(
         conn: &PgPooledConn,
         merchant_id: &str,
-        constraints: &PaymentListFilterConstraints,
-        active_attempts: &[String],
+        active_attempt_ids: &[String],
+        connector: Option<Vec<String>>,
+        payment_method: Option<Vec<enums::PaymentMethod>>,
     ) -> StorageResult<i64> {
         let mut filter = <Self as HasTable>::table()
             .count()
             .filter(dsl::merchant_id.eq(merchant_id.to_owned()))
-            .filter(dsl::attempt_id.eq_any(active_attempts.to_owned()))
+            .filter(dsl::attempt_id.eq_any(active_attempt_ids.to_owned()))
             .into_boxed();
 
-        if let Some(connector) = constraints.connector.clone() {
+        if let Some(connector) = connector.clone() {
             filter = filter.filter(dsl::connector.eq_any(connector));
         }
 
-        if let Some(payment_method) = constraints.payment_methods.clone() {
+        if let Some(payment_method) = payment_method.clone() {
             filter = filter.filter(dsl::payment_method.eq_any(payment_method));
         }
         router_env::logger::debug!(query = %debug_query::<Pg, _>(&filter).to_string());
