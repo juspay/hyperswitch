@@ -379,7 +379,7 @@ slack_invite_url = "https://join.slack.com/t/hyperswitch-io/shared_invite/zt-1k6
 discord_invite_url = "https://discord.gg/wJZ7DVW8mm"
 
 [delayed_session_response]
-connectors_with_delayed_session_response = "trustpay"
+connectors_with_delayed_session_response = "trustpay,payme"
 
 [mandates.supported_payment_methods]
 pay_later.klarna = { connector_list = "adyen" }
