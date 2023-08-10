@@ -226,6 +226,16 @@ pub struct AdyenRedirectRequest {
 pub enum AdyenRedirectRequestTypes {
     AdyenRedirection(AdyenRedirection),
     AdyenThreeDS(AdyenThreeDS),
+    AdyenRefusal(AdyenRefusal),
+}
+
+#[derive(Debug, Clone, Serialize, serde::Deserialize, Eq, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct AdyenRefusal {
+    pub payload: String,
+    #[serde(rename = "type")]
+    pub type_of_redirection_result: Option<String>,
+    pub result_code: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, serde::Deserialize, Eq, PartialEq)]
@@ -398,6 +408,8 @@ pub enum AdyenPaymentMethod<'a> {
     MobilePay(Box<MobilePayData>),
     #[serde(rename = "momo_wallet")]
     Momo(Box<MomoData>),
+    #[serde(rename = "momo_atm")]
+    MomoAtm,
     #[serde(rename = "touchngo")]
     TouchNGo(Box<TouchNGoData>),
     OnlineBankingCzechRepublic(Box<OnlineBankingCzechRepublicData>),
@@ -408,6 +420,8 @@ pub enum AdyenPaymentMethod<'a> {
     OnlineBankingFpx(Box<OnlineBankingFpxData>),
     #[serde(rename = "molpay_ebanking_TH")]
     OnlineBankingThailand(Box<OnlineBankingThailandData>),
+    #[serde(rename = "paybybank")]
+    OpenBankingUK(Box<OpenBankingUKData>),
     #[serde(rename = "oxxo")]
     Oxxo,
     #[serde(rename = "paysafecard")]
@@ -457,6 +471,27 @@ pub enum AdyenPaymentMethod<'a> {
     Benefit,
     #[serde(rename = "knet")]
     Knet,
+    #[serde(rename = "econtext_seven_eleven")]
+    SevenEleven(Box<JCSVoucherData>),
+    #[serde(rename = "econtext_stores")]
+    Lawson(Box<JCSVoucherData>),
+    #[serde(rename = "econtext_stores")]
+    MiniStop(Box<JCSVoucherData>),
+    #[serde(rename = "econtext_stores")]
+    FamilyMart(Box<JCSVoucherData>),
+    #[serde(rename = "econtext_stores")]
+    Seicomart(Box<JCSVoucherData>),
+    #[serde(rename = "econtext_stores")]
+    PayEasy(Box<JCSVoucherData>),
+}
+
+#[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct JCSVoucherData {
+    first_name: Secret<String>,
+    last_name: Option<Secret<String>>,
+    shopper_email: Email,
+    telephone_number: String,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -580,6 +615,18 @@ pub enum OnlineBankingCzechRepublicBanks {
     C,
 }
 
+impl TryFrom<&Box<payments::JCSVoucherData>> for JCSVoucherData {
+    type Error = Error;
+    fn try_from(jcs_data: &Box<payments::JCSVoucherData>) -> Result<Self, Self::Error> {
+        Ok(Self {
+            first_name: jcs_data.first_name.clone(),
+            last_name: jcs_data.last_name.clone(),
+            shopper_email: jcs_data.email.clone(),
+            telephone_number: jcs_data.phone_number.clone(),
+        })
+    }
+}
+
 impl TryFrom<&api_enums::BankNames> for OnlineBankingCzechRepublicBanks {
     type Error = Error;
     fn try_from(bank_name: &api_enums::BankNames) -> Result<Self, Self::Error> {
@@ -698,6 +745,11 @@ pub struct OnlineBankingThailandData {
 }
 
 #[derive(Debug, Clone, Serialize)]
+pub struct OpenBankingUKData {
+    issuer: OpenBankingUKIssuer,
+}
+
+#[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "lowercase")]
 pub enum OnlineBankingSlovakiaBanks {
     Vub,
@@ -765,6 +817,41 @@ impl TryFrom<&api_enums::BankNames> for OnlineBankingThailandIssuer {
             api::enums::BankNames::KrungThaiBank => Ok(Self::Krungthaibank),
             api::enums::BankNames::TheSiamCommercialBank => Ok(Self::Siamcommercialbank),
             api::enums::BankNames::KasikornBank => Ok(Self::Kbank),
+            _ => Err(errors::ConnectorError::NotSupported {
+                message: String::from("BankRedirect"),
+                connector: "Adyen",
+                payment_experience: api_enums::PaymentExperience::RedirectToUrl.to_string(),
+            })?,
+        }
+    }
+}
+
+impl TryFrom<&api_enums::BankNames> for OpenBankingUKIssuer {
+    type Error = Error;
+    fn try_from(bank_name: &api_enums::BankNames) -> Result<Self, Self::Error> {
+        match bank_name {
+            api::enums::BankNames::OpenBankSuccess => Ok(Self::RedirectSuccess),
+            api::enums::BankNames::OpenBankFailure => Ok(Self::RedirectFailure),
+            api::enums::BankNames::OpenBankCancelled => Ok(Self::RedirectCancelled),
+            api::enums::BankNames::Aib => Ok(Self::Aib),
+            api::enums::BankNames::BankOfScotland => Ok(Self::BankOfScotland),
+            api::enums::BankNames::Barclays => Ok(Self::Barclays),
+            api::enums::BankNames::DanskeBank => Ok(Self::DanskeBank),
+            api::enums::BankNames::FirstDirect => Ok(Self::FirstDirect),
+            api::enums::BankNames::FirstTrust => Ok(Self::FirstTrust),
+            api::enums::BankNames::HsbcBank => Ok(Self::HsbcBank),
+            api::enums::BankNames::Halifax => Ok(Self::Halifax),
+            api::enums::BankNames::Lloyds => Ok(Self::Lloyds),
+            api::enums::BankNames::Monzo => Ok(Self::Monzo),
+            api::enums::BankNames::NatWest => Ok(Self::NatWest),
+            api::enums::BankNames::NationwideBank => Ok(Self::NationwideBank),
+            api::enums::BankNames::Revolut => Ok(Self::Revolut),
+            api::enums::BankNames::RoyalBankOfScotland => Ok(Self::RoyalBankOfScotland),
+            api::enums::BankNames::SantanderPrzelew24 => Ok(Self::SantanderPrzelew24),
+            api::enums::BankNames::Starling => Ok(Self::Starling),
+            api::enums::BankNames::TsbBank => Ok(Self::TsbBank),
+            api::enums::BankNames::TescoBank => Ok(Self::TescoBank),
+            api::enums::BankNames::UlsterBank => Ok(Self::UlsterBank),
             _ => Err(errors::ConnectorError::NotSupported {
                 message: String::from("BankRedirect"),
                 connector: "Adyen",
@@ -969,6 +1056,8 @@ pub enum PaymentType {
     MobilePay,
     #[serde(rename = "momo_wallet")]
     Momo,
+    #[serde(rename = "momo_atm")]
+    MomoAtm,
     #[serde(rename = "onlineBanking_CZ")]
     OnlineBankingCzechRepublic,
     #[serde(rename = "ebanking_FI")]
@@ -981,6 +1070,8 @@ pub enum PaymentType {
     OnlineBankingFpx,
     #[serde(rename = "molpay_ebanking_TH")]
     OnlineBankingThailand,
+    #[serde(rename = "paybybank")]
+    OpenBankingUK,
     #[serde(rename = "oxxo")]
     Oxxo,
     #[serde(rename = "paysafecard")]
@@ -1024,6 +1115,18 @@ pub enum PaymentType {
     DanamonVa,
     #[serde(rename = "doku_mandiri_va")]
     MandiriVa,
+    #[serde(rename = "econtext_seven_eleven")]
+    SevenEleven,
+    #[serde(rename = "econtext_stores")]
+    Lawson,
+    #[serde(rename = "econtext_stores")]
+    MiniStop,
+    #[serde(rename = "econtext_stores")]
+    FamilyMart,
+    #[serde(rename = "econtext_stores")]
+    Seicomart,
+    #[serde(rename = "econtext_stores")]
+    PayEasy,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -1069,6 +1172,54 @@ pub enum OnlineBankingThailandIssuer {
     Siamcommercialbank,
     #[serde(rename = "molpay_kbank")]
     Kbank,
+}
+
+#[derive(Debug, Eq, PartialEq, Serialize, Clone)]
+pub enum OpenBankingUKIssuer {
+    #[serde(rename = "uk-test-open-banking-redirect")]
+    RedirectSuccess,
+    #[serde(rename = "uk-test-open-banking-redirect-failed")]
+    RedirectFailure,
+    #[serde(rename = "uk-test-open-banking-redirect-cancelled")]
+    RedirectCancelled,
+    #[serde(rename = "uk-aib-oauth2")]
+    Aib,
+    #[serde(rename = "uk-bankofscotland-oauth2")]
+    BankOfScotland,
+    #[serde(rename = "uk-barclays-oauth2")]
+    Barclays,
+    #[serde(rename = "uk-danskebank-oauth2")]
+    DanskeBank,
+    #[serde(rename = "uk-firstdirect-oauth2")]
+    FirstDirect,
+    #[serde(rename = "uk-firsttrust-oauth2")]
+    FirstTrust,
+    #[serde(rename = "uk-hsbc-oauth2")]
+    HsbcBank,
+    #[serde(rename = "uk-halifax-oauth2")]
+    Halifax,
+    #[serde(rename = "uk-lloyds-oauth2")]
+    Lloyds,
+    #[serde(rename = "uk-monzo-oauth2")]
+    Monzo,
+    #[serde(rename = "uk-natwest-oauth2")]
+    NatWest,
+    #[serde(rename = "uk-nationwide-oauth2")]
+    NationwideBank,
+    #[serde(rename = "uk-revolut-oauth2")]
+    Revolut,
+    #[serde(rename = "uk-rbs-oauth2")]
+    RoyalBankOfScotland,
+    #[serde(rename = "uk-santander-oauth2")]
+    SantanderPrzelew24,
+    #[serde(rename = "uk-starling-oauth2")]
+    Starling,
+    #[serde(rename = "uk-tsb-oauth2")]
+    TsbBank,
+    #[serde(rename = "uk-tesco-oauth2")]
+    TescoBank,
+    #[serde(rename = "uk-ulster-oauth2")]
+    UlsterBank,
 }
 
 pub struct AdyenTestBankNames<'a>(&'a str);
@@ -1425,7 +1576,13 @@ fn get_social_security_number(
         | payments::VoucherData::PagoEfectivo
         | payments::VoucherData::RedCompra
         | payments::VoucherData::Oxxo
-        | payments::VoucherData::RedPagos => None,
+        | payments::VoucherData::RedPagos
+        | payments::VoucherData::SevenEleven { .. }
+        | payments::VoucherData::Lawson { .. }
+        | payments::VoucherData::MiniStop { .. }
+        | payments::VoucherData::FamilyMart { .. }
+        | payments::VoucherData::Seicomart { .. }
+        | payments::VoucherData::PayEasy { .. } => None,
     }
 }
 
@@ -1508,6 +1665,24 @@ impl<'a> TryFrom<&api_models::payments::VoucherData> for AdyenPaymentMethod<'a> 
                 })))
             }
             payments::VoucherData::Oxxo => Ok(AdyenPaymentMethod::Oxxo),
+            payments::VoucherData::SevenEleven(jcs_data) => Ok(AdyenPaymentMethod::SevenEleven(
+                Box::new(JCSVoucherData::try_from(jcs_data)?),
+            )),
+            payments::VoucherData::Lawson(jcs_data) => Ok(AdyenPaymentMethod::Lawson(Box::new(
+                JCSVoucherData::try_from(jcs_data)?,
+            ))),
+            payments::VoucherData::MiniStop(jcs_data) => Ok(AdyenPaymentMethod::MiniStop(
+                Box::new(JCSVoucherData::try_from(jcs_data)?),
+            )),
+            payments::VoucherData::FamilyMart(jcs_data) => Ok(AdyenPaymentMethod::FamilyMart(
+                Box::new(JCSVoucherData::try_from(jcs_data)?),
+            )),
+            payments::VoucherData::Seicomart(jcs_data) => Ok(AdyenPaymentMethod::Seicomart(
+                Box::new(JCSVoucherData::try_from(jcs_data)?),
+            )),
+            payments::VoucherData::PayEasy(jcs_data) => Ok(AdyenPaymentMethod::PayEasy(Box::new(
+                JCSVoucherData::try_from(jcs_data)?,
+            ))),
             payments::VoucherData::Efecty
             | payments::VoucherData::PagoEfectivo
             | payments::VoucherData::RedCompra
@@ -1862,6 +2037,11 @@ impl<'a> TryFrom<&api_models::payments::BankRedirectData> for AdyenPaymentMethod
                     issuer: OnlineBankingThailandIssuer::try_from(issuer)?,
                 })),
             ),
+            api_models::payments::BankRedirectData::OpenBankingUk { issuer, .. } => Ok(
+                AdyenPaymentMethod::OpenBankingUK(Box::new(OpenBankingUKData {
+                    issuer: OpenBankingUKIssuer::try_from(issuer)?,
+                })),
+            ),
             api_models::payments::BankRedirectData::Sofort { .. } => Ok(AdyenPaymentMethod::Sofort),
             api_models::payments::BankRedirectData::Trustly { .. } => {
                 Ok(AdyenPaymentMethod::Trustly)
@@ -1950,6 +2130,7 @@ impl<'a> TryFrom<&api_models::payments::CardRedirectData> for AdyenPaymentMethod
         match card_redirect_data {
             payments::CardRedirectData::Knet {} => Ok(AdyenPaymentMethod::Knet),
             payments::CardRedirectData::Benefit {} => Ok(AdyenPaymentMethod::Benefit),
+            payments::CardRedirectData::MomoAtm {} => Ok(AdyenPaymentMethod::MomoAtm),
         }
     }
 }
@@ -2301,7 +2482,7 @@ impl<'a>
         let additional_data = get_additional_data(item);
         let return_url = item.request.get_return_url()?;
         let payment_method = AdyenPaymentMethod::try_from(bank_redirect_data)?;
-        let (shopper_locale, country) = get_sofort_extra_details(item);
+        let (shopper_locale, country) = get_redirect_extra_details(item);
         let line_items = Some(get_line_items(item));
 
         Ok(AdyenPaymentRequest {
@@ -2330,23 +2511,24 @@ impl<'a>
     }
 }
 
-fn get_sofort_extra_details(
+fn get_redirect_extra_details(
     item: &types::PaymentsAuthorizeRouterData,
 ) -> (Option<String>, Option<api_enums::CountryAlpha2>) {
     match item.request.payment_method_data {
-        api_models::payments::PaymentMethodData::BankRedirect(ref b) => {
-            if let api_models::payments::BankRedirectData::Sofort {
-                country,
-                preferred_language,
-                ..
-            } = b
-            {
-                (
+        api_models::payments::PaymentMethodData::BankRedirect(ref redirect_data) => {
+            match redirect_data {
+                api_models::payments::BankRedirectData::Sofort {
+                    country,
+                    preferred_language,
+                    ..
+                } => (
                     Some(preferred_language.to_string()),
                     Some(country.to_owned()),
-                )
-            } else {
-                (None, None)
+                ),
+                api_models::payments::BankRedirectData::OpenBankingUk { country, .. } => {
+                    (None, Some(country.to_owned()))
+                }
+                _ => (None, None),
             }
         }
         _ => (None, None),
@@ -2898,12 +3080,14 @@ pub fn get_wait_screen_metadata(
         | PaymentType::Kakaopay
         | PaymentType::MobilePay
         | PaymentType::Momo
+        | PaymentType::MomoAtm
         | PaymentType::OnlineBankingCzechRepublic
         | PaymentType::OnlineBankingFinland
         | PaymentType::OnlineBankingPoland
         | PaymentType::OnlineBankingSlovakia
         | PaymentType::OnlineBankingFpx
         | PaymentType::OnlineBankingThailand
+        | PaymentType::OpenBankingUK
         | PaymentType::PayBright
         | PaymentType::Paypal
         | PaymentType::Scheme
@@ -2930,7 +3114,13 @@ pub fn get_wait_screen_metadata(
         | PaymentType::DanamonVa
         | PaymentType::Giftcard
         | PaymentType::MandiriVa
-        | PaymentType::PaySafeCard => Ok(None),
+        | PaymentType::PaySafeCard
+        | PaymentType::SevenEleven
+        | PaymentType::Lawson
+        | PaymentType::MiniStop
+        | PaymentType::FamilyMart
+        | PaymentType::Seicomart
+        | PaymentType::PayEasy => Ok(None),
     }
 }
 
@@ -2943,11 +3133,17 @@ pub fn get_present_to_shopper_metadata(
         PaymentType::Alfamart
         | PaymentType::Indomaret
         | PaymentType::BoletoBancario
-        | PaymentType::Oxxo => {
+        | PaymentType::Oxxo
+        | PaymentType::Lawson
+        | PaymentType::MiniStop
+        | PaymentType::FamilyMart
+        | PaymentType::Seicomart
+        | PaymentType::PayEasy => {
             let voucher_data = payments::VoucherNextStepData {
                 expires_at: response.action.expires_at.clone(),
                 reference,
                 download_url: response.action.download_url.clone(),
+                instructions_url: response.action.instructions_url.clone(),
             };
 
             Some(common_utils::ext_traits::Encode::<
@@ -3002,12 +3198,14 @@ pub fn get_present_to_shopper_metadata(
         | PaymentType::Benefit
         | PaymentType::MobilePay
         | PaymentType::Momo
+        | PaymentType::MomoAtm
         | PaymentType::OnlineBankingCzechRepublic
         | PaymentType::OnlineBankingFinland
         | PaymentType::OnlineBankingPoland
         | PaymentType::OnlineBankingSlovakia
         | PaymentType::OnlineBankingFpx
         | PaymentType::OnlineBankingThailand
+        | PaymentType::OpenBankingUK
         | PaymentType::PayBright
         | PaymentType::Paypal
         | PaymentType::Scheme
@@ -3024,7 +3222,8 @@ pub fn get_present_to_shopper_metadata(
         | PaymentType::Twint
         | PaymentType::Vipps
         | PaymentType::Swish
-        | PaymentType::PaySafeCard => Ok(None),
+        | PaymentType::PaySafeCard
+        | PaymentType::SevenEleven => Ok(None),
     }
 }
 

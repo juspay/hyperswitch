@@ -1572,6 +1572,7 @@ impl From<PaymentMethodType> for PaymentMethod {
             PaymentMethodType::MbWay => Self::Wallet,
             PaymentMethodType::MobilePay => Self::Wallet,
             PaymentMethodType::Momo => Self::Wallet,
+            PaymentMethodType::MomoAtm => Self::CardRedirect,
             PaymentMethodType::Multibanco => Self::BankTransfer,
             PaymentMethodType::MandiriVa => Self::BankTransfer,
             PaymentMethodType::Interac => Self::BankRedirect,
@@ -1609,6 +1610,13 @@ impl From<PaymentMethodType> for PaymentMethod {
             PaymentMethodType::Cashapp => Self::Wallet,
             PaymentMethodType::Givex => Self::GiftCard,
             PaymentMethodType::Oxxo => Self::Voucher,
+            PaymentMethodType::OpenBankingUk => Self::BankRedirect,
+            PaymentMethodType::SevenEleven => Self::Voucher,
+            PaymentMethodType::Lawson => Self::Voucher,
+            PaymentMethodType::MiniStop => Self::Voucher,
+            PaymentMethodType::FamilyMart => Self::Voucher,
+            PaymentMethodType::Seicomart => Self::Voucher,
+            PaymentMethodType::PayEasy => Self::Voucher,
         }
     }
 }
