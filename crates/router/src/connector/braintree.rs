@@ -67,13 +67,17 @@ impl ConnectorCommon for Braintree {
                             .as_ref()
                             .and_then(|credit_card_error| credit_card_error.errors.first()))
                     }));
-                let code = error.map_or(consts::NO_ERROR_CODE.to_string(), |error| {
-                    error.code.clone()
-                });
+                let (code, message) = error.map_or(
+                    (
+                        consts::NO_ERROR_CODE.to_string(),
+                        consts::NO_ERROR_MESSAGE.to_string(),
+                    ),
+                    |error| (error.code.clone(), error.message.clone()),
+                );
                 Ok(ErrorResponse {
                     status_code: res.status_code,
                     code,
-                    message: consts::NO_ERROR_MESSAGE.to_string(),
+                    message,
                     reason: Some(response.api_error_response.message),
                 })
             }
