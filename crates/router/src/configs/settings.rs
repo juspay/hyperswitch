@@ -145,12 +145,18 @@ pub struct DummyConnector {
     pub payment_tolerance: u64,
     pub payment_retrieve_duration: u64,
     pub payment_retrieve_tolerance: u64,
+    pub payment_complete_duration: i64,
+    pub payment_complete_tolerance: i64,
     pub refund_ttl: i64,
     pub refund_duration: u64,
     pub refund_tolerance: u64,
     pub refund_retrieve_duration: u64,
     pub refund_retrieve_tolerance: u64,
     pub authorize_ttl: i64,
+    pub assets_base_url: String,
+    pub default_return_url: String,
+    pub slack_invite_url: String,
+    pub discord_invite_url: String,
 }
 
 #[derive(Debug, Deserialize, Clone)]
@@ -426,6 +432,21 @@ pub struct Database {
     pub connection_timeout: u64,
 }
 
+#[cfg(not(feature = "kms"))]
+impl Into<storage_impl::config::Database> for Database {
+    fn into(self) -> storage_impl::config::Database {
+        storage_impl::config::Database {
+            username: self.username,
+            password: self.password,
+            host: self.host,
+            port: self.port,
+            dbname: self.dbname,
+            pool_size: self.pool_size,
+            connection_timeout: self.connection_timeout,
+        }
+    }
+}
+
 #[derive(Debug, Deserialize, Clone)]
 #[serde(default)]
 pub struct SupportedConnectors {
@@ -560,6 +581,14 @@ pub struct DrainerSettings {
 #[serde(default)]
 pub struct WebhooksSettings {
     pub outgoing_enabled: bool,
+    pub ignore_error: WebhookIgnoreErrorSettings,
+}
+
+#[derive(Debug, Clone, Deserialize, Default)]
+#[serde(default)]
+pub struct WebhookIgnoreErrorSettings {
+    pub event_type: Option<bool>,
+    pub payment_not_found: Option<bool>,
 }
 
 #[derive(Debug, Deserialize, Clone)]

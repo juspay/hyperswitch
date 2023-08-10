@@ -234,6 +234,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Co
                 connector_customer_id: None,
                 recurring_mandate_payment_data,
                 ephemeral_key: None,
+                multiple_capture_data: None,
                 redirect_response,
                 frm_message: None,
             },

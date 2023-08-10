@@ -76,8 +76,8 @@ impl ForeignFrom<storage_enums::AttemptStatus> for storage_enums::IntentStatus {
             }
             storage_enums::AttemptStatus::Unresolved => Self::RequiresMerchantAction,
 
-            storage_enums::AttemptStatus::PartialCharged
-            | storage_enums::AttemptStatus::Started
+            storage_enums::AttemptStatus::PartialCharged => Self::PartiallyCaptured,
+            storage_enums::AttemptStatus::Started
             | storage_enums::AttemptStatus::AuthenticationSuccessful
             | storage_enums::AttemptStatus::Authorizing
             | storage_enums::AttemptStatus::CodInitiated
@@ -92,6 +92,45 @@ impl ForeignFrom<storage_enums::AttemptStatus> for storage_enums::IntentStatus {
             | storage_enums::AttemptStatus::CaptureFailed
             | storage_enums::AttemptStatus::Failure => Self::Failed,
             storage_enums::AttemptStatus::Voided => Self::Cancelled,
+        }
+    }
+}
+
+impl ForeignTryFrom<storage_enums::AttemptStatus> for storage_enums::CaptureStatus {
+    type Error = error_stack::Report<errors::ApiErrorResponse>;
+
+    fn foreign_try_from(
+        attempt_status: storage_enums::AttemptStatus,
+    ) -> errors::RouterResult<Self> {
+        match attempt_status {
+            storage_enums::AttemptStatus::Charged
+            | storage_enums::AttemptStatus::PartialCharged => Ok(Self::Charged),
+            storage_enums::AttemptStatus::Pending
+            | storage_enums::AttemptStatus::CaptureInitiated => Ok(Self::Pending),
+            storage_enums::AttemptStatus::Failure
+            | storage_enums::AttemptStatus::CaptureFailed => Ok(Self::Failed),
+
+            storage_enums::AttemptStatus::Started
+            | storage_enums::AttemptStatus::AuthenticationFailed
+            | storage_enums::AttemptStatus::RouterDeclined
+            | storage_enums::AttemptStatus::AuthenticationPending
+            | storage_enums::AttemptStatus::AuthenticationSuccessful
+            | storage_enums::AttemptStatus::Authorized
+            | storage_enums::AttemptStatus::AuthorizationFailed
+            | storage_enums::AttemptStatus::Authorizing
+            | storage_enums::AttemptStatus::CodInitiated
+            | storage_enums::AttemptStatus::Voided
+            | storage_enums::AttemptStatus::VoidInitiated
+            | storage_enums::AttemptStatus::VoidFailed
+            | storage_enums::AttemptStatus::AutoRefunded
+            | storage_enums::AttemptStatus::Unresolved
+            | storage_enums::AttemptStatus::PaymentMethodAwaited
+            | storage_enums::AttemptStatus::ConfirmationAwaited
+            | storage_enums::AttemptStatus::DeviceDataCollectionPending => {
+                Err(errors::ApiErrorResponse::PreconditionFailed {
+                    message: "AttemptStatus must be one of these for multiple partial captures [Charged, PartialCharged, Pending, CaptureInitiated, Failure, CaptureFailed]".into(),
+                }.into())
+            }
         }
     }
 }
@@ -204,6 +243,7 @@ impl ForeignFrom<api_enums::PaymentMethodType> for api_enums::PaymentMethod {
             | api_enums::PaymentMethodType::OnlineBankingFpx
             | api_enums::PaymentMethodType::OnlineBankingPoland
             | api_enums::PaymentMethodType::OnlineBankingSlovakia
+            | api_enums::PaymentMethodType::OpenBankingUk
             | api_enums::PaymentMethodType::Przelewy24
             | api_enums::PaymentMethodType::Trustly
             | api_enums::PaymentMethodType::Bizum
@@ -226,6 +266,12 @@ impl ForeignFrom<api_enums::PaymentMethodType> for api_enums::PaymentMethod {
             | api_enums::PaymentMethodType::Alfamart
             | api_enums::PaymentMethodType::Indomaret
             | api_enums::PaymentMethodType::Oxxo
+            | api_enums::PaymentMethodType::SevenEleven
+            | api_enums::PaymentMethodType::Lawson
+            | api_enums::PaymentMethodType::MiniStop
+            | api_enums::PaymentMethodType::FamilyMart
+            | api_enums::PaymentMethodType::Seicomart
+            | api_enums::PaymentMethodType::PayEasy
             | api_enums::PaymentMethodType::RedPagos => Self::Voucher,
             api_enums::PaymentMethodType::Pse
             | api_enums::PaymentMethodType::Multibanco
@@ -237,8 +283,12 @@ impl ForeignFrom<api_enums::PaymentMethodType> for api_enums::PaymentMethod {
             | api_enums::PaymentMethodType::DanamonVa
             | api_enums::PaymentMethodType::MandiriVa
             | api_enums::PaymentMethodType::Pix => Self::BankTransfer,
-            api_enums::PaymentMethodType::Givex => Self::GiftCard,
-            api_enums::PaymentMethodType::PaySafeCard => Self::GiftCard,
+            api_enums::PaymentMethodType::Givex | api_enums::PaymentMethodType::PaySafeCard => {
+                Self::GiftCard
+            }
+            api_enums::PaymentMethodType::Benefit
+            | api_enums::PaymentMethodType::Knet
+            | api_enums::PaymentMethodType::MomoAtm => Self::CardRedirect,
         }
     }
 }
@@ -260,6 +310,7 @@ impl ForeignTryFrom<api_models::payments::PaymentMethodData> for api_enums::Paym
             api_models::payments::PaymentMethodData::Upi(..) => Ok(Self::Upi),
             api_models::payments::PaymentMethodData::Voucher(..) => Ok(Self::Voucher),
             api_models::payments::PaymentMethodData::GiftCard(..) => Ok(Self::GiftCard),
+            api_models::payments::PaymentMethodData::CardRedirect(..) => Ok(Self::CardRedirect),
             api_models::payments::PaymentMethodData::MandatePayment => {
                 Err(errors::ApiErrorResponse::InvalidRequestData {
                     message: ("Mandate payments cannot have payment_method_data field".to_string()),

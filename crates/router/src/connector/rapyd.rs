@@ -3,7 +3,7 @@ use std::fmt::Debug;
 
 use base64::Engine;
 use common_utils::{date_time, ext_traits::StringExt};
-use error_stack::{IntoReport, ResultExt};
+use error_stack::{IntoReport, Report, ResultExt};
 use masking::{ExposeInterface, PeekInterface};
 use rand::distributions::{Alphanumeric, DistString};
 use ring::hmac;
@@ -15,7 +15,7 @@ use crate::{
     consts,
     core::errors::{self, CustomResult},
     db::StorageInterface,
-    headers,
+    headers, logger,
     services::{
         self,
         request::{self, Mask},
@@ -82,16 +82,23 @@ impl ConnectorCommon for Rapyd {
         &self,
         res: types::Response,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        let response: rapyd::RapydPaymentsResponse = res
-            .response
-            .parse_struct("Rapyd ErrorResponse")
-            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-        Ok(ErrorResponse {
-            status_code: res.status_code,
-            code: response.status.error_code,
-            message: response.status.status.unwrap_or_default(),
-            reason: response.status.message,
-        })
+        let response: Result<
+            rapyd::RapydPaymentsResponse,
+            Report<common_utils::errors::ParsingError>,
+        > = res.response.parse_struct("Rapyd ErrorResponse");
+
+        match response {
+            Ok(response_data) => Ok(ErrorResponse {
+                status_code: res.status_code,
+                code: response_data.status.error_code,
+                message: response_data.status.status.unwrap_or_default(),
+                reason: response_data.status.message,
+            }),
+            Err(error_msg) => {
+                logger::error!(deserialization_error =? error_msg);
+                utils::handle_json_response_deserialization_failure(res, "rapyd".to_owned())
+            }
+        }
     }
 }
 
@@ -739,9 +746,10 @@ impl api::IncomingWebhook for Rapyd {
         &self,
         db: &dyn StorageInterface,
         request: &api::IncomingWebhookRequestDetails<'_>,
-        merchant_id: &str,
+        merchant_account: &domain::MerchantAccount,
         connector_label: &str,
         key_store: &domain::MerchantKeyStore,
+        object_reference_id: api_models::webhooks::ObjectReferenceId,
     ) -> CustomResult<bool, errors::ConnectorError> {
         let signature = self
             .get_webhook_source_verification_signature(request)
@@ -749,14 +757,19 @@ impl api::IncomingWebhook for Rapyd {
         let secret = self
             .get_webhook_source_verification_merchant_secret(
                 db,
-                merchant_id,
+                merchant_account,
                 connector_label,
                 key_store,
+                object_reference_id,
             )
             .await
             .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
         let message = self
-            .get_webhook_source_verification_message(request, merchant_id, &secret)
+            .get_webhook_source_verification_message(
+                request,
+                &merchant_account.merchant_id,
+                &secret,
+            )
             .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
 
         let stringify_auth = String::from_utf8(secret.to_vec())

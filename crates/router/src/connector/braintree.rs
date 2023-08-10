@@ -2,7 +2,7 @@ pub mod transformers;
 
 use std::fmt::Debug;
 
-use error_stack::{IntoReport, ResultExt};
+use error_stack::{IntoReport, Report, ResultExt};
 use masking::PeekInterface;
 
 use self::transformers as braintree;
@@ -10,7 +10,7 @@ use crate::{
     configs::settings,
     consts,
     core::errors::{self, CustomResult},
-    headers,
+    headers, logger,
     services::{
         self,
         request::{self, Mask},
@@ -45,6 +45,27 @@ impl ConnectorCommon for Braintree {
             headers::AUTHORIZATION.to_string(),
             auth.auth_header.into_masked(),
         )])
+    }
+
+    fn build_error_response(
+        &self,
+        res: types::Response,
+    ) -> CustomResult<types::ErrorResponse, errors::ConnectorError> {
+        let response: Result<braintree::ErrorResponse, Report<common_utils::errors::ParsingError>> =
+            res.response.parse_struct("Braintree Error Response");
+
+        match response {
+            Ok(response_data) => Ok(types::ErrorResponse {
+                status_code: res.status_code,
+                code: consts::NO_ERROR_CODE.to_string(),
+                message: response_data.api_error_response.message,
+                reason: None,
+            }),
+            Err(error_msg) => {
+                logger::error!(deserialization_error =? error_msg);
+                utils::handle_json_response_deserialization_failure(res, "braintree".to_owned())
+            }
+        }
     }
 }
 
@@ -140,17 +161,7 @@ impl
         &self,
         res: types::Response,
     ) -> CustomResult<types::ErrorResponse, errors::ConnectorError> {
-        let response: braintree::ErrorResponse = res
-            .response
-            .parse_struct("Error Response")
-            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-
-        Ok(types::ErrorResponse {
-            status_code: res.status_code,
-            code: consts::NO_ERROR_CODE.to_string(),
-            message: response.api_error_response.message,
-            reason: None,
-        })
+        self.build_error_response(res)
     }
 
     fn get_request_body(
@@ -291,17 +302,7 @@ impl
         &self,
         res: types::Response,
     ) -> CustomResult<types::ErrorResponse, errors::ConnectorError> {
-        let response: braintree::ErrorResponse = res
-            .response
-            .parse_struct("Braintree Error Response")
-            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-
-        Ok(types::ErrorResponse {
-            status_code: res.status_code,
-            code: consts::NO_ERROR_CODE.to_string(),
-            message: response.api_error_response.message,
-            reason: None,
-        })
+        self.build_error_response(res)
     }
 
     fn get_request_body(
@@ -429,16 +430,7 @@ impl
         &self,
         res: types::Response,
     ) -> CustomResult<types::ErrorResponse, errors::ConnectorError> {
-        let response: braintree::ErrorResponse = res
-            .response
-            .parse_struct("Braintree ErrorResponse")
-            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-        Ok(types::ErrorResponse {
-            status_code: res.status_code,
-            code: consts::NO_ERROR_CODE.to_string(),
-            message: response.api_error_response.message,
-            reason: None,
-        })
+        self.build_error_response(res)
     }
 }
 
@@ -511,17 +503,7 @@ impl
         &self,
         res: types::Response,
     ) -> CustomResult<types::ErrorResponse, errors::ConnectorError> {
-        let response: braintree::ErrorResponse = res
-            .response
-            .parse_struct("Braintree ErrorResponse")
-            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-
-        Ok(types::ErrorResponse {
-            status_code: res.status_code,
-            code: consts::NO_ERROR_CODE.to_string(),
-            message: response.api_error_response.message,
-            reason: None,
-        })
+        self.build_error_response(res)
     }
 
     fn get_request_body(
