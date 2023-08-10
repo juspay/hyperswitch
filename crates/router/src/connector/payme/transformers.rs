@@ -53,7 +53,6 @@ pub struct Pay3dsRequest {
 pub enum PaymePaymentRequest {
     MandateRequest(MandateRequest),
     PayRequest(PayRequest),
-    Pay3dsRequest(Pay3dsRequest),
 }
 
 #[derive(Debug, Serialize)]
@@ -161,8 +160,8 @@ impl<F, T>
     fn try_from(
         item: types::ResponseRouterData<F, PaymePaySaleResponse, T, types::PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
-        let redirection_data = if item.response.sale_3ds {
-            item.response.redirect_url.clone().map(|url| {
+        let redirection_data = match item.data.auth_type {
+            AuthenticationType::ThreeDs => item.response.redirect_url.clone().map(|url| {
                 let form_fields = std::collections::HashMap::from_iter(
                     url.query_pairs()
                         .map(|(key, value)| (key.to_string(), value.to_string())),
@@ -172,9 +171,8 @@ impl<F, T>
                     method: services::Method::Get,
                     form_fields,
                 }
-            })
-        } else {
-            None
+            }),
+            AuthenticationType::NoThreeDs => None,
         };
         Ok(Self {
             status: enums::AttemptStatus::from(item.response.sale_status),
@@ -316,10 +314,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PaymePaymentRequest {
         let payme_request = if value.request.mandate_id.is_some() {
             Self::MandateRequest(MandateRequest::try_from(value)?)
         } else {
-            match value.auth_type {
-                AuthenticationType::ThreeDs => Self::Pay3dsRequest(Pay3dsRequest::try_from(value)?),
-                AuthenticationType::NoThreeDs => Self::PayRequest(PayRequest::try_from(value)?),
-            }
+            Self::PayRequest(PayRequest::try_from(value)?)
         };
         Ok(payme_request)
     }
@@ -480,32 +475,44 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PayRequest {
     }
 }
 
-impl TryFrom<&types::PaymentsAuthorizeRouterData> for Pay3dsRequest {
+impl TryFrom<&types::PaymentsCompleteAuthorizeRouterData> for Pay3dsRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(item: &types::PaymentsAuthorizeRouterData) -> Result<Self, Self::Error> {
+    fn try_from(item: &types::PaymentsCompleteAuthorizeRouterData) -> Result<Self, Self::Error> {
         match item.request.payment_method_data.clone() {
-            api::PaymentMethodData::Card(_) => {
-                let buyer_email = item.request.get_email()?;
-                let buyer_name = item.get_billing_address()?.get_full_name()?;
-                let payme_sale_id = item.reference_id.to_owned().ok_or(
-                    errors::ConnectorError::MissingConnectorRelatedTransactionID {
-                        id: "payme_sale_id".to_string(),
-                    },
-                )?;
-                let buyer_key = match item.payment_method_token.clone() {
-                    Some(key) => key,
-                    None => Err(errors::ConnectorError::MissingRequiredField {
-                        field_name: "buyer_key",
-                    })?,
-                };
-                Ok(Self {
-                    buyer_email,
-                    buyer_key,
-                    buyer_name,
-                    payme_sale_id,
-                })
+            Some(pm_data) => match pm_data {
+                api::PaymentMethodData::Card(_) => {
+                    let buyer_email = match item.request.email.clone() {
+                        Some(email) => email,
+                        None => Err(errors::ConnectorError::MissingRequiredField {
+                            field_name: "email",
+                        })?,
+                    };
+                    let buyer_name = item.get_billing_address()?.get_full_name()?;
+                    let payme_sale_id = item.reference_id.to_owned().ok_or(
+                        errors::ConnectorError::MissingConnectorRelatedTransactionID {
+                            id: "payme_sale_id".to_string(),
+                        },
+                    )?;
+                    let buyer_key = match item.payment_method_token.clone() {
+                        Some(key) => key,
+                        None => Err(errors::ConnectorError::MissingRequiredField {
+                            field_name: "buyer_key",
+                        })?,
+                    };
+                    Ok(Self {
+                        buyer_email,
+                        buyer_key,
+                        buyer_name,
+                        payme_sale_id,
+                    })
+                }
+                _ => Err(
+                    errors::ConnectorError::NotImplemented("Payment methods".to_string()).into(),
+                ),
+            },
+            None => {
+                Err(errors::ConnectorError::NotImplemented("Payment methods".to_string()).into())
             }
-            _ => Err(errors::ConnectorError::NotImplemented("Payment methods".to_string()).into()),
         }
     }
 }

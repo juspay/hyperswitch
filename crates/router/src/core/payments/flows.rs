@@ -160,7 +160,6 @@ default_imp_for_complete_authorize!(
     connector::Opayo,
     connector::Opennode,
     connector::Payeezy,
-    connector::Payme,
     connector::Payu,
     connector::Rapyd,
     connector::Square,
