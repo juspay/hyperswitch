@@ -139,7 +139,7 @@ impl ConnectorCommon for Worldline {
 }
 
 impl ConnectorValidation for Worldline {
-    fn validate_capture_type(
+    fn validate_capture_method(
         &self,
         capture_method: enums::CaptureMethod,
     ) -> CustomResult<(), errors::ConnectorError> {
@@ -516,6 +516,7 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         >,
         connectors: &Connectors,
     ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
+        self.validate_capture_method(req.request.capture_method.unwrap_or_default())?;
         Ok(Some(
             services::RequestBuilder::new()
                 .method(types::PaymentsAuthorizeType::get_http_method(self))

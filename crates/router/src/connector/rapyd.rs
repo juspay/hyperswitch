@@ -105,7 +105,7 @@ impl ConnectorCommon for Rapyd {
 }
 
 impl ConnectorValidation for Rapyd {
-    fn validate_capture_type(
+    fn validate_capture_method(
         &self,
         capture_method: enums::CaptureMethod,
     ) -> CustomResult<(), errors::ConnectorError> {
@@ -214,6 +214,7 @@ impl
         >,
         connectors: &settings::Connectors,
     ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
+        self.validate_capture_method(req.request.capture_method.unwrap_or_default())?;
         let timestamp = date_time::now_unix_timestamp();
         let salt = Alphanumeric.sample_string(&mut rand::thread_rng(), 12);
 

@@ -74,7 +74,7 @@ impl ConnectorCommon for Adyen {
 }
 
 impl ConnectorValidation for Adyen {
-    fn validate_capture_type(
+    fn validate_capture_method(
         &self,
         capture_method: storage_enums::CaptureMethod,
     ) -> CustomResult<(), errors::ConnectorError> {
@@ -603,6 +603,7 @@ impl
         req: &types::PaymentsAuthorizeRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
+        self.validate_capture_method(req.request.capture_method.unwrap_or_default())?;
         check_for_payment_method_balance(req)?;
         Ok(Some(
             services::RequestBuilder::new()

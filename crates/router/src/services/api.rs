@@ -54,7 +54,7 @@ where
 }
 
 pub trait ConnectorValidation: ConnectorCommon {
-    fn validate_capture_type(
+    fn validate_capture_method(
         &self,
         capture_method: CaptureMethod,
     ) -> CustomResult<(), errors::ConnectorError> {

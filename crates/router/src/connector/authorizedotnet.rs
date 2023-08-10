@@ -58,7 +58,7 @@ impl ConnectorCommon for Authorizedotnet {
 }
 
 impl ConnectorValidation for Authorizedotnet {
-    fn validate_capture_type(
+    fn validate_capture_method(
         &self,
         capture_method: enums::CaptureMethod,
     ) -> CustomResult<(), errors::ConnectorError> {
@@ -345,6 +345,7 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         >,
         connectors: &settings::Connectors,
     ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
+        self.validate_capture_method(req.request.capture_method.unwrap_or_default())?;
         Ok(Some(
             services::RequestBuilder::new()
                 .method(services::Method::Post)

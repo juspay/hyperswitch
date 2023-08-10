@@ -216,6 +216,7 @@ impl<const T: u8>
         req: &types::PaymentsAuthorizeRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
+        self.validate_capture_type(req.request.capture_method.unwrap_or_default())?;
         Ok(Some(
             services::RequestBuilder::new()
                 .method(services::Method::Post)
