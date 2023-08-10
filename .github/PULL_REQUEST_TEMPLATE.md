@@ -36,7 +36,7 @@ If it fixes an open issue, please link to the issue here.
 
 If you don't have an issue, we'd recommend starting with one first so the PR
 can focus on the implementation (unless it is an obvious bug or documentation fix
-that will have a little conversation).
+that will have little conversation).
 -->
 
 
