@@ -1,8 +1,9 @@
 use error_stack::IntoReport;
+use storage_impl::redis::cache::CacheKind;
+#[cfg(feature = "accounts_cache")]
+use storage_impl::redis::cache::ACCOUNTS_CACHE;
 
 use super::{MockDb, Store};
-#[cfg(feature = "accounts_cache")]
-use crate::cache::{self, ACCOUNTS_CACHE};
 use crate::{
     connection,
     core::errors::{self, CustomResult},
@@ -104,7 +105,7 @@ impl ApiKeyInterface for Store {
 
             super::cache::publish_and_redact(
                 self,
-                cache::CacheKind::Accounts(api_key.hashed_api_key.into_inner().into()),
+                CacheKind::Accounts(api_key.hashed_api_key.into_inner().into()),
                 update_call,
             )
             .await
@@ -147,7 +148,7 @@ impl ApiKeyInterface for Store {
 
             super::cache::publish_and_redact(
                 self,
-                cache::CacheKind::Accounts(api_key.hashed_api_key.into_inner().into()),
+                CacheKind::Accounts(api_key.hashed_api_key.into_inner().into()),
                 delete_call,
             )
             .await
@@ -373,12 +374,11 @@ impl ApiKeyInterface for MockDb {
 
 #[cfg(test)]
 mod tests {
+    use storage_impl::redis::{cache::{ACCOUNTS_CACHE, CacheKind}, kv_store::RedisConnInterface, pub_sub::PubSubInterface};
     use time::macros::datetime;
 
     use crate::{
-        cache::{CacheKind, ACCOUNTS_CACHE},
         db::{api_keys::ApiKeyInterface, cache, MockDb},
-        services::{PubSubInterface, RedisConnInterface},
         types::storage,
     };
 

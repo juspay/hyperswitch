@@ -14,6 +14,8 @@ license.workspace = true
 masking = { version = "0.1.0", path = "../masking" }
 redis_interface = { version = "0.1.0", path = "../redis_interface" }
 diesel_models = { version = "0.1.0", path = "../diesel_models" }
+router_env = { version = "0.1.0", path = "../router_env" }
+common_utils = { version = "0.1.0", path = "../common_utils" }
 
 # Third party crates
 bb8 = "0.8.1"
@@ -23,3 +25,6 @@ async-trait = "0.1.72"
 crc32fast = "1.3.2"
 error-stack = "0.3.1"
 tokio = { version = "1.28.2", features = ["rt-multi-thread"] }
+once_cell = "1.18.0"
+moka = "0.11.3"
+dyn-clone = "1.0.12"

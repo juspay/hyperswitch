@@ -1,9 +1,9 @@
 #![allow(clippy::unwrap_used)]
 use router::{
-    cache::{self},
     configs::settings::Settings,
     routes,
 };
+use storage_impl::redis::cache;
 
 mod utils;
 

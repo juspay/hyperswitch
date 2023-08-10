@@ -1,11 +1,14 @@
+pub mod cache;
 pub mod kv_store;
+pub mod pub_sub;
 
 use std::sync::{atomic, Arc};
 
 use error_stack::{IntoReport, ResultExt};
 use redis_interface::PubsubInterface;
+use router_env::logger;
 
-use self::kv_store::RedisConnInterface;
+use self::{kv_store::RedisConnInterface, pub_sub::PubSubInterface};
 
 #[derive(Clone)]
 pub struct RedisStore {
@@ -51,12 +54,12 @@ impl RedisStore {
             .change_context(redis_interface::errors::RedisError::SubscribeError)?;
 
         // TODO: Handle on message failures
-        // let redis_clone = self.redis_conn.clone();
-        // tokio::spawn(async move {
-        // if let Err(e) = redis_clone.on_message().await {
-        //     logger::error!(pubsub_err=?e);
-        // }
-        // });
+        let redis_clone = self.redis_conn.clone();
+        tokio::spawn(async move {
+            if let Err(e) = redis_clone.on_message().await {
+                logger::error!(pubsub_err=?e);
+            }
+        });
         Ok(())
     }
 }

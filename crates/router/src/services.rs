@@ -9,101 +9,11 @@ use external_services::kms::{self, decrypt::KmsDecrypt};
 #[cfg(not(feature = "kms"))]
 use masking::PeekInterface;
 use masking::Secret;
-use redis_interface::{errors as redis_errors, PubsubInterface, RedisValue};
 use storage_impl::{KVRouterStore, RouterStore};
 use tokio::sync::oneshot;
 
 pub use self::{api::*, encryption::*};
-use crate::{
-    cache::{CacheKind, ACCOUNTS_CACHE, CONFIG_CACHE},
-    configs::settings,
-    consts,
-    core::errors,
-};
-
-#[async_trait::async_trait]
-pub trait PubSubInterface {
-    async fn subscribe(&self, channel: &str) -> errors::CustomResult<(), redis_errors::RedisError>;
-
-    async fn publish<'a>(
-        &self,
-        channel: &str,
-        key: CacheKind<'a>,
-    ) -> errors::CustomResult<usize, redis_errors::RedisError>;
-
-    async fn on_message(&self) -> errors::CustomResult<(), redis_errors::RedisError>;
-}
-
-#[async_trait::async_trait]
-impl PubSubInterface for redis_interface::RedisConnectionPool {
-    #[inline]
-    async fn subscribe(&self, channel: &str) -> errors::CustomResult<(), redis_errors::RedisError> {
-        // Spawns a task that will automatically re-subscribe to any channels or channel patterns used by the client.
-        self.subscriber.manage_subscriptions();
-
-        self.subscriber
-            .subscribe(channel)
-            .await
-            .into_report()
-            .change_context(redis_errors::RedisError::SubscribeError)
-    }
-
-    #[inline]
-    async fn publish<'a>(
-        &self,
-        channel: &str,
-        key: CacheKind<'a>,
-    ) -> errors::CustomResult<usize, redis_errors::RedisError> {
-        self.publisher
-            .publish(channel, RedisValue::from(key).into_inner())
-            .await
-            .into_report()
-            .change_context(redis_errors::RedisError::SubscribeError)
-    }
-
-    #[inline]
-    async fn on_message(&self) -> errors::CustomResult<(), redis_errors::RedisError> {
-        logger::debug!("Started on message");
-        let mut rx = self.subscriber.on_message();
-        while let Ok(message) = rx.recv().await {
-            logger::debug!("Invalidating {message:?}");
-            let key: CacheKind<'_> = match RedisValue::new(message.value)
-                .try_into()
-                .change_context(redis_errors::RedisError::OnMessageError)
-            {
-                Ok(value) => value,
-                Err(err) => {
-                    logger::error!(value_conversion_err=?err);
-                    continue;
-                }
-            };
-
-            let key = match key {
-                CacheKind::Config(key) => {
-                    CONFIG_CACHE.invalidate(key.as_ref()).await;
-                    key
-                }
-                CacheKind::Accounts(key) => {
-                    ACCOUNTS_CACHE.invalidate(key.as_ref()).await;
-                    key
-                }
-                CacheKind::All(key) => {
-                    CONFIG_CACHE.invalidate(key.as_ref()).await;
-                    ACCOUNTS_CACHE.invalidate(key.as_ref()).await;
-                    key
-                }
-            };
-
-            self.delete_key(key.as_ref())
-                .await
-                .map_err(|err| logger::error!("Error while deleting redis key: {err:?}"))
-                .ok();
-
-            logger::debug!("Done invalidating {key}");
-        }
-        Ok(())
-    }
-}
+use crate::{configs::settings, consts, core::errors};
 
 #[cfg(not(feature = "olap"))]
 type StoreType = storage_impl::database::store::Store;
@@ -124,20 +34,24 @@ pub async fn get_store(
     let kms_client = kms::get_kms_client(&config.kms).await;
 
     #[cfg(feature = "kms")]
+    #[allow(clippy::expect_used)]
     let master_config = config
         .master_database
         .clone()
         .decrypt_inner(kms_client)
-        .await;
+        .await
+        .expect("Failed to decrypt master database config");
     #[cfg(not(feature = "kms"))]
     let master_config = config.master_database.clone().into();
 
     #[cfg(all(feature = "olap", feature = "kms"))]
+    #[allow(clippy::expect_used)]
     let replica_config = config
         .replica_database
         .clone()
         .decrypt_inner(kms_client)
-        .await;
+        .await
+        .expect("Failed to decrypt replica database config");
 
     #[cfg(all(feature = "olap", not(feature = "kms")))]
     let replica_config = config.replica_database.clone().into();

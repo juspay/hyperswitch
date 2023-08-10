@@ -3,11 +3,9 @@ use std::cmp::Ordering;
 use common_utils::ext_traits::{AsyncExt, ByteSliceExt, Encode};
 use diesel_models::errors as storage_errors;
 use error_stack::{IntoReport, ResultExt};
-use storage_impl::redis::kv_store::RedisConnInterface;
+use storage_impl::redis::{cache, kv_store::RedisConnInterface};
 
 use super::{MockDb, Store};
-#[cfg(feature = "accounts_cache")]
-use crate::cache::{self, ACCOUNTS_CACHE};
 use crate::{
     connection,
     core::errors::{self, CustomResult},
@@ -199,7 +197,7 @@ impl MerchantConnectorAccountInterface for Store {
                 self,
                 &format!("{}_{}", merchant_id, connector_label),
                 find_call,
-                &ACCOUNTS_CACHE,
+                &cache::ACCOUNTS_CACHE,
             )
             .await
             .async_and_then(|item| async {
@@ -669,16 +667,16 @@ mod merchant_connector_account_cache_tests {
     use diesel_models::enums::ConnectorType;
     use error_stack::ResultExt;
     use masking::PeekInterface;
+    use storage_impl::redis::{cache::{CacheKind, ACCOUNTS_CACHE}, kv_store::RedisConnInterface, pub_sub::PubSubInterface};
     use time::macros::datetime;
 
     use crate::{
-        cache::{CacheKind, ACCOUNTS_CACHE},
         core::errors,
         db::{
             cache, merchant_connector_account::MerchantConnectorAccountInterface,
             merchant_key_store::MerchantKeyStoreInterface, MasterKeyInterface, MockDb,
         },
-        services::{self, PubSubInterface, RedisConnInterface},
+        services::{self},
         types::{
             domain::{self, behaviour::Conversion, types as domain_types},
             storage,

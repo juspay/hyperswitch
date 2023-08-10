@@ -1,13 +1,15 @@
 use diesel_models::configs::ConfigUpdateInternal;
 use error_stack::IntoReport;
-use storage_impl::redis::kv_store::RedisConnInterface;
+use storage_impl::redis::{
+    cache::{CacheKind, CONFIG_CACHE},
+    kv_store::RedisConnInterface,
+    pub_sub::PubSubInterface,
+};
 
 use super::{cache, MockDb, Store};
 use crate::{
-    cache::{CacheKind, CONFIG_CACHE},
     connection, consts,
     core::errors::{self, CustomResult},
-    services::PubSubInterface,
     types::storage,
 };
 
