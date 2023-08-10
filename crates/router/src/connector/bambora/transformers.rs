@@ -3,6 +3,7 @@ use common_utils::ext_traits::ValueExt;
 use error_stack::{IntoReport, ResultExt};
 use masking::{PeekInterface, Secret};
 use serde::{Deserialize, Deserializer, Serialize};
+use api_models::payments;
 
 use crate::{
     connector::utils::{self, BrowserInformationData, PaymentsAuthorizeRequestData},
@@ -133,14 +134,26 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for BamboraPaymentsRequest {
                     term_url: item.request.complete_authorize_url.clone(),
                 })
             }
-            api::PaymentMethodData::CardRedirect(_)
-            | api::PaymentMethodData::PayLater(_)
-            | api::PaymentMethodData::Crypto(_)
+            api::PaymentMethodData::Wallet(ref wallet_data) => {
+                Self::try_from(wallet_data)
+            }
+            api_models::payments::PaymentMethodData::CardRedirect(ref cardredirect_data) => {
+                Self::try_from(cardredirect_data)
+            }
+            api_models::payments::PaymentMethodData::PayLater(ref paylater_data) => {
+                Self::try_from(paylater_data)
+            }
+            api_models::payments::PaymentMethodData::Voucher(ref voucher_data) => {
+                Self::try_from(voucher_data)
+            }
+            api_models::payments::PaymentMethodData::GiftCard(ref giftcard_data) => {
+                Self::try_from(giftcard_data.as_ref())
+            }
+            api::PaymentMethodData::Crypto(_)
             | api::PaymentMethodData::MandatePayment
             | api::PaymentMethodData::Reward(_)
             | api::PaymentMethodData::Upi(_)
-            | api::PaymentMethodData::Voucher(_)
-            | api::PaymentMethodData::GiftCard(_) => Err(errors::ConnectorError::NotSupported {
+             => Err(errors::ConnectorError::NotSupported {
                 message: format!("{:?}", item.request.payment_method_data),
                 connector: "Bambora",
                 payment_experience: api_models::enums::PaymentExperience::RedirectToUrl.to_string(),
@@ -148,12 +161,134 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for BamboraPaymentsRequest {
             .into()),
 
             api::PaymentMethodData::BankTransfer(_)
-            | api::PaymentMethodData::Wallet(_)
             | api::PaymentMethodData::BankRedirect(_)
             | api::PaymentMethodData::BankDebit(_) => Err(errors::ConnectorError::NotImplemented(
                 utils::get_unimplemented_payment_method_error_message("bambora"),
             )
             .into()),
+        }
+    }
+}
+
+impl TryFrom<&api_models::payments::WalletData> for BamboraPaymentsRequest {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(value: &api_models::payments::WalletData) -> Result<Self, Self::Error> {
+        match value {
+            api_models::payments::WalletData::PaypalRedirect(_) => {
+                Err(errors::ConnectorError::NotImplemented(
+                    utils::get_unimplemented_payment_method_error_message("bambora"),
+                )
+                .into())
+            }
+            api_models::payments::WalletData::ApplePay(_)
+            | api_models::payments::WalletData::AliPayQr(_)
+            | api_models::payments::WalletData::AliPayRedirect(_)
+            | api_models::payments::WalletData::AliPayHkRedirect(_)
+            | api_models::payments::WalletData::MomoRedirect(_)
+            | api_models::payments::WalletData::KakaoPayRedirect(_)
+            | api_models::payments::WalletData::GoPayRedirect(_)
+            | api_models::payments::WalletData::GcashRedirect(_)
+            | api_models::payments::WalletData::ApplePayRedirect(_)
+            | api_models::payments::WalletData::ApplePayThirdPartySdk(_)
+            | api_models::payments::WalletData::DanaRedirect {}
+            | api_models::payments::WalletData::GooglePay(_)
+            | api_models::payments::WalletData::GooglePayRedirect(_)
+            | api_models::payments::WalletData::GooglePayThirdPartySdk(_)
+            | api_models::payments::WalletData::MbWayRedirect(_)
+            | api_models::payments::WalletData::MobilePayRedirect(_)
+            | api_models::payments::WalletData::PaypalSdk(_)
+            | api_models::payments::WalletData::SamsungPay(_)
+            | api_models::payments::WalletData::TwintRedirect {}
+            | api_models::payments::WalletData::VippsRedirect {}
+            | api_models::payments::WalletData::TouchNGoRedirect(_)
+            | api_models::payments::WalletData::WeChatPayRedirect(_)
+            | api_models::payments::WalletData::WeChatPayQr(_)
+            | api_models::payments::WalletData::CashappQr(_)
+            | api_models::payments::WalletData::SwishQr(_) => {
+                Err(errors::ConnectorError::NotSupported {
+                    message: utils::get_unsupported_payment_method_error_message(),
+                    connector: "Bambora",
+                    payment_experience: api_models::enums::PaymentExperience::RedirectToUrl
+                        .to_string(),
+                }
+                .into())
+            }
+        }
+    }
+}
+
+impl TryFrom<&api_models::payments::CardRedirectData> for BamboraPaymentsRequest {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(value: &api_models::payments::CardRedirectData) -> Result<Self, Self::Error> {
+        match value {
+            payments::CardRedirectData::Knet {}
+            | payments::CardRedirectData::Benefit {}
+            | payments::CardRedirectData::MomoAtm {} => Err(errors::ConnectorError::NotSupported {
+                message: utils::get_unsupported_payment_method_error_message(),
+                connector: "Bambora",
+                payment_experience: api_models::enums::PaymentExperience::RedirectToUrl.to_string(),
+            })
+            .into_report(),
+        }
+    }
+}
+
+impl TryFrom<&api_models::payments::PayLaterData> for BamboraPaymentsRequest {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(value: &api_models::payments::PayLaterData) -> Result<Self, Self::Error> {
+        match value {
+            payments::PayLaterData::KlarnaRedirect { .. } |
+            payments::PayLaterData::KlarnaSdk { .. }
+            | payments::PayLaterData::AffirmRedirect {}
+            | payments::PayLaterData::AfterpayClearpayRedirect { .. }
+            | payments::PayLaterData::PayBrightRedirect {}
+            | payments::PayLaterData::WalleyRedirect {}
+            | payments::PayLaterData::AlmaRedirect {}
+            | payments::PayLaterData::AtomeRedirect {} => {
+                Err(errors::ConnectorError::NotSupported {
+                    message: utils::get_unsupported_payment_method_error_message(),
+                    connector: "Bambora",
+                    payment_experience: api_models::enums::PaymentExperience::RedirectToUrl
+                        .to_string(),
+                })
+                .into_report()
+            }
+        }
+    }
+}
+
+impl TryFrom<&api_models::payments::VoucherData> for BamboraPaymentsRequest {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(value: &api_models::payments::VoucherData) -> Result<Self, Self::Error> {
+        match value {
+            payments::VoucherData::Boleto(_)
+            | payments::VoucherData::Efecty
+            | payments::VoucherData::PagoEfectivo
+            | payments::VoucherData::RedCompra
+            | payments::VoucherData::RedPagos
+            | payments::VoucherData::Alfamart(_)
+            | payments::VoucherData::Indomaret(_)
+            | payments::VoucherData::Oxxo => Err(errors::ConnectorError::NotSupported {
+                message: utils::get_unsupported_payment_method_error_message(),
+                connector: "Bambora",
+                payment_experience: api_models::enums::PaymentExperience::RedirectToUrl.to_string(),
+            })
+            .into_report(),
+        }
+    }
+}
+
+impl TryFrom<&api_models::payments::GiftCardData> for BamboraPaymentsRequest {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(value: &api_models::payments::GiftCardData) -> Result<Self, Self::Error> {
+        match value {
+            payments::GiftCardData::PaySafeCard {} |
+            payments::GiftCardData::Givex(_) => Err(errors::ConnectorError::NotSupported {
+                message: utils::get_unsupported_payment_method_error_message(),
+                connector: "Bambora",
+                payment_experience: api_models::enums::PaymentExperience::RedirectToUrl.to_string(),
+            })
+            .into_report(),
         }
     }
 }

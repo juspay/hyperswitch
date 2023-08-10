@@ -147,19 +147,24 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for MolliePaymentsRequest {
                 api_models::payments::PaymentMethodData::BankDebit(ref directdebit_data) => {
                     PaymentMethodData::try_from(directdebit_data)
                 }
-                api_models::payments::PaymentMethodData::CardRedirect(_)
-                | api_models::payments::PaymentMethodData::BankTransfer(_)
-                | api_models::payments::PaymentMethodData::Crypto(_)
-                | api_models::payments::PaymentMethodData::Voucher(_)
-                | api_models::payments::PaymentMethodData::GiftCard(_)
-                | api_models::payments::PaymentMethodData::PayLater(_)
-                | api_models::payments::PaymentMethodData::MandatePayment => {
-                    Err(errors::ConnectorError::NotImplemented(
-                        utils::get_unimplemented_payment_method_error_message("mollie"),
-                    ))
-                    .into_report()
+                api_models::payments::PaymentMethodData::CardRedirect(ref cardredirect_data) => {
+                    PaymentMethodData::try_from(cardredirect_data)
                 }
-                api_models::payments::PaymentMethodData::Reward(_)
+                api_models::payments::PaymentMethodData::PayLater(ref paylater_data) => {
+                    PaymentMethodData::try_from(paylater_data)
+                }
+                api_models::payments::PaymentMethodData::BankTransfer(ref banktransfer_data) => {
+                    PaymentMethodData::try_from(banktransfer_data.as_ref())
+                }
+                api_models::payments::PaymentMethodData::Voucher(ref voucher_data) => {
+                    PaymentMethodData::try_from(voucher_data)
+                }
+                api_models::payments::PaymentMethodData::GiftCard(ref giftcard_data) => {
+                    PaymentMethodData::try_from(giftcard_data.as_ref())
+                }
+                api_models::payments::PaymentMethodData::MandatePayment
+                | api_models::payments::PaymentMethodData::Crypto(_)
+                | api_models::payments::PaymentMethodData::Reward(_)
                 | api_models::payments::PaymentMethodData::Upi(_) => {
                     Err(errors::ConnectorError::NotSupported {
                         message: utils::get_unsupported_payment_method_error_message(),
@@ -261,6 +266,123 @@ impl TryFrom<&api_models::payments::BankDebitData> for PaymentMethodData {
                 }
                 .into())
             }
+        }
+    }
+}
+
+impl TryFrom<&api_models::payments::CardRedirectData> for PaymentMethodData {
+    type Error = Error;
+    fn try_from(value: &api_models::payments::CardRedirectData) -> Result<Self, Self::Error> {
+        match value {
+            payments::CardRedirectData::Knet {}
+            | payments::CardRedirectData::Benefit {}
+            | payments::CardRedirectData::MomoAtm {} => Err(errors::ConnectorError::NotSupported {
+                message: utils::get_unsupported_payment_method_error_message(),
+                connector: "Mollie",
+                payment_experience: api_models::enums::PaymentExperience::RedirectToUrl.to_string(),
+            })
+            .into_report(),
+        }
+    }
+}
+
+impl TryFrom<&api_models::payments::PayLaterData> for PaymentMethodData {
+    type Error = Error;
+    fn try_from(value: &api_models::payments::PayLaterData) -> Result<Self, Self::Error> {
+        match value {
+            payments::PayLaterData::KlarnaRedirect { .. } => {
+                Err(errors::ConnectorError::NotImplemented(
+                    utils::get_unimplemented_payment_method_error_message("mollie"),
+                ))
+                .into_report()
+            }
+            payments::PayLaterData::KlarnaSdk { .. }
+            | payments::PayLaterData::AffirmRedirect {}
+            | payments::PayLaterData::AfterpayClearpayRedirect { .. }
+            | payments::PayLaterData::PayBrightRedirect {}
+            | payments::PayLaterData::WalleyRedirect {}
+            | payments::PayLaterData::AlmaRedirect {}
+            | payments::PayLaterData::AtomeRedirect {} => {
+                Err(errors::ConnectorError::NotSupported {
+                    message: utils::get_unsupported_payment_method_error_message(),
+                    connector: "Mollie",
+                    payment_experience: api_models::enums::PaymentExperience::RedirectToUrl
+                        .to_string(),
+                })
+                .into_report()
+            }
+        }
+    }
+}
+
+impl TryFrom<&api_models::payments::BankTransferData> for PaymentMethodData {
+    type Error = Error;
+    fn try_from(
+        bank_transfer_data: &api_models::payments::BankTransferData,
+    ) -> Result<Self, Self::Error> {
+        match bank_transfer_data {
+            payments::BankTransferData::SepaBankTransfer { .. } => {
+                Err(errors::ConnectorError::NotImplemented(
+                    utils::get_unimplemented_payment_method_error_message("mollie"),
+                ))
+                .into_report()
+            }
+            payments::BankTransferData::AchBankTransfer { .. }
+            | payments::BankTransferData::BacsBankTransfer { .. }
+            | payments::BankTransferData::MultibancoBankTransfer { .. }
+            | payments::BankTransferData::PermataBankTransfer { .. }
+            | payments::BankTransferData::BcaBankTransfer { .. }
+            | payments::BankTransferData::BniVaBankTransfer { .. }
+            | payments::BankTransferData::BriVaBankTransfer { .. }
+            | payments::BankTransferData::CimbVaBankTransfer { .. }
+            | payments::BankTransferData::DanamonVaBankTransfer { .. }
+            | payments::BankTransferData::MandiriVaBankTransfer { .. }
+            | payments::BankTransferData::Pix {}
+            | payments::BankTransferData::Pse {} => Err(errors::ConnectorError::NotSupported {
+                message: utils::get_unsupported_payment_method_error_message(),
+                connector: "Mollie",
+                payment_experience: api_models::enums::PaymentExperience::RedirectToUrl.to_string(),
+            })
+            .into_report(),
+        }
+    }
+}
+
+impl TryFrom<&api_models::payments::VoucherData> for PaymentMethodData {
+    type Error = Error;
+    fn try_from(value: &api_models::payments::VoucherData) -> Result<Self, Self::Error> {
+        match value {
+            payments::VoucherData::Boleto(_)
+            | payments::VoucherData::Efecty
+            | payments::VoucherData::PagoEfectivo
+            | payments::VoucherData::RedCompra
+            | payments::VoucherData::RedPagos
+            | payments::VoucherData::Alfamart(_)
+            | payments::VoucherData::Indomaret(_)
+            | payments::VoucherData::Oxxo => Err(errors::ConnectorError::NotSupported {
+                message: utils::get_unsupported_payment_method_error_message(),
+                connector: "Mollie",
+                payment_experience: api_models::enums::PaymentExperience::RedirectToUrl.to_string(),
+            })
+            .into_report(),
+        }
+    }
+}
+
+impl TryFrom<&api_models::payments::GiftCardData> for PaymentMethodData {
+    type Error = Error;
+    fn try_from(value: &api_models::payments::GiftCardData) -> Result<Self, Self::Error> {
+        match value {
+            payments::GiftCardData::PaySafeCard {} => Err(errors::ConnectorError::NotImplemented(
+                utils::get_unimplemented_payment_method_error_message("mollie"),
+            ))
+            .into_report(),
+            payments::GiftCardData::Givex(_) => Err(errors::ConnectorError::NotSupported {
+                message: utils::get_unsupported_payment_method_error_message(),
+                connector: "Mollie",
+                payment_experience: api_models::enums::PaymentExperience::RedirectToUrl.to_string(),
+            })
+            .into_report(),
         }
     }
 }
