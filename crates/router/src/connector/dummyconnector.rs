@@ -8,7 +8,6 @@ use error_stack::{IntoReport, ResultExt};
 use super::utils::RefundsRequestData;
 use crate::{
     configs::settings,
-    consts,
     core::errors::{self, CustomResult},
     headers,
     services::{
@@ -155,14 +154,6 @@ impl<const T: u8>
         req: &types::PaymentsAuthorizeRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        if req.request.capture_method == Some(enums::CaptureMethod::ManualMultiple) {
-            return Err(errors::ConnectorError::NotImplemented(format!(
-                "{}{}",
-                consts::MANUAL_MULTIPLE_NOT_IMPLEMENTED_ERROR_MESSAGE,
-                self.id()
-            ))
-            .into());
-        }
         match req.payment_method {
             enums::PaymentMethod::Card => Ok(format!("{}/payment", self.base_url(connectors))),
             enums::PaymentMethod::Wallet => Ok(format!("{}/payment", self.base_url(connectors))),

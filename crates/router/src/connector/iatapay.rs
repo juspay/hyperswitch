@@ -4,7 +4,6 @@ use std::fmt::Debug;
 
 use base64::Engine;
 use common_utils::{crypto, ext_traits::ByteSliceExt};
-use diesel_models::enums;
 use error_stack::{IntoReport, ResultExt};
 use masking::PeekInterface;
 use transformers as iatapay;
@@ -256,17 +255,9 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
 
     fn get_url(
         &self,
-        req: &types::PaymentsAuthorizeRouterData,
+        _req: &types::PaymentsAuthorizeRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        if req.request.capture_method == Some(enums::CaptureMethod::ManualMultiple) {
-            return Err(errors::ConnectorError::NotImplemented(format!(
-                "{}{}",
-                consts::MANUAL_MULTIPLE_NOT_IMPLEMENTED_ERROR_MESSAGE,
-                self.id()
-            ))
-            .into());
-        }
         Ok(format!("{}/payments/", self.base_url(connectors)))
     }
 

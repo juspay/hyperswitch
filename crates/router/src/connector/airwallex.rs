@@ -3,7 +3,6 @@ pub mod transformers;
 use std::fmt::Debug;
 
 use common_utils::ext_traits::{ByteSliceExt, ValueExt};
-use diesel_models::enums;
 use error_stack::{IntoReport, ResultExt};
 use masking::PeekInterface;
 use transformers as airwallex;
@@ -11,7 +10,6 @@ use transformers as airwallex;
 use super::utils::{AccessTokenRequestInfo, RefundsRequestData};
 use crate::{
     configs::settings,
-    consts,
     core::{
         errors::{self, CustomResult},
         payments,
@@ -216,17 +214,9 @@ impl
 
     fn get_url(
         &self,
-        req: &types::PaymentsInitRouterData,
+        _req: &types::PaymentsInitRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        if req.request.capture_method == Some(enums::CaptureMethod::ManualMultiple) {
-            return Err(errors::ConnectorError::NotImplemented(format!(
-                "{}{}",
-                consts::MANUAL_MULTIPLE_NOT_IMPLEMENTED_ERROR_MESSAGE,
-                self.id()
-            ))
-            .into());
-        }
         Ok(format!(
             "{}{}",
             self.base_url(connectors),

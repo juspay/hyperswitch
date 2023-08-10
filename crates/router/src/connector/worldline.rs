@@ -457,14 +457,6 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         req: &types::PaymentsAuthorizeRouterData,
         connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        if req.request.capture_method == Some(enums::CaptureMethod::ManualMultiple) {
-            return Err(errors::ConnectorError::NotImplemented(format!(
-                "{}{}",
-                consts::MANUAL_MULTIPLE_NOT_IMPLEMENTED_ERROR_MESSAGE,
-                self.id()
-            ))
-            .into());
-        }
         let base_url = self.base_url(connectors);
         let auth = worldline::WorldlineAuthType::try_from(&req.connector_auth_type)?;
         let merchant_account_id = auth.merchant_account_id.expose();

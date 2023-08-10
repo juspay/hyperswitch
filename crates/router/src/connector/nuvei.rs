@@ -13,7 +13,6 @@ use transformers as nuvei;
 use super::utils::{self, RouterData};
 use crate::{
     configs::settings,
-    consts,
     core::{
         errors::{self, CustomResult},
         payments,
@@ -456,17 +455,9 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
 
     fn get_url(
         &self,
-        req: &types::PaymentsAuthorizeRouterData,
+        _req: &types::PaymentsAuthorizeRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        if req.request.capture_method == Some(enums::CaptureMethod::ManualMultiple) {
-            return Err(errors::ConnectorError::NotImplemented(format!(
-                "{}{}",
-                consts::MANUAL_MULTIPLE_NOT_IMPLEMENTED_ERROR_MESSAGE,
-                self.id()
-            ))
-            .into());
-        }
         Ok(format!(
             "{}ppp/api/v1/payment.do",
             api::ConnectorCommon::base_url(self, connectors)

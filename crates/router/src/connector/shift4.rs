@@ -3,7 +3,6 @@ pub mod transformers;
 use std::fmt::Debug;
 
 use common_utils::ext_traits::ByteSliceExt;
-use diesel_models::enums;
 use error_stack::{IntoReport, ResultExt};
 use transformers as shift4;
 
@@ -157,17 +156,9 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
 
     fn get_url(
         &self,
-        req: &types::PaymentsAuthorizeRouterData,
+        _req: &types::PaymentsAuthorizeRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        if req.request.capture_method == Some(enums::CaptureMethod::ManualMultiple) {
-            return Err(errors::ConnectorError::NotImplemented(format!(
-                "{}{}",
-                consts::MANUAL_MULTIPLE_NOT_IMPLEMENTED_ERROR_MESSAGE,
-                self.id()
-            ))
-            .into());
-        }
         Ok(format!("{}charges", self.base_url(connectors)))
     }
 

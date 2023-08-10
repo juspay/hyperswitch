@@ -2,13 +2,11 @@ pub mod transformers;
 
 use std::fmt::Debug;
 
-use diesel_models::enums;
 use error_stack::{IntoReport, ResultExt};
 use transformers as tsys;
 
 use crate::{
     configs::settings,
-    consts,
     core::errors::{self, CustomResult},
     headers,
     services::{
@@ -112,17 +110,9 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
 
     fn get_url(
         &self,
-        req: &types::PaymentsAuthorizeRouterData,
+        _req: &types::PaymentsAuthorizeRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        if req.request.capture_method == Some(enums::CaptureMethod::ManualMultiple) {
-            return Err(errors::ConnectorError::NotImplemented(format!(
-                "{}{}",
-                consts::MANUAL_MULTIPLE_NOT_IMPLEMENTED_ERROR_MESSAGE,
-                self.id()
-            ))
-            .into());
-        }
         Ok(format!(
             "{}servlets/transnox_api_server",
             self.base_url(connectors)

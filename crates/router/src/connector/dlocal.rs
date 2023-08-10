@@ -6,7 +6,6 @@ use common_utils::{
     crypto::{self, SignMessage},
     date_time,
 };
-use diesel_models::enums;
 use error_stack::{IntoReport, ResultExt};
 use hex::encode;
 use masking::PeekInterface;
@@ -14,7 +13,6 @@ use transformers as dlocal;
 
 use crate::{
     configs::settings,
-    consts,
     core::errors::{self, CustomResult},
     headers, logger,
     services::{
@@ -178,17 +176,9 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
 
     fn get_url(
         &self,
-        req: &types::PaymentsAuthorizeRouterData,
+        _req: &types::PaymentsAuthorizeRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        if req.request.capture_method == Some(enums::CaptureMethod::ManualMultiple) {
-            return Err(errors::ConnectorError::NotImplemented(format!(
-                "{}{}",
-                consts::MANUAL_MULTIPLE_NOT_IMPLEMENTED_ERROR_MESSAGE,
-                self.id()
-            ))
-            .into());
-        }
         Ok(format!("{}secure_payments", self.base_url(connectors)))
     }
 

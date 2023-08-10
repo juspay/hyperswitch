@@ -13,7 +13,6 @@ use self::{requests::*, response::*};
 use super::utils::{self, RefundsRequestData};
 use crate::{
     configs::settings,
-    consts,
     core::errors::{self, CustomResult},
     headers,
     services::{
@@ -396,17 +395,9 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
 
     fn get_url(
         &self,
-        req: &types::PaymentsAuthorizeRouterData,
+        _req: &types::PaymentsAuthorizeRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        if req.request.capture_method == Some(enums::CaptureMethod::ManualMultiple) {
-            return Err(errors::ConnectorError::NotImplemented(format!(
-                "{}{}",
-                consts::MANUAL_MULTIPLE_NOT_IMPLEMENTED_ERROR_MESSAGE,
-                self.id()
-            ))
-            .into());
-        }
         Ok(format!(
             "{}payments/authorizations",
             self.base_url(connectors)

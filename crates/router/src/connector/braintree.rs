@@ -2,7 +2,6 @@ pub mod transformers;
 
 use std::fmt::Debug;
 
-use diesel_models::enums;
 use error_stack::{IntoReport, Report, ResultExt};
 use masking::PeekInterface;
 
@@ -366,14 +365,6 @@ impl
         req: &types::PaymentsAuthorizeRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        if req.request.capture_method == Some(enums::CaptureMethod::ManualMultiple) {
-            return Err(errors::ConnectorError::NotImplemented(format!(
-                "{}{}",
-                consts::MANUAL_MULTIPLE_NOT_IMPLEMENTED_ERROR_MESSAGE,
-                self.id()
-            ))
-            .into());
-        }
         let auth_type = braintree::BraintreeAuthType::try_from(&req.connector_auth_type)
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
 
