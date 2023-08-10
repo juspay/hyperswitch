@@ -112,7 +112,7 @@ basilisk_host = ""             # Basilisk host
 locker_signing_key_id = "1"    # Key_id to sign basilisk hs locker
 
 [delayed_session_response]
-connectors_with_delayed_session_response = "trustpay" # List of connectors which has delayed session response
+connectors_with_delayed_session_response = "trustpay,payme" # List of connectors which has delayed session response
 
 [jwekey] # 4 priv/pub key pair
 locker_key_identifier1 = "" # key identifier for key rotation , should be same as basilisk
