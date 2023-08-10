@@ -42,6 +42,7 @@ use crate::{
     utils::{Encode, OptionExt, ValueExt},
 };
 
+const JOIN_LIMIT: i64 = 20;
 #[instrument(skip_all, fields(payment_id, merchant_id))]
 pub async fn payments_operation_core<F, Req, Op, FData>(
     state: &AppState,
@@ -1383,9 +1384,14 @@ pub async fn apply_filters_on_payments(
     db: &dyn StorageInterface,
     merchant: domain::MerchantAccount,
     constraints: api::PaymentListFilterConstraints,
-) -> RouterResponse<api::PaymentListResponse> {
+) -> RouterResponse<api::PaymentListFilterResponse> {
+    use diesel_models::payment_attempt::PaymentListFilterConstraints;
+
     use crate::types::transformers::ForeignFrom;
 
+    let limit = &constraints.limit.unwrap_or(JOIN_LIMIT);
+
+    helpers::validate_payment_list_request_for_joins(*limit, JOIN_LIMIT)?;
     let list: Vec<(storage::PaymentIntent, storage::PaymentAttempt)> = db
         .apply_filters_on_payments_list(
             &merchant.merchant_id,
@@ -1398,9 +1404,36 @@ pub async fn apply_filters_on_payments(
     let data: Vec<api::PaymentsResponse> =
         list.into_iter().map(ForeignFrom::foreign_from).collect();
 
+    let total_intents = db
+        .get_filtered_payment_intents_for_total_count(
+            &merchant.merchant_id,
+            &constraints,
+            merchant.storage_scheme,
+        )
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
+
+    let active_attempts: Vec<String> = total_intents
+        .iter()
+        .map(|payment_intent| payment_intent.clone().active_attempt_id)
+        .collect();
+
+    let constraints: PaymentListFilterConstraints = ForeignFrom::foreign_from(constraints);
+
+    let total_count = db
+        .get_total_count_of_filtered_payment_attempts(
+            &merchant.merchant_id,
+            &constraints,
+            &active_attempts,
+            merchant.storage_scheme,
+        )
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
+
     Ok(services::ApplicationResponse::Json(
-        api::PaymentListResponse {
-            size: data.len(),
+        api::PaymentListFilterResponse {
+            count: data.len(),
+            total_count,
             data,
         },
     ))

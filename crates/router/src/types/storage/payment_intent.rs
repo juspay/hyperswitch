@@ -16,8 +16,6 @@ use router_env::{instrument, tracing};
 
 use crate::{connection::PgPooledConn, core::errors::CustomResult, types::api};
 
-const JOIN_LIMIT: i64 = 20;
-
 #[cfg(feature = "kv_store")]
 impl crate::utils::storage_partitioning::KvStorePartition for PaymentIntent {}
 
@@ -40,6 +38,11 @@ pub trait PaymentIntentDbExt: Sized {
         merchant_id: &str,
         constraints: &api::PaymentListFilterConstraints,
     ) -> CustomResult<Vec<(PaymentIntent, PaymentAttempt)>, errors::DatabaseError>;
+    async fn get_intents_for_total_count(
+        conn: &PgPooledConn,
+        merchant_id: &str,
+        constraints: &api::PaymentListFilterConstraints,
+    ) -> CustomResult<Vec<Self>, errors::DatabaseError>;
 }
 
 #[async_trait::async_trait]
@@ -141,6 +144,7 @@ impl PaymentIntentDbExt for PaymentIntent {
         merchant_id: &str,
         constraints: &api::PaymentListFilterConstraints,
     ) -> CustomResult<Vec<(Self, PaymentAttempt)>, errors::DatabaseError> {
+        let limit = constraints.limit.unwrap_or(20);
         let offset = constraints.offset.unwrap_or_default();
         let mut filter = Self::table()
             .inner_join(payment_attempt::table.on(dsl1::attempt_id.eq(dsl::active_attempt_id)))
@@ -153,7 +157,7 @@ impl PaymentIntentDbExt for PaymentIntent {
                 filter = filter.filter(dsl::payment_id.eq(payment_id.to_owned()));
             }
             None => {
-                filter = filter.limit(JOIN_LIMIT).offset(offset);
+                filter = filter.limit(limit).offset(offset);
             }
         };
 
@@ -187,5 +191,45 @@ impl PaymentIntentDbExt for PaymentIntent {
             .into_report()
             .change_context(errors::DatabaseError::Others)
             .attach_printable("Error filtering payment records")
+    }
+
+    #[instrument(skip(conn))]
+    async fn get_intents_for_total_count(
+        conn: &PgPooledConn,
+        merchant_id: &str,
+        constraints: &api::PaymentListFilterConstraints,
+    ) -> CustomResult<Vec<Self>, errors::DatabaseError> {
+        let mut filter = <Self as HasTable>::table()
+            .filter(dsl::merchant_id.eq(merchant_id.to_owned()))
+            .order(dsl::modified_at.desc())
+            .into_boxed();
+
+        if let Some(payment_id) = constraints.payment_id.clone() {
+            filter = filter.filter(dsl::payment_id.eq(payment_id));
+        }
+
+        if let Some(time_range) = constraints.time_range {
+            filter = filter.filter(dsl::created_at.ge(time_range.start_time));
+
+            if let Some(end_time) = time_range.end_time {
+                filter = filter.filter(dsl::created_at.le(end_time));
+            }
+        }
+
+        if let Some(filter_currency) = constraints.currency.clone() {
+            filter = filter.filter(dsl::currency.eq_any(filter_currency));
+        }
+
+        if let Some(status) = constraints.status.clone() {
+            filter = filter.filter(dsl::status.eq_any(status));
+        }
+
+        crate::logger::debug!(query = %debug_query::<Pg, _>(&filter).to_string());
+        filter
+            .get_results_async(conn)
+            .await
+            .into_report()
+            .change_context(errors::DatabaseError::Others)
+            .attach_printable("Error filtering payment intents")
     }
 }

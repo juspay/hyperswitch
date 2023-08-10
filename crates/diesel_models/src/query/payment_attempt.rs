@@ -1,7 +1,10 @@
 use std::collections::HashSet;
 
 use async_bb8_diesel::AsyncRunQueryDsl;
-use diesel::{associations::HasTable, BoolExpressionMethods, ExpressionMethods, QueryDsl, Table};
+use diesel::{
+    associations::HasTable, debug_query, pg::Pg, BoolExpressionMethods, ExpressionMethods,
+    QueryDsl, Table,
+};
 use error_stack::{IntoReport, ResultExt};
 use router_env::{instrument, tracing};
 
@@ -11,7 +14,7 @@ use crate::{
     errors::{self, DatabaseError},
     payment_attempt::{
         PaymentAttempt, PaymentAttemptNew, PaymentAttemptUpdate, PaymentAttemptUpdateInternal,
-        PaymentListFilters,
+        PaymentListFilterConstraints, PaymentListFilters,
     },
     payment_intent::PaymentIntent,
     schema::payment_attempt::dsl,
@@ -272,5 +275,33 @@ impl PaymentAttempt {
         };
 
         Ok(filters)
+    }
+    pub async fn get_total_count_of_attempts(
+        conn: &PgPooledConn,
+        merchant_id: &str,
+        constraints: &PaymentListFilterConstraints,
+        active_attempts: &[String],
+    ) -> StorageResult<i64> {
+        let mut filter = <Self as HasTable>::table()
+            .count()
+            .filter(dsl::merchant_id.eq(merchant_id.to_owned()))
+            .filter(dsl::attempt_id.eq_any(active_attempts.to_owned()))
+            .into_boxed();
+
+        if let Some(connector) = constraints.connector.clone() {
+            filter = filter.filter(dsl::connector.eq_any(connector));
+        }
+
+        if let Some(payment_method) = constraints.payment_methods.clone() {
+            filter = filter.filter(dsl::payment_method.eq_any(payment_method));
+        }
+        router_env::logger::debug!(query = %debug_query::<Pg, _>(&filter).to_string());
+
+        filter
+            .get_result_async::<i64>(conn)
+            .await
+            .into_report()
+            .change_context(errors::DatabaseError::Others)
+            .attach_printable("Error filtering count of payments")
     }
 }
