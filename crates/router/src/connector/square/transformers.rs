@@ -133,12 +133,12 @@ impl<F, T>
 }
 
 #[derive(Debug, Deserialize, Serialize)]
-pub struct StaxPaymentsAmountData {
+pub struct SquarePaymentsAmountData {
     amount: i64,
     currency: enums::Currency,
 }
 #[derive(Debug, Serialize)]
-pub struct StaxPaymentsRequestExternalDetails {
+pub struct SquarePaymentsRequestExternalDetails {
     source: String,
     #[serde(rename = "type")]
     source_type: String,
@@ -146,11 +146,11 @@ pub struct StaxPaymentsRequestExternalDetails {
 
 #[derive(Debug, Serialize)]
 pub struct SquarePaymentsRequest {
-    amount_money: StaxPaymentsAmountData,
+    amount_money: SquarePaymentsAmountData,
     idempotency_key: Secret<String>,
     source_id: Secret<String>,
     autocomplete: bool,
-    external_details: StaxPaymentsRequestExternalDetails,
+    external_details: SquarePaymentsRequestExternalDetails,
 }
 
 impl TryFrom<&types::PaymentsAuthorizeRouterData> for SquarePaymentsRequest {
@@ -161,12 +161,12 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for SquarePaymentsRequest {
             api::PaymentMethodData::Card(_) => Ok(Self {
                 idempotency_key: Secret::new(item.payment_id.clone()),
                 source_id: Secret::new(item.get_payment_method_token()?),
-                amount_money: StaxPaymentsAmountData {
+                amount_money: SquarePaymentsAmountData {
                     amount: item.request.amount,
                     currency: item.request.currency,
                 },
                 autocomplete,
-                external_details: StaxPaymentsRequestExternalDetails {
+                external_details: SquarePaymentsRequestExternalDetails {
                     source: "Hyperswitch".to_string(),
                     source_type: "Card".to_string(),
                 },
@@ -223,7 +223,7 @@ impl From<SquarePaymentStatus> for enums::AttemptStatus {
 pub struct SquarePaymentsResponseDetails {
     status: SquarePaymentStatus,
     id: String,
-    amount_money: StaxPaymentsAmountData,
+    amount_money: SquarePaymentsAmountData,
 }
 #[derive(Debug, Deserialize)]
 pub struct SquarePaymentsResponse {
@@ -258,7 +258,7 @@ impl<F, T>
 // Type definition for RefundRequest
 #[derive(Debug, Serialize)]
 pub struct SquareRefundRequest {
-    amount_money: StaxPaymentsAmountData,
+    amount_money: SquarePaymentsAmountData,
     idempotency_key: Secret<String>,
     payment_id: Secret<String>,
 }
@@ -267,7 +267,7 @@ impl<F> TryFrom<&types::RefundsRouterData<F>> for SquareRefundRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::RefundsRouterData<F>) -> Result<Self, Self::Error> {
         Ok(Self {
-            amount_money: StaxPaymentsAmountData {
+            amount_money: SquarePaymentsAmountData {
                 amount: item.request.refund_amount,
                 currency: item.request.currency,
             },
