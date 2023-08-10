@@ -180,6 +180,7 @@ impl Store {
         .await;
 
         #[allow(clippy::expect_used)]
+        #[allow(clippy::expect_used)]
         Self {
             #[cfg(not(feature = "olap"))]
             diesel_store: diesel_impl::store::Store::new(

@@ -962,6 +962,22 @@ pub struct IndomaretVoucherData {
     pub email: Email,
 }
 
+#[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
+pub struct JCSVoucherData {
+    /// The billing first name for Japanese convenience stores
+    #[schema(value_type = String, example = "Jane")]
+    pub first_name: Secret<String>,
+    /// The billing second name Japanese convenience stores
+    #[schema(value_type = String, example = "Doe")]
+    pub last_name: Option<Secret<String>>,
+    /// The Email ID for Japanese convenience stores
+    #[schema(value_type = String, example = "example@me.com")]
+    pub email: Email,
+    /// The telephone number for Japanese convenience stores
+    #[schema(value_type = String, example = "9999999999")]
+    pub phone_number: String,
+}
+
 #[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema)]
 pub struct AchBillingDetails {
     /// The Email ID for ACH billing
@@ -1320,6 +1336,12 @@ pub enum VoucherData {
     Alfamart(Box<AlfamartVoucherData>),
     Indomaret(Box<IndomaretVoucherData>),
     Oxxo,
+    SevenEleven(Box<JCSVoucherData>),
+    Lawson(Box<JCSVoucherData>),
+    MiniStop(Box<JCSVoucherData>),
+    FamilyMart(Box<JCSVoucherData>),
+    Seicomart(Box<JCSVoucherData>),
+    PayEasy(Box<JCSVoucherData>),
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
@@ -1525,6 +1547,8 @@ pub struct VoucherNextStepData {
     pub reference: String,
     /// Url to download the payment instruction
     pub download_url: Option<Url>,
+    /// Url to payment instruction page
+    pub instructions_url: Option<Url>,
 }
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
