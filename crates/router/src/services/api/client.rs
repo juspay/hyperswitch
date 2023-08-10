@@ -1,11 +1,10 @@
 use std::time::Duration;
 
 use error_stack::{IntoReport, ResultExt};
-use reqwest::multipart::Form;
-use http::{HeaderName, HeaderValue, Method};
+use http::{HeaderValue, Method};
 use masking::PeekInterface;
 use once_cell::sync::OnceCell;
-use reqwest::IntoUrl;
+use reqwest::{multipart::Form, IntoUrl};
 
 use super::request::Maskable;
 use crate::{
@@ -160,55 +159,58 @@ impl ProxyClient {
     }
 }
 
-#[derive(Clone)]
 pub struct RouterRequestBuilder {
-    inner: reqwest::Request,
+    // Using option here to get around the reinitialization problem
+    // request builder follows a chain pattern where the value is consumed and a newer requestbuilder is returned
+    // Since for this brief period of time between the value being consumed & newer request builder
+    // since requestbuilder does not allow moving the value
+    // leaves our struct in an inconsistent state, we are using option to get around rust semantics
+    inner: Option<reqwest::RequestBuilder>,
     client: ProxyClient,
 }
 
 impl RequestBuilder for RouterRequestBuilder {
     fn json(&mut self, body: serde_json::Value) -> CustomResult<(), &'static str> {
-        let body_bytes = serde_json::to_vec(&body).map_err(ToString::to_string)?;
-        self.inner
-            .body_mut()
-            .replace(reqwest::Body::from(body_bytes));
+        // todo: handle error
+        let body_bytes = serde_json::to_vec(&body).unwrap();
+
+        self.inner = self.inner.take().map(|r| r.body(body_bytes));
         Ok(())
     }
     fn url_encoded_form(&mut self, body: serde_json::Value) -> CustomResult<(), &'static str> {
-        let url_encoded_payload = serde_urlencoded::to_string(&body).map_err(ToString::to_string)?;
-        self.inner.body_mut().replace(reqwest::Body::from(url_encoded_payload));
+        self.inner = self.inner.take().map(|r| r.form(&body));
         Ok(())
-
     }
 
     fn timeout(&mut self, timeout: Duration) {
-        self.inner.timeout_mut().replace(timeout);
+        self.inner = self.inner.take().map(|r| r.timeout(timeout));
     }
 
     fn multipart(&mut self, form: Form) {
-        self.inner = self.inner.multipart(form);
+        self.inner = self.inner.take().map(|r| r.multipart(form));
     }
 
     fn header(&mut self, key: String, value: Maskable<String>) -> CustomResult<(), &'static str> {
-        let header_value = match value {
+        self.inner = self.inner.take().map(|r| match value {
             Maskable::Masked(hvalue) => {
-                let mut header =
-                    HeaderValue::from_str(hvalue.peek())?;
+                // todo: handle error
+                let mut header = HeaderValue::from_str(hvalue.peek()).unwrap();
                 header.set_sensitive(true);
-                Ok(header)
+                r.header(key, header)
             }
-            Maskable::Normal(hvalue) => HeaderValue::from_str(&hvalue),
-        }.into_report().change_context("header creation failed")?;
-        let header_key = HeaderName::try_from(key);
-        self.inner.headers_mut().append(header_key, header_value);
+            Maskable::Normal(hvalue) => r.header(key, HeaderValue::from_str(&hvalue).unwrap()),
+        });
         Ok(())
     }
 
     fn send(
         self,
     ) -> Box<dyn core::future::Future<Output = Result<reqwest::Response, reqwest::Error>>> {
-        // Add client selection logic here
-        Box::new(self.client.proxy_client.execute(self.inner))
+        Box::new(
+            self.client
+                .proxy_client
+                .execute(self.inner.unwrap().build().unwrap()),
+        ) //todo
     }
 }
 
@@ -216,23 +218,23 @@ impl ApiClient for ProxyClient {
     fn new(proxy_config: Proxy, whitelisted_urls: Vec<String>) -> CustomResult<Self, &'static str> {
         let non_proxy_client = reqwest::Client::builder()
             .redirect(reqwest::redirect::Policy::none())
-            .build().into_report().change_context("NON-Proxy client building failed")?;
+            .build()
+            .unwrap(); //todo
 
         let mut proxy_builder =
             reqwest::Client::builder().redirect(reqwest::redirect::Policy::none());
 
         if let Some(url) = proxy_config.https_url.as_ref() {
-            proxy_builder =
-                proxy_builder.proxy(reqwest::Proxy::https(url).into_report().change_context("Proxy HTTP URL is invalid"))?;
+            proxy_builder = proxy_builder.proxy(reqwest::Proxy::https(url).unwrap());
+            //todo
         }
 
         if let Some(url) = proxy_config.http_url.as_ref() {
-            proxy_builder =
-                proxy_builder.proxy(reqwest::Proxy::http(url).into_report().change_context("Proxy HTTP URL is invalid"))?;
+            proxy_builder = proxy_builder.proxy(reqwest::Proxy::http(url).unwrap());
+            //todo
         }
 
-        let proxy_client = proxy_builder.build().into_report().change_context("Proxy client building failed")?;
-
+        let proxy_client = proxy_builder.build().unwrap(); //todo
         Ok(Self {
             proxy_client,
             non_proxy_client,
@@ -242,7 +244,7 @@ impl ApiClient for ProxyClient {
 
     fn request<U: IntoUrl>(&self, method: Method, url: U) -> Box<dyn RequestBuilder> {
         Box::new(RouterRequestBuilder {
-            inner: self.proxy_client.request(method, url).build().map_err(|er| format!("{er:?}")).unwrap(),
+            inner: Some(self.proxy_client.request(method, url)),
             client: self.clone(),
         })
     }
