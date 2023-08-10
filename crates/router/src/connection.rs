@@ -1,10 +1,6 @@
 use bb8::PooledConnection;
 use diesel::PgConnection;
 use error_stack::{IntoReport, ResultExt};
-#[cfg(feature = "kms")]
-use external_services::kms;
-#[cfg(feature = "kms")]
-use external_services::kms::decrypt::KmsDecrypt;
 
 use crate::errors;
 
