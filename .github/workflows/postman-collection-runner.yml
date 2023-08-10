@@ -126,11 +126,10 @@ jobs:
         if: github.event_name != 'pull_request'
         env:
           BASE_URL: "http://localhost:8080"
-          CONNECTORS_PATH: ${{ secrets.CONNECTORS_PATH }}
           GATEWAY_MERCHANT_ID: ${{ secrets.STRIPE_GATEWAY_MERCHANT_ID }}
           GPAY_CERTIFICATE: ${{ secrets.STRIPE_GPAY_CERTIFICATE }}
           GPAY_CERTIFICATE_KEYS: ${{ secrets.STRIPE_GPAY_CERTIFICATE_KEYS }}
-          POSTMAN_CONNECTOR_PATHS: ${{ secrets.POSTMAN_CONNECTOR_PATH }}
+          POSTMAN_CONNECTOR_PATHS: ${{ secrets.POSTMAN_CONNECTOR_PATHS }}
           POSTMAN_CONNECTOR_NAMES: ${{ secrets.POSTMAN_CONNECTOR_NAMES }}
         shell: bash
         run: |
