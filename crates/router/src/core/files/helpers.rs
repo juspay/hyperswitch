@@ -14,7 +14,7 @@ use crate::{
     services,
     types::{
         self, api,
-        domain::{self},
+        domain,
         transformers::ForeignTryFrom,
     },
 };

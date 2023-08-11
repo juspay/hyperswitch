@@ -21,7 +21,7 @@ use crate::{
         self,
         api::{self, ConnectorCommon, ConnectorCommonExt},
         domain,
-        storage::{self},
+        storage,
         ErrorResponse, Response,
     },
     utils::{self, ByteSliceExt, BytesExt},

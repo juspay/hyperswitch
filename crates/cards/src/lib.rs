@@ -5,7 +5,7 @@ use common_utils::{date_time, errors};
 use error_stack::report;
 use masking::{PeekInterface, StrongSecret};
 use serde::{
-    de::{self},
+    de,
     Deserialize, Serialize,
 };
 use time::{util::days_in_year_month, Date, Duration, PrimitiveDateTime, Time};

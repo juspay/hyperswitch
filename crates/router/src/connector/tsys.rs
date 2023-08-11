@@ -11,7 +11,7 @@ use crate::{
     headers,
     services::{
         self,
-        request::{self},
+        request,
         ConnectorIntegration,
     },
     types::{

@@ -680,7 +680,7 @@ mod merchant_connector_account_cache_tests {
             cache, merchant_connector_account::MerchantConnectorAccountInterface,
             merchant_key_store::MerchantKeyStoreInterface, MasterKeyInterface, MockDb,
         },
-        services::{self},
+        services,
         types::{
             domain::{self, behaviour::Conversion, types as domain_types},
             storage,
