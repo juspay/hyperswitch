@@ -196,6 +196,10 @@ pub enum ApiClientError {
     ClientConstructionFailed,
     #[error("Certificate decode failed")]
     CertificateDecodeFailed,
+    #[error("Request body serialization failed")]
+    BodySerializationFailed,
+    #[error("Unexpected state reached/Invariants conflicted")]
+    UnexpectedState,
 
     #[error("URL encoding of request payload failed")]
     UrlEncodingFailed,
