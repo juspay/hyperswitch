@@ -52,7 +52,7 @@ impl From<StripeBillingDetails> for payments::Address {
                     last_name: None,
                 }),
                 None => None,
-            }
+            },
         }
     }
 }
