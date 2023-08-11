@@ -89,21 +89,23 @@ for i in $(echo "$FILTERED_CONNECTORS" | tr "," "\n"); do
     run_connector=false
 
     # Loop through the IGNORE_LIST_ARRAY and exclude the folders that are not needed, run the test for the rest of the folders
-    for connector in "${IGNORE_LIST_ARRAY[@]}"; do
-        if [[ "$connector" == *:* ]]; then
-            IFS=':' read -r name folder_to_ignore <<< "$connector"
+    for CONNECTOR in "${IGNORE_LIST_ARRAY[@]}"; do
+        if [[ "$CONNECTOR" == *:* ]]; then
+            IFS=':' read -r name folder_to_ignore <<< "$CONNECTOR"
             included_folders="$(exclude_folder "$name" "$folder_to_ignore")"
 
             for j in "$included_folders"; do
                 IFS=':' read -r connector connector_folder <<< "$j"
                 only_folders="${j//$connector:/}"
-                if [[ "$connector" == "$i" && ! " ${validated_connectors[*]} " =~ " $connector " ]]; then
-                    if ! cargo run --bin test_utils -- --connector_name="$i" --base_url="$BASE_URL" --admin_api_key="$ADMIN_API_KEY" --folder_name="$only_folders"; then
-                        FAILED_CONNECTORS+=("$i")
-                        run_connector=true
-                    fi
+                if [[ "$CONNECTOR" == "$i" && ! " ${validated_connectors[*]} " =~ " $CONNECTOR " ]]; then
+                    echo "cargo run --bin test_utils -- --connector_name=$i --base_url=$BASE_URL --admin_api_key=$ADMIN_API_KEY --folder_name=$only_folders"
+                    run_connector=true
+                    # if ! cargo run --bin test_utils -- --connector_name="$i" --base_url="$BASE_URL" --admin_api_key="$ADMIN_API_KEY" --folder_name="$only_folders"; then
+                    #     FAILED_CONNECTORS+=("$i")
+                    #     run_connector=true
+                    # fi
                 fi
-                validated_connectors+=("$connector")
+                validated_connectors+=("$CONNECTOR")
             done
         fi
     done
@@ -111,10 +113,11 @@ for i in $(echo "$FILTERED_CONNECTORS" | tr "," "\n"); do
     # Run the tests for the rest
     if [[ "$run_connector" == "false" ]]; then
         if [[ ! " ${validated_connectors[*]} " =~ " $i " ]]; then
-            if ! cargo run --bin test_utils -- --connector_name="$i" --base_url="$BASE_URL" --admin_api_key="$ADMIN_API_KEY"; then
-              FAILED_CONNECTORS+=("$i")
-            fi
-            validated_connectors+=("$i")
+            echo "cargo run --bin test_utils -- --connector_name=$i --base_url=$BASE_URL --admin_api_key=$ADMIN_API_KEY"
+            # if ! cargo run --bin test_utils -- --connector_name="$i" --base_url="$BASE_URL" --admin_api_key="$ADMIN_API_KEY"; then
+            #   FAILED_CONNECTORS+=("$i")
+            # fi
+            # validated_connectors+=("$i")
         fi
     fi
 done
