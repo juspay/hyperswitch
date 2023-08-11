@@ -424,6 +424,7 @@ diesel::table! {
         business_label -> Varchar,
         #[max_length = 64]
         business_sub_label -> Nullable<Varchar>,
+        frm_configs -> Nullable<Jsonb>,
         created_at -> Timestamp,
         modified_at -> Timestamp,
         connector_webhook_details -> Nullable<Jsonb>,
