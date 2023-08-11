@@ -1,5 +1,5 @@
 use super::generics;
-use crate::query::generics::Insert;
+// use crate::query::generics::Insert;
 use crate::{
     configs::{Config, ConfigNew, ConfigUpdate, ConfigUpdateInternal},
     errors,
@@ -13,15 +13,8 @@ impl ConfigNew {
     #[instrument(skip(conn))]
     pub async fn insert(self, conn: &PgPooledConn) -> StorageResult<Config> {
         let p = generics::generic_insert_query::<schema::configs::table, ConfigNew, Config>(self);
-        // let y: InsertStatement<
-        //     table,
-        //     <(
-        //         Option<Grouped<Eq<key, Bound<Text, String>>>>,
-        //         Option<Grouped<Eq<config, Bound<Text, String>>>>,
-        //     ) as Insertable<table>>::Values,
-        // > = p.on_conflict_do_nothing();
-
-        p.insert(conn).await
+        let y = p.on_conflict_do_nothing();
+        generics::insert::<schema::configs::table, _, _>(y, conn).await
     }
 }
 

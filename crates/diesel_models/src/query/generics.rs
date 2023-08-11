@@ -1,6 +1,6 @@
-use std::fmt::Debug;
-
 use async_bb8_diesel::{AsyncRunQueryDsl, ConnectionError};
+
+// use diesel::query_builder::Query;
 use diesel::{
     associations::HasTable,
     debug_query,
@@ -21,6 +21,7 @@ use diesel::{
 };
 use error_stack::{report, IntoReport, ResultExt};
 use router_env::{instrument, logger, tracing};
+use std::fmt::Debug;
 
 use crate::{
     errors::{self},
@@ -71,49 +72,84 @@ pub mod db_metrics {
 
 use db_metrics::*;
 
-#[async_trait::async_trait]
-pub trait Insert<T, V, R>
+// #[async_trait::async_trait]
+// pub trait Insert {
+//     async fn insert<T, V, R>(self, conn: &PgPooledConn) -> StorageResult<R>
+//     where
+//         T: HasTable<Table = T> + Table + 'static + Debug,
+//         V: Debug + Insertable<T>,
+//         <T as QuerySource>::FromClause: QueryFragment<Pg> + Debug,
+//         <V as Insertable<T>>::Values: CanInsertInSingleQuery<Pg> + QueryFragment<Pg> + 'static,
+//         InsertStatement<T, <V as Insertable<T>>::Values>:
+//             AsQuery + LoadQuery<'static, PgConnection, R> + Send,
+//         R: Send + 'static;
+// }
+
+// #[async_trait::async_trait]
+// impl<T, V> Insert for InsertStatement<T, <V as Insertable<T>>::Values>
+// where
+//     T: QuerySource,
+//     V: Debug + Insertable<T>,
+// {
+//     async fn insert<T, V, R>(self, conn: &PgPooledConn) -> StorageResult<R>
+//     where
+//         T: HasTable<Table = T> + Table + 'static + Debug,
+//         V: Debug + Insertable<T>,
+//         <T as QuerySource>::FromClause: QueryFragment<Pg> + Debug,
+//         <V as Insertable<T>>::Values: CanInsertInSingleQuery<Pg> + QueryFragment<Pg> + 'static,
+//         InsertStatement<T, <V as Insertable<T>>::Values>:
+//             AsQuery + LoadQuery<'static, PgConnection, R> + Send,
+//         R: Send + 'static,
+//     {
+//         logger::debug!(query = %debug_query::<Pg, _>(&self).to_string());
+
+//         match track_database_call::<T, _, _>(self.get_result_async(conn), DatabaseOperation::Insert)
+//             .await
+//             .into_report()
+//         {
+//             Ok(value) => Ok(value),
+//             Err(err) => match err.current_context() {
+//                 ConnectionError::Query(DieselError::DatabaseError(
+//                     diesel::result::DatabaseErrorKind::UniqueViolation,
+//                     _,
+//                 )) => Err(err).change_context(errors::DatabaseError::UniqueViolation),
+//                 _ => Err(err).change_context(errors::DatabaseError::Others),
+//             },
+//         }
+//         .attach_printable_lazy(|| format!("Error while inserting"))
+//     }
+// }
+
+pub async fn insert<T, H, R>(insert_statement: H, conn: &PgPooledConn) -> StorageResult<R>
 where
-    T: HasTable<Table = T> + Table + 'static + Debug,
-    V: Debug + Insertable<T>,
-    <T as QuerySource>::FromClause: QueryFragment<Pg> + Debug,
-    <V as Insertable<T>>::Values: CanInsertInSingleQuery<Pg> + QueryFragment<Pg> + 'static,
-    InsertStatement<T, <V as Insertable<T>>::Values>:
-        AsQuery + LoadQuery<'static, PgConnection, R> + Send,
+    H: Send
+        + AsyncRunQueryDsl<PgConnection, PgPooledConn, ConnectionError>
+        + RunQueryDsl<PgConnection>
+        
+        + QueryId
+        + QueryFragment<Pg>
+        + LoadQuery<'static, PgConnection, R>,
     R: Send + 'static,
 {
-    async fn insert(self, conn: &PgPooledConn) -> StorageResult<R>;
-}
+    // logger::debug!(query = %debug_query::<Pg, _>(&insert_statement).to_string());
 
-#[async_trait::async_trait]
-impl<T,V,R> Insert<T, V, R> for InsertStatement<T, <V as Insertable<T>>::Values>
-where
-    T: HasTable<Table = T> + Table + 'static + Debug,
-    V: Debug + Insertable<T>,
-    <T as QuerySource>::FromClause: QueryFragment<Pg> + Debug,
-    <V as Insertable<T>>::Values: CanInsertInSingleQuery<Pg> + QueryFragment<Pg> + 'static,
-    InsertStatement<T, <V as Insertable<T>>::Values>:
-        AsQuery + LoadQuery<'static, PgConnection, R> + Send,
-    R: Send + 'static,
-{
-    async fn insert(self, conn: &PgPooledConn) -> StorageResult<R> {
-        logger::debug!(query = %debug_query::<Pg, _>(&self).to_string());
-
-        match track_database_call::<T, _, _>(self.get_result_async(conn), DatabaseOperation::Insert)
-            .await
-            .into_report()
-        {
-            Ok(value) => Ok(value),
-            Err(err) => match err.current_context() {
-                ConnectionError::Query(DieselError::DatabaseError(
-                    diesel::result::DatabaseErrorKind::UniqueViolation,
-                    _,
-                )) => Err(err).change_context(errors::DatabaseError::UniqueViolation),
-                _ => Err(err).change_context(errors::DatabaseError::Others),
-            },
-        }
-        .attach_printable_lazy(|| format!("Error while inserting"))
+    match track_database_call::<T, _, _>(
+        insert_statement.get_result_async(conn),
+        DatabaseOperation::Insert,
+    )
+    .await
+    .into_report()
+    {
+        Ok(value) => Ok(value),
+        Err(err) => match err.current_context() {
+            ConnectionError::Query(DieselError::DatabaseError(
+                diesel::result::DatabaseErrorKind::UniqueViolation,
+                _,
+            )) => Err(err).change_context(errors::DatabaseError::UniqueViolation),
+            _ => Err(err).change_context(errors::DatabaseError::Others),
+        },
     }
+    .attach_printable_lazy(|| format!("Error while inserting"))
 }
 // pub struct Wrap<X>(X);
 
@@ -126,7 +162,7 @@ where
     <V as Insertable<T>>::Values: CanInsertInSingleQuery<Pg> + QueryFragment<Pg> + 'static,
     R: Send + 'static,
 {
-   diesel::insert_into(<T as HasTable>::table()).values(values)
+    diesel::insert_into(<T as HasTable>::table()).values(values)
 }
 
 #[instrument(level = "DEBUG", skip_all)]
