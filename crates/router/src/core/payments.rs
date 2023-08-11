@@ -9,7 +9,7 @@ pub mod transformers;
 use std::{fmt::Debug, marker::PhantomData, ops::Deref, time::Instant};
 
 use api_models::payments::FrmMessage;
-use common_utils::pii;
+use common_utils::{ext_traits::AsyncExt, pii};
 use diesel_models::ephemeral_key;
 use error_stack::{IntoReport, ResultExt};
 use futures::future::join_all;
@@ -32,7 +32,7 @@ use crate::{
     core::errors::{self, CustomResult, RouterResponse, RouterResult},
     db::StorageInterface,
     logger,
-    routes::{metrics, AppState},
+    routes::{metrics, payment_methods::ParentPaymentMethodToken, AppState},
     scheduler::{utils as pt_utils, workflows::payment_sync},
     services::{self, api::Authenticate},
     types::{
@@ -197,6 +197,20 @@ where
                 .await?
             }
         };
+        payment_data
+            .payment_attempt
+            .payment_token
+            .as_ref()
+            .zip(payment_data.payment_attempt.payment_method)
+            .map(ParentPaymentMethodToken::create_key_for_token)
+            .async_map(|key_for_hyperswitch_token| async move {
+                if key_for_hyperswitch_token
+                    .should_delete_payment_method_token(payment_data.payment_intent.status)
+                {
+                    let _ = key_for_hyperswitch_token.delete(state).await;
+                }
+            })
+            .await;
     } else {
         (_, payment_data) = operation
             .to_update_tracker()?
