@@ -11,6 +11,7 @@ use external_services::kms::{self, decrypt::KmsDecrypt};
 #[cfg(not(feature = "kms"))]
 use masking::PeekInterface;
 use redis_interface::{errors as redis_errors, PubsubInterface, RedisValue};
+use storage_impl::{diesel as diesel_impl, DatabaseStore};
 use tokio::sync::oneshot;
 
 pub use self::{api::*, encryption::*};
@@ -18,7 +19,6 @@ use crate::{
     async_spawn,
     cache::{CacheKind, ACCOUNTS_CACHE, CONFIG_CACHE},
     configs::settings,
-    connection::{diesel_make_pg_pool, PgPool},
     consts,
     core::errors,
 };
@@ -129,9 +129,10 @@ impl RedisConnInterface for Store {
 
 #[derive(Clone)]
 pub struct Store {
-    pub master_pool: PgPool,
+    #[cfg(not(feature = "olap"))]
+    pub diesel_store: diesel_impl::store::Store,
     #[cfg(feature = "olap")]
-    pub replica_pool: PgPool,
+    pub diesel_store: diesel_impl::store::ReplicaStore,
     pub redis_conn: Arc<redis_interface::RedisConnectionPool>,
     #[cfg(feature = "kv_store")]
     pub(crate) config: StoreConfig,
@@ -178,20 +179,45 @@ impl Store {
         )
         .await;
 
+        #[allow(clippy::expect_used)]
         Self {
-            master_pool: diesel_make_pg_pool(
-                &config.master_database,
-                test_transaction,
+            #[cfg(not(feature = "olap"))]
+            diesel_store: diesel_impl::store::Store::new(
+                #[cfg(not(feature = "kms"))]
+                config.master_database.clone().into(),
                 #[cfg(feature = "kms")]
-                kms_client,
+                config
+                    .master_database
+                    .clone()
+                    .decrypt_inner(kms_client)
+                    .await
+                    .expect("Failed to decrypt master database"),
+                test_transaction,
             )
             .await,
             #[cfg(feature = "olap")]
-            replica_pool: diesel_make_pg_pool(
-                &config.replica_database,
+            diesel_store: diesel_impl::store::ReplicaStore::new(
+                (
+                    #[cfg(not(feature = "kms"))]
+                    config.master_database.clone().into(),
+                    #[cfg(feature = "kms")]
+                    config
+                        .master_database
+                        .clone()
+                        .decrypt_inner(kms_client)
+                        .await
+                        .expect("Failed to decrypt master database"),
+                    #[cfg(not(feature = "kms"))]
+                    config.replica_database.clone().into(),
+                    #[cfg(feature = "kms")]
+                    config
+                        .replica_database
+                        .clone()
+                        .decrypt_inner(kms_client)
+                        .await
+                        .expect("Failed to decrypt replica database"),
+                ),
                 test_transaction,
-                #[cfg(feature = "kms")]
-                kms_client,
             )
             .await,
             redis_conn,
