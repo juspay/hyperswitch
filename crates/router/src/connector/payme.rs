@@ -10,11 +10,8 @@ use transformers as payme;
 
 use crate::{
     configs::settings,
-    core::{
-        errors::{self, CustomResult},
-        payments,
-    },
-    headers, routes,
+    core::errors::{self, CustomResult},
+    headers,
     services::{self, request, ConnectorIntegration, ConnectorValidation},
     types::{
         self,
