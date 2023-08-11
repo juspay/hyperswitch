@@ -78,6 +78,41 @@ diesel::table! {
         frm_routing_algorithm -> Nullable<Jsonb>,
         payout_routing_algorithm -> Nullable<Jsonb>,
         is_recon_enabled -> Bool,
+
+
+    }
+}
+
+diesel::table! {
+    use diesel::sql_types::*;
+    use crate::enums::diesel_exports::*;
+
+    captures (capture_id) {
+        #[max_length = 64]
+        capture_id -> Varchar,
+        #[max_length = 64]
+        payment_id -> Varchar,
+        #[max_length = 64]
+        merchant_id -> Varchar,
+        status -> CaptureStatus,
+        amount -> Int8,
+        currency -> Nullable<Currency>,
+        #[max_length = 255]
+        connector -> Nullable<Varchar>,
+        #[max_length = 255]
+        error_message -> Nullable<Varchar>,
+        #[max_length = 255]
+        error_code -> Nullable<Varchar>,
+        #[max_length = 255]
+        error_reason -> Nullable<Varchar>,
+        tax_amount -> Nullable<Int8>,
+        created_at -> Timestamp,
+        modified_at -> Timestamp,
+        #[max_length = 64]
+        authorized_attempt_id -> Varchar,
+        #[max_length = 128]
+        connector_transaction_id -> Nullable<Varchar>,
+        capture_sequence -> Int2,
     }
 }
 
@@ -494,6 +529,7 @@ diesel::table! {
         preprocessing_step_id -> Nullable<Varchar>,
         mandate_details -> Nullable<Jsonb>,
         error_reason -> Nullable<Text>,
+        multiple_capture_count -> Nullable<Int2>,
         #[max_length = 128]
         connector_response_reference_id -> Nullable<Varchar>,
     }
@@ -747,6 +783,7 @@ diesel::allow_tables_to_appear_in_same_query!(
     address,
     api_keys,
     business_profile,
+    captures,
     cards_info,
     configs,
     connector_response,

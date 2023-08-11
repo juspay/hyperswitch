@@ -491,7 +491,11 @@ where
                             auth_flow == services::AuthFlow::Merchant,
                         )
                         .set_payment_token(payment_attempt.payment_token)
-                        .set_error_message(payment_attempt.error_reason)
+                        .set_error_message(
+                            payment_attempt
+                                .error_reason
+                                .or(payment_attempt.error_message),
+                        )
                         .set_error_code(payment_attempt.error_code)
                         .set_shipping(address.shipping)
                         .set_billing(address.billing)
@@ -547,7 +551,9 @@ where
             attempts: attempts_response,
             payment_method: payment_attempt.payment_method,
             capture_method: payment_attempt.capture_method,
-            error_message: payment_attempt.error_message,
+            error_message: payment_attempt
+                .error_reason
+                .or(payment_attempt.error_message),
             error_code: payment_attempt.error_code,
             payment_method_data: payment_method_data_response,
             email: customer
@@ -608,7 +614,9 @@ where
         payment_attempt
             .connector
             .as_ref()
-            .map(|connector| matches!(connector.as_str(), "trustpay"))
+            .map(|connector| {
+                matches!(connector.as_str(), "trustpay") || matches!(connector.as_str(), "payme")
+            })
             .and_then(|is_connector_supports_third_party_sdk| {
                 if is_connector_supports_third_party_sdk {
                     payment_attempt
@@ -937,6 +945,10 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsCaptureD
                 .ok_or(errors::ApiErrorResponse::ResourceIdNotFound)?,
             payment_amount: payment_data.amount.into(),
             connector_meta: payment_data.payment_attempt.connector_metadata,
+            capture_method: payment_data
+                .payment_attempt
+                .capture_method
+                .unwrap_or_default(),
         })
     }
 }
@@ -1090,6 +1102,39 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsPreProce
     fn try_from(additional_data: PaymentAdditionalData<'_, F>) -> Result<Self, Self::Error> {
         let payment_data = additional_data.payment_data;
         let payment_method_data = payment_data.payment_method_data;
+        let router_base_url = &additional_data.router_base_url;
+        let attempt = &payment_data.payment_attempt;
+        let connector_name = &additional_data.connector_name;
+
+        let order_details = payment_data
+            .payment_intent
+            .order_details
+            .map(|order_details| {
+                order_details
+                    .iter()
+                    .map(|data| {
+                        data.to_owned()
+                            .parse_value("OrderDetailsWithAmount")
+                            .change_context(errors::ApiErrorResponse::InvalidDataValue {
+                                field_name: "OrderDetailsWithAmount",
+                            })
+                            .attach_printable("Unable to parse OrderDetailsWithAmount")
+                    })
+                    .collect::<Result<Vec<_>, _>>()
+            })
+            .transpose()?;
+
+        let webhook_url = Some(helpers::create_webhook_url(
+            router_base_url,
+            &attempt.merchant_id,
+            connector_name,
+        ));
+        let router_return_url = Some(helpers::create_redirect_url(
+            router_base_url,
+            attempt,
+            connector_name,
+            payment_data.creds_identifier.as_deref(),
+        ));
 
         Ok(Self {
             payment_method_data,
@@ -1097,6 +1142,11 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsPreProce
             currency: Some(payment_data.currency),
             amount: Some(payment_data.amount.into()),
             payment_method_type: payment_data.payment_attempt.payment_method_type,
+            setup_mandate_details: payment_data.setup_mandate,
+            capture_method: payment_data.payment_attempt.capture_method,
+            order_details,
+            router_return_url,
+            webhook_url,
         })
     }
 }

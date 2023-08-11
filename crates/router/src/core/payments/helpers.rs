@@ -27,7 +27,7 @@ use crate::{
         payments,
     },
     db::StorageInterface,
-    routes::{metrics, AppState},
+    routes::{metrics, payment_methods::ParentPaymentMethodToken, AppState},
     scheduler::metrics as scheduler_metrics,
     services,
     types::{
@@ -1174,6 +1174,7 @@ pub async fn make_pm_data<'a, F: Clone, R>(
 ) -> RouterResult<(BoxedOperation<'a, F, R>, Option<api::PaymentMethodData>)> {
     let request = &payment_data.payment_method_data;
     let token = payment_data.token.clone();
+
     let hyperswitch_token = if let Some(token) = token {
         let redis_conn = state
             .store
@@ -1191,13 +1192,16 @@ pub async fn make_pm_data<'a, F: Clone, R>(
                 .get_required_value("payment_method")?,
         );
 
-        let hyperswitch_token_option = redis_conn
+        let key = redis_conn
             .get_key::<Option<String>>(&key)
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Failed to fetch the token from redis")?;
+            .attach_printable("Failed to fetch the token from redis")?
+            .ok_or(error_stack::Report::new(
+                errors::ApiErrorResponse::UnprocessableEntity { entity: token },
+            ))?;
 
-        hyperswitch_token_option.or(Some(token))
+        Some(key)
     } else {
         None
     };
@@ -1273,7 +1277,7 @@ pub async fn make_pm_data<'a, F: Clone, R>(
             })
         }
         (pm_opt @ Some(pm @ api::PaymentMethodData::Card(_)), _) => {
-            let token = vault::Vault::store_payment_method_data_in_locker(
+            let hyperswitch_token = vault::Vault::store_payment_method_data_in_locker(
                 state,
                 None,
                 pm,
@@ -1281,7 +1285,30 @@ pub async fn make_pm_data<'a, F: Clone, R>(
                 enums::PaymentMethod::Card,
             )
             .await?;
-            payment_data.token = Some(token);
+
+            let parent_payment_method_token = generate_id(consts::ID_LENGTH, "token");
+            let key_for_hyperswitch_token =
+                payment_data
+                    .payment_attempt
+                    .payment_method
+                    .map(|payment_method| {
+                        ParentPaymentMethodToken::create_key_for_token((
+                            &parent_payment_method_token,
+                            payment_method,
+                        ))
+                    });
+            if let Some(key_for_hyperswitch_token) = key_for_hyperswitch_token {
+                key_for_hyperswitch_token
+                    .insert(
+                        Some(payment_data.payment_intent.created_at),
+                        hyperswitch_token,
+                        state,
+                    )
+                    .await?;
+            };
+
+            payment_data.token = Some(parent_payment_method_token);
+
             Ok(pm_opt.to_owned())
         }
         (pm @ Some(api::PaymentMethodData::PayLater(_)), _) => Ok(pm.to_owned()),
@@ -1290,6 +1317,7 @@ pub async fn make_pm_data<'a, F: Clone, R>(
         (pm @ Some(api::PaymentMethodData::Upi(_)), _) => Ok(pm.to_owned()),
         (pm @ Some(api::PaymentMethodData::Voucher(_)), _) => Ok(pm.to_owned()),
         (pm @ Some(api::PaymentMethodData::Reward(_)), _) => Ok(pm.to_owned()),
+        (pm @ Some(api::PaymentMethodData::CardRedirect(_)), _) => Ok(pm.to_owned()),
         (pm @ Some(api::PaymentMethodData::GiftCard(_)), _) => Ok(pm.to_owned()),
         (pm_opt @ Some(pm @ api::PaymentMethodData::BankTransfer(_)), _) => {
             let token = vault::Vault::store_payment_method_data_in_locker(
@@ -1344,7 +1372,7 @@ pub(crate) fn validate_capture_method(
                 field_name: "capture_method".to_string(),
                 current_flow: "captured".to_string(),
                 current_value: capture_method.to_string(),
-                states: "manual_single, manual_multiple, scheduled".to_string()
+                states: "manual, manual_multiple, scheduled".to_string()
             }))
         },
     )
@@ -1353,13 +1381,14 @@ pub(crate) fn validate_capture_method(
 #[instrument(skip_all)]
 pub(crate) fn validate_status(status: storage_enums::IntentStatus) -> RouterResult<()> {
     utils::when(
-        status != storage_enums::IntentStatus::RequiresCapture,
+        status != storage_enums::IntentStatus::RequiresCapture
+            && status != storage_enums::IntentStatus::PartiallyCaptured,
         || {
             Err(report!(errors::ApiErrorResponse::PaymentUnexpectedState {
                 field_name: "payment.status".to_string(),
                 current_flow: "captured".to_string(),
                 current_value: status.to_string(),
-                states: "requires_capture".to_string()
+                states: "requires_capture, partially captured".to_string()
             }))
         },
     )
@@ -1525,6 +1554,7 @@ pub fn validate_payment_method_type_against_payment_method(
                 | api_enums::PaymentMethodType::Trustly
                 | api_enums::PaymentMethodType::Bizum
                 | api_enums::PaymentMethodType::Interac
+                | api_enums::PaymentMethodType::OpenBankingUk
         ),
         api_enums::PaymentMethod::BankTransfer => matches!(
             payment_method_type,
@@ -1571,6 +1601,12 @@ pub fn validate_payment_method_type_against_payment_method(
                 | api_enums::PaymentMethodType::Indomaret
                 | api_enums::PaymentMethodType::Alfamart
                 | api_enums::PaymentMethodType::Oxxo
+                | api_enums::PaymentMethodType::SevenEleven
+                | api_enums::PaymentMethodType::Lawson
+                | api_enums::PaymentMethodType::MiniStop
+                | api_enums::PaymentMethodType::FamilyMart
+                | api_enums::PaymentMethodType::Seicomart
+                | api_enums::PaymentMethodType::PayEasy
         ),
         api_enums::PaymentMethod::GiftCard => {
             matches!(
@@ -1578,6 +1614,12 @@ pub fn validate_payment_method_type_against_payment_method(
                 api_enums::PaymentMethodType::Givex | api_enums::PaymentMethodType::PaySafeCard
             )
         }
+        api_enums::PaymentMethod::CardRedirect => matches!(
+            payment_method_type,
+            api_enums::PaymentMethodType::Knet
+                | api_enums::PaymentMethodType::Benefit
+                | api_enums::PaymentMethodType::MomoAtm
+        ),
     }
 }
 
@@ -2407,7 +2449,7 @@ pub fn router_data_type_conversion<F1, F2, Req1, Req2, Res1, Res2>(
         attempt_id: router_data.attempt_id,
         access_token: router_data.access_token,
         session_token: router_data.session_token,
-        reference_id: None,
+        reference_id: router_data.reference_id,
         payment_method_token: router_data.payment_method_token,
         customer_id: router_data.customer_id,
         connector_customer: router_data.connector_customer,
@@ -2480,6 +2522,7 @@ pub fn get_attempt_type(
         }
         enums::IntentStatus::Cancelled
         | enums::IntentStatus::RequiresCapture
+        | enums::IntentStatus::PartiallyCaptured
         | enums::IntentStatus::Processing
         | enums::IntentStatus::Succeeded => {
             Err(report!(errors::ApiErrorResponse::PreconditionFailed {
@@ -2569,6 +2612,7 @@ impl AttemptType {
             mandate_details: old_payment_attempt.mandate_details,
             preprocessing_step_id: None,
             error_reason: None,
+            multiple_capture_count: None,
             connector_response_reference_id: None,
         }
     }
@@ -2689,6 +2733,7 @@ pub fn is_manual_retry_allowed(
         },
         enums::IntentStatus::Cancelled
         | enums::IntentStatus::RequiresCapture
+        | enums::IntentStatus::PartiallyCaptured
         | enums::IntentStatus::Processing
         | enums::IntentStatus::Succeeded => Some(false),
 
@@ -2838,6 +2883,9 @@ pub async fn get_additional_payment_data(
         }
         api_models::payments::PaymentMethodData::Upi(_) => {
             api_models::payments::AdditionalPaymentData::Upi {}
+        }
+        api_models::payments::PaymentMethodData::CardRedirect(_) => {
+            api_models::payments::AdditionalPaymentData::CardRedirect {}
         }
         api_models::payments::PaymentMethodData::Voucher(_) => {
             api_models::payments::AdditionalPaymentData::Voucher {}
