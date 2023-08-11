@@ -581,6 +581,14 @@ pub struct DrainerSettings {
 #[serde(default)]
 pub struct WebhooksSettings {
     pub outgoing_enabled: bool,
+    pub ignore_error: WebhookIgnoreErrorSettings,
+}
+
+#[derive(Debug, Clone, Deserialize, Default)]
+#[serde(default)]
+pub struct WebhookIgnoreErrorSettings {
+    pub event_type: Option<bool>,
+    pub payment_not_found: Option<bool>,
 }
 
 #[derive(Debug, Deserialize, Clone)]

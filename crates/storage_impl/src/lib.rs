@@ -29,7 +29,7 @@ where
     type Config = (
         T::Config,
         redis_interface::RedisSettings,
-        Secret<Vec<u8>>,
+        StrongSecret<Vec<u8>>,
         tokio::sync::oneshot::Sender<()>,
         &'static str,
     );
@@ -92,7 +92,7 @@ impl<T: DatabaseStore> RouterStore<T> {
         }
     }
 
-    pub fn master_key(&self) -> &Secret<Vec<u8>> {
+    pub fn master_key(&self) -> &StrongSecret<Vec<u8>> {
         &self.master_encryption_key
     }
 
@@ -161,7 +161,7 @@ impl<T: DatabaseStore> KVRouterStore<T> {
         }
     }
 
-    pub fn master_key(&self) -> &Secret<Vec<u8>> {
+    pub fn master_key(&self) -> &StrongSecret<Vec<u8>> {
         self.router_store.master_key()
     }
 

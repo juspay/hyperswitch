@@ -374,7 +374,11 @@ impl ApiKeyInterface for MockDb {
 
 #[cfg(test)]
 mod tests {
-    use storage_impl::redis::{cache::{ACCOUNTS_CACHE, CacheKind}, kv_store::RedisConnInterface, pub_sub::PubSubInterface};
+    use storage_impl::redis::{
+        cache::{CacheKind, ACCOUNTS_CACHE},
+        kv_store::RedisConnInterface,
+        pub_sub::PubSubInterface,
+    };
     use time::macros::datetime;
 
     use crate::{

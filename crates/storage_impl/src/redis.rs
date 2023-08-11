@@ -53,7 +53,6 @@ impl RedisStore {
             .into_report()
             .change_context(redis_interface::errors::RedisError::SubscribeError)?;
 
-        // TODO: Handle on message failures
         let redis_clone = self.redis_conn.clone();
         tokio::spawn(async move {
             if let Err(e) = redis_clone.on_message().await {

@@ -1,8 +1,5 @@
 #![allow(clippy::unwrap_used)]
-use router::{
-    configs::settings::Settings,
-    routes,
-};
+use router::{configs::settings::Settings, routes};
 use storage_impl::redis::cache;
 
 mod utils;

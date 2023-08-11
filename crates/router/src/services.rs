@@ -8,7 +8,7 @@ use error_stack::{IntoReport, ResultExt};
 use external_services::kms::{self, decrypt::KmsDecrypt};
 #[cfg(not(feature = "kms"))]
 use masking::PeekInterface;
-use masking::Secret;
+use masking::StrongSecret;
 use storage_impl::{KVRouterStore, RouterStore};
 use tokio::sync::oneshot;
 
@@ -94,7 +94,7 @@ pub async fn get_store(
 async fn get_master_enc_key(
     conf: &crate::configs::settings::Settings,
     #[cfg(feature = "kms")] kms_client: &kms::KmsClient,
-) -> Secret<Vec<u8>> {
+) -> StrongSecret<Vec<u8>> {
     #[cfg(feature = "kms")]
     let master_enc_key = hex::decode(
         conf.secrets
@@ -110,7 +110,7 @@ async fn get_master_enc_key(
     let master_enc_key =
         hex::decode(conf.secrets.master_enc_key.peek()).expect("Failed to decode from hex");
 
-    Secret::new(master_enc_key)
+    StrongSecret::new(master_enc_key)
 }
 
 #[inline]
