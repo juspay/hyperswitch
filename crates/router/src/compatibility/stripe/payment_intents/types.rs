@@ -24,7 +24,7 @@ use crate::{
 
 #[derive(Default, Serialize, PartialEq, Eq, Deserialize, Clone)]
 pub struct StripeBillingDetails {
-    pub address: Option<payments::AddressDetails>,
+    pub address: Option<AddressDetails>,
     pub email: Option<Email>,
     pub name: Option<String>,
     pub phone: Option<masking::Secret<String>>,
@@ -39,8 +39,20 @@ impl From<StripeBillingDetails> for payments::Address {
                     address.country.as_ref().map(|country| country.to_string())
                 }),
             }),
-
-            address: details.address,
+            address: match details.address {
+                Some(address) => Some(payments::AddressDetails {
+                    city: address.city,
+                    country: address.country,
+                    line1: address.line1,
+                    line2: address.line2,
+                    zip: address.postal_code,
+                    state: address.state,
+                    first_name: None,
+                    line3: None,
+                    last_name: None,
+                }),
+                None => None,
+            }
         }
     }
 }
