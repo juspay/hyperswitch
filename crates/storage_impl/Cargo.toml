@@ -12,9 +12,14 @@ license.workspace = true
 [dependencies]
 # First Party dependencies
 masking = { version = "0.1.0", path = "../masking" }
+redis_interface = { version = "0.1.0", path = "../redis_interface" }
+diesel_models = { version = "0.1.0", path = "../diesel_models" }
 
 # Third party crates
 bb8 = "0.8.1"
 diesel = { version = "2.1.0", default-features = false, features = ["postgres"] }
 async-bb8-diesel = { git = "https://github.com/oxidecomputer/async-bb8-diesel", rev = "be3d9bce50051d8c0e0c06078e8066cc27db3001" }
 async-trait = "0.1.72"
+crc32fast = "1.3.2"
+error-stack = "0.3.1"
+tokio = { version = "1.28.2", features = ["rt-multi-thread"] }
