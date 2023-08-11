@@ -1,5 +1,5 @@
 use std::fmt::Debug;
-
+use diesel::internal::derives::insertable::UndecoratedInsertRecord;
 use async_bb8_diesel::{AsyncRunQueryDsl, ConnectionError};
 use diesel::{
     associations::HasTable,
@@ -8,6 +8,7 @@ use diesel::{
     helper_types::{Filter, IntoBoxed},
     insertable::CanInsertInSingleQuery,
     pg::{Pg, PgConnection},
+    
     query_builder::{
         AsChangeset, AsQuery, DeleteStatement, InsertStatement, IntoUpdateTarget, QueryFragment,
         QueryId, UpdateStatement,
@@ -85,6 +86,48 @@ where
     let debug_values = format!("{values:?}");
 
     let query = diesel::insert_into(<T as HasTable>::table()).values(values);
+    logger::debug!(query = %debug_query::<Pg, _>(&query).to_string());
+
+    match track_database_call::<T, _, _>(query.get_result_async(conn), DatabaseOperation::Insert)
+        .await
+        .into_report()
+    {
+        Ok(value) => Ok(value),
+        Err(err) => match err.current_context() {
+            ConnectionError::Query(DieselError::DatabaseError(
+                diesel::result::DatabaseErrorKind::UniqueViolation,
+                _,
+            )) => Err(err).change_context(errors::DatabaseError::UniqueViolation),
+            _ => Err(err).change_context(errors::DatabaseError::Others),
+        },
+    }
+    .attach_printable_lazy(|| format!("Error while inserting {debug_values}"))
+}
+
+#[instrument(level = "DEBUG", skip_all)]
+pub async fn generic_insert_on_conflict_do_nothing<T, V, R>(
+    conn: &PgPooledConn,
+    values: V,
+) -> StorageResult<R>
+where
+    T: HasTable<Table = T> + Table + 'static + Debug,
+    V: Debug + Insertable<T>,
+    <T as QuerySource>::FromClause: QueryFragment<Pg> + Debug,
+    <V as Insertable<T>>::Values:
+        CanInsertInSingleQuery<Pg>
+            + QueryFragment<Pg>
+            + UndecoratedInsertRecord<T>
+            + IntoConflictValueClause
+            + 'static,
+    InsertStatement<T, <V as Insertable<T>>::Values>:
+        AsQuery + LoadQuery<'static, PgConnection, R> + Send,
+    R: Send + 'static,
+{
+    let debug_values = format!("{values:?}");
+
+    let query = diesel::insert_into(<T as HasTable>::table())
+        .values(values)
+        .on_conflict_do_nothing();
     logger::debug!(query = %debug_query::<Pg, _>(&query).to_string());
 
     match track_database_call::<T, _, _>(query.get_result_async(conn), DatabaseOperation::Insert)
