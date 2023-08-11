@@ -1,0 +1,1 @@
+alter table fraud_check drop column is_terminated ;

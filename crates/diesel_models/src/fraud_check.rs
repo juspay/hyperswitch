@@ -24,6 +24,7 @@ pub struct FraudCheck {
     pub payment_details: Option<serde_json::Value>,
     pub metadata: Option<serde_json::Value>,
     pub modified_at: PrimitiveDateTime,
+    pub is_terminated: bool,
 }
 
 #[derive(router_derive::Setter, Clone, Debug, Insertable, router_derive::DebugAsDisplay)]
@@ -44,6 +45,7 @@ pub struct FraudCheckNew {
     pub payment_details: Option<serde_json::Value>,
     pub metadata: Option<serde_json::Value>,
     pub modified_at: PrimitiveDateTime,
+    pub is_terminated: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -56,6 +58,7 @@ pub enum FraudCheckUpdate {
         frm_score: Option<i32>,
         metadata: Option<serde_json::Value>,
         modified_at: PrimitiveDateTime,
+        is_terminated: bool,
     },
     ErrorUpdate {
         status: FraudCheckStatus,
@@ -72,6 +75,7 @@ pub struct FraudCheckUpdateInternal {
     frm_score: Option<i32>,
     frm_error: Option<Option<String>>,
     metadata: Option<serde_json::Value>,
+    is_terminated: bool,
 }
 
 impl From<FraudCheckUpdate> for FraudCheckUpdateInternal {
@@ -84,12 +88,14 @@ impl From<FraudCheckUpdate> for FraudCheckUpdateInternal {
                 frm_score,
                 metadata,
                 modified_at: _,
+                is_terminated,
             } => Self {
                 frm_status: Some(frm_status),
                 frm_transaction_id,
                 frm_reason,
                 frm_score,
                 metadata,
+                is_terminated,
                 ..Default::default()
             },
             FraudCheckUpdate::ErrorUpdate {

@@ -280,6 +280,7 @@ diesel::table! {
         payment_details -> Nullable<Jsonb>,
         metadata -> Nullable<Jsonb>,
         modified_at -> Timestamp,
+        is_terminated -> Bool,
     }
 }
 

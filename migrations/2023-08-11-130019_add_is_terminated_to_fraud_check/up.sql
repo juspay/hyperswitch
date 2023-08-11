@@ -1,0 +1,1 @@
+alter table fraud_check add column is_terminated BOOLEAN NOT NULL DEFAULT FALSE;
