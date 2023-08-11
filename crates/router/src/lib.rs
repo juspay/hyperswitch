@@ -112,9 +112,9 @@ pub fn mk_app(
             .service(routes::Customers::server(state.clone()))
             .service(routes::Configs::server(state.clone()))
             .service(routes::Refunds::server(state.clone()))
+            .service(routes::BusinessProfile::server(state.clone()))
             .service(routes::MerchantConnectorAccount::server(state.clone()))
             .service(routes::Mandates::server(state.clone()))
-            .service(routes::BusinessProfile::server(state.clone()))
     }
 
     #[cfg(feature = "oltp")]

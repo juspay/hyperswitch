@@ -391,16 +391,18 @@ pub async fn business_profile_create(
     state: web::Data<AppState>,
     req: HttpRequest,
     json_payload: web::Json<admin::BusinessProfileCreate>,
+    path: web::Path<String>,
 ) -> HttpResponse {
     let flow = Flow::BusinessProfileCreate;
     let payload = json_payload.into_inner();
+    let merchant_id = path.into_inner();
 
     api::server_wrap(
         flow,
         state.get_ref(),
         &req,
         payload,
-        |state, _, req| create_business_profile(&*state.store, req),
+        |state, _, req| create_business_profile(&*state.store, req, &merchant_id),
         &auth::AdminApiAuth,
     )
     .await
@@ -410,10 +412,10 @@ pub async fn business_profile_create(
 pub async fn business_profile_retrieve(
     state: web::Data<AppState>,
     req: HttpRequest,
-    path: web::Path<String>,
+    path: web::Path<(String, String)>,
 ) -> HttpResponse {
     let flow = Flow::BusinessProfileRetrieve;
-    let profile_id = path.into_inner();
+    let (_, profile_id) = path.into_inner();
 
     api::server_wrap(
         flow,
@@ -430,18 +432,18 @@ pub async fn business_profile_retrieve(
 pub async fn business_profile_update(
     state: web::Data<AppState>,
     req: HttpRequest,
-    path: web::Path<String>,
+    path: web::Path<(String, String)>,
     json_payload: web::Json<api_models::admin::BusinessProfileUpdate>,
 ) -> HttpResponse {
     let flow = Flow::BusinessProfileUpdate;
-    let profile_id = path.into_inner();
+    let (merchant_id, profile_id) = path.into_inner();
 
     api::server_wrap(
         flow,
         state.get_ref(),
         &req,
         json_payload.into_inner(),
-        |state, _, req| update_business_profile(&*state.store, &profile_id, req),
+        |state, _, req| update_business_profile(&*state.store, &profile_id, &merchant_id, req),
         &auth::AdminApiAuth,
     )
     .await
@@ -451,17 +453,17 @@ pub async fn business_profile_update(
 pub async fn business_profile_delete(
     state: web::Data<AppState>,
     req: HttpRequest,
-    path: web::Path<String>,
+    path: web::Path<(String, String)>,
 ) -> HttpResponse {
     let flow = Flow::BusinessProfileDelete;
-    let profile_id = path.into_inner();
+    let (merchant_id, profile_id) = path.into_inner();
 
     api::server_wrap(
         flow,
         state.get_ref(),
         &req,
         profile_id,
-        |state, _, profile_id| delete_business_profile(&*state.store, profile_id),
+        |state, _, profile_id| delete_business_profile(&*state.store, profile_id, &merchant_id),
         &auth::AdminApiAuth,
     )
     .await

@@ -1,4 +1,4 @@
-use diesel::{associations::HasTable, ExpressionMethods};
+use diesel::{associations::HasTable, BoolExpressionMethods, ExpressionMethods};
 use router_env::{instrument, tracing};
 
 use super::generics;
@@ -47,13 +47,16 @@ impl BusinessProfile {
         .await
     }
 
-    pub async fn delete_by_profile_id(
+    pub async fn delete_by_profile_id_merchant_id(
         conn: &PgPooledConn,
         profile_id: &str,
+        merchant_id: &str,
     ) -> StorageResult<bool> {
         generics::generic_delete::<<Self as HasTable>::Table, _>(
-            &conn,
-            dsl::profile_id.eq(profile_id.to_owned()),
+            conn,
+            dsl::profile_id
+                .eq(profile_id.to_owned())
+                .and(dsl::merchant_id.eq(merchant_id.to_string())),
         )
         .await
     }

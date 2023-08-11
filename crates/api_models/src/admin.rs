@@ -932,10 +932,6 @@ pub enum PayoutStraightThroughAlgorithm {
 #[derive(Clone, Debug, Deserialize, ToSchema)]
 #[serde(deny_unknown_fields)]
 pub struct BusinessProfileCreate {
-    /// The identifier for the Merchant Account
-    #[schema(max_length = 64, example = "y3oqhf46pyzuxjbcn2giaqnb44")]
-    pub merchant_id: String,
-
     /// A short name to identify the business profile
     #[schema(max_length = 64)]
     pub profile_name: Option<String>,

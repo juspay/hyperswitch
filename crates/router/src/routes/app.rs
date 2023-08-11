@@ -534,7 +534,7 @@ pub struct BusinessProfile;
 #[cfg(any(feature = "olap", feature = "oltp"))]
 impl BusinessProfile {
     pub fn server(state: AppState) -> Scope {
-        web::scope("/business_profile")
+        web::scope("/account/{account_id}/business_profile")
             .app_data(web::Data::new(state))
             .service(web::resource("").route(web::post().to(business_profile_create)))
             .service(

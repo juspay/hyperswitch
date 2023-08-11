@@ -834,19 +834,17 @@ pub fn get_frm_config_as_secret(
 pub async fn create_business_profile(
     db: &dyn StorageInterface,
     request: api::BusinessProfileCreate,
+    merchant_id: &str,
 ) -> RouterResponse<api_models::admin::BusinessProfileResponse> {
     let key_store = db
-        .get_merchant_key_store_by_merchant_id(
-            &request.merchant_id,
-            &db.get_master_key().to_vec().into(),
-        )
+        .get_merchant_key_store_by_merchant_id(merchant_id, &db.get_master_key().to_vec().into())
         .await
         .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
 
     // Get the merchant account, if few fields are not passed, then they will be inherited from
     // merchant account
     let merchant_account = db
-        .find_merchant_account_by_merchant_id(&request.merchant_id, &key_store)
+        .find_merchant_account_by_merchant_id(merchant_id, &key_store)
         .await
         .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
 
@@ -882,7 +880,7 @@ pub async fn create_business_profile(
 
     let business_profile_new = storage::business_profile::BusinessProfileNew {
         profile_id,
-        merchant_id: request.merchant_id,
+        merchant_id: merchant_id.to_string(),
         profile_name: request.profile_name,
         created_at: date_time::now(),
         modified_at: date_time::now(),
@@ -946,9 +944,10 @@ pub async fn retrieve_business_profile(
 pub async fn delete_business_profile(
     db: &dyn StorageInterface,
     profile_id: String,
+    merchant_id: &str,
 ) -> RouterResponse<bool> {
     let delete_result = db
-        .delete_business_profile_by_profile_id(&profile_id)
+        .delete_business_profile_by_profile_id_merchant_id(&profile_id, merchant_id)
         .await
         .to_not_found_response(errors::ApiErrorResponse::BusinessProfileNotFound {
             id: profile_id,
@@ -960,6 +959,7 @@ pub async fn delete_business_profile(
 pub async fn update_business_profile(
     db: &dyn StorageInterface,
     profile_id: &str,
+    merchant_id: &str,
     request: api::BusinessProfileUpdate,
 ) -> RouterResponse<api::BusinessProfileResponse> {
     let business_profile = db
@@ -968,6 +968,10 @@ pub async fn update_business_profile(
         .to_not_found_response(errors::ApiErrorResponse::BusinessProfileNotFound {
             id: profile_id.to_owned(),
         })?;
+
+    if business_profile.merchant_id != merchant_id {
+        Err(errors::ApiErrorResponse::AccessForbidden)?
+    }
 
     let webhook_details = request
         .webhook_details
