@@ -27,7 +27,7 @@ use crate::{
         payments,
     },
     db::StorageInterface,
-    routes::{metrics, AppState},
+    routes::{metrics, payment_methods::ParentPaymentMethodToken, AppState},
     scheduler::metrics as scheduler_metrics,
     services,
     types::{
@@ -1174,6 +1174,7 @@ pub async fn make_pm_data<'a, F: Clone, R>(
 ) -> RouterResult<(BoxedOperation<'a, F, R>, Option<api::PaymentMethodData>)> {
     let request = &payment_data.payment_method_data;
     let token = payment_data.token.clone();
+
     let hyperswitch_token = if let Some(token) = token {
         let redis_conn = state
             .store
@@ -1191,13 +1192,16 @@ pub async fn make_pm_data<'a, F: Clone, R>(
                 .get_required_value("payment_method")?,
         );
 
-        let hyperswitch_token_option = redis_conn
+        let key = redis_conn
             .get_key::<Option<String>>(&key)
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Failed to fetch the token from redis")?;
+            .attach_printable("Failed to fetch the token from redis")?
+            .ok_or(error_stack::Report::new(
+                errors::ApiErrorResponse::UnprocessableEntity { entity: token },
+            ))?;
 
-        hyperswitch_token_option.or(Some(token))
+        Some(key)
     } else {
         None
     };
@@ -1273,7 +1277,7 @@ pub async fn make_pm_data<'a, F: Clone, R>(
             })
         }
         (pm_opt @ Some(pm @ api::PaymentMethodData::Card(_)), _) => {
-            let token = vault::Vault::store_payment_method_data_in_locker(
+            let hyperswitch_token = vault::Vault::store_payment_method_data_in_locker(
                 state,
                 None,
                 pm,
@@ -1281,7 +1285,30 @@ pub async fn make_pm_data<'a, F: Clone, R>(
                 enums::PaymentMethod::Card,
             )
             .await?;
-            payment_data.token = Some(token);
+
+            let parent_payment_method_token = generate_id(consts::ID_LENGTH, "token");
+            let key_for_hyperswitch_token =
+                payment_data
+                    .payment_attempt
+                    .payment_method
+                    .map(|payment_method| {
+                        ParentPaymentMethodToken::create_key_for_token((
+                            &parent_payment_method_token,
+                            payment_method,
+                        ))
+                    });
+            if let Some(key_for_hyperswitch_token) = key_for_hyperswitch_token {
+                key_for_hyperswitch_token
+                    .insert(
+                        Some(payment_data.payment_intent.created_at),
+                        hyperswitch_token,
+                        state,
+                    )
+                    .await?;
+            };
+
+            payment_data.token = Some(parent_payment_method_token);
+
             Ok(pm_opt.to_owned())
         }
         (pm @ Some(api::PaymentMethodData::PayLater(_)), _) => Ok(pm.to_owned()),
@@ -2422,7 +2449,7 @@ pub fn router_data_type_conversion<F1, F2, Req1, Req2, Res1, Res2>(
         attempt_id: router_data.attempt_id,
         access_token: router_data.access_token,
         session_token: router_data.session_token,
-        reference_id: None,
+        reference_id: router_data.reference_id,
         payment_method_token: router_data.payment_method_token,
         customer_id: router_data.customer_id,
         connector_customer: router_data.connector_customer,

@@ -78,8 +78,8 @@ impl Paypal {
             .parse_struct("Paypal ErrorResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
 
-        let error_reason = match response.details {
-            Some(order_errors) => order_errors
+        let error_reason = response.details.map(|order_errors| {
+            order_errors
                 .iter()
                 .map(|error| {
                     let mut reason = format!("description - {}", error.description);
@@ -96,14 +96,13 @@ impl Paypal {
                     reason.push(';');
                     reason
                 })
-                .collect::<String>(),
-            None => consts::NO_ERROR_MESSAGE.to_string(),
-        };
+                .collect::<String>()
+        });
         Ok(ErrorResponse {
             status_code: res.status_code,
             code: response.name,
-            message: response.message,
-            reason: Some(error_reason),
+            message: response.message.clone(),
+            reason: error_reason.or(Some(response.message)),
         })
     }
 }
@@ -179,18 +178,17 @@ impl ConnectorCommon for Paypal {
             .parse_struct("Paypal ErrorResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
 
-        let error_reason = match response.details {
-            Some(error_details) => error_details
+        let error_reason = response.details.map(|error_details| {
+            error_details
                 .iter()
                 .map(|error| format!("description - {} ; ", error.description))
-                .collect::<String>(),
-            None => consts::NO_ERROR_MESSAGE.to_string(),
-        };
+                .collect::<String>()
+        });
         Ok(ErrorResponse {
             status_code: res.status_code,
             code: response.name,
-            message: response.message,
-            reason: Some(error_reason),
+            message: response.message.clone(),
+            reason: error_reason.or(Some(response.message)),
         })
     }
 }
@@ -330,8 +328,8 @@ impl ConnectorIntegration<api::AccessTokenAuth, types::AccessTokenRequestData, t
         Ok(ErrorResponse {
             status_code: res.status_code,
             code: response.error,
-            message: response.error_description,
-            reason: None,
+            message: response.error_description.clone(),
+            reason: Some(response.error_description),
         })
     }
 }
