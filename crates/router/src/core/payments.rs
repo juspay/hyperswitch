@@ -42,6 +42,7 @@ use crate::{
     utils::{Encode, OptionExt, ValueExt},
 };
 
+#[cfg(feature = "olap")]
 const PAYMENTS_LIST_MAX_LIMIT: i64 = 20;
 #[instrument(skip_all, fields(payment_id, merchant_id))]
 pub async fn payments_operation_core<F, Req, Op, FData>(
