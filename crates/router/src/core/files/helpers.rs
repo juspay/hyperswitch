@@ -12,11 +12,7 @@ use crate::{
     },
     routes::AppState,
     services,
-    types::{
-        self, api,
-        domain,
-        transformers::ForeignTryFrom,
-    },
+    types::{self, api, domain, transformers::ForeignTryFrom},
 };
 
 pub async fn read_string(field: &mut Field) -> Option<String> {

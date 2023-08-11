@@ -20,9 +20,7 @@ use crate::{
     types::{
         self,
         api::{self, ConnectorCommon, ConnectorCommonExt},
-        domain,
-        storage,
-        ErrorResponse, Response,
+        domain, storage, ErrorResponse, Response,
     },
     utils::{self, ByteSliceExt, BytesExt},
 };

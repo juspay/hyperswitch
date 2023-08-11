@@ -3,7 +3,9 @@ use std::cmp::Ordering;
 use common_utils::ext_traits::{AsyncExt, ByteSliceExt, Encode};
 use diesel_models::errors as storage_errors;
 use error_stack::{IntoReport, ResultExt};
-use storage_impl::redis::{cache, kv_store::RedisConnInterface};
+#[cfg(feature = "accounts_cache")]
+use storage_impl::redis::cache;
+use storage_impl::redis::kv_store::RedisConnInterface;
 
 use super::{MockDb, Store};
 use crate::{

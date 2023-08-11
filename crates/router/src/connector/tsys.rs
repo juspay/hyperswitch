@@ -9,11 +9,7 @@ use crate::{
     configs::settings,
     core::errors::{self, CustomResult},
     headers,
-    services::{
-        self,
-        request,
-        ConnectorIntegration,
-    },
+    services::{self, request, ConnectorIntegration},
     types::{
         self,
         api::{self, ConnectorCommon, ConnectorCommonExt},

@@ -9,7 +9,9 @@ use external_services::kms::{self, decrypt::KmsDecrypt};
 #[cfg(not(feature = "kms"))]
 use masking::PeekInterface;
 use masking::StrongSecret;
-use storage_impl::{KVRouterStore, RouterStore};
+#[cfg(feature = "kv_store")]
+use storage_impl::KVRouterStore;
+use storage_impl::RouterStore;
 use tokio::sync::oneshot;
 
 pub use self::{api::*, encryption::*};

@@ -1,4 +1,5 @@
 use error_stack::IntoReport;
+#[cfg(feature = "accounts_cache")]
 use storage_impl::redis::cache::CacheKind;
 #[cfg(feature = "accounts_cache")]
 use storage_impl::redis::cache::ACCOUNTS_CACHE;

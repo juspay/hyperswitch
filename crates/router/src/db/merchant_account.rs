@@ -1,5 +1,6 @@
 use common_utils::ext_traits::AsyncExt;
 use error_stack::{IntoReport, ResultExt};
+#[cfg(feature = "accounts_cache")]
 use storage_impl::redis::cache::{CacheKind, ACCOUNTS_CACHE};
 
 use super::{MasterKeyInterface, MockDb, Store};

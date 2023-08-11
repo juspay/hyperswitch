@@ -111,7 +111,7 @@ mod storage {
             payment_attempt: PaymentAttemptUpdate,
             _storage_scheme: enums::MerchantStorageScheme,
         ) -> CustomResult<PaymentAttempt, errors::StorageError> {
-            let conn = connection::pg_connection_write(&self).await?;
+            let conn = connection::pg_connection_write(self).await?;
             this.update_with_attempt_id(&conn, payment_attempt)
                 .await
                 .map_err(Into::into)
