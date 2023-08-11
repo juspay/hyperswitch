@@ -551,7 +551,7 @@ impl MerchantConnectorAccountInterface for MockDb {
             merchant_connector_id: t.merchant_connector_id,
             payment_methods_enabled: t.payment_methods_enabled,
             metadata: t.metadata,
-            frm_configs: t.frm_configs,
+            frm_config: t.frm_configs,
             connector_type: t.connector_type,
             connector_label: t.connector_label,
             business_country: t.business_country,
