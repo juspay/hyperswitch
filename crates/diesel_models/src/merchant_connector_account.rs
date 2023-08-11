@@ -32,11 +32,12 @@ pub struct MerchantConnectorAccount {
     pub business_country: storage_enums::CountryAlpha2,
     pub business_label: String,
     pub business_sub_label: Option<String>,
-    #[diesel(deserialize_as = super::OptionalDieselArray<pii::SecretSerdeValue>)]
-    pub frm_configs: Option<Vec<Secret<serde_json::Value>>>,
+    pub frm_configs: Option<Secret<serde_json::Value>>,
     pub created_at: time::PrimitiveDateTime,
     pub modified_at: time::PrimitiveDateTime,
     pub connector_webhook_details: Option<pii::SecretSerdeValue>,
+    #[diesel(deserialize_as = super::OptionalDieselArray<pii::SecretSerdeValue>)]
+    pub frm_config: Option<Vec<Secret<serde_json::Value>>>,
 }
 
 #[derive(Clone, Debug, Insertable, router_derive::DebugAsDisplay)]
@@ -55,11 +56,12 @@ pub struct MerchantConnectorAccountNew {
     pub business_country: storage_enums::CountryAlpha2,
     pub business_label: String,
     pub business_sub_label: Option<String>,
-    #[diesel(deserialize_as = super::OptionalDieselArray<pii::SecretSerdeValue>)]
-    pub frm_configs: Option<Vec<Secret<serde_json::Value>>>,
+    pub frm_configs: Option<Secret<serde_json::Value>>,
     pub created_at: time::PrimitiveDateTime,
     pub modified_at: time::PrimitiveDateTime,
     pub connector_webhook_details: Option<pii::SecretSerdeValue>,
+    #[diesel(deserialize_as = super::OptionalDieselArray<pii::SecretSerdeValue>)]
+    pub frm_config: Option<Vec<Secret<serde_json::Value>>>,
 }
 
 #[derive(Clone, Debug, AsChangeset, router_derive::DebugAsDisplay)]
@@ -73,11 +75,12 @@ pub struct MerchantConnectorAccountUpdateInternal {
     pub disabled: Option<bool>,
     pub merchant_connector_id: Option<String>,
     pub payment_methods_enabled: Option<Vec<serde_json::Value>>,
+    pub frm_configs: Option<Secret<serde_json::Value>>,
     pub metadata: Option<pii::SecretSerdeValue>,
-    #[diesel(deserialize_as = super::OptionalDieselArray<pii::SecretSerdeValue>)]
-    pub frm_configs: Option<Vec<Secret<serde_json::Value>>>,
     pub modified_at: Option<time::PrimitiveDateTime>,
     pub connector_webhook_details: Option<pii::SecretSerdeValue>,
+    #[diesel(deserialize_as = super::OptionalDieselArray<pii::SecretSerdeValue>)]
+    pub frm_config: Option<Vec<Secret<serde_json::Value>>>,
 }
 
 impl MerchantConnectorAccountUpdateInternal {
@@ -97,7 +100,7 @@ impl MerchantConnectorAccountUpdateInternal {
                 .merchant_connector_id
                 .unwrap_or(source.merchant_connector_id),
             payment_methods_enabled: self.payment_methods_enabled,
-            frm_configs: self.frm_configs,
+            frm_config: self.frm_config,
             modified_at: self.modified_at.unwrap_or(source.modified_at),
 
             ..source
