@@ -39,18 +39,17 @@ impl From<StripeBillingDetails> for payments::Address {
                     address.country.as_ref().map(|country| country.to_string())
                 }),
             }),
-            address: details.address.map(|address| 
-               payments::AddressDetails {
-                    city: address.city,
-                    country: address.country,
-                    line1: address.line1,
-                    line2: address.line2,
-                    zip: address.postal_code,
-                    state: address.state,
-                    first_name: None,
-                    line3: None,
-                    last_name: None,
-                }),
+            address: details.address.map(|address| payments::AddressDetails {
+                city: address.city,
+                country: address.country,
+                line1: address.line1,
+                line2: address.line2,
+                zip: address.postal_code,
+                state: address.state,
+                first_name: None,
+                line3: None,
+                last_name: None,
+            }),
         }
     }
 }
