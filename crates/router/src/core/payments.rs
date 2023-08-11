@@ -823,7 +823,7 @@ async fn complete_preprocessing_steps_if_required<F, Req>(
     state: &AppState,
     connector: &api::ConnectorData,
     payment_data: &PaymentData<F>,
-    router_data: types::RouterData<F, Req, types::PaymentsResponseData>,
+    mut router_data: types::RouterData<F, Req, types::PaymentsResponseData>,
     should_continue_payment: bool,
 ) -> RouterResult<(types::RouterData<F, Req, types::PaymentsResponseData>, bool)>
 where
@@ -849,7 +849,7 @@ where
             _ => (router_data, should_continue_payment),
         },
         Some(api_models::payments::PaymentMethodData::Wallet(_)) => {
-            if connector.connector_name.to_string() == *"trustpay" {
+            if is_preprocessing_required_for_wallets(connector.connector_name.to_string()) {
                 (
                     router_data.preprocessing_steps(state, connector).await?,
                     false,
@@ -858,10 +858,25 @@ where
                 (router_data, should_continue_payment)
             }
         }
+        Some(api_models::payments::PaymentMethodData::Card(_)) => {
+            if connector.connector_name == types::Connector::Payme {
+                router_data = router_data.preprocessing_steps(state, connector).await?;
+
+                let is_error_in_response = router_data.response.is_err();
+                // If is_error_in_response is true, should_continue_payment should be false, we should throw the error
+                (router_data, !is_error_in_response)
+            } else {
+                (router_data, should_continue_payment)
+            }
+        }
         _ => (router_data, should_continue_payment),
     };
 
     Ok(router_data_and_should_continue_payment)
+}
+
+pub fn is_preprocessing_required_for_wallets(connector_name: String) -> bool {
+    connector_name == *"trustpay" || connector_name == *"payme"
 }
 
 fn is_payment_method_tokenization_enabled_for_connector(

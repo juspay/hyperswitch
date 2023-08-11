@@ -173,6 +173,10 @@ pub trait PaymentsPreProcessingData {
     fn get_payment_method_type(&self) -> Result<diesel_models::enums::PaymentMethodType, Error>;
     fn get_currency(&self) -> Result<diesel_models::enums::Currency, Error>;
     fn get_amount(&self) -> Result<i64, Error>;
+    fn is_auto_capture(&self) -> Result<bool, Error>;
+    fn get_order_details(&self) -> Result<Vec<OrderDetailsWithAmount>, Error>;
+    fn get_webhook_url(&self) -> Result<String, Error>;
+    fn get_return_url(&self) -> Result<String, Error>;
 }
 
 impl PaymentsPreProcessingData for types::PaymentsPreProcessingData {
@@ -189,6 +193,28 @@ impl PaymentsPreProcessingData for types::PaymentsPreProcessingData {
     }
     fn get_amount(&self) -> Result<i64, Error> {
         self.amount.ok_or_else(missing_field_err("amount"))
+    }
+    fn is_auto_capture(&self) -> Result<bool, Error> {
+        match self.capture_method {
+            Some(diesel_models::enums::CaptureMethod::Automatic) | None => Ok(true),
+            Some(diesel_models::enums::CaptureMethod::Manual) => Ok(false),
+            Some(_) => Err(errors::ConnectorError::CaptureMethodNotSupported.into()),
+        }
+    }
+    fn get_order_details(&self) -> Result<Vec<OrderDetailsWithAmount>, Error> {
+        self.order_details
+            .clone()
+            .ok_or_else(missing_field_err("order_details"))
+    }
+    fn get_webhook_url(&self) -> Result<String, Error> {
+        self.webhook_url
+            .clone()
+            .ok_or_else(missing_field_err("webhook_url"))
+    }
+    fn get_return_url(&self) -> Result<String, Error> {
+        self.router_return_url
+            .clone()
+            .ok_or_else(missing_field_err("return_url"))
     }
 }
 
