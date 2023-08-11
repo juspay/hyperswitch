@@ -97,14 +97,10 @@ for i in $(echo "$FILTERED_CONNECTORS" | tr "," "\n"); do
                 IFS=':' read -r connector connector_folder <<< "$j"
                 only_folders="${j//$connector:/}"
                 if [[ "$connector" == "$i" && ! " ${VALIDATED_CONNECTORS[*]} " =~ " $connector " ]]; then
-                    echo "cargo run --bin test_utils -- --connector_name=$connector --base_url=$BASE_URL --admin_api_key=$ADMIN_API_KEY --folder_name=$only_folders"
-                    FAILED_CONNECTORS+=("$i")
-                    run_connector=true
-
-                    # if ! cargo run --bin test_utils -- --connector_name="$i" --base_url="$BASE_URL" --admin_api_key="$ADMIN_API_KEY" --folder_name="$only_folders"; then
-                    #     FAILED_CONNECTORS+=("$i")
-                    #     run_connector=true
-                    # fi
+                    if ! cargo run --bin test_utils -- --connector_name="$i" --base_url="$BASE_URL" --admin_api_key="$ADMIN_API_KEY" --folder_name="$only_folders"; then
+                        FAILED_CONNECTORS+=("$i")
+                        run_connector=true
+                    fi
                 fi
                 VALIDATED_CONNECTORS+=("$connector")
             done
@@ -114,14 +110,10 @@ for i in $(echo "$FILTERED_CONNECTORS" | tr "," "\n"); do
     # Run the tests for the rest
     if [[ "$run_connector" == "false" ]]; then
         if [[ ! " ${VALIDATED_CONNECTORS[*]} " =~ " $i " ]]; then
-            echo "cargo run --bin test_utils -- --connector_name=$i --base_url=$BASE_URL --admin_api_key=$ADMIN_API_KEY"
-            FAILED_CONNECTORS+=("$i")
-            VALIDATED_CONNECTORS+=("$i")
-
-            # if ! cargo run --bin test_utils -- --connector_name="$i" --base_url="$BASE_URL" --admin_api_key="$ADMIN_API_KEY"; then
-            #   FAILED_CONNECTORS+=("$i")
-            # fi
-            # validated_connectors+=("$i")
+            if ! cargo run --bin test_utils -- --connector_name="$i" --base_url="$BASE_URL" --admin_api_key="$ADMIN_API_KEY"; then
+              FAILED_CONNECTORS+=("$i")
+            fi
+            validated_connectors+=("$i")
         fi
     fi
 done
