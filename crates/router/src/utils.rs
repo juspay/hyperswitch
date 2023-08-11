@@ -248,9 +248,9 @@ pub fn add_connector_http_status_code_metrics(option_status_code: Option<u16>) {
             Some("5xx") => {
                 metrics::CONNECTOR_HTTP_STATUS_CODE_5XX_COUNT.add(&metrics::CONTEXT, 1, &[])
             }
-            _ => logger::info!("Skip metrics as invalid http status code recieved from connector"),
+            _ => logger::info!("Skip metrics as invalid http status code received from connector"),
         };
     } else {
-        logger::info!("Skip metrics as no http status code recieved from connector")
+        logger::info!("Skip metrics as no http status code received from connector")
     }
 }
