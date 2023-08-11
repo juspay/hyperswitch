@@ -70,7 +70,7 @@ pub async fn payments_incoming_webhook_flow<W: types::OutgoingWebhookType>(
     };
 
     match payments_response {
-        services::ApplicationResponse::Json(payments_response) => {
+        services::ApplicationResponse::JsonWithHeaders((payments_response, _)) => {
             let payment_id = payments_response
                 .payment_id
                 .clone()
@@ -426,7 +426,7 @@ async fn bank_transfer_webhook_flow<W: types::OutgoingWebhookType>(
     };
 
     match response? {
-        services::ApplicationResponse::Json(payments_response) => {
+        services::ApplicationResponse::JsonWithHeaders((payments_response, _)) => {
             let payment_id = payments_response
                 .payment_id
                 .clone()

@@ -285,23 +285,27 @@ where
                     match response {
                         Ok(body) => {
                             let response = match body {
-                                Ok(body) => connector_integration
-                                    .handle_response(req, body)
-                                    .map_err(|error| {
-                                        if error.current_context()
-                                        == &errors::ConnectorError::ResponseDeserializationFailed
-                                    {
-                                        metrics::RESPONSE_DESERIALIZATION_FAILURE.add(
-                                            &metrics::CONTEXT,
-                                            1,
-                                            &[metrics::request::add_attributes(
-                                                "connector",
-                                                req.connector.to_string(),
-                                            )],
-                                        )
-                                    }
-                                        error
-                                    })?,
+                                Ok(body) => {
+                                    let mut data = connector_integration
+                                        .handle_response(req, body.clone())
+                                        .map_err(|error| {
+                                            if error.current_context()
+                                            == &errors::ConnectorError::ResponseDeserializationFailed
+                                        {
+                                            metrics::RESPONSE_DESERIALIZATION_FAILURE.add(
+                                                &metrics::CONTEXT,
+                                                1,
+                                                &[metrics::request::add_attributes(
+                                                    "connector",
+                                                    req.connector.to_string(),
+                                                )],
+                                            )
+                                        }
+                                            error
+                                        })?;
+                                    data.connector_http_status_code = Some(body.status_code);
+                                    data
+                                }
                                 Err(body) => {
                                     metrics::CONNECTOR_ERROR_RESPONSE_COUNT.add(
                                         &metrics::CONTEXT,
@@ -312,13 +316,14 @@ where
                                         )],
                                     );
                                     let error = match body.status_code {
-                                        500..=511 => {
-                                            connector_integration.get_5xx_error_response(body)?
-                                        }
-                                        _ => connector_integration.get_error_response(body)?,
+                                        500..=511 => connector_integration
+                                            .get_5xx_error_response(body.clone())?,
+                                        _ => connector_integration
+                                            .get_error_response(body.clone())?,
                                     };
 
                                     router_data.response = Err(error);
+                                    router_data.connector_http_status_code = Some(body.status_code);
 
                                     router_data
                                 }
@@ -528,6 +533,7 @@ pub enum ApplicationResponse<R> {
     JsonForRedirection(api::RedirectionResponse),
     Form(Box<RedirectionFormData>),
     FileData((Vec<u8>, mime::Mime)),
+    JsonWithHeaders((R, Vec<(String, String)>)),
 }
 
 #[derive(Debug, Eq, PartialEq)]
@@ -704,6 +710,18 @@ where
         )
         .respond_to(request)
         .map_into_boxed_body(),
+        Ok(ApplicationResponse::JsonWithHeaders((response, headers))) => {
+            match serde_json::to_string(&response) {
+                Ok(res) => http_response_json_with_headers(res, headers),
+                Err(_) => http_response_err(
+                    r#"{
+                        "error": {
+                            "message": "Error serializing response from connector"
+                        }
+                    }"#,
+                ),
+            }
+        }
         Err(error) => log_and_return_error_response(error),
     };
 
@@ -765,6 +783,19 @@ impl EmbedError for Report<api_models::errors::types::ApiErrorResponse> {
 
 pub fn http_response_json<T: body::MessageBody + 'static>(response: T) -> HttpResponse {
     HttpResponse::Ok()
+        .content_type(mime::APPLICATION_JSON)
+        .body(response)
+}
+
+pub fn http_response_json_with_headers<T: body::MessageBody + 'static>(
+    response: T,
+    headers: Vec<(String, String)>,
+) -> HttpResponse {
+    let mut response_builder = HttpResponse::Ok();
+    for (name, value) in headers {
+        response_builder.append_header((name, value));
+    }
+    response_builder
         .content_type(mime::APPLICATION_JSON)
         .body(response)
 }
