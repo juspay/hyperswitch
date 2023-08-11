@@ -12,9 +12,8 @@ use router_env::{instrument, tracing};
 impl ConfigNew {
     #[instrument(skip(conn))]
     pub async fn insert(self, conn: &PgPooledConn) -> StorageResult<Config> {
-        let p = generics::generic_insert_query::<schema::configs::table, ConfigNew, Config>(self);
-        let y = p.on_conflict_do_nothing();
-        generics::insert::<schema::configs::table, _, _>(y, conn).await
+        let q = generics::generic_insert_query::<schema::configs::table, ConfigNew, Config>(self).on_conflict_do_nothing();
+        generics::insert::<schema::configs::table, _, _>(q, conn).await
     }
 }
 
