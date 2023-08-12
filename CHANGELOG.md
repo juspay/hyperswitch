@@ -4,6 +4,16 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 1.17.1+hotfix.3 (2023-08-12)
+
+### Bug Fixes
+
+- Add appropriate key for cashtocode to fix connector auth validation issue ([#1931](https://github.com/juspay/hyperswitch/pull/1931)) ([`0913e08`](https://github.com/juspay/hyperswitch/commit/0913e082124461a7544c27e96043e62409c2cb26))
+
+**Full Changelog:** [`v1.17.1+hotfix.2...v1.17.1+hotfix.3`](https://github.com/juspay/hyperswitch/compare/v1.17.1+hotfix.2...v1.17.1+hotfix.3)
+
+- - -
+
 ## 1.17.1+hotfix.2 (2023-08-11)
 
 ### Features
