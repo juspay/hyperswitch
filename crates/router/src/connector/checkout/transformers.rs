@@ -21,6 +21,13 @@ pub enum TokenRequest {
     Applepay(CheckoutApplePayData),
 }
 
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "lowercase")]
+#[serde(tag = "type", content = "token_data")]
+pub enum PreDecryptedTokenRequest {
+    Applepay(CheckoutApplePayData),
+}
+
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CheckoutGooglePayData {
@@ -155,6 +162,19 @@ pub struct WalletSource {
 pub enum PaymentSource {
     Card(CardSource),
     Wallets(WalletSource),
+    ApplePayPredecrypt(ApplePayPredecrypt),
+}
+
+#[derive(Debug, Serialize)]
+pub struct ApplePayPredecrypt {
+    token: String,
+    #[serde(rename = "type")]
+    decrypt_type: String,
+    token_type: String,
+    expiry_month: String,
+    expiry_year: String,
+    eci: Option<String>,
+    cryptogram: String,
 }
 
 #[derive(Debug, Serialize)]
@@ -218,6 +238,7 @@ impl TryFrom<&types::ConnectorAuthType> for CheckoutAuthType {
 impl TryFrom<&types::PaymentsAuthorizeRouterData> for PaymentsRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::PaymentsAuthorizeRouterData) -> Result<Self, Self::Error> {
+        let pm_token = item.get_payment_method_token()?;
         let source_var = match item.request.payment_method_data.clone() {
             api::PaymentMethodData::Card(ccard) => {
                 let a = PaymentSource::Card(CardSource {
@@ -230,11 +251,32 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PaymentsRequest {
                 Ok(a)
             }
             api::PaymentMethodData::Wallet(wallet_data) => match wallet_data {
-                api_models::payments::WalletData::GooglePay(_)
-                | api_models::payments::WalletData::ApplePay(_) => {
+                api_models::payments::WalletData::GooglePay(_) => {
                     Ok(PaymentSource::Wallets(WalletSource {
                         source_type: CheckoutSourceTypes::Token,
-                        token: item.get_payment_method_token()?,
+                        token: match pm_token {
+                            types::PaymentMethodTokens::Token(token) => token,
+                            types::PaymentMethodTokens::ApplePayDecrypt(_) => Err(errors::ConnectorError::InvalidWalletToken)?,
+                        },
+                    }))
+                }
+                api_models::payments::WalletData::ApplePay(_) => {
+                    let decrypt_data = match item.payment_method_token.clone().unwrap() {
+                        types::PaymentMethodTokens::Token(_) => Err(errors::ConnectorError::InvalidWalletToken)?,
+                        types::PaymentMethodTokens::ApplePayDecrypt(data) => data,
+                    };
+                    let expiry_year_4_digit = format!(
+                        "20{}",
+                        decrypt_data.application_expiration_date[0..2].to_string()
+                    );
+                    Ok(PaymentSource::ApplePayPredecrypt(ApplePayPredecrypt {
+                        token: decrypt_data.application_primary_account_number,
+                        decrypt_type: "network_token".to_string(),
+                        token_type: "applepay".to_string(),
+                        expiry_month: decrypt_data.application_expiration_date[2..4].to_string(),
+                        expiry_year: expiry_year_4_digit,
+                        eci: decrypt_data.payment_data.eci_indicator,
+                        cryptogram: decrypt_data.payment_data.online_payment_cryptogram,
                     }))
                 }
                 api_models::payments::WalletData::AliPayQr(_)

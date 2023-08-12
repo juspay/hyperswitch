@@ -21,8 +21,8 @@ pub struct RapydPaymentsRequest {
     pub payment_method_options: Option<PaymentMethodOptions>,
     pub capture: Option<bool>,
     pub description: Option<String>,
-    pub complete_payment_url: Option<String>,
-    pub error_payment_url: Option<String>,
+    // pub complete_payment_url: Option<String>,
+    // pub error_payment_url: Option<String>,
 }
 
 #[derive(Default, Debug, Serialize)]
@@ -136,8 +136,8 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for RapydPaymentsRequest {
             capture,
             payment_method_options,
             description: None,
-            error_payment_url: Some(return_url.clone()),
-            complete_payment_url: Some(return_url),
+            // error_payment_url: Some(return_url.clone()),
+            // complete_payment_url: Some(return_url),
         })
     }
 }

@@ -233,7 +233,7 @@ pub struct RouterData<Flow, Request, Response> {
     pub access_token: Option<AccessToken>,
     pub session_token: Option<String>,
     pub reference_id: Option<String>,
-    pub payment_method_token: Option<String>,
+    pub payment_method_token: Option<PaymentMethodTokens>,
     pub recurring_mandate_payment_data: Option<RecurringMandatePaymentData>,
     pub preprocessing_id: Option<String>,
     /// This is the balance amount for gift cards or voucher
@@ -259,6 +259,31 @@ pub struct RouterData<Flow, Request, Response> {
     pub quote_id: Option<String>,
 
     pub test_mode: Option<bool>,
+}
+
+#[derive(Debug, Clone, serde::Deserialize)]
+pub enum PaymentMethodTokens {
+    Token(String),
+    ApplePayDecrypt(ApplePayPredecryptData),
+}
+
+#[derive(Debug, Clone, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ApplePayPredecryptData {
+    pub application_primary_account_number: String,
+    pub application_expiration_date: String,
+    pub currency_code: String,
+    pub transaction_amount: i64,
+    pub device_manufacturer_identifier: String,
+    pub payment_data_type: String,
+    pub payment_data: ApplePayCryptogramData,
+}
+
+#[derive(Debug, Clone, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ApplePayCryptogramData {
+    pub online_payment_cryptogram: String,
+    pub eci_indicator: Option<String>
 }
 
 #[derive(Debug, Clone)]

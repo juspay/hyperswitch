@@ -44,7 +44,7 @@ use crate::{
         self,
         crypto::{self, SignMessage},
         OptionExt,
-    },
+    }, connector::utils::WalletData,
 };
 
 pub fn create_identity_from_certificate_and_key(
@@ -2877,4 +2877,127 @@ pub fn validate_customer_access(
         }
     }
     Ok(())
+}
+
+use openssl::ec::EcKey;
+use openssl::pkey::PKey;
+use openssl::symm::{decrypt_aead, Cipher};
+use std::error::Error;
+use data_encoding::BASE64;
+use std::str;
+use std::string::String;
+use std::fs::File;
+use std::io::prelude::*;
+use std::io::BufReader;
+use x509_parser::parse_x509_certificate;
+use openssl::derive::Deriver;
+use serde::{Deserialize, Serialize};
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct ApplePayData {
+    version: masking::Secret<String>,
+    data: masking::Secret<String>,
+    signature: masking::Secret<String>,
+    header: ApplePayHeader,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ApplePayHeader {
+    ephemeral_public_key: masking::Secret<String>,
+    public_key_hash: masking::Secret<String>,
+    transaction_id: masking::Secret<String>,
+}
+
+impl ApplePayData {
+    pub fn token_json (wallet_data: api_models::payments::WalletData) -> Result<ApplePayData, error_stack::Report<errors::ConnectorError>> {
+        let json_wallet_data: ApplePayData = wallet_data.get_wallet_token_as_json()?;
+        Ok(json_wallet_data)
+    }
+
+    pub fn decrypt(&self, private_pem: &str) -> Result<serde_json::Value, Box<dyn Error>> {
+        let merchant_id = self.merchant_id()?;
+        let shared_secret = self.shared_secret(private_pem)?;
+        let symmetric_key = self.symmetric_key(&merchant_id, &shared_secret)?;
+        let decrypted = self.decrypt_ciphertext(&symmetric_key)?;
+        let parsed_decrypted: serde_json::Value = serde_json::from_str(&decrypted)?;
+        Ok(parsed_decrypted)
+    }
+        
+    pub fn merchant_id(&self) -> Result<String, Box<dyn Error>> {
+        let certificate_path = "/Users/shankar.singh/Documents/new/apple_pay.cer";
+        let cert_file = File::open(certificate_path)?;
+        let mut buf_reader = BufReader::new(cert_file);
+        let mut cert_data = Vec::new();
+        buf_reader.read_to_end(&mut cert_data)?;
+
+        // Parsing the certificate using x509-parser
+        let (_, certificate) = parse_x509_certificate(&cert_data)?;
+
+        // Finding the merchant ID extension
+        let extension = certificate.extensions().iter().find(|extension| extension.oid.to_string().eq(consts::MERCHANT_ID_FIELD_OID));
+        if let Some(extension) = extension {
+            let merchant_id = String::from_utf8_lossy(extension.value).trim().trim_start_matches('@').to_string();
+
+            return Ok(merchant_id);
+        }
+
+        Err("Unable to find merchant ID extension in the certificate".into())
+    }
+
+pub fn shared_secret(&self, private_pem: &str) -> Result<Vec<u8>, Box<dyn Error>> {
+    let private_ec = EcKey::private_key_from_pem(private_pem.as_bytes())?;
+    let public_ec_bytes = BASE64.decode(&self.header.ephemeral_public_key.peek().as_bytes())?;
+    let public_ec = EcKey::public_key_from_der(&public_ec_bytes)?;
+
+    // Create PKey objects from EcKey
+    let private_key = PKey::from_ec_key(private_ec)?;
+    let public_key = PKey::from_ec_key(public_ec)?;
+
+    // Create the Deriver object and set the peer public key
+    let mut deriver = Deriver::new(&private_key)?;
+    deriver.set_peer(&public_key)?;
+
+    // Compute the shared secret
+    let shared_secret = deriver.derive_to_vec()?;
+    // println!("{:?}", hex::encode(shared_secret.clone()));
+    Ok(shared_secret)
+}
+
+
+    pub fn symmetric_key(
+        &self,
+        merchant_id: &str,
+        shared_secret: &[u8],
+    ) -> Result<Vec<u8>, Box<dyn Error>> {
+        let kdf_algorithm = b"\x0did-aes256-GCM";
+        let kdf_party_v = hex::decode(merchant_id)?;
+        let kdf_party_u = b"Apple";
+        let kdf_info = [&kdf_algorithm[..], kdf_party_u, &kdf_party_v[..]].concat();
+
+        let mut hash = openssl::sha::Sha256::new();
+        hash.update(b"\x00\x00\x00");
+        hash.update(b"\x01");
+        hash.update(shared_secret);
+        hash.update(&kdf_info[..]);
+        let symmetric_key = hash.finish();
+        Ok(symmetric_key.to_vec())
+    }
+
+    pub fn decrypt_ciphertext(
+        &self,
+        symmetric_key: &[u8],
+    ) -> Result<String, Box<dyn Error>> {
+        let data = BASE64.decode(self.data.peek().as_bytes())?;
+        let iv = [0u8; 16]; //Initialization vector IV is typically used in AES-GCM (Galois/Counter Mode) encryption for randomizing the encryption process.
+        let ciphertext = &data[..data.len() - 16]; //done assumuing the last 16 byte is authentication tag
+        let tag = &data[data.len() - 16..];
+
+        // let mut decrypted = vec![0u8; ciphertext.len()];
+        let cipher = Cipher::aes_256_gcm();
+        let decrypted_data = decrypt_aead(cipher, symmetric_key, Some(&iv), &[], ciphertext, tag)?;
+        let decrypted = String::from_utf8(decrypted_data)?;
+
+        Ok(decrypted)
+    }
 }

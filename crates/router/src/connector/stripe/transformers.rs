@@ -1548,17 +1548,23 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PaymentIntentRequest {
         };
 
         payment_data = match item.request.payment_method_data {
-            payments::PaymentMethodData::Wallet(payments::WalletData::ApplePay(_)) => Some(
+            payments::PaymentMethodData::Wallet(payments::WalletData::ApplePay(_)) => {
+                let payment_method_token =  item.payment_method_token
+                .to_owned()
+                .get_required_value("payment_token")
+                .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+                let payment_method_token = match payment_method_token {
+                    types::PaymentMethodTokens::Token(payment_method_token) => payment_method_token,
+                    types::PaymentMethodTokens::ApplePayDecrypt(_) => Err(errors::ConnectorError::InvalidWalletToken)?,
+                };
+                Some(
                 StripePaymentMethodData::Wallet(StripeWallet::ApplepayPayment(ApplepayPayment {
                     token: Secret::new(
-                        item.payment_method_token
-                            .to_owned()
-                            .get_required_value("payment_token")
-                            .change_context(errors::ConnectorError::RequestEncodingFailed)?,
+                        payment_method_token
                     ),
                     payment_method_types: StripePaymentMethodType::Card,
                 })),
-            ),
+            )},
             _ => payment_data,
         };
 

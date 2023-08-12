@@ -26,6 +26,7 @@ pub struct StaxPaymentsRequest {
 impl TryFrom<&types::PaymentsAuthorizeRouterData> for StaxPaymentsRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::PaymentsAuthorizeRouterData) -> Result<Self, Self::Error> {
+        let pm_token = item.get_payment_method_token()?;
         match item.request.payment_method_data.clone() {
             api::PaymentMethodData::Card(_) => {
                 let pre_auth = !item.request.is_auto_capture()?;
@@ -34,7 +35,10 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for StaxPaymentsRequest {
                     total: item.request.amount,
                     is_refundable: true,
                     pre_auth,
-                    payment_method_id: Secret::new(item.get_payment_method_token()?),
+                    payment_method_id: Secret::new(match pm_token {
+                        types::PaymentMethodTokens::Token(token) => token,
+                        types::PaymentMethodTokens::ApplePayDecrypt(_) => Err(errors::ConnectorError::InvalidWalletToken)?,
+                    }),
                 })
             }
             api::PaymentMethodData::BankDebit(_) => {
@@ -44,7 +48,10 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for StaxPaymentsRequest {
                     total: item.request.amount,
                     is_refundable: true,
                     pre_auth,
-                    payment_method_id: Secret::new(item.get_payment_method_token()?),
+                    payment_method_id: Secret::new(match pm_token {
+                        types::PaymentMethodTokens::Token(token) => token,
+                        types::PaymentMethodTokens::ApplePayDecrypt(_) => Err(errors::ConnectorError::InvalidWalletToken)?,
+                    }),
                 })
             }
             _ => Err(errors::ConnectorError::NotImplemented("Payment methods".to_string()).into()),
