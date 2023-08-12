@@ -90,7 +90,7 @@ impl TryFrom<&types::ConnectorAuthType> for CashtocodeAuthType {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(auth_type: &types::ConnectorAuthType) -> Result<Self, Self::Error> {
         match auth_type {
-            types::ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self {
+            types::ConnectorAuthType::BodyKey { api_key, .. } => Ok(Self {
                 api_key: api_key.to_owned(),
             }),
             _ => Err(errors::ConnectorError::FailedToObtainAuthType.into()),
