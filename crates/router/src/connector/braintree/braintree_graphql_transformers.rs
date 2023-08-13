@@ -366,7 +366,7 @@ impl<F> TryFrom<&types::RefundsRouterData<F>> for BraintreeRefundRequest {
         let query = "mutation refundTransaction($input:  RefundTransactionInput!) { refundTransaction(input: $input) {clientMutationId refund { id legacyId amount { value currencyCode } status }}}".to_string();
         let variables = BraintreeRefundVariables {
             input: BraintreeRefundInput {
-                transaction_id: item.request.refund_id.clone(),
+                transaction_id: item.request.connector_transaction_id.clone(),
             },
         };
         Ok(Self { query, variables })
@@ -402,6 +402,7 @@ pub struct BraintreeRefundTransaction {
 }
 
 #[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct BraintreeRefundResponseData {
     pub refund_transaction: BraintreeRefundTransaction,
 }
