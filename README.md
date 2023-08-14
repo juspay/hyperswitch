@@ -45,7 +45,7 @@ Using HyperSwitch, you can:
 - **Increase business reach** with local/alternate payment methods
 
 > HyperSwitch is **wire-compatible** with top processors like Stripe, making it
-> Easy to integrate.
+> easy to integrate.
 
 <br>
 <img src="./docs/imgs/hyperswitch-product.png" alt="HyperSwitch-Product" width="50%" />
