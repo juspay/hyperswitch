@@ -4,5 +4,23 @@ version = "0.1.0"
 edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+[features]
+default = ["olap", "oltp"]
+oltp = []
+olap = []
 
 [dependencies]
+# First party deps
+common_enums = { version = "0.1.0", path = "../common_enums" }
+api_models = { version = "0.1.0", path = "../api_models" }
+common_utils = { version = "0.1.0", path = "../common_utils" }
+
+
+# Third party deps
+async-trait = "0.1.68"
+serde = { version = "1.0.163", features = ["derive"] }
+serde_json = "1.0.96"
+time = { version = "0.3.21", features = ["serde", "serde-well-known", "std"] }
+error-stack = "0.3.1"
+strum  = { version = "0.25", features = [ "derive" ] }
+thiserror = "1.0.40"

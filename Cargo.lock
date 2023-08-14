@@ -1669,6 +1669,22 @@ dependencies = [
 ]
 
 [[package]]
+name = "data_models"
+version = "0.1.0"
+dependencies = [
+ "api_models",
+ "async-trait",
+ "common_enums",
+ "common_utils",
+ "error-stack",
+ "serde",
+ "serde_json",
+ "strum 0.25.0",
+ "thiserror",
+ "time 0.3.22",
+]
+
+[[package]]
 name = "deadpool"
 version = "0.9.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4014,6 +4030,7 @@ dependencies = [
  "clap",
  "common_utils",
  "config",
+ "data_models",
  "derive_deref",
  "diesel",
  "diesel_models",
@@ -4663,15 +4680,18 @@ checksum = "6e63cff320ae2c57904679ba7cb63280a3dc4613885beafb148ee7bf9aa9042d"
 name = "storage_impl"
 version = "0.1.0"
 dependencies = [
+ "api_models",
  "async-bb8-diesel",
  "async-trait",
  "bb8",
  "common_utils",
  "crc32fast",
+ "data_models",
  "diesel",
  "diesel_models",
  "dyn-clone",
  "error-stack",
+ "futures",
  "masking",
  "moka",
  "once_cell",

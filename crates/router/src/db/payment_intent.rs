@@ -1,3 +1,5 @@
+use data_models::payments::payment_intent::PaymentIntentInterface;
+
 use super::MockDb;
 #[cfg(feature = "olap")]
 use crate::types::api;
@@ -6,61 +8,14 @@ use crate::{
     types::storage::{self as types, enums},
 };
 
-#[async_trait::async_trait]
-pub trait PaymentIntentInterface {
-    async fn update_payment_intent(
-        &self,
-        this: types::PaymentIntent,
-        payment_intent: types::PaymentIntentUpdate,
-        storage_scheme: enums::MerchantStorageScheme,
-    ) -> CustomResult<types::PaymentIntent, errors::StorageError>;
-
-    async fn insert_payment_intent(
-        &self,
-        new: types::PaymentIntentNew,
-        storage_scheme: enums::MerchantStorageScheme,
-    ) -> CustomResult<types::PaymentIntent, errors::StorageError>;
-
-    async fn find_payment_intent_by_payment_id_merchant_id(
-        &self,
-        payment_id: &str,
-        merchant_id: &str,
-        storage_scheme: enums::MerchantStorageScheme,
-    ) -> CustomResult<types::PaymentIntent, errors::StorageError>;
-
-    #[cfg(feature = "olap")]
-    async fn filter_payment_intent_by_constraints(
-        &self,
-        merchant_id: &str,
-        pc: &api::PaymentListConstraints,
-        storage_scheme: enums::MerchantStorageScheme,
-    ) -> CustomResult<Vec<types::PaymentIntent>, errors::StorageError>;
-
-    #[cfg(feature = "olap")]
-    async fn filter_payment_intents_by_time_range_constraints(
-        &self,
-        merchant_id: &str,
-        time_range: &api::TimeRange,
-        storage_scheme: enums::MerchantStorageScheme,
-    ) -> CustomResult<Vec<types::PaymentIntent>, errors::StorageError>;
-
-    #[cfg(feature = "olap")]
-    async fn apply_filters_on_payments_list(
-        &self,
-        merchant_id: &str,
-        constraints: &api::PaymentListFilterConstraints,
-        storage_scheme: enums::MerchantStorageScheme,
-    ) -> CustomResult<Vec<(types::PaymentIntent, types::PaymentAttempt)>, errors::StorageError>;
-}
-
 #[cfg(feature = "kv_store")]
 mod storage {
-    use common_utils::date_time;
+    use common_utils::{date_time, ext_traits::Encode};
+    use data_models::payments::payment_intent::PaymentIntentInterface;
     use error_stack::{IntoReport, ResultExt};
     use redis_interface::HsetnxReply;
     use storage_impl::redis::kv_store::RedisConnInterface;
 
-    use super::PaymentIntentInterface;
     #[cfg(feature = "olap")]
     use crate::types::api;
     use crate::{
@@ -175,7 +130,7 @@ mod storage {
                     // Check for database presence as well Maybe use a read replica here ?
 
                     let redis_value =
-                        utils::Encode::<PaymentIntent>::encode_to_string_of_json(&updated_intent)
+                        Encode::<PaymentIntent>::encode_to_string_of_json(&updated_intent)
                             .change_context(errors::StorageError::SerializationFailed)?;
 
                     let updated_intent = self

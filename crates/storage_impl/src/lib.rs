@@ -8,6 +8,7 @@ pub mod database;
 pub mod payments;
 pub mod redis;
 pub mod refund;
+mod utils;
 
 use database::store::PgPool;
 use redis_interface::errors::RedisError;
@@ -192,4 +193,11 @@ impl<T: DatabaseStore> KVRouterStore<T> {
             .await
             .change_context(RedisError::StreamAppendFailed)
     }
+}
+
+
+trait DataModelExt {
+    type StorageModel;
+    fn to_storage_model(self) -> Self::StorageModel;
+    fn from_storage_model(storage_model: Self::StorageModel) -> Self;
 }
