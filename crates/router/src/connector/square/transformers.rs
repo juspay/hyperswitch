@@ -18,6 +18,18 @@ pub struct SquareCardData {
     exp_year: Secret<u16>,
     number: cards::CardNumber,
 }
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SquareGooglePayTokenData {
+    token: String,
+    tokenization_type: String,
+}
+#[derive(Debug, Serialize)]
+pub struct SquareGooglePayData {
+    idempotency_key: String,
+    payment_method_token: SquareGooglePayTokenData,
+}
 #[derive(Debug, Serialize)]
 pub struct SquareTokenizeData {
     client_id: Secret<String>,
@@ -26,9 +38,17 @@ pub struct SquareTokenizeData {
 }
 
 #[derive(Debug, Serialize)]
+pub struct SquareGooglePayTokenizeData {
+    client_id: Secret<String>,
+    session_id: Secret<String>,
+    googlepay_data: SquareGooglePayData,
+}
+
+#[derive(Debug, Serialize)]
 #[serde(untagged)]
 pub enum SquareTokenRequest {
     Card(SquareTokenizeData),
+    GooglePay(SquareGooglePayTokenizeData)
 }
 
 impl TryFrom<&types::TokenizationRouterData> for SquareTokenRequest {
@@ -66,9 +86,27 @@ impl TryFrom<&types::TokenizationRouterData> for SquareTokenRequest {
                     },
                 }))
             }
+            api::PaymentMethodData::Wallet(wallet_data) => match wallet_data {
+                api_models::payments::WalletData::GooglePay(googlepay_data) => {
+                    Ok(Self::GooglePay(SquareGooglePayTokenizeData { 
+                        client_id: auth.key1,
+                        session_id: Secret::new(item.session_token.clone().unwrap_or_default()),
+                        googlepay_data: SquareGooglePayData{
+                            idempotency_key: item.payment_id.clone(),
+                            payment_method_token: SquareGooglePayTokenData{
+                                token: googlepay_data.tokenization_data.token,
+                                tokenization_type: googlepay_data.tokenization_data.token_type,
+                            }
+                        }
+                    }))
+                }
+                _ => Err(errors::ConnectorError::NotImplemented(
+                    "Payment Method".to_string(),
+                ))
+                .into_report(),
+            }
             api::PaymentMethodData::BankDebit(_)
             | api::PaymentMethodData::CardRedirect(_)
-            | api::PaymentMethodData::Wallet(_)
             | api::PaymentMethodData::PayLater(_)
             | api::PaymentMethodData::BankRedirect(_)
             | api::PaymentMethodData::BankTransfer(_)
@@ -158,7 +196,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for SquarePaymentsRequest {
     fn try_from(item: &types::PaymentsAuthorizeRouterData) -> Result<Self, Self::Error> {
         let autocomplete = item.request.is_auto_capture()?;
         match item.request.payment_method_data.clone() {
-            api::PaymentMethodData::Card(_) => Ok(Self {
+            api::PaymentMethodData::Card(_) | api::PaymentMethodData::Wallet(_) => Ok(Self {
                 idempotency_key: Secret::new(item.payment_id.clone()),
                 source_id: Secret::new(item.get_payment_method_token()?),
                 amount_money: SquarePaymentsAmountData {

@@ -986,7 +986,7 @@ pub(crate) fn validate_auth_type(
             Ok(())
         }
         api_enums::Connector::Square => {
-            stax::transformers::StaxAuthType::try_from(val)?;
+            square::transformers::SquareAuthType::try_from(val)?;
             Ok(())
         }
         api_enums::Connector::Stax => {
