@@ -2,9 +2,8 @@ use bb8::PooledConnection;
 use data_models::errors::StorageError;
 use diesel::PgConnection;
 use error_stack::{IntoReport, ResultExt};
+
 use crate::DatabaseStore;
-
-
 
 pub async fn pg_connection_read<T: DatabaseStore>(
     store: &T,

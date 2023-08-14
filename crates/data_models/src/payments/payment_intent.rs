@@ -49,7 +49,10 @@ pub trait PaymentIntentInterface {
         merchant_id: &str,
         constraints: &api_models::payments::PaymentListFilterConstraints,
         storage_scheme: MerchantStorageScheme,
-    ) -> error_stack::Result<Vec<(PaymentIntent, super::payment_attempt::PaymentAttempt)>, errors::StorageError>;
+    ) -> error_stack::Result<
+        Vec<(PaymentIntent, super::payment_attempt::PaymentAttempt)>,
+        errors::StorageError,
+    >;
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]

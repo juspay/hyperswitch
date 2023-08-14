@@ -195,7 +195,6 @@ impl<T: DatabaseStore> KVRouterStore<T> {
     }
 }
 
-
 trait DataModelExt {
     type StorageModel;
     fn to_storage_model(self) -> Self::StorageModel;

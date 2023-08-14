@@ -1,15 +1,29 @@
-use common_utils::date_time;
-use common_utils::ext_traits::Encode;
-use data_models::payments::payment_intent::{PaymentIntentInterface, PaymentIntentUpdate, PaymentIntent, PaymentIntentNew};
-use data_models::payments::payment_attempt::{PaymentAttempt, PaymentAttemptNew};
-use data_models::MerchantStorageScheme;
-use data_models::errors::StorageError;
-use diesel_models::kv;
+use common_utils::{date_time, ext_traits::Encode};
+use data_models::{
+    errors::StorageError,
+    payments::{
+        payment_attempt::{PaymentAttempt, PaymentAttemptNew},
+        payment_intent::{
+            PaymentIntent, PaymentIntentInterface, PaymentIntentNew, PaymentIntentUpdate,
+        },
+    },
+    MerchantStorageScheme,
+};
+use diesel_models::{
+    kv,
+    payment_intent::{
+        PaymentIntent as DieselPaymentIntent, PaymentIntentNew as DieselPaymentIntentNew,
+        PaymentIntentUpdate as DieselPaymentIntentUpdate,
+    },
+};
 use error_stack::{IntoReport, ResultExt};
-use diesel_models::payment_intent::{PaymentIntent as DieselPaymentIntent, PaymentIntentNew as DieselPaymentIntentNew, PaymentIntentUpdate as DieselPaymentIntentUpdate};
 use redis_interface::HsetnxReply;
-use crate::{DatabaseStore, KVRouterStore, DataModelExt};
-use crate::{redis::kv_store::RedisConnInterface, utils::{pg_connection_write, pg_connection_read}};
+
+use crate::{
+    redis::kv_store::RedisConnInterface,
+    utils::{pg_connection_read, pg_connection_write},
+    DataModelExt, DatabaseStore, KVRouterStore,
+};
 
 // #[async_trait::async_trait]
 // impl<T: DatabaseStore> PaymentIntentInterface for KVRouterStore<T> {
@@ -241,8 +255,9 @@ use crate::{redis::kv_store::RedisConnInterface, utils::{pg_connection_write, pg
 // }
 
 #[async_trait::async_trait]
-impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> 
-where T::Config: Send
+impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T>
+where
+    T::Config: Send,
 {
     async fn insert_payment_intent(
         &self,
@@ -250,7 +265,11 @@ where T::Config: Send
         _storage_scheme: MerchantStorageScheme,
     ) -> error_stack::Result<PaymentIntent, StorageError> {
         let conn = pg_connection_write(self).await?;
-        new.to_storage_model().insert(&conn).await.change_context(StorageError::TemporaryError).map(PaymentIntent::from_storage_model)
+        new.to_storage_model()
+            .insert(&conn)
+            .await
+            .change_context(StorageError::TemporaryError)
+            .map(PaymentIntent::from_storage_model)
     }
 
     async fn update_payment_intent(
@@ -260,7 +279,8 @@ where T::Config: Send
         _storage_scheme: MerchantStorageScheme,
     ) -> error_stack::Result<PaymentIntent, StorageError> {
         let conn = pg_connection_write(self).await?;
-        this.to_storage_model().update(&conn, payment_intent.to_storage_model())
+        this.to_storage_model()
+            .update(&conn, payment_intent.to_storage_model())
             .await
             .change_context(StorageError::TemporaryError)
             .map(PaymentIntent::from_storage_model)
@@ -395,8 +415,6 @@ impl DataModelExt for PaymentIntentNew {
             attempt_count: storage_model.attempt_count,
         }
     }
-
-    
 }
 
 impl DataModelExt for PaymentIntent {
@@ -471,9 +489,6 @@ impl DataModelExt for PaymentIntent {
             attempt_count: storage_model.attempt_count,
         }
     }
-
-    
-    
 }
 
 impl DataModelExt for PaymentIntentUpdate {
@@ -481,28 +496,179 @@ impl DataModelExt for PaymentIntentUpdate {
 
     fn to_storage_model(self) -> Self::StorageModel {
         match self {
-            Self::ResponseUpdate { status, amount_captured, return_url } => DieselPaymentIntentUpdate::ResponseUpdate { status, amount_captured, return_url },
-            Self::MetadataUpdate { metadata } => DieselPaymentIntentUpdate::MetadataUpdate { metadata },
-            Self::ReturnUrlUpdate { return_url, status, customer_id, shipping_address_id, billing_address_id } => DieselPaymentIntentUpdate::ReturnUrlUpdate { return_url, status, customer_id, shipping_address_id, billing_address_id },
-            Self::MerchantStatusUpdate { status, shipping_address_id, billing_address_id } => DieselPaymentIntentUpdate::MerchantStatusUpdate { status, shipping_address_id, billing_address_id },
+            Self::ResponseUpdate {
+                status,
+                amount_captured,
+                return_url,
+            } => DieselPaymentIntentUpdate::ResponseUpdate {
+                status,
+                amount_captured,
+                return_url,
+            },
+            Self::MetadataUpdate { metadata } => {
+                DieselPaymentIntentUpdate::MetadataUpdate { metadata }
+            }
+            Self::ReturnUrlUpdate {
+                return_url,
+                status,
+                customer_id,
+                shipping_address_id,
+                billing_address_id,
+            } => DieselPaymentIntentUpdate::ReturnUrlUpdate {
+                return_url,
+                status,
+                customer_id,
+                shipping_address_id,
+                billing_address_id,
+            },
+            Self::MerchantStatusUpdate {
+                status,
+                shipping_address_id,
+                billing_address_id,
+            } => DieselPaymentIntentUpdate::MerchantStatusUpdate {
+                status,
+                shipping_address_id,
+                billing_address_id,
+            },
             Self::PGStatusUpdate { status } => DieselPaymentIntentUpdate::PGStatusUpdate { status },
-            Self::Update { amount, currency, setup_future_usage, status, customer_id, shipping_address_id, billing_address_id, return_url, business_country, business_label, description, statement_descriptor_name, statement_descriptor_suffix, order_details, metadata } => DieselPaymentIntentUpdate::Update { amount, currency, setup_future_usage, status, customer_id, shipping_address_id, billing_address_id, return_url, business_country, business_label, description, statement_descriptor_name, statement_descriptor_suffix, order_details, metadata },
-            Self::PaymentAttemptAndAttemptCountUpdate { active_attempt_id, attempt_count } => DieselPaymentIntentUpdate::PaymentAttemptAndAttemptCountUpdate { active_attempt_id, attempt_count },
-            Self::StatusAndAttemptUpdate { status, active_attempt_id, attempt_count } => DieselPaymentIntentUpdate::StatusAndAttemptUpdate { status, active_attempt_id, attempt_count },
+            Self::Update {
+                amount,
+                currency,
+                setup_future_usage,
+                status,
+                customer_id,
+                shipping_address_id,
+                billing_address_id,
+                return_url,
+                business_country,
+                business_label,
+                description,
+                statement_descriptor_name,
+                statement_descriptor_suffix,
+                order_details,
+                metadata,
+            } => DieselPaymentIntentUpdate::Update {
+                amount,
+                currency,
+                setup_future_usage,
+                status,
+                customer_id,
+                shipping_address_id,
+                billing_address_id,
+                return_url,
+                business_country,
+                business_label,
+                description,
+                statement_descriptor_name,
+                statement_descriptor_suffix,
+                order_details,
+                metadata,
+            },
+            Self::PaymentAttemptAndAttemptCountUpdate {
+                active_attempt_id,
+                attempt_count,
+            } => DieselPaymentIntentUpdate::PaymentAttemptAndAttemptCountUpdate {
+                active_attempt_id,
+                attempt_count,
+            },
+            Self::StatusAndAttemptUpdate {
+                status,
+                active_attempt_id,
+                attempt_count,
+            } => DieselPaymentIntentUpdate::StatusAndAttemptUpdate {
+                status,
+                active_attempt_id,
+                attempt_count,
+            },
         }
     }
 
     fn from_storage_model(storage_model: Self::StorageModel) -> Self {
         match storage_model {
-            DieselPaymentIntentUpdate::ResponseUpdate { status, amount_captured, return_url } => Self::ResponseUpdate { status, amount_captured, return_url },
-            DieselPaymentIntentUpdate::MetadataUpdate { metadata } => Self::MetadataUpdate { metadata },
-            DieselPaymentIntentUpdate::ReturnUrlUpdate { return_url, status, customer_id, shipping_address_id, billing_address_id } => Self::ReturnUrlUpdate { return_url, status, customer_id, shipping_address_id, billing_address_id },
-            DieselPaymentIntentUpdate::MerchantStatusUpdate { status, shipping_address_id, billing_address_id } => Self::MerchantStatusUpdate { status, shipping_address_id, billing_address_id },
+            DieselPaymentIntentUpdate::ResponseUpdate {
+                status,
+                amount_captured,
+                return_url,
+            } => Self::ResponseUpdate {
+                status,
+                amount_captured,
+                return_url,
+            },
+            DieselPaymentIntentUpdate::MetadataUpdate { metadata } => {
+                Self::MetadataUpdate { metadata }
+            }
+            DieselPaymentIntentUpdate::ReturnUrlUpdate {
+                return_url,
+                status,
+                customer_id,
+                shipping_address_id,
+                billing_address_id,
+            } => Self::ReturnUrlUpdate {
+                return_url,
+                status,
+                customer_id,
+                shipping_address_id,
+                billing_address_id,
+            },
+            DieselPaymentIntentUpdate::MerchantStatusUpdate {
+                status,
+                shipping_address_id,
+                billing_address_id,
+            } => Self::MerchantStatusUpdate {
+                status,
+                shipping_address_id,
+                billing_address_id,
+            },
             DieselPaymentIntentUpdate::PGStatusUpdate { status } => Self::PGStatusUpdate { status },
-            DieselPaymentIntentUpdate::Update { amount, currency, setup_future_usage, status, customer_id, shipping_address_id, billing_address_id, return_url, business_country, business_label, description, statement_descriptor_name, statement_descriptor_suffix, order_details, metadata } => Self::Update { amount, currency, setup_future_usage, status, customer_id, shipping_address_id, billing_address_id, return_url, business_country, business_label, description, statement_descriptor_name, statement_descriptor_suffix, order_details, metadata },
-            DieselPaymentIntentUpdate::PaymentAttemptAndAttemptCountUpdate { active_attempt_id, attempt_count } => Self::PaymentAttemptAndAttemptCountUpdate { active_attempt_id, attempt_count },
-            DieselPaymentIntentUpdate::StatusAndAttemptUpdate { status, active_attempt_id, attempt_count } => Self::StatusAndAttemptUpdate { status, active_attempt_id, attempt_count },
+            DieselPaymentIntentUpdate::Update {
+                amount,
+                currency,
+                setup_future_usage,
+                status,
+                customer_id,
+                shipping_address_id,
+                billing_address_id,
+                return_url,
+                business_country,
+                business_label,
+                description,
+                statement_descriptor_name,
+                statement_descriptor_suffix,
+                order_details,
+                metadata,
+            } => Self::Update {
+                amount,
+                currency,
+                setup_future_usage,
+                status,
+                customer_id,
+                shipping_address_id,
+                billing_address_id,
+                return_url,
+                business_country,
+                business_label,
+                description,
+                statement_descriptor_name,
+                statement_descriptor_suffix,
+                order_details,
+                metadata,
+            },
+            DieselPaymentIntentUpdate::PaymentAttemptAndAttemptCountUpdate {
+                active_attempt_id,
+                attempt_count,
+            } => Self::PaymentAttemptAndAttemptCountUpdate {
+                active_attempt_id,
+                attempt_count,
+            },
+            DieselPaymentIntentUpdate::StatusAndAttemptUpdate {
+                status,
+                active_attempt_id,
+                attempt_count,
+            } => Self::StatusAndAttemptUpdate {
+                status,
+                active_attempt_id,
+                attempt_count,
+            },
         }
     }
-    
 }

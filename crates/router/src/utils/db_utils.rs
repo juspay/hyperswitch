@@ -1,5 +1,4 @@
-use crate::core::errors;
-
+use crate::{core::{errors}, routes::metrics};
 
 #[cfg(feature = "kv_store")]
 /// Generates hscan field pattern. Suppose the field is pa_1234_ref_1211 it will generate
