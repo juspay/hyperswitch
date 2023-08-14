@@ -10,7 +10,7 @@ pub type PgPooledConn = async_bb8_diesel::Connection<PgConnection>;
 
 #[async_trait::async_trait]
 pub trait DatabaseStore: Clone + Send + Sync {
-    type Config;
+    type Config: Send;
     async fn new(config: Self::Config, test_transaction: bool) -> Self;
     fn get_master_pool(&self) -> &PgPool;
     fn get_replica_pool(&self) -> &PgPool;

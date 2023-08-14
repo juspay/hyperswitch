@@ -20,245 +20,237 @@ use error_stack::{IntoReport, ResultExt};
 use redis_interface::HsetnxReply;
 
 use crate::{
-    redis::kv_store::RedisConnInterface,
+    redis::kv_store::{PartitionKey, RedisConnInterface},
     utils::{pg_connection_read, pg_connection_write},
     DataModelExt, DatabaseStore, KVRouterStore,
 };
 
-// #[async_trait::async_trait]
-// impl<T: DatabaseStore> PaymentIntentInterface for KVRouterStore<T> {
-//     async fn insert_payment_intent(
-//         &self,
-//         new: PaymentIntentNew,
-//         storage_scheme: MerchantStorageScheme,
-//     ) -> error_stack::Result<PaymentIntent, StorageError> {
-//         match storage_scheme {
-//             MerchantStorageScheme::PostgresOnly => {
-//                 let conn = pg_connection_write(self).await?;
-//                 new.insert(&conn).await.map_err(Into::into).into_report()
-//             }
+#[async_trait::async_trait]
+impl<T: DatabaseStore> PaymentIntentInterface for KVRouterStore<T> {
+    async fn insert_payment_intent(
+        &self,
+        new: PaymentIntentNew,
+        storage_scheme: MerchantStorageScheme,
+    ) -> error_stack::Result<PaymentIntent, StorageError> {
+        match storage_scheme {
+            MerchantStorageScheme::PostgresOnly => {
+                self.router_store
+                    .insert_payment_intent(new, storage_scheme)
+                    .await
+            }
 
-//             MerchantStorageScheme::RedisKv => {
-//                 let key = format!("{}_{}", new.merchant_id, new.payment_id);
-//                 let created_intent = PaymentIntent {
-//                     id: 0i32,
-//                     payment_id: new.payment_id.clone(),
-//                     merchant_id: new.merchant_id.clone(),
-//                     status: new.status,
-//                     amount: new.amount,
-//                     currency: new.currency,
-//                     amount_captured: new.amount_captured,
-//                     customer_id: new.customer_id.clone(),
-//                     description: new.description.clone(),
-//                     return_url: new.return_url.clone(),
-//                     metadata: new.metadata.clone(),
-//                     connector_id: new.connector_id.clone(),
-//                     shipping_address_id: new.shipping_address_id.clone(),
-//                     billing_address_id: new.billing_address_id.clone(),
-//                     statement_descriptor_name: new.statement_descriptor_name.clone(),
-//                     statement_descriptor_suffix: new.statement_descriptor_suffix.clone(),
-//                     created_at: new.created_at.unwrap_or_else(date_time::now),
-//                     modified_at: new.created_at.unwrap_or_else(date_time::now),
-//                     last_synced: new.last_synced,
-//                     setup_future_usage: new.setup_future_usage,
-//                     off_session: new.off_session,
-//                     client_secret: new.client_secret.clone(),
-//                     business_country: new.business_country,
-//                     business_label: new.business_label.clone(),
-//                     active_attempt_id: new.active_attempt_id.to_owned(),
-//                     order_details: new.order_details.clone(),
-//                     allowed_payment_method_types: new.allowed_payment_method_types.clone(),
-//                     connector_metadata: new.connector_metadata.clone(),
-//                     feature_metadata: new.feature_metadata.clone(),
-//                     attempt_count: new.attempt_count,
-//                 };
+            MerchantStorageScheme::RedisKv => {
+                let key = format!("{}_{}", new.merchant_id, new.payment_id);
+                let created_intent = PaymentIntent {
+                    id: 0i32,
+                    payment_id: new.payment_id.clone(),
+                    merchant_id: new.merchant_id.clone(),
+                    status: new.status,
+                    amount: new.amount,
+                    currency: new.currency,
+                    amount_captured: new.amount_captured,
+                    customer_id: new.customer_id.clone(),
+                    description: new.description.clone(),
+                    return_url: new.return_url.clone(),
+                    metadata: new.metadata.clone(),
+                    connector_id: new.connector_id.clone(),
+                    shipping_address_id: new.shipping_address_id.clone(),
+                    billing_address_id: new.billing_address_id.clone(),
+                    statement_descriptor_name: new.statement_descriptor_name.clone(),
+                    statement_descriptor_suffix: new.statement_descriptor_suffix.clone(),
+                    created_at: new.created_at.unwrap_or_else(date_time::now),
+                    modified_at: new.created_at.unwrap_or_else(date_time::now),
+                    last_synced: new.last_synced,
+                    setup_future_usage: new.setup_future_usage,
+                    off_session: new.off_session,
+                    client_secret: new.client_secret.clone(),
+                    business_country: new.business_country,
+                    business_label: new.business_label.clone(),
+                    active_attempt_id: new.active_attempt_id.to_owned(),
+                    order_details: new.order_details.clone(),
+                    allowed_payment_method_types: new.allowed_payment_method_types.clone(),
+                    connector_metadata: new.connector_metadata.clone(),
+                    feature_metadata: new.feature_metadata.clone(),
+                    attempt_count: new.attempt_count,
+                };
 
-//                 match self
-//                     .get_redis_conn()
-//                     StorageError>::into)?
-//                     .serialize_and_set_hash_field_if_not_exist(&key, "pi", &created_intent)
-//                     .await
-//                 {
-//                     Ok(HsetnxReply::KeyNotSet) => Err(errors::StorageError::DuplicateValue {
-//                         entity: "payment_intent",
-//                         key: Some(key),
-//                     })
-//                     .into_report(),
-//                     Ok(HsetnxReply::KeySet) => {
-//                         let redis_entry = kv::TypedSql {
-//                             op: kv::DBOperation::Insert {
-//                                 insertable: kv::Insertable::PaymentIntent(new),
-//                             },
-//                         };
-//                         self.push_to_drainer_stream::<PaymentIntent>(
-//                             redis_entry,
-//                             storage_partitioning::PartitionKey::MerchantIdPaymentId {
-//                                 merchant_id: &created_intent.merchant_id,
-//                                 payment_id: &created_intent.payment_id,
-//                             },
-//                         )
-//                         .await
-//                         .change_context(errors::StorageError::KVError)?;
-//                         Ok(created_intent)
-//                     }
-//                     Err(error) => Err(error.change_context(errors::StorageError::KVError)),
-//                 }
-//             }
-//         }
-//     }
+                match self
+                    .get_redis_conn()
+                    .change_context(StorageError::TemporaryError)?
+                    .serialize_and_set_hash_field_if_not_exist(&key, "pi", &created_intent)
+                    .await
+                {
+                    Ok(HsetnxReply::KeyNotSet) => Err(StorageError::DuplicateValue {
+                        entity: "payment_intent",
+                        key: Some(key),
+                    })
+                    .into_report(),
+                    Ok(HsetnxReply::KeySet) => {
+                        let redis_entry = kv::TypedSql {
+                            op: kv::DBOperation::Insert {
+                                insertable: kv::Insertable::PaymentIntent(new.to_storage_model()),
+                            },
+                        };
+                        self.push_to_drainer_stream::<DieselPaymentIntent>(
+                            redis_entry,
+                            PartitionKey::MerchantIdPaymentId {
+                                merchant_id: &created_intent.merchant_id,
+                                payment_id: &created_intent.payment_id,
+                            },
+                        )
+                        .await
+                        .change_context(StorageError::KVError)?;
+                        Ok(created_intent)
+                    }
+                    Err(error) => Err(error.change_context(StorageError::KVError)),
+                }
+            }
+        }
+    }
 
-//     async fn update_payment_intent(
-//         &self,
-//         this: PaymentIntent,
-//         payment_intent: PaymentIntentUpdate,
-//         storage_scheme: MerchantStorageScheme,
-//     ) -> error_stack::Result<PaymentIntent, StorageError> {
-//         match storage_scheme {
-//             MerchantStorageScheme::PostgresOnly => {
-//                 let conn = pg_connection_write(self).await?;
-//                 this.update(&conn, payment_intent)
-//                     .await
-//                     .map_err(Into::into)
-//                     .into_report()
-//             }
+    async fn update_payment_intent(
+        &self,
+        this: PaymentIntent,
+        payment_intent: PaymentIntentUpdate,
+        storage_scheme: MerchantStorageScheme,
+    ) -> error_stack::Result<PaymentIntent, StorageError> {
+        match storage_scheme {
+            MerchantStorageScheme::PostgresOnly => {
+                self.router_store
+                    .update_payment_intent(this, payment_intent, storage_scheme)
+                    .await
+            }
+            MerchantStorageScheme::RedisKv => {
+                let key = format!("{}_{}", this.merchant_id, this.payment_id);
 
-//             MerchantStorageScheme::RedisKv => {
-//                 let key = format!("{}_{}", this.merchant_id, this.payment_id);
+                let updated_intent = payment_intent.clone().apply_changeset(this.clone());
+                // Check for database presence as well Maybe use a read replica here ?
 
-//                 let updated_intent = payment_intent.clone().apply_changeset(this.clone());
-//                 // Check for database presence as well Maybe use a read replica here ?
+                let redis_value =
+                    Encode::<PaymentIntent>::encode_to_string_of_json(&updated_intent)
+                        .change_context(StorageError::SerializationFailed)?;
 
-//                 let redis_value =
-//                     Encode::<PaymentIntent>::encode_to_string_of_json(&updated_intent)
-//                         .change_context(errors::StorageError::SerializationFailed)?;
+                let updated_intent = self
+                    .get_redis_conn()
+                    .change_context(StorageError::TemporaryError)?
+                    .set_hash_fields(&key, ("pi", &redis_value))
+                    .await
+                    .map(|_| updated_intent)
+                    .change_context(StorageError::KVError)?;
 
-//                 let updated_intent = self
-//                     .get_redis_conn()
-//                     StorageError>::into)?
-//                     .set_hash_fields(&key, ("pi", &redis_value))
-//                     .await
-//                     .map(|_| updated_intent)
-//                     .change_context(errors::StorageError::KVError)?;
+                let redis_entry = kv::TypedSql {
+                    op: kv::DBOperation::Update {
+                        updatable: kv::Updateable::PaymentIntentUpdate(
+                            kv::PaymentIntentUpdateMems {
+                                orig: this.to_storage_model(),
+                                update_data: payment_intent.to_storage_model(),
+                            },
+                        ),
+                    },
+                };
 
-//                 let redis_entry = kv::TypedSql {
-//                     op: kv::DBOperation::Update {
-//                         updatable: kv::Updateable::PaymentIntentUpdate(
-//                             kv::PaymentIntentUpdateMems {
-//                                 orig: this,
-//                                 update_data: payment_intent,
-//                             },
-//                         ),
-//                     },
-//                 };
+                self.push_to_drainer_stream::<DieselPaymentIntent>(
+                    redis_entry,
+                    PartitionKey::MerchantIdPaymentId {
+                        merchant_id: &updated_intent.merchant_id,
+                        payment_id: &updated_intent.payment_id,
+                    },
+                )
+                .await
+                .change_context(StorageError::KVError)?;
+                Ok(updated_intent)
+            }
+        }
+    }
 
-//                 self.push_to_drainer_stream::<PaymentIntent>(
-//                     redis_entry,
-//                     storage_partitioning::PartitionKey::MerchantIdPaymentId {
-//                         merchant_id: &updated_intent.merchant_id,
-//                         payment_id: &updated_intent.payment_id,
-//                     },
-//                 )
-//                 .await
-//                 .change_context(errors::StorageError::KVError)?;
-//                 Ok(updated_intent)
-//             }
-//         }
-//     }
+    async fn find_payment_intent_by_payment_id_merchant_id(
+        &self,
+        payment_id: &str,
+        merchant_id: &str,
+        storage_scheme: MerchantStorageScheme,
+    ) -> error_stack::Result<PaymentIntent, StorageError> {
+        let database_call = || async {
+            self.router_store
+                .find_payment_intent_by_payment_id_merchant_id(
+                    payment_id,
+                    merchant_id,
+                    storage_scheme,
+                )
+                .await
+        };
+        match storage_scheme {
+            MerchantStorageScheme::PostgresOnly => database_call().await,
 
-//     async fn find_payment_intent_by_payment_id_merchant_id(
-//         &self,
-//         payment_id: &str,
-//         merchant_id: &str,
-//         storage_scheme: MerchantStorageScheme,
-//     ) -> error_stack::Result<PaymentIntent, StorageError> {
-//         let database_call = || async {
-//             let conn = pg_connection_read(self).await?;
-//             PaymentIntent::find_by_payment_id_merchant_id(&conn, payment_id, merchant_id)
-//                 .await
-//                 .map_err(Into::into)
-//                 .into_report()
-//         };
-//         match storage_scheme {
-//             MerchantStorageScheme::PostgresOnly => database_call().await,
+            MerchantStorageScheme::RedisKv => {
+                let key = format!("{merchant_id}_{payment_id}");
+                crate::utils::try_redis_get_else_try_database_get(
+                    self.get_redis_conn()
+                        .change_context(StorageError::TemporaryError)?
+                        .get_hash_field_and_deserialize(&key, "pi", "PaymentIntent"),
+                    database_call,
+                )
+                .await
+            }
+        }
+    }
 
-//             MerchantStorageScheme::RedisKv => {
-//                 let key = format!("{merchant_id}_{payment_id}");
-//                 crate::utils::try_redis_get_else_try_database_get(
-//                     self.get_redis_conn()
-//                         StorageError>::into)?
-//                         .get_hash_field_and_deserialize(&key, "pi", "PaymentIntent"),
-//                     database_call,
-//                 )
-//                 .await
-//             }
-//         }
-//     }
+    #[cfg(feature = "olap")]
+    async fn filter_payment_intent_by_constraints(
+        &self,
+        merchant_id: &str,
+        pc: &api_models::payments::PaymentListConstraints,
+        storage_scheme: MerchantStorageScheme,
+    ) -> error_stack::Result<Vec<PaymentIntent>, StorageError> {
+        match storage_scheme {
+            MerchantStorageScheme::PostgresOnly => {
+                self.router_store
+                    .filter_payment_intent_by_constraints(merchant_id, pc, storage_scheme)
+                    .await
+            }
+            MerchantStorageScheme::RedisKv => Err(StorageError::KVError.into()),
+        }
+    }
+    #[cfg(feature = "olap")]
+    async fn filter_payment_intents_by_time_range_constraints(
+        &self,
+        merchant_id: &str,
+        time_range: &api_models::payments::TimeRange,
+        storage_scheme: MerchantStorageScheme,
+    ) -> error_stack::Result<Vec<PaymentIntent>, StorageError> {
+        match storage_scheme {
+            MerchantStorageScheme::PostgresOnly => {
+                self.router_store
+                    .filter_payment_intents_by_time_range_constraints(
+                        merchant_id,
+                        time_range,
+                        storage_scheme,
+                    )
+                    .await
+            }
+            MerchantStorageScheme::RedisKv => Err(StorageError::KVError.into()),
+        }
+    }
 
-//     #[cfg(feature = "olap")]
-//     async fn filter_payment_intent_by_constraints(
-//         &self,
-//         merchant_id: &str,
-//         pc: &api::PaymentListConstraints,
-//         storage_scheme: MerchantStorageScheme,
-//     ) -> error_stack::Result<Vec<PaymentIntent>, StorageError> {
-//         match storage_scheme {
-//             MerchantStorageScheme::PostgresOnly => {
-//                 let conn = pg_connection_read(self).await?;
-//                 PaymentIntent::filter_by_constraints(&conn, merchant_id, pc)
-//                     .await
-//                     .map_err(Into::into)
-//                     .into_report()
-//             }
-
-//             MerchantStorageScheme::RedisKv => Err(errors::StorageError::KVError.into()),
-//         }
-//     }
-//     #[cfg(feature = "olap")]
-//     async fn filter_payment_intents_by_time_range_constraints(
-//         &self,
-//         merchant_id: &str,
-//         time_range: &api::TimeRange,
-//         storage_scheme: MerchantStorageScheme,
-//     ) -> error_stack::Result<Vec<PaymentIntent>, StorageError> {
-//         match storage_scheme {
-//             MerchantStorageScheme::PostgresOnly => {
-//                 let conn = pg_connection_read(self).await?;
-//                 PaymentIntent::filter_by_time_constraints(&conn, merchant_id, time_range)
-//                     .await
-//                     .map_err(Into::into)
-//                     .into_report()
-//             }
-
-//             MerchantStorageScheme::RedisKv => Err(errors::StorageError::KVError.into()),
-//         }
-//     }
-
-//     #[cfg(feature = "olap")]
-//     async fn apply_filters_on_payments_list(
-//         &self,
-//         merchant_id: &str,
-//         constraints: &api::PaymentListFilterConstraints,
-//         storage_scheme: MerchantStorageScheme,
-//     ) -> error_stack::Result<Vec<(PaymentIntent, PaymentAttempt)>, StorageError> {
-//         match storage_scheme {
-//             MerchantStorageScheme::PostgresOnly => {
-//                 let conn = pg_connection_read(self).await?;
-//                 PaymentIntent::apply_filters_on_payments(&conn, merchant_id, constraints)
-//                     .await
-//                     .map_err(Into::into)
-//                     .into_report()
-//             }
-
-//             MerchantStorageScheme::RedisKv => Err(errors::StorageError::KVError.into()),
-//         }
-//     }
-// }
+    #[cfg(feature = "olap")]
+    async fn apply_filters_on_payments_list(
+        &self,
+        merchant_id: &str,
+        constraints: &api_models::payments::PaymentListFilterConstraints,
+        storage_scheme: MerchantStorageScheme,
+    ) -> error_stack::Result<Vec<(PaymentIntent, PaymentAttempt)>, StorageError> {
+        match storage_scheme {
+            MerchantStorageScheme::PostgresOnly => {
+                self.router_store
+                    .apply_filters_on_payments_list(merchant_id, constraints, storage_scheme)
+                    .await
+            }
+            MerchantStorageScheme::RedisKv => Err(StorageError::KVError.into()),
+        }
+    }
+}
 
 #[async_trait::async_trait]
-impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T>
-where
-    T::Config: Send,
-{
+impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
     async fn insert_payment_intent(
         &self,
         new: PaymentIntentNew,
