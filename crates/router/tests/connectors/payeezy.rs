@@ -9,7 +9,7 @@ use router::{
 };
 
 use crate::{
-    connector_auth::{self},
+    connector_auth,
     utils::{self, ConnectorActions, PaymentInfo},
 };
 

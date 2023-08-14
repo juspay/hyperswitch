@@ -245,9 +245,15 @@ impl
                 ZenPaymentChannels::PclBoacompraRedcompra
             }
             api_models::payments::VoucherData::RedPagos => ZenPaymentChannels::PclBoacompraRedpagos,
-            api_models::payments::VoucherData::Alfamart { .. }
+            api_models::payments::VoucherData::Oxxo { .. }
+            | api_models::payments::VoucherData::Alfamart { .. }
             | api_models::payments::VoucherData::Indomaret { .. }
-            | api_models::payments::VoucherData::Oxxo { .. } => Err(
+            | api_models::payments::VoucherData::SevenEleven { .. }
+            | api_models::payments::VoucherData::Lawson { .. }
+            | api_models::payments::VoucherData::MiniStop { .. }
+            | api_models::payments::VoucherData::FamilyMart { .. }
+            | api_models::payments::VoucherData::Seicomart { .. }
+            | api_models::payments::VoucherData::PayEasy { .. } => Err(
                 errors::ConnectorError::NotImplemented("payment method".to_string()),
             )?,
         };

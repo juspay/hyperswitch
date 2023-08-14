@@ -2219,9 +2219,7 @@
         "required": [
           "country_code",
           "currency_code",
-          "total",
-          "merchant_capabilities",
-          "supported_networks"
+          "total"
         ],
         "properties": {
           "country_code": {
@@ -2238,14 +2236,16 @@
             "items": {
               "type": "string"
             },
-            "description": "The list of merchant capabilities(ex: whether capable of 3ds or no-3ds)"
+            "description": "The list of merchant capabilities(ex: whether capable of 3ds or no-3ds)",
+            "nullable": true
           },
           "supported_networks": {
             "type": "array",
             "items": {
               "type": "string"
             },
-            "description": "The list of supported networks"
+            "description": "The list of supported networks",
+            "nullable": true
           },
           "merchant_identifier": {
             "type": "string",
@@ -2360,6 +2360,16 @@
           },
           "sdk_next_action": {
             "$ref": "#/components/schemas/SdkNextAction"
+          },
+          "connector_reference_id": {
+            "type": "string",
+            "description": "The connector transaction id",
+            "nullable": true
+          },
+          "connector_sdk_public_key": {
+            "type": "string",
+            "description": "The public key id is to invoke third party sdk",
+            "nullable": true
           }
         }
       },
@@ -5533,6 +5543,37 @@
           "partially_captured"
         ]
       },
+      "JCSVoucherData": {
+        "type": "object",
+        "required": [
+          "first_name",
+          "last_name",
+          "email",
+          "phone_number"
+        ],
+        "properties": {
+          "first_name": {
+            "type": "string",
+            "description": "The billing first name for Japanese convenience stores",
+            "example": "Jane"
+          },
+          "last_name": {
+            "type": "string",
+            "description": "The billing second name Japanese convenience stores",
+            "example": "Doe"
+          },
+          "email": {
+            "type": "string",
+            "description": "The Email ID for Japanese convenience stores",
+            "example": "example@me.com"
+          },
+          "phone_number": {
+            "type": "string",
+            "description": "The telephone number for Japanese convenience stores",
+            "example": "9999999999"
+          }
+        }
+      },
       "KakaoPayRedirection": {
         "type": "object"
       },
@@ -8003,7 +8044,13 @@
           "upi_collect",
           "vipps",
           "walley",
-          "we_chat_pay"
+          "we_chat_pay",
+          "seven_eleven",
+          "lawson",
+          "mini_stop",
+          "family_mart",
+          "seicomart",
+          "pay_easy"
         ]
       },
       "PaymentMethodUpdate": {
@@ -10645,6 +10692,72 @@
             "enum": [
               "oxxo"
             ]
+          },
+          {
+            "type": "object",
+            "required": [
+              "seven_eleven"
+            ],
+            "properties": {
+              "seven_eleven": {
+                "$ref": "#/components/schemas/JCSVoucherData"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "lawson"
+            ],
+            "properties": {
+              "lawson": {
+                "$ref": "#/components/schemas/JCSVoucherData"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "mini_stop"
+            ],
+            "properties": {
+              "mini_stop": {
+                "$ref": "#/components/schemas/JCSVoucherData"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "family_mart"
+            ],
+            "properties": {
+              "family_mart": {
+                "$ref": "#/components/schemas/JCSVoucherData"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "seicomart"
+            ],
+            "properties": {
+              "seicomart": {
+                "$ref": "#/components/schemas/JCSVoucherData"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "pay_easy"
+            ],
+            "properties": {
+              "pay_easy": {
+                "$ref": "#/components/schemas/JCSVoucherData"
+              }
+            }
           }
         ]
       },
