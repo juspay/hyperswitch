@@ -5,7 +5,7 @@ use masking::{PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    connector::utils::{RefundsRequestData, self, RouterData},
+    connector::utils::{self, RefundsRequestData, RouterData},
     consts,
     core::errors,
     types::{self, api, storage::enums},
@@ -92,6 +92,21 @@ pub struct AuthInput {
     transaction: TransactionBody,
 }
 
+#[derive(Debug, Clone, Deserialize)]
+#[serde(untagged)]
+pub enum BraintreeResponse {
+    BraintreeErrorResponse(BraintreeErrorResponse),
+    BraintreeTokenResponse(BraintreeTokenResponse),
+    BraintreeCaptureResponse(BraintreeCaptureResponse),
+    BraintreePSyncResponse(BraintreePSyncResponse),
+    BraintreeSessionTokenResponse(BraintreeSessionTokenResponse),
+    BraintreeCancelResponse(BraintreeCancelResponse),
+    BraintreePaymentsResponse(BraintreePaymentsResponse),
+    BraintreeAuthResponse(BraintreeAuthResponse),
+    BraintreeRefundResponse(BraintreeRefundResponse),
+    BraintreeRSyncResponse(BraintreeRSyncResponse),
+}
+
 #[derive(Debug, Serialize, Eq, PartialEq)]
 pub struct VariableAuthInput {
     input: AuthInput,
@@ -107,7 +122,6 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for BraintreeAuthRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::PaymentsAuthorizeRouterData) -> Result<Self, Self::Error> {
         Ok(Self {
-            
             query: "mutation authorizeCreditCard($input: AuthorizeCreditCardInput!) { authorizeCreditCard(input: $input) {  transaction { id legacyId amount { value currencyCode } status } }}".to_string(),
             variables: VariableAuthInput {
                 input: AuthInput {
@@ -332,14 +346,14 @@ pub struct BraintreeSessionTokenResponse {
     pub client_token: ClientToken,
 }
 
-#[derive(Debug, Default, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct ErrorResponse {
-    pub api_error_response: ApiErrorResponse,
+pub struct BraintreeErrorResponse {
+    pub errors: Vec<ErrorDetails>,
 }
 
-#[derive(Default, Debug, Clone, Deserialize, Eq, PartialEq)]
-pub struct ApiErrorResponse {
+#[derive(Default, Debug, Clone, Deserialize, Eq, PartialEq, Serialize)]
+pub struct ErrorDetails {
     pub message: String,
 }
 
@@ -446,33 +460,33 @@ impl TryFrom<&types::RefundSyncRouterData> for BraintreeRSyncRequest {
     }
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Clone, Deserialize)]
 pub struct RSyncNodeData {
     id: String,
     status: BraintreeRefundStatus,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Clone, Deserialize)]
 pub struct RSyncEdgeData {
     node: RSyncNodeData,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Clone, Deserialize)]
 pub struct RefundData {
     edges: Vec<RSyncEdgeData>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Clone, Deserialize)]
 pub struct RSyncSearchData {
     refunds: RefundData,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Clone, Deserialize)]
 pub struct RSyncResponseData {
     search: RSyncSearchData,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Clone, Deserialize)]
 pub struct BraintreeRSyncResponse {
     data: RSyncResponseData,
 }
@@ -557,24 +571,24 @@ impl TryFrom<&types::TokenizationRouterData> for BraintreeTokenRequest {
     }
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TokenizePaymentMethodData {
     id: String,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct TokenizeCreditCardData {
     payment_method: TokenizePaymentMethodData,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct TokenizeCreditCard {
     tokenize_credit_card: TokenizeCreditCardData,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct BraintreeTokenResponse {
     data: TokenizeCreditCard,
 }
@@ -639,25 +653,25 @@ impl TryFrom<&types::PaymentsCaptureRouterData> for BraintreeCaptureRequest {
     }
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Clone, Deserialize)]
 pub struct CaptureResponseTransactionBody {
     id: String,
     status: BraintreePaymentStatus,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CaptureTransactionData {
     transaction: CaptureResponseTransactionBody,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CaptureResponseData {
     capture_transaction: CaptureTransactionData,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Clone, Deserialize)]
 pub struct BraintreeCaptureResponse {
     data: CaptureResponseData,
 }
@@ -728,24 +742,24 @@ impl TryFrom<&types::PaymentsCancelRouterData> for BraintreeCancelRequest {
     }
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Clone, Deserialize)]
 pub struct CancelResponseTransactionBody {
     id: String,
     status: BraintreePaymentStatus,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Clone, Deserialize)]
 pub struct CancelTransactionData {
     reversal: CancelResponseTransactionBody,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CancelResponseData {
     reverse_transaction: CancelTransactionData,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Clone, Deserialize)]
 pub struct BraintreeCancelResponse {
     data: CancelResponseData,
 }
@@ -799,33 +813,33 @@ impl TryFrom<&types::PaymentsSyncRouterData> for BraintreePSyncRequest {
     }
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Clone, Deserialize)]
 pub struct NodeData {
     id: String,
     status: BraintreePaymentStatus,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Clone, Deserialize)]
 pub struct EdgeData {
     node: NodeData,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Clone, Deserialize)]
 pub struct TransactionData {
     edges: Vec<EdgeData>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Clone, Deserialize)]
 pub struct SearchData {
     transactions: TransactionData,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Clone, Deserialize)]
 pub struct PSyncResponseData {
     search: SearchData,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Clone, Deserialize)]
 pub struct BraintreePSyncResponse {
     data: PSyncResponseData,
 }

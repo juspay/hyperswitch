@@ -3,6 +3,7 @@ pub mod transformers;
 
 use std::fmt::Debug;
 
+use bytes::Bytes;
 use error_stack::{IntoReport, Report, ResultExt};
 use masking::PeekInterface;
 
@@ -53,14 +54,19 @@ impl ConnectorCommon for Braintree {
         &self,
         res: types::Response,
     ) -> CustomResult<types::ErrorResponse, errors::ConnectorError> {
-        let response: Result<braintree::ErrorResponse, Report<common_utils::errors::ParsingError>> =
-            res.response.parse_struct("Braintree Error Response");
+        let response: Result<
+            braintree_graphql_transformers::BraintreeErrorResponse,
+            Report<common_utils::errors::ParsingError>,
+        > = res.response.parse_struct("Braintree Error Response");
 
         match response {
             Ok(response_data) => Ok(types::ErrorResponse {
                 status_code: res.status_code,
                 code: consts::NO_ERROR_CODE.to_string(),
-                message: response_data.api_error_response.message,
+                message: match response_data.errors.get(0) {
+                    Some(err) => err.message.clone(),
+                    None => consts::NO_ERROR_MESSAGE.to_string(),
+                },
                 reason: None,
             }),
             Err(error_msg) => {
@@ -130,8 +136,9 @@ impl
         req: &types::PaymentsSessionRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        let auth_type = braintree::BraintreeAuthType::try_from(&req.connector_auth_type)
-            .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
+        let auth_type =
+            braintree_graphql_transformers::BraintreeAuthType::try_from(&req.connector_auth_type)
+                .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
         Ok(format!(
             "{}/merchants/{}/client_token",
             self.base_url(connectors),
@@ -184,16 +191,35 @@ impl
         data: &types::PaymentsSessionRouterData,
         res: types::Response,
     ) -> CustomResult<types::PaymentsSessionRouterData, errors::ConnectorError> {
-        let response: braintree::BraintreeSessionTokenResponse = res
+        let response: braintree_graphql_transformers::BraintreeResponse = res
             .response
             .parse_struct("braintree SessionTokenResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-        types::RouterData::try_from(types::ResponseRouterData {
-            response,
-            data: data.clone(),
-            http_code: res.status_code,
-        })
-        .change_context(errors::ConnectorError::ResponseHandlingFailed)
+
+        match response {
+            braintree_graphql_transformers::BraintreeResponse::BraintreeSessionTokenResponse(
+                token_response,
+            ) => types::RouterData::try_from(types::ResponseRouterData {
+                response: token_response,
+                data: data.clone(),
+                http_code: res.status_code,
+            })
+            .change_context(errors::ConnectorError::ResponseHandlingFailed),
+
+            braintree_graphql_transformers::BraintreeResponse::BraintreeErrorResponse(
+                error_reponse,
+            ) => Err(errors::ConnectorError::ProcessingStepFailed(Some(
+                Bytes::copy_from_slice(
+                    match error_reponse.errors.get(0) {
+                        Some(err) => err.message.clone(),
+                        None => consts::NO_ERROR_MESSAGE.to_string(),
+                    }
+                    .as_bytes(),
+                ),
+            )))?,
+
+            _ => Err(errors::ConnectorError::ResponseDeserializationFailed)?,
+        }
     }
 }
 
@@ -281,17 +307,33 @@ impl
     where
         types::PaymentsResponseData: Clone,
     {
-        let response: braintree_graphql_transformers::BraintreeTokenResponse = res
+        let response: braintree_graphql_transformers::BraintreeResponse = res
             .response
             .parse_struct("BraintreeTokenResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
 
-        types::RouterData::try_from(types::ResponseRouterData {
-            response,
-            data: data.clone(),
-            http_code: res.status_code,
-        })
-        .change_context(errors::ConnectorError::ResponseHandlingFailed)
+        match response {
+            braintree_graphql_transformers::BraintreeResponse::BraintreeTokenResponse(
+                token_response,
+            ) => types::RouterData::try_from(types::ResponseRouterData {
+                response: token_response,
+                data: data.clone(),
+                http_code: res.status_code,
+            })
+            .change_context(errors::ConnectorError::ResponseHandlingFailed),
+            braintree_graphql_transformers::BraintreeResponse::BraintreeErrorResponse(
+                error_reponse,
+            ) => Err(errors::ConnectorError::ProcessingStepFailed(Some(
+                Bytes::copy_from_slice(
+                    match error_reponse.errors.get(0) {
+                        Some(err) => err.message.clone(),
+                        None => consts::NO_ERROR_MESSAGE.to_string(),
+                    }
+                    .as_bytes(),
+                ),
+            )))?,
+            _ => Err(errors::ConnectorError::ResponseDeserializationFailed)?,
+        }
     }
     fn get_error_response(
         &self,
@@ -394,15 +436,33 @@ impl
         data: &types::PaymentsCaptureRouterData,
         res: types::Response,
     ) -> CustomResult<types::PaymentsCaptureRouterData, errors::ConnectorError> {
-        let response: braintree_graphql_transformers::BraintreeCaptureResponse = res
+        let response: braintree_graphql_transformers::BraintreeResponse = res
             .response
             .parse_struct("Braintree PaymentsCaptureResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-        types::RouterData::try_from(types::ResponseRouterData {
-            response,
-            data: data.clone(),
-            http_code: res.status_code,
-        })
+
+        match response {
+            braintree_graphql_transformers::BraintreeResponse::BraintreeCaptureResponse(
+                capture_response,
+            ) => types::RouterData::try_from(types::ResponseRouterData {
+                response: capture_response,
+                data: data.clone(),
+                http_code: res.status_code,
+            })
+            .change_context(errors::ConnectorError::ResponseHandlingFailed),
+            braintree_graphql_transformers::BraintreeResponse::BraintreeErrorResponse(
+                error_reponse,
+            ) => Err(errors::ConnectorError::ProcessingStepFailed(Some(
+                Bytes::copy_from_slice(
+                    match error_reponse.errors.get(0) {
+                        Some(err) => err.message.clone(),
+                        None => consts::NO_ERROR_MESSAGE.to_string(),
+                    }
+                    .as_bytes(),
+                ),
+            )))?,
+            _ => Err(errors::ConnectorError::ResponseDeserializationFailed)?,
+        }
     }
 
     fn get_error_response(
@@ -489,16 +549,32 @@ impl
         data: &types::PaymentsSyncRouterData,
         res: types::Response,
     ) -> CustomResult<types::PaymentsSyncRouterData, errors::ConnectorError> {
-        let response: braintree_graphql_transformers::BraintreePSyncResponse = res
+        let response: braintree_graphql_transformers::BraintreeResponse = res
             .response
             .parse_struct("Braintree PaymentSyncResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-        types::RouterData::try_from(types::ResponseRouterData {
-            response,
-            data: data.clone(),
-            http_code: res.status_code,
-        })
-        .change_context(errors::ConnectorError::ResponseHandlingFailed)
+        match response {
+            braintree_graphql_transformers::BraintreeResponse::BraintreePSyncResponse(
+                psync_response,
+            ) => types::RouterData::try_from(types::ResponseRouterData {
+                response: psync_response,
+                data: data.clone(),
+                http_code: res.status_code,
+            })
+            .change_context(errors::ConnectorError::ResponseHandlingFailed),
+            braintree_graphql_transformers::BraintreeResponse::BraintreeErrorResponse(
+                error_reponse,
+            ) => Err(errors::ConnectorError::ProcessingStepFailed(Some(
+                Bytes::copy_from_slice(
+                    match error_reponse.errors.get(0) {
+                        Some(err) => err.message.clone(),
+                        None => consts::NO_ERROR_MESSAGE.to_string(),
+                    }
+                    .as_bytes(),
+                ),
+            )))?,
+            _ => Err(errors::ConnectorError::ResponseDeserializationFailed)?,
+        }
     }
 
     fn get_error_response(
@@ -577,7 +653,8 @@ impl
     ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
         match req.request.is_auto_capture()? {
             true => {
-                let connector_request = braintree_graphql_transformers::BraintreePaymentsRequest::try_from(req)?;
+                let connector_request =
+                    braintree_graphql_transformers::BraintreePaymentsRequest::try_from(req)?;
                 let braintree_payment_request = types::RequestBody::log_and_get_request_body(
                     &connector_request,
                     utils::Encode::<braintree_graphql_transformers::BraintreePaymentsRequest>::encode_to_string_of_json,
@@ -605,30 +682,65 @@ impl
     ) -> CustomResult<types::PaymentsAuthorizeRouterData, errors::ConnectorError> {
         match data.request.is_auto_capture()? {
             true => {
-                let response: braintree_graphql_transformers::BraintreePaymentsResponse = res
+                let response: braintree_graphql_transformers::BraintreeResponse = res
                     .response
                     .parse_struct("Braintree PaymentsResponse")
                     .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-                types::ResponseRouterData {
-                    response,
-                    data: data.clone(),
-                    http_code: res.status_code,
+
+                match response {
+                    braintree_graphql_transformers::BraintreeResponse::BraintreePaymentsResponse(
+                        payments_response,
+                    ) => types::RouterData::try_from(types::ResponseRouterData {
+                        response: payments_response,
+                        data: data.clone(),
+                        http_code: res.status_code,
+                    })
+                    .change_context(errors::ConnectorError::ResponseHandlingFailed),
+
+                    braintree_graphql_transformers::BraintreeResponse::BraintreeErrorResponse(
+                        error_reponse,
+                    ) => Err(errors::ConnectorError::ProcessingStepFailed(
+                        Some(Bytes::copy_from_slice(match error_reponse
+                            .errors
+                            .get(0)
+                            {
+                                Some(err) => err.message.clone(),
+                                None => consts::NO_ERROR_MESSAGE.to_string(),
+                            }
+                            .as_bytes(),
+                        )
+                    )))?,
+                    _ => Err(errors::ConnectorError::ResponseDeserializationFailed)?,
                 }
-                .try_into()
-                .change_context(errors::ConnectorError::ResponseHandlingFailed)
             }
             false => {
-                let response: braintree_graphql_transformers::BraintreeAuthResponse = res
+                let response: braintree_graphql_transformers::BraintreeResponse = res
                     .response
                     .parse_struct("Braintree AuthResponse")
                     .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-                types::ResponseRouterData {
-                    response,
-                    data: data.clone(),
-                    http_code: res.status_code,
+                match response {
+                    braintree_graphql_transformers::BraintreeResponse::BraintreeAuthResponse(
+                        auth_response,
+                    ) => types::RouterData::try_from(types::ResponseRouterData {
+                        response: auth_response,
+                        data: data.clone(),
+                        http_code: res.status_code,
+                    })
+                    .change_context(errors::ConnectorError::ResponseHandlingFailed),
+
+                    braintree_graphql_transformers::BraintreeResponse::BraintreeErrorResponse(
+                        error_reponse,
+                    ) => Err(errors::ConnectorError::ProcessingStepFailed(Some(
+                        Bytes::copy_from_slice(
+                            match error_reponse.errors.get(0) {
+                                Some(err) => err.message.clone(),
+                                None => consts::NO_ERROR_MESSAGE.to_string(),
+                            }
+                            .as_bytes(),
+                        ),
+                    )))?,
+                    _ => Err(errors::ConnectorError::ResponseDeserializationFailed)?,
                 }
-                .try_into()
-                .change_context(errors::ConnectorError::ResponseHandlingFailed)
             }
         }
     }
@@ -719,16 +831,32 @@ impl
         data: &types::PaymentsCancelRouterData,
         res: types::Response,
     ) -> CustomResult<types::PaymentsCancelRouterData, errors::ConnectorError> {
-        let response: braintree_graphql_transformers::BraintreeCancelResponse = res
+        let response: braintree_graphql_transformers::BraintreeResponse = res
             .response
             .parse_struct("Braintree VoidResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-        types::RouterData::try_from(types::ResponseRouterData {
-            response,
-            data: data.clone(),
-            http_code: res.status_code,
-        })
-        .change_context(errors::ConnectorError::ResponseHandlingFailed)
+        match response {
+            braintree_graphql_transformers::BraintreeResponse::BraintreeCancelResponse(
+                cancel_response,
+            ) => types::RouterData::try_from(types::ResponseRouterData {
+                response: cancel_response,
+                data: data.clone(),
+                http_code: res.status_code,
+            })
+            .change_context(errors::ConnectorError::ResponseHandlingFailed),
+            braintree_graphql_transformers::BraintreeResponse::BraintreeErrorResponse(
+                error_reponse,
+            ) => Err(errors::ConnectorError::ProcessingStepFailed(Some(
+                Bytes::copy_from_slice(
+                    match error_reponse.errors.get(0) {
+                        Some(err) => err.message.clone(),
+                        None => consts::NO_ERROR_MESSAGE.to_string(),
+                    }
+                    .as_bytes(),
+                ),
+            )))?,
+            _ => Err(errors::ConnectorError::ResponseDeserializationFailed)?,
+        }
     }
 
     fn get_error_response(
@@ -786,7 +914,8 @@ impl services::ConnectorIntegration<api::Execute, types::RefundsData, types::Ref
         &self,
         req: &types::RefundsRouterData<api::Execute>,
     ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
-        let connector_request = braintree_graphql_transformers::BraintreeRefundRequest::try_from(req)?;
+        let connector_request =
+            braintree_graphql_transformers::BraintreeRefundRequest::try_from(req)?;
         let braintree_refund_request = types::RequestBody::log_and_get_request_body(
             &connector_request,
             utils::Encode::<braintree_graphql_transformers::BraintreeRefundRequest>::encode_to_string_of_json,
@@ -817,17 +946,34 @@ impl services::ConnectorIntegration<api::Execute, types::RefundsData, types::Ref
         data: &types::RefundsRouterData<api::Execute>,
         res: types::Response,
     ) -> CustomResult<types::RefundsRouterData<api::Execute>, errors::ConnectorError> {
-        let response: braintree_graphql_transformers::BraintreeRefundResponse = res
+        let response: braintree_graphql_transformers::BraintreeResponse = res
             .response
             .parse_struct("Braintree RefundResponse")
             .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-        types::ResponseRouterData {
-            response,
-            data: data.clone(),
-            http_code: res.status_code,
+
+        match response {
+            braintree_graphql_transformers::BraintreeResponse::BraintreeRefundResponse(
+                refund_response,
+            ) => types::RouterData::try_from(types::ResponseRouterData {
+                response: refund_response,
+                data: data.clone(),
+                http_code: res.status_code,
+            })
+            .change_context(errors::ConnectorError::ResponseHandlingFailed),
+
+            braintree_graphql_transformers::BraintreeResponse::BraintreeErrorResponse(
+                error_reponse,
+            ) => Err(errors::ConnectorError::ProcessingStepFailed(Some(
+                Bytes::copy_from_slice(
+                    match error_reponse.errors.get(0) {
+                        Some(err) => err.message.clone(),
+                        None => consts::NO_ERROR_MESSAGE.to_string(),
+                    }
+                    .as_bytes(),
+                ),
+            )))?,
+            _ => Err(errors::ConnectorError::ResponseDeserializationFailed)?,
         }
-        .try_into()
-        .change_context(errors::ConnectorError::ResponseHandlingFailed)
     }
 
     fn get_error_response(
@@ -881,7 +1027,8 @@ impl services::ConnectorIntegration<api::RSync, types::RefundsData, types::Refun
         &self,
         req: &types::RefundSyncRouterData,
     ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
-        let connector_request = braintree_graphql_transformers::BraintreeRSyncRequest::try_from(req)?;
+        let connector_request =
+            braintree_graphql_transformers::BraintreeRSyncRequest::try_from(req)?;
         let braintree_refund_request = types::RequestBody::log_and_get_request_body(
             &connector_request,
             utils::Encode::<braintree_graphql_transformers::BraintreeRSyncRequest>::encode_to_string_of_json,
@@ -898,17 +1045,32 @@ impl services::ConnectorIntegration<api::RSync, types::RefundsData, types::Refun
         types::RouterData<api::RSync, types::RefundsData, types::RefundsResponseData>,
         errors::ConnectorError,
     > {
-        let response: braintree_graphql_transformers::BraintreeRSyncResponse = res
+        let response: braintree_graphql_transformers::BraintreeResponse = res
             .response
             .parse_struct("Braintree RefundResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-        types::ResponseRouterData {
-            response,
-            data: data.clone(),
-            http_code: res.status_code,
+        match response {
+            braintree_graphql_transformers::BraintreeResponse::BraintreeRSyncResponse(
+                rsync_response,
+            ) => types::RouterData::try_from(types::ResponseRouterData {
+                response: rsync_response,
+                data: data.clone(),
+                http_code: res.status_code,
+            })
+            .change_context(errors::ConnectorError::ResponseHandlingFailed),
+            braintree_graphql_transformers::BraintreeResponse::BraintreeErrorResponse(
+                error_reponse,
+            ) => Err(errors::ConnectorError::ProcessingStepFailed(Some(
+                Bytes::copy_from_slice(
+                    match error_reponse.errors.get(0) {
+                        Some(err) => err.message.clone(),
+                        None => consts::NO_ERROR_MESSAGE.to_string(),
+                    }
+                    .as_bytes(),
+                ),
+            )))?,
+            _ => Err(errors::ConnectorError::ResponseDeserializationFailed)?,
         }
-        .try_into()
-        .change_context(errors::ConnectorError::ResponseHandlingFailed)
     }
     fn get_error_response(
         &self,
