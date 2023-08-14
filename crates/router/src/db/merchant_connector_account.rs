@@ -3,10 +3,11 @@ use std::cmp::Ordering;
 use common_utils::ext_traits::{AsyncExt, ByteSliceExt, Encode};
 use diesel_models::errors as storage_errors;
 use error_stack::{IntoReport, ResultExt};
+#[cfg(feature = "accounts_cache")]
+use storage_impl::redis::cache;
+use storage_impl::redis::kv_store::RedisConnInterface;
 
 use super::{MockDb, Store};
-#[cfg(feature = "accounts_cache")]
-use crate::cache::{self, ACCOUNTS_CACHE};
 use crate::{
     connection,
     core::errors::{self, CustomResult},
@@ -49,7 +50,7 @@ impl ConnectorAccessToken for Store {
         // being refreshed by other request then wait till it finishes and use the same access token
         let key = format!("access_token_{merchant_id}_{connector_name}");
         let maybe_token = self
-            .redis_conn()
+            .get_redis_conn()
             .map_err(Into::<errors::StorageError>::into)?
             .get_key::<Option<Vec<u8>>>(&key)
             .await
@@ -75,7 +76,7 @@ impl ConnectorAccessToken for Store {
         let serialized_access_token =
             Encode::<types::AccessToken>::encode_to_string_of_json(&access_token)
                 .change_context(errors::StorageError::SerializationFailed)?;
-        self.redis_conn()
+        self.get_redis_conn()
             .map_err(Into::<errors::StorageError>::into)?
             .set_key_with_expiry(&key, serialized_access_token, access_token.expires)
             .await
@@ -198,7 +199,7 @@ impl MerchantConnectorAccountInterface for Store {
                 self,
                 &format!("{}_{}", merchant_id, connector_label),
                 find_call,
-                &ACCOUNTS_CACHE,
+                &cache::ACCOUNTS_CACHE,
             )
             .await
             .async_and_then(|item| async {
@@ -669,16 +670,20 @@ mod merchant_connector_account_cache_tests {
     use diesel_models::enums::ConnectorType;
     use error_stack::ResultExt;
     use masking::PeekInterface;
+    use storage_impl::redis::{
+        cache::{CacheKind, ACCOUNTS_CACHE},
+        kv_store::RedisConnInterface,
+        pub_sub::PubSubInterface,
+    };
     use time::macros::datetime;
 
     use crate::{
-        cache::{CacheKind, ACCOUNTS_CACHE},
         core::errors,
         db::{
             cache, merchant_connector_account::MerchantConnectorAccountInterface,
             merchant_key_store::MerchantKeyStoreInterface, MasterKeyInterface, MockDb,
         },
-        services::{self, PubSubInterface, RedisConnInterface},
+        services,
         types::{
             domain::{self, behaviour::Conversion, types as domain_types},
             storage,

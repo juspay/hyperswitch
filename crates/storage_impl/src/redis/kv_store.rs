@@ -1,4 +1,6 @@
-pub(crate) trait KvStorePartition {
+use std::sync::Arc;
+
+pub trait KvStorePartition {
     fn partition_number(key: PartitionKey<'_>, num_partitions: u8) -> u32 {
         crc32fast::hash(key.to_string().as_bytes()) % u32::from(num_partitions)
     }
@@ -9,7 +11,7 @@ pub(crate) trait KvStorePartition {
 }
 
 #[allow(unused)]
-pub(crate) enum PartitionKey<'a> {
+pub enum PartitionKey<'a> {
     MerchantIdPaymentId {
         merchant_id: &'a str,
         payment_id: &'a str,
@@ -25,4 +27,13 @@ impl<'a> std::fmt::Display for PartitionKey<'a> {
             } => f.write_str(&format!("mid_{merchant_id}_pid_{payment_id}")),
         }
     }
+}
+
+pub trait RedisConnInterface {
+    fn get_redis_conn(
+        &self,
+    ) -> error_stack::Result<
+        Arc<redis_interface::RedisConnectionPool>,
+        redis_interface::errors::RedisError,
+    >;
 }
