@@ -10,7 +10,7 @@ use super::{BoxedOperation, Domain, GetTracker, Operation, UpdateTracker, Valida
 use crate::{
     core::{
         errors::{self, RouterResult, StorageErrorExt},
-        payments::{self, helpers, operations},
+        payments::{self, extras::MultipleCaptureData, helpers, operations},
     },
     db::StorageInterface,
     routes::AppState,
@@ -134,10 +134,7 @@ impl<F: Send + Clone> GetTracker<F, payments::PaymentData<F>, api::PaymentsCaptu
                     .await
                     .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
                 (
-                    Some(payments::MultipleCaptureData {
-                        previous_captures,
-                        current_capture: capture,
-                    }),
+                    Some(MultipleCaptureData::new_create(previous_captures, capture)?),
                     new_connector_response,
                 )
             } else {
@@ -261,9 +258,7 @@ impl<F: Clone> UpdateTracker<F, payments::PaymentData<F>, api::PaymentsCaptureRe
                     payment_data.payment_attempt,
                     storage::PaymentAttemptUpdate::MultipleCaptureUpdate {
                         status: None,
-                        multiple_capture_count: Some(
-                            multiple_capture_data.current_capture.capture_sequence,
-                        ),
+                        multiple_capture_count: Some(multiple_capture_data.get_captures_count()?),
                     },
                     storage_scheme,
                 )

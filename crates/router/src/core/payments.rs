@@ -1,12 +1,13 @@
 pub mod access_token;
 pub mod customers;
+pub mod extras;
 pub mod flows;
 pub mod helpers;
 pub mod operations;
 pub mod tokenization;
 pub mod transformers;
 
-use std::{collections::HashMap, fmt::Debug, marker::PhantomData, ops::Deref, time::Instant};
+use std::{fmt::Debug, marker::PhantomData, ops::Deref, time::Instant};
 
 use api_models::payments::FrmMessage;
 use common_utils::pii;
@@ -1073,7 +1074,7 @@ where
     pub flow: PhantomData<F>,
     pub payment_intent: storage::PaymentIntent,
     pub payment_attempt: storage::PaymentAttempt,
-    pub multiple_capture_data: Option<MultipleCaptureData>,
+    pub multiple_capture_data: Option<extras::MultipleCaptureData>,
     pub connector_response: storage::ConnectorResponse,
     pub amount: api::Amount,
     pub mandate_id: Option<api_models::payments::MandateIds>,
@@ -1098,96 +1099,6 @@ where
     pub ephemeral_key: Option<ephemeral_key::EphemeralKey>,
     pub redirect_response: Option<api_models::payments::RedirectResponse>,
     pub frm_message: Option<FrmMessage>,
-}
-
-#[derive(Clone)]
-pub struct MultipleCaptureData {
-    previous_captures: Vec<storage::Capture>,
-    current_capture: storage::Capture,
-}
-
-impl MultipleCaptureData {
-    fn get_previously_blocked_amount(&self) -> i64 {
-        self.previous_captures
-            .iter()
-            .fold(0, |accumulator, capture| {
-                accumulator
-                    + match capture.status {
-                        storage_enums::CaptureStatus::Charged
-                        | storage_enums::CaptureStatus::Pending => capture.amount,
-                        storage_enums::CaptureStatus::Started
-                        | storage_enums::CaptureStatus::Failed => 0,
-                    }
-            })
-    }
-    fn get_total_blocked_amount(&self) -> i64 {
-        self.get_previously_blocked_amount()
-            + match self.current_capture.status {
-                api_models::enums::CaptureStatus::Charged
-                | api_models::enums::CaptureStatus::Pending => self.current_capture.amount,
-                api_models::enums::CaptureStatus::Failed
-                | api_models::enums::CaptureStatus::Started => 0,
-            }
-    }
-    fn get_previously_charged_amount(&self) -> i64 {
-        self.previous_captures
-            .iter()
-            .fold(0, |accumulator, capture| {
-                accumulator
-                    + match capture.status {
-                        storage_enums::CaptureStatus::Charged => capture.amount,
-                        storage_enums::CaptureStatus::Pending
-                        | storage_enums::CaptureStatus::Started
-                        | storage_enums::CaptureStatus::Failed => 0,
-                    }
-            })
-    }
-    fn get_total_charged_amount(&self) -> i64 {
-        self.get_previously_charged_amount()
-            + match self.current_capture.status {
-                storage_enums::CaptureStatus::Charged => self.current_capture.amount,
-                storage_enums::CaptureStatus::Pending
-                | storage_enums::CaptureStatus::Started
-                | storage_enums::CaptureStatus::Failed => 0,
-            }
-    }
-    fn get_captures_count(&self) -> RouterResult<i16> {
-        i16::try_from(1 + self.previous_captures.len())
-            .into_report()
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Error while converting from usize to i16")
-    }
-    fn get_status_count(&self) -> HashMap<storage_enums::CaptureStatus, i16> {
-        let mut hash_map: HashMap<storage_enums::CaptureStatus, i16> = HashMap::new();
-        hash_map.insert(storage_enums::CaptureStatus::Charged, 0);
-        hash_map.insert(storage_enums::CaptureStatus::Pending, 0);
-        hash_map.insert(storage_enums::CaptureStatus::Started, 0);
-        hash_map.insert(storage_enums::CaptureStatus::Failed, 0);
-        hash_map
-            .entry(self.current_capture.status)
-            .and_modify(|count| *count += 1);
-        self.previous_captures
-            .iter()
-            .fold(hash_map, |mut accumulator, capture| {
-                let current_capture_status = capture.status;
-                accumulator
-                    .entry(current_capture_status)
-                    .and_modify(|count| *count += 1);
-                accumulator
-            })
-    }
-    fn get_attempt_status(&self, authorized_amount: i64) -> storage_enums::AttemptStatus {
-        let total_captured_amount = self.get_total_charged_amount();
-        if authorized_amount == total_captured_amount {
-            return storage_enums::AttemptStatus::Charged;
-        }
-        let status_count_map = self.get_status_count();
-        if status_count_map.get(&storage_enums::CaptureStatus::Charged) > Some(&0) {
-            storage_enums::AttemptStatus::PartialCharged
-        } else {
-            storage_enums::AttemptStatus::CaptureInitiated
-        }
-    }
 }
 
 #[derive(Debug, Default, Clone)]

@@ -171,6 +171,14 @@ pub trait ConnectorIntegration<T, Req, Resp>: ConnectorIntegrationAny<T, Req, Re
         })
     }
 
+    // whenever capture sync is implemented at the connector side, this method should be overriden
+    fn get_capture_sync_method(&self) -> CustomResult<CaptureSyncMethod, errors::ConnectorError> {
+        Err(
+            errors::ConnectorError::NotImplemented("multiple capture sync not implemented".into())
+                .into(),
+        )
+    }
+
     fn get_certificate(
         &self,
         _req: &types::RouterData<T, Req, Resp>,
@@ -184,6 +192,11 @@ pub trait ConnectorIntegration<T, Req, Resp>: ConnectorIntegrationAny<T, Req, Re
     ) -> CustomResult<Option<String>, errors::ConnectorError> {
         Ok(None)
     }
+}
+
+pub enum CaptureSyncMethod {
+    Individual,
+    Bulk,
 }
 
 /// Handle the flow by interacting with connector module

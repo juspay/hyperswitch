@@ -10,7 +10,10 @@ use super::{BoxedOperation, Domain, GetTracker, Operation, UpdateTracker, Valida
 use crate::{
     core::{
         errors::{self, CustomResult, RouterResult, StorageErrorExt},
-        payments::{helpers, operations, CustomerDetails, PaymentAddress, PaymentData},
+        payments::{
+            extras::MultipleCaptureData, helpers, operations, CustomerDetails, PaymentAddress,
+            PaymentData,
+        },
     },
     db::StorageInterface,
     routes::AppState,
@@ -248,6 +251,24 @@ async fn get_tracker_for_sync<
         _ => None,
     };
 
+    let multiple_capture_data = if payment_attempt.multiple_capture_count.unwrap_or_default() > 0 {
+        let captures = db
+            .find_all_captures_by_merchant_id_payment_id_authorized_attempt_id(
+                &payment_attempt.merchant_id,
+                &payment_attempt.payment_id,
+                &payment_attempt.attempt_id,
+                storage_scheme,
+            )
+            .await
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable_lazy(|| {
+                    format!("Error while retrieving capture list for, merchant_id: {merchant_id}, payment_id: {payment_id_str}")
+                })?;
+        Some(MultipleCaptureData::new_sync(captures)?)
+    } else {
+        None
+    };
+
     let refunds = db
         .find_refund_by_payment_id_merchant_id(&payment_id_str, merchant_id, storage_scheme)
         .await
@@ -342,7 +363,7 @@ async fn get_tracker_for_sync<
             connector_customer_id: None,
             recurring_mandate_payment_data: None,
             ephemeral_key: None,
-            multiple_capture_data: None,
+            multiple_capture_data,
             redirect_response: None,
             frm_message,
         },

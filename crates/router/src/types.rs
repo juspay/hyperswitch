@@ -26,7 +26,10 @@ pub use crate::core::payments::{CustomerDetails, PaymentAddress};
 #[cfg(feature = "payouts")]
 use crate::core::utils::IRRELEVANT_CONNECTOR_REQUEST_REFERENCE_ID_IN_DISPUTE_FLOW;
 use crate::{
-    core::{errors, payments::RecurringMandatePaymentData},
+    core::{
+        errors,
+        payments::{extras::MultipleCaptureData, RecurringMandatePaymentData},
+    },
     services,
 };
 
@@ -229,6 +232,8 @@ pub struct RouterData<Flow, Request, Response> {
     pub reference_id: Option<String>,
     pub payment_method_token: Option<String>,
     pub recurring_mandate_payment_data: Option<RecurringMandatePaymentData>,
+    pub multiple_capture_sync_response:
+        Option<Vec<(storage::Capture, storage_enums::AttemptStatus)>>,
     pub preprocessing_id: Option<String>,
 
     /// Contains flow-specific data required to construct a request and send it to the connector.
@@ -317,7 +322,7 @@ pub struct PaymentsCaptureData {
     pub currency: storage_enums::Currency,
     pub connector_transaction_id: String,
     pub payment_amount: i64,
-    pub capture_method: storage_enums::CaptureMethod,
+    pub multiple_capture_data: Option<MultipleCaptureData>,
     pub connector_meta: Option<serde_json::Value>,
 }
 
@@ -386,6 +391,8 @@ pub struct PaymentsSyncData {
     pub encoded_data: Option<String>,
     pub capture_method: Option<storage_enums::CaptureMethod>,
     pub connector_meta: Option<serde_json::Value>,
+    // // multiple_capture_data will be some only for multiple capture sync
+    pub multiple_capture_data: Option<MultipleCaptureData>,
     pub mandate_id: Option<api_models::payments::MandateIds>,
 }
 
@@ -434,6 +441,9 @@ pub trait Capturable {
     fn get_capture_amount(&self) -> Option<i64> {
         Some(0)
     }
+    fn get_multiple_capture_data(&self) -> Option<MultipleCaptureData> {
+        None
+    }
 }
 
 impl Capturable for PaymentsAuthorizeData {
@@ -446,6 +456,9 @@ impl Capturable for PaymentsCaptureData {
     fn get_capture_amount(&self) -> Option<i64> {
         Some(self.amount_to_capture)
     }
+    fn get_multiple_capture_data(&self) -> Option<MultipleCaptureData> {
+        self.multiple_capture_data.clone()
+    }
 }
 
 impl Capturable for CompleteAuthorizeData {
@@ -456,7 +469,11 @@ impl Capturable for CompleteAuthorizeData {
 impl Capturable for VerifyRequestData {}
 impl Capturable for PaymentsCancelData {}
 impl Capturable for PaymentsSessionData {}
-impl Capturable for PaymentsSyncData {}
+impl Capturable for PaymentsSyncData {
+    fn get_multiple_capture_data(&self) -> Option<MultipleCaptureData> {
+        self.multiple_capture_data.clone()
+    }
+}
 
 pub struct AddAccessTokenResult {
     pub access_token_result: Result<Option<AccessToken>, ErrorResponse>,
@@ -894,6 +911,7 @@ impl<F1, F2, T1, T2> From<(&RouterData<F1, T1, PaymentsResponseData>, T2)>
             preprocessing_id: None,
             connector_customer: data.connector_customer.clone(),
             recurring_mandate_payment_data: data.recurring_mandate_payment_data.clone(),
+            multiple_capture_sync_response: data.multiple_capture_sync_response.clone(),
             connector_request_reference_id: data.connector_request_reference_id.clone(),
             #[cfg(feature = "payouts")]
             payout_method_data: data.payout_method_data.clone(),
@@ -963,6 +981,7 @@ impl<F1, F2>
             customer_id: data.customer_id.clone(),
             payment_method_token: None,
             recurring_mandate_payment_data: None,
+            multiple_capture_sync_response: None,
             preprocessing_id: None,
             connector_customer: data.connector_customer.clone(),
             connector_request_reference_id:

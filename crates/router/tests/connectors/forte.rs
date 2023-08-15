@@ -149,6 +149,7 @@ async fn should_sync_authorized_payment() {
                 ),
                 encoded_data: None,
                 capture_method: None,
+                multiple_capture_data: None,
                 connector_meta: None,
                 mandate_id: None,
             }),

@@ -175,6 +175,7 @@ pub async fn construct_payout_router_data<'a, F>(
         reference_id: None,
         payment_method_token: None,
         recurring_mandate_payment_data: None,
+        multiple_capture_sync_response: None,
         preprocessing_id: None,
         connector_request_reference_id: IRRELEVANT_CONNECTOR_REQUEST_REFERENCE_ID_IN_DISPUTE_FLOW
             .to_string(),
@@ -276,6 +277,7 @@ pub async fn construct_refund_router_data<'a, F>(
         payment_method_token: None,
         connector_customer: None,
         recurring_mandate_payment_data: None,
+        multiple_capture_sync_response: None,
         preprocessing_id: None,
         connector_request_reference_id: get_connector_request_reference_id(
             &state.conf,
@@ -492,6 +494,7 @@ pub async fn construct_accept_dispute_router_data<'a>(
         connector_customer: None,
         customer_id: None,
         recurring_mandate_payment_data: None,
+        multiple_capture_sync_response: None,
         preprocessing_id: None,
         connector_request_reference_id: get_connector_request_reference_id(
             &state.conf,
@@ -565,6 +568,7 @@ pub async fn construct_submit_evidence_router_data<'a>(
         connector_customer: None,
         customer_id: None,
         recurring_mandate_payment_data: None,
+        multiple_capture_sync_response: None,
         preprocessing_id: None,
         connector_request_reference_id: get_connector_request_reference_id(
             &state.conf,
@@ -639,6 +643,7 @@ pub async fn construct_upload_file_router_data<'a>(
         connector_customer: None,
         customer_id: None,
         recurring_mandate_payment_data: None,
+        multiple_capture_sync_response: None,
         preprocessing_id: None,
         connector_request_reference_id: get_connector_request_reference_id(
             &state.conf,
@@ -715,6 +720,7 @@ pub async fn construct_defend_dispute_router_data<'a>(
         customer_id: None,
         connector_customer: None,
         recurring_mandate_payment_data: None,
+        multiple_capture_sync_response: None,
         preprocessing_id: None,
         connector_request_reference_id: get_connector_request_reference_id(
             &state.conf,
@@ -789,6 +795,7 @@ pub async fn construct_retrieve_file_router_data<'a>(
         reference_id: None,
         payment_method_token: None,
         recurring_mandate_payment_data: None,
+        multiple_capture_sync_response: None,
         preprocessing_id: None,
         connector_request_reference_id: IRRELEVANT_CONNECTOR_REQUEST_REFERENCE_ID_IN_DISPUTE_FLOW
             .to_string(),

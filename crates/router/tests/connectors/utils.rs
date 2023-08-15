@@ -446,6 +446,7 @@ pub trait ConnectorActions: Connector {
             payment_method_token: None,
             connector_customer: None,
             recurring_mandate_payment_data: None,
+            multiple_capture_sync_response: None,
             preprocessing_id: None,
             connector_request_reference_id: uuid::Uuid::new_v4().to_string(),
             #[cfg(feature = "payouts")]
@@ -864,6 +865,7 @@ impl Default for PaymentSyncType {
             ),
             encoded_data: None,
             capture_method: None,
+            multiple_capture_data: None,
             connector_meta: None,
         };
         Self(data)

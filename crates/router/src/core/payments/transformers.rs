@@ -126,6 +126,7 @@ where
         payment_method_token: payment_data.pm_token,
         connector_customer: payment_data.connector_customer_id,
         recurring_mandate_payment_data: payment_data.recurring_mandate_payment_data,
+        multiple_capture_sync_response: None,
         connector_request_reference_id: core_utils::get_connector_request_reference_id(
             &state.conf,
             &merchant_account.merchant_id,
@@ -179,6 +180,15 @@ where
             payment_data.refunds,
             payment_data.disputes,
             payment_data.attempts,
+            payment_data
+                .multiple_capture_data
+                .map(|multiple_capture_data| {
+                    multiple_capture_data
+                        .get_all_captures()
+                        .into_iter()
+                        .cloned()
+                        .collect()
+                }),
             payment_data.payment_method_data,
             customer,
             auth_flow,
@@ -283,6 +293,7 @@ pub fn payments_to_payments_response<R, Op>(
     refunds: Vec<storage::Refund>,
     disputes: Vec<storage::Dispute>,
     option_attempts: Option<Vec<storage::PaymentAttempt>>,
+    captures: Option<Vec<storage::Capture>>,
     payment_method_data: Option<api::PaymentMethodData>,
     customer: Option<domain::Customer>,
     auth_flow: services::AuthFlow,
@@ -330,6 +341,14 @@ where
             .map(ForeignInto::foreign_into)
             .collect()
     });
+
+    let captures_response = captures.map(|captures| {
+        captures
+            .into_iter()
+            .map(ForeignInto::foreign_into)
+            .collect()
+    });
+
     let merchant_id = payment_attempt.merchant_id.to_owned();
     let payment_method_type = payment_attempt
         .payment_method_type
@@ -460,6 +479,7 @@ where
                         .set_refunds(refunds_response) // refunds.iter().map(refund_to_refund_response),
                         .set_disputes(disputes_response)
                         .set_attempts(attempts_response)
+                        .set_captures(captures_response)
                         .set_payment_method(
                             payment_attempt.payment_method,
                             auth_flow == services::AuthFlow::Merchant,
@@ -523,6 +543,7 @@ where
             refunds: refunds_response,
             disputes: disputes_response,
             attempts: attempts_response,
+            captures: captures_response,
             payment_method: payment_attempt.payment_method,
             capture_method: payment_attempt.capture_method,
             error_message: payment_attempt.error_message,
@@ -821,6 +842,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsSyncData
                 }
                 None => types::ResponseId::NoResponseId,
             },
+            multiple_capture_data: payment_data.multiple_capture_data,
             encoded_data: payment_data.connector_response.encoded_data,
             capture_method: payment_data.payment_attempt.capture_method,
             connector_meta: payment_data.payment_attempt.connector_metadata,
@@ -879,10 +901,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsCaptureD
                 .ok_or(errors::ApiErrorResponse::ResourceIdNotFound)?,
             payment_amount: payment_data.amount.into(),
             connector_meta: payment_data.payment_attempt.connector_metadata,
-            capture_method: payment_data
-                .payment_attempt
-                .capture_method
-                .unwrap_or_default(),
+            multiple_capture_data: payment_data.multiple_capture_data,
         })
     }
 }

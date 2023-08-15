@@ -8,7 +8,8 @@ use crate::{
     },
     routes::AppState,
     services,
-    types::{self, api, domain},
+    types::{self, api, domain, storage::enums, Capturable},
+    utils::OptionExt,
 };
 
 #[async_trait]
@@ -42,7 +43,7 @@ impl Feature<api::PSync, types::PaymentsSyncData>
     for types::RouterData<api::PSync, types::PaymentsSyncData, types::PaymentsResponseData>
 {
     async fn decide_flows<'a>(
-        self,
+        mut self,
         state: &AppState,
         connector: &api::ConnectorData,
         _customer: &Option<domain::Customer>,
@@ -56,17 +57,69 @@ impl Feature<api::PSync, types::PaymentsSyncData>
             types::PaymentsSyncData,
             types::PaymentsResponseData,
         > = connector.connector.get_connector_integration();
-        let resp = services::execute_connector_processing_step(
-            state,
-            connector_integration,
-            &self,
-            call_connector_action,
-            connector_request,
-        )
-        .await
-        .to_payment_failed_response()?;
-
-        Ok(resp)
+        match self.request.get_multiple_capture_data() {
+            Some(multiple_capture_data) => {
+                match connector_integration
+                    .get_capture_sync_method()
+                    .to_payment_failed_response()?
+                {
+                    services::CaptureSyncMethod::Individual => {
+                        let pending_captures = multiple_capture_data.get_pending_captures();
+                        let mut capture_status_update_list = Vec::new();
+                        for capture in pending_captures.into_iter() {
+                            self.request.connector_transaction_id =
+                                types::ResponseId::ConnectorTransactionId(
+                                    capture
+                                        .connector_transaction_id
+                                        .clone()
+                                        .get_required_value("connector_transaction_id")?,
+                                );
+                            let resp = services::execute_connector_processing_step(
+                                state,
+                                connector_integration.clone(),
+                                &self,
+                                call_connector_action.clone(),
+                                None,
+                            )
+                            .await
+                            .to_payment_failed_response()?;
+                            let attempt_status = match resp.response {
+                                Ok(_) => resp.status,
+                                Err(_) => enums::AttemptStatus::Pending,
+                            };
+                            capture_status_update_list.push((capture.to_owned(), attempt_status));
+                        }
+                        self.multiple_capture_sync_response = Some(capture_status_update_list);
+                        Ok(self)
+                    }
+                    services::CaptureSyncMethod::Bulk => {
+                        // RouterData::multiple_capture_sync_response needs to be populated at connector side
+                        let resp = services::execute_connector_processing_step(
+                            state,
+                            connector_integration,
+                            &self,
+                            call_connector_action,
+                            connector_request,
+                        )
+                        .await
+                        .to_payment_failed_response()?;
+                        Ok(resp)
+                    }
+                }
+            }
+            None => {
+                let resp = services::execute_connector_processing_step(
+                    state,
+                    connector_integration,
+                    &self,
+                    call_connector_action,
+                    connector_request,
+                )
+                .await
+                .to_payment_failed_response()?;
+                Ok(resp)
+            }
+        }
     }
 
     async fn add_access_token<'a>(

@@ -343,6 +343,21 @@ pub struct PaymentAttemptResponse {
     pub reference_id: Option<String>,
 }
 
+#[derive(
+    Default, Debug, serde::Serialize, Clone, PartialEq, ToSchema, router_derive::PolymorphicSchema,
+)]
+pub struct CaptureResponse {
+    pub capture_id: String,
+    pub status: enums::CaptureStatus,
+    pub amount: i64,
+    pub currency: Option<enums::Currency>,
+    pub connector: Option<String>,
+    pub tax_amount: Option<i64>,
+    pub authorized_attempt_id: String,
+    pub connector_transaction_id: Option<String>,
+    pub capture_sequence: i16,
+}
+
 impl PaymentsRequest {
     pub fn get_feature_metadata_as_value(
         &self,
@@ -1517,6 +1532,11 @@ pub struct PaymentsResponse {
     #[schema(value_type = Option<Vec<PaymentAttemptResponse>>)]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub attempts: Option<Vec<PaymentAttemptResponse>>,
+
+    /// List of captures done on latest attempt
+    #[schema(value_type = Option<Vec<CaptureResponse>>)]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub captures: Option<Vec<CaptureResponse>>,
 
     /// A unique identifier to link the payment to a mandate, can be use instead of payment_method_data
     #[schema(max_length = 255, example = "mandate_iwer89rnjef349dni3")]

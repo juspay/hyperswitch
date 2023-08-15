@@ -585,6 +585,22 @@ impl ForeignFrom<storage::PaymentAttempt> for api_models::payments::PaymentAttem
     }
 }
 
+impl ForeignFrom<storage::Capture> for api_models::payments::CaptureResponse {
+    fn foreign_from(capture: storage::Capture) -> Self {
+        Self {
+            capture_id: capture.capture_id,
+            status: capture.status,
+            amount: capture.amount,
+            currency: capture.currency,
+            connector: capture.connector,
+            tax_amount: capture.tax_amount,
+            authorized_attempt_id: capture.authorized_attempt_id,
+            connector_transaction_id: capture.connector_transaction_id,
+            capture_sequence: capture.capture_sequence,
+        }
+    }
+}
+
 impl ForeignFrom<api_models::payouts::Bank> for api_enums::PaymentMethodType {
     fn foreign_from(value: api_models::payouts::Bank) -> Self {
         match value {
