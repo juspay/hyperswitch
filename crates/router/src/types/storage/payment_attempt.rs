@@ -9,9 +9,6 @@ pub struct RoutingData {
     pub algorithm: Option<api_models::admin::StraightThroughAlgorithm>,
 }
 
-#[cfg(feature = "kv_store")]
-impl crate::utils::storage_partitioning::KvStorePartition for PaymentAttempt {}
-
 pub trait PaymentAttemptExt {
     fn make_new_capture(
         &self,
