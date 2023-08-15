@@ -25,8 +25,14 @@ CREATE TABLE captures(
     capture_sequence SMALLINT NOT NULL
 );
 
-CREATE INDEX authorized_attempt_id_index ON captures (authorized_attempt_id);
-CREATE INDEX connector_transaction_id_index ON captures (connector_transaction_id);
+CREATE INDEX captures_merchant_id_payment_id_authorized_attempt_id_index ON captures (
+    merchant_id,
+    payment_id,
+    authorized_attempt_id
+);
+CREATE INDEX captures_connector_transaction_id_index ON captures (
+    connector_transaction_id
+);
 
 ALTER TABLE payment_attempt
 ADD COLUMN multiple_capture_count SMALLINT; --number of captures available for this payment attempt in captures table

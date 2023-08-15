@@ -10,11 +10,11 @@ use super::{errors::StorageErrorExt, metrics};
 use crate::{
     consts,
     core::{
-        errors::{self, CustomResult, RouterResponse},
+        errors::{self, ConnectorErrorExt, CustomResult, RouterResponse},
         payments, refunds,
     },
     logger,
-    routes::AppState,
+    routes::{metrics::request::add_attributes, AppState},
     services,
     types::{
         self as router_types, api, domain,
@@ -42,7 +42,7 @@ pub async fn payments_incoming_webhook_flow<W: types::OutgoingWebhookType>(
     };
     let payments_response = match webhook_details.object_reference_id {
         api_models::webhooks::ObjectReferenceId::PaymentId(id) => {
-            payments::payments_core::<api::PSync, api::PaymentsResponse, _, _, _>(
+            let response = payments::payments_core::<api::PSync, api::PaymentsResponse, _, _, _>(
                 &state,
                 merchant_account.clone(),
                 key_store,
@@ -60,7 +60,30 @@ pub async fn payments_incoming_webhook_flow<W: types::OutgoingWebhookType>(
                 services::AuthFlow::Merchant,
                 consume_or_trigger_flow,
             )
-            .await?
+            .await;
+
+            match response {
+                Ok(value) => value,
+                Err(err)
+                    if matches!(
+                        err.current_context(),
+                        &errors::ApiErrorResponse::PaymentNotFound
+                    ) && state
+                        .conf
+                        .webhooks
+                        .ignore_error
+                        .payment_not_found
+                        .unwrap_or(true) =>
+                {
+                    metrics::WEBHOOK_PAYMENT_NOT_FOUND.add(
+                        &metrics::CONTEXT,
+                        1,
+                        &[add_attributes("merchant_id", merchant_account.merchant_id)],
+                    );
+                    return Ok(());
+                }
+                error @ Err(_) => error?,
+            }
         }
         _ => Err(errors::ApiErrorResponse::WebhookProcessingFailure)
             .into_report()
@@ -474,8 +497,9 @@ pub async fn create_event_and_trigger_outgoing_webhook<W: types::OutgoingWebhook
     primary_object_type: enums::EventObjectType,
     content: api::OutgoingWebhookContent,
 ) -> CustomResult<(), errors::ApiErrorResponse> {
+    let event_id = format!("{primary_object_id}_{}", event_type);
     let new_event = storage::EventNew {
-        event_id: generate_id(consts::ID_LENGTH, "evt"),
+        event_id: event_id.clone(),
         event_type,
         event_class,
         is_webhook_notified: false,
@@ -484,12 +508,22 @@ pub async fn create_event_and_trigger_outgoing_webhook<W: types::OutgoingWebhook
         primary_object_type,
     };
 
-    let event = state
-        .store
-        .insert_event(new_event)
-        .await
-        .change_context(errors::ApiErrorResponse::WebhookProcessingFailure)
-        .attach_printable("event insertion failure")?;
+    let event_insert_result = state.store.insert_event(new_event).await;
+
+    let event = match event_insert_result {
+        Ok(event) => Ok(event),
+        Err(error) => {
+            if error.current_context().is_db_unique_violation() {
+                logger::info!("Merchant already notified about the event {event_id}");
+                return Ok(());
+            } else {
+                logger::error!(event_insertion_failure=?error);
+                Err(error
+                    .change_context(errors::ApiErrorResponse::WebhookProcessingFailure)
+                    .attach_printable("Failed to insert event in events table"))
+            }
+        }
+    }?;
 
     if state.conf.webhooks.outgoing_enabled {
         let arbiter = actix::Arbiter::try_current()
@@ -672,10 +706,37 @@ pub async fn webhooks_core<W: types::OutgoingWebhookType>(
 
     request_details.body = &decoded_body;
 
-    let event_type = connector
+    let event_type = match connector
         .get_webhook_event_type(&request_details)
+        .allow_webhook_event_type_not_found(
+            state.conf.webhooks.ignore_error.event_type.unwrap_or(true),
+        )
         .switch()
-        .attach_printable("Could not find event type in incoming webhook body")?;
+        .attach_printable("Could not find event type in incoming webhook body")?
+    {
+        Some(event_type) => event_type,
+        // Early return allows us to acknowledge the webhooks that we do not support
+        None => {
+            logger::error!(
+                webhook_payload =? request_details.body,
+                "Failed while identifying the event type",
+            );
+
+            metrics::WEBHOOK_EVENT_TYPE_IDENTIFICATION_FAILURE_COUNT.add(
+                &metrics::CONTEXT,
+                1,
+                &[
+                    metrics::KeyValue::new(MERCHANT_ID, merchant_account.merchant_id.clone()),
+                    metrics::KeyValue::new("connector", connector_name.to_string()),
+                ],
+            );
+
+            return connector
+                .get_webhook_api_response(&request_details)
+                .switch()
+                .attach_printable("Failed while early return in case of event type parsing");
+        }
+    };
 
     let process_webhook_further = utils::lookup_webhook_event(
         &*state.store,
@@ -690,13 +751,19 @@ pub async fn webhooks_core<W: types::OutgoingWebhookType>(
 
     let flow_type: api::WebhookFlow = event_type.to_owned().into();
     if process_webhook_further && !matches!(flow_type, api::WebhookFlow::ReturnResponse) {
+        let object_ref_id = connector
+            .get_webhook_object_reference_id(&request_details)
+            .switch()
+            .attach_printable("Could not find object reference id in incoming webhook body")?;
+
         let source_verified = connector
             .verify_webhook_source(
                 &*state.store,
                 &request_details,
-                &merchant_account.merchant_id,
+                &merchant_account,
                 connector_name,
                 &key_store,
+                object_ref_id.clone(),
             )
             .await
             .switch()
@@ -714,10 +781,6 @@ pub async fn webhooks_core<W: types::OutgoingWebhookType>(
         }
 
         logger::info!(source_verified=?source_verified);
-        let object_ref_id = connector
-            .get_webhook_object_reference_id(&request_details)
-            .switch()
-            .attach_printable("Could not find object reference id in incoming webhook body")?;
 
         let event_object = connector
             .get_webhook_resource_object(&request_details)

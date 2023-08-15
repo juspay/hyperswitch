@@ -16,20 +16,12 @@ env:
   RUSTUP_MAX_RETRIES: 10
   RUST_BACKTRACE: short
   CARGO_REGISTRIES_CRATES_IO_PROTOCOL: sparse
+  CONNECTORS: aci, adyen_uk, airwallex, authorizedotnet, bambora, bambora_3ds, bluesnap, checkout, forte, mollie, nexinets, nmi, payme, paypal, powertranz, rapyd, shift4, stripe, trustpay, worldline
 
 jobs:
   runner:
     name: Run postman tests
     runs-on: ubuntu-latest
-
-    strategy:
-      fail-fast: false
-      matrix:
-        connector:
-          # Grouping connectors based on their time consumption
-          # This would help in parallelizing the tests
-          - aci, checkout, stripe
-          - bluesnap, nmi, worldline
 
     services:
       redis:
@@ -138,19 +130,19 @@ jobs:
           GATEWAY_MERCHANT_ID: ${{ secrets.STRIPE_GATEWAY_MERCHANT_ID }}
           GPAY_CERTIFICATE: ${{ secrets.STRIPE_GPAY_CERTIFICATE }}
           GPAY_CERTIFICATE_KEYS: ${{ secrets.STRIPE_GPAY_CERTIFICATE_KEYS }}
-          INPUT: ${{ matrix.connector }}
         shell: bash
         run: |
           RED='\033[0;31m'
           RESET='\033[0m'
           failed_connectors=()
-
-          for i in $(echo "$INPUT" | tr "," "\n"); do
+      
+          for i in $(echo "$CONNECTORS" | tr "," "\n"); do
+            echo $i
             if ! cargo run --bin test_utils -- --connector_name="$i" --base_url="$BASE_URL" --admin_api_key="$ADMIN_API_KEY"; then
               failed_connectors+=("$i")
             fi
           done
-
+      
           if [ ${#failed_connectors[@]} -gt 0 ]; then
             echo -e "${RED}One or more connectors failed to run:${RESET}"
             printf '%s\n' "${failed_connectors[@]}"

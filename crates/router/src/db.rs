@@ -29,11 +29,10 @@ pub mod reverse_lookup;
 use std::sync::Arc;
 
 use futures::lock::Mutex;
+use masking::PeekInterface;
+use storage_impl::redis::kv_store::RedisConnInterface;
 
-use crate::{
-    services::{self, Store},
-    types::storage,
-};
+use crate::{services::Store, types::storage};
 
 #[derive(PartialEq, Eq)]
 pub enum StorageImpl {
@@ -75,7 +74,7 @@ pub trait StorageInterface:
     + cards_info::CardsInfoInterface
     + merchant_key_store::MerchantKeyStoreInterface
     + MasterKeyInterface
-    + services::RedisConnInterface
+    + RedisConnInterface
     + 'static
 {
 }
@@ -86,7 +85,7 @@ pub trait MasterKeyInterface {
 
 impl MasterKeyInterface for Store {
     fn get_master_key(&self) -> &[u8] {
-        &self.master_key
+        self.master_key().peek()
     }
 }
 
@@ -176,9 +175,14 @@ where
         .change_context(redis_interface::errors::RedisError::JsonDeserializationFailed)
 }
 
-impl services::RedisConnInterface for MockDb {
-    fn get_redis_conn(&self) -> Arc<redis_interface::RedisConnectionPool> {
-        self.redis.clone()
+impl RedisConnInterface for MockDb {
+    fn get_redis_conn(
+        &self,
+    ) -> Result<
+        Arc<redis_interface::RedisConnectionPool>,
+        error_stack::Report<redis_interface::errors::RedisError>,
+    > {
+        Ok(self.redis.clone())
     }
 }
 

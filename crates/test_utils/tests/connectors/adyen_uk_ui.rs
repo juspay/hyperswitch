@@ -332,21 +332,6 @@ async fn should_make_adyen_eps_payment(web_driver: WebDriver) -> Result<(), WebD
     Ok(())
 }
 
-async fn should_make_adyen_blik_payment(web_driver: WebDriver) -> Result<(), WebDriverError> {
-    let conn = AdyenSeleniumTest {};
-    conn.make_redirection_payment(
-        web_driver,
-        vec![
-            Event::Trigger(Trigger::Goto(&format!("{CHEKOUT_BASE_URL}/saved/64"))),
-            Event::Trigger(Trigger::Click(By::Id("card-submit-btn"))),
-            Event::Assert(Assert::IsPresent("Status")),
-            Event::Assert(Assert::IsPresent("processing")), //final status of this payment method will remain in processing state
-        ],
-    )
-    .await?;
-    Ok(())
-}
-
 async fn should_make_adyen_bancontact_card_payment(
     web_driver: WebDriver,
 ) -> Result<(), WebDriverError> {
@@ -438,7 +423,11 @@ async fn should_make_adyen_onlinebanking_pl_payment(
             Event::Trigger(Trigger::Goto(&format!("{CHEKOUT_BASE_URL}/saved/197"))),
             Event::Trigger(Trigger::Click(By::Id("card-submit-btn"))),
             Event::Trigger(Trigger::Click(By::Id("user_account_pbl_correct"))),
-            Event::Assert(Assert::IsPresent("succeeded")),
+            Event::Assert(Assert::IsPresent("Google")),
+            Event::Assert(Assert::ContainsAny(
+                Selector::QueryParamStr,
+                vec!["status=succeeded", "status=processing"],
+            )),
         ],
     )
     .await?;
@@ -602,6 +591,68 @@ async fn should_make_adyen_touch_n_go_payment(web_driver: WebDriver) -> Result<(
             Event::Trigger(Trigger::Goto(&format!("{CHEKOUT_BASE_URL}/saved/185"))),
             Event::Trigger(Trigger::Click(By::Id("card-submit-btn"))),
             Event::Trigger(Trigger::Click(By::Css("button[value='authorised']"))),
+            Event::Assert(Assert::IsPresent("Google")),
+            Event::Assert(Assert::ContainsAny(
+                Selector::QueryParamStr,
+                vec!["status=succeeded"],
+            )),
+        ],
+    )
+    .await?;
+    Ok(())
+}
+
+async fn should_make_adyen_swish_payment(web_driver: WebDriver) -> Result<(), WebDriverError> {
+    let conn = AdyenSeleniumTest {};
+    conn.make_redirection_payment(
+        web_driver,
+        vec![
+            Event::Trigger(Trigger::Goto(&format!("{CHEKOUT_BASE_URL}/saved/210"))),
+            Event::Trigger(Trigger::Click(By::Id("card-submit-btn"))),
+            Event::Assert(Assert::IsPresent("status")),
+            Event::Assert(Assert::IsPresent("processing")),
+            Event::Assert(Assert::IsPresent("Next Action Type")),
+            Event::Assert(Assert::IsPresent("qr_code_information")),
+        ],
+    )
+    .await?;
+    Ok(())
+}
+
+async fn should_make_adyen_blik_payment(driver: WebDriver) -> Result<(), WebDriverError> {
+    let conn = AdyenSeleniumTest {};
+    conn.make_redirection_payment(
+        driver,
+        vec![
+            Event::Trigger(Trigger::Goto(&format!("{CHEKOUT_BASE_URL}/saved/64"))),
+            Event::Trigger(Trigger::Click(By::Id("card-submit-btn"))),
+            Event::Assert(Assert::IsPresent("Next Action Type")),
+            Event::Assert(Assert::IsPresent("wait_screen_information")),
+        ],
+    )
+    .await?;
+    Ok(())
+}
+
+async fn should_make_adyen_momo_atm_payment(web_driver: WebDriver) -> Result<(), WebDriverError> {
+    let conn = AdyenSeleniumTest {};
+    conn.make_redirection_payment(
+        web_driver,
+        vec![
+            Event::Trigger(Trigger::Goto(&format!("{CHEKOUT_BASE_URL}/saved/238"))),
+            Event::Trigger(Trigger::Click(By::Id("card-submit-btn"))),
+            Event::Trigger(Trigger::Sleep(5)), // Delay for provider to not reject payment for botting
+            Event::Trigger(Trigger::SendKeys(
+                By::Id("card-number"),
+                "9704 0000 0000 0018",
+            )),
+            Event::Trigger(Trigger::SendKeys(By::Id("card-expire"), "03/07")),
+            Event::Trigger(Trigger::SendKeys(By::Id("card-name"), "NGUYEN VAN A")),
+            Event::Trigger(Trigger::SendKeys(By::Id("number-phone"), "987656666")),
+            Event::Trigger(Trigger::Click(By::Id("btn-pay-card"))),
+            Event::Trigger(Trigger::SendKeys(By::Id("napasOtpCode"), "otp")),
+            Event::Trigger(Trigger::Click(By::Id("napasProcessBtn1"))),
+            Event::Trigger(Trigger::Sleep(5)), // Delay to get to status page
             Event::Assert(Assert::IsPresent("succeeded")),
         ],
     )
@@ -668,6 +719,12 @@ fn should_make_adyen_alipay_hk_payment_test() {
 
 #[test]
 #[serial]
+fn should_make_adyen_swish_payment_test() {
+    tester!(should_make_adyen_swish_payment);
+}
+
+#[test]
+#[serial]
 #[ignore = "Failing from connector side"]
 fn should_make_adyen_bizum_payment_test() {
     tester!(should_make_adyen_bizum_payment);
@@ -723,12 +780,6 @@ fn should_make_adyen_eps_payment_test() {
 
 #[test]
 #[serial]
-fn should_make_adyen_blik_payment_test() {
-    tester!(should_make_adyen_blik_payment);
-}
-
-#[test]
-#[serial]
 fn should_make_adyen_bancontact_card_payment_test() {
     tester!(should_make_adyen_bancontact_card_payment);
 }
@@ -779,6 +830,12 @@ fn should_make_adyen_dana_payment_test() {
 
 #[test]
 #[serial]
+fn should_make_adyen_blik_payment_test() {
+    tester!(should_make_adyen_blik_payment);
+}
+
+#[test]
+#[serial]
 fn should_make_adyen_online_banking_fpx_payment_test() {
     tester!(should_make_adyen_online_banking_fpx_payment);
 }
@@ -793,4 +850,10 @@ fn should_make_adyen_online_banking_thailand_payment_test() {
 #[serial]
 fn should_make_adyen_touch_n_go_payment_test() {
     tester!(should_make_adyen_touch_n_go_payment);
+}
+
+#[test]
+#[serial]
+fn should_make_adyen_momo_atm_payment_test() {
+    tester!(should_make_adyen_momo_atm_payment);
 }

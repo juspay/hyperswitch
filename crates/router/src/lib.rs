@@ -1,7 +1,6 @@
 #![forbid(unsafe_code)]
 #![recursion_limit = "256"]
 
-pub mod cache;
 #[cfg(feature = "stripe")]
 pub mod compatibility;
 pub mod configs;
@@ -17,7 +16,6 @@ pub mod routes;
 pub mod scheduler;
 
 pub mod middleware;
-#[cfg(feature = "openapi")]
 pub mod openapi;
 pub mod services;
 pub mod types;

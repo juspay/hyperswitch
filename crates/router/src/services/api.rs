@@ -338,8 +338,16 @@ where
                             };
                             Ok(response)
                         }
-                        Err(error) => Err(error
-                            .change_context(errors::ConnectorError::ProcessingStepFailed(None))),
+                        Err(error) => {
+                            if error.current_context().is_upstream_timeout() {
+                                Err(error
+                                    .change_context(errors::ConnectorError::RequestTimeoutReceived))
+                            } else {
+                                Err(error.change_context(
+                                    errors::ConnectorError::ProcessingStepFailed(None),
+                                ))
+                            }
+                        }
                     }
                 }
                 None => Ok(router_data),

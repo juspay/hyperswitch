@@ -2,7 +2,7 @@ use std::{fmt::Debug, marker::PhantomData};
 
 use common_utils::fp_utils;
 use diesel_models::{ephemeral_key, payment_attempt::PaymentListFilters};
-use error_stack::ResultExt;
+use error_stack::{IntoReport, ResultExt};
 use router_env::{instrument, tracing};
 
 use super::{flows::Feature, PaymentAddress, PaymentData};
@@ -21,7 +21,7 @@ use crate::{
         storage::{self, enums},
         transformers::{ForeignFrom, ForeignInto},
     },
-    utils::{self, OptionExt, ValueExt},
+    utils::{OptionExt, ValueExt},
 };
 
 #[instrument(skip_all)]
@@ -138,6 +138,7 @@ where
         #[cfg(feature = "payouts")]
         quote_id: None,
         test_mode,
+        payment_method_balance: None,
     };
 
     Ok(router_data)
@@ -314,11 +315,12 @@ where
         .currency
         .as_ref()
         .get_required_value("currency")?;
-    let amount = utils::to_currency_base_unit(payment_attempt.amount, *currency).change_context(
-        errors::ApiErrorResponse::InvalidDataValue {
+    let amount = currency
+        .to_currency_base_unit(payment_attempt.amount)
+        .into_report()
+        .change_context(errors::ApiErrorResponse::InvalidDataValue {
             field_name: "amount",
-        },
-    )?;
+        })?;
     let mandate_id = payment_attempt.mandate_id.clone();
     let refunds_response = if refunds.is_empty() {
         None
@@ -391,11 +393,19 @@ where
                 let bank_transfer_next_steps =
                     bank_transfer_next_steps_check(payment_attempt.clone())?;
 
-                let next_action_containing_qr_code =
+                let next_action_voucher = voucher_next_steps_check(payment_attempt.clone())?;
+
+                let next_action_containing_qr_code_url =
                     qr_code_next_steps_check(payment_attempt.clone())?;
+
+                let next_action_containing_wait_screen =
+                    wait_screen_next_steps_check(payment_attempt.clone())?;
 
                 if payment_intent.status == enums::IntentStatus::RequiresCustomerAction
                     || bank_transfer_next_steps.is_some()
+                    || next_action_voucher.is_some()
+                    || next_action_containing_qr_code_url.is_some()
+                    || next_action_containing_wait_screen.is_some()
                 {
                     next_action_response = bank_transfer_next_steps
                         .map(|bank_transfer| {
@@ -403,9 +413,21 @@ where
                                 bank_transfer_steps_and_charges_details: bank_transfer,
                             }
                         })
-                        .or(next_action_containing_qr_code.map(|qr_code_data| {
+                        .or(next_action_voucher.map(|voucher_data| {
+                            api_models::payments::NextActionData::DisplayVoucherInformation {
+                                voucher_details: voucher_data,
+                            }
+                        }))
+                        .or(next_action_containing_qr_code_url.map(|qr_code_data| {
                             api_models::payments::NextActionData::QrCodeInformation {
                                 image_data_url: qr_code_data.image_data_url,
+                                display_to_timestamp: qr_code_data.display_to_timestamp,
+                            }
+                        }))
+                        .or(next_action_containing_wait_screen.map(|wait_screen_data| {
+                            api_models::payments::NextActionData::WaitScreenInformation {
+                                display_from_timestamp: wait_screen_data.display_from_timestamp,
+                                display_to_timestamp: wait_screen_data.display_to_timestamp,
                             }
                         }))
                         .or(redirection_data.map(|_| {
@@ -489,7 +511,11 @@ where
                             auth_flow == services::AuthFlow::Merchant,
                         )
                         .set_payment_token(payment_attempt.payment_token)
-                        .set_error_message(payment_attempt.error_reason)
+                        .set_error_message(
+                            payment_attempt
+                                .error_reason
+                                .or(payment_attempt.error_message),
+                        )
                         .set_error_code(payment_attempt.error_code)
                         .set_shipping(address.shipping)
                         .set_billing(address.billing)
@@ -546,7 +572,9 @@ where
             captures: captures_response,
             payment_method: payment_attempt.payment_method,
             capture_method: payment_attempt.capture_method,
-            error_message: payment_attempt.error_message,
+            error_message: payment_attempt
+                .error_reason
+                .or(payment_attempt.error_message),
             error_code: payment_attempt.error_code,
             payment_method_data: payment_method_data_response,
             email: customer
@@ -607,7 +635,9 @@ where
         payment_attempt
             .connector
             .as_ref()
-            .map(|connector| matches!(connector.as_str(), "trustpay"))
+            .map(|connector| {
+                matches!(connector.as_str(), "trustpay") || matches!(connector.as_str(), "payme")
+            })
             .and_then(|is_connector_supports_third_party_sdk| {
                 if is_connector_supports_third_party_sdk {
                     payment_attempt
@@ -633,6 +663,20 @@ pub fn qr_code_next_steps_check(
 
     let qr_code_instructions = qr_code_steps.transpose().ok().flatten();
     Ok(qr_code_instructions)
+}
+
+pub fn wait_screen_next_steps_check(
+    payment_attempt: storage::PaymentAttempt,
+) -> RouterResult<Option<api_models::payments::WaitScreenInstructions>> {
+    let display_info_with_timer_steps: Option<
+        Result<api_models::payments::WaitScreenInstructions, _>,
+    > = payment_attempt
+        .connector_metadata
+        .map(|metadata| metadata.parse_value("WaitScreenInstructions"));
+
+    let display_info_with_timer_instructions =
+        display_info_with_timer_steps.transpose().ok().flatten();
+    Ok(display_info_with_timer_instructions)
 }
 
 impl ForeignFrom<(storage::PaymentIntent, storage::PaymentAttempt)> for api::PaymentsResponse {
@@ -703,6 +747,28 @@ pub fn bank_transfer_next_steps_check(
         None
     };
     Ok(bank_transfer_next_step)
+}
+
+pub fn voucher_next_steps_check(
+    payment_attempt: storage::PaymentAttempt,
+) -> RouterResult<Option<api_models::payments::VoucherNextStepData>> {
+    let voucher_next_step = if let Some(diesel_models::enums::PaymentMethod::Voucher) =
+        payment_attempt.payment_method
+    {
+        let voucher_next_steps: Option<api_models::payments::VoucherNextStepData> = payment_attempt
+            .connector_metadata
+            .map(|metadata| {
+                metadata
+                    .parse_value("NextStepsRequirements")
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Failed to parse the Value to NextRequirements struct")
+            })
+            .transpose()?;
+        voucher_next_steps
+    } else {
+        None
+    };
+    Ok(voucher_next_step)
 }
 
 pub fn change_order_details_to_new_type(
@@ -1055,6 +1121,39 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsPreProce
     fn try_from(additional_data: PaymentAdditionalData<'_, F>) -> Result<Self, Self::Error> {
         let payment_data = additional_data.payment_data;
         let payment_method_data = payment_data.payment_method_data;
+        let router_base_url = &additional_data.router_base_url;
+        let attempt = &payment_data.payment_attempt;
+        let connector_name = &additional_data.connector_name;
+
+        let order_details = payment_data
+            .payment_intent
+            .order_details
+            .map(|order_details| {
+                order_details
+                    .iter()
+                    .map(|data| {
+                        data.to_owned()
+                            .parse_value("OrderDetailsWithAmount")
+                            .change_context(errors::ApiErrorResponse::InvalidDataValue {
+                                field_name: "OrderDetailsWithAmount",
+                            })
+                            .attach_printable("Unable to parse OrderDetailsWithAmount")
+                    })
+                    .collect::<Result<Vec<_>, _>>()
+            })
+            .transpose()?;
+
+        let webhook_url = Some(helpers::create_webhook_url(
+            router_base_url,
+            &attempt.merchant_id,
+            connector_name,
+        ));
+        let router_return_url = Some(helpers::create_redirect_url(
+            router_base_url,
+            attempt,
+            connector_name,
+            payment_data.creds_identifier.as_deref(),
+        ));
 
         Ok(Self {
             payment_method_data,
@@ -1062,6 +1161,11 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsPreProce
             currency: Some(payment_data.currency),
             amount: Some(payment_data.amount.into()),
             payment_method_type: payment_data.payment_attempt.payment_method_type,
+            setup_mandate_details: payment_data.setup_mandate,
+            capture_method: payment_data.payment_attempt.capture_method,
+            order_details,
+            router_return_url,
+            webhook_url,
         })
     }
 }

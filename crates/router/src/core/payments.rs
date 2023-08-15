@@ -10,7 +10,7 @@ pub mod transformers;
 use std::{fmt::Debug, marker::PhantomData, ops::Deref, time::Instant};
 
 use api_models::payments::FrmMessage;
-use common_utils::pii;
+use common_utils::{ext_traits::AsyncExt, pii};
 use diesel_models::ephemeral_key;
 use error_stack::{IntoReport, ResultExt};
 use futures::future::join_all;
@@ -33,7 +33,7 @@ use crate::{
     core::errors::{self, CustomResult, RouterResponse, RouterResult},
     db::StorageInterface,
     logger,
-    routes::{metrics, AppState},
+    routes::{metrics, payment_methods::ParentPaymentMethodToken, AppState},
     scheduler::{utils as pt_utils, workflows::payment_sync},
     services::{self, api::Authenticate},
     types::{
@@ -198,6 +198,20 @@ where
                 .await?
             }
         };
+        payment_data
+            .payment_attempt
+            .payment_token
+            .as_ref()
+            .zip(payment_data.payment_attempt.payment_method)
+            .map(ParentPaymentMethodToken::create_key_for_token)
+            .async_map(|key_for_hyperswitch_token| async move {
+                if key_for_hyperswitch_token
+                    .should_delete_payment_method_token(payment_data.payment_intent.status)
+                {
+                    let _ = key_for_hyperswitch_token.delete(state).await;
+                }
+            })
+            .await;
     } else {
         (_, payment_data) = operation
             .to_update_tracker()?
@@ -208,6 +222,7 @@ where
                 validate_result.storage_scheme,
                 updated_customer,
                 &key_store,
+                None,
             )
             .await?;
     }
@@ -429,7 +444,9 @@ impl PaymentRedirectFlow for PaymentRedirectCompleteAuthorize {
                         api_models::payments::NextActionData::RedirectToUrl { redirect_to_url } => Some(redirect_to_url),
                         api_models::payments::NextActionData::DisplayBankTransferInformation { .. } => None,
                         api_models::payments::NextActionData::ThirdPartySdkSessionToken { .. } => None,
-                        api_models::payments::NextActionData::QrCodeInformation{..} => None
+                        api_models::payments::NextActionData::QrCodeInformation{..} => None,
+                        api_models::payments::NextActionData::DisplayVoucherInformation{ .. } => None,
+                        api_models::payments::NextActionData::WaitScreenInformation{..} => None,
                     })
                     .ok_or(errors::ApiErrorResponse::InternalServerError)
                     .into_report()
@@ -629,6 +646,7 @@ where
             merchant_account.storage_scheme,
             updated_customer,
             key_store,
+            None,
         )
         .await?;
 
@@ -826,7 +844,7 @@ async fn complete_preprocessing_steps_if_required<F, Req>(
     state: &AppState,
     connector: &api::ConnectorData,
     payment_data: &PaymentData<F>,
-    router_data: types::RouterData<F, Req, types::PaymentsResponseData>,
+    mut router_data: types::RouterData<F, Req, types::PaymentsResponseData>,
     should_continue_payment: bool,
 ) -> RouterResult<(types::RouterData<F, Req, types::PaymentsResponseData>, bool)>
 where
@@ -854,7 +872,7 @@ where
             _ => (router_data, should_continue_payment),
         },
         Some(api_models::payments::PaymentMethodData::Wallet(_)) => {
-            if connector.connector_name.to_string() == *"trustpay" {
+            if is_preprocessing_required_for_wallets(connector.connector_name.to_string()) {
                 (
                     router_data.preprocessing_steps(state, connector).await?,
                     false,
@@ -863,10 +881,25 @@ where
                 (router_data, should_continue_payment)
             }
         }
+        Some(api_models::payments::PaymentMethodData::Card(_)) => {
+            if connector.connector_name == types::Connector::Payme {
+                router_data = router_data.preprocessing_steps(state, connector).await?;
+
+                let is_error_in_response = router_data.response.is_err();
+                // If is_error_in_response is true, should_continue_payment should be false, we should throw the error
+                (router_data, !is_error_in_response)
+            } else {
+                (router_data, should_continue_payment)
+            }
+        }
         _ => (router_data, should_continue_payment),
     };
 
     Ok(router_data_and_should_continue_payment)
+}
+
+pub fn is_preprocessing_required_for_wallets(connector_name: String) -> bool {
+    connector_name == *"trustpay" || connector_name == *"payme"
 }
 
 fn is_payment_method_tokenization_enabled_for_connector(
@@ -921,7 +954,12 @@ async fn decide_payment_method_tokenize_action(
             }
         }
         Some(token) => {
-            let redis_conn = state.store.get_redis_conn();
+            let redis_conn = state
+                .store
+                .get_redis_conn()
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Failed to get redis connection")?;
+
             let key = format!(
                 "pm_token_{}_{}_{}",
                 token.to_owned(),

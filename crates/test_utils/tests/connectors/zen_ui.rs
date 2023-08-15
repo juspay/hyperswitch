@@ -23,6 +23,7 @@ async fn should_make_zen_3ds_payment(web_driver: WebDriver) -> Result<(), WebDri
                 Event::Trigger(Trigger::SwitchFrame(By::Name("cko-3ds2-iframe"))),
                 Event::Trigger(Trigger::SendKeys(By::Id("password"), "Checkout1!")),
                 Event::Trigger(Trigger::Click(By::Id("txtButton"))),
+                Event::Trigger(Trigger::Sleep(3)),
                 Event::Assert(Assert::IsPresent("succeeded")),
             ],
         )

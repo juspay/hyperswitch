@@ -1,3 +1,5 @@
+use common_utils::errors::CustomResult;
+
 use crate::{core::errors, logger};
 
 pub trait StorageErrorExt<T, E> {
@@ -55,6 +57,14 @@ pub trait ConnectorErrorExt<T> {
     #[cfg(feature = "payouts")]
     #[track_caller]
     fn to_payout_failed_response(self) -> error_stack::Result<T, errors::ApiErrorResponse>;
+
+    // Validates if the result, is Ok(..) or WebhookEventTypeNotFound all the other error variants
+    // are cascaded while these two event types are handled via `Option`
+    #[track_caller]
+    fn allow_webhook_event_type_not_found(
+        self,
+        enabled: bool,
+    ) -> error_stack::Result<Option<T>, errors::ConnectorError>;
 }
 
 impl<T> ConnectorErrorExt<T> for error_stack::Result<T, errors::ConnectorError> {
@@ -229,5 +239,18 @@ impl<T> ConnectorErrorExt<T> for error_stack::Result<T, errors::ConnectorError> 
             };
             err.change_context(error)
         })
+    }
+
+    fn allow_webhook_event_type_not_found(
+        self,
+        enabled: bool,
+    ) -> CustomResult<Option<T>, errors::ConnectorError> {
+        match self {
+            Ok(event_type) => Ok(Some(event_type)),
+            Err(error) => match error.current_context() {
+                errors::ConnectorError::WebhookEventTypeNotFound if enabled => Ok(None),
+                _ => Err(error),
+            },
+        }
     }
 }
