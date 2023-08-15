@@ -80,6 +80,14 @@ pub trait RefundInterface {
         refund_details: &api_models::refunds::TimeRange,
         storage_scheme: enums::MerchantStorageScheme,
     ) -> CustomResult<api_models::refunds::RefundListMetaData, errors::StorageError>;
+
+    #[cfg(feature = "olap")]
+    async fn get_total_count_of_refunds(
+        &self,
+        merchant_id: &str,
+        refund_details: &api_models::refunds::RefundListRequest,
+        storage_scheme: enums::MerchantStorageScheme,
+    ) -> CustomResult<i64, errors::StorageError>;
 }
 
 #[cfg(not(feature = "kv_store"))]
@@ -228,6 +236,23 @@ mod storage {
         ) -> CustomResult<api_models::refunds::RefundListMetaData, errors::StorageError> {
             let conn = connection::pg_connection_read(self).await?;
             <diesel_models::refund::Refund as storage_types::RefundDbExt>::filter_by_meta_constraints(
+                &conn,
+                merchant_id,
+                refund_details,
+            )
+            .await
+            .map_err(Into::into)
+            .into_report()
+        }
+        #[cfg(feature = "olap")]
+        async fn get_total_count_of_refunds(
+            &self,
+            merchant_id: &str,
+            refund_details: &api_models::refunds::RefundListRequest,
+            storage_scheme: enums::MerchantStorageScheme,
+        ) -> CustomResult<i64, errors::StorageError> {
+            let conn = connection::pg_connection_read(self).await?;
+            <diesel_models::refund::Refund as storage_types::RefundDbExt>::get_refunds_count(
                 &conn,
                 merchant_id,
                 refund_details,
@@ -653,6 +678,26 @@ mod storage {
                 enums::MerchantStorageScheme::RedisKv => Err(errors::StorageError::KVError.into()),
             }
         }
+
+        #[cfg(feature = "olap")]
+        async fn get_total_count_of_refunds(
+            &self,
+            merchant_id: &str,
+            refund_details: &api_models::refunds::RefundListRequest,
+            storage_scheme: enums::MerchantStorageScheme,
+        ) -> CustomResult<i64, errors::StorageError> {
+            match storage_scheme {
+                enums::MerchantStorageScheme::PostgresOnly => {
+                    let conn = connection::pg_connection_read(self).await?;
+                    <diesel_models::refund::Refund as storage_types::RefundDbExt>::get_refunds_count(&conn, merchant_id, refund_details)
+                        .await
+                        .map_err(Into::into)
+                        .into_report()
+                }
+
+                enums::MerchantStorageScheme::RedisKv => Err(errors::StorageError::KVError.into()),
+            }
+        }
     }
 }
 
@@ -813,21 +858,78 @@ impl RefundInterface for MockDb {
     async fn filter_refund_by_constraints(
         &self,
         merchant_id: &str,
-        _refund_details: &api_models::refunds::RefundListRequest,
+        refund_details: &api_models::refunds::RefundListRequest,
         _storage_scheme: enums::MerchantStorageScheme,
         limit: i64,
         offset: i64,
     ) -> CustomResult<Vec<diesel_models::refund::Refund>, errors::StorageError> {
-        Ok(self
-            .refunds
-            .lock()
-            .await
+        let mut unique_connectors = HashSet::new();
+        let mut unique_currencies = HashSet::new();
+        let mut unique_statuses = HashSet::new();
+
+        // Fill the hash sets with data from refund_details
+        if let Some(connectors) = &refund_details.connector {
+            connectors.iter().for_each(|connector| {
+                unique_connectors.insert(connector);
+            });
+        }
+
+        if let Some(currencies) = &refund_details.currency {
+            currencies.iter().for_each(|currency| {
+                unique_currencies.insert(currency);
+            });
+        }
+
+        if let Some(refund_statuses) = &refund_details.refund_status {
+            refund_statuses.iter().for_each(|refund_status| {
+                unique_statuses.insert(refund_status);
+            });
+        }
+
+        let refunds = self.refunds.lock().await;
+        let filtered_refunds = refunds
             .iter()
             .filter(|refund| refund.merchant_id == merchant_id)
+            .filter(|refund| {
+                refund_details
+                    .payment_id
+                    .clone()
+                    .map_or(true, |id| id == refund.payment_id)
+            })
+            .filter(|refund| {
+                refund_details
+                    .refund_id
+                    .clone()
+                    .map_or(true, |id| id == refund.refund_id)
+            })
+            .filter(|refund| {
+                refund.created_at
+                    >= refund_details.time_range.map_or(
+                        common_utils::date_time::now() - time::Duration::days(60),
+                        |range| range.start_time,
+                    )
+                    && refund.created_at
+                        <= refund_details
+                            .time_range
+                            .map_or(common_utils::date_time::now(), |range| {
+                                range.end_time.unwrap_or_else(common_utils::date_time::now)
+                            })
+            })
+            .filter(|refund| {
+                unique_connectors.is_empty() || unique_connectors.contains(&refund.connector)
+            })
+            .filter(|refund| {
+                unique_currencies.is_empty() || unique_currencies.contains(&refund.currency)
+            })
+            .filter(|refund| {
+                unique_statuses.is_empty() || unique_statuses.contains(&refund.refund_status)
+            })
             .skip(usize::try_from(offset).unwrap_or_default())
             .take(usize::try_from(limit).unwrap_or(MAX_LIMIT))
             .cloned()
-            .collect::<Vec<_>>())
+            .collect::<Vec<_>>();
+
+        Ok(filtered_refunds)
     }
 
     #[cfg(feature = "olap")]
@@ -875,5 +977,86 @@ impl RefundInterface for MockDb {
         refund_meta_data.status = unique_statuses.into_iter().collect();
 
         Ok(refund_meta_data)
+    }
+
+    #[cfg(feature = "olap")]
+    async fn get_total_count_of_refunds(
+        &self,
+        merchant_id: &str,
+        refund_details: &api_models::refunds::RefundListRequest,
+        _storage_scheme: enums::MerchantStorageScheme,
+    ) -> CustomResult<i64, errors::StorageError> {
+        let mut unique_connectors = HashSet::new();
+        let mut unique_currencies = HashSet::new();
+        let mut unique_statuses = HashSet::new();
+
+        // Fill the hash sets with data from refund_details
+        if let Some(connectors) = &refund_details.connector {
+            connectors.iter().for_each(|connector| {
+                unique_connectors.insert(connector);
+            });
+        }
+
+        if let Some(currencies) = &refund_details.currency {
+            currencies.iter().for_each(|currency| {
+                unique_currencies.insert(currency);
+            });
+        }
+
+        if let Some(refund_statuses) = &refund_details.refund_status {
+            refund_statuses.iter().for_each(|refund_status| {
+                unique_statuses.insert(refund_status);
+            });
+        }
+
+        let refunds = self.refunds.lock().await;
+        let filtered_refunds = refunds
+            .iter()
+            .filter(|refund| refund.merchant_id == merchant_id)
+            .filter(|refund| {
+                refund_details
+                    .payment_id
+                    .clone()
+                    .map_or(true, |id| id == refund.payment_id)
+            })
+            .filter(|refund| {
+                refund_details
+                    .refund_id
+                    .clone()
+                    .map_or(true, |id| id == refund.refund_id)
+            })
+            .filter(|refund| {
+                refund.created_at
+                    >= refund_details.time_range.map_or(
+                        common_utils::date_time::now() - time::Duration::days(60),
+                        |range| range.start_time,
+                    )
+                    && refund.created_at
+                        <= refund_details
+                            .time_range
+                            .map_or(common_utils::date_time::now(), |range| {
+                                range.end_time.unwrap_or_else(common_utils::date_time::now)
+                            })
+            })
+            .filter(|refund| {
+                unique_connectors.is_empty() || unique_connectors.contains(&refund.connector)
+            })
+            .filter(|refund| {
+                unique_currencies.is_empty() || unique_currencies.contains(&refund.currency)
+            })
+            .filter(|refund| {
+                unique_statuses.is_empty() || unique_statuses.contains(&refund.refund_status)
+            })
+            .cloned()
+            .collect::<Vec<_>>();
+
+        let filtered_refunds_count: Result<i64, _> = filtered_refunds.len().try_into();
+
+        let filtered_refunds_count = match filtered_refunds_count {
+            Ok(count) => count,
+            Err(_) => -1,
+        };
+
+        Ok(filtered_refunds_count)
     }
 }
