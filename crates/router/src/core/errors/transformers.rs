@@ -278,9 +278,6 @@ impl ErrorSwitch<api_models::errors::types::ApiErrorResponse> for CustomersError
     fn switch(&self) -> api_models::errors::types::ApiErrorResponse {
         use api_models::errors::types::{ApiError, ApiErrorResponse as AER};
         match self {
-            Self::CustomerNotFound => {
-                AER::NotFound(ApiError::new("HE", 2, "Customer does not exist in our records", None))
-            }
             CustomersErrorResponse::CustomerRedacted => {
                 AER::BadRequest(ApiError::new("IR", 11, "Customer has already been redacted", None))
             }
@@ -305,7 +302,6 @@ impl ErrorSwitch<StripeErrorCode> for CustomersErrorResponse {
     fn switch(&self) -> StripeErrorCode {
         use StripeErrorCode as SC;
         match self {
-            CustomersErrorResponse::CustomerNotFound => SC::CustomerNotFound,
             CustomersErrorResponse::CustomerRedacted => SC::CustomerRedacted,
             CustomersErrorResponse::InternalServerError => SC::InternalServerError,
         }

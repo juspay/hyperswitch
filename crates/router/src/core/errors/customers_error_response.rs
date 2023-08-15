@@ -9,13 +9,10 @@ pub enum CustomersErrorType {
 #[derive(Debug, Clone, router_derive::ApiError)]
 #[error(error_type_enum = CustomersErrorType)]
 pub enum CustomersErrorResponse {
-    #[error(error_type = CustomersErrorType::ObjectNotFound, code = "CE_01", message = "Customer not found")]
-    CustomerNotFound,
-    
-    #[error(error_type = CustomersErrorType::InternalServerError, code = "CE_02", message = "Customer has already been redacted")]
+    #[error(error_type = CustomersErrorType::InternalServerError, code = "CE_01", message = "Customer has already been redacted")]
     CustomerRedacted,
     
-    #[error(error_type = CustomersErrorType::InternalServerError, code = "CE_03", message = "Something went wrong")]
+    #[error(error_type = CustomersErrorType::InternalServerError, code = "CE_02", message = "Something went wrong")]
     InternalServerError,
 }           
 
