@@ -1,4 +1,4 @@
-use common_utils::crypto::{Encryptable, GcmAes256};
+use common_utils::{crypto::{Encryptable, GcmAes256}, errors::ReportSwitchExt};
 use error_stack::ResultExt;
 use masking::ExposeInterface;
 use router_env::{instrument, tracing};
@@ -163,7 +163,7 @@ pub async fn retrieve_customer(
             &key_store,
         )
         .await
-        .to_not_found_response(errors::CustomersErrorResponse::CustomerNotFound)?;
+        .switch()?;
 
     Ok(services::ApplicationResponse::Json(response.into()))
 }

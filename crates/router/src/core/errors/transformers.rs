@@ -2,7 +2,9 @@ use api_models::errors::types::Extra;
 use common_utils::errors::ErrorSwitch;
 use http::StatusCode;
 
-use super::{ApiErrorResponse, ConnectorError, CustomersErrorResponse };
+use crate::compatibility::stripe::errors::StripeErrorCode;
+
+use super::{ApiErrorResponse, ConnectorError, CustomersErrorResponse, StorageError };
 
 impl ErrorSwitch<api_models::errors::types::ApiErrorResponse> for ApiErrorResponse {
     fn switch(&self) -> api_models::errors::types::ApiErrorResponse {
@@ -285,6 +287,27 @@ impl ErrorSwitch<api_models::errors::types::ApiErrorResponse> for CustomersError
             CustomersErrorResponse::InternalServerError => {
                 AER::InternalServerError(ApiError::new("HE", 0, "Something went wrong", None))
             }
+        }
+    }
+}
+
+impl ErrorSwitch<CustomersErrorResponse> for StorageError {
+    fn switch(&self) -> CustomersErrorResponse {
+        use CustomersErrorResponse as CER;
+        match self {
+            StorageError::CustomerRedacted => CER::CustomerRedacted,
+            _ => CER::InternalServerError,
+        }
+    }
+}
+
+impl ErrorSwitch<StripeErrorCode> for CustomersErrorResponse {
+    fn switch(&self) -> StripeErrorCode {
+        use StripeErrorCode as SC;
+        match self {
+            CustomersErrorResponse::CustomerNotFound => SC::CustomerNotFound,
+            CustomersErrorResponse::CustomerRedacted => SC::CustomerRedacted,
+            CustomersErrorResponse::InternalServerError => SC::InternalServerError,
         }
     }
 }

@@ -48,6 +48,7 @@ pub async fn setup_intents_create(
         _,
         types::StripeSetupIntentResponse,
         errors::StripeErrorCode,
+        _,
     >(
         flow,
         state.get_ref(),
@@ -104,6 +105,7 @@ pub async fn setup_intents_retrieve(
         _,
         types::StripeSetupIntentResponse,
         errors::StripeErrorCode,
+        _,
     >(
         flow,
         state.get_ref(),
@@ -167,6 +169,7 @@ pub async fn setup_intents_update(
         _,
         types::StripeSetupIntentResponse,
         errors::StripeErrorCode,
+        _
     >(
         flow,
         state.get_ref(),
@@ -231,6 +234,7 @@ pub async fn setup_intents_confirm(
         _,
         types::StripeSetupIntentResponse,
         errors::StripeErrorCode,
+        _,
     >(
         flow,
         state.get_ref(),
