@@ -213,7 +213,7 @@ diesel::table! {
         currency -> Varchar,
         dispute_stage -> DisputeStage,
         dispute_status -> DisputeStatus,
-        #[max_length = 255]
+        #[max_length = 64]
         payment_id -> Varchar,
         #[max_length = 64]
         attempt_id -> Varchar,
@@ -454,10 +454,11 @@ diesel::table! {
         business_label -> Varchar,
         #[max_length = 64]
         business_sub_label -> Nullable<Varchar>,
-        frm_configs -> Nullable<Array<Nullable<Jsonb>>>,
+        frm_configs -> Nullable<Jsonb>,
         created_at -> Timestamp,
         modified_at -> Timestamp,
         connector_webhook_details -> Nullable<Jsonb>,
+        frm_config -> Nullable<Array<Nullable<Jsonb>>>,
     }
 }
 
@@ -618,6 +619,7 @@ diesel::table! {
         created_at -> Timestamp,
         last_modified -> Timestamp,
         payment_method -> Varchar,
+        #[max_length = 64]
         payment_method_type -> Nullable<Varchar>,
         #[max_length = 128]
         payment_method_issuer -> Nullable<Varchar>,

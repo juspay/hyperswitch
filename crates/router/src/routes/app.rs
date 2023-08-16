@@ -20,7 +20,7 @@ use crate::{
     configs::settings,
     db::{MockDb, StorageImpl, StorageInterface},
     routes::cards_info::card_iin_info,
-    services::Store,
+    services::get_store,
 };
 
 #[derive(Clone)]
@@ -69,7 +69,7 @@ impl AppState {
         let testable = storage_impl == StorageImpl::PostgresqlTest;
         let store: Box<dyn StorageInterface> = match storage_impl {
             StorageImpl::Postgresql | StorageImpl::PostgresqlTest => {
-                Box::new(Store::new(&conf, testable, shut_down_signal).await)
+                Box::new(get_store(&conf, shut_down_signal, testable).await)
             }
             StorageImpl::Mock => Box::new(MockDb::new(&conf).await),
         };

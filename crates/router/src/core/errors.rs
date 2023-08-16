@@ -263,7 +263,6 @@ pub enum ConnectorError {
     NotSupported {
         message: String,
         connector: &'static str,
-        payment_experience: String,
     },
     #[error("{flow} flow not supported by {connector} connector")]
     FlowNotSupported { flow: String, connector: String },
