@@ -370,6 +370,7 @@ pub struct PaymentsPreProcessingData {
     pub order_details: Option<Vec<api_models::payments::OrderDetailsWithAmount>>,
     pub router_return_url: Option<String>,
     pub webhook_url: Option<String>,
+    pub browser_info: Option<BrowserInformation>,
 }
 
 #[derive(Debug, Clone)]
@@ -878,6 +879,53 @@ impl From<&VerifyRouterData> for PaymentsAuthorizeData {
             payment_method_type: None,
             customer_id: None,
         }
+    }
+}
+
+impl TryFrom<(&PaymentsPreProcessingRouterData, bool)> for PaymentsAuthorizeData {
+    type Error = errors::ApiErrorResponse;
+    fn try_from(
+        (data, is_3ds): (&PaymentsPreProcessingRouterData, bool),
+    ) -> Result<Self, Self::Error> {
+        Ok(Self {
+            payment_method_data: data.request.payment_method_data.clone().ok_or(
+                errors::ApiErrorResponse::MissingRequiredField {
+                    field_name: "payment_method_data",
+                },
+            )?,
+            amount: data
+                .request
+                .amount
+                .ok_or(errors::ApiErrorResponse::MissingRequiredField {
+                    field_name: "amount",
+                })?,
+            email: data.request.email.clone(),
+            currency: data.request.currency.ok_or(
+                errors::ApiErrorResponse::MissingRequiredField {
+                    field_name: "currency",
+                },
+            )?,
+            confirm: true,
+            statement_descriptor: None,
+            statement_descriptor_suffix: None,
+            capture_method: data.request.capture_method,
+            router_return_url: data.request.router_return_url.clone(),
+            webhook_url: data.request.webhook_url.clone(),
+            complete_authorize_url: data.request.complete_authorize_url.clone(),
+            setup_future_usage: None,
+            mandate_id: None,
+            off_session: None,
+            setup_mandate_details: data.request.setup_mandate_details.clone(),
+            browser_info: data.request.browser_info.clone(),
+            order_details: data.request.order_details.clone(),
+            order_category: None,
+            session_token: None,
+            enrolled_for_3ds: is_3ds,
+            related_transaction_id: None,
+            payment_experience: None,
+            payment_method_type: data.request.payment_method_type,
+            customer_id: None,
+        })
     }
 }
 

@@ -270,12 +270,17 @@ pub async fn authorize_preprocessing_steps<F: Clone>(
         let preprocessing_response_data: Result<types::PaymentsResponseData, types::ErrorResponse> =
             Err(types::ErrorResponse::default());
 
-        let preprocessing_router_data =
+        let mut preprocessing_router_data =
             payments::helpers::router_data_type_conversion::<_, api::PreProcessing, _, _, _, _>(
                 router_data.clone(),
                 preprocessing_request_data,
                 preprocessing_response_data,
             );
+
+        connector_integration
+            .execute_pretasks(&mut preprocessing_router_data, state)
+            .await
+            .to_payment_failed_response()?;
 
         let resp = services::execute_connector_processing_step(
             state,
@@ -366,6 +371,7 @@ impl TryFrom<types::PaymentsAuthorizeData> for types::PaymentsPreProcessingData 
             order_details: data.order_details,
             router_return_url: data.router_return_url,
             webhook_url: data.webhook_url,
+            browser_info: data.browser_info,
         })
     }
 }

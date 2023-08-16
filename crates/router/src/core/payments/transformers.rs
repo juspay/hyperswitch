@@ -1141,6 +1141,15 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsPreProce
             connector_name,
         ));
 
+        let browser_info: Option<types::BrowserInformation> = attempt
+            .browser_info
+            .clone()
+            .map(|b| b.parse_value("BrowserInformation"))
+            .transpose()
+            .change_context(errors::ApiErrorResponse::InvalidDataValue {
+                field_name: "browser_info",
+            })?;
+
         Ok(Self {
             payment_method_data,
             email: payment_data.email,
@@ -1153,6 +1162,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsPreProce
             order_details,
             router_return_url,
             webhook_url,
+            browser_info,
         })
     }
 }

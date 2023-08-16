@@ -189,6 +189,8 @@ impl ConnectorIntegration<api::Session, types::PaymentsSessionData, types::Payme
 
 impl api::PaymentsPreProcessing for Payme {}
 
+#[async_trait::async_trait]
+
 impl
     ConnectorIntegration<
         api::PreProcessing,
@@ -196,6 +198,59 @@ impl
         types::PaymentsResponseData,
     > for Payme
 {
+    async fn execute_pretasks(
+        &self,
+        router_data: &mut types::PaymentsPreProcessingRouterData,
+        app_state: &routes::AppState,
+    ) -> CustomResult<(), errors::ConnectorError> {
+        if let AuthenticationType::ThreeDs = router_data.auth_type {
+            let integ: Box<
+                &(dyn ConnectorIntegration<
+                    api::InitPayment,
+                    types::PaymentsAuthorizeData,
+                    types::PaymentsResponseData,
+                > + Send
+                      + Sync
+                      + 'static),
+            > = Box::new(&Self);
+            let init_data = &types::PaymentsInitRouterData::from((
+                &router_data.clone(),
+                types::PaymentsAuthorizeData::try_from((&router_data.to_owned(), true))
+                    .into_report()
+                    .change_context(errors::ConnectorError::RequestEncodingFailed)?,
+            ));
+            let res = services::execute_connector_processing_step(
+                app_state,
+                integ,
+                init_data,
+                payments::CallConnectorAction::Trigger,
+                None,
+            )
+            .await;
+            // res.ok()
+            //     .map(|res_router_data| match res_router_data.response {
+            //         Ok(_) => {
+            //             router_data.reference_id = res_router_data.reference_id;
+            //         }
+            //         Err(error) => {
+            //             router_data.response = Err(error);
+            //         }
+            //     });
+
+            if let Ok(res_router_data) = res {
+                match res_router_data.response {
+                    Ok(_) => {
+                        router_data.reference_id = res_router_data.reference_id;
+                    }
+                    Err(error) => {
+                        router_data.response = Err(error);
+                    }
+                }
+            };
+        }
+        Ok(())
+    }
+
     fn get_headers(
         &self,
         req: &types::PaymentsPreProcessingRouterData,
@@ -380,7 +435,6 @@ impl
     }
 }
 
-#[async_trait::async_trait]
 impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::PaymentsResponseData>
     for Payme
 {
@@ -441,45 +495,6 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
                 .body(types::PaymentsAuthorizeType::get_request_body(self, req)?)
                 .build(),
         ))
-    }
-
-    async fn execute_pretasks(
-        &self,
-        router_data: &mut types::PaymentsAuthorizeRouterData,
-        app_state: &routes::AppState,
-    ) -> CustomResult<(), errors::ConnectorError> {
-        if let AuthenticationType::ThreeDs = router_data.auth_type {
-            let integ: Box<
-                &(dyn ConnectorIntegration<
-                    api::InitPayment,
-                    types::PaymentsAuthorizeData,
-                    types::PaymentsResponseData,
-                > + Send
-                      + Sync
-                      + 'static),
-            > = Box::new(&Self);
-            let init_data = &types::PaymentsInitRouterData::from((
-                &router_data.to_owned(),
-                router_data.request.clone(),
-            ));
-            match services::execute_connector_processing_step(
-                app_state,
-                integ,
-                init_data,
-                payments::CallConnectorAction::Trigger,
-                None,
-            )
-            .await
-            {
-                Ok(res) => {
-                    router_data.preprocessing_id = res.preprocessing_id;
-                    Ok(())
-                }
-                Err(err) => Err(err),
-            }
-        } else {
-            Ok(())
-        }
     }
 
     fn handle_response(

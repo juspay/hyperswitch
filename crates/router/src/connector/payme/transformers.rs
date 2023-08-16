@@ -260,7 +260,7 @@ impl<F>
         >,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
-            preprocessing_id: Some(item.response.hash),
+            reference_id: Some(item.response.hash),
             response: Ok(types::PaymentsResponseData::TransactionResponse {
                 resource_id: types::ResponseId::NoResponseId,
                 redirection_data: None,
@@ -314,8 +314,8 @@ impl TryFrom<&types::PaymentsPreProcessingRouterData> for GenerateSaleRequest {
             sale_payment_method: SalePaymentMethod::try_from(&pmd)?,
             sale_type,
             transaction_id: item.payment_id.clone(),
-            sale_return_url: item.request.get_return_url()?,
-            sale_callback_url: item.request.get_webhook_url()?,
+            sale_return_url: "https://webhook.site/#!/e505d040-7263-4e7a-9d9d-527adbc01292/98b631c3-971a-4b12-bbeb-f51027620f38/1".to_string(),
+            sale_callback_url: "https://webhook.site/#!/e505d040-7263-4e7a-9d9d-527adbc01292/98b631c3-971a-4b12-bbeb-f51027620f38/1".to_string(),
             services,
             language: LANGUAGE.to_string(),
         })
@@ -451,7 +451,8 @@ impl<F>
         };
         Ok(Self {
             status: enums::AttemptStatus::Pending,
-            reference_id: Some(item.response.payme_sale_id.to_owned()),
+            reference_id: item.data.reference_id,
+            preprocessing_id: Some(item.response.payme_sale_id.to_string()),
             response: Ok(types::PaymentsResponseData::PreProcessingResponse {
                 pre_processing_id: types::PreprocessingResponseId::ConnectorTransactionId(
                     item.response.payme_sale_id,
@@ -523,7 +524,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PayRequest {
                 };
                 let buyer_email = item.request.get_email()?;
                 let buyer_name = item.get_billing_address()?.get_full_name()?;
-                let payme_sale_id = item.reference_id.to_owned().ok_or(
+                let payme_sale_id = item.preprocessing_id.to_owned().ok_or(
                     errors::ConnectorError::MissingConnectorRelatedTransactionID {
                         id: "payme_sale_id".to_string(),
                     },
@@ -552,14 +553,14 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for Pay3dsRequest {
                         field_name: "email",
                     })?,
                 };
-                let meta_data_jwt = match item.preprocessing_id.clone() {
+                let meta_data_jwt = match item.reference_id.clone() {
                     Some(data) => data,
                     None => Err(errors::ConnectorError::MissingRequiredField {
                         field_name: "preprocessing_id",
                     })?,
                 };
                 let buyer_name = item.get_billing_address()?.get_full_name()?;
-                let payme_sale_id = item.reference_id.to_owned().ok_or(
+                let payme_sale_id = item.preprocessing_id.to_owned().ok_or(
                     errors::ConnectorError::MissingConnectorRelatedTransactionID {
                         id: "payme_sale_id".to_string(),
                     },
