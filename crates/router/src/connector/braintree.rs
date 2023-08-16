@@ -613,6 +613,20 @@ impl
         ))
     }
 
+    fn get_error_response(
+        &self,
+        res: types::Response,
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        self.build_error_response(res)
+    }
+
+    fn get_request_body(
+        &self,
+        _req: &types::PaymentsSyncRouterData,
+    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
+        Ok(None)
+    }
+
     fn handle_response(
         &self,
         data: &types::PaymentsSyncRouterData,
@@ -923,6 +937,13 @@ impl
                 .body(types::PaymentsVoidType::get_request_body(self, req)?)
                 .build(),
         ))
+    }
+
+    fn get_error_response(
+        &self,
+        res: types::Response,
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        self.build_error_response(res)
     }
 
     fn get_request_body(

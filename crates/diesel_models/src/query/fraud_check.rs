@@ -54,4 +54,18 @@ impl FraudCheck {
         )
         .await
     }
+
+    pub async fn get_with_payment_id_if_present(
+        conn: &PgPooledConn,
+        payment_id: String,
+        merchant_id: String,
+    ) -> StorageResult<Option<Self>> {
+        generics::generic_find_one_optional::<<Self as HasTable>::Table, _, _>(
+            conn,
+            dsl::payment_id
+                .eq(payment_id)
+                .and(dsl::merchant_id.eq(merchant_id)),
+        )
+        .await
+    }
 }
