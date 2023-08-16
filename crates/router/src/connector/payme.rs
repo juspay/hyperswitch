@@ -2,18 +2,15 @@ mod transformers;
 
 use std::fmt::Debug;
 
-use common_utils::{crypto, ext_traits::ByteSliceExt};
+use common_utils::crypto;
 use error_stack::{IntoReport, ResultExt};
 use masking::ExposeInterface;
 use transformers as payme;
 
 use crate::{
     configs::settings,
-    core::{
-        errors::{self, CustomResult},
-        payments,
-    },
-    headers, routes,
+    core::errors::{self, CustomResult},
+    headers,
     services::{self, request, ConnectorIntegration},
     types::{
         self,
@@ -86,12 +83,18 @@ impl ConnectorCommon for Payme {
             res.response
                 .parse_struct("PaymeErrorResponse")
                 .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-
+        let status_code = match res.status_code {
+            500..=511 => 200,
+            _ => res.status_code,
+        };
         Ok(ErrorResponse {
-            status_code: res.status_code,
-            code: response.code,
-            message: response.message,
-            reason: response.reason,
+            status_code,
+            code: response.status_error_code.to_string(),
+            message: response.status_error_details.clone(),
+            reason: Some(format!(
+                "{}, additional info: {}",
+                response.status_error_details, response.status_additional_info
+            )),
         })
     }
 }
@@ -101,26 +104,18 @@ impl ConnectorIntegration<api::Session, types::PaymentsSessionData, types::Payme
 {
 }
 
-impl ConnectorIntegration<api::AccessTokenAuth, types::AccessTokenRequestData, types::AccessToken>
-    for Payme
-{
-}
-
-impl ConnectorIntegration<api::Verify, types::VerifyRequestData, types::PaymentsResponseData>
-    for Payme
-{
-}
+impl api::PaymentsPreProcessing for Payme {}
 
 impl
     ConnectorIntegration<
-        api::InitPayment,
-        types::PaymentsAuthorizeData,
+        api::PreProcessing,
+        types::PaymentsPreProcessingData,
         types::PaymentsResponseData,
     > for Payme
 {
     fn get_headers(
         &self,
-        req: &types::PaymentsInitRouterData,
+        req: &types::PaymentsPreProcessingRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
         self.build_headers(req, connectors)
@@ -132,11 +127,7 @@ impl
 
     fn get_url(
         &self,
-        _req: &types::RouterData<
-            api::InitPayment,
-            types::PaymentsAuthorizeData,
-            types::PaymentsResponseData,
-        >,
+        _req: &types::PaymentsPreProcessingRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         Ok(format!("{}api/generate-sale", self.base_url(connectors)))
@@ -144,7 +135,7 @@ impl
 
     fn get_request_body(
         &self,
-        req: &types::PaymentsInitRouterData,
+        req: &types::PaymentsPreProcessingRouterData,
     ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
         let req_obj = payme::GenerateSaleRequest::try_from(req)?;
         let payme_req = types::RequestBody::log_and_get_request_body(
@@ -157,37 +148,32 @@ impl
 
     fn build_request(
         &self,
-        req: &types::PaymentsInitRouterData,
+        req: &types::PaymentsPreProcessingRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
-        Ok(Some(
+        let req = Some(
             services::RequestBuilder::new()
                 .method(services::Method::Post)
-                .url(&types::PaymentsInitType::get_url(self, req, connectors)?)
                 .attach_default_headers()
-                .headers(types::PaymentsInitType::get_headers(self, req, connectors)?)
-                .body(types::PaymentsInitType::get_request_body(self, req)?)
+                .headers(types::PaymentsPreProcessingType::get_headers(
+                    self, req, connectors,
+                )?)
+                .url(&types::PaymentsPreProcessingType::get_url(
+                    self, req, connectors,
+                )?)
+                .body(types::PaymentsPreProcessingType::get_request_body(
+                    self, req,
+                )?)
                 .build(),
-        ))
+        );
+        Ok(req)
     }
 
     fn handle_response(
         &self,
-        data: &types::PaymentsInitRouterData,
+        data: &types::PaymentsPreProcessingRouterData,
         res: Response,
-    ) -> CustomResult<
-        types::RouterData<
-            api::InitPayment,
-            types::PaymentsAuthorizeData,
-            types::PaymentsResponseData,
-        >,
-        errors::ConnectorError,
-    >
-    where
-        api::InitPayment: Clone,
-        types::PaymentsAuthorizeData: Clone,
-        types::PaymentsResponseData: Clone,
-    {
+    ) -> CustomResult<types::PaymentsPreProcessingRouterData, errors::ConnectorError> {
         let response: payme::GenerateSaleResponse = res
             .response
             .parse_struct("Payme GenerateSaleResponse")
@@ -205,44 +191,29 @@ impl
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
         self.build_error_response(res)
     }
+
+    fn get_5xx_error_response(
+        &self,
+        res: Response,
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        // we are always getting 500 in error scenarios
+        self.build_error_response(res)
+    }
 }
 
-#[async_trait::async_trait]
+impl ConnectorIntegration<api::AccessTokenAuth, types::AccessTokenRequestData, types::AccessToken>
+    for Payme
+{
+}
+
+impl ConnectorIntegration<api::Verify, types::VerifyRequestData, types::PaymentsResponseData>
+    for Payme
+{
+}
+
 impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::PaymentsResponseData>
     for Payme
 {
-    async fn execute_pretasks(
-        &self,
-        router_data: &mut types::PaymentsAuthorizeRouterData,
-        app_state: &routes::AppState,
-    ) -> CustomResult<(), errors::ConnectorError> {
-        if router_data.request.mandate_id.is_none() {
-            let integ: Box<
-                &(dyn ConnectorIntegration<
-                    api::InitPayment,
-                    types::PaymentsAuthorizeData,
-                    types::PaymentsResponseData,
-                > + Send
-                      + Sync
-                      + 'static),
-            > = Box::new(&Self);
-            let init_data = &types::PaymentsInitRouterData::from((
-                &router_data.to_owned(),
-                router_data.request.clone(),
-            ));
-            let init_res = services::execute_connector_processing_step(
-                app_state,
-                integ,
-                init_data,
-                payments::CallConnectorAction::Trigger,
-                None,
-            )
-            .await?;
-            router_data.request.related_transaction_id = init_res.request.related_transaction_id;
-        }
-        Ok(())
-    }
-
     fn get_headers(
         &self,
         req: &types::PaymentsAuthorizeRouterData,
@@ -324,21 +295,66 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
         self.build_error_response(res)
     }
+
+    fn get_5xx_error_response(
+        &self,
+        res: Response,
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        // we are always getting 500 in error scenarios
+        self.build_error_response(res)
+    }
 }
 
 impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsResponseData>
     for Payme
 {
+    fn get_url(
+        &self,
+        _req: &types::RouterData<api::PSync, types::PaymentsSyncData, types::PaymentsResponseData>,
+        connectors: &settings::Connectors,
+    ) -> CustomResult<String, errors::ConnectorError> {
+        Ok(format!("{}api/get-sales", self.base_url(connectors)))
+    }
+
+    fn get_content_type(&self) -> &'static str {
+        self.common_get_content_type()
+    }
+
+    fn get_headers(
+        &self,
+        req: &types::RouterData<api::PSync, types::PaymentsSyncData, types::PaymentsResponseData>,
+        connectors: &settings::Connectors,
+    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
+        self.build_headers(req, connectors)
+    }
+
+    fn get_request_body(
+        &self,
+        req: &types::RouterData<api::PSync, types::PaymentsSyncData, types::PaymentsResponseData>,
+    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
+        let req_obj = payme::PaymeQuerySaleRequest::try_from(req)?;
+        let payme_req = types::RequestBody::log_and_get_request_body(
+            &req_obj,
+            utils::Encode::<payme::PayRequest>::encode_to_string_of_json,
+        )
+        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        Ok(Some(payme_req))
+    }
+
     fn build_request(
         &self,
-        _req: &types::PaymentsSyncRouterData,
-        _connectors: &settings::Connectors,
+        req: &types::RouterData<api::PSync, types::PaymentsSyncData, types::PaymentsResponseData>,
+        connectors: &settings::Connectors,
     ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
-        Err(errors::ConnectorError::FlowNotSupported {
-            flow: "Payment Sync".to_string(),
-            connector: "Payme".to_string(),
-        }
-        .into())
+        Ok(Some(
+            services::RequestBuilder::new()
+                .method(services::Method::Post)
+                .url(&types::PaymentsSyncType::get_url(self, req, connectors)?)
+                .attach_default_headers()
+                .headers(types::PaymentsSyncType::get_headers(self, req, connectors)?)
+                .body(types::PaymentsSyncType::get_request_body(self, req)?)
+                .build(),
+        ))
     }
 
     fn handle_response(
@@ -354,15 +370,23 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
         types::PaymentsSyncData: Clone,
         types::PaymentsResponseData: Clone,
     {
-        let response: payme::PaymePaySaleResponse = res
+        let response: payme::PaymePaymentsResponse = res
             .response
-            .parse_struct("Payme PaymentsResponse")
+            .parse_struct("PaymePaymentsResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         types::RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
         })
+    }
+
+    fn get_5xx_error_response(
+        &self,
+        res: Response,
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        // we are always getting 500 in error scenarios
+        self.build_error_response(res)
     }
 }
 
@@ -442,6 +466,14 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
         self.build_error_response(res)
     }
+
+    fn get_5xx_error_response(
+        &self,
+        res: Response,
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        // we are always getting 500 in error scenarios
+        self.build_error_response(res)
+    }
 }
 
 impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsResponseData>
@@ -516,18 +548,15 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
         data: &types::RefundsRouterData<api::Execute>,
         res: Response,
     ) -> CustomResult<types::RefundsRouterData<api::Execute>, errors::ConnectorError> {
-        let response: payme::RefundResponse = res
+        let response: payme::PaymeRefundResponse = res
             .response
-            .parse_struct("payme RefundResponse")
+            .parse_struct("PaymeRefundResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-        types::RouterData::try_from((
-            &data.request,
-            types::ResponseRouterData {
-                response,
-                data: data.clone(),
-                http_code: res.status_code,
-            },
-        ))
+        types::RouterData::try_from(types::ResponseRouterData {
+            response,
+            data: data.clone(),
+            http_code: res.status_code,
+        })
     }
 
     fn get_error_response(
@@ -536,19 +565,102 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
         self.build_error_response(res)
     }
+
+    fn get_5xx_error_response(
+        &self,
+        res: Response,
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        // we are always getting 500 in error scenarios
+        self.build_error_response(res)
+    }
 }
 
 impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponseData> for Payme {
+    fn get_url(
+        &self,
+        _req: &types::RouterData<api::RSync, types::RefundsData, types::RefundsResponseData>,
+        connectors: &settings::Connectors,
+    ) -> CustomResult<String, errors::ConnectorError> {
+        Ok(format!("{}api/get-transactions", self.base_url(connectors)))
+    }
+
+    fn get_headers(
+        &self,
+        req: &types::RouterData<api::RSync, types::RefundsData, types::RefundsResponseData>,
+        connectors: &settings::Connectors,
+    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
+        self.build_headers(req, connectors)
+    }
+
+    fn get_content_type(&self) -> &'static str {
+        self.common_get_content_type()
+    }
+
+    fn get_request_body(
+        &self,
+        req: &types::RouterData<api::RSync, types::RefundsData, types::RefundsResponseData>,
+    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
+        let req_obj = payme::PaymeQueryTransactionRequest::try_from(req)?;
+        let payme_req = types::RequestBody::log_and_get_request_body(
+            &req_obj,
+            utils::Encode::<payme::PayRequest>::encode_to_string_of_json,
+        )
+        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        Ok(Some(payme_req))
+    }
+
     fn build_request(
         &self,
-        _req: &types::RefundSyncRouterData,
-        _connectors: &settings::Connectors,
+        req: &types::RouterData<api::RSync, types::RefundsData, types::RefundsResponseData>,
+        connectors: &settings::Connectors,
     ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
-        Err(errors::ConnectorError::FlowNotSupported {
-            flow: "Refund Sync".to_string(),
-            connector: "Payme".to_string(),
-        }
-        .into())
+        let request = services::RequestBuilder::new()
+            .method(services::Method::Post)
+            .url(&types::RefundSyncType::get_url(self, req, connectors)?)
+            .attach_default_headers()
+            .headers(types::RefundSyncType::get_headers(self, req, connectors)?)
+            .body(types::RefundSyncType::get_request_body(self, req)?)
+            .build();
+        Ok(Some(request))
+    }
+
+    fn handle_response(
+        &self,
+        data: &types::RouterData<api::RSync, types::RefundsData, types::RefundsResponseData>,
+        res: Response,
+    ) -> CustomResult<
+        types::RouterData<api::RSync, types::RefundsData, types::RefundsResponseData>,
+        errors::ConnectorError,
+    >
+    where
+        api::RSync: Clone,
+        types::RefundsData: Clone,
+        types::RefundsResponseData: Clone,
+    {
+        let response: payme::PaymeQueryTransactionResponse = res
+            .response
+            .parse_struct("GetSalesResponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        types::RouterData::try_from(types::ResponseRouterData {
+            response,
+            data: data.clone(),
+            http_code: res.status_code,
+        })
+    }
+
+    fn get_error_response(
+        &self,
+        res: Response,
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        self.build_error_response(res)
+    }
+
+    fn get_5xx_error_response(
+        &self,
+        res: Response,
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        // we are always getting 500 in error scenarios
+        self.build_error_response(res)
     }
 }
 
@@ -565,10 +677,10 @@ impl api::IncomingWebhook for Payme {
         &self,
         request: &api::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
-        let resource: payme::WebhookEventDataResourceSignature = request
-            .body
-            .parse_struct("WebhookEvent")
-            .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
+        let resource =
+            serde_urlencoded::from_bytes::<payme::WebhookEventDataResourceSignature>(request.body)
+                .into_report()
+                .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
         Ok(resource.payme_signature.expose().into_bytes())
     }
 
@@ -578,10 +690,9 @@ impl api::IncomingWebhook for Payme {
         _merchant_id: &str,
         secret: &[u8],
     ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
-        let resource: payme::WebhookEventDataResource =
-            request
-                .body
-                .parse_struct("WebhookEvent")
+        let resource =
+            serde_urlencoded::from_bytes::<payme::WebhookEventDataResource>(request.body)
+                .into_report()
                 .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
         Ok(format!(
             "{}{}{}",
@@ -597,29 +708,30 @@ impl api::IncomingWebhook for Payme {
         &self,
         request: &api::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<api::webhooks::ObjectReferenceId, errors::ConnectorError> {
-        let resource: payme::WebhookEventDataResource =
-            request
-                .body
-                .parse_struct("WebhookEvent")
+        let resource =
+            serde_urlencoded::from_bytes::<payme::WebhookEventDataResource>(request.body)
+                .into_report()
                 .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
         let id = match resource.notify_type {
             transformers::NotifyType::SaleComplete
             | transformers::NotifyType::SaleAuthorized
-            | transformers::NotifyType::SaleFailure => api::webhooks::ObjectReferenceId::PaymentId(
-                api_models::payments::PaymentIdType::ConnectorTransactionId(resource.payme_sale_id),
-            ),
-            transformers::NotifyType::Refund => api::webhooks::ObjectReferenceId::RefundId(
-                api_models::webhooks::RefundIdType::ConnectorRefundId(resource.payme_sale_id),
-            ),
-            transformers::NotifyType::SaleChargeback
-            | transformers::NotifyType::SaleChargebackRefund => {
-                api::webhooks::ObjectReferenceId::PaymentId(
+            | transformers::NotifyType::SaleFailure => {
+                Ok(api::webhooks::ObjectReferenceId::PaymentId(
                     api_models::payments::PaymentIdType::ConnectorTransactionId(
                         resource.payme_sale_id,
                     ),
-                )
+                ))
             }
-        };
+            transformers::NotifyType::Refund => Ok(api::webhooks::ObjectReferenceId::RefundId(
+                api_models::webhooks::RefundIdType::ConnectorRefundId(
+                    resource.payme_transaction_id,
+                ),
+            )),
+            transformers::NotifyType::SaleChargeback
+            | transformers::NotifyType::SaleChargebackRefund => {
+                Err(errors::ConnectorError::WebhookEventTypeNotFound)
+            }
+        }?;
         Ok(id)
     }
 
@@ -627,10 +739,10 @@ impl api::IncomingWebhook for Payme {
         &self,
         request: &api::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<api::IncomingWebhookEvent, errors::ConnectorError> {
-        let resource: payme::WebhookEventDataResourceEvent = request
-            .body
-            .parse_struct("WebhookEvent")
-            .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
+        let resource =
+            serde_urlencoded::from_bytes::<payme::WebhookEventDataResourceEvent>(request.body)
+                .into_report()
+                .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
         Ok(api::IncomingWebhookEvent::from(resource.notify_type))
     }
 
@@ -638,16 +750,29 @@ impl api::IncomingWebhook for Payme {
         &self,
         request: &api::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<serde_json::Value, errors::ConnectorError> {
-        let resource: payme::WebhookEventDataResource =
-            request
-                .body
-                .parse_struct("WebhookEvent")
+        let resource =
+            serde_urlencoded::from_bytes::<payme::WebhookEventDataResource>(request.body)
+                .into_report()
                 .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
-        let sale_response = payme::PaymePaySaleResponse::try_from(resource)?;
 
-        let res_json = serde_json::to_value(sale_response)
-            .into_report()
-            .change_context(errors::ConnectorError::WebhookResourceObjectNotFound)?;
+        let res_json = match resource.notify_type {
+            transformers::NotifyType::SaleComplete
+            | transformers::NotifyType::SaleAuthorized
+            | transformers::NotifyType::SaleFailure => {
+                serde_json::to_value(payme::PaymePaySaleResponse::from(resource))
+                    .into_report()
+                    .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)
+            }
+            transformers::NotifyType::Refund => {
+                serde_json::to_value(payme::PaymeQueryTransactionResponse::from(resource))
+                    .into_report()
+                    .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)
+            }
+            transformers::NotifyType::SaleChargeback
+            | transformers::NotifyType::SaleChargebackRefund => {
+                Err(errors::ConnectorError::WebhookEventTypeNotFound).into_report()
+            }
+        }?;
 
         Ok(res_json)
     }

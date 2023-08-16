@@ -17,6 +17,7 @@ SOM = "SOM"  # Somalia country code
 THA = "THA"  # Thailand country code
 ZAR = "ZAR"  # South African Rand currency code
 klick = "klick" # Swedish word for clicks
+SUR = "SUR" # Suriname country code
 
 [default.extend-words]
 aci = "aci"                   # Name of a connector
