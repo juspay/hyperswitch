@@ -16,7 +16,7 @@ env:
   RUSTUP_MAX_RETRIES: 10
   RUST_BACKTRACE: short
   CARGO_REGISTRIES_CRATES_IO_PROTOCOL: sparse
-  CONNECTORS: aci, adyen_uk, airwallex, authorizedotnet, bambora, bambora_3ds, bluesnap, checkout, forte, mollie, nexinets, nmi, payme, paypal, powertranz, rapyd, shift4, stripe, trustpay, worldline
+  CONNECTORS: adyen_uk, bluesnap, checkout, payme, paypal, stripe, trustpay
 
 jobs:
   runner:
