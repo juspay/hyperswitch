@@ -10,8 +10,11 @@ use transformers as payme;
 
 use crate::{
     configs::settings,
-    core::errors::{self, CustomResult},
-    headers,
+    core::{
+        errors::{self, CustomResult},
+        payments,
+    },
+    headers, routes,
     services::{self, request, ConnectorIntegration},
     types::{
         self,
@@ -26,7 +29,6 @@ pub struct Payme;
 
 impl api::Payment for Payme {}
 impl api::PaymentSession for Payme {}
-impl api::PaymentsCompleteAuthorize for Payme {}
 impl api::ConnectorAccessToken for Payme {}
 impl api::PreVerify for Payme {}
 impl api::PaymentAuthorize for Payme {}
@@ -293,69 +295,68 @@ impl ConnectorIntegration<api::Verify, types::VerifyRequestData, types::Payments
 
 impl
     ConnectorIntegration<
-        api::CompleteAuthorize,
-        types::CompleteAuthorizeData,
+        api::InitPayment,
+        types::PaymentsAuthorizeData,
         types::PaymentsResponseData,
     > for Payme
 {
     fn get_headers(
         &self,
-        req: &types::PaymentsCompleteAuthorizeRouterData,
+        req: &types::PaymentsInitRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
         self.build_headers(req, connectors)
     }
+
     fn get_content_type(&self) -> &'static str {
         self.common_get_content_type()
     }
+
     fn get_url(
         &self,
-        _req: &types::PaymentsCompleteAuthorizeRouterData,
-        connectors: &settings::Connectors,
+        _req: &types::PaymentsInitRouterData,
+        _connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Ok(format!("{}api/pay-sale", self.base_url(connectors)))
+        Ok(String::from("https://hf.paymeservice.com/client-data"))
     }
+
     fn get_request_body(
         &self,
-        req: &types::PaymentsCompleteAuthorizeRouterData,
+        req: &types::PaymentsInitRouterData,
     ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
-        let req_obj = payme::Pay3dsRequest::try_from(req)?;
+        let req_obj = payme::GenerateMetaDataJWT::try_from(req)?;
         let payme_req = types::RequestBody::log_and_get_request_body(
             &req_obj,
-            utils::Encode::<payme::PayRequest>::encode_to_string_of_json,
+            utils::Encode::<payme::GenerateMetaDataJWT>::encode_to_string_of_json,
         )
         .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(Some(payme_req))
     }
+
     fn build_request(
         &self,
-        req: &types::PaymentsCompleteAuthorizeRouterData,
+        req: &types::PaymentsInitRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
         Ok(Some(
             services::RequestBuilder::new()
                 .method(services::Method::Post)
-                .url(&types::PaymentsCompleteAuthorizeType::get_url(
-                    self, req, connectors,
-                )?)
+                .url(&types::PaymentsInitType::get_url(self, req, connectors)?)
                 .attach_default_headers()
-                .headers(types::PaymentsCompleteAuthorizeType::get_headers(
-                    self, req, connectors,
-                )?)
-                .body(types::PaymentsCompleteAuthorizeType::get_request_body(
-                    self, req,
-                )?)
+                .headers(types::PaymentsInitType::get_headers(self, req, connectors)?)
+                .body(types::PaymentsInitType::get_request_body(self, req)?)
                 .build(),
         ))
     }
+
     fn handle_response(
         &self,
-        data: &types::PaymentsCompleteAuthorizeRouterData,
+        data: &types::PaymentsInitRouterData,
         res: Response,
-    ) -> CustomResult<types::PaymentsCompleteAuthorizeRouterData, errors::ConnectorError> {
-        let response: payme::PaymePaySaleResponse = res
+    ) -> CustomResult<types::PaymentsInitRouterData, errors::ConnectorError> {
+        let response: payme::MetaDataJWTResponse = res
             .response
-            .parse_struct("Payme PaymePaySaleResponse")
+            .parse_struct("Payme MetaDataJWTResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         types::RouterData::try_from(types::ResponseRouterData {
             response,
@@ -379,15 +380,7 @@ impl
     }
 }
 
-impl
-    ConnectorIntegration<
-        api::InitPayment,
-        types::PaymentsAuthorizeData,
-        types::PaymentsResponseData,
-    > for Payme
-{
-}
-
+#[async_trait::async_trait]
 impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::PaymentsResponseData>
     for Payme
 {
@@ -412,16 +405,8 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
             // For recurring mandate payments
             Ok(format!("{}api/generate-sale", self.base_url(connectors)))
         } else {
-            match req.auth_type {
-                AuthenticationType::ThreeDs => {
-                    // To collect user data for 3DS
-                    Ok(String::from("https://hf.paymeservice.com/client-data"))
-                }
-                AuthenticationType::NoThreeDs => {
-                    // For Normal & first mandate payments
-                    Ok(format!("{}api/pay-sale", self.base_url(connectors)))
-                }
-            }
+            // For normal payment request
+            Ok(format!("{}api/pay-sale", self.base_url(connectors)))
         }
     }
 
@@ -458,35 +443,59 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         ))
     }
 
+    async fn execute_pretasks(
+        &self,
+        router_data: &mut types::PaymentsAuthorizeRouterData,
+        app_state: &routes::AppState,
+    ) -> CustomResult<(), errors::ConnectorError> {
+        if let AuthenticationType::ThreeDs = router_data.auth_type {
+            let integ: Box<
+                &(dyn ConnectorIntegration<
+                    api::InitPayment,
+                    types::PaymentsAuthorizeData,
+                    types::PaymentsResponseData,
+                > + Send
+                      + Sync
+                      + 'static),
+            > = Box::new(&Self);
+            let init_data = &types::PaymentsInitRouterData::from((
+                &router_data.to_owned(),
+                router_data.request.clone(),
+            ));
+            match services::execute_connector_processing_step(
+                app_state,
+                integ,
+                init_data,
+                payments::CallConnectorAction::Trigger,
+                None,
+            )
+            .await
+            {
+                Ok(res) => {
+                    router_data.preprocessing_id = res.preprocessing_id;
+                    Ok(())
+                }
+                Err(err) => Err(err),
+            }
+        } else {
+            Ok(())
+        }
+    }
+
     fn handle_response(
         &self,
         data: &types::PaymentsAuthorizeRouterData,
         res: Response,
     ) -> CustomResult<types::PaymentsAuthorizeRouterData, errors::ConnectorError> {
-        match data.auth_type {
-            AuthenticationType::NoThreeDs => {
-                let response: payme::PaymePaySaleResponse = res
-                    .response
-                    .parse_struct("Payme PaymentsAuthorizeResponse")
-                    .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-                types::RouterData::try_from(types::ResponseRouterData {
-                    response,
-                    data: data.clone(),
-                    http_code: res.status_code,
-                })
-            }
-            AuthenticationType::ThreeDs => {
-                let response: payme::MetaDataJWTResponse = res
-                    .response
-                    .parse_struct("Payme MetaDataJWTResponse")
-                    .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-                types::RouterData::try_from(types::ResponseRouterData {
-                    response,
-                    data: data.clone(),
-                    http_code: res.status_code,
-                })
-            }
-        }
+        let response: payme::PaymePaySaleResponse = res
+            .response
+            .parse_struct("Payme PaymentsAuthorizeResponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        types::RouterData::try_from(types::ResponseRouterData {
+            response,
+            data: data.clone(),
+            http_code: res.status_code,
+        })
     }
 
     fn get_error_response(

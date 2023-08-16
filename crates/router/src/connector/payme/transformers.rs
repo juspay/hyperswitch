@@ -54,6 +54,7 @@ pub struct Pay3dsRequest {
     buyer_email: pii::Email,
     buyer_key: String,
     payme_sale_id: String,
+    meta_data_jwt: String,
 }
 
 #[derive(Debug, Serialize)]
@@ -61,7 +62,7 @@ pub struct Pay3dsRequest {
 pub enum PaymePaymentRequest {
     MandateRequest(MandateRequest),
     PayRequest(PayRequest),
-    GenerateMetaDataJWT(GenerateMetaDataJWT),
+    Pay3dsRequest(Pay3dsRequest),
 }
 
 #[derive(Debug, Serialize)]
@@ -258,20 +259,11 @@ impl<F>
             types::PaymentsResponseData,
         >,
     ) -> Result<Self, Self::Error> {
-        let redirection_data = item.data.request.complete_authorize_url.clone().map(|url| {
-            let mut form_fields = std::collections::HashMap::<String, String>::new();
-            form_fields.insert("meta_data_jwt".to_string(), item.response.hash);
-            services::RedirectForm::Form {
-                endpoint: url,
-                method: services::Method::Get,
-                form_fields,
-            }
-        });
         Ok(Self {
-            status: enums::AttemptStatus::AuthenticationPending,
+            preprocessing_id: Some(item.response.hash),
             response: Ok(types::PaymentsResponseData::TransactionResponse {
                 resource_id: types::ResponseId::NoResponseId,
-                redirection_data,
+                redirection_data: None,
                 mandate_reference: None,
                 connector_metadata: None,
                 network_txn_id: None,
@@ -322,10 +314,8 @@ impl TryFrom<&types::PaymentsPreProcessingRouterData> for GenerateSaleRequest {
             sale_payment_method: SalePaymentMethod::try_from(&pmd)?,
             sale_type,
             transaction_id: item.payment_id.clone(),
-            sale_return_url: "https://webhook.site/e505d040-7263-4e7a-9d9d-527adbc01292"
-                .to_string(),
-            sale_callback_url: "https://webhook.site/e505d040-7263-4e7a-9d9d-527adbc01292"
-                .to_string(),
+            sale_return_url: item.request.get_return_url()?,
+            sale_callback_url: item.request.get_webhook_url()?,
             services,
             language: LANGUAGE.to_string(),
         })
@@ -368,9 +358,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PaymePaymentRequest {
         } else {
             match value.auth_type {
                 AuthenticationType::NoThreeDs => Self::PayRequest(PayRequest::try_from(value)?),
-                AuthenticationType::ThreeDs => {
-                    Self::GenerateMetaDataJWT(GenerateMetaDataJWT::try_from(value)?)
-                }
+                AuthenticationType::ThreeDs => Self::Pay3dsRequest(Pay3dsRequest::try_from(value)?),
             }
         };
         Ok(payme_request)
@@ -501,9 +489,9 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for MandateRequest {
     }
 }
 
-impl TryFrom<&types::PaymentsAuthorizeRouterData> for GenerateMetaDataJWT {
+impl TryFrom<&types::PaymentsInitRouterData> for GenerateMetaDataJWT {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(item: &types::PaymentsAuthorizeRouterData) -> Result<Self, Self::Error> {
+    fn try_from(item: &types::PaymentsInitRouterData) -> Result<Self, Self::Error> {
         match item.request.payment_method_data.clone() {
             api::PaymentMethodData::Card(_) => {
                 let browser_data = match item.request.browser_info.clone() {
@@ -553,44 +541,44 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PayRequest {
     }
 }
 
-impl TryFrom<&types::PaymentsCompleteAuthorizeRouterData> for Pay3dsRequest {
+impl TryFrom<&types::PaymentsAuthorizeRouterData> for Pay3dsRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(item: &types::PaymentsCompleteAuthorizeRouterData) -> Result<Self, Self::Error> {
+    fn try_from(item: &types::PaymentsAuthorizeRouterData) -> Result<Self, Self::Error> {
         match item.request.payment_method_data.clone() {
-            Some(pm_data) => match pm_data {
-                api::PaymentMethodData::Card(_) => {
-                    let buyer_email = match item.request.email.clone() {
-                        Some(email) => email,
-                        None => Err(errors::ConnectorError::MissingRequiredField {
-                            field_name: "email",
-                        })?,
-                    };
-                    let buyer_name = item.get_billing_address()?.get_full_name()?;
-                    let payme_sale_id = item.reference_id.to_owned().ok_or(
-                        errors::ConnectorError::MissingConnectorRelatedTransactionID {
-                            id: "payme_sale_id".to_string(),
-                        },
-                    )?;
-                    let buyer_key = match item.payment_method_token.clone() {
-                        Some(key) => key,
-                        None => Err(errors::ConnectorError::MissingRequiredField {
-                            field_name: "buyer_key",
-                        })?,
-                    };
-                    Ok(Self {
-                        buyer_email,
-                        buyer_key,
-                        buyer_name,
-                        payme_sale_id,
-                    })
-                }
-                _ => Err(
-                    errors::ConnectorError::NotImplemented("Payment methods".to_string()).into(),
-                ),
-            },
-            None => {
-                Err(errors::ConnectorError::NotImplemented("Payment methods".to_string()).into())
+            api::PaymentMethodData::Card(_) => {
+                let buyer_email = match item.request.email.clone() {
+                    Some(email) => email,
+                    None => Err(errors::ConnectorError::MissingRequiredField {
+                        field_name: "email",
+                    })?,
+                };
+                let meta_data_jwt = match item.preprocessing_id.clone() {
+                    Some(data) => data,
+                    None => Err(errors::ConnectorError::MissingRequiredField {
+                        field_name: "preprocessing_id",
+                    })?,
+                };
+                let buyer_name = item.get_billing_address()?.get_full_name()?;
+                let payme_sale_id = item.reference_id.to_owned().ok_or(
+                    errors::ConnectorError::MissingConnectorRelatedTransactionID {
+                        id: "payme_sale_id".to_string(),
+                    },
+                )?;
+                let buyer_key = match item.payment_method_token.clone() {
+                    Some(key) => key,
+                    None => Err(errors::ConnectorError::MissingRequiredField {
+                        field_name: "buyer_key",
+                    })?,
+                };
+                Ok(Self {
+                    buyer_email,
+                    buyer_key,
+                    buyer_name,
+                    payme_sale_id,
+                    meta_data_jwt,
+                })
             }
+            _ => Err(errors::ConnectorError::NotImplemented("Payment methods".to_string()).into()),
         }
     }
 }
