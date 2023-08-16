@@ -11,7 +11,7 @@ use crate::{
     logger,
     routes::AppState,
     types::{api::payouts, domain, storage},
-    utils::{self},
+    utils,
 };
 
 #[cfg(feature = "payouts")]
