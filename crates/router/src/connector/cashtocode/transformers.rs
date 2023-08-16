@@ -3,7 +3,7 @@ use masking::Secret;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    connector::utils::RouterData,
+    connector::utils::{self, RouterData},
     core::errors,
     services,
     types::{self, api, storage::enums},
@@ -12,7 +12,7 @@ use crate::{
 #[derive(Default, Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CashtocodePaymentsRequest {
-    amount: i64,
+    amount: f64,
     transaction_id: String,
     user_id: Secret<String>,
     currency: enums::Currency,
@@ -65,7 +65,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for CashtocodePaymentsRequest 
         let mid = get_mid(&item.request.payment_method_data)?;
         match item.payment_method {
             diesel_models::enums::PaymentMethod::Reward => Ok(Self {
-                amount: item.request.amount,
+                amount: utils::to_currency_base_unit_asf64(item.request.amount, item.request.currency)?,
                 transaction_id: item.attempt_id.clone(),
                 currency: item.request.currency,
                 user_id: params.user_id,
