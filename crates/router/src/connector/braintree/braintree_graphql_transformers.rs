@@ -318,16 +318,42 @@ impl<F, T>
                     .status
                     .clone(),
             ),
-            response: Ok(types::PaymentsResponseData::TransactionResponse {
-                resource_id: types::ResponseId::ConnectorTransactionId(
-                    item.response.data.charge_credit_card.transaction.id,
-                ),
-                redirection_data: None,
-                mandate_reference: None,
-                connector_metadata: None,
-                network_txn_id: None,
-                connector_response_reference_id: None,
-            }),
+            response: if item.response.errors.is_some() {
+                build_error_response(
+                    &item
+                        .response
+                        .errors
+                        .ok_or(errors::ConnectorError::MissingRequiredField {
+                            field_name: "errors",
+                        })?
+                        .clone(),
+                    item.http_code,
+                )
+            } else {
+                Ok(types::PaymentsResponseData::TransactionResponse {
+                    resource_id: types::ResponseId::ConnectorTransactionId(
+                        item.response
+                            .data
+                            .as_ref()
+                            .ok_or(errors::ConnectorError::MissingRequiredField {
+                                field_name: "data",
+                            })?
+                            .charge_credit_card
+                            .as_ref()
+                            .ok_or(errors::ConnectorError::MissingRequiredField {
+                                field_name: "charge_credit_card",
+                            })?
+                            .transaction
+                            .id
+                            .clone(),
+                    ),
+                    redirection_data: None,
+                    mandate_reference: None,
+                    connector_metadata: None,
+                    network_txn_id: None,
+                    connector_response_reference_id: None,
+                })
+            },
             ..item.data
         })
     }
@@ -357,17 +383,6 @@ pub struct DataResponse {
 #[serde(rename_all = "camelCase")]
 pub struct ChargeCreditCard {
     transaction: TransactionResponseBody,
-}
-
-#[derive(Debug, Default, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct ErrorResponse {
-    pub api_error_response: ApiErrorResponse,
-}
-
-#[derive(Default, Debug, Clone, Deserialize, Eq, PartialEq)]
-pub struct ApiErrorResponse {
-    pub message: String,
 }
 
 #[derive(Default, Debug, Clone, Serialize)]

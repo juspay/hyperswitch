@@ -613,20 +613,6 @@ impl
         ))
     }
 
-    fn get_error_response(
-        &self,
-        res: types::Response,
-    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        self.build_error_response(res)
-    }
-
-    fn get_request_body(
-        &self,
-        _req: &types::PaymentsSyncRouterData,
-    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
-        Ok(None)
-    }
-
     fn handle_response(
         &self,
         data: &types::PaymentsSyncRouterData,
@@ -939,13 +925,6 @@ impl
         ))
     }
 
-    fn get_error_response(
-        &self,
-        res: types::Response,
-    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        self.build_error_response(res)
-    }
-
     fn get_request_body(
         &self,
         req: &types::PaymentsCancelRouterData,
@@ -1202,7 +1181,7 @@ impl services::ConnectorIntegration<api::RSync, types::RefundsData, types::Refun
                 "https://payments.sandbox.braintree-api.com/graphql"
             ))
         } else {
-            Ok(format!(""))
+            Err(errors::ConnectorError::NotImplemented("get_url method".to_string()).into())
         }
     }
 
@@ -1230,14 +1209,19 @@ impl services::ConnectorIntegration<api::RSync, types::RefundsData, types::Refun
         req: &types::RefundSyncRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
-        Ok(Some(
-            services::RequestBuilder::new()
-                .method(services::Method::Get)
-                .url(&types::RefundSyncType::get_url(self, req, connectors)?)
-                .headers(types::RefundSyncType::get_headers(self, req, connectors)?)
-                .body(types::RefundSyncType::get_request_body(self, req)?)
-                .build(),
-        ))
+        let is_connector_new_version = req.is_connector_new_version;
+        if is_connector_new_version == Some(true) {
+            Ok(Some(
+                services::RequestBuilder::new()
+                    .method(services::Method::Post)
+                    .url(&types::RefundSyncType::get_url(self, req, connectors)?)
+                    .headers(types::RefundSyncType::get_headers(self, req, connectors)?)
+                    .body(types::RefundSyncType::get_request_body(self, req)?)
+                    .build(),
+            ))
+        } else {
+            Ok(None)
+        }
     }
 
     fn handle_response(
