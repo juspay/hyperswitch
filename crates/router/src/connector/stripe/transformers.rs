@@ -626,9 +626,8 @@ impl TryFrom<enums::PaymentMethodType> for StripePaymentMethodType {
             | enums::PaymentMethodType::Seicomart
             | enums::PaymentMethodType::PayEasy
             | enums::PaymentMethodType::Walley => Err(errors::ConnectorError::NotSupported {
-                message: connector_util::get_unsupported_payment_method_error_message(),
+                message: connector_util::UNSUPPORTED_PAYMENT_METHOD_ERROR_MESSAGE.to_string(),
                 connector: "stripe",
-                payment_experience: api_models::enums::PaymentExperience::RedirectToUrl.to_string(),
             }
             .into()),
         }
@@ -868,15 +867,14 @@ fn infer_stripe_pay_later_type(
             | payments::PayLaterData::AlmaRedirect {}
             | payments::PayLaterData::AtomeRedirect {} => {
                 Err(errors::ConnectorError::NotSupported {
-                    message: connector_util::get_unsupported_payment_method_error_message(),
+                    message: connector_util::UNSUPPORTED_PAYMENT_METHOD_ERROR_MESSAGE.to_string(),
                     connector: "stripe",
-                    payment_experience: experience.to_string(),
                 })
             }
         }
     } else {
         Err(errors::ConnectorError::NotSupported {
-            message: connector_util::get_unsupported_payment_method_error_message(),
+            message: connector_util::UNSUPPORTED_PAYMENT_METHOD_ERROR_MESSAGE.to_string(),
             connector: "stripe",
         })
     }
@@ -916,9 +914,8 @@ fn infer_stripe_bank_redirect_issuer(
         | Some(payments::BankRedirectData::OpenBankingUk { .. })
         | Some(payments::BankRedirectData::Trustly { .. }) => {
             Err(errors::ConnectorError::NotSupported {
-                message: connector_util::get_unsupported_payment_method_error_message(),
+                message: connector_util::UNSUPPORTED_PAYMENT_METHOD_ERROR_MESSAGE.to_string(),
                 connector: "stripe",
-                payment_experience: api_models::enums::PaymentExperience::RedirectToUrl.to_string(),
             })
         }
     }
@@ -1284,10 +1281,8 @@ fn create_stripe_payment_method(
             | payments::WalletData::SwishQr(_)
             | payments::WalletData::WeChatPayRedirect(_) => {
                 Err(errors::ConnectorError::NotSupported {
-                    message: connector_util::get_unsupported_payment_method_error_message(),
+                    message: connector_util::UNSUPPORTED_PAYMENT_METHOD_ERROR_MESSAGE.to_string(),
                     connector: "stripe",
-                    payment_experience: api_models::enums::PaymentExperience::RedirectToUrl
-                        .to_string(),
                 }
                 .into())
             }
@@ -1384,10 +1379,9 @@ fn create_stripe_payment_method(
                 | payments::BankTransferData::DanamonVaBankTransfer { .. }
                 | payments::BankTransferData::MandiriVaBankTransfer { .. } => {
                     Err(errors::ConnectorError::NotSupported {
-                        message: connector_util::get_unsupported_payment_method_error_message(),
-                        connector: "stripe",
-                        payment_experience: api_models::enums::PaymentExperience::RedirectToUrl
+                        message: connector_util::UNSUPPORTED_PAYMENT_METHOD_ERROR_MESSAGE
                             .to_string(),
+                        connector: "stripe",
                     }
                     .into())
                 }
@@ -1401,10 +1395,8 @@ fn create_stripe_payment_method(
         payments::PaymentMethodData::GiftCard(giftcard_data) => match giftcard_data.deref() {
             payments::GiftCardData::Givex(_) | payments::GiftCardData::PaySafeCard {} => {
                 Err(errors::ConnectorError::NotSupported {
-                    message: connector_util::get_unsupported_payment_method_error_message(),
+                    message: connector_util::UNSUPPORTED_PAYMENT_METHOD_ERROR_MESSAGE.to_string(),
                     connector: "stripe",
-                    payment_experience: api_models::enums::PaymentExperience::RedirectToUrl
-                        .to_string(),
                 }
                 .into())
             }
@@ -1414,9 +1406,8 @@ fn create_stripe_payment_method(
             payments::CardRedirectData::Knet {}
             | payments::CardRedirectData::Benefit {}
             | payments::CardRedirectData::MomoAtm {} => Err(errors::ConnectorError::NotSupported {
-                message: connector_util::get_unsupported_payment_method_error_message(),
+                message: connector_util::UNSUPPORTED_PAYMENT_METHOD_ERROR_MESSAGE.to_string(),
                 connector: "stripe",
-                payment_experience: api_models::enums::PaymentExperience::RedirectToUrl.to_string(),
             }
             .into()),
         },
@@ -1440,9 +1431,8 @@ fn create_stripe_payment_method(
             | payments::VoucherData::FamilyMart(_)
             | payments::VoucherData::Seicomart(_)
             | payments::VoucherData::PayEasy(_) => Err(errors::ConnectorError::NotSupported {
-                message: connector_util::get_unsupported_payment_method_error_message(),
+                message: connector_util::UNSUPPORTED_PAYMENT_METHOD_ERROR_MESSAGE.to_string(),
                 connector: "stripe",
-                payment_experience: api_models::enums::PaymentExperience::RedirectToUrl.to_string(),
             }
             .into()),
         },
@@ -1450,9 +1440,8 @@ fn create_stripe_payment_method(
         payments::PaymentMethodData::Upi(_)
         | payments::PaymentMethodData::MandatePayment
         | payments::PaymentMethodData::Reward(_) => Err(errors::ConnectorError::NotSupported {
-            message: connector_util::get_unsupported_payment_method_error_message(),
+            message: connector_util::UNSUPPORTED_PAYMENT_METHOD_ERROR_MESSAGE.to_string(),
             connector: "stripe",
-            payment_experience: api_models::enums::PaymentExperience::RedirectToUrl.to_string(),
         }
         .into()),
     }
