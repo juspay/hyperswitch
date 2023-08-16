@@ -152,7 +152,6 @@ async fn should_throw_not_implemented_for_unsupported_issuer() {
         errors::ConnectorError::NotSupported {
             message: "Maestro".to_string(),
             connector: "worldline",
-            payment_experience: "RedirectToUrl".to_string(),
         }
     )
 }
