@@ -4,6 +4,18 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 1.17.1+hotfix.4 (2023-08-16)
+
+### Bug Fixes
+
+- **connector:**
+  - [Payme] Fix for partial capture validation ([#1940](https://github.com/juspay/hyperswitch/pull/1940)) ([`8f3bfab`](https://github.com/juspay/hyperswitch/commit/8f3bfab302afc914b028e35f50276b91932ecb2c))
+  - [Braintree] Fix status mapping for Braintree ([#1938](https://github.com/juspay/hyperswitch/pull/1938)) ([`342e8fd`](https://github.com/juspay/hyperswitch/commit/342e8fdb1f7f444c046b892973f7548ba48dbc1c))
+
+**Full Changelog:** [`v1.17.1+hotfix.3...v1.17.1+hotfix.4`](https://github.com/juspay/hyperswitch/compare/v1.17.1+hotfix.3...v1.17.1+hotfix.4)
+
+- - -
+
 ## 1.17.1+hotfix.3 (2023-08-12)
 
 ### Bug Fixes
