@@ -577,7 +577,8 @@ impl
     ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
         match req.request.is_auto_capture()? {
             true => {
-                let connector_request = braintree_graphql_transformers::BraintreePaymentsRequest::try_from(req)?;
+                let connector_request =
+                    braintree_graphql_transformers::BraintreePaymentsRequest::try_from(req)?;
                 let braintree_payment_request = types::RequestBody::log_and_get_request_body(
                     &connector_request,
                     utils::Encode::<braintree_graphql_transformers::BraintreePaymentsRequest>::encode_to_string_of_json,
@@ -786,7 +787,8 @@ impl services::ConnectorIntegration<api::Execute, types::RefundsData, types::Ref
         &self,
         req: &types::RefundsRouterData<api::Execute>,
     ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
-        let connector_request = braintree_graphql_transformers::BraintreeRefundRequest::try_from(req)?;
+        let connector_request =
+            braintree_graphql_transformers::BraintreeRefundRequest::try_from(req)?;
         let braintree_refund_request = types::RequestBody::log_and_get_request_body(
             &connector_request,
             utils::Encode::<braintree_graphql_transformers::BraintreeRefundRequest>::encode_to_string_of_json,
@@ -881,7 +883,8 @@ impl services::ConnectorIntegration<api::RSync, types::RefundsData, types::Refun
         &self,
         req: &types::RefundSyncRouterData,
     ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
-        let connector_request = braintree_graphql_transformers::BraintreeRSyncRequest::try_from(req)?;
+        let connector_request =
+            braintree_graphql_transformers::BraintreeRSyncRequest::try_from(req)?;
         let braintree_refund_request = types::RequestBody::log_and_get_request_body(
             &connector_request,
             utils::Encode::<braintree_graphql_transformers::BraintreeRSyncRequest>::encode_to_string_of_json,
