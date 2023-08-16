@@ -6,12 +6,14 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     connector::utils::{
-        missing_field_err, AddressDetailsData, CardData, PaymentsAuthorizeRequestData,
-        PaymentsSyncRequestData, RouterData,
+        self, missing_field_err, AddressDetailsData, CardData, PaymentsAuthorizeRequestData,
+        PaymentsPreProcessingData, PaymentsSyncRequestData, RouterData,
     },
     core::errors,
     types::{self, api, storage::enums, MandateReference},
 };
+
+const LANGUAGE: &str = "en";
 
 #[derive(Debug, Serialize)]
 pub struct PayRequest {
@@ -20,6 +22,7 @@ pub struct PayRequest {
     payme_sale_id: String,
     #[serde(flatten)]
     card: PaymeCard,
+    language: String,
 }
 
 #[derive(Debug, Serialize)]
@@ -32,6 +35,7 @@ pub struct MandateRequest {
     seller_payme_id: Secret<String>,
     sale_callback_url: String,
     buyer_key: Secret<String>,
+    language: String,
 }
 
 #[derive(Debug, Serialize)]
@@ -71,6 +75,7 @@ pub struct GenerateSaleRequest {
     seller_payme_id: Secret<String>,
     sale_callback_url: String,
     sale_payment_method: SalePaymentMethod,
+    language: String,
 }
 
 #[derive(Debug, Deserialize)]
@@ -183,11 +188,12 @@ pub enum SaleType {
 #[serde(rename_all = "kebab-case")]
 pub enum SalePaymentMethod {
     CreditCard,
+    ApplePay,
 }
 
-impl TryFrom<&types::PaymentsInitRouterData> for GenerateSaleRequest {
+impl TryFrom<&types::PaymentsPreProcessingRouterData> for GenerateSaleRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(item: &types::PaymentsInitRouterData) -> Result<Self, Self::Error> {
+    fn try_from(item: &types::PaymentsPreProcessingRouterData) -> Result<Self, Self::Error> {
         let sale_type = SaleType::try_from(item)?;
         let seller_payme_id = PaymeAuthType::try_from(&item.connector_auth_type)?.seller_payme_id;
         let order_details = item.request.get_order_details()?;
@@ -196,34 +202,23 @@ impl TryFrom<&types::PaymentsInitRouterData> for GenerateSaleRequest {
             .ok_or_else(missing_field_err("order_details"))?
             .product_name
             .clone();
+        let pmd = item
+            .request
+            .payment_method_data
+            .to_owned()
+            .ok_or_else(missing_field_err("payment_method_data"))?;
         Ok(Self {
-            currency: item.request.currency,
-            sale_type,
-            sale_price: item.request.amount,
-            transaction_id: item.payment_id.clone(),
-            product_name,
-            sale_return_url: item.request.get_return_url()?,
             seller_payme_id,
+            sale_price: item.request.get_amount()?,
+            currency: item.request.get_currency()?,
+            product_name,
+            sale_payment_method: SalePaymentMethod::try_from(&pmd)?,
+            sale_type,
+            transaction_id: item.payment_id.clone(),
+            sale_return_url: item.request.get_return_url()?,
             sale_callback_url: item.request.get_webhook_url()?,
-            sale_payment_method: SalePaymentMethod::try_from(&item.request.payment_method_data)?,
+            language: LANGUAGE.to_string(),
         })
-    }
-}
-
-impl TryFrom<&types::PaymentsInitRouterData> for SaleType {
-    type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(value: &types::PaymentsInitRouterData) -> Result<Self, Self::Error> {
-        let sale_type = if value.request.setup_mandate_details.is_some() {
-            // First mandate
-            Self::Token
-        } else {
-            // Normal payments
-            match value.request.is_auto_capture()? {
-                true => Self::Sale,
-                false => Self::Authorize,
-            }
-        };
-        Ok(sale_type)
     }
 }
 
@@ -232,8 +227,42 @@ impl TryFrom<&PaymentMethodData> for SalePaymentMethod {
     fn try_from(item: &PaymentMethodData) -> Result<Self, Self::Error> {
         match item {
             PaymentMethodData::Card(_) => Ok(Self::CreditCard),
-            PaymentMethodData::Wallet(_)
-            | PaymentMethodData::PayLater(_)
+            PaymentMethodData::Wallet(wallet_data) => match wallet_data {
+                api_models::payments::WalletData::ApplePay(_) => Ok(Self::ApplePay),
+                api_models::payments::WalletData::AliPayQr(_)
+                | api_models::payments::WalletData::AliPayRedirect(_)
+                | api_models::payments::WalletData::AliPayHkRedirect(_)
+                | api_models::payments::WalletData::MomoRedirect(_)
+                | api_models::payments::WalletData::KakaoPayRedirect(_)
+                | api_models::payments::WalletData::GoPayRedirect(_)
+                | api_models::payments::WalletData::GcashRedirect(_)
+                | api_models::payments::WalletData::ApplePayRedirect(_)
+                | api_models::payments::WalletData::ApplePayThirdPartySdk(_)
+                | api_models::payments::WalletData::DanaRedirect {}
+                | api_models::payments::WalletData::GooglePay(_)
+                | api_models::payments::WalletData::GooglePayRedirect(_)
+                | api_models::payments::WalletData::GooglePayThirdPartySdk(_)
+                | api_models::payments::WalletData::MbWayRedirect(_)
+                | api_models::payments::WalletData::MobilePayRedirect(_)
+                | api_models::payments::WalletData::PaypalRedirect(_)
+                | api_models::payments::WalletData::PaypalSdk(_)
+                | api_models::payments::WalletData::SamsungPay(_)
+                | api_models::payments::WalletData::TwintRedirect {}
+                | api_models::payments::WalletData::VippsRedirect {}
+                | api_models::payments::WalletData::TouchNGoRedirect(_)
+                | api_models::payments::WalletData::WeChatPayRedirect(_)
+                | api_models::payments::WalletData::WeChatPayQr(_)
+                | api_models::payments::WalletData::CashappQr(_)
+                | api_models::payments::WalletData::SwishQr(_) => {
+                    Err(errors::ConnectorError::NotSupported {
+                        message: "Wallet".to_string(),
+                        connector: "payme",
+                        payment_experience: "Redirection".to_string(),
+                    }
+                    .into())
+                }
+            },
+            PaymentMethodData::PayLater(_)
             | PaymentMethodData::BankRedirect(_)
             | PaymentMethodData::BankDebit(_)
             | PaymentMethodData::BankTransfer(_)
@@ -287,6 +316,81 @@ impl TryFrom<&types::RefundSyncRouterData> for PaymeQueryTransactionRequest {
     }
 }
 
+impl<F>
+    TryFrom<
+        types::ResponseRouterData<
+            F,
+            GenerateSaleResponse,
+            types::PaymentsPreProcessingData,
+            types::PaymentsResponseData,
+        >,
+    > for types::RouterData<F, types::PaymentsPreProcessingData, types::PaymentsResponseData>
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        item: types::ResponseRouterData<
+            F,
+            GenerateSaleResponse,
+            types::PaymentsPreProcessingData,
+            types::PaymentsResponseData,
+        >,
+    ) -> Result<Self, Self::Error> {
+        let currency_code = item.data.request.get_currency()?;
+        let amount = item.data.request.get_amount()?;
+        let amount_in_base_unit = utils::to_currency_base_unit(amount, currency_code)?;
+        let pmd = item.data.request.payment_method_data.to_owned();
+
+        let session_token = match pmd {
+            Some(PaymentMethodData::Wallet(
+                api_models::payments::WalletData::ApplePayThirdPartySdk(_),
+            )) => Some(api_models::payments::SessionToken::ApplePay(Box::new(
+                api_models::payments::ApplepaySessionTokenResponse {
+                    session_token_data:
+                        api_models::payments::ApplePaySessionResponse::NoSessionResponse,
+                    payment_request_data: Some(api_models::payments::ApplePayPaymentRequest {
+                        country_code: item.data.get_billing_country()?,
+                        currency_code,
+                        total: api_models::payments::AmountInfo {
+                            label: "Apple Pay".to_string(),
+                            total_type: None,
+                            amount: amount_in_base_unit,
+                        },
+                        merchant_capabilities: None,
+                        supported_networks: None,
+                        merchant_identifier: None,
+                    }),
+                    connector: "payme".to_string(),
+                    delayed_session_token: true,
+                    sdk_next_action: api_models::payments::SdkNextAction {
+                        next_action: api_models::payments::NextActionCall::Sync,
+                    },
+                    connector_reference_id: Some(item.response.payme_sale_id.to_owned()),
+                    connector_sdk_public_key: Some(
+                        PaymeAuthType::try_from(&item.data.connector_auth_type)?
+                            .payme_public_key
+                            .expose(),
+                    ),
+                },
+            ))),
+            _ => None,
+        };
+        Ok(Self {
+            // We don't get any status from payme, so defaulting it to pending
+            status: enums::AttemptStatus::Pending,
+            preprocessing_id: Some(item.response.payme_sale_id.to_owned()),
+            response: Ok(types::PaymentsResponseData::PreProcessingResponse {
+                pre_processing_id: types::PreprocessingResponseId::ConnectorTransactionId(
+                    item.response.payme_sale_id,
+                ),
+                connector_metadata: None,
+                session_token,
+                connector_response_reference_id: None,
+            }),
+            ..item.data
+        })
+    }
+}
+
 impl TryFrom<&types::PaymentsAuthorizeRouterData> for MandateRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::PaymentsAuthorizeRouterData) -> Result<Self, Self::Error> {
@@ -306,6 +410,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for MandateRequest {
             seller_payme_id,
             sale_callback_url: item.request.get_webhook_url()?,
             buyer_key: Secret::new(item.request.get_connector_mandate_id()?),
+            language: LANGUAGE.to_string(),
         })
     }
 }
@@ -323,7 +428,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PayRequest {
                 };
                 let buyer_email = item.request.get_email()?;
                 let buyer_name = item.get_billing_address()?.get_full_name()?;
-                let payme_sale_id = item.request.related_transaction_id.clone().ok_or(
+                let payme_sale_id = item.preprocessing_id.to_owned().ok_or(
                     errors::ConnectorError::MissingConnectorRelatedTransactionID {
                         id: "payme_sale_id".to_string(),
                     },
@@ -333,6 +438,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PayRequest {
                     buyer_email,
                     buyer_name,
                     payme_sale_id,
+                    language: LANGUAGE.to_string(),
                 })
             }
             _ => Err(errors::ConnectorError::NotImplemented("Payment methods".to_string()).into()),
@@ -343,7 +449,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PayRequest {
 // Auth Struct
 pub struct PaymeAuthType {
     #[allow(dead_code)]
-    pub(super) payme_client_key: Secret<String>,
+    pub(super) payme_public_key: Secret<String>,
     pub(super) seller_payme_id: Secret<String>,
 }
 
@@ -353,10 +459,27 @@ impl TryFrom<&types::ConnectorAuthType> for PaymeAuthType {
         match auth_type {
             types::ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self {
                 seller_payme_id: api_key.to_owned(),
-                payme_client_key: key1.to_owned(),
+                payme_public_key: key1.to_owned(),
             }),
             _ => Err(errors::ConnectorError::FailedToObtainAuthType.into()),
         }
+    }
+}
+
+impl TryFrom<&types::PaymentsPreProcessingRouterData> for SaleType {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(value: &types::PaymentsPreProcessingRouterData) -> Result<Self, Self::Error> {
+        let sale_type = if value.request.setup_mandate_details.is_some() {
+            // First mandate
+            Self::Token
+        } else {
+            // Normal payments
+            match value.request.is_auto_capture()? {
+                true => Self::Sale,
+                false => Self::Authorize,
+            }
+        };
+        Ok(sale_type)
     }
 }
 
@@ -419,44 +542,6 @@ pub struct PaymeMetadata {
     payme_transaction_id: String,
 }
 
-impl<F>
-    TryFrom<
-        types::ResponseRouterData<
-            F,
-            GenerateSaleResponse,
-            types::PaymentsAuthorizeData,
-            types::PaymentsResponseData,
-        >,
-    > for types::RouterData<F, types::PaymentsAuthorizeData, types::PaymentsResponseData>
-{
-    type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(
-        item: types::ResponseRouterData<
-            F,
-            GenerateSaleResponse,
-            types::PaymentsAuthorizeData,
-            types::PaymentsResponseData,
-        >,
-    ) -> Result<Self, Self::Error> {
-        Ok(Self {
-            status: enums::AttemptStatus::Authorizing,
-            request: types::PaymentsAuthorizeData {
-                related_transaction_id: Some(item.response.payme_sale_id.clone()),
-                ..item.data.request
-            },
-            response: Ok(types::PaymentsResponseData::TransactionResponse {
-                resource_id: types::ResponseId::ConnectorTransactionId(item.response.payme_sale_id),
-                redirection_data: None,
-                mandate_reference: None,
-                connector_metadata: None,
-                network_txn_id: None,
-                connector_response_reference_id: None,
-            }),
-            ..item.data
-        })
-    }
-}
-
 #[derive(Debug, Serialize)]
 pub struct PaymentCaptureRequest {
     payme_sale_id: String,
@@ -466,6 +551,13 @@ pub struct PaymentCaptureRequest {
 impl TryFrom<&types::PaymentsCaptureRouterData> for PaymentCaptureRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::PaymentsCaptureRouterData) -> Result<Self, Self::Error> {
+        if item.request.amount_to_capture != item.request.payment_amount {
+            Err(errors::ConnectorError::NotSupported {
+                message: "Partial Capture".to_string(),
+                connector: "Payme",
+                payment_experience: "".to_string(),
+            })?
+        }
         Ok(Self {
             payme_sale_id: item.request.connector_transaction_id.clone(),
             sale_price: item.request.amount_to_capture,
@@ -480,6 +572,7 @@ pub struct PaymeRefundRequest {
     sale_refund_amount: i64,
     payme_sale_id: String,
     seller_payme_id: Secret<String>,
+    language: String,
 }
 
 impl<F> TryFrom<&types::RefundsRouterData<F>> for PaymeRefundRequest {
@@ -490,6 +583,7 @@ impl<F> TryFrom<&types::RefundsRouterData<F>> for PaymeRefundRequest {
             payme_sale_id: item.request.connector_transaction_id.clone(),
             seller_payme_id: auth_type.seller_payme_id,
             sale_refund_amount: item.request.refund_amount,
+            language: LANGUAGE.to_string(),
         })
     }
 }
@@ -578,9 +672,9 @@ impl<F, T>
 #[derive(Default, Debug, Serialize, Deserialize, PartialEq)]
 pub struct PaymeErrorResponse {
     pub status_code: u16,
-    pub code: String,
-    pub message: String,
-    pub reason: Option<String>,
+    pub status_error_details: String,
+    pub status_additional_info: String,
+    pub status_error_code: u16,
 }
 
 #[derive(Debug, Serialize, Deserialize)]

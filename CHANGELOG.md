@@ -4,6 +4,34 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 1.17.1+hotfix.3 (2023-08-12)
+
+### Bug Fixes
+
+- Add appropriate key for cashtocode to fix connector auth validation issue ([#1931](https://github.com/juspay/hyperswitch/pull/1931)) ([`0913e08`](https://github.com/juspay/hyperswitch/commit/0913e082124461a7544c27e96043e62409c2cb26))
+
+**Full Changelog:** [`v1.17.1+hotfix.2...v1.17.1+hotfix.3`](https://github.com/juspay/hyperswitch/compare/v1.17.1+hotfix.2...v1.17.1+hotfix.3)
+
+- - -
+
+## 1.17.1+hotfix.2 (2023-08-11)
+
+### Features
+
+- **connector:** [PayMe] Implement preprocessing flow for cards ([#1904](https://github.com/juspay/hyperswitch/pull/1904)) ([#1922](https://github.com/juspay/hyperswitch/pull/1922)) ([`3d47aec`](https://github.com/juspay/hyperswitch/commit/3d47aec87129cbb93616aa790e2afc0e0ac63275))
+
+### Bug Fixes
+
+- **connector:**
+  - [Paypal] send valid error_reason in all the error responses ([#1915](https://github.com/juspay/hyperswitch/pull/1915)) ([`7aceacd`](https://github.com/juspay/hyperswitch/commit/7aceacdc71b9bafe891d0d80d74ede2b14ffe518))
+  - [Braintree] add merchant_account_id field in authorize request ([#1913](https://github.com/juspay/hyperswitch/pull/1913)) ([`0c3ec97`](https://github.com/juspay/hyperswitch/commit/0c3ec973e1e2801c469ebe1b2df1934158c2a8f5))
+- **frm:** Add new column frm_config instead of altering the existing column as it will result in production downtime ([#1923](https://github.com/juspay/hyperswitch/pull/1923)) ([`0680a55`](https://github.com/juspay/hyperswitch/commit/0680a55a9cf4bbe542dbc2f608185a32a53c5670))
+- **payment_methods:** Delete token when a payment reaches terminal state ([#1929](https://github.com/juspay/hyperswitch/pull/1929)) ([`e7a6cd6`](https://github.com/juspay/hyperswitch/commit/e7a6cd63127d69b734bb0238204f8dbd23076831))
+
+**Full Changelog:** [`v1.17.1+hotfix.1...v1.17.1+hotfix.2`](https://github.com/juspay/hyperswitch/compare/v1.17.1+hotfix.1...v1.17.1+hotfix.2)
+
+- - -
+
 ## 1.17.1+hotfix.1 (2023-08-09)
 
 ### Features

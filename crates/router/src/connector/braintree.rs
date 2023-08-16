@@ -2,7 +2,7 @@ pub mod transformers;
 
 use std::fmt::Debug;
 
-use error_stack::{IntoReport, ResultExt};
+use error_stack::{IntoReport, Report, ResultExt};
 use masking::PeekInterface;
 
 use self::transformers as braintree;
@@ -10,7 +10,7 @@ use crate::{
     configs::settings,
     consts,
     core::errors::{self, CustomResult},
-    headers,
+    headers, logger,
     services::{
         self,
         request::{self, Mask},
@@ -18,6 +18,7 @@ use crate::{
     types::{
         self,
         api::{self, ConnectorCommon},
+        ErrorResponse,
     },
     utils::{self, BytesExt},
 };
@@ -45,6 +46,52 @@ impl ConnectorCommon for Braintree {
             headers::AUTHORIZATION.to_string(),
             auth.auth_header.into_masked(),
         )])
+    }
+
+    fn build_error_response(
+        &self,
+        res: types::Response,
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        let response: Result<braintree::ErrorResponse, Report<common_utils::errors::ParsingError>> =
+            res.response.parse_struct("Braintree Error Response");
+
+        match response {
+            Ok(braintree::ErrorResponse::BraintreeApiErrorResponse(response)) => {
+                let error_object = response.api_error_response.errors;
+                let error = error_object.errors.first().or(error_object
+                    .transaction
+                    .as_ref()
+                    .and_then(|transaction_error| {
+                        transaction_error.errors.first().or(transaction_error
+                            .credit_card
+                            .as_ref()
+                            .and_then(|credit_card_error| credit_card_error.errors.first()))
+                    }));
+                let (code, message) = error.map_or(
+                    (
+                        consts::NO_ERROR_CODE.to_string(),
+                        consts::NO_ERROR_MESSAGE.to_string(),
+                    ),
+                    |error| (error.code.clone(), error.message.clone()),
+                );
+                Ok(ErrorResponse {
+                    status_code: res.status_code,
+                    code,
+                    message,
+                    reason: Some(response.api_error_response.message),
+                })
+            }
+            Ok(braintree::ErrorResponse::BraintreeErrorResponse(response)) => Ok(ErrorResponse {
+                status_code: res.status_code,
+                code: consts::NO_ERROR_CODE.to_string(),
+                message: consts::NO_ERROR_MESSAGE.to_string(),
+                reason: Some(response.errors),
+            }),
+            Err(error_msg) => {
+                logger::error!(deserialization_error =? error_msg);
+                utils::handle_json_response_deserialization_failure(res, "braintree".to_owned())
+            }
+        }
     }
 }
 
@@ -139,18 +186,8 @@ impl
     fn get_error_response(
         &self,
         res: types::Response,
-    ) -> CustomResult<types::ErrorResponse, errors::ConnectorError> {
-        let response: braintree::ErrorResponse = res
-            .response
-            .parse_struct("Error Response")
-            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-
-        Ok(types::ErrorResponse {
-            status_code: res.status_code,
-            code: consts::NO_ERROR_CODE.to_string(),
-            message: response.api_error_response.message,
-            reason: None,
-        })
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        self.build_error_response(res)
     }
 
     fn get_request_body(
@@ -290,18 +327,8 @@ impl
     fn get_error_response(
         &self,
         res: types::Response,
-    ) -> CustomResult<types::ErrorResponse, errors::ConnectorError> {
-        let response: braintree::ErrorResponse = res
-            .response
-            .parse_struct("Braintree Error Response")
-            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-
-        Ok(types::ErrorResponse {
-            status_code: res.status_code,
-            code: consts::NO_ERROR_CODE.to_string(),
-            message: response.api_error_response.message,
-            reason: None,
-        })
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        self.build_error_response(res)
     }
 
     fn get_request_body(
@@ -428,17 +455,8 @@ impl
     fn get_error_response(
         &self,
         res: types::Response,
-    ) -> CustomResult<types::ErrorResponse, errors::ConnectorError> {
-        let response: braintree::ErrorResponse = res
-            .response
-            .parse_struct("Braintree ErrorResponse")
-            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-        Ok(types::ErrorResponse {
-            status_code: res.status_code,
-            code: consts::NO_ERROR_CODE.to_string(),
-            message: response.api_error_response.message,
-            reason: None,
-        })
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        self.build_error_response(res)
     }
 }
 
@@ -510,18 +528,8 @@ impl
     fn get_error_response(
         &self,
         res: types::Response,
-    ) -> CustomResult<types::ErrorResponse, errors::ConnectorError> {
-        let response: braintree::ErrorResponse = res
-            .response
-            .parse_struct("Braintree ErrorResponse")
-            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-
-        Ok(types::ErrorResponse {
-            status_code: res.status_code,
-            code: consts::NO_ERROR_CODE.to_string(),
-            message: response.api_error_response.message,
-            reason: None,
-        })
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        self.build_error_response(res)
     }
 
     fn get_request_body(
@@ -650,7 +658,7 @@ impl services::ConnectorIntegration<api::Execute, types::RefundsData, types::Ref
     fn get_error_response(
         &self,
         _res: types::Response,
-    ) -> CustomResult<types::ErrorResponse, errors::ConnectorError> {
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
         Err(errors::ConnectorError::NotImplemented("braintree".to_string()).into())
     }
 }

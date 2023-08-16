@@ -7,7 +7,6 @@ pub mod storage_partitioning;
 
 use api_models::{payments, webhooks};
 use base64::Engine;
-use common_utils::errors::CustomResult;
 pub use common_utils::{
     crypto,
     ext_traits::{ByteSliceExt, BytesExt, Encode, StringExt, ValueExt},
@@ -19,14 +18,16 @@ use image::Luma;
 use nanoid::nanoid;
 use qrcode;
 use serde::de::DeserializeOwned;
+use serde_json::Value;
 use uuid::Uuid;
 
 pub use self::ext_traits::{OptionExt, ValidateCall};
 use crate::{
     consts,
-    core::errors::{self, RouterResult, StorageErrorExt},
+    core::errors::{self, CustomResult, RouterResult, StorageErrorExt},
     db::StorageInterface,
     logger,
+    routes::metrics,
     types::{self, domain, storage},
 };
 
@@ -328,6 +329,39 @@ pub async fn get_connector_label_using_object_reference_id(
                 "{connector_name}_{}_{}",
                 payment_intent.business_country, payment_intent.business_label
             ))
+        }
+    }
+}
+
+// validate json format for the error
+pub fn handle_json_response_deserialization_failure(
+    res: types::Response,
+    connector: String,
+) -> CustomResult<types::ErrorResponse, errors::ConnectorError> {
+    metrics::RESPONSE_DESERIALIZATION_FAILURE.add(
+        &metrics::CONTEXT,
+        1,
+        &[metrics::request::add_attributes("connector", connector)],
+    );
+
+    let response_data = String::from_utf8(res.response.to_vec())
+        .into_report()
+        .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+
+    // check for whether the response is in json format
+    match serde_json::from_str::<Value>(&response_data) {
+        // in case of unexpected response but in json format
+        Ok(_) => Err(errors::ConnectorError::ResponseDeserializationFailed)?,
+        // in case of unexpected response but in html or string format
+        Err(error_msg) => {
+            logger::error!(deserialization_error=?error_msg);
+            logger::error!("UNEXPECTED RESPONSE FROM CONNECTOR: {}", response_data);
+            Ok(types::ErrorResponse {
+                status_code: res.status_code,
+                code: consts::NO_ERROR_CODE.to_string(),
+                message: consts::UNSUPPORTED_ERROR_MESSAGE.to_string(),
+                reason: Some(response_data),
+            })
         }
     }
 }
