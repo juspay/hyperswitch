@@ -77,7 +77,6 @@ impl FraudCheckInterface for Store {
             .map_err(Into::into)
             .into_report()
     }
-
 }
 
 #[async_trait::async_trait]
