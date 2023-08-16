@@ -237,9 +237,7 @@ impl
         _req: &types::TokenizationRouterData,
         _connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Ok(format!(
-            "https://payments.sandbox.braintree-api.com/graphql"
-        ))
+        Ok("https://payments.sandbox.braintree-api.com/graphql".to_string())
     }
 
     fn get_request_body(
@@ -352,9 +350,7 @@ impl
         _req: &types::PaymentsCaptureRouterData,
         _connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Ok(format!(
-            "https://payments.sandbox.braintree-api.com/graphql"
-        ))
+        Ok("https://payments.sandbox.braintree-api.com/graphql".to_string())
     }
 
     fn get_request_body(
@@ -448,9 +444,7 @@ impl
         _req: &types::PaymentsSyncRouterData,
         _connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Ok(format!(
-            "https://payments.sandbox.braintree-api.com/graphql"
-        ))
+        Ok("https://payments.sandbox.braintree-api.com/graphql".to_string())
     }
 
     fn get_request_body(
@@ -543,9 +537,7 @@ impl
         _req: &types::PaymentsAuthorizeRouterData,
         _connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Ok(format!(
-            "https://payments.sandbox.braintree-api.com/graphql"
-        ))
+        Ok("https://payments.sandbox.braintree-api.com/graphql".to_string())
     }
 
     fn build_request(
@@ -680,9 +672,7 @@ impl
         _req: &types::PaymentsCancelRouterData,
         _connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Ok(format!(
-            "https://payments.sandbox.braintree-api.com/graphql"
-        ))
+        Ok("https://payments.sandbox.braintree-api.com/graphql".to_string())
     }
 
     fn build_request(
@@ -778,9 +768,7 @@ impl services::ConnectorIntegration<api::Execute, types::RefundsData, types::Ref
         _req: &types::RefundsRouterData<api::Execute>,
         _connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Ok(format!(
-            "https://payments.sandbox.braintree-api.com/graphql"
-        ))
+        Ok("https://payments.sandbox.braintree-api.com/graphql".to_string())
     }
 
     fn get_request_body(
@@ -874,9 +862,7 @@ impl services::ConnectorIntegration<api::RSync, types::RefundsData, types::Refun
         _req: &types::RefundSyncRouterData,
         _connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Ok(format!(
-            "https://payments.sandbox.braintree-api.com/graphql"
-        ))
+        Ok("https://payments.sandbox.braintree-api.com/graphql".to_string())
     }
 
     fn get_request_body(

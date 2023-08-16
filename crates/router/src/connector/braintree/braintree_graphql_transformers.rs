@@ -176,8 +176,7 @@ impl<F, T>
                         .errors
                         .ok_or(errors::ConnectorError::MissingRequiredField {
                             field_name: "errors",
-                        })?
-                        .clone(),
+                        })?,
                     item.http_code,
                 )
             } else {
@@ -211,7 +210,7 @@ impl<F, T>
 }
 
 fn build_error_response<T>(
-    response: &Vec<ErrorDetails>,
+    response: &[ErrorDetails],
     http_code: u16,
 ) -> Result<T, types::ErrorResponse> {
     get_error_response(
@@ -348,8 +347,7 @@ impl<F, T>
                         .errors
                         .ok_or(errors::ConnectorError::MissingRequiredField {
                             field_name: "errors",
-                        })?
-                        .clone(),
+                        })?,
                     item.http_code,
                 )
             } else {
@@ -533,8 +531,7 @@ impl TryFrom<types::RefundsResponseRouterData<api::Execute, BraintreeRefundRespo
                         .errors
                         .ok_or(errors::ConnectorError::MissingRequiredField {
                             field_name: "errors",
-                        })?
-                        .clone(),
+                        })?,
                     item.http_code,
                 )
             } else {
@@ -652,8 +649,7 @@ impl TryFrom<types::RefundsResponseRouterData<api::RSync, BraintreeRSyncResponse
                         .errors
                         .ok_or(errors::ConnectorError::MissingRequiredField {
                             field_name: "errors",
-                        })?
-                        .clone(),
+                        })?,
                     item.http_code,
                 )
             } else {
@@ -760,8 +756,7 @@ impl<F, T>
                         .errors
                         .ok_or(errors::ConnectorError::MissingRequiredField {
                             field_name: "errors",
-                        })?
-                        .clone(),
+                        })?,
                     item.http_code,
                 )
             } else {
@@ -879,8 +874,7 @@ impl TryFrom<types::PaymentsCaptureResponseRouterData<BraintreeCaptureResponse>>
                     &item
                         .response
                         .errors
-                        .ok_or(errors::ConnectorError::RequestEncodingFailed)?
-                        .clone(),
+                        .ok_or(errors::ConnectorError::RequestEncodingFailed)?,
                     item.http_code,
                 )
             } else {
@@ -1008,8 +1002,7 @@ impl<F, T>
                         .errors
                         .ok_or(errors::ConnectorError::MissingRequiredField {
                             field_name: "errors",
-                        })?
-                        .clone(),
+                        })?,
                     item.http_code,
                 )
             } else {
@@ -1113,8 +1106,7 @@ impl<F, T>
                         .errors
                         .ok_or(errors::ConnectorError::MissingRequiredField {
                             field_name: "errors",
-                        })?
-                        .clone(),
+                        })?,
                     item.http_code,
                 )
             } else {
