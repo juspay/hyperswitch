@@ -5562,7 +5562,9 @@
 										{
 											"listen": "prerequest",
 											"script": {
-												"exec": [],
+												"exec": [
+													""
+												],
 												"type": "text/javascript"
 											}
 										}
