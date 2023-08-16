@@ -277,6 +277,7 @@ impl
         &self,
         res: Response,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        // we are always getting 500 in error scenarios
         self.build_error_response(res)
     }
 }
@@ -500,6 +501,7 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         &self,
         res: Response,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        // we are always getting 500 in error scenarios
         self.build_error_response(res)
     }
 }
@@ -584,6 +586,7 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
         &self,
         res: Response,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        // we are always getting 500 in error scenarios
         self.build_error_response(res)
     }
 }
@@ -669,6 +672,7 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
         &self,
         res: Response,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        // we are always getting 500 in error scenarios
         self.build_error_response(res)
     }
 }
@@ -767,6 +771,7 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
         &self,
         res: Response,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        // we are always getting 500 in error scenarios
         self.build_error_response(res)
     }
 }
@@ -855,6 +860,7 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
         &self,
         res: Response,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        // we are always getting 500 in error scenarios
         self.build_error_response(res)
     }
 }

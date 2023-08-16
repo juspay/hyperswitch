@@ -182,7 +182,7 @@ dependencies = [
  "futures-util",
  "mio",
  "num_cpus",
- "socket2",
+ "socket2 0.4.9",
  "tokio",
  "tracing",
 ]
@@ -263,8 +263,8 @@ dependencies = [
  "serde_json",
  "serde_urlencoded",
  "smallvec",
- "socket2",
- "time 0.3.23",
+ "socket2 0.4.9",
+ "time 0.3.22",
  "url",
 ]
 
@@ -337,9 +337,9 @@ dependencies = [
 
 [[package]]
 name = "aho-corasick"
-version = "1.0.2"
+version = "1.0.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "43f6cb1bf222025340178f382c426f13757b2960e89779dfcb319c32542a5a41"
+checksum = "86b8f9420f797f2d9e935edf629310eb938a0d839f984e25327f3c7eed22300c"
 dependencies = [
  "memchr",
 ]
@@ -402,7 +402,7 @@ dependencies = [
  "serde",
  "serde_json",
  "strum 0.24.1",
- "time 0.3.23",
+ "time 0.3.22",
  "url",
  "utoipa",
 ]
@@ -493,15 +493,15 @@ dependencies = [
  "polling",
  "rustix 0.37.23",
  "slab",
- "socket2",
+ "socket2 0.4.9",
  "waker-fn",
 ]
 
 [[package]]
 name = "async-lock"
-version = "2.7.0"
+version = "2.8.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "fa24f727524730b077666307f2734b4a1a1c57acb79193127dcc8914d5242dd7"
+checksum = "287272293e9d8c41773cec55e365490fe034813a2f172f502d6ddcf75b2f582b"
 dependencies = [
  "event-listener",
 ]
@@ -614,7 +614,7 @@ dependencies = [
  "http",
  "hyper",
  "ring",
- "time 0.3.23",
+ "time 0.3.22",
  "tokio",
  "tower",
  "tracing",
@@ -834,7 +834,7 @@ dependencies = [
  "percent-encoding",
  "regex",
  "sha2",
- "time 0.3.23",
+ "time 0.3.22",
  "tracing",
 ]
 
@@ -974,7 +974,7 @@ dependencies = [
  "itoa",
  "num-integer",
  "ryu",
- "time 0.3.23",
+ "time 0.3.22",
 ]
 
 [[package]]
@@ -1246,7 +1246,7 @@ dependencies = [
  "serde",
  "serde_json",
  "thiserror",
- "time 0.3.23",
+ "time 0.3.22",
 ]
 
 [[package]]
@@ -1389,7 +1389,7 @@ dependencies = [
  "serde",
  "serde_json",
  "strum 0.25.0",
- "time 0.3.23",
+ "time 0.3.22",
  "utoipa",
 ]
 
@@ -1422,7 +1422,7 @@ dependencies = [
  "signal-hook-tokio",
  "test-case",
  "thiserror",
- "time 0.3.23",
+ "time 0.3.22",
  "tokio",
 ]
 
@@ -1473,7 +1473,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e859cd57d0710d9e06c381b550c06e76992472a8c6d527aecd2fc673dcc231fb"
 dependencies = [
  "percent-encoding",
- "time 0.3.23",
+ "time 0.3.22",
  "version_check",
 ]
 
@@ -1734,7 +1734,7 @@ dependencies = [
  "pq-sys",
  "r2d2",
  "serde_json",
- "time 0.3.23",
+ "time 0.3.22",
 ]
 
 [[package]]
@@ -1767,7 +1767,7 @@ dependencies = [
  "serde_json",
  "strum 0.24.1",
  "thiserror",
- "time 0.3.23",
+ "time 0.3.22",
 ]
 
 [[package]]
@@ -1980,7 +1980,7 @@ dependencies = [
  "mime",
  "serde",
  "serde_json",
- "time 0.3.23",
+ "time 0.3.22",
  "tokio",
  "url",
  "webdriver",
@@ -2470,7 +2470,7 @@ dependencies = [
  "httpdate",
  "itoa",
  "pin-project-lite",
- "socket2",
+ "socket2 0.4.9",
  "tokio",
  "tower-service",
  "tracing",
@@ -2677,7 +2677,7 @@ dependencies = [
  "serde",
  "serde_json",
  "thiserror",
- "time 0.3.23",
+ "time 0.3.22",
 ]
 
 [[package]]
@@ -3476,9 +3476,9 @@ dependencies = [
 
 [[package]]
 name = "pin-project-lite"
-version = "0.2.11"
+version = "0.2.12"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2c516611246607d0c04186886dbb3a754368ef82c79e9827a802c6d836dd111c"
+checksum = "12cc1b0bf1727a77a54b6654e7b5f1af8604923edc8b81885f8ec92f9e3f0a05"
 
 [[package]]
 name = "pin-utils"
@@ -4014,7 +4014,6 @@ dependencies = [
  "clap",
  "common_utils",
  "config",
- "crc32fast",
  "derive_deref",
  "diesel",
  "diesel_models",
@@ -4034,7 +4033,6 @@ dependencies = [
  "maud",
  "mimalloc",
  "mime",
- "moka",
  "nanoid",
  "num_cpus",
  "once_cell",
@@ -4061,7 +4059,7 @@ dependencies = [
  "test_utils",
  "thirtyfour",
  "thiserror",
- "time 0.3.23",
+ "time 0.3.22",
  "tokio",
  "toml 0.7.6",
  "url",
@@ -4101,7 +4099,7 @@ dependencies = [
  "serde_json",
  "serde_path_to_error",
  "strum 0.24.1",
- "time 0.3.23",
+ "time 0.3.22",
  "tokio",
  "tracing",
  "tracing-actix-web",
@@ -4471,7 +4469,7 @@ dependencies = [
  "serde",
  "serde_json",
  "serde_with_macros",
- "time 0.3.23",
+ "time 0.3.22",
 ]
 
 [[package]]
@@ -4602,7 +4600,7 @@ dependencies = [
  "num-bigint",
  "num-traits",
  "thiserror",
- "time 0.3.23",
+ "time 0.3.22",
 ]
 
 [[package]]
@@ -4646,6 +4644,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "socket2"
+version = "0.5.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2538b18701741680e0322a2302176d3253a35388e2e62f172f64f4f16605f877"
+dependencies = [
+ "libc",
+ "windows-sys",
+]
+
+[[package]]
 name = "spin"
 version = "0.5.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4658,8 +4666,18 @@ dependencies = [
  "async-bb8-diesel",
  "async-trait",
  "bb8",
+ "common_utils",
+ "crc32fast",
  "diesel",
+ "diesel_models",
+ "dyn-clone",
+ "error-stack",
  "masking",
+ "moka",
+ "once_cell",
+ "redis_interface",
+ "router_env",
+ "tokio",
 ]
 
 [[package]]
@@ -4839,7 +4857,7 @@ dependencies = [
  "serde_urlencoded",
  "serial_test",
  "thirtyfour",
- "time 0.3.23",
+ "time 0.3.22",
  "tokio",
  "toml 0.7.6",
  "uuid",
@@ -4937,9 +4955,9 @@ dependencies = [
 
 [[package]]
 name = "time"
-version = "0.3.23"
+version = "0.3.22"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "59e399c068f43a5d116fedaf73b203fa4f9c519f17e2b34f63221d3792f81446"
+checksum = "ea9e1b3cf1243ae005d9e74085d4d542f3125458f3a81af210d901dcd7411efd"
 dependencies = [
  "itoa",
  "libc",
@@ -4957,9 +4975,9 @@ checksum = "7300fbefb4dadc1af235a9cef3737cea692a9d97e1b9cbcd4ebdae6f8868e6fb"
 
 [[package]]
 name = "time-macros"
-version = "0.2.10"
+version = "0.2.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "96ba15a897f3c86766b757e5ac7221554c6750054d74d5b28844fce5fb36a6c4"
+checksum = "372950940a5f07bf38dbe211d7283c9e6d7327df53794992d293e534c733d09b"
 dependencies = [
  "time-core",
 ]
@@ -4981,11 +4999,10 @@ checksum = "1f3ccbac311fea05f86f61904b462b55fb3df8837a366dfc601a0161d0532f20"
 
 [[package]]
 name = "tokio"
-version = "1.29.1"
+version = "1.30.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "532826ff75199d5833b9d2c5fe410f29235e25704ee5f0ef599fb51c21f4a4da"
+checksum = "2d3ce25f50619af8b0aec2eb23deebe84249e19e2ddd393a6e16e3300a6dadfd"
 dependencies = [
- "autocfg",
  "backtrace",
  "bytes",
  "libc",
@@ -4994,7 +5011,7 @@ dependencies = [
  "parking_lot",
  "pin-project-lite",
  "signal-hook-registry",
- "socket2",
+ "socket2 0.5.3",
  "tokio-macros",
  "windows-sys",
 ]
@@ -5207,7 +5224,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "09d48f71a791638519505cefafe162606f706c25592e4bde4d97600c0195312e"
 dependencies = [
  "crossbeam-channel",
- "time 0.3.23",
+ "time 0.3.22",
  "tracing-subscriber",
 ]
 
@@ -5472,7 +5489,7 @@ dependencies = [
  "git2",
  "rustc_version",
  "rustversion",
- "time 0.3.23",
+ "time 0.3.22",
 ]
 
 [[package]]
@@ -5629,7 +5646,7 @@ dependencies = [
  "serde",
  "serde_derive",
  "serde_json",
- "time 0.3.23",
+ "time 0.3.22",
  "unicode-segmentation",
  "url",
 ]
