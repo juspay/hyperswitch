@@ -1,4 +1,9 @@
-use data_models::payments::payment_intent::PaymentIntentInterface;
+use data_models::payments::{
+    payment_attempt::PaymentAttempt,
+    payment_intent::{
+        PaymentIntent, PaymentIntentFetchConstraints, PaymentIntentInterface, PaymentIntentNew,
+    },
+};
 
 use super::MockDb;
 #[cfg(feature = "olap")]
@@ -16,9 +21,9 @@ impl PaymentIntentInterface for MockDb {
         _merchant_id: &str,
         _filters: &PaymentIntentFetchConstraints,
         _storage_scheme: enums::MerchantStorageScheme,
-    ) -> CustomResult<Vec<types::PaymentIntent>, errors::StorageError> {
+    ) -> CustomResult<Vec<PaymentIntent>, errors::DataStorageError> {
         // [#172]: Implement function for `MockDb`
-        Err(errors::StorageError::MockDbError)?
+        Err(errors::DataStorageError::MockDbError)?
     }
     #[cfg(feature = "olap")]
     async fn filter_payment_intents_by_time_range_constraints(
@@ -26,31 +31,30 @@ impl PaymentIntentInterface for MockDb {
         _merchant_id: &str,
         _time_range: &api::TimeRange,
         _storage_scheme: enums::MerchantStorageScheme,
-    ) -> CustomResult<Vec<types::PaymentIntent>, errors::StorageError> {
+    ) -> CustomResult<Vec<PaymentIntent>, errors::DataStorageError> {
         // [#172]: Implement function for `MockDb`
-        Err(errors::StorageError::MockDbError)?
+        Err(errors::DataStorageError::MockDbError)?
     }
     #[cfg(feature = "olap")]
-    async fn apply_filters_on_payments_list(
+    async fn get_filtered_payment_intents_attempt(
         &self,
         _merchant_id: &str,
-        _constraints: &api::PaymentListFilterConstraints,
+        _constraints: &PaymentIntentFetchConstraints,
         _storage_scheme: enums::MerchantStorageScheme,
-    ) -> CustomResult<Vec<(types::PaymentIntent, types::PaymentAttempt)>, errors::StorageError>
-    {
+    ) -> error_stack::Result<Vec<(PaymentIntent, PaymentAttempt)>, errors::DataStorageError> {
         // [#172]: Implement function for `MockDb`
-        Err(errors::StorageError::MockDbError)?
+        Err(errors::DataStorageError::MockDbError)?
     }
 
     #[allow(clippy::panic)]
     async fn insert_payment_intent(
         &self,
-        new: types::PaymentIntentNew,
+        new: PaymentIntentNew,
         _storage_scheme: enums::MerchantStorageScheme,
-    ) -> CustomResult<types::PaymentIntent, errors::StorageError> {
+    ) -> CustomResult<PaymentIntent, errors::DataStorageError> {
         let mut payment_intents = self.payment_intents.lock().await;
         let time = common_utils::date_time::now();
-        let payment_intent = types::PaymentIntent {
+        let payment_intent = PaymentIntent {
             #[allow(clippy::as_conversions)]
             id: payment_intents.len() as i32,
             payment_id: new.payment_id,
@@ -91,10 +95,10 @@ impl PaymentIntentInterface for MockDb {
     #[allow(clippy::unwrap_used)]
     async fn update_payment_intent(
         &self,
-        this: types::PaymentIntent,
+        this: PaymentIntent,
         update: types::PaymentIntentUpdate,
         _storage_scheme: enums::MerchantStorageScheme,
-    ) -> CustomResult<types::PaymentIntent, errors::StorageError> {
+    ) -> CustomResult<PaymentIntent, errors::DataStorageError> {
         let mut payment_intents = self.payment_intents.lock().await;
         let payment_intent = payment_intents
             .iter_mut()
@@ -111,7 +115,7 @@ impl PaymentIntentInterface for MockDb {
         payment_id: &str,
         merchant_id: &str,
         _storage_scheme: enums::MerchantStorageScheme,
-    ) -> CustomResult<types::PaymentIntent, errors::StorageError> {
+    ) -> CustomResult<PaymentIntent, errors::DataStorageError> {
         let payment_intents = self.payment_intents.lock().await;
 
         Ok(payment_intents

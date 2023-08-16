@@ -8,8 +8,8 @@ use std::fmt::Display;
 use actix_web::{body::BoxBody, http::StatusCode, ResponseError};
 pub use common_utils::errors::{CustomResult, ParsingError, ValidationError};
 use config::ConfigError;
+pub use data_models::errors::StorageError as DataStorageError;
 use diesel_models::errors as storage_errors;
-use error_stack;
 pub use redis_interface::errors::RedisError;
 use router_env::opentelemetry::metrics::MetricsError;
 
@@ -78,6 +78,34 @@ pub enum StorageError {
     DecryptionError,
     #[error("RedisError: {0:?}")]
     RedisError(error_stack::Report<RedisError>),
+}
+
+impl common_utils::errors::ErrorSwitch<DataStorageError> for StorageError {
+    fn switch(&self) -> DataStorageError {
+        self.into()
+    }
+}
+
+impl Into<DataStorageError> for &StorageError {
+    fn into(self) -> DataStorageError {
+        match self {
+            StorageError::DatabaseError(i) => DataStorageError::DatabaseError(format!("{i:?}")),
+            StorageError::ValueNotFound(i) => DataStorageError::ValueNotFound(i.clone()),
+            StorageError::DuplicateValue { entity, key } => DataStorageError::DuplicateValue {
+                entity,
+                key: key.clone(),
+            },
+            StorageError::DatabaseConnectionError => DataStorageError::DatabaseConnectionError,
+            StorageError::KVError => DataStorageError::KVError,
+            StorageError::SerializationFailed => DataStorageError::SerializationFailed,
+            StorageError::MockDbError => DataStorageError::MockDbError,
+            StorageError::CustomerRedacted => DataStorageError::CustomerRedacted,
+            StorageError::DeserializationFailed => DataStorageError::DeserializationFailed,
+            StorageError::EncryptionError => DataStorageError::EncryptionError,
+            StorageError::DecryptionError => DataStorageError::DecryptionError,
+            StorageError::RedisError(i) => DataStorageError::RedisError(format!("{i:?}")),
+        }
+    }
 }
 
 impl From<error_stack::Report<RedisError>> for StorageError {

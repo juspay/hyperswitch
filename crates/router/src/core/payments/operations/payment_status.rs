@@ -2,7 +2,7 @@ use std::marker::PhantomData;
 
 use api_models::enums::CancelTransaction;
 use async_trait::async_trait;
-use common_utils::ext_traits::AsyncExt;
+use common_utils::{errors::ReportSwitchExt, ext_traits::AsyncExt};
 use error_stack::ResultExt;
 use router_derive::PaymentOperation;
 use router_env::{instrument, tracing};
@@ -106,7 +106,7 @@ impl<F: Clone + Send> Domain<F, api::PaymentsRequest> for PaymentStatus {
         _merchant_account: &domain::MerchantAccount,
         state: &AppState,
         request: &api::PaymentsRequest,
-        _payment_intent: &storage::payment_intent::PaymentIntent,
+        _payment_intent: &storage::PaymentIntent,
         _key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<api::ConnectorChoice, errors::ApiErrorResponse> {
         helpers::get_connector_default(state, request.routing.clone()).await
@@ -397,7 +397,13 @@ pub async fn get_payment_intent_payment_attempt(
     merchant_id: &str,
     storage_scheme: enums::MerchantStorageScheme,
 ) -> RouterResult<(storage::PaymentIntent, storage::PaymentAttempt)> {
-    (|| async {
+    let le: error_stack::Result<
+        (
+            data_models::payments::payment_intent::PaymentIntent,
+            diesel_models::payment_attempt::PaymentAttempt,
+        ),
+        errors::DataStorageError,
+    > = (|| async {
         let (pi, pa);
         match payment_id {
             api_models::payments::PaymentIdType::PaymentIntentId(ref id) => {
@@ -411,7 +417,8 @@ pub async fn get_payment_intent_payment_attempt(
                         pi.active_attempt_id.as_str(),
                         storage_scheme,
                     )
-                    .await?;
+                    .await
+                    .switch()?;
             }
             api_models::payments::PaymentIdType::ConnectorTransactionId(ref id) => {
                 pa = db
@@ -420,7 +427,8 @@ pub async fn get_payment_intent_payment_attempt(
                         id,
                         storage_scheme,
                     )
-                    .await?;
+                    .await
+                    .switch()?;
                 pi = db
                     .find_payment_intent_by_payment_id_merchant_id(
                         pa.payment_id.as_str(),
@@ -432,7 +440,8 @@ pub async fn get_payment_intent_payment_attempt(
             api_models::payments::PaymentIdType::PaymentAttemptId(ref id) => {
                 pa = db
                     .find_payment_attempt_by_attempt_id_merchant_id(id, merchant_id, storage_scheme)
-                    .await?;
+                    .await
+                    .switch()?;
                 pi = db
                     .find_payment_intent_by_payment_id_merchant_id(
                         pa.payment_id.as_str(),
@@ -448,7 +457,8 @@ pub async fn get_payment_intent_payment_attempt(
                         merchant_id,
                         storage_scheme,
                     )
-                    .await?;
+                    .await
+                    .switch()?;
 
                 pi = db
                     .find_payment_intent_by_payment_id_merchant_id(
@@ -461,6 +471,6 @@ pub async fn get_payment_intent_payment_attempt(
         }
         Ok((pi, pa))
     })()
-    .await
-    .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)
+    .await;
+    le.to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)
 }

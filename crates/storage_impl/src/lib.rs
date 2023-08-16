@@ -195,8 +195,36 @@ impl<T: DatabaseStore> KVRouterStore<T> {
     }
 }
 
-trait DataModelExt {
+// TODO: This should not be used beyond this crate
+// Remove the pub modified once StorageScheme usage is completed
+pub trait DataModelExt {
     type StorageModel;
     fn to_storage_model(self) -> Self::StorageModel;
     fn from_storage_model(storage_model: Self::StorageModel) -> Self;
+}
+
+impl DataModelExt for data_models::MerchantStorageScheme {
+    type StorageModel = diesel_models::enums::MerchantStorageScheme;
+
+    fn to_storage_model(self) -> Self::StorageModel {
+        match self {
+            data_models::MerchantStorageScheme::PostgresOnly => {
+                diesel_models::enums::MerchantStorageScheme::PostgresOnly
+            }
+            data_models::MerchantStorageScheme::RedisKv => {
+                diesel_models::enums::MerchantStorageScheme::RedisKv
+            }
+        }
+    }
+
+    fn from_storage_model(storage_model: Self::StorageModel) -> Self {
+        match storage_model {
+            diesel_models::enums::MerchantStorageScheme::PostgresOnly => {
+                data_models::MerchantStorageScheme::PostgresOnly
+            }
+            diesel_models::enums::MerchantStorageScheme::RedisKv => {
+                data_models::MerchantStorageScheme::RedisKv
+            }
+        }
+    }
 }

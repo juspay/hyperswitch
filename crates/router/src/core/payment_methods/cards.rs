@@ -24,6 +24,7 @@ use diesel_models::{encryption::Encryption, enums as storage_enums, payment_meth
 use error_stack::{report, IntoReport, ResultExt};
 use masking::Secret;
 use router_env::{instrument, tracing};
+use storage_impl::DataModelExt;
 
 #[cfg(feature = "basilisk")]
 use crate::scheduler::metrics as scheduler_metrics;
@@ -813,8 +814,13 @@ pub async fn list_payment_methods(
         .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
 
     // filter out connectors based on the business country
-    let filtered_mcas =
-        helpers::filter_mca_based_on_business_details(all_mcas, payment_intent.as_ref());
+    let filtered_mcas = helpers::filter_mca_based_on_business_details(
+        all_mcas,
+        payment_intent
+            .clone()
+            .map(|i| i.to_storage_model())
+            .as_ref(),
+    );
 
     logger::debug!(mca_before_filtering=?filtered_mcas);
 

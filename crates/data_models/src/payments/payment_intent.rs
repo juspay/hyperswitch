@@ -44,10 +44,10 @@ pub trait PaymentIntentInterface {
     ) -> error_stack::Result<Vec<PaymentIntent>, errors::StorageError>;
 
     #[cfg(feature = "olap")]
-    async fn apply_filters_on_payments_list(
+    async fn get_filtered_payment_intents_attempt(
         &self,
         merchant_id: &str,
-        constraints: &api_models::payments::PaymentListFilterConstraints,
+        constraints: &PaymentIntentFetchConstraints,
         storage_scheme: MerchantStorageScheme,
     ) -> error_stack::Result<
         Vec<(PaymentIntent, super::payment_attempt::PaymentAttempt)>,
@@ -346,12 +346,12 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
     }
 }
 
-enum PaymentIntentFetchConstraints {
+pub enum PaymentIntentFetchConstraints {
     Single {
         payment_intent_id: String,
     },
     List {
-        offset: Option<u64>,
+        offset: Option<u32>,
         starting_at: Option<PrimitiveDateTime>,
         ending_at: Option<PrimitiveDateTime>,
         connector: Option<Vec<api_models::enums::Connector>>,
@@ -361,7 +361,7 @@ enum PaymentIntentFetchConstraints {
         customer_id: Option<String>,
         starting_after_id: Option<String>,
         ending_before_id: Option<String>,
-        limit: Option<u64>,
+        limit: Option<u32>,
     },
 }
 
@@ -407,7 +407,7 @@ impl From<api_models::payments::PaymentListFilterConstraints> for PaymentIntentF
             Self::Single { payment_intent_id }
         } else {
             Self::List {
-                offset: value.offset.and_then(|i| u64::try_from(i).ok()),
+                offset: value.offset,
                 starting_at: value.time_range.map(|t| t.start_time),
                 ending_at: value.time_range.and_then(|t| t.end_time),
                 connector: value.connector,
