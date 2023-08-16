@@ -75,7 +75,7 @@ pub trait StorageInterface:
     + cards_info::CardsInfoInterface
     + merchant_key_store::MerchantKeyStoreInterface
     + MasterKeyInterface
-    + services::RedisConnInterface
+    + RedisConnInterface
     + business_profile::BusinessProfileInterface
     + 'static
 {
