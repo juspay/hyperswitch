@@ -31,7 +31,7 @@ pub trait PaymentIntentInterface {
     async fn filter_payment_intent_by_constraints(
         &self,
         merchant_id: &str,
-        pc: &api_models::payments::PaymentListConstraints,
+        filters: &PaymentIntentFetchConstraints,
         storage_scheme: MerchantStorageScheme,
     ) -> error_stack::Result<Vec<PaymentIntent>, errors::StorageError>;
 
@@ -342,6 +342,83 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 attempt_count: Some(attempt_count),
                 ..Default::default()
             },
+        }
+    }
+}
+
+enum PaymentIntentFetchConstraints {
+    Single {
+        payment_intent_id: String,
+    },
+    List {
+        offset: Option<u64>,
+        starting_at: Option<PrimitiveDateTime>,
+        ending_at: Option<PrimitiveDateTime>,
+        connector: Option<Vec<api_models::enums::Connector>>,
+        currency: Option<Vec<storage_enums::Currency>>,
+        status: Option<Vec<storage_enums::IntentStatus>>,
+        payment_methods: Option<Vec<storage_enums::PaymentMethod>>,
+        customer_id: Option<String>,
+        starting_after_id: Option<String>,
+        ending_before_id: Option<String>,
+        limit: Option<u64>,
+    },
+}
+
+impl From<api_models::payments::PaymentListConstraints> for PaymentIntentFetchConstraints {
+    fn from(value: api_models::payments::PaymentListConstraints) -> Self {
+        Self::List {
+            offset: None,
+            starting_at: value.created_gte.or(value.created_gt).or(value.created),
+            ending_at: value.created_lte.or(value.created_lt).or(value.created),
+            connector: None,
+            currency: None,
+            status: None,
+            payment_methods: None,
+            customer_id: value.customer_id,
+            starting_after_id: value.starting_after,
+            ending_before_id: value.ending_before,
+            limit: None,
+        }
+    }
+}
+
+impl From<api_models::payments::TimeRange> for PaymentIntentFetchConstraints {
+    fn from(value: api_models::payments::TimeRange) -> Self {
+        Self::List {
+            offset: None,
+            starting_at: Some(value.start_time),
+            ending_at: value.end_time,
+            connector: None,
+            currency: None,
+            status: None,
+            payment_methods: None,
+            customer_id: None,
+            starting_after_id: None,
+            ending_before_id: None,
+            limit: None,
+        }
+    }
+}
+
+impl From<api_models::payments::PaymentListFilterConstraints> for PaymentIntentFetchConstraints {
+    fn from(value: api_models::payments::PaymentListFilterConstraints) -> Self {
+        if let Some(payment_intent_id) = value.payment_id {
+            Self::Single { payment_intent_id }
+        } else {
+            Self::List {
+                offset: value.offset.and_then(|i| u64::try_from(i).ok()),
+                starting_at: value.time_range.map(|t| t.start_time),
+                ending_at: value.time_range.and_then(|t| t.end_time),
+                connector: value.connector,
+                currency: value.currency,
+                status: value.status,
+                payment_methods: value.payment_methods,
+                customer_id: None,
+                starting_after_id: None,
+                ending_before_id: None,
+                limit: None,
+            }
         }
     }
 }

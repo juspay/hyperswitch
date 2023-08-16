@@ -198,7 +198,7 @@ impl<T: DatabaseStore> PaymentIntentInterface for KVRouterStore<T> {
     async fn filter_payment_intent_by_constraints(
         &self,
         merchant_id: &str,
-        pc: &api_models::payments::PaymentListConstraints,
+        filters: &PaymentIntentFetchConstraints,
         storage_scheme: MerchantStorageScheme,
     ) -> error_stack::Result<Vec<PaymentIntent>, StorageError> {
         match storage_scheme {

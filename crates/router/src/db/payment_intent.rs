@@ -14,7 +14,7 @@ impl PaymentIntentInterface for MockDb {
     async fn filter_payment_intent_by_constraints(
         &self,
         _merchant_id: &str,
-        _pc: &api::PaymentListConstraints,
+        _filters: &PaymentIntentFetchConstraints,
         _storage_scheme: enums::MerchantStorageScheme,
     ) -> CustomResult<Vec<types::PaymentIntent>, errors::StorageError> {
         // [#172]: Implement function for `MockDb`

@@ -1654,7 +1654,7 @@ pub(super) async fn filter_by_constraints(
     storage_scheme: storage_enums::MerchantStorageScheme,
 ) -> CustomResult<Vec<storage::PaymentIntent>, errors::StorageError> {
     let result = db
-        .filter_payment_intent_by_constraints(merchant_id, constraints, storage_scheme)
+        .filter_payment_intent_by_constraints(merchant_id, constraints.into(), storage_scheme)
         .await?;
     Ok(result)
 }
