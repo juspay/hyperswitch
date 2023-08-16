@@ -637,7 +637,6 @@ impl TryFrom<&api_enums::BankNames> for OnlineBankingCzechRepublicBanks {
             _ => Err(errors::ConnectorError::NotSupported {
                 message: String::from("BankRedirect"),
                 connector: "Adyen",
-                payment_experience: api_enums::PaymentExperience::RedirectToUrl.to_string(),
             })?,
         }
     }
@@ -718,7 +717,6 @@ impl TryFrom<&api_enums::BankNames> for OnlineBankingPolandBanks {
             _ => Err(errors::ConnectorError::NotSupported {
                 message: String::from("BankRedirect"),
                 connector: "Adyen",
-                payment_experience: api_enums::PaymentExperience::RedirectToUrl.to_string(),
             })?,
         }
     }
@@ -771,7 +769,6 @@ impl TryFrom<&api_enums::BankNames> for OnlineBankingSlovakiaBanks {
             _ => Err(errors::ConnectorError::NotSupported {
                 message: String::from("BankRedirect"),
                 connector: "Adyen",
-                payment_experience: api_enums::PaymentExperience::RedirectToUrl.to_string(),
             })?,
         }
     }
@@ -802,7 +799,6 @@ impl TryFrom<&api_enums::BankNames> for OnlineBankingFpxIssuer {
             _ => Err(errors::ConnectorError::NotSupported {
                 message: String::from("BankRedirect"),
                 connector: "Adyen",
-                payment_experience: api_enums::PaymentExperience::RedirectToUrl.to_string(),
             })?,
         }
     }
@@ -820,7 +816,6 @@ impl TryFrom<&api_enums::BankNames> for OnlineBankingThailandIssuer {
             _ => Err(errors::ConnectorError::NotSupported {
                 message: String::from("BankRedirect"),
                 connector: "Adyen",
-                payment_experience: api_enums::PaymentExperience::RedirectToUrl.to_string(),
             })?,
         }
     }
@@ -855,7 +850,6 @@ impl TryFrom<&api_enums::BankNames> for OpenBankingUKIssuer {
             _ => Err(errors::ConnectorError::NotSupported {
                 message: String::from("BankRedirect"),
                 connector: "Adyen",
-                payment_experience: api_enums::PaymentExperience::RedirectToUrl.to_string(),
             })?,
         }
     }
@@ -1280,7 +1274,6 @@ impl<'a> TryFrom<&api_enums::BankNames> for AdyenTestBankNames<'a> {
             _ => Err(errors::ConnectorError::NotSupported {
                 message: String::from("BankRedirect"),
                 connector: "Adyen",
-                payment_experience: api_enums::PaymentExperience::RedirectToUrl.to_string(),
             })?,
         })
     }
@@ -1350,8 +1343,6 @@ impl<'a> TryFrom<&types::PaymentsAuthorizeRouterData> for AdyenPaymentRequest<'a
                 _ => Err(errors::ConnectorError::NotSupported {
                     message: format!("{:?}", item.request.payment_method_type),
                     connector: "Adyen",
-                    payment_experience: api_models::enums::PaymentExperience::RedirectToUrl
-                        .to_string(),
                 })?,
             },
         }
@@ -2191,8 +2182,6 @@ impl<'a>
                     _ => Err(errors::ConnectorError::NotSupported {
                         message: format!("mandate_{:?}", item.payment_method),
                         connector: "Adyen",
-                        payment_experience: api_models::enums::PaymentExperience::RedirectToUrl
-                            .to_string(),
                     })?,
                 }
             }
@@ -3785,7 +3774,6 @@ impl<F> TryFrom<&types::PayoutsRouterData<F>> for AdyenPayoutCreateRequest {
             PayoutMethodData::Card(_) => Err(errors::ConnectorError::NotSupported {
                 message: "Card payout creation is not supported".to_string(),
                 connector: "Adyen",
-                payment_experience: "".to_string(),
             })?,
             PayoutMethodData::Bank(bd) => {
                 let bank_details = match bd {
@@ -3801,7 +3789,6 @@ impl<F> TryFrom<&types::PayoutsRouterData<F>> for AdyenPayoutCreateRequest {
                     _ => Err(errors::ConnectorError::NotSupported {
                         message: "Bank transfers via ACH or Bacs are not supported".to_string(),
                         connector: "Adyen",
-                        payment_experience: "".to_string(),
                     })?,
                 };
                 let address: &payments::AddressDetails = item.get_billing_address()?;
