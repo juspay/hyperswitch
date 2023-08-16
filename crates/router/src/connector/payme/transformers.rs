@@ -257,7 +257,6 @@ impl TryFrom<&PaymentMethodData> for SalePaymentMethod {
                     Err(errors::ConnectorError::NotSupported {
                         message: "Wallet".to_string(),
                         connector: "payme",
-                        payment_experience: "Redirection".to_string(),
                     }
                     .into())
                 }
