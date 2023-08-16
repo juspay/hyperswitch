@@ -347,15 +347,28 @@ pub struct PaymentAttemptResponse {
     Default, Debug, serde::Serialize, Clone, PartialEq, ToSchema, router_derive::PolymorphicSchema,
 )]
 pub struct CaptureResponse {
+    /// unique identifier for the capture
     pub capture_id: String,
+    /// The status of the capture
+    #[schema(value_type = CaptureStatus, example = "charged")]
     pub status: enums::CaptureStatus,
+    /// The capture amount. Amount for the payment in lowest denomination of the currency. (i.e) in cents for USD denomination, in paisa for INR denomination etc.,
     pub amount: i64,
+    /// The currency of the amount of the capture
+    #[schema(value_type = Option<Currency>, example = "usd")]
     pub currency: Option<enums::Currency>,
+    /// The connector used for the payment
     pub connector: Option<String>,
-    pub tax_amount: Option<i64>,
+    /// unique identifier for the parent attempt on which this capture is made
     pub authorized_attempt_id: String,
+    /// A unique identifier for a capture provided by the connector
     pub connector_transaction_id: Option<String>,
+    /// sequence number of this capture
     pub capture_sequence: i16,
+    /// If there was an error while calling the connector the error message is received here
+    pub error_message: Option<String>,
+    /// If there was an error while calling the connectors the code is received here
+    pub error_code: Option<String>,
 }
 
 impl PaymentsRequest {

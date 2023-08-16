@@ -3582,14 +3582,16 @@
         ],
         "properties": {
           "capture_id": {
-            "type": "string"
+            "type": "string",
+            "description": "unique identifier for the capture"
           },
           "status": {
             "$ref": "#/components/schemas/CaptureStatus"
           },
           "amount": {
             "type": "integer",
-            "format": "int64"
+            "format": "int64",
+            "description": "The capture amount. Amount for the payment in lowest denomination of the currency. (i.e) in cents for USD denomination, in paisa for INR denomination etc.,"
           },
           "currency": {
             "allOf": [
@@ -3601,23 +3603,32 @@
           },
           "connector": {
             "type": "string",
-            "nullable": true
-          },
-          "tax_amount": {
-            "type": "integer",
-            "format": "int64",
+            "description": "The connector used for the payment",
             "nullable": true
           },
           "authorized_attempt_id": {
-            "type": "string"
+            "type": "string",
+            "description": "unique identifier for the parent attempt on which this capture is made"
           },
           "connector_transaction_id": {
             "type": "string",
+            "description": "A unique identifier for a capture provided by the connector",
             "nullable": true
           },
           "capture_sequence": {
             "type": "integer",
-            "format": "int32"
+            "format": "int32",
+            "description": "sequence number of this capture"
+          },
+          "error_message": {
+            "type": "string",
+            "description": "If there was an error while calling the connector the error message is received here",
+            "nullable": true
+          },
+          "error_code": {
+            "type": "string",
+            "description": "If there was an error while calling the connectors the code is received here",
+            "nullable": true
           }
         }
       },

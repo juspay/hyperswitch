@@ -644,10 +644,11 @@ impl ForeignFrom<storage::Capture> for api_models::payments::CaptureResponse {
             amount: capture.amount,
             currency: capture.currency,
             connector: capture.connector,
-            tax_amount: capture.tax_amount,
             authorized_attempt_id: capture.authorized_attempt_id,
             connector_transaction_id: capture.connector_transaction_id,
             capture_sequence: capture.capture_sequence,
+            error_message: capture.error_message,
+            error_code: capture.error_code,
         }
     }
 }
