@@ -50,16 +50,16 @@ fn get_auth_cashtocode(
     match (*payment_method_type).ok_or_else(conn_utils::missing_field_err("payment_method_type")) {
         Ok(reward_type) => match reward_type {
             storage::enums::PaymentMethodType::ClassicReward => match auth_type {
-                types::ConnectorAuthType::BodyKey { api_key, .. } => Ok(vec![(
+                types::ConnectorAuthType::MultiAuthKey { api_key, .. } => Ok(vec![(
                     headers::AUTHORIZATION.to_string(),
                     format!("Basic {}", api_key.peek()).into_masked(),
                 )]),
                 _ => Err(errors::ConnectorError::FailedToObtainAuthType.into()),
             },
             storage::enums::PaymentMethodType::Evoucher => match auth_type {
-                types::ConnectorAuthType::BodyKey { key1, .. } => Ok(vec![(
+                types::ConnectorAuthType::MultiAuthKey { api_secret, .. } => Ok(vec![(
                     headers::AUTHORIZATION.to_string(),
-                    format!("Basic {}", key1.peek()).into_masked(),
+                    format!("Basic {}", api_secret.peek()).into_masked(),
                 )]),
                 _ => Err(errors::ConnectorError::FailedToObtainAuthType.into()),
             },
@@ -109,7 +109,7 @@ impl ConnectorCommon for Cashtocode {
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
         Ok(vec![(
             headers::AUTHORIZATION.to_string(),
-            auth.api_key.into_masked(),
+            auth.api_key_classic.into_masked(),
         )])
     }
 

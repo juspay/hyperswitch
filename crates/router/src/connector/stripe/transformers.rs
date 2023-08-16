@@ -1436,7 +1436,7 @@ fn create_stripe_payment_method(
         }
         payments::PaymentMethodData::Crypto(_)
         | payments::PaymentMethodData::MandatePayment
-        | payments::PaymentMethodData::Reward(_)
+        | payments::PaymentMethodData::Reward
         | payments::PaymentMethodData::Upi(_)
         | payments::PaymentMethodData::CardRedirect(_)
         | payments::PaymentMethodData::Voucher(_)
@@ -2724,7 +2724,7 @@ impl TryFrom<&types::PaymentsPreProcessingRouterData> for StripeCreditTransferSo
             | Some(payments::PaymentMethodData::BankRedirect(..))
             | Some(payments::PaymentMethodData::PayLater(..))
             | Some(payments::PaymentMethodData::Crypto(..))
-            | Some(payments::PaymentMethodData::Reward(..))
+            | Some(payments::PaymentMethodData::Reward)
             | Some(payments::PaymentMethodData::MandatePayment)
             | Some(payments::PaymentMethodData::Upi(..))
             | Some(payments::PaymentMethodData::GiftCard(..))
@@ -3212,7 +3212,7 @@ impl
             }
             api::PaymentMethodData::MandatePayment
             | api::PaymentMethodData::Crypto(_)
-            | api::PaymentMethodData::Reward(_)
+            | api::PaymentMethodData::Reward
             | api::PaymentMethodData::GiftCard(_)
             | api::PaymentMethodData::Upi(_)
             | api::PaymentMethodData::CardRedirect(_)

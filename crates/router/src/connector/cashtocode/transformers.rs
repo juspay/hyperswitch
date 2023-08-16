@@ -6,7 +6,7 @@ use crate::{
     connector::utils::RouterData,
     core::errors,
     services,
-    types::{self, api, storage::enums},
+    types::{self, storage::enums},
 };
 
 #[derive(Default, Debug, Serialize)]
@@ -22,7 +22,7 @@ pub struct CashtocodePaymentsRequest {
     requested_url: String,
     cancel_url: String,
     email: Option<Email>,
-    mid: String,
+    mid: Secret<String>,
 }
 
 pub struct CashToCodeMandatoryParams {
@@ -33,15 +33,31 @@ pub struct CashToCodeMandatoryParams {
 }
 
 fn get_mid(
-    payment_method_data: &api::payments::PaymentMethodData,
-) -> Result<String, errors::ConnectorError> {
-    match payment_method_data {
-        api_models::payments::PaymentMethodData::Reward(reward_data) => {
-            Ok(reward_data.merchant_id.to_string())
+    connector_auth_type: &types::ConnectorAuthType,
+    payment_method_type: Option<enums::PaymentMethodType>,
+) -> Result<Secret<String>, errors::ConnectorError> {
+    match connector_auth_type {
+        types::ConnectorAuthType::MultiAuthKey { api_key: _, key1, api_secret: _, key2 } => {
+        match payment_method_type {
+            Some(pmt) => {
+                match pmt {
+                    enums::PaymentMethodType::ClassicReward => {
+                        Ok(key1.to_owned())
+                    },
+                    enums::PaymentMethodType::Evoucher => {
+                        Ok(key2.to_owned())
+                    },
+                    _ => Err(errors::ConnectorError::NotSupported {
+                        message: pmt.to_string(),
+                        connector: "cashtocode",
+                        payment_experience: "Try with a different payment method".to_string(),
+                    })
+                }
+            },
+            None => Err(errors::ConnectorError::MissingPaymentMethodType.into()),
+            }
         }
-        _ => Err(errors::ConnectorError::NotImplemented(
-            "Payment methods".to_string(),
-        )),
+        _ => Err(errors::ConnectorError::FailedToObtainAuthType.into()),
     }
 }
 
@@ -62,7 +78,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for CashtocodePaymentsRequest 
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::PaymentsAuthorizeRouterData) -> Result<Self, Self::Error> {
         let params: CashToCodeMandatoryParams = get_mandatory_params(item)?;
-        let mid = get_mid(&item.request.payment_method_data)?;
+        let mid = get_mid(&item.connector_auth_type, item.request.payment_method_type)?;
         match item.payment_method {
             diesel_models::enums::PaymentMethod::Reward => Ok(Self {
                 amount: item.request.amount,
@@ -83,15 +99,15 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for CashtocodePaymentsRequest 
 }
 
 pub struct CashtocodeAuthType {
-    pub(super) api_key: Secret<String>,
+    pub(super) api_key_classic: Secret<String>,
 }
 
 impl TryFrom<&types::ConnectorAuthType> for CashtocodeAuthType {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(auth_type: &types::ConnectorAuthType) -> Result<Self, Self::Error> {
         match auth_type {
-            types::ConnectorAuthType::HeaderKey { api_key } => Ok(Self {
-                api_key: api_key.to_owned(),
+            types::ConnectorAuthType::MultiAuthKey { api_key, .. } => Ok(Self {
+                api_key_classic: api_key.to_owned(),
             }),
             _ => Err(errors::ConnectorError::FailedToObtainAuthType.into()),
         }

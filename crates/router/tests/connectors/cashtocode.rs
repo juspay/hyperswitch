@@ -93,9 +93,7 @@ async fn should_fetch_pay_url_classic() {
         .make_payment(
             CashtocodeTest::get_payment_authorize_data(
                 Some(enums::PaymentMethodType::ClassicReward),
-                api_models::payments::PaymentMethodData::Reward(api_models::payments::RewardData {
-                    merchant_id: "1bc20b0a".to_owned(),
-                }),
+                api_models::payments::PaymentMethodData::Reward,
             ),
             CashtocodeTest::get_payment_info(),
         )
@@ -113,9 +111,7 @@ async fn should_fetch_pay_url_evoucher() {
         .make_payment(
             CashtocodeTest::get_payment_authorize_data(
                 Some(enums::PaymentMethodType::Evoucher),
-                api_models::payments::PaymentMethodData::Reward(api_models::payments::RewardData {
-                    merchant_id: "befb46ee".to_owned(),
-                }),
+                api_models::payments::PaymentMethodData::Reward,
             ),
             CashtocodeTest::get_payment_info(),
         )
