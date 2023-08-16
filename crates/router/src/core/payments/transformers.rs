@@ -1,4 +1,4 @@
-use std::{fmt::Debug, marker::PhantomData};
+use std::{fmt::Debug, marker::PhantomData, str::FromStr};
 
 use common_utils::fp_utils;
 use diesel_models::{ephemeral_key, payment_attempt::PaymentListFilters};
@@ -98,6 +98,14 @@ where
 
     let customer_id = customer.to_owned().map(|customer| customer.customer_id);
 
+    let is_connector_new_version = state
+        .store
+        .find_config_by_key_cached(&format!("is_connector_new_version_{connector_id}"))
+        .await
+        .map(|value| value.config)
+        .and_then(|config| Ok(bool::from_str(&config).ok().unwrap_or(false)))
+        .ok();
+    println!("routerdata ->>{:?}", is_connector_new_version);
     router_data = types::RouterData {
         flow: PhantomData,
         merchant_id: merchant_account.merchant_id.clone(),
@@ -138,6 +146,7 @@ where
         quote_id: None,
         test_mode,
         payment_method_balance: None,
+        is_connector_new_version,
     };
 
     Ok(router_data)

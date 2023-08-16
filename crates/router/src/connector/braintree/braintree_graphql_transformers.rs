@@ -1,11 +1,10 @@
-use api_models::payments;
 use base64::Engine;
 use error_stack::ResultExt;
 use masking::{PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    connector::utils::{RefundsRequestData, self, RouterData},
+    connector::utils::{self, RefundsRequestData, RouterData},
     consts,
     core::errors,
     types::{self, api, storage::enums},
@@ -27,27 +26,6 @@ pub struct VariablePaymentInput {
 pub struct BraintreePaymentsRequest {
     query: String,
     variables: VariablePaymentInput,
-}
-
-#[derive(Default, Debug, Serialize, Eq, PartialEq)]
-pub struct BraintreeApiVersion {
-    version: String,
-}
-
-#[derive(Default, Debug, Serialize, Eq, PartialEq)]
-pub struct BraintreeSessionRequest {
-    client_token: BraintreeApiVersion,
-}
-
-impl TryFrom<&types::PaymentsSessionRouterData> for BraintreeSessionRequest {
-    type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(_item: &types::PaymentsSessionRouterData) -> Result<Self, Self::Error> {
-        Ok(Self {
-            client_token: BraintreeApiVersion {
-                version: "2".to_string(),
-            },
-        })
-    }
 }
 
 #[derive(Debug, Serialize, Eq, PartialEq)]
@@ -107,7 +85,6 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for BraintreeAuthRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::PaymentsAuthorizeRouterData) -> Result<Self, Self::Error> {
         Ok(Self {
-            
             query: "mutation authorizeCreditCard($input: AuthorizeCreditCardInput!) { authorizeCreditCard(input: $input) {  transaction { id legacyId amount { value currencyCode } status } }}".to_string(),
             variables: VariableAuthInput {
                 input: AuthInput {
@@ -268,33 +245,6 @@ impl<F, T>
     }
 }
 
-impl<F, T>
-    TryFrom<
-        types::ResponseRouterData<F, BraintreeSessionTokenResponse, T, types::PaymentsResponseData>,
-    > for types::RouterData<F, T, types::PaymentsResponseData>
-{
-    type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(
-        item: types::ResponseRouterData<
-            F,
-            BraintreeSessionTokenResponse,
-            T,
-            types::PaymentsResponseData,
-        >,
-    ) -> Result<Self, Self::Error> {
-        Ok(Self {
-            response: Ok(types::PaymentsResponseData::SessionResponse {
-                session_token: types::api::SessionToken::Paypal(Box::new(
-                    payments::PaypalSessionTokenResponse {
-                        session_token: item.response.client_token.value,
-                    },
-                )),
-            }),
-            ..item.data
-        })
-    }
-}
-
 #[derive(Default, Debug, Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct BraintreePaymentsResponse {
@@ -320,18 +270,6 @@ pub struct ChargeCreditCard {
     transaction: TransactionResponseBody,
 }
 
-#[derive(Default, Debug, Clone, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct ClientToken {
-    pub value: String,
-}
-
-#[derive(Default, Debug, Clone, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct BraintreeSessionTokenResponse {
-    pub client_token: ClientToken,
-}
-
 #[derive(Debug, Default, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ErrorResponse {
@@ -345,8 +283,15 @@ pub struct ApiErrorResponse {
 
 #[derive(Default, Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
+pub struct RefundInputData {
+    amount: String,
+}
+
+#[derive(Default, Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct BraintreeRefundInput {
     transaction_id: String,
+    refund: RefundInputData,
 }
 
 #[derive(Default, Debug, Clone, Serialize)]
@@ -367,6 +312,12 @@ impl<F> TryFrom<&types::RefundsRouterData<F>> for BraintreeRefundRequest {
         let variables = BraintreeRefundVariables {
             input: BraintreeRefundInput {
                 transaction_id: item.request.connector_transaction_id.clone(),
+                refund: RefundInputData {
+                    amount: utils::to_currency_base_unit(
+                        item.request.refund_amount,
+                        item.request.currency,
+                    )?,
+                },
             },
         };
         Ok(Self { query, variables })

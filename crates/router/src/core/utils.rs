@@ -1,4 +1,4 @@
-use std::marker::PhantomData;
+use std::{marker::PhantomData, str::FromStr};
 
 use api_models::enums::{DisputeStage, DisputeStatus};
 use common_utils::errors::CustomResult;
@@ -182,6 +182,7 @@ pub async fn construct_payout_router_data<'a, F>(
         quote_id: None,
         test_mode,
         payment_method_balance: None,
+        is_connector_new_version: None,
     };
 
     Ok(router_data)
@@ -237,6 +238,14 @@ pub async fn construct_refund_router_data<'a, F>(
     ));
     let test_mode: Option<bool> = merchant_connector_account.is_test_mode_on();
 
+    let is_connector_new_version = state
+        .store
+        .find_config_by_key_cached(&format!("is_connector_new_version_{connector_id}"))
+        .await
+        .map(|value| value.config)
+        .and_then(|config| Ok(bool::from_str(&config).ok().unwrap_or(false)))
+        .ok();
+
     let router_data = types::RouterData {
         flow: PhantomData,
         merchant_id: merchant_account.merchant_id.clone(),
@@ -289,6 +298,7 @@ pub async fn construct_refund_router_data<'a, F>(
         quote_id: None,
         test_mode,
         payment_method_balance: None,
+        is_connector_new_version,
     };
 
     Ok(router_data)
@@ -506,6 +516,7 @@ pub async fn construct_accept_dispute_router_data<'a>(
         quote_id: None,
         test_mode,
         payment_method_balance: None,
+        is_connector_new_version: None,
     };
     Ok(router_data)
 }
@@ -580,6 +591,7 @@ pub async fn construct_submit_evidence_router_data<'a>(
         #[cfg(feature = "payouts")]
         quote_id: None,
         test_mode,
+        is_connector_new_version: None,
     };
     Ok(router_data)
 }
@@ -655,6 +667,7 @@ pub async fn construct_upload_file_router_data<'a>(
         #[cfg(feature = "payouts")]
         quote_id: None,
         test_mode,
+        is_connector_new_version: None,
     };
     Ok(router_data)
 }
@@ -732,6 +745,7 @@ pub async fn construct_defend_dispute_router_data<'a>(
         #[cfg(feature = "payouts")]
         quote_id: None,
         test_mode,
+        is_connector_new_version: None,
     };
     Ok(router_data)
 }
@@ -804,6 +818,7 @@ pub async fn construct_retrieve_file_router_data<'a>(
         #[cfg(feature = "payouts")]
         quote_id: None,
         test_mode,
+        is_connector_new_version: None,
     };
     Ok(router_data)
 }
