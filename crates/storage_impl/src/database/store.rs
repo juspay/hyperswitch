@@ -9,14 +9,14 @@ pub type PgPool = bb8::Pool<async_bb8_diesel::ConnectionManager<PgConnection>>;
 pub type PgPooledConn = async_bb8_diesel::Connection<PgConnection>;
 
 #[async_trait::async_trait]
-pub trait DatabaseStore {
+pub trait DatabaseStore: Clone + Send {
     type Config;
     async fn new(config: Self::Config, test_transaction: bool) -> Self;
-    fn get_write_pool(&self) -> PgPool;
-    fn get_read_pool(&self) -> PgPool;
+    fn get_master_pool(&self) -> &PgPool;
+    fn get_replica_pool(&self) -> &PgPool;
 }
 
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub struct Store {
     pub master_pool: PgPool,
 }
@@ -30,16 +30,16 @@ impl DatabaseStore for Store {
         }
     }
 
-    fn get_write_pool(&self) -> PgPool {
-        self.master_pool.clone()
+    fn get_master_pool(&self) -> &PgPool {
+        &self.master_pool
     }
 
-    fn get_read_pool(&self) -> PgPool {
-        self.master_pool.clone()
+    fn get_replica_pool(&self) -> &PgPool {
+        &self.master_pool
     }
 }
 
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub struct ReplicaStore {
     pub master_pool: PgPool,
     pub replica_pool: PgPool,
@@ -58,12 +58,12 @@ impl DatabaseStore for ReplicaStore {
         }
     }
 
-    fn get_write_pool(&self) -> PgPool {
-        self.master_pool.clone()
+    fn get_master_pool(&self) -> &PgPool {
+        &self.master_pool
     }
 
-    fn get_read_pool(&self) -> PgPool {
-        self.replica_pool.clone()
+    fn get_replica_pool(&self) -> &PgPool {
+        &self.replica_pool
     }
 }
 

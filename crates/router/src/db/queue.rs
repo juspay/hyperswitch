@@ -1,5 +1,6 @@
 use redis_interface::{errors::RedisError, RedisEntryId, SetnxReply};
 use router_env::logger;
+use storage_impl::redis::kv_store::RedisConnInterface;
 
 use super::{MockDb, Store};
 use crate::{
@@ -54,7 +55,7 @@ impl QueueInterface for Store {
         crate::scheduler::consumer::fetch_consumer_tasks(
             self,
             &self
-                .redis_conn()
+                .get_redis_conn()
                 .map_err(ProcessTrackerError::ERedisError)?
                 .clone(),
             stream_name,
@@ -70,7 +71,7 @@ impl QueueInterface for Store {
         group: &str,
         id: &RedisEntryId,
     ) -> CustomResult<(), RedisError> {
-        self.redis_conn()?
+        self.get_redis_conn()?
             .consumer_group_create(stream, group, id)
             .await
     }
@@ -82,7 +83,7 @@ impl QueueInterface for Store {
         lock_val: &str,
         ttl: i64,
     ) -> CustomResult<bool, RedisError> {
-        let conn = self.redis_conn()?.clone();
+        let conn = self.get_redis_conn()?.clone();
         let is_lock_acquired = conn
             .set_key_if_not_exists_with_expiry(lock_key, lock_val, None)
             .await;
@@ -109,7 +110,7 @@ impl QueueInterface for Store {
     }
 
     async fn release_pt_lock(&self, tag: &str, lock_key: &str) -> CustomResult<bool, RedisError> {
-        let is_lock_released = self.redis_conn()?.delete_key(lock_key).await;
+        let is_lock_released = self.get_redis_conn()?.delete_key(lock_key).await;
         Ok(match is_lock_released {
             Ok(_del_reply) => true,
             Err(error) => {
@@ -125,13 +126,13 @@ impl QueueInterface for Store {
         entry_id: &RedisEntryId,
         fields: Vec<(&str, String)>,
     ) -> CustomResult<(), RedisError> {
-        self.redis_conn()?
+        self.get_redis_conn()?
             .stream_append_entry(stream, entry_id, fields)
             .await
     }
 
     async fn get_key(&self, key: &str) -> CustomResult<Vec<u8>, RedisError> {
-        self.redis_conn()?.get_key::<Vec<u8>>(key).await
+        self.get_redis_conn()?.get_key::<Vec<u8>>(key).await
     }
 }
 
