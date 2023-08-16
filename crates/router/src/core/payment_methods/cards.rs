@@ -294,7 +294,7 @@ pub async fn decode_and_decrypt_locker_data(
         .change_context(errors::VaultError::ResponseDeserializationFailed)
         .attach_printable("Failed to decode hex string into bytes")?;
     // Decrypt
-    async { decrypt(Some(Encryption::new(decoded_bytes.into())), key).await }
+    decrypt(Some(Encryption::new(decoded_bytes.into())), key)
         .await
         .change_context(errors::VaultError::FetchPaymentMethodFailed)?
         .map_or(
