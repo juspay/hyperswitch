@@ -125,7 +125,13 @@ pub trait RequestBuilder: Send + Sync {
     fn header(&mut self, key: String, value: Maskable<String>) -> CustomResult<(), ApiClientError>;
     fn send(
         self,
-    ) -> CustomResult<Box<(dyn core::future::Future<Output = Result<reqwest::Response, reqwest::Error>> + 'static)>, ApiClientError>;
+    ) -> CustomResult<
+        Box<
+            (dyn core::future::Future<Output = Result<reqwest::Response, reqwest::Error>>
+                 + 'static),
+        >,
+        ApiClientError,
+    >;
 }
 
 pub trait ApiClient
@@ -152,20 +158,31 @@ impl ProxyClient {
         base_url: String,
         client_certificate: Option<String>,
         client_certificate_key: Option<String>,
-    ) -> reqwest::Client {
-        // Fix this shit as well
+    ) -> CustomResult<reqwest::Client, ApiClientError> {
         match (client_certificate, client_certificate_key) {
-            (None, None) => {
+            (Some(certificate), Some(certificate_key)) => {
+                let client_builder =
+                    reqwest::Client::builder().redirect(reqwest::redirect::Policy::none());
+                let identity = payments::helpers::create_identity_from_certificate_and_key(
+                    certificate,
+                    certificate_key,
+                )?;
+                Ok(client_builder
+                    .identity(identity)
+                    .build()
+                    .into_report()
+                    .change_context(ApiClientError::ClientConstructionFailed)
+                    .attach_printable(
+                        "Failed to construct client with certificate and certificate key",
+                    )?)
+            }
+            (_, _) => {
                 if self.whitelisted_urls.contains(&base_url) {
-                    self.non_proxy_client.clone()
+                    Ok(self.non_proxy_client.clone())
                 } else {
-                    self.proxy_client.clone()
+                    Ok(self.proxy_client.clone())
                 }
-            },
-            // TODO: Create custom clients when needed
-            (None, Some(_)) => todo!(),
-            (Some(_), None) => todo!(),
-            (Some(_), Some(_)) => todo!(),
+            }
         }
     }
 }
@@ -198,12 +215,10 @@ impl RequestBuilder for RouterRequestBuilder {
 
     fn header(&mut self, key: String, value: Maskable<String>) -> CustomResult<(), ApiClientError> {
         let header_value = match value {
-            Maskable::Masked(hvalue) => {
-                HeaderValue::from_str(hvalue.peek()).map(|mut h| {
-                    h.set_sensitive(true);
-                    h
-                })
-            }
+            Maskable::Masked(hvalue) => HeaderValue::from_str(hvalue.peek()).map(|mut h| {
+                h.set_sensitive(true);
+                h
+            }),
             Maskable::Normal(hvalue) => HeaderValue::from_str(&hvalue),
         }
         .into_report()
@@ -215,8 +230,16 @@ impl RequestBuilder for RouterRequestBuilder {
 
     fn send(
         self,
-    ) -> CustomResult<Box<(dyn core::future::Future<Output = Result<reqwest::Response, reqwest::Error>> + 'static)>, ApiClientError> {
-        Ok(Box::new(self.inner.ok_or(ApiClientError::UnexpectedState)?.send()))
+    ) -> CustomResult<
+        Box<
+            (dyn core::future::Future<Output = Result<reqwest::Response, reqwest::Error>>
+                 + 'static),
+        >,
+        ApiClientError,
+    > {
+        Ok(Box::new(
+            self.inner.ok_or(ApiClientError::UnexpectedState)?.send(),
+        ))
     }
 }
 
@@ -230,20 +253,32 @@ impl ApiClient for ProxyClient {
         let non_proxy_client = reqwest::Client::builder()
             .redirect(reqwest::redirect::Policy::none())
             .build()
-            .into_report().change_context(ApiClientError::ClientConstructionFailed)?;
-        
+            .into_report()
+            .change_context(ApiClientError::ClientConstructionFailed)?;
+
         let mut proxy_builder =
             reqwest::Client::builder().redirect(reqwest::redirect::Policy::none());
 
         if let Some(url) = proxy_config.https_url.as_ref() {
-            proxy_builder = proxy_builder.proxy(reqwest::Proxy::https(url).into_report().change_context(ApiClientError::InvalidProxyConfiguration)?);
+            proxy_builder = proxy_builder.proxy(
+                reqwest::Proxy::https(url)
+                    .into_report()
+                    .change_context(ApiClientError::InvalidProxyConfiguration)?,
+            );
         }
 
         if let Some(url) = proxy_config.http_url.as_ref() {
-            proxy_builder = proxy_builder.proxy(reqwest::Proxy::http(url).into_report().change_context(ApiClientError::InvalidProxyConfiguration)?);
+            proxy_builder = proxy_builder.proxy(
+                reqwest::Proxy::http(url)
+                    .into_report()
+                    .change_context(ApiClientError::InvalidProxyConfiguration)?,
+            );
         }
 
-        let proxy_client = proxy_builder.build().into_report().change_context(ApiClientError::InvalidProxyConfiguration)?; //todo
+        let proxy_client = proxy_builder
+            .build()
+            .into_report()
+            .change_context(ApiClientError::InvalidProxyConfiguration)?;
         Ok(Self {
             proxy_client,
             non_proxy_client,
