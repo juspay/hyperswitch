@@ -284,19 +284,6 @@ pub enum BraintreePaymentStatus {
 }
 
 #[derive(Debug, Clone, Deserialize)]
-#[serde(untagged)]
-pub enum BraintreeResponse {
-    BraintreeTokenResponse(BraintreeTokenResponse),
-    BraintreeCaptureResponse(BraintreeCaptureResponse),
-    BraintreePSyncResponse(BraintreePSyncResponse),
-    BraintreeCancelResponse(BraintreeCancelResponse),
-    BraintreePaymentsResponse(BraintreePaymentsResponse),
-    BraintreeAuthResponse(BraintreeAuthResponse),
-    BraintreeRefundResponse(BraintreeRefundResponse),
-    BraintreeRSyncResponse(BraintreeRSyncResponse),
-}
-
-#[derive(Debug, Clone, Deserialize)]
 pub struct ErrorDetails {
     pub message: String,
     pub extensions: AditionalErrorDetails,
@@ -522,7 +509,7 @@ pub struct BraintreeRefundTransaction {
 #[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct BraintreeRefundResponseData {
-    pub refund_transaction: BraintreeRefundTransaction,
+    pub refund_transaction: Option<BraintreeRefundTransaction>,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -556,18 +543,30 @@ impl TryFrom<types::RefundsResponseRouterData<api::Execute, BraintreeRefundRespo
                         .response
                         .data
                         .as_ref()
-                        .ok_or(errors::ConnectorError::RequestEncodingFailed)?
+                        .ok_or(errors::ConnectorError::MissingRequiredField { field_name: "data" })?
                         .refund_transaction
+                        .as_ref()
+                        .ok_or(errors::ConnectorError::MissingRequiredField {
+                            field_name: "refund_transaction",
+                        })?
                         .refund
                         .id
                         .clone(),
                     refund_status: enums::RefundStatus::from(
                         item.response
                             .data
-                            .ok_or(errors::ConnectorError::RequestEncodingFailed)?
+                            .as_ref()
+                            .ok_or(errors::ConnectorError::MissingRequiredField {
+                                field_name: "data",
+                            })?
                             .refund_transaction
+                            .as_ref()
+                            .ok_or(errors::ConnectorError::MissingRequiredField {
+                                field_name: "refund_transaction",
+                            })?
                             .refund
-                            .status,
+                            .status
+                            .clone(),
                     ),
                 })
             },
