@@ -5549,7 +5549,7 @@
 													"// Response body should have value \"This Payment could not be captured because it has a payment.status of succeeded. The expected state is requires_capture\" for \"error message\"",
 													"if (jsonData?.error?.message) {",
 													"pm.test(\"[POST]::/payments/:id/confirm - Content check if value for 'error.type' matches 'invalid_request'\", function() {",
-													"  pm.expect(jsonData.error.message).to.eql(\"This Payment could not be captured because it has a payment.status of succeeded. The expected state is requires_capture, partially captured\");",
+													"  pm.expect(jsonData.error.message).to.eql(\"This Payment could not be captured because it has a payment.status of succeeded. The expected state is requires_capture\");",
 													"})};",
 													"",
 													"",
@@ -5562,7 +5562,9 @@
 										{
 											"listen": "prerequest",
 											"script": {
-												"exec": [],
+												"exec": [
+													""
+												],
 												"type": "text/javascript"
 											}
 										}

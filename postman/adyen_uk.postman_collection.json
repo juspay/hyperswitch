@@ -8226,8 +8226,8 @@
 													"",
 													"// Response body should have value \"invalid_request\" for \"error type\"",
 													"if (jsonData?.error?.message) {",
-													"pm.test(\"[POST]::/payments - Content check if value for 'error.message' matches 'This Payment could not be captured because it has a payment.status of requires_customer_action. The expected state is requires_capture, partially captured'\", function() {",
-													"  pm.expect(jsonData.error.message).to.eql(\"This Payment could not be captured because it has a payment.status of requires_customer_action. The expected state is requires_capture, partially captured\");",
+													"pm.test(\"[POST]::/payments - Content check if value for 'error.message' matches 'This Payment could not be captured because it has a payment.status of requires_customer_action. The expected state is requires_capture'\", function() {",
+													"  pm.expect(jsonData.error.message).to.eql(\"This Payment could not be captured because it has a payment.status of requires_customer_action. The expected state is requires_capture\");",
 													"})};",
 													"",
 													"",
@@ -8240,7 +8240,9 @@
 										{
 											"listen": "prerequest",
 											"script": {
-												"exec": [],
+												"exec": [
+													""
+												],
 												"type": "text/javascript"
 											}
 										}
