@@ -5,6 +5,7 @@ use masking::StrongSecret;
 use redis::{kv_store::RedisConnInterface, RedisStore};
 pub mod config;
 pub mod database;
+pub mod metrics;
 pub mod payments;
 pub mod redis;
 pub mod refund;
@@ -232,7 +233,10 @@ pub(crate) fn diesel_error_to_data_error(
             data_models::errors::StorageError::ValueNotFound("Value not found".to_string())
         }
         diesel_models::errors::DatabaseError::UniqueViolation => {
-            data_models::errors::StorageError::DuplicateValue { entity: "entity ", key: None }
+            data_models::errors::StorageError::DuplicateValue {
+                entity: "entity ",
+                key: None,
+            }
         }
         diesel_models::errors::DatabaseError::NoFieldsToUpdate => {
             data_models::errors::StorageError::DatabaseError("No fields to update".to_string())

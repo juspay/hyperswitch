@@ -3,7 +3,7 @@ use data_models::errors::StorageError;
 use diesel::PgConnection;
 use error_stack::{IntoReport, ResultExt};
 
-use crate::DatabaseStore;
+use crate::{metrics, DatabaseStore};
 
 pub async fn pg_connection_read<T: DatabaseStore>(
     store: &T,
@@ -61,8 +61,7 @@ where
         Ok(output) => Ok(output),
         Err(redis_error) => match redis_error.current_context() {
             redis_interface::errors::RedisError::NotFound => {
-                // TODO: Refactor metrics context builder & reference as well
-                // metrics::KV_MISS.add(&metrics::CONTEXT, 1, &[]);
+                metrics::KV_MISS.add(&metrics::CONTEXT, 1, &[]);
                 database_call_closure().await
             }
             _ => Err(redis_error.change_context(StorageError::KVError)),
