@@ -30,7 +30,6 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for StaxPaymentsRequest {
             Err(errors::ConnectorError::NotSupported {
                 message: item.request.currency.to_string(),
                 connector: "Stax",
-                payment_experience: api::enums::PaymentExperience::RedirectToUrl.to_string(),
             })?
         }
         match item.request.payment_method_data.clone() {

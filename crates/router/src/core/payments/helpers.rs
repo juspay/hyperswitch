@@ -2462,6 +2462,7 @@ pub fn router_data_type_conversion<F1, F2, Req1, Req2, Res1, Res2>(
         #[cfg(feature = "payouts")]
         quote_id: None,
         test_mode: router_data.test_mode,
+        connector_http_status_code: router_data.connector_http_status_code,
     }
 }
 
