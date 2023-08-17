@@ -2,7 +2,7 @@ use async_trait::async_trait;
 use common_utils::errors::CustomResult;
 pub use diesel_models::process_tracker as storage;
 
-use crate::{errors, SchedulerAppState, db::process_tracker::ProcessTrackerExt};
+use crate::{db::process_tracker::ProcessTrackerExt, errors, SchedulerAppState};
 
 pub type WorkflowSelectorFn =
     fn(&storage::ProcessTracker) -> Result<(), errors::ProcessTrackerError>;
@@ -22,7 +22,10 @@ pub trait ProcessTrackerWorkflows<T>: Send + Sync {
         operation: Box<dyn ProcessTrackerWorkflow<T>>,
         state: &'a T,
         process: storage::ProcessTracker,
-    ) -> Result<(), errors::ProcessTrackerError> where T : SchedulerAppState{
+    ) -> Result<(), errors::ProcessTrackerError>
+    where
+        T: SchedulerAppState,
+    {
         let app_state = &state.clone();
         let output = operation.execute_workflow(app_state, process.clone()).await;
         match output {
