@@ -254,10 +254,10 @@ impl Default for super::settings::RequiredFields {
                                                 }
                                             ),
                                             (
-                                                "payment_method_data.card.card_exp_cvc".to_string(),
+                                                "payment_method_data.card.card_cvc".to_string(),
                                                 RequiredFieldInfo {
-                                                    required_field: "payment_method_data.card.card_exp_cvc".to_string(),
-                                                    display_name: "card_exp_cvc".to_string(),
+                                                    required_field: "payment_method_data.card.card_cvc".to_string(),
+                                                    display_name: "card_cvc".to_string(),
                                                     field_type: enums::FieldType::CardCVC,
                                                     value: None,
                                                 }
@@ -310,10 +310,10 @@ impl Default for super::settings::RequiredFields {
                                                 }
                                             ),
                                             (
-                                                "payment_method_data.card.card_exp_cvc".to_string(),
+                                                "payment_method_data.card.card_cvc".to_string(),
                                                 RequiredFieldInfo {
-                                                    required_field: "payment_method_data.card.card_exp_cvc".to_string(),
-                                                    display_name: "card_exp_cvc".to_string(),
+                                                    required_field: "payment_method_data.card.card_cvc".to_string(),
+                                                    display_name: "card_cvc".to_string(),
                                                     field_type: enums::FieldType::CardCVC,
                                                     value: None,
                                                 }
@@ -356,10 +356,10 @@ impl Default for super::settings::RequiredFields {
                                                 }
                                             ),
                                             (
-                                                "payment_method_data.card.card_exp_cvc".to_string(),
+                                                "payment_method_data.card.card_cvc".to_string(),
                                                 RequiredFieldInfo {
-                                                    required_field: "payment_method_data.card.card_exp_cvc".to_string(),
-                                                    display_name: "card_exp_cvc".to_string(),
+                                                    required_field: "payment_method_data.card.card_cvc".to_string(),
+                                                    display_name: "card_cvc".to_string(),
                                                     field_type: enums::FieldType::CardCVC,
                                                     value: None,
                                                 }
@@ -404,10 +404,10 @@ impl Default for super::settings::RequiredFields {
                                                 }
                                             ),
                                             (
-                                                "payment_method_data.card.card_exp_cvc".to_string(),
+                                                "payment_method_data.card.card_cvc".to_string(),
                                                 RequiredFieldInfo {
-                                                    required_field: "payment_method_data.card.card_exp_cvc".to_string(),
-                                                    display_name: "card_exp_cvc".to_string(),
+                                                    required_field: "payment_method_data.card.card_cvc".to_string(),
+                                                    display_name: "card_cvc".to_string(),
                                                     field_type: enums::FieldType::CardCVC,
                                                     value: None,
                                                 }
@@ -450,10 +450,10 @@ impl Default for super::settings::RequiredFields {
                                                 }
                                             ),
                                             (
-                                                "payment_method_data.card.card_exp_cvc".to_string(),
+                                                "payment_method_data.card.card_cvc".to_string(),
                                                 RequiredFieldInfo {
-                                                    required_field: "payment_method_data.card.card_exp_cvc".to_string(),
-                                                    display_name: "card_exp_cvc".to_string(),
+                                                    required_field: "payment_method_data.card.card_cvc".to_string(),
+                                                    display_name: "card_cvc".to_string(),
                                                     field_type: enums::FieldType::CardCVC,
                                                     value: None,
                                                 }
@@ -506,10 +506,10 @@ impl Default for super::settings::RequiredFields {
                                                 }
                                             ),
                                             (
-                                                "payment_method_data.card.card_exp_cvc".to_string(),
+                                                "payment_method_data.card.card_cvc".to_string(),
                                                 RequiredFieldInfo {
-                                                    required_field: "payment_method_data.card.card_exp_cvc".to_string(),
-                                                    display_name: "card_exp_cvc".to_string(),
+                                                    required_field: "payment_method_data.card.card_cvc".to_string(),
+                                                    display_name: "card_cvc".to_string(),
                                                     field_type: enums::FieldType::CardCVC,
                                                     value: None,
                                                 }
@@ -580,10 +580,10 @@ impl Default for super::settings::RequiredFields {
                                                 }
                                             ),
                                             (
-                                                "payment_method_data.card.card_exp_cvc".to_string(),
+                                                "payment_method_data.card.card_cvc".to_string(),
                                                 RequiredFieldInfo {
-                                                    required_field: "payment_method_data.card.card_exp_cvc".to_string(),
-                                                    display_name: "card_exp_cvc".to_string(),
+                                                    required_field: "payment_method_data.card.card_cvc".to_string(),
+                                                    display_name: "card_cvc".to_string(),
                                                     field_type: enums::FieldType::CardCVC,
                                                     value: None,
                                                 }
@@ -647,10 +647,10 @@ impl Default for super::settings::RequiredFields {
                                                 }
                                             ),
                                             (
-                                                "payment_method_data.card.card_exp_cvc".to_string(),
+                                                "payment_method_data.card.card_cvc".to_string(),
                                                 RequiredFieldInfo {
-                                                    required_field: "payment_method_data.card.card_exp_cvc".to_string(),
-                                                    display_name: "card_exp_cvc".to_string(),
+                                                    required_field: "payment_method_data.card.card_cvc".to_string(),
+                                                    display_name: "card_cvc".to_string(),
                                                     field_type: enums::FieldType::CardCVC,
                                                     value: None,
                                                 }
@@ -770,10 +770,10 @@ impl Default for super::settings::RequiredFields {
                                                 }
                                             ),
                                             (
-                                                "payment_method_data.card.card_exp_cvc".to_string(),
+                                                "payment_method_data.card.card_cvc".to_string(),
                                                 RequiredFieldInfo {
-                                                    required_field: "payment_method_data.card.card_exp_cvc".to_string(),
-                                                    display_name: "card_exp_cvc".to_string(),
+                                                    required_field: "payment_method_data.card.card_cvc".to_string(),
+                                                    display_name: "card_cvc".to_string(),
                                                     field_type: enums::FieldType::CardCVC,
                                                     value: None,
                                                 }
@@ -857,10 +857,10 @@ impl Default for super::settings::RequiredFields {
                                                 }
                                             ),
                                             (
-                                                "payment_method_data.card.card_exp_cvc".to_string(),
+                                                "payment_method_data.card.card_cvc".to_string(),
                                                 RequiredFieldInfo {
-                                                    required_field: "payment_method_data.card.card_exp_cvc".to_string(),
-                                                    display_name: "card_exp_cvc".to_string(),
+                                                    required_field: "payment_method_data.card.card_cvc".to_string(),
+                                                    display_name: "card_cvc".to_string(),
                                                     field_type: enums::FieldType::CardCVC,
                                                     value: None,
                                                 }
@@ -904,10 +904,10 @@ impl Default for super::settings::RequiredFields {
                                                 }
                                             ),
                                             (
-                                                "payment_method_data.card.card_exp_cvc".to_string(),
+                                                "payment_method_data.card.card_cvc".to_string(),
                                                 RequiredFieldInfo {
-                                                    required_field: "payment_method_data.card.card_exp_cvc".to_string(),
-                                                    display_name: "card_exp_cvc".to_string(),
+                                                    required_field: "payment_method_data.card.card_cvc".to_string(),
+                                                    display_name: "card_cvc".to_string(),
                                                     field_type: enums::FieldType::CardCVC,
                                                     value: None,
                                                 }
@@ -978,10 +978,10 @@ impl Default for super::settings::RequiredFields {
                                             }
                                         ),
                                         (
-                                            "payment_method_data.card.card_exp_cvc".to_string(),
+                                            "payment_method_data.card.card_cvc".to_string(),
                                             RequiredFieldInfo {
-                                                required_field: "payment_method_data.card.card_exp_cvc".to_string(),
-                                                display_name: "card_exp_cvc".to_string(),
+                                                required_field: "payment_method_data.card.card_cvc".to_string(),
+                                                display_name: "card_cvc".to_string(),
                                                 field_type: enums::FieldType::CardCVC,
                                                 value: None,
                                             }
@@ -1031,10 +1031,10 @@ impl Default for super::settings::RequiredFields {
                                                 }
                                             ),
                                             (
-                                                "payment_method_data.card.card_exp_cvc".to_string(),
+                                                "payment_method_data.card.card_cvc".to_string(),
                                                 RequiredFieldInfo {
-                                                    required_field: "payment_method_data.card.card_exp_cvc".to_string(),
-                                                    display_name: "card_exp_cvc".to_string(),
+                                                    required_field: "payment_method_data.card.card_cvc".to_string(),
+                                                    display_name: "card_cvc".to_string(),
                                                     field_type: enums::FieldType::CardCVC,
                                                     value: None,
                                                 }
@@ -1088,10 +1088,10 @@ impl Default for super::settings::RequiredFields {
                                                 }
                                             ),
                                             (
-                                                "payment_method_data.card.card_exp_cvc".to_string(),
+                                                "payment_method_data.card.card_cvc".to_string(),
                                                 RequiredFieldInfo {
-                                                    required_field: "payment_method_data.card.card_exp_cvc".to_string(),
-                                                    display_name: "card_exp_cvc".to_string(),
+                                                    required_field: "payment_method_data.card.card_cvc".to_string(),
+                                                    display_name: "card_cvc".to_string(),
                                                     field_type: enums::FieldType::CardCVC,
                                                     value: None,
                                                 }
@@ -1128,7 +1128,7 @@ impl Default for super::settings::RequiredFields {
                                                 RequiredFieldInfo {
                                                     required_field: "billing.address.line2".to_string(),
                                                     display_name: "line2".to_string(),
-                                                    field_type: enums::FieldType::UserAddressline1,
+                                                    field_type: enums::FieldType::UserAddressline2,
                                                     value: None,
                                                 }
                                             ),
@@ -1202,10 +1202,10 @@ impl Default for super::settings::RequiredFields {
                                                 }
                                             ),
                                             (
-                                                "payment_method_data.card.card_exp_cvc".to_string(),
+                                                "payment_method_data.card.card_cvc".to_string(),
                                                 RequiredFieldInfo {
-                                                    required_field: "payment_method_data.card.card_exp_cvc".to_string(),
-                                                    display_name: "card_exp_cvc".to_string(),
+                                                    required_field: "payment_method_data.card.card_cvc".to_string(),
+                                                    display_name: "card_cvc".to_string(),
                                                     field_type: enums::FieldType::CardCVC,
                                                     value: None,
                                                 }
@@ -1248,10 +1248,10 @@ impl Default for super::settings::RequiredFields {
                                                 }
                                             ),
                                             (
-                                                "payment_method_data.card.card_exp_cvc".to_string(),
+                                                "payment_method_data.card.card_cvc".to_string(),
                                                 RequiredFieldInfo {
-                                                    required_field: "payment_method_data.card.card_exp_cvc".to_string(),
-                                                    display_name: "card_exp_cvc".to_string(),
+                                                    required_field: "payment_method_data.card.card_cvc".to_string(),
+                                                    display_name: "card_cvc".to_string(),
                                                     field_type: enums::FieldType::CardCVC,
                                                     value: None,
                                                 }
@@ -1296,10 +1296,10 @@ impl Default for super::settings::RequiredFields {
                                                 }
                                             ),
                                             (
-                                                "payment_method_data.card.card_exp_cvc".to_string(),
+                                                "payment_method_data.card.card_cvc".to_string(),
                                                 RequiredFieldInfo {
-                                                    required_field: "payment_method_data.card.card_exp_cvc".to_string(),
-                                                    display_name: "card_exp_cvc".to_string(),
+                                                    required_field: "payment_method_data.card.card_cvc".to_string(),
+                                                    display_name: "card_cvc".to_string(),
                                                     field_type: enums::FieldType::CardCVC,
                                                     value: None,
                                                 }
@@ -1360,10 +1360,10 @@ impl Default for super::settings::RequiredFields {
                                                 }
                                             ),
                                             (
-                                                "payment_method_data.card.card_exp_cvc".to_string(),
+                                                "payment_method_data.card.card_cvc".to_string(),
                                                 RequiredFieldInfo {
-                                                    required_field: "payment_method_data.card.card_exp_cvc".to_string(),
-                                                    display_name: "card_exp_cvc".to_string(),
+                                                    required_field: "payment_method_data.card.card_cvc".to_string(),
+                                                    display_name: "card_cvc".to_string(),
                                                     field_type: enums::FieldType::CardCVC,
                                                     value: None,
                                                 }
@@ -1433,10 +1433,10 @@ impl Default for super::settings::RequiredFields {
                                                 }
                                             ),
                                             (
-                                                "payment_method_data.card.card_exp_cvc".to_string(),
+                                                "payment_method_data.card.card_cvc".to_string(),
                                                 RequiredFieldInfo {
-                                                    required_field: "payment_method_data.card.card_exp_cvc".to_string(),
-                                                    display_name: "card_exp_cvc".to_string(),
+                                                    required_field: "payment_method_data.card.card_cvc".to_string(),
+                                                    display_name: "card_cvc".to_string(),
                                                     field_type: enums::FieldType::CardCVC,
                                                     value: None,
                                                 }
@@ -1480,10 +1480,10 @@ impl Default for super::settings::RequiredFields {
                                                 }
                                             ),
                                             (
-                                                "payment_method_data.card.card_exp_cvc".to_string(),
+                                                "payment_method_data.card.card_cvc".to_string(),
                                                 RequiredFieldInfo {
-                                                    required_field: "payment_method_data.card.card_exp_cvc".to_string(),
-                                                    display_name: "card_exp_cvc".to_string(),
+                                                    required_field: "payment_method_data.card.card_cvc".to_string(),
+                                                    display_name: "card_cvc".to_string(),
                                                     field_type: enums::FieldType::CardCVC,
                                                     value: None,
                                                 }
@@ -1527,10 +1527,10 @@ impl Default for super::settings::RequiredFields {
                                                 }
                                             ),
                                             (
-                                                "payment_method_data.card.card_exp_cvc".to_string(),
+                                                "payment_method_data.card.card_cvc".to_string(),
                                                 RequiredFieldInfo {
-                                                    required_field: "payment_method_data.card.card_exp_cvc".to_string(),
-                                                    display_name: "card_exp_cvc".to_string(),
+                                                    required_field: "payment_method_data.card.card_cvc".to_string(),
+                                                    display_name: "card_cvc".to_string(),
                                                     field_type: enums::FieldType::CardCVC,
                                                     value: None,
                                                 }
@@ -1583,10 +1583,10 @@ impl Default for super::settings::RequiredFields {
                                                 }
                                             ),
                                             (
-                                                "payment_method_data.card.card_exp_cvc".to_string(),
+                                                "payment_method_data.card.card_cvc".to_string(),
                                                 RequiredFieldInfo {
-                                                    required_field: "payment_method_data.card.card_exp_cvc".to_string(),
-                                                    display_name: "card_exp_cvc".to_string(),
+                                                    required_field: "payment_method_data.card.card_cvc".to_string(),
+                                                    display_name: "card_cvc".to_string(),
                                                     field_type: enums::FieldType::CardCVC,
                                                     value: None,
                                                 }
@@ -1639,10 +1639,10 @@ impl Default for super::settings::RequiredFields {
                                                 }
                                             ),
                                             (
-                                                "payment_method_data.card.card_exp_cvc".to_string(),
+                                                "payment_method_data.card.card_cvc".to_string(),
                                                 RequiredFieldInfo {
-                                                    required_field: "payment_method_data.card.card_exp_cvc".to_string(),
-                                                    display_name: "card_exp_cvc".to_string(),
+                                                    required_field: "payment_method_data.card.card_cvc".to_string(),
+                                                    display_name: "card_cvc".to_string(),
                                                     field_type: enums::FieldType::CardCVC,
                                                     value: None,
                                                 }
@@ -1685,10 +1685,10 @@ impl Default for super::settings::RequiredFields {
                                                 }
                                             ),
                                             (
-                                                "payment_method_data.card.card_exp_cvc".to_string(),
+                                                "payment_method_data.card.card_cvc".to_string(),
                                                 RequiredFieldInfo {
-                                                    required_field: "payment_method_data.card.card_exp_cvc".to_string(),
-                                                    display_name: "card_exp_cvc".to_string(),
+                                                    required_field: "payment_method_data.card.card_cvc".to_string(),
+                                                    display_name: "card_cvc".to_string(),
                                                     field_type: enums::FieldType::CardCVC,
                                                     value: None,
                                                 }
@@ -1742,10 +1742,10 @@ impl Default for super::settings::RequiredFields {
                                                 }
                                             ),
                                             (
-                                                "payment_method_data.card.card_exp_cvc".to_string(),
+                                                "payment_method_data.card.card_cvc".to_string(),
                                                 RequiredFieldInfo {
-                                                    required_field: "payment_method_data.card.card_exp_cvc".to_string(),
-                                                    display_name: "card_exp_cvc".to_string(),
+                                                    required_field: "payment_method_data.card.card_cvc".to_string(),
+                                                    display_name: "card_cvc".to_string(),
                                                     field_type: enums::FieldType::CardCVC,
                                                     value: None,
                                                 }
@@ -1788,10 +1788,10 @@ impl Default for super::settings::RequiredFields {
                                                 }
                                             ),
                                             (
-                                                "payment_method_data.card.card_exp_cvc".to_string(),
+                                                "payment_method_data.card.card_cvc".to_string(),
                                                 RequiredFieldInfo {
-                                                    required_field: "payment_method_data.card.card_exp_cvc".to_string(),
-                                                    display_name: "card_exp_cvc".to_string(),
+                                                    required_field: "payment_method_data.card.card_cvc".to_string(),
+                                                    display_name: "card_cvc".to_string(),
                                                     field_type: enums::FieldType::CardCVC,
                                                     value: None,
                                                 }
@@ -1844,10 +1844,10 @@ impl Default for super::settings::RequiredFields {
                                                 }
                                             ),
                                             (
-                                                "payment_method_data.card.card_exp_cvc".to_string(),
+                                                "payment_method_data.card.card_cvc".to_string(),
                                                 RequiredFieldInfo {
-                                                    required_field: "payment_method_data.card.card_exp_cvc".to_string(),
-                                                    display_name: "card_exp_cvc".to_string(),
+                                                    required_field: "payment_method_data.card.card_cvc".to_string(),
+                                                    display_name: "card_cvc".to_string(),
                                                     field_type: enums::FieldType::CardCVC,
                                                     value: None,
                                                 }
@@ -1890,10 +1890,10 @@ impl Default for super::settings::RequiredFields {
                                             }
                                         ),
                                         (
-                                            "payment_method_data.card.card_exp_cvc".to_string(),
+                                            "payment_method_data.card.card_cvc".to_string(),
                                             RequiredFieldInfo {
-                                                required_field: "payment_method_data.card.card_exp_cvc".to_string(),
-                                                display_name: "card_exp_cvc".to_string(),
+                                                required_field: "payment_method_data.card.card_cvc".to_string(),
+                                                display_name: "card_cvc".to_string(),
                                                 field_type: enums::FieldType::CardCVC,
                                                 value: None,
                                             }
