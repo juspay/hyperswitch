@@ -5,7 +5,7 @@ use common_utils::{
     ext_traits::{AsyncExt, ByteSliceExt, ValueExt},
     fp_utils, generate_id, pii,
 };
-use diesel_models::{enums, payment_intent};
+use diesel_models::{enums, payment_attempt, payment_intent};
 // TODO : Evaluate all the helper functions ()
 use error_stack::{report, IntoReport, ResultExt};
 use josekit::jwe;
@@ -1344,15 +1344,15 @@ pub async fn make_pm_data<'a, F: Clone, R>(
 
 pub async fn store_in_vault_and_generate_ppmt(
     state: &AppState,
-    pm: &api_models::payments::PaymentMethodData,
+    payment_method_data: &api_models::payments::PaymentMethodData,
     payment_intent: &payment_intent::PaymentIntent,
-    payment_attempt: &diesel_models::payment_attempt::PaymentAttempt,
+    payment_attempt: &payment_attempt::PaymentAttempt,
     payment_method: enums::PaymentMethod,
 ) -> RouterResult<String> {
     let router_token = vault::Vault::store_payment_method_data_in_locker(
         state,
         None,
-        pm,
+        payment_method_data,
         payment_intent.customer_id.to_owned(),
         payment_method,
     )
