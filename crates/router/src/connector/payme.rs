@@ -236,15 +236,6 @@ impl
                 None,
             )
             .await;
-            // res.ok()
-            //     .map(|res_router_data| match res_router_data.response {
-            //         Ok(_) => {
-            //             router_data.reference_id = res_router_data.reference_id;
-            //         }
-            //         Err(error) => {
-            //             router_data.response = Err(error);
-            //         }
-            //     });
 
             if let Ok(res_router_data) = res {
                 match res_router_data.response {
@@ -343,6 +334,7 @@ impl
         &self,
         res: Response,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        // we are always getting 500 in error scenarios
         self.build_error_response(res)
     }
 }
@@ -440,6 +432,7 @@ impl
         &self,
         res: Response,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        // we are always getting 500 in error scenarios
         self.build_error_response(res)
     }
 }
@@ -468,7 +461,7 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
             // For recurring mandate payments
             Ok(format!("{}api/generate-sale", self.base_url(connectors)))
         } else {
-            // For normal payment request
+            // For Normal & first mandate payments
             Ok(format!("{}api/pay-sale", self.base_url(connectors)))
         }
     }
