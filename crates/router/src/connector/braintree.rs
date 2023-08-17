@@ -264,9 +264,9 @@ impl
     fn get_url(
         &self,
         _req: &types::TokenizationRouterData,
-        _connectors: &settings::Connectors,
+        connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Ok("https://payments.sandbox.braintree-api.com/graphql".to_string())
+        Ok(format!("{}", connectors.braintree.base_url_graph_ql_api))
     }
 
     fn get_request_body(
@@ -386,11 +386,11 @@ impl
     fn get_url(
         &self,
         req: &types::PaymentsCaptureRouterData,
-        _connectors: &settings::Connectors,
+        connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         let is_connector_new_version = req.is_connector_new_version;
         if is_connector_new_version == Some(true) {
-            Ok("https://payments.sandbox.braintree-api.com/graphql".to_string())
+            Ok(format!("{}", connectors.braintree.base_url_graph_ql_api))
         } else {
             Err(errors::ConnectorError::NotImplemented("get_url method".to_string()).into())
         }
@@ -526,7 +526,7 @@ impl
     ) -> CustomResult<String, errors::ConnectorError> {
         let is_connector_new_version = req.is_connector_new_version;
         if is_connector_new_version == Some(true) {
-            Ok("https://payments.sandbox.braintree-api.com/graphql".to_string())
+            Ok(format!("{}", connectors.braintree.base_url_graph_ql_api))
         } else {
             let auth_type = braintree::BraintreeAuthType::try_from(&req.connector_auth_type)
                 .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
@@ -686,7 +686,7 @@ impl
     ) -> CustomResult<String, errors::ConnectorError> {
         let is_connector_new_version = req.is_connector_new_version;
         if is_connector_new_version == Some(true) {
-            Ok("https://payments.sandbox.braintree-api.com/graphql".to_string())
+            Ok(format!("{}", connectors.braintree.base_url_graph_ql_api))
         } else {
             let auth_type = braintree::BraintreeAuthType::try_from(&req.connector_auth_type)
                 .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
@@ -870,7 +870,7 @@ impl
     ) -> CustomResult<String, errors::ConnectorError> {
         let is_connector_new_version = req.is_connector_new_version;
         if is_connector_new_version == Some(true) {
-            Ok("https://payments.sandbox.braintree-api.com/graphql".to_string())
+            Ok(format!("{}", connectors.braintree.base_url_graph_ql_api))
         } else {
             let auth_type = braintree::BraintreeAuthType::try_from(&req.connector_auth_type)
                 .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
@@ -1015,7 +1015,7 @@ impl services::ConnectorIntegration<api::Execute, types::RefundsData, types::Ref
     ) -> CustomResult<String, errors::ConnectorError> {
         let is_connector_new_version = req.is_connector_new_version;
         if is_connector_new_version == Some(true) {
-            Ok("https://payments.sandbox.braintree-api.com/graphql".to_string())
+            Ok(format!("{}", connectors.braintree.base_url_graph_ql_api))
         } else {
             let auth_type = braintree::BraintreeAuthType::try_from(&req.connector_auth_type)
                 .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
@@ -1145,11 +1145,11 @@ impl services::ConnectorIntegration<api::RSync, types::RefundsData, types::Refun
     fn get_url(
         &self,
         req: &types::RefundSyncRouterData,
-        _connectors: &settings::Connectors,
+        connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         let is_connector_new_version = req.is_connector_new_version;
         if is_connector_new_version == Some(true) {
-            Ok("https://payments.sandbox.braintree-api.com/graphql".to_string())
+            Ok(format!("{}", connectors.braintree.base_url_graph_ql_api))
         } else {
             Err(errors::ConnectorError::NotImplemented("get_url method".to_string()).into())
         }

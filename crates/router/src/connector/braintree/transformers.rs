@@ -4,7 +4,7 @@ use masking::{PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    connector::utils::{self, PaymentsAuthorizeRequestData},
+    connector::utils::{self},
     consts,
     core::errors,
     types::{self, api, storage::enums},
@@ -93,13 +93,10 @@ pub struct CardDetails {
 impl TryFrom<&types::PaymentsAuthorizeRouterData> for BraintreePaymentsRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::PaymentsAuthorizeRouterData) -> Result<Self, Self::Error> {
-        let submit_for_settlement = match item.request.is_auto_capture()? {
-            true => true,
-            false => Err(errors::ConnectorError::FlowNotSupported {
-                flow: "Manual capture method for Cards".to_string(),
-                connector: "Braintree".to_string(),
-            })?,
-        };
+        let submit_for_settlement = matches!(
+            item.request.capture_method,
+            Some(enums::CaptureMethod::Automatic) | None
+        );
         let metadata: BraintreeMeta =
             utils::to_connector_meta_from_secret(item.connector_meta_data.clone())?;
         let merchant_account_id = metadata.merchant_account_id;

@@ -468,7 +468,7 @@ pub struct Connectors {
     pub bitpay: ConnectorParams,
     pub bluesnap: ConnectorParams,
     pub boku: ConnectorParams,
-    pub braintree: ConnectorParams,
+    pub braintree: ConnectorParamsWithMoreUrls,
     pub cashtocode: ConnectorParams,
     pub checkout: ConnectorParams,
     pub coinbase: ConnectorParams,
@@ -521,6 +521,7 @@ pub struct ConnectorParams {
 pub struct ConnectorParamsWithMoreUrls {
     pub base_url: String,
     pub base_url_bank_redirects: String,
+    pub base_url_graph_ql_api: String,
 }
 
 #[derive(Debug, Deserialize, Clone, Default, router_derive::ConfigValidate)]
