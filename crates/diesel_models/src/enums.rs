@@ -374,3 +374,26 @@ pub enum FraudCheckStatus {
     Legit,
     TransactionFailure,
 }
+
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Default,
+    Eq,
+    PartialEq,
+    serde::Serialize,
+    serde::Deserialize,
+    strum::Display,
+    strum::EnumString,
+    frunk::LabelledGeneric,
+)]
+#[router_derive::diesel_enum(storage_type = "text")]
+#[strum(serialize_all = "snake_case")]
+pub enum FraudCheckLastStep {
+    #[default]
+    Processing,
+    CheckoutOrSale,
+    TransactionOrRecordRefund,
+    Fullfillment,
+}

@@ -1,9 +1,10 @@
 {
 	"info": {
-		"_postman_id": "faf79340-e864-41f2-afe8-c87d2b593060",
+		"_postman_id": "a64a0a71-3270-4f9a-828b-e65f9704739c",
 		"name": "Stripe Collection",
 		"description": "## Get started\n\nJuspay Router provides a collection of APIs that enable you to process and manage payments. Our APIs accept and return JSON in the HTTP body, and return standard HTTP response codes.  \nYou can consume the APIs directly using your favorite HTTP/REST library.  \nWe have a testing environment referred to \"sandbox\", which you can setup to test API calls without affecting production data.\n\n### Base URLs\n\nUse the following base URLs when making requests to the APIs:\n\n| Environment | Base URL |\n| --- | --- |\n| Sandbox | [https://sandbox.hyperswitch.io](https://sandbox.hyperswitch.io) |\n| Production | [https://router.juspay.io](https://router.juspay.io) |\n\n# Authentication\n\nWhen you sign up for an account, you are given a secret key (also referred as api-key). You may authenticate all API requests with Juspay server by providing the appropriate key in the request Authorization header.  \nNever share your secret api keys. Keep them guarded and secure.\n\nContact Support:  \nName: Juspay Support  \nEmail: [support@juspay.in](mailto:support@juspay.in)",
-		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+		"_exporter_id": "25737662"
 	},
 	"item": [
 		{
@@ -1428,7 +1429,7 @@
 						],
 						"body": {
 							"mode": "raw",
-							"raw": "{\n  \"merchant_id\": \"merchant_{{$timestamp}}\",\n  \"locker_id\": \"m0010\",\n  \"merchant_name\": \"NewAge Retailer\",\n  \"merchant_details\": {\n    \"primary_contact_person\": \"John Test\",\n    \"primary_email\": \"JohnTest@test.com\",\n    \"primary_phone\": \"sunt laborum\",\n    \"secondary_contact_person\": \"John Test2\",\n    \"secondary_email\": \"JohnTest2@test.com\",\n    \"secondary_phone\": \"cillum do dolor id\",\n    \"website\": \"www.example.com\",\n    \"about_business\": \"Online Retail with a wide selection of organic products for North America\",\n    \"address\": {\n      \"line1\": \"1467\",\n      \"line2\": \"Harrison Street\",\n      \"line3\": \"Harrison Street\",\n      \"city\": \"San Fransico\",\n      \"state\": \"California\",\n      \"zip\": \"94122\",\n      \"country\": \"US\"\n    }\n  },\n  \"return_url\": \"https://duck.com/success\",\n  \"webhook_details\": {\n    \"webhook_version\": \"1.0.1\",\n    \"webhook_username\": \"ekart_retail\",\n    \"webhook_password\": \"password_ekart@123\",\n    \"payment_created_enabled\": true,\n    \"payment_succeeded_enabled\": true,\n    \"payment_failed_enabled\": true\n  },\n  \"routing_algorithm\": {\n    \"type\": \"single\",\n    \"data\": \"stripe\"\n  },\n  \"sub_merchants_enabled\": false,\n  \"metadata\": {\n    \"city\": \"NY\",\n    \"unit\": \"245\"\n  },\n    \"primary_business_details\": [\n        {\n            \"country\": \"US\",\n            \"business\": \"default\"\n        }\n    ]\n}",
+							"raw": "{\n  \"merchant_id\": \"postman_merchant_GHAction_{{$guid}}\",\n  \"locker_id\": \"m0010\",\n  \"merchant_name\": \"NewAge Retailer\",\n  \"merchant_details\": {\n    \"primary_contact_person\": \"John Test\",\n    \"primary_email\": \"JohnTest@test.com\",\n    \"primary_phone\": \"sunt laborum\",\n    \"secondary_contact_person\": \"John Test2\",\n    \"secondary_email\": \"JohnTest2@test.com\",\n    \"secondary_phone\": \"cillum do dolor id\",\n    \"website\": \"www.example.com\",\n    \"about_business\": \"Online Retail with a wide selection of organic products for North America\",\n    \"address\": {\n      \"line1\": \"1467\",\n      \"line2\": \"Harrison Street\",\n      \"line3\": \"Harrison Street\",\n      \"city\": \"San Fransico\",\n      \"state\": \"California\",\n      \"zip\": \"94122\",\n      \"country\": \"US\"\n    }\n  },\n  \"return_url\": \"https://duck.com/success\",\n  \"webhook_details\": {\n    \"webhook_version\": \"1.0.1\",\n    \"webhook_username\": \"ekart_retail\",\n    \"webhook_password\": \"password_ekart@123\",\n    \"payment_created_enabled\": true,\n    \"payment_succeeded_enabled\": true,\n    \"payment_failed_enabled\": true\n  },\n  \"routing_algorithm\": {\n    \"type\": \"single\",\n    \"data\": \"stripe\"\n  },\n  \"sub_merchants_enabled\": false,\n  \"metadata\": {\n    \"city\": \"NY\",\n    \"unit\": \"245\"\n  },\n    \"primary_business_details\": [\n        {\n            \"country\": \"US\",\n            \"business\": \"default\"\n        }\n    ]\n}",
 							"options": {
 								"raw": {
 									"language": "json"
@@ -1610,7 +1611,7 @@
 						],
 						"body": {
 							"mode": "raw",
-							"raw": "{\n    \"connector_type\": \"fiz_operations\",\n    \"connector_name\": \"stripe\",\n    \"business_country\":\"US\",\n   \"business_label\":\"default\",\n    \"connector_account_details\": {\n        \"auth_type\": \"HeaderKey\",\n        \"api_key\": \"{{connector_api_key}}\"\n    },\n    \"test_mode\": false,\n    \"disabled\": false,\n    \"payment_methods_enabled\": [\n        {\n            \"payment_method\": \"pay_later\",\n            \"payment_method_types\": [\n                {\n                    \"minimum_amount\": 1,\n                    \"maximum_amount\": 68607706,\n                    \"recurring_enabled\": true,\n                    \"installment_payment_enabled\": true,\n                    \"payment_experience\": \"redirect_to_url\",\n                    \"payment_method_type\": \"affirm\"\n                }\n            ]\n        },\n        {\n            \"payment_method\": \"pay_later\",\n            \"payment_method_types\": [\n                {\n                    \"minimum_amount\": 1,\n                    \"maximum_amount\": 68607706,\n                    \"recurring_enabled\": true,\n                    \"installment_payment_enabled\": true,\n                    \"payment_experience\": \"redirect_to_url\",\n                    \"payment_method_type\": \"afterpay_clearpay\"\n                }\n            ]\n        },\n        {\n            \"payment_method\": \"pay_later\",\n            \"payment_method_types\": [\n                {\n                    \"minimum_amount\": 1,\n                    \"maximum_amount\": 68607706,\n                    \"recurring_enabled\": true,\n                    \"installment_payment_enabled\": true,\n                    \"payment_experience\": \"redirect_to_url\",\n                    \"payment_method_type\": \"klarna\"\n                }\n            ]\n        },\n        {\n            \"payment_method\": \"pay_later\",\n            \"payment_method_types\": [\n                {\n                    \"minimum_amount\": 1,\n                    \"maximum_amount\": 68607706,\n                    \"recurring_enabled\": true,\n                    \"installment_payment_enabled\": true,\n                    \"payment_experience\": \"invoke_sdk_client\",\n                    \"payment_method_type\": \"klarna\"\n                }\n            ]\n        },\n        {\n            \"payment_method\": \"bank_redirect\",\n            \"payment_method_types\": [\n                {\n                    \"payment_method_type\": \"ideal\",\n                    \"payment_experience\": null,\n                    \"card_networks\": null,\n                    \"accepted_currencies\": null,\n                    \"accepted_countries\": null,\n                    \"minimum_amount\": 1,\n                    \"maximum_amount\": 68607706,\n                    \"recurring_enabled\": true,\n                    \"installment_payment_enabled\": true\n                },\n                {\n                    \"payment_method_type\": \"giropay\",\n                    \"payment_experience\": null,\n                    \"card_networks\": null,\n                    \"accepted_currencies\": null,\n                    \"accepted_countries\": null,\n                    \"minimum_amount\": 1,\n                    \"maximum_amount\": 68607706,\n                    \"recurring_enabled\": true,\n                    \"installment_payment_enabled\": true\n                },\n                {\n                    \"payment_method_type\": \"sofort\",\n                    \"payment_experience\": null,\n                    \"card_networks\": null,\n                    \"accepted_currencies\": null,\n                    \"accepted_countries\": null,\n                    \"minimum_amount\": 1,\n                    \"maximum_amount\": 68607706,\n                    \"recurring_enabled\": true,\n                    \"installment_payment_enabled\": true\n                },\n                {\n                    \"payment_method_type\": \"eps\",\n                    \"payment_experience\": null,\n                    \"card_networks\": null,\n                    \"accepted_currencies\": null,\n                    \"accepted_countries\": null,\n                    \"minimum_amount\": 1,\n                    \"maximum_amount\": 68607706,\n                    \"recurring_enabled\": true,\n                    \"installment_payment_enabled\": true\n                }\n            ]\n        },\n        {\n            \"payment_method\": \"bank_debit\",\n            \"payment_method_types\": [\n                {\n                    \"payment_method_type\": \"ach\",\n                    \"minimum_amount\": 1,\n                    \"maximum_amount\": 68607706,\n                    \"recurring_enabled\": true,\n                    \"installment_payment_enabled\": true\n                },\n                {\n                    \"payment_method_type\": \"becs\",\n                    \"minimum_amount\": 1,\n                    \"maximum_amount\": 68607706,\n                    \"recurring_enabled\": true,\n                    \"installment_payment_enabled\": true\n                },\n                {\n                    \"payment_method_type\": \"sepa\",\n                    \"minimum_amount\": 1,\n                    \"maximum_amount\": 68607706,\n                    \"recurring_enabled\": true,\n                    \"installment_payment_enabled\": true\n                }\n            ]\n        },\n        {\n            \"payment_method\": \"bank_transfer\",\n            \"payment_method_types\": [\n                {\n                    \"payment_method_type\": \"ach\",\n                    \"minimum_amount\": 1,\n                    \"maximum_amount\": 68607706,\n                    \"recurring_enabled\": true,\n                    \"installment_payment_enabled\": true\n                },\n                {\n                    \"payment_method_type\": \"bacs\",\n                    \"minimum_amount\": 1,\n                    \"maximum_amount\": 68607706,\n                    \"recurring_enabled\": true,\n                    \"installment_payment_enabled\": true\n                },\n                {\n                    \"payment_method_type\": \"sepa\",\n                    \"minimum_amount\": 1,\n                    \"maximum_amount\": 68607706,\n                    \"recurring_enabled\": true,\n                    \"installment_payment_enabled\": true\n                }\n            ]\n        },\n        {\n            \"payment_method\": \"card\",\n            \"payment_method_types\": [\n                {\n                    \"payment_method_type\": \"credit\",\n                    \"minimum_amount\": 1,\n                    \"maximum_amount\": 68607706,\n                    \"recurring_enabled\": true,\n                    \"installment_payment_enabled\": true\n                }\n            ]\n        },\n        {\n            \"payment_method\": \"card\",\n            \"payment_method_types\": [\n                {\n                    \"payment_method_type\": \"debit\",\n                    \"minimum_amount\": 1,\n                    \"maximum_amount\": 68607706,\n                    \"recurring_enabled\": true,\n                    \"installment_payment_enabled\": true\n                }\n            ]\n        },\n        {\n            \"payment_method\": \"wallet\",\n            \"payment_method_types\": [\n                {\n                    \"payment_method_type\": \"apple_pay\",\n                    \"payment_experience\": \"invoke_sdk_client\",\n                    \"minimum_amount\": 1,\n                    \"maximum_amount\": 68607706,\n                    \"recurring_enabled\": true,\n                    \"installment_payment_enabled\": true\n                }\n            ]\n        },\n        {\n            \"payment_method\": \"wallet\",\n            \"payment_method_types\": [\n                {\n                    \"payment_method_type\": \"google_pay\",\n                    \"payment_experience\": \"invoke_sdk_client\",\n                    \"minimum_amount\": 1,\n                    \"maximum_amount\": 68607706,\n                    \"recurring_enabled\": true,\n                    \"installment_payment_enabled\": true\n                }\n            ]\n        }\n    ],\n    \"metadata\": {\n        \"google_pay\": {\n            \"allowed_payment_methods\": [\n                {\n                    \"type\": \"CARD\",\n                    \"parameters\": {\n                        \"allowed_auth_methods\": [\n                            \"PAN_ONLY\",\n                            \"CRYPTOGRAM_3DS\"\n                        ],\n                        \"allowed_card_networks\": [\n                            \"AMEX\",\n                            \"DISCOVER\",\n                            \"INTERAC\",\n                            \"JCB\",\n                            \"MASTERCARD\",\n                            \"VISA\"\n                        ]\n                    },\n                    \"tokenization_specification\": {\n                        \"type\": \"PAYMENT_GATEWAY\",\n                        \"parameters\": {\n                            \"gateway\": \"example\",\n                            \"gateway_merchant_id\": \"{{gateway_merchant_id}}\"\n                        }\n                    }\n                }\n            ],\n            \"merchant_info\": {\n                \"merchant_name\": \"Narayan Bhat\"\n            }\n        },\n        \"apple_pay\": {\n            \"session_token_data\": {\n                \"initiative\": \"web\",\n                \"certificate\": \"{{certificate}}\",\n                \"display_name\": \"applepay\",\n                \"certificate_keys\": \"{{certificate_keys}}\",\n                \"initiative_context\": \"hyperswitch-sdk-test.netlify.app\",\n                \"merchant_identifier\": \"merchant.com.stripe.sang\"\n            },\n            \"payment_request_data\": {\n                \"label\": \"applepay pvt.ltd\",\n                \"supported_networks\": [\n                    \"visa\",\n                    \"masterCard\",\n                    \"amex\",\n                    \"discover\"\n                ],\n                \"merchant_capabilities\": [\n                    \"supports3DS\"\n                ]\n            }\n        }\n    }\n}",
+							"raw": "{\n    \"connector_type\": \"fiz_operations\",\n    \"connector_name\": \"stripe\",\n    \"business_country\": \"US\",\n    \"business_label\": \"default\",\n    \"connector_account_details\": {\n        \"auth_type\": \"HeaderKey\",\n        \"api_key\": \"{{connector_api_key}}\"\n    },\n    \"test_mode\": false,\n    \"disabled\": false,\n    \"payment_methods_enabled\": [\n        {\n            \"payment_method\": \"pay_later\",\n            \"payment_method_types\": [\n                {\n                    \"minimum_amount\": 1,\n                    \"maximum_amount\": 68607706,\n                    \"recurring_enabled\": true,\n                    \"installment_payment_enabled\": true,\n                    \"payment_experience\": \"redirect_to_url\",\n                    \"payment_method_type\": \"affirm\"\n                }\n            ]\n        },\n        {\n            \"payment_method\": \"pay_later\",\n            \"payment_method_types\": [\n                {\n                    \"minimum_amount\": 1,\n                    \"maximum_amount\": 68607706,\n                    \"recurring_enabled\": true,\n                    \"installment_payment_enabled\": true,\n                    \"payment_experience\": \"redirect_to_url\",\n                    \"payment_method_type\": \"afterpay_clearpay\"\n                }\n            ]\n        },\n        {\n            \"payment_method\": \"pay_later\",\n            \"payment_method_types\": [\n                {\n                    \"minimum_amount\": 1,\n                    \"maximum_amount\": 68607706,\n                    \"recurring_enabled\": true,\n                    \"installment_payment_enabled\": true,\n                    \"payment_experience\": \"redirect_to_url\",\n                    \"payment_method_type\": \"klarna\"\n                }\n            ]\n        },\n        {\n            \"payment_method\": \"pay_later\",\n            \"payment_method_types\": [\n                {\n                    \"minimum_amount\": 1,\n                    \"maximum_amount\": 68607706,\n                    \"recurring_enabled\": true,\n                    \"installment_payment_enabled\": true,\n                    \"payment_experience\": \"invoke_sdk_client\",\n                    \"payment_method_type\": \"klarna\"\n                }\n            ]\n        },\n        {\n            \"payment_method\": \"bank_redirect\",\n            \"payment_method_types\": [\n                {\n                    \"payment_method_type\": \"ideal\",\n                    \"payment_experience\": null,\n                    \"card_networks\": null,\n                    \"accepted_currencies\": null,\n                    \"accepted_countries\": null,\n                    \"minimum_amount\": 1,\n                    \"maximum_amount\": 68607706,\n                    \"recurring_enabled\": true,\n                    \"installment_payment_enabled\": true\n                },\n                {\n                    \"payment_method_type\": \"giropay\",\n                    \"payment_experience\": null,\n                    \"card_networks\": null,\n                    \"accepted_currencies\": null,\n                    \"accepted_countries\": null,\n                    \"minimum_amount\": 1,\n                    \"maximum_amount\": 68607706,\n                    \"recurring_enabled\": true,\n                    \"installment_payment_enabled\": true\n                },\n                {\n                    \"payment_method_type\": \"sofort\",\n                    \"payment_experience\": null,\n                    \"card_networks\": null,\n                    \"accepted_currencies\": null,\n                    \"accepted_countries\": null,\n                    \"minimum_amount\": 1,\n                    \"maximum_amount\": 68607706,\n                    \"recurring_enabled\": true,\n                    \"installment_payment_enabled\": true\n                },\n                {\n                    \"payment_method_type\": \"eps\",\n                    \"payment_experience\": null,\n                    \"card_networks\": null,\n                    \"accepted_currencies\": null,\n                    \"accepted_countries\": null,\n                    \"minimum_amount\": 1,\n                    \"maximum_amount\": 68607706,\n                    \"recurring_enabled\": true,\n                    \"installment_payment_enabled\": true\n                }\n            ]\n        },\n        {\n            \"payment_method\": \"bank_debit\",\n            \"payment_method_types\": [\n                {\n                    \"payment_method_type\": \"ach\",\n                    \"minimum_amount\": 1,\n                    \"maximum_amount\": 68607706,\n                    \"recurring_enabled\": true,\n                    \"installment_payment_enabled\": true\n                },\n                {\n                    \"payment_method_type\": \"becs\",\n                    \"minimum_amount\": 1,\n                    \"maximum_amount\": 68607706,\n                    \"recurring_enabled\": true,\n                    \"installment_payment_enabled\": true\n                },\n                {\n                    \"payment_method_type\": \"sepa\",\n                    \"minimum_amount\": 1,\n                    \"maximum_amount\": 68607706,\n                    \"recurring_enabled\": true,\n                    \"installment_payment_enabled\": true\n                }\n            ]\n        },\n        {\n            \"payment_method\": \"bank_transfer\",\n            \"payment_method_types\": [\n                {\n                    \"payment_method_type\": \"ach\",\n                    \"minimum_amount\": 1,\n                    \"maximum_amount\": 68607706,\n                    \"recurring_enabled\": true,\n                    \"installment_payment_enabled\": true\n                },\n                {\n                    \"payment_method_type\": \"bacs\",\n                    \"minimum_amount\": 1,\n                    \"maximum_amount\": 68607706,\n                    \"recurring_enabled\": true,\n                    \"installment_payment_enabled\": true\n                },\n                {\n                    \"payment_method_type\": \"sepa\",\n                    \"minimum_amount\": 1,\n                    \"maximum_amount\": 68607706,\n                    \"recurring_enabled\": true,\n                    \"installment_payment_enabled\": true\n                }\n            ]\n        },\n        {\n            \"payment_method\": \"card\",\n            \"payment_method_types\": [\n                {\n                    \"payment_method_type\": \"credit\",\n                    \"minimum_amount\": 1,\n                    \"maximum_amount\": 68607706,\n                    \"recurring_enabled\": true,\n                    \"installment_payment_enabled\": true\n                }\n            ]\n        },\n        {\n            \"payment_method\": \"card\",\n            \"payment_method_types\": [\n                {\n                    \"payment_method_type\": \"debit\",\n                    \"minimum_amount\": 1,\n                    \"maximum_amount\": 68607706,\n                    \"recurring_enabled\": true,\n                    \"installment_payment_enabled\": true\n                }\n            ]\n        },\n        {\n            \"payment_method\": \"wallet\",\n            \"payment_method_types\": [\n                {\n                    \"payment_method_type\": \"apple_pay\",\n                    \"payment_experience\": \"invoke_sdk_client\",\n                    \"minimum_amount\": 1,\n                    \"maximum_amount\": 68607706,\n                    \"recurring_enabled\": true,\n                    \"installment_payment_enabled\": true\n                }\n            ]\n        },\n        {\n            \"payment_method\": \"wallet\",\n            \"payment_method_types\": [\n                {\n                    \"payment_method_type\": \"google_pay\",\n                    \"payment_experience\": \"invoke_sdk_client\",\n                    \"minimum_amount\": 1,\n                    \"maximum_amount\": 68607706,\n                    \"recurring_enabled\": true,\n                    \"installment_payment_enabled\": true\n                }\n            ]\n        }\n    ],\n    \"metadata\": {\n        \"google_pay\": {\n            \"allowed_payment_methods\": [\n                {\n                    \"type\": \"CARD\",\n                    \"parameters\": {\n                        \"allowed_auth_methods\": [\n                            \"PAN_ONLY\",\n                            \"CRYPTOGRAM_3DS\"\n                        ],\n                        \"allowed_card_networks\": [\n                            \"AMEX\",\n                            \"DISCOVER\",\n                            \"INTERAC\",\n                            \"JCB\",\n                            \"MASTERCARD\",\n                            \"VISA\"\n                        ]\n                    },\n                    \"tokenization_specification\": {\n                        \"type\": \"PAYMENT_GATEWAY\",\n                        \"parameters\": {\n                            \"gateway\": \"example\",\n                            \"gateway_merchant_id\": \"{{gateway_merchant_id}}\"\n                        }\n                    }\n                }\n            ],\n            \"merchant_info\": {\n                \"merchant_name\": \"Narayan Bhat\"\n            }\n        },\n        \"apple_pay\": {\n            \"session_token_data\": {\n                \"initiative\": \"web\",\n                \"certificate\": \"{{certificate}}\",\n                \"display_name\": \"applepay\",\n                \"certificate_keys\": \"{{certificate_keys}}\",\n                \"initiative_context\": \"hyperswitch-sdk-test.netlify.app\",\n                \"merchant_identifier\": \"merchant.com.stripe.sang\"\n            },\n            \"payment_request_data\": {\n                \"label\": \"applepay pvt.ltd\",\n                \"supported_networks\": [\n                    \"visa\",\n                    \"masterCard\",\n                    \"amex\",\n                    \"discover\"\n                ],\n                \"merchant_capabilities\": [\n                    \"supports3DS\"\n                ]\n            }\n        }\n    }\n}",
 							"options": {
 								"raw": {
 									"language": "json"
@@ -3721,70 +3722,6 @@
 						"description": "To filter and list the applicable payment methods for a particular Customer ID"
 					},
 					"response": []
-				},
-				{
-					"name": "PaymentMethods - Update",
-					"event": [
-						{
-							"listen": "test",
-							"script": {
-								"exec": [
-									"// Validate status 2xx ",
-									"pm.test(\"[POST]::/payment_methods/:id - Status code is 2xx\", function () {",
-									"   pm.response.to.be.success;",
-									"});",
-									"",
-									"// Validate if response header has matching content-type",
-									"pm.test(\"[POST]::/payment_methods/:id - Content-Type is application/json\", function () {",
-									"   pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(\"application/json\");",
-									"});",
-									""
-								],
-								"type": "text/javascript"
-							}
-						}
-					],
-					"request": {
-						"method": "POST",
-						"header": [
-							{
-								"key": "Content-Type",
-								"value": "application/json"
-							},
-							{
-								"key": "Accept",
-								"value": "application/json"
-							}
-						],
-						"body": {
-							"mode": "raw",
-							"raw": "{\n  \"card\": {\n    \"card_number\": \"4242424242424242\",\n    \"card_exp_month\": \"10\",\n    \"card_exp_year\": \"25\",\n    \"card_holder_name\": \"John Doe\"\n  },\n  \"metadata\": {\n    \"city\": \"NY\",\n    \"unit\": \"245\"\n  }\n}",
-							"options": {
-								"raw": {
-									"language": "json"
-								}
-							}
-						},
-						"url": {
-							"raw": "{{baseUrl}}/payment_methods/:id",
-							"host": [
-								"{{baseUrl}}"
-							],
-							"path": [
-								"payment_methods",
-								":id"
-							],
-							"variable": [
-								{
-									"key": "id",
-									"value": "{{payment_method_id}}",
-									"description": "(Required) The unique identifier for the payment method"
-								}
-							]
-						},
-						"description": "To update an existing a payment method attached to a customer object. This API is useful for use cases such as updating the card number for expired cards, to prevent discontinuity in recurring payments"
-					},
-					"response": []
 				}
 			]
 		},
@@ -3878,7 +3815,7 @@
 								],
 								"body": {
 									"mode": "raw",
-									"raw": "{\n  \"merchant_id\": \"merchant_{{$timestamp}}\",\n  \"locker_id\": \"m0010\",\n  \"merchant_name\": \"NewAge Retailer\",\n  \"merchant_details\": {\n    \"primary_contact_person\": \"John Test\",\n    \"primary_email\": \"JohnTest@test.com\",\n    \"primary_phone\": \"sunt laborum\",\n    \"secondary_contact_person\": \"John Test2\",\n    \"secondary_email\": \"JohnTest2@test.com\",\n    \"secondary_phone\": \"cillum do dolor id\",\n    \"website\": \"www.example.com\",\n    \"about_business\": \"Online Retail with a wide selection of organic products for North America\",\n    \"address\": {\n      \"line1\": \"1467\",\n      \"line2\": \"Harrison Street\",\n      \"line3\": \"Harrison Street\",\n      \"city\": \"San Fransico\",\n      \"state\": \"California\",\n      \"zip\": \"94122\",\n      \"country\": \"US\"\n    }\n  },\n  \"return_url\": \"https://duck.com\",\n  \"webhook_details\": {\n    \"webhook_version\": \"1.0.1\",\n    \"webhook_username\": \"ekart_retail\",\n    \"webhook_password\": \"password_ekart@123\",\n    \"payment_created_enabled\": true,\n    \"payment_succeeded_enabled\": true,\n    \"payment_failed_enabled\": true\n  },\n  \"routing_algorithm\": {\n    \"type\": \"single\",\n    \"data\": \"stripe\"\n  },\n  \"sub_merchants_enabled\": false,\n  \"metadata\": {\n    \"city\": \"NY\",\n    \"unit\": \"245\"\n  },\n  \"primary_business_details\": [\n        {\n            \"country\": \"US\",\n            \"business\": \"default\"\n        }\n    ]\n}",
+									"raw": "{\n  \"merchant_id\": \"postman_merchant_GHAction_{{$guid}}\",\n  \"locker_id\": \"m0010\",\n  \"merchant_name\": \"NewAge Retailer\",\n  \"merchant_details\": {\n    \"primary_contact_person\": \"John Test\",\n    \"primary_email\": \"JohnTest@test.com\",\n    \"primary_phone\": \"sunt laborum\",\n    \"secondary_contact_person\": \"John Test2\",\n    \"secondary_email\": \"JohnTest2@test.com\",\n    \"secondary_phone\": \"cillum do dolor id\",\n    \"website\": \"www.example.com\",\n    \"about_business\": \"Online Retail with a wide selection of organic products for North America\",\n    \"address\": {\n      \"line1\": \"1467\",\n      \"line2\": \"Harrison Street\",\n      \"line3\": \"Harrison Street\",\n      \"city\": \"San Fransico\",\n      \"state\": \"California\",\n      \"zip\": \"94122\",\n      \"country\": \"US\"\n    }\n  },\n  \"return_url\": \"https://duck.com\",\n  \"webhook_details\": {\n    \"webhook_version\": \"1.0.1\",\n    \"webhook_username\": \"ekart_retail\",\n    \"webhook_password\": \"password_ekart@123\",\n    \"payment_created_enabled\": true,\n    \"payment_succeeded_enabled\": true,\n    \"payment_failed_enabled\": true\n  },\n  \"routing_algorithm\": {\n    \"type\": \"single\",\n    \"data\": \"stripe\"\n  },\n  \"sub_merchants_enabled\": false,\n  \"metadata\": {\n    \"city\": \"NY\",\n    \"unit\": \"245\"\n  },\n  \"primary_business_details\": [\n        {\n            \"country\": \"US\",\n            \"business\": \"default\"\n        }\n    ]\n}",
 									"options": {
 										"raw": {
 											"language": "json"
@@ -11034,11 +10971,20 @@
 													"   console.log('INFO - Unable to assign variable {{client_secret}}, as jsonData.client_secret is undefined.');",
 													"};",
 													"",
-													"// Response body should have value \"requires_payment_method\" for \"status\"",
+													"// Response body should have value \"requires_customer_action\" for \"status\"",
 													"if (jsonData?.status) {",
-													"pm.test(\"[POST]::/payments - Content check if value for 'status' matches 'requires_payment_method'\", function() {",
-													"  pm.expect(jsonData.status).to.eql(\"requires_payment_method\");",
+													"pm.test(\"[POST]::/payments - Content check if value for 'status' matches 'requires_customer_action'\", function() {",
+													"  pm.expect(jsonData.status).to.eql(\"requires_customer_action\");",
 													"})};",
+													""
+												],
+												"type": "text/javascript"
+											}
+										},
+										{
+											"listen": "prerequest",
+											"script": {
+												"exec": [
 													""
 												],
 												"type": "text/javascript"
@@ -11059,7 +11005,7 @@
 										],
 										"body": {
 											"mode": "raw",
-											"raw": "{\n  \"amount\": 800,\n  \"currency\": \"USD\",\n  \"confirm\": false,\n  \"capture_method\": \"automatic\",\n  \"capture_on\": \"2022-09-10T10:11:12Z\",\n  \"amount_to_capture\": 800,\n  \"customer_id\": \"poll\",\n  \"email\": \"guest@example.com\",\n  \"name\": \"John Doe\",\n  \"phone\": \"999999999\",\n  \"phone_country_code\": \"+65\",\n  \"description\": \"Its my first payment request\",\n  \"authentication_type\": \"no_three_ds\",\n  \"return_url\": \"https://hs-payments-test.netlify.app/payments\",\n  \"statement_descriptor_name\": \"Juspay\",\n  \"statement_descriptor_suffix\": \"Router\",\n  \"metadata\": {\n    \"udf1\": \"value1\",\n    \"new_customer\": \"true\",\n    \"login_date\": \"2019-09-10T10:11:12Z\"\n  }\n}",
+											"raw": "{\n    \"amount\": 1800,\n    \"currency\": \"USD\",\n    \"confirm\": true,\n    \"business_label\": \"default\",\n    \"capture_method\": \"automatic\",\n    \"connector\": [\n        \"stripe\"\n    ],\n    \"customer_id\": \"klarna\",\n    \"capture_on\": \"2022-09-10T10:11:12Z\",\n    \"authentication_type\": \"three_ds\",\n    \"email\": \"guest@example.com\",\n    \"name\": \"John Doe\",\n    \"phone\": \"999999999\",\n    \"phone_country_code\": \"+65\",\n    \"description\": \"Its my first payment request\",\n    \"return_url\": \"https://google.com\",\n    \"statement_descriptor_name\": \"Juspay\",\n    \"statement_descriptor_suffix\": \"Router\",\n    \"setup_future_usage\": \"off_session\",\n    \"business_country\": \"US\",\n    \"mandate_data\": {\n        \"customer_acceptance\": {\n            \"acceptance_type\": \"online\",\n            \"accepted_at\": \"2022-09-10T10:11:12Z\",\n            \"online\": {\n                \"ip_address\": \"123.32.25.123\",\n                \"user_agent\": \"Mozilla/5.0 (Linux; Android 12; SM-S906N Build/QP1A.190711.020; wv) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/80.0.3987.119 Mobile Safari/537.36\"\n            }\n        },\n        \"mandate_type\": {\n            \"single_use\": {\n                \"amount\": 6540,\n                \"currency\": \"USD\"\n            }\n        }\n    },\n    \"payment_method\": \"bank_debit\",\n    \"payment_method_type\": \"ach\",\n    \"payment_method_data\": {\n        \"bank_debit\": {\n            \"ach_bank_debit\": {\n                \"billing_details\": {\n                    \"name\": \"John Doe\",\n                    \"email\": \"johndoe@example.com\"\n                },\n                \"account_number\": \"000123456789\",\n                \"routing_number\": \"110000000\"\n            }\n        }\n    },\n    \"metadata\": {\n        \"order_details\": {\n            \"product_name\": \"Apple iphone 15\",\n            \"quantity\": 1,\n            \"amount\": 1800,\n            \"account_name\": \"transaction_processing\"\n        }\n    }\n}",
 											"options": {
 												"raw": {
 													"language": "json"
@@ -11076,138 +11022,6 @@
 											]
 										},
 										"description": "To process a payment you will have to create a payment, attach a payment method and confirm. Depending on the user journey you wish to achieve, you may opt to all the steps in a single request or in a sequence of API request using following APIs: (i) Payments - Update, (ii) Payments - Confirm, and (iii) Payments - Capture"
-									},
-									"response": []
-								},
-								{
-									"name": "Payments - Confirm",
-									"event": [
-										{
-											"listen": "test",
-											"script": {
-												"exec": [
-													"// Validate status 2xx ",
-													"pm.test(\"[POST]::/payments/:id/confirm - Status code is 2xx\", function () {",
-													"   pm.response.to.be.success;",
-													"});",
-													"",
-													"// Validate if response header has matching content-type",
-													"pm.test(\"[POST]::/payments/:id/confirm - Content-Type is application/json\", function () {",
-													"   pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(\"application/json\");",
-													"});",
-													"",
-													"",
-													"",
-													"// Validate if response has JSON Body ",
-													"pm.test(\"[POST]::/payments/:id/confirm - Response has JSON Body\", function () {",
-													"    pm.response.to.have.jsonBody();",
-													"});",
-													"",
-													"",
-													"// Set response object as internal variable",
-													"let jsonData = {};",
-													"try {jsonData = pm.response.json();}catch(e){}",
-													"",
-													"// pm.collectionVariables - Set payment_id as variable for jsonData.payment_id",
-													"if (jsonData?.payment_id) {",
-													"   pm.collectionVariables.set(\"payment_id\", jsonData.payment_id);",
-													"   console.log(\"- use {{payment_id}} as collection variable for value\",jsonData.payment_id);",
-													"} else {",
-													"   console.log('INFO - Unable to assign variable {{payment_id}}, as jsonData.payment_id is undefined.');",
-													"};",
-													"",
-													"",
-													"// pm.collectionVariables - Set mandate_id as variable for jsonData.mandate_id",
-													"if (jsonData?.mandate_id) {",
-													"   pm.collectionVariables.set(\"mandate_id\", jsonData.mandate_id);",
-													"   console.log(\"- use {{mandate_id}} as collection variable for value\",jsonData.mandate_id);",
-													"} else {",
-													"   console.log('INFO - Unable to assign variable {{mandate_id}}, as jsonData.mandate_id is undefined.');",
-													"};",
-													"",
-													"// pm.collectionVariables - Set client_secret as variable for jsonData.client_secret",
-													"if (jsonData?.client_secret) {",
-													"   pm.collectionVariables.set(\"client_secret\", jsonData.client_secret);",
-													"   console.log(\"- use {{client_secret}} as collection variable for value\",jsonData.client_secret);",
-													"} else {",
-													"   console.log('INFO - Unable to assign variable {{client_secret}}, as jsonData.client_secret is undefined.');",
-													"};",
-													"",
-													"// Response body should have value \"requires_customer_action\" for \"status\"",
-													"if (jsonData?.status) {",
-													"pm.test(\"[POST]::/payments/:id/confirm - Content check if value for 'status' matches 'requires_customer_action'\", function() {",
-													"  pm.expect(jsonData.status).to.eql(\"requires_customer_action\");",
-													"})};",
-													"",
-													"",
-													"// Response body should have \"next_action.type\"",
-													"pm.test(\"[POST]::/payments - Content check if 'next_action.type' exists\", function() {",
-													"   pm.expect((typeof jsonData.next_action.type !== \"undefined\")).to.be.true;",
-													"});",
-													"",
-													"// Response body should have value \"ach\" for \"payment_method_type\"",
-													"if (jsonData?.payment_method_type) {",
-													"pm.test(\"[POST]::/payments/:id/confirm - Content check if value for 'payment_method_type' matches 'ach'\", function() {",
-													"  pm.expect(jsonData.payment_method_type).to.eql(\"ach\");",
-													"})};",
-													"",
-													"// Response body should have value \"display_bank_transfer_information\" for \"next_action.type\"",
-													"if (jsonData?.next_action.type) {",
-													"pm.test(\"[POST]::/payments/:id/confirm - Content check if value for 'payment_method_type' matches 'display_bank_transfer_information'\", function() {",
-													"  pm.expect(jsonData.next_action.type).to.eql(\"display_bank_transfer_information\");",
-													"})};",
-													"",
-													"",
-													"// Response body should have value \"stripe\" for \"connector\"",
-													"if (jsonData?.connector) {",
-													"pm.test(\"[POST]::/payments/:id/confirm - Content check if value for 'connector' matches 'stripe'\", function() {",
-													"  pm.expect(jsonData.connector).to.eql(\"stripe\");",
-													"})};"
-												],
-												"type": "text/javascript"
-											}
-										}
-									],
-									"request": {
-										"method": "POST",
-										"header": [
-											{
-												"key": "Content-Type",
-												"value": "application/json"
-											},
-											{
-												"key": "Accept",
-												"value": "application/json"
-											}
-										],
-										"body": {
-											"mode": "raw",
-											"raw": "{\n    \"payment_method\": \"bank_transfer\",\n    \"payment_method_type\": \"ach\",\n    \"payment_method_data\": {\n        \"bank_transfer\": {\n            \"ach_bank_transfer\": {\n                \"billing_details\": {\n                    \"email\": \"johndoe@example.com\"\n                }\n            }\n        }\n    }\n}",
-											"options": {
-												"raw": {
-													"language": "json"
-												}
-											}
-										},
-										"url": {
-											"raw": "{{baseUrl}}/payments/:id/confirm",
-											"host": [
-												"{{baseUrl}}"
-											],
-											"path": [
-												"payments",
-												":id",
-												"confirm"
-											],
-											"variable": [
-												{
-													"key": "id",
-													"value": "{{payment_id}}",
-													"description": "(Required) unique payment id"
-												}
-											]
-										},
-										"description": "This API is to confirm the payment request and forward payment to the payment processor. This API provides more granular control upon when the API is forwarded to the payment processor. Alternatively you can confirm the payment within the Payments-Create API"
 									},
 									"response": []
 								},
@@ -14262,6 +14076,17 @@
 			"script": {
 				"type": "text/javascript",
 				"exec": [
+					"// Set response object as internal variable",
+					"let jsonData = {};",
+					"try {jsonData = pm.response.json();}catch(e){}",
+					"",
+					"// pm.collectionVariables - Set payment_id as variable for jsonData.payment_id",
+					"if (jsonData?.payment_id) {",
+					"   pm.collectionVariables.set(\"payment_id\", jsonData.payment_id);",
+					"   console.log(\"[LOG]::payment_id - \" + jsonData.payment_id);",
+					"}",
+					"",
+					"console.log(\"[LOG]::x-request-id - \" + pm.response.headers.get('x-request-id'));",
 					""
 				]
 			}
