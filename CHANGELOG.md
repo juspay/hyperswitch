@@ -4,6 +4,16 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 1.17.1+hotfix.5 (2023-08-17)
+
+### Bug Fixes
+
+- **payment_methods:** Return parent_payment_method_token for other payment methods (BankTransfer, Wallet, BankRedirect) ([#1947](https://github.com/juspay/hyperswitch/pull/1947)) ([`8a2c362`](https://github.com/juspay/hyperswitch/commit/8a2c3626de532271f2dff8f52a5e176f100a1704))
+
+**Full Changelog:** [`v1.17.1+hotfix.4...v1.17.1+hotfix.5`](https://github.com/juspay/hyperswitch/compare/v1.17.1+hotfix.4...v1.17.1+hotfix.5)
+
+- - -
+
 ## 1.17.1+hotfix.4 (2023-08-16)
 
 ### Bug Fixes
