@@ -183,6 +183,7 @@ pub async fn construct_payout_router_data<'a, F>(
         test_mode,
         payment_method_balance: None,
         is_connector_new_version: None,
+        connector_http_status_code: None,
     };
 
     Ok(router_data)
@@ -299,6 +300,7 @@ pub async fn construct_refund_router_data<'a, F>(
         test_mode,
         payment_method_balance: None,
         is_connector_new_version,
+        connector_http_status_code: None,
     };
 
     Ok(router_data)
@@ -517,6 +519,7 @@ pub async fn construct_accept_dispute_router_data<'a>(
         test_mode,
         payment_method_balance: None,
         is_connector_new_version: None,
+        connector_http_status_code: None,
     };
     Ok(router_data)
 }
@@ -592,6 +595,7 @@ pub async fn construct_submit_evidence_router_data<'a>(
         quote_id: None,
         test_mode,
         is_connector_new_version: None,
+        connector_http_status_code: None,
     };
     Ok(router_data)
 }
@@ -668,6 +672,7 @@ pub async fn construct_upload_file_router_data<'a>(
         quote_id: None,
         test_mode,
         is_connector_new_version: None,
+        connector_http_status_code: None,
     };
     Ok(router_data)
 }
@@ -746,6 +751,7 @@ pub async fn construct_defend_dispute_router_data<'a>(
         quote_id: None,
         test_mode,
         is_connector_new_version: None,
+        connector_http_status_code: None,
     };
     Ok(router_data)
 }
@@ -819,6 +825,7 @@ pub async fn construct_retrieve_file_router_data<'a>(
         quote_id: None,
         test_mode,
         is_connector_new_version: None,
+        connector_http_status_code: None,
     };
     Ok(router_data)
 }

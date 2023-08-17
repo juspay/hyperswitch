@@ -2463,6 +2463,7 @@ pub fn router_data_type_conversion<F1, F2, Req1, Req2, Res1, Res2>(
         quote_id: None,
         test_mode: router_data.test_mode,
         is_connector_new_version: router_data.is_connector_new_version,
+        connector_http_status_code: router_data.connector_http_status_code,
     }
 }
 
