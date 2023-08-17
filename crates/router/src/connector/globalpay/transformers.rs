@@ -373,7 +373,6 @@ fn get_payment_method_data(
         | api::PaymentMethodData::Voucher(_) => Err(errors::ConnectorError::NotSupported {
             message: format!("{:?}", item.request.payment_method_data),
             connector: "Globalpay",
-            payment_experience: api_models::enums::PaymentExperience::RedirectToUrl.to_string(),
         })?,
     }
 }
@@ -457,7 +456,6 @@ fn get_wallet_data(
             Err(errors::ConnectorError::NotSupported {
                 message: utils::get_unsupported_payment_method_error_message(),
                 connector: "Globalpay",
-                payment_experience: api_models::enums::PaymentExperience::RedirectToUrl.to_string(),
             })?
         }
         api_models::payments::WalletData::AliPayRedirect(_)
@@ -509,8 +507,6 @@ impl TryFrom<&api_models::payments::BankRedirectData> for PaymentMethodData {
                 Err(errors::ConnectorError::NotSupported {
                     message: utils::get_unsupported_payment_method_error_message(),
                     connector: "Globalpay",
-                    payment_experience: api_models::enums::PaymentExperience::RedirectToUrl
-                        .to_string(),
                 })
                 .into_report()
             }

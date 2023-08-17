@@ -169,8 +169,6 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for MolliePaymentsRequest {
                     Err(errors::ConnectorError::NotSupported {
                         message: utils::get_unsupported_payment_method_error_message(),
                         connector: "Mollie",
-                        payment_experience: api_models::enums::PaymentExperience::RedirectToUrl
-                            .to_string(),
                     })
                     .into_report()
                 }
@@ -234,8 +232,6 @@ impl TryFrom<&api_models::payments::BankRedirectData> for PaymentMethodData {
                 Err(errors::ConnectorError::NotSupported {
                     message: utils::get_unsupported_payment_method_error_message(),
                     connector: "Mollie",
-                    payment_experience: api_models::enums::PaymentExperience::RedirectToUrl
-                        .to_string(),
                 }
                 .into())
             }
@@ -261,8 +257,6 @@ impl TryFrom<&api_models::payments::BankDebitData> for PaymentMethodData {
                 Err(errors::ConnectorError::NotSupported {
                     message: utils::get_unsupported_payment_method_error_message(),
                     connector: "Mollie",
-                    payment_experience: api_models::enums::PaymentExperience::RedirectToUrl
-                        .to_string(),
                 }
                 .into())
             }
@@ -279,7 +273,6 @@ impl TryFrom<&api_models::payments::CardRedirectData> for PaymentMethodData {
             | payments::CardRedirectData::MomoAtm {} => Err(errors::ConnectorError::NotSupported {
                 message: utils::get_unsupported_payment_method_error_message(),
                 connector: "Mollie",
-                payment_experience: api_models::enums::PaymentExperience::RedirectToUrl.to_string(),
             })
             .into_report(),
         }
@@ -306,8 +299,6 @@ impl TryFrom<&api_models::payments::PayLaterData> for PaymentMethodData {
                 Err(errors::ConnectorError::NotSupported {
                     message: utils::get_unsupported_payment_method_error_message(),
                     connector: "Mollie",
-                    payment_experience: api_models::enums::PaymentExperience::RedirectToUrl
-                        .to_string(),
                 })
                 .into_report()
             }
@@ -341,7 +332,6 @@ impl TryFrom<&api_models::payments::BankTransferData> for PaymentMethodData {
             | payments::BankTransferData::Pse {} => Err(errors::ConnectorError::NotSupported {
                 message: utils::get_unsupported_payment_method_error_message(),
                 connector: "Mollie",
-                payment_experience: api_models::enums::PaymentExperience::RedirectToUrl.to_string(),
             })
             .into_report(),
         }
@@ -359,10 +349,15 @@ impl TryFrom<&api_models::payments::VoucherData> for PaymentMethodData {
             | payments::VoucherData::RedPagos
             | payments::VoucherData::Alfamart(_)
             | payments::VoucherData::Indomaret(_)
+            | payments::VoucherData::SevenEleven(_)
+            | payments::VoucherData::Lawson(_)
+            | payments::VoucherData::MiniStop(_)
+            | payments::VoucherData::FamilyMart(_)
+            | payments::VoucherData::Seicomart(_)
+            | payments::VoucherData::PayEasy(_)
             | payments::VoucherData::Oxxo => Err(errors::ConnectorError::NotSupported {
                 message: utils::get_unsupported_payment_method_error_message(),
                 connector: "Mollie",
-                payment_experience: api_models::enums::PaymentExperience::RedirectToUrl.to_string(),
             })
             .into_report(),
         }
@@ -380,7 +375,6 @@ impl TryFrom<&api_models::payments::GiftCardData> for PaymentMethodData {
             payments::GiftCardData::Givex(_) => Err(errors::ConnectorError::NotSupported {
                 message: utils::get_unsupported_payment_method_error_message(),
                 connector: "Mollie",
-                payment_experience: api_models::enums::PaymentExperience::RedirectToUrl.to_string(),
             })
             .into_report(),
         }
@@ -497,7 +491,6 @@ fn get_payment_method_for_wallet(
             Err(errors::ConnectorError::NotSupported {
                 message: utils::get_unsupported_payment_method_error_message(),
                 connector: "Mollie",
-                payment_experience: api_models::enums::PaymentExperience::RedirectToUrl.to_string(),
             })
             .into_report()
         }

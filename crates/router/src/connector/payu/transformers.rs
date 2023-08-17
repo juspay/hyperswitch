@@ -129,8 +129,6 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PayuPaymentsRequest {
                     Err(errors::ConnectorError::NotSupported {
                         message: utils::get_unsupported_payment_method_error_message(),
                         connector: "Payu",
-                        payment_experience: api_models::enums::PaymentExperience::RedirectToUrl
-                            .to_string(),
                     })
                 }
             },
@@ -149,7 +147,6 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PayuPaymentsRequest {
             | api::PaymentMethodData::Voucher(_) => Err(errors::ConnectorError::NotSupported {
                 message: utils::get_unsupported_payment_method_error_message(),
                 connector: "Payu",
-                payment_experience: api_models::enums::PaymentExperience::RedirectToUrl.to_string(),
             }),
         }?;
         let browser_info = item.request.browser_info.clone().ok_or(

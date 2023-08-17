@@ -154,8 +154,6 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for BraintreePaymentsRequest {
                             Err(errors::ConnectorError::NotSupported {
                                 message: utils::get_unsupported_payment_method_error_message(),
                                 connector: "Braintree",
-                                payment_experience:
-                                    api_models::enums::PaymentExperience::RedirectToUrl.to_string(),
                             })?
                         }
                     }?,
@@ -178,7 +176,6 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for BraintreePaymentsRequest {
             | api::PaymentMethodData::GiftCard(_) => Err(errors::ConnectorError::NotSupported {
                 message: utils::get_unsupported_payment_method_error_message(),
                 connector: "Braintree",
-                payment_experience: api_models::enums::PaymentExperience::RedirectToUrl.to_string(),
             })?,
         }?;
         let braintree_transaction_body = TransactionBody {

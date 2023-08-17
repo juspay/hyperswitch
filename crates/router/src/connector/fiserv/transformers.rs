@@ -157,7 +157,6 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for FiservPaymentsRequest {
             | api::PaymentMethodData::GiftCard(_) => Err(errors::ConnectorError::NotSupported {
                 message: format!("{:?}", item.request.payment_method_data),
                 connector: "Fiserv",
-                payment_experience: api_models::enums::PaymentExperience::RedirectToUrl.to_string(),
             })?,
         };
         Ok(Self {

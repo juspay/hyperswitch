@@ -174,7 +174,6 @@ fn get_payment_source(
             Err(errors::ConnectorError::NotSupported {
                 message: utils::get_unsupported_payment_method_error_message(),
                 connector: "Paypal",
-                payment_experience: api_models::enums::PaymentExperience::RedirectToUrl.to_string(),
             }
             .into())
         }
@@ -277,8 +276,6 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PaypalPaymentsRequest {
                     Err(errors::ConnectorError::NotSupported {
                         message: utils::get_unsupported_payment_method_error_message(),
                         connector: "Paypal",
-                        payment_experience: api_models::enums::PaymentExperience::RedirectToUrl
-                            .to_string(),
                     })?
                 }
             },
@@ -325,8 +322,6 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PaypalPaymentsRequest {
                 Err(errors::ConnectorError::NotSupported {
                     message: utils::get_unsupported_payment_method_error_message(),
                     connector: "Paypal",
-                    payment_experience: api_models::enums::PaymentExperience::RedirectToUrl
-                        .to_string(),
                 }
                 .into())
             }
