@@ -160,7 +160,7 @@ mod tests {
 
         #[tokio::test]
         async fn find_locker_by_card_id() {
-            let mockdb = MockDb::new(&Default::default()).await;
+            let mockdb = MockDb::new(crate::settings::Settings::default().redis).await;
 
             let created_locker = mockdb
                 .insert_locker_mock_up(create_locker_mock_up_new(LockerMockUpIds {
@@ -188,7 +188,7 @@ mod tests {
 
         #[tokio::test]
         async fn insert_locker_mock_up() {
-            let mockdb = MockDb::new(&Default::default()).await;
+            let mockdb = MockDb::new(crate::settings::Settings::default().redis).await;
 
             let created_locker = mockdb
                 .insert_locker_mock_up(create_locker_mock_up_new(LockerMockUpIds {
@@ -215,7 +215,7 @@ mod tests {
 
         #[tokio::test]
         async fn delete_locker_mock_up() {
-            let mockdb = MockDb::new(&Default::default()).await;
+            let mockdb = MockDb::new(crate::settings::Settings::default().redis).await;
 
             let created_locker = mockdb
                 .insert_locker_mock_up(create_locker_mock_up_new(LockerMockUpIds {

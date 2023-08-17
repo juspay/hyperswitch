@@ -1,6 +1,6 @@
 use common_utils::errors as common_errors;
-use crate::errors;
 
+use crate::errors;
 
 #[cfg(feature = "kv_store")]
 /// Generates hscan field pattern. Suppose the field is pa_1234_ref_1211 it will generate
@@ -31,7 +31,9 @@ pub async fn try_redis_get_else_try_database_get<F, RFut, DFut, T>(
 ) -> common_errors::CustomResult<T, errors::StorageError>
 where
     F: FnOnce() -> DFut,
-    RFut: futures::Future<Output = common_errors::CustomResult<T, redis_interface::errors::RedisError>>,
+    RFut: futures::Future<
+        Output = common_errors::CustomResult<T, redis_interface::errors::RedisError>,
+    >,
     DFut: futures::Future<Output = common_errors::CustomResult<T, errors::StorageError>>,
 {
     let redis_output = redis_fut.await;

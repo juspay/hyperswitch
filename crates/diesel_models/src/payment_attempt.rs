@@ -66,9 +66,6 @@ pub struct PaymentListFilters {
     pub payment_method: Vec<storage_enums::PaymentMethod>,
 }
 
-#[cfg(feature = "kv_store")]
-impl crate::utils::storage_partitioning::KvStorePartition for PaymentAttempt {}
-
 #[derive(
     Clone, Debug, Default, Insertable, router_derive::DebugAsDisplay, Serialize, Deserialize,
 )]

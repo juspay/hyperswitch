@@ -1,13 +1,10 @@
 use common_utils::errors::CustomResult;
-use diesel_models::{
-    process_tracker as storage,
-    services::{MockDb, Store},
-};
+use diesel_models::process_tracker as storage;
 use redis_interface::{errors::RedisError, RedisEntryId, SetnxReply};
 use router_env::logger;
-use storage_impl::redis::kv_store::RedisConnInterface;
+use storage_impl::{redis::kv_store::RedisConnInterface, MockDb};
 
-use crate::errors::ProcessTrackerError;
+use crate::{errors::ProcessTrackerError, scheduler::Store};
 
 #[async_trait::async_trait]
 pub trait QueueInterface {

@@ -44,9 +44,6 @@ pub struct PaymentIntent {
     pub attempt_count: i16,
 }
 
-#[cfg(feature = "kv_store")]
-impl crate::utils::storage_partitioning::KvStorePartition for PaymentIntent {}
-
 #[derive(
     Clone,
     Debug,

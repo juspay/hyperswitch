@@ -1,7 +1,11 @@
 use std::sync::Arc;
 
 use common_utils::errors::CustomResult;
-use diesel_models::services::{MockDb, Store};
+#[cfg(feature = "kv_store")]
+use storage_impl::KVRouterStore;
+use storage_impl::MockDb;
+#[cfg(not(feature = "kv_store"))]
+use storage_impl::RouterStore;
 use tokio::sync::mpsc;
 
 use super::env::logger::error;
@@ -13,6 +17,16 @@ pub use crate::{
     producer,
     settings::SchedulerSettings,
 };
+
+#[cfg(not(feature = "olap"))]
+type StoreType = storage_impl::database::store::Store;
+#[cfg(feature = "olap")]
+type StoreType = storage_impl::database::store::ReplicaStore;
+
+#[cfg(not(feature = "kv_store"))]
+pub type Store = RouterStore<StoreType>;
+#[cfg(feature = "kv_store")]
+pub type Store = KVRouterStore<StoreType>;
 
 pub trait AsSchedulerInterface {
     fn as_scheduler(&self) -> &dyn SchedulerInterface;
