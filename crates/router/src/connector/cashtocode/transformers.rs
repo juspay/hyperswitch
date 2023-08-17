@@ -110,7 +110,7 @@ impl TryFrom<&types::ConnectorAuthType> for CashtocodeAuthType {
     }
 }
 
-#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Default, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum CashtocodePaymentStatus {
     Succeeded,
