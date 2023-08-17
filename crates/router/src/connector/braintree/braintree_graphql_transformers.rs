@@ -9,40 +9,27 @@ use crate::{
     types::{self, api, storage::enums},
 };
 
-#[derive(Debug, Serialize, Eq, PartialEq)]
+#[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PaymentInput {
     payment_method_id: String,
     transaction: TransactionBody,
 }
 
-#[derive(Debug, Serialize, Eq, PartialEq)]
+#[derive(Debug, Serialize)]
 pub struct VariablePaymentInput {
     input: PaymentInput,
 }
 
-#[derive(Debug, Serialize, Eq, PartialEq)]
+#[derive(Debug, Serialize)]
 pub struct BraintreePaymentsRequest {
     query: String,
     variables: VariablePaymentInput,
 }
 
-#[derive(Debug, Serialize, Eq, PartialEq)]
-#[serde(rename_all = "camelCase")]
+#[derive(Debug, Serialize)]
 pub struct TransactionBody {
     amount: String,
-}
-
-#[derive(Debug, Serialize, Eq, PartialEq)]
-#[serde(rename_all = "camelCase")]
-#[serde(tag = "type")]
-pub enum PaymentMethodType {
-    PaymentMethodNonce(Nonce),
-}
-
-#[derive(Default, Debug, Serialize, Eq, PartialEq)]
-pub struct Nonce {
-    payment_method_nonce: String,
 }
 
 impl TryFrom<&types::PaymentsAuthorizeRouterData> for BraintreePaymentsRequest {
@@ -62,19 +49,19 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for BraintreePaymentsRequest {
     }
 }
 
-#[derive(Debug, Serialize, Eq, PartialEq)]
+#[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AuthInput {
     payment_method_id: String,
     transaction: TransactionBody,
 }
 
-#[derive(Debug, Serialize, Eq, PartialEq)]
+#[derive(Debug, Serialize)]
 pub struct VariableAuthInput {
     input: AuthInput,
 }
 
-#[derive(Debug, Serialize, Eq, PartialEq)]
+#[derive(Debug, Serialize)]
 pub struct BraintreeAuthRequest {
     query: String,
     variables: VariableAuthInput,
@@ -98,14 +85,12 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for BraintreeAuthRequest {
 }
 
 #[derive(Default, Debug, Clone, Deserialize)]
-#[serde(rename_all = "camelCase")]
 pub struct BraintreeAuthResponse {
     data: Option<DataAuthResponse>,
     errors: Option<Vec<ErrorDetails>>,
 }
 
 #[derive(Default, Debug, Clone, Deserialize)]
-#[serde(rename_all = "camelCase")]
 pub struct TransactionAuthResponseBody {
     id: String,
     status: BraintreePaymentStatus,
@@ -118,7 +103,6 @@ pub struct DataAuthResponse {
 }
 
 #[derive(Default, Debug, Clone, Deserialize)]
-#[serde(rename_all = "camelCase")]
 pub struct AuthorizeCreditCard {
     transaction: TransactionAuthResponseBody,
 }
@@ -241,13 +225,13 @@ fn get_error_response<T>(
 //     }
 // }
 
-#[derive(Debug, Default, Clone, Deserialize, Eq, PartialEq)]
+#[derive(Debug, Default, Clone, Deserialize)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum BraintreePaymentStatus {
-    Succeeded,
-    Failed,
     Authorized,
+    Authorizing,
     AuthorizedExpired,
+    Failed,
     ProcessorDeclined,
     GatewayRejected,
     Voided,
@@ -275,9 +259,7 @@ pub struct AditionalErrorDetails {
 impl From<BraintreePaymentStatus> for enums::AttemptStatus {
     fn from(item: BraintreePaymentStatus) -> Self {
         match item {
-            BraintreePaymentStatus::Succeeded
-            | BraintreePaymentStatus::Settling
-            | BraintreePaymentStatus::Settled => Self::Charged,
+            BraintreePaymentStatus::Settling | BraintreePaymentStatus::Settled => Self::Charged,
             BraintreePaymentStatus::AuthorizedExpired => Self::AuthorizationFailed,
             BraintreePaymentStatus::Failed
             | BraintreePaymentStatus::GatewayRejected
@@ -360,14 +342,12 @@ impl<F, T>
 }
 
 #[derive(Default, Debug, Clone, Deserialize)]
-#[serde(rename_all = "camelCase")]
 pub struct BraintreePaymentsResponse {
     data: Option<DataResponse>,
     errors: Option<Vec<ErrorDetails>>,
 }
 
 #[derive(Default, Debug, Clone, Deserialize)]
-#[serde(rename_all = "camelCase")]
 pub struct TransactionResponseBody {
     id: String,
     status: BraintreePaymentStatus,
@@ -380,27 +360,13 @@ pub struct DataResponse {
 }
 
 #[derive(Default, Debug, Clone, Deserialize)]
-#[serde(rename_all = "camelCase")]
 pub struct ChargeCreditCard {
     transaction: TransactionResponseBody,
 }
 
 #[derive(Default, Debug, Clone, Serialize)]
-#[serde(rename_all = "camelCase")]
 pub struct RefundInputData {
     amount: String,
-}
-
-#[derive(Default, Debug, Clone, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct ClientToken {
-    pub value: String,
-}
-
-#[derive(Default, Debug, Clone, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct BraintreeSessionTokenResponse {
-    pub client_token: ClientToken,
 }
 
 #[derive(Default, Debug, Clone, Serialize)]
@@ -444,16 +410,21 @@ impl<F> TryFrom<&types::RefundsRouterData<F>> for BraintreeRefundRequest {
 #[derive(Default, Debug, Clone, Deserialize)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum BraintreeRefundStatus {
+    SettlementPending,
+    Settling,
     Settled,
     #[default]
     SubmittedForSettlement,
+    Failed,
 }
 
 impl From<BraintreeRefundStatus> for enums::RefundStatus {
     fn from(item: BraintreeRefundStatus) -> Self {
         match item {
-            BraintreeRefundStatus::Settled => Self::Success,
-            BraintreeRefundStatus::SubmittedForSettlement => Self::Pending,
+            BraintreeRefundStatus::Settled | BraintreeRefundStatus::Settling => Self::Success,
+            BraintreeRefundStatus::SubmittedForSettlement
+            | BraintreeRefundStatus::SettlementPending => Self::Pending,
+            BraintreeRefundStatus::Failed => Self::Failure,
         }
     }
 }
@@ -795,7 +766,6 @@ pub struct CaptureResponseTransactionBody {
 }
 
 #[derive(Default, Debug, Clone, Deserialize)]
-#[serde(rename_all = "camelCase")]
 pub struct CaptureTransactionData {
     transaction: CaptureResponseTransactionBody,
 }

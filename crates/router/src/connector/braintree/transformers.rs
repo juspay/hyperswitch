@@ -4,7 +4,7 @@ use masking::{PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    connector::utils,
+    connector::utils::{self, PaymentsAuthorizeRequestData},
     consts,
     core::errors,
     types::{self, api, storage::enums},
@@ -93,10 +93,13 @@ pub struct CardDetails {
 impl TryFrom<&types::PaymentsAuthorizeRouterData> for BraintreePaymentsRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::PaymentsAuthorizeRouterData) -> Result<Self, Self::Error> {
-        let submit_for_settlement = matches!(
-            item.request.capture_method,
-            Some(enums::CaptureMethod::Automatic) | None
-        );
+        let submit_for_settlement = match item.request.is_auto_capture()? {
+            true => true,
+            false => Err(errors::ConnectorError::FlowNotSupported {
+                flow: "Manual capture method for Cards".to_string(),
+                connector: "Braintree".to_string(),
+            })?,
+        };
         let metadata: BraintreeMeta =
             utils::to_connector_meta_from_secret(item.connector_meta_data.clone())?;
         let merchant_account_id = metadata.merchant_account_id;
@@ -354,9 +357,13 @@ pub struct Amount {
 
 impl<F> TryFrom<&types::RefundsRouterData<F>> for BraintreeRefundRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(_item: &types::RefundsRouterData<F>) -> Result<Self, Self::Error> {
+    fn try_from(item: &types::RefundsRouterData<F>) -> Result<Self, Self::Error> {
+        let refund_amount =
+            utils::to_currency_base_unit(item.request.refund_amount, item.request.currency)?;
         Ok(Self {
-            transaction: Amount { amount: None },
+            transaction: Amount {
+                amount: Some(refund_amount),
+            },
         })
     }
 }

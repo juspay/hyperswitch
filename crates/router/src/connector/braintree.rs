@@ -129,27 +129,22 @@ impl
         req: &types::PaymentsSessionRouterData,
         _connectors: &settings::Connectors,
     ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
-        let is_connector_new_version = req.is_connector_new_version;
-        if is_connector_new_version == Some(true) {
-            Ok(vec![])
-        } else {
-            let mut headers = vec![
-                (
-                    headers::CONTENT_TYPE.to_string(),
-                    types::PaymentsSessionType::get_content_type(self)
-                        .to_string()
-                        .into(),
-                ),
-                (headers::X_API_VERSION.to_string(), "6".to_string().into()),
-                (
-                    headers::ACCEPT.to_string(),
-                    "application/json".to_string().into(),
-                ),
-            ];
-            let mut api_key = self.get_auth_header(&req.connector_auth_type)?;
-            headers.append(&mut api_key);
-            Ok(headers)
-        }
+        let mut headers = vec![
+            (
+                headers::CONTENT_TYPE.to_string(),
+                types::PaymentsSessionType::get_content_type(self)
+                    .to_string()
+                    .into(),
+            ),
+            (headers::X_API_VERSION.to_string(), "6".to_string().into()),
+            (
+                headers::ACCEPT.to_string(),
+                "application/json".to_string().into(),
+            ),
+        ];
+        let mut api_key = self.get_auth_header(&req.connector_auth_type)?;
+        headers.append(&mut api_key);
+        Ok(headers)
     }
 
     fn get_content_type(&self) -> &'static str {
@@ -161,18 +156,13 @@ impl
         req: &types::PaymentsSessionRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        let is_connector_new_version = req.is_connector_new_version;
-        if is_connector_new_version == Some(true) {
-            Err(errors::ConnectorError::NotImplemented("get_url method".to_string()).into())
-        } else {
-            let auth_type = braintree::BraintreeAuthType::try_from(&req.connector_auth_type)
-                .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
-            Ok(format!(
-                "{}/merchants/{}/client_token",
-                self.base_url(connectors),
-                auth_type.merchant_id.peek(),
-            ))
-        }
+        let auth_type = braintree::BraintreeAuthType::try_from(&req.connector_auth_type)
+            .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
+        Ok(format!(
+            "{}/merchants/{}/client_token",
+            self.base_url(connectors),
+            auth_type.merchant_id.peek(),
+        ))
     }
 
     fn build_request(
@@ -210,21 +200,13 @@ impl
         &self,
         req: &types::PaymentsSessionRouterData,
     ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
-        let is_connector_new_version = req.is_connector_new_version;
-        if is_connector_new_version == Some(true) {
-            Err(
-                errors::ConnectorError::NotImplemented("get_request_body method".to_string())
-                    .into(),
-            )
-        } else {
-            let connector_request = braintree::BraintreeSessionRequest::try_from(req)?;
-            let braintree_session_request = types::RequestBody::log_and_get_request_body(
-                &connector_request,
-                utils::Encode::<braintree::BraintreeSessionRequest>::encode_to_string_of_json,
-            )
-            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-            Ok(Some(braintree_session_request))
-        }
+        let connector_request = braintree::BraintreeSessionRequest::try_from(req)?;
+        let braintree_session_request = types::RequestBody::log_and_get_request_body(
+            &connector_request,
+            utils::Encode::<braintree::BraintreeSessionRequest>::encode_to_string_of_json,
+        )
+        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        Ok(Some(braintree_session_request))
     }
 
     fn handle_response(
@@ -258,26 +240,21 @@ impl
         req: &types::TokenizationRouterData,
         _connectors: &settings::Connectors,
     ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
-        let is_connector_new_version = req.is_connector_new_version;
-        if is_connector_new_version == Some(true) {
-            let mut headers = vec![
-                (
-                    headers::CONTENT_TYPE.to_string(),
-                    types::TokenizationType::get_content_type(self)
-                        .to_string()
-                        .into(),
-                ),
-                (
-                    "Braintree-Version".to_string(),
-                    "2019-01-01".to_string().into(),
-                ),
-            ];
-            let mut api_key = self.get_auth_header(&req.connector_auth_type)?;
-            headers.append(&mut api_key);
-            Ok(headers)
-        } else {
-            Ok(vec![])
-        }
+        let mut headers = vec![
+            (
+                headers::CONTENT_TYPE.to_string(),
+                types::TokenizationType::get_content_type(self)
+                    .to_string()
+                    .into(),
+            ),
+            (
+                "Braintree-Version".to_string(),
+                "2019-01-01".to_string().into(),
+            ),
+        ];
+        let mut api_key = self.get_auth_header(&req.connector_auth_type)?;
+        headers.append(&mut api_key);
+        Ok(headers)
     }
 
     fn get_content_type(&self) -> &'static str {
@@ -286,38 +263,25 @@ impl
 
     fn get_url(
         &self,
-        req: &types::TokenizationRouterData,
+        _req: &types::TokenizationRouterData,
         _connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        let is_connector_new_version = req.is_connector_new_version;
-        if is_connector_new_version == Some(true) {
-            Ok("https://payments.sandbox.braintree-api.com/graphql".to_string())
-        } else {
-            Err(errors::ConnectorError::NotImplemented("get_url method".to_string()).into())
-        }
+        Ok("https://payments.sandbox.braintree-api.com/graphql".to_string())
     }
 
     fn get_request_body(
         &self,
         req: &types::TokenizationRouterData,
     ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
-        let is_connector_new_version = req.is_connector_new_version;
-        if is_connector_new_version == Some(true) {
-            let connector_request =
-                braintree_graphql_transformers::BraintreeTokenRequest::try_from(req)?;
+        let connector_request =
+            braintree_graphql_transformers::BraintreeTokenRequest::try_from(req)?;
 
-            let braintree_req = types::RequestBody::log_and_get_request_body(
+        let braintree_req = types::RequestBody::log_and_get_request_body(
             &connector_request,
             utils::Encode::<braintree_graphql_transformers::BraintreeTokenRequest>::encode_to_string_of_json,
         )
         .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-            Ok(Some(braintree_req))
-        } else {
-            Err(
-                errors::ConnectorError::NotImplemented("get_request_body method".to_string())
-                    .into(),
-            )
-        }
+        Ok(Some(braintree_req))
     }
 
     fn build_request(
@@ -460,16 +424,25 @@ impl
         req: &types::PaymentsCaptureRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
-        Ok(Some(
-            services::RequestBuilder::new()
-                .method(services::Method::Post)
-                .url(&types::PaymentsCaptureType::get_url(self, req, connectors)?)
-                .headers(types::PaymentsCaptureType::get_headers(
-                    self, req, connectors,
-                )?)
-                .body(types::PaymentsCaptureType::get_request_body(self, req)?)
-                .build(),
-        ))
+        let is_connector_new_version = req.is_connector_new_version;
+        if is_connector_new_version == Some(true) {
+            Ok(Some(
+                services::RequestBuilder::new()
+                    .method(services::Method::Post)
+                    .url(&types::PaymentsCaptureType::get_url(self, req, connectors)?)
+                    .attach_default_headers()
+                    .headers(types::PaymentsCaptureType::get_headers(
+                        self, req, connectors,
+                    )?)
+                    .body(types::PaymentsCaptureType::get_request_body(self, req)?)
+                    .build(),
+            ))
+        } else {
+            Err(
+                errors::ConnectorError::NotImplemented("Capture flow not Implemented".to_string())
+                    .into(),
+            )
+        }
     }
 
     fn handle_response(
@@ -671,7 +644,6 @@ impl
     ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
         let is_connector_new_version = req.is_connector_new_version;
         if is_connector_new_version == Some(true) {
-            println!("heyya->");
             let mut headers = vec![
                 (
                     headers::CONTENT_TYPE.to_string(),
@@ -688,7 +660,6 @@ impl
             headers.append(&mut api_key);
             Ok(headers)
         } else {
-            println!("heloo->");
             let mut headers = vec![
                 (
                     headers::CONTENT_TYPE.to_string(),
@@ -1214,6 +1185,7 @@ impl services::ConnectorIntegration<api::RSync, types::RefundsData, types::Refun
                 services::RequestBuilder::new()
                     .method(services::Method::Post)
                     .url(&types::RefundSyncType::get_url(self, req, connectors)?)
+                    .attach_default_headers()
                     .headers(types::RefundSyncType::get_headers(self, req, connectors)?)
                     .body(types::RefundSyncType::get_request_body(self, req)?)
                     .build(),
