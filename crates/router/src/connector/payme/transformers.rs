@@ -555,7 +555,6 @@ impl TryFrom<&types::PaymentsCaptureRouterData> for PaymentCaptureRequest {
             Err(errors::ConnectorError::NotSupported {
                 message: "Partial Capture".to_string(),
                 connector: "Payme",
-                payment_experience: "".to_string(),
             })?
         }
         Ok(Self {
