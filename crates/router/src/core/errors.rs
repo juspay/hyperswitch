@@ -95,11 +95,11 @@ impl Into<DataStorageError> for &StorageError {
                 storage_errors::DatabaseError::DatabaseConnectionError => {
                     DataStorageError::DatabaseConnectionError
                 }
-                // TODO: Update this error type to encompass & propogate the missing type (instead of generic `db value not found`)
+                // TODO: Update this error type to encompass & propagate the missing type (instead of generic `db value not found`)
                 storage_errors::DatabaseError::NotFound => {
                     DataStorageError::ValueNotFound(String::from("db value not found"))
                 }
-                // TODO: Update this error type to encompass & propogate the duplicate type (instead of generic `db value not found`)
+                // TODO: Update this error type to encompass & propagate the duplicate type (instead of generic `db value not found`)
                 storage_errors::DatabaseError::UniqueViolation => {
                     DataStorageError::DuplicateValue {
                         entity: "db entity",
@@ -130,7 +130,7 @@ impl Into<DataStorageError> for &StorageError {
             StorageError::EncryptionError => DataStorageError::EncryptionError,
             StorageError::DecryptionError => DataStorageError::DecryptionError,
             StorageError::RedisError(i) => match i.current_context() {
-                // TODO: Update this error type to encompass & propogate the missing type (instead of generic `redis value not found`)
+                // TODO: Update this error type to encompass & propagate the missing type (instead of generic `redis value not found`)
                 RedisError::NotFound => {
                     DataStorageError::ValueNotFound("redis value not found".to_string())
                 }
