@@ -8,7 +8,7 @@ use transformers as cashtocode;
 use crate::{
     configs::settings,
     connector::utils as conn_utils,
-    core::errors::{self, CustomResult},
+    core::{errors::{self, CustomResult}, payments},
     db::StorageInterface,
     headers,
     services::{
@@ -444,5 +444,16 @@ impl ConnectorIntegration<api::refunds::RSync, types::RefundsData, types::Refund
             connector: "Cashtocode".to_string(),
         }
         .into())
+    }
+}
+
+impl services::ConnectorRedirectResponse for Cashtocode {
+    fn get_flow_type(
+        &self,
+        _query_params: &str,
+        _json_payload: Option<serde_json::Value>,
+        _action: services::PaymentAction
+    ) -> CustomResult<payments::CallConnectorAction, errors::ConnectorError> {
+        Ok(payments::CallConnectorAction::Avoid)
     }
 }

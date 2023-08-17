@@ -273,7 +273,6 @@ default_imp_for_connector_redirect_response!(
     connector::Adyen,
     connector::Bitpay,
     connector::Braintree,
-    connector::Cashtocode,
     connector::Coinbase,
     connector::Cryptopay,
     connector::Cybersource,

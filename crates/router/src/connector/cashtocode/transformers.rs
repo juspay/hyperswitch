@@ -3,7 +3,7 @@ use masking::Secret;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    connector::utils::{self, RouterData},
+    connector::utils::{self, PaymentsAuthorizeRequestData, RouterData},
     core::errors,
     services,
     types::{self, api, storage::enums},
@@ -49,7 +49,7 @@ fn get_mandatory_params(
     item: &types::PaymentsAuthorizeRouterData,
 ) -> Result<CashToCodeMandatoryParams, error_stack::Report<errors::ConnectorError>> {
     let customer_id = item.get_customer_id()?;
-    let url = item.get_return_url()?;
+    let url = item.request.get_router_return_url()?;
     Ok(CashToCodeMandatoryParams {
         user_id: Secret::new(customer_id.to_owned()),
         user_alias: Secret::new(customer_id),
