@@ -314,8 +314,8 @@ impl TryFrom<&types::PaymentsPreProcessingRouterData> for GenerateSaleRequest {
             sale_payment_method: SalePaymentMethod::try_from(&pmd)?,
             sale_type,
             transaction_id: item.payment_id.clone(),
-            sale_return_url: "https://webhook.site/#!/e505d040-7263-4e7a-9d9d-527adbc01292/98b631c3-971a-4b12-bbeb-f51027620f38/1".to_string(),
-            sale_callback_url: "https://webhook.site/#!/e505d040-7263-4e7a-9d9d-527adbc01292/98b631c3-971a-4b12-bbeb-f51027620f38/1".to_string(),
+            sale_return_url: item.request.get_return_url()?,
+            sale_callback_url: item.request.get_webhook_url()?,
             services,
             language: LANGUAGE.to_string(),
         })
