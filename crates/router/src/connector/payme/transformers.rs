@@ -329,9 +329,37 @@ impl TryFrom<&PaymentMethodData> for SalePaymentMethod {
             PaymentMethodData::Card(_) => Ok(Self::CreditCard),
             PaymentMethodData::Wallet(wallet_data) => match wallet_data {
                 api_models::payments::WalletData::ApplePay(_) => Ok(Self::ApplePay),
-                _ => Err(
-                    errors::ConnectorError::NotImplemented("Payment methods".to_string()).into(),
-                ),
+                api_models::payments::WalletData::AliPayQr(_)
+                | api_models::payments::WalletData::AliPayRedirect(_)
+                | api_models::payments::WalletData::AliPayHkRedirect(_)
+                | api_models::payments::WalletData::MomoRedirect(_)
+                | api_models::payments::WalletData::KakaoPayRedirect(_)
+                | api_models::payments::WalletData::GoPayRedirect(_)
+                | api_models::payments::WalletData::GcashRedirect(_)
+                | api_models::payments::WalletData::ApplePayRedirect(_)
+                | api_models::payments::WalletData::ApplePayThirdPartySdk(_)
+                | api_models::payments::WalletData::DanaRedirect {}
+                | api_models::payments::WalletData::GooglePay(_)
+                | api_models::payments::WalletData::GooglePayRedirect(_)
+                | api_models::payments::WalletData::GooglePayThirdPartySdk(_)
+                | api_models::payments::WalletData::MbWayRedirect(_)
+                | api_models::payments::WalletData::MobilePayRedirect(_)
+                | api_models::payments::WalletData::PaypalRedirect(_)
+                | api_models::payments::WalletData::PaypalSdk(_)
+                | api_models::payments::WalletData::SamsungPay(_)
+                | api_models::payments::WalletData::TwintRedirect {}
+                | api_models::payments::WalletData::VippsRedirect {}
+                | api_models::payments::WalletData::TouchNGoRedirect(_)
+                | api_models::payments::WalletData::WeChatPayRedirect(_)
+                | api_models::payments::WalletData::WeChatPayQr(_)
+                | api_models::payments::WalletData::CashappQr(_)
+                | api_models::payments::WalletData::SwishQr(_) => {
+                    Err(errors::ConnectorError::NotSupported {
+                        message: "Wallet".to_string(),
+                        connector: "payme",
+                    }
+                    .into())
+                }
             },
             PaymentMethodData::PayLater(_)
             | PaymentMethodData::BankRedirect(_)
@@ -440,7 +468,7 @@ impl<F>
                         next_action: api_models::payments::NextActionCall::Sync,
                     },
                     connector_reference_id: Some(item.response.payme_sale_id.to_owned()),
-                    public_key_id: Some(
+                    connector_sdk_public_key: Some(
                         PaymeAuthType::try_from(&item.data.connector_auth_type)?
                             .payme_public_key
                             .expose(),
@@ -450,9 +478,10 @@ impl<F>
             _ => None,
         };
         Ok(Self {
+            // We don't get any status from payme, so defaulting it to pending
             status: enums::AttemptStatus::Pending,
             reference_id: item.data.reference_id,
-            preprocessing_id: Some(item.response.payme_sale_id.to_string()),
+            preprocessing_id: Some(item.response.payme_sale_id.to_owned()),
             response: Ok(types::PaymentsResponseData::PreProcessingResponse {
                 pre_processing_id: types::PreprocessingResponseId::ConnectorTransactionId(
                     item.response.payme_sale_id,

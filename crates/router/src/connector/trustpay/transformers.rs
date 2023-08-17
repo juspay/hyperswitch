@@ -1063,7 +1063,7 @@ pub fn get_apple_pay_session<F, T>(
                         }
                     },
                     connector_reference_id: None,
-                    public_key_id: None,
+                    connector_sdk_public_key: None,
                 },
             ))),
             connector_response_reference_id: None,

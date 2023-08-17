@@ -272,7 +272,7 @@ fn create_apple_pay_session_response(
                         delayed_session_token: delayed_response,
                         sdk_next_action: { payment_types::SdkNextAction { next_action } },
                         connector_reference_id: None,
-                        public_key_id: None,
+                        connector_sdk_public_key: None,
                     },
                 )),
             }),

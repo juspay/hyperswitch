@@ -1135,11 +1135,6 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsPreProce
             connector_name,
             payment_data.creds_identifier.as_deref(),
         ));
-        let complete_authorize_url = Some(helpers::create_complete_authorize_url(
-            router_base_url,
-            attempt,
-            connector_name,
-        ));
 
         let browser_info: Option<types::BrowserInformation> = attempt
             .browser_info
@@ -1158,7 +1153,6 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsPreProce
             payment_method_type: payment_data.payment_attempt.payment_method_type,
             setup_mandate_details: payment_data.setup_mandate,
             capture_method: payment_data.payment_attempt.capture_method,
-            complete_authorize_url,
             order_details,
             router_return_url,
             webhook_url,

@@ -367,7 +367,6 @@ impl TryFrom<types::PaymentsAuthorizeData> for types::PaymentsPreProcessingData 
             payment_method_type: data.payment_method_type,
             setup_mandate_details: data.setup_mandate_details,
             capture_method: data.capture_method,
-            complete_authorize_url: data.complete_authorize_url,
             order_details: data.order_details,
             router_return_url: data.router_return_url,
             webhook_url: data.webhook_url,
