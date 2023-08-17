@@ -210,7 +210,6 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
             request.confirm,
             self,
         );
-
         let creds_identifier = request
             .merchant_connector_details
             .as_ref()
@@ -272,6 +271,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
                 multiple_capture_data: None,
                 redirect_response: None,
                 frm_message: None,
+                payment_link_object: request.payment_link_object.clone(),
             },
             Some(customer_details),
         ))

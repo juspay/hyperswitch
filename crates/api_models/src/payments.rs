@@ -291,6 +291,8 @@ pub struct PaymentsRequest {
 
     /// additional data that might be required by hyperswitch
     pub feature_metadata: Option<FeatureMetadata>,
+    /// payment link object for required for generating payment_link
+    pub payment_link_object : Option<PaymentLinkObject>,
 }
 
 #[derive(
@@ -1858,6 +1860,8 @@ pub struct PaymentsResponse {
     /// reference to the payment at connector side
     #[schema(value_type = Option<String>, example = "993672945374576J")]
     pub reference_id: Option<String>,
+
+    pub payment_link : Option<String>,
 }
 
 #[derive(Clone, Debug, serde::Deserialize, ToSchema)]
@@ -2757,4 +2761,10 @@ mod tests {
             r#"{"multi_use":null}"#
         )
     }
+}
+
+
+#[derive(Clone, Debug, serde::Deserialize, serde::Serialize, PartialEq, ToSchema)]
+pub struct PaymentLinkObject {
+    pub create_payment_link: bool,
 }
