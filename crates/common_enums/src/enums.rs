@@ -975,6 +975,12 @@ pub enum PaymentMethodType {
     Vipps,
     Walley,
     WeChatPay,
+    SevenEleven,
+    Lawson,
+    MiniStop,
+    FamilyMart,
+    Seicomart,
+    PayEasy,
 }
 
 #[derive(

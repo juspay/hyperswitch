@@ -1,9 +1,9 @@
 use common_utils::errors::CustomResult;
 use error_stack::{report, ResultExt};
+use storage_impl::redis::cache::CacheKind;
 
 use super::errors;
 use crate::{
-    cache::CacheKind,
     db::{cache::publish_into_redact_channel, StorageInterface},
     services,
 };

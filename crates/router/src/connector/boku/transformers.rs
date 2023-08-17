@@ -84,7 +84,6 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for BokuPaymentsRequest {
             _ => Err(errors::ConnectorError::NotSupported {
                 message: format!("{:?}", item.request.payment_method_type),
                 connector: "Boku",
-                payment_experience: api_models::enums::PaymentExperience::RedirectToUrl.to_string(),
             })?,
         }
     }

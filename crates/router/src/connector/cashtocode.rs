@@ -20,9 +20,7 @@ use crate::{
     types::{
         self,
         api::{self, ConnectorCommon, ConnectorCommonExt},
-        domain,
-        storage::{self},
-        ErrorResponse, Response,
+        domain, storage, ErrorResponse, Response,
     },
     utils::{self, ByteSliceExt, BytesExt},
 };
@@ -66,7 +64,6 @@ fn get_auth_cashtocode(
             _ => Err(error_stack::report!(errors::ConnectorError::NotSupported {
                 message: reward_type.to_string(),
                 connector: "cashtocode",
-                payment_experience: "Try with a different payment method".to_string(),
             })),
         },
         Err(_) => Err(errors::ConnectorError::FailedToObtainAuthType.into()),
@@ -322,9 +319,10 @@ impl api::IncomingWebhook for Cashtocode {
         &self,
         db: &dyn StorageInterface,
         request: &api::IncomingWebhookRequestDetails<'_>,
-        merchant_id: &str,
+        merchant_account: &domain::MerchantAccount,
         connector_label: &str,
         key_store: &domain::MerchantKeyStore,
+        object_reference_id: api_models::webhooks::ObjectReferenceId,
     ) -> CustomResult<bool, errors::ConnectorError> {
         let signature = self
             .get_webhook_source_verification_signature(request)
@@ -332,9 +330,10 @@ impl api::IncomingWebhook for Cashtocode {
         let secret = self
             .get_webhook_source_verification_merchant_secret(
                 db,
-                merchant_id,
+                merchant_account,
                 connector_label,
                 key_store,
+                object_reference_id,
             )
             .await
             .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
