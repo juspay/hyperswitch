@@ -286,8 +286,9 @@ where
                         Ok(body) => {
                             let response = match body {
                                 Ok(body) => {
+                                    let connector_http_status_code = Some(body.status_code);
                                     let mut data = connector_integration
-                                        .handle_response(req, body.clone())
+                                        .handle_response(req, body)
                                         .map_err(|error| {
                                             if error.current_context()
                                             == &errors::ConnectorError::ResponseDeserializationFailed
@@ -303,10 +304,11 @@ where
                                         }
                                             error
                                         })?;
-                                    data.connector_http_status_code = Some(body.status_code);
+                                    data.connector_http_status_code = connector_http_status_code;
                                     data
                                 }
                                 Err(body) => {
+                                    router_data.connector_http_status_code = Some(body.status_code);
                                     metrics::CONNECTOR_ERROR_RESPONSE_COUNT.add(
                                         &metrics::CONTEXT,
                                         1,
@@ -316,14 +318,13 @@ where
                                         )],
                                     );
                                     let error = match body.status_code {
-                                        500..=511 => connector_integration
-                                            .get_5xx_error_response(body.clone())?,
-                                        _ => connector_integration
-                                            .get_error_response(body.clone())?,
+                                        500..=511 => {
+                                            connector_integration.get_5xx_error_response(body)?
+                                        }
+                                        _ => connector_integration.get_error_response(body)?,
                                     };
 
                                     router_data.response = Err(error);
-                                    router_data.connector_http_status_code = Some(body.status_code);
 
                                     router_data
                                 }
