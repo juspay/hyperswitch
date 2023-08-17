@@ -1064,6 +1064,7 @@ pub fn get_apple_pay_session<F, T>(
                     },
                     connector_reference_id: None,
                     connector_sdk_public_key: None,
+                    connector_merchant_id: None,
                 },
             ))),
             connector_response_reference_id: None,

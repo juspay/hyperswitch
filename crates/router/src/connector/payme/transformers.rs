@@ -228,7 +228,7 @@ impl TryFrom<&PaymentMethodData> for SalePaymentMethod {
         match item {
             PaymentMethodData::Card(_) => Ok(Self::CreditCard),
             PaymentMethodData::Wallet(wallet_data) => match wallet_data {
-                api_models::payments::WalletData::ApplePay(_) => Ok(Self::ApplePay),
+                api_models::payments::WalletData::ApplePayThirdPartySdk(_) => Ok(Self::ApplePay),
                 api_models::payments::WalletData::AliPayQr(_)
                 | api_models::payments::WalletData::AliPayRedirect(_)
                 | api_models::payments::WalletData::AliPayHkRedirect(_)
@@ -237,7 +237,6 @@ impl TryFrom<&PaymentMethodData> for SalePaymentMethod {
                 | api_models::payments::WalletData::GoPayRedirect(_)
                 | api_models::payments::WalletData::GcashRedirect(_)
                 | api_models::payments::WalletData::ApplePayRedirect(_)
-                | api_models::payments::WalletData::ApplePayThirdPartySdk(_)
                 | api_models::payments::WalletData::DanaRedirect {}
                 | api_models::payments::WalletData::GooglePay(_)
                 | api_models::payments::WalletData::GooglePayRedirect(_)
@@ -253,6 +252,7 @@ impl TryFrom<&PaymentMethodData> for SalePaymentMethod {
                 | api_models::payments::WalletData::WeChatPayRedirect(_)
                 | api_models::payments::WalletData::WeChatPayQr(_)
                 | api_models::payments::WalletData::CashappQr(_)
+                | api_models::payments::WalletData::ApplePay(_)
                 | api_models::payments::WalletData::SwishQr(_) => {
                     Err(errors::ConnectorError::NotSupported {
                         message: "Wallet".to_string(),
@@ -339,6 +339,7 @@ impl<F>
         let amount = item.data.request.get_amount()?;
         let amount_in_base_unit = utils::to_currency_base_unit(amount, currency_code)?;
         let pmd = item.data.request.payment_method_data.to_owned();
+        let payme_auth_type = PaymeAuthType::try_from(&item.data.connector_auth_type)?;
 
         let session_token = match pmd {
             Some(PaymentMethodData::Wallet(
@@ -365,11 +366,10 @@ impl<F>
                         next_action: api_models::payments::NextActionCall::Sync,
                     },
                     connector_reference_id: Some(item.response.payme_sale_id.to_owned()),
-                    connector_sdk_public_key: Some(
-                        PaymeAuthType::try_from(&item.data.connector_auth_type)?
-                            .payme_public_key
-                            .expose(),
-                    ),
+                    connector_sdk_public_key: Some(payme_auth_type.payme_public_key.expose()),
+                    connector_merchant_id: payme_auth_type
+                        .payme_merchant_id
+                        .map(|mid| mid.expose()),
                 },
             ))),
             _ => None,
@@ -451,6 +451,7 @@ pub struct PaymeAuthType {
     #[allow(dead_code)]
     pub(super) payme_public_key: Secret<String>,
     pub(super) seller_payme_id: Secret<String>,
+    pub(super) payme_merchant_id: Option<Secret<String>>,
 }
 
 impl TryFrom<&types::ConnectorAuthType> for PaymeAuthType {
@@ -460,6 +461,16 @@ impl TryFrom<&types::ConnectorAuthType> for PaymeAuthType {
             types::ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self {
                 seller_payme_id: api_key.to_owned(),
                 payme_public_key: key1.to_owned(),
+                payme_merchant_id: None,
+            }),
+            types::ConnectorAuthType::SignatureKey {
+                api_key,
+                key1,
+                api_secret,
+            } => Ok(Self {
+                seller_payme_id: api_key.to_owned(),
+                payme_public_key: key1.to_owned(),
+                payme_merchant_id: Some(api_secret.to_owned()),
             }),
             _ => Err(errors::ConnectorError::FailedToObtainAuthType.into()),
         }
