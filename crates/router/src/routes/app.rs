@@ -531,7 +531,7 @@ impl Cache {
 
 pub struct BusinessProfile;
 
-#[cfg(any(feature = "olap", feature = "oltp"))]
+#[cfg(feature = "olap")]
 impl BusinessProfile {
     pub fn server(state: AppState) -> Scope {
         web::scope("/account/{account_id}/business_profile")
