@@ -88,6 +88,7 @@ fn construct_payment_router_data() -> types::PaymentsAuthorizeRouterData {
         quote_id: None,
         test_mode: None,
         payment_method_balance: None,
+        is_connector_new_version: None,
     }
 }
 
@@ -140,6 +141,7 @@ fn construct_refund_router_data<F>() -> types::RefundsRouterData<F> {
         quote_id: None,
         test_mode: None,
         payment_method_balance: None,
+        is_connector_new_version: None,
     }
 }
 

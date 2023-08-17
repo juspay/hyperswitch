@@ -1,6 +1,5 @@
-use base64::Engine;
 use error_stack::ResultExt;
-use masking::{PeekInterface, Secret};
+use masking::Secret;
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -215,31 +214,32 @@ fn get_error_response<T>(
     })
 }
 
-pub struct BraintreeAuthType {
-    pub(super) auth_header: String,
-    pub(super) merchant_id: Secret<String>,
-}
+// Using Auth type from braintree/transformer.rs, need this in later time when we use graphql version
+// pub struct BraintreeAuthType {
+//     pub(super) auth_header: String,
+//     pub(super) merchant_id: Secret<String>,
+// }
 
-impl TryFrom<&types::ConnectorAuthType> for BraintreeAuthType {
-    type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(item: &types::ConnectorAuthType) -> Result<Self, Self::Error> {
-        if let types::ConnectorAuthType::SignatureKey {
-            api_key: public_key,
-            key1: merchant_id,
-            api_secret: private_key,
-        } = item
-        {
-            let auth_key = format!("{}:{}", public_key.peek(), private_key.peek());
-            let auth_header = format!("Basic {}", consts::BASE64_ENGINE.encode(auth_key));
-            Ok(Self {
-                auth_header,
-                merchant_id: merchant_id.to_owned(),
-            })
-        } else {
-            Err(errors::ConnectorError::FailedToObtainAuthType)?
-        }
-    }
-}
+// impl TryFrom<&types::ConnectorAuthType> for BraintreeAuthType {
+//     type Error = error_stack::Report<errors::ConnectorError>;
+//     fn try_from(item: &types::ConnectorAuthType) -> Result<Self, Self::Error> {
+//         if let types::ConnectorAuthType::SignatureKey {
+//             api_key: public_key,
+//             key1: merchant_id,
+//             api_secret: private_key,
+//         } = item
+//         {
+//             let auth_key = format!("{}:{}", public_key.peek(), private_key.peek());
+//             let auth_header = format!("Basic {}", consts::BASE64_ENGINE.encode(auth_key));
+//             Ok(Self {
+//                 auth_header,
+//                 merchant_id: merchant_id.to_owned(),
+//             })
+//         } else {
+//             Err(errors::ConnectorError::FailedToObtainAuthType)?
+//         }
+//     }
+// }
 
 #[derive(Debug, Default, Clone, Deserialize, Eq, PartialEq)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]

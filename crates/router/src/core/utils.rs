@@ -243,7 +243,7 @@ pub async fn construct_refund_router_data<'a, F>(
         .find_config_by_key_cached(&format!("is_connector_new_version_{connector_id}"))
         .await
         .map(|value| value.config)
-        .and_then(|config| Ok(bool::from_str(&config).ok().unwrap_or(false)))
+        .map(|config| bool::from_str(&config).ok().unwrap_or(false))
         .ok();
 
     let router_data = types::RouterData {

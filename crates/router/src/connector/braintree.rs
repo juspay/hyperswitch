@@ -41,7 +41,7 @@ impl ConnectorCommon for Braintree {
         &self,
         auth_type: &types::ConnectorAuthType,
     ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
-        let auth: braintree_graphql_transformers::BraintreeAuthType = auth_type
+        let auth: braintree::BraintreeAuthType = auth_type
             .try_into()
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
         Ok(vec![(
@@ -291,9 +291,7 @@ impl
     ) -> CustomResult<String, errors::ConnectorError> {
         let is_connector_new_version = req.is_connector_new_version;
         if is_connector_new_version == Some(true) {
-            Ok(format!(
-                "https://payments.sandbox.braintree-api.com/graphql"
-            ))
+            Ok("https://payments.sandbox.braintree-api.com/graphql".to_string())
         } else {
             Err(errors::ConnectorError::NotImplemented("get_url method".to_string()).into())
         }
@@ -428,9 +426,7 @@ impl
     ) -> CustomResult<String, errors::ConnectorError> {
         let is_connector_new_version = req.is_connector_new_version;
         if is_connector_new_version == Some(true) {
-            Ok(format!(
-                "https://payments.sandbox.braintree-api.com/graphql"
-            ))
+            Ok("https://payments.sandbox.braintree-api.com/graphql".to_string())
         } else {
             Err(errors::ConnectorError::NotImplemented("get_url method".to_string()).into())
         }
@@ -557,9 +553,7 @@ impl
     ) -> CustomResult<String, errors::ConnectorError> {
         let is_connector_new_version = req.is_connector_new_version;
         if is_connector_new_version == Some(true) {
-            Ok(format!(
-                "https://payments.sandbox.braintree-api.com/graphql"
-            ))
+            Ok("https://payments.sandbox.braintree-api.com/graphql".to_string())
         } else {
             let auth_type = braintree::BraintreeAuthType::try_from(&req.connector_auth_type)
                 .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
@@ -602,15 +596,28 @@ impl
         req: &types::PaymentsSyncRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
-        Ok(Some(
-            services::RequestBuilder::new()
-                .method(services::Method::Post)
-                .url(&types::PaymentsSyncType::get_url(self, req, connectors)?)
-                .attach_default_headers()
-                .headers(types::PaymentsSyncType::get_headers(self, req, connectors)?)
-                .body(types::PaymentsSyncType::get_request_body(self, req)?)
-                .build(),
-        ))
+        let is_connector_new_version = req.is_connector_new_version;
+        if is_connector_new_version == Some(true) {
+            Ok(Some(
+                services::RequestBuilder::new()
+                    .method(services::Method::Post)
+                    .url(&types::PaymentsSyncType::get_url(self, req, connectors)?)
+                    .attach_default_headers()
+                    .headers(types::PaymentsSyncType::get_headers(self, req, connectors)?)
+                    .body(types::PaymentsSyncType::get_request_body(self, req)?)
+                    .build(),
+            ))
+        } else {
+            Ok(Some(
+                services::RequestBuilder::new()
+                    .method(services::Method::Get)
+                    .url(&types::PaymentsSyncType::get_url(self, req, connectors)?)
+                    .attach_default_headers()
+                    .headers(types::PaymentsSyncType::get_headers(self, req, connectors)?)
+                    .body(types::PaymentsSyncType::get_request_body(self, req)?)
+                    .build(),
+            ))
+        }
     }
 
     fn handle_response(
@@ -708,9 +715,7 @@ impl
     ) -> CustomResult<String, errors::ConnectorError> {
         let is_connector_new_version = req.is_connector_new_version;
         if is_connector_new_version == Some(true) {
-            Ok(format!(
-                "https://payments.sandbox.braintree-api.com/graphql"
-            ))
+            Ok("https://payments.sandbox.braintree-api.com/graphql".to_string())
         } else {
             let auth_type = braintree::BraintreeAuthType::try_from(&req.connector_auth_type)
                 .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
@@ -894,9 +899,7 @@ impl
     ) -> CustomResult<String, errors::ConnectorError> {
         let is_connector_new_version = req.is_connector_new_version;
         if is_connector_new_version == Some(true) {
-            Ok(format!(
-                "https://payments.sandbox.braintree-api.com/graphql"
-            ))
+            Ok("https://payments.sandbox.braintree-api.com/graphql".to_string())
         } else {
             let auth_type = braintree::BraintreeAuthType::try_from(&req.connector_auth_type)
                 .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
@@ -1041,9 +1044,7 @@ impl services::ConnectorIntegration<api::Execute, types::RefundsData, types::Ref
     ) -> CustomResult<String, errors::ConnectorError> {
         let is_connector_new_version = req.is_connector_new_version;
         if is_connector_new_version == Some(true) {
-            Ok(format!(
-                "https://payments.sandbox.braintree-api.com/graphql"
-            ))
+            Ok("https://payments.sandbox.braintree-api.com/graphql".to_string())
         } else {
             let auth_type = braintree::BraintreeAuthType::try_from(&req.connector_auth_type)
                 .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
@@ -1177,9 +1178,7 @@ impl services::ConnectorIntegration<api::RSync, types::RefundsData, types::Refun
     ) -> CustomResult<String, errors::ConnectorError> {
         let is_connector_new_version = req.is_connector_new_version;
         if is_connector_new_version == Some(true) {
-            Ok(format!(
-                "https://payments.sandbox.braintree-api.com/graphql"
-            ))
+            Ok("https://payments.sandbox.braintree-api.com/graphql".to_string())
         } else {
             Err(errors::ConnectorError::NotImplemented("get_url method".to_string()).into())
         }

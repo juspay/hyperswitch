@@ -923,7 +923,7 @@ impl<F1, F2, T1, T2> From<(&RouterData<F1, T1, PaymentsResponseData>, T2)>
             quote_id: data.quote_id.clone(),
             test_mode: data.test_mode,
             payment_method_balance: data.payment_method_balance.clone(),
-            is_connector_new_version: data.is_connector_new_version.clone(),
+            is_connector_new_version: data.is_connector_new_version,
         }
     }
 }
