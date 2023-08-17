@@ -910,7 +910,7 @@ impl TryFrom<(&PaymentsPreProcessingRouterData, bool)> for PaymentsAuthorizeData
             capture_method: data.request.capture_method,
             router_return_url: data.request.router_return_url.clone(),
             webhook_url: data.request.webhook_url.clone(),
-            complete_authorize_url: data.request.complete_authorize_url.clone(),
+            complete_authorize_url: None,
             setup_future_usage: None,
             mandate_id: None,
             off_session: None,
