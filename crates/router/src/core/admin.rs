@@ -924,6 +924,25 @@ pub async fn create_business_profile(
     ))
 }
 
+pub async fn list_business_profile(
+    db: &dyn StorageInterface,
+    merchant_id: String,
+) -> RouterResponse<Vec<api_models::admin::BusinessProfileResponse>> {
+    let business_profiles = db
+        .list_business_profile_by_merchant_id(&merchant_id)
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::InternalServerError)?
+        .into_iter()
+        .map(|business_profile| {
+            api_models::admin::BusinessProfileResponse::foreign_try_from(business_profile)
+        })
+        .collect::<Result<Vec<_>, _>>()
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to parse business profile details")?;
+
+    Ok(service_api::ApplicationResponse::Json(business_profiles))
+}
+
 pub async fn retrieve_business_profile(
     db: &dyn StorageInterface,
     profile_id: String,

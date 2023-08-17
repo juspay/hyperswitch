@@ -31,6 +31,11 @@ pub trait BusinessProfileInterface {
         profile_id: &str,
         merchant_id: &str,
     ) -> CustomResult<bool, errors::StorageError>;
+
+    async fn list_business_profile_by_merchant_id(
+        &self,
+        merchant_id: &str,
+    ) -> CustomResult<Vec<business_profile::BusinessProfile>, errors::StorageError>;
 }
 
 #[async_trait::async_trait]
@@ -89,6 +94,20 @@ impl BusinessProfileInterface for Store {
         .map_err(Into::into)
         .into_report()
     }
+
+    async fn list_business_profile_by_merchant_id(
+        &self,
+        merchant_id: &str,
+    ) -> CustomResult<Vec<business_profile::BusinessProfile>, errors::StorageError> {
+        let conn = connection::pg_connection_read(self).await?;
+        storage::business_profile::BusinessProfile::list_business_profile_by_merchant_id(
+            &conn,
+            merchant_id,
+        )
+        .await
+        .map_err(Into::into)
+        .into_report()
+    }
 }
 
 #[async_trait::async_trait]
@@ -120,6 +139,13 @@ impl BusinessProfileInterface for MockDb {
         _profile_id: &str,
         _merchant_id: &str,
     ) -> CustomResult<bool, errors::StorageError> {
+        Err(errors::StorageError::MockDbError)?
+    }
+
+    async fn list_business_profile_by_merchant_id(
+        &self,
+        _merchant_id: &str,
+    ) -> CustomResult<Vec<business_profile::BusinessProfile>, errors::StorageError> {
         Err(errors::StorageError::MockDbError)?
     }
 }

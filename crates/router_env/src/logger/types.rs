@@ -199,6 +199,8 @@ pub enum Flow {
     BusinessProfileRetrieve,
     /// Delete a business profile
     BusinessProfileDelete,
+    /// List all the business profiles for a merchant
+    BusinessProfileList,
 }
 
 ///

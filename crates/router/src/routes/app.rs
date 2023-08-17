@@ -536,7 +536,11 @@ impl BusinessProfile {
     pub fn server(state: AppState) -> Scope {
         web::scope("/account/{account_id}/business_profile")
             .app_data(web::Data::new(state))
-            .service(web::resource("").route(web::post().to(business_profile_create)))
+            .service(
+                web::resource("")
+                    .route(web::post().to(business_profile_create))
+                    .route(web::get().to(business_profiles_list)),
+            )
             .service(
                 web::resource("/{profile_id}")
                     .route(web::get().to(business_profile_retrieve))
