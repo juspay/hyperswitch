@@ -6,6 +6,7 @@ pub mod utils;
 use std::fmt::Display;
 
 use actix_web::{body::BoxBody, http::StatusCode, ResponseError};
+use common_utils::errors::ErrorSwitch;
 pub use common_utils::errors::{CustomResult, ParsingError, ValidationError};
 use config::ConfigError;
 pub use data_models::errors::StorageError as DataStorageError;
@@ -80,16 +81,41 @@ pub enum StorageError {
     RedisError(error_stack::Report<RedisError>),
 }
 
-impl common_utils::errors::ErrorSwitch<DataStorageError> for StorageError {
+impl ErrorSwitch<DataStorageError> for StorageError {
     fn switch(&self) -> DataStorageError {
         self.into()
     }
 }
 
+#[allow(clippy::from_over_into)]
 impl Into<DataStorageError> for &StorageError {
     fn into(self) -> DataStorageError {
         match self {
-            StorageError::DatabaseError(i) => DataStorageError::DatabaseError(format!("{i:?}")),
+            StorageError::DatabaseError(i) => match i.current_context() {
+                storage_errors::DatabaseError::DatabaseConnectionError => {
+                    DataStorageError::DatabaseConnectionError
+                }
+                // TODO: Update this error type to encompass & propogate the missing type (instead of generic `db value not found`)
+                storage_errors::DatabaseError::NotFound => {
+                    DataStorageError::ValueNotFound(String::from("db value not found"))
+                }
+                // TODO: Update this error type to encompass & propogate the duplicate type (instead of generic `db value not found`)
+                storage_errors::DatabaseError::UniqueViolation => {
+                    DataStorageError::DuplicateValue {
+                        entity: "db entity",
+                        key: None,
+                    }
+                }
+                storage_errors::DatabaseError::NoFieldsToUpdate => {
+                    DataStorageError::DatabaseError("No fields to update".to_string())
+                }
+                storage_errors::DatabaseError::QueryGenerationFailed => {
+                    DataStorageError::DatabaseError("Query generation failed".to_string())
+                }
+                storage_errors::DatabaseError::Others => {
+                    DataStorageError::DatabaseError("Unknown database error".to_string())
+                }
+            },
             StorageError::ValueNotFound(i) => DataStorageError::ValueNotFound(i.clone()),
             StorageError::DuplicateValue { entity, key } => DataStorageError::DuplicateValue {
                 entity,
@@ -103,7 +129,15 @@ impl Into<DataStorageError> for &StorageError {
             StorageError::DeserializationFailed => DataStorageError::DeserializationFailed,
             StorageError::EncryptionError => DataStorageError::EncryptionError,
             StorageError::DecryptionError => DataStorageError::DecryptionError,
-            StorageError::RedisError(i) => DataStorageError::RedisError(format!("{i:?}")),
+            StorageError::RedisError(i) => match i.current_context() {
+                // TODO: Update this error type to encompass & propogate the missing type (instead of generic `redis value not found`)
+                RedisError::NotFound => {
+                    DataStorageError::ValueNotFound("redis value not found".to_string())
+                }
+                RedisError::JsonSerializationFailed => DataStorageError::SerializationFailed,
+                RedisError::JsonDeserializationFailed => DataStorageError::DeserializationFailed,
+                i => DataStorageError::RedisError(format!("{:?}", i)),
+            },
         }
     }
 }

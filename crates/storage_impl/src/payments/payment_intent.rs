@@ -340,9 +340,7 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
                 }
 
                 query = match (starting_at, starting_after_id) {
-                    (Some(starting_at), _) => {
-                        query.filter(pi_dsl::created_at.ge(starting_at.clone()))
-                    }
+                    (Some(starting_at), _) => query.filter(pi_dsl::created_at.ge(*starting_at)),
                     (None, Some(starting_after_id)) => {
                         // TODO: Fetch partial columns for this query since we only need some columns
                         let starting_at = self
@@ -353,13 +351,13 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
                             )
                             .await?
                             .created_at;
-                        query.filter(pi_dsl::created_at.ge(starting_at.clone()))
+                        query.filter(pi_dsl::created_at.ge(starting_at))
                     }
                     (None, None) => query,
                 };
 
                 query = match (ending_at, ending_before_id) {
-                    (Some(ending_at), _) => query.filter(pi_dsl::created_at.le(ending_at.clone())),
+                    (Some(ending_at), _) => query.filter(pi_dsl::created_at.le(*ending_at)),
                     (None, Some(ending_before_id)) => {
                         // TODO: Fetch partial columns for this query since we only need some columns
                         let ending_at = self
@@ -370,7 +368,7 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
                             )
                             .await?
                             .created_at;
-                        query.filter(pi_dsl::created_at.le(ending_at.clone()))
+                        query.filter(pi_dsl::created_at.le(ending_at))
                     }
                     (None, None) => query,
                 };
@@ -412,7 +410,7 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
         storage_scheme: MerchantStorageScheme,
     ) -> error_stack::Result<Vec<PaymentIntent>, StorageError> {
         // TODO: Remove this redundant function
-        let payment_filters = time_range.clone().into();
+        let payment_filters = (*time_range).into();
         self.filter_payment_intent_by_constraints(merchant_id, &payment_filters, storage_scheme)
             .await
     }
@@ -458,9 +456,7 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
                 }
 
                 query = match (starting_at, starting_after_id) {
-                    (Some(starting_at), _) => {
-                        query.filter(pi_dsl::created_at.ge(starting_at.clone()))
-                    }
+                    (Some(starting_at), _) => query.filter(pi_dsl::created_at.ge(*starting_at)),
                     (None, Some(starting_after_id)) => {
                         // TODO: Fetch partial columns for this query since we only need some columns
                         let starting_at = self
@@ -471,13 +467,13 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
                             )
                             .await?
                             .created_at;
-                        query.filter(pi_dsl::created_at.ge(starting_at.clone()))
+                        query.filter(pi_dsl::created_at.ge(starting_at))
                     }
                     (None, None) => query,
                 };
 
                 query = match (ending_at, ending_before_id) {
-                    (Some(ending_at), _) => query.filter(pi_dsl::created_at.le(ending_at.clone())),
+                    (Some(ending_at), _) => query.filter(pi_dsl::created_at.le(*ending_at)),
                     (None, Some(ending_before_id)) => {
                         // TODO: Fetch partial columns for this query since we only need some columns
                         let ending_at = self
@@ -488,7 +484,7 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
                             )
                             .await?
                             .created_at;
-                        query.filter(pi_dsl::created_at.le(ending_at.clone()))
+                        query.filter(pi_dsl::created_at.le(ending_at))
                     }
                     (None, None) => query,
                 };
@@ -508,7 +504,7 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
                     .map(|c| c.iter().map(|c| c.to_string()).collect::<Vec<String>>());
 
                 query = match connectors {
-                    Some(connectors) => query.filter(pa_dsl::connector.eq_any(connectors.clone())),
+                    Some(connectors) => query.filter(pa_dsl::connector.eq_any(connectors)),
                     None => query,
                 };
 

@@ -23,7 +23,7 @@ impl DataModelExt for MandateAmountData {
     }
 
     fn from_storage_model(storage_model: Self::StorageModel) -> Self {
-        MandateAmountData {
+        Self {
             amount: storage_model.amount,
             currency: storage_model.currency,
             start_date: storage_model.start_date,
@@ -38,11 +38,9 @@ impl DataModelExt for MandateDataType {
 
     fn to_storage_model(self) -> Self::StorageModel {
         match self {
-            MandateDataType::SingleUse(data) => {
-                DieselMandateType::SingleUse(data.to_storage_model())
-            }
-            MandateDataType::MultiUse(None) => DieselMandateType::MultiUse(None),
-            MandateDataType::MultiUse(Some(data)) => {
+            Self::SingleUse(data) => DieselMandateType::SingleUse(data.to_storage_model()),
+            Self::MultiUse(None) => DieselMandateType::MultiUse(None),
+            Self::MultiUse(Some(data)) => {
                 DieselMandateType::MultiUse(Some(data.to_storage_model()))
             }
         }
@@ -51,12 +49,12 @@ impl DataModelExt for MandateDataType {
     fn from_storage_model(storage_model: Self::StorageModel) -> Self {
         match storage_model {
             DieselMandateType::SingleUse(data) => {
-                MandateDataType::SingleUse(MandateAmountData::from_storage_model(data))
+                Self::SingleUse(MandateAmountData::from_storage_model(data))
             }
             DieselMandateType::MultiUse(Some(data)) => {
-                MandateDataType::MultiUse(Some(MandateAmountData::from_storage_model(data)))
+                Self::MultiUse(Some(MandateAmountData::from_storage_model(data)))
             }
-            DieselMandateType::MultiUse(None) => MandateDataType::MultiUse(None),
+            DieselMandateType::MultiUse(None) => Self::MultiUse(None),
         }
     }
 }
