@@ -78,8 +78,6 @@ diesel::table! {
         frm_routing_algorithm -> Nullable<Jsonb>,
         payout_routing_algorithm -> Nullable<Jsonb>,
         is_recon_enabled -> Bool,
-
-
     }
 }
 
