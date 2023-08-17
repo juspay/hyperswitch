@@ -3,17 +3,21 @@ use http::StatusCode;
 #[derive(Debug, Clone, serde::Serialize)]
 pub enum CustomersErrorType {
     ObjectNotFound,
+    InvalidRequestError,
     InternalServerError
 }
 
 #[derive(Debug, Clone, router_derive::ApiError)]
 #[error(error_type_enum = CustomersErrorType)]
 pub enum CustomersErrorResponse {
-    #[error(error_type = CustomersErrorType::InternalServerError, code = "CE_01", message = "Customer has already been redacted")]
+    #[error(error_type = CustomersErrorType::InvalidRequestError, code = "CE_01", message = "Customer has already been redacted")]
     CustomerRedacted,
     
     #[error(error_type = CustomersErrorType::InternalServerError, code = "CE_02", message = "Something went wrong")]
     InternalServerError,
+    
+    #[error(error_type = CustomersErrorType::InvalidRequestError, code = "CE_03", message = "Customer has already been redacted")]
+    MandateActive,
 }           
 
 impl std::fmt::Display for CustomersErrorResponse {

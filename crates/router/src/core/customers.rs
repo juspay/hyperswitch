@@ -174,7 +174,7 @@ pub async fn delete_customer(
     merchant_account: domain::MerchantAccount,
     req: customers::CustomerId,
     key_store: domain::MerchantKeyStore,
-) -> RouterResponse<customers::CustomerDeleteResponse> {
+) -> errors::CustomerResponse<customers::CustomerDeleteResponse> {
     let db = &state.store;
 
     db.find_customer_by_customer_id_merchant_id(
@@ -183,16 +183,16 @@ pub async fn delete_customer(
         &key_store,
     )
     .await
-    .to_not_found_response(errors::ApiErrorResponse::CustomerNotFound)?;
+    .switch()?;
 
     let customer_mandates = db
         .find_mandate_by_merchant_id_customer_id(&merchant_account.merchant_id, &req.customer_id)
         .await
-        .to_not_found_response(errors::ApiErrorResponse::MandateNotFound)?;
-
+        .switch()?;
+    
     for mandate in customer_mandates.into_iter() {
         if mandate.mandate_status == enums::MandateStatus::Active {
-            Err(errors::ApiErrorResponse::MandateActive)?
+            Err(errors::CustomersErrorResponse::MandateActive)?
         }
     }
 
@@ -219,7 +219,7 @@ pub async fn delete_customer(
                     &pm.payment_method_id,
                 )
                 .await
-                .to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)?;
+                .switch()?;
             }
         }
         Err(error) => {
@@ -227,7 +227,7 @@ pub async fn delete_customer(
                 Ok(())
             } else {
                 Err(error)
-                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .change_context(errors::CustomersErrorResponse::InternalServerError)
                     .attach_printable("failed find_payment_method_by_customer_id_merchant_id_list")
             }?
         }
@@ -238,7 +238,7 @@ pub async fn delete_customer(
     let redacted_encrypted_value: Encryptable<masking::Secret<_>> =
         Encryptable::encrypt(REDACTED.to_string().into(), key, GcmAes256)
             .await
-            .change_context(errors::ApiErrorResponse::InternalServerError)?;
+            .switch()?;
 
     let update_address = storage::AddressUpdate::Update {
         city: Some(REDACTED.to_string()),
@@ -269,7 +269,7 @@ pub async fn delete_customer(
                 Ok(())
             } else {
                 Err(error)
-                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .change_context(errors::CustomersErrorResponse::InternalServerError)
                     .attach_printable("failed update_address_by_merchant_id_customer_id")
             }
         }
@@ -280,7 +280,7 @@ pub async fn delete_customer(
         email: Some(
             Encryptable::encrypt(REDACTED.to_string().into(), key, GcmAes256)
                 .await
-                .change_context(errors::ApiErrorResponse::InternalServerError)?,
+                .switch()?,
         ),
         phone: Some(redacted_encrypted_value.clone()),
         description: Some(REDACTED.to_string()),
@@ -295,7 +295,7 @@ pub async fn delete_customer(
         &key_store,
     )
     .await
-    .change_context(errors::ApiErrorResponse::CustomerNotFound)?;
+    .switch()?;
 
     let response = customers::CustomerDeleteResponse {
         customer_id: req.customer_id,

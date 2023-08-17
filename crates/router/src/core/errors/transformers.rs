@@ -279,10 +279,13 @@ impl ErrorSwitch<api_models::errors::types::ApiErrorResponse> for CustomersError
         use api_models::errors::types::{ApiError, ApiErrorResponse as AER};
         match self {
             CustomersErrorResponse::CustomerRedacted => {
-                AER::BadRequest(ApiError::new("IR", 11, "Customer has already been redacted", None))
+                AER::BadRequest(ApiError::new("IR", 0, "Customer has already been redacted", None))
             }
             CustomersErrorResponse::InternalServerError => {
-                AER::InternalServerError(ApiError::new("HE", 0, "Something went wrong", None))
+                AER::InternalServerError(ApiError::new("IR", 1, "Something went wrong", None))
+            }
+            CustomersErrorResponse::MandateActive => {
+                AER::BadRequest(ApiError::new("IR", 2, "Customer has active mandate/subsciption", None))
             }
         }
     }
@@ -298,12 +301,22 @@ impl ErrorSwitch<CustomersErrorResponse> for StorageError {
     }
 }
 
+impl ErrorSwitch<CustomersErrorResponse> for common_utils::errors::CryptoError {
+    fn switch(&self) -> CustomersErrorResponse {
+        use CustomersErrorResponse as CER;
+        match self {
+            _ => CER::InternalServerError,
+        }
+    }
+}
+
 impl ErrorSwitch<StripeErrorCode> for CustomersErrorResponse {
     fn switch(&self) -> StripeErrorCode {
         use StripeErrorCode as SC;
         match self {
             CustomersErrorResponse::CustomerRedacted => SC::CustomerRedacted,
             CustomersErrorResponse::InternalServerError => SC::InternalServerError,
+            CustomersErrorResponse::MandateActive => SC::MandateActive,
         }
     }
 }
