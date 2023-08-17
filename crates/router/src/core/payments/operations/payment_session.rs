@@ -6,7 +6,6 @@ use common_utils::ext_traits::{AsyncExt, ValueExt};
 use error_stack::ResultExt;
 use router_derive::PaymentOperation;
 use router_env::{instrument, logger, tracing};
-use storage_impl::DataModelExt;
 
 use super::{BoxedOperation, Domain, GetTracker, Operation, UpdateTracker, ValidateRequest};
 use crate::{
@@ -327,7 +326,7 @@ where
 
         let filtered_connector_accounts = helpers::filter_mca_based_on_business_details(
             all_connector_accounts,
-            Some(&payment_intent.clone().to_storage_model()),
+            Some(&payment_intent),
         );
 
         let requested_payment_method_types = request.wallets.clone();
