@@ -118,7 +118,6 @@ impl ConnectorValidation for Rapyd {
             Err(errors::ConnectorError::NotSupported {
                 message: capture_method.into(),
                 connector: self.id(),
-                payment_experience: "".to_string(),
             }
             .into())
         } else {

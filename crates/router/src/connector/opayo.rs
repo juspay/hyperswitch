@@ -124,7 +124,6 @@ impl ConnectorValidation for Opayo {
             Err(errors::ConnectorError::NotSupported {
                 message: capture_method.into(),
                 connector: self.id(),
-                payment_experience: "".to_string(),
             }
             .into())
         } else {
@@ -169,10 +168,6 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         _req: &types::PaymentsAuthorizeRouterData,
         _connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        // should uncomment below if block once implemented
-        // if req.request.capture_method == Some(enums::CaptureMethod::ManualMultiple) {
-        //     return Err(errors::ConnectorError::CaptureMethodNotSupported.into());
-        // }
         Err(errors::ConnectorError::NotImplemented("get_url method".to_string()).into())
     }
 

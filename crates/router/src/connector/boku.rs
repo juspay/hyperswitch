@@ -149,7 +149,6 @@ impl ConnectorValidation for Boku {
             Err(errors::ConnectorError::NotSupported {
                 message: capture_method.into(),
                 connector: self.id(),
-                payment_experience: "".to_string(),
             }
             .into())
         } else {

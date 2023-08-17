@@ -128,7 +128,6 @@ impl<const T: u8> ConnectorValidation for DummyConnector<T> {
             Err(errors::ConnectorError::NotSupported {
                 message: capture_method.into(),
                 connector: self.id(),
-                payment_experience: "".to_string(),
             }
             .into())
         } else {

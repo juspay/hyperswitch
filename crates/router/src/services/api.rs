@@ -64,7 +64,6 @@ pub trait ConnectorValidation: ConnectorCommon {
                 Err(errors::ConnectorError::NotSupported {
                     message: "manual, manual_multiple and scheduled capture method".into(),
                     connector: self.id(),
-                    payment_experience: "".to_string(),
                 }
                 .into())
             }

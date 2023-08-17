@@ -117,7 +117,6 @@ impl ConnectorValidation for Shift4 {
             Err(errors::ConnectorError::NotSupported {
                 message: capture_method.into(),
                 connector: self.id(),
-                payment_experience: "".to_string(),
             }
             .into())
         } else {

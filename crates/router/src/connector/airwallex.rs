@@ -106,7 +106,6 @@ impl ConnectorValidation for Airwallex {
             Err(errors::ConnectorError::NotSupported {
                 message: capture_method.to_string(),
                 connector: self.id(),
-                payment_experience: "".to_string(),
             }
             .into())
         } else {

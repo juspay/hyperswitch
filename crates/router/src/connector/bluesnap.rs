@@ -154,7 +154,6 @@ impl ConnectorValidation for Bluesnap {
             Err(errors::ConnectorError::NotSupported {
                 message: capture_method.to_string(),
                 connector: self.id(),
-                payment_experience: "".to_string(),
             }
             .into())
         } else {
