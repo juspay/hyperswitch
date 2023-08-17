@@ -48,8 +48,8 @@ fn get_mid(
                 }),
             }
         }
-        (_, None) => Err(errors::ConnectorError::MissingPaymentMethodType.into()),
-        _ => Err(errors::ConnectorError::FailedToObtainAuthType.into()),
+        (_, None) => Err(errors::ConnectorError::MissingPaymentMethodType),
+        _ => Err(errors::ConnectorError::FailedToObtainAuthType),
     }
 }
 
