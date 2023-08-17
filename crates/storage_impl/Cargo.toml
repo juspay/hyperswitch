@@ -18,7 +18,7 @@ olap = ["data_models/olap"]
 common_utils = { version = "0.1.0", path = "../common_utils" }
 api_models = { version = "0.1.0", path = "../api_models" }
 diesel_models = { version = "0.1.0", path = "../diesel_models" }
-data_models = { version = "0.1.0", path = "../data_models" }
+data_models = { version = "0.1.0", path = "../data_models", default-features = false }
 masking = { version = "0.1.0", path = "../masking" }
 redis_interface = { version = "0.1.0", path = "../redis_interface" }
 router_env = { version = "0.1.0", path = "../router_env" }

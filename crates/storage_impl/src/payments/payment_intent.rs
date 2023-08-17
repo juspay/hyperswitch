@@ -1,29 +1,36 @@
+#[cfg(feature = "olap")]
 use async_bb8_diesel::AsyncRunQueryDsl;
 use common_utils::{date_time, ext_traits::Encode};
+#[cfg(feature = "olap")]
+use data_models::payments::{
+    payment_attempt::PaymentAttempt, payment_intent::PaymentIntentFetchConstraints,
+};
 use data_models::{
     errors::StorageError,
-    payments::{
-        payment_attempt::PaymentAttempt,
-        payment_intent::{
-            PaymentIntent, PaymentIntentFetchConstraints, PaymentIntentInterface, PaymentIntentNew,
-            PaymentIntentUpdate,
-        },
+    payments::payment_intent::{
+        PaymentIntent, PaymentIntentInterface, PaymentIntentNew, PaymentIntentUpdate,
     },
     MerchantStorageScheme,
 };
+#[cfg(feature = "olap")]
+use diesel_models::query::generics::db_metrics;
+#[cfg(feature = "olap")]
 use diesel::{associations::HasTable, ExpressionMethods, JoinOnDsl, QueryDsl};
 use diesel_models::{
     kv,
-    payment_attempt::PaymentAttempt as DieselPaymentAttempt,
     payment_intent::{
         PaymentIntent as DieselPaymentIntent, PaymentIntentNew as DieselPaymentIntentNew,
         PaymentIntentUpdate as DieselPaymentIntentUpdate,
     },
-    query::generics::db_metrics,
+};
+#[cfg(feature = "olap")]
+use diesel_models::{
+    payment_attempt::PaymentAttempt as DieselPaymentAttempt,
     schema::{payment_attempt::dsl as pa_dsl, payment_intent::dsl as pi_dsl},
 };
 use error_stack::{IntoReport, ResultExt};
 use redis_interface::HsetnxReply;
+#[cfg(feature = "olap")]
 use router_env::logger;
 
 use crate::{
@@ -32,6 +39,7 @@ use crate::{
     DataModelExt, DatabaseStore, KVRouterStore,
 };
 
+#[cfg(feature = "olap")]
 const QUERY_LIMIT: u32 = 20;
 
 #[async_trait::async_trait]

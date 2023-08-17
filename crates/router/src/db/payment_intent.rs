@@ -1,8 +1,9 @@
+use data_models::payments::payment_intent::{
+    PaymentIntent, PaymentIntentInterface, PaymentIntentNew,
+};
+#[cfg(feature = "olap")]
 use data_models::payments::{
-    payment_attempt::PaymentAttempt,
-    payment_intent::{
-        PaymentIntent, PaymentIntentFetchConstraints, PaymentIntentInterface, PaymentIntentNew,
-    },
+    payment_attempt::PaymentAttempt, payment_intent::PaymentIntentFetchConstraints,
 };
 
 use super::MockDb;
