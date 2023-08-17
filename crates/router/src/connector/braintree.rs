@@ -16,10 +16,11 @@ use crate::{
     services::{
         self,
         request::{self, Mask},
+        ConnectorIntegration,
     },
     types::{
         self,
-        api::{self, ConnectorCommon},
+        api::{self, ConnectorCommon, ConnectorCommonExt},
         ErrorResponse,
     },
     utils::{self, BytesExt},
@@ -27,6 +28,34 @@ use crate::{
 
 #[derive(Debug, Clone)]
 pub struct Braintree;
+
+pub const BRAINTREE_VERSION: &str = "Braintree-Version";
+pub const BRAINTREE_VERSION_VALUE: &str = "2019-01-01";
+
+impl<Flow, Request, Response> ConnectorCommonExt<Flow, Request, Response> for Braintree
+where
+    Self: ConnectorIntegration<Flow, Request, Response>,
+{
+    fn build_headers(
+        &self,
+        req: &types::RouterData<Flow, Request, Response>,
+        _connectors: &settings::Connectors,
+    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
+        let mut header = vec![
+            (
+                headers::CONTENT_TYPE.to_string(),
+                self.get_content_type().to_string().into(),
+            ),
+            (
+                BRAINTREE_VERSION.to_string(),
+                BRAINTREE_VERSION_VALUE.to_string().into(),
+            ),
+        ];
+        let mut api_key = self.get_auth_header(&req.connector_auth_type)?;
+        header.append(&mut api_key);
+        Ok(header)
+    }
+}
 
 impl ConnectorCommon for Braintree {
     fn id(&self) -> &'static str {
@@ -107,22 +136,14 @@ impl api::PaymentCapture for Braintree {}
 impl api::PaymentSession for Braintree {}
 impl api::ConnectorAccessToken for Braintree {}
 
-impl
-    services::ConnectorIntegration<
-        api::AccessTokenAuth,
-        types::AccessTokenRequestData,
-        types::AccessToken,
-    > for Braintree
+impl ConnectorIntegration<api::AccessTokenAuth, types::AccessTokenRequestData, types::AccessToken>
+    for Braintree
 {
     // Not Implemented (R)
 }
 
-impl
-    services::ConnectorIntegration<
-        api::Session,
-        types::PaymentsSessionData,
-        types::PaymentsResponseData,
-    > for Braintree
+impl ConnectorIntegration<api::Session, types::PaymentsSessionData, types::PaymentsResponseData>
+    for Braintree
 {
     fn get_headers(
         &self,
@@ -229,7 +250,7 @@ impl
 impl api::PaymentToken for Braintree {}
 
 impl
-    services::ConnectorIntegration<
+    ConnectorIntegration<
         api::PaymentMethodToken,
         types::PaymentMethodTokenizationData,
         types::PaymentsResponseData,
@@ -238,23 +259,9 @@ impl
     fn get_headers(
         &self,
         req: &types::TokenizationRouterData,
-        _connectors: &settings::Connectors,
+        connectors: &settings::Connectors,
     ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
-        let mut headers = vec![
-            (
-                headers::CONTENT_TYPE.to_string(),
-                types::TokenizationType::get_content_type(self)
-                    .to_string()
-                    .into(),
-            ),
-            (
-                "Braintree-Version".to_string(),
-                "2019-01-01".to_string().into(),
-            ),
-        ];
-        let mut api_key = self.get_auth_header(&req.connector_auth_type)?;
-        headers.append(&mut api_key);
-        Ok(headers)
+        self.build_headers(req, connectors)
     }
 
     fn get_content_type(&self) -> &'static str {
@@ -266,7 +273,7 @@ impl
         _req: &types::TokenizationRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Ok(format!("{}", connectors.braintree.base_url_graph_ql_api))
+        Ok(connectors.braintree.base_url_graph_ql_api.to_string())
     }
 
     fn get_request_body(
@@ -335,45 +342,23 @@ impl
 impl api::PreVerify for Braintree {}
 
 #[allow(dead_code)]
-impl
-    services::ConnectorIntegration<
-        api::Verify,
-        types::VerifyRequestData,
-        types::PaymentsResponseData,
-    > for Braintree
+impl ConnectorIntegration<api::Verify, types::VerifyRequestData, types::PaymentsResponseData>
+    for Braintree
 {
     // Not Implemented (R)
 }
 
-impl
-    services::ConnectorIntegration<
-        api::Capture,
-        types::PaymentsCaptureData,
-        types::PaymentsResponseData,
-    > for Braintree
+impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::PaymentsResponseData>
+    for Braintree
 {
     fn get_headers(
         &self,
         req: &types::PaymentsCaptureRouterData,
-        _connectors: &settings::Connectors,
+        connectors: &settings::Connectors,
     ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
         let is_connector_new_version = req.is_connector_new_version;
         if is_connector_new_version == Some(true) {
-            let mut headers = vec![
-                (
-                    headers::CONTENT_TYPE.to_string(),
-                    types::TokenizationType::get_content_type(self)
-                        .to_string()
-                        .into(),
-                ),
-                (
-                    "Braintree-Version".to_string(),
-                    "2019-01-01".to_string().into(),
-                ),
-            ];
-            let mut api_key = self.get_auth_header(&req.connector_auth_type)?;
-            headers.append(&mut api_key);
-            Ok(headers)
+            self.build_headers(req, connectors)
         } else {
             Ok(vec![])
         }
@@ -390,7 +375,7 @@ impl
     ) -> CustomResult<String, errors::ConnectorError> {
         let is_connector_new_version = req.is_connector_new_version;
         if is_connector_new_version == Some(true) {
-            Ok(format!("{}", connectors.braintree.base_url_graph_ql_api))
+            Ok(connectors.braintree.base_url_graph_ql_api.to_string())
         } else {
             Err(errors::ConnectorError::NotImplemented("get_url method".to_string()).into())
         }
@@ -469,32 +454,17 @@ impl
     }
 }
 
-impl
-    services::ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsResponseData>
+impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsResponseData>
     for Braintree
 {
     fn get_headers(
         &self,
         req: &types::PaymentsSyncRouterData,
-        _connectors: &settings::Connectors,
+        connectors: &settings::Connectors,
     ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
         let is_connector_new_version = req.is_connector_new_version;
         if is_connector_new_version == Some(true) {
-            let mut headers = vec![
-                (
-                    headers::CONTENT_TYPE.to_string(),
-                    types::TokenizationType::get_content_type(self)
-                        .to_string()
-                        .into(),
-                ),
-                (
-                    "Braintree-Version".to_string(),
-                    "2019-01-01".to_string().into(),
-                ),
-            ];
-            let mut api_key = self.get_auth_header(&req.connector_auth_type)?;
-            headers.append(&mut api_key);
-            Ok(headers)
+            self.build_headers(req, connectors)
         } else {
             let mut headers = vec![
                 (
@@ -526,7 +496,7 @@ impl
     ) -> CustomResult<String, errors::ConnectorError> {
         let is_connector_new_version = req.is_connector_new_version;
         if is_connector_new_version == Some(true) {
-            Ok(format!("{}", connectors.braintree.base_url_graph_ql_api))
+            Ok(connectors.braintree.base_url_graph_ql_api.to_string())
         } else {
             let auth_type = braintree::BraintreeAuthType::try_from(&req.connector_auth_type)
                 .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
@@ -630,35 +600,17 @@ impl
     }
 }
 
-impl
-    services::ConnectorIntegration<
-        api::Authorize,
-        types::PaymentsAuthorizeData,
-        types::PaymentsResponseData,
-    > for Braintree
+impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::PaymentsResponseData>
+    for Braintree
 {
     fn get_headers(
         &self,
         req: &types::PaymentsAuthorizeRouterData,
-        _connectors: &settings::Connectors,
+        connectors: &settings::Connectors,
     ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
         let is_connector_new_version = req.is_connector_new_version;
         if is_connector_new_version == Some(true) {
-            let mut headers = vec![
-                (
-                    headers::CONTENT_TYPE.to_string(),
-                    types::PaymentsAuthorizeType::get_content_type(self)
-                        .to_string()
-                        .into(),
-                ),
-                (
-                    "Braintree-Version".to_string(),
-                    "2019-01-01".to_string().into(),
-                ),
-            ];
-            let mut api_key = self.get_auth_header(&req.connector_auth_type)?;
-            headers.append(&mut api_key);
-            Ok(headers)
+            self.build_headers(req, connectors)
         } else {
             let mut headers = vec![
                 (
@@ -686,7 +638,7 @@ impl
     ) -> CustomResult<String, errors::ConnectorError> {
         let is_connector_new_version = req.is_connector_new_version;
         if is_connector_new_version == Some(true) {
-            Ok(format!("{}", connectors.braintree.base_url_graph_ql_api))
+            Ok(connectors.braintree.base_url_graph_ql_api.to_string())
         } else {
             let auth_type = braintree::BraintreeAuthType::try_from(&req.connector_auth_type)
                 .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
@@ -810,35 +762,17 @@ impl
     }
 }
 
-impl
-    services::ConnectorIntegration<
-        api::Void,
-        types::PaymentsCancelData,
-        types::PaymentsResponseData,
-    > for Braintree
+impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsResponseData>
+    for Braintree
 {
     fn get_headers(
         &self,
         req: &types::PaymentsCancelRouterData,
-        _connectors: &settings::Connectors,
+        connectors: &settings::Connectors,
     ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
         let is_connector_new_version = req.is_connector_new_version;
         if is_connector_new_version == Some(true) {
-            let mut headers = vec![
-                (
-                    headers::CONTENT_TYPE.to_string(),
-                    types::PaymentsVoidType::get_content_type(self)
-                        .to_string()
-                        .into(),
-                ),
-                (
-                    "Braintree-Version".to_string(),
-                    "2019-01-01".to_string().into(),
-                ),
-            ];
-            let mut api_key = self.get_auth_header(&req.connector_auth_type)?;
-            headers.append(&mut api_key);
-            Ok(headers)
+            self.build_headers(req, connectors)
         } else {
             let mut headers = vec![
                 (
@@ -870,7 +804,7 @@ impl
     ) -> CustomResult<String, errors::ConnectorError> {
         let is_connector_new_version = req.is_connector_new_version;
         if is_connector_new_version == Some(true) {
-            Ok(format!("{}", connectors.braintree.base_url_graph_ql_api))
+            Ok(connectors.braintree.base_url_graph_ql_api.to_string())
         } else {
             let auth_type = braintree::BraintreeAuthType::try_from(&req.connector_auth_type)
                 .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
@@ -959,31 +893,17 @@ impl api::Refund for Braintree {}
 impl api::RefundExecute for Braintree {}
 impl api::RefundSync for Braintree {}
 
-impl services::ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsResponseData>
+impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsResponseData>
     for Braintree
 {
     fn get_headers(
         &self,
         req: &types::RefundsRouterData<api::Execute>,
-        _connectors: &settings::Connectors,
+        connectors: &settings::Connectors,
     ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
         let is_connector_new_version = req.is_connector_new_version;
         if is_connector_new_version == Some(true) {
-            let mut headers = vec![
-                (
-                    headers::CONTENT_TYPE.to_string(),
-                    types::TokenizationType::get_content_type(self)
-                        .to_string()
-                        .into(),
-                ),
-                (
-                    "Braintree-Version".to_string(),
-                    "2019-01-01".to_string().into(),
-                ),
-            ];
-            let mut api_key = self.get_auth_header(&req.connector_auth_type)?;
-            headers.append(&mut api_key);
-            Ok(headers)
+            self.build_headers(req, connectors)
         } else {
             let mut headers = vec![
                 (
@@ -1015,7 +935,7 @@ impl services::ConnectorIntegration<api::Execute, types::RefundsData, types::Ref
     ) -> CustomResult<String, errors::ConnectorError> {
         let is_connector_new_version = req.is_connector_new_version;
         if is_connector_new_version == Some(true) {
-            Ok(format!("{}", connectors.braintree.base_url_graph_ql_api))
+            Ok(connectors.braintree.base_url_graph_ql_api.to_string())
         } else {
             let auth_type = braintree::BraintreeAuthType::try_from(&req.connector_auth_type)
                 .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
@@ -1108,31 +1028,17 @@ impl services::ConnectorIntegration<api::Execute, types::RefundsData, types::Ref
     }
 }
 
-impl services::ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponseData>
+impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponseData>
     for Braintree
 {
     fn get_headers(
         &self,
         req: &types::RefundSyncRouterData,
-        _connectors: &settings::Connectors,
+        connectors: &settings::Connectors,
     ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
         let is_connector_new_version = req.is_connector_new_version;
         if is_connector_new_version == Some(true) {
-            let mut headers = vec![
-                (
-                    headers::CONTENT_TYPE.to_string(),
-                    types::TokenizationType::get_content_type(self)
-                        .to_string()
-                        .into(),
-                ),
-                (
-                    "Braintree-Version".to_string(),
-                    "2019-01-01".to_string().into(),
-                ),
-            ];
-            let mut api_key = self.get_auth_header(&req.connector_auth_type)?;
-            headers.append(&mut api_key);
-            Ok(headers)
+            self.build_headers(req, connectors)
         } else {
             Ok(vec![])
         }
@@ -1149,7 +1055,7 @@ impl services::ConnectorIntegration<api::RSync, types::RefundsData, types::Refun
     ) -> CustomResult<String, errors::ConnectorError> {
         let is_connector_new_version = req.is_connector_new_version;
         if is_connector_new_version == Some(true) {
-            Ok(format!("{}", connectors.braintree.base_url_graph_ql_api))
+            Ok(connectors.braintree.base_url_graph_ql_api.to_string())
         } else {
             Err(errors::ConnectorError::NotImplemented("get_url method".to_string()).into())
         }
