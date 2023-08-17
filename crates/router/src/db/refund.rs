@@ -249,7 +249,7 @@ mod storage {
             &self,
             merchant_id: &str,
             refund_details: &api_models::refunds::RefundListRequest,
-            storage_scheme: enums::MerchantStorageScheme,
+            _storage_scheme: enums::MerchantStorageScheme,
         ) -> CustomResult<i64, errors::StorageError> {
             let conn = connection::pg_connection_read(self).await?;
             <diesel_models::refund::Refund as storage_types::RefundDbExt>::get_refunds_count(
@@ -1053,12 +1053,7 @@ impl RefundInterface for MockDb {
             .cloned()
             .collect::<Vec<_>>();
 
-        let filtered_refunds_count: Result<i64, _> = filtered_refunds.len().try_into();
-
-        let filtered_refunds_count = match filtered_refunds_count {
-            Ok(count) => count,
-            Err(_) => -1,
-        };
+        let filtered_refunds_count = filtered_refunds.len().try_into().unwrap_or_default();
 
         Ok(filtered_refunds_count)
     }
