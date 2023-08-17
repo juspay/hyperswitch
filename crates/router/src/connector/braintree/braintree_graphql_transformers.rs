@@ -247,12 +247,12 @@ pub enum BraintreePaymentStatus {
 #[derive(Debug, Clone, Deserialize)]
 pub struct ErrorDetails {
     pub message: String,
-    pub extensions: AditionalErrorDetails,
+    pub extensions: AdditionalErrorDetails,
 }
 
 #[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct AditionalErrorDetails {
+pub struct AdditionalErrorDetails {
     pub legacy_code: Option<String>,
 }
 
