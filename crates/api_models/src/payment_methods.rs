@@ -1,10 +1,12 @@
-use std::collections::HashSet;
+use std::collections::HashMap;
 
 use cards::CardNumber;
 use common_utils::{crypto::OptionalEncryptableName, pii};
 use serde::de;
 use utoipa::ToSchema;
 
+#[cfg(feature = "payouts")]
+use crate::payouts;
 use crate::{
     admin, enums as api_enums,
     payments::{self, BankCodeResponse},
@@ -218,7 +220,7 @@ pub struct ResponsePaymentMethodTypes {
     pub bank_transfers: Option<BankTransferTypes>,
 
     /// Required fields for the payment_method_type.
-    pub required_fields: Option<HashSet<RequiredFieldInfo>>,
+    pub required_fields: Option<HashMap<String, RequiredFieldInfo>>,
 }
 
 /// Required fields info used while listing the payment_method_data
@@ -233,6 +235,8 @@ pub struct RequiredFieldInfo {
     /// Possible field type of required field
     #[schema(value_type = FieldType)]
     pub field_type: api_enums::FieldType,
+
+    pub value: Option<String>,
 }
 
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize, ToSchema)]
@@ -568,6 +572,15 @@ pub struct CustomerPaymentMethod {
     #[schema(value_type = Option<PrimitiveDateTime>,example = "2023-01-18T11:04:09.922Z")]
     #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
     pub created: Option<time::PrimitiveDateTime>,
+
+    /// Payment method details from locker
+    #[cfg(feature = "payouts")]
+    #[schema(value_type = Option<Bank>)]
+    pub bank_transfer: Option<payouts::Bank>,
+
+    /// Whether this payment method requires CVV to be collected
+    #[schema(example = true)]
+    pub requires_cvv: bool,
 }
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct PaymentMethodId {
@@ -654,5 +667,15 @@ pub struct TokenizedBankTransferValue1 {
 
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
 pub struct TokenizedBankTransferValue2 {
+    pub customer_id: Option<String>,
+}
+
+#[derive(Debug, serde::Serialize, serde::Deserialize)]
+pub struct TokenizedBankRedirectValue1 {
+    pub data: payments::BankRedirectData,
+}
+
+#[derive(Debug, serde::Serialize, serde::Deserialize)]
+pub struct TokenizedBankRedirectValue2 {
     pub customer_id: Option<String>,
 }

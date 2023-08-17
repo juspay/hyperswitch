@@ -1,9 +1,10 @@
-mod transformers;
+pub mod transformers;
 
 use std::fmt::Debug;
 
 use common_utils::{crypto, ext_traits::ByteSliceExt};
 use error_stack::{IntoReport, ResultExt};
+use masking::PeekInterface;
 use transformers as zen;
 use uuid::Uuid;
 
@@ -94,7 +95,7 @@ impl ConnectorCommon for Zen {
         let auth = zen::ZenAuthType::try_from(auth_type)?;
         Ok(vec![(
             headers::AUTHORIZATION.to_string(),
-            format!("Bearer {}", auth.api_key).into_masked(),
+            format!("Bearer {}", auth.api_key.peek()).into_masked(),
         )])
     }
 
@@ -556,9 +557,10 @@ impl api::IncomingWebhook for Zen {
         &self,
         db: &dyn StorageInterface,
         request: &api::IncomingWebhookRequestDetails<'_>,
-        merchant_id: &str,
+        merchant_account: &domain::MerchantAccount,
         connector_label: &str,
         key_store: &domain::MerchantKeyStore,
+        object_reference_id: api_models::webhooks::ObjectReferenceId,
     ) -> CustomResult<bool, errors::ConnectorError> {
         let algorithm = self.get_webhook_source_verification_algorithm(request)?;
 
@@ -566,13 +568,17 @@ impl api::IncomingWebhook for Zen {
         let mut secret = self
             .get_webhook_source_verification_merchant_secret(
                 db,
-                merchant_id,
+                merchant_account,
                 connector_label,
                 key_store,
+                object_reference_id,
             )
             .await?;
-        let mut message =
-            self.get_webhook_source_verification_message(request, merchant_id, &secret)?;
+        let mut message = self.get_webhook_source_verification_message(
+            request,
+            &merchant_account.merchant_id,
+            &secret,
+        )?;
         message.append(&mut secret);
         algorithm
             .verify_signature(&secret, &signature, &message)

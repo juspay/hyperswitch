@@ -1,6 +1,8 @@
-use std::str::FromStr;
 use masking::Secret;
-use router::types::{self, api, storage::enums};
+use router::{
+    core::utils as core_utils,
+    types::{self, api, storage::enums,
+}};
 
 use crate::utils::{self, ConnectorActions};
 use test_utils::connector_auth;
@@ -19,10 +21,10 @@ impl utils::Connector for {{project-name | downcase | pascal_case}}Test {
     }
 
     fn get_auth_token(&self) -> types::ConnectorAuthType {
-        types::ConnectorAuthType::from(
+        utils::to_connector_auth_type(
             connector_auth::ConnectorAuthentication::new()
                 .{{project-name | downcase}}
-                .expect("Missing connector authentication configuration"),
+                .expect("Missing connector authentication configuration").into(),
         )
     }
 

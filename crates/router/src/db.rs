@@ -1,6 +1,7 @@
 pub mod address;
 pub mod api_keys;
 pub mod cache;
+pub mod capture;
 pub mod cards_info;
 pub mod configs;
 pub mod connector_response;
@@ -9,6 +10,7 @@ pub mod dispute;
 pub mod ephemeral_key;
 pub mod events;
 pub mod file;
+pub mod fraud_check;
 pub mod locker_mock_up;
 pub mod mandate;
 pub mod merchant_account;
@@ -17,14 +19,15 @@ pub mod merchant_key_store;
 pub mod payment_attempt;
 pub mod payment_intent;
 pub mod payment_method;
+pub mod payout_attempt;
+pub mod payouts;
 pub mod refund;
 pub mod reverse_lookup;
 
-use std::sync::Arc;
+use masking::PeekInterface;
+use storage_impl::{redis::kv_store::RedisConnInterface, MockDb};
 
-pub use diesel_models::services::{MockDb, Store};
-
-use crate::services;
+use crate::services::Store;
 
 #[derive(PartialEq, Eq)]
 pub enum StorageImpl {
@@ -41,12 +44,14 @@ pub trait StorageInterface:
     + address::AddressInterface
     + api_keys::ApiKeyInterface
     + configs::ConfigInterface
+    + capture::CaptureInterface
     + connector_response::ConnectorResponseInterface
     + customers::CustomerInterface
     + dispute::DisputeInterface
     + ephemeral_key::EphemeralKeyInterface
     + events::EventInterface
     + file::FileMetadataInterface
+    + fraud_check::FraudCheckInterface
     + locker_mock_up::LockerMockUpInterface
     + mandate::MandateInterface
     + merchant_account::MerchantAccountInterface
@@ -56,12 +61,14 @@ pub trait StorageInterface:
     + payment_intent::PaymentIntentInterface
     + payment_method::PaymentMethodInterface
     + scheduler::SchedulerInterface
+    + payout_attempt::PayoutAttemptInterface
+    + payouts::PayoutsInterface
     + refund::RefundInterface
     + reverse_lookup::ReverseLookupInterface
     + cards_info::CardsInfoInterface
     + merchant_key_store::MerchantKeyStoreInterface
     + MasterKeyInterface
-    + services::RedisConnInterface
+    + RedisConnInterface
     + 'static
 {
     fn get_scheduler_db(&self) -> Box<dyn scheduler::SchedulerInterface>;
@@ -73,7 +80,7 @@ pub trait MasterKeyInterface {
 
 impl MasterKeyInterface for Store {
     fn get_master_key(&self) -> &[u8] {
-        &self.master_key
+        self.master_key().peek()
     }
 }
 
@@ -116,12 +123,6 @@ where
     bytes
         .parse_struct(type_name)
         .change_context(redis_interface::errors::RedisError::JsonDeserializationFailed)
-}
-
-impl services::RedisConnInterface for MockDb {
-    fn get_redis_conn(&self) -> Arc<redis_interface::RedisConnectionPool> {
-        self.redis.clone()
-    }
 }
 
 dyn_clone::clone_trait_object!(StorageInterface);

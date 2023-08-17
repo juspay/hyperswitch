@@ -3,7 +3,9 @@ name: Connector UI Sanity Tests
 on:
   workflow_dispatch:
   
-  pull_request:
+  pull_request_review:
+    types: 
+      - submitted
   merge_group:
     types:
       - checks_requested
@@ -69,45 +71,46 @@ jobs:
       matrix:
         connector:
           # do not use more than 2 runners, try to group less time taking connectors together
-          - stripe,airwallex,bluesnap,checkout,trustpay_3ds,payu
-          - adyen_uk,shift4,worldline,multisafepay,paypal,mollie
+          - stripe,airwallex,bluesnap,checkout,trustpay_3ds,payu,authorizedotnet,aci,noon
+          - adyen_uk,shift4,worldline,multisafepay,paypal,mollie,nexinets
+          
 
     steps:
       - name: Ignore Tests incase of pull request
-        if: github.event_name == 'pull_request'
+        if: github.event_name == 'pull_request' || github.event_name == 'merge_group'
         shell: bash
         run: |
           echo "Skipped tests as the event is pull request" 
           exit 0
 
       - name: Checkout repository
-        if: github.event_name != 'pull_request'
+        if: (github.event_name == 'pull_request_review' && github.event.review.state == 'approved') || (github.event_name == 'workflow_dispatch')
         uses: actions/checkout@v3
 
       - name: Decrypt connector auth file
-        if: github.event_name != 'pull_request'
+        if: (github.event_name == 'pull_request_review' && github.event.review.state == 'approved') || (github.event_name == 'workflow_dispatch')
         env:
           CONNECTOR_AUTH_PASSPHRASE: ${{ secrets.CONNECTOR_AUTH_PASSPHRASE }}
         shell: bash
         run: ./scripts/decrypt_connector_auth.sh
 
       - name: Set connector auth file path in env
-        if: github.event_name != 'pull_request'
+        if: (github.event_name == 'pull_request_review' && github.event.review.state == 'approved') || (github.event_name == 'workflow_dispatch')
         shell: bash
         run: echo "CONNECTOR_AUTH_FILE_PATH=$HOME/target/test/connector_auth.toml" >> $GITHUB_ENV
 
       - name: Set connector tests file path in env
-        if: github.event_name != 'pull_request'
+        if: (github.event_name == 'pull_request_review' && github.event.review.state == 'approved') || (github.event_name == 'workflow_dispatch')
         shell: bash
         run: echo "CONNECTOR_TESTS_FILE_PATH=$HOME/target/test/connector_tests.json" >> $GITHUB_ENV
 
       - name: Set ignore_browser_profile usage in env
-        if: github.event_name != 'pull_request'  
+        if: (github.event_name == 'pull_request_review' && github.event.review.state == 'approved') || (github.event_name == 'workflow_dispatch')  
         shell: bash
         run: echo "IGNORE_BROWSER_PROFILE=true" >> $GITHUB_ENV
 
       - name: Install latest compiler
-        if: github.event_name != 'pull_request'  
+        if: (github.event_name == 'pull_request_review' && github.event.review.state == 'approved') || (github.event_name == 'workflow_dispatch')  
         uses: actions-rs/toolchain@v1
         with:
           toolchain: stable
@@ -115,21 +118,21 @@ jobs:
       - uses: Swatinem/rust-cache@v2.4.0
 
       - uses: baptiste0928/cargo-install@v2.1.0
-        if: github.event_name != 'pull_request'  
+        if: (github.event_name == 'pull_request_review' && github.event.review.state == 'approved') || (github.event_name == 'workflow_dispatch')  
         with:
           crate: diesel_cli
           features: postgres
           args: "--no-default-features"
 
       - name: Diesel migration run
-        if: github.event_name != 'pull_request'  
+        if: (github.event_name == 'pull_request_review' && github.event.review.state == 'approved') || (github.event_name == 'workflow_dispatch')  
         shell: bash
         env:
           DATABASE_URL: postgres://db_user:db_pass@localhost:5432/hyperswitch_db
         run: diesel migration run
 
       - name: Start server and run tests
-        if: github.event_name != 'pull_request'  
+        if: (github.event_name == 'pull_request_review' && github.event.review.state == 'approved') || (github.event_name == 'workflow_dispatch')  
         env:
           UI_TESTCASES_PATH: ${{ secrets.UI_TESTCASES_PATH }}
           INPUT: ${{ matrix.connector }}
@@ -137,12 +140,12 @@ jobs:
         run: sh .github/scripts/run_ui_tests.sh
 
       - name: View test results
-        if: github.event_name != 'pull_request'  
+        if: (github.event_name == 'pull_request_review' && github.event.review.state == 'approved') || (github.event_name == 'workflow_dispatch')  
         shell: bash
         run: cat tests/test_results.log
 
       - name: Check test results
-        if: github.event_name != 'pull_request'  
+        if: (github.event_name == 'pull_request_review' && github.event.review.state == 'approved') || (github.event_name == 'workflow_dispatch')  
         shell: bash
         run: |
           if test "$( grep 'test result: FAILED' -r tests/test_results.log | wc -l )" -gt "0"; then

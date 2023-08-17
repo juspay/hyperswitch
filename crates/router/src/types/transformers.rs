@@ -1,5 +1,5 @@
 use api_models::enums as api_enums;
-use common_utils::{crypto::Encryptable, ext_traits::ValueExt};
+use common_utils::{crypto::Encryptable, ext_traits::ValueExt, pii};
 use diesel_models::enums as storage_enums;
 use error_stack::ResultExt;
 use masking::{ExposeInterface, PeekInterface};
@@ -76,8 +76,8 @@ impl ForeignFrom<storage_enums::AttemptStatus> for storage_enums::IntentStatus {
             }
             storage_enums::AttemptStatus::Unresolved => Self::RequiresMerchantAction,
 
-            storage_enums::AttemptStatus::PartialCharged
-            | storage_enums::AttemptStatus::Started
+            storage_enums::AttemptStatus::PartialCharged => Self::PartiallyCaptured,
+            storage_enums::AttemptStatus::Started
             | storage_enums::AttemptStatus::AuthenticationSuccessful
             | storage_enums::AttemptStatus::Authorizing
             | storage_enums::AttemptStatus::CodInitiated
@@ -92,6 +92,45 @@ impl ForeignFrom<storage_enums::AttemptStatus> for storage_enums::IntentStatus {
             | storage_enums::AttemptStatus::CaptureFailed
             | storage_enums::AttemptStatus::Failure => Self::Failed,
             storage_enums::AttemptStatus::Voided => Self::Cancelled,
+        }
+    }
+}
+
+impl ForeignTryFrom<storage_enums::AttemptStatus> for storage_enums::CaptureStatus {
+    type Error = error_stack::Report<errors::ApiErrorResponse>;
+
+    fn foreign_try_from(
+        attempt_status: storage_enums::AttemptStatus,
+    ) -> errors::RouterResult<Self> {
+        match attempt_status {
+            storage_enums::AttemptStatus::Charged
+            | storage_enums::AttemptStatus::PartialCharged => Ok(Self::Charged),
+            storage_enums::AttemptStatus::Pending
+            | storage_enums::AttemptStatus::CaptureInitiated => Ok(Self::Pending),
+            storage_enums::AttemptStatus::Failure
+            | storage_enums::AttemptStatus::CaptureFailed => Ok(Self::Failed),
+
+            storage_enums::AttemptStatus::Started
+            | storage_enums::AttemptStatus::AuthenticationFailed
+            | storage_enums::AttemptStatus::RouterDeclined
+            | storage_enums::AttemptStatus::AuthenticationPending
+            | storage_enums::AttemptStatus::AuthenticationSuccessful
+            | storage_enums::AttemptStatus::Authorized
+            | storage_enums::AttemptStatus::AuthorizationFailed
+            | storage_enums::AttemptStatus::Authorizing
+            | storage_enums::AttemptStatus::CodInitiated
+            | storage_enums::AttemptStatus::Voided
+            | storage_enums::AttemptStatus::VoidInitiated
+            | storage_enums::AttemptStatus::VoidFailed
+            | storage_enums::AttemptStatus::AutoRefunded
+            | storage_enums::AttemptStatus::Unresolved
+            | storage_enums::AttemptStatus::PaymentMethodAwaited
+            | storage_enums::AttemptStatus::ConfirmationAwaited
+            | storage_enums::AttemptStatus::DeviceDataCollectionPending => {
+                Err(errors::ApiErrorResponse::PreconditionFailed {
+                    message: "AttemptStatus must be one of these for multiple partial captures [Charged, PartialCharged, Pending, CaptureInitiated, Failure, CaptureFailed]".into(),
+                }.into())
+            }
         }
     }
 }
@@ -171,15 +210,26 @@ impl ForeignFrom<api_enums::PaymentMethodType> for api_enums::PaymentMethod {
             | api_enums::PaymentMethodType::Paypal
             | api_enums::PaymentMethodType::AliPay
             | api_enums::PaymentMethodType::AliPayHk
+            | api_enums::PaymentMethodType::Dana
             | api_enums::PaymentMethodType::MbWay
             | api_enums::PaymentMethodType::MobilePay
             | api_enums::PaymentMethodType::SamsungPay
+            | api_enums::PaymentMethodType::Twint
+            | api_enums::PaymentMethodType::Vipps
+            | api_enums::PaymentMethodType::TouchNGo
+            | api_enums::PaymentMethodType::Swish
             | api_enums::PaymentMethodType::WeChatPay
-            | api_enums::PaymentMethodType::GoPay => Self::Wallet,
+            | api_enums::PaymentMethodType::GoPay
+            | api_enums::PaymentMethodType::Gcash
+            | api_enums::PaymentMethodType::Momo
+            | api_enums::PaymentMethodType::Cashapp
+            | api_enums::PaymentMethodType::KakaoPay => Self::Wallet,
             api_enums::PaymentMethodType::Affirm
+            | api_enums::PaymentMethodType::Alma
             | api_enums::PaymentMethodType::AfterpayClearpay
             | api_enums::PaymentMethodType::Klarna
             | api_enums::PaymentMethodType::PayBright
+            | api_enums::PaymentMethodType::Atome
             | api_enums::PaymentMethodType::Walley => Self::PayLater,
             api_enums::PaymentMethodType::Giropay
             | api_enums::PaymentMethodType::Ideal
@@ -187,12 +237,14 @@ impl ForeignFrom<api_enums::PaymentMethodType> for api_enums::PaymentMethod {
             | api_enums::PaymentMethodType::Eps
             | api_enums::PaymentMethodType::BancontactCard
             | api_enums::PaymentMethodType::Blik
+            | api_enums::PaymentMethodType::OnlineBankingThailand
             | api_enums::PaymentMethodType::OnlineBankingCzechRepublic
             | api_enums::PaymentMethodType::OnlineBankingFinland
+            | api_enums::PaymentMethodType::OnlineBankingFpx
             | api_enums::PaymentMethodType::OnlineBankingPoland
             | api_enums::PaymentMethodType::OnlineBankingSlovakia
+            | api_enums::PaymentMethodType::OpenBankingUk
             | api_enums::PaymentMethodType::Przelewy24
-            | api_enums::PaymentMethodType::Swish
             | api_enums::PaymentMethodType::Trustly
             | api_enums::PaymentMethodType::Bizum
             | api_enums::PaymentMethodType::Interac => Self::BankRedirect,
@@ -207,7 +259,63 @@ impl ForeignFrom<api_enums::PaymentMethodType> for api_enums::PaymentMethod {
             }
             api_enums::PaymentMethodType::Evoucher
             | api_enums::PaymentMethodType::ClassicReward => Self::Reward,
-            api_enums::PaymentMethodType::Multibanco => Self::BankTransfer,
+            api_enums::PaymentMethodType::Boleto
+            | api_enums::PaymentMethodType::Efecty
+            | api_enums::PaymentMethodType::PagoEfectivo
+            | api_enums::PaymentMethodType::RedCompra
+            | api_enums::PaymentMethodType::Alfamart
+            | api_enums::PaymentMethodType::Indomaret
+            | api_enums::PaymentMethodType::Oxxo
+            | api_enums::PaymentMethodType::SevenEleven
+            | api_enums::PaymentMethodType::Lawson
+            | api_enums::PaymentMethodType::MiniStop
+            | api_enums::PaymentMethodType::FamilyMart
+            | api_enums::PaymentMethodType::Seicomart
+            | api_enums::PaymentMethodType::PayEasy
+            | api_enums::PaymentMethodType::RedPagos => Self::Voucher,
+            api_enums::PaymentMethodType::Pse
+            | api_enums::PaymentMethodType::Multibanco
+            | api_enums::PaymentMethodType::PermataBankTransfer
+            | api_enums::PaymentMethodType::BcaBankTransfer
+            | api_enums::PaymentMethodType::BniVa
+            | api_enums::PaymentMethodType::BriVa
+            | api_enums::PaymentMethodType::CimbVa
+            | api_enums::PaymentMethodType::DanamonVa
+            | api_enums::PaymentMethodType::MandiriVa
+            | api_enums::PaymentMethodType::Pix => Self::BankTransfer,
+            api_enums::PaymentMethodType::Givex | api_enums::PaymentMethodType::PaySafeCard => {
+                Self::GiftCard
+            }
+            api_enums::PaymentMethodType::Benefit
+            | api_enums::PaymentMethodType::Knet
+            | api_enums::PaymentMethodType::MomoAtm => Self::CardRedirect,
+        }
+    }
+}
+
+impl ForeignTryFrom<api_models::payments::PaymentMethodData> for api_enums::PaymentMethod {
+    type Error = errors::ApiErrorResponse;
+    fn foreign_try_from(
+        payment_method_data: api_models::payments::PaymentMethodData,
+    ) -> Result<Self, Self::Error> {
+        match payment_method_data {
+            api_models::payments::PaymentMethodData::Card(..) => Ok(Self::Card),
+            api_models::payments::PaymentMethodData::Wallet(..) => Ok(Self::Wallet),
+            api_models::payments::PaymentMethodData::PayLater(..) => Ok(Self::PayLater),
+            api_models::payments::PaymentMethodData::BankRedirect(..) => Ok(Self::BankRedirect),
+            api_models::payments::PaymentMethodData::BankDebit(..) => Ok(Self::BankDebit),
+            api_models::payments::PaymentMethodData::BankTransfer(..) => Ok(Self::BankTransfer),
+            api_models::payments::PaymentMethodData::Crypto(..) => Ok(Self::Crypto),
+            api_models::payments::PaymentMethodData::Reward(..) => Ok(Self::Reward),
+            api_models::payments::PaymentMethodData::Upi(..) => Ok(Self::Upi),
+            api_models::payments::PaymentMethodData::Voucher(..) => Ok(Self::Voucher),
+            api_models::payments::PaymentMethodData::GiftCard(..) => Ok(Self::GiftCard),
+            api_models::payments::PaymentMethodData::CardRedirect(..) => Ok(Self::CardRedirect),
+            api_models::payments::PaymentMethodData::MandatePayment => {
+                Err(errors::ApiErrorResponse::InvalidRequestData {
+                    message: ("Mandate payments cannot have payment_method_data field".to_string()),
+                })
+            }
         }
     }
 }
@@ -458,14 +566,18 @@ impl TryFrom<domain::MerchantConnectorAccount> for api_models::admin::MerchantCo
         };
         let frm_configs = match item.frm_configs {
             Some(frm_value) => {
-                let configs_for_frm : api_models::admin::FrmConfigs = frm_value
-                    .peek()
-                    .clone()
-                    .parse_value("FrmConfigs")
-                    .change_context(errors::ApiErrorResponse::InvalidDataFormat {
-                        field_name: "frm_configs".to_string(),
-                        expected_format: "\"frm_configs\" : { \"frm_enabled_pms\" : [\"card\"], \"frm_enabled_pm_types\" : [\"credit\"], \"frm_enabled_gateways\" : [\"stripe\"], \"frm_action\": \"cancel_txn\", \"frm_preferred_flow_type\" : \"pre\" }".to_string(),
-                    })?;
+                let configs_for_frm : Vec<api_models::admin::FrmConfigs> = frm_value
+                    .iter()
+                    .map(|config| { config
+                        .peek()
+                        .clone()
+                        .parse_value("FrmConfigs")
+                        .change_context(errors::ApiErrorResponse::InvalidDataFormat {
+                            field_name: "frm_configs".to_string(),
+                            expected_format: "[{ \"gateway\": \"stripe\", \"payment_methods\": [{ \"payment_method\": \"card\",\"payment_method_types\": [{\"payment_method_type\": \"credit\",\"card_networks\": [\"Visa\"],\"flow\": \"pre\",\"action\": \"cancel_txn\"}]}]}]".to_string(),
+                        })
+                    })
+                    .collect::<Result<Vec<_>, _>>()?;
                 Some(configs_for_frm)
             }
             None => None,
@@ -520,6 +632,65 @@ impl ForeignFrom<storage::PaymentAttempt> for api_models::payments::PaymentAttem
             payment_experience: payment_attempt.payment_experience,
             payment_method_type: payment_attempt.payment_method_type,
             reference_id: payment_attempt.connector_response_reference_id,
+        }
+    }
+}
+
+impl ForeignFrom<api_models::payouts::Bank> for api_enums::PaymentMethodType {
+    fn foreign_from(value: api_models::payouts::Bank) -> Self {
+        match value {
+            api_models::payouts::Bank::Ach(_) => Self::Ach,
+            api_models::payouts::Bank::Bacs(_) => Self::Bacs,
+            api_models::payouts::Bank::Sepa(_) => Self::Sepa,
+        }
+    }
+}
+
+impl ForeignFrom<api_models::payouts::PayoutMethodData> for api_enums::PaymentMethod {
+    fn foreign_from(value: api_models::payouts::PayoutMethodData) -> Self {
+        match value {
+            api_models::payouts::PayoutMethodData::Bank(_) => Self::BankTransfer,
+            api_models::payouts::PayoutMethodData::Card(_) => Self::Card,
+        }
+    }
+}
+
+impl ForeignFrom<api_models::enums::PayoutType> for api_enums::PaymentMethod {
+    fn foreign_from(value: api_models::enums::PayoutType) -> Self {
+        match value {
+            api_models::enums::PayoutType::Bank => Self::BankTransfer,
+            api_models::enums::PayoutType::Card => Self::Card,
+        }
+    }
+}
+
+impl
+    ForeignFrom<(
+        Option<&storage::PaymentAttempt>,
+        Option<&domain::Address>,
+        Option<&domain::Address>,
+        Option<&domain::Customer>,
+    )> for api_models::payments::PaymentsRequest
+{
+    fn foreign_from(
+        value: (
+            Option<&storage::PaymentAttempt>,
+            Option<&domain::Address>,
+            Option<&domain::Address>,
+            Option<&domain::Customer>,
+        ),
+    ) -> Self {
+        let (payment_attempt, shipping, billing, customer) = value;
+        Self {
+            currency: payment_attempt.map(|pa| pa.currency.unwrap_or_default()),
+            shipping: shipping.map(api_types::Address::from),
+            billing: billing.map(api_types::Address::from),
+            amount: payment_attempt.map(|pa| api_types::Amount::from(pa.amount)),
+            email: customer
+                .and_then(|cust| cust.email.as_ref().map(|em| pii::Email::from(em.clone()))),
+            phone: customer.and_then(|cust| cust.phone.as_ref().map(|p| p.clone().into_inner())),
+            name: customer.and_then(|cust| cust.name.as_ref().map(|n| n.clone().into_inner())),
+            ..Self::default()
         }
     }
 }

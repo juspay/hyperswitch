@@ -23,10 +23,11 @@ impl utils::Connector for ForteTest {
     }
 
     fn get_auth_token(&self) -> types::ConnectorAuthType {
-        types::ConnectorAuthType::from(
+        utils::to_connector_auth_type(
             connector_auth::ConnectorAuthentication::new()
                 .forte
-                .expect("Missing connector authentication configuration"),
+                .expect("Missing connector authentication configuration")
+                .into(),
         )
     }
 
@@ -636,7 +637,6 @@ async fn should_throw_not_implemented_for_unsupported_issuer() {
         router::core::errors::ConnectorError::NotSupported {
             message: "Maestro".to_string(),
             connector: "Forte",
-            payment_experience: api::enums::PaymentExperience::RedirectToUrl.to_string(),
         }
     )
 }

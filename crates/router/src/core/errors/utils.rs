@@ -1,3 +1,5 @@
+use common_utils::errors::CustomResult;
+
 use crate::{core::errors, logger};
 
 pub trait StorageErrorExt<T, E> {
@@ -52,6 +54,17 @@ pub trait ConnectorErrorExt<T> {
     fn to_verify_failed_response(self) -> error_stack::Result<T, errors::ApiErrorResponse>;
     #[track_caller]
     fn to_dispute_failed_response(self) -> error_stack::Result<T, errors::ApiErrorResponse>;
+    #[cfg(feature = "payouts")]
+    #[track_caller]
+    fn to_payout_failed_response(self) -> error_stack::Result<T, errors::ApiErrorResponse>;
+
+    // Validates if the result, is Ok(..) or WebhookEventTypeNotFound all the other error variants
+    // are cascaded while these two event types are handled via `Option`
+    #[track_caller]
+    fn allow_webhook_event_type_not_found(
+        self,
+        enabled: bool,
+    ) -> error_stack::Result<Option<T>, errors::ConnectorError>;
 }
 
 impl<T> ConnectorErrorExt<T> for error_stack::Result<T, errors::ConnectorError> {
@@ -115,8 +128,8 @@ impl<T> ConnectorErrorExt<T> for error_stack::Result<T, errors::ConnectorError> 
                             "payment_method_data, payment_method_type and payment_experience does not match",
                     }
                 },
-                errors::ConnectorError::NotSupported { message, connector, payment_experience } => {
-                    errors::ApiErrorResponse::NotSupported { message: format!("{message} is not supported by {connector} through payment experience {payment_experience}") }
+                errors::ConnectorError::NotSupported { message, connector } => {
+                    errors::ApiErrorResponse::NotSupported { message: format!("{message} is not supported by {connector}") }
                 },
                 errors::ConnectorError::FlowNotSupported{ flow, connector } => {
                     errors::ApiErrorResponse::FlowNotSupported { flow: flow.to_owned(), connector: connector.to_owned() }
@@ -193,5 +206,51 @@ impl<T> ConnectorErrorExt<T> for error_stack::Result<T, errors::ConnectorError> 
             };
             err.change_context(error)
         })
+    }
+
+    #[cfg(feature = "payouts")]
+    fn to_payout_failed_response(self) -> error_stack::Result<T, errors::ApiErrorResponse> {
+        self.map_err(|err| {
+            let error = match err.current_context() {
+                errors::ConnectorError::ProcessingStepFailed(Some(bytes)) => {
+                    let response_str = std::str::from_utf8(bytes);
+                    let data = match response_str {
+                        Ok(s) => serde_json::from_str(s)
+                            .map_err(
+                                |error| logger::error!(%error,"Failed to convert response to JSON"),
+                            )
+                            .ok(),
+                        Err(error) => {
+                            logger::error!(%error,"Failed to convert response to UTF8 string");
+                            None
+                        }
+                    };
+                    errors::ApiErrorResponse::PayoutFailed { data }
+                }
+                errors::ConnectorError::MissingRequiredField { field_name } => {
+                    errors::ApiErrorResponse::MissingRequiredField { field_name }
+                }
+                errors::ConnectorError::MissingRequiredFields { field_names } => {
+                    errors::ApiErrorResponse::MissingRequiredFields {
+                        field_names: field_names.to_vec(),
+                    }
+                }
+                _ => errors::ApiErrorResponse::InternalServerError,
+            };
+            err.change_context(error)
+        })
+    }
+
+    fn allow_webhook_event_type_not_found(
+        self,
+        enabled: bool,
+    ) -> CustomResult<Option<T>, errors::ConnectorError> {
+        match self {
+            Ok(event_type) => Ok(Some(event_type)),
+            Err(error) => match error.current_context() {
+                errors::ConnectorError::WebhookEventTypeNotFound if enabled => Ok(None),
+                _ => Err(error),
+            },
+        }
     }
 }

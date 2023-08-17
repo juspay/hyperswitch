@@ -61,7 +61,7 @@ pub fn http_not_implemented() -> actix_web::HttpResponse<BoxBody> {
     .error_response()
 }
 
-#[derive(Debug, thiserror::Error)]
+#[derive(Debug, thiserror::Error, PartialEq)]
 pub enum ApiClientError {
     #[error("Header map construction failed")]
     HeaderMapConstructionFailed,
@@ -138,7 +138,6 @@ pub enum ConnectorError {
     NotSupported {
         message: String,
         connector: &'static str,
-        payment_experience: String,
     },
     #[error("{flow} flow not supported by {connector} connector")]
     FlowNotSupported { flow: String, connector: String },
@@ -184,8 +183,14 @@ pub enum ConnectorError {
     FileValidationFailed { reason: String },
     #[error("Missing 3DS redirection payload: {field_name}")]
     MissingConnectorRedirectionPayload { field_name: &'static str },
+    #[error("Failed at connector's end with code '{code}'")]
+    FailedAtConnector { message: String, code: String },
     #[error("Payment Method Type not found")]
     MissingPaymentMethodType,
+    #[error("Balance in the payment method is low")]
+    InSufficientBalanceInPaymentMethod,
+    #[error("Server responded with Request Timeout")]
+    RequestTimeoutReceived,
 }
 
 #[derive(Debug, thiserror::Error)]
@@ -202,12 +207,18 @@ pub enum VaultError {
     PaymentMethodCreationFailed,
     #[error("The given payment method is currently not supported in vault")]
     PaymentMethodNotSupported,
+    #[error("The given payout method is currently not supported in vault")]
+    PayoutMethodNotSupported,
     #[error("Missing required field: {field_name}")]
     MissingRequiredField { field_name: &'static str },
     #[error("The card vault returned an unexpected response: {0:?}")]
     UnexpectedResponseError(bytes::Bytes),
     #[error("Failed to update in PMD table")]
     UpdateInPaymentMethodDataTableFailed,
+    #[error("Failed to fetch payment method in vault")]
+    FetchPaymentMethodFailed,
+    #[error("Failed to save payment method in vault")]
+    SavePaymentMethodFailed,
 }
 
 #[derive(Debug, thiserror::Error)]
@@ -262,6 +273,18 @@ pub enum WebhooksFlowError {
     OutgoingWebhookEncodingFailed,
     #[error("Missing required field: {field_name}")]
     MissingRequiredField { field_name: &'static str },
+}
+
+impl ApiClientError {
+    pub fn is_upstream_timeout(&self) -> bool {
+        self == &Self::RequestTimeoutReceived
+    }
+}
+
+impl ConnectorError {
+    pub fn is_connector_timeout(&self) -> bool {
+        self == &Self::RequestTimeoutReceived
+    }
 }
 
 #[cfg(feature = "detailed_errors")]

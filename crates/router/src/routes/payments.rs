@@ -10,6 +10,12 @@ use crate::{
         errors::http_not_implemented,
         payments::{self, PaymentRedirectFlow},
     },
+    openapi::examples::{
+        PAYMENTS_CREATE, PAYMENTS_CREATE_MINIMUM_FIELDS, PAYMENTS_CREATE_WITH_ADDRESS,
+        PAYMENTS_CREATE_WITH_CUSTOMER_DATA, PAYMENTS_CREATE_WITH_FORCED_3DS,
+        PAYMENTS_CREATE_WITH_MANUAL_CAPTURE, PAYMENTS_CREATE_WITH_NOON_ORDER_CATETORY,
+        PAYMENTS_CREATE_WITH_ORDER_DETAILS,
+    },
     services::{api, authentication as auth},
     types::{
         api::{self as api_types, enums as api_enums, payments as payment_types},
@@ -23,17 +29,59 @@ use crate::{
 #[utoipa::path(
     post,
     path = "/payments",
-    request_body=PaymentsCreateRequest,
+    request_body(
+        content = PaymentsCreateRequest,
+        examples(
+            (
+                "Create a payment with minimul fields" = (
+                    value = json!(PAYMENTS_CREATE_MINIMUM_FIELDS)
+                )
+            ),
+            (
+                "Create a manual capture payment" = (
+                    value = json!(PAYMENTS_CREATE_WITH_MANUAL_CAPTURE)
+                )
+            ),
+            (
+                "Create a payment with address" = (
+                    value = json!(PAYMENTS_CREATE_WITH_ADDRESS)
+                )
+            ),
+            (
+                "Create a payment with customer details" = (
+                    value = json!(PAYMENTS_CREATE_WITH_CUSTOMER_DATA)
+                )
+            ),
+            (
+                "Create a 3DS payment" = (
+                    value = json!(PAYMENTS_CREATE_WITH_FORCED_3DS)
+                )
+            ),
+            (
+                "Create a payment" = (
+                    value = json!(PAYMENTS_CREATE)
+                )
+            ),
+            (
+                "Create a payment with order details" = (
+                    value = json!(PAYMENTS_CREATE_WITH_ORDER_DETAILS)
+                )
+            ),
+            (
+                "Create a payment with order category for noon" = (
+                    value = json!(PAYMENTS_CREATE_WITH_NOON_ORDER_CATETORY)
+                )
+            ),
+        )),
     responses(
         (status = 200, description = "Payment created", body = PaymentsResponse),
         (status = 400, description = "Missing Mandatory fields")
     ),
     tag = "Payments",
     operation_id = "Create a Payment",
-    security(("api_key" = []))
+    security(("api_key" = [])),
 )]
 #[instrument(skip_all, fields(flow = ?Flow::PaymentsCreate))]
-// #[post("")]
 pub async fn payments_create(
     state: web::Data<app::AppState>,
     req: actix_web::HttpRequest,
@@ -84,7 +132,7 @@ pub async fn payments_create(
 //     tag = "Payments",
 //     operation_id = "Start a Redirection Payment"
 // )]
-#[instrument(skip(state), fields(flow = ?Flow::PaymentsStart))]
+#[instrument(skip(state, req), fields(flow = ?Flow::PaymentsStart))]
 pub async fn payments_start(
     state: web::Data<app::AppState>,
     req: actix_web::HttpRequest,
@@ -135,7 +183,7 @@ pub async fn payments_start(
     operation_id = "Retrieve a Payment",
     security(("api_key" = []), ("publishable_key" = []))
 )]
-#[instrument(skip(state), fields(flow = ?Flow::PaymentsRetrieve))]
+#[instrument(skip(state, req), fields(flow = ?Flow::PaymentsRetrieve))]
 // #[get("/{payment_id}")]
 pub async fn payments_retrieve(
     state: web::Data<app::AppState>,
@@ -194,7 +242,7 @@ pub async fn payments_retrieve(
     operation_id = "Retrieve a Payment",
     security(("api_key" = []))
 )]
-#[instrument(skip(state), fields(flow = ?Flow::PaymentsRetrieve))]
+#[instrument(skip(state, req), fields(flow = ?Flow::PaymentsRetrieve))]
 // #[post("/sync")]
 pub async fn payments_retrieve_with_gateway_creds(
     state: web::Data<app::AppState>,
@@ -708,6 +756,28 @@ pub async fn payments_list(
         &req,
         payload,
         |state, auth, req| payments::list_payments(&*state.store, auth.merchant_account, req),
+        &auth::ApiKeyAuth,
+    )
+    .await
+}
+
+#[instrument(skip_all, fields(flow = ?Flow::PaymentsList))]
+#[cfg(feature = "olap")]
+pub async fn payments_list_by_filter(
+    state: web::Data<app::AppState>,
+    req: actix_web::HttpRequest,
+    payload: web::Json<payment_types::PaymentListFilterConstraints>,
+) -> impl Responder {
+    let flow = Flow::PaymentsList;
+    let payload = payload.into_inner();
+    api::server_wrap(
+        flow,
+        state.get_ref(),
+        &req,
+        payload,
+        |state, auth, req| {
+            payments::apply_filters_on_payments(&*state.store, auth.merchant_account, req)
+        },
         &auth::ApiKeyAuth,
     )
     .await

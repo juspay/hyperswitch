@@ -1,4 +1,5 @@
-use common_utils::ext_traits::{OptionExt, ValueExt};
+use common_utils::ext_traits::{OptionExt, StringExt, ValueExt};
+use error_stack::ResultExt;
 use router_env::logger;
 use scheduler::{
     consumer::{self, types::process_data, workflows::ProcessTrackerWorkflow},
@@ -8,7 +9,7 @@ use scheduler::{
 
 use crate::{
     core::payments::{self as payment_flows, operations},
-    db::{get_and_deserialize_key, StorageInterface},
+    db::StorageInterface,
     errors,
     routes::AppState,
     services,
@@ -116,10 +117,20 @@ pub async fn get_sync_process_schedule_time(
     connector: &str,
     merchant_id: &str,
     retry_count: i32,
-) -> Result<Option<time::PrimitiveDateTime>, sch_errors::ProcessTrackerError> {
-    let redis_mapping: errors::CustomResult<process_data::ConnectorPTMapping, errors::RedisError> =
-        get_and_deserialize_key(db, &format!("pt_mapping_{connector}"), "ConnectorPTMapping").await;
-    let mapping = match redis_mapping {
+) -> Result<Option<time::PrimitiveDateTime>, errors::ProcessTrackerError> {
+    let mapping: common_utils::errors::CustomResult<
+        process_data::ConnectorPTMapping,
+        errors::StorageError,
+    > = db
+        .find_config_by_key_cached(&format!("pt_mapping_{connector}"))
+        .await
+        .map(|value| value.config)
+        .and_then(|config| {
+            config
+                .parse_struct("ConnectorPTMapping")
+                .change_context(errors::StorageError::DeserializationFailed)
+        });
+    let mapping = match mapping {
         Ok(x) => x,
         Err(err) => {
             logger::info!("Redis Mapping Error: {}", err);

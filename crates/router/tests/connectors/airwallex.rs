@@ -1,6 +1,6 @@
 use std::str::FromStr;
 
-use masking::Secret;
+use masking::{PeekInterface, Secret};
 use router::types::{self, api, storage::enums, AccessToken};
 
 use crate::{
@@ -25,10 +25,11 @@ impl Connector for AirwallexTest {
     }
 
     fn get_auth_token(&self) -> types::ConnectorAuthType {
-        types::ConnectorAuthType::from(
+        utils::to_connector_auth_type(
             connector_auth::ConnectorAuthentication::new()
                 .airwallex
-                .expect("Missing connector authentication configuration"),
+                .expect("Missing connector authentication configuration")
+                .into(),
         )
     }
 
@@ -41,7 +42,7 @@ fn get_access_token() -> Option<AccessToken> {
     match CONNECTOR.get_auth_token() {
         types::ConnectorAuthType::BodyKey { api_key, key1 } => Some(AccessToken {
             token: api_key,
-            expires: key1.parse::<i64>().unwrap(),
+            expires: key1.peek().parse::<i64>().unwrap(),
         }),
         _ => None,
     }

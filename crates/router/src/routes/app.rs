@@ -1,25 +1,28 @@
 use actix_web::{web, Scope};
 #[cfg(feature = "email")]
 use external_services::email::{AwsSes, EmailClient};
+#[cfg(feature = "kms")]
+use external_services::kms::{self, decrypt::KmsDecrypt};
 use scheduler::SchedulerInterface;
+use storage_impl::MockDb;
 use tokio::sync::oneshot;
 
 #[cfg(feature = "dummy_connector")]
 use super::dummy_connector::*;
+#[cfg(feature = "payouts")]
+use super::payouts::*;
 #[cfg(feature = "olap")]
 use super::{admin::*, api_keys::*, disputes::*, files::*};
 use super::{cache::*, health::*};
 #[cfg(any(feature = "olap", feature = "oltp"))]
-use super::{configs::*, customers::*, mandates::*, payments::*, payouts::*, refunds::*};
+use super::{configs::*, customers::*, mandates::*, payments::*, refunds::*};
 #[cfg(feature = "oltp")]
 use super::{ephemeral_key::*, payment_methods::*, webhooks::*};
-#[cfg(feature = "kms")]
-use crate::configs::kms;
 use crate::{
     configs::settings,
     db::{StorageImpl, StorageInterface},
     routes::cards_info::card_iin_info,
-    services::{MockDb, Store},
+    services::get_store,
 };
 
 #[derive(Clone)]
@@ -69,22 +72,22 @@ impl AppState {
         storage_impl: StorageImpl,
         shut_down_signal: oneshot::Sender<()>,
     ) -> Self {
+        #[cfg(feature = "kms")]
+        let kms_client = kms::get_kms_client(&conf.kms).await;
         let testable = storage_impl == StorageImpl::PostgresqlTest;
         let store: Box<dyn StorageInterface> = match storage_impl {
             StorageImpl::Postgresql | StorageImpl::PostgresqlTest => {
-                Box::new(Store::new(&conf, testable, shut_down_signal).await)
+                Box::new(get_store(&conf, shut_down_signal, testable).await)
             }
-            StorageImpl::Mock => Box::new(MockDb::new(&conf).await),
+            StorageImpl::Mock => Box::new(MockDb::new(conf.redis.clone()).await),
         };
 
         #[cfg(feature = "kms")]
         #[allow(clippy::expect_used)]
-        let kms_secrets = kms::KmsDecrypt::decrypt_inner(
-            settings::ActiveKmsSecrets {
-                jwekey: conf.jwekey.clone().into(),
-            },
-            &conf.kms,
-        )
+        let kms_secrets = settings::ActiveKmsSecrets {
+            jwekey: conf.jwekey.clone().into(),
+        }
+        .decrypt_inner(kms_client)
         .await
         .expect("Failed while performing KMS decryption");
 
@@ -123,12 +126,13 @@ pub struct DummyConnector;
 #[cfg(feature = "dummy_connector")]
 impl DummyConnector {
     pub fn server(state: AppState) -> Scope {
-        let mut route = web::scope("/dummy-connector").app_data(web::Data::new(state));
+        let mut routes_with_restricted_access = web::scope("");
         #[cfg(not(feature = "external_access_dc"))]
         {
-            route = route.guard(actix_web::guard::Host("localhost"));
+            routes_with_restricted_access =
+                routes_with_restricted_access.guard(actix_web::guard::Host("localhost"));
         }
-        route = route
+        routes_with_restricted_access = routes_with_restricted_access
             .service(web::resource("/payment").route(web::post().to(dummy_connector_payment)))
             .service(
                 web::resource("/payments/{payment_id}")
@@ -141,7 +145,17 @@ impl DummyConnector {
                 web::resource("/refunds/{refund_id}")
                     .route(web::get().to(dummy_connector_refund_data)),
             );
-        route
+        web::scope("/dummy-connector")
+            .app_data(web::Data::new(state))
+            .service(
+                web::resource("/authorize/{attempt_id}")
+                    .route(web::get().to(dummy_connector_authorize_payment)),
+            )
+            .service(
+                web::resource("/complete/{attempt_id}")
+                    .route(web::get().to(dummy_connector_complete_payment)),
+            )
+            .service(routes_with_restricted_access)
     }
 }
 
@@ -155,7 +169,11 @@ impl Payments {
         #[cfg(feature = "olap")]
         {
             route = route
-                .service(web::resource("/list").route(web::get().to(payments_list)))
+                .service(
+                    web::resource("/list")
+                        .route(web::get().to(payments_list))
+                        .route(web::post().to(payments_list_by_filter)),
+                )
                 .service(web::resource("/filter").route(web::post().to(get_filters_for_payments)))
         }
         #[cfg(feature = "oltp")]
@@ -275,28 +293,22 @@ impl Refunds {
     }
 }
 
+#[cfg(feature = "payouts")]
 pub struct Payouts;
 
-#[cfg(any(feature = "olap", feature = "oltp"))]
+#[cfg(feature = "payouts")]
 impl Payouts {
     pub fn server(state: AppState) -> Scope {
-        let mut route = web::scope("/payouts").app_data(web::Data::new(state));
-
-        #[cfg(feature = "olap")]
-        {
-            route =
-                route.service(web::resource("/accounts").route(web::get().to(payouts_accounts)));
-        }
-        #[cfg(feature = "oltp")]
-        {
-            route = route
-                .service(web::resource("/create").route(web::post().to(payouts_create)))
-                .service(web::resource("/retrieve").route(web::get().to(payouts_retrieve)))
-                .service(web::resource("/update").route(web::post().to(payouts_update)))
-                .service(web::resource("/reverse").route(web::post().to(payouts_reverse)))
-                .service(web::resource("/cancel").route(web::post().to(payouts_cancel)));
-        }
+        let route = web::scope("/payouts").app_data(web::Data::new(state));
         route
+            .service(web::resource("/create").route(web::post().to(payouts_create)))
+            .service(web::resource("/{payout_id}/cancel").route(web::post().to(payouts_cancel)))
+            .service(web::resource("/{payout_id}/fulfill").route(web::post().to(payouts_fulfill)))
+            .service(
+                web::resource("/{payout_id}")
+                    .route(web::get().to(payouts_retrieve))
+                    .route(web::put().to(payouts_update)),
+            )
     }
 }
 
@@ -421,7 +433,7 @@ impl Webhooks {
         web::scope("/webhooks")
             .app_data(web::Data::new(config))
             .service(
-                web::resource("/{merchant_id}/{connector_label}")
+                web::resource("/{merchant_id}/{connector_name}")
                     .route(
                         web::post().to(receive_incoming_webhook::<webhook_type::OutgoingWebhook>),
                     )

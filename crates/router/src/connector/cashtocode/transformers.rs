@@ -83,7 +83,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for CashtocodePaymentsRequest 
 }
 
 pub struct CashtocodeAuthType {
-    pub(super) api_key: String,
+    pub(super) api_key: Secret<String>,
 }
 
 impl TryFrom<&types::ConnectorAuthType> for CashtocodeAuthType {
@@ -91,7 +91,7 @@ impl TryFrom<&types::ConnectorAuthType> for CashtocodeAuthType {
     fn try_from(auth_type: &types::ConnectorAuthType) -> Result<Self, Self::Error> {
         match auth_type {
             types::ConnectorAuthType::HeaderKey { api_key } => Ok(Self {
-                api_key: api_key.to_string(),
+                api_key: api_key.to_owned(),
             }),
             _ => Err(errors::ConnectorError::FailedToObtainAuthType.into()),
         }
@@ -123,13 +123,25 @@ pub struct CashtocodeErrors {
     pub event_type: String,
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Deserialize)]
+#[serde(untagged)]
+pub enum CashtocodePaymentsResponse {
+    CashtoCodeError(CashtocodeErrorResponse),
+    CashtoCodeData(CashtocodePaymentsResponseData),
+}
+
+#[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct CashtocodePaymentsResponse {
+pub struct CashtocodePaymentsResponseData {
     pub pay_url: String,
 }
 
-pub struct CashtocodePaymentsSyncResponse {}
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CashtocodePaymentsSyncResponse {
+    pub transaction_id: String,
+    pub amount: i64,
+}
 
 impl<F, T>
     TryFrom<
@@ -145,23 +157,41 @@ impl<F, T>
             types::PaymentsResponseData,
         >,
     ) -> Result<Self, Self::Error> {
-        let redirection_data = services::RedirectForm::Form {
-            endpoint: item.response.pay_url.clone(),
-            method: services::Method::Post,
-            form_fields: Default::default(),
+        let (status, response) = match item.response {
+            CashtocodePaymentsResponse::CashtoCodeError(error_data) => (
+                enums::AttemptStatus::Failure,
+                Err(types::ErrorResponse {
+                    code: error_data.error.to_string(),
+                    status_code: item.http_code,
+                    message: error_data.error_description,
+                    reason: None,
+                }),
+            ),
+            CashtocodePaymentsResponse::CashtoCodeData(response_data) => {
+                let redirection_data = services::RedirectForm::Form {
+                    endpoint: response_data.pay_url,
+                    method: services::Method::Post,
+                    form_fields: Default::default(),
+                };
+                (
+                    enums::AttemptStatus::AuthenticationPending,
+                    Ok(types::PaymentsResponseData::TransactionResponse {
+                        resource_id: types::ResponseId::ConnectorTransactionId(
+                            item.data.attempt_id.clone(),
+                        ),
+                        redirection_data: Some(redirection_data),
+                        mandate_reference: None,
+                        connector_metadata: None,
+                        network_txn_id: None,
+                        connector_response_reference_id: None,
+                    }),
+                )
+            }
         };
+
         Ok(Self {
-            status: enums::AttemptStatus::AuthenticationPending,
-            response: Ok(types::PaymentsResponseData::TransactionResponse {
-                resource_id: types::ResponseId::ConnectorTransactionId(
-                    item.data.attempt_id.clone(),
-                ),
-                redirection_data: Some(redirection_data),
-                mandate_reference: None,
-                connector_metadata: None,
-                network_txn_id: None,
-                connector_response_reference_id: None,
-            }),
+            status,
+            response,
             ..item.data
         })
     }
@@ -198,6 +228,7 @@ impl<F, T>
                 network_txn_id: None,
                 connector_response_reference_id: None,
             }),
+            amount_captured: Some(item.response.amount),
             ..item.data
         })
     }
@@ -205,7 +236,7 @@ impl<F, T>
 
 #[derive(Debug, Deserialize)]
 pub struct CashtocodeErrorResponse {
-    pub error: String,
+    pub error: u32,
     pub error_description: String,
     pub errors: Option<Vec<CashtocodeErrors>>,
 }
@@ -218,11 +249,5 @@ pub struct CashtocodeIncomingWebhook {
     pub foreign_transaction_id: String,
     #[serde(rename = "type")]
     pub event_type: String,
-    pub transaction_id: String,
-}
-
-#[derive(Debug, Clone, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct CashtocodeObjectId {
     pub transaction_id: String,
 }

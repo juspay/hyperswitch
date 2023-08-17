@@ -1,14 +1,12 @@
 pub mod address;
 pub mod api_keys;
 pub mod cache;
+pub mod capture;
 pub mod cards_info;
 pub mod configs;
-pub mod connection;
 pub mod connector_response;
 pub mod consts;
 pub mod customers;
-pub mod db;
-pub mod domain;
 pub mod dispute;
 pub mod encryption;
 pub mod enums;
@@ -17,7 +15,8 @@ pub mod ephemeral_key;
 pub mod errors;
 pub mod events;
 pub mod file;
-pub mod helpers;
+#[allow(unused)]
+pub mod fraud_check;
 #[cfg(feature = "kv_store")]
 pub mod kv;
 pub mod locker_mock_up;
@@ -29,13 +28,14 @@ pub mod merchant_key_store;
 pub mod payment_attempt;
 pub mod payment_intent;
 pub mod payment_method;
+pub mod payout_attempt;
+pub mod payouts;
 pub mod process_tracker;
 pub mod query;
 pub mod refund;
 pub mod reverse_lookup;
 #[allow(unused_qualifications)]
 pub mod schema;
-pub mod services;
 pub mod utils;
 
 use diesel_impl::{DieselArray, OptionalDieselArray};
@@ -108,4 +108,14 @@ pub(crate) mod diesel_impl {
             Ok(Self(row))
         }
     }
+}
+
+pub(crate) mod metrics {
+    use router_env::{counter_metric, global_meter, histogram_metric, metrics_context, once_cell};
+
+    metrics_context!(CONTEXT);
+    global_meter!(GLOBAL_METER, "ROUTER_API");
+
+    counter_metric!(DATABASE_CALLS_COUNT, GLOBAL_METER);
+    histogram_metric!(DATABASE_CALL_TIME, GLOBAL_METER);
 }

@@ -1,15 +1,17 @@
 use std::{fmt::Debug, marker::PhantomData, str::FromStr, time::Duration};
 
 use async_trait::async_trait;
+use common_utils::pii::Email;
 use error_stack::Report;
 use masking::Secret;
 use router::{
     configs::settings::Settings,
-    core::{errors, errors::ConnectorError, payments},
+    core::{errors, errors::ConnectorError, payments, utils as core_utils},
     db::StorageImpl,
     routes, services,
     types::{self, api, storage::enums, AccessToken, PaymentAddress, RouterData},
 };
+use test_utils::connector_auth::ConnectorAuthType;
 use tokio::sync::oneshot;
 use wiremock::{Mock, MockServer};
 
@@ -24,6 +26,9 @@ pub trait Connector {
     fn get_request_interval(&self) -> u64 {
         5
     }
+    fn get_payout_data(&self) -> Option<types::api::PayoutConnectorData> {
+        None
+    }
 }
 
 #[derive(Debug, Default, Clone)]
@@ -33,6 +38,11 @@ pub struct PaymentInfo {
     pub access_token: Option<AccessToken>,
     pub connector_meta_data: Option<serde_json::Value>,
     pub return_url: Option<String>,
+    pub connector_customer: Option<String>,
+    pub payment_method_token: Option<String>,
+    pub payout_method_data: Option<api::PayoutMethodData>,
+    pub currency: Option<enums::Currency>,
+    pub country: Option<enums::CountryAlpha2>,
 }
 
 #[async_trait]
@@ -50,6 +60,52 @@ pub trait ConnectorActions: Connector {
                 confirm: true,
                 capture_method: Some(diesel_models::enums::CaptureMethod::Manual),
                 ..(payment_data.unwrap_or(PaymentAuthorizeType::default().0))
+            },
+            payment_info,
+        );
+        let tx: oneshot::Sender<()> = oneshot::channel().0;
+        let state = routes::AppState::with_storage(
+            Settings::new().unwrap(),
+            StorageImpl::PostgresqlTest,
+            tx,
+        )
+        .await;
+        integration.execute_pretasks(&mut request, &state).await?;
+        call_connector(request, integration).await
+    }
+
+    async fn create_connector_customer(
+        &self,
+        payment_data: Option<types::ConnectorCustomerData>,
+        payment_info: Option<PaymentInfo>,
+    ) -> Result<types::ConnectorCustomerRouterData, Report<ConnectorError>> {
+        let integration = self.get_data().connector.get_connector_integration();
+        let mut request = self.generate_data(
+            types::ConnectorCustomerData {
+                ..(payment_data.unwrap_or(CustomerType::default().0))
+            },
+            payment_info,
+        );
+        let tx: oneshot::Sender<()> = oneshot::channel().0;
+        let state = routes::AppState::with_storage(
+            Settings::new().unwrap(),
+            StorageImpl::PostgresqlTest,
+            tx,
+        )
+        .await;
+        integration.execute_pretasks(&mut request, &state).await?;
+        call_connector(request, integration).await
+    }
+
+    async fn create_connector_pm_token(
+        &self,
+        payment_data: Option<types::PaymentMethodTokenizationData>,
+        payment_info: Option<PaymentInfo>,
+    ) -> Result<types::TokenizationRouterData, Report<ConnectorError>> {
+        let integration = self.get_data().connector.get_connector_integration();
+        let mut request = self.generate_data(
+            types::PaymentMethodTokenizationData {
+                ..(payment_data.unwrap_or(TokenType::default().0))
             },
             payment_info,
         );
@@ -362,6 +418,43 @@ pub trait ConnectorActions: Connector {
         Err(errors::ConnectorError::ProcessingStepFailed(None).into())
     }
 
+    fn get_payout_request<Flow, Res>(
+        &self,
+        connector_payout_id: Option<String>,
+        payout_type: enums::PayoutType,
+        payment_info: Option<PaymentInfo>,
+    ) -> RouterData<Flow, types::PayoutsData, Res> {
+        self.generate_data(
+            types::PayoutsData {
+                payout_id: core_utils::get_or_generate_uuid("payout_id", None)
+                    .map_or("payout_3154763247".to_string(), |p| p),
+                amount: 1,
+                connector_payout_id,
+                destination_currency: payment_info.to_owned().map_or(enums::Currency::EUR, |pi| {
+                    pi.currency.map_or(enums::Currency::EUR, |c| c)
+                }),
+                source_currency: payment_info.to_owned().map_or(enums::Currency::EUR, |pi| {
+                    pi.currency.map_or(enums::Currency::EUR, |c| c)
+                }),
+                entity_type: enums::PayoutEntityType::Individual,
+                payout_type,
+                country_code: payment_info
+                    .to_owned()
+                    .map_or(enums::CountryAlpha2::NL, |pi| {
+                        pi.country.map_or(enums::CountryAlpha2::NL, |c| c)
+                    }),
+                customer_details: Some(payments::CustomerDetails {
+                    customer_id: core_utils::get_or_generate_id("customer_id", &None, "cust_").ok(),
+                    name: Some(Secret::new("John Doe".to_string())),
+                    email: TryFrom::try_from(Secret::new("john.doe@example".to_string())).ok(),
+                    phone: Some(Secret::new("620874518".to_string())),
+                    phone_country_code: Some("+31".to_string()),
+                }),
+            },
+            payment_info,
+        )
+    }
+
     fn generate_data<Flow, Req: From<Req>, Res>(
         &self,
         req: Req,
@@ -397,15 +490,20 @@ pub trait ConnectorActions: Connector {
                 .clone()
                 .and_then(|a| a.connector_meta_data.map(masking::Secret::new)),
             amount_captured: None,
-            access_token: info.and_then(|a| a.access_token),
+            access_token: info.clone().and_then(|a| a.access_token),
             session_token: None,
             reference_id: None,
-            payment_method_token: None,
-            connector_customer: None,
+            payment_method_token: info.clone().and_then(|a| a.payment_method_token),
+            connector_customer: info.clone().and_then(|a| a.connector_customer),
             recurring_mandate_payment_data: None,
             preprocessing_id: None,
             connector_request_reference_id: uuid::Uuid::new_v4().to_string(),
+            #[cfg(feature = "payouts")]
+            payout_method_data: info.and_then(|p| p.payout_method_data),
+            #[cfg(feature = "payouts")]
+            quote_id: None,
             test_mode: None,
+            payment_method_balance: None,
         }
     }
 
@@ -426,6 +524,242 @@ pub trait ConnectorActions: Connector {
             Ok(types::PaymentsResponseData::ThreeDSEnrollmentResponse { .. }) => None,
             Err(_) => None,
         }
+    }
+
+    async fn verify_payout_eligibility(
+        &self,
+        payout_type: enums::PayoutType,
+        payment_info: Option<PaymentInfo>,
+    ) -> Result<types::PayoutsResponseData, Report<ConnectorError>> {
+        let connector_integration: services::BoxedConnectorIntegration<
+            '_,
+            types::api::PoEligibility,
+            types::PayoutsData,
+            types::PayoutsResponseData,
+        > = self
+            .get_payout_data()
+            .ok_or(ConnectorError::FailedToObtainPreferredConnector)?
+            .connector
+            .get_connector_integration();
+        let mut request = self.get_payout_request(None, payout_type, payment_info);
+        let tx: oneshot::Sender<()> = oneshot::channel().0;
+        let state = routes::AppState::with_storage(
+            Settings::new().unwrap(),
+            StorageImpl::PostgresqlTest,
+            tx,
+        )
+        .await;
+        connector_integration
+            .execute_pretasks(&mut request, &state)
+            .await?;
+        let res = services::api::execute_connector_processing_step(
+            &state,
+            connector_integration,
+            &request,
+            payments::CallConnectorAction::Trigger,
+            None,
+        )
+        .await?;
+        Ok(res.response.unwrap())
+    }
+
+    async fn fulfill_payout(
+        &self,
+        connector_payout_id: Option<String>,
+        payout_type: enums::PayoutType,
+        payment_info: Option<PaymentInfo>,
+    ) -> Result<types::PayoutsResponseData, Report<ConnectorError>> {
+        let connector_integration: services::BoxedConnectorIntegration<
+            '_,
+            types::api::PoFulfill,
+            types::PayoutsData,
+            types::PayoutsResponseData,
+        > = self
+            .get_payout_data()
+            .ok_or(ConnectorError::FailedToObtainPreferredConnector)?
+            .connector
+            .get_connector_integration();
+        let mut request = self.get_payout_request(connector_payout_id, payout_type, payment_info);
+        let tx: oneshot::Sender<()> = oneshot::channel().0;
+        let state = routes::AppState::with_storage(
+            Settings::new().unwrap(),
+            StorageImpl::PostgresqlTest,
+            tx,
+        )
+        .await;
+        connector_integration
+            .execute_pretasks(&mut request, &state)
+            .await?;
+        let res = services::api::execute_connector_processing_step(
+            &state,
+            connector_integration,
+            &request,
+            payments::CallConnectorAction::Trigger,
+            None,
+        )
+        .await?;
+        Ok(res.response.unwrap())
+    }
+
+    async fn create_payout(
+        &self,
+        connector_customer: Option<String>,
+        payout_type: enums::PayoutType,
+        payment_info: Option<PaymentInfo>,
+    ) -> Result<types::PayoutsResponseData, Report<ConnectorError>> {
+        let connector_integration: services::BoxedConnectorIntegration<
+            '_,
+            types::api::PoCreate,
+            types::PayoutsData,
+            types::PayoutsResponseData,
+        > = self
+            .get_payout_data()
+            .ok_or(ConnectorError::FailedToObtainPreferredConnector)?
+            .connector
+            .get_connector_integration();
+        let mut request = self.get_payout_request(None, payout_type, payment_info);
+        request.connector_customer = connector_customer;
+        let tx: oneshot::Sender<()> = oneshot::channel().0;
+        let state = routes::AppState::with_storage(
+            Settings::new().unwrap(),
+            StorageImpl::PostgresqlTest,
+            tx,
+        )
+        .await;
+        connector_integration
+            .execute_pretasks(&mut request, &state)
+            .await?;
+        let res = services::api::execute_connector_processing_step(
+            &state,
+            connector_integration,
+            &request,
+            payments::CallConnectorAction::Trigger,
+            None,
+        )
+        .await?;
+        Ok(res.response.unwrap())
+    }
+
+    async fn cancel_payout(
+        &self,
+        connector_payout_id: String,
+        payout_type: enums::PayoutType,
+        payment_info: Option<PaymentInfo>,
+    ) -> Result<types::PayoutsResponseData, Report<ConnectorError>> {
+        let connector_integration: services::BoxedConnectorIntegration<
+            '_,
+            types::api::PoCancel,
+            types::PayoutsData,
+            types::PayoutsResponseData,
+        > = self
+            .get_payout_data()
+            .ok_or(ConnectorError::FailedToObtainPreferredConnector)?
+            .connector
+            .get_connector_integration();
+        let mut request =
+            self.get_payout_request(Some(connector_payout_id), payout_type, payment_info);
+        let tx: oneshot::Sender<()> = oneshot::channel().0;
+        let state = routes::AppState::with_storage(
+            Settings::new().unwrap(),
+            StorageImpl::PostgresqlTest,
+            tx,
+        )
+        .await;
+        connector_integration
+            .execute_pretasks(&mut request, &state)
+            .await?;
+        let res = services::api::execute_connector_processing_step(
+            &state,
+            connector_integration,
+            &request,
+            payments::CallConnectorAction::Trigger,
+            None,
+        )
+        .await?;
+        Ok(res.response.unwrap())
+    }
+
+    async fn create_and_fulfill_payout(
+        &self,
+        connector_customer: Option<String>,
+        payout_type: enums::PayoutType,
+        payment_info: Option<PaymentInfo>,
+    ) -> Result<types::PayoutsResponseData, Report<ConnectorError>> {
+        let create_res = self
+            .create_payout(connector_customer, payout_type, payment_info.to_owned())
+            .await?;
+        assert_eq!(
+            create_res.status.unwrap(),
+            enums::PayoutStatus::RequiresFulfillment
+        );
+        let fulfill_res = self
+            .fulfill_payout(
+                Some(create_res.connector_payout_id),
+                payout_type,
+                payment_info.to_owned(),
+            )
+            .await?;
+        Ok(fulfill_res)
+    }
+
+    async fn create_and_cancel_payout(
+        &self,
+        connector_customer: Option<String>,
+        payout_type: enums::PayoutType,
+        payment_info: Option<PaymentInfo>,
+    ) -> Result<types::PayoutsResponseData, Report<ConnectorError>> {
+        let create_res = self
+            .create_payout(connector_customer, payout_type, payment_info.to_owned())
+            .await?;
+        assert_eq!(
+            create_res.status.unwrap(),
+            enums::PayoutStatus::RequiresFulfillment
+        );
+        let cancel_res = self
+            .cancel_payout(
+                create_res.connector_payout_id,
+                payout_type,
+                payment_info.to_owned(),
+            )
+            .await?;
+        Ok(cancel_res)
+    }
+
+    async fn create_payout_recipient(
+        &self,
+        payout_type: enums::PayoutType,
+        payment_info: Option<PaymentInfo>,
+    ) -> Result<types::PayoutsResponseData, Report<ConnectorError>> {
+        let connector_integration: services::BoxedConnectorIntegration<
+            '_,
+            types::api::PoRecipient,
+            types::PayoutsData,
+            types::PayoutsResponseData,
+        > = self
+            .get_payout_data()
+            .ok_or(ConnectorError::FailedToObtainPreferredConnector)?
+            .connector
+            .get_connector_integration();
+        let mut request = self.get_payout_request(None, payout_type, payment_info);
+        let tx = oneshot::channel().0;
+        let state = routes::AppState::with_storage(
+            Settings::new().unwrap(),
+            StorageImpl::PostgresqlTest,
+            tx,
+        )
+        .await;
+        connector_integration
+            .execute_pretasks(&mut request, &state)
+            .await?;
+        let res = services::api::execute_connector_processing_step(
+            &state,
+            connector_integration,
+            &request,
+            payments::CallConnectorAction::Trigger,
+            None,
+        )
+        .await?;
+        Ok(res.response.unwrap())
     }
 }
 
@@ -481,6 +815,8 @@ pub struct PaymentSyncType(pub types::PaymentsSyncData);
 pub struct PaymentRefundType(pub types::RefundsData);
 pub struct CCardType(pub api::Card);
 pub struct BrowserInfoType(pub types::BrowserInformation);
+pub struct CustomerType(pub types::ConnectorCustomerData);
+pub struct TokenType(pub types::PaymentMethodTokenizationData);
 
 impl Default for CCardType {
     fn default() -> Self {
@@ -604,6 +940,29 @@ impl Default for PaymentRefundType {
     }
 }
 
+impl Default for CustomerType {
+    fn default() -> Self {
+        let data = types::ConnectorCustomerData {
+            description: None,
+            email: Some(Email::from(Secret::new("test@juspay.in".to_string()))),
+            phone: None,
+            name: None,
+            preprocessing_id: None,
+        };
+        Self(data)
+    }
+}
+
+impl Default for TokenType {
+    fn default() -> Self {
+        let data = types::PaymentMethodTokenizationData {
+            payment_method_data: types::api::PaymentMethodData::Card(CCardType::default().0),
+            browser_info: None,
+        };
+        Self(data)
+    }
+}
+
 pub fn get_connector_transaction_id(
     response: Result<types::PaymentsResponseData, types::ErrorResponse>,
 ) -> Option<String> {
@@ -635,5 +994,35 @@ pub fn get_connector_metadata(
             connector_response_reference_id: _,
         }) => connector_metadata,
         _ => None,
+    }
+}
+
+pub fn to_connector_auth_type(auth_type: ConnectorAuthType) -> types::ConnectorAuthType {
+    match auth_type {
+        ConnectorAuthType::HeaderKey { api_key } => types::ConnectorAuthType::HeaderKey { api_key },
+        ConnectorAuthType::BodyKey { api_key, key1 } => {
+            types::ConnectorAuthType::BodyKey { api_key, key1 }
+        }
+        ConnectorAuthType::SignatureKey {
+            api_key,
+            key1,
+            api_secret,
+        } => types::ConnectorAuthType::SignatureKey {
+            api_key,
+            key1,
+            api_secret,
+        },
+        ConnectorAuthType::MultiAuthKey {
+            api_key,
+            key1,
+            api_secret,
+            key2,
+        } => types::ConnectorAuthType::MultiAuthKey {
+            api_key,
+            key1,
+            api_secret,
+            key2,
+        },
+        _ => types::ConnectorAuthType::NoKey,
     }
 }

@@ -6,9 +6,10 @@ pub mod operations;
 pub mod tokenization;
 pub mod transformers;
 
-use std::{fmt::Debug, marker::PhantomData, ops::Deref, time::Instant};
+use std::{collections::HashMap, fmt::Debug, marker::PhantomData, ops::Deref, time::Instant};
 
-use common_utils::pii;
+use api_models::payments::FrmMessage;
+use common_utils::{ext_traits::AsyncExt, pii};
 use diesel_models::ephemeral_key;
 use error_stack::{IntoReport, ResultExt};
 use futures::future::join_all;
@@ -32,7 +33,7 @@ use crate::{
     core::errors::{self, CustomResult, RouterResponse, RouterResult},
     db::StorageInterface,
     logger,
-    routes::{metrics, AppState},
+    routes::{metrics, payment_methods::ParentPaymentMethodToken, AppState},
     services::{self, api::Authenticate},
     types::{
         self, api, domain,
@@ -197,6 +198,20 @@ where
                 .await?
             }
         };
+        payment_data
+            .payment_attempt
+            .payment_token
+            .as_ref()
+            .zip(payment_data.payment_attempt.payment_method)
+            .map(ParentPaymentMethodToken::create_key_for_token)
+            .async_map(|key_for_hyperswitch_token| async move {
+                if key_for_hyperswitch_token
+                    .should_delete_payment_method_token(payment_data.payment_intent.status)
+                {
+                    let _ = key_for_hyperswitch_token.delete(state).await;
+                }
+            })
+            .await;
     } else {
         (_, payment_data) = operation
             .to_update_tracker()?
@@ -207,6 +222,7 @@ where
                 validate_result.storage_scheme,
                 updated_customer,
                 &key_store,
+                None,
             )
             .await?;
     }
@@ -259,6 +275,7 @@ where
         auth_flow,
         &state.conf.server,
         operation,
+        &state.conf.connector_request_reference_id_config,
     )
 }
 
@@ -427,7 +444,9 @@ impl PaymentRedirectFlow for PaymentRedirectCompleteAuthorize {
                         api_models::payments::NextActionData::RedirectToUrl { redirect_to_url } => Some(redirect_to_url),
                         api_models::payments::NextActionData::DisplayBankTransferInformation { .. } => None,
                         api_models::payments::NextActionData::ThirdPartySdkSessionToken { .. } => None,
-                        api_models::payments::NextActionData::QrCodeInformation{..} => None
+                        api_models::payments::NextActionData::QrCodeInformation{..} => None,
+                        api_models::payments::NextActionData::DisplayVoucherInformation{ .. } => None,
+                        api_models::payments::NextActionData::WaitScreenInformation{..} => None,
                     })
                     .ok_or(errors::ApiErrorResponse::InternalServerError)
                     .into_report()
@@ -627,6 +646,7 @@ where
             merchant_account.storage_scheme,
             updated_customer,
             key_store,
+            None,
         )
         .await?;
 
@@ -824,7 +844,7 @@ async fn complete_preprocessing_steps_if_required<F, Req>(
     state: &AppState,
     connector: &api::ConnectorData,
     payment_data: &PaymentData<F>,
-    router_data: types::RouterData<F, Req, types::PaymentsResponseData>,
+    mut router_data: types::RouterData<F, Req, types::PaymentsResponseData>,
     should_continue_payment: bool,
 ) -> RouterResult<(types::RouterData<F, Req, types::PaymentsResponseData>, bool)>
 where
@@ -837,7 +857,9 @@ where
     let router_data_and_should_continue_payment = match payment_data.payment_method_data.clone() {
         Some(api_models::payments::PaymentMethodData::BankTransfer(data)) => match data.deref() {
             api_models::payments::BankTransferData::AchBankTransfer { .. }
-            | api_models::payments::BankTransferData::MultibancoBankTransfer { .. } => {
+            | api_models::payments::BankTransferData::MultibancoBankTransfer { .. }
+                if connector.connector_name == types::Connector::Stripe =>
+            {
                 if payment_data.payment_attempt.preprocessing_step_id.is_none() {
                     (
                         router_data.preprocessing_steps(state, connector).await?,
@@ -850,7 +872,7 @@ where
             _ => (router_data, should_continue_payment),
         },
         Some(api_models::payments::PaymentMethodData::Wallet(_)) => {
-            if connector.connector_name.to_string() == *"trustpay" {
+            if is_preprocessing_required_for_wallets(connector.connector_name.to_string()) {
                 (
                     router_data.preprocessing_steps(state, connector).await?,
                     false,
@@ -859,10 +881,25 @@ where
                 (router_data, should_continue_payment)
             }
         }
+        Some(api_models::payments::PaymentMethodData::Card(_)) => {
+            if connector.connector_name == types::Connector::Payme {
+                router_data = router_data.preprocessing_steps(state, connector).await?;
+
+                let is_error_in_response = router_data.response.is_err();
+                // If is_error_in_response is true, should_continue_payment should be false, we should throw the error
+                (router_data, !is_error_in_response)
+            } else {
+                (router_data, should_continue_payment)
+            }
+        }
         _ => (router_data, should_continue_payment),
     };
 
     Ok(router_data_and_should_continue_payment)
+}
+
+pub fn is_preprocessing_required_for_wallets(connector_name: String) -> bool {
+    connector_name == *"trustpay" || connector_name == *"payme"
 }
 
 fn is_payment_method_tokenization_enabled_for_connector(
@@ -917,7 +954,12 @@ async fn decide_payment_method_tokenize_action(
             }
         }
         Some(token) => {
-            let redis_conn = state.store.get_redis_conn();
+            let redis_conn = state
+                .store
+                .get_redis_conn()
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Failed to get redis connection")?;
+
             let key = format!(
                 "pm_token_{}_{}_{}",
                 token.to_owned(),
@@ -1070,6 +1112,7 @@ where
     pub flow: PhantomData<F>,
     pub payment_intent: storage::PaymentIntent,
     pub payment_attempt: storage::PaymentAttempt,
+    pub multiple_capture_data: Option<MultipleCaptureData>,
     pub connector_response: storage::ConnectorResponse,
     pub amount: api::Amount,
     pub mandate_id: Option<api_models::payments::MandateIds>,
@@ -1093,6 +1136,97 @@ where
     pub recurring_mandate_payment_data: Option<RecurringMandatePaymentData>,
     pub ephemeral_key: Option<ephemeral_key::EphemeralKey>,
     pub redirect_response: Option<api_models::payments::RedirectResponse>,
+    pub frm_message: Option<FrmMessage>,
+}
+
+#[derive(Clone)]
+pub struct MultipleCaptureData {
+    previous_captures: Vec<storage::Capture>,
+    current_capture: storage::Capture,
+}
+
+impl MultipleCaptureData {
+    fn get_previously_blocked_amount(&self) -> i64 {
+        self.previous_captures
+            .iter()
+            .fold(0, |accumulator, capture| {
+                accumulator
+                    + match capture.status {
+                        storage_enums::CaptureStatus::Charged
+                        | storage_enums::CaptureStatus::Pending => capture.amount,
+                        storage_enums::CaptureStatus::Started
+                        | storage_enums::CaptureStatus::Failed => 0,
+                    }
+            })
+    }
+    fn get_total_blocked_amount(&self) -> i64 {
+        self.get_previously_blocked_amount()
+            + match self.current_capture.status {
+                api_models::enums::CaptureStatus::Charged
+                | api_models::enums::CaptureStatus::Pending => self.current_capture.amount,
+                api_models::enums::CaptureStatus::Failed
+                | api_models::enums::CaptureStatus::Started => 0,
+            }
+    }
+    fn get_previously_charged_amount(&self) -> i64 {
+        self.previous_captures
+            .iter()
+            .fold(0, |accumulator, capture| {
+                accumulator
+                    + match capture.status {
+                        storage_enums::CaptureStatus::Charged => capture.amount,
+                        storage_enums::CaptureStatus::Pending
+                        | storage_enums::CaptureStatus::Started
+                        | storage_enums::CaptureStatus::Failed => 0,
+                    }
+            })
+    }
+    fn get_total_charged_amount(&self) -> i64 {
+        self.get_previously_charged_amount()
+            + match self.current_capture.status {
+                storage_enums::CaptureStatus::Charged => self.current_capture.amount,
+                storage_enums::CaptureStatus::Pending
+                | storage_enums::CaptureStatus::Started
+                | storage_enums::CaptureStatus::Failed => 0,
+            }
+    }
+    fn get_captures_count(&self) -> RouterResult<i16> {
+        i16::try_from(1 + self.previous_captures.len())
+            .into_report()
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Error while converting from usize to i16")
+    }
+    fn get_status_count(&self) -> HashMap<storage_enums::CaptureStatus, i16> {
+        let mut hash_map: HashMap<storage_enums::CaptureStatus, i16> = HashMap::new();
+        hash_map.insert(storage_enums::CaptureStatus::Charged, 0);
+        hash_map.insert(storage_enums::CaptureStatus::Pending, 0);
+        hash_map.insert(storage_enums::CaptureStatus::Started, 0);
+        hash_map.insert(storage_enums::CaptureStatus::Failed, 0);
+        hash_map
+            .entry(self.current_capture.status)
+            .and_modify(|count| *count += 1);
+        self.previous_captures
+            .iter()
+            .fold(hash_map, |mut accumulator, capture| {
+                let current_capture_status = capture.status;
+                accumulator
+                    .entry(current_capture_status)
+                    .and_modify(|count| *count += 1);
+                accumulator
+            })
+    }
+    fn get_attempt_status(&self, authorized_amount: i64) -> storage_enums::AttemptStatus {
+        let total_captured_amount = self.get_total_charged_amount();
+        if authorized_amount == total_captured_amount {
+            return storage_enums::AttemptStatus::Charged;
+        }
+        let status_count_map = self.get_status_count();
+        if status_count_map.get(&storage_enums::CaptureStatus::Charged) > Some(&0) {
+            storage_enums::AttemptStatus::PartialCharged
+        } else {
+            storage_enums::AttemptStatus::CaptureInitiated
+        }
+    }
 }
 
 #[derive(Debug, Default, Clone)]
@@ -1100,7 +1234,7 @@ pub struct RecurringMandatePaymentData {
     pub payment_method_type: Option<storage_enums::PaymentMethodType>, //required for making recurring payment using saved payment method through stripe
 }
 
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Clone)]
 pub struct CustomerDetails {
     pub customer_id: Option<String>,
     pub name: Option<Secret<String, masking::WithType>>,
@@ -1181,6 +1315,7 @@ pub fn should_call_connector<Op: Debug, F: Clone>(
             matches!(
                 payment_data.payment_intent.status,
                 storage_enums::IntentStatus::RequiresCapture
+                    | storage_enums::IntentStatus::PartiallyCaptured
             )
         }
         "CompleteAuthorize" => true,
@@ -1251,6 +1386,33 @@ pub async fn list_payments(
         .into_iter()
         .map(ForeignFrom::foreign_from)
         .collect();
+
+    Ok(services::ApplicationResponse::Json(
+        api::PaymentListResponse {
+            size: data.len(),
+            data,
+        },
+    ))
+}
+#[cfg(feature = "olap")]
+pub async fn apply_filters_on_payments(
+    db: &dyn StorageInterface,
+    merchant: domain::MerchantAccount,
+    constraints: api::PaymentListFilterConstraints,
+) -> RouterResponse<api::PaymentListResponse> {
+    use crate::types::transformers::ForeignFrom;
+
+    let list: Vec<(storage::PaymentIntent, storage::PaymentAttempt)> = db
+        .apply_filters_on_payments_list(
+            &merchant.merchant_id,
+            &constraints,
+            merchant.storage_scheme,
+        )
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
+
+    let data: Vec<api::PaymentsResponse> =
+        list.into_iter().map(ForeignFrom::foreign_from).collect();
 
     Ok(services::ApplicationResponse::Json(
         api::PaymentListResponse {

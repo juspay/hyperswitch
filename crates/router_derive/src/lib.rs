@@ -509,3 +509,32 @@ pub fn polymorphic_schema(input: proc_macro::TokenStream) -> proc_macro::TokenSt
         .unwrap_or_else(|error| error.into_compile_error())
         .into()
 }
+
+/// Implements the `Validate` trait to check if the config variable is present
+/// Usage
+/// ```
+/// #[derive(ConfigValidate)]
+/// struct Connectors {
+///     pub stripe: ConnectorParams,
+///     pub checkout: ConnectorParams
+/// }
+/// ```
+///
+/// This will call the `validate()` function for all the fields in the struct
+///
+/// ```
+/// impl Connectors {
+///      fn validate(&self) -> Result<(), ApplicationError> {
+///         self.stripe.validate()?;
+///         self.checkout.validate()?;
+///      }
+/// }
+/// ```
+#[proc_macro_derive(ConfigValidate)]
+pub fn validate_config(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
+    let input = syn::parse_macro_input!(input as syn::DeriveInput);
+
+    macros::misc::validate_config(input)
+        .unwrap_or_else(|error| error.into_compile_error())
+        .into()
+}

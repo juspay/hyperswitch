@@ -161,7 +161,6 @@ pub struct PaymentIntentUpdateInternal {
     pub setup_future_usage: Option<storage_enums::FutureUsage>,
     pub off_session: Option<bool>,
     pub metadata: Option<pii::SecretSerdeValue>,
-    pub client_secret: Option<Option<String>>,
     pub billing_address_id: Option<String>,
     pub shipping_address_id: Option<String>,
     pub modified_at: Option<PrimitiveDateTime>,
@@ -191,9 +190,6 @@ impl PaymentIntentUpdate {
                 .or(source.setup_future_usage),
             off_session: internal_update.off_session.or(source.off_session),
             metadata: internal_update.metadata.or(source.metadata),
-            client_secret: internal_update
-                .client_secret
-                .unwrap_or(source.client_secret),
             billing_address_id: internal_update
                 .billing_address_id
                 .or(source.billing_address_id),
@@ -232,7 +228,6 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 status: Some(status),
                 setup_future_usage,
                 customer_id,
-                client_secret: make_client_secret_null_based_on_status(status),
                 shipping_address_id,
                 billing_address_id,
                 modified_at: Some(common_utils::date_time::now()),
@@ -260,7 +255,6 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
             } => Self {
                 return_url,
                 status,
-                client_secret: status.and_then(make_client_secret_null_based_on_status),
                 customer_id,
                 shipping_address_id,
                 billing_address_id,
@@ -270,7 +264,6 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
             PaymentIntentUpdate::PGStatusUpdate { status } => Self {
                 status: Some(status),
                 modified_at: Some(common_utils::date_time::now()),
-                client_secret: make_client_secret_null_based_on_status(status),
                 ..Default::default()
             },
             PaymentIntentUpdate::MerchantStatusUpdate {
@@ -279,7 +272,6 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 billing_address_id,
             } => Self {
                 status: Some(status),
-                client_secret: make_client_secret_null_based_on_status(status),
                 shipping_address_id,
                 billing_address_id,
                 modified_at: Some(common_utils::date_time::now()),
@@ -299,7 +291,6 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 amount_captured,
                 // customer_id,
                 return_url,
-                client_secret: make_client_secret_null_based_on_status(status),
                 modified_at: Some(common_utils::date_time::now()),
                 ..Default::default()
             },
@@ -322,21 +313,5 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 ..Default::default()
             },
         }
-    }
-}
-
-fn make_client_secret_null_based_on_status(
-    status: storage_enums::IntentStatus,
-) -> Option<Option<String>> {
-    match status {
-        storage_enums::IntentStatus::Cancelled => Some(None),
-        storage_enums::IntentStatus::Succeeded
-        | storage_enums::IntentStatus::Processing
-        | storage_enums::IntentStatus::RequiresCustomerAction
-        | storage_enums::IntentStatus::RequiresMerchantAction
-        | storage_enums::IntentStatus::RequiresPaymentMethod
-        | storage_enums::IntentStatus::RequiresConfirmation
-        | storage_enums::IntentStatus::RequiresCapture
-        | storage_enums::IntentStatus::Failed => None,
     }
 }

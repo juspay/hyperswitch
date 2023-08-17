@@ -1,3 +1,4 @@
+#[cfg(feature = "openapi")]
 #[derive(utoipa::OpenApi)]
 #[openapi(
     info(
@@ -59,6 +60,7 @@ Never share your secret api keys. Keep them guarded and secure.
         (name = "Payment Methods", description = "Create and manage payment methods of customers"),
         (name = "Disputes", description = "Manage disputes"),
         // (name = "API Key", description = "Create and manage API Keys"),
+        (name = "Payouts", description = "Create and manage payouts"),
     ),
     paths(
         crate::routes::refunds::refunds_create,
@@ -78,13 +80,13 @@ Never share your secret api keys. Keep them guarded and secure.
         crate::routes::mandates::get_mandate,
         crate::routes::mandates::revoke_mandate,
         crate::routes::payments::payments_create,
-       // crate::routes::payments::payments_start,
+    // crate::routes::payments::payments_start,
         crate::routes::payments::payments_retrieve,
         crate::routes::payments::payments_update,
         crate::routes::payments::payments_confirm,
         crate::routes::payments::payments_capture,
         crate::routes::payments::payments_connector_session,
-       // crate::routes::payments::payments_redirect_response,
+    // crate::routes::payments::payments_redirect_response,
         crate::routes::payments::payments_cancel,
         crate::routes::payments::payments_list,
         crate::routes::payment_methods::create_payment_method_api,
@@ -105,6 +107,11 @@ Never share your secret api keys. Keep them guarded and secure.
         // crate::routes::api_keys::api_key_list,
         crate::routes::disputes::retrieve_disputes_list,
         crate::routes::disputes::retrieve_dispute,
+        crate::routes::payouts::payouts_create,
+        crate::routes::payouts::payouts_cancel,
+        crate::routes::payouts::payouts_fulfill,
+        crate::routes::payouts::payouts_retrieve,
+        crate::routes::payouts::payouts_update,
     ),
     components(schemas(
         crate::types::api::refunds::RefundRequest,
@@ -136,6 +143,7 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::enums::PaymentMethod,
         api_models::enums::PaymentMethodType,
         api_models::enums::ConnectorType,
+        api_models::enums::PayoutConnectors,
         api_models::enums::Currency,
         api_models::enums::IntentStatus,
         api_models::enums::CaptureMethod,
@@ -160,6 +168,8 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::admin::MerchantConnectorUpdate,
         api_models::admin::PrimaryBusinessDetails,
         api_models::admin::FrmConfigs,
+        api_models::admin::FrmPaymentMethod,
+        api_models::admin::FrmPaymentMethodType,
         api_models::admin::PaymentMethodsEnabled,
         api_models::admin::MerchantConnectorDetailsWrap,
         api_models::admin::MerchantConnectorDetails,
@@ -170,6 +180,10 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::payments::BankDebitData,
         api_models::payments::AliPayQr,
         api_models::payments::AliPayRedirection,
+        api_models::payments::MomoRedirection,
+        api_models::payments::TouchNGoRedirection,
+        api_models::payments::GcashRedirection,
+        api_models::payments::KakaoPayRedirection,
         api_models::payments::AliPayHkRedirection,
         api_models::payments::GoPayRedirection,
         api_models::payments::MbWayRedirection,
@@ -180,7 +194,15 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::payments::CryptoData,
         api_models::payments::RewardData,
         api_models::payments::UpiData,
+        api_models::payments::VoucherData,
+        api_models::payments::BoletoVoucherData,
+        api_models::payments::AlfamartVoucherData,
+        api_models::payments::IndomaretVoucherData,
         api_models::payments::Address,
+        api_models::payments::VoucherData,
+        api_models::payments::JCSVoucherData,
+        api_models::payments::AlfamartVoucherData,
+        api_models::payments::IndomaretVoucherData,
         api_models::payments::BankRedirectData,
         api_models::payments::BankRedirectBilling,
         api_models::payments::BankRedirectBilling,
@@ -188,6 +210,7 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::payments::FeatureMetadata,
         api_models::payments::ApplepayConnectorMetadataRequest,
         api_models::payments::SessionTokenInfo,
+        api_models::payments::SwishQrData,
         api_models::payments::AirwallexData,
         api_models::payments::NoonData,
         api_models::payments::OrderDetails,
@@ -204,6 +227,7 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::payments::MandateAmountData,
         api_models::payments::OnlineMandate,
         api_models::payments::Card,
+        api_models::payments::CardRedirectData,
         api_models::payments::CustomerAcceptance,
         api_models::payments::PaymentsRequest,
         api_models::payments::PaymentsCreateRequest,
@@ -247,15 +271,18 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::payments::PaymentsCancelRequest,
         api_models::payments::PaymentListConstraints,
         api_models::payments::PaymentListResponse,
+        api_models::payments::CashappQr,
         api_models::payments::BankTransferData,
         api_models::payments::BankTransferNextStepsData,
         api_models::payments::SepaAndBacsBillingDetails,
         api_models::payments::AchBillingDetails,
         api_models::payments::MultibancoBillingDetails,
+        api_models::payments::DokuBillingDetails,
         api_models::payments::BankTransferInstructions,
         api_models::payments::ReceiverDetails,
         api_models::payments::AchTransfer,
         api_models::payments::MultibancoTransferInstructions,
+        api_models::payments::DokuBankTransferInstructions,
         api_models::payments::ApplePayRedirectData,
         api_models::payments::ApplePayThirdPartySdkData,
         api_models::payments::GooglePayRedirectData,
@@ -274,6 +301,28 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::mandates::MandateCardDetails,
         api_models::ephemeral_key::EphemeralKeyCreateResponse,
         api_models::payments::CustomerDetails,
+        api_models::payments::GiftCardData,
+        api_models::payments::GiftCardDetails,
+        api_models::payouts::PayoutCreateRequest,
+        api_models::payments::Address,
+        api_models::payouts::Card,
+        api_models::payouts::AchBankTransfer,
+        api_models::payouts::BacsBankTransfer,
+        api_models::payouts::SepaBankTransfer,
+        api_models::payouts::PayoutCreateResponse,
+        api_models::payouts::PayoutRetrieveBody,
+        api_models::payouts::PayoutRetrieveRequest,
+        api_models::payouts::PayoutActionRequest,
+        api_models::payouts::PayoutRequest,
+        api_models::payouts::PayoutMethodData,
+        api_models::payouts::Bank,
+        api_models::enums::PayoutEntityType,
+        api_models::enums::PayoutStatus,
+        api_models::enums::PayoutType,
+        api_models::payments::FrmMessage,
+        api_models::webhooks::OutgoingWebhook,
+        api_models::webhooks::OutgoingWebhookContent,
+        api_models::enums::EventType,
         crate::types::api::admin::MerchantAccountResponse,
         crate::types::api::admin::MerchantConnectorId,
         crate::types::api::admin::MerchantDetails,
@@ -302,7 +351,7 @@ impl utoipa::Modify for SecurityAddon {
                     SecurityScheme::ApiKey(ApiKey::Header(ApiKeyValue::with_description(
                         "api-key",
                         "API keys are the most common method of authentication and can be obtained \
-                         from the HyperSwitch dashboard."
+                        from the HyperSwitch dashboard."
                     ))),
                 ),
                 (
@@ -310,7 +359,7 @@ impl utoipa::Modify for SecurityAddon {
                     SecurityScheme::ApiKey(ApiKey::Header(ApiKeyValue::with_description(
                         "api-key",
                         "Admin API keys allow you to perform some privileged actions such as \
-                         creating a merchant account and Merchant Connector account."
+                        creating a merchant account and Merchant Connector account."
                     ))),
                 ),
                 (
@@ -318,7 +367,7 @@ impl utoipa::Modify for SecurityAddon {
                     SecurityScheme::ApiKey(ApiKey::Header(ApiKeyValue::with_description(
                         "api-key",
                         "Publishable keys are a type of keys that can be public and have limited \
-                         scope of usage."
+                        scope of usage."
                     ))),
                 ),
                 (
@@ -326,10 +375,114 @@ impl utoipa::Modify for SecurityAddon {
                     SecurityScheme::ApiKey(ApiKey::Header(ApiKeyValue::with_description(
                         "api-key",
                         "Ephemeral keys provide temporary access to singular data, such as access \
-                         to a single customer object for a short period of time."
+                        to a single customer object for a short period of time."
                     ))),
                 ),
             ]);
         }
     }
+}
+
+pub mod examples {
+    /// Creating the payment with minimal fields
+    pub const PAYMENTS_CREATE_MINIMUM_FIELDS: &str = r#"{
+        "amount": 6540,
+        "currency": "USD",
+    }"#;
+
+    /// Creating a manual capture payment
+    pub const PAYMENTS_CREATE_WITH_MANUAL_CAPTURE: &str = r#"{
+        "amount": 6540,
+        "currency": "USD",
+        "capture_method":"manual"
+    }"#;
+
+    /// Creating a payment with billing and shipping address
+    pub const PAYMENTS_CREATE_WITH_ADDRESS: &str = r#"{
+        "amount": 6540,
+        "currency": "USD",
+        "customer": {
+            "id" : "cus_abcdefgh"
+        },
+        "billing": {
+            "address": {
+                "line1": "1467",
+                "line2": "Harrison Street",
+                "line3": "Harrison Street",
+                "city": "San Fransico",
+                "state": "California",
+                "zip": "94122",
+                "country": "US",
+                "first_name": "joseph",
+                "last_name": "Doe"
+            },
+            "phone": {
+                "number": "8056594427",
+                "country_code": "+91"
+            }
+        }
+    }"#;
+
+    /// Creating a payment with customer details
+    pub const PAYMENTS_CREATE_WITH_CUSTOMER_DATA: &str = r#"{
+        "amount": 6540,
+        "currency": "USD",
+        "customer": {
+            "id":"cus_abcdefgh",
+            "name":"John Dough",
+            "phone":"9999999999",
+            "email":"john@example.com"
+        }
+    }"#;
+
+    /// 3DS force payment
+    pub const PAYMENTS_CREATE_WITH_FORCED_3DS: &str = r#"{
+        "amount": 6540,
+        "currency": "USD",
+        "authentication_type" : "three_ds"
+    }"#;
+
+    /// A payment with other fields
+    pub const PAYMENTS_CREATE: &str = r#"{
+        "amount": 6540,
+        "currency": "USD",
+        "payment_id": "abcdefghijklmnopqrstuvwxyz",
+        "customer": {
+            "id":"cus_abcdefgh",
+            "name":"John Dough",
+            "phone":"9999999999",
+            "email":"john@example.com"
+        },
+        "description": "Its my first payment request",
+        "statement_descriptor_name": "joseph",
+        "statement_descriptor_suffix": "JS",
+        "metadata": {
+            "udf1": "some-value",
+            "udf2": "some-value"
+        }
+    }"#;
+
+    /// Creating the payment with order details
+    pub const PAYMENTS_CREATE_WITH_ORDER_DETAILS: &str = r#"{
+        "amount": 6540,
+        "currency": "USD",
+        "order_details": [
+            {
+                "product_name": "Apple iPhone 15",
+                "quantity": 1,
+                "amount" : 6540
+            }
+        ]
+    }"#;
+
+    /// Creating the payment with connector metadata for noon
+    pub const PAYMENTS_CREATE_WITH_NOON_ORDER_CATETORY: &str = r#"{
+        "amount": 6540,
+        "currency": "USD",
+        "connector_metadata": {
+            "noon": {
+                "order_category":"shoes"
+            }
+        }
+    }"#;
 }

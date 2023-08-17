@@ -1,4 +1,4 @@
-use api_models::admin::PrimaryBusinessDetails;
+use api_models::{admin::PrimaryBusinessDetails, enums as api_enums};
 use common_utils::{
     crypto::{generate_cryptographically_secure_random_string, OptionalSecretValue},
     date_time,
@@ -38,31 +38,6 @@ pub fn create_merchant_publishable_key() -> String {
     )
 }
 
-fn get_primary_business_details(
-    request: &api::MerchantAccountCreate,
-) -> Vec<PrimaryBusinessDetails> {
-    // In this case, business details is not optional, it will always be passed
-    #[cfg(feature = "multiple_mca")]
-    {
-        request.primary_business_details.to_owned()
-    }
-
-    // In this case, business details will be optional, if it is not passed, then create the
-    // default value
-    #[cfg(not(feature = "multiple_mca"))]
-    {
-        request
-            .primary_business_details
-            .to_owned()
-            .unwrap_or_else(|| {
-                vec![PrimaryBusinessDetails {
-                    country: enums::CountryAlpha2::US,
-                    business: "default".to_string(),
-                }]
-            })
-    }
-}
-
 pub async fn create_merchant_account(
     db: &dyn StorageInterface,
     req: api::MerchantAccountCreate,
@@ -76,7 +51,7 @@ pub async fn create_merchant_account(
     let publishable_key = Some(create_merchant_publishable_key());
 
     let primary_business_details = utils::Encode::<Vec<PrimaryBusinessDetails>>::encode_to_value(
-        &get_primary_business_details(&req),
+        &req.primary_business_details.unwrap_or_default(),
     )
     .change_context(errors::ApiErrorResponse::InvalidDataValue {
         field_name: "primary_business_details",
@@ -171,8 +146,10 @@ pub async fn create_merchant_account(
             modified_at: date_time::now(),
             frm_routing_algorithm: req.frm_routing_algorithm,
             intent_fulfillment_time: req.intent_fulfillment_time.map(i64::from),
+            payout_routing_algorithm: req.payout_routing_algorithm,
             id: None,
             organization_id: req.organization_id,
+            is_recon_enabled: false,
         })
     }
     .await
@@ -312,6 +289,7 @@ pub async fn merchant_account_update(
         primary_business_details,
         frm_routing_algorithm: req.frm_routing_algorithm,
         intent_fulfillment_time: req.intent_fulfillment_time.map(i64::from),
+        payout_routing_algorithm: req.payout_routing_algorithm,
     };
 
     let response = db
@@ -380,27 +358,6 @@ async fn validate_merchant_id<S: Into<String>>(
         .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)
 }
 
-fn get_business_details_wrapper(
-    request: &api::MerchantConnectorCreate,
-    _merchant_account: &domain::MerchantAccount,
-) -> RouterResult<(enums::CountryAlpha2, String)> {
-    #[cfg(feature = "multiple_mca")]
-    {
-        // The fields are mandatory
-        Ok((request.business_country, request.business_label.to_owned()))
-    }
-
-    #[cfg(not(feature = "multiple_mca"))]
-    {
-        // If the value is not passed, then take it from Merchant account
-        helpers::get_business_details(
-            request.business_country,
-            request.business_label.as_ref(),
-            _merchant_account,
-        )
-    }
-}
-
 fn validate_certificate_in_mca_metadata(
     connector_metadata: Secret<serde_json::Value>,
 ) -> RouterResult<()> {
@@ -456,11 +413,15 @@ pub async fn create_payment_connector(
         .await
         .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
 
-    let (business_country, business_label) = get_business_details_wrapper(&req, &merchant_account)?;
+    helpers::validate_business_details(
+        req.business_country,
+        &req.business_label,
+        &merchant_account,
+    )?;
 
     let connector_label = helpers::get_connector_label(
-        business_country,
-        &business_label,
+        req.business_country,
+        &req.business_label,
         req.business_sub_label.as_ref(),
         &req.connector_name.to_string(),
     );
@@ -482,7 +443,7 @@ pub async fn create_payment_connector(
     };
 
     // Validate Merchant api details and return error if not in correct format
-    let _: types::ConnectorAuthType = req
+    let auth: types::ConnectorAuthType = req
         .connector_account_details
         .clone()
         .parse_value("ConnectorAuthType")
@@ -491,15 +452,19 @@ pub async fn create_payment_connector(
             expected_format: "auth_type and api_key".to_string(),
         })?;
 
-    let frm_configs = match req.frm_configs {
-        Some(frm_value) => {
-            let configs_for_frm_value: serde_json::Value =
-                utils::Encode::<api_models::admin::FrmConfigs>::encode_to_value(&frm_value)
-                    .change_context(errors::ApiErrorResponse::ConfigNotFound)?;
-            Some(Secret::new(configs_for_frm_value))
+    validate_auth_type(req.connector_name, &auth).map_err(|err| {
+        if err.current_context() == &errors::ConnectorError::InvalidConnectorName {
+            err.change_context(errors::ApiErrorResponse::InvalidRequestData {
+                message: "The connector name is invalid".to_string(),
+            })
+        } else {
+            err.change_context(errors::ApiErrorResponse::InvalidRequestData {
+                message: "The auth type is invalid for the connector".to_string(),
+            })
         }
-        None => None,
-    };
+    })?;
+
+    let frm_configs = get_frm_config_as_secret(req.frm_configs);
 
     let merchant_connector_account = domain::MerchantConnectorAccount {
         merchant_id: merchant_id.to_string(),
@@ -523,8 +488,8 @@ pub async fn create_payment_connector(
         metadata: req.metadata,
         frm_configs,
         connector_label: connector_label.clone(),
-        business_country,
-        business_label,
+        business_country: req.business_country,
+        business_label: req.business_label.clone(),
         business_sub_label: req.business_sub_label,
         created_at: common_utils::date_time::now(),
         modified_at: common_utils::date_time::now(),
@@ -669,15 +634,7 @@ pub async fn update_payment_connector(
             .collect::<Vec<serde_json::Value>>()
     });
 
-    let frm_configs = match req.frm_configs.as_ref() {
-        Some(frm_value) => {
-            let configs_for_frm_value: serde_json::Value =
-                utils::Encode::<api_models::admin::FrmConfigs>::encode_to_value(&frm_value)
-                    .change_context(errors::ApiErrorResponse::ConfigNotFound)?;
-            Some(Secret::new(configs_for_frm_value))
-        }
-        None => None,
-    };
+    let frm_configs = get_frm_config_as_secret(req.frm_configs);
 
     let payment_connector = storage::MerchantConnectorAccountUpdate::Update {
         merchant_id: None,
@@ -851,4 +808,218 @@ pub async fn check_merchant_account_kv_status(
             kv_enabled: kv_status,
         },
     ))
+}
+
+pub fn get_frm_config_as_secret(
+    frm_configs: Option<Vec<api_models::admin::FrmConfigs>>,
+) -> Option<Vec<Secret<serde_json::Value>>> {
+    match frm_configs.as_ref() {
+        Some(frm_value) => {
+            let configs_for_frm_value: Vec<Secret<serde_json::Value>> = frm_value
+                .iter()
+                .map(|config| {
+                    utils::Encode::<api_models::admin::FrmConfigs>::encode_to_value(&config)
+                        .change_context(errors::ApiErrorResponse::ConfigNotFound)
+                        .map(masking::Secret::new)
+                })
+                .collect::<Result<Vec<_>, _>>()
+                .ok()?;
+            Some(configs_for_frm_value)
+        }
+        None => None,
+    }
+}
+
+pub(crate) fn validate_auth_type(
+    connector_name: api_models::enums::Connector,
+    val: &types::ConnectorAuthType,
+) -> Result<(), error_stack::Report<errors::ConnectorError>> {
+    use crate::connector::*;
+
+    match connector_name {
+        #[cfg(feature = "dummy_connector")]
+        api_enums::Connector::DummyConnector1
+        | api_enums::Connector::DummyConnector2
+        | api_enums::Connector::DummyConnector3
+        | api_enums::Connector::DummyConnector4
+        | api_enums::Connector::DummyConnector5
+        | api_enums::Connector::DummyConnector6
+        | api_enums::Connector::DummyConnector7 => {
+            dummyconnector::transformers::DummyConnectorAuthType::try_from(val)?;
+            Ok(())
+        }
+        api_enums::Connector::Aci => {
+            aci::transformers::AciAuthType::try_from(val)?;
+            Ok(())
+        }
+        api_enums::Connector::Adyen => {
+            adyen::transformers::AdyenAuthType::try_from(val)?;
+            Ok(())
+        }
+        api_enums::Connector::Airwallex => {
+            airwallex::transformers::AirwallexAuthType::try_from(val)?;
+            Ok(())
+        }
+        api_enums::Connector::Authorizedotnet => {
+            authorizedotnet::transformers::AuthorizedotnetAuthType::try_from(val)?;
+            Ok(())
+        }
+        api_enums::Connector::Bitpay => {
+            bitpay::transformers::BitpayAuthType::try_from(val)?;
+            Ok(())
+        }
+        api_enums::Connector::Bambora => {
+            bambora::transformers::BamboraAuthType::try_from(val)?;
+            Ok(())
+        }
+        api_enums::Connector::Boku => {
+            boku::transformers::BokuAuthType::try_from(val)?;
+            Ok(())
+        }
+        api_enums::Connector::Bluesnap => {
+            bluesnap::transformers::BluesnapAuthType::try_from(val)?;
+            Ok(())
+        }
+        api_enums::Connector::Braintree => {
+            braintree::transformers::BraintreeAuthType::try_from(val)?;
+            Ok(())
+        }
+        api_enums::Connector::Cashtocode => {
+            cashtocode::transformers::CashtocodeAuthType::try_from(val)?;
+            Ok(())
+        }
+        api_enums::Connector::Checkout => {
+            checkout::transformers::CheckoutAuthType::try_from(val)?;
+            Ok(())
+        }
+
+        api_enums::Connector::Coinbase => {
+            coinbase::transformers::CoinbaseAuthType::try_from(val)?;
+            Ok(())
+        }
+        api_enums::Connector::Cryptopay => {
+            cryptopay::transformers::CryptopayAuthType::try_from(val)?;
+            Ok(())
+        }
+        api_enums::Connector::Cybersource => {
+            cybersource::transformers::CybersourceAuthType::try_from(val)?;
+            Ok(())
+        }
+        api_enums::Connector::Dlocal => {
+            dlocal::transformers::DlocalAuthType::try_from(val)?;
+            Ok(())
+        }
+        api_enums::Connector::Fiserv => {
+            fiserv::transformers::FiservAuthType::try_from(val)?;
+            Ok(())
+        }
+        api_enums::Connector::Forte => {
+            forte::transformers::ForteAuthType::try_from(val)?;
+            Ok(())
+        }
+        api_enums::Connector::Globalpay => {
+            globalpay::transformers::GlobalpayAuthType::try_from(val)?;
+            Ok(())
+        }
+        api_enums::Connector::Globepay => {
+            globepay::transformers::GlobepayAuthType::try_from(val)?;
+            Ok(())
+        }
+        api_enums::Connector::Iatapay => {
+            iatapay::transformers::IatapayAuthType::try_from(val)?;
+            Ok(())
+        }
+        api_enums::Connector::Klarna => {
+            klarna::transformers::KlarnaAuthType::try_from(val)?;
+            Ok(())
+        }
+        api_enums::Connector::Mollie => {
+            mollie::transformers::MollieAuthType::try_from(val)?;
+            Ok(())
+        }
+        api_enums::Connector::Multisafepay => {
+            multisafepay::transformers::MultisafepayAuthType::try_from(val)?;
+            Ok(())
+        }
+        api_enums::Connector::Nexinets => {
+            nexinets::transformers::NexinetsAuthType::try_from(val)?;
+            Ok(())
+        }
+        api_enums::Connector::Nmi => {
+            nmi::transformers::NmiAuthType::try_from(val)?;
+            Ok(())
+        }
+        api_enums::Connector::Noon => {
+            noon::transformers::NoonAuthType::try_from(val)?;
+            Ok(())
+        }
+        api_enums::Connector::Nuvei => {
+            nuvei::transformers::NuveiAuthType::try_from(val)?;
+            Ok(())
+        }
+        api_enums::Connector::Opennode => {
+            opennode::transformers::OpennodeAuthType::try_from(val)?;
+            Ok(())
+        }
+        api_enums::Connector::Payme => {
+            payme::transformers::PaymeAuthType::try_from(val)?;
+            Ok(())
+        }
+        api_enums::Connector::Paypal => {
+            paypal::transformers::PaypalAuthType::try_from(val)?;
+            Ok(())
+        }
+        api_enums::Connector::Payu => {
+            payu::transformers::PayuAuthType::try_from(val)?;
+            Ok(())
+        }
+        api_enums::Connector::Powertranz => {
+            powertranz::transformers::PowertranzAuthType::try_from(val)?;
+            Ok(())
+        }
+        api_enums::Connector::Rapyd => {
+            rapyd::transformers::RapydAuthType::try_from(val)?;
+            Ok(())
+        }
+        api_enums::Connector::Shift4 => {
+            shift4::transformers::Shift4AuthType::try_from(val)?;
+            Ok(())
+        }
+        api_enums::Connector::Stax => {
+            stax::transformers::StaxAuthType::try_from(val)?;
+            Ok(())
+        }
+        api_enums::Connector::Stripe => {
+            stripe::transformers::StripeAuthType::try_from(val)?;
+            Ok(())
+        }
+        api_enums::Connector::Trustpay => {
+            trustpay::transformers::TrustpayAuthType::try_from(val)?;
+            Ok(())
+        }
+        api_enums::Connector::Tsys => {
+            tsys::transformers::TsysAuthType::try_from(val)?;
+            Ok(())
+        }
+        api_enums::Connector::Wise => {
+            wise::transformers::WiseAuthType::try_from(val)?;
+            Ok(())
+        }
+        api_enums::Connector::Worldline => {
+            worldline::transformers::WorldlineAuthType::try_from(val)?;
+            Ok(())
+        }
+        api_enums::Connector::Worldpay => {
+            worldpay::transformers::WorldpayAuthType::try_from(val)?;
+            Ok(())
+        }
+        api_enums::Connector::Zen => {
+            zen::transformers::ZenAuthType::try_from(val)?;
+            Ok(())
+        }
+        api_enums::Connector::Signifyd => {
+            Err(report!(errors::ConnectorError::InvalidConnectorName)
+                .attach_printable(format!("invalid connector name: {connector_name}")))
+        }
+    }
 }

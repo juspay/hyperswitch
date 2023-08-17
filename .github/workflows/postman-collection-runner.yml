@@ -1,68 +1,150 @@
-name: Postman Collection Runner
+name: Run postman tests
 
 on:
   workflow_dispatch:
-  schedule:
-    - cron: "30 0,12 * * *" # Run workflow at 6 AM and 6 PM IST
+  pull_request:
+  merge_group:
+    types: [checks_requested]
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
+env:
+  CARGO_INCREMENTAL: 1
+  CARGO_NET_RETRY: 10
+  RUSTUP_MAX_RETRIES: 10
+  RUST_BACKTRACE: short
+  CARGO_REGISTRIES_CRATES_IO_PROTOCOL: sparse
+  CONNECTORS: adyen_uk, bluesnap, checkout, paypal, stripe, trustpay
+
 jobs:
-  api_tests:
-    name: Run Postman Collection on integ env
+  runner:
+    name: Run postman tests
     runs-on: ubuntu-latest
 
-    strategy:
-      fail-fast: false
-      matrix:
-        connector:
-          - aci
-          # - authorizedotnet
-          - bluesnap
-          # - braintree
-          - checkout
-          # - iatapay
-          # - multisafepay
-          - nmi
-          - stripe
-          # - trustpay
-          - worldline
+    services:
+      redis:
+        image: "${{ github.event_name != 'pull_request' && 'redis' || '' }}"
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 6379:6379
+      postgres:
+        image: "${{ github.event_name != 'pull_request' && 'postgres:14.5' || '' }}"
+        env:
+          POSTGRES_USER: db_user
+          POSTGRES_PASSWORD: db_pass
+          POSTGRES_DB: hyperswitch_db
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
 
     steps:
-      - name: Checkout repository
+      - name: Ignore Tests incase of pull request
+        if: github.event_name == 'pull_request'
+        shell: bash
+        run: |
+          echo "Skipped tests as the event is pull request" 
+          exit 0
+
+      - name: Repository checkout
+        if: github.event_name != 'pull_request'
         uses: actions/checkout@v3
 
-      - name: Install Rust
-        uses: dtolnay/rust-toolchain@master
-        with:
-          toolchain: stable
-
-      - uses: Swatinem/rust-cache@v2.4.0
-
       - name: Decrypt connector auth file
+        if: github.event_name != 'pull_request'
         env:
           CONNECTOR_AUTH_PASSPHRASE: ${{ secrets.CONNECTOR_AUTH_PASSPHRASE }}
         shell: bash
         run: ./scripts/decrypt_connector_auth.sh
 
-      - name: Set connector auth file path in env
+      - name: Set paths in env
+        if: github.event_name != 'pull_request'
+        id: config_path
         shell: bash
-        run: echo "CONNECTOR_CONFIG_PATH=$HOME/target/test/connector_auth.toml" >> $GITHUB_ENV
+        run: |
+          echo "CONNECTOR_AUTH_FILE_PATH=$HOME/target/test/connector_auth.toml" >> $GITHUB_ENV
+
+      - name: Fetch keys
+        if: github.event_name != 'pull_request'
+        env:
+          TOML_PATH: "./config/development.toml"
+        run: |
+          LOCAL_ADMIN_API_KEY=$(yq '.secrets.admin_api_key' $TOML_PATH)
+          echo "ADMIN_API_KEY=$LOCAL_ADMIN_API_KEY" >> $GITHUB_ENV
+
+      - name: Install Rust
+        if: github.event_name != 'pull_request'
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: stable
+
+      - name: Build and Cache Rust Dependencies
+        if: github.event_name != 'pull_request'
+        uses: Swatinem/rust-cache@v2.4.0
+
+      - name: Install Diesel CLI with Postgres Support
+        if: github.event_name != 'pull_request'
+        uses: baptiste0928/cargo-install@v2.1.0
+        with:
+          crate: diesel_cli
+          features: postgres
+          args: "--no-default-features"
+
+      - name: Diesel migration run
+        if: github.event_name != 'pull_request'
+        shell: bash
+        env:
+          DATABASE_URL: postgres://db_user:db_pass@localhost:5432/hyperswitch_db
+        run: diesel migration run
+
+      - name: Setup Local Server
+        if: github.event_name != 'pull_request'
+        run: |
+          cargo run &
+          COUNT=0
+          # Wait for the server to start in port 8080
+          while netstat -lnt | awk '$4 ~ /:8080$/ {exit 1}'; do 
+              # Wait for 15 mins to start otherwise kill the task
+              if [ $COUNT -gt 90 ];
+              then
+                  exit 1
+              else 
+                  COUNT=$((COUNT+1))
+                  sleep 10
+              fi
+          done
 
       - name: Run Tests
+        if: github.event_name != 'pull_request'
         env:
-          ADMIN_API_KEY: ${{ secrets.INTEG_ADMIN_API_KEY }}
-          BASE_URL: ${{ secrets.INTEG_BASE_URL }}
-          CONNECTOR_AUTH_FILE_PATH: ${{ env.CONNECTOR_CONFIG_PATH }}
+          BASE_URL: "http://localhost:8080"
           GATEWAY_MERCHANT_ID: ${{ secrets.STRIPE_GATEWAY_MERCHANT_ID }}
           GPAY_CERTIFICATE: ${{ secrets.STRIPE_GPAY_CERTIFICATE }}
           GPAY_CERTIFICATE_KEYS: ${{ secrets.STRIPE_GPAY_CERTIFICATE_KEYS }}
-        uses: nick-fields/retry@v2
-        with:
-          timeout_minutes: 30
-          max_attempts: 3
-          retry_on: error
-          command: |
-            cargo run --package test_utils --bin test_utils -- --connector_name=${{ matrix.connector }} --base_url=$BASE_URL --admin_api_key=$ADMIN_API_KEY
+        shell: bash
+        run: |
+          RED='\033[0;31m'
+          RESET='\033[0m'
+          failed_connectors=()
+      
+          for i in $(echo "$CONNECTORS" | tr "," "\n"); do
+            echo $i
+            if ! cargo run --bin test_utils -- --connector_name="$i" --base_url="$BASE_URL" --admin_api_key="$ADMIN_API_KEY"; then
+              failed_connectors+=("$i")
+            fi
+          done
+      
+          if [ ${#failed_connectors[@]} -gt 0 ]; then
+            echo -e "${RED}One or more connectors failed to run:${RESET}"
+            printf '%s\n' "${failed_connectors[@]}"
+            exit 1
+          fi

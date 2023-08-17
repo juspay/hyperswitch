@@ -1,10 +1,11 @@
-mod transformers;
+pub mod transformers;
 
 use std::fmt::Debug;
 
 use base64::Engine;
 use common_utils::{crypto, ext_traits::ByteSliceExt};
 use error_stack::{IntoReport, ResultExt};
+use masking::PeekInterface;
 use transformers as noon;
 
 use super::utils::PaymentsSyncRequestData;
@@ -95,13 +96,19 @@ impl ConnectorCommon for Noon {
     ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
         let auth = noon::NoonAuthType::try_from(auth_type)?;
 
-        let encoded_api_key = consts::BASE64_ENGINE.encode(format!(
-            "{}.{}:{}",
-            auth.business_identifier, auth.application_identifier, auth.api_key
-        ));
+        let encoded_api_key = auth
+            .business_identifier
+            .zip(auth.application_identifier)
+            .zip(auth.api_key)
+            .map(|((business_identifier, application_identifier), api_key)| {
+                consts::BASE64_ENGINE.encode(format!(
+                    "{}.{}:{}",
+                    business_identifier, application_identifier, api_key
+                ))
+            });
         Ok(vec![(
             headers::AUTHORIZATION.to_string(),
-            format!("Key_Test {encoded_api_key}").into_masked(),
+            format!("Key_Test {}", encoded_api_key.peek()).into_masked(),
         )])
     }
 

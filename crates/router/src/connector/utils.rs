@@ -21,7 +21,7 @@ use crate::{
     core::errors::{self, CustomResult},
     pii::PeekInterface,
     types::{self, api, transformers::ForeignTryFrom, PaymentsCancelData, ResponseId},
-    utils::{self, OptionExt, ValueExt},
+    utils::{OptionExt, ValueExt},
 };
 
 pub fn missing_field_err(
@@ -38,11 +38,11 @@ pub fn missing_field_err(
 type Error = error_stack::Report<errors::ConnectorError>;
 
 pub trait AccessTokenRequestInfo {
-    fn get_request_id(&self) -> Result<String, Error>;
+    fn get_request_id(&self) -> Result<Secret<String>, Error>;
 }
 
 impl AccessTokenRequestInfo for types::RefreshTokenRouterData {
-    fn get_request_id(&self) -> Result<String, Error> {
+    fn get_request_id(&self) -> Result<Secret<String>, Error> {
         self.request
             .id
             .clone()
@@ -68,6 +68,14 @@ pub trait RouterData {
     fn get_customer_id(&self) -> Result<String, Error>;
     fn get_connector_customer_id(&self) -> Result<String, Error>;
     fn get_preprocessing_id(&self) -> Result<String, Error>;
+    #[cfg(feature = "payouts")]
+    fn get_payout_method_data(&self) -> Result<api::PayoutMethodData, Error>;
+    #[cfg(feature = "payouts")]
+    fn get_quote_id(&self) -> Result<String, Error>;
+}
+
+pub fn get_unimplemented_payment_method_error_message(connector: &str) -> String {
+    format!("Selected payment method through {}", connector)
 }
 
 impl<Flow, Request, Response> RouterData for types::RouterData<Flow, Request, Response> {
@@ -166,6 +174,18 @@ impl<Flow, Request, Response> RouterData for types::RouterData<Flow, Request, Re
             .to_owned()
             .ok_or_else(missing_field_err("preprocessing_id"))
     }
+    #[cfg(feature = "payouts")]
+    fn get_payout_method_data(&self) -> Result<api::PayoutMethodData, Error> {
+        self.payout_method_data
+            .to_owned()
+            .ok_or_else(missing_field_err("payout_method_data"))
+    }
+    #[cfg(feature = "payouts")]
+    fn get_quote_id(&self) -> Result<String, Error> {
+        self.quote_id
+            .to_owned()
+            .ok_or_else(missing_field_err("quote_id"))
+    }
 }
 
 pub trait PaymentsPreProcessingData {
@@ -173,6 +193,10 @@ pub trait PaymentsPreProcessingData {
     fn get_payment_method_type(&self) -> Result<diesel_models::enums::PaymentMethodType, Error>;
     fn get_currency(&self) -> Result<diesel_models::enums::Currency, Error>;
     fn get_amount(&self) -> Result<i64, Error>;
+    fn is_auto_capture(&self) -> Result<bool, Error>;
+    fn get_order_details(&self) -> Result<Vec<OrderDetailsWithAmount>, Error>;
+    fn get_webhook_url(&self) -> Result<String, Error>;
+    fn get_return_url(&self) -> Result<String, Error>;
 }
 
 impl PaymentsPreProcessingData for types::PaymentsPreProcessingData {
@@ -189,6 +213,28 @@ impl PaymentsPreProcessingData for types::PaymentsPreProcessingData {
     }
     fn get_amount(&self) -> Result<i64, Error> {
         self.amount.ok_or_else(missing_field_err("amount"))
+    }
+    fn is_auto_capture(&self) -> Result<bool, Error> {
+        match self.capture_method {
+            Some(diesel_models::enums::CaptureMethod::Automatic) | None => Ok(true),
+            Some(diesel_models::enums::CaptureMethod::Manual) => Ok(false),
+            Some(_) => Err(errors::ConnectorError::CaptureMethodNotSupported.into()),
+        }
+    }
+    fn get_order_details(&self) -> Result<Vec<OrderDetailsWithAmount>, Error> {
+        self.order_details
+            .clone()
+            .ok_or_else(missing_field_err("order_details"))
+    }
+    fn get_webhook_url(&self) -> Result<String, Error> {
+        self.webhook_url
+            .clone()
+            .ok_or_else(missing_field_err("webhook_url"))
+    }
+    fn get_return_url(&self) -> Result<String, Error> {
+        self.router_return_url
+            .clone()
+            .ok_or_else(missing_field_err("return_url"))
     }
 }
 
@@ -779,6 +825,18 @@ impl AddressDetailsData for api::AddressDetails {
     }
 }
 
+pub trait BankRedirectBillingData {
+    fn get_billing_name(&self) -> Result<Secret<String>, Error>;
+}
+
+impl BankRedirectBillingData for payments::BankRedirectBilling {
+    fn get_billing_name(&self) -> Result<Secret<String>, Error> {
+        self.billing_name
+            .clone()
+            .ok_or_else(missing_field_err("billing_details.billing_name"))
+    }
+}
+
 pub trait MandateData {
     fn get_end_date(&self, format: date_time::DateFormat) -> Result<String, Error>;
     fn get_metadata(&self) -> Result<pii::SecretSerdeValue, Error>;
@@ -908,7 +966,19 @@ pub fn to_currency_base_unit(
     amount: i64,
     currency: diesel_models::enums::Currency,
 ) -> Result<String, error_stack::Report<errors::ConnectorError>> {
-    utils::to_currency_base_unit(amount, currency)
+    currency
+        .to_currency_base_unit(amount)
+        .into_report()
+        .change_context(errors::ConnectorError::RequestEncodingFailed)
+}
+
+pub fn to_currency_base_unit_with_zero_decimal_check(
+    amount: i64,
+    currency: diesel_models::enums::Currency,
+) -> Result<String, error_stack::Report<errors::ConnectorError>> {
+    currency
+        .to_currency_base_unit_with_zero_decimal_check(amount)
+        .into_report()
         .change_context(errors::ConnectorError::RequestEncodingFailed)
 }
 
@@ -916,7 +986,9 @@ pub fn to_currency_base_unit_asf64(
     amount: i64,
     currency: diesel_models::enums::Currency,
 ) -> Result<f64, error_stack::Report<errors::ConnectorError>> {
-    utils::to_currency_base_unit_asf64(amount, currency)
+    currency
+        .to_currency_base_unit_asf64(amount)
+        .into_report()
         .change_context(errors::ConnectorError::RequestEncodingFailed)
 }
 
@@ -1070,5 +1142,134 @@ impl ForeignTryFrom<String> for CanadaStatesAbbreviation {
             }
             .into()),
         }
+    }
+}
+
+pub trait ConnectorErrorTypeMapping {
+    fn get_connector_error_type(
+        &self,
+        _error_code: String,
+        _error_message: String,
+    ) -> ConnectorErrorType {
+        ConnectorErrorType::UnknownError
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct ErrorCodeAndMessage {
+    pub error_code: String,
+    pub error_message: String,
+}
+
+#[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Debug)]
+//Priority of connector_error_type
+pub enum ConnectorErrorType {
+    UserError = 2,
+    BusinessError = 3,
+    TechnicalError = 4,
+    UnknownError = 1,
+}
+
+//Gets the list of error_code_and_message, sorts based on the priority of error_type and gives most prior error
+// This could be used in connectors where we get list of error_messages and have to choose one error_message
+pub fn get_error_code_error_message_based_on_priority(
+    connector: impl ConnectorErrorTypeMapping,
+    error_list: Vec<ErrorCodeAndMessage>,
+) -> Option<ErrorCodeAndMessage> {
+    let error_type_list = error_list
+        .iter()
+        .map(|error| {
+            connector
+                .get_connector_error_type(error.error_code.clone(), error.error_message.clone())
+        })
+        .collect::<Vec<ConnectorErrorType>>();
+    let mut error_zip_list = error_list
+        .iter()
+        .zip(error_type_list.iter())
+        .collect::<Vec<(&ErrorCodeAndMessage, &ConnectorErrorType)>>();
+    error_zip_list.sort_by_key(|&(_, error_type)| error_type);
+    error_zip_list
+        .first()
+        .map(|&(error_code_message, _)| error_code_message)
+        .cloned()
+}
+
+#[cfg(test)]
+mod error_code_error_message_tests {
+    #![allow(clippy::unwrap_used)]
+    use super::*;
+
+    struct TestConnector;
+
+    impl ConnectorErrorTypeMapping for TestConnector {
+        fn get_connector_error_type(
+            &self,
+            error_code: String,
+            error_message: String,
+        ) -> ConnectorErrorType {
+            match (error_code.as_str(), error_message.as_str()) {
+                ("01", "INVALID_MERCHANT") => ConnectorErrorType::BusinessError,
+                ("03", "INVALID_CVV") => ConnectorErrorType::UserError,
+                ("04", "04") => ConnectorErrorType::TechnicalError,
+                _ => ConnectorErrorType::UnknownError,
+            }
+        }
+    }
+
+    #[test]
+    fn test_get_error_code_error_message_based_on_priority() {
+        let error_code_message_list_unknown = vec![
+            ErrorCodeAndMessage {
+                error_code: "01".to_string(),
+                error_message: "INVALID_MERCHANT".to_string(),
+            },
+            ErrorCodeAndMessage {
+                error_code: "05".to_string(),
+                error_message: "05".to_string(),
+            },
+            ErrorCodeAndMessage {
+                error_code: "03".to_string(),
+                error_message: "INVALID_CVV".to_string(),
+            },
+            ErrorCodeAndMessage {
+                error_code: "04".to_string(),
+                error_message: "04".to_string(),
+            },
+        ];
+        let error_code_message_list_user = vec![
+            ErrorCodeAndMessage {
+                error_code: "01".to_string(),
+                error_message: "INVALID_MERCHANT".to_string(),
+            },
+            ErrorCodeAndMessage {
+                error_code: "03".to_string(),
+                error_message: "INVALID_CVV".to_string(),
+            },
+        ];
+        let error_code_error_message_unknown = get_error_code_error_message_based_on_priority(
+            TestConnector,
+            error_code_message_list_unknown,
+        );
+        let error_code_error_message_user = get_error_code_error_message_based_on_priority(
+            TestConnector,
+            error_code_message_list_user,
+        );
+        let error_code_error_message_none =
+            get_error_code_error_message_based_on_priority(TestConnector, vec![]);
+        assert_eq!(
+            error_code_error_message_unknown,
+            Some(ErrorCodeAndMessage {
+                error_code: "05".to_string(),
+                error_message: "05".to_string(),
+            })
+        );
+        assert_eq!(
+            error_code_error_message_user,
+            Some(ErrorCodeAndMessage {
+                error_code: "03".to_string(),
+                error_message: "INVALID_CVV".to_string(),
+            })
+        );
+        assert_eq!(error_code_error_message_none, None);
     }
 }

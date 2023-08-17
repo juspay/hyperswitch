@@ -1,10 +1,10 @@
-mod transformers;
+pub mod transformers;
 use std::fmt::Debug;
 
 use base64::Engine;
 use common_utils::{date_time, ext_traits::StringExt};
-use error_stack::{IntoReport, ResultExt};
-use masking::ExposeInterface;
+use error_stack::{IntoReport, Report, ResultExt};
+use masking::{ExposeInterface, PeekInterface};
 use rand::distributions::{Alphanumeric, DistString};
 use ring::hmac;
 use transformers as rapyd;
@@ -15,7 +15,7 @@ use crate::{
     consts,
     core::errors::{self, CustomResult},
     db::StorageInterface,
-    headers,
+    headers, logger,
     services::{
         self,
         request::{self, Mask},
@@ -45,9 +45,12 @@ impl Rapyd {
             access_key,
             secret_key,
         } = auth;
-        let to_sign =
-            format!("{http_method}{url_path}{salt}{timestamp}{access_key}{secret_key}{body}");
-        let key = hmac::Key::new(hmac::HMAC_SHA256, secret_key.as_bytes());
+        let to_sign = format!(
+            "{http_method}{url_path}{salt}{timestamp}{}{}{body}",
+            access_key.peek(),
+            secret_key.peek()
+        );
+        let key = hmac::Key::new(hmac::HMAC_SHA256, secret_key.peek().as_bytes());
         let tag = hmac::sign(&key, to_sign.as_bytes());
         let hmac_sign = hex::encode(tag);
         let signature_value = consts::BASE64_ENGINE_URL_SAFE.encode(hmac_sign);
@@ -79,16 +82,23 @@ impl ConnectorCommon for Rapyd {
         &self,
         res: types::Response,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        let response: rapyd::RapydPaymentsResponse = res
-            .response
-            .parse_struct("Rapyd ErrorResponse")
-            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-        Ok(ErrorResponse {
-            status_code: res.status_code,
-            code: response.status.error_code,
-            message: response.status.status.unwrap_or_default(),
-            reason: response.status.message,
-        })
+        let response: Result<
+            rapyd::RapydPaymentsResponse,
+            Report<common_utils::errors::ParsingError>,
+        > = res.response.parse_struct("Rapyd ErrorResponse");
+
+        match response {
+            Ok(response_data) => Ok(ErrorResponse {
+                status_code: res.status_code,
+                code: response_data.status.error_code,
+                message: response_data.status.status.unwrap_or_default(),
+                reason: response_data.status.message,
+            }),
+            Err(error_msg) => {
+                logger::error!(deserialization_error =? error_msg);
+                utils::handle_json_response_deserialization_failure(res, "rapyd".to_owned())
+            }
+        }
     }
 }
 
@@ -658,26 +668,7 @@ impl services::ConnectorIntegration<api::Execute, types::RefundsData, types::Ref
 impl services::ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponseData>
     for Rapyd
 {
-    fn get_headers(
-        &self,
-        _req: &types::RefundSyncRouterData,
-        _connectors: &settings::Connectors,
-    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
-        Ok(vec![])
-    }
-
-    fn get_content_type(&self) -> &'static str {
-        self.common_get_content_type()
-    }
-
-    fn get_url(
-        &self,
-        _req: &types::RefundSyncRouterData,
-        _connectors: &settings::Connectors,
-    ) -> CustomResult<String, errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented("RSync".to_string()).into())
-    }
-
+    // default implementation of build_request method will be executed
     fn handle_response(
         &self,
         data: &types::RefundSyncRouterData,
@@ -694,13 +685,6 @@ impl services::ConnectorIntegration<api::RSync, types::RefundsData, types::Refun
         }
         .try_into()
         .change_context(errors::ConnectorError::ResponseHandlingFailed)
-    }
-
-    fn get_error_response(
-        &self,
-        _res: types::Response,
-    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented("RSync".to_string()).into())
     }
 }
 
@@ -749,7 +733,11 @@ impl api::IncomingWebhook for Rapyd {
             .into_report()
             .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)
             .attach_printable("Could not convert body to UTF-8")?;
-        let to_sign = format!("{url_path}{salt}{timestamp}{access_key}{secret_key}{body_string}");
+        let to_sign = format!(
+            "{url_path}{salt}{timestamp}{}{}{body_string}",
+            access_key.peek(),
+            secret_key.peek()
+        );
 
         Ok(to_sign.into_bytes())
     }
@@ -758,9 +746,10 @@ impl api::IncomingWebhook for Rapyd {
         &self,
         db: &dyn StorageInterface,
         request: &api::IncomingWebhookRequestDetails<'_>,
-        merchant_id: &str,
+        merchant_account: &domain::MerchantAccount,
         connector_label: &str,
         key_store: &domain::MerchantKeyStore,
+        object_reference_id: api_models::webhooks::ObjectReferenceId,
     ) -> CustomResult<bool, errors::ConnectorError> {
         let signature = self
             .get_webhook_source_verification_signature(request)
@@ -768,14 +757,19 @@ impl api::IncomingWebhook for Rapyd {
         let secret = self
             .get_webhook_source_verification_merchant_secret(
                 db,
-                merchant_id,
+                merchant_account,
                 connector_label,
                 key_store,
+                object_reference_id,
             )
             .await
             .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
         let message = self
-            .get_webhook_source_verification_message(request, merchant_id, &secret)
+            .get_webhook_source_verification_message(
+                request,
+                &merchant_account.merchant_id,
+                &secret,
+            )
             .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
 
         let stringify_auth = String::from_utf8(secret.to_vec())
@@ -786,7 +780,7 @@ impl api::IncomingWebhook for Rapyd {
             .parse_struct("RapydAuthType")
             .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
         let secret_key = auth.secret_key;
-        let key = hmac::Key::new(hmac::HMAC_SHA256, secret_key.as_bytes());
+        let key = hmac::Key::new(hmac::HMAC_SHA256, secret_key.peek().as_bytes());
         let tag = hmac::sign(&key, &message);
         let hmac_sign = hex::encode(tag);
         Ok(hmac_sign.as_bytes().eq(&signature))

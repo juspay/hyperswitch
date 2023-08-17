@@ -1,6 +1,6 @@
 use std::marker::PhantomData;
 
-use api_models::admin::PaymentMethodsEnabled;
+use api_models::{admin::PaymentMethodsEnabled, enums::CancelTransaction};
 use async_trait::async_trait;
 use common_utils::ext_traits::{AsyncExt, ValueExt};
 use error_stack::ResultExt;
@@ -179,7 +179,9 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsSessionRequest>
                 connector_customer_id: None,
                 recurring_mandate_payment_data: None,
                 ephemeral_key: None,
+                multiple_capture_data: None,
                 redirect_response: None,
+                frm_message: None,
             },
             Some(customer_details),
         ))
@@ -197,6 +199,7 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsSessionRequest> for
         storage_scheme: storage_enums::MerchantStorageScheme,
         _updated_customer: Option<storage::CustomerUpdate>,
         _mechant_key_store: &domain::MerchantKeyStore,
+        _should_cancel_transaction: Option<CancelTransaction>,
     ) -> RouterResult<(
         BoxedOperation<'b, F, api::PaymentsSessionRequest>,
         PaymentData<F>,
@@ -309,7 +312,6 @@ where
         payment_intent: &storage::payment_intent::PaymentIntent,
         key_store: &domain::MerchantKeyStore,
     ) -> RouterResult<api::ConnectorChoice> {
-        let connectors = &state.conf.connectors;
         let db = &state.store;
 
         let all_connector_accounts = db
@@ -388,15 +390,16 @@ where
         for (connector, payment_method_type, business_sub_label) in
             connector_and_supporting_payment_method_type
         {
-            let connector_type =
-                get_connector_type_for_session_token(payment_method_type, request, &connector);
-            if let Ok(connector_data) =
-                api::ConnectorData::get_connector_by_name(connectors, &connector, connector_type)
-                    .map_err(|err| {
-                        logger::error!(session_token_error=?err);
-                        err
-                    })
-            {
+            let connector_type = api::GetToken::from(payment_method_type);
+            if let Ok(connector_data) = api::ConnectorData::get_connector_by_name(
+                &state.conf.connectors,
+                &connector,
+                connector_type,
+            )
+            .map_err(|err| {
+                logger::error!(session_token_error=?err);
+                err
+            }) {
                 session_connector_data.push(api::SessionConnectorData {
                     payment_method_type,
                     connector: connector_data,
@@ -419,28 +422,4 @@ impl From<api_models::enums::PaymentMethodType> for api::GetToken {
             _ => Self::Connector,
         }
     }
-}
-
-pub fn get_connector_type_for_session_token(
-    payment_method_type: api_models::enums::PaymentMethodType,
-    request: &api::PaymentsSessionRequest,
-    connector: &str,
-) -> api::GetToken {
-    if payment_method_type == api_models::enums::PaymentMethodType::ApplePay {
-        if is_apple_pay_get_token_connector(connector, request) {
-            api::GetToken::Connector
-        } else {
-            api::GetToken::ApplePayMetadata
-        }
-    } else {
-        api::GetToken::from(payment_method_type)
-    }
-}
-
-pub fn is_apple_pay_get_token_connector(
-    connector: &str,
-    _request: &api::PaymentsSessionRequest,
-) -> bool {
-    // Add connectors here, which all are required to hit connector for session call
-    matches!(connector, "bluesnap")
 }
