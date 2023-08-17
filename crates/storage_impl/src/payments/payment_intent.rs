@@ -13,9 +13,9 @@ use data_models::{
     MerchantStorageScheme,
 };
 #[cfg(feature = "olap")]
-use diesel_models::query::generics::db_metrics;
-#[cfg(feature = "olap")]
 use diesel::{associations::HasTable, ExpressionMethods, JoinOnDsl, QueryDsl};
+#[cfg(feature = "olap")]
+use diesel_models::query::generics::db_metrics;
 use diesel_models::{
     kv,
     payment_intent::{
