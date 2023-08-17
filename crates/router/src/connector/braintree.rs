@@ -273,7 +273,7 @@ impl
         _req: &types::TokenizationRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Ok(connectors.braintree.base_url_graph_ql_api.to_string())
+        Ok(connectors.braintree.secondary_base_url.to_string())
     }
 
     fn get_request_body(
@@ -375,7 +375,7 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
     ) -> CustomResult<String, errors::ConnectorError> {
         let is_connector_new_version = req.is_connector_new_version;
         if is_connector_new_version == Some(true) {
-            Ok(connectors.braintree.base_url_graph_ql_api.to_string())
+            Ok(connectors.braintree.secondary_base_url.to_string())
         } else {
             Err(errors::ConnectorError::NotImplemented("get_url method".to_string()).into())
         }
@@ -496,7 +496,7 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
     ) -> CustomResult<String, errors::ConnectorError> {
         let is_connector_new_version = req.is_connector_new_version;
         if is_connector_new_version == Some(true) {
-            Ok(connectors.braintree.base_url_graph_ql_api.to_string())
+            Ok(connectors.braintree.secondary_base_url.to_string())
         } else {
             let auth_type = braintree::BraintreeAuthType::try_from(&req.connector_auth_type)
                 .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
@@ -638,7 +638,7 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
     ) -> CustomResult<String, errors::ConnectorError> {
         let is_connector_new_version = req.is_connector_new_version;
         if is_connector_new_version == Some(true) {
-            Ok(connectors.braintree.base_url_graph_ql_api.to_string())
+            Ok(connectors.braintree.secondary_base_url.to_string())
         } else {
             let auth_type = braintree::BraintreeAuthType::try_from(&req.connector_auth_type)
                 .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
@@ -677,28 +677,14 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
     ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
         let is_connector_new_version = req.is_connector_new_version;
         if is_connector_new_version == Some(true) {
-            match req.request.is_auto_capture()? {
-                true => {
-                    let connector_request =
-                        braintree_graphql_transformers::BraintreePaymentsRequest::try_from(req)?;
-                    let braintree_payment_request = types::RequestBody::log_and_get_request_body(
+            let connector_request =
+                braintree_graphql_transformers::BraintreePaymentsRequest::try_from(req)?;
+            let braintree_payment_request = types::RequestBody::log_and_get_request_body(
                     &connector_request,
                     utils::Encode::<braintree_graphql_transformers::BraintreePaymentsRequest>::encode_to_string_of_json,
                 )
                 .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-                    Ok(Some(braintree_payment_request))
-                }
-                false => {
-                    let connector_request =
-                        braintree_graphql_transformers::BraintreeAuthRequest::try_from(req)?;
-                    let braintree_payment_request = types::RequestBody::log_and_get_request_body(
-                    &connector_request,
-                    utils::Encode::<braintree_graphql_transformers::BraintreeAuthRequest>::encode_to_string_of_json,
-                )
-                .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-                    Ok(Some(braintree_payment_request))
-                }
-            }
+            Ok(Some(braintree_payment_request))
         } else {
             let connector_request = braintree::BraintreePaymentsRequest::try_from(req)?;
             let braintree_payment_request = types::RequestBody::log_and_get_request_body(
@@ -804,7 +790,7 @@ impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsR
     ) -> CustomResult<String, errors::ConnectorError> {
         let is_connector_new_version = req.is_connector_new_version;
         if is_connector_new_version == Some(true) {
-            Ok(connectors.braintree.base_url_graph_ql_api.to_string())
+            Ok(connectors.braintree.secondary_base_url.to_string())
         } else {
             let auth_type = braintree::BraintreeAuthType::try_from(&req.connector_auth_type)
                 .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
@@ -935,7 +921,7 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
     ) -> CustomResult<String, errors::ConnectorError> {
         let is_connector_new_version = req.is_connector_new_version;
         if is_connector_new_version == Some(true) {
-            Ok(connectors.braintree.base_url_graph_ql_api.to_string())
+            Ok(connectors.braintree.secondary_base_url.to_string())
         } else {
             let auth_type = braintree::BraintreeAuthType::try_from(&req.connector_auth_type)
                 .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
@@ -1055,7 +1041,7 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
     ) -> CustomResult<String, errors::ConnectorError> {
         let is_connector_new_version = req.is_connector_new_version;
         if is_connector_new_version == Some(true) {
-            Ok(connectors.braintree.base_url_graph_ql_api.to_string())
+            Ok(connectors.braintree.secondary_base_url.to_string())
         } else {
             Err(errors::ConnectorError::NotImplemented("get_url method".to_string()).into())
         }
