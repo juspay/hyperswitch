@@ -47,29 +47,22 @@ fn get_auth_cashtocode(
     payment_method_type: &Option<storage::enums::PaymentMethodType>,
     auth_type: &types::ConnectorAuthType,
 ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
-    match (*payment_method_type).ok_or_else(conn_utils::missing_field_err("payment_method_type")) {
-        Ok(reward_type) => match reward_type {
-            storage::enums::PaymentMethodType::ClassicReward => match auth_type {
-                types::ConnectorAuthType::MultiAuthKey { api_key, .. } => Ok(vec![(
-                    headers::AUTHORIZATION.to_string(),
-                    format!("Basic {}", api_key.peek()).into_masked(),
-                )]),
-                _ => Err(errors::ConnectorError::FailedToObtainAuthType.into()),
-            },
-            storage::enums::PaymentMethodType::Evoucher => match auth_type {
-                types::ConnectorAuthType::MultiAuthKey { api_secret, .. } => Ok(vec![(
-                    headers::AUTHORIZATION.to_string(),
-                    format!("Basic {}", api_secret.peek()).into_masked(),
-                )]),
-                _ => Err(errors::ConnectorError::FailedToObtainAuthType.into()),
-            },
-            _ => Err(error_stack::report!(errors::ConnectorError::NotSupported {
-                message: reward_type.to_string(),
-                connector: "cashtocode",
-                payment_experience: "Try with a different payment method".to_string(),
-            })),
-        },
-        Err(_) => Err(errors::ConnectorError::FailedToObtainAuthType.into()),
+    match (payment_method_type, auth_type) {
+        (
+            Some(storage::enums::PaymentMethodType::ClassicReward),
+            types::ConnectorAuthType::MultiAuthKey { api_key, .. },
+        ) => Ok(vec![(
+            headers::AUTHORIZATION.to_string(),
+            format!("Basic {}", api_key.peek()).into_masked(),
+        )]),
+        (
+            Some(storage::enums::PaymentMethodType::Evoucher),
+            types::ConnectorAuthType::MultiAuthKey { api_secret, .. },
+        ) => Ok(vec![(
+            headers::AUTHORIZATION.to_string(),
+            format!("Basic {}", api_secret.peek()).into_masked(),
+        )]),
+        _ => Err(errors::ConnectorError::FailedToObtainAuthType.into()),
     }
 }
 

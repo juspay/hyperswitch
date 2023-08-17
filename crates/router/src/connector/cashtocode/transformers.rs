@@ -3,7 +3,7 @@ use masking::Secret;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    connector::utils::RouterData,
+    connector::utils::{self, PaymentsAuthorizeRequestData, RouterData},
     core::errors,
     services,
     types::{self, storage::enums},
@@ -12,7 +12,7 @@ use crate::{
 #[derive(Default, Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CashtocodePaymentsRequest {
-    amount: i64,
+    amount: f64,
     transaction_id: String,
     user_id: Secret<String>,
     currency: enums::Currency,
@@ -36,27 +36,19 @@ fn get_mid(
     connector_auth_type: &types::ConnectorAuthType,
     payment_method_type: Option<enums::PaymentMethodType>,
 ) -> Result<Secret<String>, errors::ConnectorError> {
-    match connector_auth_type {
-        types::ConnectorAuthType::MultiAuthKey { api_key: _, key1, api_secret: _, key2 } => {
-        match payment_method_type {
-            Some(pmt) => {
-                match pmt {
-                    enums::PaymentMethodType::ClassicReward => {
-                        Ok(key1.to_owned())
-                    },
-                    enums::PaymentMethodType::Evoucher => {
-                        Ok(key2.to_owned())
-                    },
-                    _ => Err(errors::ConnectorError::NotSupported {
-                        message: pmt.to_string(),
-                        connector: "cashtocode",
-                        payment_experience: "Try with a different payment method".to_string(),
-                    })
-                }
-            },
-            None => Err(errors::ConnectorError::MissingPaymentMethodType.into()),
+    match (connector_auth_type, payment_method_type) {
+        (types::ConnectorAuthType::MultiAuthKey { key1, key2, .. }, Some(payment_method)) => {
+            match payment_method {
+                enums::PaymentMethodType::ClassicReward => Ok(key1.to_owned()),
+                enums::PaymentMethodType::Evoucher => Ok(key2.to_owned()),
+                _ => Err(errors::ConnectorError::NotSupported {
+                    message: payment_method.to_string(),
+                    connector: "cashtocode",
+                    payment_experience: "Try with a different payment method".to_string(),
+                }),
             }
         }
+        (_, None) => Err(errors::ConnectorError::MissingPaymentMethodType.into()),
         _ => Err(errors::ConnectorError::FailedToObtainAuthType.into()),
     }
 }
@@ -65,12 +57,13 @@ fn get_mandatory_params(
     item: &types::PaymentsAuthorizeRouterData,
 ) -> Result<CashToCodeMandatoryParams, error_stack::Report<errors::ConnectorError>> {
     let customer_id = item.get_customer_id()?;
-    let url = item.get_return_url()?;
+    let return_url = item.request.get_router_return_url()?;
+
     Ok(CashToCodeMandatoryParams {
         user_id: Secret::new(customer_id.to_owned()),
         user_alias: Secret::new(customer_id),
-        requested_url: url.to_owned(),
-        cancel_url: url,
+        requested_url: return_url.to_owned(),
+        cancel_url: return_url,
     })
 }
 
@@ -81,7 +74,10 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for CashtocodePaymentsRequest 
         let mid = get_mid(&item.connector_auth_type, item.request.payment_method_type)?;
         match item.payment_method {
             diesel_models::enums::PaymentMethod::Reward => Ok(Self {
-                amount: item.request.amount,
+                amount: utils::to_currency_base_unit_asf64(
+                    item.request.amount,
+                    item.request.currency,
+                )?,
                 transaction_id: item.attempt_id.clone(),
                 currency: item.request.currency,
                 user_id: params.user_id,
@@ -114,7 +110,7 @@ impl TryFrom<&types::ConnectorAuthType> for CashtocodeAuthType {
     }
 }
 
-#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "lowercase")]
 pub enum CashtocodePaymentStatus {
     Succeeded,
@@ -252,7 +248,7 @@ impl<F, T>
 
 #[derive(Debug, Deserialize)]
 pub struct CashtocodeErrorResponse {
-    pub error: u32,
+    pub error: String,
     pub error_description: String,
     pub errors: Option<Vec<CashtocodeErrors>>,
 }

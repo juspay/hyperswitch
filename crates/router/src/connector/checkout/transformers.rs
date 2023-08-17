@@ -797,7 +797,6 @@ impl From<CheckoutRedirectResponseStatus> for enums::AttemptStatus {
     fn from(item: CheckoutRedirectResponseStatus) -> Self {
         match item {
             CheckoutRedirectResponseStatus::Success => Self::AuthenticationSuccessful,
-
             CheckoutRedirectResponseStatus::Failure => Self::Failure,
         }
     }
