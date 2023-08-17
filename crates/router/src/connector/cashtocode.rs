@@ -21,9 +21,7 @@ use crate::{
     types::{
         self,
         api::{self, ConnectorCommon, ConnectorCommonExt},
-        domain,
-        storage::{self},
-        ErrorResponse, Response,
+        domain, storage, ErrorResponse, Response,
     },
     utils::{self, ByteSliceExt, BytesExt},
 };
@@ -67,7 +65,6 @@ fn get_auth_cashtocode(
             _ => Err(error_stack::report!(errors::ConnectorError::NotSupported {
                 message: reward_type.to_string(),
                 connector: "cashtocode",
-                payment_experience: "Try with a different payment method".to_string(),
             })),
         },
         Err(_) => Err(errors::ConnectorError::FailedToObtainAuthType.into()),
