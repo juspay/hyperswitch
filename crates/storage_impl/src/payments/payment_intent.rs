@@ -85,7 +85,7 @@ impl<T: DatabaseStore> PaymentIntentInterface for KVRouterStore<T> {
 
                 match self
                     .get_redis_conn()
-                    .change_context(StorageError::TemporaryError)?
+                    .change_context(StorageError::DatabaseConnectionError)?
                     .serialize_and_set_hash_field_if_not_exist(&key, "pi", &created_intent)
                     .await
                 {
@@ -141,7 +141,7 @@ impl<T: DatabaseStore> PaymentIntentInterface for KVRouterStore<T> {
 
                 let updated_intent = self
                     .get_redis_conn()
-                    .change_context(StorageError::TemporaryError)?
+                    .change_context(StorageError::DatabaseConnectionError)?
                     .set_hash_fields(&key, ("pi", &redis_value))
                     .await
                     .map(|_| updated_intent)
@@ -194,7 +194,7 @@ impl<T: DatabaseStore> PaymentIntentInterface for KVRouterStore<T> {
                 let key = format!("{merchant_id}_{payment_id}");
                 crate::utils::try_redis_get_else_try_database_get(
                     self.get_redis_conn()
-                        .change_context(StorageError::TemporaryError)?
+                        .change_context(StorageError::DatabaseConnectionError)?
                         .get_hash_field_and_deserialize(&key, "pi", "PaymentIntent"),
                     database_call,
                 )
@@ -269,7 +269,10 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
         new.to_storage_model()
             .insert(&conn)
             .await
-            .change_context(StorageError::TemporaryError)
+            .map_err(|er| {
+                let new_err = crate::diesel_error_to_data_error(er.current_context());
+                er.change_context(new_err)
+            })
             .map(PaymentIntent::from_storage_model)
     }
 
@@ -283,7 +286,10 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
         this.to_storage_model()
             .update(&conn, payment_intent.to_storage_model())
             .await
-            .change_context(StorageError::TemporaryError)
+            .map_err(|er| {
+                let new_err = crate::diesel_error_to_data_error(er.current_context());
+                er.change_context(new_err)
+            })
             .map(PaymentIntent::from_storage_model)
     }
 
@@ -297,7 +303,10 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
         DieselPaymentIntent::find_by_payment_id_merchant_id(&conn, payment_id, merchant_id)
             .await
             .map(PaymentIntent::from_storage_model)
-            .change_context(StorageError::TemporaryError)
+            .map_err(|er| {
+                let new_err = crate::diesel_error_to_data_error(er.current_context());
+                er.change_context(new_err)
+            })
     }
 
     #[cfg(feature = "olap")]
@@ -398,7 +407,10 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
                 .collect::<Vec<PaymentIntent>>()
         })
         .into_report()
-        .change_context(StorageError::TemporaryError)
+        .map_err(|er| {
+            let new_err = StorageError::DatabaseError(format!("{er:?}"));
+            er.change_context(new_err)
+        })
         .attach_printable_lazy(|| "Error filtering records by predicate")
     }
 
@@ -541,7 +553,10 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
                     .collect()
             })
             .into_report()
-            .change_context(StorageError::TemporaryError)
+            .map_err(|er| {
+                let new_er = StorageError::DatabaseError(format!("{er:?}"));
+                er.change_context(new_er)
+            })
             .attach_printable("Error filtering payment records")
     }
 }

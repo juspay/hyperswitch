@@ -29,6 +29,4 @@ pub enum StorageError {
     // TODO: deprecate this error type to use a domain error instead
     #[error("RedisError: {0:?}")]
     RedisError(String),
-    #[error("Temporary error to be replaced")]
-    TemporaryError,
 }

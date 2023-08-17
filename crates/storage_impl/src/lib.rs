@@ -220,3 +220,28 @@ impl DataModelExt for data_models::MerchantStorageScheme {
         }
     }
 }
+
+pub(crate) fn diesel_error_to_data_error(
+    diesel_error: &diesel_models::errors::DatabaseError,
+) -> data_models::errors::StorageError {
+    match diesel_error {
+        diesel_models::errors::DatabaseError::DatabaseConnectionError => {
+            data_models::errors::StorageError::DatabaseConnectionError
+        }
+        diesel_models::errors::DatabaseError::NotFound => {
+            data_models::errors::StorageError::ValueNotFound("Value not found".to_string())
+        }
+        diesel_models::errors::DatabaseError::UniqueViolation => {
+            data_models::errors::StorageError::DuplicateValue { entity: "entity ", key: None }
+        }
+        diesel_models::errors::DatabaseError::NoFieldsToUpdate => {
+            data_models::errors::StorageError::DatabaseError("No fields to update".to_string())
+        }
+        diesel_models::errors::DatabaseError::QueryGenerationFailed => {
+            data_models::errors::StorageError::DatabaseError("Query generation failed".to_string())
+        }
+        diesel_models::errors::DatabaseError::Others => {
+            data_models::errors::StorageError::DatabaseError("Others".to_string())
+        }
+    }
+}
