@@ -2,7 +2,7 @@
 CREATE TABLE IF NOT EXISTS business_profile (
     profile_id VARCHAR(64) PRIMARY KEY,
     merchant_id VARCHAR(64) NOT NULL,
-    profile_name VARCHAR(64),
+    profile_name VARCHAR(64) NOT NULL,
     created_at TIMESTAMP NOT NULL,
     modified_at TIMESTAMP NOT NULL,
     return_url TEXT,

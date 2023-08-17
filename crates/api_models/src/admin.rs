@@ -995,7 +995,7 @@ pub struct BusinessProfileResponse {
 
     /// A short name to identify the business profile
     #[schema(max_length = 64)]
-    pub profile_name: Option<String>,
+    pub profile_name: String,
 
     /// The URL to redirect after the completion of the operation, This will be applied to all the
     /// connector accounts under this profile

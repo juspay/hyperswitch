@@ -16,7 +16,7 @@ use crate::schema::business_profile;
 pub struct BusinessProfile {
     pub profile_id: String,
     pub merchant_id: String,
-    pub profile_name: Option<String>,
+    pub profile_name: String,
     pub created_at: time::PrimitiveDateTime,
     pub modified_at: time::PrimitiveDateTime,
     pub return_url: Option<String>,
@@ -37,7 +37,7 @@ pub struct BusinessProfile {
 pub struct BusinessProfileNew {
     pub profile_id: String,
     pub merchant_id: String,
-    pub profile_name: Option<String>,
+    pub profile_name: String,
     pub created_at: time::PrimitiveDateTime,
     pub modified_at: time::PrimitiveDateTime,
     pub return_url: Option<String>,

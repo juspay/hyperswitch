@@ -63,7 +63,7 @@ diesel::table! {
         #[max_length = 64]
         merchant_id -> Varchar,
         #[max_length = 64]
-        profile_name -> Nullable<Varchar>,
+        profile_name -> Varchar,
         created_at -> Timestamp,
         modified_at -> Timestamp,
         return_url -> Nullable<Text>,

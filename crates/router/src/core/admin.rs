@@ -881,7 +881,7 @@ pub async fn create_business_profile(
     let business_profile_new = storage::business_profile::BusinessProfileNew {
         profile_id,
         merchant_id: merchant_id.to_string(),
-        profile_name: request.profile_name,
+        profile_name: request.profile_name.unwrap_or("default".to_string()),
         created_at: date_time::now(),
         modified_at: date_time::now(),
         return_url: request
