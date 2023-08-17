@@ -42,6 +42,7 @@ use crate::{
     routes::{
         self,
         metrics::{self, request},
+        payment_methods::ParentPaymentMethodToken,
     },
     services,
     types::{
@@ -1453,8 +1454,6 @@ fn filter_pm_card_network_based(
     request_card_networks: Option<&Vec<api_enums::CardNetwork>>,
     pm_type: &api_enums::PaymentMethodType,
 ) -> bool {
-    logger::debug!(pm_card_networks=?pm_card_networks);
-    logger::debug!(request_card_networks=?request_card_networks);
     match pm_type {
         api_enums::PaymentMethodType::Credit | api_enums::PaymentMethodType::Debit => {
             match (pm_card_networks, request_card_networks) {
@@ -1794,44 +1793,26 @@ pub async fn list_customer_payment_method(
         };
         customer_pms.push(pma.to_owned());
 
+        let intent_created = payment_intent.as_ref().map(|intent| intent.created_at);
+
         let redis_conn = state
             .store
             .get_redis_conn()
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to get redis connection")?;
-
-        let key_for_hyperswitch_token = format!(
-            "pm_token_{}_{}_hyperswitch",
-            parent_payment_method_token, pma.payment_method
-        );
-
-        let current_datetime_utc = common_utils::date_time::now();
-        let time_eslapsed = current_datetime_utc
-            - payment_intent
-                .as_ref()
-                .map(|intent| intent.created_at)
-                .unwrap_or_else(|| current_datetime_utc);
-        redis_conn
-            .set_key_with_expiry(
-                &key_for_hyperswitch_token,
-                hyperswitch_token,
-                consts::TOKEN_TTL - time_eslapsed.whole_seconds(),
-            )
-            .await
-            .map_err(|error| {
-                logger::error!(hyperswitch_token_kv_error=?error);
-                errors::StorageError::KVError
-            })
-            .into_report()
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Failed to add data in redis")?;
+        ParentPaymentMethodToken::create_key_for_token((
+            &parent_payment_method_token,
+            pma.payment_method,
+        ))
+        .insert(intent_created, hyperswitch_token, state)
+        .await?;
 
         if let Some(metadata) = pma.metadata {
             let pm_metadata_vec: payment_methods::PaymentMethodMetadata = metadata
                 .parse_value("PaymentMethodMetadata")
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable(
-                    "Failed to deserialize metadata to PaymmentmethodMetadata struct",
+                    "Failed to deserialize metadata to PaymentmethodMetadata struct",
                 )?;
 
             for pm_metadata in pm_metadata_vec.payment_method_tokenization {
@@ -1839,11 +1820,17 @@ pub async fn list_customer_payment_method(
                     "pm_token_{}_{}_{}",
                     parent_payment_method_token, pma.payment_method, pm_metadata.0
                 );
+                let current_datetime_utc = common_utils::date_time::now();
+                let time_elapsed = current_datetime_utc
+                    - payment_intent
+                        .as_ref()
+                        .map(|intent| intent.created_at)
+                        .unwrap_or_else(|| current_datetime_utc);
                 redis_conn
                     .set_key_with_expiry(
                         &key,
                         pm_metadata.1,
-                        consts::TOKEN_TTL - time_eslapsed.whole_seconds(),
+                        consts::TOKEN_TTL - time_elapsed.whole_seconds(),
                     )
                     .await
                     .map_err(|error| {

@@ -1,12 +1,15 @@
 use diesel_models::configs::ConfigUpdateInternal;
 use error_stack::IntoReport;
+use storage_impl::redis::{
+    cache::{CacheKind, CONFIG_CACHE},
+    kv_store::RedisConnInterface,
+    pub_sub::PubSubInterface,
+};
 
 use super::{cache, MockDb, Store};
 use crate::{
-    cache::{CacheKind, CONFIG_CACHE},
     connection, consts,
     core::errors::{self, CustomResult},
-    services::PubSubInterface,
     types::storage,
 };
 
@@ -104,7 +107,7 @@ impl ConfigInterface for Store {
             .map_err(Into::into)
             .into_report()?;
 
-        self.redis_conn()
+        self.get_redis_conn()
             .map_err(Into::<errors::StorageError>::into)?
             .publish(consts::PUB_SUB_CHANNEL, CacheKind::Config(key.into()))
             .await

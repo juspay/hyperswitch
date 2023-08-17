@@ -578,6 +578,7 @@ impl TryFrom<enums::PaymentMethodType> for StripePaymentMethodType {
             | enums::PaymentMethodType::MbWay
             | enums::PaymentMethodType::MobilePay
             | enums::PaymentMethodType::Momo
+            | enums::PaymentMethodType::MomoAtm
             | enums::PaymentMethodType::Multibanco
             | enums::PaymentMethodType::OnlineBankingThailand
             | enums::PaymentMethodType::OnlineBankingCzechRepublic
@@ -585,6 +586,7 @@ impl TryFrom<enums::PaymentMethodType> for StripePaymentMethodType {
             | enums::PaymentMethodType::OnlineBankingFpx
             | enums::PaymentMethodType::OnlineBankingPoland
             | enums::PaymentMethodType::OnlineBankingSlovakia
+            | enums::PaymentMethodType::OpenBankingUk
             | enums::PaymentMethodType::PagoEfectivo
             | enums::PaymentMethodType::PayBright
             | enums::PaymentMethodType::Paypal
@@ -612,6 +614,14 @@ impl TryFrom<enums::PaymentMethodType> for StripePaymentMethodType {
             | enums::PaymentMethodType::PaySafeCard
             | enums::PaymentMethodType::Givex
             | enums::PaymentMethodType::Oxxo
+            | enums::PaymentMethodType::Benefit
+            | enums::PaymentMethodType::Knet
+            | enums::PaymentMethodType::SevenEleven
+            | enums::PaymentMethodType::Lawson
+            | enums::PaymentMethodType::MiniStop
+            | enums::PaymentMethodType::FamilyMart
+            | enums::PaymentMethodType::Seicomart
+            | enums::PaymentMethodType::PayEasy
             | enums::PaymentMethodType::Walley => Err(errors::ConnectorError::NotImplemented(
                 connector_util::get_unimplemented_payment_method_error_message("stripe"),
             )
@@ -803,7 +813,6 @@ impl TryFrom<&api_models::enums::BankNames> for StripeBankNames {
             _ => Err(errors::ConnectorError::NotSupported {
                 message: api_enums::PaymentMethod::BankRedirect.to_string(),
                 connector: "Stripe",
-                payment_experience: api_enums::PaymentExperience::RedirectToUrl.to_string(),
             })?,
         })
     }
@@ -873,6 +882,7 @@ fn infer_stripe_pay_later_type(
             | enums::PaymentMethodType::MbWay
             | enums::PaymentMethodType::MobilePay
             | enums::PaymentMethodType::Momo
+            | enums::PaymentMethodType::MomoAtm
             | enums::PaymentMethodType::Multibanco
             | enums::PaymentMethodType::OnlineBankingThailand
             | enums::PaymentMethodType::OnlineBankingCzechRepublic
@@ -880,6 +890,7 @@ fn infer_stripe_pay_later_type(
             | enums::PaymentMethodType::OnlineBankingFpx
             | enums::PaymentMethodType::OnlineBankingPoland
             | enums::PaymentMethodType::OnlineBankingSlovakia
+            | enums::PaymentMethodType::OpenBankingUk
             | enums::PaymentMethodType::PagoEfectivo
             | enums::PaymentMethodType::PayBright
             | enums::PaymentMethodType::Paypal
@@ -907,10 +918,18 @@ fn infer_stripe_pay_later_type(
             | enums::PaymentMethodType::DanamonVa
             | enums::PaymentMethodType::Indomaret
             | enums::PaymentMethodType::MandiriVa
+            | enums::PaymentMethodType::Benefit
+            | enums::PaymentMethodType::Knet
             | enums::PaymentMethodType::PermataBankTransfer
             | enums::PaymentMethodType::PaySafeCard
             | enums::PaymentMethodType::Givex
             | enums::PaymentMethodType::Oxxo
+            | enums::PaymentMethodType::SevenEleven
+            | enums::PaymentMethodType::Lawson
+            | enums::PaymentMethodType::MiniStop
+            | enums::PaymentMethodType::FamilyMart
+            | enums::PaymentMethodType::Seicomart
+            | enums::PaymentMethodType::PayEasy
             | enums::PaymentMethodType::WeChatPay => Err(errors::ConnectorError::NotImplemented(
                 connector_util::get_unimplemented_payment_method_error_message("stripe"),
             )),
@@ -919,7 +938,6 @@ fn infer_stripe_pay_later_type(
         Err(errors::ConnectorError::NotSupported {
             message: pm_type.to_string(),
             connector: "stripe",
-            payment_experience: experience.to_string(),
         })
     }
 }
@@ -1095,7 +1113,8 @@ impl TryFrom<&payments::BankRedirectData> for StripeBillingAddress {
             | payments::BankRedirectData::OnlineBankingSlovakia { .. }
             | payments::BankRedirectData::Trustly { .. }
             | payments::BankRedirectData::OnlineBankingFpx { .. }
-            | payments::BankRedirectData::OnlineBankingThailand { .. } => Ok(Self::default()),
+            | payments::BankRedirectData::OnlineBankingThailand { .. }
+            | payments::BankRedirectData::OpenBankingUk { .. } => Ok(Self::default()),
         }
     }
 }
@@ -1417,6 +1436,7 @@ fn create_stripe_payment_method(
         | payments::PaymentMethodData::MandatePayment
         | payments::PaymentMethodData::Reward(_)
         | payments::PaymentMethodData::Upi(_)
+        | payments::PaymentMethodData::CardRedirect(_)
         | payments::PaymentMethodData::Voucher(_)
         | payments::PaymentMethodData::GiftCard(_) => Err(errors::ConnectorError::NotImplemented(
             connector_util::get_unimplemented_payment_method_error_message("stripe"),
@@ -2706,6 +2726,7 @@ impl TryFrom<&types::PaymentsPreProcessingRouterData> for StripeCreditTransferSo
             | Some(payments::PaymentMethodData::MandatePayment)
             | Some(payments::PaymentMethodData::Upi(..))
             | Some(payments::PaymentMethodData::GiftCard(..))
+            | Some(payments::PaymentMethodData::CardRedirect(..))
             | Some(payments::PaymentMethodData::Voucher(..))
             | None => Err(errors::ConnectorError::NotImplemented(
                 connector_util::get_unimplemented_payment_method_error_message("stripe"),
@@ -3192,10 +3213,10 @@ impl
             | api::PaymentMethodData::Reward(_)
             | api::PaymentMethodData::GiftCard(_)
             | api::PaymentMethodData::Upi(_)
+            | api::PaymentMethodData::CardRedirect(_)
             | api::PaymentMethodData::Voucher(_) => Err(errors::ConnectorError::NotSupported {
                 message: format!("{pm_type:?}"),
                 connector: "Stripe",
-                payment_experience: api_models::enums::PaymentExperience::RedirectToUrl.to_string(),
             })?,
         }
     }

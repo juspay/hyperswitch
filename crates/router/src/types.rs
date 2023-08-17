@@ -330,6 +330,7 @@ pub struct PaymentsCaptureData {
     pub currency: storage_enums::Currency,
     pub connector_transaction_id: String,
     pub payment_amount: i64,
+    pub capture_method: storage_enums::CaptureMethod,
     pub connector_meta: Option<serde_json::Value>,
 }
 
@@ -363,6 +364,11 @@ pub struct PaymentsPreProcessingData {
     pub email: Option<Email>,
     pub currency: Option<storage_enums::Currency>,
     pub payment_method_type: Option<storage_enums::PaymentMethodType>,
+    pub setup_mandate_details: Option<payments::MandateData>,
+    pub capture_method: Option<storage_enums::CaptureMethod>,
+    pub order_details: Option<Vec<api_models::payments::OrderDetailsWithAmount>>,
+    pub router_return_url: Option<String>,
+    pub webhook_url: Option<String>,
 }
 
 #[derive(Debug, Clone)]

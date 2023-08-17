@@ -186,7 +186,7 @@ pub fn http_not_implemented() -> actix_web::HttpResponse<BoxBody> {
     .error_response()
 }
 
-#[derive(Debug, thiserror::Error)]
+#[derive(Debug, thiserror::Error, PartialEq)]
 pub enum ApiClientError {
     #[error("Header map construction failed")]
     HeaderMapConstructionFailed,
@@ -263,7 +263,6 @@ pub enum ConnectorError {
     NotSupported {
         message: String,
         connector: &'static str,
-        payment_experience: String,
     },
     #[error("{flow} flow not supported by {connector} connector")]
     FlowNotSupported { flow: String, connector: String },
@@ -315,6 +314,8 @@ pub enum ConnectorError {
     MissingPaymentMethodType,
     #[error("Balance in the payment method is low")]
     InSufficientBalanceInPaymentMethod,
+    #[error("Server responded with Request Timeout")]
+    RequestTimeoutReceived,
 }
 
 #[derive(Debug, thiserror::Error)]
@@ -488,6 +489,18 @@ pub enum WebhooksFlowError {
     OutgoingWebhookEncodingFailed,
     #[error("Missing required field: {field_name}")]
     MissingRequiredField { field_name: &'static str },
+}
+
+impl ApiClientError {
+    pub fn is_upstream_timeout(&self) -> bool {
+        self == &Self::RequestTimeoutReceived
+    }
+}
+
+impl ConnectorError {
+    pub fn is_connector_timeout(&self) -> bool {
+        self == &Self::RequestTimeoutReceived
+    }
 }
 
 #[cfg(feature = "detailed_errors")]

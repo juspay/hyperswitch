@@ -300,6 +300,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for BluesnapPaymentsRequest {
             | payments::PaymentMethodData::MandatePayment
             | payments::PaymentMethodData::Reward(_)
             | payments::PaymentMethodData::Upi(_)
+            | payments::PaymentMethodData::CardRedirect(_)
             | payments::PaymentMethodData::Voucher(_)
             | payments::PaymentMethodData::GiftCard(_) => {
                 Err(errors::ConnectorError::NotImplemented(
@@ -391,14 +392,18 @@ impl TryFrom<types::PaymentsSessionResponseRouterData<BluesnapWalletTokenRespons
                                 total_type: Some("final".to_string()),
                                 amount: item.data.request.amount.to_string(),
                             },
-                            merchant_capabilities: applepay_metadata
-                                .data
-                                .payment_request_data
-                                .merchant_capabilities,
-                            supported_networks: applepay_metadata
-                                .data
-                                .payment_request_data
-                                .supported_networks,
+                            merchant_capabilities: Some(
+                                applepay_metadata
+                                    .data
+                                    .payment_request_data
+                                    .merchant_capabilities,
+                            ),
+                            supported_networks: Some(
+                                applepay_metadata
+                                    .data
+                                    .payment_request_data
+                                    .supported_networks,
+                            ),
                             merchant_identifier: Some(
                                 applepay_metadata
                                     .data
@@ -413,6 +418,8 @@ impl TryFrom<types::PaymentsSessionResponseRouterData<BluesnapWalletTokenRespons
                                 next_action: payments::NextActionCall::Confirm,
                             }
                         },
+                        connector_reference_id: None,
+                        connector_sdk_public_key: None,
                     },
                 )),
             }),
@@ -828,6 +835,7 @@ pub struct BluesnapWebhookObjectResource {
 pub struct ErrorDetails {
     pub code: String,
     pub description: String,
+    pub error_name: String,
 }
 
 #[derive(Default, Debug, Clone, Deserialize)]
@@ -841,6 +849,7 @@ pub struct BluesnapErrorResponse {
 pub struct BluesnapAuthErrorResponse {
     pub error_code: String,
     pub error_description: String,
+    pub error_name: String,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -860,4 +869,13 @@ fn get_card_holder_info(
         last_name: address.get_last_name()?.clone(),
         email,
     }))
+}
+
+impl From<ErrorDetails> for utils::ErrorCodeAndMessage {
+    fn from(error: ErrorDetails) -> Self {
+        Self {
+            error_code: error.code.to_string(),
+            error_message: error.error_name,
+        }
+    }
 }
