@@ -4,6 +4,16 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 1.17.1+hotfix.6 (2023-08-18)
+
+### Bug Fixes
+
+- **connector:** [CashToCode] Transform minor units into major units ([#1963](https://github.com/juspay/hyperswitch/pull/1963)) ([`e3d6b91`](https://github.com/juspay/hyperswitch/commit/e3d6b91f3e9dbfa20c407e53c64de469b6433f88))
+
+**Full Changelog:** [`v1.17.1+hotfix.5...v1.17.1+hotfix.6`](https://github.com/juspay/hyperswitch/compare/v1.17.1+hotfix.5...v1.17.1+hotfix.6)
+
+- - -
+
 ## 1.17.1+hotfix.5 (2023-08-17)
 
 ### Bug Fixes
