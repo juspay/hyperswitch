@@ -546,7 +546,8 @@ impl api::IncomingWebhook for Zen {
             .body
             .parse_struct("ZenWebhookBody")
             .change_context(errors::ConnectorError::WebhookSignatureNotFound)?;
-        let msg = format!("{}{}{}{}",
+        let msg = format!(
+            "{}{}{}{}",
             webhook_body.merchant_transaction_id,
             webhook_body.currency,
             webhook_body.amount,
