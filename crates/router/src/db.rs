@@ -1,5 +1,6 @@
 pub mod address;
 pub mod api_keys;
+pub mod business_profile;
 pub mod cache;
 pub mod capture;
 pub mod cards_info;
@@ -76,6 +77,7 @@ pub trait StorageInterface:
     + merchant_key_store::MerchantKeyStoreInterface
     + MasterKeyInterface
     + RedisConnInterface
+    + business_profile::BusinessProfileInterface
     + 'static
 {
 }
