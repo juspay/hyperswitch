@@ -1107,7 +1107,7 @@
     "id": 185,
     "name": "Adyen Touch n go",
     "connector": "adyen_uk",
-    "request": "{\"amount\":6540,\"currency\":\"MYR\",\"confirm\":true,\"capture_method\":\"automatic\",\"capture_on\":\"2022-09-10T10:11:12Z\",\"amount_to_capture\":6540,\"customer_id\":\"StripeCustomer\",\"email\":\"guest@example.com\",\"name\":\"John Doe\",\"phone\":\"999999999\",\"phone_country_code\":\"+1\",\"description\":\"Its my first payment request\",\"authentication_type\":\"no_three_ds\",\"return_url\":\"https://hs-payments-test.netlify.app/payments\",\"payment_method\":\"wallet\",\"payment_method_type\":\"touch_n_go\",\"payment_method_data\":{\"wallet\":{\"touch_n_go_redirect\":{}}}}"
+    "request": "{\"amount\":6540,\"currency\":\"MYR\",\"confirm\":true,\"capture_method\":\"automatic\",\"capture_on\":\"2022-09-10T10:11:12Z\",\"amount_to_capture\":6540,\"customer_id\":\"StripeCustomer\",\"email\":\"guest@example.com\",\"name\":\"John Doe\",\"phone\":\"999999999\",\"phone_country_code\":\"+1\",\"description\":\"Its my first payment request\",\"authentication_type\":\"no_three_ds\",\"return_url\":\"https://google.com\",\"payment_method\":\"wallet\",\"payment_method_type\":\"touch_n_go\",\"payment_method_data\":{\"wallet\":{\"touch_n_go_redirect\":{}}}}"
   },
   "186": {
     "id": 186,
@@ -1471,20 +1471,12 @@
   },
   "tests_to_ignore": [
     "noon_ui::*",
-    "adyen_uk_ui::should_make_adyen_online_banking_thailand_payment_test",
-    "adyen_uk_ui::should_make_adyen_blik_payment_test",
     "adyen_uk_ui::should_make_adyen_clearpay_payment_test",
-    "adyen_uk_ui::should_make_adyen_touch_n_go_payment_test",
-    "adyen_uk_ui::should_make_adyen_paypal_payment",
-    "adyen_uk_ui::should_make_adyen_paypal_payment_test",
-    "adyen_uk_ui::should_make_adyen_ebanking_fi_payment_test",
     "authorizedotnet_ui::should_make_paypal_payment_test",
     "multisafepay_ui::should_make_multisafepay_3ds_payment_failed_test",
     "multisafepay_ui::should_make_multisafepay_3ds_payment_success_test",
-    "nexinets_ui::*",
-    "paypal_ui::*",
+
     "aci_ui::should_make_aci_trustly_payment_test",
-    "checkout_ui::should_make_3ds_payment_test",
-    "checkout_ui::should_make_frictionless_3ds_payment_test"
+    "nexinets_ui::should_make_3ds_card_payment_test"
   ]
 }

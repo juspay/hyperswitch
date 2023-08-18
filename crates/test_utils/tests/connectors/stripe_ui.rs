@@ -135,9 +135,9 @@ async fn should_make_stripe_klarna_payment(c: WebDriver) -> Result<(), WebDriver
                 ],
             ),
             Event::RunIf(
-                Assert::IsPresent("We've updated our Shopping terms"),
+                Assert::IsPresent("How do you want to pay"),
                 vec![Event::Trigger(Trigger::Click(By::Css(
-                    "button[data-testid='kaf-button']",
+                    "button[data-testid='select-payment-category']",
                 )))],
             ),
             Event::RunIf(
@@ -386,7 +386,10 @@ async fn should_make_stripe_affirm_paylater_payment(
     conn.make_affirm_payment(
         driver,
         &format!("{CHEKOUT_BASE_URL}/saved/110"),
-        vec![Event::Assert(Assert::IsPresent("succeeded"))],
+        vec![
+            Event::Trigger(Trigger::Sleep(6)),
+            Event::Assert(Assert::IsPresent("succeeded")),
+        ],
     )
     .await?;
     Ok(())

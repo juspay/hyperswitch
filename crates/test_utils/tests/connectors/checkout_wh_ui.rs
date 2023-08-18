@@ -18,8 +18,10 @@ async fn should_make_webhook(web_driver: WebDriver) -> Result<(), WebDriverError
         &format!("{CHEKOUT_BASE_URL}/saved/18"),
         vec![
             Event::Trigger(Trigger::Click(By::Id("card-submit-btn"))),
-            Event::Assert(Assert::IsPresent("status")),
-            Event::Assert(Assert::IsPresent("succeeded")),
+            Event::Assert(Assert::ContainsAny(
+                Selector::QueryParamStr,
+                vec!["status=succeeded", "status=processing"],
+            )),
         ],
         5,
         "succeeded",

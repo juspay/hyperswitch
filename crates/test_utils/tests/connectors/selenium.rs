@@ -469,7 +469,7 @@ pub trait SeleniumTest {
             ))),
             Event::Trigger(Trigger::Click(By::Css("div[data-testid='indicator']"))),
             Event::Trigger(Trigger::Click(By::Css(
-                "button[data-testid='submit-button']",
+                "button[data-testid='continue-with-selected-term-button']",
             ))),
             Event::Trigger(Trigger::Click(By::Css("div[data-testid='indicator']"))),
             Event::Trigger(Trigger::Click(By::Css(
