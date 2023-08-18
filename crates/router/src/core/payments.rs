@@ -40,7 +40,7 @@ use crate::{
         self as router_types, api, domain,
         storage::{self, enums as storage_enums, ProcessTrackerExt},
     },
-    utils::{Encode, OptionExt, ValueExt},
+    utils::{add_connector_http_status_code_metrics, Encode, OptionExt, ValueExt},
 };
 
 #[instrument(skip_all, fields(payment_id, merchant_id))]
@@ -52,7 +52,7 @@ pub async fn payments_operation_core<F, Req, Op, FData>(
     req: Req,
     call_connector_action: CallConnectorAction,
     auth_flow: services::AuthFlow,
-) -> RouterResult<(PaymentData<F>, Req, Option<domain::Customer>)>
+) -> RouterResult<(PaymentData<F>, Req, Option<domain::Customer>, Option<u16>)>
 where
     F: Send + Clone + Sync,
     Req: Authenticate,
@@ -152,6 +152,8 @@ where
     )
     .await?;
 
+    let mut connector_http_status_code = None;
+
     if let Some(connector_details) = connector {
         payment_data = match connector_details {
             api::ConnectorCallType::Single(connector) => {
@@ -173,6 +175,9 @@ where
 
                 let operation = Box::new(PaymentResponse);
                 let db = &*state.store;
+                connector_http_status_code = router_data.connector_http_status_code;
+                //add connector http status code metrics
+                add_connector_http_status_code_metrics(connector_http_status_code);
                 operation
                     .to_post_update_tracker()?
                     .update_tracker(
@@ -227,7 +232,7 @@ where
             .await?;
     }
 
-    Ok((payment_data, req, customer))
+    Ok((payment_data, req, customer, connector_http_status_code))
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -257,7 +262,7 @@ where
     // To perform router related operation for PaymentResponse
     PaymentResponse: Operation<F, FData>,
 {
-    let (payment_data, req, customer) = payments_operation_core(
+    let (payment_data, req, customer, connector_http_status_code) = payments_operation_core(
         state,
         merchant_account,
         key_store,
@@ -276,6 +281,7 @@ where
         &state.conf.server,
         operation,
         &state.conf.connector_request_reference_id_config,
+        connector_http_status_code,
     )
 }
 
@@ -374,6 +380,7 @@ pub trait PaymentRedirectFlow: Sync {
 
         let payments_response = match response? {
             services::ApplicationResponse::Json(response) => Ok(response),
+            services::ApplicationResponse::JsonWithHeaders((response, _)) => Ok(response),
             _ => Err(errors::ApiErrorResponse::InternalServerError)
                 .into_report()
                 .attach_printable("Failed to get the response in json"),

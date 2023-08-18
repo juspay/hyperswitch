@@ -257,7 +257,6 @@ impl TryFrom<&PaymentMethodData> for SalePaymentMethod {
                     Err(errors::ConnectorError::NotSupported {
                         message: "Wallet".to_string(),
                         connector: "payme",
-                        payment_experience: "Redirection".to_string(),
                     }
                     .into())
                 }
@@ -552,6 +551,12 @@ pub struct PaymentCaptureRequest {
 impl TryFrom<&types::PaymentsCaptureRouterData> for PaymentCaptureRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::PaymentsCaptureRouterData) -> Result<Self, Self::Error> {
+        if item.request.amount_to_capture != item.request.payment_amount {
+            Err(errors::ConnectorError::NotSupported {
+                message: "Partial Capture".to_string(),
+                connector: "Payme",
+            })?
+        }
         Ok(Self {
             payme_sale_id: item.request.connector_transaction_id.clone(),
             sale_price: item.request.amount_to_capture,

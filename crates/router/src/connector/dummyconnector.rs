@@ -161,7 +161,6 @@ impl<const T: u8>
             _ => Err(error_stack::report!(errors::ConnectorError::NotSupported {
                 message: format!("The payment method {} is not supported", req.payment_method),
                 connector: Into::<transformers::DummyConnectors>::into(T).get_dummy_connector_id(),
-                payment_experience: api::enums::PaymentExperience::RedirectToUrl.to_string(),
             })),
         }
     }
