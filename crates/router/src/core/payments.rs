@@ -1296,16 +1296,7 @@ pub fn should_call_connector<Op: Debug, F: Clone>(
                 .authentication_data
                 .is_none()
         }
-        "PaymentStatus" => {
-            matches!(
-                payment_data.payment_intent.status,
-                storage_enums::IntentStatus::Failed
-                    | storage_enums::IntentStatus::Processing
-                    | storage_enums::IntentStatus::Succeeded
-                    | storage_enums::IntentStatus::RequiresCustomerAction
-                    | storage_enums::IntentStatus::RequiresMerchantAction
-            ) && payment_data.force_sync.unwrap_or(false)
-        }
+        "PaymentStatus" => payment_data.force_sync.unwrap_or(false),
         "PaymentCancel" => matches!(
             payment_data.payment_intent.status,
             storage_enums::IntentStatus::RequiresCapture
