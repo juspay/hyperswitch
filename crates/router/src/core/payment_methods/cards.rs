@@ -37,14 +37,14 @@ use crate::{
         },
         payments::helpers,
     },
-    db, logger,
+    db,
     pii::prelude::*,
     routes::{
         self,
         metrics::{self, request},
         payment_methods::ParentPaymentMethodToken,
     },
-    services,
+    services::{self, logger},
     types::{
         api::{self, PaymentMethodCreateExt},
         domain::{self, types::decrypt},
@@ -1752,16 +1752,29 @@ pub async fn list_customer_payment_method(
         )
         .await
         .to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)?;
+    let mut card_err_count = 0;
+    let mut count = 0;
     //let mca = query::find_mca_by_merchant_id(conn, &merchant_account.merchant_id)?;
     let mut customer_pms = Vec::new();
     for pm in resp.into_iter() {
         let parent_payment_method_token = generate_id(consts::ID_LENGTH, "token");
         let hyperswitch_token = generate_id(consts::ID_LENGTH, "token");
-        let card = if pm.payment_method == enums::PaymentMethod::Card {
-            Some(get_lookup_key_from_locker(state, &hyperswitch_token, &pm).await?)
+
+        let card_details = if pm.payment_method == enums::PaymentMethod::Card {
+            count += 1;
+            let card_det = get_lookup_key_from_locker(state, &hyperswitch_token, &pm).await;
+            match card_det {
+                Ok(card_det) => Some(card_det),
+                Err(err) => {
+                    card_err_count += 1;
+                    logger::error!("Error processing card: {:?}", err);
+                    continue;
+                }
+            }
         } else {
             None
         };
+
         #[cfg(feature = "payouts")]
         let pmd = if pm.payment_method == enums::PaymentMethod::BankTransfer {
             Some(
@@ -1771,6 +1784,7 @@ pub async fn list_customer_payment_method(
         } else {
             None
         };
+        let card = card_details;
         //Need validation for enabled payment method ,querying MCA
         let pma = api::CustomerPaymentMethod {
             payment_token: parent_payment_method_token.to_owned(),
@@ -1842,6 +1856,10 @@ pub async fn list_customer_payment_method(
                     .attach_printable("Failed to add data in redis")?;
             }
         }
+    }
+
+    if count != 0 && count == card_err_count {
+        return Err(errors::ApiErrorResponse::InternalServerError).into_report();
     }
 
     let response = api::CustomerPaymentMethodsListResponse {
