@@ -8,7 +8,10 @@ use transformers as cashtocode;
 use crate::{
     configs::settings,
     connector::utils as conn_utils,
-    core::{errors::{self, CustomResult}, payments},
+    core::{
+        errors::{self, CustomResult},
+        payments,
+    },
     db::StorageInterface,
     headers,
     services::{
@@ -452,7 +455,7 @@ impl services::ConnectorRedirectResponse for Cashtocode {
         &self,
         _query_params: &str,
         _json_payload: Option<serde_json::Value>,
-        _action: services::PaymentAction
+        _action: services::PaymentAction,
     ) -> CustomResult<payments::CallConnectorAction, errors::ConnectorError> {
         Ok(payments::CallConnectorAction::Avoid)
     }
