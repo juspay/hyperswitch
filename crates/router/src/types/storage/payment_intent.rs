@@ -38,11 +38,11 @@ pub trait PaymentIntentDbExt: Sized {
         merchant_id: &str,
         constraints: &api::PaymentListFilterConstraints,
     ) -> CustomResult<Vec<(PaymentIntent, PaymentAttempt)>, errors::DatabaseError>;
-    async fn get_intents_for_total_count(
+    async fn get_active_attempt_ids_for_total_count(
         conn: &PgPooledConn,
         merchant_id: &str,
         constraints: &api::PaymentListFilterConstraints,
-    ) -> CustomResult<Vec<Self>, errors::DatabaseError>;
+    ) -> CustomResult<Vec<String>, errors::DatabaseError>;
 }
 
 #[async_trait::async_trait]
@@ -132,8 +132,10 @@ impl PaymentIntentDbExt for PaymentIntent {
         filter = filter.filter(dsl::created_at.le(end_time));
 
         crate::logger::debug!(query = %debug_query::<Pg, _>(&filter).to_string());
-        filter
-            .get_results_async(conn)
+        db_metrics::track_database_call::<<Self as HasTable>::Table, _, _>(
+            filter.get_results_async(conn),
+            db_metrics::DatabaseOperation::Filter,
+        )
             .await
             .into_report()
             .change_context(errors::DatabaseError::Others)
@@ -146,7 +148,7 @@ impl PaymentIntentDbExt for PaymentIntent {
         merchant_id: &str,
         constraints: &api::PaymentListFilterConstraints,
     ) -> CustomResult<Vec<(Self, PaymentAttempt)>, errors::DatabaseError> {
-        let limit = constraints.limit.unwrap_or(20);
+        let limit = constraints.limit.unwrap_or(JOIN_LIMIT);
         let offset = constraints.offset.unwrap_or_default();
         let mut filter = Self::table()
             .inner_join(payment_attempt::table.on(dsl1::attempt_id.eq(dsl::active_attempt_id)))
@@ -187,8 +189,10 @@ impl PaymentIntentDbExt for PaymentIntent {
         }
 
         crate::logger::debug!(filter = %debug_query::<Pg, _>(&filter).to_string());
-        filter
-            .get_results_async(conn)
+        db_metrics::track_database_call::<<Self as HasTable>::Table, _, _>(
+            filter.get_results_async(conn),
+            db_metrics::DatabaseOperation::Filter,
+        )
             .await
             .into_report()
             .change_context(errors::DatabaseError::Others)
@@ -196,12 +200,13 @@ impl PaymentIntentDbExt for PaymentIntent {
     }
 
     #[instrument(skip(conn))]
-    async fn get_intents_for_total_count(
+    async fn get_active_attempt_ids_for_total_count(
         conn: &PgPooledConn,
         merchant_id: &str,
         constraints: &api::PaymentListFilterConstraints,
-    ) -> CustomResult<Vec<Self>, errors::DatabaseError> {
+    ) -> CustomResult<Vec<String>, errors::DatabaseError> {
         let mut filter = <Self as HasTable>::table()
+            .select(dsl::active_attempt_id)
             .filter(dsl::merchant_id.eq(merchant_id.to_owned()))
             .order(dsl::modified_at.desc())
             .into_boxed();
@@ -227,8 +232,11 @@ impl PaymentIntentDbExt for PaymentIntent {
         }
 
         crate::logger::debug!(query = %debug_query::<Pg, _>(&filter).to_string());
-        filter
-            .get_results_async(conn)
+        
+        db_metrics::track_database_call::<<Self as HasTable>::Table, _, _>(
+            filter.get_results_async(conn),
+            db_metrics::DatabaseOperation::Filter,
+        )
             .await
             .into_report()
             .change_context(errors::DatabaseError::Others)

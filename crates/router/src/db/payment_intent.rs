@@ -53,12 +53,12 @@ pub trait PaymentIntentInterface {
     ) -> CustomResult<Vec<(types::PaymentIntent, types::PaymentAttempt)>, errors::StorageError>;
 
     #[cfg(feature = "olap")]
-    async fn get_filtered_payment_intents_for_total_count(
+    async fn get_filtered_active_attempt_ids_for_total_count(
         &self,
         merchant_id: &str,
         constraints: &api::PaymentListFilterConstraints,
         storage_scheme: enums::MerchantStorageScheme,
-    ) -> CustomResult<Vec<types::PaymentIntent>, errors::StorageError>;
+    ) -> CustomResult<Vec<String>, errors::StorageError>;
 }
 
 #[cfg(feature = "kv_store")]
@@ -308,16 +308,16 @@ mod storage {
         }
 
         #[cfg(feature = "olap")]
-        async fn get_filtered_payment_intents_for_total_count(
+        async fn get_filtered_active_attempt_ids_for_total_count(
             &self,
             merchant_id: &str,
             constraints: &api::PaymentListFilterConstraints,
             storage_scheme: enums::MerchantStorageScheme,
-        ) -> CustomResult<Vec<PaymentIntent>, errors::StorageError> {
+        ) -> CustomResult<Vec<String>, errors::StorageError> {
             match storage_scheme {
                 enums::MerchantStorageScheme::PostgresOnly => {
                     let conn = connection::pg_connection_read(self).await?;
-                    PaymentIntent::get_intents_for_total_count(&conn, merchant_id, constraints)
+                    PaymentIntent::get_active_attempt_ids_for_total_count(&conn, merchant_id, constraints)
                         .await
                         .map_err(Into::into)
                         .into_report()
@@ -422,14 +422,14 @@ mod storage {
         }
 
         #[cfg(feature = "olap")]
-        async fn get_filtered_payment_intents_for_total_count(
+        async fn get_filtered_active_attempt_ids_for_total_count(
             &self,
             merchant_id: &str,
             constraints: &api::PaymentListFilterConstraints,
             _storage_scheme: enums::MerchantStorageScheme,
-        ) -> CustomResult<Vec<PaymentIntent>, errors::StorageError> {
+        ) -> CustomResult<Vec<String>, errors::StorageError> {
             let conn = connection::pg_connection_read(self).await?;
-            PaymentIntent::get_intents_for_total_count(&conn, merchant_id, constraints)
+            PaymentIntent::get_active_attempt_ids_for_total_count(&conn, merchant_id, constraints)
                 .await
                 .map_err(Into::into)
                 .into_report()
@@ -472,12 +472,12 @@ impl PaymentIntentInterface for MockDb {
     }
 
     #[cfg(feature = "olap")]
-    async fn get_filtered_payment_intents_for_total_count(
+    async fn get_filtered_active_attempt_ids_for_total_count(
         &self,
         _merchant_id: &str,
         _constraints: &api::PaymentListFilterConstraints,
         _storage_scheme: enums::MerchantStorageScheme,
-    ) -> CustomResult<Vec<types::PaymentIntent>, errors::StorageError> {
+    ) -> CustomResult<Vec<String>, errors::StorageError> {
         // [#172]: Implement function for `MockDb`
         Err(errors::StorageError::MockDbError)?
     }

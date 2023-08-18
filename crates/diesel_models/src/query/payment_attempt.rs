@@ -18,7 +18,7 @@ use crate::{
     },
     payment_intent::PaymentIntent,
     schema::payment_attempt::dsl,
-    PgPooledConn, StorageResult,
+    PgPooledConn, StorageResult, query::generics::db_metrics,
 };
 
 impl PaymentAttemptNew {
@@ -298,8 +298,10 @@ impl PaymentAttempt {
         }
         router_env::logger::debug!(query = %debug_query::<Pg, _>(&filter).to_string());
 
-        filter
-            .get_result_async::<i64>(conn)
+        db_metrics::track_database_call::<<Self as HasTable>::Table, _, _>(
+            filter.get_result_async::<i64>(conn),
+            db_metrics::DatabaseOperation::Filter,
+        )
             .await
             .into_report()
             .change_context(errors::DatabaseError::Others)

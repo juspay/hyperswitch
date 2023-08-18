@@ -1408,6 +1408,7 @@ pub async fn apply_filters_on_payments(
     merchant: domain::MerchantAccount,
     constraints: api::PaymentListFilterConstraints,
 ) -> RouterResponse<api::PaymentListResponseV2> {
+
     use crate::types::transformers::ForeignFrom;
 
     let limit = &constraints.limit.unwrap_or(PAYMENTS_LIST_MAX_LIMIT);
@@ -1425,19 +1426,14 @@ pub async fn apply_filters_on_payments(
     let data: Vec<api::PaymentsResponse> =
         list.into_iter().map(ForeignFrom::foreign_from).collect();
 
-    let filtered_intents = db
-        .get_filtered_payment_intents_for_total_count(
+    let active_attempt_ids = db
+        .get_filtered_active_attempt_ids_for_total_count(
             &merchant.merchant_id,
             &constraints,
             merchant.storage_scheme,
         )
         .await
         .to_not_found_response(errors::ApiErrorResponse::InternalServerError)?;
-
-    let active_attempt_ids: Vec<String> = filtered_intents
-        .iter()
-        .map(|payment_intent| payment_intent.clone().active_attempt_id)
-        .collect();
 
     let total_count = db
         .get_total_count_of_filtered_payment_attempts(
