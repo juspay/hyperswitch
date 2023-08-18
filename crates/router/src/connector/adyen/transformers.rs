@@ -1345,7 +1345,7 @@ impl<'a> TryFrom<&types::PaymentsAuthorizeRouterData> for AdyenPaymentRequest<'a
                 | payments::PaymentMethodData::Reward(_)
                 | payments::PaymentMethodData::Upi(_) => {
                     Err(errors::ConnectorError::NotSupported {
-                        message: format!("{:?}", item.request.payment_method_type),
+                        message: utils::SELECTED_PAYMENT_METHOD.to_string(),
                         connector: "Adyen",
                     })?
                 }
