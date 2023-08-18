@@ -5931,7 +5931,7 @@
           },
           "payment_response_hash_key": {
             "type": "string",
-            "description": "Refers to the hash key used for payment response",
+            "description": "Refers to the hash key used for calculating the signature for webhooks and redirect response\nIf the value is not provided, a default value is used",
             "nullable": true
           },
           "redirect_to_merchant_with_http_post": {
