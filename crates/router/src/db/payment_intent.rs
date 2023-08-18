@@ -66,6 +66,7 @@ mod storage {
     use common_utils::date_time;
     use error_stack::{IntoReport, ResultExt};
     use redis_interface::HsetnxReply;
+    use storage_impl::redis::kv_store::RedisConnInterface;
 
     use super::PaymentIntentInterface;
     #[cfg(feature = "olap")]
@@ -127,7 +128,7 @@ mod storage {
                     };
 
                     match self
-                        .redis_conn()
+                        .get_redis_conn()
                         .map_err(Into::<errors::StorageError>::into)?
                         .serialize_and_set_hash_field_if_not_exist(&key, "pi", &created_intent)
                         .await
@@ -150,7 +151,8 @@ mod storage {
                                     payment_id: &created_intent.payment_id,
                                 },
                             )
-                            .await?;
+                            .await
+                            .change_context(errors::StorageError::KVError)?;
                             Ok(created_intent)
                         }
                         Err(error) => Err(error.change_context(errors::StorageError::KVError)),
@@ -185,7 +187,7 @@ mod storage {
                             .change_context(errors::StorageError::SerializationFailed)?;
 
                     let updated_intent = self
-                        .redis_conn()
+                        .get_redis_conn()
                         .map_err(Into::<errors::StorageError>::into)?
                         .set_hash_fields(&key, ("pi", &redis_value))
                         .await
@@ -210,7 +212,8 @@ mod storage {
                             payment_id: &updated_intent.payment_id,
                         },
                     )
-                    .await?;
+                    .await
+                    .change_context(errors::StorageError::KVError)?;
                     Ok(updated_intent)
                 }
             }
@@ -235,7 +238,7 @@ mod storage {
                 enums::MerchantStorageScheme::RedisKv => {
                     let key = format!("{merchant_id}_{payment_id}");
                     db_utils::try_redis_get_else_try_database_get(
-                        self.redis_conn()
+                        self.get_redis_conn()
                             .map_err(Into::<errors::StorageError>::into)?
                             .get_hash_field_and_deserialize(&key, "pi", "PaymentIntent"),
                         database_call,
