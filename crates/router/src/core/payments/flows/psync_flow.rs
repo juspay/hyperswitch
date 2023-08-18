@@ -114,6 +114,7 @@ impl Feature<api::PSync, types::PaymentsSyncData>
                         Ok(self)
                     }
                     services::CaptureSyncMethod::Bulk => {
+                        // for bulk sync of captures, above logic needs to be handled at connector end
                         let resp = services::execute_connector_processing_step(
                             state,
                             connector_integration,
