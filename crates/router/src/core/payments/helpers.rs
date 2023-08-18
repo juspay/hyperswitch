@@ -1347,7 +1347,7 @@ pub async fn make_pm_data<'a, F: Clone, R>(
 pub async fn store_in_vault_and_generate_ppmt(
     state: &AppState,
     payment_method_data: &api_models::payments::PaymentMethodData,
-    payment_intent: &payment_intent::PaymentIntent,
+    payment_intent: &PaymentIntent,
     payment_attempt: &PaymentAttempt,
     payment_method: enums::PaymentMethod,
 ) -> RouterResult<String> {
