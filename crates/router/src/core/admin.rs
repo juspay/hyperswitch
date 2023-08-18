@@ -25,6 +25,7 @@ use crate::{
             types::{self as domain_types, AsyncLift},
         },
         storage,
+        transformers::ForeignTryFrom,
     },
     utils::{self, OptionExt},
 };
@@ -828,6 +829,218 @@ pub fn get_frm_config_as_secret(
         }
         None => None,
     }
+}
+
+pub async fn create_business_profile(
+    db: &dyn StorageInterface,
+    request: api::BusinessProfileCreate,
+    merchant_id: &str,
+) -> RouterResponse<api_models::admin::BusinessProfileResponse> {
+    let key_store = db
+        .get_merchant_key_store_by_merchant_id(merchant_id, &db.get_master_key().to_vec().into())
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
+
+    // Get the merchant account, if few fields are not passed, then they will be inherited from
+    // merchant account
+    let merchant_account = db
+        .find_merchant_account_by_merchant_id(merchant_id, &key_store)
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
+
+    // Generate a unique profile id
+    let profile_id = common_utils::generate_id_with_default_len("pro");
+
+    let payment_response_hash_key = request
+        .payment_response_hash_key
+        .or(merchant_account.payment_response_hash_key)
+        .unwrap_or(generate_cryptographically_secure_random_string(64));
+
+    let webhook_details = request
+        .webhook_details
+        .as_ref()
+        .map(|webhook_details| {
+            utils::Encode::<api::WebhookDetails>::encode_to_value(webhook_details).change_context(
+                errors::ApiErrorResponse::InvalidDataValue {
+                    field_name: "webhook details",
+                },
+            )
+        })
+        .transpose()?;
+
+    if let Some(ref routing_algorithm) = request.routing_algorithm {
+        let _: api::RoutingAlgorithm = routing_algorithm
+            .clone()
+            .parse_value("RoutingAlgorithm")
+            .change_context(errors::ApiErrorResponse::InvalidDataValue {
+                field_name: "routing_algorithm",
+            })
+            .attach_printable("Invalid routing algorithm given")?;
+    }
+
+    let business_profile_new = storage::business_profile::BusinessProfileNew {
+        profile_id,
+        merchant_id: merchant_id.to_string(),
+        profile_name: request.profile_name.unwrap_or("default".to_string()),
+        created_at: date_time::now(),
+        modified_at: date_time::now(),
+        return_url: request
+            .return_url
+            .map(|return_url| return_url.to_string())
+            .or(merchant_account.return_url),
+        enable_payment_response_hash: request
+            .enable_payment_response_hash
+            .unwrap_or(merchant_account.enable_payment_response_hash),
+        payment_response_hash_key: Some(payment_response_hash_key),
+        redirect_to_merchant_with_http_post: request
+            .redirect_to_merchant_with_http_post
+            .unwrap_or(merchant_account.redirect_to_merchant_with_http_post),
+        webhook_details: webhook_details.or(merchant_account.webhook_details),
+        metadata: request.metadata,
+        routing_algorithm: request
+            .routing_algorithm
+            .or(merchant_account.routing_algorithm),
+        intent_fulfillment_time: request
+            .intent_fulfillment_time
+            .map(i64::from)
+            .or(merchant_account.intent_fulfillment_time),
+        frm_routing_algorithm: request
+            .frm_routing_algorithm
+            .or(merchant_account.frm_routing_algorithm),
+        payout_routing_algorithm: request
+            .payout_routing_algorithm
+            .or(merchant_account.payout_routing_algorithm),
+        is_recon_enabled: merchant_account.is_recon_enabled,
+    };
+
+    let business_profile = db
+        .insert_business_profile(business_profile_new)
+        .await
+        .to_duplicate_response(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to insert Business profile because of duplication error")?;
+    Ok(service_api::ApplicationResponse::Json(
+        api_models::admin::BusinessProfileResponse::foreign_try_from(business_profile)
+            .change_context(errors::ApiErrorResponse::InternalServerError)?,
+    ))
+}
+
+pub async fn list_business_profile(
+    db: &dyn StorageInterface,
+    merchant_id: String,
+) -> RouterResponse<Vec<api_models::admin::BusinessProfileResponse>> {
+    let business_profiles = db
+        .list_business_profile_by_merchant_id(&merchant_id)
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::InternalServerError)?
+        .into_iter()
+        .map(|business_profile| {
+            api_models::admin::BusinessProfileResponse::foreign_try_from(business_profile)
+        })
+        .collect::<Result<Vec<_>, _>>()
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to parse business profile details")?;
+
+    Ok(service_api::ApplicationResponse::Json(business_profiles))
+}
+
+pub async fn retrieve_business_profile(
+    db: &dyn StorageInterface,
+    profile_id: String,
+) -> RouterResponse<api_models::admin::BusinessProfileResponse> {
+    let business_profile = db
+        .find_business_profile_by_profile_id(&profile_id)
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::BusinessProfileNotFound {
+            id: profile_id,
+        })?;
+
+    Ok(service_api::ApplicationResponse::Json(
+        api_models::admin::BusinessProfileResponse::foreign_try_from(business_profile)
+            .change_context(errors::ApiErrorResponse::InternalServerError)?,
+    ))
+}
+
+pub async fn delete_business_profile(
+    db: &dyn StorageInterface,
+    profile_id: String,
+    merchant_id: &str,
+) -> RouterResponse<bool> {
+    let delete_result = db
+        .delete_business_profile_by_profile_id_merchant_id(&profile_id, merchant_id)
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::BusinessProfileNotFound {
+            id: profile_id,
+        })?;
+
+    Ok(service_api::ApplicationResponse::Json(delete_result))
+}
+
+pub async fn update_business_profile(
+    db: &dyn StorageInterface,
+    profile_id: &str,
+    merchant_id: &str,
+    request: api::BusinessProfileUpdate,
+) -> RouterResponse<api::BusinessProfileResponse> {
+    let business_profile = db
+        .find_business_profile_by_profile_id(profile_id)
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::BusinessProfileNotFound {
+            id: profile_id.to_owned(),
+        })?;
+
+    if business_profile.merchant_id != merchant_id {
+        Err(errors::ApiErrorResponse::AccessForbidden)?
+    }
+
+    let webhook_details = request
+        .webhook_details
+        .as_ref()
+        .map(|webhook_details| {
+            utils::Encode::<api::WebhookDetails>::encode_to_value(webhook_details).change_context(
+                errors::ApiErrorResponse::InvalidDataValue {
+                    field_name: "webhook details",
+                },
+            )
+        })
+        .transpose()?;
+
+    if let Some(ref routing_algorithm) = request.routing_algorithm {
+        let _: api::RoutingAlgorithm = routing_algorithm
+            .clone()
+            .parse_value("RoutingAlgorithm")
+            .change_context(errors::ApiErrorResponse::InvalidDataValue {
+                field_name: "routing_algorithm",
+            })
+            .attach_printable("Invalid routing algorithm given")?;
+    }
+
+    let business_profile_update = storage::business_profile::BusinessProfileUpdateInternal {
+        profile_name: request.profile_name,
+        modified_at: Some(date_time::now()),
+        return_url: request.return_url.map(|return_url| return_url.to_string()),
+        enable_payment_response_hash: request.enable_payment_response_hash,
+        payment_response_hash_key: request.payment_response_hash_key,
+        redirect_to_merchant_with_http_post: request.redirect_to_merchant_with_http_post,
+        webhook_details,
+        metadata: request.metadata,
+        routing_algorithm: request.routing_algorithm,
+        intent_fulfillment_time: request.intent_fulfillment_time.map(i64::from),
+        frm_routing_algorithm: request.frm_routing_algorithm,
+        payout_routing_algorithm: request.payout_routing_algorithm,
+        is_recon_enabled: None,
+    };
+
+    let updated_business_profile = db
+        .update_business_profile_by_profile_id(business_profile, business_profile_update)
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::BusinessProfileNotFound {
+            id: profile_id.to_owned(),
+        })?;
+
+    Ok(service_api::ApplicationResponse::Json(
+        api_models::admin::BusinessProfileResponse::foreign_try_from(updated_business_profile)
+            .change_context(errors::ApiErrorResponse::InternalServerError)?,
+    ))
 }
 
 pub(crate) fn validate_auth_type(

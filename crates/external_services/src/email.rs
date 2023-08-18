@@ -102,6 +102,7 @@ impl EmailClient for AwsSes {
     }
 }
 
+#[allow(missing_docs)]
 /// Errors that could occur from EmailClient.
 #[derive(Debug, thiserror::Error)]
 pub enum EmailError {
@@ -123,6 +124,7 @@ pub enum AwsSesError {
     SendingFailure(aws_smithy_client::SdkError<SendEmailError>),
 }
 
+#[allow(missing_docs)]
 pub enum BodyContent {
     /// When the email content is plain text
     Simple,
