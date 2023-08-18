@@ -15,6 +15,9 @@ use redis_interface::RedisSettings;
 pub use router_env::config::{Log, LogConsole, LogFile, LogTelemetry};
 use scheduler::SchedulerSettings;
 use serde::{de::Error, Deserialize, Deserializer};
+#[cfg(feature = "kms")]
+pub use storage_impl::ActiveKmsSecrets;
+pub use storage_impl::Jwekey;
 
 use crate::{
     core::errors::{ApplicationError, ApplicationResult},
@@ -42,16 +45,6 @@ pub enum Subcommand {
     #[cfg(feature = "openapi")]
     /// Generate the OpenAPI specification file from code.
     GenerateOpenapiSpec,
-}
-
-#[cfg(feature = "kms")]
-/// Store the decrypted kms secret values for active use in the application
-/// Currently using `StrongSecret` won't have any effect as this struct have smart pointers to heap
-/// allocations.
-/// note: we can consider adding such behaviour in the future with custom implementation
-#[derive(Clone)]
-pub struct ActiveKmsSecrets {
-    pub jwekey: masking::Secret<Jwekey>,
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
@@ -387,20 +380,6 @@ pub struct Refund {
 #[serde(default)]
 pub struct EphemeralConfig {
     pub validity: i64,
-}
-
-#[derive(Debug, Deserialize, Clone, Default)]
-#[serde(default)]
-pub struct Jwekey {
-    pub locker_key_identifier1: String,
-    pub locker_key_identifier2: String,
-    pub locker_encryption_key1: String,
-    pub locker_encryption_key2: String,
-    pub locker_decryption_key1: String,
-    pub locker_decryption_key2: String,
-    pub vault_encryption_key: String,
-    pub vault_private_key: String,
-    pub tunnel_private_key: String,
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]

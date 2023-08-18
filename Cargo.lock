@@ -4874,6 +4874,7 @@ dependencies = [
  "once_cell",
  "redis_interface",
  "router_env",
+ "serde",
  "tokio",
 ]
 
