@@ -111,7 +111,6 @@ pub fn mk_app(
             .service(routes::Customers::server(state.clone()))
             .service(routes::Configs::server(state.clone()))
             .service(routes::Refunds::server(state.clone()))
-            .service(routes::BusinessProfile::server(state.clone()))
             .service(routes::MerchantConnectorAccount::server(state.clone()))
             .service(routes::Mandates::server(state.clone()))
     }
@@ -130,7 +129,8 @@ pub fn mk_app(
             .service(routes::MerchantAccount::server(state.clone()))
             .service(routes::ApiKeys::server(state.clone()))
             .service(routes::Files::server(state.clone()))
-            .service(routes::Disputes::server(state.clone()));
+            .service(routes::Disputes::server(state.clone()))
+            .service(routes::BusinessProfile::server(state.clone()))
     }
 
     #[cfg(feature = "payouts")]
