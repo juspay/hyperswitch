@@ -358,17 +358,19 @@ pub struct CaptureResponse {
     #[schema(value_type = Option<Currency>, example = "usd")]
     pub currency: Option<enums::Currency>,
     /// The connector used for the payment
-    pub connector: Option<String>,
+    pub connector: String,
     /// unique identifier for the parent attempt on which this capture is made
     pub authorized_attempt_id: String,
     /// A unique identifier for a capture provided by the connector
-    pub connector_transaction_id: Option<String>,
+    pub connector_capture_id: Option<String>,
     /// sequence number of this capture
     pub capture_sequence: i16,
     /// If there was an error while calling the connector the error message is received here
     pub error_message: Option<String>,
     /// If there was an error while calling the connectors the code is received here
     pub error_code: Option<String>,
+    /// If there was an error while calling the connectors the reson is received here
+    pub error_reason: Option<String>,
 }
 
 impl PaymentsRequest {

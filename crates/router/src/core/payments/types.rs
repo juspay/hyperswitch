@@ -9,50 +9,46 @@ use crate::{
 
 #[derive(Clone, Debug)]
 pub struct MultipleCaptureData {
-    //key -> capture_id, value -> Capture
+    // key -> capture_id, value -> Capture
     all_captures: HashMap<String, storage::Capture>,
-    pub capture_operation: CaptureOperation,
+    latest_capture: storage::Capture,
     _private: Private, // to restrict direct construction of MultipleCaptureData
 }
 #[derive(Clone, Debug)]
 struct Private {}
 
-#[derive(Clone, Debug)]
-pub enum CaptureOperation {
-    CaptureSync,
-    CaptureCreate {
-        latest_capture: Box<storage::Capture>,
-    },
-}
-
 impl MultipleCaptureData {
-    pub fn new_sync(captures: Vec<storage::Capture>) -> RouterResult<Self> {
+    pub fn new_for_sync(captures: Vec<storage::Capture>) -> RouterResult<Self> {
+        let latest_capture = captures
+            .last()
+            .ok_or(errors::ApiErrorResponse::InternalServerError)
+            .into_report()
+            .attach_printable("Cannot create MultipleCaptureData with empty captures list")?
+            .clone();
         let multiple_capture_data = Self {
             all_captures: captures
                 .into_iter()
                 .map(|capture| (capture.capture_id.clone(), capture))
                 .collect(),
-            capture_operation: CaptureOperation::CaptureSync,
+            latest_capture,
             _private: Private {},
         };
         Ok(multiple_capture_data)
     }
 
-    pub fn new_create(
+    pub fn new_for_create(
         mut previous_captures: Vec<storage::Capture>,
         new_capture: storage::Capture,
-    ) -> RouterResult<Self> {
+    ) -> Self {
         previous_captures.push(new_capture.clone());
-        Ok(Self {
+        Self {
             all_captures: previous_captures
                 .into_iter()
                 .map(|capture| (capture.capture_id.clone(), capture))
                 .collect(),
-            capture_operation: CaptureOperation::CaptureCreate {
-                latest_capture: Box::new(new_capture),
-            },
+            latest_capture: new_capture,
             _private: Private {},
-        })
+        }
     }
 
     pub fn update_capture(&mut self, updated_capture: storage::Capture) {
@@ -60,7 +56,7 @@ impl MultipleCaptureData {
         if self.all_captures.contains_key(capture_id) {
             self.all_captures
                 .entry(capture_id.into())
-                .and_modify(|capture| *capture = updated_capture);
+                .and_modify(|capture| *capture = updated_capture.clone());
         }
     }
     pub fn get_total_blocked_amount(&self) -> i64 {
@@ -97,9 +93,6 @@ impl MultipleCaptureData {
         hash_map.insert(storage_enums::CaptureStatus::Pending, 0);
         hash_map.insert(storage_enums::CaptureStatus::Started, 0);
         hash_map.insert(storage_enums::CaptureStatus::Failed, 0);
-        // hash_map
-        //     .entry(self.latest_capture.status)
-        //     .and_modify(|count| *count += 1);
         self.all_captures
             .iter()
             .fold(hash_map, |mut accumulator, capture| {
@@ -134,5 +127,28 @@ impl MultipleCaptureData {
             .iter()
             .map(|key_value| key_value.1)
             .collect()
+    }
+    pub fn get_capture_by_capture_id(&self, capture_id: String) -> Option<&storage::Capture> {
+        self.all_captures.get(&capture_id)
+    }
+    pub fn get_capture_by_connector_capture_id(
+        &self,
+        connector_capture_id: String,
+    ) -> Option<&storage::Capture> {
+        self.all_captures
+            .iter()
+            .find(|(_, capture)| capture.connector_capture_id == Some(connector_capture_id.clone()))
+            .map(|(_, capture)| capture)
+    }
+    pub fn get_latest_capture(&self) -> &storage::Capture {
+        &self.latest_capture
+    }
+    pub fn get_pending_connector_capture_ids(&self) -> Vec<String> {
+        let pending_connector_capture_ids = self
+            .get_pending_captures()
+            .into_iter()
+            .filter_map(|capture| capture.connector_capture_id.clone())
+            .collect();
+        pending_connector_capture_ids
     }
 }

@@ -2456,7 +2456,6 @@ pub fn router_data_type_conversion<F1, F2, Req1, Req2, Res1, Res2>(
         preprocessing_id: router_data.preprocessing_id,
         payment_method_balance: router_data.payment_method_balance,
         recurring_mandate_payment_data: router_data.recurring_mandate_payment_data,
-        multiple_capture_sync_response: router_data.multiple_capture_sync_response,
         connector_request_reference_id: router_data.connector_request_reference_id,
         #[cfg(feature = "payouts")]
         payout_method_data: None,

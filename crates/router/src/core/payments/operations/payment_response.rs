@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use async_trait::async_trait;
 use common_utils::fp_utils;
 use error_stack::ResultExt;
@@ -8,7 +10,7 @@ use crate::{
     core::{
         errors::{self, RouterResult, StorageErrorExt},
         mandate,
-        payments::{extras, PaymentData},
+        payments::{types::MultipleCaptureData, PaymentData},
     },
     db::StorageInterface,
     routes::metrics,
@@ -17,8 +19,9 @@ use crate::{
         self, api,
         storage::{self, enums},
         transformers::{ForeignFrom, ForeignTryFrom},
+        CaptureSyncResponse,
     },
-    utils::{self, OptionExt},
+    utils,
 };
 
 #[derive(Debug, Clone, Copy, router_derive::PaymentOperation)]
@@ -302,11 +305,22 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
         Err(err) => {
             let (capture_update, attempt_update) =
                 match router_data.request.get_multiple_capture_data() {
-                    Some(multiple_capture_data) => (
-                        multiple_capture_update(&multiple_capture_data, &router_data)?,
-                        // attempt status will depend on collective capture status
-                        None,
-                    ),
+                    Some(multiple_capture_data) => {
+                        let capture_update = storage::CaptureUpdate::ErrorUpdate {
+                            status: match err.status_code {
+                                500..=511 => storage::enums::CaptureStatus::Pending,
+                                _ => storage::enums::CaptureStatus::Failed,
+                            },
+                            error_code: Some(err.code),
+                            error_message: Some(err.message),
+                            error_reason: err.reason,
+                        };
+                        let capture_update_list = vec![(
+                            multiple_capture_data.get_latest_capture().clone(),
+                            capture_update,
+                        )];
+                        (Some((multiple_capture_data, capture_update_list)), None)
+                    }
                     None => (
                         None,
                         Some(storage::PaymentAttemptUpdate::ErrorUpdate {
@@ -392,36 +406,40 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                     metrics::SUCCESSFUL_PAYMENT.add(&metrics::CONTEXT, 1, &[]);
                 }
 
-                let (capture_updates, payment_attempt_update) = if let Some(multiple_capture_data) =
-                    router_data.request.get_multiple_capture_data()
-                {
-                    (
-                        multiple_capture_update(&multiple_capture_data, &router_data)?,
-                        None,
-                    )
-                } else {
-                    // normal payment response
-                    (
-                        None,
-                        Some(storage::PaymentAttemptUpdate::ResponseUpdate {
-                            status: router_data.status,
-                            connector: None,
-                            connector_transaction_id: connector_transaction_id.clone(),
-                            authentication_type: None,
-                            payment_method_id: Some(router_data.payment_method_id),
-                            mandate_id: payment_data
-                                .mandate_id
-                                .clone()
-                                .map(|mandate| mandate.mandate_id),
-                            connector_metadata,
-                            payment_token: None,
-                            error_code: error_status.clone(),
-                            error_message: error_status.clone(),
-                            error_reason: error_status,
-                            connector_response_reference_id,
-                        }),
-                    )
-                };
+                let (capture_updates, payment_attempt_update) =
+                    match router_data.request.get_multiple_capture_data() {
+                        Some(multiple_capture_data) => {
+                            let capture_update = storage::CaptureUpdate::ResponseUpdate {
+                                status: enums::CaptureStatus::foreign_try_from(router_data.status)?,
+                                connector_capture_id: connector_transaction_id.clone(),
+                            };
+                            let capture_update_list = vec![(
+                                multiple_capture_data.get_latest_capture().clone(),
+                                capture_update,
+                            )];
+                            (Some((multiple_capture_data, capture_update_list)), None)
+                        }
+                        None => (
+                            None,
+                            Some(storage::PaymentAttemptUpdate::ResponseUpdate {
+                                status: router_data.status,
+                                connector: None,
+                                connector_transaction_id: connector_transaction_id.clone(),
+                                authentication_type: None,
+                                payment_method_id: Some(router_data.payment_method_id),
+                                mandate_id: payment_data
+                                    .mandate_id
+                                    .clone()
+                                    .map(|mandate| mandate.mandate_id),
+                                connector_metadata,
+                                payment_token: None,
+                                error_code: error_status.clone(),
+                                error_message: error_status.clone(),
+                                error_reason: error_status,
+                                connector_response_reference_id,
+                            }),
+                        ),
+                    };
 
                 let connector_response_update = storage::ConnectorResponseUpdate::ResponseUpdate {
                     connector_transaction_id,
@@ -466,12 +484,26 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
             types::PaymentsResponseData::TokenizationResponse { .. } => (None, None, None),
             types::PaymentsResponseData::ConnectorCustomerResponse { .. } => (None, None, None),
             types::PaymentsResponseData::ThreeDSEnrollmentResponse { .. } => (None, None, None),
+            types::PaymentsResponseData::MultileCaptureResponse {
+                capture_sync_response_list,
+            } => match payment_data.multiple_capture_data {
+                Some(multiple_capture_data) => {
+                    let capture_update_list = response_to_capture_update(
+                        &multiple_capture_data,
+                        capture_sync_response_list,
+                    )?;
+                    (
+                        Some((multiple_capture_data, capture_update_list)),
+                        None,
+                        None,
+                    )
+                }
+                None => (None, None, None),
+            },
         },
     };
-    payment_data.multiple_capture_data = match capture_update
-        .zip(payment_data.multiple_capture_data)
-    {
-        Some((capture_updates, mut multiple_capture_data)) => {
+    payment_data.multiple_capture_data = match capture_update {
+        Some((mut multiple_capture_data, capture_updates)) => {
             for (capture, capture_update) in capture_updates {
                 let updated_capture = db
                     .update_capture_with_capture_id(capture, capture_update, storage_scheme)
@@ -482,9 +514,8 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
 
             let authorized_amount = payment_data.payment_attempt.amount;
 
-            payment_attempt_update = Some(storage::PaymentAttemptUpdate::MultipleCaptureUpdate {
-                status: Some(multiple_capture_data.get_attempt_status(authorized_amount)),
-                multiple_capture_count: Some(multiple_capture_data.get_captures_count()?),
+            payment_attempt_update = Some(storage::PaymentAttemptUpdate::StatusUpdate {
+                status: multiple_capture_data.get_attempt_status(authorized_amount),
             });
             Some(multiple_capture_data)
         }
@@ -552,70 +583,19 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
     Ok(payment_data)
 }
 
-fn multiple_capture_update<F: Clone, T: types::Capturable>(
-    multiple_capture_data: &extras::MultipleCaptureData,
-    router_data: &types::RouterData<F, T, types::PaymentsResponseData>,
-) -> RouterResult<Option<Vec<(storage::Capture, storage::CaptureUpdate)>>> {
-    match router_data.response.clone() {
-        Err(err) => match &multiple_capture_data.capture_operation {
-            extras::CaptureOperation::CaptureCreate { latest_capture } => {
-                let capture_update = storage::CaptureUpdate::ErrorUpdate {
-                    status: match err.status_code {
-                        500..=511 => storage::enums::CaptureStatus::Pending,
-                        _ => storage::enums::CaptureStatus::Failed,
-                    },
-                    error_code: Some(err.code),
-                    error_message: Some(err.message),
-                    error_reason: err.reason,
-                };
-                Ok(Some(vec![(*latest_capture.clone(), capture_update)]))
-            }
-            extras::CaptureOperation::CaptureSync => {
-                Ok(None) // bulk capture sync failed
-            }
-        },
-        Ok(payments_response) => match payments_response {
-            types::PaymentsResponseData::TransactionResponse { resource_id, .. } => {
-                let connector_transaction_id = match resource_id {
-                    types::ResponseId::NoResponseId => None,
-                    types::ResponseId::ConnectorTransactionId(id)
-                    | types::ResponseId::EncodedData(id) => Some(id),
-                };
-                match &multiple_capture_data.capture_operation {
-                    extras::CaptureOperation::CaptureCreate { latest_capture } => Ok(Some(vec![(
-                        *latest_capture.clone(),
-                        storage::CaptureUpdate::ResponseUpdate {
-                            status: enums::CaptureStatus::foreign_try_from(router_data.status)?,
-                            connector_transaction_id,
-                        },
-                    )])),
-                    extras::CaptureOperation::CaptureSync => {
-                        let capture_status_updates = &router_data
-                            .multiple_capture_sync_response
-                            .clone()
-                            .get_required_value("multiple_capture_sync_response")
-                            .change_context(errors::ApiErrorResponse::InternalServerError)
-                            .attach_printable("router_data.multiple_capture_sync_response needs to be populated at connector end for bulk capture sync")?;
-                        let mut capture_update_list = Vec::new();
-                        for (capture, attempt_status) in capture_status_updates.iter() {
-                            capture_update_list.push((
-                                capture.to_owned(),
-                                storage::CaptureUpdate::ResponseUpdate {
-                                    status: enums::CaptureStatus::foreign_try_from(
-                                        attempt_status.to_owned(),
-                                    )?,
-                                    connector_transaction_id: None,
-                                },
-                            ))
-                        }
-                        // attempt status will depend on collective capture status
-                        Ok(Some(capture_update_list))
-                    }
-                }
-            }
-            _ => Ok(None),
-        },
+fn response_to_capture_update(
+    multiple_capture_data: &MultipleCaptureData,
+    response_list: HashMap<String, CaptureSyncResponse>,
+) -> RouterResult<Vec<(storage::Capture, storage::CaptureUpdate)>> {
+    let mut capture_update_list = vec![];
+    for (connector_capture_id, capture_sync_response) in response_list {
+        let capture =
+            multiple_capture_data.get_capture_by_connector_capture_id(connector_capture_id);
+        if let Some(capture) = capture {
+            capture_update_list.push((capture.clone(), capture_sync_response.try_into()?))
+        }
     }
+    Ok(capture_update_list)
 }
 
 fn get_total_amount_captured<F: Clone, T: types::Capturable>(

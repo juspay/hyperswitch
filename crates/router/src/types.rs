@@ -11,7 +11,7 @@ pub mod domain;
 pub mod storage;
 pub mod transformers;
 
-use std::marker::PhantomData;
+use std::{collections::HashMap, marker::PhantomData};
 
 pub use api_models::{
     enums::{Connector, PayoutConnectors},
@@ -28,7 +28,7 @@ use crate::core::utils::IRRELEVANT_CONNECTOR_REQUEST_REFERENCE_ID_IN_DISPUTE_FLO
 use crate::{
     core::{
         errors,
-        payments::{extras::MultipleCaptureData, RecurringMandatePaymentData},
+        payments::{types::MultipleCaptureData, RecurringMandatePaymentData},
     },
     services,
 };
@@ -238,8 +238,6 @@ pub struct RouterData<Flow, Request, Response> {
     pub reference_id: Option<String>,
     pub payment_method_token: Option<String>,
     pub recurring_mandate_payment_data: Option<RecurringMandatePaymentData>,
-    pub multiple_capture_sync_response:
-        Option<Vec<(storage::Capture, storage_enums::AttemptStatus)>>,
     pub preprocessing_id: Option<String>,
     /// This is the balance amount for gift cards or voucher
     pub payment_method_balance: Option<PaymentMethodBalance>,
@@ -409,8 +407,8 @@ pub struct PaymentsSyncData {
     pub encoded_data: Option<String>,
     pub capture_method: Option<storage_enums::CaptureMethod>,
     pub connector_meta: Option<serde_json::Value>,
-    // // multiple_capture_data will be some only for multiple capture sync
-    pub multiple_capture_data: Option<MultipleCaptureData>,
+    // pending_capture_id_list will be some only for multiple capture sync
+    pub pending_capture_id_list: Option<Vec<String>>,
     pub mandate_id: Option<api_models::payments::MandateIds>,
 }
 
@@ -487,11 +485,7 @@ impl Capturable for CompleteAuthorizeData {
 impl Capturable for VerifyRequestData {}
 impl Capturable for PaymentsCancelData {}
 impl Capturable for PaymentsSessionData {}
-impl Capturable for PaymentsSyncData {
-    fn get_multiple_capture_data(&self) -> Option<MultipleCaptureData> {
-        self.multiple_capture_data.clone()
-    }
-}
+impl Capturable for PaymentsSyncData {}
 
 pub struct AddAccessTokenResult {
     pub access_token_result: Result<Option<AccessToken>, ErrorResponse>,
@@ -511,6 +505,21 @@ pub struct MandateReference {
 }
 
 #[derive(Debug, Clone)]
+pub enum CaptureSyncResponse {
+    Success {
+        resource_id: ResponseId,
+        status: storage_enums::AttemptStatus,
+        connector_response_reference_id: Option<String>,
+    },
+    Error {
+        code: String,
+        message: String,
+        reason: Option<String>,
+        status_code: u16,
+    },
+}
+
+#[derive(Debug, Clone)]
 pub enum PaymentsResponseData {
     TransactionResponse {
         resource_id: ResponseId,
@@ -519,6 +528,10 @@ pub enum PaymentsResponseData {
         connector_metadata: Option<serde_json::Value>,
         network_txn_id: Option<String>,
         connector_response_reference_id: Option<String>,
+    },
+    MultileCaptureResponse {
+        // pending_capture_id_list: Vec<String>,
+        capture_sync_response_list: HashMap<String, CaptureSyncResponse>,
     },
     SessionResponse {
         session_token: api::SessionToken,
@@ -929,7 +942,6 @@ impl<F1, F2, T1, T2> From<(&RouterData<F1, T1, PaymentsResponseData>, T2)>
             preprocessing_id: None,
             connector_customer: data.connector_customer.clone(),
             recurring_mandate_payment_data: data.recurring_mandate_payment_data.clone(),
-            multiple_capture_sync_response: data.multiple_capture_sync_response.clone(),
             connector_request_reference_id: data.connector_request_reference_id.clone(),
             #[cfg(feature = "payouts")]
             payout_method_data: data.payout_method_data.clone(),
@@ -1000,7 +1012,6 @@ impl<F1, F2>
             customer_id: data.customer_id.clone(),
             payment_method_token: None,
             recurring_mandate_payment_data: None,
-            multiple_capture_sync_response: None,
             preprocessing_id: None,
             connector_customer: data.connector_customer.clone(),
             connector_request_reference_id:

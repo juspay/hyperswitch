@@ -11,10 +11,7 @@ use super::{BoxedOperation, Domain, GetTracker, Operation, UpdateTracker, Valida
 use crate::{
     core::{
         errors::{self, CustomResult, RouterResult, StorageErrorExt},
-        payments::{
-            extras::MultipleCaptureData, helpers, operations, CustomerDetails, PaymentAddress,
-            PaymentData,
-        },
+        payments::{helpers, operations, types, CustomerDetails, PaymentAddress, PaymentData},
     },
     db::StorageInterface,
     routes::AppState,
@@ -221,7 +218,7 @@ async fn get_tracker_for_sync<
             storage_scheme,
         )
         .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .change_context(errors::ApiErrorResponse::PaymentNotFound)
         .attach_printable("Database error when finding connector response")?;
 
     connector_response.encoded_data = request.param.clone();
@@ -246,7 +243,7 @@ async fn get_tracker_for_sync<
             Some(db
                 .find_attempts_by_merchant_id_payment_id(merchant_id, &payment_id_str, storage_scheme)
                 .await
-                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .change_context(errors::ApiErrorResponse::PaymentNotFound)
                 .attach_printable_lazy(|| {
                     format!("Error while retrieving attempt list for, merchant_id: {merchant_id}, payment_id: {payment_id_str}")
                 })?)
@@ -254,7 +251,7 @@ async fn get_tracker_for_sync<
         _ => None,
     };
 
-    let multiple_capture_data = if payment_attempt.multiple_capture_count.unwrap_or_default() > 0 {
+    let multiple_capture_data = if payment_attempt.multiple_capture_count > Some(0) {
         let captures = db
             .find_all_captures_by_merchant_id_payment_id_authorized_attempt_id(
                 &payment_attempt.merchant_id,
@@ -263,11 +260,11 @@ async fn get_tracker_for_sync<
                 storage_scheme,
             )
             .await
-            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .change_context(errors::ApiErrorResponse::PaymentNotFound)
                 .attach_printable_lazy(|| {
                     format!("Error while retrieving capture list for, merchant_id: {merchant_id}, payment_id: {payment_id_str}")
                 })?;
-        Some(MultipleCaptureData::new_sync(captures)?)
+        Some(types::MultipleCaptureData::new_for_sync(captures)?)
     } else {
         None
     };
@@ -275,7 +272,7 @@ async fn get_tracker_for_sync<
     let refunds = db
         .find_refund_by_payment_id_merchant_id(&payment_id_str, merchant_id, storage_scheme)
         .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .change_context(errors::ApiErrorResponse::PaymentNotFound)
         .attach_printable_lazy(|| {
             format!(
                 "Failed while getting refund list for, payment_id: {}, merchant_id: {}",
@@ -286,7 +283,7 @@ async fn get_tracker_for_sync<
     let disputes = db
         .find_disputes_by_merchant_id_payment_id(merchant_id, &payment_id_str)
         .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .change_context(errors::ApiErrorResponse::PaymentNotFound)
         .attach_printable_lazy(|| {
             format!("Error while retrieving dispute list for, merchant_id: {merchant_id}, payment_id: {payment_id_str}")
         })?;
@@ -294,7 +291,7 @@ async fn get_tracker_for_sync<
     let frm_response = db
         .find_fraud_check_by_payment_id(payment_id_str.to_string(), merchant_id.to_string())
         .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .change_context(errors::ApiErrorResponse::PaymentNotFound)
         .attach_printable_lazy(|| {
             format!("Error while retrieving frm_response, merchant_id: {merchant_id}, payment_id: {payment_id_str}")
         });

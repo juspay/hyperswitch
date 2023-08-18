@@ -19,7 +19,7 @@ use crate::{
     types::{
         self, api, domain,
         storage::{self, enums},
-        transformers::{ForeignFrom, ForeignInto},
+        transformers::{ForeignFrom, ForeignInto, ForeignTryFrom},
     },
     utils::{OptionExt, ValueExt},
 };
@@ -126,7 +126,6 @@ where
         payment_method_token: payment_data.pm_token,
         connector_customer: payment_data.connector_customer_id,
         recurring_mandate_payment_data: payment_data.recurring_mandate_payment_data,
-        multiple_capture_sync_response: None,
         connector_request_reference_id: core_utils::get_connector_request_reference_id(
             &state.conf,
             &merchant_account.merchant_id,
@@ -908,10 +907,12 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsSyncData
                 }
                 None => types::ResponseId::NoResponseId,
             },
-            multiple_capture_data: payment_data.multiple_capture_data,
             encoded_data: payment_data.connector_response.encoded_data,
             capture_method: payment_data.payment_attempt.capture_method,
             connector_meta: payment_data.payment_attempt.connector_metadata,
+            pending_capture_id_list: payment_data.multiple_capture_data.map(
+                |multiple_capture_data| multiple_capture_data.get_pending_connector_capture_ids(),
+            ),
         })
     }
 }
@@ -1070,6 +1071,43 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::VerifyRequestDat
             browser_info,
             payment_method_type: attempt.payment_method_type,
         })
+    }
+}
+
+impl TryFrom<types::CaptureSyncResponse> for storage::CaptureUpdate {
+    type Error = error_stack::Report<errors::ApiErrorResponse>;
+
+    fn try_from(capture_sync_response: types::CaptureSyncResponse) -> Result<Self, Self::Error> {
+        match capture_sync_response {
+            types::CaptureSyncResponse::Success {
+                resource_id,
+                status,
+                ..
+            } => {
+                let connector_capture_id = match resource_id {
+                    types::ResponseId::ConnectorTransactionId(id) => Some(id),
+                    types::ResponseId::EncodedData(_) | types::ResponseId::NoResponseId => None,
+                };
+                Ok(Self::ResponseUpdate {
+                    status: enums::CaptureStatus::foreign_try_from(status)?,
+                    connector_capture_id,
+                })
+            }
+            types::CaptureSyncResponse::Error {
+                code,
+                message,
+                reason,
+                status_code,
+            } => Ok(Self::ErrorUpdate {
+                status: match status_code {
+                    500..=511 => storage::enums::CaptureStatus::Pending,
+                    _ => storage::enums::CaptureStatus::Failed,
+                },
+                error_code: Some(code),
+                error_message: Some(message),
+                error_reason: reason,
+            }),
+        }
     }
 }
 

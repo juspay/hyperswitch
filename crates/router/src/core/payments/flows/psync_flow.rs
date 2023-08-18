@@ -1,14 +1,16 @@
+use std::collections::HashMap;
+
 use async_trait::async_trait;
 
 use super::{ConstructFlowSpecificData, Feature};
 use crate::{
     core::{
-        errors::{ConnectorErrorExt, RouterResult},
+        errors::{ApiErrorResponse, ConnectorErrorExt, RouterResult},
         payments::{self, access_token, transformers, PaymentData},
     },
     routes::AppState,
     services,
-    types::{self, api, domain, storage::enums, Capturable},
+    types::{self, api, domain, Capturable},
     utils::OptionExt,
 };
 
@@ -65,14 +67,15 @@ impl Feature<api::PSync, types::PaymentsSyncData>
                 {
                     services::CaptureSyncMethod::Individual => {
                         let pending_captures = multiple_capture_data.get_pending_captures();
-                        let mut capture_status_update_list = Vec::new();
+                        let mut capture_sync_response_list = HashMap::new();
                         for capture in pending_captures.into_iter() {
+                            let connector_capture_id = capture
+                                .connector_capture_id
+                                .clone()
+                                .get_required_value("connector_transaction_id")?;
                             self.request.connector_transaction_id =
                                 types::ResponseId::ConnectorTransactionId(
-                                    capture
-                                        .connector_transaction_id
-                                        .clone()
-                                        .get_required_value("connector_transaction_id")?,
+                                    connector_capture_id.clone(),
                                 );
                             let resp = services::execute_connector_processing_step(
                                 state,
@@ -83,17 +86,34 @@ impl Feature<api::PSync, types::PaymentsSyncData>
                             )
                             .await
                             .to_payment_failed_response()?;
-                            let attempt_status = match resp.response {
-                                Ok(_) => resp.status,
-                                Err(_) => enums::AttemptStatus::Pending,
+                            let capture_sync_response = match resp.response {
+                                Err(err) => types::CaptureSyncResponse::Error {
+                                    code: err.code,
+                                    message: err.message,
+                                    reason: err.reason,
+                                    status_code: err.status_code,
+                                },
+                                Ok(types::PaymentsResponseData::TransactionResponse {
+                                    resource_id,
+                                    connector_response_reference_id,
+                                    ..
+                                }) => types::CaptureSyncResponse::Success {
+                                    resource_id,
+                                    status: resp.status,
+                                    connector_response_reference_id,
+                                },
+                                // this error is meant for developers
+                                _ => Err(ApiErrorResponse::PreconditionFailed { message: "Response type must be PaymentsResponseData::TransactionResponse for payment sync".into() })?,
                             };
-                            capture_status_update_list.push((capture.to_owned(), attempt_status));
+                            capture_sync_response_list
+                                .insert(connector_capture_id, capture_sync_response);
                         }
-                        self.multiple_capture_sync_response = Some(capture_status_update_list);
+                        self.response = Ok(types::PaymentsResponseData::MultileCaptureResponse {
+                            capture_sync_response_list,
+                        });
                         Ok(self)
                     }
                     services::CaptureSyncMethod::Bulk => {
-                        // RouterData::multiple_capture_sync_response needs to be populated at connector side
                         let resp = services::execute_connector_processing_step(
                             state,
                             connector_integration,
