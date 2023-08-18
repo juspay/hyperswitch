@@ -1640,7 +1640,7 @@ impl<'a> TryFrom<&api_models::payments::BankDebitData> for AdyenPaymentMethod<'a
             ))),
             payments::BankDebitData::BecsBankDebit { .. } => {
                 Err(errors::ConnectorError::NotSupported {
-                    message: utils::UNSUPPORTED_PAYMENT_METHOD_ERROR_MESSAGE.to_string(),
+                    message: utils::SELECTED_PAYMENT_METHOD.to_string(),
                     connector: "Adyen",
                 }
                 .into())
@@ -1691,7 +1691,7 @@ impl<'a> TryFrom<&api_models::payments::VoucherData> for AdyenPaymentMethod<'a> 
             | payments::VoucherData::PagoEfectivo
             | payments::VoucherData::RedCompra
             | payments::VoucherData::RedPagos => Err(errors::ConnectorError::NotSupported {
-                message: utils::UNSUPPORTED_PAYMENT_METHOD_ERROR_MESSAGE.to_string(),
+                message: utils::SELECTED_PAYMENT_METHOD.to_string(),
                 connector: "Adyen",
             }
             .into()),
@@ -1878,7 +1878,7 @@ impl<'a> TryFrom<&api::WalletData> for AdyenPaymentMethod<'a> {
             | payments::WalletData::PaypalSdk(_)
             | payments::WalletData::WeChatPayQr(_)
             | payments::WalletData::CashappQr(_) => Err(errors::ConnectorError::NotSupported {
-                message: utils::UNSUPPORTED_PAYMENT_METHOD_ERROR_MESSAGE.to_string(),
+                message: utils::SELECTED_PAYMENT_METHOD.to_string(),
                 connector: "Adyen",
             }
             .into()),
@@ -1938,7 +1938,7 @@ impl<'a> TryFrom<(&api::PayLaterData, Option<api_enums::CountryAlpha2>)>
                 Ok(AdyenPaymentMethod::Atome)
             }
             payments::PayLaterData::KlarnaSdk { .. } => Err(errors::ConnectorError::NotSupported {
-                message: utils::UNSUPPORTED_PAYMENT_METHOD_ERROR_MESSAGE.to_string(),
+                message: utils::SELECTED_PAYMENT_METHOD.to_string(),
                 connector: "Adyen",
             }
             .into()),
@@ -2069,7 +2069,7 @@ impl<'a> TryFrom<&api_models::payments::BankRedirectData> for AdyenPaymentMethod
             payments::BankRedirectData::Interac { .. }
             | payments::BankRedirectData::Przelewy24 { .. } => {
                 Err(errors::ConnectorError::NotSupported {
-                    message: utils::UNSUPPORTED_PAYMENT_METHOD_ERROR_MESSAGE.to_string(),
+                    message: utils::SELECTED_PAYMENT_METHOD.to_string(),
                     connector: "Adyen",
                 }
                 .into())
@@ -2229,7 +2229,7 @@ impl<'a>
                     | payments::PaymentMethodData::Voucher(_)
                     | payments::PaymentMethodData::GiftCard(_) => {
                         Err(errors::ConnectorError::NotSupported {
-                            message: format!("mandate_{:?}", item.payment_method),
+                            message: "Network tokenization for payment method".to_string(),
                             connector: "Adyen",
                         })?
                     }
