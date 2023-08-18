@@ -125,6 +125,7 @@ pub enum AwsSesError {
 }
 
 #[allow(missing_docs)]
+#[derive(Debug)]
 pub enum BodyContent {
     /// When the email content is plain text
     Simple,

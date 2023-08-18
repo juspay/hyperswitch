@@ -212,35 +212,6 @@ where
     res
 }
 
-// pub async fn run_executor<T: Send + Sync + Clone + 'static, F>(
-//     state: &T,
-//     process: storage::ProcessTracker,
-//     workflow_selector: F,
-// ) where
-//     F: Future<Output = T>,
-//     F: Send + std::fmt::Debug + 'static,
-//     T: SchedulerAppState + Send + Sync + Clone + 'static,
-// {
-//     workflow_selector(state, &process).await?;
-//     // let output = operation.execute_workflow(state, process.clone()).await;
-//     // match output {
-//     //     Ok(_) => operation.success_handler(state, process).await,
-//     //     Err(error) => match operation.error_handler(state, process.clone(), error).await {
-//     //         Ok(_) => (),
-//     //         Err(error) => {
-//     //             logger::error!(%error, "Failed while handling error");
-//     //             let status = process
-//     //                 .finish_with_status(state.get_db().as_scheduler(), "GLOBAL_FAILURE".to_string())
-//     //                 .await;
-//     //             if let Err(err) = status {
-//     //                 logger::error!(%err, "Failed while performing database operation: GLOBAL_FAILURE");
-//     //             }
-//     //         }
-//     //     },
-//     // };
-//     metrics::TASK_PROCESSED.add(&metrics::CONTEXT, 1, &[]);
-// }
-
 #[instrument(skip_all)]
 pub async fn consumer_error_handler(
     state: &(dyn SchedulerInterface + 'static),

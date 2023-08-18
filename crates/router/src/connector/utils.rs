@@ -773,16 +773,16 @@ impl AddressDetailsData for api::AddressDetails {
             .ok_or_else(missing_field_err("address.line1"))
     }
 
-    fn get_state(&self) -> Result<&Secret<String>, Error> {
-        self.state
-            .as_ref()
-            .ok_or_else(missing_field_err("address.state"))
-    }
-
     fn get_city(&self) -> Result<&String, Error> {
         self.city
             .as_ref()
             .ok_or_else(missing_field_err("address.city"))
+    }
+
+    fn get_state(&self) -> Result<&Secret<String>, Error> {
+        self.state
+            .as_ref()
+            .ok_or_else(missing_field_err("address.state"))
     }
 
     fn get_line2(&self) -> Result<&Secret<String>, Error> {
