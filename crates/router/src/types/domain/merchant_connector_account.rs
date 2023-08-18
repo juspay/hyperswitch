@@ -32,6 +32,7 @@ pub struct MerchantConnectorAccount {
     pub created_at: time::PrimitiveDateTime,
     pub modified_at: time::PrimitiveDateTime,
     pub connector_webhook_details: Option<pii::SecretSerdeValue>,
+    pub profile_id: String,
 }
 
 #[derive(Debug)]

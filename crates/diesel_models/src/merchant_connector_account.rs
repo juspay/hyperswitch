@@ -38,6 +38,7 @@ pub struct MerchantConnectorAccount {
     pub connector_webhook_details: Option<pii::SecretSerdeValue>,
     #[diesel(deserialize_as = super::OptionalDieselArray<pii::SecretSerdeValue>)]
     pub frm_config: Option<Vec<Secret<serde_json::Value>>>,
+    pub profile_id: Option<String>,
 }
 
 #[derive(Clone, Debug, Insertable, router_derive::DebugAsDisplay)]
@@ -62,6 +63,7 @@ pub struct MerchantConnectorAccountNew {
     pub connector_webhook_details: Option<pii::SecretSerdeValue>,
     #[diesel(deserialize_as = super::OptionalDieselArray<pii::SecretSerdeValue>)]
     pub frm_config: Option<Vec<Secret<serde_json::Value>>>,
+    pub profile_id: Option<String>,
 }
 
 #[derive(Clone, Debug, AsChangeset, router_derive::DebugAsDisplay)]
@@ -81,6 +83,7 @@ pub struct MerchantConnectorAccountUpdateInternal {
     pub connector_webhook_details: Option<pii::SecretSerdeValue>,
     #[diesel(deserialize_as = super::OptionalDieselArray<pii::SecretSerdeValue>)]
     pub frm_config: Option<Vec<Secret<serde_json::Value>>>,
+    pub profile_id: Option<String>,
 }
 
 impl MerchantConnectorAccountUpdateInternal {

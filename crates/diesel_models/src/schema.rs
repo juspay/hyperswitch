@@ -396,6 +396,8 @@ diesel::table! {
         #[max_length = 32]
         organization_id -> Nullable<Varchar>,
         is_recon_enabled -> Bool,
+        #[max_length = 64]
+        default_profile -> Nullable<Varchar>,
     }
 }
 
@@ -429,6 +431,8 @@ diesel::table! {
         modified_at -> Timestamp,
         connector_webhook_details -> Nullable<Jsonb>,
         frm_config -> Nullable<Array<Nullable<Jsonb>>>,
+        #[max_length = 64]
+        profile_id -> Nullable<Varchar>,
     }
 }
 
@@ -554,6 +558,8 @@ diesel::table! {
         connector_metadata -> Nullable<Json>,
         feature_metadata -> Nullable<Json>,
         attempt_count -> Int2,
+        #[max_length = 64]
+        profile_id -> Nullable<Varchar>,
     }
 }
 

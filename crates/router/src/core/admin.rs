@@ -150,6 +150,7 @@ pub async fn create_merchant_account(
             id: None,
             organization_id: req.organization_id,
             is_recon_enabled: false,
+            default_profile: None,
         })
     }
     .await
@@ -465,6 +466,9 @@ pub async fn create_payment_connector(
     })?;
 
     let frm_configs = get_frm_config_as_secret(req.frm_configs);
+
+    // Take default profile from the merchant account if not passed in request
+    let profile_id = req.profile_id.or(merchant_account.default_profile);
 
     let merchant_connector_account = domain::MerchantConnectorAccount {
         merchant_id: merchant_id.to_string(),
