@@ -105,13 +105,14 @@ impl EmailClient for AwsSes {
 /// Errors that could occur from EmailClient.
 #[derive(Debug, thiserror::Error)]
 pub enum EmailError {
-    /// An error occurred when building email client.
     #[error("Error building email client")]
     ClientBuildingFailure,
-
-    /// An error occurred when sending email
     #[error("Error sending email to recipient")]
     EmailSendingFailure,
+    #[error("Failed to generate email token")]
+    TokenGenerationFailure,
+    #[error("Feature not implemented")]
+    NotImplemented,
 }
 
 /// Errors that could occur during SES operations.
@@ -120,4 +121,11 @@ pub enum AwsSesError {
     /// An error occurred in the SDK while sending email.
     #[error("Failed to Send Email {0:?}")]
     SendingFailure(aws_smithy_client::SdkError<SendEmailError>),
+}
+
+pub enum BodyContent {
+    /// When the email content is plain text
+    Simple,
+    /// When the email content is Html
+    Html,
 }
