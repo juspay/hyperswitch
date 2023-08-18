@@ -326,7 +326,7 @@ where
 
         let filtered_connector_accounts = helpers::filter_mca_based_on_business_details(
             all_connector_accounts,
-            Some(&payment_intent),
+            Some(payment_intent),
         );
 
         let requested_payment_method_types = request.wallets.clone();
