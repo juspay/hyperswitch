@@ -48,12 +48,6 @@ jobs:
           - 5432:5432
 
     steps:
-      - name: Ignore Tests incase of pull request
-        shell: bash
-        run: |
-          echo "Skipped tests as the event is pull request" 
-          exit 0
-
       - name: Repository checkout
         uses: actions/checkout@v3
 
