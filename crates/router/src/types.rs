@@ -259,6 +259,7 @@ pub struct RouterData<Flow, Request, Response> {
     pub quote_id: Option<String>,
 
     pub test_mode: Option<bool>,
+    pub connector_http_status_code: Option<u16>,
 }
 
 #[derive(Debug, Clone)]
@@ -919,6 +920,7 @@ impl<F1, F2, T1, T2> From<(&RouterData<F1, T1, PaymentsResponseData>, T2)>
             quote_id: data.quote_id.clone(),
             test_mode: data.test_mode,
             payment_method_balance: data.payment_method_balance.clone(),
+            connector_http_status_code: data.connector_http_status_code,
         }
     }
 }
@@ -990,6 +992,7 @@ impl<F1, F2>
             quote_id: data.quote_id.clone(),
             test_mode: data.test_mode,
             payment_method_balance: None,
+            connector_http_status_code: data.connector_http_status_code,
         }
     }
 }

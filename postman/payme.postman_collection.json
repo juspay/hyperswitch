@@ -1,6 +1,6 @@
 {
 	"info": {
-		"_postman_id": "0e53f151-a783-4e88-9596-e357283126f3",
+		"_postman_id": "ecfad31e-e1a8-47bd-9aea-5da28b5411b7",
 		"name": "Payme Collection",
 		"description": "## Get started\n\nJuspay Router provides a collection of APIs that enable you to process and manage payments. Our APIs accept and return JSON in the HTTP body, and return standard HTTP response codes.  \nYou can consume the APIs directly using your favorite HTTP/REST library.  \nWe have a testing environment referred to \"sandbox\", which you can setup to test API calls without affecting production data.\n\n### Base URLs\n\nUse the following base URLs when making requests to the APIs:\n\n| Environment | Base URL |\n| --- | --- |\n| Sandbox | [https://sandbox.hyperswitch.io](https://sandbox.hyperswitch.io) |\n| Production | [https://router.juspay.io](https://router.juspay.io) |\n\n# Authentication\n\nWhen you sign up for an account, you are given a secret key (also referred as api-key). You may authenticate all API requests with Juspay server by providing the appropriate key in the request Authorization header.  \nNever share your secret api keys. Keep them guarded and secure.\n\nContact Support:  \nName: Juspay Support  \nEmail: [support@juspay.in](mailto:support@juspay.in)",
 		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
@@ -107,7 +107,9 @@
 								{
 									"listen": "prerequest",
 									"script": {
-										"exec": [],
+										"exec": [
+											""
+										],
 										"type": "text/javascript"
 									}
 								}
@@ -146,7 +148,7 @@
 								],
 								"body": {
 									"mode": "raw",
-									"raw": "{\n    \"merchant_id\": \"merchant_{{$timestamp}}\",\n    \"locker_id\": \"m0010\",\n    \"merchant_name\": \"NewAge Retailer\",\n    \"merchant_details\": {\n        \"primary_contact_person\": \"John Test\",\n        \"primary_email\": \"JohnTest@test.com\",\n        \"primary_phone\": \"sunt laborum\",\n        \"secondary_contact_person\": \"John Test2\",\n        \"secondary_email\": \"JohnTest2@test.com\",\n        \"secondary_phone\": \"cillum do dolor id\",\n        \"website\": \"www.example.com\",\n        \"about_business\": \"Online Retail with a wide selection of organic products for North America\",\n        \"address\": {\n            \"line1\": \"1467\",\n            \"line2\": \"Harrison Street\",\n            \"line3\": \"Harrison Street\",\n            \"city\": \"San Fransico\",\n            \"state\": \"California\",\n            \"zip\": \"94122\",\n            \"country\": \"US\"\n        }\n    },\n    \"return_url\": \"https://duck.com\",\n    \"webhook_details\": {\n        \"webhook_version\": \"1.0.1\",\n        \"webhook_username\": \"ekart_retail\",\n        \"webhook_password\": \"password_ekart@123\",\n        \"payment_created_enabled\": true,\n        \"payment_succeeded_enabled\": true,\n        \"payment_failed_enabled\": true\n    },\n    \"routing_algorithm\": {\n        \"type\": \"single\",\n        \"data\": \"payme\"\n    },\n    \"primary_business_details\": [\n        {\n            \"country\": \"US\",\n            \"business\": \"default\"\n        }\n    ],\n    \"sub_merchants_enabled\": false,\n    \"metadata\": {\n        \"city\": \"NY\",\n        \"unit\": \"245\"\n    }\n}",
+									"raw": "{\n    \"merchant_id\": \"postman_merchant_GHAction_{{$guid}}\",\n    \"locker_id\": \"m0010\",\n    \"merchant_name\": \"NewAge Retailer\",\n    \"merchant_details\": {\n        \"primary_contact_person\": \"John Test\",\n        \"primary_email\": \"JohnTest@test.com\",\n        \"primary_phone\": \"sunt laborum\",\n        \"secondary_contact_person\": \"John Test2\",\n        \"secondary_email\": \"JohnTest2@test.com\",\n        \"secondary_phone\": \"cillum do dolor id\",\n        \"website\": \"www.example.com\",\n        \"about_business\": \"Online Retail with a wide selection of organic products for North America\",\n        \"address\": {\n            \"line1\": \"1467\",\n            \"line2\": \"Harrison Street\",\n            \"line3\": \"Harrison Street\",\n            \"city\": \"San Fransico\",\n            \"state\": \"California\",\n            \"zip\": \"94122\",\n            \"country\": \"US\"\n        }\n    },\n    \"return_url\": \"https://duck.com\",\n    \"webhook_details\": {\n        \"webhook_version\": \"1.0.1\",\n        \"webhook_username\": \"ekart_retail\",\n        \"webhook_password\": \"password_ekart@123\",\n        \"payment_created_enabled\": true,\n        \"payment_succeeded_enabled\": true,\n        \"payment_failed_enabled\": true\n    },\n    \"routing_algorithm\": {\n        \"type\": \"single\",\n        \"data\": \"payme\"\n    },\n    \"primary_business_details\": [\n        {\n            \"country\": \"US\",\n            \"business\": \"default\"\n        }\n    ],\n    \"sub_merchants_enabled\": false,\n    \"metadata\": {\n        \"city\": \"NY\",\n        \"unit\": \"245\"\n    }\n}",
 									"options": {
 										"raw": {
 											"language": "json"
