@@ -65,7 +65,10 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for CashtocodePaymentsRequest 
         let mid = get_mid(&item.request.payment_method_data)?;
         match item.payment_method {
             diesel_models::enums::PaymentMethod::Reward => Ok(Self {
-                amount: utils::to_currency_base_unit_asf64(item.request.amount, item.request.currency)?,
+                amount: utils::to_currency_base_unit_asf64(
+                    item.request.amount,
+                    item.request.currency,
+                )?,
                 transaction_id: item.attempt_id.clone(),
                 currency: item.request.currency,
                 user_id: params.user_id,
