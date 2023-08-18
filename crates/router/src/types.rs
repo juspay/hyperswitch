@@ -530,7 +530,7 @@ pub enum PaymentsResponseData {
         network_txn_id: Option<String>,
         connector_response_reference_id: Option<String>,
     },
-    MultileCaptureResponse {
+    MultipleCaptureResponse {
         // pending_capture_id_list: Vec<String>,
         capture_sync_response_list: HashMap<String, CaptureSyncResponse>,
     },

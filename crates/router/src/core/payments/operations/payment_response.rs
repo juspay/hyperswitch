@@ -412,7 +412,7 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
             types::PaymentsResponseData::TokenizationResponse { .. } => (None, None, None),
             types::PaymentsResponseData::ConnectorCustomerResponse { .. } => (None, None, None),
             types::PaymentsResponseData::ThreeDSEnrollmentResponse { .. } => (None, None, None),
-            types::PaymentsResponseData::MultileCaptureResponse {
+            types::PaymentsResponseData::MultipleCaptureResponse {
                 capture_sync_response_list,
             } => match payment_data.multiple_capture_data {
                 Some(multiple_capture_data) => {

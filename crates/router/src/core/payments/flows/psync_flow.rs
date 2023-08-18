@@ -108,7 +108,7 @@ impl Feature<api::PSync, types::PaymentsSyncData>
                             capture_sync_response_list
                                 .insert(connector_capture_id, capture_sync_response);
                         }
-                        self.response = Ok(types::PaymentsResponseData::MultileCaptureResponse {
+                        self.response = Ok(types::PaymentsResponseData::MultipleCaptureResponse {
                             capture_sync_response_list,
                         });
                         Ok(self)

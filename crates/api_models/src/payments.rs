@@ -369,7 +369,7 @@ pub struct CaptureResponse {
     pub error_message: Option<String>,
     /// If there was an error while calling the connectors the code is received here
     pub error_code: Option<String>,
-    /// If there was an error while calling the connectors the reson is received here
+    /// If there was an error while calling the connectors the reason is received here
     pub error_reason: Option<String>,
 }
 
