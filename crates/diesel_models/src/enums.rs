@@ -336,6 +336,7 @@ pub enum BankNames {
     Clone,
     Copy,
     Debug,
+    Default,
     Eq,
     PartialEq,
     serde::Serialize,
@@ -347,6 +348,7 @@ pub enum BankNames {
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
 pub enum FraudCheckType {
+    #[default]
     PreFrm,
     PostFrm,
 }

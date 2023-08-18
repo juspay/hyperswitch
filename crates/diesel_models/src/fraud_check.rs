@@ -54,6 +54,8 @@ pub enum FraudCheckUpdate {
     ResponseUpdate {
         frm_status: FraudCheckStatus,
         frm_transaction_id: Option<String>,
+        frm_transaction_type: FraudCheckType,
+        payment_details: Option<serde_json::Value>,
         frm_reason: Option<serde_json::Value>,
         frm_score: Option<i32>,
         metadata: Option<serde_json::Value>,
@@ -71,6 +73,8 @@ pub enum FraudCheckUpdate {
 pub struct FraudCheckUpdateInternal {
     frm_status: Option<FraudCheckStatus>,
     frm_transaction_id: Option<String>,
+    frm_transaction_type: FraudCheckType,
+    payment_details: Option<serde_json::Value>,
     frm_reason: Option<serde_json::Value>,
     frm_score: Option<i32>,
     frm_error: Option<Option<String>>,
@@ -84,6 +88,8 @@ impl From<FraudCheckUpdate> for FraudCheckUpdateInternal {
             FraudCheckUpdate::ResponseUpdate {
                 frm_status,
                 frm_transaction_id,
+                frm_transaction_type,
+                payment_details,
                 frm_reason,
                 frm_score,
                 metadata,
@@ -92,6 +98,8 @@ impl From<FraudCheckUpdate> for FraudCheckUpdateInternal {
             } => Self {
                 frm_status: Some(frm_status),
                 frm_transaction_id,
+                frm_transaction_type,
+                payment_details,
                 frm_reason,
                 frm_score,
                 metadata,
