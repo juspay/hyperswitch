@@ -5,7 +5,7 @@ use common_utils::{
     ext_traits::{AsyncExt, ByteSliceExt, ValueExt},
     fp_utils, generate_id, pii,
 };
-use diesel_models::{enums, payment_intent};
+use diesel_models::{enums, payment_attempt, payment_intent};
 // TODO : Evaluate all the helper functions ()
 use error_stack::{report, IntoReport, ResultExt};
 use josekit::jwe;
@@ -27,7 +27,7 @@ use crate::{
         payments,
     },
     db::StorageInterface,
-    routes::{metrics, payment_methods::ParentPaymentMethodToken, AppState},
+    routes::{metrics, payment_methods, AppState},
     scheduler::metrics as scheduler_metrics,
     services,
     types::{
@@ -1277,35 +1277,14 @@ pub async fn make_pm_data<'a, F: Clone, R>(
             })
         }
         (pm_opt @ Some(pm @ api::PaymentMethodData::Card(_)), _) => {
-            let hyperswitch_token = vault::Vault::store_payment_method_data_in_locker(
+            let parent_payment_method_token = store_in_vault_and_generate_ppmt(
                 state,
-                None,
                 pm,
-                payment_data.payment_intent.customer_id.to_owned(),
+                &payment_data.payment_intent,
+                &payment_data.payment_attempt,
                 enums::PaymentMethod::Card,
             )
             .await?;
-
-            let parent_payment_method_token = generate_id(consts::ID_LENGTH, "token");
-            let key_for_hyperswitch_token =
-                payment_data
-                    .payment_attempt
-                    .payment_method
-                    .map(|payment_method| {
-                        ParentPaymentMethodToken::create_key_for_token((
-                            &parent_payment_method_token,
-                            payment_method,
-                        ))
-                    });
-            if let Some(key_for_hyperswitch_token) = key_for_hyperswitch_token {
-                key_for_hyperswitch_token
-                    .insert(
-                        Some(payment_data.payment_intent.created_at),
-                        hyperswitch_token,
-                        state,
-                    )
-                    .await?;
-            };
 
             payment_data.token = Some(parent_payment_method_token);
 
@@ -1320,45 +1299,78 @@ pub async fn make_pm_data<'a, F: Clone, R>(
         (pm @ Some(api::PaymentMethodData::CardRedirect(_)), _) => Ok(pm.to_owned()),
         (pm @ Some(api::PaymentMethodData::GiftCard(_)), _) => Ok(pm.to_owned()),
         (pm_opt @ Some(pm @ api::PaymentMethodData::BankTransfer(_)), _) => {
-            let token = vault::Vault::store_payment_method_data_in_locker(
+            let parent_payment_method_token = store_in_vault_and_generate_ppmt(
                 state,
-                None,
                 pm,
-                payment_data.payment_intent.customer_id.to_owned(),
+                &payment_data.payment_intent,
+                &payment_data.payment_attempt,
                 enums::PaymentMethod::BankTransfer,
             )
             .await?;
-            payment_data.token = Some(token);
+
+            payment_data.token = Some(parent_payment_method_token);
+
             Ok(pm_opt.to_owned())
         }
         (pm_opt @ Some(pm @ api::PaymentMethodData::Wallet(_)), _) => {
-            let token = vault::Vault::store_payment_method_data_in_locker(
+            let parent_payment_method_token = store_in_vault_and_generate_ppmt(
                 state,
-                None,
                 pm,
-                payment_data.payment_intent.customer_id.to_owned(),
+                &payment_data.payment_intent,
+                &payment_data.payment_attempt,
                 enums::PaymentMethod::Wallet,
             )
             .await?;
-            payment_data.token = Some(token);
+
+            payment_data.token = Some(parent_payment_method_token);
             Ok(pm_opt.to_owned())
         }
         (pm_opt @ Some(pm @ api::PaymentMethodData::BankRedirect(_)), _) => {
-            let token = vault::Vault::store_payment_method_data_in_locker(
+            let parent_payment_method_token = store_in_vault_and_generate_ppmt(
                 state,
-                None,
                 pm,
-                payment_data.payment_intent.customer_id.to_owned(),
+                &payment_data.payment_intent,
+                &payment_data.payment_attempt,
                 enums::PaymentMethod::BankRedirect,
             )
             .await?;
-            payment_data.token = Some(token);
+            payment_data.token = Some(parent_payment_method_token);
             Ok(pm_opt.to_owned())
         }
         _ => Ok(None),
     }?;
 
     Ok((operation, payment_method))
+}
+
+pub async fn store_in_vault_and_generate_ppmt(
+    state: &AppState,
+    payment_method_data: &api_models::payments::PaymentMethodData,
+    payment_intent: &payment_intent::PaymentIntent,
+    payment_attempt: &payment_attempt::PaymentAttempt,
+    payment_method: enums::PaymentMethod,
+) -> RouterResult<String> {
+    let router_token = vault::Vault::store_payment_method_data_in_locker(
+        state,
+        None,
+        payment_method_data,
+        payment_intent.customer_id.to_owned(),
+        payment_method,
+    )
+    .await?;
+    let parent_payment_method_token = generate_id(consts::ID_LENGTH, "token");
+    let key_for_hyperswitch_token = payment_attempt.payment_method.map(|payment_method| {
+        payment_methods::ParentPaymentMethodToken::create_key_for_token((
+            &parent_payment_method_token,
+            payment_method,
+        ))
+    });
+    if let Some(key_for_hyperswitch_token) = key_for_hyperswitch_token {
+        key_for_hyperswitch_token
+            .insert(Some(payment_intent.created_at), router_token, state)
+            .await?;
+    };
+    Ok(parent_payment_method_token)
 }
 
 #[instrument(skip_all)]
@@ -2389,7 +2401,8 @@ pub async fn get_merchant_connector_account(
 
             let decrypted_mca = services::decrypt_jwe(mca_config.config.as_str(), services::KeyIdCheck::SkipKeyIdCheck, private_key, jwe::RSA_OAEP_256)
                                      .await
-                                     .change_context(errors::ApiErrorResponse::InternalServerError)
+                                     .change_context(errors::ApiErrorResponse::UnprocessableEntity{
+                                        entity: "merchant_connector_details".to_string()})
                                      .attach_printable(
                                         "Failed to decrypt merchant_connector_details sent in request and then put in cache",
                                     )?;
@@ -2462,6 +2475,7 @@ pub fn router_data_type_conversion<F1, F2, Req1, Req2, Res1, Res2>(
         #[cfg(feature = "payouts")]
         quote_id: None,
         test_mode: router_data.test_mode,
+        connector_http_status_code: router_data.connector_http_status_code,
     }
 }
 

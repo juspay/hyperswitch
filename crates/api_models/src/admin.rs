@@ -59,7 +59,8 @@ pub struct MerchantAccountCreate {
     #[schema(default = false, example = true)]
     pub enable_payment_response_hash: Option<bool>,
 
-    /// Refers to the hash key used for payment response
+    /// Refers to the hash key used for calculating the signature for webhooks and redirect response
+    /// If the value is not provided, a default value is used
     pub payment_response_hash_key: Option<String>,
 
     /// A boolean value to indicate if redirect to merchant with http post needs to be enabled
@@ -929,4 +930,173 @@ pub enum PayoutRoutingAlgorithm {
 #[serde(tag = "type", content = "data", rename_all = "snake_case")]
 pub enum PayoutStraightThroughAlgorithm {
     Single(api_enums::PayoutConnectors),
+}
+
+#[derive(Clone, Debug, Deserialize, ToSchema)]
+#[serde(deny_unknown_fields)]
+pub struct BusinessProfileCreate {
+    /// A short name to identify the business profile
+    #[schema(max_length = 64)]
+    pub profile_name: Option<String>,
+
+    /// The URL to redirect after the completion of the operation, This will be applied to all the
+    /// connector accounts under this profile
+    #[schema(value_type = Option<String>, max_length = 255, example = "https://www.example.com/success")]
+    pub return_url: Option<url::Url>,
+
+    /// A boolean value to indicate if payment response hash needs to be enabled
+    #[schema(default = true, example = true)]
+    pub enable_payment_response_hash: Option<bool>,
+
+    /// Refers to the hash key used for calculating the signature for webhooks and redirect response
+    /// If the value is not provided, a default value is used
+    pub payment_response_hash_key: Option<String>,
+
+    /// A boolean value to indicate if redirect to merchant with http post needs to be enabled
+    #[schema(default = false, example = true)]
+    pub redirect_to_merchant_with_http_post: Option<bool>,
+
+    /// Webhook related details
+    pub webhook_details: Option<WebhookDetails>,
+
+    /// You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Metadata is useful for storing additional, structured information on an object.
+    #[schema(value_type = Option<Object>, example = r#"{ "city": "NY", "unit": "245" }"#)]
+    pub metadata: Option<pii::SecretSerdeValue>,
+
+    /// The routing algorithm to be used for routing payments to desired connectors
+    #[schema(value_type = Option<Object>,example = json!({"type": "single", "data": "stripe"}))]
+    pub routing_algorithm: Option<serde_json::Value>,
+
+    ///Will be used to expire client secret after certain amount of time to be supplied in seconds
+    ///(900) for 15 mins
+    #[schema(example = 900)]
+    pub intent_fulfillment_time: Option<u32>,
+
+    /// The frm routing algorithm to be used for routing payments to desired FRM's
+    #[schema(value_type = Option<Object>,example = json!({"type": "single", "data": "signifyd"}))]
+    pub frm_routing_algorithm: Option<serde_json::Value>,
+
+    /// The routing algorithm to be  used for routing payouts to desired connectors
+    #[cfg(feature = "payouts")]
+    #[schema(value_type = Option<RoutingAlgorithm>,example = json!({"type": "single", "data": "wise"}))]
+    #[serde(
+        default,
+        deserialize_with = "payout_routing_algorithm::deserialize_option"
+    )]
+    pub payout_routing_algorithm: Option<serde_json::Value>,
+}
+
+#[derive(Clone, Debug, ToSchema, Serialize)]
+pub struct BusinessProfileResponse {
+    /// The identifier for Merchant Account
+    #[schema(max_length = 64, example = "y3oqhf46pyzuxjbcn2giaqnb44")]
+    pub merchant_id: String,
+
+    /// The unique identifier for Business Profile
+    #[schema(max_length = 64, example = "pro_abcdefghijklmnopqrstuvwxyz")]
+    pub profile_id: String,
+
+    /// A short name to identify the business profile
+    #[schema(max_length = 64)]
+    pub profile_name: String,
+
+    /// The URL to redirect after the completion of the operation, This will be applied to all the
+    /// connector accounts under this profile
+    #[schema(value_type = Option<String>, max_length = 255, example = "https://www.example.com/success")]
+    pub return_url: Option<String>,
+
+    /// A boolean value to indicate if payment response hash needs to be enabled
+    #[schema(default = true, example = true)]
+    pub enable_payment_response_hash: bool,
+
+    /// Refers to the hash key used for calculating the signature for webhooks and redirect response
+    /// If the value is not provided, a default value is used
+    pub payment_response_hash_key: Option<String>,
+
+    /// A boolean value to indicate if redirect to merchant with http post needs to be enabled
+    #[schema(default = false, example = true)]
+    pub redirect_to_merchant_with_http_post: bool,
+
+    /// Webhook related details
+    pub webhook_details: Option<pii::SecretSerdeValue>,
+
+    /// You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Metadata is useful for storing additional, structured information on an object.
+    #[schema(value_type = Option<Object>, example = r#"{ "city": "NY", "unit": "245" }"#)]
+    pub metadata: Option<pii::SecretSerdeValue>,
+
+    /// The routing algorithm to be used for routing payments to desired connectors
+    #[schema(value_type = Option<Object>,example = json!({"type": "single", "data": "stripe"}))]
+    pub routing_algorithm: Option<serde_json::Value>,
+
+    ///Will be used to expire client secret after certain amount of time to be supplied in seconds
+    ///(900) for 15 mins
+    #[schema(example = 900)]
+    pub intent_fulfillment_time: Option<i64>,
+
+    /// The frm routing algorithm to be used for routing payments to desired FRM's
+    #[schema(value_type = Option<Object>,example = json!({"type": "single", "data": "signifyd"}))]
+    pub frm_routing_algorithm: Option<serde_json::Value>,
+
+    /// The routing algorithm to be  used for routing payouts to desired connectors
+    #[cfg(feature = "payouts")]
+    #[schema(value_type = Option<RoutingAlgorithm>,example = json!({"type": "single", "data": "wise"}))]
+    #[serde(
+        default,
+        deserialize_with = "payout_routing_algorithm::deserialize_option"
+    )]
+    pub payout_routing_algorithm: Option<serde_json::Value>,
+}
+
+#[derive(Clone, Debug, Deserialize, ToSchema)]
+#[serde(deny_unknown_fields)]
+pub struct BusinessProfileUpdate {
+    /// A short name to identify the business profile
+    #[schema(max_length = 64)]
+    pub profile_name: Option<String>,
+
+    /// The URL to redirect after the completion of the operation, This will be applied to all the
+    /// connector accounts under this profile
+    #[schema(value_type = Option<String>, max_length = 255, example = "https://www.example.com/success")]
+    pub return_url: Option<url::Url>,
+
+    /// A boolean value to indicate if payment response hash needs to be enabled
+    #[schema(default = true, example = true)]
+    pub enable_payment_response_hash: Option<bool>,
+
+    /// Refers to the hash key used for calculating the signature for webhooks and redirect response
+    /// If the value is not provided, a default value is used
+    pub payment_response_hash_key: Option<String>,
+
+    /// A boolean value to indicate if redirect to merchant with http post needs to be enabled
+    #[schema(default = false, example = true)]
+    pub redirect_to_merchant_with_http_post: Option<bool>,
+
+    /// Webhook related details
+    pub webhook_details: Option<WebhookDetails>,
+
+    /// You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Metadata is useful for storing additional, structured information on an object.
+    #[schema(value_type = Option<Object>, example = r#"{ "city": "NY", "unit": "245" }"#)]
+    pub metadata: Option<pii::SecretSerdeValue>,
+
+    /// The routing algorithm to be used for routing payments to desired connectors
+    #[schema(value_type = Option<Object>,example = json!({"type": "single", "data": "stripe"}))]
+    pub routing_algorithm: Option<serde_json::Value>,
+
+    ///Will be used to expire client secret after certain amount of time to be supplied in seconds
+    ///(900) for 15 mins
+    #[schema(example = 900)]
+    pub intent_fulfillment_time: Option<u32>,
+
+    /// The frm routing algorithm to be used for routing payments to desired FRM's
+    #[schema(value_type = Option<Object>,example = json!({"type": "single", "data": "signifyd"}))]
+    pub frm_routing_algorithm: Option<serde_json::Value>,
+
+    /// The routing algorithm to be  used for routing payouts to desired connectors
+    #[cfg(feature = "payouts")]
+    #[schema(value_type = Option<RoutingAlgorithm>,example = json!({"type": "single", "data": "wise"}))]
+    #[serde(
+        default,
+        deserialize_with = "payout_routing_algorithm::deserialize_option"
+    )]
+    pub payout_routing_algorithm: Option<serde_json::Value>,
 }
