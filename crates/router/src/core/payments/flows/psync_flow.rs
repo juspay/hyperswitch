@@ -11,7 +11,6 @@ use crate::{
     routes::AppState,
     services,
     types::{self, api, domain, Capturable},
-    utils::OptionExt,
 };
 
 #[async_trait]
@@ -68,11 +67,10 @@ impl Feature<api::PSync, types::PaymentsSyncData>
                     services::CaptureSyncMethod::Individual => {
                         let pending_captures = multiple_capture_data.get_pending_captures();
                         let mut capture_sync_response_list = HashMap::new();
-                        for capture in pending_captures.into_iter() {
-                            let connector_capture_id = capture
-                                .connector_capture_id
-                                .clone()
-                                .get_required_value("connector_transaction_id")?;
+                        let pending_connector_capture_id_list = pending_captures
+                            .into_iter()
+                            .filter_map(|capture| capture.connector_capture_id.clone());
+                        for connector_capture_id in pending_connector_capture_id_list {
                             self.request.connector_transaction_id =
                                 types::ResponseId::ConnectorTransactionId(
                                     connector_capture_id.clone(),

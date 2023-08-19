@@ -3577,6 +3577,7 @@
           "capture_id",
           "status",
           "amount",
+          "connector",
           "authorized_attempt_id",
           "capture_sequence"
         ],
@@ -3603,14 +3604,13 @@
           },
           "connector": {
             "type": "string",
-            "description": "The connector used for the payment",
-            "nullable": true
+            "description": "The connector used for the payment"
           },
           "authorized_attempt_id": {
             "type": "string",
             "description": "unique identifier for the parent attempt on which this capture is made"
           },
-          "connector_transaction_id": {
+          "connector_capture_id": {
             "type": "string",
             "description": "A unique identifier for a capture provided by the connector",
             "nullable": true
@@ -3628,6 +3628,11 @@
           "error_code": {
             "type": "string",
             "description": "If there was an error while calling the connectors the code is received here",
+            "nullable": true
+          },
+          "error_reason": {
+            "type": "string",
+            "description": "If there was an error while calling the connectors the reason is received here",
             "nullable": true
           }
         }
