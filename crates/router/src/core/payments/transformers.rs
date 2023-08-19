@@ -123,7 +123,7 @@ where
         access_token: None,
         session_token: None,
         reference_id: None,
-        payment_method_token: payment_data.pm_token.map(|token| types::PaymentMethodTokens::Token(token)),
+        payment_method_token: payment_data.pm_token.map(types::PaymentMethodTokens::Token),
         connector_customer: payment_data.connector_customer_id,
         recurring_mandate_payment_data: payment_data.recurring_mandate_payment_data,
         connector_request_reference_id: core_utils::get_connector_request_reference_id(

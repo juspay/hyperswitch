@@ -14,13 +14,24 @@ use router_env::{instrument, logger, tracing};
 use time::Duration;
 use uuid::Uuid;
 
+use openssl::ec::EcKey;
+use openssl::pkey::PKey;
+use openssl::symm::{decrypt_aead, Cipher};
+use std::error::Error;
+use std::fs::File;
+use std::io::prelude::*;
+use std::io::BufReader;
+use x509_parser::parse_x509_certificate;
+use openssl::derive::Deriver;
+use serde::{Deserialize, Serialize};
+
 use super::{
     operations::{BoxedOperation, Operation, PaymentResponse},
     CustomerDetails, PaymentData,
 };
 use crate::{
     configs::settings::{ConnectorRequestReferenceIdConfig, Server},
-    consts,
+    consts::{self, BASE64_ENGINE},
     core::{
         errors::{self, CustomResult, RouterResult, StorageErrorExt},
         payment_methods::{cards, vault},
@@ -51,12 +62,12 @@ pub fn create_identity_from_certificate_and_key(
     encoded_certificate: String,
     encoded_certificate_key: String,
 ) -> Result<reqwest::Identity, error_stack::Report<errors::ApiClientError>> {
-    let decoded_certificate = consts::BASE64_ENGINE
+    let decoded_certificate = BASE64_ENGINE
         .decode(encoded_certificate)
         .into_report()
         .change_context(errors::ApiClientError::CertificateDecodeFailed)?;
 
-    let decoded_certificate_key = consts::BASE64_ENGINE
+    let decoded_certificate_key = BASE64_ENGINE
         .decode(encoded_certificate_key)
         .into_report()
         .change_context(errors::ApiClientError::CertificateDecodeFailed)?;
@@ -2879,20 +2890,6 @@ pub fn validate_customer_access(
     Ok(())
 }
 
-use openssl::ec::EcKey;
-use openssl::pkey::PKey;
-use openssl::symm::{decrypt_aead, Cipher};
-use std::error::Error;
-use data_encoding::BASE64;
-use std::str;
-use std::string::String;
-use std::fs::File;
-use std::io::prelude::*;
-use std::io::BufReader;
-use x509_parser::parse_x509_certificate;
-use openssl::derive::Deriver;
-use serde::{Deserialize, Serialize};
-
 #[derive(Debug, Serialize, Deserialize)]
 pub struct ApplePayData {
     version: masking::Secret<String>,
@@ -2910,8 +2907,8 @@ pub struct ApplePayHeader {
 }
 
 impl ApplePayData {
-    pub fn token_json (wallet_data: api_models::payments::WalletData) -> Result<ApplePayData, error_stack::Report<errors::ConnectorError>> {
-        let json_wallet_data: ApplePayData = wallet_data.get_wallet_token_as_json()?;
+    pub fn token_json (wallet_data: api_models::payments::WalletData) -> Result<Self, error_stack::Report<errors::ConnectorError>> {
+        let json_wallet_data: Self = wallet_data.get_wallet_token_as_json()?;
         Ok(json_wallet_data)
     }
 
@@ -2932,7 +2929,7 @@ impl ApplePayData {
         buf_reader.read_to_end(&mut cert_data)?;
 
         // Parsing the certificate using x509-parser
-        let (_, certificate) = parse_x509_certificate(&cert_data)?;
+        let (_, certificate) = parse_x509_certificate(&cert_data)?;  //500
 
         // Finding the merchant ID extension
         let extension = certificate.extensions().iter().find(|extension| extension.oid.to_string().eq(consts::MERCHANT_ID_FIELD_OID));
@@ -2946,8 +2943,8 @@ impl ApplePayData {
     }
 
 pub fn shared_secret(&self, private_pem: &str) -> Result<Vec<u8>, Box<dyn Error>> {
-    let private_ec = EcKey::private_key_from_pem(private_pem.as_bytes())?;
-    let public_ec_bytes = BASE64.decode(&self.header.ephemeral_public_key.peek().as_bytes())?;
+    let private_ec = EcKey::private_key_from_pem(private_pem.as_bytes())?;                      //500
+    let public_ec_bytes = BASE64_ENGINE.decode(self.header.ephemeral_public_key.peek().as_bytes())?;    //.change_context(KmsError::Base64DecodingFailed)?;
     let public_ec = EcKey::public_key_from_der(&public_ec_bytes)?;
 
     // Create PKey objects from EcKey
@@ -2971,7 +2968,7 @@ pub fn shared_secret(&self, private_pem: &str) -> Result<Vec<u8>, Box<dyn Error>
         shared_secret: &[u8],
     ) -> Result<Vec<u8>, Box<dyn Error>> {
         let kdf_algorithm = b"\x0did-aes256-GCM";
-        let kdf_party_v = hex::decode(merchant_id)?;
+        let kdf_party_v = hex::decode(merchant_id)?;                // change_context(__::merchant_id_not_found)
         let kdf_party_u = b"Apple";
         let kdf_info = [&kdf_algorithm[..], kdf_party_u, &kdf_party_v[..]].concat();
 
@@ -2988,15 +2985,15 @@ pub fn shared_secret(&self, private_pem: &str) -> Result<Vec<u8>, Box<dyn Error>
         &self,
         symmetric_key: &[u8],
     ) -> Result<String, Box<dyn Error>> {
-        let data = BASE64.decode(self.data.peek().as_bytes())?;
+        let data = BASE64_ENGINE.decode(self.data.peek().as_bytes())?;          //.change_context(KmsError::Base64DecodingFailed)?;
         let iv = [0u8; 16]; //Initialization vector IV is typically used in AES-GCM (Galois/Counter Mode) encryption for randomizing the encryption process.
         let ciphertext = &data[..data.len() - 16]; //done assumuing the last 16 byte is authentication tag
         let tag = &data[data.len() - 16..];
 
         // let mut decrypted = vec![0u8; ciphertext.len()];
         let cipher = Cipher::aes_256_gcm();
-        let decrypted_data = decrypt_aead(cipher, symmetric_key, Some(&iv), &[], ciphertext, tag)?;
-        let decrypted = String::from_utf8(decrypted_data)?;
+        let decrypted_data = decrypt_aead(cipher, symmetric_key, Some(&iv), &[], ciphertext, tag)?;     //.change_context(KmsError::DecryptionFailed)?;
+        let decrypted = String::from_utf8(decrypted_data)?;         //change_context(__::decrypted_data_not_found)
 
         Ok(decrypted)
     }

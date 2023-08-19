@@ -10,7 +10,7 @@ use crate::{
     consts,
     core::errors,
     services,
-    types::{self, api, storage::enums, transformers::ForeignFrom},
+    types::{self, api, storage::enums, transformers::ForeignFrom}, utils::OptionExt,
 };
 
 #[derive(Debug, Serialize)]
@@ -238,7 +238,6 @@ impl TryFrom<&types::ConnectorAuthType> for CheckoutAuthType {
 impl TryFrom<&types::PaymentsAuthorizeRouterData> for PaymentsRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::PaymentsAuthorizeRouterData) -> Result<Self, Self::Error> {
-        let pm_token = item.get_payment_method_token()?;
         let source_var = match item.request.payment_method_data.clone() {
             api::PaymentMethodData::Card(ccard) => {
                 let a = PaymentSource::Card(CardSource {
@@ -254,26 +253,27 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PaymentsRequest {
                 api_models::payments::WalletData::GooglePay(_) => {
                     Ok(PaymentSource::Wallets(WalletSource {
                         source_type: CheckoutSourceTypes::Token,
-                        token: match pm_token {
+                        token: match item.get_payment_method_token()? {
                             types::PaymentMethodTokens::Token(token) => token,
                             types::PaymentMethodTokens::ApplePayDecrypt(_) => Err(errors::ConnectorError::InvalidWalletToken)?,
                         },
                     }))
                 }
                 api_models::payments::WalletData::ApplePay(_) => {
-                    let decrypt_data = match item.payment_method_token.clone().unwrap() {
+                    let payment_method_token = item.payment_method_token.to_owned().get_required_value("payment_token").change_context(errors::ConnectorError::RequestEncodingFailed)?;
+                    let decrypt_data = match payment_method_token {
                         types::PaymentMethodTokens::Token(_) => Err(errors::ConnectorError::InvalidWalletToken)?,
                         types::PaymentMethodTokens::ApplePayDecrypt(data) => data,
                     };
                     let expiry_year_4_digit = format!(
                         "20{}",
-                        decrypt_data.application_expiration_date[0..2].to_string()
+                        decrypt_data.application_expiration_date[0..2].to_owned()
                     );
                     Ok(PaymentSource::ApplePayPredecrypt(ApplePayPredecrypt {
                         token: decrypt_data.application_primary_account_number,
                         decrypt_type: "network_token".to_string(),
                         token_type: "applepay".to_string(),
-                        expiry_month: decrypt_data.application_expiration_date[2..4].to_string(),
+                        expiry_month: decrypt_data.application_expiration_date[2..4].to_owned(),
                         expiry_year: expiry_year_4_digit,
                         eci: decrypt_data.payment_data.eci_indicator,
                         cryptogram: decrypt_data.payment_data.online_payment_cryptogram,
