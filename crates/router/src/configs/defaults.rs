@@ -179,9 +179,9 @@ impl Default for Mandates {
                                     enums::Connector::Globalpay,
                                     enums::Connector::Worldpay,
                                     enums::Connector::Multisafepay,
-                                    enums::Connector::Nmi,
                                     enums::Connector::Nexinets,
                                     enums::Connector::Noon,
+                                    enums::Connector::Payme,
                                     enums::Connector::Stripe,
                                 ]),
                             },
@@ -196,9 +196,9 @@ impl Default for Mandates {
                                     enums::Connector::Globalpay,
                                     enums::Connector::Worldpay,
                                     enums::Connector::Multisafepay,
-                                    enums::Connector::Nmi,
                                     enums::Connector::Nexinets,
                                     enums::Connector::Noon,
+                                    enums::Connector::Payme,
                                     enums::Connector::Stripe,
                                 ]),
                             },
@@ -2204,7 +2204,7 @@ impl Default for super::settings::RequiredFields {
                                             ( "payment_method_data.pay_later.klarna.billing_country".to_string(),
                                                 RequiredFieldInfo {
                                                 required_field: "payment_method_data.pay_later.klarna.billing_country".to_string(),
-                                                display_name: "billing_name".to_string(),
+                                                display_name: "billing_country".to_string(),
                                                 field_type: enums::FieldType::UserAddressCountry{
                                                     options: vec![
                                                         "ALL".to_string(),
@@ -2215,7 +2215,7 @@ impl Default for super::settings::RequiredFields {
                                             ("email".to_string(),
                                             RequiredFieldInfo {
                                                 required_field: "email".to_string(),
-                                                display_name: "cust_email".to_string(),
+                                                display_name: "email".to_string(),
                                                 field_type: enums::FieldType::UserEmailAddress,
                                                 value: None,
                                            })
