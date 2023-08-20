@@ -18,6 +18,9 @@ pub enum CustomersErrorResponse {
     
     #[error(error_type = CustomersErrorType::InvalidRequestError, code = "CE_03", message = "Customer has already been redacted")]
     MandateActive,
+
+    #[error(error_type = CustomersErrorType::ObjectNotFound, code = "CE_04", message = "Customer does not exist in our records")]
+    CustomerNotFound,
 }           
 
 impl std::fmt::Display for CustomersErrorResponse {

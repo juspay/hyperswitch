@@ -287,6 +287,9 @@ impl ErrorSwitch<api_models::errors::types::ApiErrorResponse> for CustomersError
             CustomersErrorResponse::MandateActive => {
                 AER::BadRequest(ApiError::new("IR", 2, "Customer has active mandate/subsciption", None))
             }
+            CustomersErrorResponse::CustomerNotFound => {
+                AER::NotFound(ApiError::new("IR", 3, "Customer does not exist in our records", None))
+            },
         }
     }
 }
@@ -294,6 +297,9 @@ impl ErrorSwitch<api_models::errors::types::ApiErrorResponse> for CustomersError
 impl ErrorSwitch<CustomersErrorResponse> for StorageError {
     fn switch(&self) -> CustomersErrorResponse {
         use CustomersErrorResponse as CER;
+        if self.is_db_not_found() {
+            return CER::CustomerNotFound;
+        }
         match self {
             StorageError::CustomerRedacted => CER::CustomerRedacted,
             _ => CER::InternalServerError,
@@ -317,6 +323,19 @@ impl ErrorSwitch<StripeErrorCode> for CustomersErrorResponse {
             CustomersErrorResponse::CustomerRedacted => SC::CustomerRedacted,
             CustomersErrorResponse::InternalServerError => SC::InternalServerError,
             CustomersErrorResponse::MandateActive => SC::MandateActive,
+            CustomersErrorResponse::CustomerNotFound => SC::CustomerNotFound,
+        }
+    }
+}
+
+impl ErrorSwitch<CustomersErrorResponse> for ApiErrorResponse {
+    fn switch(&self) -> CustomersErrorResponse {
+        use CustomersErrorResponse as CER;
+        match self {
+            ApiErrorResponse::InternalServerError => CER::InternalServerError,
+            ApiErrorResponse::MandateActive => CER::MandateActive,
+            ApiErrorResponse::CustomerNotFound => CER::CustomerNotFound,
+            _ => CER::InternalServerError,
         }
     }
 }
