@@ -171,6 +171,10 @@ pub struct MerchantAccountUpdate {
     ///Will be used to expire client secret after certain amount of time to be supplied in seconds
     ///(900) for 15 mins
     pub intent_fulfillment_time: Option<u32>,
+
+    /// The default business profile that must be used for creating merchant accounts and payments
+    #[schema(max_length = 64)]
+    pub default_profile: Option<String>,
 }
 
 #[derive(Clone, Debug, ToSchema, Serialize)]
@@ -256,6 +260,10 @@ pub struct MerchantAccountResponse {
 
     ///  A boolean value to indicate if the merchant has recon service is enabled or not, by default value is false
     pub is_recon_enabled: bool,
+
+    /// The default business profile that must be used for creating merchant accounts and payments
+    #[schema(max_length = 64)]
+    pub default_profile: Option<String>,
 }
 
 #[derive(Clone, Debug, Deserialize, ToSchema, Serialize)]
@@ -707,6 +715,11 @@ pub struct MerchantConnectorResponse {
         }
     }))]
     pub connector_webhook_details: Option<MerchantConnectorWebhookDetails>,
+
+    /// The business profile this connector must be created in
+    /// default value from merchant account is taken if not passed
+    #[schema(max_length = 64)]
+    pub profile_id: Option<String>,
 }
 
 /// Create a new Merchant Connector for the merchant account. The connector could be a payment processor / facilitator / acquirer or specialized services like Fraud / Accounting etc."
@@ -932,7 +945,7 @@ pub enum PayoutStraightThroughAlgorithm {
     Single(api_enums::PayoutConnectors),
 }
 
-#[derive(Clone, Debug, Deserialize, ToSchema)]
+#[derive(Clone, Debug, Deserialize, ToSchema, Default)]
 #[serde(deny_unknown_fields)]
 pub struct BusinessProfileCreate {
     /// A short name to identify the business profile

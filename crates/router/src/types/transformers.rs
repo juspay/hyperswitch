@@ -607,6 +607,7 @@ impl TryFrom<domain::MerchantConnectorAccount> for api_models::admin::MerchantCo
                     .change_context(errors::ApiErrorResponse::InternalServerError)
                 })
                 .transpose()?,
+            profile_id: item.profile_id,
         })
     }
 }

@@ -83,7 +83,6 @@ pub struct MerchantConnectorAccountUpdateInternal {
     pub connector_webhook_details: Option<pii::SecretSerdeValue>,
     #[diesel(deserialize_as = super::OptionalDieselArray<pii::SecretSerdeValue>)]
     pub frm_config: Option<Vec<Secret<serde_json::Value>>>,
-    pub profile_id: Option<String>,
 }
 
 impl MerchantConnectorAccountUpdateInternal {

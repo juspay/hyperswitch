@@ -659,6 +659,8 @@ impl PaymentCreate {
             connector_metadata,
             feature_metadata,
             attempt_count: 1,
+            // TODO: accept profile_id in payments request
+            profile_id: None,
         })
     }
 

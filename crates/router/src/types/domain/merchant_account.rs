@@ -63,6 +63,7 @@ pub enum MerchantAccountUpdate {
         intent_fulfillment_time: Option<i64>,
         frm_routing_algorithm: Option<serde_json::Value>,
         payout_routing_algorithm: Option<serde_json::Value>,
+        default_profile: Option<String>,
     },
     StorageSchemeUpdate {
         storage_scheme: enums::MerchantStorageScheme,
@@ -93,6 +94,7 @@ impl From<MerchantAccountUpdate> for MerchantAccountUpdateInternal {
                 intent_fulfillment_time,
                 frm_routing_algorithm,
                 payout_routing_algorithm,
+                default_profile,
             } => Self {
                 merchant_name: merchant_name.map(Encryption::from),
                 merchant_details: merchant_details.map(Encryption::from),
@@ -112,6 +114,7 @@ impl From<MerchantAccountUpdate> for MerchantAccountUpdateInternal {
                 modified_at: Some(date_time::now()),
                 intent_fulfillment_time,
                 payout_routing_algorithm,
+                default_profile,
                 ..Default::default()
             },
             MerchantAccountUpdate::StorageSchemeUpdate { storage_scheme } => Self {
@@ -159,6 +162,7 @@ impl super::behaviour::Conversion for MerchantAccount {
             payout_routing_algorithm: self.payout_routing_algorithm,
             organization_id: self.organization_id,
             is_recon_enabled: self.is_recon_enabled,
+            default_profile: self.default_profile,
         })
     }
 
@@ -201,6 +205,7 @@ impl super::behaviour::Conversion for MerchantAccount {
                 payout_routing_algorithm: item.payout_routing_algorithm,
                 organization_id: item.organization_id,
                 is_recon_enabled: item.is_recon_enabled,
+                default_profile: item.default_profile,
             })
         }
         .await
@@ -234,6 +239,7 @@ impl super::behaviour::Conversion for MerchantAccount {
             payout_routing_algorithm: self.payout_routing_algorithm,
             organization_id: self.organization_id,
             is_recon_enabled: self.is_recon_enabled,
+            default_profile: self.default_profile,
         })
     }
 }
