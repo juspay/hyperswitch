@@ -17,8 +17,9 @@ use crate::{
         PaymentListFilters,
     },
     payment_intent::PaymentIntent,
+    query::generics::db_metrics,
     schema::payment_attempt::dsl,
-    PgPooledConn, StorageResult, query::generics::db_metrics,
+    PgPooledConn, StorageResult,
 };
 
 impl PaymentAttemptNew {
@@ -302,9 +303,9 @@ impl PaymentAttempt {
             filter.get_result_async::<i64>(conn),
             db_metrics::DatabaseOperation::Filter,
         )
-            .await
-            .into_report()
-            .change_context(errors::DatabaseError::Others)
-            .attach_printable("Error filtering count of payments")
+        .await
+        .into_report()
+        .change_context(errors::DatabaseError::Others)
+        .attach_printable("Error filtering count of payments")
     }
 }

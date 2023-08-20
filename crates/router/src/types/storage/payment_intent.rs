@@ -136,10 +136,10 @@ impl PaymentIntentDbExt for PaymentIntent {
             filter.get_results_async(conn),
             db_metrics::DatabaseOperation::Filter,
         )
-            .await
-            .into_report()
-            .change_context(errors::DatabaseError::Others)
-            .attach_printable("Error filtering records by time range")
+        .await
+        .into_report()
+        .change_context(errors::DatabaseError::Others)
+        .attach_printable("Error filtering records by time range")
     }
 
     #[instrument(skip(conn))]
@@ -193,10 +193,10 @@ impl PaymentIntentDbExt for PaymentIntent {
             filter.get_results_async(conn),
             db_metrics::DatabaseOperation::Filter,
         )
-            .await
-            .into_report()
-            .change_context(errors::DatabaseError::Others)
-            .attach_printable("Error filtering payment records")
+        .await
+        .into_report()
+        .change_context(errors::DatabaseError::Others)
+        .attach_printable("Error filtering payment records")
     }
 
     #[instrument(skip(conn))]
@@ -232,14 +232,14 @@ impl PaymentIntentDbExt for PaymentIntent {
         }
 
         crate::logger::debug!(query = %debug_query::<Pg, _>(&filter).to_string());
-        
+
         db_metrics::track_database_call::<<Self as HasTable>::Table, _, _>(
             filter.get_results_async(conn),
             db_metrics::DatabaseOperation::Filter,
         )
-            .await
-            .into_report()
-            .change_context(errors::DatabaseError::Others)
-            .attach_printable("Error filtering payment intents")
+        .await
+        .into_report()
+        .change_context(errors::DatabaseError::Others)
+        .attach_printable("Error filtering payment intents")
     }
 }

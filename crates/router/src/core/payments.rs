@@ -1408,7 +1408,6 @@ pub async fn apply_filters_on_payments(
     merchant: domain::MerchantAccount,
     constraints: api::PaymentListFilterConstraints,
 ) -> RouterResponse<api::PaymentListResponseV2> {
-
     use crate::types::transformers::ForeignFrom;
 
     let limit = &constraints.limit.unwrap_or(PAYMENTS_LIST_MAX_LIMIT);

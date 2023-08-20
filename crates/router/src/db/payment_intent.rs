@@ -317,10 +317,14 @@ mod storage {
             match storage_scheme {
                 enums::MerchantStorageScheme::PostgresOnly => {
                     let conn = connection::pg_connection_read(self).await?;
-                    PaymentIntent::get_active_attempt_ids_for_total_count(&conn, merchant_id, constraints)
-                        .await
-                        .map_err(Into::into)
-                        .into_report()
+                    PaymentIntent::get_active_attempt_ids_for_total_count(
+                        &conn,
+                        merchant_id,
+                        constraints,
+                    )
+                    .await
+                    .map_err(Into::into)
+                    .into_report()
                 }
 
                 enums::MerchantStorageScheme::RedisKv => Err(errors::StorageError::KVError.into()),
