@@ -56,8 +56,9 @@ where
 pub trait ConnectorValidation: ConnectorCommon {
     fn validate_capture_method(
         &self,
-        capture_method: CaptureMethod,
+        capture_method: Option<CaptureMethod>,
     ) -> CustomResult<(), errors::ConnectorError> {
+        let capture_method = capture_method.unwrap_or_default();
         match capture_method {
             CaptureMethod::Automatic => Ok(()),
             CaptureMethod::Manual | CaptureMethod::ManualMultiple | CaptureMethod::Scheduled => {

@@ -12,7 +12,7 @@ use transformers as rapyd;
 
 use crate::{
     configs::settings,
-    connector::utils as conn_utils,
+    connector::{utils as connector_utils, utils as conn_utils},
     consts,
     core::errors::{self, CustomResult},
     db::StorageInterface,
@@ -107,21 +107,14 @@ impl ConnectorCommon for Rapyd {
 impl ConnectorValidation for Rapyd {
     fn validate_capture_method(
         &self,
-        capture_method: enums::CaptureMethod,
+        capture_method: Option<enums::CaptureMethod>,
     ) -> CustomResult<(), errors::ConnectorError> {
-        let unsupported_capture_method = match capture_method {
-            enums::CaptureMethod::Automatic | enums::CaptureMethod::Manual => None,
-            enums::CaptureMethod::ManualMultiple => Some("manual_multiple"),
-            enums::CaptureMethod::Scheduled => Some("schedule"),
-        };
-        if let Some(capture_method) = unsupported_capture_method {
-            Err(errors::ConnectorError::NotSupported {
-                message: capture_method.into(),
-                connector: self.id(),
-            }
-            .into())
-        } else {
-            Ok(())
+        let capture_method = capture_method.unwrap_or_default();
+        match capture_method {
+            enums::CaptureMethod::Automatic | enums::CaptureMethod::Manual => Ok(()),
+            enums::CaptureMethod::ManualMultiple | enums::CaptureMethod::Scheduled => Err(
+                connector_utils::construct_not_supported_error_report(capture_method, self.id()),
+            ),
         }
     }
 }
@@ -205,7 +198,7 @@ impl
         >,
         connectors: &settings::Connectors,
     ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
-        self.validate_capture_method(req.request.capture_method.unwrap_or_default())?;
+        self.validate_capture_method(req.request.capture_method)?;
         let timestamp = date_time::now_unix_timestamp();
         let salt = Alphanumeric.sample_string(&mut rand::thread_rng(), 12);
 
