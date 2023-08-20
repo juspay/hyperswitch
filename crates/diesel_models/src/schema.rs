@@ -233,6 +233,8 @@ diesel::table! {
         #[max_length = 255]
         connector -> Varchar,
         evidence -> Jsonb,
+        #[max_length = 64]
+        profile_id -> Nullable<Varchar>,
     }
 }
 
@@ -665,6 +667,8 @@ diesel::table! {
         business_label -> Nullable<Varchar>,
         created_at -> Timestamp,
         last_modified_at -> Timestamp,
+        #[max_length = 64]
+        profile_id -> Nullable<Varchar>,
     }
 }
 
@@ -768,6 +772,8 @@ diesel::table! {
         #[max_length = 255]
         refund_reason -> Nullable<Varchar>,
         refund_error_code -> Nullable<Text>,
+        #[max_length = 64]
+        profile_id -> Nullable<Varchar>,
     }
 }
 

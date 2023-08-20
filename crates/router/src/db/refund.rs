@@ -332,6 +332,7 @@ mod storage {
                         updated_at: new.created_at.unwrap_or_else(date_time::now),
                         description: new.description.clone(),
                         refund_reason: new.refund_reason.clone(),
+                        profile_id: new.profile_id.clone(),
                     };
 
                     let field = format!(
@@ -714,6 +715,7 @@ impl RefundInterface for MockDb {
             updated_at: current_time,
             description: new.description,
             refund_reason: new.refund_reason.clone(),
+            profile_id: new.profile_id,
         };
         refunds.push(refund.clone());
         Ok(refund)

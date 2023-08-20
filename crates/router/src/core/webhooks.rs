@@ -306,6 +306,7 @@ pub async fn get_or_update_dispute_object(
                 challenge_required_by: dispute_details.challenge_required_by,
                 connector_created_at: dispute_details.created_at,
                 connector_updated_at: dispute_details.updated_at,
+                profile_id: None,
                 evidence: None,
             };
             state
