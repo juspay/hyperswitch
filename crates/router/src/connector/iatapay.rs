@@ -227,7 +227,7 @@ impl ConnectorIntegration<api::AccessTokenAuth, types::AccessTokenRequestData, t
         Ok(ErrorResponse {
             status_code: res.status_code,
             code: response.error,
-            message: response.error_description,
+            message: response.path,
             reason: None,
         })
     }
