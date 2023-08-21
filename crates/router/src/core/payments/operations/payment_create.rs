@@ -659,8 +659,10 @@ impl PaymentCreate {
             connector_metadata,
             feature_metadata,
             attempt_count: 1,
-            // TODO: accept profile_id in payments request
-            profile_id: None,
+            profile_id: request
+                .profile_id
+                .clone()
+                .or(merchant_account.default_profile.clone()),
         })
     }
 
