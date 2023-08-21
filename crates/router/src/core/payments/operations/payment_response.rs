@@ -340,6 +340,7 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                             let capture_update = storage::CaptureUpdate::ResponseUpdate {
                                 status: enums::CaptureStatus::foreign_try_from(router_data.status)?,
                                 connector_capture_id: connector_transaction_id.clone(),
+                                connector_response_reference_id,
                             };
                             let capture_update_list = vec![(
                                 multiple_capture_data.get_latest_capture().clone(),

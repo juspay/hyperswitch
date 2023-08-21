@@ -53,6 +53,7 @@ impl PaymentAttemptExt for PaymentAttempt {
             authorized_attempt_id: self.attempt_id.clone(),
             capture_sequence,
             connector_capture_id: None,
+            connector_response_reference_id: None,
         })
     }
     fn get_next_capture_id(&self) -> String {

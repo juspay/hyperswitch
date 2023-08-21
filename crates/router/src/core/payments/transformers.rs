@@ -1112,7 +1112,7 @@ impl TryFrom<types::CaptureSyncResponse> for storage::CaptureUpdate {
             types::CaptureSyncResponse::Success {
                 resource_id,
                 status,
-                ..
+                connector_response_reference_id,
             } => {
                 let connector_capture_id = match resource_id {
                     types::ResponseId::ConnectorTransactionId(id) => Some(id),
@@ -1121,6 +1121,7 @@ impl TryFrom<types::CaptureSyncResponse> for storage::CaptureUpdate {
                 Ok(Self::ResponseUpdate {
                     status: enums::CaptureStatus::foreign_try_from(status)?,
                     connector_capture_id,
+                    connector_response_reference_id,
                 })
             }
             types::CaptureSyncResponse::Error {
