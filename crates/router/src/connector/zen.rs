@@ -565,7 +565,7 @@ impl api::IncomingWebhook for Zen {
         let algorithm = self.get_webhook_source_verification_algorithm(request)?;
 
         let signature = self.get_webhook_source_verification_signature(request)?;
-        let mut secret = self
+        let (mut secret, _additional_secret) = self
             .get_webhook_source_verification_merchant_secret(
                 db,
                 merchant_account,

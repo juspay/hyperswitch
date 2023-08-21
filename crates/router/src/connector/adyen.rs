@@ -1390,7 +1390,7 @@ impl api::IncomingWebhook for Adyen {
         let signature = self
             .get_webhook_source_verification_signature(request)
             .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
-        let secret = self
+        let (secret, _additional_secret) = self
             .get_webhook_source_verification_merchant_secret(
                 db,
                 merchant_account,

@@ -82,7 +82,7 @@ pub trait IncomingWebhook: ConnectorCommon + Sync {
         connector_name: &str,
         key_store: &domain::MerchantKeyStore,
         object_reference_id: ObjectReferenceId,
-    ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
+    ) -> CustomResult<(Vec<u8>, Option<masking::Secret<String>>), errors::ConnectorError> {
         let merchant_id = merchant_account.merchant_id.as_str();
         let debug_suffix = format!(
             "For merchant_id: {}, and connector_name: {}",
@@ -106,22 +106,28 @@ pub trait IncomingWebhook: ConnectorCommon + Sync {
             )
             .await;
 
-        let merchant_secret = match merchant_connector_account_result {
+        let (merchant_secret, additional_secret) = match merchant_connector_account_result {
             Ok(mca) => match mca.connector_webhook_details {
-                Some(merchant_connector_webhook_details) => merchant_connector_webhook_details
-                    .parse_value::<MerchantConnectorWebhookDetails>(
-                        "MerchantConnectorWebhookDetails",
-                    )
-                    .change_context_lazy(|| errors::ConnectorError::WebhookSourceVerificationFailed)
-                    .attach_printable_lazy(|| {
-                        format!(
-                            "Deserializing MerchantConnectorWebhookDetails failed {}",
-                            debug_suffix
+                Some(merchant_connector_webhook_details) => {
+                    let connector_webhook_details = merchant_connector_webhook_details
+                        .parse_value::<MerchantConnectorWebhookDetails>(
+                            "MerchantConnectorWebhookDetails",
                         )
-                    })?
-                    .merchant_secret
-                    .expose(),
-                None => default_secret,
+                        .change_context_lazy(|| {
+                            errors::ConnectorError::WebhookSourceVerificationFailed
+                        })
+                        .attach_printable_lazy(|| {
+                            format!(
+                                "Deserializing MerchantConnectorWebhookDetails failed {}",
+                                debug_suffix
+                            )
+                        })?;
+                    (
+                        connector_webhook_details.merchant_secret.expose(),
+                        connector_webhook_details.additional_secret,
+                    )
+                }
+                None => (default_secret, None),
             },
             Err(err) => {
                 logger::error!(
@@ -129,7 +135,7 @@ pub trait IncomingWebhook: ConnectorCommon + Sync {
                     debug_suffix
                 );
                 logger::error!("DB error = {:?}", err);
-                default_secret
+                (default_secret, None)
             }
         };
 
@@ -137,7 +143,7 @@ pub trait IncomingWebhook: ConnectorCommon + Sync {
 
         //If merchant has not set the secret for webhook source verification, "default_secret" is returned.
         //So it will fail during verification step and goes to psync flow.
-        Ok(merchant_secret.into_bytes())
+        Ok((merchant_secret.into_bytes(), additional_secret))
     }
 
     fn get_webhook_source_verification_signature(
@@ -172,7 +178,7 @@ pub trait IncomingWebhook: ConnectorCommon + Sync {
         let signature = self
             .get_webhook_source_verification_signature(request)
             .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
-        let secret = self
+        let (secret, _additional_secret) = self
             .get_webhook_source_verification_merchant_secret(
                 db,
                 merchant_account,
