@@ -715,7 +715,6 @@ impl<const T: u8>
 
 default_imp_for_pre_processing_steps!(
     connector::Aci,
-    connector::Adyen,
     connector::Airwallex,
     connector::Authorizedotnet,
     connector::Bambora,

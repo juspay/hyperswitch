@@ -183,8 +183,8 @@ pub struct AdyenBalanceRequest<'a> {
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AdyenBalanceResponse {
-    psp_reference: String,
-    balance: Amount,
+    pub psp_reference: String,
+    pub balance: Amount,
 }
 
 /// This implementation will be used only in Authorize, Automatic capture flow.
@@ -365,8 +365,8 @@ pub enum ActionType {
 
 #[derive(Default, Debug, Clone, Serialize, Deserialize)]
 pub struct Amount {
-    currency: String,
-    value: i64,
+    pub currency: String,
+    pub value: i64,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -1349,11 +1349,11 @@ impl<'a> TryFrom<&types::PaymentsAuthorizeRouterData> for AdyenPaymentRequest<'a
     }
 }
 
-impl<'a> TryFrom<&types::PaymentsBalanceRouterData> for AdyenBalanceRequest<'a> {
+impl<'a> TryFrom<&types::PaymentsPreProcessingRouterData> for AdyenBalanceRequest<'a> {
     type Error = Error;
-    fn try_from(item: &types::PaymentsBalanceRouterData) -> Result<Self, Self::Error> {
+    fn try_from(item: &types::PaymentsPreProcessingRouterData) -> Result<Self, Self::Error> {
         let payment_method = match &item.request.payment_method_data {
-            payments::PaymentMethodData::GiftCard(gift_card_data) => {
+            Some(payments::PaymentMethodData::GiftCard(gift_card_data)) => {
                 match gift_card_data.as_ref() {
                     payments::GiftCardData::Givex(gift_card_data) => {
                         let balance_pm = BalancePmData {
@@ -2733,12 +2733,24 @@ impl TryFrom<types::PaymentsCancelResponseRouterData<AdyenCancelResponse>>
     }
 }
 
-impl TryFrom<types::PaymentsBalanceResponseRouterData<AdyenBalanceResponse>>
-    for types::PaymentsBalanceRouterData
+impl<F>
+    TryFrom<
+        types::ResponseRouterData<
+            F,
+            AdyenBalanceResponse,
+            types::PaymentsPreProcessingData,
+            types::PaymentsResponseData,
+        >,
+    > for types::RouterData<F, types::PaymentsPreProcessingData, types::PaymentsResponseData>
 {
     type Error = Error;
     fn try_from(
-        item: types::PaymentsBalanceResponseRouterData<AdyenBalanceResponse>,
+        item: types::ResponseRouterData<
+            F,
+            AdyenBalanceResponse,
+            types::PaymentsPreProcessingData,
+            types::PaymentsResponseData,
+        >,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
             response: Ok(types::PaymentsResponseData::TransactionResponse {

@@ -898,6 +898,17 @@ where
                 (router_data, should_continue_payment)
             }
         }
+        Some(api_models::payments::PaymentMethodData::GiftCard(_)) => {
+            if connector.connector_name == types::Connector::Adyen {
+                router_data = router_data.preprocessing_steps(state, connector).await?;
+
+                let is_error_in_response = router_data.response.is_err();
+                // If is_error_in_response is true, should_continue_payment should be false, we should throw the error
+                (router_data, !is_error_in_response)
+            } else {
+                (router_data, should_continue_payment)
+            }
+        }
         _ => (router_data, should_continue_payment),
     };
 
