@@ -185,19 +185,23 @@ impl ForeignFrom<api_models::payments::MandateAmountData> for storage_enums::Man
     }
 }
 
-impl ForeignFrom<api_enums::IntentStatus> for storage_enums::EventType {
+impl ForeignFrom<api_enums::IntentStatus> for Option<storage_enums::EventType> {
     fn foreign_from(value: api_enums::IntentStatus) -> Self {
         match value {
-            api_enums::IntentStatus::Succeeded => Self::PaymentSucceeded,
-            api_enums::IntentStatus::Failed => Self::PaymentFailed,
-            api_enums::IntentStatus::Processing => Self::PaymentProcessing,
+            api_enums::IntentStatus::Succeeded => Some(storage_enums::EventType::PaymentSucceeded),
+            api_enums::IntentStatus::Failed => Some(storage_enums::EventType::PaymentFailed),
+            api_enums::IntentStatus::Processing => {
+                Some(storage_enums::EventType::PaymentProcessing)
+            }
             api_enums::IntentStatus::RequiresMerchantAction
-            | api_enums::IntentStatus::RequiresCustomerAction => Self::ActionRequired,
+            | api_enums::IntentStatus::RequiresCustomerAction => {
+                Some(storage_enums::EventType::ActionRequired)
+            }
             api_enums::IntentStatus::Cancelled
             | api_enums::IntentStatus::RequiresPaymentMethod
             | api_enums::IntentStatus::RequiresConfirmation
             | api_enums::IntentStatus::RequiresCapture
-            | api_enums::IntentStatus::PartiallyCaptured => Self::UnsupportedEvent,
+            | api_enums::IntentStatus::PartiallyCaptured => None,
         }
     }
 }
@@ -320,14 +324,14 @@ impl ForeignTryFrom<api_models::payments::PaymentMethodData> for api_enums::Paym
     }
 }
 
-impl ForeignFrom<storage_enums::RefundStatus> for storage_enums::EventType {
+impl ForeignFrom<storage_enums::RefundStatus> for Option<storage_enums::EventType> {
     fn foreign_from(value: storage_enums::RefundStatus) -> Self {
         match value {
-            storage_enums::RefundStatus::Success => Self::RefundSucceeded,
-            storage_enums::RefundStatus::Failure => Self::RefundFailed,
+            storage_enums::RefundStatus::Success => Some(storage_enums::EventType::RefundSucceeded),
+            storage_enums::RefundStatus::Failure => Some(storage_enums::EventType::RefundFailed),
             api_enums::RefundStatus::ManualReview
             | api_enums::RefundStatus::Pending
-            | api_enums::RefundStatus::TransactionFailure => Self::UnsupportedEvent,
+            | api_enums::RefundStatus::TransactionFailure => None,
         }
     }
 }
