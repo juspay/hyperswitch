@@ -158,7 +158,28 @@ fn get_payment_source(
                 cancel_url: item.request.complete_authorize_url.clone(),
             },
         })),
-        _ => Err(errors::ConnectorError::NotImplemented("Bank Redirect".to_string()).into()),
+        BankRedirectData::BancontactCard { .. }
+        | BankRedirectData::Blik { .. }
+        | BankRedirectData::Przelewy24 { .. } => Err(errors::ConnectorError::NotImplemented(
+            utils::get_unimplemented_payment_method_error_message("Paypal"),
+        )
+        .into()),
+        BankRedirectData::Bizum {}
+        | BankRedirectData::Interac { .. }
+        | BankRedirectData::OnlineBankingCzechRepublic { .. }
+        | BankRedirectData::OnlineBankingFinland { .. }
+        | BankRedirectData::OnlineBankingPoland { .. }
+        | BankRedirectData::OnlineBankingSlovakia { .. }
+        | BankRedirectData::OpenBankingUk { .. }
+        | BankRedirectData::Trustly { .. }
+        | BankRedirectData::OnlineBankingFpx { .. }
+        | BankRedirectData::OnlineBankingThailand { .. } => {
+            Err(errors::ConnectorError::NotSupported {
+                message: utils::SELECTED_PAYMENT_METHOD.to_string(),
+                connector: "Paypal",
+            }
+            .into())
+        }
     }
 }
 
@@ -230,9 +251,36 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PaypalPaymentsRequest {
                         payment_source,
                     })
                 }
-                _ => Err(errors::ConnectorError::NotImplemented(
-                    "Payment Method".to_string(),
-                ))?,
+                api_models::payments::WalletData::AliPayQr(_)
+                | api_models::payments::WalletData::AliPayRedirect(_)
+                | api_models::payments::WalletData::AliPayHkRedirect(_)
+                | api_models::payments::WalletData::MomoRedirect(_)
+                | api_models::payments::WalletData::KakaoPayRedirect(_)
+                | api_models::payments::WalletData::GoPayRedirect(_)
+                | api_models::payments::WalletData::GcashRedirect(_)
+                | api_models::payments::WalletData::ApplePay(_)
+                | api_models::payments::WalletData::ApplePayRedirect(_)
+                | api_models::payments::WalletData::ApplePayThirdPartySdk(_)
+                | api_models::payments::WalletData::DanaRedirect {}
+                | api_models::payments::WalletData::GooglePay(_)
+                | api_models::payments::WalletData::GooglePayRedirect(_)
+                | api_models::payments::WalletData::GooglePayThirdPartySdk(_)
+                | api_models::payments::WalletData::MbWayRedirect(_)
+                | api_models::payments::WalletData::MobilePayRedirect(_)
+                | api_models::payments::WalletData::PaypalSdk(_)
+                | api_models::payments::WalletData::SamsungPay(_)
+                | api_models::payments::WalletData::TwintRedirect {}
+                | api_models::payments::WalletData::VippsRedirect {}
+                | api_models::payments::WalletData::TouchNGoRedirect(_)
+                | api_models::payments::WalletData::WeChatPayRedirect(_)
+                | api_models::payments::WalletData::WeChatPayQr(_)
+                | api_models::payments::WalletData::CashappQr(_)
+                | api_models::payments::WalletData::SwishQr(_) => {
+                    Err(errors::ConnectorError::NotSupported {
+                        message: utils::SELECTED_PAYMENT_METHOD.to_string(),
+                        connector: "Paypal",
+                    })?
+                }
             },
             api::PaymentMethodData::BankRedirect(ref bank_redirection_data) => {
                 let intent = match item.request.is_auto_capture()? {
@@ -259,7 +307,167 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PaypalPaymentsRequest {
                     payment_source,
                 })
             }
-            _ => Err(errors::ConnectorError::NotImplemented("Payment Method".to_string()).into()),
+            api_models::payments::PaymentMethodData::CardRedirect(ref card_redirect_data) => {
+                Self::try_from(card_redirect_data)
+            }
+            api_models::payments::PaymentMethodData::PayLater(ref paylater_data) => {
+                Self::try_from(paylater_data)
+            }
+            api_models::payments::PaymentMethodData::BankDebit(ref bank_debit_data) => {
+                Self::try_from(bank_debit_data)
+            }
+            api_models::payments::PaymentMethodData::BankTransfer(ref bank_transfer_data) => {
+                Self::try_from(bank_transfer_data.as_ref())
+            }
+            api_models::payments::PaymentMethodData::Voucher(ref voucher_data) => {
+                Self::try_from(voucher_data)
+            }
+            api_models::payments::PaymentMethodData::GiftCard(ref giftcard_data) => {
+                Self::try_from(giftcard_data.as_ref())
+            }
+            api_models::payments::PaymentMethodData::MandatePayment => {
+                Err(errors::ConnectorError::NotImplemented(
+                    utils::get_unimplemented_payment_method_error_message("Paypal"),
+                )
+                .into())
+            }
+            api_models::payments::PaymentMethodData::Reward(_)
+            | api_models::payments::PaymentMethodData::Crypto(_)
+            | api_models::payments::PaymentMethodData::Upi(_) => {
+                Err(errors::ConnectorError::NotSupported {
+                    message: utils::SELECTED_PAYMENT_METHOD.to_string(),
+                    connector: "Paypal",
+                }
+                .into())
+            }
+        }
+    }
+}
+
+impl TryFrom<&api_models::payments::CardRedirectData> for PaypalPaymentsRequest {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(value: &api_models::payments::CardRedirectData) -> Result<Self, Self::Error> {
+        match value {
+            api_models::payments::CardRedirectData::Knet {}
+            | api_models::payments::CardRedirectData::Benefit {}
+            | api_models::payments::CardRedirectData::MomoAtm {} => {
+                Err(errors::ConnectorError::NotSupported {
+                    message: utils::SELECTED_PAYMENT_METHOD.to_string(),
+                    connector: "Paypal",
+                }
+                .into())
+            }
+        }
+    }
+}
+
+impl TryFrom<&api_models::payments::PayLaterData> for PaypalPaymentsRequest {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(value: &api_models::payments::PayLaterData) -> Result<Self, Self::Error> {
+        match value {
+            api_models::payments::PayLaterData::KlarnaRedirect { .. }
+            | api_models::payments::PayLaterData::KlarnaSdk { .. }
+            | api_models::payments::PayLaterData::AffirmRedirect {}
+            | api_models::payments::PayLaterData::AfterpayClearpayRedirect { .. }
+            | api_models::payments::PayLaterData::PayBrightRedirect {}
+            | api_models::payments::PayLaterData::WalleyRedirect {}
+            | api_models::payments::PayLaterData::AlmaRedirect {}
+            | api_models::payments::PayLaterData::AtomeRedirect {} => {
+                Err(errors::ConnectorError::NotSupported {
+                    message: utils::SELECTED_PAYMENT_METHOD.to_string(),
+                    connector: "Paypal",
+                }
+                .into())
+            }
+        }
+    }
+}
+
+impl TryFrom<&api_models::payments::BankDebitData> for PaypalPaymentsRequest {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(value: &api_models::payments::BankDebitData) -> Result<Self, Self::Error> {
+        match value {
+            api_models::payments::BankDebitData::AchBankDebit { .. }
+            | api_models::payments::BankDebitData::SepaBankDebit { .. }
+            | api_models::payments::BankDebitData::BecsBankDebit { .. }
+            | api_models::payments::BankDebitData::BacsBankDebit { .. } => {
+                Err(errors::ConnectorError::NotSupported {
+                    message: utils::SELECTED_PAYMENT_METHOD.to_string(),
+                    connector: "Paypal",
+                }
+                .into())
+            }
+        }
+    }
+}
+
+impl TryFrom<&api_models::payments::BankTransferData> for PaypalPaymentsRequest {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(value: &api_models::payments::BankTransferData) -> Result<Self, Self::Error> {
+        match value {
+            api_models::payments::BankTransferData::AchBankTransfer { .. }
+            | api_models::payments::BankTransferData::SepaBankTransfer { .. }
+            | api_models::payments::BankTransferData::BacsBankTransfer { .. }
+            | api_models::payments::BankTransferData::MultibancoBankTransfer { .. }
+            | api_models::payments::BankTransferData::PermataBankTransfer { .. }
+            | api_models::payments::BankTransferData::BcaBankTransfer { .. }
+            | api_models::payments::BankTransferData::BniVaBankTransfer { .. }
+            | api_models::payments::BankTransferData::BriVaBankTransfer { .. }
+            | api_models::payments::BankTransferData::CimbVaBankTransfer { .. }
+            | api_models::payments::BankTransferData::DanamonVaBankTransfer { .. }
+            | api_models::payments::BankTransferData::MandiriVaBankTransfer { .. }
+            | api_models::payments::BankTransferData::Pix {}
+            | api_models::payments::BankTransferData::Pse {} => {
+                Err(errors::ConnectorError::NotSupported {
+                    message: utils::SELECTED_PAYMENT_METHOD.to_string(),
+                    connector: "Paypal",
+                }
+                .into())
+            }
+        }
+    }
+}
+
+impl TryFrom<&api_models::payments::VoucherData> for PaypalPaymentsRequest {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(value: &api_models::payments::VoucherData) -> Result<Self, Self::Error> {
+        match value {
+            api_models::payments::VoucherData::Boleto(_)
+            | api_models::payments::VoucherData::Efecty
+            | api_models::payments::VoucherData::PagoEfectivo
+            | api_models::payments::VoucherData::RedCompra
+            | api_models::payments::VoucherData::RedPagos
+            | api_models::payments::VoucherData::Alfamart(_)
+            | api_models::payments::VoucherData::Indomaret(_)
+            | api_models::payments::VoucherData::Oxxo
+            | api_models::payments::VoucherData::SevenEleven(_)
+            | api_models::payments::VoucherData::Lawson(_)
+            | api_models::payments::VoucherData::MiniStop(_)
+            | api_models::payments::VoucherData::FamilyMart(_)
+            | api_models::payments::VoucherData::Seicomart(_)
+            | api_models::payments::VoucherData::PayEasy(_) => {
+                Err(errors::ConnectorError::NotSupported {
+                    message: utils::SELECTED_PAYMENT_METHOD.to_string(),
+                    connector: "Paypal",
+                }
+                .into())
+            }
+        }
+    }
+}
+
+impl TryFrom<&api_models::payments::GiftCardData> for PaypalPaymentsRequest {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(value: &api_models::payments::GiftCardData) -> Result<Self, Self::Error> {
+        match value {
+            api_models::payments::GiftCardData::Givex(_)
+            | api_models::payments::GiftCardData::PaySafeCard {} => {
+                Err(errors::ConnectorError::NotSupported {
+                    message: utils::SELECTED_PAYMENT_METHOD.to_string(),
+                    connector: "Paypal",
+                }
+                .into())
+            }
         }
     }
 }
