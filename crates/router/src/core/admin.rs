@@ -253,27 +253,10 @@ pub async fn merchant_account_update(
 
     let key = key_store.key.get_inner().peek();
 
-    // Validate if the profile id sent in request is valid
-    let profile_id = req
-        .default_profile
-        .async_map(|profile_id| async {
-            db.find_business_profile_by_profile_id(&profile_id)
-                .await
-                .to_not_found_response(errors::ApiErrorResponse::BusinessProfileNotFound {
-                    id: profile_id,
-                })
-        })
-        .await
-        .transpose()?
-        .map(|business_profile| {
-            // Check if the merchant_id of business profile is same as the current merchant_id
-            if business_profile.merchant_id.ne(merchant_id) {
-                Err(errors::ApiErrorResponse::AccessForbidden)
-            } else {
-                Ok(business_profile.profile_id)
-            }
-        })
-        .transpose()?;
+    // Validate whether profile_id passed in request is valid and is linked to the merchant
+    let business_profile_from_request =
+        core_utils::validate_and_get_business_profile(db, request.profile_id.as_ref(), merchant_id)
+            .await?;
 
     let updated_merchant_account = storage::MerchantAccountUpdate::Update {
         merchant_name: req
