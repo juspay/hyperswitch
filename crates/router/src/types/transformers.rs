@@ -196,7 +196,8 @@ impl ForeignFrom<api_enums::IntentStatus> for storage_enums::EventType {
             api_enums::IntentStatus::Cancelled
             | api_enums::IntentStatus::RequiresPaymentMethod
             | api_enums::IntentStatus::RequiresConfirmation
-            | api_enums::IntentStatus::RequiresCapture => Self::UnsupportedEvent,
+            | api_enums::IntentStatus::RequiresCapture
+            | api_enums::IntentStatus::PartiallyCaptured => Self::UnsupportedEvent,
         }
     }
 }
