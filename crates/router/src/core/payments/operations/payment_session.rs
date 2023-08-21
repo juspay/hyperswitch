@@ -309,7 +309,7 @@ where
         merchant_account: &domain::MerchantAccount,
         state: &AppState,
         request: &api::PaymentsSessionRequest,
-        payment_intent: &storage::payment_intent::PaymentIntent,
+        payment_intent: &storage::PaymentIntent,
         key_store: &domain::MerchantKeyStore,
     ) -> RouterResult<api::ConnectorChoice> {
         let db = &state.store;
