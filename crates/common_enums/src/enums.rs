@@ -757,6 +757,7 @@ pub enum EventType {
     DisputeChallenged,
     DisputeWon,
     DisputeLost,
+    UnsupportedEvent,
 }
 
 #[derive(

@@ -142,6 +142,7 @@ fn get_stripe_event_type(event_type: api_models::enums::EventType) -> &'static s
         api_models::enums::EventType::DisputeChallenged => "dispute.challenged",
         api_models::enums::EventType::DisputeWon => "dispute.won",
         api_models::enums::EventType::DisputeLost => "dispute.lost",
+        api_models::enums::EventType::UnsupportedEvent => "unsupported.event",
     }
 }
 
