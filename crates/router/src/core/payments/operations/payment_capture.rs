@@ -141,6 +141,7 @@ impl<F: Send + Clone> GetTracker<F, payments::PaymentData<F>, api::PaymentsCaptu
                 Some(MultipleCaptureData::new_for_create(
                     previous_captures,
                     capture,
+                    request.last_capture,
                 )),
                 new_connector_response,
             )

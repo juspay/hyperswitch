@@ -12,13 +12,18 @@ pub struct MultipleCaptureData {
     // key -> capture_id, value -> Capture
     all_captures: HashMap<String, storage::Capture>,
     latest_capture: storage::Capture,
+    pub last_capture: Option<bool>,
+    pub expand_captures: Option<bool>,
     _private: Private, // to restrict direct construction of MultipleCaptureData
 }
 #[derive(Clone, Debug)]
 struct Private {}
 
 impl MultipleCaptureData {
-    pub fn new_for_sync(captures: Vec<storage::Capture>) -> RouterResult<Self> {
+    pub fn new_for_sync(
+        captures: Vec<storage::Capture>,
+        expand_captures: Option<bool>,
+    ) -> RouterResult<Self> {
         let latest_capture = captures
             .last()
             .ok_or(errors::ApiErrorResponse::InternalServerError)
@@ -32,6 +37,8 @@ impl MultipleCaptureData {
                 .collect(),
             latest_capture,
             _private: Private {},
+            last_capture: None,
+            expand_captures,
         };
         Ok(multiple_capture_data)
     }
@@ -39,6 +46,7 @@ impl MultipleCaptureData {
     pub fn new_for_create(
         mut previous_captures: Vec<storage::Capture>,
         new_capture: storage::Capture,
+        is_last_capture: Option<bool>,
     ) -> Self {
         previous_captures.push(new_capture.clone());
         Self {
@@ -48,6 +56,8 @@ impl MultipleCaptureData {
                 .collect(),
             latest_capture: new_capture,
             _private: Private {},
+            last_capture: is_last_capture,
+            expand_captures: None,
         }
     }
 

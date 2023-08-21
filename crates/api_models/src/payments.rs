@@ -1506,6 +1506,8 @@ pub struct PaymentsCaptureRequest {
     pub statement_descriptor_suffix: Option<String>,
     /// Concatenated with the statement descriptor suffix that’s set on the account to form the complete statement descriptor.
     pub statement_descriptor_prefix: Option<String>,
+    /// Indicates weather the partial capture is last capture or not
+    pub last_capture: Option<bool>,
     /// Merchant connector details used to make payments.
     #[schema(value_type = Option<MerchantConnectorDetailsWrap>)]
     pub merchant_connector_details: Option<admin::MerchantConnectorDetailsWrap>,
@@ -2173,6 +2175,8 @@ pub struct PaymentsRetrieveRequest {
     /// This is a token which expires after 15 minutes, used from the client to authenticate and create sessions from the SDK
     pub client_secret: Option<String>,
     /// If enabled provides list of attempts linked to payment intent
+    pub expand_captures: Option<bool>,
+    /// If enabled provides list of attempts linked to payment intent
     pub expand_attempts: Option<bool>,
 }
 
@@ -2571,6 +2575,8 @@ pub struct PaymentRetrieveBody {
     pub force_sync: Option<bool>,
     /// This is a token which expires after 15 minutes, used from the client to authenticate and create sessions from the SDK
     pub client_secret: Option<String>,
+    /// If enabled provides list of attempts linked to payment intent
+    pub expand_captures: Option<bool>,
     /// If enabled provides list of attempts linked to payment intent
     pub expand_attempts: Option<bool>,
 }
