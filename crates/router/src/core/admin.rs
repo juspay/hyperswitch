@@ -14,6 +14,7 @@ use crate::{
     core::{
         errors::{self, RouterResponse, RouterResult, StorageErrorExt},
         payments::helpers,
+        utils as core_utils,
     },
     db::StorageInterface,
     routes::metrics,
@@ -165,6 +166,7 @@ pub async fn create_merchant_account(
     )
     .await?;
 
+    // Update merchant account with the business profile id
     merchant_account.default_profile = Some(business_profile.profile_id);
 
     let merchant_account = db
@@ -501,29 +503,14 @@ pub async fn create_payment_connector(
 
     let frm_configs = get_frm_config_as_secret(req.frm_configs);
 
-    // Validate if the profile id sent in request is valid
-    let profile_id = req
-        .profile_id
-        .or(merchant_account.default_profile)
-        .async_map(|profile_id| async {
-            store
-                .find_business_profile_by_profile_id(&profile_id)
-                .await
-                .to_not_found_response(errors::ApiErrorResponse::BusinessProfileNotFound {
-                    id: profile_id,
-                })
-        })
-        .await
-        .transpose()?
-        .map(|business_profile| {
-            // Check if the merchant_id of business profile is same as the current merchant_id
-            if business_profile.merchant_id.ne(merchant_id) {
-                Err(errors::ApiErrorResponse::AccessForbidden)
-            } else {
-                Ok(business_profile.profile_id)
-            }
-        })
-        .transpose()?;
+    // Validate whether profile_id passed in request is valid and is linked to the merchant
+    let business_profile_from_request =
+        core_utils::validate_and_get_business_profile(store, req.profile_id.as_ref(), merchant_id)
+            .await?;
+
+    let profile_id = business_profile_from_request
+        .map(|business_profile| business_profile.profile_id)
+        .or(merchant_account.default_profile.clone());
 
     let merchant_connector_account = domain::MerchantConnectorAccount {
         merchant_id: merchant_id.to_string(),

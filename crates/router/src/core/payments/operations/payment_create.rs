@@ -14,7 +14,7 @@ use crate::{
     core::{
         errors::{self, CustomResult, RouterResult, StorageErrorExt},
         payments::{self, helpers, operations, CustomerDetails, PaymentAddress, PaymentData},
-        utils as core_utils,
+        utils::{self as core_utils},
     },
     db::StorageInterface,
     routes::AppState,
@@ -64,6 +64,18 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
         let payment_id = payment_id
             .get_payment_intent_id()
             .change_context(errors::ApiErrorResponse::PaymentNotFound)?;
+
+        // Validate whether profile_id passed in request is valid and is linked to the merchant
+        let business_profile_from_request = core_utils::validate_and_get_business_profile(
+            db,
+            request.profile_id.as_ref(),
+            merchant_id,
+        )
+        .await?;
+
+        let profile_id = business_profile_from_request
+            .map(|business_profile| business_profile.profile_id)
+            .or(merchant_account.default_profile.clone());
 
         let (
             token,
@@ -143,6 +155,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
                     shipping_address.clone().map(|x| x.address_id),
                     billing_address.clone().map(|x| x.address_id),
                     payment_attempt.attempt_id.to_owned(),
+                    profile_id,
                 )?,
                 storage_scheme,
             )
@@ -577,6 +590,7 @@ impl PaymentCreate {
         shipping_address_id: Option<String>,
         billing_address_id: Option<String>,
         active_attempt_id: String,
+        profile_id: Option<String>,
     ) -> RouterResult<storage::PaymentIntentNew> {
         let created_at @ modified_at @ last_synced = Some(common_utils::date_time::now());
         let status =
@@ -659,10 +673,7 @@ impl PaymentCreate {
             connector_metadata,
             feature_metadata,
             attempt_count: 1,
-            profile_id: request
-                .profile_id
-                .clone()
-                .or(merchant_account.default_profile.clone()),
+            profile_id,
         })
     }
 
