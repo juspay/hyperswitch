@@ -142,7 +142,18 @@ where
         proxy_config: Proxy,
         whitelisted_urls: Vec<String>,
     ) -> CustomResult<Self, ApiClientError>;
-    fn request<U: IntoUrl>(&self, method: Method, url: U) -> Box<dyn RequestBuilder>;
+    fn request<U: IntoUrl>(
+        &self,
+        method: Method,
+        url: String,
+    ) -> CustomResult<Box<dyn RequestBuilder>, ApiClientError>;
+    fn request_with_certificate(
+        &self,
+        method: Method,
+        url: String,
+        certificate: Option<String>,
+        certificate_key: Option<String>,
+    ) -> CustomResult<Box<dyn RequestBuilder>, ApiClientError>;
 }
 
 #[derive(Clone)]
@@ -193,8 +204,7 @@ pub struct RouterRequestBuilder {
     // Since for this brief period of time between the value being consumed & newer request builder
     // since requestbuilder does not allow moving the value
     // leaves our struct in an inconsistent state, we are using option to get around rust semantics
-    inner: Option<reqwest::RequestBuilder>,
-    client: ProxyClient,
+    inner: Option<reqwest::RequestBuilder>
 }
 
 impl RequestBuilder for RouterRequestBuilder {
@@ -286,10 +296,26 @@ impl ApiClient for ProxyClient {
         })
     }
 
-    fn request<U: IntoUrl>(&self, method: Method, url: U) -> Box<dyn RequestBuilder> {
-        Box::new(RouterRequestBuilder {
-            inner: Some(self.proxy_client.request(method, url)),
-            client: self.clone(),
-        })
+    fn request<U: IntoUrl>(
+        &self,
+        method: Method,
+        url: String,
+    ) -> CustomResult<Box<dyn RequestBuilder>, ApiClientError> {
+        self.request_with_certificate(method, url, None, None)
+    }
+
+    fn request_with_certificate(
+        &self,
+        method: Method,
+        url: String,
+        certificate: Option<String>,
+        certificate_key: Option<String>,
+    ) -> CustomResult<Box<dyn RequestBuilder>, ApiClientError> {
+        let client_builder = self
+            .get_reqwest_client(url.clone(), certificate, certificate_key)
+            .change_context(ApiClientError::ClientConstructionFailed)?;
+        Ok(Box::new(RouterRequestBuilder {
+            inner: Some(client_builder.request(method, url)),
+        }))
     }
 }
