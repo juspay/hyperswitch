@@ -385,17 +385,6 @@ impl
                             ),
                         }
                     }
-                    adyen::AdyenRedirectRequestTypes::AdyenRefusal(req) => {
-                        adyen::AdyenRedirectRequest {
-                            details: adyen::AdyenRedirectRequestTypes::AdyenRefusal(
-                                adyen::AdyenRefusal {
-                                    payload: req.payload,
-                                    type_of_redirection_result: None,
-                                    result_code: None,
-                                },
-                            ),
-                        }
-                    }
                 };
 
                 let adyen_request = types::RequestBody::log_and_get_request_body(
@@ -1359,6 +1348,7 @@ impl api::IncomingWebhook for Adyen {
             .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
 
         let base64_signature = notif_item.additional_data.hmac_signature;
+
         Ok(base64_signature.as_bytes().to_vec())
     }
 
@@ -1390,10 +1380,9 @@ impl api::IncomingWebhook for Adyen {
         &self,
         db: &dyn StorageInterface,
         request: &api::IncomingWebhookRequestDetails<'_>,
-        merchant_account: &domain::MerchantAccount,
+        merchant_id: &str,
         connector_label: &str,
         key_store: &domain::MerchantKeyStore,
-        object_reference_id: api_models::webhooks::ObjectReferenceId,
     ) -> CustomResult<bool, errors::ConnectorError> {
         let signature = self
             .get_webhook_source_verification_signature(request)
@@ -1401,19 +1390,14 @@ impl api::IncomingWebhook for Adyen {
         let secret = self
             .get_webhook_source_verification_merchant_secret(
                 db,
-                merchant_account,
+                merchant_id,
                 connector_label,
                 key_store,
-                object_reference_id,
             )
             .await
             .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
         let message = self
-            .get_webhook_source_verification_message(
-                request,
-                &merchant_account.merchant_id,
-                &secret,
-            )
+            .get_webhook_source_verification_message(request, merchant_id, &secret)
             .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
 
         let raw_key = hex::decode(secret)

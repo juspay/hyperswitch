@@ -120,7 +120,6 @@ async fn should_sync_authorized_payment() {
                 connector_transaction_id: router::types::ResponseId::ConnectorTransactionId(txn_id),
                 encoded_data: None,
                 capture_method: None,
-                pending_capture_id_list: None,
                 connector_meta,
                 mandate_id: None,
             }),

@@ -192,18 +192,14 @@ async fn create_applepay_session_token(
                 })?,
             currency_code: router_data.request.currency,
             total: amount_info,
-            merchant_capabilities: Some(
-                applepay_metadata
-                    .data
-                    .payment_request_data
-                    .merchant_capabilities,
-            ),
-            supported_networks: Some(
-                applepay_metadata
-                    .data
-                    .payment_request_data
-                    .supported_networks,
-            ),
+            merchant_capabilities: applepay_metadata
+                .data
+                .payment_request_data
+                .merchant_capabilities,
+            supported_networks: applepay_metadata
+                .data
+                .payment_request_data
+                .supported_networks,
             merchant_identifier: Some(
                 applepay_metadata
                     .data
@@ -271,8 +267,6 @@ fn create_apple_pay_session_response(
                         connector: connector_name,
                         delayed_session_token: delayed_response,
                         sdk_next_action: { payment_types::SdkNextAction { next_action } },
-                        connector_reference_id: None,
-                        connector_sdk_public_key: None,
                     },
                 )),
             }),

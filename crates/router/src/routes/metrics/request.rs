@@ -57,8 +57,7 @@ pub fn track_response_status_code<Q>(response: &ApplicationResponse<Q>) -> i64 {
         | ApplicationResponse::StatusOk
         | ApplicationResponse::TextPlain(_)
         | ApplicationResponse::Form(_)
-        | ApplicationResponse::FileData(_)
-        | ApplicationResponse::JsonWithHeaders(_) => 200,
+        | ApplicationResponse::FileData(_) => 200,
         ApplicationResponse::JsonForRedirection(_) => 302,
     }
 }

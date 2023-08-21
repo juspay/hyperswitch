@@ -6,7 +6,7 @@ use common_utils::{crypto::Encryptable, ext_traits::ValueExt};
 use diesel_models::enums as storage_enums;
 use error_stack::{report, ResultExt};
 use router_env::{instrument, tracing};
-use serde_json;
+use serde_json::{self};
 
 use super::errors::{ConnectorErrorExt, StorageErrorExt};
 use crate::{

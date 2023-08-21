@@ -56,7 +56,7 @@ pub fn polymorphic_macro_derive_inner(
 
                 all_fields
                     .entry(field_without_attributes.to_owned())
-                    .or_default()
+                    .or_insert(vec![])
                     .push(attribute.to_owned().to_owned());
             });
 

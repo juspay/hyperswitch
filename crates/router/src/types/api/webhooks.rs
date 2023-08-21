@@ -13,7 +13,7 @@ use crate::{
     db::StorageInterface,
     logger, services,
     types::domain,
-    utils::{self, crypto},
+    utils::crypto,
 };
 
 pub struct IncomingWebhookRequestDetails<'a> {
@@ -78,30 +78,19 @@ pub trait IncomingWebhook: ConnectorCommon + Sync {
     async fn get_webhook_source_verification_merchant_secret(
         &self,
         db: &dyn StorageInterface,
-        merchant_account: &domain::MerchantAccount,
+        merchant_id: &str,
         connector_name: &str,
         key_store: &domain::MerchantKeyStore,
-        object_reference_id: ObjectReferenceId,
     ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
-        let merchant_id = merchant_account.merchant_id.as_str();
         let debug_suffix = format!(
             "For merchant_id: {}, and connector_name: {}",
             merchant_id, connector_name
         );
         let default_secret = "default_secret".to_string();
-        let connector_label = utils::get_connector_label_using_object_reference_id(
-            db,
-            object_reference_id,
-            merchant_account,
-            connector_name,
-        )
-        .await
-        .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)
-        .attach_printable("Error while fetching connector_label")?;
         let merchant_connector_account_result = db
-            .find_merchant_connector_account_by_merchant_id_connector_label(
+            .find_merchant_connector_account_by_merchant_id_connector_name(
                 merchant_id,
-                &connector_label,
+                connector_name,
                 key_store,
             )
             .await;
@@ -160,10 +149,9 @@ pub trait IncomingWebhook: ConnectorCommon + Sync {
         &self,
         db: &dyn StorageInterface,
         request: &IncomingWebhookRequestDetails<'_>,
-        merchant_account: &domain::MerchantAccount,
+        merchant_id: &str,
         connector_label: &str,
         key_store: &domain::MerchantKeyStore,
-        object_reference_id: ObjectReferenceId,
     ) -> CustomResult<bool, errors::ConnectorError> {
         let algorithm = self
             .get_webhook_source_verification_algorithm(request)
@@ -175,19 +163,14 @@ pub trait IncomingWebhook: ConnectorCommon + Sync {
         let secret = self
             .get_webhook_source_verification_merchant_secret(
                 db,
-                merchant_account,
+                merchant_id,
                 connector_label,
                 key_store,
-                object_reference_id,
             )
             .await
             .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
         let message = self
-            .get_webhook_source_verification_message(
-                request,
-                &merchant_account.merchant_id,
-                &secret,
-            )
+            .get_webhook_source_verification_message(request, merchant_id, &secret)
             .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
         algorithm
             .verify_signature(&secret, &signature, &message)

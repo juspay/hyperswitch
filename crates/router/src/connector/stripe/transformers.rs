@@ -616,12 +616,6 @@ impl TryFrom<enums::PaymentMethodType> for StripePaymentMethodType {
             | enums::PaymentMethodType::Oxxo
             | enums::PaymentMethodType::Benefit
             | enums::PaymentMethodType::Knet
-            | enums::PaymentMethodType::SevenEleven
-            | enums::PaymentMethodType::Lawson
-            | enums::PaymentMethodType::MiniStop
-            | enums::PaymentMethodType::FamilyMart
-            | enums::PaymentMethodType::Seicomart
-            | enums::PaymentMethodType::PayEasy
             | enums::PaymentMethodType::Walley => Err(errors::ConnectorError::NotImplemented(
                 connector_util::get_unimplemented_payment_method_error_message("stripe"),
             )
@@ -813,6 +807,7 @@ impl TryFrom<&api_models::enums::BankNames> for StripeBankNames {
             _ => Err(errors::ConnectorError::NotSupported {
                 message: api_enums::PaymentMethod::BankRedirect.to_string(),
                 connector: "Stripe",
+                payment_experience: api_enums::PaymentExperience::RedirectToUrl.to_string(),
             })?,
         })
     }
@@ -924,12 +919,6 @@ fn infer_stripe_pay_later_type(
             | enums::PaymentMethodType::PaySafeCard
             | enums::PaymentMethodType::Givex
             | enums::PaymentMethodType::Oxxo
-            | enums::PaymentMethodType::SevenEleven
-            | enums::PaymentMethodType::Lawson
-            | enums::PaymentMethodType::MiniStop
-            | enums::PaymentMethodType::FamilyMart
-            | enums::PaymentMethodType::Seicomart
-            | enums::PaymentMethodType::PayEasy
             | enums::PaymentMethodType::WeChatPay => Err(errors::ConnectorError::NotImplemented(
                 connector_util::get_unimplemented_payment_method_error_message("stripe"),
             )),
@@ -938,6 +927,7 @@ fn infer_stripe_pay_later_type(
         Err(errors::ConnectorError::NotSupported {
             message: pm_type.to_string(),
             connector: "stripe",
+            payment_experience: experience.to_string(),
         })
     }
 }
@@ -3217,6 +3207,7 @@ impl
             | api::PaymentMethodData::Voucher(_) => Err(errors::ConnectorError::NotSupported {
                 message: format!("{pm_type:?}"),
                 connector: "Stripe",
+                payment_experience: api_models::enums::PaymentExperience::RedirectToUrl.to_string(),
             })?,
         }
     }

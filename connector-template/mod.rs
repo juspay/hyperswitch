@@ -1,4 +1,4 @@
-pub mod transformers;
+mod transformers;
 
 use std::fmt::Debug;
 use error_stack::{ResultExt, IntoReport};
@@ -76,6 +76,14 @@ impl ConnectorCommon for {{project-name | downcase | pascal_case}} {
 
     fn base_url<'a>(&self, connectors: &'a settings::Connectors) -> &'a str {
         connectors.{{project-name}}.base_url.as_ref()
+    }
+    
+    fn validate_auth_type(
+        &self,
+        val: &types::ConnectorAuthType,
+    ) -> Result<(), error_stack::Report<errors::ConnectorError>> {
+        {{project-name | downcase}}::{{project-name | downcase | pascal_case}}AuthType::try_from(val)?;
+        Ok(())
     }
 
     fn get_auth_header(&self, auth_type:&types::ConnectorAuthType)-> CustomResult<Vec<(String,request::Maskable<String>)>,errors::ConnectorError> {

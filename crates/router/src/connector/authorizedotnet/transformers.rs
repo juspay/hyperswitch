@@ -136,6 +136,8 @@ fn get_pm_and_subsequent_auth_detail(
                 _ => Err(errors::ConnectorError::NotSupported {
                     message: format!("{:?}", item.request.payment_method_data),
                     connector: "AuthorizeDotNet",
+                    payment_experience: api_models::enums::PaymentExperience::RedirectToUrl
+                        .to_string(),
                 })?,
             }
         }
@@ -162,6 +164,7 @@ fn get_pm_and_subsequent_auth_detail(
             _ => Err(errors::ConnectorError::NotSupported {
                 message: format!("{:?}", item.request.payment_method_data),
                 connector: "AuthorizeDotNet",
+                payment_experience: api_models::enums::PaymentExperience::RedirectToUrl.to_string(),
             })?,
         },
     }

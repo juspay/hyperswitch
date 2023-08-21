@@ -182,7 +182,6 @@ pub async fn construct_payout_router_data<'a, F>(
         quote_id: None,
         test_mode,
         payment_method_balance: None,
-        connector_http_status_code: None,
     };
 
     Ok(router_data)
@@ -290,7 +289,6 @@ pub async fn construct_refund_router_data<'a, F>(
         quote_id: None,
         test_mode,
         payment_method_balance: None,
-        connector_http_status_code: None,
     };
 
     Ok(router_data)
@@ -508,7 +506,6 @@ pub async fn construct_accept_dispute_router_data<'a>(
         quote_id: None,
         test_mode,
         payment_method_balance: None,
-        connector_http_status_code: None,
     };
     Ok(router_data)
 }
@@ -583,7 +580,6 @@ pub async fn construct_submit_evidence_router_data<'a>(
         #[cfg(feature = "payouts")]
         quote_id: None,
         test_mode,
-        connector_http_status_code: None,
     };
     Ok(router_data)
 }
@@ -659,7 +655,6 @@ pub async fn construct_upload_file_router_data<'a>(
         #[cfg(feature = "payouts")]
         quote_id: None,
         test_mode,
-        connector_http_status_code: None,
     };
     Ok(router_data)
 }
@@ -737,7 +732,6 @@ pub async fn construct_defend_dispute_router_data<'a>(
         #[cfg(feature = "payouts")]
         quote_id: None,
         test_mode,
-        connector_http_status_code: None,
     };
     Ok(router_data)
 }
@@ -810,7 +804,6 @@ pub async fn construct_retrieve_file_router_data<'a>(
         #[cfg(feature = "payouts")]
         quote_id: None,
         test_mode,
-        connector_http_status_code: None,
     };
     Ok(router_data)
 }

@@ -98,13 +98,3 @@ pub(crate) mod diesel_impl {
         }
     }
 }
-
-pub(crate) mod metrics {
-    use router_env::{counter_metric, global_meter, histogram_metric, metrics_context, once_cell};
-
-    metrics_context!(CONTEXT);
-    global_meter!(GLOBAL_METER, "ROUTER_API");
-
-    counter_metric!(DATABASE_CALLS_COUNT, GLOBAL_METER);
-    histogram_metric!(DATABASE_CALL_TIME, GLOBAL_METER);
-}

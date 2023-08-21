@@ -57,6 +57,7 @@ impl TryFrom<utils::CardIssuer> for ForteCardType {
             _ => Err(errors::ConnectorError::NotSupported {
                 message: issuer.to_string(),
                 connector: "Forte",
+                payment_experience: api::enums::PaymentExperience::RedirectToUrl.to_string(),
             }
             .into()),
         }
@@ -70,6 +71,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for FortePaymentsRequest {
             Err(errors::ConnectorError::NotSupported {
                 message: item.request.currency.to_string(),
                 connector: "Forte",
+                payment_experience: api::enums::PaymentExperience::RedirectToUrl.to_string(),
             })?
         }
         match item.request.payment_method_data {

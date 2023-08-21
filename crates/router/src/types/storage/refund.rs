@@ -7,12 +7,14 @@ pub use diesel_models::refund::{
 use diesel_models::{
     enums::{Currency, RefundStatus},
     errors,
-    query::generics::db_metrics,
     schema::refund::dsl,
 };
 use error_stack::{IntoReport, ResultExt};
 
 use crate::{connection::PgPooledConn, logger};
+
+#[cfg(feature = "kv_store")]
+impl crate::utils::storage_partitioning::KvStorePartition for Refund {}
 
 #[async_trait::async_trait]
 pub trait RefundDbExt: Sized {
@@ -76,14 +78,12 @@ impl RefundDbExt for Refund {
 
         logger::debug!(query = %diesel::debug_query::<diesel::pg::Pg, _>(&filter).to_string());
 
-        db_metrics::track_database_call::<<Self as HasTable>::Table, _, _>(
-            filter.get_results_async(conn),
-            db_metrics::DatabaseOperation::Filter,
-        )
-        .await
-        .into_report()
-        .change_context(errors::DatabaseError::NotFound)
-        .attach_printable_lazy(|| "Error filtering records by predicate")
+        filter
+            .get_results_async(conn)
+            .await
+            .into_report()
+            .change_context(errors::DatabaseError::NotFound)
+            .attach_printable_lazy(|| "Error filtering records by predicate")
     }
 
     async fn filter_by_meta_constraints(

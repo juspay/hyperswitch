@@ -1,17 +1,11 @@
 use actix_web::{web, HttpRequest, HttpResponse};
-use common_utils::{consts::TOKEN_TTL, errors::CustomResult};
-use error_stack::{IntoReport, ResultExt};
-use router_env::{instrument, logger, tracing, Flow};
-use time::PrimitiveDateTime;
+use router_env::{instrument, tracing, Flow};
 
 use super::app::AppState;
 use crate::{
-    core::{errors, payment_methods::cards},
+    core::payment_methods::cards,
     services::{api, authentication as auth},
-    types::{
-        api::payment_methods::{self, PaymentMethodId},
-        storage::enums as storage_enums,
-    },
+    types::api::payment_methods::{self, PaymentMethodId},
 };
 
 /// PaymentMethods - Create
@@ -358,77 +352,5 @@ mod tests {
         let de_query: Result<web::Query<PaymentMethodListRequest>, _> =
             web::Query::from_query(dummy_data);
         assert!(de_query.is_err())
-    }
-}
-
-#[derive(Clone)]
-pub struct ParentPaymentMethodToken {
-    key_for_token: String,
-}
-
-impl ParentPaymentMethodToken {
-    pub fn create_key_for_token(
-        (parent_pm_token, payment_method): (&String, api_models::enums::PaymentMethod),
-    ) -> Self {
-        Self {
-            key_for_token: format!(
-                "pm_token_{}_{}_hyperswitch",
-                parent_pm_token, payment_method
-            ),
-        }
-    }
-    pub async fn insert(
-        &self,
-        intent_created_at: Option<PrimitiveDateTime>,
-        token: String,
-        state: &AppState,
-    ) -> CustomResult<(), errors::ApiErrorResponse> {
-        let redis_conn = state
-            .store
-            .get_redis_conn()
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Failed to get redis connection")?;
-        let current_datetime_utc = common_utils::date_time::now();
-        let time_elapsed = current_datetime_utc - intent_created_at.unwrap_or(current_datetime_utc);
-        redis_conn
-            .set_key_with_expiry(
-                &self.key_for_token,
-                token,
-                TOKEN_TTL - time_elapsed.whole_seconds(),
-            )
-            .await
-            .map_err(|error| {
-                logger::error!(hyperswitch_token_kv_error=?error);
-                errors::StorageError::KVError
-            })
-            .into_report()
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Failed to add data in redis")?;
-
-        Ok(())
-    }
-
-    pub fn should_delete_payment_method_token(&self, status: storage_enums::IntentStatus) -> bool {
-        !matches!(
-            status,
-            diesel_models::enums::IntentStatus::RequiresCustomerAction
-        )
-    }
-
-    pub async fn delete(&self, state: &AppState) -> CustomResult<(), errors::ApiErrorResponse> {
-        let redis_conn = state
-            .store
-            .get_redis_conn()
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Failed to get redis connection")?;
-        match redis_conn.delete_key(&self.key_for_token).await {
-            Ok(_) => Ok(()),
-            Err(err) => {
-                {
-                    logger::info!("Error while deleting redis key: {:?}", err)
-                };
-                Ok(())
-            }
-        }
     }
 }

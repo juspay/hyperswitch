@@ -6,7 +6,7 @@ body:
   - type: markdown
     attributes:
       value: |
-        We value your time and effort in submitting this bug report. Here are a few things to check before clicking the submit button :)
+        We value your time and effort to submit this bug report. Here are a few things to check before clicking the submit button :)
         1. Make sure you're on the latest version of the app. The current release can be found here: https://github.com/juspay/hyperswitch/releases/latest.
         2. Search through **both** open and closed issues for your bug: https://github.com/juspay/hyperswitch/issues?q=is%3Aissue+sort%3Aupdated-desc+.
         3. Please try to fill this template completely to the best of your abilities. A bug report that is clear and has a reproducible example lets us get to work faster.
@@ -67,7 +67,7 @@ body:
       description: Provide information about the environment where you are running or trying to build the app.
       value: |
         Are you using hyperswitch hosted version? Yes/No
-        If yes, please provide the value of the `x-request-id` response header to help us debug your issue.
+        If yes, please provide the value of the `x-request-id` response header for helping us debug your issue.
 
         If not (or if building/running locally), please provide the following details:
         1. Operating System or Linux distribution:
@@ -79,9 +79,9 @@ body:
   - type: checkboxes
     id: no-duplicate-issues
     attributes:
-      label: Have you spent some time checking if this bug has been raised before?
+      label: Have you spent some time to check if this bug has been raised before?
       options:
-        - label: I checked and didn't find a similar issue
+        - label: I checked and didn't find similar issue
           required: true
 
   - type: checkboxes
@@ -98,6 +98,6 @@ body:
       label: Are you willing to submit a PR?
       description: This is absolutely not required, but we are happy to guide you in the contribution process.
       options:
-        - Yes, I am willing to submit a PR!
+        - Yes I am willing to submit a PR!
         - No, but I'm happy to collaborate on a PR with someone else
         - No, I don't have time to work on this right now

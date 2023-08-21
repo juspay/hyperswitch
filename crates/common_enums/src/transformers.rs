@@ -1611,12 +1611,6 @@ impl From<PaymentMethodType> for PaymentMethod {
             PaymentMethodType::Givex => Self::GiftCard,
             PaymentMethodType::Oxxo => Self::Voucher,
             PaymentMethodType::OpenBankingUk => Self::BankRedirect,
-            PaymentMethodType::SevenEleven => Self::Voucher,
-            PaymentMethodType::Lawson => Self::Voucher,
-            PaymentMethodType::MiniStop => Self::Voucher,
-            PaymentMethodType::FamilyMart => Self::Voucher,
-            PaymentMethodType::Seicomart => Self::Voucher,
-            PaymentMethodType::PayEasy => Self::Voucher,
         }
     }
 }

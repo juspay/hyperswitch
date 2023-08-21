@@ -392,18 +392,14 @@ impl TryFrom<types::PaymentsSessionResponseRouterData<BluesnapWalletTokenRespons
                                 total_type: Some("final".to_string()),
                                 amount: item.data.request.amount.to_string(),
                             },
-                            merchant_capabilities: Some(
-                                applepay_metadata
-                                    .data
-                                    .payment_request_data
-                                    .merchant_capabilities,
-                            ),
-                            supported_networks: Some(
-                                applepay_metadata
-                                    .data
-                                    .payment_request_data
-                                    .supported_networks,
-                            ),
+                            merchant_capabilities: applepay_metadata
+                                .data
+                                .payment_request_data
+                                .merchant_capabilities,
+                            supported_networks: applepay_metadata
+                                .data
+                                .payment_request_data
+                                .supported_networks,
                             merchant_identifier: Some(
                                 applepay_metadata
                                     .data
@@ -418,8 +414,6 @@ impl TryFrom<types::PaymentsSessionResponseRouterData<BluesnapWalletTokenRespons
                                 next_action: payments::NextActionCall::Confirm,
                             }
                         },
-                        connector_reference_id: None,
-                        connector_sdk_public_key: None,
                     },
                 )),
             }),

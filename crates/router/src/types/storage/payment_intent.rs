@@ -1,6 +1,5 @@
 use async_bb8_diesel::AsyncRunQueryDsl;
 use diesel::{associations::HasTable, debug_query, pg::Pg, ExpressionMethods, JoinOnDsl, QueryDsl};
-use diesel_models::query::generics::db_metrics;
 pub use diesel_models::{
     errors,
     payment_attempt::PaymentAttempt,
@@ -18,6 +17,9 @@ use router_env::{instrument, tracing};
 use crate::{connection::PgPooledConn, core::errors::CustomResult, types::api};
 
 const JOIN_LIMIT: i64 = 20;
+
+#[cfg(feature = "kv_store")]
+impl crate::utils::storage_partitioning::KvStorePartition for PaymentIntent {}
 
 #[async_trait::async_trait]
 pub trait PaymentIntentDbExt: Sized {
@@ -94,14 +96,12 @@ impl PaymentIntentDbExt for PaymentIntent {
 
         crate::logger::debug!(query = %debug_query::<Pg, _>(&filter).to_string());
 
-        db_metrics::track_database_call::<<Self as HasTable>::Table, _, _>(
-            filter.get_results_async(conn),
-            db_metrics::DatabaseOperation::Filter,
-        )
-        .await
-        .into_report()
-        .change_context(errors::DatabaseError::NotFound)
-        .attach_printable_lazy(|| "Error filtering records by predicate")
+        filter
+            .get_results_async(conn)
+            .await
+            .into_report()
+            .change_context(errors::DatabaseError::NotFound)
+            .attach_printable_lazy(|| "Error filtering records by predicate")
     }
 
     #[instrument(skip(conn))]

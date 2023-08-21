@@ -16,7 +16,7 @@ use crate::{
     core::errors::{self, CustomResult, RouterResult},
     logger, routes,
     types::{
-        api,
+        api::{self},
         storage::{self, enums},
     },
     utils::{self, StringExt},

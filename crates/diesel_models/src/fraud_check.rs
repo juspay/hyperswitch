@@ -3,7 +3,7 @@ use masking::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
 
 use crate::{
-    enums::{FraudCheckLastStep, FraudCheckStatus, FraudCheckType},
+    enums::{FraudCheckStatus, FraudCheckType},
     schema::fraud_check,
 };
 #[derive(Clone, Debug, Identifiable, Queryable, Serialize, Deserialize)]
@@ -24,7 +24,6 @@ pub struct FraudCheck {
     pub payment_details: Option<serde_json::Value>,
     pub metadata: Option<serde_json::Value>,
     pub modified_at: PrimitiveDateTime,
-    pub last_step: FraudCheckLastStep,
 }
 
 #[derive(router_derive::Setter, Clone, Debug, Insertable, router_derive::DebugAsDisplay)]
@@ -45,7 +44,6 @@ pub struct FraudCheckNew {
     pub payment_details: Option<serde_json::Value>,
     pub metadata: Option<serde_json::Value>,
     pub modified_at: PrimitiveDateTime,
-    pub last_step: FraudCheckLastStep,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -58,7 +56,6 @@ pub enum FraudCheckUpdate {
         frm_score: Option<i32>,
         metadata: Option<serde_json::Value>,
         modified_at: PrimitiveDateTime,
-        last_step: FraudCheckLastStep,
     },
     ErrorUpdate {
         status: FraudCheckStatus,
@@ -75,7 +72,6 @@ pub struct FraudCheckUpdateInternal {
     frm_score: Option<i32>,
     frm_error: Option<Option<String>>,
     metadata: Option<serde_json::Value>,
-    last_step: FraudCheckLastStep,
 }
 
 impl From<FraudCheckUpdate> for FraudCheckUpdateInternal {
@@ -88,14 +84,12 @@ impl From<FraudCheckUpdate> for FraudCheckUpdateInternal {
                 frm_score,
                 metadata,
                 modified_at: _,
-                last_step,
             } => Self {
                 frm_status: Some(frm_status),
                 frm_transaction_id,
                 frm_reason,
                 frm_score,
                 metadata,
-                last_step,
                 ..Default::default()
             },
             FraudCheckUpdate::ErrorUpdate {

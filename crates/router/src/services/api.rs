@@ -171,14 +171,6 @@ pub trait ConnectorIntegration<T, Req, Resp>: ConnectorIntegrationAny<T, Req, Re
         })
     }
 
-    // whenever capture sync is implemented at the connector side, this method should be overridden
-    fn get_capture_sync_method(&self) -> CustomResult<CaptureSyncMethod, errors::ConnectorError> {
-        Err(
-            errors::ConnectorError::NotImplemented("multiple capture sync not implemented".into())
-                .into(),
-        )
-    }
-
     fn get_certificate(
         &self,
         _req: &types::RouterData<T, Req, Resp>,
@@ -192,11 +184,6 @@ pub trait ConnectorIntegration<T, Req, Resp>: ConnectorIntegrationAny<T, Req, Re
     ) -> CustomResult<Option<String>, errors::ConnectorError> {
         Ok(None)
     }
-}
-
-pub enum CaptureSyncMethod {
-    Individual,
-    Bulk,
 }
 
 /// Handle the flow by interacting with connector module
@@ -298,30 +285,24 @@ where
                     match response {
                         Ok(body) => {
                             let response = match body {
-                                Ok(body) => {
-                                    let connector_http_status_code = Some(body.status_code);
-                                    let mut data = connector_integration
-                                        .handle_response(req, body)
-                                        .map_err(|error| {
-                                            if error.current_context()
-                                            == &errors::ConnectorError::ResponseDeserializationFailed
-                                        {
-                                            metrics::RESPONSE_DESERIALIZATION_FAILURE.add(
-                                                &metrics::CONTEXT,
-                                                1,
-                                                &[metrics::request::add_attributes(
-                                                    "connector",
-                                                    req.connector.to_string(),
-                                                )],
-                                            )
-                                        }
-                                            error
-                                        })?;
-                                    data.connector_http_status_code = connector_http_status_code;
-                                    data
-                                }
+                                Ok(body) => connector_integration
+                                    .handle_response(req, body)
+                                    .map_err(|error| {
+                                        if error.current_context()
+                                        == &errors::ConnectorError::ResponseDeserializationFailed
+                                    {
+                                        metrics::RESPONSE_DESERIALIZATION_FAILURE.add(
+                                            &metrics::CONTEXT,
+                                            1,
+                                            &[metrics::request::add_attributes(
+                                                "connector",
+                                                req.connector.to_string(),
+                                            )],
+                                        )
+                                    }
+                                        error
+                                    })?,
                                 Err(body) => {
-                                    router_data.connector_http_status_code = Some(body.status_code);
                                     metrics::CONNECTOR_ERROR_RESPONSE_COUNT.add(
                                         &metrics::CONTEXT,
                                         1,
@@ -547,7 +528,6 @@ pub enum ApplicationResponse<R> {
     JsonForRedirection(api::RedirectionResponse),
     Form(Box<RedirectionFormData>),
     FileData((Vec<u8>, mime::Mime)),
-    JsonWithHeaders((R, Vec<(String, String)>)),
 }
 
 #[derive(Debug, Eq, PartialEq)]
@@ -724,18 +704,6 @@ where
         )
         .respond_to(request)
         .map_into_boxed_body(),
-        Ok(ApplicationResponse::JsonWithHeaders((response, headers))) => {
-            match serde_json::to_string(&response) {
-                Ok(res) => http_response_json_with_headers(res, headers),
-                Err(_) => http_response_err(
-                    r#"{
-                        "error": {
-                            "message": "Error serializing response from connector"
-                        }
-                    }"#,
-                ),
-            }
-        }
         Err(error) => log_and_return_error_response(error),
     };
 
@@ -797,19 +765,6 @@ impl EmbedError for Report<api_models::errors::types::ApiErrorResponse> {
 
 pub fn http_response_json<T: body::MessageBody + 'static>(response: T) -> HttpResponse {
     HttpResponse::Ok()
-        .content_type(mime::APPLICATION_JSON)
-        .body(response)
-}
-
-pub fn http_response_json_with_headers<T: body::MessageBody + 'static>(
-    response: T,
-    headers: Vec<(String, String)>,
-) -> HttpResponse {
-    let mut response_builder = HttpResponse::Ok();
-    for (name, value) in headers {
-        response_builder.append_header((name, value));
-    }
-    response_builder
         .content_type(mime::APPLICATION_JSON)
         .body(response)
 }

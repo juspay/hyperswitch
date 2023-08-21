@@ -192,7 +192,7 @@ impl CaptureInterface for MockDb {
             modified_at: capture.modified_at,
             authorized_attempt_id: capture.authorized_attempt_id,
             capture_sequence: capture.capture_sequence,
-            connector_capture_id: capture.connector_capture_id,
+            connector_transaction_id: capture.connector_transaction_id,
         };
         captures.push(capture.clone());
         Ok(capture)

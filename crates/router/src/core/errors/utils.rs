@@ -63,7 +63,6 @@ pub trait ConnectorErrorExt<T> {
     #[track_caller]
     fn allow_webhook_event_type_not_found(
         self,
-        enabled: bool,
     ) -> error_stack::Result<Option<T>, errors::ConnectorError>;
 }
 
@@ -128,8 +127,8 @@ impl<T> ConnectorErrorExt<T> for error_stack::Result<T, errors::ConnectorError> 
                             "payment_method_data, payment_method_type and payment_experience does not match",
                     }
                 },
-                errors::ConnectorError::NotSupported { message, connector } => {
-                    errors::ApiErrorResponse::NotSupported { message: format!("{message} is not supported by {connector}") }
+                errors::ConnectorError::NotSupported { message, connector, payment_experience } => {
+                    errors::ApiErrorResponse::NotSupported { message: format!("{message} is not supported by {connector} through payment experience {payment_experience}") }
                 },
                 errors::ConnectorError::FlowNotSupported{ flow, connector } => {
                     errors::ApiErrorResponse::FlowNotSupported { flow: flow.to_owned(), connector: connector.to_owned() }
@@ -241,14 +240,11 @@ impl<T> ConnectorErrorExt<T> for error_stack::Result<T, errors::ConnectorError> 
         })
     }
 
-    fn allow_webhook_event_type_not_found(
-        self,
-        enabled: bool,
-    ) -> CustomResult<Option<T>, errors::ConnectorError> {
+    fn allow_webhook_event_type_not_found(self) -> CustomResult<Option<T>, errors::ConnectorError> {
         match self {
             Ok(event_type) => Ok(Some(event_type)),
             Err(error) => match error.current_context() {
-                errors::ConnectorError::WebhookEventTypeNotFound if enabled => Ok(None),
+                errors::ConnectorError::WebhookEventTypeNotFound => Ok(None),
                 _ => Err(error),
             },
         }

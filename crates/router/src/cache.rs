@@ -1,11 +1,12 @@
 use std::{any::Any, borrow::Cow, sync::Arc};
 
-use common_utils::errors;
 use dyn_clone::DynClone;
 use error_stack::Report;
 use moka::future::Cache as MokaCache;
 use once_cell::sync::Lazy;
 use redis_interface::RedisValue;
+
+use crate::core::errors;
 
 /// Prefix for config cache key
 const CONFIG_CACHE_PREFIX: &str = "config";

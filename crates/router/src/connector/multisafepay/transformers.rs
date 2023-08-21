@@ -232,6 +232,7 @@ impl TryFrom<utils::CardIssuer> for Gateway {
             _ => Err(errors::ConnectorError::NotSupported {
                 message: issuer.to_string(),
                 connector: "Multisafe pay",
+                payment_experience: api::enums::PaymentExperience::RedirectToUrl.to_string(),
             }
             .into()),
         }

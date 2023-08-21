@@ -266,12 +266,6 @@ impl ForeignFrom<api_enums::PaymentMethodType> for api_enums::PaymentMethod {
             | api_enums::PaymentMethodType::Alfamart
             | api_enums::PaymentMethodType::Indomaret
             | api_enums::PaymentMethodType::Oxxo
-            | api_enums::PaymentMethodType::SevenEleven
-            | api_enums::PaymentMethodType::Lawson
-            | api_enums::PaymentMethodType::MiniStop
-            | api_enums::PaymentMethodType::FamilyMart
-            | api_enums::PaymentMethodType::Seicomart
-            | api_enums::PaymentMethodType::PayEasy
             | api_enums::PaymentMethodType::RedPagos => Self::Voucher,
             api_enums::PaymentMethodType::Pse
             | api_enums::PaymentMethodType::Multibanco
@@ -632,24 +626,6 @@ impl ForeignFrom<storage::PaymentAttempt> for api_models::payments::PaymentAttem
             payment_experience: payment_attempt.payment_experience,
             payment_method_type: payment_attempt.payment_method_type,
             reference_id: payment_attempt.connector_response_reference_id,
-        }
-    }
-}
-
-impl ForeignFrom<storage::Capture> for api_models::payments::CaptureResponse {
-    fn foreign_from(capture: storage::Capture) -> Self {
-        Self {
-            capture_id: capture.capture_id,
-            status: capture.status,
-            amount: capture.amount,
-            currency: capture.currency,
-            connector: capture.connector,
-            authorized_attempt_id: capture.authorized_attempt_id,
-            connector_capture_id: capture.connector_capture_id,
-            capture_sequence: capture.capture_sequence,
-            error_message: capture.error_message,
-            error_code: capture.error_code,
-            error_reason: capture.error_reason,
         }
     }
 }
