@@ -937,7 +937,7 @@ where
     let parsed_meta = to_connector_meta_from_secret(connector_meta).ok();
     match parsed_meta {
         Some(meta) => Ok(meta),
-        _ => Err(connector_error.into())
+        _ => Err(connector_error.into()),
     }
 }
 

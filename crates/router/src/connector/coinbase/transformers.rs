@@ -261,7 +261,9 @@ fn get_crypto_specific_payment_data(
     let description = item.get_description().ok();
     let connector_meta: CoinbaseConnectorMeta =
         utils::to_connector_meta_from_secret_with_required_field(
-            item.connector_meta_data.clone(), "Pricing Type Not present in connector meta data")?;
+            item.connector_meta_data.clone(),
+            "Pricing Type Not present in connector meta data",
+        )?;
     let pricing_type = connector_meta.pricing_type;
     let local_price = get_local_price(item);
     let redirect_url = item.request.get_return_url()?;
