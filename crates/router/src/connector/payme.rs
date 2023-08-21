@@ -3,7 +3,6 @@ pub mod transformers;
 use std::fmt::Debug;
 
 use common_utils::crypto;
-use diesel_models::enums;
 use error_stack::{IntoReport, ResultExt};
 use masking::ExposeInterface;
 use transformers as payme;
@@ -131,14 +130,6 @@ impl
         _req: &types::PaymentsPreProcessingRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        if req.request.capture_method == Some(enums::CaptureMethod::ManualMultiple) {
-            return Err(errors::ConnectorError::NotImplemented(format!(
-                "{}{}",
-                consts::MANUAL_MULTIPLE_NOT_IMPLEMENTED_ERROR_MESSAGE,
-                self.id()
-            ))
-            .into());
-        }
         Ok(format!("{}api/generate-sale", self.base_url(connectors)))
     }
 
