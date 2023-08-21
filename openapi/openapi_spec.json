@@ -8194,6 +8194,11 @@
             "description": "This is a token which expires after 15 minutes, used from the client to authenticate and create sessions from the SDK",
             "nullable": true
           },
+          "expand_captures": {
+            "type": "boolean",
+            "description": "If enabled provides list of attempts linked to payment intent",
+            "nullable": true
+          },
           "expand_attempts": {
             "type": "boolean",
             "description": "If enabled provides list of attempts linked to payment intent",
@@ -8249,6 +8254,11 @@
           "statement_descriptor_prefix": {
             "type": "string",
             "description": "Concatenated with the statement descriptor suffix that’s set on the account to form the complete statement descriptor.",
+            "nullable": true
+          },
+          "last_capture": {
+            "type": "boolean",
+            "description": "Indicates weather the partial capture is last capture or not",
             "nullable": true
           },
           "merchant_connector_details": {
@@ -9349,6 +9359,11 @@
           "client_secret": {
             "type": "string",
             "description": "This is a token which expires after 15 minutes, used from the client to authenticate and create sessions from the SDK",
+            "nullable": true
+          },
+          "expand_captures": {
+            "type": "boolean",
+            "description": "If enabled provides list of attempts linked to payment intent",
             "nullable": true
           },
           "expand_attempts": {
