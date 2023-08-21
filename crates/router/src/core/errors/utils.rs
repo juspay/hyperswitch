@@ -37,7 +37,7 @@ impl<T> StorageErrorExt<T, errors::ApiErrorResponse>
     ) -> error_stack::Result<T, errors::ApiErrorResponse> {
         self.map_err(|err| {
             let new_err = match err.current_context() {
-                data_models::errors::StorageError::DuplicateValue { entity: _, key: _ } => {
+                data_models::errors::StorageError::DuplicateValue { .. } => {
                     duplicate_response
                 }
                 _ => errors::ApiErrorResponse::InternalServerError,
