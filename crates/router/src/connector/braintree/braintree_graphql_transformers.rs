@@ -76,7 +76,7 @@ pub struct DataAuthResponse {
 
 #[derive(Default, Debug, Clone, Deserialize)]
 pub struct AuthChargeCreditCard {
-    transaction: TransactionAuthChargeResponseBody,
+    transaction: Option<TransactionAuthChargeResponseBody>,
 }
 
 impl<F, T>
@@ -99,29 +99,26 @@ impl<F, T>
                 ..item.data
             })
         } else {
+            let transaction_data = match &item.response.data {
+                Some(transaction_info) => transaction_info
+                    .authorize_credit_card
+                    .as_ref()
+                    .ok_or(errors::ConnectorError::ResponseDeserializationFailed)?
+                    .transaction
+                    .as_ref(),
+                None => Err(errors::ConnectorError::ResponseDeserializationFailed)?,
+            };
             Ok(Self {
                 status: enums::AttemptStatus::from(
-                    item.response
-                        .data
-                        .as_ref()
+                    transaction_data
                         .ok_or(errors::ConnectorError::ResponseDeserializationFailed)?
-                        .authorize_credit_card
-                        .as_ref()
-                        .ok_or(errors::ConnectorError::ResponseDeserializationFailed)?
-                        .transaction
                         .status
                         .clone(),
                 ),
                 response: Ok(types::PaymentsResponseData::TransactionResponse {
                     resource_id: types::ResponseId::ConnectorTransactionId(
-                        item.response
-                            .data
-                            .as_ref()
+                        transaction_data
                             .ok_or(errors::ConnectorError::ResponseDeserializationFailed)?
-                            .authorize_credit_card
-                            .as_ref()
-                            .ok_or(errors::ConnectorError::ResponseDeserializationFailed)?
-                            .transaction
                             .id
                             .clone(),
                     ),
@@ -266,29 +263,26 @@ impl<F, T>
                 ..item.data
             })
         } else {
+            let transaction_data = match &item.response.data {
+                Some(transaction_info) => transaction_info
+                    .charge_credit_card
+                    .as_ref()
+                    .ok_or(errors::ConnectorError::ResponseDeserializationFailed)?
+                    .transaction
+                    .as_ref(),
+                None => Err(errors::ConnectorError::ResponseDeserializationFailed)?,
+            };
             Ok(Self {
                 status: enums::AttemptStatus::from(
-                    item.response
-                        .data
-                        .as_ref()
+                    transaction_data
                         .ok_or(errors::ConnectorError::ResponseDeserializationFailed)?
-                        .charge_credit_card
-                        .as_ref()
-                        .ok_or(errors::ConnectorError::ResponseDeserializationFailed)?
-                        .transaction
                         .status
                         .clone(),
                 ),
                 response: Ok(types::PaymentsResponseData::TransactionResponse {
                     resource_id: types::ResponseId::ConnectorTransactionId(
-                        item.response
-                            .data
-                            .as_ref()
+                        transaction_data
                             .ok_or(errors::ConnectorError::ResponseDeserializationFailed)?
-                            .charge_credit_card
-                            .as_ref()
-                            .ok_or(errors::ConnectorError::ResponseDeserializationFailed)?
-                            .transaction
                             .id
                             .clone(),
                     ),
@@ -389,7 +383,7 @@ pub struct BraintreeRefundTransactionBody {
 
 #[derive(Debug, Clone, Deserialize)]
 pub struct BraintreeRefundTransaction {
-    pub refund: BraintreeRefundTransactionBody,
+    pub refund: Option<BraintreeRefundTransactionBody>,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -421,27 +415,25 @@ impl TryFrom<types::RefundsResponseRouterData<api::Execute, BraintreeRefundRespo
                     item.http_code,
                 )
             } else {
-                Ok(types::RefundsResponseData {
-                    connector_refund_id: item
-                        .response
-                        .data
-                        .as_ref()
-                        .ok_or(errors::ConnectorError::ResponseDeserializationFailed)?
+                let refund_data = match &item.response.data {
+                    Some(refund_info) => refund_info
                         .refund_transaction
                         .as_ref()
                         .ok_or(errors::ConnectorError::ResponseDeserializationFailed)?
                         .refund
+                        .as_ref(),
+                    None => Err(errors::ConnectorError::ResponseDeserializationFailed)?,
+                };
+
+                Ok(types::RefundsResponseData {
+                    connector_refund_id: refund_data
+                        .ok_or(errors::ConnectorError::ResponseDeserializationFailed)?
                         .id
                         .clone(),
                     refund_status: enums::RefundStatus::from(
-                        item.response
-                            .data
+                        refund_data
                             .as_ref()
                             .ok_or(errors::ConnectorError::ResponseDeserializationFailed)?
-                            .refund_transaction
-                            .as_ref()
-                            .ok_or(errors::ConnectorError::ResponseDeserializationFailed)?
-                            .refund
                             .status
                             .clone(),
                     ),
@@ -485,7 +477,7 @@ pub struct RefundData {
 
 #[derive(Default, Debug, Clone, Deserialize)]
 pub struct RSyncSearchData {
-    refunds: RefundData,
+    refunds: Option<RefundData>,
 }
 
 #[derive(Default, Debug, Clone, Deserialize)]
@@ -527,6 +519,8 @@ impl TryFrom<types::RefundsResponseRouterData<api::RSync, BraintreeRSyncResponse
                 .as_ref()
                 .ok_or(errors::ConnectorError::ResponseDeserializationFailed)?
                 .refunds
+                .as_ref()
+                .ok_or(errors::ConnectorError::ResponseDeserializationFailed)?
                 .edges
                 .first()
                 .ok_or(errors::ConnectorError::MissingConnectorRefundID)?;
@@ -605,7 +599,7 @@ pub struct TokenizePaymentMethodData {
 #[derive(Default, Debug, Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct TokenizeCreditCardData {
-    payment_method: TokenizePaymentMethodData,
+    payment_method: Option<TokenizePaymentMethodData>,
 }
 
 #[derive(Default, Debug, Clone, Deserialize)]
@@ -647,6 +641,8 @@ impl<F, T>
                         .as_ref()
                         .ok_or(errors::ConnectorError::ResponseDeserializationFailed)?
                         .payment_method
+                        .as_ref()
+                        .ok_or(errors::ConnectorError::ResponseDeserializationFailed)?
                         .id
                         .clone(),
                 })
@@ -707,7 +703,7 @@ pub struct CaptureResponseTransactionBody {
 
 #[derive(Default, Debug, Clone, Deserialize)]
 pub struct CaptureTransactionData {
-    transaction: CaptureResponseTransactionBody,
+    transaction: Option<CaptureResponseTransactionBody>,
 }
 
 #[derive(Default, Debug, Clone, Deserialize)]
@@ -741,29 +737,29 @@ impl TryFrom<types::PaymentsCaptureResponseRouterData<BraintreeCaptureResponse>>
                 ..item.data
             })
         } else {
-            Ok(Self {
-                status: enums::AttemptStatus::from(
-                    item.response
-                        .data
-                        .as_ref()
-                        .ok_or(errors::ConnectorError::ResponseDeserializationFailed)?
+            let transaction_data = match &item.response.data {
+                Some(transaction_info) => {
+                    &transaction_info
                         .capture_transaction
                         .as_ref()
                         .ok_or(errors::ConnectorError::ResponseDeserializationFailed)?
                         .transaction
+                }
+                None => Err(errors::ConnectorError::ResponseDeserializationFailed)?,
+            };
+            Ok(Self {
+                status: enums::AttemptStatus::from(
+                    transaction_data
+                        .as_ref()
+                        .ok_or(errors::ConnectorError::ResponseDeserializationFailed)?
                         .status
                         .clone(),
                 ),
                 response: Ok(types::PaymentsResponseData::TransactionResponse {
                     resource_id: types::ResponseId::ConnectorTransactionId(
-                        item.response
-                            .data
+                        transaction_data
                             .as_ref()
                             .ok_or(errors::ConnectorError::ResponseDeserializationFailed)?
-                            .capture_transaction
-                            .as_ref()
-                            .ok_or(errors::ConnectorError::ResponseDeserializationFailed)?
-                            .transaction
                             .id
                             .clone(),
                     ),
@@ -817,7 +813,7 @@ pub struct CancelResponseTransactionBody {
 
 #[derive(Default, Debug, Clone, Deserialize)]
 pub struct CancelTransactionData {
-    reversal: CancelResponseTransactionBody,
+    reversal: Option<CancelResponseTransactionBody>,
 }
 
 #[derive(Default, Debug, Clone, Deserialize)]
@@ -852,26 +848,23 @@ impl<F, T>
                 ..item.data
             })
         } else {
-            let transaction_id = &item
-                .response
-                .data
-                .as_ref()
+            let void_data = match &item.response.data {
+                Some(void_info) => void_info
+                    .reverse_transaction
+                    .as_ref()
+                    .ok_or(errors::ConnectorError::ResponseDeserializationFailed)?
+                    .reversal
+                    .as_ref(),
+                None => Err(errors::ConnectorError::ResponseDeserializationFailed)?,
+            };
+            let transaction_id = void_data
                 .ok_or(errors::ConnectorError::ResponseDeserializationFailed)?
-                .reverse_transaction
-                .as_ref()
-                .ok_or(errors::ConnectorError::ResponseDeserializationFailed)?
-                .reversal
                 .id
                 .clone();
             Ok(Self {
                 status: enums::AttemptStatus::from(
-                    item.response
-                        .data
+                    void_data
                         .ok_or(errors::ConnectorError::ResponseDeserializationFailed)?
-                        .reverse_transaction
-                        .as_ref()
-                        .ok_or(errors::ConnectorError::ResponseDeserializationFailed)?
-                        .reversal
                         .status
                         .clone(),
                 ),
@@ -927,7 +920,7 @@ pub struct TransactionData {
 
 #[derive(Default, Debug, Clone, Deserialize)]
 pub struct SearchData {
-    transactions: TransactionData,
+    transactions: Option<TransactionData>,
 }
 
 #[derive(Default, Debug, Clone, Deserialize)]
@@ -970,6 +963,8 @@ impl<F, T>
                 .as_ref()
                 .ok_or(errors::ConnectorError::ResponseDeserializationFailed)?
                 .transactions
+                .as_ref()
+                .ok_or(errors::ConnectorError::ResponseDeserializationFailed)?
                 .edges
                 .first()
                 .ok_or(errors::ConnectorError::MissingConnectorTransactionID)?;
