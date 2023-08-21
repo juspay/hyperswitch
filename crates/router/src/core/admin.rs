@@ -2,7 +2,7 @@ use api_models::{admin::PrimaryBusinessDetails, enums as api_enums};
 use common_utils::{
     crypto::{generate_cryptographically_secure_random_string, OptionalSecretValue},
     date_time,
-    ext_traits::{AsyncExt, Encode, ValueExt},
+    ext_traits::{Encode, ValueExt},
 };
 use diesel_models::enums;
 use error_stack::{report, FutureExt, ResultExt};
@@ -254,9 +254,12 @@ pub async fn merchant_account_update(
     let key = key_store.key.get_inner().peek();
 
     // Validate whether profile_id passed in request is valid and is linked to the merchant
-    let business_profile_from_request =
-        core_utils::validate_and_get_business_profile(db, request.profile_id.as_ref(), merchant_id)
-            .await?;
+    let business_profile = core_utils::validate_and_get_business_profile(
+        db,
+        req.default_profile.as_ref(),
+        merchant_id,
+    )
+    .await?;
 
     let updated_merchant_account = storage::MerchantAccountUpdate::Update {
         merchant_name: req
@@ -309,7 +312,7 @@ pub async fn merchant_account_update(
         frm_routing_algorithm: req.frm_routing_algorithm,
         intent_fulfillment_time: req.intent_fulfillment_time.map(i64::from),
         payout_routing_algorithm: req.payout_routing_algorithm,
-        default_profile: profile_id,
+        default_profile: business_profile.map(|business_profile| business_profile.profile_id),
     };
 
     let response = db
