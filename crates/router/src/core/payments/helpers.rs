@@ -1646,7 +1646,6 @@ pub fn check_force_psync_precondition(
             | storage_enums::AttemptStatus::AutoRefunded
             | storage_enums::AttemptStatus::Voided
             | storage_enums::AttemptStatus::CodInitiated
-            | storage_enums::AttemptStatus::Authorized
             | storage_enums::AttemptStatus::Started
             | storage_enums::AttemptStatus::Failure
     ) && connector_transaction_id.is_some()
