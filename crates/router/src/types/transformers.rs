@@ -186,7 +186,7 @@ impl ForeignFrom<api_models::payments::MandateAmountData> for storage_enums::Man
 }
 
 impl ForeignFrom<api_enums::IntentStatus> for Option<storage_enums::EventType> {
-    fn foreign_from(value: api_enums::IntentStatus) -> Option<storage_enums::EventType> {
+    fn foreign_from(value: api_enums::IntentStatus) -> Self {
         match value {
             api_enums::IntentStatus::Succeeded => Some(storage_enums::EventType::PaymentSucceeded),
             api_enums::IntentStatus::Failed => Some(storage_enums::EventType::PaymentFailed),
@@ -325,7 +325,7 @@ impl ForeignTryFrom<api_models::payments::PaymentMethodData> for api_enums::Paym
 }
 
 impl ForeignFrom<storage_enums::RefundStatus> for Option<storage_enums::EventType> {
-    fn foreign_from(value: storage_enums::RefundStatus) -> Option<storage_enums::EventType> {
+    fn foreign_from(value: storage_enums::RefundStatus) -> Self {
         match value {
             storage_enums::RefundStatus::Success => Some(storage_enums::EventType::RefundSucceeded),
             storage_enums::RefundStatus::Failure => Some(storage_enums::EventType::RefundFailed),
