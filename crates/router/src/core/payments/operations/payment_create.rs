@@ -582,6 +582,7 @@ impl PaymentCreate {
     }
 
     #[instrument(skip_all)]
+    #[allow(clippy::too_many_arguments)]
     fn make_payment_intent(
         payment_id: &str,
         merchant_account: &types::domain::MerchantAccount,
