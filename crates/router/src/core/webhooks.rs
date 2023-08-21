@@ -101,14 +101,14 @@ pub async fn payments_incoming_webhook_flow<W: types::OutgoingWebhookType>(
                 .change_context(errors::ApiErrorResponse::WebhookProcessingFailure)
                 .attach_printable("payment id not received from payments core")?;
 
-            let event_type: enums::EventType = payments_response.status.foreign_into();
+            let event_type: Option<enums::EventType> = payments_response.status.foreign_into();
 
             // If event is NOT an UnsupportedEvent, trigger Outgoing Webhook
-            if !matches!(event_type, enums::EventType::UnsupportedEvent) {
+            if let Some(outgoing_event_type) = event_type {
                 create_event_and_trigger_outgoing_webhook::<W>(
                     state,
                     merchant_account,
-                    event_type,
+                    outgoing_event_type,
                     enums::EventClass::Payments,
                     None,
                     payment_id,
@@ -211,15 +211,15 @@ pub async fn refunds_incoming_webhook_flow<W: types::OutgoingWebhookType>(
             )
         })?
     };
-    let event_type: enums::EventType = updated_refund.refund_status.foreign_into();
+    let event_type: Option<enums::EventType> = updated_refund.refund_status.foreign_into();
 
     // If event is NOT an UnsupportedEvent, trigger Outgoing Webhook
-    if !matches!(event_type, enums::EventType::UnsupportedEvent) {
+    if let Some(outgoing_event_type) = event_type {
         let refund_response: api_models::refunds::RefundResponse = updated_refund.foreign_into();
         create_event_and_trigger_outgoing_webhook::<W>(
             state,
             merchant_account,
-            event_type,
+            outgoing_event_type,
             enums::EventClass::Refunds,
             None,
             refund_id,
@@ -385,25 +385,18 @@ pub async fn disputes_incoming_webhook_flow<W: types::OutgoingWebhookType>(
         let disputes_response = Box::new(dispute_object.clone().foreign_into());
         let event_type: enums::EventType = dispute_object.dispute_status.foreign_into();
 
-        // If event is NOT an UnsupportedEvent, trigger Outgoing Webhook
-        if !matches!(event_type, enums::EventType::UnsupportedEvent) {
-            create_event_and_trigger_outgoing_webhook::<W>(
-                state,
-                merchant_account,
-                event_type,
-                enums::EventClass::Disputes,
-                None,
-                dispute_object.dispute_id,
-                enums::EventObjectType::DisputeDetails,
-                api::OutgoingWebhookContent::DisputeDetails(disputes_response),
-            )
-            .await?;
-            metrics::INCOMING_DISPUTE_WEBHOOK_MERCHANT_NOTIFIED_METRIC.add(
-                &metrics::CONTEXT,
-                1,
-                &[],
-            );
-        }
+        create_event_and_trigger_outgoing_webhook::<W>(
+            state,
+            merchant_account,
+            event_type,
+            enums::EventClass::Disputes,
+            None,
+            dispute_object.dispute_id,
+            enums::EventObjectType::DisputeDetails,
+            api::OutgoingWebhookContent::DisputeDetails(disputes_response),
+        )
+        .await?;
+        metrics::INCOMING_DISPUTE_WEBHOOK_MERCHANT_NOTIFIED_METRIC.add(&metrics::CONTEXT, 1, &[]);
         Ok(())
     } else {
         metrics::INCOMING_DISPUTE_WEBHOOK_SIGNATURE_FAILURE_METRIC.add(&metrics::CONTEXT, 1, &[]);
@@ -458,14 +451,14 @@ async fn bank_transfer_webhook_flow<W: types::OutgoingWebhookType>(
                 .change_context(errors::ApiErrorResponse::WebhookProcessingFailure)
                 .attach_printable("did not receive payment id from payments core response")?;
 
-            let event_type: enums::EventType = payments_response.status.foreign_into();
+            let event_type: Option<enums::EventType> = payments_response.status.foreign_into();
 
             // If event is NOT an UnsupportedEvent, trigger Outgoing Webhook
-            if !matches!(event_type, enums::EventType::UnsupportedEvent) {
+            if let Some(outgoing_event_type) = event_type {
                 create_event_and_trigger_outgoing_webhook::<W>(
                     state,
                     merchant_account,
-                    event_type,
+                    outgoing_event_type,
                     enums::EventClass::Payments,
                     None,
                     payment_id,
