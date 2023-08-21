@@ -397,13 +397,7 @@ pub async fn get_payment_intent_payment_attempt(
     merchant_id: &str,
     storage_scheme: enums::MerchantStorageScheme,
 ) -> RouterResult<(storage::PaymentIntent, storage::PaymentAttempt)> {
-    let le: error_stack::Result<
-        (
-            data_models::payments::payment_intent::PaymentIntent,
-            diesel_models::payment_attempt::PaymentAttempt,
-        ),
-        errors::DataStorageError,
-    > = (|| async {
+    (|| async {
         let (pi, pa);
         match payment_id {
             api_models::payments::PaymentIdType::PaymentIntentId(ref id) => {
@@ -469,8 +463,8 @@ pub async fn get_payment_intent_payment_attempt(
                     .await?;
             }
         }
-        Ok((pi, pa))
+        error_stack::Result::<_, errors::DataStorageError>::Ok((pi, pa))
     })()
-    .await;
-    le.to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)
+    .await
+    .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)
 }

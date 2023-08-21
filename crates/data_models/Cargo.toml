@@ -1,9 +1,12 @@
 [package]
 name = "data_models"
+description = "Represents the data/domain models used by the business layer"
 version = "0.1.0"
-edition = "2021"
+edition.workspace = true
+rust-version.workspace = true
+readme = "README.md"
+license.workspace = true
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 [features]
 default = ["olap", "oltp"]
 oltp = []
