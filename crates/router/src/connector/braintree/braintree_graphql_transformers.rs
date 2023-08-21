@@ -87,45 +87,40 @@ impl<F, T>
     fn try_from(
         item: types::ResponseRouterData<F, BraintreeAuthResponse, T, types::PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
-        Ok(Self {
-            status: enums::AttemptStatus::from(
-                item.response
-                    .data
-                    .as_ref()
-                    .ok_or(errors::ConnectorError::MissingRequiredField { field_name: "data" })?
-                    .authorize_credit_card
-                    .as_ref()
-                    .ok_or(errors::ConnectorError::MissingRequiredField {
-                        field_name: "authorize_credit_card",
-                    })?
-                    .transaction
-                    .status
-                    .clone(),
-            ),
-            response: if item.response.errors.is_some() {
-                build_error_response(
+        if item.response.errors.is_some() {
+            Ok(Self {
+                response: build_error_response(
                     &item
                         .response
                         .errors
-                        .ok_or(errors::ConnectorError::MissingRequiredField {
-                            field_name: "errors",
-                        })?,
+                        .ok_or(errors::ConnectorError::ResponseDeserializationFailed)?,
                     item.http_code,
-                )
-            } else {
-                Ok(types::PaymentsResponseData::TransactionResponse {
+                ),
+                ..item.data
+            })
+        } else {
+            Ok(Self {
+                status: enums::AttemptStatus::from(
+                    item.response
+                        .data
+                        .as_ref()
+                        .ok_or(errors::ConnectorError::ResponseDeserializationFailed)?
+                        .authorize_credit_card
+                        .as_ref()
+                        .ok_or(errors::ConnectorError::ResponseDeserializationFailed)?
+                        .transaction
+                        .status
+                        .clone(),
+                ),
+                response: Ok(types::PaymentsResponseData::TransactionResponse {
                     resource_id: types::ResponseId::ConnectorTransactionId(
                         item.response
                             .data
                             .as_ref()
-                            .ok_or(errors::ConnectorError::MissingRequiredField {
-                                field_name: "data",
-                            })?
+                            .ok_or(errors::ConnectorError::ResponseDeserializationFailed)?
                             .authorize_credit_card
                             .as_ref()
-                            .ok_or(errors::ConnectorError::MissingRequiredField {
-                                field_name: "authorize_credit_card",
-                            })?
+                            .ok_or(errors::ConnectorError::ResponseDeserializationFailed)?
                             .transaction
                             .id
                             .clone(),
@@ -135,10 +130,10 @@ impl<F, T>
                     connector_metadata: None,
                     network_txn_id: None,
                     connector_response_reference_id: None,
-                })
-            },
-            ..item.data
-        })
+                }),
+                ..item.data
+            })
+        }
     }
 }
 
@@ -149,7 +144,8 @@ fn build_error_response<T>(
     get_error_response(
         response
             .get(0)
-            .and_then(|err_details| err_details.extensions.legacy_code.clone()),
+            .and_then(|err_details| err_details.extensions.as_ref())
+            .and_then(|extensions| extensions.legacy_code.clone()),
         response
             .get(0)
             .map(|err_details| err_details.message.clone()),
@@ -219,7 +215,7 @@ pub enum BraintreePaymentStatus {
 #[derive(Debug, Clone, Deserialize)]
 pub struct ErrorDetails {
     pub message: String,
-    pub extensions: AdditionalErrorDetails,
+    pub extensions: Option<AdditionalErrorDetails>,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -257,46 +253,41 @@ impl<F, T>
             types::PaymentsResponseData,
         >,
     ) -> Result<Self, Self::Error> {
-        Ok(Self {
-            status: enums::AttemptStatus::from(
-                item.response
-                    .data
-                    .as_ref()
-                    .ok_or(errors::ConnectorError::MissingRequiredField { field_name: "data" })?
-                    .charge_credit_card
-                    .as_ref()
-                    .ok_or(errors::ConnectorError::MissingRequiredField {
-                        field_name: "charge_credit_card",
-                    })?
-                    .transaction
-                    .status
-                    .clone(),
-            ),
-            response: if item.response.errors.is_some() {
-                build_error_response(
+        if item.response.errors.is_some() {
+            Ok(Self {
+                response: build_error_response(
                     &item
                         .response
                         .errors
-                        .ok_or(errors::ConnectorError::MissingRequiredField {
-                            field_name: "errors",
-                        })?
+                        .ok_or(errors::ConnectorError::ResponseDeserializationFailed)?
                         .clone(),
                     item.http_code,
-                )
-            } else {
-                Ok(types::PaymentsResponseData::TransactionResponse {
+                ),
+                ..item.data
+            })
+        } else {
+            Ok(Self {
+                status: enums::AttemptStatus::from(
+                    item.response
+                        .data
+                        .as_ref()
+                        .ok_or(errors::ConnectorError::ResponseDeserializationFailed)?
+                        .charge_credit_card
+                        .as_ref()
+                        .ok_or(errors::ConnectorError::ResponseDeserializationFailed)?
+                        .transaction
+                        .status
+                        .clone(),
+                ),
+                response: Ok(types::PaymentsResponseData::TransactionResponse {
                     resource_id: types::ResponseId::ConnectorTransactionId(
                         item.response
                             .data
                             .as_ref()
-                            .ok_or(errors::ConnectorError::MissingRequiredField {
-                                field_name: "data",
-                            })?
+                            .ok_or(errors::ConnectorError::ResponseDeserializationFailed)?
                             .charge_credit_card
                             .as_ref()
-                            .ok_or(errors::ConnectorError::MissingRequiredField {
-                                field_name: "charge_credit_card",
-                            })?
+                            .ok_or(errors::ConnectorError::ResponseDeserializationFailed)?
                             .transaction
                             .id
                             .clone(),
@@ -306,10 +297,10 @@ impl<F, T>
                     connector_metadata: None,
                     network_txn_id: None,
                     connector_response_reference_id: None,
-                })
-            },
-            ..item.data
-        })
+                }),
+                ..item.data
+            })
+        }
     }
 }
 
@@ -426,9 +417,7 @@ impl TryFrom<types::RefundsResponseRouterData<api::Execute, BraintreeRefundRespo
                     &item
                         .response
                         .errors
-                        .ok_or(errors::ConnectorError::MissingRequiredField {
-                            field_name: "errors",
-                        })?,
+                        .ok_or(errors::ConnectorError::ResponseDeserializationFailed)?,
                     item.http_code,
                 )
             } else {
@@ -437,12 +426,10 @@ impl TryFrom<types::RefundsResponseRouterData<api::Execute, BraintreeRefundRespo
                         .response
                         .data
                         .as_ref()
-                        .ok_or(errors::ConnectorError::MissingRequiredField { field_name: "data" })?
+                        .ok_or(errors::ConnectorError::ResponseDeserializationFailed)?
                         .refund_transaction
                         .as_ref()
-                        .ok_or(errors::ConnectorError::MissingRequiredField {
-                            field_name: "refund_transaction",
-                        })?
+                        .ok_or(errors::ConnectorError::ResponseDeserializationFailed)?
                         .refund
                         .id
                         .clone(),
@@ -450,14 +437,10 @@ impl TryFrom<types::RefundsResponseRouterData<api::Execute, BraintreeRefundRespo
                         item.response
                             .data
                             .as_ref()
-                            .ok_or(errors::ConnectorError::MissingRequiredField {
-                                field_name: "data",
-                            })?
+                            .ok_or(errors::ConnectorError::ResponseDeserializationFailed)?
                             .refund_transaction
                             .as_ref()
-                            .ok_or(errors::ConnectorError::MissingRequiredField {
-                                field_name: "refund_transaction",
-                            })?
+                            .ok_or(errors::ConnectorError::ResponseDeserializationFailed)?
                             .refund
                             .status
                             .clone(),
@@ -523,40 +506,40 @@ impl TryFrom<types::RefundsResponseRouterData<api::RSync, BraintreeRSyncResponse
     fn try_from(
         item: types::RefundsResponseRouterData<api::RSync, BraintreeRSyncResponse>,
     ) -> Result<Self, Self::Error> {
-        let edge_data = item
-            .response
-            .data
-            .as_ref()
-            .ok_or(errors::ConnectorError::MissingRequiredField { field_name: "data" })?
-            .search
-            .as_ref()
-            .ok_or(errors::ConnectorError::MissingRequiredField {
-                field_name: "search",
-            })?
-            .refunds
-            .edges
-            .first()
-            .ok_or(errors::ConnectorError::MissingConnectorRefundID)?;
-        let connector_refund_id = &edge_data.node.id;
-        Ok(Self {
-            response: if item.response.errors.is_some() {
-                build_error_response(
+        if item.response.errors.is_some() {
+            Ok(Self {
+                response: build_error_response(
                     &item
                         .response
                         .errors
-                        .ok_or(errors::ConnectorError::MissingRequiredField {
-                            field_name: "errors",
-                        })?,
+                        .ok_or(errors::ConnectorError::ResponseDeserializationFailed)?,
                     item.http_code,
-                )
-            } else {
-                Ok(types::RefundsResponseData {
-                    connector_refund_id: connector_refund_id.to_string(),
-                    refund_status: enums::RefundStatus::from(edge_data.node.status.clone()),
-                })
-            },
-            ..item.data
-        })
+                ),
+                ..item.data
+            })
+        } else {
+            let edge_data = item
+                .response
+                .data
+                .as_ref()
+                .ok_or(errors::ConnectorError::ResponseDeserializationFailed)?
+                .search
+                .as_ref()
+                .ok_or(errors::ConnectorError::ResponseDeserializationFailed)?
+                .refunds
+                .edges
+                .first()
+                .ok_or(errors::ConnectorError::MissingConnectorRefundID)?;
+            let connector_refund_id = &edge_data.node.id;
+            let response = Ok(types::RefundsResponseData {
+                connector_refund_id: connector_refund_id.to_string(),
+                refund_status: enums::RefundStatus::from(edge_data.node.status.clone()),
+            });
+            Ok(Self {
+                response,
+                ..item.data
+            })
+        }
     }
 }
 
@@ -651,9 +634,7 @@ impl<F, T>
                     &item
                         .response
                         .errors
-                        .ok_or(errors::ConnectorError::MissingRequiredField {
-                            field_name: "errors",
-                        })?,
+                        .ok_or(errors::ConnectorError::ResponseDeserializationFailed)?,
                     item.http_code,
                 )
             } else {
@@ -664,9 +645,7 @@ impl<F, T>
                         .ok_or(errors::ConnectorError::MissingConnectorTransactionID)?
                         .tokenize_credit_card
                         .as_ref()
-                        .ok_or(errors::ConnectorError::MissingRequiredField {
-                            field_name: "tokenize_credit_card",
-                        })?
+                        .ok_or(errors::ConnectorError::ResponseDeserializationFailed)?
                         .payment_method
                         .id
                         .clone(),
@@ -750,43 +729,40 @@ impl TryFrom<types::PaymentsCaptureResponseRouterData<BraintreeCaptureResponse>>
     fn try_from(
         item: types::PaymentsCaptureResponseRouterData<BraintreeCaptureResponse>,
     ) -> Result<Self, Self::Error> {
-        Ok(Self {
-            status: enums::AttemptStatus::from(
-                item.response
-                    .data
-                    .as_ref()
-                    .ok_or(errors::ConnectorError::MissingRequiredField { field_name: "data" })?
-                    .capture_transaction
-                    .as_ref()
-                    .ok_or(errors::ConnectorError::MissingRequiredField {
-                        field_name: "capture_transaction",
-                    })?
-                    .transaction
-                    .status
-                    .clone(),
-            ),
-            response: if item.response.errors.is_some() {
-                build_error_response(
+        if item.response.errors.is_some() {
+            Ok(Self {
+                response: build_error_response(
                     &item
                         .response
                         .errors
                         .ok_or(errors::ConnectorError::RequestEncodingFailed)?,
                     item.http_code,
-                )
-            } else {
-                Ok(types::PaymentsResponseData::TransactionResponse {
+                ),
+                ..item.data
+            })
+        } else {
+            Ok(Self {
+                status: enums::AttemptStatus::from(
+                    item.response
+                        .data
+                        .as_ref()
+                        .ok_or(errors::ConnectorError::ResponseDeserializationFailed)?
+                        .capture_transaction
+                        .as_ref()
+                        .ok_or(errors::ConnectorError::ResponseDeserializationFailed)?
+                        .transaction
+                        .status
+                        .clone(),
+                ),
+                response: Ok(types::PaymentsResponseData::TransactionResponse {
                     resource_id: types::ResponseId::ConnectorTransactionId(
                         item.response
                             .data
                             .as_ref()
-                            .ok_or(errors::ConnectorError::MissingRequiredField {
-                                field_name: "data",
-                            })?
+                            .ok_or(errors::ConnectorError::ResponseDeserializationFailed)?
                             .capture_transaction
                             .as_ref()
-                            .ok_or(errors::ConnectorError::MissingRequiredField {
-                                field_name: "capture_transaction",
-                            })?
+                            .ok_or(errors::ConnectorError::ResponseDeserializationFailed)?
                             .transaction
                             .id
                             .clone(),
@@ -796,10 +772,10 @@ impl TryFrom<types::PaymentsCaptureResponseRouterData<BraintreeCaptureResponse>>
                     connector_metadata: None,
                     network_txn_id: None,
                     connector_response_reference_id: None,
-                })
-            },
-            ..item.data
-        })
+                }),
+                ..item.data
+            })
+        }
     }
 }
 
@@ -864,45 +840,42 @@ impl<F, T>
     fn try_from(
         item: types::ResponseRouterData<F, BraintreeCancelResponse, T, types::PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
-        let transaction_id = &item
-            .response
-            .data
-            .as_ref()
-            .ok_or(errors::ConnectorError::MissingRequiredField { field_name: "data" })?
-            .reverse_transaction
-            .as_ref()
-            .ok_or(errors::ConnectorError::MissingRequiredField {
-                field_name: "reverse_transaction",
-            })?
-            .reversal
-            .id
-            .clone();
-        Ok(Self {
-            status: enums::AttemptStatus::from(
-                item.response
-                    .data
-                    .ok_or(errors::ConnectorError::MissingRequiredField { field_name: "data" })?
-                    .reverse_transaction
-                    .as_ref()
-                    .ok_or(errors::ConnectorError::MissingRequiredField {
-                        field_name: "reverse_transaction",
-                    })?
-                    .reversal
-                    .status
-                    .clone(),
-            ),
-            response: if item.response.errors.is_some() {
-                build_error_response(
+        if item.response.errors.is_some() {
+            Ok(Self {
+                response: build_error_response(
                     &item
                         .response
                         .errors
-                        .ok_or(errors::ConnectorError::MissingRequiredField {
-                            field_name: "errors",
-                        })?,
+                        .ok_or(errors::ConnectorError::ResponseDeserializationFailed)?,
                     item.http_code,
-                )
-            } else {
-                Ok(types::PaymentsResponseData::TransactionResponse {
+                ),
+                ..item.data
+            })
+        } else {
+            let transaction_id = &item
+                .response
+                .data
+                .as_ref()
+                .ok_or(errors::ConnectorError::ResponseDeserializationFailed)?
+                .reverse_transaction
+                .as_ref()
+                .ok_or(errors::ConnectorError::ResponseDeserializationFailed)?
+                .reversal
+                .id
+                .clone();
+            Ok(Self {
+                status: enums::AttemptStatus::from(
+                    item.response
+                        .data
+                        .ok_or(errors::ConnectorError::ResponseDeserializationFailed)?
+                        .reverse_transaction
+                        .as_ref()
+                        .ok_or(errors::ConnectorError::ResponseDeserializationFailed)?
+                        .reversal
+                        .status
+                        .clone(),
+                ),
+                response: Ok(types::PaymentsResponseData::TransactionResponse {
                     resource_id: types::ResponseId::ConnectorTransactionId(
                         transaction_id.to_string(),
                     ),
@@ -911,10 +884,10 @@ impl<F, T>
                     connector_metadata: None,
                     network_txn_id: None,
                     connector_response_reference_id: None,
-                })
-            },
-            ..item.data
-        })
+                }),
+                ..item.data
+            })
+        }
     }
 }
 
@@ -976,37 +949,34 @@ impl<F, T>
     fn try_from(
         item: types::ResponseRouterData<F, BraintreePSyncResponse, T, types::PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
-        let edge_data = item
-            .response
-            .data
-            .as_ref()
-            .ok_or(errors::ConnectorError::MissingRequiredField {
-                field_name: "search_data",
-            })?
-            .search
-            .as_ref()
-            .ok_or(errors::ConnectorError::MissingRequiredField {
-                field_name: "search",
-            })?
-            .transactions
-            .edges
-            .first()
-            .ok_or(errors::ConnectorError::MissingConnectorTransactionID)?;
-        let transaction_id = &edge_data.node.id;
-        Ok(Self {
-            status: enums::AttemptStatus::from(edge_data.node.status.clone()),
-            response: if item.response.errors.is_some() {
-                build_error_response(
+        if item.response.errors.is_some() {
+            Ok(Self {
+                response: build_error_response(
                     &item
                         .response
                         .errors
-                        .ok_or(errors::ConnectorError::MissingRequiredField {
-                            field_name: "errors",
-                        })?,
+                        .ok_or(errors::ConnectorError::ResponseDeserializationFailed)?,
                     item.http_code,
-                )
-            } else {
-                Ok(types::PaymentsResponseData::TransactionResponse {
+                ),
+                ..item.data
+            })
+        } else {
+            let edge_data = item
+                .response
+                .data
+                .as_ref()
+                .ok_or(errors::ConnectorError::ResponseDeserializationFailed)?
+                .search
+                .as_ref()
+                .ok_or(errors::ConnectorError::ResponseDeserializationFailed)?
+                .transactions
+                .edges
+                .first()
+                .ok_or(errors::ConnectorError::MissingConnectorTransactionID)?;
+            let transaction_id = &edge_data.node.id;
+            Ok(Self {
+                status: enums::AttemptStatus::from(edge_data.node.status.clone()),
+                response: Ok(types::PaymentsResponseData::TransactionResponse {
                     resource_id: types::ResponseId::ConnectorTransactionId(
                         transaction_id.to_string(),
                     ),
@@ -1015,9 +985,9 @@ impl<F, T>
                     connector_metadata: None,
                     network_txn_id: None,
                     connector_response_reference_id: None,
-                })
-            },
-            ..item.data
-        })
+                }),
+                ..item.data
+            })
+        }
     }
 }
