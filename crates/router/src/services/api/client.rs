@@ -204,7 +204,7 @@ pub struct RouterRequestBuilder {
     // Since for this brief period of time between the value being consumed & newer request builder
     // since requestbuilder does not allow moving the value
     // leaves our struct in an inconsistent state, we are using option to get around rust semantics
-    inner: Option<reqwest::RequestBuilder>
+    inner: Option<reqwest::RequestBuilder>,
 }
 
 impl RequestBuilder for RouterRequestBuilder {
