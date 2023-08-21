@@ -57,6 +57,34 @@ diesel::table! {
     use diesel::sql_types::*;
     use crate::enums::diesel_exports::*;
 
+    business_profile (profile_id) {
+        #[max_length = 64]
+        profile_id -> Varchar,
+        #[max_length = 64]
+        merchant_id -> Varchar,
+        #[max_length = 64]
+        profile_name -> Varchar,
+        created_at -> Timestamp,
+        modified_at -> Timestamp,
+        return_url -> Nullable<Text>,
+        enable_payment_response_hash -> Bool,
+        #[max_length = 255]
+        payment_response_hash_key -> Nullable<Varchar>,
+        redirect_to_merchant_with_http_post -> Bool,
+        webhook_details -> Nullable<Json>,
+        metadata -> Nullable<Json>,
+        routing_algorithm -> Nullable<Json>,
+        intent_fulfillment_time -> Nullable<Int8>,
+        frm_routing_algorithm -> Nullable<Jsonb>,
+        payout_routing_algorithm -> Nullable<Jsonb>,
+        is_recon_enabled -> Bool,
+    }
+}
+
+diesel::table! {
+    use diesel::sql_types::*;
+    use crate::enums::diesel_exports::*;
+
     captures (capture_id) {
         #[max_length = 64]
         capture_id -> Varchar,
@@ -183,7 +211,7 @@ diesel::table! {
         currency -> Varchar,
         dispute_stage -> DisputeStage,
         dispute_status -> DisputeStatus,
-        #[max_length = 255]
+        #[max_length = 64]
         payment_id -> Varchar,
         #[max_length = 64]
         attempt_id -> Varchar,
@@ -280,6 +308,8 @@ diesel::table! {
         payment_details -> Nullable<Jsonb>,
         metadata -> Nullable<Jsonb>,
         modified_at -> Timestamp,
+        #[max_length = 64]
+        last_step -> Varchar,
     }
 }
 
@@ -424,10 +454,11 @@ diesel::table! {
         business_label -> Varchar,
         #[max_length = 64]
         business_sub_label -> Nullable<Varchar>,
-        frm_configs -> Nullable<Array<Nullable<Jsonb>>>,
+        frm_configs -> Nullable<Jsonb>,
         created_at -> Timestamp,
         modified_at -> Timestamp,
         connector_webhook_details -> Nullable<Jsonb>,
+        frm_config -> Nullable<Array<Nullable<Jsonb>>>,
     }
 }
 
@@ -588,6 +619,7 @@ diesel::table! {
         created_at -> Timestamp,
         last_modified -> Timestamp,
         payment_method -> Varchar,
+        #[max_length = 64]
         payment_method_type -> Nullable<Varchar>,
         #[max_length = 128]
         payment_method_issuer -> Nullable<Varchar>,
@@ -752,6 +784,7 @@ diesel::table! {
 diesel::allow_tables_to_appear_in_same_query!(
     address,
     api_keys,
+    business_profile,
     captures,
     cards_info,
     configs,

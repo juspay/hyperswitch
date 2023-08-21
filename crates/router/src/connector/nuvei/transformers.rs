@@ -561,7 +561,6 @@ impl<F>
             _ => Err(errors::ConnectorError::NotSupported {
                 message: "Bank Redirect".to_string(),
                 connector: "Nuvei",
-                payment_experience: "Redirection".to_string(),
             })?,
         };
         Ok(Self {
