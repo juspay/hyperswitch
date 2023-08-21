@@ -226,6 +226,16 @@ pub struct AdyenRedirectRequest {
 pub enum AdyenRedirectRequestTypes {
     AdyenRedirection(AdyenRedirection),
     AdyenThreeDS(AdyenThreeDS),
+    AdyenRefusal(AdyenRefusal),
+}
+
+#[derive(Debug, Clone, Serialize, serde::Deserialize, Eq, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct AdyenRefusal {
+    pub payload: String,
+    #[serde(rename = "type")]
+    pub type_of_redirection_result: Option<String>,
+    pub result_code: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, serde::Deserialize, Eq, PartialEq)]
@@ -461,6 +471,27 @@ pub enum AdyenPaymentMethod<'a> {
     Benefit,
     #[serde(rename = "knet")]
     Knet,
+    #[serde(rename = "econtext_seven_eleven")]
+    SevenEleven(Box<JCSVoucherData>),
+    #[serde(rename = "econtext_stores")]
+    Lawson(Box<JCSVoucherData>),
+    #[serde(rename = "econtext_stores")]
+    MiniStop(Box<JCSVoucherData>),
+    #[serde(rename = "econtext_stores")]
+    FamilyMart(Box<JCSVoucherData>),
+    #[serde(rename = "econtext_stores")]
+    Seicomart(Box<JCSVoucherData>),
+    #[serde(rename = "econtext_stores")]
+    PayEasy(Box<JCSVoucherData>),
+}
+
+#[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct JCSVoucherData {
+    first_name: Secret<String>,
+    last_name: Option<Secret<String>>,
+    shopper_email: Email,
+    telephone_number: String,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -584,6 +615,18 @@ pub enum OnlineBankingCzechRepublicBanks {
     C,
 }
 
+impl TryFrom<&Box<payments::JCSVoucherData>> for JCSVoucherData {
+    type Error = Error;
+    fn try_from(jcs_data: &Box<payments::JCSVoucherData>) -> Result<Self, Self::Error> {
+        Ok(Self {
+            first_name: jcs_data.first_name.clone(),
+            last_name: jcs_data.last_name.clone(),
+            shopper_email: jcs_data.email.clone(),
+            telephone_number: jcs_data.phone_number.clone(),
+        })
+    }
+}
+
 impl TryFrom<&api_enums::BankNames> for OnlineBankingCzechRepublicBanks {
     type Error = Error;
     fn try_from(bank_name: &api_enums::BankNames) -> Result<Self, Self::Error> {
@@ -594,7 +637,6 @@ impl TryFrom<&api_enums::BankNames> for OnlineBankingCzechRepublicBanks {
             _ => Err(errors::ConnectorError::NotSupported {
                 message: String::from("BankRedirect"),
                 connector: "Adyen",
-                payment_experience: api_enums::PaymentExperience::RedirectToUrl.to_string(),
             })?,
         }
     }
@@ -675,7 +717,6 @@ impl TryFrom<&api_enums::BankNames> for OnlineBankingPolandBanks {
             _ => Err(errors::ConnectorError::NotSupported {
                 message: String::from("BankRedirect"),
                 connector: "Adyen",
-                payment_experience: api_enums::PaymentExperience::RedirectToUrl.to_string(),
             })?,
         }
     }
@@ -728,7 +769,6 @@ impl TryFrom<&api_enums::BankNames> for OnlineBankingSlovakiaBanks {
             _ => Err(errors::ConnectorError::NotSupported {
                 message: String::from("BankRedirect"),
                 connector: "Adyen",
-                payment_experience: api_enums::PaymentExperience::RedirectToUrl.to_string(),
             })?,
         }
     }
@@ -759,7 +799,6 @@ impl TryFrom<&api_enums::BankNames> for OnlineBankingFpxIssuer {
             _ => Err(errors::ConnectorError::NotSupported {
                 message: String::from("BankRedirect"),
                 connector: "Adyen",
-                payment_experience: api_enums::PaymentExperience::RedirectToUrl.to_string(),
             })?,
         }
     }
@@ -777,7 +816,6 @@ impl TryFrom<&api_enums::BankNames> for OnlineBankingThailandIssuer {
             _ => Err(errors::ConnectorError::NotSupported {
                 message: String::from("BankRedirect"),
                 connector: "Adyen",
-                payment_experience: api_enums::PaymentExperience::RedirectToUrl.to_string(),
             })?,
         }
     }
@@ -812,7 +850,6 @@ impl TryFrom<&api_enums::BankNames> for OpenBankingUKIssuer {
             _ => Err(errors::ConnectorError::NotSupported {
                 message: String::from("BankRedirect"),
                 connector: "Adyen",
-                payment_experience: api_enums::PaymentExperience::RedirectToUrl.to_string(),
             })?,
         }
     }
@@ -1072,6 +1109,18 @@ pub enum PaymentType {
     DanamonVa,
     #[serde(rename = "doku_mandiri_va")]
     MandiriVa,
+    #[serde(rename = "econtext_seven_eleven")]
+    SevenEleven,
+    #[serde(rename = "econtext_stores")]
+    Lawson,
+    #[serde(rename = "econtext_stores")]
+    MiniStop,
+    #[serde(rename = "econtext_stores")]
+    FamilyMart,
+    #[serde(rename = "econtext_stores")]
+    Seicomart,
+    #[serde(rename = "econtext_stores")]
+    PayEasy,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -1225,7 +1274,6 @@ impl<'a> TryFrom<&api_enums::BankNames> for AdyenTestBankNames<'a> {
             _ => Err(errors::ConnectorError::NotSupported {
                 message: String::from("BankRedirect"),
                 connector: "Adyen",
-                payment_experience: api_enums::PaymentExperience::RedirectToUrl.to_string(),
             })?,
         })
     }
@@ -1295,8 +1343,6 @@ impl<'a> TryFrom<&types::PaymentsAuthorizeRouterData> for AdyenPaymentRequest<'a
                 _ => Err(errors::ConnectorError::NotSupported {
                     message: format!("{:?}", item.request.payment_method_type),
                     connector: "Adyen",
-                    payment_experience: api_models::enums::PaymentExperience::RedirectToUrl
-                        .to_string(),
                 })?,
             },
         }
@@ -1521,7 +1567,13 @@ fn get_social_security_number(
         | payments::VoucherData::PagoEfectivo
         | payments::VoucherData::RedCompra
         | payments::VoucherData::Oxxo
-        | payments::VoucherData::RedPagos => None,
+        | payments::VoucherData::RedPagos
+        | payments::VoucherData::SevenEleven { .. }
+        | payments::VoucherData::Lawson { .. }
+        | payments::VoucherData::MiniStop { .. }
+        | payments::VoucherData::FamilyMart { .. }
+        | payments::VoucherData::Seicomart { .. }
+        | payments::VoucherData::PayEasy { .. } => None,
     }
 }
 
@@ -1604,6 +1656,24 @@ impl<'a> TryFrom<&api_models::payments::VoucherData> for AdyenPaymentMethod<'a> 
                 })))
             }
             payments::VoucherData::Oxxo => Ok(AdyenPaymentMethod::Oxxo),
+            payments::VoucherData::SevenEleven(jcs_data) => Ok(AdyenPaymentMethod::SevenEleven(
+                Box::new(JCSVoucherData::try_from(jcs_data)?),
+            )),
+            payments::VoucherData::Lawson(jcs_data) => Ok(AdyenPaymentMethod::Lawson(Box::new(
+                JCSVoucherData::try_from(jcs_data)?,
+            ))),
+            payments::VoucherData::MiniStop(jcs_data) => Ok(AdyenPaymentMethod::MiniStop(
+                Box::new(JCSVoucherData::try_from(jcs_data)?),
+            )),
+            payments::VoucherData::FamilyMart(jcs_data) => Ok(AdyenPaymentMethod::FamilyMart(
+                Box::new(JCSVoucherData::try_from(jcs_data)?),
+            )),
+            payments::VoucherData::Seicomart(jcs_data) => Ok(AdyenPaymentMethod::Seicomart(
+                Box::new(JCSVoucherData::try_from(jcs_data)?),
+            )),
+            payments::VoucherData::PayEasy(jcs_data) => Ok(AdyenPaymentMethod::PayEasy(Box::new(
+                JCSVoucherData::try_from(jcs_data)?,
+            ))),
             payments::VoucherData::Efecty
             | payments::VoucherData::PagoEfectivo
             | payments::VoucherData::RedCompra
@@ -2112,8 +2182,6 @@ impl<'a>
                     _ => Err(errors::ConnectorError::NotSupported {
                         message: format!("mandate_{:?}", item.payment_method),
                         connector: "Adyen",
-                        payment_experience: api_models::enums::PaymentExperience::RedirectToUrl
-                            .to_string(),
                     })?,
                 }
             }
@@ -3035,7 +3103,13 @@ pub fn get_wait_screen_metadata(
         | PaymentType::DanamonVa
         | PaymentType::Giftcard
         | PaymentType::MandiriVa
-        | PaymentType::PaySafeCard => Ok(None),
+        | PaymentType::PaySafeCard
+        | PaymentType::SevenEleven
+        | PaymentType::Lawson
+        | PaymentType::MiniStop
+        | PaymentType::FamilyMart
+        | PaymentType::Seicomart
+        | PaymentType::PayEasy => Ok(None),
     }
 }
 
@@ -3048,11 +3122,17 @@ pub fn get_present_to_shopper_metadata(
         PaymentType::Alfamart
         | PaymentType::Indomaret
         | PaymentType::BoletoBancario
-        | PaymentType::Oxxo => {
+        | PaymentType::Oxxo
+        | PaymentType::Lawson
+        | PaymentType::MiniStop
+        | PaymentType::FamilyMart
+        | PaymentType::Seicomart
+        | PaymentType::PayEasy => {
             let voucher_data = payments::VoucherNextStepData {
                 expires_at: response.action.expires_at.clone(),
                 reference,
                 download_url: response.action.download_url.clone(),
+                instructions_url: response.action.instructions_url.clone(),
             };
 
             Some(common_utils::ext_traits::Encode::<
@@ -3131,7 +3211,8 @@ pub fn get_present_to_shopper_metadata(
         | PaymentType::Twint
         | PaymentType::Vipps
         | PaymentType::Swish
-        | PaymentType::PaySafeCard => Ok(None),
+        | PaymentType::PaySafeCard
+        | PaymentType::SevenEleven => Ok(None),
     }
 }
 
@@ -3693,7 +3774,6 @@ impl<F> TryFrom<&types::PayoutsRouterData<F>> for AdyenPayoutCreateRequest {
             PayoutMethodData::Card(_) => Err(errors::ConnectorError::NotSupported {
                 message: "Card payout creation is not supported".to_string(),
                 connector: "Adyen",
-                payment_experience: "".to_string(),
             })?,
             PayoutMethodData::Bank(bd) => {
                 let bank_details = match bd {
@@ -3709,7 +3789,6 @@ impl<F> TryFrom<&types::PayoutsRouterData<F>> for AdyenPayoutCreateRequest {
                     _ => Err(errors::ConnectorError::NotSupported {
                         message: "Bank transfers via ACH or Bacs are not supported".to_string(),
                         connector: "Adyen",
-                        payment_experience: "".to_string(),
                     })?,
                 };
                 let address: &payments::AddressDetails = item.get_billing_address()?;

@@ -71,6 +71,28 @@ where
                 ),
             }
         }
+        Ok(api::ApplicationResponse::JsonWithHeaders((response, headers))) => {
+            let response = S::try_from(response);
+            match response {
+                Ok(response) => match serde_json::to_string(&response) {
+                    Ok(res) => api::http_response_json_with_headers(res, headers),
+                    Err(_) => api::http_response_err(
+                        r#"{
+                                "error": {
+                                    "message": "Error serializing response from connector"
+                                }
+                            }"#,
+                    ),
+                },
+                Err(_) => api::http_response_err(
+                    r#"{
+                        "error": {
+                            "message": "Error converting juspay response to stripe response"
+                        }
+                    }"#,
+                ),
+            }
+        }
         Ok(api::ApplicationResponse::StatusOk) => api::http_response_ok(),
         Ok(api::ApplicationResponse::TextPlain(text)) => api::http_response_plaintext(text),
         Ok(api::ApplicationResponse::FileData((file_data, content_type))) => {

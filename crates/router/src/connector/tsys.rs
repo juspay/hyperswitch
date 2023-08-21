@@ -11,11 +11,7 @@ use crate::{
     consts,
     core::errors::{self, CustomResult},
     headers,
-    services::{
-        self,
-        request::{self},
-        ConnectorIntegration,
-    },
+    services::{self, request, ConnectorIntegration},
     types::{
         self,
         api::{self, ConnectorCommon, ConnectorCommonExt},

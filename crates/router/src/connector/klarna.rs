@@ -297,7 +297,6 @@ impl
                 _ => Err(error_stack::report!(errors::ConnectorError::NotSupported {
                     message: payment_method_type.to_string(),
                     connector: "klarna",
-                    payment_experience: payment_experience.to_string()
                 })),
             },
             _ => Err(error_stack::report!(
