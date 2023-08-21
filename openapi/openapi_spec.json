@@ -10005,6 +10005,11 @@
                 "description": "The identifier for the payment",
                 "nullable": true
               },
+              "refund_id": {
+                "type": "string",
+                "description": "The identifier for the refund",
+                "nullable": true
+              },
               "limit": {
                 "type": "integer",
                 "format": "int64",
@@ -10048,14 +10053,20 @@
       "RefundListResponse": {
         "type": "object",
         "required": [
-          "size",
+          "count",
+          "total_count",
           "data"
         ],
         "properties": {
-          "size": {
+          "count": {
             "type": "integer",
             "description": "The number of refunds included in the list",
             "minimum": 0.0
+          },
+          "total_count": {
+            "type": "integer",
+            "format": "int64",
+            "description": "The total number of refunds in the list"
           },
           "data": {
             "type": "array",
