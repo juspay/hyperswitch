@@ -11,7 +11,6 @@ use crate::{
     errors::{self, DatabaseError},
     payment_attempt::{
         PaymentAttempt, PaymentAttemptNew, PaymentAttemptUpdate, PaymentAttemptUpdateInternal,
-        PaymentListFilters,
     },
     payment_intent::PaymentIntent,
     schema::payment_attempt::dsl,
@@ -208,7 +207,12 @@ impl PaymentAttempt {
         conn: &PgPooledConn,
         pi: &[PaymentIntent],
         merchant_id: &str,
-    ) -> StorageResult<PaymentListFilters> {
+    ) -> StorageResult<(
+        Vec<String>,
+        Vec<enums::Currency>,
+        Vec<IntentStatus>,
+        Vec<enums::PaymentMethod>,
+    )> {
         let active_attempts: Vec<String> = pi
             .iter()
             .map(|payment_intent| payment_intent.clone().active_attempt_id)
@@ -264,13 +268,11 @@ impl PaymentAttempt {
             .flatten()
             .collect::<Vec<enums::PaymentMethod>>();
 
-        let filters = PaymentListFilters {
-            connector: filter_connector,
-            currency: filter_currency,
-            status: intent_status,
-            payment_method: filter_payment_method,
-        };
-
-        Ok(filters)
+        Ok((
+            filter_connector,
+            filter_currency,
+            intent_status,
+            filter_payment_method,
+        ))
     }
 }
