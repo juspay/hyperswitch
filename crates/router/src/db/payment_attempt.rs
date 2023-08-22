@@ -72,7 +72,7 @@ pub trait PaymentAttemptInterface {
 
     async fn get_filters_for_payments(
         &self,
-        pi: &[diesel_models::payment_intent::PaymentIntent],
+        pi: &[types::PaymentIntent],
         merchant_id: &str,
         storage_scheme: enums::MerchantStorageScheme,
     ) -> CustomResult<diesel_models::payment_attempt::PaymentListFilters, errors::StorageError>;
@@ -81,6 +81,7 @@ pub trait PaymentAttemptInterface {
 #[cfg(not(feature = "kv_store"))]
 mod storage {
     use error_stack::IntoReport;
+    use storage_impl::DataModelExt;
 
     use super::PaymentAttemptInterface;
     use crate::{
@@ -193,13 +194,18 @@ mod storage {
 
         async fn get_filters_for_payments(
             &self,
-            pi: &[diesel_models::payment_intent::PaymentIntent],
+            pi: &[data_models::payments::payment_intent::PaymentIntent],
             merchant_id: &str,
             _storage_scheme: enums::MerchantStorageScheme,
         ) -> CustomResult<diesel_models::payment_attempt::PaymentListFilters, errors::StorageError>
         {
             let conn = connection::pg_connection_read(self).await?;
-            PaymentAttempt::get_filters_for_payments(&conn, pi, merchant_id)
+            let intents = pi
+                .iter()
+                .cloned()
+                .map(|pi| pi.to_storage_model())
+                .collect::<Vec<diesel_models::payment_intent::PaymentIntent>>();
+            PaymentAttempt::get_filters_for_payments(&conn, intents.as_slice(), merchant_id)
                 .await
                 .map_err(Into::into)
                 .into_report()
@@ -267,7 +273,7 @@ impl PaymentAttemptInterface for MockDb {
 
     async fn get_filters_for_payments(
         &self,
-        _pi: &[diesel_models::payment_intent::PaymentIntent],
+        _pi: &[data_models::payments::payment_intent::PaymentIntent],
         _merchant_id: &str,
         _storage_scheme: enums::MerchantStorageScheme,
     ) -> CustomResult<diesel_models::payment_attempt::PaymentListFilters, errors::StorageError>
@@ -430,7 +436,7 @@ mod storage {
     use diesel_models::reverse_lookup::ReverseLookup;
     use error_stack::{IntoReport, ResultExt};
     use redis_interface::HsetnxReply;
-    use storage_impl::redis::kv_store::RedisConnInterface;
+    use storage_impl::{redis::kv_store::RedisConnInterface, DataModelExt};
 
     use super::PaymentAttemptInterface;
     use crate::{
@@ -898,13 +904,18 @@ mod storage {
 
         async fn get_filters_for_payments(
             &self,
-            pi: &[diesel_models::payment_intent::PaymentIntent],
+            pi: &[data_models::payments::payment_intent::PaymentIntent],
             merchant_id: &str,
             _storage_scheme: enums::MerchantStorageScheme,
         ) -> CustomResult<diesel_models::payment_attempt::PaymentListFilters, errors::StorageError>
         {
             let conn = connection::pg_connection_read(self).await?;
-            PaymentAttempt::get_filters_for_payments(&conn, pi, merchant_id)
+            let intents = pi
+                .iter()
+                .cloned()
+                .map(|pi| pi.to_storage_model())
+                .collect::<Vec<diesel_models::payment_intent::PaymentIntent>>();
+            PaymentAttempt::get_filters_for_payments(&conn, intents.as_slice(), merchant_id)
                 .await
                 .map_err(Into::into)
                 .into_report()

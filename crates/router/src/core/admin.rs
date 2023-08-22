@@ -4,7 +4,7 @@ use common_utils::{
     date_time,
     ext_traits::{Encode, ValueExt},
 };
-use diesel_models::enums;
+use data_models::MerchantStorageScheme;
 use error_stack::{report, FutureExt, ResultExt};
 use masking::{PeekInterface, Secret};
 use uuid::Uuid;
@@ -141,7 +141,7 @@ pub async fn create_merchant_account(
             publishable_key,
             locker_id: req.locker_id,
             metadata: req.metadata,
-            storage_scheme: diesel_models::enums::MerchantStorageScheme::PostgresOnly,
+            storage_scheme: MerchantStorageScheme::PostgresOnly,
             primary_business_details,
             created_at: date_time::now(),
             modified_at: date_time::now(),
@@ -742,23 +742,24 @@ pub async fn kv_for_merchant(
         .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
 
     let updated_merchant_account = match (enable, merchant_account.storage_scheme) {
-        (true, enums::MerchantStorageScheme::RedisKv)
-        | (false, enums::MerchantStorageScheme::PostgresOnly) => Ok(merchant_account),
-        (true, enums::MerchantStorageScheme::PostgresOnly) => {
+        (true, MerchantStorageScheme::RedisKv) | (false, MerchantStorageScheme::PostgresOnly) => {
+            Ok(merchant_account)
+        }
+        (true, MerchantStorageScheme::PostgresOnly) => {
             db.update_merchant(
                 merchant_account,
                 storage::MerchantAccountUpdate::StorageSchemeUpdate {
-                    storage_scheme: enums::MerchantStorageScheme::RedisKv,
+                    storage_scheme: MerchantStorageScheme::RedisKv,
                 },
                 &key_store,
             )
             .await
         }
-        (false, enums::MerchantStorageScheme::RedisKv) => {
+        (false, MerchantStorageScheme::RedisKv) => {
             db.update_merchant(
                 merchant_account,
                 storage::MerchantAccountUpdate::StorageSchemeUpdate {
-                    storage_scheme: enums::MerchantStorageScheme::PostgresOnly,
+                    storage_scheme: MerchantStorageScheme::PostgresOnly,
                 },
                 &key_store,
             )
@@ -772,7 +773,7 @@ pub async fn kv_for_merchant(
     })?;
     let kv_status = matches!(
         updated_merchant_account.storage_scheme,
-        enums::MerchantStorageScheme::RedisKv
+        MerchantStorageScheme::RedisKv
     );
 
     Ok(service_api::ApplicationResponse::Json(
@@ -800,7 +801,7 @@ pub async fn check_merchant_account_kv_status(
 
     let kv_status = matches!(
         merchant_account.storage_scheme,
-        enums::MerchantStorageScheme::RedisKv
+        MerchantStorageScheme::RedisKv
     );
 
     Ok(service_api::ApplicationResponse::Json(
