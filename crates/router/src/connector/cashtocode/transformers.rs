@@ -161,15 +161,22 @@ impl<F, T>
         >,
     ) -> Result<Self, Self::Error> {
         let (status, response) = match item.response {
-            CashtocodePaymentsResponse::CashtoCodeError(error_data) => (
-                enums::AttemptStatus::Failure,
-                Err(types::ErrorResponse {
-                    code: error_data.error.to_string(),
-                    status_code: item.http_code,
-                    message: error_data.error_description,
-                    reason: None,
-                }),
-            ),
+            CashtocodePaymentsResponse::CashtoCodeError(error_data) => {
+                let code = match error_data.error {
+                    ErrorValue::ErrorNumber(num) => format!("{num}"),
+                    ErrorValue::ErrorString(string) => string,
+                };
+
+                (
+                    enums::AttemptStatus::Failure,
+                    Err(types::ErrorResponse {
+                        code,
+                        status_code: item.http_code,
+                        message: error_data.error_description,
+                        reason: None,
+                    }),
+                )
+            }
             CashtocodePaymentsResponse::CashtoCodeData(response_data) => {
                 let redirection_data = services::RedirectForm::Form {
                     endpoint: response_data.pay_url,
@@ -239,11 +246,16 @@ impl<F, T>
 
 #[derive(Debug, Deserialize)]
 pub struct CashtocodeErrorResponse {
-    pub error: u32,
+    pub error: ErrorValue,
     pub error_description: String,
     pub errors: Option<Vec<CashtocodeErrors>>,
 }
 
+#[derive(Debug, Deserialize)]
+pub enum ErrorValue {
+    ErrorString(String),
+    ErrorNumber(u32),
+}
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CashtocodeIncomingWebhook {

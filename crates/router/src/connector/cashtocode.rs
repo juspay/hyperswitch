@@ -120,7 +120,10 @@ impl ConnectorCommon for Cashtocode {
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         Ok(ErrorResponse {
             status_code: res.status_code,
-            code: response.error.to_string(),
+            code: match response.error {
+                cashtocode::ErrorValue::ErrorNumber(num) => format!("{num}"),
+                cashtocode::ErrorValue::ErrorString(string) => string,
+            },
             message: response.error_description,
             reason: None,
         })
