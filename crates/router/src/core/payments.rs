@@ -581,15 +581,7 @@ where
     // and the connector supports Apple Pay predecrypt
     if tokenization_action.eq(&TokenizationAction::DecryptApplePayToken) {
 
-        // Decrypt the payment token and use it in payment_method_token
-
-        // let certificate_path = "/Users/shankar.singh/Documents/new/apple_pay.cer";
-        // let cert_file = std::fs::File::open(certificate_path);
-        // let mut buf_reader = std::io::BufReader::new(cert_file.unwrap());
-        // let mut cert_data = Vec::new();
-        // std::io::Read::read_to_end(&mut buf_reader, &mut cert_data);
-
-        let pri_binding = std::fs::read_to_string("/Users/shankar.singh/Documents/new/private.key");
+        let pri_binding = std::fs::read_to_string("/Users/shankar.singh/Documents/apple_pay_test_data/private.key");
         let private_pem = pri_binding.as_ref();
 
         // let x = &payment_data.payment_attempt.payment_method_data;
@@ -606,10 +598,6 @@ where
             ).unwrap();
 
         router_data.payment_method_token = Some(types::PaymentMethodTokens::ApplePayDecrypt(apple_pay_predecrypt));
-
-        // let decrypted_data = apple_pay_data.unwrap().unwrap().unwrap().decrypt(private_pem.unwrap());
-
-        println!("Apple Pay Predecrypt");
     }
 
     (router_data, should_continue_further) = complete_preprocessing_steps_if_required(

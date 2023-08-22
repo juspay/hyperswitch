@@ -407,6 +407,22 @@ pub enum ProcessTrackerError {
     TypeConversionError,
 }
 
+#[derive(Debug, thiserror::Error)]
+pub enum ApplePayDecryptionError {
+    #[error("Failed to base64 decode input data")]
+    Base64DecodingFailed,
+    #[error("Failed to decrypt input data")]
+    DecryptionFailed,
+    #[error("Certificate parsing failed")]
+    CertificateParsingFailed,
+    #[error("Certificate parsing failed")]
+    MissingMerchantId,
+    #[error("Key Deserialization failure")]
+    KeyDeserializationFailed,
+    #[error("Failed to Derive a shared secret key")]
+    DerivingSharedSecretKeyFailed,
+}
+
 macro_rules! error_to_process_tracker_error {
     ($($path: ident)::+ < $st: ident >, $($path2:ident)::* ($($inner_path2:ident)::+ <$st2:ident>) ) => {
         impl From<$($path)::+ <$st>> for ProcessTrackerError {

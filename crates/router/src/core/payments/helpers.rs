@@ -14,16 +14,15 @@ use router_env::{instrument, logger, tracing};
 use time::Duration;
 use uuid::Uuid;
 
-use openssl::ec::EcKey;
+use openssl::derive::Deriver;
 use openssl::pkey::PKey;
 use openssl::symm::{decrypt_aead, Cipher};
+use serde::{Deserialize, Serialize};
 use std::error::Error;
 use std::fs::File;
 use std::io::prelude::*;
 use std::io::BufReader;
 use x509_parser::parse_x509_certificate;
-use openssl::derive::Deriver;
-use serde::{Deserialize, Serialize};
 
 use super::{
     operations::{BoxedOperation, Operation, PaymentResponse},
@@ -31,6 +30,7 @@ use super::{
 };
 use crate::{
     configs::settings::{ConnectorRequestReferenceIdConfig, Server},
+    connector::utils::WalletData,
     consts::{self, BASE64_ENGINE},
     core::{
         errors::{self, CustomResult, RouterResult, StorageErrorExt},
@@ -55,7 +55,7 @@ use crate::{
         self,
         crypto::{self, SignMessage},
         OptionExt,
-    }, connector::utils::WalletData,
+    },
 };
 
 pub fn create_identity_from_certificate_and_key(
@@ -2907,7 +2907,9 @@ pub struct ApplePayHeader {
 }
 
 impl ApplePayData {
-    pub fn token_json (wallet_data: api_models::payments::WalletData) -> Result<Self, error_stack::Report<errors::ConnectorError>> {
+    pub fn token_json(
+        wallet_data: api_models::payments::WalletData,
+    ) -> Result<Self, error_stack::Report<errors::ConnectorError>> {
         let json_wallet_data: Self = wallet_data.get_wallet_token_as_json()?;
         Ok(json_wallet_data)
     }
@@ -2920,55 +2922,85 @@ impl ApplePayData {
         let parsed_decrypted: serde_json::Value = serde_json::from_str(&decrypted)?;
         Ok(parsed_decrypted)
     }
-        
+
     pub fn merchant_id(&self) -> Result<String, Box<dyn Error>> {
-        let certificate_path = "/Users/shankar.singh/Documents/new/apple_pay.cer";
+        let certificate_path = "/Users/shankar.singh/Documents/apple_pay_test_data/apple_pay.cer";
         let cert_file = File::open(certificate_path)?;
         let mut buf_reader = BufReader::new(cert_file);
         let mut cert_data = Vec::new();
         buf_reader.read_to_end(&mut cert_data)?;
 
         // Parsing the certificate using x509-parser
-        let (_, certificate) = parse_x509_certificate(&cert_data)?;  //500
+        let (_, certificate) = parse_x509_certificate(&cert_data)
+            .into_report()
+            .change_context(errors::ApplePayDecryptionError::CertificateParsingFailed)
+            .attach_printable("Error parsing apple pay PPC")?;
 
         // Finding the merchant ID extension
-        let extension = certificate.extensions().iter().find(|extension| extension.oid.to_string().eq(consts::MERCHANT_ID_FIELD_OID));
-        if let Some(extension) = extension {
-            let merchant_id = String::from_utf8_lossy(extension.value).trim().trim_start_matches('@').to_string();
+        let apple_pay_m_id = certificate
+            .extensions()
+            .iter()
+            .find(|extension| extension.oid.to_string().eq(consts::MERCHANT_ID_FIELD_OID))
+            .map(|ext| {
+                let merchant_id = String::from_utf8_lossy(ext.value)
+                    .trim()
+                    .trim_start_matches('@')
+                    .to_string();
 
-            return Ok(merchant_id);
-        }
+                merchant_id
+            })
+            .ok_or_else(|| errors::ApplePayDecryptionError::MissingMerchantId)
+            .into_report()
+            .attach_printable("Unable to find merchant ID extension in the certificate")?;
 
-        Err("Unable to find merchant ID extension in the certificate".into())
+        Ok(apple_pay_m_id)
     }
 
-pub fn shared_secret(&self, private_pem: &str) -> Result<Vec<u8>, Box<dyn Error>> {
-    let private_ec = EcKey::private_key_from_pem(private_pem.as_bytes())?;                      //500
-    let public_ec_bytes = BASE64_ENGINE.decode(self.header.ephemeral_public_key.peek().as_bytes())?;    //.change_context(KmsError::Base64DecodingFailed)?;
-    let public_ec = EcKey::public_key_from_der(&public_ec_bytes)?;
+    pub fn shared_secret(&self, private_pem: &str) -> Result<Vec<u8>, error_stack::Report<errors::ApplePayDecryptionError>> {
+        let public_ec_bytes = BASE64_ENGINE
+            .decode(self.header.ephemeral_public_key.peek().as_bytes())
+            .into_report()
+            .change_context(errors::ApplePayDecryptionError::Base64DecodingFailed)?;
 
-    // Create PKey objects from EcKey
-    let private_key = PKey::from_ec_key(private_ec)?;
-    let public_key = PKey::from_ec_key(public_ec)?;
+        let public_key = PKey::public_key_from_der(&public_ec_bytes)
+            .into_report()
+            .change_context(errors::ApplePayDecryptionError::KeyDeserializationFailed)
+            .attach_printable("Failed to deserialize the public key")?;
 
-    // Create the Deriver object and set the peer public key
-    let mut deriver = Deriver::new(&private_key)?;
-    deriver.set_peer(&public_key)?;
+        // Create PKey objects from EcKey
+        let private_key = PKey::private_key_from_pem(private_pem.as_bytes())
+            .into_report()
+            .change_context(errors::ApplePayDecryptionError::KeyDeserializationFailed)
+            .attach_printable("Failed to deserialize the private key")?;
 
-    // Compute the shared secret
-    let shared_secret = deriver.derive_to_vec()?;
-    // println!("{:?}", hex::encode(shared_secret.clone()));
-    Ok(shared_secret)
-}
+        // Create the Deriver object and set the peer public key
+        let mut deriver = Deriver::new(&private_key)
+            .into_report()
+            .change_context(errors::ApplePayDecryptionError::DerivingSharedSecretKeyFailed)
+            .attach_printable("Failed to create a deriver for the private key")?;
 
+        deriver.set_peer(&public_key)
+        .into_report()
+            .change_context(errors::ApplePayDecryptionError::DerivingSharedSecretKeyFailed)
+            .attach_printable("Failed to set the peer key for the secret derivation")?;
+
+        // Compute the shared secret
+        let shared_secret = deriver.derive_to_vec()
+        .into_report()
+            .change_context(errors::ApplePayDecryptionError::DerivingSharedSecretKeyFailed)
+            .attach_printable("Final key derivation failed")?;
+        Ok(shared_secret)
+    }
 
     pub fn symmetric_key(
         &self,
         merchant_id: &str,
         shared_secret: &[u8],
-    ) -> Result<Vec<u8>, Box<dyn Error>> {
+    ) -> Result<Vec<u8>, error_stack::Report<errors::ApplePayDecryptionError>> {
         let kdf_algorithm = b"\x0did-aes256-GCM";
-        let kdf_party_v = hex::decode(merchant_id)?;                // change_context(__::merchant_id_not_found)
+        let kdf_party_v = hex::decode(merchant_id)
+            .into_report()
+            .change_context(errors::ApplePayDecryptionError::Base64DecodingFailed)?;
         let kdf_party_u = b"Apple";
         let kdf_info = [&kdf_algorithm[..], kdf_party_u, &kdf_party_v[..]].concat();
 
@@ -2984,16 +3016,21 @@ pub fn shared_secret(&self, private_pem: &str) -> Result<Vec<u8>, Box<dyn Error>
     pub fn decrypt_ciphertext(
         &self,
         symmetric_key: &[u8],
-    ) -> Result<String, Box<dyn Error>> {
-        let data = BASE64_ENGINE.decode(self.data.peek().as_bytes())?;          //.change_context(KmsError::Base64DecodingFailed)?;
+    ) -> Result<String, error_stack::Report<errors::ApplePayDecryptionError>> {
+        let data = BASE64_ENGINE
+            .decode(self.data.peek().as_bytes())
+            .into_report()
+            .change_context(errors::ApplePayDecryptionError::Base64DecodingFailed)?;
         let iv = [0u8; 16]; //Initialization vector IV is typically used in AES-GCM (Galois/Counter Mode) encryption for randomizing the encryption process.
-        let ciphertext = &data[..data.len() - 16]; //done assumuing the last 16 byte is authentication tag
+        let ciphertext = &data[..data.len() - 16];
         let tag = &data[data.len() - 16..];
-
-        // let mut decrypted = vec![0u8; ciphertext.len()];
         let cipher = Cipher::aes_256_gcm();
-        let decrypted_data = decrypt_aead(cipher, symmetric_key, Some(&iv), &[], ciphertext, tag)?;     //.change_context(KmsError::DecryptionFailed)?;
-        let decrypted = String::from_utf8(decrypted_data)?;         //change_context(__::decrypted_data_not_found)
+        let decrypted_data = decrypt_aead(cipher, symmetric_key, Some(&iv), &[], ciphertext, tag)
+            .into_report()
+            .change_context(errors::ApplePayDecryptionError::DecryptionFailed)?;
+        let decrypted = String::from_utf8(decrypted_data)
+            .into_report()
+            .change_context(errors::ApplePayDecryptionError::DecryptionFailed)?; //change_context(__::decrypted_data_not_found)
 
         Ok(decrypted)
     }
