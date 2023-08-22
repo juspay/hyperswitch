@@ -8,6 +8,7 @@ use router_env::{instrument, tracing};
 
 use super::{errors::StorageErrorExt, metrics};
 use crate::{
+    compatibility::stripe::webhooks as stripe_webhooks,
     consts,
     core::{
         errors::{self, ConnectorErrorExt, CustomResult, RouterResponse},
@@ -475,6 +476,48 @@ async fn bank_transfer_webhook_flow<W: types::OutgoingWebhookType>(
     }
 
     Ok(())
+}
+
+#[allow(clippy::too_many_arguments)]
+#[instrument(skip_all)]
+pub async fn create_event_and_trigger_appropriate_outgoing_webhook(
+    state: AppState,
+    merchant_account: domain::MerchantAccount,
+    event_type: enums::EventType,
+    event_class: enums::EventClass,
+    intent_reference_id: Option<String>,
+    primary_object_id: String,
+    primary_object_type: enums::EventObjectType,
+    content: api::OutgoingWebhookContent,
+) -> CustomResult<(), errors::ApiErrorResponse> {
+    match merchant_account.get_compatible_connector().as_str() {
+        "stripe" => {
+            create_event_and_trigger_outgoing_webhook::<stripe_webhooks::StripeOutgoingWebhook>(
+                state.clone(),
+                merchant_account,
+                event_type,
+                event_class,
+                intent_reference_id,
+                primary_object_id,
+                primary_object_type,
+                content,
+            )
+            .await
+        }
+        _ => {
+            create_event_and_trigger_outgoing_webhook::<api_models::webhooks::OutgoingWebhook>(
+                state.clone(),
+                merchant_account,
+                event_type,
+                event_class,
+                intent_reference_id,
+                primary_object_id,
+                primary_object_type,
+                content,
+            )
+            .await
+        }
+    }
 }
 
 #[allow(clippy::too_many_arguments)]

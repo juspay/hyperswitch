@@ -1,12 +1,15 @@
 use common_utils::{
     crypto::{OptionalEncryptableName, OptionalEncryptableValue},
-    date_time, pii,
+    date_time,
+    ext_traits::ValueExt,
+    pii,
 };
 use data_models::MerchantStorageScheme;
 use diesel_models::{encryption::Encryption, merchant_account::MerchantAccountUpdateInternal};
 use error_stack::ResultExt;
 use masking::{PeekInterface, Secret};
 use storage_impl::DataModelExt;
+use router_env::logger;
 
 use crate::{
     errors::{CustomResult, ValidationError},
@@ -234,5 +237,25 @@ impl super::behaviour::Conversion for MerchantAccount {
             organization_id: self.organization_id,
             is_recon_enabled: self.is_recon_enabled,
         })
+    }
+}
+
+#[derive(serde::Deserialize, Default)]
+pub struct CompatibleConnector {
+    pub connector: Option<String>,
+}
+
+impl MerchantAccount {
+    pub fn get_compatible_connector(&self) -> String {
+        let compatible_connector: CompatibleConnector = self
+            .metadata
+            .clone()
+            .and_then(|meta| {
+                meta.parse_value("CompatibleConnector")
+                    .map_err(|err| logger::error!("Failed to deserialize {:?}", err))
+                    .ok()
+            })
+            .unwrap_or_default();
+        compatible_connector.connector.unwrap_or_default()
     }
 }
