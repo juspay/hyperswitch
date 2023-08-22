@@ -60,15 +60,35 @@ impl Feature<api::PSync, types::PaymentsSyncData>
         > = connector.connector.get_connector_integration();
         match self.request.pending_capture_id_list.clone() {
             Some(pending_connector_capture_id_list) => {
-                let resp = self
-                    .execute_connector_processing_step_for_each_capture(
-                        state,
-                        pending_connector_capture_id_list,
-                        call_connector_action,
-                        connector_integration,
-                    )
-                    .await?;
-                Ok(resp)
+                match connector_integration
+                    .get_capture_sync_method()
+                    .to_payment_failed_response()?
+                {
+                    services::CaptureSyncMethod::Individual => {
+                        let resp = self
+                            .execute_connector_processing_step_for_each_capture(
+                                state,
+                                pending_connector_capture_id_list,
+                                call_connector_action,
+                                connector_integration,
+                            )
+                            .await?;
+                        Ok(resp)
+                    }
+                    services::CaptureSyncMethod::Bulk => {
+                        // for bulk sync of captures, above logic needs to be handled at connector end
+                        let resp = services::execute_connector_processing_step(
+                            state,
+                            connector_integration,
+                            &self,
+                            call_connector_action,
+                            connector_request,
+                        )
+                        .await
+                        .to_payment_failed_response()?;
+                        Ok(resp)
+                    }
+                }
             }
             None => {
                 let resp = services::execute_connector_processing_step(
