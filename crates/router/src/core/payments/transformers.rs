@@ -194,8 +194,6 @@ where
             }
             None => None,
         };
-        println!("multiple_captures");
-        dbg!(&captures);
         payments_to_payments_response(
             req,
             payment_data.payment_attempt,
