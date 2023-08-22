@@ -1318,14 +1318,6 @@ impl Default for super::settings::RequiredFields {
                                 }
                             ),
                             (
-                                enums::Connector::Opennode,
-                                RequiredFieldFinal {
-                                    mandate: HashMap::new(),
-                                    non_mandate: HashMap::new(),
-                                    common: HashMap::new(),
-                                }
-                            ),
-                            (
                                 enums::Connector::Payme,
                                 RequiredFieldFinal {
                                     mandate: HashMap::new(),
