@@ -37,14 +37,14 @@ use crate::{
         },
         payments::helpers,
     },
-    db,
+    db, logger,
     pii::prelude::*,
     routes::{
         self,
         metrics::{self, request},
         payment_methods::ParentPaymentMethodToken,
     },
-    services::{self, logger},
+    services,
     types::{
         api::{self, PaymentMethodCreateExt},
         domain::{self, types::decrypt},
@@ -1760,14 +1760,14 @@ pub async fn list_customer_payment_method(
         let parent_payment_method_token = generate_id(consts::ID_LENGTH, "token");
         let hyperswitch_token = generate_id(consts::ID_LENGTH, "token");
 
-        let card_details = if pm.payment_method == enums::PaymentMethod::Card {
+        let card = if pm.payment_method == enums::PaymentMethod::Card {
             count += 1;
             let card_det = get_lookup_key_from_locker(state, &hyperswitch_token, &pm).await;
             match card_det {
                 Ok(card_det) => Some(card_det),
                 Err(err) => {
                     card_err_count += 1;
-                    logger::error!("Error processing card: {:?}", err);
+                    logger::error!("Error processing card details: {:?}", err);
                     continue;
                 }
             }
@@ -1784,7 +1784,6 @@ pub async fn list_customer_payment_method(
         } else {
             None
         };
-        let card = card_details;
         //Need validation for enabled payment method ,querying MCA
         let pma = api::CustomerPaymentMethod {
             payment_token: parent_payment_method_token.to_owned(),
