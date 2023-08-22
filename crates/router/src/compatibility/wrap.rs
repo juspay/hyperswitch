@@ -1,7 +1,7 @@
 use std::{future::Future, time::Instant};
 
 use actix_web::{HttpRequest, HttpResponse, Responder};
-use common_utils::errors::{ErrorSwitch, CustomResult};
+use common_utils::errors::{CustomResult, ErrorSwitch};
 use router_env::{instrument, tracing, Tag};
 use serde::Serialize;
 
@@ -23,7 +23,7 @@ pub async fn compatibility_api_wrap<'a, 'b, A, U, T, Q, F, Fut, S, E, E2>(
 where
     F: Fn(&'b A, U, T) -> Fut,
     Fut: Future<Output = CustomResult<api::ApplicationResponse<Q>, E2>>,
-    E2: ErrorSwitch<E> + std::error::Error + Send + Sync +'static,
+    E2: ErrorSwitch<E> + std::error::Error + Send + Sync + 'static,
     Q: Serialize + std::fmt::Debug + 'a,
     S: TryFrom<Q> + Serialize,
     E: Serialize + error_stack::Context + actix_web::ResponseError + Clone,

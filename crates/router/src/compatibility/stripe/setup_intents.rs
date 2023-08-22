@@ -169,7 +169,7 @@ pub async fn setup_intents_update(
         _,
         types::StripeSetupIntentResponse,
         errors::StripeErrorCode,
-        _
+        _,
     >(
         flow,
         state.get_ref(),

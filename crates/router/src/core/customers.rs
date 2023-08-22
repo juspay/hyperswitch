@@ -1,10 +1,17 @@
-use common_utils::{crypto::{Encryptable, GcmAes256}, errors::ReportSwitchExt};
+use common_utils::{
+    crypto::{Encryptable, GcmAes256},
+    errors::ReportSwitchExt,
+};
 use error_stack::ResultExt;
 use masking::ExposeInterface;
 use router_env::{instrument, tracing};
 
 use crate::{
     consts,
+    core::{
+        errors::{self},
+        payment_methods::cards,
+    },
     db::StorageInterface,
     pii::PeekInterface,
     routes::{metrics, AppState},
@@ -19,10 +26,6 @@ use crate::{
     },
     utils::generate_id,
 };
-use crate::core::{
-        errors::{self},
-        payment_methods::cards,
-    };
 
 pub const REDACTED: &str = "Redacted";
 
@@ -189,7 +192,7 @@ pub async fn delete_customer(
         .find_mandate_by_merchant_id_customer_id(&merchant_account.merchant_id, &req.customer_id)
         .await
         .switch()?;
-    
+
     for mandate in customer_mandates.into_iter() {
         if mandate.mandate_status == enums::MandateStatus::Active {
             Err(errors::CustomersErrorResponse::MandateActive)?

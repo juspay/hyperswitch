@@ -2,9 +2,8 @@ use api_models::errors::types::Extra;
 use common_utils::errors::ErrorSwitch;
 use http::StatusCode;
 
+use super::{ApiErrorResponse, ConnectorError, CustomersErrorResponse, StorageError};
 use crate::compatibility::stripe::errors::StripeErrorCode;
-
-use super::{ApiErrorResponse, ConnectorError, CustomersErrorResponse, StorageError };
 
 impl ErrorSwitch<api_models::errors::types::ApiErrorResponse> for ApiErrorResponse {
     fn switch(&self) -> api_models::errors::types::ApiErrorResponse {
@@ -278,18 +277,27 @@ impl ErrorSwitch<api_models::errors::types::ApiErrorResponse> for CustomersError
     fn switch(&self) -> api_models::errors::types::ApiErrorResponse {
         use api_models::errors::types::{ApiError, ApiErrorResponse as AER};
         match self {
-            CustomersErrorResponse::CustomerRedacted => {
-                AER::BadRequest(ApiError::new("IR", 0, "Customer has already been redacted", None))
-            }
-            CustomersErrorResponse::InternalServerError => {
+            Self::CustomerRedacted => AER::BadRequest(ApiError::new(
+                "IR",
+                0,
+                "Customer has already been redacted",
+                None,
+            )),
+            Self::InternalServerError => {
                 AER::InternalServerError(ApiError::new("IR", 1, "Something went wrong", None))
             }
-            CustomersErrorResponse::MandateActive => {
-                AER::BadRequest(ApiError::new("IR", 2, "Customer has active mandate/subsciption", None))
-            }
-            CustomersErrorResponse::CustomerNotFound => {
-                AER::NotFound(ApiError::new("IR", 3, "Customer does not exist in our records", None))
-            },
+            Self::MandateActive => AER::BadRequest(ApiError::new(
+                "IR",
+                2,
+                "Customer has active mandate/subsciption",
+                None,
+            )),
+            Self::CustomerNotFound => AER::NotFound(ApiError::new(
+                "IR",
+                3,
+                "Customer does not exist in our records",
+                None,
+            )),
         }
     }
 }
@@ -301,7 +309,7 @@ impl ErrorSwitch<CustomersErrorResponse> for StorageError {
             return CER::CustomerNotFound;
         }
         match self {
-            StorageError::CustomerRedacted => CER::CustomerRedacted,
+            Self::CustomerRedacted => CER::CustomerRedacted,
             _ => CER::InternalServerError,
         }
     }
@@ -309,10 +317,7 @@ impl ErrorSwitch<CustomersErrorResponse> for StorageError {
 
 impl ErrorSwitch<CustomersErrorResponse> for common_utils::errors::CryptoError {
     fn switch(&self) -> CustomersErrorResponse {
-        use CustomersErrorResponse as CER;
-        match self {
-            _ => CER::InternalServerError,
-        }
+        CustomersErrorResponse::InternalServerError
     }
 }
 
@@ -320,10 +325,10 @@ impl ErrorSwitch<StripeErrorCode> for CustomersErrorResponse {
     fn switch(&self) -> StripeErrorCode {
         use StripeErrorCode as SC;
         match self {
-            CustomersErrorResponse::CustomerRedacted => SC::CustomerRedacted,
-            CustomersErrorResponse::InternalServerError => SC::InternalServerError,
-            CustomersErrorResponse::MandateActive => SC::MandateActive,
-            CustomersErrorResponse::CustomerNotFound => SC::CustomerNotFound,
+            Self::CustomerRedacted => SC::CustomerRedacted,
+            Self::InternalServerError => SC::InternalServerError,
+            Self::MandateActive => SC::MandateActive,
+            Self::CustomerNotFound => SC::CustomerNotFound,
         }
     }
 }
@@ -332,9 +337,9 @@ impl ErrorSwitch<CustomersErrorResponse> for ApiErrorResponse {
     fn switch(&self) -> CustomersErrorResponse {
         use CustomersErrorResponse as CER;
         match self {
-            ApiErrorResponse::InternalServerError => CER::InternalServerError,
-            ApiErrorResponse::MandateActive => CER::MandateActive,
-            ApiErrorResponse::CustomerNotFound => CER::CustomerNotFound,
+            Self::InternalServerError => CER::InternalServerError,
+            Self::MandateActive => CER::MandateActive,
+            Self::CustomerNotFound => CER::CustomerNotFound,
             _ => CER::InternalServerError,
         }
     }

@@ -1,8 +1,8 @@
 pub mod api_error_response;
+pub mod customers_error_response;
 pub mod error_handlers;
 pub mod transformers;
 pub mod utils;
-pub mod customers_error_response;
 
 use std::fmt::Display;
 
@@ -17,8 +17,8 @@ use router_env::opentelemetry::metrics::MetricsError;
 
 pub use self::{
     api_error_response::ApiErrorResponse,
-    utils::{ConnectorErrorExt, StorageErrorExt},
     customers_error_response::CustomersErrorResponse,
+    utils::{ConnectorErrorExt, StorageErrorExt},
 };
 use crate::services;
 pub type RouterResult<T> = CustomResult<T, ApiErrorResponse>;
@@ -27,7 +27,8 @@ pub type RouterResponse<T> = CustomResult<services::ApplicationResponse<T>, ApiE
 pub type ApplicationResult<T> = Result<T, ApplicationError>;
 pub type ApplicationResponse<T> = ApplicationResult<services::ApplicationResponse<T>>;
 
-pub type CustomerResponse<T> = CustomResult<services::ApplicationResponse<T>, CustomersErrorResponse>;
+pub type CustomerResponse<T> =
+    CustomResult<services::ApplicationResponse<T>, CustomersErrorResponse>;
 
 macro_rules! impl_error_display {
     ($st: ident, $arg: tt) => {
