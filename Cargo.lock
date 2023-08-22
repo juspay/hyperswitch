@@ -1763,27 +1763,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "diesel_models"
-version = "0.1.0"
-dependencies = [
- "async-bb8-diesel",
- "common_enums",
- "common_utils",
- "diesel",
- "error-stack",
- "frunk",
- "frunk_core",
- "masking",
- "router_derive",
- "router_env",
- "serde",
- "serde_json",
- "strum 0.24.1",
- "thiserror",
- "time 0.3.22",
-]
-
-[[package]]
 name = "diesel_table_macro_syntax"
 version = "0.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
