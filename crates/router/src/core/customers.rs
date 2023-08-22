@@ -5,10 +5,6 @@ use router_env::{instrument, tracing};
 
 use crate::{
     consts,
-    core::{
-        errors::{self, RouterResponse, StorageErrorExt},
-        payment_methods::cards,
-    },
     db::StorageInterface,
     pii::PeekInterface,
     routes::{metrics, AppState},
@@ -23,6 +19,10 @@ use crate::{
     },
     utils::generate_id,
 };
+use crate::core::{
+        errors::{self},
+        payment_methods::cards,
+    };
 
 pub const REDACTED: &str = "Redacted";
 
@@ -32,7 +32,7 @@ pub async fn create_customer(
     merchant_account: domain::MerchantAccount,
     key_store: domain::MerchantKeyStore,
     mut customer_data: customers::CustomerRequest,
-) -> RouterResponse<customers::CustomerResponse> {
+) -> errors::CustomerResponse<customers::CustomerResponse> {
     let customer_id = &customer_data.customer_id;
     let merchant_id = &merchant_account.merchant_id;
     customer_data.merchant_id = merchant_id.to_owned();
@@ -88,12 +88,12 @@ pub async fn create_customer(
             })
         }
         .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .switch()
         .attach_printable("Failed while encrypting address")?;
 
         db.insert_address(address, &key_store)
             .await
-            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .switch()
             .attach_printable("Failed while inserting new address")?;
     }
 
@@ -123,7 +123,7 @@ pub async fn create_customer(
         })
     }
     .await
-    .change_context(errors::ApiErrorResponse::InternalServerError)
+    .switch()
     .attach_printable("Failed while encrypting Customer")?;
 
     let customer = match db.insert_customer(new_customer, &key_store).await {
@@ -132,13 +132,13 @@ pub async fn create_customer(
             if error.current_context().is_db_unique_violation() {
                 db.find_customer_by_customer_id_merchant_id(customer_id, merchant_id, &key_store)
                     .await
-                    .to_not_found_response(errors::ApiErrorResponse::InternalServerError)
+                    .switch()
                     .attach_printable(format!(
                         "Failed while fetching Customer, customer_id: {customer_id}",
                     ))?
             } else {
                 Err(error
-                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .change_context(errors::CustomersErrorResponse::InternalServerError)
                     .attach_printable("Failed while inserting new customer"))?
             }
         }
@@ -314,7 +314,7 @@ pub async fn update_customer(
     merchant_account: domain::MerchantAccount,
     update_customer: customers::CustomerRequest,
     key_store: domain::MerchantKeyStore,
-) -> RouterResponse<customers::CustomerResponse> {
+) -> errors::CustomerResponse<customers::CustomerResponse> {
     //Add this in update call if customer can be updated anywhere else
     db.find_customer_by_customer_id_merchant_id(
         &update_customer.customer_id,
@@ -322,7 +322,7 @@ pub async fn update_customer(
         &key_store,
     )
     .await
-    .to_not_found_response(errors::ApiErrorResponse::CustomerNotFound)?;
+    .switch()?;
 
     let key = key_store.key.get_inner().peek();
 
@@ -369,7 +369,7 @@ pub async fn update_customer(
             })
         }
         .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .switch()
         .attach_printable("Failed while encrypting Address while Update")?;
         db.update_address_by_merchant_id_customer_id(
             &update_customer.customer_id,
@@ -378,7 +378,7 @@ pub async fn update_customer(
             &key_store,
         )
         .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .switch()
         .attach_printable(format!(
             "Failed while updating address: merchant_id: {}, customer_id: {}",
             merchant_account.merchant_id, update_customer.customer_id
@@ -412,12 +412,12 @@ pub async fn update_customer(
                 })
             }
             .await
-            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .switch()
             .attach_printable("Failed while encrypting while updating customer")?,
             &key_store,
         )
         .await
-        .to_not_found_response(errors::ApiErrorResponse::CustomerNotFound)?;
+        .switch()?;
 
     let mut customer_update_response: customers::CustomerResponse = response.into();
     customer_update_response.address = update_customer.address;
