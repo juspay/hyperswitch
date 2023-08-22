@@ -257,6 +257,11 @@ impl MerchantAccountInterface for MockDb {
         merchant_key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<domain::MerchantAccount, errors::StorageError> {
         let mut accounts = self.merchant_accounts.lock().await;
+        let merchant_account = domain::MerchantAccount {
+            #[allow(clippy::as_conversions)]
+            id: Some(merchant_account.id.unwrap_or(accounts.len() as i32)),
+            ..merchant_account
+        };
         let account = Conversion::convert(merchant_account)
             .await
             .change_context(errors::StorageError::EncryptionError)?;
