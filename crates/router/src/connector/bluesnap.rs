@@ -22,7 +22,6 @@ use crate::{
         errors::{self, CustomResult},
         payments,
     },
-    db::StorageInterface,
     headers, logger,
     services::{
         self,
@@ -32,7 +31,6 @@ use crate::{
     types::{
         self,
         api::{self, ConnectorCommon, ConnectorCommonExt},
-        domain,
         storage::enums,
         ErrorResponse, Response,
     },
