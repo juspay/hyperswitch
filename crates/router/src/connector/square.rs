@@ -2,6 +2,7 @@ mod transformers;
 
 use std::fmt::Debug;
 
+use common_utils::ext_traits::ByteSliceExt;
 use error_stack::{IntoReport, ResultExt};
 use masking::PeekInterface;
 use transformers as square;
@@ -13,6 +14,7 @@ use crate::{
         errors::{self, CustomResult},
         payments,
     },
+    db::StorageInterface,
     headers,
     services::{
         self,
@@ -22,7 +24,7 @@ use crate::{
     types::{
         self,
         api::{self, ConnectorCommon, ConnectorCommonExt},
-        storage, ErrorResponse, Response,
+        domain, storage, ErrorResponse, Response,
     },
     utils::{self, BytesExt},
 };
@@ -787,24 +789,84 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
 
 #[async_trait::async_trait]
 impl api::IncomingWebhook for Square {
+    async fn verify_webhook_source(
+        &self,
+        _db: &dyn StorageInterface,
+        _request: &api::IncomingWebhookRequestDetails<'_>,
+        _merchant_account: &domain::MerchantAccount,
+        _connector_label: &str,
+        _key_store: &domain::MerchantKeyStore,
+        _object_reference_id: api_models::webhooks::ObjectReferenceId,
+    ) -> CustomResult<bool, errors::ConnectorError> {
+        Ok(false)
+    }
+
     fn get_webhook_object_reference_id(
         &self,
-        _request: &api::IncomingWebhookRequestDetails<'_>,
+        request: &api::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<api::webhooks::ObjectReferenceId, errors::ConnectorError> {
-        Err(errors::ConnectorError::WebhooksNotImplemented).into_report()
+        let webhook_body: square::SquareWebhookBody = request
+            .body
+            .parse_struct("SquareWebhookBody")
+            .change_context(errors::ConnectorError::WebhookReferenceIdNotFound)?;
+
+        match webhook_body.data.object {
+            square::SquareWebhookObject::Payment(_) => {
+                Ok(api_models::webhooks::ObjectReferenceId::PaymentId(
+                    api_models::payments::PaymentIdType::ConnectorTransactionId(
+                        webhook_body.data.id,
+                    ),
+                ))
+            }
+            square::SquareWebhookObject::Refund(_) => {
+                Ok(api_models::webhooks::ObjectReferenceId::RefundId(
+                    api_models::webhooks::RefundIdType::ConnectorRefundId(webhook_body.data.id),
+                ))
+            }
+        }
     }
 
     fn get_webhook_event_type(
         &self,
-        _request: &api::IncomingWebhookRequestDetails<'_>,
+        request: &api::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<api::IncomingWebhookEvent, errors::ConnectorError> {
-        Err(errors::ConnectorError::WebhooksNotImplemented).into_report()
+        let details: square::SquareWebhookBody = request
+            .body
+            .parse_struct("SquareWebhookEventType")
+            .change_context(errors::ConnectorError::WebhookEventTypeNotFound)?;
+
+        Ok(match details.data.object {
+            square::SquareWebhookObject::Payment(payment_data) => match payment_data.status {
+                square::SquarePaymentStatus::Completed => {
+                    api::IncomingWebhookEvent::PaymentIntentSuccess
+                }
+                square::SquarePaymentStatus::Failed => {
+                    api::IncomingWebhookEvent::PaymentIntentFailure
+                }
+                square::SquarePaymentStatus::Approved
+                | square::SquarePaymentStatus::Canceled
+                | square::SquarePaymentStatus::Pending
+                | square::SquarePaymentStatus::Processing => {
+                    api::IncomingWebhookEvent::EventNotSupported
+                }
+            },
+            square::SquareWebhookObject::Refund(refund_data) => match refund_data.status {
+                square::RefundStatus::Completed => api::IncomingWebhookEvent::RefundSuccess,
+                square::RefundStatus::Failed => api::IncomingWebhookEvent::RefundFailure,
+                square::RefundStatus::Pending | square::RefundStatus::Processing => {
+                    api::IncomingWebhookEvent::EventNotSupported
+                }
+            },
+        })
     }
 
     fn get_webhook_resource_object(
         &self,
-        _request: &api::IncomingWebhookRequestDetails<'_>,
+        request: &api::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<serde_json::Value, errors::ConnectorError> {
-        Err(errors::ConnectorError::WebhooksNotImplemented).into_report()
+        let reference_object: serde_json::Value = serde_json::from_slice(request.body)
+            .into_report()
+            .change_context(errors::ConnectorError::WebhookResourceObjectNotFound)?;
+        Ok(reference_object)
     }
 }

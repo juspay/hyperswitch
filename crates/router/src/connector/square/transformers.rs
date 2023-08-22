@@ -351,3 +351,33 @@ pub struct SquareErrorDetails {
 pub struct SquareErrorResponse {
     pub errors: Vec<SquareErrorDetails>,
 }
+
+#[derive(Debug, Deserialize)]
+pub struct SquareWebhookPaymentObject {
+    pub status: SquarePaymentStatus,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct SquareWebhookRefundObject {
+    pub status: RefundStatus,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum SquareWebhookObject {
+    Payment(SquareWebhookPaymentObject),
+    Refund(SquareWebhookRefundObject),
+}
+
+#[derive(Debug, Deserialize)]
+pub struct SquareWebhookData {
+    pub id: String,
+    pub object: SquareWebhookObject,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct SquareWebhookBody {
+    #[serde(rename = "type")]
+    pub webhook_type: String,
+    pub data: SquareWebhookData,
+}
