@@ -58,39 +58,32 @@ impl Feature<api::PSync, types::PaymentsSyncData>
             types::PaymentsSyncData,
             types::PaymentsResponseData,
         > = connector.connector.get_connector_integration();
-        match self.request.pending_capture_id_list.clone() {
-            Some(pending_connector_capture_id_list) => {
-                match connector_integration
-                    .get_capture_sync_method()
-                    .to_payment_failed_response()?
-                {
-                    services::CaptureSyncMethod::Individual => {
-                        let resp = self
-                            .execute_connector_processing_step_for_each_capture(
-                                state,
-                                pending_connector_capture_id_list,
-                                call_connector_action,
-                                connector_integration,
-                            )
-                            .await?;
-                        Ok(resp)
-                    }
-                    services::CaptureSyncMethod::Bulk => {
-                        // for bulk sync of captures, above logic needs to be handled at connector end
-                        let resp = services::execute_connector_processing_step(
-                            state,
-                            connector_integration,
-                            &self,
-                            call_connector_action,
-                            connector_request,
-                        )
-                        .await
-                        .to_payment_failed_response()?;
-                        Ok(resp)
-                    }
-                }
+
+        let capture_sync_method_result = connector_integration
+            .get_capture_sync_method()
+            .to_payment_failed_response();
+
+        match (
+            self.request.capture_type.clone(),
+            capture_sync_method_result,
+        ) {
+            (
+                types::CaptureType::MultipleCapture(pending_connector_capture_id_list),
+                Ok(services::CaptureSyncMethod::Individual),
+            ) => {
+                let resp = self
+                    .execute_connector_processing_step_for_each_capture(
+                        state,
+                        pending_connector_capture_id_list,
+                        call_connector_action,
+                        connector_integration,
+                    )
+                    .await?;
+                Ok(resp)
             }
-            None => {
+            (types::CaptureType::MultipleCapture(_), Err(err)) => Err(err),
+            _ => {
+                // for bulk sync of captures, above logic needs to be handled at connector end
                 let resp = services::execute_connector_processing_step(
                     state,
                     connector_integration,
@@ -182,7 +175,7 @@ impl types::RouterData<api::PSync, types::PaymentsSyncData, types::PaymentsRespo
                     status: resp.status,
                     connector_response_reference_id,
                 },
-                // this error is meant for developers
+                // this error is never meant to occur. response type will always be PaymentsResponseData::TransactionResponse
                 _ => Err(ApiErrorResponse::PreconditionFailed { message: "Response type must be PaymentsResponseData::TransactionResponse for payment sync".into() })?,
             };
             capture_sync_response_list.insert(connector_capture_id.clone(), capture_sync_response);

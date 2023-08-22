@@ -413,8 +413,16 @@ pub struct PaymentsSyncData {
     pub capture_method: Option<storage_enums::CaptureMethod>,
     pub connector_meta: Option<serde_json::Value>,
     // pending_capture_id_list will be some only for multiple capture sync
-    pub pending_capture_id_list: Option<Vec<String>>,
+    // pub pending_capture_id_list: Option<Vec<String>>,
+    pub capture_type: CaptureType,
     pub mandate_id: Option<api_models::payments::MandateIds>,
+}
+
+#[derive(Debug, Default, Clone)]
+pub enum CaptureType {
+    MultipleCapture(Vec<String>),
+    #[default]
+    SingleCapture,
 }
 
 #[derive(Debug, Default, Clone)]

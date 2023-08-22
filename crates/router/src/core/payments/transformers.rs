@@ -941,9 +941,12 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsSyncData
             encoded_data: payment_data.connector_response.encoded_data,
             capture_method: payment_data.payment_attempt.capture_method,
             connector_meta: payment_data.payment_attempt.connector_metadata,
-            pending_capture_id_list: payment_data.multiple_capture_data.map(
-                |multiple_capture_data| multiple_capture_data.get_pending_connector_capture_ids(),
-            ),
+            capture_type: match payment_data.multiple_capture_data {
+                Some(multiple_capture_data) => types::CaptureType::MultipleCapture(
+                    multiple_capture_data.get_pending_connector_capture_ids(),
+                ),
+                None => types::CaptureType::SingleCapture,
+            },
         })
     }
 }
