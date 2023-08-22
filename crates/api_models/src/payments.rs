@@ -13,7 +13,10 @@ use url::Url;
 use utoipa::ToSchema;
 
 use crate::{
-    admin, disputes, enums as api_enums, ephemeral_key::EphemeralKeyCreateResponse, refunds,
+    admin, disputes,
+    enums::{self as api_enums},
+    ephemeral_key::EphemeralKeyCreateResponse,
+    refunds,
 };
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -1940,12 +1943,12 @@ pub struct PaymentListFilterConstraints {
     /// The identifier for payment
     pub payment_id: Option<String>,
     /// The starting point within a list of objects, limit on number of object will be some constant for join query
-    pub offset: Option<i64>,
+    pub offset: Option<u32>,
     /// The time range for which objects are needed. TimeRange has two fields start_time and end_time from which objects can be filtered as per required scenarios (created_at, time less than, greater than etc).
     #[serde(flatten)]
     pub time_range: Option<TimeRange>,
     /// The list of connectors to filter payments list
-    pub connector: Option<Vec<String>>,
+    pub connector: Option<Vec<api_enums::Connector>>,
     /// The list of currencies to filter payments list
     pub currency: Option<Vec<enums::Currency>>,
     /// The list of payment statuses to filter payments list
