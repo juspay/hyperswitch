@@ -8,8 +8,8 @@ use data_models::MerchantStorageScheme;
 use diesel_models::{encryption::Encryption, merchant_account::MerchantAccountUpdateInternal};
 use error_stack::ResultExt;
 use masking::{PeekInterface, Secret};
-use storage_impl::DataModelExt;
 use router_env::logger;
+use storage_impl::DataModelExt;
 
 use crate::{
     errors::{CustomResult, ValidationError},
