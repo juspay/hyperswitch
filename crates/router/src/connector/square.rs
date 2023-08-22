@@ -2,19 +2,20 @@ mod transformers;
 
 use std::fmt::Debug;
 
-use common_utils::ext_traits::ByteSliceExt;
+use base64::Engine;
+use common_utils::{crypto, ext_traits::ByteSliceExt};
 use error_stack::{IntoReport, ResultExt};
 use masking::PeekInterface;
 use transformers as square;
 
-use super::utils::RefundsRequestData;
+use super::utils::{self as super_utils, RefundsRequestData};
 use crate::{
     configs::settings,
+    consts,
     core::{
         errors::{self, CustomResult},
         payments,
     },
-    db::StorageInterface,
     headers,
     services::{
         self,
@@ -24,7 +25,7 @@ use crate::{
     types::{
         self,
         api::{self, ConnectorCommon, ConnectorCommonExt},
-        domain, storage, ErrorResponse, Response,
+        storage, ErrorResponse, Response,
     },
     utils::{self, BytesExt},
 };
@@ -789,17 +790,46 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
 
 #[async_trait::async_trait]
 impl api::IncomingWebhook for Square {
-    async fn verify_webhook_source(
+    fn get_webhook_source_verification_algorithm(
         &self,
-        _db: &dyn StorageInterface,
         _request: &api::IncomingWebhookRequestDetails<'_>,
-        _merchant_account: &domain::MerchantAccount,
-        _connector_label: &str,
-        _key_store: &domain::MerchantKeyStore,
-        _object_reference_id: api_models::webhooks::ObjectReferenceId,
-    ) -> CustomResult<bool, errors::ConnectorError> {
-        Ok(false)
+    ) -> CustomResult<Box<dyn crypto::VerifySignature + Send>, errors::ConnectorError> {
+        Ok(Box::new(crypto::HmacSha256))
     }
+
+    fn get_webhook_source_verification_signature(
+        &self,
+        request: &api::IncomingWebhookRequestDetails<'_>,
+    ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
+        let encoded_signature =
+            super_utils::get_header_key_value("x-square-hmacsha256-signature", request.headers)?;
+        let signature = consts::BASE64_ENGINE
+            .decode(encoded_signature)
+            .into_report()
+            .change_context(errors::ConnectorError::WebhookSignatureNotFound)?;
+        Ok(signature)
+    }
+
+    fn get_webhook_source_verification_message(
+        &self,
+        request: &api::IncomingWebhookRequestDetails<'_>,
+        _merchant_id: &str,
+        _secret: &[u8],
+    ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
+        Ok(format!("{}{}", request.uri, String::from_utf8_lossy(request.body)).into_bytes())
+    }
+
+    // async fn verify_webhook_source(
+    //     &self,
+    //     _db: &dyn StorageInterface,
+    //     _request: &api::IncomingWebhookRequestDetails<'_>,
+    //     _merchant_account: &domain::MerchantAccount,
+    //     _connector_label: &str,
+    //     _key_store: &domain::MerchantKeyStore,
+    //     _object_reference_id: api_models::webhooks::ObjectReferenceId,
+    // ) -> CustomResult<bool, errors::ConnectorError> {
+    //     Ok(false)
+    // }
 
     fn get_webhook_object_reference_id(
         &self,
