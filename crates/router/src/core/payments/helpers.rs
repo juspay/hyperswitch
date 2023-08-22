@@ -5,7 +5,8 @@ use common_utils::{
     ext_traits::{AsyncExt, ByteSliceExt, ValueExt},
     fp_utils, generate_id, pii,
 };
-use diesel_models::{enums, payment_attempt, payment_intent};
+use data_models::payments::payment_intent::PaymentIntent;
+use diesel_models::{enums, payment_attempt::PaymentAttempt};
 // TODO : Evaluate all the helper functions ()
 use error_stack::{report, IntoReport, ResultExt};
 use josekit::jwe;
@@ -76,7 +77,7 @@ pub fn create_identity_from_certificate_and_key(
 
 pub fn filter_mca_based_on_business_details(
     merchant_connector_accounts: Vec<domain::MerchantConnectorAccount>,
-    payment_intent: Option<&diesel_models::payment_intent::PaymentIntent>,
+    payment_intent: Option<&PaymentIntent>,
 ) -> Vec<domain::MerchantConnectorAccount> {
     if let Some(payment_intent) = payment_intent {
         merchant_connector_accounts
@@ -631,8 +632,8 @@ pub fn validate_customer_id_mandatory_cases(
 
 pub fn create_startpay_url(
     server: &Server,
-    payment_attempt: &storage::PaymentAttempt,
-    payment_intent: &storage::PaymentIntent,
+    payment_attempt: &PaymentAttempt,
+    payment_intent: &PaymentIntent,
 ) -> String {
     format!(
         "{}/payments/redirect/{}/{}/{}",
@@ -645,7 +646,7 @@ pub fn create_startpay_url(
 
 pub fn create_redirect_url(
     router_base_url: &String,
-    payment_attempt: &storage::PaymentAttempt,
+    payment_attempt: &PaymentAttempt,
     connector_name: &String,
     creds_identifier: Option<&str>,
 ) -> String {
@@ -668,7 +669,7 @@ pub fn create_webhook_url(
 }
 pub fn create_complete_authorize_url(
     router_base_url: &String,
-    payment_attempt: &storage::PaymentAttempt,
+    payment_attempt: &PaymentAttempt,
     connector_name: &String,
 ) -> String {
     format!(
@@ -773,7 +774,7 @@ pub fn payment_intent_status_fsm(
 pub async fn add_domain_task_to_pt<Op>(
     operation: &Op,
     state: &AppState,
-    payment_attempt: &storage::PaymentAttempt,
+    payment_attempt: &PaymentAttempt,
     requeue: bool,
     schedule_time: Option<time::PrimitiveDateTime>,
 ) -> CustomResult<(), errors::ApiErrorResponse>
@@ -1346,8 +1347,8 @@ pub async fn make_pm_data<'a, F: Clone, R>(
 pub async fn store_in_vault_and_generate_ppmt(
     state: &AppState,
     payment_method_data: &api_models::payments::PaymentMethodData,
-    payment_intent: &payment_intent::PaymentIntent,
-    payment_attempt: &payment_attempt::PaymentAttempt,
+    payment_intent: &PaymentIntent,
+    payment_attempt: &PaymentAttempt,
     payment_method: enums::PaymentMethod,
 ) -> RouterResult<String> {
     let router_token = vault::Vault::store_payment_method_data_in_locker(
@@ -1645,7 +1646,6 @@ pub fn check_force_psync_precondition(
             | storage_enums::AttemptStatus::AutoRefunded
             | storage_enums::AttemptStatus::Voided
             | storage_enums::AttemptStatus::CodInitiated
-            | storage_enums::AttemptStatus::Authorized
             | storage_enums::AttemptStatus::Started
             | storage_enums::AttemptStatus::Failure
     ) && connector_transaction_id.is_some()
@@ -1664,9 +1664,13 @@ pub(super) async fn filter_by_constraints(
     constraints: &api::PaymentListConstraints,
     merchant_id: &str,
     storage_scheme: storage_enums::MerchantStorageScheme,
-) -> CustomResult<Vec<storage::PaymentIntent>, errors::StorageError> {
+) -> CustomResult<Vec<PaymentIntent>, errors::DataStorageError> {
     let result = db
-        .filter_payment_intent_by_constraints(merchant_id, constraints, storage_scheme)
+        .filter_payment_intent_by_constraints(
+            merchant_id,
+            &constraints.clone().into(),
+            storage_scheme,
+        )
         .await?;
     Ok(result)
 }
@@ -1964,7 +1968,7 @@ pub fn generate_mandate(
 // A function to manually authenticate the client secret with intent fulfillment time
 pub(crate) fn authenticate_client_secret(
     request_client_secret: Option<&String>,
-    payment_intent: &payment_intent::PaymentIntent,
+    payment_intent: &PaymentIntent,
     merchant_intent_fulfillment_time: Option<i64>,
 ) -> Result<(), errors::ApiErrorResponse> {
     match (request_client_secret, &payment_intent.client_secret) {
@@ -2034,7 +2038,7 @@ pub async fn verify_payment_intent_time_and_client_secret(
     db: &dyn StorageInterface,
     merchant_account: &domain::MerchantAccount,
     client_secret: Option<String>,
-) -> error_stack::Result<Option<storage::PaymentIntent>, errors::ApiErrorResponse> {
+) -> error_stack::Result<Option<PaymentIntent>, errors::ApiErrorResponse> {
     client_secret
         .async_map(|cs| async move {
             let payment_id = get_payment_id_from_client_secret(&cs)?;
@@ -2164,11 +2168,12 @@ pub(crate) fn get_payment_id_from_client_secret(cs: &str) -> RouterResult<String
 
 #[cfg(test)]
 mod tests {
+
     use super::*;
 
     #[test]
     fn test_authenticate_client_secret_fulfillment_time_not_expired() {
-        let payment_intent = payment_intent::PaymentIntent {
+        let payment_intent = PaymentIntent {
             id: 21,
             payment_id: "23".to_string(),
             merchant_id: "22".to_string(),
@@ -2212,7 +2217,7 @@ mod tests {
 
     #[test]
     fn test_authenticate_client_secret_fulfillment_time_expired() {
-        let payment_intent = payment_intent::PaymentIntent {
+        let payment_intent = PaymentIntent {
             id: 21,
             payment_id: "23".to_string(),
             merchant_id: "22".to_string(),
@@ -2256,7 +2261,7 @@ mod tests {
 
     #[test]
     fn test_authenticate_client_secret_expired() {
-        let payment_intent = payment_intent::PaymentIntent {
+        let payment_intent = PaymentIntent {
             id: 21,
             payment_id: "23".to_string(),
             merchant_id: "22".to_string(),
@@ -2480,8 +2485,8 @@ pub fn router_data_type_conversion<F1, F2, Req1, Req2, Res1, Res2>(
 }
 
 pub fn get_attempt_type(
-    payment_intent: &storage::PaymentIntent,
-    payment_attempt: &storage::PaymentAttempt,
+    payment_intent: &PaymentIntent,
+    payment_attempt: &PaymentAttempt,
     request: &api::PaymentsRequest,
     action: &str,
 ) -> RouterResult<AttemptType> {
@@ -2567,7 +2572,7 @@ impl AttemptType {
     #[inline(always)]
     fn make_new_payment_attempt(
         payment_method_data: &Option<api_models::payments::PaymentMethodData>,
-        old_payment_attempt: storage::PaymentAttempt,
+        old_payment_attempt: PaymentAttempt,
         new_attempt_count: i16,
     ) -> storage::PaymentAttemptNew {
         let created_at @ modified_at @ last_synced = Some(common_utils::date_time::now());
@@ -2634,11 +2639,11 @@ impl AttemptType {
     pub async fn modify_payment_intent_and_payment_attempt(
         &self,
         request: &api::PaymentsRequest,
-        fetched_payment_intent: storage::PaymentIntent,
-        fetched_payment_attempt: storage::PaymentAttempt,
+        fetched_payment_intent: PaymentIntent,
+        fetched_payment_attempt: PaymentAttempt,
         db: &dyn StorageInterface,
         storage_scheme: storage::enums::MerchantStorageScheme,
-    ) -> RouterResult<(storage::PaymentIntent, storage::PaymentAttempt)> {
+    ) -> RouterResult<(PaymentIntent, PaymentAttempt)> {
         match self {
             Self::SameOld => Ok((fetched_payment_intent, fetched_payment_attempt)),
             Self::New => {
@@ -2680,7 +2685,7 @@ impl AttemptType {
 
     pub async fn get_connector_response(
         &self,
-        payment_attempt: &storage::PaymentAttempt,
+        payment_attempt: &PaymentAttempt,
         db: &dyn StorageInterface,
         storage_scheme: storage::enums::MerchantStorageScheme,
     ) -> RouterResult<storage::ConnectorResponse> {
@@ -2911,7 +2916,7 @@ pub async fn get_additional_payment_data(
 }
 
 pub fn validate_customer_access(
-    payment_intent: &storage::PaymentIntent,
+    payment_intent: &PaymentIntent,
     auth_flow: services::AuthFlow,
     request: &api::PaymentsRequest,
 ) -> Result<(), errors::ApiErrorResponse> {
