@@ -591,12 +591,7 @@ impl TryFrom<&types::PaymentsCaptureRouterData> for PaymentCaptureRequest {
             .request
             .multiple_capture_data
             .as_ref()
-            .map(|multiple_capture_data| {
-                multiple_capture_data
-                    .get_latest_capture()
-                    .capture_id
-                    .clone()
-            });
+            .map(|multiple_capture_data| multiple_capture_data.capture_reference.clone());
         Ok(Self {
             amount: Some(item.request.amount_to_capture),
             capture_type: Some(capture_type),
