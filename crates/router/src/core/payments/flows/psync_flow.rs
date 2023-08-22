@@ -10,7 +10,7 @@ use crate::{
     },
     routes::AppState,
     services,
-    types::{self, api, domain, Capturable},
+    types::{self, api, domain},
 };
 
 #[async_trait]
@@ -58,18 +58,14 @@ impl Feature<api::PSync, types::PaymentsSyncData>
             types::PaymentsSyncData,
             types::PaymentsResponseData,
         > = connector.connector.get_connector_integration();
-        match self.request.get_multiple_capture_data() {
-            Some(multiple_capture_data) => {
+        match &self.request.pending_capture_id_list {
+            Some(pending_connector_capture_id_list) => {
                 match connector_integration
                     .get_capture_sync_method()
                     .to_payment_failed_response()?
                 {
                     services::CaptureSyncMethod::Individual => {
-                        let pending_captures = multiple_capture_data.get_pending_captures();
                         let mut capture_sync_response_list = HashMap::new();
-                        let pending_connector_capture_id_list = pending_captures
-                            .into_iter()
-                            .filter_map(|capture| capture.connector_capture_id.clone());
                         for connector_capture_id in pending_connector_capture_id_list {
                             self.request.connector_transaction_id =
                                 types::ResponseId::ConnectorTransactionId(
@@ -104,7 +100,7 @@ impl Feature<api::PSync, types::PaymentsSyncData>
                                 _ => Err(ApiErrorResponse::PreconditionFailed { message: "Response type must be PaymentsResponseData::TransactionResponse for payment sync".into() })?,
                             };
                             capture_sync_response_list
-                                .insert(connector_capture_id, capture_sync_response);
+                                .insert(connector_capture_id.clone(), capture_sync_response);
                         }
                         self.response = Ok(types::PaymentsResponseData::MultipleCaptureResponse {
                             capture_sync_response_list,
