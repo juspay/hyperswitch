@@ -1317,11 +1317,11 @@ pub fn should_call_connector<Op: Debug, F: Clone>(
         "PaymentStatus" => {
             matches!(
                 payment_data.payment_intent.status,
-                storage_enums::IntentStatus::Failed
-                    | storage_enums::IntentStatus::Processing
-                    | storage_enums::IntentStatus::Succeeded
+                storage_enums::IntentStatus::Processing
                     | storage_enums::IntentStatus::RequiresCustomerAction
                     | storage_enums::IntentStatus::RequiresMerchantAction
+                    | storage_enums::IntentStatus::RequiresCapture
+                    | storage_enums::IntentStatus::PartiallyCaptured
             ) && payment_data.force_sync.unwrap_or(false)
         }
         "PaymentCancel" => matches!(
@@ -1417,16 +1417,21 @@ pub async fn apply_filters_on_payments(
     merchant: domain::MerchantAccount,
     constraints: api::PaymentListFilterConstraints,
 ) -> RouterResponse<api::PaymentListResponse> {
+    use storage_impl::DataModelExt;
+
     use crate::types::transformers::ForeignFrom;
 
     let list: Vec<(storage::PaymentIntent, storage::PaymentAttempt)> = db
-        .apply_filters_on_payments_list(
+        .get_filtered_payment_intents_attempt(
             &merchant.merchant_id,
-            &constraints,
+            &constraints.clone().into(),
             merchant.storage_scheme,
         )
         .await
-        .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
+        .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?
+        .into_iter()
+        .map(|(pi, pa)| (pi, pa.to_storage_model()))
+        .collect();
 
     let data: Vec<api::PaymentsResponse> =
         list.into_iter().map(ForeignFrom::foreign_from).collect();
@@ -1458,7 +1463,7 @@ pub async fn get_filters_for_payments(
 
     let filters = db
         .get_filters_for_payments(
-            &pi,
+            pi.as_slice(),
             &merchant.merchant_id,
             // since OLAP doesn't have KV. Force to get the data from PSQL.
             storage_enums::MerchantStorageScheme::PostgresOnly,
