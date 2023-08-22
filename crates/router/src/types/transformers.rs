@@ -650,6 +650,7 @@ impl ForeignFrom<storage::Capture> for api_models::payments::CaptureResponse {
             error_message: capture.error_message,
             error_code: capture.error_code,
             error_reason: capture.error_reason,
+            reference_id: capture.connector_response_reference_id,
         }
     }
 }

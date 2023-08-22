@@ -374,6 +374,8 @@ pub struct CaptureResponse {
     pub error_code: Option<String>,
     /// If there was an error while calling the connectors the reason is received here
     pub error_reason: Option<String>,
+    /// reference to the capture at connector side
+    pub reference_id: Option<String>,
 }
 
 impl PaymentsRequest {
