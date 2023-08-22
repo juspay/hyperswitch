@@ -1199,7 +1199,9 @@ pub async fn make_pm_data<'a, F: Clone, R>(
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to fetch the token from redis")?
             .ok_or(error_stack::Report::new(
-                errors::ApiErrorResponse::UnprocessableEntity { entity: token },
+                errors::ApiErrorResponse::UnprocessableEntity {
+                    entity: token + " is invalid or expired",
+                },
             ))?;
 
         Some(key)
@@ -2407,7 +2409,7 @@ pub async fn get_merchant_connector_account(
             let decrypted_mca = services::decrypt_jwe(mca_config.config.as_str(), services::KeyIdCheck::SkipKeyIdCheck, private_key, jwe::RSA_OAEP_256)
                                      .await
                                      .change_context(errors::ApiErrorResponse::UnprocessableEntity{
-                                        entity: "merchant_connector_details".to_string()})
+                                        entity: "merchant_connector_details".to_string() + " decode failed due to invalid data format!"})
                                      .attach_printable(
                                         "Failed to decrypt merchant_connector_details sent in request and then put in cache",
                                     )?;

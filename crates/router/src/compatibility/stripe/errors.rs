@@ -223,7 +223,7 @@ pub enum StripeErrorCode {
     WebhookProcessingError,
     #[error(error_type = StripeErrorType::InvalidRequestError, code = "payment_method_unactivated", message = "The operation cannot be performed as the payment method used has not been activated. Activate the payment method in the Dashboard, then try again.")]
     PaymentMethodUnactivated,
-    #[error(error_type = StripeErrorType::HyperswitchError, code = "", message = "{entity} expired or invalid")]
+    #[error(error_type = StripeErrorType::HyperswitchError, code = "", message = "{entity}")]
     HyperswitchUnprocessableEntity { entity: String },
     // [#216]: https://github.com/juspay/hyperswitch/issues/216
     // Implement the remaining stripe error codes

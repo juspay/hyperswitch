@@ -1085,7 +1085,7 @@ pub async fn get_tokenized_data(
             metrics::TEMP_LOCKER_FAILURES.add(&metrics::CONTEXT, 1, &[]);
             match err.status_code {
                 404 => Err(errors::ApiErrorResponse::UnprocessableEntity {
-                    entity: "Token".to_string(),
+                    entity: "Token".to_string() + " is invalid or expired",
                 }
                 .into()),
                 _ => Err(errors::ApiErrorResponse::InternalServerError)
