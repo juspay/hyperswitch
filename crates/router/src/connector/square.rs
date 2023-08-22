@@ -819,18 +819,6 @@ impl api::IncomingWebhook for Square {
         Ok(format!("{}{}", request.uri, String::from_utf8_lossy(request.body)).into_bytes())
     }
 
-    // async fn verify_webhook_source(
-    //     &self,
-    //     _db: &dyn StorageInterface,
-    //     _request: &api::IncomingWebhookRequestDetails<'_>,
-    //     _merchant_account: &domain::MerchantAccount,
-    //     _connector_label: &str,
-    //     _key_store: &domain::MerchantKeyStore,
-    //     _object_reference_id: api_models::webhooks::ObjectReferenceId,
-    // ) -> CustomResult<bool, errors::ConnectorError> {
-    //     Ok(false)
-    // }
-
     fn get_webhook_object_reference_id(
         &self,
         request: &api::IncomingWebhookRequestDetails<'_>,
