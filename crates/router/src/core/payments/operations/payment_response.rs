@@ -231,38 +231,37 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
         .clone()
     {
         Err(err) => {
-            let (capture_update, attempt_update) =
-                match router_data.request.get_multiple_capture_data() {
-                    Some(multiple_capture_data) => {
-                        let capture_update = storage::CaptureUpdate::ErrorUpdate {
-                            status: match err.status_code {
-                                500..=511 => storage::enums::CaptureStatus::Pending,
-                                _ => storage::enums::CaptureStatus::Failed,
-                            },
-                            error_code: Some(err.code),
-                            error_message: Some(err.message),
-                            error_reason: err.reason,
-                        };
-                        let capture_update_list = vec![(
-                            multiple_capture_data.get_latest_capture().clone(),
-                            capture_update,
-                        )];
-                        (Some((multiple_capture_data, capture_update_list)), None)
-                    }
-                    None => (
-                        None,
-                        Some(storage::PaymentAttemptUpdate::ErrorUpdate {
-                            connector: None,
-                            status: match err.status_code {
-                                500..=511 => storage::enums::AttemptStatus::Pending,
-                                _ => storage::enums::AttemptStatus::Failure,
-                            },
-                            error_message: Some(Some(err.message)),
-                            error_code: Some(Some(err.code)),
-                            error_reason: Some(err.reason),
-                        }),
-                    ),
-                };
+            let (capture_update, attempt_update) = match payment_data.multiple_capture_data {
+                Some(multiple_capture_data) => {
+                    let capture_update = storage::CaptureUpdate::ErrorUpdate {
+                        status: match err.status_code {
+                            500..=511 => storage::enums::CaptureStatus::Pending,
+                            _ => storage::enums::CaptureStatus::Failed,
+                        },
+                        error_code: Some(err.code),
+                        error_message: Some(err.message),
+                        error_reason: err.reason,
+                    };
+                    let capture_update_list = vec![(
+                        multiple_capture_data.get_latest_capture().clone(),
+                        capture_update,
+                    )];
+                    (Some((multiple_capture_data, capture_update_list)), None)
+                }
+                None => (
+                    None,
+                    Some(storage::PaymentAttemptUpdate::ErrorUpdate {
+                        connector: None,
+                        status: match err.status_code {
+                            500..=511 => storage::enums::AttemptStatus::Pending,
+                            _ => storage::enums::AttemptStatus::Failure,
+                        },
+                        error_message: Some(Some(err.message)),
+                        error_code: Some(Some(err.code)),
+                        error_reason: Some(err.reason),
+                    }),
+                ),
+            };
             (
                 capture_update,
                 attempt_update,
@@ -335,7 +334,7 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                 }
 
                 let (capture_updates, payment_attempt_update) =
-                    match router_data.request.get_multiple_capture_data() {
+                    match payment_data.multiple_capture_data {
                         Some(multiple_capture_data) => {
                             let capture_update = storage::CaptureUpdate::ResponseUpdate {
                                 status: enums::CaptureStatus::foreign_try_from(router_data.status)?,

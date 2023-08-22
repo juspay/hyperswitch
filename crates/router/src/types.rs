@@ -26,10 +26,7 @@ pub use crate::core::payments::{CustomerDetails, PaymentAddress};
 #[cfg(feature = "payouts")]
 use crate::core::utils::IRRELEVANT_CONNECTOR_REQUEST_REFERENCE_ID_IN_DISPUTE_FLOW;
 use crate::{
-    core::{
-        errors,
-        payments::{types::MultipleCaptureData, RecurringMandatePaymentData},
-    },
+    core::{errors, payments::RecurringMandatePaymentData},
     services,
 };
 
@@ -334,8 +331,15 @@ pub struct PaymentsCaptureData {
     pub currency: storage_enums::Currency,
     pub connector_transaction_id: String,
     pub payment_amount: i64,
-    pub multiple_capture_data: Option<MultipleCaptureData>,
+    pub multiple_capture_data: Option<MultipleCaptureRequestData>,
     pub connector_meta: Option<serde_json::Value>,
+}
+
+#[allow(dead_code)]
+#[derive(Debug, Clone, Default)]
+pub struct MultipleCaptureRequestData {
+    pub capture_sequence: i16,
+    pub capture_reference: String,
 }
 
 #[derive(Debug, Clone)]
@@ -458,9 +462,6 @@ pub trait Capturable {
     fn get_capture_amount(&self) -> Option<i64> {
         Some(0)
     }
-    fn get_multiple_capture_data(&self) -> Option<MultipleCaptureData> {
-        None
-    }
 }
 
 impl Capturable for PaymentsAuthorizeData {
@@ -472,9 +473,6 @@ impl Capturable for PaymentsAuthorizeData {
 impl Capturable for PaymentsCaptureData {
     fn get_capture_amount(&self) -> Option<i64> {
         Some(self.amount_to_capture)
-    }
-    fn get_multiple_capture_data(&self) -> Option<MultipleCaptureData> {
-        self.multiple_capture_data.clone()
     }
 }
 
