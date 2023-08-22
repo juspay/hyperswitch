@@ -490,8 +490,8 @@ pub async fn create_event_and_trigger_appropriate_outgoing_webhook(
     primary_object_type: enums::EventObjectType,
     content: api::OutgoingWebhookContent,
 ) -> CustomResult<(), errors::ApiErrorResponse> {
-    match merchant_account.get_compatible_connector().as_str() {
-        "stripe" => {
+    match merchant_account.get_compatible_connector() {
+        Some(api_models::enums::Connector::Stripe) => {
             create_event_and_trigger_outgoing_webhook::<stripe_webhooks::StripeOutgoingWebhook>(
                 state.clone(),
                 merchant_account,

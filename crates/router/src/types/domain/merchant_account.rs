@@ -240,22 +240,15 @@ impl super::behaviour::Conversion for MerchantAccount {
     }
 }
 
-#[derive(serde::Deserialize, Default)]
-pub struct CompatibleConnector {
-    pub connector: Option<String>,
-}
-
 impl MerchantAccount {
-    pub fn get_compatible_connector(&self) -> String {
-        let compatible_connector: CompatibleConnector = self
-            .metadata
-            .clone()
-            .and_then(|meta| {
-                meta.parse_value("CompatibleConnector")
+    pub fn get_compatible_connector(&self) -> Option<api_models::enums::Connector> {
+        let metadata: Option<api_models::admin::MerchantAccountMetadata> =
+            self.metadata.as_ref().and_then(|meta| {
+                meta.clone()
+                    .parse_value("MerchantAccountMetadata")
                     .map_err(|err| logger::error!("Failed to deserialize {:?}", err))
                     .ok()
-            })
-            .unwrap_or_default();
-        compatible_connector.connector.unwrap_or_default()
+            });
+        metadata.and_then(|a| a.compatible_connector)
     }
 }
