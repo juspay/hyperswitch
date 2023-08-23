@@ -12,6 +12,50 @@ use crate::{
     },
 };
 
+impl TryFrom<(&types::TokenizationRouterData, api_models::payments::Card)> for SquareTokenRequest {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        value: (&types::TokenizationRouterData, api_models::payments::Card),
+    ) -> Result<Self, Self::Error> {
+        let (item, card_data) = value;
+        let auth = SquareAuthType::try_from(&item.connector_auth_type)
+            .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
+        let exp_year = Secret::new(
+            card_data
+                .get_expiry_year_4_digit()
+                .peek()
+                .parse::<u16>()
+                .into_report()
+                .change_context(errors::ConnectorError::DateFormattingFailed)?,
+        );
+        let exp_month = Secret::new(
+            card_data
+                .card_exp_month
+                .peek()
+                .parse::<u16>()
+                .into_report()
+                .change_context(errors::ConnectorError::DateFormattingFailed)?,
+        );
+        //The below error will never happen because if session-id is not generated it would give error in execute_pretasks itself.
+        let session_id = Secret::new(item.session_token.clone().ok_or(
+            errors::ConnectorError::FailedAtConnector {
+                message: "Unable to generate session ID".to_owned(),
+                code: consts::NO_ERROR_CODE.to_owned(),
+            },
+        )?);
+        Ok(Self::Card(SquareTokenizeData {
+            client_id: auth.key1,
+            session_id,
+            card_data: SquareCardData {
+                exp_year,
+                exp_month,
+                number: card_data.card_number,
+                cvv: card_data.card_cvc,
+            },
+        }))
+    }
+}
+
 #[derive(Debug, Serialize)]
 pub struct SquareCardData {
     cvv: Secret<String>,
@@ -35,45 +79,8 @@ pub enum SquareTokenRequest {
 impl TryFrom<&types::TokenizationRouterData> for SquareTokenRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::TokenizationRouterData) -> Result<Self, Self::Error> {
-        let auth = SquareAuthType::try_from(&item.connector_auth_type)
-            .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
-
         match item.request.payment_method_data.clone() {
-            api::PaymentMethodData::Card(card_data) => {
-                let exp_year = Secret::new(
-                    card_data
-                        .get_expiry_year_4_digit()
-                        .peek()
-                        .parse::<u16>()
-                        .into_report()
-                        .change_context(errors::ConnectorError::DateFormattingFailed)?,
-                );
-                let exp_month = Secret::new(
-                    card_data
-                        .card_exp_month
-                        .peek()
-                        .parse::<u16>()
-                        .into_report()
-                        .change_context(errors::ConnectorError::DateFormattingFailed)?,
-                );
-                //The below error will never happen because if session-id is not generated it would give error in execute_pretasks itself.
-                let session_id = Secret::new(item.session_token.clone().ok_or(
-                    errors::ConnectorError::FailedAtConnector {
-                        message: "Unable to generate session ID".to_owned(),
-                        code: consts::NO_ERROR_CODE.to_owned(),
-                    },
-                )?);
-                Ok(Self::Card(SquareTokenizeData {
-                    client_id: auth.key1,
-                    session_id,
-                    card_data: SquareCardData {
-                        exp_year,
-                        exp_month,
-                        number: card_data.card_number,
-                        cvv: card_data.card_cvc,
-                    },
-                }))
-            }
+            api::PaymentMethodData::Card(card_data) => Self::try_from((item, card_data)),
             api::PaymentMethodData::BankDebit(_)
             | api::PaymentMethodData::CardRedirect(_)
             | api::PaymentMethodData::Wallet(_)
