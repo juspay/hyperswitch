@@ -7,8 +7,9 @@ use masking::ExposeInterface;
 use router_env::{instrument, tracing};
 
 use super::{errors::StorageErrorExt, metrics};
+#[cfg(feature = "stripe")]
+use crate::compatibility::stripe::webhooks as stripe_webhooks;
 use crate::{
-    compatibility::stripe::webhooks as stripe_webhooks,
     consts,
     core::{
         errors::{self, ConnectorErrorExt, CustomResult, RouterResponse},
@@ -491,6 +492,7 @@ pub async fn create_event_and_trigger_appropriate_outgoing_webhook(
     content: api::OutgoingWebhookContent,
 ) -> CustomResult<(), errors::ApiErrorResponse> {
     match merchant_account.get_compatible_connector() {
+        #[cfg(feature = "stripe")]
         Some(api_models::enums::Connector::Stripe) => {
             create_event_and_trigger_outgoing_webhook::<stripe_webhooks::StripeOutgoingWebhook>(
                 state.clone(),
