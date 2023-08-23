@@ -4,12 +4,8 @@ use common_utils::errors::CustomResult;
 use data_models::payments::payment_intent::PaymentIntent;
 use diesel_models::{self as store};
 use error_stack::ResultExt;
-#[cfg(feature = "kms")]
-use external_services::kms::{decrypt::KmsDecrypt, KmsClient, KmsError};
 use futures::lock::Mutex;
-#[cfg(feature = "kms")]
-use masking::ExposeInterface;
-use masking::{Deserialize, StrongSecret};
+use masking::StrongSecret;
 use redis::{kv_store::RedisConnInterface, RedisStore};
 pub mod config;
 pub mod connection;
@@ -291,71 +287,6 @@ impl RedisConnInterface for MockDb {
     }
 }
 
-#[cfg(feature = "kms")]
-/// Store the decrypted kms secret values for active use in the application
-/// Currently using `StrongSecret` won't have any effect as this struct have smart pointers to heap
-/// allocations.
-/// note: we can consider adding such behaviour in the future with custom implementation
-#[derive(Clone)]
-pub struct ActiveKmsSecrets {
-    pub jwekey: masking::Secret<Jwekey>,
-}
-#[derive(Debug, Deserialize, Clone, Default)]
-#[serde(default)]
-pub struct Jwekey {
-    pub locker_key_identifier1: String,
-    pub locker_key_identifier2: String,
-    pub locker_encryption_key1: String,
-    pub locker_encryption_key2: String,
-    pub locker_decryption_key1: String,
-    pub locker_decryption_key2: String,
-    pub vault_encryption_key: String,
-    pub vault_private_key: String,
-    pub tunnel_private_key: String,
-}
-
-#[cfg(feature = "kms")]
-#[async_trait::async_trait]
-impl KmsDecrypt for Jwekey {
-    type Output = Self;
-
-    async fn decrypt_inner(
-        mut self,
-        kms_client: &KmsClient,
-    ) -> CustomResult<Self::Output, KmsError> {
-        (
-            self.locker_encryption_key1,
-            self.locker_encryption_key2,
-            self.locker_decryption_key1,
-            self.locker_decryption_key2,
-            self.vault_encryption_key,
-            self.vault_private_key,
-            self.tunnel_private_key,
-        ) = tokio::try_join!(
-            kms_client.decrypt(self.locker_encryption_key1),
-            kms_client.decrypt(self.locker_encryption_key2),
-            kms_client.decrypt(self.locker_decryption_key1),
-            kms_client.decrypt(self.locker_decryption_key2),
-            kms_client.decrypt(self.vault_encryption_key),
-            kms_client.decrypt(self.vault_private_key),
-            kms_client.decrypt(self.tunnel_private_key),
-        )?;
-        Ok(self)
-    }
-}
-
-#[cfg(feature = "kms")]
-#[async_trait::async_trait]
-impl KmsDecrypt for ActiveKmsSecrets {
-    type Output = Self;
-    async fn decrypt_inner(
-        mut self,
-        kms_client: &KmsClient,
-    ) -> CustomResult<Self::Output, KmsError> {
-        self.jwekey = self.jwekey.expose().decrypt_inner(kms_client).await?.into();
-        Ok(self)
-    }
-}
 pub(crate) fn diesel_error_to_data_error(
     diesel_error: &diesel_models::errors::DatabaseError,
 ) -> data_models::errors::StorageError {
