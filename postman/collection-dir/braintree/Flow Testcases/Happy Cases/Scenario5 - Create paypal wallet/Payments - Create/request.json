@@ -12,7 +12,6 @@
   ],
   "body": {
     "mode": "raw",
-    "raw": "{\n    \"amount\": 65457,\n    \"currency\": \"USD\",\n    \"confirm\": false,\n    \"capture_method\": \"automatic\",\n    \"customer_id\": \"SaveCard\",\n    \"capture_on\": \"2022-09-10T10:11:12Z\",\n    \"authentication_type\": \"three_ds\",\n    \"amount_to_capture\": 6540,\n    \"email\": \"guest@example.com\",\n    \"name\": \"John Doe\",\n    \"phone\": \"999999999\",\n    \"phone_country_code\": \"+65\",\n    \"description\": \"Its my first payment request\",\n    \"return_url\": \"https://duck.com\",\n    \"statement_descriptor_name\": \"Juspay\",\n    \"statement_descriptor_suffix\": \"Router\",\n    \"billing\": {\n        \"address\": {\n            \"line1\": \"Juspay Router\",\n            \"line2\": \"Koramangala\",\n            \"line3\": \"Stallion\",\n            \"city\": \"Bangalore\",\n            \"state\": \"Karnataka\",\n            \"zip\": \"560095\",\n            \"country\": \"IN\"\n        }\n    },\n    \"shipping\": {\n        \"address\": {\n            \"line1\": \"Juspay Router\",\n            \"line2\": \"Koramangala\",\n            \"line3\": \"Stallion\",\n            \"city\": \"Bangalore\",\n            \"state\": \"Karnataka\",\n            \"zip\": \"560095\",\n            \"country\": \"IN\"\n        }\n    },\n    \"metadata\": {\n        \"order_details\": {\n            \"product_name\": \"Apple iphone 15\",\n            \"quantity\": 1\n        }\n    }\n}",
     "options": {
       "raw": {
         "language": "json"

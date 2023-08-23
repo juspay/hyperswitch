@@ -12,7 +12,6 @@
   ],
   "body": {
     "mode": "raw",
-    "raw": "{\n  \"amount_to_capture\": 600,\n  \"statement_descriptor_name\": \"Joseph\",\n  \"statement_descriptor_suffix\": \"JS\"\n}",
     "options": {
       "raw": {
         "language": "json"

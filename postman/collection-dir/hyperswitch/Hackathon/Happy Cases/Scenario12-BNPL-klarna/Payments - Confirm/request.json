@@ -12,7 +12,6 @@
   ],
   "body": {
     "mode": "raw",
-    "raw": "{\n    \"payment_method\": \"pay_later\",\n    \"payment_method_type\": \"klarna\",\n    \"payment_experience\": \"redirect_to_url\",\n    \"payment_method_data\": {\n        \"pay_later\": {\n            \"klarna_redirect\": {\n                \"issuer_name\": \"stripe\",\n                \"billing_email\": \"arjun.karthik@juspay.in\",\n                \"billing_country\": \"US\"\n            }\n        }\n    }\n}",
     "options": {
       "raw": {
         "language": "json"

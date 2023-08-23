@@ -12,7 +12,6 @@
   ],
   "body": {
     "mode": "raw",
-    "raw": " { \"payment_method\": \"wallet\",\n  \"payment_method_type\": \"paypal\",\n  \"payment_method_data\": {\n    \"wallet\": {\n      \"paypal_redirect\": {}\n    }\n  }}",
     "options": {
       "raw": {
         "language": "json"

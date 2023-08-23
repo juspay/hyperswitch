@@ -27,7 +27,6 @@
   ],
   "body": {
     "mode": "raw",
-    "raw": "{\n  \"name\": null,\n  \"description\": \"My very awesome API key\",\n  \"expiration\": null\n}",
     "raw_json_formatted": {
       "name": null,
       "description": "My very awesome API key",

@@ -12,7 +12,6 @@
   ],
   "body": {
     "mode": "raw",
-    "raw": "{\n     \"payment_method\": \"wallet\",\n    \"payment_method_type\": \"we_chat_pay\",\n    \"payment_method_data\": {\n        \"wallet\": {\n            \"we_chat_pay_qr\": {}\n        }\n    }\n}",
     "options": {
       "raw": {
         "language": "json"

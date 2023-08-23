@@ -12,7 +12,6 @@
   ],
   "body": {
     "mode": "raw",
-    "raw": "{\n    \"payment_method\": \"bank_debit\",\n    \"payment_method_type\": \"bacs\",\n    \"payment_method_data\": {\n        \"bank_debit\": {\n            \"bacs_bank_debit\": {\n                \"account_number\": \"40308669\",\n                \"routing_number\": \"121000358\",\n                \"sort_code\": \"560036\",\n                \"shopper_email\": \"example@gmail.com\",\n                \"card_holder_name\": \"joseph Doe\",\n                \"bank_account_holder_name\": \"David Archer\",\n                \"billing_details\": {\n                    \"houseNumberOrName\": \"50\",\n                    \"street\": \"Test Street\",\n                    \"city\": \"Amsterdam\",\n                    \"stateOrProvince\": \"NY\",\n                    \"postalCode\": \"12010\",\n                    \"country\": \"GB\",\n                    \"name\": \"A. Klaassen\",\n                    \"email\": \"abcd@gmail.com\"\n                },\n                \"reference\": \"daslvcgbaieh\"\n            }\n        }\n    }\n}",
     "options": {
       "raw": {
         "language": "json"

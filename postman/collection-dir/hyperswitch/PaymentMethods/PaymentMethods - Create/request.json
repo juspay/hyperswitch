@@ -12,7 +12,6 @@
   ],
   "body": {
     "mode": "raw",
-    "raw": "{\n  \"payment_method\": \"card\",\n  \"payment_method_type\": \"credit\",\n  \"payment_method_issuer\": \"Visa\",\n  \"card\": {\n    \"card_number\": \"4242424242424242\",\n    \"card_exp_month\": \"10\",\n    \"card_exp_year\": \"25\",\n    \"card_holder_name\": \"John Doe\"\n  },\n  \"customer_id\": \"cus_mnewerunwiuwiwqw\",\n  \"metadata\": {\n    \"city\": \"NY\",\n    \"unit\": \"245\"\n  }\n}",
     "options": {
       "raw": {
         "language": "json"

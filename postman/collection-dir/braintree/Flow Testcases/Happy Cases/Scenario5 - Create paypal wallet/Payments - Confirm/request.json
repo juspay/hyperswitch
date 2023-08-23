@@ -12,7 +12,6 @@
   ],
   "body": {
     "mode": "raw",
-    "raw": " { \"payment_method\": \"wallet\",\n    \"payment_method_type\": \"paypal\",\n    \"payment_experience\": \"invoke_sdk_client\",\n    \"payment_method_data\": {\n        \"wallet\": {\n            \"paypal_sdk\": {\n                \"token\": \"fake-valid-nonce\"\n            }\n        }\n    }\n}",
     "options": {
       "raw": {
         "language": "json"

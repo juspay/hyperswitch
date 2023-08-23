@@ -12,7 +12,6 @@
   ],
   "body": {
     "mode": "raw",
-    "raw": "{\n    \"payment_method\": \"wallet\",\n    \"payment_method_type\": \"mb_way\",\n    \"payment_method_data\": {\n        \"wallet\": {\n            \"mb_way_redirect\": {\n                \"telephone_number\": \"351#911222111\"\n            }\n        }\n    }\n}",
     "options": {
       "raw": {
         "language": "json"

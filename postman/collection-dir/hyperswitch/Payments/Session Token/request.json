@@ -23,7 +23,6 @@
   ],
   "body": {
     "mode": "raw",
-    "raw": "{\n    \"payment_id\": \"{{payment_id}}\",\n    \"wallets\":[],\n    \"client_secret\": \"{{client_secret}}\"\n}",
     "raw_json_formatted": {
       "payment_id": "{{payment_id}}",
       "wallets": [],

@@ -8,7 +8,6 @@
   ],
   "body": {
     "mode": "raw",
-    "raw": "{\n    \"customer_id\": \"{{customer_id}}\"\n}",
     "raw_json_formatted": {
       "customer_id": "{{customer_id}}"
     }

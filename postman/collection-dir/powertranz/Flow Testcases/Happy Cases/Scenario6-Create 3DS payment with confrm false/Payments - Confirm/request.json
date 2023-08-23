@@ -12,7 +12,6 @@
   ],
   "body": {
     "mode": "raw",
-    "raw": " { \"browser_info\": {\n        \"user_agent\": \"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/111.0.0.0 Safari/537.36\",\n        \"accept_header\": \"text\\\\/html,application\\\\/xhtml+xml,application\\\\/xml;q=0.9,image\\\\/webp,image\\\\/apng,*\\\\/*;q=0.8\",\n        \"language\": \"en-GB\",\n        \"color_depth\": 24,\n        \"screen_height\": 1440,\n        \"screen_width\": 2560,\n        \"time_zone\": -330,\n        \"java_enabled\": true,\n        \"java_script_enabled\": true\n    }}",
     "options": {
       "raw": {
         "language": "json"

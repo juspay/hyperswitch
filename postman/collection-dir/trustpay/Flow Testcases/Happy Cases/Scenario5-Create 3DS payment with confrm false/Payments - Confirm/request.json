@@ -12,7 +12,6 @@
   ],
   "body": {
     "mode": "raw",
-    "raw": "{\n  \"return_url\": \"https://integ.hyperswitch.io/home\",\n  \"payment_method\": \"card\",\n  \"payment_method_data\": {\n    \"card\": {\n      \"card_number\": \"4200000000000067\",\n      \"card_exp_month\": \"03\",\n      \"card_exp_year\": \"2030\",\n      \"card_holder_name\": \"\",\n      \"card_cvc\": \"737\",\n      \"card_issuer\": \"\",\n      \"card_network\": \"Visa\"\n    }\n  },\n  \"browser_info\": {\n    \"user_agent\": \"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36\",\n    \"accept_header\": \"text\\\\/html,application\\\\/xhtml+xml,application\\\\/xml;q=0.9,image\\\\/webp,image\\\\/apng,*\\\\/*;q=0.8\",\n    \"language\": \"en-GB\",\n    \"color_depth\": 30,\n    \"ip_address\": \"65.1.52.138\",\n    \"screen_height\": 1117,\n    \"screen_width\": 1728,\n    \"time_zone\": -330,\n    \"java_enabled\": true,\n    \"java_script_enabled\": true\n  }\n}",
     "options": {
       "raw": {
         "language": "json"

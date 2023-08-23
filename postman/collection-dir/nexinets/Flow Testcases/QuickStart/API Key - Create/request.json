@@ -27,7 +27,6 @@
   ],
   "body": {
     "mode": "raw",
-    "raw": "{\n  \"name\": \"API Key 1\",\n  \"description\": null,\n  \"expiration\": \"2023-09-23T01:02:03.000Z\"\n}",
     "raw_json_formatted": {
       "name": "API Key 1",
       "description": null,

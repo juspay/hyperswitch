@@ -12,7 +12,6 @@
   ],
   "body": {
     "mode": "raw",
-    "raw": "{\n    \"payment_method\": \"bank_transfer\",\n    \"payment_method_type\": \"ach\",\n    \"payment_method_data\": {\n        \"bank_transfer\": {\n            \"ach_bank_transfer\": {\n                \"billing_details\": {\n                    \"email\": \"johndoe@example.com\"\n                }\n            }\n        }\n    }\n}",
     "options": {
       "raw": {
         "language": "json"

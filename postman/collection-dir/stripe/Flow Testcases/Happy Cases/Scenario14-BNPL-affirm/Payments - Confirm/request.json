@@ -12,7 +12,6 @@
   ],
   "body": {
     "mode": "raw",
-    "raw": "{\n    \"payment_method\": \"pay_later\",\n    \"payment_method_type\": \"affirm\",\n    \"payment_experience\": \"redirect_to_url\",\n    \"payment_method_data\": {\n        \"pay_later\": {\n            \"affirm_redirect\": {\n                \"issuer_name\": \"affirm\",\n                \"billing_email\": \"user-us@example.com\",\n                \"billing_country\": \"US\"\n            }\n        }\n    }\n}",
     "options": {
       "raw": {
         "language": "json"

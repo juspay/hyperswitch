@@ -12,7 +12,6 @@
   ],
   "body": {
     "mode": "raw",
-    "raw": "{\n    \"payment_method\": \"bank_redirect\",\n  \"payment_method_type\": \"eps\",\n  \"payment_method_data\": {\n    \"bank_redirect\": {\n      \"eps\": {\n        \"billing_details\": {\n          \"billing_name\": \"John Doe\"\n        },\n        \"bank_name\": \"ing\",\n        \"preferred_language\": \"en\",\n        \"country\": \"AT\"\n      }\n    }\n  },\n  \"browser_info\": {\n    \"user_agent\": \"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/70.0.3538.110 Safari/537.36\",\n    \"accept_header\": \"text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8\",\n    \"language\": \"nl-NL\",\n    \"color_depth\": 24,\n    \"screen_height\": 723,\n    \"screen_width\": 1536,\n    \"time_zone\": 0,\n    \"java_enabled\": true,\n    \"java_script_enabled\": true,\n    \"ip_address\": \"127.0.0.1\"\n  }\n}",
     "options": {
       "raw": {
         "language": "json"

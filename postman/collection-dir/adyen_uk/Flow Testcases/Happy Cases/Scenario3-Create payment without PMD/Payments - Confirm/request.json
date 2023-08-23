@@ -12,7 +12,6 @@
   ],
   "body": {
     "mode": "raw",
-    "raw": "{\"payment_method\": \"card\",\n  \"payment_method_type\": \"credit\",\n  \"payment_method_data\": {\n    \"card\": {\n      \"card_number\": \"371449635398431\",\n      \"card_exp_month\": \"03\",\n      \"card_exp_year\": \"2030\",\n      \"card_holder_name\": \"joseph Doe\",\n      \"card_cvc\": \"7373\"\n    }\n  }\n}",
     "options": {
       "raw": {
         "language": "json"

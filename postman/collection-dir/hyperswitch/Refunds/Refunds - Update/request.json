@@ -12,7 +12,6 @@
   ],
   "body": {
     "mode": "raw",
-    "raw": "{\n    \"reason\": \"Paid by mistake\",\n    \"metadata\": {\n        \"udf1\": \"value2\",\n        \"new_customer\": \"false\",\n        \"login_date\": \"2019-09-1T10:11:12Z\"\n    }\n}",
     "options": {
       "raw": {
         "language": "json"

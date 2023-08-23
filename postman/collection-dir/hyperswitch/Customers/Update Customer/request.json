@@ -12,7 +12,6 @@
   ],
   "body": {
     "mode": "raw",
-    "raw": "{\n    \"email\": \"JohnTest@test.com\",\n    \"name\": \"John Test\",\n    \"phone_country_code\": \"+65\",\n    \"phone\": \"888888888\",\n    \"description\": \"First customer\",\n    \"metadata\": {\n        \"city\": \"NY\",\n        \"unit\": \"245\"\n    }\n}",
     "options": {
       "raw": {
         "language": "json"

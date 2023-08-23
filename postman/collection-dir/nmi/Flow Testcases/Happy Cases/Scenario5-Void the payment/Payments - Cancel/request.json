@@ -12,7 +12,6 @@
   ],
   "body": {
     "mode": "raw",
-    "raw": "{\n  \"cancellation_reason\": \"user_cancel\"\n}",
     "options": {
       "raw": {
         "language": "json"
