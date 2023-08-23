@@ -37,30 +37,34 @@ pub struct LockingInput {
     pub merchant_id: String,
 }
 
+impl LockingInput {
+    fn get_redis_locking_key(self) -> String {
+        format!(
+            "API_LOCK_{}_{}_{}",
+            self.merchant_id, self.api_identifier, self.unique_locking_key
+        )
+    }
+}
+
 #[instrument(skip(state))]
 pub async fn get_key_and_lock_resource(
     state: &routes::AppState,
     locking_input: LockingInput,
     _should_retry: bool,
 ) -> RouterResult<LockStatus> {
-    let api_identifier = locking_input.api_identifier.as_str();
-
     let is_locking_enabled_for_merchant = true;
     let is_locking_enabled_on_api = true;
 
-    
     if is_locking_enabled_for_merchant && is_locking_enabled_on_api {
         let expiry_in_seconds = 60; // get it from redis
-        let delay_between_retries_in_seconds = 10; // get it from redis
+        let delay_between_retries_in_milli_seconds = 100; // get it from redis
         let retries = 1; // get from redis based on should_retry, if not present in redis default 1?
-        let locking_key = locking_input.unique_locking_key;
         lock_resource(
             state,
-            locking_key,
+            locking_input,
             expiry_in_seconds,
             retries,
-            delay_between_retries_in_seconds,
-            api_identifier,
+            delay_between_retries_in_milli_seconds,
         )
         .await
     } else {
@@ -76,28 +80,20 @@ pub async fn get_key_and_lock_resource(
 #[instrument(skip(state))]
 pub async fn lock_resource(
     state: &routes::AppState,
-    locking_key: String,
+    locking_input: LockingInput,
     expiry_in_seconds: u64,
-    retries: i32,
-    delay_between_retries_in_seconds: i64,
-    _api_identifier: &str,
+    retries: u32,
+    delay_between_retries_in_milli_seconds: u64,
 ) -> RouterResult<LockStatus> {
-    let redis_key_for_lock = get_redis_key_for_locks(locking_key);
-
     acquire_lock_on_resource_in_redis(
         state,
-        redis_key_for_lock.as_str(),
+        locking_input.get_redis_key_for_locks(),
         true,
         expiry_in_seconds,
-        delay_between_retries_in_seconds,
+        delay_between_retries_in_milli_seconds,
         retries,
     )
     .await
-}
-
-#[inline]
-fn get_redis_key_for_locks(a: String) -> String {
-    format!("API_LOCK_{}", a)
 }
 
 #[instrument(skip(state))]
@@ -106,13 +102,12 @@ pub async fn acquire_lock_on_resource_in_redis(
     key: &str,
     value: bool,
     expiry_in_seconds: u64,
-    _delay_between_retries_in_seconds: i64,
-    mut retries: i32,
+    delay_between_retries_in_milli_seconds: u64,
+    mut retries: u32,
 ) -> RouterResult<LockStatus> {
     let redis_conn = state.store.clone().get_redis_conn();
 
-    while retries != 0 {
-        retries -= 1;
+    for _retry in 0..retries {
         let is_lock_acquired = redis_conn
             .set_key_if_not_exists_with_expiry(
                 key,
@@ -132,13 +127,17 @@ pub async fn acquire_lock_on_resource_in_redis(
             }
             Ok(redis::SetnxReply::KeyNotSet) => {
                 logger::error!("Lock not acquired, retrying");
-                actix_time::sleep(tokio::time::Duration::from_millis(expiry_in_seconds * 1000))
-                    .await;
+                actix_time::sleep(tokio::time::Duration::from_millis(
+                    delay_between_retries_in_milli_seconds * 1000,
+                ))
+                .await;
             }
             Err(error) => {
                 logger::error!(error=%error.current_context(), "Error while locking");
-                actix_time::sleep(tokio::time::Duration::from_millis(expiry_in_seconds * 1000))
-                    .await;
+                actix_time::sleep(tokio::time::Duration::from_millis(
+                    delay_between_retries_in_milli_seconds * 1000,
+                ))
+                .await;
             }
         }
     }
@@ -149,7 +148,7 @@ pub async fn acquire_lock_on_resource_in_redis(
 #[instrument(skip(state))]
 pub async fn release_lock(
     state: &routes::AppState,
-    mut retries: i32,
+    mut retries: u32,
     lock: LockStatus,
 ) -> RouterResult<LockStatus> {
     let redis_conn = state.store.clone().get_redis_conn();

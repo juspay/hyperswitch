@@ -26,8 +26,8 @@ use self::{
     operations::{payment_complete_authorize, BoxedOperation, Operation},
 };
 use super::errors::StorageErrorExt;
-#[cfg(feature = "locking")]
-use crate::core::locking::{self, GetLockingInput};
+#[cfg(feature = "api_locking")]
+use crate::core::api_locking::{self, GetLockingInput};
 use crate::{
     configs::settings::PaymentMethodTypeTokenFilter,
     core::errors::{self, CustomResult, RouterResponse, RouterResult},
@@ -79,14 +79,11 @@ where
 
     tracing::Span::current().record("payment_id", &format!("{}", validate_result.payment_id));
 
-    #[cfg(feature = "locking")]
-    let acquired_lock = locking::get_key_and_lock_resource(
-        &state.clone(),
-        validate_result.get_locking_input()?,
-        true,
-    )
-    .await?
-    .is_acquired()?;
+    #[cfg(feature = "api_locking")]
+    let acquired_lock =
+        api_locking::get_key_and_lock_resource(state, validate_result.get_locking_input()?, true)
+            .await?
+            .is_acquired()?;
 
     let (operation, mut payment_data, customer_details) = operation
         .to_get_tracker()?
@@ -222,8 +219,8 @@ where
             .await?;
     }
 
-    #[cfg(feature = "locking")]
-    let _ = locking::release_lock(state, 3, acquired_lock.to_owned())
+    #[cfg(feature = "api_locking")]
+    let _ = api_locking::release_lock(state, 3, acquired_lock.to_owned())
         .await
         .map_err(|err| {
             logger::error!(

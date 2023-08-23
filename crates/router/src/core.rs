@@ -1,5 +1,7 @@
 pub mod admin;
 pub mod api_keys;
+#[cfg(feature = "api_locking")]
+pub mod api_locking;
 pub mod cache;
 pub mod cards_info;
 pub mod configs;
@@ -7,8 +9,6 @@ pub mod customers;
 pub mod disputes;
 pub mod errors;
 pub mod files;
-#[cfg(feature = "locking")]
-pub mod locking;
 pub mod mandate;
 pub mod metrics;
 pub mod payment_methods;
