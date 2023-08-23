@@ -28,6 +28,8 @@ use crate::{
 
 const OUTGOING_WEBHOOK_TIMEOUT_SECS: u64 = 5;
 const MERCHANT_ID: &str = "merchant_id";
+const WEBHOOK_RETRIES: u8 = 3;
+const WEBHOOK_RETRY_INTERVAL_SECS: u64 = 5;
 
 #[instrument(skip_all)]
 pub async fn payments_incoming_webhook_flow<W: types::OutgoingWebhookType>(
@@ -634,33 +636,31 @@ pub async fn trigger_webhook_to_merchant<W: types::OutgoingWebhookType>(
         W::add_webhook_header(&mut header, signature)
     }
 
-    let request = services::RequestBuilder::new()
-        .method(services::Method::Post)
-        .url(&webhook_url)
-        .attach_default_headers()
-        .headers(header)
-        .body(Some(transformed_outgoing_webhook_string))
-        .build();
+    let mut retries = WEBHOOK_RETRIES;
+    loop {
+        let request = services::RequestBuilder::new()
+            .method(services::Method::Post)
+            .url(&webhook_url)
+            .attach_default_headers()
+            .headers(header.to_owned())
+            .body(Some(transformed_outgoing_webhook_string.to_owned()))
+            .build();
 
-    let response =
-        services::api::send_request(state, request, Some(OUTGOING_WEBHOOK_TIMEOUT_SECS)).await;
+        let response =
+            services::api::send_request(state, request, Some(OUTGOING_WEBHOOK_TIMEOUT_SECS)).await;
 
-    metrics::WEBHOOK_OUTGOING_COUNT.add(
-        &metrics::CONTEXT,
-        1,
-        &[metrics::KeyValue::new(
-            MERCHANT_ID,
-            merchant_account.merchant_id.clone(),
-        )],
-    );
-    logger::debug!(outgoing_webhook_response=?response);
+        metrics::WEBHOOK_OUTGOING_COUNT.add(
+            &metrics::CONTEXT,
+            1,
+            &[metrics::KeyValue::new(
+                MERCHANT_ID,
+                merchant_account.merchant_id.clone(),
+            )],
+        );
 
-    match response {
-        Err(e) => {
-            // [#217]: Schedule webhook for retry.
-            Err(e).change_context(errors::WebhooksFlowError::CallToMerchantFailed)?;
-        }
-        Ok(res) => {
+        logger::debug!(outgoing_webhook_response=?response);
+
+        if let Ok(res) = response {
             if res.status().is_success() {
                 metrics::WEBHOOK_OUTGOING_RECEIVED_COUNT.add(
                     &metrics::CONTEXT,
@@ -678,22 +678,27 @@ pub async fn trigger_webhook_to_merchant<W: types::OutgoingWebhookType>(
                     .update_event(outgoing_webhook_event_id, update_event)
                     .await
                     .change_context(errors::WebhooksFlowError::WebhookEventUpdationFailed)?;
-            } else {
-                metrics::WEBHOOK_OUTGOING_NOT_RECEIVED_COUNT.add(
-                    &metrics::CONTEXT,
-                    1,
-                    &[metrics::KeyValue::new(
-                        MERCHANT_ID,
-                        merchant_account.merchant_id.clone(),
-                    )],
-                );
-                // [#217]: Schedule webhook for retry.
-                Err(errors::WebhooksFlowError::NotReceivedByMerchant).into_report()?;
+                return Ok(());
             }
-        }
-    }
+        } else {
+            retries -= 1;
 
-    Ok(())
+            metrics::WEBHOOK_OUTGOING_NOT_RECEIVED_COUNT.add(
+                &metrics::CONTEXT,
+                1,
+                &[metrics::KeyValue::new(
+                    MERCHANT_ID,
+                    merchant_account.merchant_id.clone(),
+                )],
+            );
+        }
+
+        if retries == 0 {
+            return Err(errors::WebhooksFlowError::NotReceivedByMerchant).into_report()?;
+        }
+
+        tokio::time::sleep(std::time::Duration::from_secs(WEBHOOK_RETRY_INTERVAL_SECS)).await;
+    }
 }
 
 #[instrument(skip_all)]
