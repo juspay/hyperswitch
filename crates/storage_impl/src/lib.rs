@@ -1,6 +1,7 @@
 use std::sync::Arc;
 
 use common_utils::errors::CustomResult;
+use data_models::payments::payment_intent::PaymentIntent;
 use diesel_models::{self as store};
 use error_stack::ResultExt;
 use external_services::kms::{decrypt::KmsDecrypt, KmsClient, KmsError};
@@ -10,9 +11,11 @@ use redis::{kv_store::RedisConnInterface, RedisStore};
 pub mod config;
 pub mod connection;
 pub mod database;
+pub mod metrics;
 pub mod payments;
 pub mod redis;
 pub mod refund;
+mod utils;
 
 use database::store::PgPool;
 use redis_interface::errors::RedisError;
@@ -206,7 +209,7 @@ pub struct MockDb {
     pub merchant_accounts: Arc<Mutex<Vec<store::MerchantAccount>>>,
     pub merchant_connector_accounts: Arc<Mutex<Vec<store::MerchantConnectorAccount>>>,
     pub payment_attempts: Arc<Mutex<Vec<store::PaymentAttempt>>>,
-    pub payment_intents: Arc<Mutex<Vec<store::PaymentIntent>>>,
+    pub payment_intents: Arc<Mutex<Vec<PaymentIntent>>>,
     pub payment_methods: Arc<Mutex<Vec<store::PaymentMethod>>>,
     pub customers: Arc<Mutex<Vec<store::Customer>>>,
     pub refunds: Arc<Mutex<Vec<store::Refund>>>,
@@ -248,6 +251,31 @@ impl MockDb {
             mandates: Default::default(),
             captures: Default::default(),
             merchant_key_store: Default::default(),
+        }
+    }
+}
+// TODO: This should not be used beyond this crate
+// Remove the pub modified once StorageScheme usage is completed
+pub trait DataModelExt {
+    type StorageModel;
+    fn to_storage_model(self) -> Self::StorageModel;
+    fn from_storage_model(storage_model: Self::StorageModel) -> Self;
+}
+
+impl DataModelExt for data_models::MerchantStorageScheme {
+    type StorageModel = diesel_models::enums::MerchantStorageScheme;
+
+    fn to_storage_model(self) -> Self::StorageModel {
+        match self {
+            Self::PostgresOnly => diesel_models::enums::MerchantStorageScheme::PostgresOnly,
+            Self::RedisKv => diesel_models::enums::MerchantStorageScheme::RedisKv,
+        }
+    }
+
+    fn from_storage_model(storage_model: Self::StorageModel) -> Self {
+        match storage_model {
+            diesel_models::enums::MerchantStorageScheme::PostgresOnly => Self::PostgresOnly,
+            diesel_models::enums::MerchantStorageScheme::RedisKv => Self::RedisKv,
         }
     }
 }
@@ -322,5 +350,32 @@ impl KmsDecrypt for ActiveKmsSecrets {
     ) -> CustomResult<Self::Output, KmsError> {
         self.jwekey = self.jwekey.expose().decrypt_inner(kms_client).await?.into();
         Ok(self)
+    }
+}
+pub(crate) fn diesel_error_to_data_error(
+    diesel_error: &diesel_models::errors::DatabaseError,
+) -> data_models::errors::StorageError {
+    match diesel_error {
+        diesel_models::errors::DatabaseError::DatabaseConnectionError => {
+            data_models::errors::StorageError::DatabaseConnectionError
+        }
+        diesel_models::errors::DatabaseError::NotFound => {
+            data_models::errors::StorageError::ValueNotFound("Value not found".to_string())
+        }
+        diesel_models::errors::DatabaseError::UniqueViolation => {
+            data_models::errors::StorageError::DuplicateValue {
+                entity: "entity ",
+                key: None,
+            }
+        }
+        diesel_models::errors::DatabaseError::NoFieldsToUpdate => {
+            data_models::errors::StorageError::DatabaseError("No fields to update".to_string())
+        }
+        diesel_models::errors::DatabaseError::QueryGenerationFailed => {
+            data_models::errors::StorageError::DatabaseError("Query generation failed".to_string())
+        }
+        diesel_models::errors::DatabaseError::Others => {
+            data_models::errors::StorageError::DatabaseError("Others".to_string())
+        }
     }
 }

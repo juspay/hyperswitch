@@ -25,6 +25,7 @@ pub mod payouts;
 pub mod refund;
 pub mod reverse_lookup;
 
+use data_models::payments::payment_intent::PaymentIntentInterface;
 use masking::PeekInterface;
 use storage_impl::{redis::kv_store::RedisConnInterface, MockDb};
 
@@ -59,7 +60,7 @@ pub trait StorageInterface:
     + merchant_connector_account::ConnectorAccessToken
     + merchant_connector_account::MerchantConnectorAccountInterface
     + payment_attempt::PaymentAttemptInterface
-    + payment_intent::PaymentIntentInterface
+    + PaymentIntentInterface
     + payment_method::PaymentMethodInterface
     + scheduler::SchedulerInterface
     + payout_attempt::PayoutAttemptInterface

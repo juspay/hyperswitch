@@ -19,7 +19,6 @@ pub mod merchant_account;
 pub mod merchant_connector_account;
 pub mod merchant_key_store;
 pub mod payment_attempt;
-pub mod payment_intent;
 pub mod payment_method;
 pub use diesel_models::{ProcessTracker, ProcessTrackerNew, ProcessTrackerUpdate};
 pub use scheduler::db::process_tracker;
@@ -30,10 +29,14 @@ pub mod payouts;
 mod query;
 pub mod refund;
 
+pub use data_models::payments::payment_intent::{
+    PaymentIntent, PaymentIntentNew, PaymentIntentUpdate,
+};
+
 pub use self::{
     address::*, api_keys::*, capture::*, cards_info::*, configs::*, connector_response::*,
     customers::*, dispute::*, ephemeral_key::*, events::*, file::*, locker_mock_up::*, mandate::*,
     merchant_account::*, merchant_connector_account::*, merchant_key_store::*, payment_attempt::*,
-    payment_intent::*, payment_method::*, payout_attempt::*, payouts::*, process_tracker::*,
-    refund::*, reverse_lookup::*,
+    payment_method::*, payout_attempt::*, payouts::*, process_tracker::*, refund::*,
+    reverse_lookup::*,
 };

@@ -28,7 +28,10 @@ counter_metric!(SUCCESSFUL_CANCEL, GLOBAL_METER);
 counter_metric!(MANDATE_COUNT, GLOBAL_METER);
 counter_metric!(SUBSEQUENT_MANDATE_PAYMENT, GLOBAL_METER);
 
-counter_metric!(RETRY_COUNT, GLOBAL_METER);
+// Manual retry metrics
+counter_metric!(MANUAL_RETRY_REQUEST_COUNT, GLOBAL_METER);
+counter_metric!(MANUAL_RETRY_COUNT, GLOBAL_METER);
+counter_metric!(MANUAL_RETRY_VALIDATION_FAILED, GLOBAL_METER);
 
 counter_metric!(STORED_TO_LOCKER, GLOBAL_METER);
 counter_metric!(GET_FROM_LOCKER, GLOBAL_METER);
