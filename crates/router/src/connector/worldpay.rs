@@ -1,12 +1,12 @@
 mod requests;
 mod response;
-mod transformers;
+pub mod transformers;
 
 use std::fmt::Debug;
 
 use common_utils::{crypto, ext_traits::ByteSliceExt};
+use diesel_models::enums;
 use error_stack::{IntoReport, ResultExt};
-use storage_models::enums;
 use transformers as worldpay;
 
 use self::{requests::*, response::*};
@@ -14,7 +14,6 @@ use super::utils::{self, RefundsRequestData};
 use crate::{
     configs::settings,
     core::errors::{self, CustomResult},
-    db::StorageInterface,
     headers,
     services::{
         self,
@@ -183,6 +182,7 @@ impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsR
                         mandate_reference: None,
                         connector_metadata: None,
                         network_txn_id: None,
+                        connector_response_reference_id: None,
                     }),
                     ..data.clone()
                 })
@@ -280,6 +280,7 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
                 mandate_reference: None,
                 connector_metadata: None,
                 network_txn_id: None,
+                connector_response_reference_id: None,
             }),
             ..data.clone()
         })
@@ -338,6 +339,7 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
                         mandate_reference: None,
                         connector_metadata: None,
                         network_txn_id: None,
+                        connector_response_reference_id: None,
                     }),
                     ..data.clone()
                 })
@@ -405,12 +407,14 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
     fn get_request_body(
         &self,
         req: &types::PaymentsAuthorizeRouterData,
-    ) -> CustomResult<Option<String>, errors::ConnectorError> {
-        let connector_req = WorldpayPaymentsRequest::try_from(req)?;
-        let worldpay_req =
-            ext_traits::Encode::<WorldpayPaymentsRequest>::encode_to_string_of_json(&connector_req)
-                .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-        Ok(Some(worldpay_req))
+    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
+        let connector_request = WorldpayPaymentsRequest::try_from(req)?;
+        let worldpay_payment_request = types::RequestBody::log_and_get_request_body(
+            &connector_request,
+            ext_traits::Encode::<WorldpayPaymentsRequest>::encode_to_string_of_json,
+        )
+        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        Ok(Some(worldpay_payment_request))
     }
 
     fn build_request(
@@ -480,12 +484,14 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
     fn get_request_body(
         &self,
         req: &types::RefundExecuteRouterData,
-    ) -> CustomResult<Option<String>, errors::ConnectorError> {
-        let connector_req = WorldpayRefundRequest::try_from(req)?;
-        let req =
-            ext_traits::Encode::<WorldpayRefundRequest>::encode_to_string_of_json(&connector_req)
-                .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-        Ok(Some(req))
+    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
+        let connector_request = WorldpayRefundRequest::try_from(req)?;
+        let fiserv_refund_request = types::RequestBody::log_and_get_request_body(
+            &connector_request,
+            ext_traits::Encode::<WorldpayRefundRequest>::encode_to_string_of_json,
+        )
+        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        Ok(Some(fiserv_refund_request))
     }
 
     fn get_url(
@@ -641,24 +647,6 @@ impl api::IncomingWebhook for Worldpay {
         hex::decode(signature)
             .into_report()
             .change_context(errors::ConnectorError::WebhookResponseEncodingFailed)
-    }
-
-    async fn get_webhook_source_verification_merchant_secret(
-        &self,
-        db: &dyn StorageInterface,
-        merchant_id: &str,
-    ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
-        let key = utils::get_webhook_merchant_secret_key(self.id(), merchant_id);
-        let secret = match db.find_config_by_key(&key).await {
-            Ok(config) => Some(config),
-            Err(e) => {
-                crate::logger::warn!("Unable to fetch merchant webhook secret from DB: {:#?}", e);
-                None
-            }
-        };
-        Ok(secret
-            .map(|conf| conf.config.into_bytes())
-            .unwrap_or_default())
     }
 
     fn get_webhook_source_verification_message(

@@ -9,7 +9,7 @@ use router::{
 };
 
 use crate::{
-    connector_auth::{self},
+    connector_auth,
     utils::{self, ConnectorActions, PaymentInfo},
 };
 
@@ -28,10 +28,11 @@ impl utils::Connector for PayeezyTest {
     }
 
     fn get_auth_token(&self) -> types::ConnectorAuthType {
-        types::ConnectorAuthType::from(
+        utils::to_connector_auth_type(
             connector_auth::ConnectorAuthentication::new()
                 .payeezy
-                .expect("Missing connector authentication configuration"),
+                .expect("Missing connector authentication configuration")
+                .into(),
         )
     }
 
@@ -152,7 +153,7 @@ async fn should_void_authorized_payment() {
             Some(types::PaymentsCancelData {
                 connector_meta,
                 amount: Some(100),
-                currency: Some(storage_models::enums::Currency::USD),
+                currency: Some(diesel_models::enums::Currency::USD),
                 ..utils::PaymentCancelType::default().0
             }),
             None,
@@ -381,7 +382,6 @@ async fn should_throw_not_implemented_for_unsupported_issuer() {
         errors::ConnectorError::NotSupported {
             message: "card".to_string(),
             connector: "Payeezy",
-            payment_experience: "RedirectToUrl".to_string(),
         }
     )
 }

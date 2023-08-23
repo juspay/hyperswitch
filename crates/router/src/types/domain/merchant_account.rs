@@ -2,13 +2,13 @@ use common_utils::{
     crypto::{OptionalEncryptableName, OptionalEncryptableValue},
     date_time, pii,
 };
+use data_models::MerchantStorageScheme;
+use diesel_models::{encryption::Encryption, merchant_account::MerchantAccountUpdateInternal};
 use error_stack::ResultExt;
-use storage_models::{
-    encryption::Encryption, enums, merchant_account::MerchantAccountUpdateInternal,
-};
+use masking::{PeekInterface, Secret};
+use storage_impl::DataModelExt;
 
 use crate::{
-    db::StorageInterface,
     errors::{CustomResult, ValidationError},
     types::domain::types::{self, AsyncLift},
 };
@@ -27,7 +27,7 @@ pub struct MerchantAccount {
     pub sub_merchants_enabled: Option<bool>,
     pub parent_merchant_id: Option<String>,
     pub publishable_key: Option<String>,
-    pub storage_scheme: enums::MerchantStorageScheme,
+    pub storage_scheme: MerchantStorageScheme,
     pub locker_id: Option<String>,
     pub metadata: Option<pii::SecretSerdeValue>,
     pub routing_algorithm: Option<serde_json::Value>,
@@ -36,6 +36,9 @@ pub struct MerchantAccount {
     pub created_at: time::PrimitiveDateTime,
     pub modified_at: time::PrimitiveDateTime,
     pub intent_fulfillment_time: Option<i64>,
+    pub payout_routing_algorithm: Option<serde_json::Value>,
+    pub organization_id: Option<String>,
+    pub is_recon_enabled: bool,
 }
 
 #[allow(clippy::large_enum_variant)]
@@ -58,9 +61,13 @@ pub enum MerchantAccountUpdate {
         primary_business_details: Option<serde_json::Value>,
         intent_fulfillment_time: Option<i64>,
         frm_routing_algorithm: Option<serde_json::Value>,
+        payout_routing_algorithm: Option<serde_json::Value>,
     },
     StorageSchemeUpdate {
-        storage_scheme: enums::MerchantStorageScheme,
+        storage_scheme: MerchantStorageScheme,
+    },
+    ReconUpdate {
+        is_recon_enabled: bool,
     },
 }
 
@@ -84,6 +91,7 @@ impl From<MerchantAccountUpdate> for MerchantAccountUpdateInternal {
                 primary_business_details,
                 intent_fulfillment_time,
                 frm_routing_algorithm,
+                payout_routing_algorithm,
             } => Self {
                 merchant_name: merchant_name.map(Encryption::from),
                 merchant_details: merchant_details.map(Encryption::from),
@@ -102,11 +110,16 @@ impl From<MerchantAccountUpdate> for MerchantAccountUpdateInternal {
                 primary_business_details,
                 modified_at: Some(date_time::now()),
                 intent_fulfillment_time,
+                payout_routing_algorithm,
                 ..Default::default()
             },
             MerchantAccountUpdate::StorageSchemeUpdate { storage_scheme } => Self {
-                storage_scheme: Some(storage_scheme),
+                storage_scheme: Some(storage_scheme.to_storage_model()),
                 modified_at: Some(date_time::now()),
+                ..Default::default()
+            },
+            MerchantAccountUpdate::ReconUpdate { is_recon_enabled } => Self {
+                is_recon_enabled,
                 ..Default::default()
             },
         }
@@ -115,10 +128,10 @@ impl From<MerchantAccountUpdate> for MerchantAccountUpdateInternal {
 
 #[async_trait::async_trait]
 impl super::behaviour::Conversion for MerchantAccount {
-    type DstType = storage_models::merchant_account::MerchantAccount;
-    type NewDstType = storage_models::merchant_account::MerchantAccountNew;
+    type DstType = diesel_models::merchant_account::MerchantAccount;
+    type NewDstType = diesel_models::merchant_account::MerchantAccountNew;
     async fn convert(self) -> CustomResult<Self::DstType, ValidationError> {
-        Ok(storage_models::merchant_account::MerchantAccount {
+        Ok(diesel_models::merchant_account::MerchantAccount {
             id: self.id.ok_or(ValidationError::MissingRequiredField {
                 field_name: "id".to_string(),
             })?,
@@ -133,7 +146,7 @@ impl super::behaviour::Conversion for MerchantAccount {
             sub_merchants_enabled: self.sub_merchants_enabled,
             parent_merchant_id: self.parent_merchant_id,
             publishable_key: self.publishable_key,
-            storage_scheme: self.storage_scheme,
+            storage_scheme: self.storage_scheme.to_storage_model(),
             locker_id: self.locker_id,
             metadata: self.metadata,
             routing_algorithm: self.routing_algorithm,
@@ -142,22 +155,19 @@ impl super::behaviour::Conversion for MerchantAccount {
             modified_at: self.modified_at,
             intent_fulfillment_time: self.intent_fulfillment_time,
             frm_routing_algorithm: self.frm_routing_algorithm,
+            payout_routing_algorithm: self.payout_routing_algorithm,
+            organization_id: self.organization_id,
+            is_recon_enabled: self.is_recon_enabled,
         })
     }
 
     async fn convert_back(
         item: Self::DstType,
-        db: &dyn StorageInterface,
-        merchant_id: &str,
+        key: &Secret<Vec<u8>>,
     ) -> CustomResult<Self, ValidationError>
     where
         Self: Sized,
     {
-        let key = types::get_merchant_enc_key(db, merchant_id.to_owned())
-            .await
-            .change_context(ValidationError::InvalidValue {
-                message: "Failed while getting key from key store".to_string(),
-            })?;
         async {
             Ok(Self {
                 id: Some(item.id),
@@ -168,17 +178,17 @@ impl super::behaviour::Conversion for MerchantAccount {
                 redirect_to_merchant_with_http_post: item.redirect_to_merchant_with_http_post,
                 merchant_name: item
                     .merchant_name
-                    .async_lift(|inner| types::decrypt(inner, &key))
+                    .async_lift(|inner| types::decrypt(inner, key.peek()))
                     .await?,
                 merchant_details: item
                     .merchant_details
-                    .async_lift(|inner| types::decrypt(inner, &key))
+                    .async_lift(|inner| types::decrypt(inner, key.peek()))
                     .await?,
                 webhook_details: item.webhook_details,
                 sub_merchants_enabled: item.sub_merchants_enabled,
                 parent_merchant_id: item.parent_merchant_id,
                 publishable_key: item.publishable_key,
-                storage_scheme: item.storage_scheme,
+                storage_scheme: MerchantStorageScheme::from_storage_model(item.storage_scheme),
                 locker_id: item.locker_id,
                 metadata: item.metadata,
                 routing_algorithm: item.routing_algorithm,
@@ -187,6 +197,9 @@ impl super::behaviour::Conversion for MerchantAccount {
                 created_at: item.created_at,
                 modified_at: item.modified_at,
                 intent_fulfillment_time: item.intent_fulfillment_time,
+                payout_routing_algorithm: item.payout_routing_algorithm,
+                organization_id: item.organization_id,
+                is_recon_enabled: item.is_recon_enabled,
             })
         }
         .await
@@ -197,7 +210,7 @@ impl super::behaviour::Conversion for MerchantAccount {
 
     async fn construct_new(self) -> CustomResult<Self::NewDstType, ValidationError> {
         let now = date_time::now();
-        Ok(storage_models::merchant_account::MerchantAccountNew {
+        Ok(diesel_models::merchant_account::MerchantAccountNew {
             merchant_id: self.merchant_id,
             merchant_name: self.merchant_name.map(Encryption::from),
             merchant_details: self.merchant_details.map(Encryption::from),
@@ -217,6 +230,9 @@ impl super::behaviour::Conversion for MerchantAccount {
             modified_at: now,
             intent_fulfillment_time: self.intent_fulfillment_time,
             frm_routing_algorithm: self.frm_routing_algorithm,
+            payout_routing_algorithm: self.payout_routing_algorithm,
+            organization_id: self.organization_id,
+            is_recon_enabled: self.is_recon_enabled,
         })
     }
 }

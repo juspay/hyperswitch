@@ -271,7 +271,7 @@ fn get_address_details(address_details: Option<&payments::AddressDetails>) -> Op
 
 // Auth Struct
 pub struct Shift4AuthType {
-    pub(super) api_key: String,
+    pub(super) api_key: Secret<String>,
 }
 
 impl TryFrom<&types::ConnectorAuthType> for Shift4AuthType {
@@ -279,7 +279,7 @@ impl TryFrom<&types::ConnectorAuthType> for Shift4AuthType {
     fn try_from(item: &types::ConnectorAuthType) -> Result<Self, Self::Error> {
         if let types::ConnectorAuthType::HeaderKey { api_key } = item {
             Ok(Self {
-                api_key: api_key.to_string(),
+                api_key: api_key.to_owned(),
             })
         } else {
             Err(errors::ConnectorError::FailedToObtainAuthType)?
@@ -323,8 +323,13 @@ pub struct Shift4WebhookObjectEventType {
 }
 
 #[derive(Debug, Deserialize)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum Shift4WebhookEvent {
     ChargeSucceeded,
+    ChargeFailed,
+    ChargeUpdated,
+    ChargeCaptured,
+    ChargeRefunded,
     #[serde(other)]
     Unknown,
 }
@@ -332,10 +337,18 @@ pub enum Shift4WebhookEvent {
 #[derive(Debug, Deserialize)]
 pub struct Shift4WebhookObjectData {
     pub id: String,
+    pub refunds: Option<Vec<RefundIdObject>>,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct RefundIdObject {
+    pub id: String,
 }
 
 #[derive(Debug, Deserialize)]
 pub struct Shift4WebhookObjectId {
+    #[serde(rename = "type")]
+    pub event_type: Shift4WebhookEvent,
     pub data: Shift4WebhookObjectData,
 }
 
@@ -466,6 +479,7 @@ impl<F>
                     .change_context(errors::ConnectorError::ResponseDeserializationFailed)?,
                 ),
                 network_txn_id: None,
+                connector_response_reference_id: None,
             }),
             ..item.data
         })
@@ -505,6 +519,7 @@ impl<T, F>
                 mandate_reference: None,
                 connector_metadata: None,
                 network_txn_id: None,
+                connector_response_reference_id: None,
             }),
             ..item.data
         })
@@ -603,4 +618,33 @@ pub struct ErrorResponse {
 pub struct ApiErrorResponse {
     pub code: Option<String>,
     pub message: String,
+}
+
+pub fn is_transaction_event(event: &Shift4WebhookEvent) -> bool {
+    matches!(
+        event,
+        Shift4WebhookEvent::ChargeCaptured
+            | Shift4WebhookEvent::ChargeFailed
+            | Shift4WebhookEvent::ChargeSucceeded
+            | Shift4WebhookEvent::ChargeUpdated
+    )
+}
+
+pub fn is_refund_event(event: &Shift4WebhookEvent) -> bool {
+    matches!(event, Shift4WebhookEvent::ChargeRefunded)
+}
+
+impl From<Shift4WebhookEvent> for api::IncomingWebhookEvent {
+    fn from(event: Shift4WebhookEvent) -> Self {
+        match event {
+            Shift4WebhookEvent::ChargeSucceeded | Shift4WebhookEvent::ChargeUpdated => {
+                //reference : https://dev.shift4.com/docs/api#event-types
+                Self::PaymentIntentProcessing
+            }
+            Shift4WebhookEvent::ChargeCaptured => Self::PaymentIntentSuccess,
+            Shift4WebhookEvent::ChargeFailed => Self::PaymentIntentFailure,
+            Shift4WebhookEvent::ChargeRefunded => Self::RefundSuccess,
+            Shift4WebhookEvent::Unknown => Self::EventNotSupported,
+        }
+    }
 }

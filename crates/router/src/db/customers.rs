@@ -33,6 +33,7 @@ where
         &self,
         customer_id: &str,
         merchant_id: &str,
+        key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<Option<domain::Customer>, errors::StorageError>;
 
     async fn update_customer_by_customer_id_merchant_id(
@@ -40,17 +41,20 @@ where
         customer_id: String,
         merchant_id: String,
         customer: storage::CustomerUpdate,
+        key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<domain::Customer, errors::StorageError>;
 
     async fn find_customer_by_customer_id_merchant_id(
         &self,
         customer_id: &str,
         merchant_id: &str,
+        key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<domain::Customer, errors::StorageError>;
 
     async fn insert_customer(
         &self,
         customer_data: domain::Customer,
+        key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<domain::Customer, errors::StorageError>;
 }
 
@@ -60,6 +64,7 @@ impl CustomerInterface for Store {
         &self,
         customer_id: &str,
         merchant_id: &str,
+        key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<Option<domain::Customer>, errors::StorageError> {
         let conn = connection::pg_connection_read(self).await?;
         let maybe_customer: Option<domain::Customer> =
@@ -72,7 +77,7 @@ impl CustomerInterface for Store {
             .map_err(Into::into)
             .into_report()?
             .async_map(|c| async {
-                c.convert(self, merchant_id)
+                c.convert(key_store.key.get_inner())
                     .await
                     .change_context(errors::StorageError::DecryptionError)
             })
@@ -95,6 +100,7 @@ impl CustomerInterface for Store {
         customer_id: String,
         merchant_id: String,
         customer: storage::CustomerUpdate,
+        key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<domain::Customer, errors::StorageError> {
         let conn = connection::pg_connection_write(self).await?;
         storage::Customer::update_by_customer_id_merchant_id(
@@ -107,8 +113,7 @@ impl CustomerInterface for Store {
         .map_err(Into::into)
         .into_report()
         .async_and_then(|c| async {
-            let merchant_id = c.merchant_id.clone();
-            c.convert(self, &merchant_id)
+            c.convert(key_store.key.get_inner())
                 .await
                 .change_context(errors::StorageError::DecryptionError)
         })
@@ -119,6 +124,7 @@ impl CustomerInterface for Store {
         &self,
         customer_id: &str,
         merchant_id: &str,
+        key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<domain::Customer, errors::StorageError> {
         let conn = connection::pg_connection_read(self).await?;
         let customer: domain::Customer =
@@ -127,8 +133,7 @@ impl CustomerInterface for Store {
                 .map_err(Into::into)
                 .into_report()
                 .async_and_then(|c| async {
-                    let merchant_id = c.merchant_id.clone();
-                    c.convert(self, &merchant_id)
+                    c.convert(key_store.key.get_inner())
                         .await
                         .change_context(errors::StorageError::DecryptionError)
                 })
@@ -144,6 +149,7 @@ impl CustomerInterface for Store {
     async fn insert_customer(
         &self,
         customer_data: domain::Customer,
+        key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<domain::Customer, errors::StorageError> {
         let conn = connection::pg_connection_write(self).await?;
         customer_data
@@ -155,8 +161,7 @@ impl CustomerInterface for Store {
             .map_err(Into::into)
             .into_report()
             .async_and_then(|c| async {
-                let merchant_id = c.merchant_id.clone();
-                c.convert(self, &merchant_id)
+                c.convert(key_store.key.get_inner())
                     .await
                     .change_context(errors::StorageError::DecryptionError)
             })
@@ -183,6 +188,7 @@ impl CustomerInterface for MockDb {
         &self,
         customer_id: &str,
         merchant_id: &str,
+        key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<Option<domain::Customer>, errors::StorageError> {
         let customers = self.customers.lock().await;
         let customer = customers
@@ -193,8 +199,7 @@ impl CustomerInterface for MockDb {
             .cloned();
         customer
             .async_map(|c| async {
-                let merchant_id = c.merchant_id.clone();
-                c.convert(self, &merchant_id)
+                c.convert(key_store.key.get_inner())
                     .await
                     .change_context(errors::StorageError::DecryptionError)
             })
@@ -207,6 +212,7 @@ impl CustomerInterface for MockDb {
         _customer_id: String,
         _merchant_id: String,
         _customer: storage::CustomerUpdate,
+        _key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<domain::Customer, errors::StorageError> {
         // [#172]: Implement function for `MockDb`
         Err(errors::StorageError::MockDbError)?
@@ -216,6 +222,7 @@ impl CustomerInterface for MockDb {
         &self,
         _customer_id: &str,
         _merchant_id: &str,
+        _key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<domain::Customer, errors::StorageError> {
         // [#172]: Implement function for `MockDb`
         Err(errors::StorageError::MockDbError)?
@@ -225,6 +232,7 @@ impl CustomerInterface for MockDb {
     async fn insert_customer(
         &self,
         customer_data: domain::Customer,
+        key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<domain::Customer, errors::StorageError> {
         let mut customers = self.customers.lock().await;
 
@@ -232,11 +240,10 @@ impl CustomerInterface for MockDb {
             .await
             .change_context(errors::StorageError::EncryptionError)?;
 
-        let merchant_id = customer.merchant_id.clone();
         customers.push(customer.clone());
 
         customer
-            .convert(self, &merchant_id)
+            .convert(key_store.key.get_inner())
             .await
             .change_context(errors::StorageError::DecryptionError)
     }

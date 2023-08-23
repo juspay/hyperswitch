@@ -21,8 +21,8 @@ pub async fn ephemeral_key_create(
         state.get_ref(),
         &req,
         payload,
-        |state, merchant_account, req| {
-            helpers::make_ephemeral_key(state, req.customer_id, merchant_account.merchant_id)
+        |state, auth, req| {
+            helpers::make_ephemeral_key(state, req.customer_id, auth.merchant_account.merchant_id)
         },
         &auth::ApiKeyAuth,
     )

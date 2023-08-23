@@ -35,7 +35,9 @@ pub async fn customers_create(
         state.get_ref(),
         &req,
         json_payload.into_inner(),
-        |state, merchant_account, req| create_customer(&*state.store, merchant_account, req),
+        |state, auth, req| {
+            create_customer(&*state.store, auth.merchant_account, auth.key_store, req)
+        },
         &auth::ApiKeyAuth,
     )
     .await
@@ -79,7 +81,9 @@ pub async fn customers_retrieve(
         state.get_ref(),
         &req,
         payload,
-        |state, merchant_account, req| retrieve_customer(&*state.store, merchant_account, req),
+        |state, auth, req| {
+            retrieve_customer(&*state.store, auth.merchant_account, auth.key_store, req)
+        },
         &*auth,
     )
     .await
@@ -116,7 +120,9 @@ pub async fn customers_update(
         state.get_ref(),
         &req,
         json_payload.into_inner(),
-        |state, merchant_account, req| update_customer(&*state.store, merchant_account, req),
+        |state, auth, req| {
+            update_customer(&*state.store, auth.merchant_account, req, auth.key_store)
+        },
         &auth::ApiKeyAuth,
     )
     .await
@@ -153,7 +159,7 @@ pub async fn customers_delete(
         state.get_ref(),
         &req,
         payload,
-        delete_customer,
+        |state, auth, req| delete_customer(state, auth.merchant_account, req, auth.key_store),
         &auth::ApiKeyAuth,
     )
     .await
@@ -175,8 +181,8 @@ pub async fn get_customer_mandates(
         state.get_ref(),
         &req,
         customer_id,
-        |state, merchant_account, req| {
-            crate::core::mandate::get_customer_mandates(state, merchant_account, req)
+        |state, auth, req| {
+            crate::core::mandate::get_customer_mandates(state, auth.merchant_account, req)
         },
         &auth::ApiKeyAuth,
     )

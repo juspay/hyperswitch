@@ -1,4 +1,4 @@
-mod transformers;
+pub mod transformers;
 
 use std::fmt::Debug;
 
@@ -177,11 +177,13 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
     fn get_request_body(
         &self,
         req: &types::PaymentsAuthorizeRouterData,
-    ) -> CustomResult<Option<String>, errors::ConnectorError> {
+    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
         let req_obj = nexinets::NexinetsPaymentsRequest::try_from(req)?;
-        let nexinets_req =
-            utils::Encode::<nexinets::NexinetsPaymentsRequest>::encode_to_string_of_json(&req_obj)
-                .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        let nexinets_req = types::RequestBody::log_and_get_request_body(
+            &req_obj,
+            utils::Encode::<nexinets::NexinetsPaymentsRequest>::encode_to_string_of_json,
+        )
+        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(Some(nexinets_req))
     }
 
@@ -337,13 +339,13 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
     fn get_request_body(
         &self,
         req: &types::PaymentsCaptureRouterData,
-    ) -> CustomResult<Option<String>, errors::ConnectorError> {
+    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
         let connector_req = nexinets::NexinetsCaptureOrVoidRequest::try_from(req)?;
-        let nexinets_req =
-            utils::Encode::<nexinets::NexinetsCaptureOrVoidRequest>::encode_to_string_of_json(
-                &connector_req,
-            )
-            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        let nexinets_req = types::RequestBody::log_and_get_request_body(
+            &connector_req,
+            utils::Encode::<nexinets::NexinetsCaptureOrVoidRequest>::encode_to_string_of_json,
+        )
+        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(Some(nexinets_req))
     }
 
@@ -422,13 +424,13 @@ impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsR
     fn get_request_body(
         &self,
         req: &types::PaymentsCancelRouterData,
-    ) -> CustomResult<Option<String>, errors::ConnectorError> {
+    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
         let connector_req = nexinets::NexinetsCaptureOrVoidRequest::try_from(req)?;
-        let nexinets_req =
-            utils::Encode::<nexinets::NexinetsCaptureOrVoidRequest>::encode_to_string_of_json(
-                &connector_req,
-            )
-            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        let nexinets_req = types::RequestBody::log_and_get_request_body(
+            &connector_req,
+            utils::Encode::<nexinets::NexinetsCaptureOrVoidRequest>::encode_to_string_of_json,
+        )
+        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(Some(nexinets_req))
     }
 
@@ -504,11 +506,13 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
     fn get_request_body(
         &self,
         req: &types::RefundsRouterData<api::Execute>,
-    ) -> CustomResult<Option<String>, errors::ConnectorError> {
+    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
         let req_obj = nexinets::NexinetsRefundRequest::try_from(req)?;
-        let nexinets_req =
-            utils::Encode::<nexinets::NexinetsRefundRequest>::encode_to_string_of_json(&req_obj)
-                .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        let nexinets_req = types::RequestBody::log_and_get_request_body(
+            &req_obj,
+            utils::Encode::<nexinets::NexinetsRefundRequest>::encode_to_string_of_json,
+        )
+        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(Some(nexinets_req))
     }
 

@@ -1,5 +1,5 @@
 mod client;
-pub(crate) mod request;
+pub mod request;
 
 use std::{
     collections::HashMap,
@@ -78,7 +78,7 @@ pub trait ConnectorIntegration<T, Req, Resp>: ConnectorIntegrationAny<T, Req, Re
     fn get_request_body(
         &self,
         _req: &types::RouterData<T, Req, Resp>,
-    ) -> CustomResult<Option<String>, errors::ConnectorError> {
+    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
         Ok(None)
     }
 
@@ -145,6 +145,42 @@ pub trait ConnectorIntegration<T, Req, Resp>: ConnectorIntegrationAny<T, Req, Re
         Ok(ErrorResponse::get_not_implemented())
     }
 
+    fn get_5xx_error_response(
+        &self,
+        res: types::Response,
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        let error_message = match res.status_code {
+            500 => "internal_server_error",
+            501 => "not_implemented",
+            502 => "bad_gateway",
+            503 => "service_unavailable",
+            504 => "gateway_timeout",
+            505 => "http_version_not_supported",
+            506 => "variant_also_negotiates",
+            507 => "insufficient_storage",
+            508 => "loop_detected",
+            510 => "not_extended",
+            511 => "network_authentication_required",
+            _ => "unknown_error",
+        };
+        Ok(ErrorResponse {
+            code: res.status_code.to_string(),
+            message: error_message.to_string(),
+            reason: String::from_utf8(res.response.to_vec()).ok(),
+            status_code: res.status_code,
+        })
+    }
+
+    // whenever capture sync is implemented at the connector side, this method should be overridden
+    fn get_multiple_capture_sync_method(
+        &self,
+    ) -> CustomResult<CaptureSyncMethod, errors::ConnectorError> {
+        Err(
+            errors::ConnectorError::NotImplemented("multiple capture sync not implemented".into())
+                .into(),
+        )
+    }
+
     fn get_certificate(
         &self,
         _req: &types::RouterData<T, Req, Resp>,
@@ -160,6 +196,14 @@ pub trait ConnectorIntegration<T, Req, Resp>: ConnectorIntegrationAny<T, Req, Re
     }
 }
 
+pub enum CaptureSyncMethod {
+    Individual,
+    Bulk,
+}
+
+/// Handle the flow by interacting with connector module
+/// `connector_request` is applicable only in case if the `CallConnectorAction` is `Trigger`
+/// In other cases, It will be created if required, even if it is not passed
 #[instrument(skip_all)]
 pub async fn execute_connector_processing_step<
     'b,
@@ -172,6 +216,7 @@ pub async fn execute_connector_processing_step<
     connector_integration: BoxedConnectorIntegration<'a, T, Req, Resp>,
     req: &'b types::RouterData<T, Req, Resp>,
     call_connector_action: payments::CallConnectorAction,
+    connector_request: Option<Request>,
 ) -> CustomResult<types::RouterData<T, Req, Resp>, errors::ConnectorError>
 where
     T: Clone + Debug,
@@ -226,7 +271,8 @@ where
                     ),
                 ],
             );
-            match connector_integration
+
+            let connector_request = connector_request.or(connector_integration
                 .build_request(req, &state.conf.connectors)
                 .map_err(|error| {
                     if matches!(
@@ -234,7 +280,7 @@ where
                         &errors::ConnectorError::RequestEncodingFailed
                             | &errors::ConnectorError::RequestEncodingFailedWithReason(_)
                     ) {
-                        metrics::RESPONSE_DESERIALIZATION_FAILURE.add(
+                        metrics::REQUEST_BUILD_FAILURE.add(
                             &metrics::CONTEXT,
                             1,
                             &[metrics::request::add_attributes(
@@ -244,7 +290,9 @@ where
                         )
                     }
                     error
-                })? {
+                })?);
+
+            match connector_request {
                 Some(request) => {
                     logger::debug!(connector_request=?request);
                     let response = call_connector_api(state, request).await;
@@ -252,24 +300,30 @@ where
                     match response {
                         Ok(body) => {
                             let response = match body {
-                                Ok(body) => connector_integration
-                                    .handle_response(req, body)
-                                    .map_err(|error| {
-                                        if error.current_context()
-                                        == &errors::ConnectorError::ResponseDeserializationFailed
-                                    {
-                                        metrics::RESPONSE_DESERIALIZATION_FAILURE.add(
-                                            &metrics::CONTEXT,
-                                            1,
-                                            &[metrics::request::add_attributes(
-                                                "connector",
-                                                req.connector.to_string(),
-                                            )],
-                                        )
-                                    }
-                                        error
-                                    })?,
+                                Ok(body) => {
+                                    let connector_http_status_code = Some(body.status_code);
+                                    let mut data = connector_integration
+                                        .handle_response(req, body)
+                                        .map_err(|error| {
+                                            if error.current_context()
+                                            == &errors::ConnectorError::ResponseDeserializationFailed
+                                        {
+                                            metrics::RESPONSE_DESERIALIZATION_FAILURE.add(
+                                                &metrics::CONTEXT,
+                                                1,
+                                                &[metrics::request::add_attributes(
+                                                    "connector",
+                                                    req.connector.to_string(),
+                                                )],
+                                            )
+                                        }
+                                            error
+                                        })?;
+                                    data.connector_http_status_code = connector_http_status_code;
+                                    data
+                                }
                                 Err(body) => {
+                                    router_data.connector_http_status_code = Some(body.status_code);
                                     metrics::CONNECTOR_ERROR_RESPONSE_COUNT.add(
                                         &metrics::CONTEXT,
                                         1,
@@ -278,7 +332,13 @@ where
                                             req.connector.clone(),
                                         )],
                                     );
-                                    let error = connector_integration.get_error_response(body)?;
+                                    let error = match body.status_code {
+                                        500..=511 => {
+                                            connector_integration.get_5xx_error_response(body)?
+                                        }
+                                        _ => connector_integration.get_error_response(body)?,
+                                    };
+
                                     router_data.response = Err(error);
 
                                     router_data
@@ -286,8 +346,16 @@ where
                             };
                             Ok(response)
                         }
-                        Err(error) => Err(error
-                            .change_context(errors::ConnectorError::ProcessingStepFailed(None))),
+                        Err(error) => {
+                            if error.current_context().is_upstream_timeout() {
+                                Err(error
+                                    .change_context(errors::ConnectorError::RequestTimeoutReceived))
+                            } else {
+                                Err(error.change_context(
+                                    errors::ConnectorError::ProcessingStepFailed(None),
+                                ))
+                            }
+                        }
                     }
                 }
                 None => Ok(router_data),
@@ -481,6 +549,7 @@ pub enum ApplicationResponse<R> {
     JsonForRedirection(api::RedirectionResponse),
     Form(Box<RedirectionFormData>),
     FileData((Vec<u8>, mime::Mime)),
+    JsonWithHeaders((R, Vec<(String, String)>)),
 }
 
 #[derive(Debug, Eq, PartialEq)]
@@ -542,7 +611,7 @@ pub enum AuthFlow {
     Merchant,
 }
 
-#[instrument(skip(request, payload, state, func, api_auth))]
+#[instrument(skip(request, payload, state, func, api_auth), fields(merchant_id))]
 pub async fn server_wrap_util<'a, 'b, A, U, T, Q, F, Fut, E, OErr>(
     flow: &'a impl router_env::types::FlowMetric,
     state: &'b A,
@@ -567,7 +636,8 @@ where
         .authenticate_and_fetch(request.headers(), state)
         .await
         .switch()?;
-    let metric_merchant_id = auth_out.get_merchant_id().unwrap_or("").to_string();
+    let merchant_id = auth_out.get_merchant_id().unwrap_or("").to_string();
+    tracing::Span::current().record("merchant_id", &merchant_id);
 
     let output = func(state, auth_out, payload).await.switch();
 
@@ -576,11 +646,7 @@ where
         Err(err) => err.current_context().status_code().as_u16().into(),
     };
 
-    metrics::request::status_code_metrics(
-        status_code,
-        flow.to_string(),
-        metric_merchant_id.to_string(),
-    );
+    metrics::request::status_code_metrics(status_code, flow.to_string(), merchant_id.to_string());
 
     output
 }
@@ -604,6 +670,7 @@ where
     T: Debug,
     U: auth::AuthInfo,
     A: AppStateInfo,
+    ApplicationResponse<Q>: Debug,
     CustomResult<ApplicationResponse<Q>, E>:
         ReportSwitchExt<ApplicationResponse<Q>, api_models::errors::types::ApiErrorResponse>,
 {
@@ -620,7 +687,10 @@ where
         &flow,
     )
     .await
-    {
+    .map(|response| {
+        logger::info!(api_response =? response);
+        response
+    }) {
         Ok(ApplicationResponse::Json(response)) => match serde_json::to_string(&response) {
             Ok(res) => http_response_json(res),
             Err(_) => http_response_err(
@@ -656,6 +726,18 @@ where
         )
         .respond_to(request)
         .map_into_boxed_body(),
+        Ok(ApplicationResponse::JsonWithHeaders((response, headers))) => {
+            match serde_json::to_string(&response) {
+                Ok(res) => http_response_json_with_headers(res, headers),
+                Err(_) => http_response_err(
+                    r#"{
+                        "error": {
+                            "message": "Error serializing response from connector"
+                        }
+                    }"#,
+                ),
+            }
+        }
         Err(error) => log_and_return_error_response(error),
     };
 
@@ -717,6 +799,19 @@ impl EmbedError for Report<api_models::errors::types::ApiErrorResponse> {
 
 pub fn http_response_json<T: body::MessageBody + 'static>(response: T) -> HttpResponse {
     HttpResponse::Ok()
+        .content_type(mime::APPLICATION_JSON)
+        .body(response)
+}
+
+pub fn http_response_json_with_headers<T: body::MessageBody + 'static>(
+    response: T,
+    headers: Vec<(String, String)>,
+) -> HttpResponse {
+    let mut response_builder = HttpResponse::Ok();
+    for (name, value) in headers {
+        response_builder.append_header((name, value));
+    }
+    response_builder
         .content_type(mime::APPLICATION_JSON)
         .body(response)
 }

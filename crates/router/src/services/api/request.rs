@@ -5,7 +5,10 @@ use masking::{ExposeInterface, Secret};
 use router_env::{instrument, tracing};
 use serde::{Deserialize, Serialize};
 
-use crate::core::errors::{self, CustomResult};
+use crate::{
+    core::errors::{self, CustomResult},
+    types,
+};
 
 pub(crate) type Headers = collections::HashSet<(String, Maskable<String>)>;
 
@@ -53,13 +56,22 @@ impl<T: Eq + PartialEq + Clone> Maskable<T> {
     }
 }
 
-pub trait Mask: Eq + Clone + PartialEq {
-    fn into_masked(self) -> Maskable<Self>;
+pub trait Mask {
+    type Output: Eq + Clone + PartialEq;
+    fn into_masked(self) -> Maskable<Self::Output>;
 }
 
-impl<T: std::fmt::Debug + Clone + Eq + PartialEq> Mask for T {
-    fn into_masked(self) -> Maskable<Self> {
+impl Mask for String {
+    type Output = Self;
+    fn into_masked(self) -> Maskable<Self::Output> {
         Maskable::new_masked(self.into())
+    }
+}
+
+impl Mask for Secret<String> {
+    type Output = String;
+    fn into_masked(self) -> Maskable<Self::Output> {
+        Maskable::new_masked(self)
     }
 }
 
@@ -211,8 +223,8 @@ impl RequestBuilder {
         self
     }
 
-    pub fn body(mut self, body: Option<String>) -> Self {
-        self.payload = body.map(From::from);
+    pub fn body(mut self, option_body: Option<types::RequestBody>) -> Self {
+        self.payload = option_body.map(types::RequestBody::get_inner_value);
         self
     }
 

@@ -1,4 +1,4 @@
-use api_models::enums as api_enums;
+use api_models::{enums as api_enums, payments};
 use base64::Engine;
 use common_utils::{
     errors::CustomResult,
@@ -10,7 +10,10 @@ use masking::ExposeInterface;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    connector::utils::{self, AddressDetailsData, PaymentsAuthorizeRequestData, RouterData},
+    connector::utils::{
+        self, AddressDetailsData, ApplePay, CardData, PaymentsAuthorizeRequestData,
+        PaymentsCompleteAuthorizeRequestData, RouterData,
+    },
     consts,
     core::errors,
     pii::Secret,
@@ -80,7 +83,7 @@ pub struct Card {
 #[serde(rename_all = "camelCase")]
 pub struct BluesnapWallet {
     wallet_type: BluesnapWalletTypes,
-    encoded_payment_token: String,
+    encoded_payment_token: Secret<String>,
 }
 
 #[derive(Debug, Serialize)]
@@ -160,14 +163,14 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for BluesnapPaymentsRequest {
             _ => BluesnapTxnType::AuthCapture,
         };
         let (payment_method, card_holder_info) = match item.request.payment_method_data.clone() {
-            api::PaymentMethodData::Card(ccard) => Ok((
+            api::PaymentMethodData::Card(ref ccard) => Ok((
                 PaymentMethodDetails::CreditCard(Card {
-                    card_number: ccard.card_number,
+                    card_number: ccard.card_number.clone(),
                     expiration_month: ccard.card_exp_month.clone(),
-                    expiration_year: ccard.card_exp_year.clone(),
-                    security_code: ccard.card_cvc,
+                    expiration_year: ccard.get_expiry_year_4_digit(),
+                    security_code: ccard.card_cvc.clone(),
                 }),
-                get_card_holder_info(item)?,
+                get_card_holder_info(item.get_billing_address()?, item.request.get_email()?)?,
             )),
             api::PaymentMethodData::Wallet(wallet_data) => match wallet_data {
                 api_models::payments::WalletData::GooglePay(payment_method_data) => {
@@ -182,21 +185,22 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for BluesnapPaymentsRequest {
                     Ok((
                         PaymentMethodDetails::Wallet(BluesnapWallet {
                             wallet_type: BluesnapWalletTypes::GooglePay,
-                            encoded_payment_token: consts::BASE64_ENGINE.encode(gpay_object),
+                            encoded_payment_token: Secret::new(
+                                consts::BASE64_ENGINE.encode(gpay_object),
+                            ),
                         }),
                         None,
                     ))
                 }
                 api_models::payments::WalletData::ApplePay(payment_method_data) => {
-                    let apple_pay_payment_data = consts::BASE64_ENGINE
-                        .decode(payment_method_data.payment_data)
-                        .into_report()
-                        .change_context(errors::ConnectorError::ParsingFailed)?;
-
+                    let apple_pay_payment_data = payment_method_data
+                        .get_applepay_decoded_payment_data()
+                        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
                     let apple_pay_payment_data: ApplePayEncodedPaymentData = apple_pay_payment_data
-                        [..]
+                        .expose()[..]
+                        .as_bytes()
                         .parse_struct("ApplePayEncodedPaymentData")
-                        .change_context(errors::ConnectorError::ParsingFailed)?;
+                        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
 
                     let billing = item
                         .address
@@ -249,18 +253,60 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for BluesnapPaymentsRequest {
                     Ok((
                         PaymentMethodDetails::Wallet(BluesnapWallet {
                             wallet_type: BluesnapWalletTypes::ApplePay,
-                            encoded_payment_token: consts::BASE64_ENGINE.encode(apple_pay_object),
+                            encoded_payment_token: Secret::new(
+                                consts::BASE64_ENGINE.encode(apple_pay_object),
+                            ),
                         }),
-                        None,
+                        get_card_holder_info(
+                            item.get_billing_address()?,
+                            item.request.get_email()?,
+                        )?,
                     ))
                 }
-                _ => Err(errors::ConnectorError::NotImplemented(
-                    "Wallets".to_string(),
-                )),
+                payments::WalletData::AliPayQr(_)
+                | payments::WalletData::AliPayRedirect(_)
+                | payments::WalletData::AliPayHkRedirect(_)
+                | payments::WalletData::MomoRedirect(_)
+                | payments::WalletData::KakaoPayRedirect(_)
+                | payments::WalletData::GoPayRedirect(_)
+                | payments::WalletData::GcashRedirect(_)
+                | payments::WalletData::ApplePayRedirect(_)
+                | payments::WalletData::ApplePayThirdPartySdk(_)
+                | payments::WalletData::DanaRedirect {}
+                | payments::WalletData::GooglePayRedirect(_)
+                | payments::WalletData::GooglePayThirdPartySdk(_)
+                | payments::WalletData::MbWayRedirect(_)
+                | payments::WalletData::MobilePayRedirect(_)
+                | payments::WalletData::PaypalRedirect(_)
+                | payments::WalletData::PaypalSdk(_)
+                | payments::WalletData::SamsungPay(_)
+                | payments::WalletData::TwintRedirect {}
+                | payments::WalletData::VippsRedirect {}
+                | payments::WalletData::TouchNGoRedirect(_)
+                | payments::WalletData::WeChatPayRedirect(_)
+                | payments::WalletData::CashappQr(_)
+                | payments::WalletData::SwishQr(_)
+                | payments::WalletData::WeChatPayQr(_) => {
+                    Err(errors::ConnectorError::NotImplemented(
+                        utils::get_unimplemented_payment_method_error_message("bluesnap"),
+                    ))
+                }
             },
-            _ => Err(errors::ConnectorError::NotImplemented(
-                "payment method".to_string(),
-            )),
+            payments::PaymentMethodData::PayLater(_)
+            | payments::PaymentMethodData::BankRedirect(_)
+            | payments::PaymentMethodData::BankDebit(_)
+            | payments::PaymentMethodData::BankTransfer(_)
+            | payments::PaymentMethodData::Crypto(_)
+            | payments::PaymentMethodData::MandatePayment
+            | payments::PaymentMethodData::Reward(_)
+            | payments::PaymentMethodData::Upi(_)
+            | payments::PaymentMethodData::CardRedirect(_)
+            | payments::PaymentMethodData::Voucher(_)
+            | payments::PaymentMethodData::GiftCard(_) => {
+                Err(errors::ConnectorError::NotImplemented(
+                    utils::get_unimplemented_payment_method_error_message("bluesnap"),
+                ))
+            }
         }?;
         Ok(Self {
             amount: utils::to_currency_base_unit(item.request.amount, item.request.currency)?,
@@ -316,11 +362,12 @@ impl TryFrom<types::PaymentsSessionResponseRouterData<BluesnapWalletTokenRespons
         let wallet_token = consts::BASE64_ENGINE
             .decode(response.wallet_token.clone().expose())
             .into_report()
-            .change_context(errors::ConnectorError::ParsingFailed)?;
+            .change_context(errors::ConnectorError::ResponseHandlingFailed)?;
 
-        let session_response: api_models::payments::ApplePaySessionResponse = wallet_token[..]
-            .parse_struct("ApplePayResponse")
-            .change_context(errors::ConnectorError::ParsingFailed)?;
+        let session_response: api_models::payments::NoThirdPartySdkSessionResponse =
+            wallet_token[..]
+                .parse_struct("NoThirdPartySdkSessionResponse")
+                .change_context(errors::ConnectorError::ParsingFailed)?;
 
         let metadata = item.data.get_connector_meta()?.expose();
         let applepay_metadata = metadata
@@ -333,29 +380,46 @@ impl TryFrom<types::PaymentsSessionResponseRouterData<BluesnapWalletTokenRespons
             response: Ok(types::PaymentsResponseData::SessionResponse {
                 session_token: types::api::SessionToken::ApplePay(Box::new(
                     api_models::payments::ApplepaySessionTokenResponse {
-                        session_token_data: session_response,
-                        payment_request_data: api_models::payments::ApplePayPaymentRequest {
+                        session_token_data:
+                            api_models::payments::ApplePaySessionResponse::NoThirdPartySdk(
+                                session_response,
+                            ),
+                        payment_request_data: Some(api_models::payments::ApplePayPaymentRequest {
                             country_code: item.data.get_billing_country()?,
-                            currency_code: item.data.request.currency.to_string(),
+                            currency_code: item.data.request.currency,
                             total: api_models::payments::AmountInfo {
                                 label: applepay_metadata.data.payment_request_data.label,
-                                total_type: "final".to_string(),
+                                total_type: Some("final".to_string()),
                                 amount: item.data.request.amount.to_string(),
                             },
-                            merchant_capabilities: applepay_metadata
-                                .data
-                                .payment_request_data
-                                .merchant_capabilities,
-                            supported_networks: applepay_metadata
-                                .data
-                                .payment_request_data
-                                .supported_networks,
-                            merchant_identifier: applepay_metadata
-                                .data
-                                .session_token_data
-                                .merchant_identifier,
-                        },
+                            merchant_capabilities: Some(
+                                applepay_metadata
+                                    .data
+                                    .payment_request_data
+                                    .merchant_capabilities,
+                            ),
+                            supported_networks: Some(
+                                applepay_metadata
+                                    .data
+                                    .payment_request_data
+                                    .supported_networks,
+                            ),
+                            merchant_identifier: Some(
+                                applepay_metadata
+                                    .data
+                                    .session_token_data
+                                    .merchant_identifier,
+                            ),
+                        }),
                         connector: "bluesnap".to_string(),
+                        delayed_session_token: false,
+                        sdk_next_action: {
+                            payments::SdkNextAction {
+                                next_action: payments::NextActionCall::Confirm,
+                            }
+                        },
+                        connector_reference_id: None,
+                        connector_sdk_public_key: None,
                     },
                 )),
             }),
@@ -391,9 +455,9 @@ impl TryFrom<&types::PaymentsCompleteAuthorizeRouterData> for BluesnapPaymentsRe
             item.request.payment_method_data.clone()
         {
             PaymentMethodDetails::CreditCard(Card {
-                card_number: ccard.card_number,
+                card_number: ccard.card_number.clone(),
                 expiration_month: ccard.card_exp_month.clone(),
-                expiration_year: ccard.card_exp_year.clone(),
+                expiration_year: ccard.get_expiry_year_4_digit(),
                 security_code: ccard.card_cvc,
             })
         } else {
@@ -417,7 +481,10 @@ impl TryFrom<&types::PaymentsCompleteAuthorizeRouterData> for BluesnapPaymentsRe
             transaction_fraud_info: Some(TransactionFraudInfo {
                 fraud_session_id: item.payment_id.clone(),
             }),
-            card_holder_info: None,
+            card_holder_info: get_card_holder_info(
+                item.get_billing_address()?,
+                item.request.get_email()?,
+            )?,
         })
     }
 }
@@ -492,8 +559,8 @@ impl TryFrom<&types::PaymentsCaptureRouterData> for BluesnapCaptureRequest {
 
 // Auth Struct
 pub struct BluesnapAuthType {
-    pub(super) api_key: String,
-    pub(super) key1: String,
+    pub(super) api_key: Secret<String>,
+    pub(super) key1: Secret<String>,
 }
 
 impl TryFrom<&types::ConnectorAuthType> for BluesnapAuthType {
@@ -501,8 +568,8 @@ impl TryFrom<&types::ConnectorAuthType> for BluesnapAuthType {
     fn try_from(auth_type: &types::ConnectorAuthType) -> Result<Self, Self::Error> {
         if let types::ConnectorAuthType::BodyKey { api_key, key1 } = auth_type {
             Ok(Self {
-                api_key: api_key.to_string(),
-                key1: key1.to_string(),
+                api_key: api_key.to_owned(),
+                key1: key1.to_owned(),
             })
         } else {
             Err(errors::ConnectorError::FailedToObtainAuthType.into())
@@ -528,7 +595,7 @@ impl TryFrom<&types::ConnectorCustomerRouterData> for BluesnapCustomerRequest {
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct BluesnapCustomerResponse {
-    vaulted_shopper_id: u64,
+    vaulted_shopper_id: Secret<u64>,
 }
 impl<F, T>
     TryFrom<types::ResponseRouterData<F, BluesnapCustomerResponse, T, types::PaymentsResponseData>>
@@ -545,7 +612,7 @@ impl<F, T>
     ) -> Result<Self, Self::Error> {
         Ok(Self {
             response: Ok(types::PaymentsResponseData::ConnectorCustomerResponse {
-                connector_customer_id: item.response.vaulted_shopper_id.to_string(),
+                connector_customer_id: item.response.vaulted_shopper_id.expose().to_string(),
             }),
             ..item.data
         })
@@ -636,7 +703,7 @@ pub struct Refund {
 pub struct ProcessingInfoResponse {
     processing_status: BluesnapProcessingStatus,
     authorization_code: Option<String>,
-    network_transaction_id: Option<String>,
+    network_transaction_id: Option<Secret<String>>,
 }
 
 impl<F, T>
@@ -659,12 +726,13 @@ impl<F, T>
             ))?,
             response: Ok(types::PaymentsResponseData::TransactionResponse {
                 resource_id: types::ResponseId::ConnectorTransactionId(
-                    item.response.transaction_id,
+                    item.response.transaction_id.clone(),
                 ),
                 redirection_data: None,
                 mandate_reference: None,
                 connector_metadata: None,
                 network_txn_id: None,
+                connector_response_reference_id: Some(item.response.transaction_id),
             }),
             ..item.data
         })
@@ -767,6 +835,7 @@ pub struct BluesnapWebhookObjectResource {
 pub struct ErrorDetails {
     pub code: String,
     pub description: String,
+    pub error_name: String,
 }
 
 #[derive(Default, Debug, Clone, Deserialize)]
@@ -780,22 +849,33 @@ pub struct BluesnapErrorResponse {
 pub struct BluesnapAuthErrorResponse {
     pub error_code: String,
     pub error_description: String,
+    pub error_name: String,
 }
 
 #[derive(Debug, Clone, Deserialize)]
 #[serde(untagged)]
 pub enum BluesnapErrors {
-    PaymentError(BluesnapErrorResponse),
-    AuthError(BluesnapAuthErrorResponse),
+    Payment(BluesnapErrorResponse),
+    Auth(BluesnapAuthErrorResponse),
+    General(String),
 }
 
 fn get_card_holder_info(
-    item: &types::PaymentsAuthorizeRouterData,
+    address: &api::AddressDetails,
+    email: Email,
 ) -> CustomResult<Option<BluesnapCardHolderInfo>, errors::ConnectorError> {
-    let address = item.get_billing_address()?;
     Ok(Some(BluesnapCardHolderInfo {
         first_name: address.get_first_name()?.clone(),
         last_name: address.get_last_name()?.clone(),
-        email: item.request.get_email()?,
+        email,
     }))
+}
+
+impl From<ErrorDetails> for utils::ErrorCodeAndMessage {
+    fn from(error: ErrorDetails) -> Self {
+        Self {
+            error_code: error.code.to_string(),
+            error_message: error.error_name,
+        }
+    }
 }

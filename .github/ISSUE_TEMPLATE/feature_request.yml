@@ -6,8 +6,8 @@ body:
   - type: markdown
     attributes:
       value: |
-        We value your time and efforts to submit this feature request form. Here are a few things to check before clicking the submit button :)
-        1. Make sure you're on the latest version of the app. Features are being added all the time and it is entirely possible what you're requesting has already been added. The current release can be found here: https://github.com/juspay/hyperswitch/releases/latest.
+        We value your time and efforts in submitting this feature request form. Here are a few things to check before clicking the submit button :)
+        1. Make sure you're on the latest version of the app. Features are being added all the time, and it is entirely possible what you're requesting has already been added. The current release can be found here: https://github.com/juspay/hyperswitch/releases/latest.
         2. Check the changelog file to confirm that the feature hasn't been added for an upcoming release: https://github.com/juspay/hyperswitch/blob/main/CHANGELOG.md
         3. Please try to fill this template completely to the best of your abilities. A feature request that is clear and explicit in its needs lets us get to work faster.
 
@@ -32,9 +32,9 @@ body:
   - type: checkboxes
     id: no-duplicate-issues
     attributes:
-      label: Have you spent some time to check if this feature request has been raised before?
+      label: Have you spent some time checking if this feature request has been raised before?
       options:
-        - label: I checked and didn't find similar issue
+        - label: I checked and didn't find a similar issue
           required: true
 
   - type: checkboxes
@@ -51,6 +51,6 @@ body:
       label: Are you willing to submit a PR?
       description: This is absolutely not required, but we are happy to guide you in the contribution process.
       options:
-        - Yes I am willing to submit a PR!
+        - Yes, I am willing to submit a PR!
         - No, but I'm happy to collaborate on a PR with someone else
         - No, I don't have time to work on this right now

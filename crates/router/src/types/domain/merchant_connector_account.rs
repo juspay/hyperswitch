@@ -4,19 +4,14 @@ use common_utils::{
     errors::{CustomResult, ValidationError},
     pii,
 };
-use error_stack::ResultExt;
-use masking::Secret;
-use storage_models::{
+use diesel_models::{
     encryption::Encryption, enums,
     merchant_connector_account::MerchantConnectorAccountUpdateInternal,
 };
+use error_stack::ResultExt;
+use masking::{PeekInterface, Secret};
 
-use super::{
-    behaviour,
-    types::{self, TypeEncryption},
-};
-use crate::db::StorageInterface;
-
+use super::{behaviour, types::TypeEncryption};
 #[derive(Clone, Debug)]
 pub struct MerchantConnectorAccount {
     pub id: Option<i32>,
@@ -29,13 +24,14 @@ pub struct MerchantConnectorAccount {
     pub payment_methods_enabled: Option<Vec<serde_json::Value>>,
     pub connector_type: enums::ConnectorType,
     pub metadata: Option<pii::SecretSerdeValue>,
-    pub frm_configs: Option<Secret<serde_json::Value>>, //Option<FrmConfigs>
+    pub frm_configs: Option<Vec<Secret<serde_json::Value>>>,
     pub connector_label: String,
     pub business_country: enums::CountryAlpha2,
     pub business_label: String,
     pub business_sub_label: Option<String>,
     pub created_at: time::PrimitiveDateTime,
     pub modified_at: time::PrimitiveDateTime,
+    pub connector_webhook_details: Option<pii::SecretSerdeValue>,
 }
 
 #[derive(Debug)]
@@ -50,18 +46,19 @@ pub enum MerchantConnectorAccountUpdate {
         merchant_connector_id: Option<String>,
         payment_methods_enabled: Option<Vec<serde_json::Value>>,
         metadata: Option<pii::SecretSerdeValue>,
-        frm_configs: Option<Secret<serde_json::Value>>,
+        frm_configs: Option<Vec<Secret<serde_json::Value>>>,
+        connector_webhook_details: Option<pii::SecretSerdeValue>,
     },
 }
 
 #[async_trait::async_trait]
 impl behaviour::Conversion for MerchantConnectorAccount {
-    type DstType = storage_models::merchant_connector_account::MerchantConnectorAccount;
-    type NewDstType = storage_models::merchant_connector_account::MerchantConnectorAccountNew;
+    type DstType = diesel_models::merchant_connector_account::MerchantConnectorAccount;
+    type NewDstType = diesel_models::merchant_connector_account::MerchantConnectorAccountNew;
 
     async fn convert(self) -> CustomResult<Self::DstType, ValidationError> {
         Ok(
-            storage_models::merchant_connector_account::MerchantConnectorAccount {
+            diesel_models::merchant_connector_account::MerchantConnectorAccount {
                 id: self.id.ok_or(ValidationError::MissingRequiredField {
                     field_name: "id".to_string(),
                 })?,
@@ -74,35 +71,30 @@ impl behaviour::Conversion for MerchantConnectorAccount {
                 payment_methods_enabled: self.payment_methods_enabled,
                 connector_type: self.connector_type,
                 metadata: self.metadata,
-                frm_configs: self.frm_configs,
+                frm_configs: None,
+                frm_config: self.frm_configs,
                 business_country: self.business_country,
                 business_label: self.business_label,
                 connector_label: self.connector_label,
                 business_sub_label: self.business_sub_label,
                 created_at: self.created_at,
                 modified_at: self.modified_at,
+                connector_webhook_details: self.connector_webhook_details,
             },
         )
     }
 
     async fn convert_back(
         other: Self::DstType,
-        db: &dyn StorageInterface,
-        merchant_id: &str,
+        key: &Secret<Vec<u8>>,
     ) -> CustomResult<Self, ValidationError> {
-        let key = types::get_merchant_enc_key(db, merchant_id)
-            .await
-            .change_context(ValidationError::InvalidValue {
-                message: "Error while getting key from keystore".to_string(),
-            })?;
-
         Ok(Self {
             id: Some(other.id),
             merchant_id: other.merchant_id,
             connector_name: other.connector_name,
             connector_account_details: Encryptable::decrypt(
                 other.connector_account_details,
-                &key,
+                key.peek(),
                 GcmAes256,
             )
             .await
@@ -116,13 +108,14 @@ impl behaviour::Conversion for MerchantConnectorAccount {
             connector_type: other.connector_type,
             metadata: other.metadata,
 
-            frm_configs: other.frm_configs,
+            frm_configs: other.frm_config,
             business_country: other.business_country,
             business_label: other.business_label,
             connector_label: other.connector_label,
             business_sub_label: other.business_sub_label,
             created_at: other.created_at,
             modified_at: other.modified_at,
+            connector_webhook_details: other.connector_webhook_details,
         })
     }
 
@@ -138,13 +131,15 @@ impl behaviour::Conversion for MerchantConnectorAccount {
             payment_methods_enabled: self.payment_methods_enabled,
             connector_type: Some(self.connector_type),
             metadata: self.metadata,
-            frm_configs: self.frm_configs,
+            frm_configs: None,
+            frm_config: self.frm_configs,
             business_country: self.business_country,
             business_label: self.business_label,
             connector_label: self.connector_label,
             business_sub_label: self.business_sub_label,
             created_at: now,
             modified_at: now,
+            connector_webhook_details: self.connector_webhook_details,
         })
     }
 }
@@ -163,6 +158,7 @@ impl From<MerchantConnectorAccountUpdate> for MerchantConnectorAccountUpdateInte
                 payment_methods_enabled,
                 metadata,
                 frm_configs,
+                connector_webhook_details,
             } => Self {
                 merchant_id,
                 connector_type,
@@ -173,8 +169,10 @@ impl From<MerchantConnectorAccountUpdate> for MerchantConnectorAccountUpdateInte
                 merchant_connector_id,
                 payment_methods_enabled,
                 metadata,
-                frm_configs,
+                frm_configs: None,
+                frm_config: frm_configs,
                 modified_at: Some(common_utils::date_time::now()),
+                connector_webhook_details,
             },
         }
     }

@@ -1,5 +1,6 @@
 use api_models::payments;
 use error_stack::report;
+use masking::Secret;
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -48,12 +49,15 @@ impl TryFrom<&types::PaymentsSessionRouterData> for KlarnaSessionRequest {
                 purchase_currency: request.currency,
                 order_amount: request.amount,
                 locale: "en-US".to_string(),
-                order_lines: vec![OrderLines {
-                    name: order_details.product_name,
-                    quantity: order_details.quantity,
-                    unit_price: request.amount,
-                    total_amount: request.amount,
-                }],
+                order_lines: order_details
+                    .iter()
+                    .map(|data| OrderLines {
+                        name: data.product_name.clone(),
+                        quantity: data.quantity,
+                        unit_price: data.amount,
+                        total_amount: i64::from(data.quantity) * (data.amount),
+                    })
+                    .collect(),
             }),
             None => Err(report!(errors::ConnectorError::MissingRequiredField {
                 field_name: "product_name",
@@ -93,12 +97,15 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for KlarnaPaymentsRequest {
                 purchase_country: "US".to_string(),
                 purchase_currency: request.currency,
                 order_amount: request.amount,
-                order_lines: vec![OrderLines {
-                    name: order_details.product_name,
-                    quantity: order_details.quantity,
-                    unit_price: request.amount,
-                    total_amount: request.amount,
-                }],
+                order_lines: order_details
+                    .iter()
+                    .map(|data| OrderLines {
+                        name: data.product_name.clone(),
+                        quantity: data.quantity,
+                        unit_price: data.amount,
+                        total_amount: i64::from(data.quantity) * (data.amount),
+                    })
+                    .collect(),
             }),
             None => Err(report!(errors::ConnectorError::MissingRequiredField {
                 field_name: "product_name"
@@ -121,6 +128,7 @@ impl TryFrom<types::PaymentsResponseRouterData<KlarnaPaymentsResponse>>
                 mandate_reference: None,
                 connector_metadata: None,
                 network_txn_id: None,
+                connector_response_reference_id: None,
             }),
             status: item.response.fraud_status.into(),
             ..item.data
@@ -145,7 +153,7 @@ pub enum KlarnaSessionIntent {
 }
 
 pub struct KlarnaAuthType {
-    pub basic_token: String,
+    pub basic_token: Secret<String>,
 }
 
 impl TryFrom<&types::ConnectorAuthType> for KlarnaAuthType {
@@ -153,7 +161,7 @@ impl TryFrom<&types::ConnectorAuthType> for KlarnaAuthType {
     fn try_from(auth_type: &types::ConnectorAuthType) -> Result<Self, Self::Error> {
         if let types::ConnectorAuthType::HeaderKey { api_key } = auth_type {
             Ok(Self {
-                basic_token: api_key.to_string(),
+                basic_token: api_key.to_owned(),
             })
         } else {
             Err(errors::ConnectorError::FailedToObtainAuthType.into())
@@ -181,5 +189,6 @@ impl From<KlarnaFraudStatus> for enums::AttemptStatus {
 #[derive(Deserialize)]
 pub struct KlarnaErrorResponse {
     pub error_code: String,
-    pub error_messages: Vec<String>,
+    pub error_messages: Option<Vec<String>>,
+    pub error_message: Option<String>,
 }

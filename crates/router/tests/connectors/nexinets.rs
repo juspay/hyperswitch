@@ -24,10 +24,11 @@ impl utils::Connector for NexinetsTest {
     }
 
     fn get_auth_token(&self) -> types::ConnectorAuthType {
-        types::ConnectorAuthType::from(
+        utils::to_connector_auth_type(
             connector_auth::ConnectorAuthentication::new()
                 .nexinets
-                .expect("Missing connector authentication configuration"),
+                .expect("Missing connector authentication configuration")
+                .into(),
         )
     }
 
@@ -38,7 +39,7 @@ impl utils::Connector for NexinetsTest {
 
 fn payment_method_details() -> Option<PaymentsAuthorizeData> {
     Some(PaymentsAuthorizeData {
-        currency: storage_models::enums::Currency::EUR,
+        currency: diesel_models::enums::Currency::EUR,
         payment_method_data: types::api::PaymentMethodData::Card(api::Card {
             card_number: CardNumber::from_str("374111111111111").unwrap(),
             ..utils::CCardType::default().0
@@ -70,7 +71,7 @@ async fn should_capture_authorized_payment() {
     let connector_meta = utils::get_connector_metadata(response.response);
     let capture_data = types::PaymentsCaptureData {
         connector_meta,
-        currency: storage_models::enums::Currency::EUR,
+        currency: diesel_models::enums::Currency::EUR,
         ..utils::PaymentCaptureType::default().0
     };
     let capture_response = CONNECTOR
@@ -93,7 +94,7 @@ async fn should_partially_capture_authorized_payment() {
     let capture_data = types::PaymentsCaptureData {
         connector_meta,
         amount_to_capture: 50,
-        currency: storage_models::enums::Currency::EUR,
+        currency: diesel_models::enums::Currency::EUR,
         ..utils::PaymentCaptureType::default().0
     };
     let capture_response = CONNECTOR
@@ -119,6 +120,7 @@ async fn should_sync_authorized_payment() {
                 connector_transaction_id: router::types::ResponseId::ConnectorTransactionId(txn_id),
                 encoded_data: None,
                 capture_method: None,
+                capture_sync_type: types::CaptureSyncType::SingleCaptureSync,
                 connector_meta,
                 mandate_id: None,
             }),
@@ -145,7 +147,7 @@ async fn should_void_authorized_payment() {
             Some(types::PaymentsCancelData {
                 connector_meta,
                 amount: Some(100),
-                currency: Some(storage_models::enums::Currency::EUR),
+                currency: Some(diesel_models::enums::Currency::EUR),
                 ..utils::PaymentCancelType::default().0
             }),
             None,
@@ -169,7 +171,7 @@ async fn should_refund_manually_captured_payment() {
         .capture_payment(
             txn_id,
             Some(types::PaymentsCaptureData {
-                currency: storage_models::enums::Currency::EUR,
+                currency: diesel_models::enums::Currency::EUR,
                 connector_meta: capture_connector_meta,
                 ..utils::PaymentCaptureType::default().0
             }),
@@ -185,7 +187,7 @@ async fn should_refund_manually_captured_payment() {
             capture_txn_id.clone(),
             Some(types::RefundsData {
                 connector_transaction_id: capture_txn_id,
-                currency: storage_models::enums::Currency::EUR,
+                currency: diesel_models::enums::Currency::EUR,
                 connector_metadata: refund_connector_metadata,
                 ..utils::PaymentRefundType::default().0
             }),
@@ -212,7 +214,7 @@ async fn should_partially_refund_manually_captured_payment() {
         .capture_payment(
             txn_id.clone(),
             Some(types::PaymentsCaptureData {
-                currency: storage_models::enums::Currency::EUR,
+                currency: diesel_models::enums::Currency::EUR,
                 connector_meta: capture_connector_meta,
                 ..utils::PaymentCaptureType::default().0
             }),
@@ -229,7 +231,7 @@ async fn should_partially_refund_manually_captured_payment() {
             Some(types::RefundsData {
                 refund_amount: 10,
                 connector_transaction_id: capture_txn_id,
-                currency: storage_models::enums::Currency::EUR,
+                currency: diesel_models::enums::Currency::EUR,
                 connector_metadata: refund_connector_metadata,
                 ..utils::PaymentRefundType::default().0
             }),
@@ -256,7 +258,7 @@ async fn should_sync_manually_captured_refund() {
         .capture_payment(
             txn_id.clone(),
             Some(types::PaymentsCaptureData {
-                currency: storage_models::enums::Currency::EUR,
+                currency: diesel_models::enums::Currency::EUR,
                 connector_meta: capture_connector_meta,
                 ..utils::PaymentCaptureType::default().0
             }),
@@ -273,7 +275,7 @@ async fn should_sync_manually_captured_refund() {
             Some(types::RefundsData {
                 refund_amount: 100,
                 connector_transaction_id: capture_txn_id.clone(),
-                currency: storage_models::enums::Currency::EUR,
+                currency: diesel_models::enums::Currency::EUR,
                 connector_metadata: refund_connector_metadata.clone(),
                 ..utils::PaymentRefundType::default().0
             }),
@@ -363,7 +365,7 @@ async fn should_refund_auto_captured_payment() {
             txn_id.clone().unwrap(),
             Some(types::RefundsData {
                 refund_amount: 100,
-                currency: storage_models::enums::Currency::EUR,
+                currency: diesel_models::enums::Currency::EUR,
                 connector_transaction_id: txn_id.unwrap(),
                 connector_metadata,
                 ..utils::PaymentRefundType::default().0
@@ -393,7 +395,7 @@ async fn should_partially_refund_succeeded_payment() {
             txn_id.clone().unwrap(),
             Some(types::RefundsData {
                 refund_amount: 50,
-                currency: storage_models::enums::Currency::EUR,
+                currency: diesel_models::enums::Currency::EUR,
                 connector_transaction_id: txn_id.unwrap(),
                 connector_metadata: connector_meta,
                 ..utils::PaymentRefundType::default().0
@@ -426,7 +428,7 @@ async fn should_refund_succeeded_payment_multiple_times() {
                     connector_metadata: connector_meta.clone(),
                     connector_transaction_id: txn_id.clone().unwrap(),
                     refund_amount: 50,
-                    currency: storage_models::enums::Currency::EUR,
+                    currency: diesel_models::enums::Currency::EUR,
                     ..utils::PaymentRefundType::default().0
                 }),
                 None,
@@ -456,7 +458,7 @@ async fn should_sync_refund() {
             Some(types::RefundsData {
                 connector_transaction_id: txn_id.clone().unwrap(),
                 refund_amount: 100,
-                currency: storage_models::enums::Currency::EUR,
+                currency: diesel_models::enums::Currency::EUR,
                 connector_metadata: connector_metadata.clone(),
                 ..utils::PaymentRefundType::default().0
             }),
@@ -577,7 +579,7 @@ async fn should_fail_void_payment_for_auto_capture() {
             Some(types::PaymentsCancelData {
                 cancellation_reason: Some("requested_by_customer".to_string()),
                 amount: Some(100),
-                currency: Some(storage_models::enums::Currency::EUR),
+                currency: Some(diesel_models::enums::Currency::EUR),
                 connector_meta,
                 ..Default::default()
             }),
@@ -606,7 +608,7 @@ async fn should_fail_capture_for_invalid_payment() {
                     }),
                 ),
                 amount_to_capture: 50,
-                currency: storage_models::enums::Currency::EUR,
+                currency: diesel_models::enums::Currency::EUR,
                 ..utils::PaymentCaptureType::default().0
             }),
             None,
@@ -634,7 +636,7 @@ async fn should_fail_for_refund_amount_higher_than_payment_amount() {
             txn_id.clone().unwrap(),
             Some(types::RefundsData {
                 refund_amount: 150,
-                currency: storage_models::enums::Currency::EUR,
+                currency: diesel_models::enums::Currency::EUR,
                 connector_transaction_id: txn_id.unwrap(),
                 connector_metadata: connector_meta,
                 ..utils::PaymentRefundType::default().0

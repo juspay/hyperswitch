@@ -1,6 +1,6 @@
 use std::marker::PhantomData;
 
-use api_models::admin::PaymentMethodsEnabled;
+use api_models::{admin::PaymentMethodsEnabled, enums::CancelTransaction};
 use async_trait::async_trait;
 use common_utils::ext_traits::{AsyncExt, ValueExt};
 use error_stack::ResultExt;
@@ -15,6 +15,7 @@ use crate::{
     },
     db::StorageInterface,
     routes::AppState,
+    services,
     types::{
         api::{self, PaymentIdTypeExt},
         domain,
@@ -37,8 +38,10 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsSessionRequest>
         state: &'a AppState,
         payment_id: &api::PaymentIdType,
         request: &api::PaymentsSessionRequest,
-        _mandate_type: Option<api::MandateTxnType>,
+        _mandate_type: Option<api::MandateTransactionType>,
         merchant_account: &domain::MerchantAccount,
+        key_store: &domain::MerchantKeyStore,
+        _auth_flow: services::AuthFlow,
     ) -> RouterResult<(
         BoxedOperation<'a, F, api::PaymentsSessionRequest>,
         PaymentData<F>,
@@ -87,7 +90,8 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsSessionRequest>
             None,
             payment_intent.shipping_address_id.as_deref(),
             merchant_id,
-            &payment_intent.customer_id,
+            payment_intent.customer_id.as_ref(),
+            key_store,
         )
         .await?;
 
@@ -96,7 +100,8 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsSessionRequest>
             None,
             payment_intent.billing_address_id.as_deref(),
             merchant_id,
-            &payment_intent.customer_id,
+            payment_intent.customer_id.as_ref(),
+            key_store,
         )
         .await?;
 
@@ -165,14 +170,18 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsSessionRequest>
                 force_sync: None,
                 refunds: vec![],
                 disputes: vec![],
+                attempts: None,
                 sessions_token: vec![],
                 connector_response,
                 card_cvc: None,
                 creds_identifier,
                 pm_token: None,
                 connector_customer_id: None,
+                recurring_mandate_payment_data: None,
                 ephemeral_key: None,
+                multiple_capture_data: None,
                 redirect_response: None,
+                frm_message: None,
             },
             Some(customer_details),
         ))
@@ -185,11 +194,12 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsSessionRequest> for
     async fn update_trackers<'b>(
         &'b self,
         db: &dyn StorageInterface,
-        _payment_id: &api::PaymentIdType,
         mut payment_data: PaymentData<F>,
         _customer: Option<domain::Customer>,
         storage_scheme: storage_enums::MerchantStorageScheme,
         _updated_customer: Option<storage::CustomerUpdate>,
+        _mechant_key_store: &domain::MerchantKeyStore,
+        _should_cancel_transaction: Option<CancelTransaction>,
     ) -> RouterResult<(
         BoxedOperation<'b, F, api::PaymentsSessionRequest>,
         PaymentData<F>,
@@ -234,6 +244,7 @@ impl<F: Send + Clone> ValidateRequest<F, api::PaymentsSessionRequest> for Paymen
                 payment_id: api::PaymentIdType::PaymentIntentId(given_payment_id),
                 mandate_type: None,
                 storage_scheme: merchant_account.storage_scheme,
+                requeue: false,
             },
         ))
     }
@@ -251,7 +262,7 @@ where
         db: &dyn StorageInterface,
         payment_data: &mut PaymentData<F>,
         request: Option<payments::CustomerDetails>,
-        merchant_id: &str,
+        key_store: &domain::MerchantKeyStore,
     ) -> errors::CustomResult<
         (
             BoxedOperation<'a, F, api::PaymentsSessionRequest>,
@@ -264,7 +275,8 @@ where
             db,
             payment_data,
             request,
-            merchant_id,
+            &key_store.merchant_id,
+            key_store,
         )
         .await
     }
@@ -297,15 +309,16 @@ where
         merchant_account: &domain::MerchantAccount,
         state: &AppState,
         request: &api::PaymentsSessionRequest,
-        payment_intent: &storage::payment_intent::PaymentIntent,
+        payment_intent: &storage::PaymentIntent,
+        key_store: &domain::MerchantKeyStore,
     ) -> RouterResult<api::ConnectorChoice> {
-        let connectors = &state.conf.connectors;
         let db = &state.store;
 
         let all_connector_accounts = db
             .find_merchant_connector_account_by_merchant_id_and_disabled_list(
                 &merchant_account.merchant_id,
                 false,
+                key_store,
             )
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -377,10 +390,11 @@ where
         for (connector, payment_method_type, business_sub_label) in
             connector_and_supporting_payment_method_type
         {
+            let connector_type = api::GetToken::from(payment_method_type);
             if let Ok(connector_data) = api::ConnectorData::get_connector_by_name(
-                connectors,
+                &state.conf.connectors,
                 &connector,
-                api::GetToken::from(payment_method_type),
+                connector_type,
             )
             .map_err(|err| {
                 logger::error!(session_token_error=?err);
@@ -407,21 +421,5 @@ impl From<api_models::enums::PaymentMethodType> for api::GetToken {
             api_models::enums::PaymentMethodType::ApplePay => Self::ApplePayMetadata,
             _ => Self::Connector,
         }
-    }
-}
-
-pub fn get_connector_type_for_session_token(
-    payment_method_type: api_models::enums::PaymentMethodType,
-    _request: &api::PaymentsSessionRequest,
-    connector: String,
-) -> api::GetToken {
-    if payment_method_type == api_models::enums::PaymentMethodType::ApplePay {
-        if connector == *"bluesnap" {
-            api::GetToken::Connector
-        } else {
-            api::GetToken::ApplePayMetadata
-        }
-    } else {
-        api::GetToken::from(payment_method_type)
     }
 }

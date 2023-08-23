@@ -1,11 +1,11 @@
 use std::marker::PhantomData;
 
+use api_models::enums::CancelTransaction;
 use async_trait::async_trait;
 use common_utils::{date_time, errors::CustomResult, ext_traits::AsyncExt};
 use error_stack::ResultExt;
 use router_derive::PaymentOperation;
 use router_env::{instrument, tracing};
-use uuid::Uuid;
 
 use super::{BoxedOperation, Domain, GetTracker, PaymentCreate, UpdateTracker, ValidateRequest};
 use crate::{
@@ -17,12 +17,12 @@ use crate::{
     },
     db::StorageInterface,
     routes::AppState,
+    services,
     types::{
         self,
         api::{self, enums as api_enums, PaymentIdTypeExt},
         domain,
         storage::{self, enums as storage_enums},
-        transformers::ForeignInto,
     },
     utils,
 };
@@ -56,6 +56,7 @@ impl<F: Send + Clone> ValidateRequest<F, api::VerifyRequest> for PaymentMethodVa
                 payment_id: api::PaymentIdType::PaymentIntentId(validation_id),
                 mandate_type,
                 storage_scheme: merchant_account.storage_scheme,
+                requeue: false,
             },
         ))
     }
@@ -69,8 +70,10 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::VerifyRequest> for Paym
         state: &'a AppState,
         payment_id: &api::PaymentIdType,
         request: &api::VerifyRequest,
-        _mandate_type: Option<api::MandateTxnType>,
+        _mandate_type: Option<api::MandateTransactionType>,
         merchant_account: &domain::MerchantAccount,
+        _mechant_key_store: &domain::MerchantKeyStore,
+        _auth_flow: services::AuthFlow,
     ) -> RouterResult<(
         BoxedOperation<'a, F, api::VerifyRequest>,
         PaymentData<F>,
@@ -95,6 +98,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::VerifyRequest> for Paym
                     merchant_id,
                     request.payment_method,
                     request,
+                    state,
                 ),
                 storage_scheme,
             )
@@ -176,13 +180,17 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::VerifyRequest> for Paym
                 force_sync: None,
                 refunds: vec![],
                 disputes: vec![],
+                attempts: None,
                 sessions_token: vec![],
                 card_cvc: None,
                 creds_identifier,
                 pm_token: None,
                 connector_customer_id: None,
+                recurring_mandate_payment_data: None,
                 ephemeral_key: None,
+                multiple_capture_data: None,
                 redirect_response: None,
+                frm_message: None,
             },
             Some(payments::CustomerDetails {
                 customer_id: request.customer_id.clone(),
@@ -201,11 +209,12 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::VerifyRequest> for PaymentM
     async fn update_trackers<'b>(
         &'b self,
         db: &dyn StorageInterface,
-        _payment_id: &api::PaymentIdType,
         mut payment_data: PaymentData<F>,
         _customer: Option<domain::Customer>,
         storage_scheme: storage_enums::MerchantStorageScheme,
         _updated_customer: Option<storage::CustomerUpdate>,
+        _mechant_key_store: &domain::MerchantKeyStore,
+        _should_cancel_transaction: Option<CancelTransaction>,
     ) -> RouterResult<(BoxedOperation<'b, F, api::VerifyRequest>, PaymentData<F>)>
     where
         F: 'b + Send,
@@ -247,7 +256,7 @@ where
         db: &dyn StorageInterface,
         payment_data: &mut PaymentData<F>,
         request: Option<payments::CustomerDetails>,
-        merchant_id: &str,
+        key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<
         (
             BoxedOperation<'a, F, api::VerifyRequest>,
@@ -260,7 +269,8 @@ where
             db,
             payment_data,
             request,
-            merchant_id,
+            &key_store.merchant_id,
+            key_store,
         )
         .await
     }
@@ -283,7 +293,8 @@ where
         _merchant_account: &domain::MerchantAccount,
         state: &AppState,
         _request: &api::VerifyRequest,
-        _payment_intent: &storage::payment_intent::PaymentIntent,
+        _payment_intent: &storage::PaymentIntent,
+        _mechant_key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<api::ConnectorChoice, errors::ApiErrorResponse> {
         helpers::get_connector_default(state, None).await
     }
@@ -296,20 +307,29 @@ impl PaymentMethodValidate {
         merchant_id: &str,
         payment_method: Option<api_enums::PaymentMethod>,
         _request: &api::VerifyRequest,
+        state: &AppState,
     ) -> storage::PaymentAttemptNew {
         let created_at @ modified_at @ last_synced = Some(date_time::now());
         let status = storage_enums::AttemptStatus::Pending;
+        let attempt_id = if core_utils::is_merchant_enabled_for_payment_id_as_connector_request_id(
+            &state.conf,
+            merchant_id,
+        ) {
+            payment_id.to_string()
+        } else {
+            utils::get_payment_attempt_id(payment_id, 1)
+        };
 
         storage::PaymentAttemptNew {
             payment_id: payment_id.to_string(),
             merchant_id: merchant_id.to_string(),
-            attempt_id: Uuid::new_v4().simple().to_string(),
+            attempt_id,
             status,
             // Amount & Currency will be zero in this case
             amount: 0,
             currency: Default::default(),
             connector: None,
-            payment_method: payment_method.map(ForeignInto::foreign_into),
+            payment_method,
             confirm: true,
             created_at,
             modified_at,
@@ -340,9 +360,10 @@ impl PaymentMethodValidate {
             modified_at,
             last_synced,
             client_secret: Some(client_secret),
-            setup_future_usage: request.setup_future_usage.map(ForeignInto::foreign_into),
+            setup_future_usage: request.setup_future_usage,
             off_session: request.off_session,
             active_attempt_id,
+            attempt_count: 1,
             ..Default::default()
         }
     }

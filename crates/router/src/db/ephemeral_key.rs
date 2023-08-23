@@ -1,3 +1,5 @@
+use time::ext::NumericalDuration;
+
 use crate::{
     core::errors::{self, CustomResult},
     db::MockDb,
@@ -25,6 +27,7 @@ mod storage {
     use common_utils::date_time;
     use error_stack::ResultExt;
     use redis_interface::HsetnxReply;
+    use storage_impl::redis::kv_store::RedisConnInterface;
     use time::ext::NumericalDuration;
 
     use super::EphemeralKeyInterface;
@@ -56,7 +59,7 @@ mod storage {
             };
 
             match self
-                .redis_conn()
+                .get_redis_conn()
                 .map_err(Into::<errors::StorageError>::into)?
                 .serialize_and_set_multiple_hash_field_if_not_exist(
                     &[(&secret_key, &created_ek), (&id_key, &created_ek)],
@@ -73,12 +76,12 @@ mod storage {
                 }
                 Ok(_) => {
                     let expire_at = expires.assume_utc().unix_timestamp();
-                    self.redis_conn()
+                    self.get_redis_conn()
                         .map_err(Into::<errors::StorageError>::into)?
                         .set_expire_at(&secret_key, expire_at)
                         .await
                         .change_context(errors::StorageError::KVError)?;
-                    self.redis_conn()
+                    self.get_redis_conn()
                         .map_err(Into::<errors::StorageError>::into)?
                         .set_expire_at(&id_key, expire_at)
                         .await
@@ -93,7 +96,7 @@ mod storage {
             key: &str,
         ) -> CustomResult<EphemeralKey, errors::StorageError> {
             let key = format!("epkey_{key}");
-            self.redis_conn()
+            self.get_redis_conn()
                 .map_err(Into::<errors::StorageError>::into)?
                 .get_hash_field_and_deserialize(&key, "ephkey", "EphemeralKey")
                 .await
@@ -105,13 +108,13 @@ mod storage {
         ) -> CustomResult<EphemeralKey, errors::StorageError> {
             let ek = self.get_ephemeral_key(id).await?;
 
-            self.redis_conn()
+            self.get_redis_conn()
                 .map_err(Into::<errors::StorageError>::into)?
                 .delete_key(&format!("epkey_{}", &ek.id))
                 .await
                 .change_context(errors::StorageError::KVError)?;
 
-            self.redis_conn()
+            self.get_redis_conn()
                 .map_err(Into::<errors::StorageError>::into)?
                 .delete_key(&format!("epkey_{}", &ek.secret))
                 .await
@@ -125,21 +128,53 @@ mod storage {
 impl EphemeralKeyInterface for MockDb {
     async fn create_ephemeral_key(
         &self,
-        _ek: EphemeralKeyNew,
-        _validity: i64,
+        ek: EphemeralKeyNew,
+        validity: i64,
     ) -> CustomResult<EphemeralKey, errors::StorageError> {
-        Err(errors::StorageError::KVError.into())
+        let mut ephemeral_keys = self.ephemeral_keys.lock().await;
+        let created_at = common_utils::date_time::now();
+        let expires = created_at.saturating_add(validity.hours());
+
+        let ephemeral_key = EphemeralKey {
+            id: ek.id,
+            merchant_id: ek.merchant_id,
+            customer_id: ek.customer_id,
+            created_at: created_at.assume_utc().unix_timestamp(),
+            expires: expires.assume_utc().unix_timestamp(),
+            secret: ek.secret,
+        };
+        ephemeral_keys.push(ephemeral_key.clone());
+        Ok(ephemeral_key)
     }
     async fn get_ephemeral_key(
         &self,
-        _key: &str,
+        key: &str,
     ) -> CustomResult<EphemeralKey, errors::StorageError> {
-        Err(errors::StorageError::KVError.into())
+        match self
+            .ephemeral_keys
+            .lock()
+            .await
+            .iter()
+            .find(|ephemeral_key| ephemeral_key.secret.eq(key))
+        {
+            Some(ephemeral_key) => Ok(ephemeral_key.clone()),
+            None => Err(
+                errors::StorageError::ValueNotFound("ephemeral key not found".to_string()).into(),
+            ),
+        }
     }
     async fn delete_ephemeral_key(
         &self,
-        _id: &str,
+        id: &str,
     ) -> CustomResult<EphemeralKey, errors::StorageError> {
-        Err(errors::StorageError::KVError.into())
+        let mut ephemeral_keys = self.ephemeral_keys.lock().await;
+        if let Some(pos) = ephemeral_keys.iter().position(|x| (*x.id).eq(id)) {
+            let ek = ephemeral_keys.remove(pos);
+            Ok(ek)
+        } else {
+            return Err(
+                errors::StorageError::ValueNotFound("ephemeral key not found".to_string()).into(),
+            );
+        }
     }
 }

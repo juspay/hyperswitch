@@ -4,11 +4,14 @@
 //!
 
 use error_stack::{IntoReport, ResultExt};
-use masking::{ExposeInterface, Secret, Strategy};
+use masking::{ExposeInterface, PeekInterface, Secret, Strategy};
 use quick_xml::de;
 use serde::{Deserialize, Serialize};
 
-use crate::errors::{self, CustomResult};
+use crate::{
+    crypto,
+    errors::{self, CustomResult},
+};
 
 ///
 /// Encode interface
@@ -55,6 +58,15 @@ where
     /// specifically, to convert into JSON `String`.
     ///
     fn encode_to_string_of_json(&'e self) -> CustomResult<String, errors::ParsingError>
+    where
+        Self: Serialize;
+
+    ///
+    /// Functionality, for specifically encoding `Self` into `String`
+    /// after serialization by using `serde::Serialize`
+    /// specifically, to convert into XML `String`.
+    ///
+    fn encode_to_string_of_xml(&'e self) -> CustomResult<String, errors::ParsingError>
     where
         Self: Serialize;
 
@@ -125,6 +137,16 @@ where
         serde_json::to_string(self)
             .into_report()
             .change_context(errors::ParsingError::EncodeError("json"))
+            .attach_printable_lazy(|| format!("Unable to convert {self:?} to a request"))
+    }
+
+    fn encode_to_string_of_xml(&'e self) -> CustomResult<String, errors::ParsingError>
+    where
+        Self: Serialize,
+    {
+        quick_xml::se::to_string(self)
+            .into_report()
+            .change_context(errors::ParsingError::EncodeError("xml"))
             .attach_printable_lazy(|| format!("Unable to convert {self:?} to a request"))
     }
 
@@ -251,6 +273,15 @@ where
         T: serde::de::DeserializeOwned,
     {
         self.expose().parse_value(type_name)
+    }
+}
+
+impl<E: ValueExt + Clone> ValueExt for crypto::Encryptable<E> {
+    fn parse_value<T>(self, type_name: &'static str) -> CustomResult<T, errors::ParsingError>
+    where
+        T: serde::de::DeserializeOwned,
+    {
+        self.into_inner().parse_value(type_name)
     }
 }
 
@@ -413,6 +444,30 @@ pub trait ConfigExt {
 impl ConfigExt for String {
     fn is_empty_after_trim(&self) -> bool {
         self.trim().is_empty()
+    }
+}
+
+impl<T, U> ConfigExt for Secret<T, U>
+where
+    T: ConfigExt + Default + PartialEq<T>,
+    U: Strategy<T>,
+{
+    fn is_default(&self) -> bool
+    where
+        T: Default + PartialEq<T>,
+    {
+        *self.peek() == T::default()
+    }
+
+    fn is_empty_after_trim(&self) -> bool {
+        self.peek().is_empty_after_trim()
+    }
+
+    fn is_default_or_empty(&self) -> bool
+    where
+        T: Default + PartialEq<T>,
+    {
+        self.peek().is_default() || self.peek().is_empty_after_trim()
     }
 }
 

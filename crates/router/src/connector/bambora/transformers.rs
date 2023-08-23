@@ -1,16 +1,15 @@
 use base64::Engine;
 use common_utils::ext_traits::ValueExt;
 use error_stack::{IntoReport, ResultExt};
-use masking::Secret;
+use masking::{PeekInterface, Secret};
 use serde::{Deserialize, Deserializer, Serialize};
 
 use crate::{
-    connector::utils::PaymentsAuthorizeRequestData,
+    connector::utils::{BrowserInformationData, PaymentsAuthorizeRequestData},
     consts,
     core::errors,
     services,
     types::{self, api, storage::enums},
-    utils::OptionExt,
 };
 
 #[derive(Default, Debug, Serialize, Eq, PartialEq)]
@@ -65,63 +64,15 @@ fn get_browser_info(
             .as_ref()
             .map(|info| {
                 Ok(BamboraBrowserInfo {
-                    accept_header: info
-                        .accept_header
-                        .clone()
-                        .get_required_value("accept_header")
-                        .change_context(errors::ConnectorError::MissingRequiredField {
-                            field_name: "accept_header",
-                        })?,
-                    java_enabled: info
-                        .java_enabled
-                        .get_required_value("java_enabled")
-                        .change_context(errors::ConnectorError::MissingRequiredField {
-                            field_name: "java_enabled",
-                        })?,
-                    language: info
-                        .language
-                        .clone()
-                        .get_required_value("language")
-                        .change_context(errors::ConnectorError::MissingRequiredField {
-                            field_name: "language",
-                        })?,
-                    screen_height: info
-                        .screen_height
-                        .get_required_value("screen_height")
-                        .change_context(errors::ConnectorError::MissingRequiredField {
-                            field_name: "screen_height",
-                        })?,
-                    screen_width: info
-                        .screen_width
-                        .get_required_value("screen_width")
-                        .change_context(errors::ConnectorError::MissingRequiredField {
-                            field_name: "screen_width",
-                        })?,
-                    color_depth: info
-                        .color_depth
-                        .get_required_value("color_depth")
-                        .change_context(errors::ConnectorError::MissingRequiredField {
-                            field_name: "color_depth",
-                        })?,
-                    user_agent: info
-                        .user_agent
-                        .clone()
-                        .get_required_value("user_agent")
-                        .change_context(errors::ConnectorError::MissingRequiredField {
-                            field_name: "user_agent",
-                        })?,
-                    time_zone: info
-                        .time_zone
-                        .get_required_value("time_zone")
-                        .change_context(errors::ConnectorError::MissingRequiredField {
-                            field_name: "time_zone",
-                        })?,
-                    javascript_enabled: info
-                        .java_script_enabled
-                        .get_required_value("javascript_enabled")
-                        .change_context(errors::ConnectorError::MissingRequiredField {
-                            field_name: "javascript_enabled",
-                        })?,
+                    accept_header: info.get_accept_header()?,
+                    java_enabled: info.get_java_enabled()?,
+                    language: info.get_language()?,
+                    screen_height: info.get_screen_height()?,
+                    screen_width: info.get_screen_width()?,
+                    color_depth: info.get_color_depth()?,
+                    user_agent: info.get_user_agent()?,
+                    time_zone: info.get_time_zone()?,
+                    javascript_enabled: info.get_java_script_enabled()?,
                 })
             })
             .transpose()
@@ -198,17 +149,17 @@ impl TryFrom<&types::PaymentsCancelRouterData> for BamboraPaymentsRequest {
 }
 
 pub struct BamboraAuthType {
-    pub(super) api_key: String,
+    pub(super) api_key: Secret<String>,
 }
 
 impl TryFrom<&types::ConnectorAuthType> for BamboraAuthType {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(auth_type: &types::ConnectorAuthType) -> Result<Self, Self::Error> {
         if let types::ConnectorAuthType::BodyKey { api_key, key1 } = auth_type {
-            let auth_key = format!("{key1}:{api_key}");
+            let auth_key = format!("{}:{}", key1.peek(), api_key.peek());
             let auth_header = format!("Passcode {}", consts::BASE64_ENGINE.encode(auth_key));
             Ok(Self {
-                api_key: auth_header,
+                api_key: Secret::new(auth_header),
             })
         } else {
             Err(errors::ConnectorError::FailedToObtainAuthType)?
@@ -261,6 +212,7 @@ impl<F, T>
                     mandate_reference: None,
                     connector_metadata: None,
                     network_txn_id: None,
+                    connector_response_reference_id: None,
                 }),
                 ..item.data
             }),
@@ -284,6 +236,7 @@ impl<F, T>
                             .change_context(errors::ConnectorError::ResponseHandlingFailed)?,
                         ),
                         network_txn_id: None,
+                        connector_response_reference_id: None,
                     }),
                     ..item.data
                 })
@@ -477,10 +430,10 @@ pub struct BamboraRefundRequest {
 }
 
 impl<F> TryFrom<&types::RefundsRouterData<F>> for BamboraRefundRequest {
-    type Error = error_stack::Report<errors::ParsingError>;
+    type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::RefundsRouterData<F>) -> Result<Self, Self::Error> {
         Ok(Self {
-            amount: item.request.amount,
+            amount: item.request.refund_amount,
         })
     }
 }

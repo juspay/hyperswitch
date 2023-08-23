@@ -1,5 +1,5 @@
 use cards::CardNumber;
-use masking::Secret;
+use masking::{PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -57,7 +57,6 @@ impl TryFrom<utils::CardIssuer> for ForteCardType {
             _ => Err(errors::ConnectorError::NotSupported {
                 message: issuer.to_string(),
                 connector: "Forte",
-                payment_experience: api::enums::PaymentExperience::RedirectToUrl.to_string(),
             }
             .into()),
         }
@@ -71,7 +70,6 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for FortePaymentsRequest {
             Err(errors::ConnectorError::NotSupported {
                 message: item.request.currency.to_string(),
                 connector: "Forte",
-                payment_experience: api::enums::PaymentExperience::RedirectToUrl.to_string(),
             })?
         }
         match item.request.payment_method_data {
@@ -112,10 +110,10 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for FortePaymentsRequest {
 
 // Auth Struct
 pub struct ForteAuthType {
-    pub(super) api_access_id: String,
-    pub(super) organization_id: String,
-    pub(super) location_id: String,
-    pub(super) api_secret_key: String,
+    pub(super) api_access_id: Secret<String>,
+    pub(super) organization_id: Secret<String>,
+    pub(super) location_id: Secret<String>,
+    pub(super) api_secret_key: Secret<String>,
 }
 
 impl TryFrom<&types::ConnectorAuthType> for ForteAuthType {
@@ -128,10 +126,10 @@ impl TryFrom<&types::ConnectorAuthType> for ForteAuthType {
                 api_secret,
                 key2,
             } => Ok(Self {
-                api_access_id: api_key.to_string(),
-                organization_id: format!("org_{}", key1),
-                location_id: format!("loc_{}", key2),
-                api_secret_key: api_secret.to_string(),
+                api_access_id: api_key.to_owned(),
+                organization_id: Secret::new(format!("org_{}", key1.peek())),
+                location_id: Secret::new(format!("loc_{}", key2.peek())),
+                api_secret_key: api_secret.to_owned(),
             }),
             _ => Err(errors::ConnectorError::FailedToObtainAuthType)?,
         }
@@ -261,6 +259,7 @@ impl<F, T>
                     auth_id: item.response.authorization_code,
                 })),
                 network_txn_id: None,
+                connector_response_reference_id: None,
             }),
             ..item.data
         })
@@ -307,6 +306,7 @@ impl<F, T>
                     auth_id: item.response.authorization_code,
                 })),
                 network_txn_id: None,
+                connector_response_reference_id: None,
             }),
             ..item.data
         })
@@ -374,6 +374,7 @@ impl TryFrom<types::PaymentsCaptureResponseRouterData<ForteCaptureResponse>>
                     auth_id: item.response.authorization_code,
                 })),
                 network_txn_id: None,
+                connector_response_reference_id: None,
             }),
             amount_captured: None,
             ..item.data
@@ -440,6 +441,7 @@ impl<F, T>
                     auth_id: item.response.authorization_code,
                 })),
                 network_txn_id: None,
+                connector_response_reference_id: None,
             }),
             ..item.data
         })
@@ -463,7 +465,7 @@ impl<F> TryFrom<&types::RefundsRouterData<F>> for ForteRefundRequest {
             utils::to_connector_meta(item.request.connector_metadata.clone())?;
         let auth_code = connector_auth_id.auth_id;
         let authorization_amount =
-            utils::to_currency_base_unit_asf64(item.request.amount, item.request.currency)?;
+            utils::to_currency_base_unit_asf64(item.request.refund_amount, item.request.currency)?;
         Ok(Self {
             action: "reverse".to_string(),
             authorization_amount,

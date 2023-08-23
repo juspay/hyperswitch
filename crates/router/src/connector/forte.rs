@@ -1,9 +1,10 @@
-mod transformers;
+pub mod transformers;
 
 use std::fmt::Debug;
 
 use base64::Engine;
 use error_stack::{IntoReport, ResultExt};
+use masking::PeekInterface;
 use transformers as forte;
 
 use crate::{
@@ -90,7 +91,11 @@ impl ConnectorCommon for Forte {
         let auth: forte::ForteAuthType = auth_type
             .try_into()
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
-        let raw_basic_token = format!("{}:{}", auth.api_access_id, auth.api_secret_key);
+        let raw_basic_token = format!(
+            "{}:{}",
+            auth.api_access_id.peek(),
+            auth.api_secret_key.peek()
+        );
         let basic_token = format!("Basic {}", consts::BASE64_ENGINE.encode(raw_basic_token));
         Ok(vec![
             (
@@ -164,19 +169,21 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         Ok(format!(
             "{}/organizations/{}/locations/{}/transactions",
             self.base_url(connectors),
-            auth.organization_id,
-            auth.location_id
+            auth.organization_id.peek(),
+            auth.location_id.peek()
         ))
     }
 
     fn get_request_body(
         &self,
         req: &types::PaymentsAuthorizeRouterData,
-    ) -> CustomResult<Option<String>, errors::ConnectorError> {
+    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
         let connector_req = forte::FortePaymentsRequest::try_from(req)?;
-        let forte_req =
-            utils::Encode::<forte::FortePaymentsRequest>::encode_to_string_of_json(&connector_req)
-                .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        let forte_req = types::RequestBody::log_and_get_request_body(
+            &connector_req,
+            utils::Encode::<forte::FortePaymentsRequest>::encode_to_string_of_json,
+        )
+        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(Some(forte_req))
     }
 
@@ -250,8 +257,8 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
         Ok(format!(
             "{}/organizations/{}/locations/{}/transactions/{}",
             self.base_url(connectors),
-            auth.organization_id,
-            auth.location_id,
+            auth.organization_id.peek(),
+            auth.location_id.peek(),
             txn_id
         ))
     }
@@ -318,19 +325,21 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
         Ok(format!(
             "{}/organizations/{}/locations/{}/transactions",
             self.base_url(connectors),
-            auth.organization_id,
-            auth.location_id
+            auth.organization_id.peek(),
+            auth.location_id.peek()
         ))
     }
 
     fn get_request_body(
         &self,
         req: &types::PaymentsCaptureRouterData,
-    ) -> CustomResult<Option<String>, errors::ConnectorError> {
+    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
         let connector_req = forte::ForteCaptureRequest::try_from(req)?;
-        let forte_req =
-            utils::Encode::<forte::ForteCaptureRequest>::encode_to_string_of_json(&connector_req)
-                .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        let forte_req = types::RequestBody::log_and_get_request_body(
+            &connector_req,
+            utils::Encode::<forte::ForteCaptureRequest>::encode_to_string_of_json,
+        )
+        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(Some(forte_req))
     }
 
@@ -399,19 +408,21 @@ impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsR
         Ok(format!(
             "{}/organizations/{}/locations/{}/transactions/{}",
             self.base_url(connectors),
-            auth.organization_id,
-            auth.location_id,
+            auth.organization_id.peek(),
+            auth.location_id.peek(),
             req.request.connector_transaction_id
         ))
     }
     fn get_request_body(
         &self,
         req: &types::PaymentsCancelRouterData,
-    ) -> CustomResult<Option<String>, errors::ConnectorError> {
+    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
         let connector_req = forte::ForteCancelRequest::try_from(req)?;
-        let forte_req =
-            utils::Encode::<forte::ForteCancelRequest>::encode_to_string_of_json(&connector_req)
-                .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        let forte_req = types::RequestBody::log_and_get_request_body(
+            &connector_req,
+            utils::Encode::<forte::ForteCancelRequest>::encode_to_string_of_json,
+        )
+        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(Some(forte_req))
     }
 
@@ -477,19 +488,21 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
         Ok(format!(
             "{}/organizations/{}/locations/{}/transactions",
             self.base_url(connectors),
-            auth.organization_id,
-            auth.location_id
+            auth.organization_id.peek(),
+            auth.location_id.peek()
         ))
     }
 
     fn get_request_body(
         &self,
         req: &types::RefundsRouterData<api::Execute>,
-    ) -> CustomResult<Option<String>, errors::ConnectorError> {
+    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
         let connector_req = forte::ForteRefundRequest::try_from(req)?;
-        let forte_req =
-            utils::Encode::<forte::ForteRefundRequest>::encode_to_string_of_json(&connector_req)
-                .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        let forte_req = types::RequestBody::log_and_get_request_body(
+            &connector_req,
+            utils::Encode::<forte::ForteRefundRequest>::encode_to_string_of_json,
+        )
+        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(Some(forte_req))
     }
 
@@ -556,8 +569,8 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
         Ok(format!(
             "{}/organizations/{}/locations/{}/transactions/{}",
             self.base_url(connectors),
-            auth.organization_id,
-            auth.location_id,
+            auth.organization_id.peek(),
+            auth.location_id.peek(),
             req.request.get_connector_refund_id()?
         ))
     }

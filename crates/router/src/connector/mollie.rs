@@ -1,8 +1,9 @@
-mod transformers;
+pub mod transformers;
 
 use std::fmt::Debug;
 
 use error_stack::{IntoReport, ResultExt};
+use masking::PeekInterface;
 use transformers as mollie;
 
 use crate::{
@@ -74,7 +75,7 @@ impl ConnectorCommon for Mollie {
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
         Ok(vec![(
             headers::AUTHORIZATION.to_string(),
-            format!("Bearer {}", auth.api_key).into_masked(),
+            format!("Bearer {}", auth.api_key.peek()).into_masked(),
         )])
     }
 
@@ -114,7 +115,84 @@ impl
         types::PaymentsResponseData,
     > for Mollie
 {
-    // Not Implemented (R)
+    fn get_headers(
+        &self,
+        req: &types::TokenizationRouterData,
+        connectors: &settings::Connectors,
+    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
+        self.build_headers(req, connectors)
+    }
+
+    fn get_content_type(&self) -> &'static str {
+        self.common_get_content_type()
+    }
+
+    fn get_url(
+        &self,
+        _req: &types::TokenizationRouterData,
+        connectors: &settings::Connectors,
+    ) -> CustomResult<String, errors::ConnectorError> {
+        let base_url = connectors
+            .mollie
+            .secondary_base_url
+            .as_ref()
+            .ok_or(errors::ConnectorError::FailedToObtainIntegrationUrl)?;
+        Ok(format!("{base_url}card-tokens"))
+    }
+
+    fn get_request_body(
+        &self,
+        req: &types::TokenizationRouterData,
+    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
+        let connector_req = mollie::MollieCardTokenRequest::try_from(req)?;
+        let mollie_req = types::RequestBody::log_and_get_request_body(
+            &connector_req,
+            utils::Encode::<mollie::MollieCardTokenRequest>::encode_to_string_of_json,
+        )
+        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        Ok(Some(mollie_req))
+    }
+    fn build_request(
+        &self,
+        req: &types::TokenizationRouterData,
+        connectors: &settings::Connectors,
+    ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
+        Ok(Some(
+            services::RequestBuilder::new()
+                .method(services::Method::Post)
+                .url(&types::TokenizationType::get_url(self, req, connectors)?)
+                .attach_default_headers()
+                .headers(types::TokenizationType::get_headers(self, req, connectors)?)
+                .body(types::TokenizationType::get_request_body(self, req)?)
+                .build(),
+        ))
+    }
+
+    fn handle_response(
+        &self,
+        data: &types::TokenizationRouterData,
+        res: Response,
+    ) -> CustomResult<types::TokenizationRouterData, errors::ConnectorError>
+    where
+        types::PaymentsResponseData: Clone,
+    {
+        let response: mollie::MollieCardTokenResponse = res
+            .response
+            .parse_struct("MollieTokenResponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        types::RouterData::try_from(types::ResponseRouterData {
+            response,
+            data: data.clone(),
+            http_code: res.status_code,
+        })
+    }
+
+    fn get_error_response(
+        &self,
+        res: Response,
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        self.build_error_response(res)
+    }
 }
 
 impl ConnectorIntegration<api::Verify, types::VerifyRequestData, types::PaymentsResponseData>
@@ -144,11 +222,13 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
     fn get_request_body(
         &self,
         req: &types::PaymentsAuthorizeRouterData,
-    ) -> CustomResult<Option<String>, errors::ConnectorError> {
+    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
         let req_obj = mollie::MolliePaymentsRequest::try_from(req)?;
-        let mollie_req =
-            utils::Encode::<mollie::MolliePaymentsRequest>::encode_to_string_of_json(&req_obj)
-                .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        let mollie_req = types::RequestBody::log_and_get_request_body(
+            &req_obj,
+            utils::Encode::<mollie::MolliePaymentsRequest>::encode_to_string_of_json,
+        )
+        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(Some(mollie_req))
     }
 
@@ -330,11 +410,13 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
     fn get_request_body(
         &self,
         req: &types::RefundsRouterData<api::Execute>,
-    ) -> CustomResult<Option<String>, errors::ConnectorError> {
+    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
         let req_obj = mollie::MollieRefundRequest::try_from(req)?;
-        let mollie_req =
-            utils::Encode::<mollie::MollieRefundRequest>::encode_to_string_of_json(&req_obj)
-                .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        let mollie_req = types::RequestBody::log_and_get_request_body(
+            &req_obj,
+            utils::Encode::<mollie::MollieRefundRequest>::encode_to_string_of_json,
+        )
+        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(Some(mollie_req))
     }
 

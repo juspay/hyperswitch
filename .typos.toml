@@ -9,18 +9,29 @@ FO = "FO"  # Faroe Islands (the) country code
 HypoNoeLbFurNiederosterreichUWien = "HypoNoeLbFurNiederosterreichUWien"
 hypo_noe_lb_fur_niederosterreich_u_wien = "hypo_noe_lb_fur_niederosterreich_u_wien"
 NAM = "NAM"  # Namibia country code
+ND = "ND"  # North Dakota state code
 payment_vas = "payment_vas"
 PaymentVas = "PaymentVas"
 RegioBank = "RegioBank"
 SOM = "SOM"  # Somalia country code
 THA = "THA"  # Thailand country code
 ZAR = "ZAR"  # South African Rand currency code
+SUR = "SUR"  # Single South American currency code
+passord = "passord" # name of a css class for adyen ui test
+bottm = "bottm" # name of a css class for nexinets ui test
+klick = "klick" # Swedish word for clicks
+optin = "optin" # Boku preflow name
+optin_id = "optin_id" # Boku's id for optin flow
 
 [default.extend-words]
 aci = "aci"                   # Name of a connector
 encrypter = "encrypter"       # Used by the `ring` crate
 nin = "nin"                   # National identification number, a field used by PayU connector
 substituters = "substituters" # Present in `flake.nix`
+unsuccess = "unsuccess"       # Used in cryptopay request
+ba = "ba" # ignore minor commit conversions
+ede = "ede" # ignore minor commit conversions
+daa = "daa" # Commit id
 
 [files]
 extend-exclude = [

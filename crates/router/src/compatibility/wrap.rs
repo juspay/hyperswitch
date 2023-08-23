@@ -1,18 +1,19 @@
-use std::future::Future;
+use std::{future::Future, time::Instant};
 
 use actix_web::{HttpRequest, HttpResponse, Responder};
 use common_utils::errors::ErrorSwitch;
-use router_env::{instrument, tracing};
+use router_env::{instrument, tracing, Tag};
 use serde::Serialize;
 
 use crate::{
     core::errors::{self, RouterResult},
-    routes::app::AppStateInfo,
+    routes::{app::AppStateInfo, metrics},
     services::{self, api, authentication as auth, logger},
 };
 
 #[instrument(skip(request, payload, state, func, api_authentication))]
 pub async fn compatibility_api_wrap<'a, 'b, A, U, T, Q, F, Fut, S, E>(
+    flow: impl router_env::types::FlowMetric,
     state: &'b A,
     request: &'a HttpRequest,
     payload: T,
@@ -31,21 +32,50 @@ where
     T: std::fmt::Debug,
     A: AppStateInfo,
 {
-    let resp: common_utils::errors::CustomResult<_, E> = api::server_wrap_util(
-        &router_env::Flow::CompatibilityLayerRequest,
-        state,
-        request,
-        payload,
-        func,
-        api_authentication,
+    let request_method = request.method().as_str();
+    let url_path = request.path();
+    tracing::Span::current().record("request_method", request_method);
+    tracing::Span::current().record("request_url_path", url_path);
+
+    let start_instant = Instant::now();
+    logger::info!(tag = ?Tag::BeginRequest, payload = ?payload);
+
+    let res = match metrics::request::record_request_time_metric(
+        api::server_wrap_util(&flow, state, request, payload, func, api_authentication),
+        &flow,
     )
-    .await;
-    match resp {
-        Ok(api::ApplicationResponse::Json(router_resp)) => {
-            let pg_resp = S::try_from(router_resp);
-            match pg_resp {
-                Ok(pg_resp) => match serde_json::to_string(&pg_resp) {
+    .await
+    .map(|response| {
+        logger::info!(api_response =? response);
+        response
+    }) {
+        Ok(api::ApplicationResponse::Json(response)) => {
+            let response = S::try_from(response);
+            match response {
+                Ok(response) => match serde_json::to_string(&response) {
                     Ok(res) => api::http_response_json(res),
+                    Err(_) => api::http_response_err(
+                        r#"{
+                                "error": {
+                                    "message": "Error serializing response from connector"
+                                }
+                            }"#,
+                    ),
+                },
+                Err(_) => api::http_response_err(
+                    r#"{
+                        "error": {
+                            "message": "Error converting juspay response to stripe response"
+                        }
+                    }"#,
+                ),
+            }
+        }
+        Ok(api::ApplicationResponse::JsonWithHeaders((response, headers))) => {
+            let response = S::try_from(response);
+            match response {
+                Ok(response) => match serde_json::to_string(&response) {
+                    Ok(res) => api::http_response_json_with_headers(res, headers),
                     Err(_) => api::http_response_err(
                         r#"{
                                 "error": {
@@ -88,10 +118,17 @@ where
         )
         .respond_to(request)
         .map_into_boxed_body(),
+        Err(error) => api::log_and_return_error_response(error),
+    };
 
-        Err(error) => {
-            logger::error!(api_response_error=?error);
-            api::log_and_return_error_response(error)
-        }
-    }
+    let response_code = res.status().as_u16();
+    let end_instant = Instant::now();
+    let request_duration = end_instant.saturating_duration_since(start_instant);
+    logger::info!(
+        tag = ?Tag::EndRequest,
+        status_code = response_code,
+        time_taken_ms = request_duration.as_millis(),
+    );
+
+    res
 }

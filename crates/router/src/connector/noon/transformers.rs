@@ -1,14 +1,21 @@
+use error_stack::ResultExt;
 use masking::Secret;
 use serde::{Deserialize, Serialize};
 
 use crate::{
     connector::utils::{
         self as conn_utils, PaymentsAuthorizeRequestData, RefundsRequestData, RouterData,
+        WalletData,
     },
     core::errors,
     services,
-    types::{self, api, storage::enums},
+    types::{self, api, storage::enums, ErrorResponse},
+    utils,
 };
+
+// These needs to be accepted from SDK, need to be done after 1.0.0 stability as API contract will change
+const GOOGLEPAY_API_VERSION_MINOR: u8 = 0;
+const GOOGLEPAY_API_VERSION: u8 = 2;
 
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "UPPERCASE")]
@@ -34,7 +41,7 @@ pub struct NoonSubscriptionData {
 #[serde(rename_all = "camelCase")]
 pub struct NoonOrder {
     amount: String,
-    currency: Option<storage_models::enums::Currency>,
+    currency: Option<diesel_models::enums::Currency>,
     channel: NoonChannels,
     category: Option<String>,
     reference: String,
@@ -74,10 +81,72 @@ pub struct NoonCard {
 }
 
 #[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct NoonApplePayPaymentMethod {
+    pub display_name: String,
+    pub network: String,
+    #[serde(rename = "type")]
+    pub pm_type: String,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct NoonApplePayHeader {
+    ephemeral_public_key: Secret<String>,
+    public_key_hash: Secret<String>,
+    transaction_id: Secret<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct NoonApplePaymentData {
+    version: Secret<String>,
+    data: Secret<String>,
+    signature: Secret<String>,
+    header: NoonApplePayHeader,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct NoonApplePayData {
+    payment_data: NoonApplePaymentData,
+    payment_method: NoonApplePayPaymentMethod,
+    transaction_identifier: Secret<String>,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct NoonApplePayTokenData {
+    token: NoonApplePayData,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct NoonApplePay {
+    payment_info: Secret<String>,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct NoonGooglePay {
+    api_version_minor: u8,
+    api_version: u8,
+    payment_method_data: conn_utils::GooglePayWalletData,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct NoonPayPal {
+    return_url: String,
+}
+
+#[derive(Debug, Serialize)]
 #[serde(tag = "type", content = "data")]
 pub enum NoonPaymentData {
     Card(NoonCard),
     Subscription(NoonSubscription),
+    ApplePay(NoonApplePay),
+    GooglePay(NoonGooglePay),
+    PayPal(NoonPayPal),
 }
 
 #[derive(Debug, Serialize)]
@@ -118,6 +187,49 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for NoonPaymentsRequest {
                         expiry_year: req_card.card_exp_year,
                         cvv: req_card.card_cvc,
                     })),
+                    api::PaymentMethodData::Wallet(wallet_data) => match wallet_data.clone() {
+                        api_models::payments::WalletData::GooglePay(google_pay_data) => {
+                            Ok(NoonPaymentData::GooglePay(NoonGooglePay {
+                                api_version_minor: GOOGLEPAY_API_VERSION_MINOR,
+                                api_version: GOOGLEPAY_API_VERSION,
+                                payment_method_data: conn_utils::GooglePayWalletData::from(
+                                    google_pay_data,
+                                ),
+                            }))
+                        }
+                        api_models::payments::WalletData::ApplePay(apple_pay_data) => {
+                            let payment_token_data = NoonApplePayTokenData {
+                                token: NoonApplePayData {
+                                    payment_data: wallet_data.get_wallet_token_as_json()?,
+                                    payment_method: NoonApplePayPaymentMethod {
+                                        display_name: apple_pay_data.payment_method.display_name,
+                                        network: apple_pay_data.payment_method.network,
+                                        pm_type: apple_pay_data.payment_method.pm_type,
+                                    },
+                                    transaction_identifier: Secret::new(
+                                        apple_pay_data.transaction_identifier,
+                                    ),
+                                },
+                            };
+                            let payment_token =
+                                utils::Encode::<NoonApplePayTokenData>::encode_to_string_of_json(
+                                    &payment_token_data,
+                                )
+                                .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+
+                            Ok(NoonPaymentData::ApplePay(NoonApplePay {
+                                payment_info: Secret::new(payment_token),
+                            }))
+                        }
+                        api_models::payments::WalletData::PaypalRedirect(_) => {
+                            Ok(NoonPaymentData::PayPal(NoonPayPal {
+                                return_url: item.request.get_router_return_url()?,
+                            }))
+                        }
+                        _ => Err(errors::ConnectorError::NotImplemented(
+                            "Wallets".to_string(),
+                        )),
+                    },
                     _ => Err(errors::ConnectorError::NotImplemented(
                         "Payment methods".to_string(),
                     )),
@@ -167,9 +279,9 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for NoonPaymentsRequest {
 
 // Auth Struct
 pub struct NoonAuthType {
-    pub(super) api_key: String,
-    pub(super) application_identifier: String,
-    pub(super) business_identifier: String,
+    pub(super) api_key: Secret<String>,
+    pub(super) application_identifier: Secret<String>,
+    pub(super) business_identifier: Secret<String>,
 }
 
 impl TryFrom<&types::ConnectorAuthType> for NoonAuthType {
@@ -181,9 +293,9 @@ impl TryFrom<&types::ConnectorAuthType> for NoonAuthType {
                 key1,
                 api_secret,
             } => Ok(Self {
-                api_key: api_key.to_string(),
-                application_identifier: api_secret.to_string(),
-                business_identifier: key1.to_string(),
+                api_key: api_key.to_owned(),
+                application_identifier: api_secret.to_owned(),
+                business_identifier: key1.to_owned(),
             }),
             _ => Err(errors::ConnectorError::FailedToObtainAuthType.into()),
         }
@@ -229,6 +341,8 @@ pub struct NoonSubscriptionResponse {
 pub struct NoonPaymentsOrderResponse {
     status: NoonPaymentStatus,
     id: u64,
+    error_code: u64,
+    error_message: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -273,17 +387,25 @@ impl<F, T>
                     connector_mandate_id: Some(subscription_data.identifier),
                     payment_method_id: None,
                 });
+        let order = item.response.result.order;
         Ok(Self {
-            status: enums::AttemptStatus::from(item.response.result.order.status),
-            response: Ok(types::PaymentsResponseData::TransactionResponse {
-                resource_id: types::ResponseId::ConnectorTransactionId(
-                    item.response.result.order.id.to_string(),
-                ),
-                redirection_data,
-                mandate_reference,
-                connector_metadata: None,
-                network_txn_id: None,
-            }),
+            status: enums::AttemptStatus::from(order.status),
+            response: match order.error_message {
+                Some(error_message) => Err(ErrorResponse {
+                    code: order.error_code.to_string(),
+                    message: error_message.clone(),
+                    reason: Some(error_message),
+                    status_code: item.http_code,
+                }),
+                _ => Ok(types::PaymentsResponseData::TransactionResponse {
+                    resource_id: types::ResponseId::ConnectorTransactionId(order.id.to_string()),
+                    redirection_data,
+                    mandate_reference,
+                    connector_metadata: None,
+                    network_txn_id: None,
+                    connector_response_reference_id: None,
+                }),
+            },
             ..item.data
         })
     }
@@ -293,7 +415,7 @@ impl<F, T>
 #[serde(rename_all = "camelCase")]
 pub struct NoonActionTransaction {
     amount: String,
-    currency: storage_models::enums::Currency,
+    currency: diesel_models::enums::Currency,
 }
 
 #[derive(Debug, Serialize)]

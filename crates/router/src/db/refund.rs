@@ -1,10 +1,16 @@
-use storage_models::{errors::DatabaseError, refund::RefundUpdateInternal};
+#[cfg(feature = "olap")]
+use std::collections::HashSet;
+
+use diesel_models::{errors::DatabaseError, refund::RefundUpdateInternal};
 
 use super::MockDb;
 use crate::{
     core::errors::{self, CustomResult},
     types::storage::{self as storage_types, enums},
 };
+
+#[cfg(feature = "olap")]
+const MAX_LIMIT: usize = 100;
 
 #[async_trait::async_trait]
 pub trait RefundInterface {
@@ -64,7 +70,24 @@ pub trait RefundInterface {
         refund_details: &api_models::refunds::RefundListRequest,
         storage_scheme: enums::MerchantStorageScheme,
         limit: i64,
-    ) -> CustomResult<Vec<storage_models::refund::Refund>, errors::StorageError>;
+        offset: i64,
+    ) -> CustomResult<Vec<diesel_models::refund::Refund>, errors::StorageError>;
+
+    #[cfg(feature = "olap")]
+    async fn filter_refund_by_meta_constraints(
+        &self,
+        merchant_id: &str,
+        refund_details: &api_models::refunds::TimeRange,
+        storage_scheme: enums::MerchantStorageScheme,
+    ) -> CustomResult<api_models::refunds::RefundListMetaData, errors::StorageError>;
+
+    #[cfg(feature = "olap")]
+    async fn get_total_count_of_refunds(
+        &self,
+        merchant_id: &str,
+        refund_details: &api_models::refunds::RefundListRequest,
+        storage_scheme: enums::MerchantStorageScheme,
+    ) -> CustomResult<i64, errors::StorageError>;
 }
 
 #[cfg(not(feature = "kv_store"))]
@@ -189,13 +212,50 @@ mod storage {
             refund_details: &api_models::refunds::RefundListRequest,
             _storage_scheme: enums::MerchantStorageScheme,
             limit: i64,
-        ) -> CustomResult<Vec<storage_models::refund::Refund>, errors::StorageError> {
+            offset: i64,
+        ) -> CustomResult<Vec<diesel_models::refund::Refund>, errors::StorageError> {
             let conn = connection::pg_connection_read(self).await?;
-            <storage_models::refund::Refund as storage_types::RefundDbExt>::filter_by_constraints(
+            <diesel_models::refund::Refund as storage_types::RefundDbExt>::filter_by_constraints(
                 &conn,
                 merchant_id,
                 refund_details,
                 limit,
+                offset,
+            )
+            .await
+            .map_err(Into::into)
+            .into_report()
+        }
+
+        #[cfg(feature = "olap")]
+        async fn filter_refund_by_meta_constraints(
+            &self,
+            merchant_id: &str,
+            refund_details: &api_models::refunds::TimeRange,
+            _storage_scheme: enums::MerchantStorageScheme,
+        ) -> CustomResult<api_models::refunds::RefundListMetaData, errors::StorageError> {
+            let conn = connection::pg_connection_read(self).await?;
+            <diesel_models::refund::Refund as storage_types::RefundDbExt>::filter_by_meta_constraints(
+                &conn,
+                merchant_id,
+                refund_details,
+            )
+            .await
+            .map_err(Into::into)
+            .into_report()
+        }
+        #[cfg(feature = "olap")]
+        async fn get_total_count_of_refunds(
+            &self,
+            merchant_id: &str,
+            refund_details: &api_models::refunds::RefundListRequest,
+            _storage_scheme: enums::MerchantStorageScheme,
+        ) -> CustomResult<i64, errors::StorageError> {
+            let conn = connection::pg_connection_read(self).await?;
+            <diesel_models::refund::Refund as storage_types::RefundDbExt>::get_refunds_count(
+                &conn,
+                merchant_id,
+                refund_details,
             )
             .await
             .map_err(Into::into)
@@ -209,6 +269,7 @@ mod storage {
     use common_utils::date_time;
     use error_stack::{IntoReport, ResultExt};
     use redis_interface::HsetnxReply;
+    use storage_impl::redis::kv_store::RedisConnInterface;
 
     use super::RefundInterface;
     use crate::{
@@ -247,7 +308,7 @@ mod storage {
 
                     let key = &lookup.pk_id;
                     db_utils::try_redis_get_else_try_database_get(
-                        self.redis_conn()
+                        self.get_redis_conn()
                             .map_err(Into::<errors::StorageError>::into)?
                             .get_hash_field_and_deserialize(key, &lookup.sk_id, "Refund"),
                         database_call,
@@ -303,7 +364,7 @@ mod storage {
                         &created_refund.attempt_id, &created_refund.refund_id
                     );
                     match self
-                        .redis_conn()
+                        .get_redis_conn()
                         .map_err(Into::<errors::StorageError>::into)?
                         .serialize_and_set_hash_field_if_not_exist(&key, &field, &created_refund)
                         .await
@@ -369,7 +430,8 @@ mod storage {
                                     payment_id: &created_refund.payment_id,
                                 },
                             )
-                            .await?;
+                            .await
+                            .change_context(errors::StorageError::KVError)?;
 
                             Ok(created_refund)
                         }
@@ -410,7 +472,7 @@ mod storage {
 
                     let pattern = db_utils::generate_hscan_pattern_for_refund(&lookup.sk_id);
 
-                    self.redis_conn()
+                    self.get_redis_conn()
                         .map_err(Into::<errors::StorageError>::into)?
                         .hscan_and_deserialize(key, &pattern, None)
                         .await
@@ -449,7 +511,7 @@ mod storage {
                         )
                         .change_context(errors::StorageError::SerializationFailed)?;
 
-                    self.redis_conn()
+                    self.get_redis_conn()
                         .map_err(Into::<errors::StorageError>::into)?
                         .set_hash_fields(&lookup.pk_id, (field, redis_value))
                         .await
@@ -470,7 +532,8 @@ mod storage {
                             payment_id: &updated_refund.payment_id,
                         },
                     )
-                    .await?;
+                    .await
+                    .change_context(errors::StorageError::KVError)?;
                     Ok(updated_refund)
                 }
             }
@@ -497,7 +560,7 @@ mod storage {
 
                     let key = &lookup.pk_id;
                     db_utils::try_redis_get_else_try_database_get(
-                        self.redis_conn()
+                        self.get_redis_conn()
                             .map_err(Into::<errors::StorageError>::into)?
                             .get_hash_field_and_deserialize(key, &lookup.sk_id, "Refund"),
                         database_call,
@@ -534,7 +597,7 @@ mod storage {
 
                     let key = &lookup.pk_id;
                     db_utils::try_redis_get_else_try_database_get(
-                        self.redis_conn()
+                        self.get_redis_conn()
                             .map_err(Into::<errors::StorageError>::into)?
                             .get_hash_field_and_deserialize(key, &lookup.sk_id, "Refund"),
                         database_call,
@@ -568,7 +631,7 @@ mod storage {
 
                     let pattern = db_utils::generate_hscan_pattern_for_refund(&lookup.sk_id);
 
-                    self.redis_conn()
+                    self.get_redis_conn()
                         .map_err(Into::<errors::StorageError>::into)?
                         .hscan_and_deserialize(&key, &pattern, None)
                         .await
@@ -584,11 +647,52 @@ mod storage {
             refund_details: &api_models::refunds::RefundListRequest,
             storage_scheme: enums::MerchantStorageScheme,
             limit: i64,
-        ) -> CustomResult<Vec<storage_models::refund::Refund>, errors::StorageError> {
+            offset: i64,
+        ) -> CustomResult<Vec<diesel_models::refund::Refund>, errors::StorageError> {
             match storage_scheme {
                 enums::MerchantStorageScheme::PostgresOnly => {
                     let conn = connection::pg_connection_read(self).await?;
-                    <storage_models::refund::Refund as storage_types::RefundDbExt>::filter_by_constraints(&conn, merchant_id, refund_details, limit)
+                    <diesel_models::refund::Refund as storage_types::RefundDbExt>::filter_by_constraints(&conn, merchant_id, refund_details, limit, offset)
+                        .await
+                        .map_err(Into::into)
+                        .into_report()
+                }
+
+                enums::MerchantStorageScheme::RedisKv => Err(errors::StorageError::KVError.into()),
+            }
+        }
+
+        #[cfg(feature = "olap")]
+        async fn filter_refund_by_meta_constraints(
+            &self,
+            merchant_id: &str,
+            refund_details: &api_models::refunds::TimeRange,
+            storage_scheme: enums::MerchantStorageScheme,
+        ) -> CustomResult<api_models::refunds::RefundListMetaData, errors::StorageError> {
+            match storage_scheme {
+                enums::MerchantStorageScheme::PostgresOnly => {
+                    let conn = connection::pg_connection_read(self).await?;
+                    <diesel_models::refund::Refund as storage_types::RefundDbExt>::filter_by_meta_constraints(&conn, merchant_id, refund_details)
+                        .await
+                        .map_err(Into::into)
+                        .into_report()
+                }
+
+                enums::MerchantStorageScheme::RedisKv => Err(errors::StorageError::KVError.into()),
+            }
+        }
+
+        #[cfg(feature = "olap")]
+        async fn get_total_count_of_refunds(
+            &self,
+            merchant_id: &str,
+            refund_details: &api_models::refunds::RefundListRequest,
+            storage_scheme: enums::MerchantStorageScheme,
+        ) -> CustomResult<i64, errors::StorageError> {
+            match storage_scheme {
+                enums::MerchantStorageScheme::PostgresOnly => {
+                    let conn = connection::pg_connection_read(self).await?;
+                    <diesel_models::refund::Refund as storage_types::RefundDbExt>::get_refunds_count(&conn, merchant_id, refund_details)
                         .await
                         .map_err(Into::into)
                         .into_report()
@@ -757,17 +861,200 @@ impl RefundInterface for MockDb {
     async fn filter_refund_by_constraints(
         &self,
         merchant_id: &str,
-        _refund_details: &api_models::refunds::RefundListRequest,
+        refund_details: &api_models::refunds::RefundListRequest,
         _storage_scheme: enums::MerchantStorageScheme,
         limit: i64,
-    ) -> CustomResult<Vec<storage_models::refund::Refund>, errors::StorageError> {
-        let refunds = self.refunds.lock().await;
+        offset: i64,
+    ) -> CustomResult<Vec<diesel_models::refund::Refund>, errors::StorageError> {
+        let mut unique_connectors = HashSet::new();
+        let mut unique_currencies = HashSet::new();
+        let mut unique_statuses = HashSet::new();
 
-        Ok(refunds
+        // Fill the hash sets with data from refund_details
+        if let Some(connectors) = &refund_details.connector {
+            connectors.iter().for_each(|connector| {
+                unique_connectors.insert(connector);
+            });
+        }
+
+        if let Some(currencies) = &refund_details.currency {
+            currencies.iter().for_each(|currency| {
+                unique_currencies.insert(currency);
+            });
+        }
+
+        if let Some(refund_statuses) = &refund_details.refund_status {
+            refund_statuses.iter().for_each(|refund_status| {
+                unique_statuses.insert(refund_status);
+            });
+        }
+
+        let refunds = self.refunds.lock().await;
+        let filtered_refunds = refunds
             .iter()
             .filter(|refund| refund.merchant_id == merchant_id)
-            .take(usize::try_from(limit).unwrap_or(usize::MAX))
+            .filter(|refund| {
+                refund_details
+                    .payment_id
+                    .clone()
+                    .map_or(true, |id| id == refund.payment_id)
+            })
+            .filter(|refund| {
+                refund_details
+                    .refund_id
+                    .clone()
+                    .map_or(true, |id| id == refund.refund_id)
+            })
+            .filter(|refund| {
+                refund.created_at
+                    >= refund_details.time_range.map_or(
+                        common_utils::date_time::now() - time::Duration::days(60),
+                        |range| range.start_time,
+                    )
+                    && refund.created_at
+                        <= refund_details
+                            .time_range
+                            .map_or(common_utils::date_time::now(), |range| {
+                                range.end_time.unwrap_or_else(common_utils::date_time::now)
+                            })
+            })
+            .filter(|refund| {
+                unique_connectors.is_empty() || unique_connectors.contains(&refund.connector)
+            })
+            .filter(|refund| {
+                unique_currencies.is_empty() || unique_currencies.contains(&refund.currency)
+            })
+            .filter(|refund| {
+                unique_statuses.is_empty() || unique_statuses.contains(&refund.refund_status)
+            })
+            .skip(usize::try_from(offset).unwrap_or_default())
+            .take(usize::try_from(limit).unwrap_or(MAX_LIMIT))
             .cloned()
-            .collect::<Vec<_>>())
+            .collect::<Vec<_>>();
+
+        Ok(filtered_refunds)
+    }
+
+    #[cfg(feature = "olap")]
+    async fn filter_refund_by_meta_constraints(
+        &self,
+        _merchant_id: &str,
+        refund_details: &api_models::refunds::TimeRange,
+        _storage_scheme: enums::MerchantStorageScheme,
+    ) -> CustomResult<api_models::refunds::RefundListMetaData, errors::StorageError> {
+        let refunds = self.refunds.lock().await;
+
+        let start_time = refund_details.start_time;
+        let end_time = refund_details
+            .end_time
+            .unwrap_or_else(common_utils::date_time::now);
+
+        let filtered_refunds = refunds
+            .iter()
+            .filter(|refund| refund.created_at >= start_time && refund.created_at <= end_time)
+            .cloned()
+            .collect::<Vec<diesel_models::refund::Refund>>();
+
+        let mut refund_meta_data = api_models::refunds::RefundListMetaData {
+            connector: vec![],
+            currency: vec![],
+            status: vec![],
+        };
+
+        let mut unique_connectors = HashSet::new();
+        let mut unique_currencies = HashSet::new();
+        let mut unique_statuses = HashSet::new();
+
+        for refund in filtered_refunds.into_iter() {
+            unique_connectors.insert(refund.connector);
+
+            let currency: api_models::enums::Currency = refund.currency;
+            unique_currencies.insert(currency);
+
+            let status: api_models::enums::RefundStatus = refund.refund_status;
+            unique_statuses.insert(status);
+        }
+
+        refund_meta_data.connector = unique_connectors.into_iter().collect();
+        refund_meta_data.currency = unique_currencies.into_iter().collect();
+        refund_meta_data.status = unique_statuses.into_iter().collect();
+
+        Ok(refund_meta_data)
+    }
+
+    #[cfg(feature = "olap")]
+    async fn get_total_count_of_refunds(
+        &self,
+        merchant_id: &str,
+        refund_details: &api_models::refunds::RefundListRequest,
+        _storage_scheme: enums::MerchantStorageScheme,
+    ) -> CustomResult<i64, errors::StorageError> {
+        let mut unique_connectors = HashSet::new();
+        let mut unique_currencies = HashSet::new();
+        let mut unique_statuses = HashSet::new();
+
+        // Fill the hash sets with data from refund_details
+        if let Some(connectors) = &refund_details.connector {
+            connectors.iter().for_each(|connector| {
+                unique_connectors.insert(connector);
+            });
+        }
+
+        if let Some(currencies) = &refund_details.currency {
+            currencies.iter().for_each(|currency| {
+                unique_currencies.insert(currency);
+            });
+        }
+
+        if let Some(refund_statuses) = &refund_details.refund_status {
+            refund_statuses.iter().for_each(|refund_status| {
+                unique_statuses.insert(refund_status);
+            });
+        }
+
+        let refunds = self.refunds.lock().await;
+        let filtered_refunds = refunds
+            .iter()
+            .filter(|refund| refund.merchant_id == merchant_id)
+            .filter(|refund| {
+                refund_details
+                    .payment_id
+                    .clone()
+                    .map_or(true, |id| id == refund.payment_id)
+            })
+            .filter(|refund| {
+                refund_details
+                    .refund_id
+                    .clone()
+                    .map_or(true, |id| id == refund.refund_id)
+            })
+            .filter(|refund| {
+                refund.created_at
+                    >= refund_details.time_range.map_or(
+                        common_utils::date_time::now() - time::Duration::days(60),
+                        |range| range.start_time,
+                    )
+                    && refund.created_at
+                        <= refund_details
+                            .time_range
+                            .map_or(common_utils::date_time::now(), |range| {
+                                range.end_time.unwrap_or_else(common_utils::date_time::now)
+                            })
+            })
+            .filter(|refund| {
+                unique_connectors.is_empty() || unique_connectors.contains(&refund.connector)
+            })
+            .filter(|refund| {
+                unique_currencies.is_empty() || unique_currencies.contains(&refund.currency)
+            })
+            .filter(|refund| {
+                unique_statuses.is_empty() || unique_statuses.contains(&refund.refund_status)
+            })
+            .cloned()
+            .collect::<Vec<_>>();
+
+        let filtered_refunds_count = filtered_refunds.len().try_into().unwrap_or_default();
+
+        Ok(filtered_refunds_count)
     }
 }

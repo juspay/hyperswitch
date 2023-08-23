@@ -33,6 +33,7 @@ signal-hook = { version = "0.3.15", optional = true }
 thiserror = "1.0.40"
 time = { version = "0.3.21", features = ["serde", "serde-well-known", "std"] }
 tokio = { version = "1.28.2", features = ["macros", "rt-multi-thread"], optional = true }
+phonenumber = "0.3.2"
 
 # First party crates
 masking = { version = "0.1.0", path = "../masking" }
@@ -44,3 +45,4 @@ signal-hook-tokio = { version = "0.3.1", features = ["futures-v0_3"], optional =
 [dev-dependencies]
 fake = "2.6.1"
 proptest = "1.2.0"
+test-case = "3.1.0"

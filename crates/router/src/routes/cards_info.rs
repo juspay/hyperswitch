@@ -46,7 +46,7 @@ pub async fn card_iin_info(
         state.as_ref(),
         &req,
         payload,
-        cards_info::retrieve_card_info,
+        |state, auth, req| cards_info::retrieve_card_info(state, auth.merchant_account, req),
         &*auth,
     )
     .await

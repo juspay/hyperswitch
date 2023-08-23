@@ -1,18 +1,18 @@
 use api_models::payments;
 use common_utils::{
     crypto::{self, GenerateDigest},
-    date_time, fp_utils,
+    date_time, fp_utils, pii,
     pii::Email,
 };
 use error_stack::{IntoReport, ResultExt};
-use masking::Secret;
+use masking::{PeekInterface, Secret};
 use reqwest::Url;
 use serde::{Deserialize, Serialize};
 
 use crate::{
     connector::utils::{
-        self, AddressDetailsData, MandateData, PaymentsAuthorizeRequestData,
-        PaymentsCancelRequestData, RouterData,
+        self, AddressDetailsData, BrowserInformationData, MandateData,
+        PaymentsAuthorizeRequestData, PaymentsCancelRequestData, RouterData,
     },
     consts,
     core::errors,
@@ -34,8 +34,8 @@ pub struct NuveiMandateMeta {
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct NuveiSessionRequest {
-    pub merchant_id: String,
-    pub merchant_site_id: String,
+    pub merchant_id: Secret<String>,
+    pub merchant_site_id: Secret<String>,
     pub client_request_id: String,
     pub time_stamp: date_time::DateTime<date_time::YYYYMMDDHHmmss>,
     pub checksum: String,
@@ -61,11 +61,11 @@ pub struct NuveiSessionResponse {
 pub struct NuveiPaymentsRequest {
     pub time_stamp: String,
     pub session_token: String,
-    pub merchant_id: String,
-    pub merchant_site_id: String,
-    pub client_request_id: String,
+    pub merchant_id: Secret<String>,
+    pub merchant_site_id: Secret<String>,
+    pub client_request_id: Secret<String>,
     pub amount: String,
-    pub currency: storage_models::enums::Currency,
+    pub currency: diesel_models::enums::Currency,
     /// This ID uniquely identifies your consumer/user in your system.
     pub user_token_id: Option<Email>,
     pub client_unique_id: String,
@@ -103,11 +103,11 @@ pub struct NuveiInitPaymentRequest {
 #[serde(rename_all = "camelCase")]
 pub struct NuveiPaymentFlowRequest {
     pub time_stamp: String,
-    pub merchant_id: String,
-    pub merchant_site_id: String,
+    pub merchant_id: Secret<String>,
+    pub merchant_site_id: Secret<String>,
     pub client_request_id: String,
     pub amount: String,
-    pub currency: storage_models::enums::Currency,
+    pub currency: diesel_models::enums::Currency,
     pub related_transaction_id: Option<String>,
     pub checksum: String,
 }
@@ -234,7 +234,7 @@ pub struct Card {
 #[serde(rename_all = "camelCase")]
 pub struct ExternalToken {
     pub external_token_provider: ExternalTokenProvider,
-    pub mobile_token: String,
+    pub mobile_token: Secret<String>,
 }
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
@@ -288,7 +288,7 @@ pub enum PlatformType {
 #[serde(rename_all = "camelCase")]
 pub struct BrowserDetails {
     pub accept_header: String,
-    pub ip: Option<std::net::IpAddr>,
+    pub ip: Secret<String, pii::IpAddress>,
     pub java_enabled: String,
     pub java_script_enabled: String,
     pub language: String,
@@ -366,9 +366,7 @@ pub enum LiabilityShift {
     Failed,
 }
 
-fn encode_payload(
-    payload: Vec<String>,
-) -> Result<String, error_stack::Report<errors::ConnectorError>> {
+fn encode_payload(payload: &[&str]) -> Result<String, error_stack::Report<errors::ConnectorError>> {
     let data = payload.join("");
     let digest = crypto::Sha256
         .generate_digest(data.as_bytes())
@@ -393,12 +391,12 @@ impl TryFrom<&types::PaymentsAuthorizeSessionTokenRouterData> for NuveiSessionRe
             merchant_site_id: merchant_site_id.clone(),
             client_request_id: client_request_id.clone(),
             time_stamp: time_stamp.clone(),
-            checksum: encode_payload(vec![
-                merchant_id,
-                merchant_site_id,
-                client_request_id,
-                time_stamp.to_string(),
-                merchant_secret,
+            checksum: encode_payload(&[
+                merchant_id.peek(),
+                merchant_site_id.peek(),
+                &client_request_id,
+                &time_stamp.to_string(),
+                merchant_secret.peek(),
             ])?,
         })
     }
@@ -434,15 +432,23 @@ impl TryFrom<payments::GooglePayWalletData> for NuveiPaymentsRequest {
         Ok(Self {
             payment_option: PaymentOption {
                 card: Some(Card {
-                    external_token: Some(ExternalToken {
-                        external_token_provider: ExternalTokenProvider::GooglePay,
-                        mobile_token: common_utils::ext_traits::Encode::<
-                            payments::GooglePayWalletData,
-                        >::encode_to_string_of_json(
-                            &utils::GooglePayWalletData::from(gpay_data)
-                        )
-                        .change_context(errors::ConnectorError::RequestEncodingFailed)?,
-                    }),
+                    external_token:
+                        Some(
+                            ExternalToken {
+                                external_token_provider: ExternalTokenProvider::GooglePay,
+                                mobile_token:
+                                    Secret::new(
+                                        common_utils::ext_traits::Encode::<
+                                            payments::GooglePayWalletData,
+                                        >::encode_to_string_of_json(
+                                            &utils::GooglePayWalletData::from(gpay_data),
+                                        )
+                                        .change_context(
+                                            errors::ConnectorError::RequestEncodingFailed,
+                                        )?,
+                                    ),
+                            },
+                        ),
                     ..Default::default()
                 }),
                 ..Default::default()
@@ -458,7 +464,7 @@ impl From<payments::ApplePayWalletData> for NuveiPaymentsRequest {
                 card: Some(Card {
                     external_token: Some(ExternalToken {
                         external_token_provider: ExternalTokenProvider::ApplePay,
-                        mobile_token: apple_pay_data.payment_data,
+                        mobile_token: Secret::new(apple_pay_data.payment_data),
                     }),
                     ..Default::default()
                 }),
@@ -549,13 +555,12 @@ impl<F>
                         email: item.request.get_email()?,
                         country: item.get_billing_country()?,
                     }),
-                    Some(NuveiBIC::try_from(bank_name)?),
+                    bank_name.map(NuveiBIC::try_from).transpose()?,
                 )
             }
             _ => Err(errors::ConnectorError::NotSupported {
                 message: "Bank Redirect".to_string(),
                 connector: "Nuvei",
-                payment_experience: "Redirection".to_string(),
             })?,
         };
         Ok(Self {
@@ -624,12 +629,34 @@ impl<F>
                     None,
                     item,
                 )),
-                _ => Err(errors::ConnectorError::NotSupported {
-                    message: "Wallet".to_string(),
-                    connector: "Nuvei",
-                    payment_experience: "RedirectToUrl".to_string(),
+                payments::WalletData::AliPayQr(_)
+                | payments::WalletData::AliPayRedirect(_)
+                | payments::WalletData::AliPayHkRedirect(_)
+                | payments::WalletData::MomoRedirect(_)
+                | payments::WalletData::KakaoPayRedirect(_)
+                | payments::WalletData::GoPayRedirect(_)
+                | payments::WalletData::GcashRedirect(_)
+                | payments::WalletData::ApplePayRedirect(_)
+                | payments::WalletData::ApplePayThirdPartySdk(_)
+                | payments::WalletData::DanaRedirect {}
+                | payments::WalletData::GooglePayRedirect(_)
+                | payments::WalletData::GooglePayThirdPartySdk(_)
+                | payments::WalletData::MbWayRedirect(_)
+                | payments::WalletData::MobilePayRedirect(_)
+                | payments::WalletData::PaypalSdk(_)
+                | payments::WalletData::SamsungPay(_)
+                | payments::WalletData::TwintRedirect {}
+                | payments::WalletData::VippsRedirect {}
+                | payments::WalletData::TouchNGoRedirect(_)
+                | payments::WalletData::WeChatPayRedirect(_)
+                | payments::WalletData::CashappQr(_)
+                | payments::WalletData::SwishQr(_)
+                | payments::WalletData::WeChatPayQr(_) => {
+                    Err(errors::ConnectorError::NotImplemented(
+                        utils::get_unimplemented_payment_method_error_message("nuvei"),
+                    )
+                    .into())
                 }
-                .into()),
             },
             api::PaymentMethodData::BankRedirect(redirect) => match redirect {
                 payments::BankRedirectData::Eps { .. } => Self::foreign_try_from((
@@ -652,12 +679,24 @@ impl<F>
                     Some(redirect),
                     item,
                 )),
-                _ => Err(errors::ConnectorError::NotSupported {
-                    message: "Bank Redirect".to_string(),
-                    connector: "Nuvei",
-                    payment_experience: "RedirectToUrl".to_string(),
+                payments::BankRedirectData::BancontactCard { .. }
+                | payments::BankRedirectData::Bizum {}
+                | payments::BankRedirectData::Blik { .. }
+                | payments::BankRedirectData::Interac { .. }
+                | payments::BankRedirectData::OnlineBankingCzechRepublic { .. }
+                | payments::BankRedirectData::OnlineBankingFinland { .. }
+                | payments::BankRedirectData::OnlineBankingPoland { .. }
+                | payments::BankRedirectData::OnlineBankingSlovakia { .. }
+                | payments::BankRedirectData::Przelewy24 { .. }
+                | payments::BankRedirectData::Trustly { .. }
+                | payments::BankRedirectData::OnlineBankingFpx { .. }
+                | payments::BankRedirectData::OnlineBankingThailand { .. }
+                | payments::BankRedirectData::OpenBankingUk { .. } => {
+                    Err(errors::ConnectorError::NotImplemented(
+                        utils::get_unimplemented_payment_method_error_message("nuvei"),
+                    )
+                    .into())
                 }
-                .into()),
             },
             api::PaymentMethodData::PayLater(pay_later_data) => match pay_later_data {
                 payments::PayLaterData::KlarnaRedirect { .. } => {
@@ -666,15 +705,32 @@ impl<F>
                 payments::PayLaterData::AfterpayClearpayRedirect { .. } => {
                     get_pay_later_info(AlternativePaymentMethodType::AfterPay, item)
                 }
-                _ => Err(errors::ConnectorError::NotSupported {
-                    message: "Buy Now Pay Later".to_string(),
-                    connector: "Nuvei",
-                    payment_experience: "RedirectToUrl".to_string(),
+                payments::PayLaterData::KlarnaSdk { .. }
+                | payments::PayLaterData::AffirmRedirect {}
+                | payments::PayLaterData::PayBrightRedirect {}
+                | payments::PayLaterData::WalleyRedirect {}
+                | payments::PayLaterData::AlmaRedirect {}
+                | payments::PayLaterData::AtomeRedirect {} => {
+                    Err(errors::ConnectorError::NotImplemented(
+                        utils::get_unimplemented_payment_method_error_message("nuvei"),
+                    )
+                    .into())
                 }
-                .into()),
             },
-
-            _ => Err(errors::ConnectorError::NotImplemented("Payment methods".to_string()).into()),
+            payments::PaymentMethodData::BankDebit(_)
+            | payments::PaymentMethodData::BankTransfer(_)
+            | payments::PaymentMethodData::Crypto(_)
+            | payments::PaymentMethodData::MandatePayment
+            | payments::PaymentMethodData::Reward(_)
+            | payments::PaymentMethodData::Upi(_)
+            | payments::PaymentMethodData::Voucher(_)
+            | api_models::payments::PaymentMethodData::CardRedirect(_)
+            | payments::PaymentMethodData::GiftCard(_) => {
+                Err(errors::ConnectorError::NotImplemented(
+                    utils::get_unimplemented_payment_method_error_message("nuvei"),
+                )
+                .into())
+            }
         }?;
         let request = Self::try_from(NuveiPaymentRequestData {
             amount: utils::to_currency_base_unit(item.request.amount, item.request.currency)?,
@@ -760,72 +816,19 @@ fn get_card_info<F>(
         let three_d = if item.is_three_ds() {
             Some(ThreeD {
                 browser_details: Some(BrowserDetails {
-                    accept_header: browser_info
-                        .accept_header
-                        .get_required_value("accept_header")
-                        .change_context(errors::ConnectorError::MissingRequiredField {
-                            field_name: "accept_header",
-                        })?,
-                    ip: Some(
-                        browser_info
-                            .ip_address
-                            .get_required_value("ip_address")
-                            .change_context(errors::ConnectorError::MissingRequiredField {
-                                field_name: "ip_address",
-                            })?,
-                    ),
-                    java_enabled: browser_info
-                        .java_enabled
-                        .get_required_value("java_enabled")
-                        .change_context(errors::ConnectorError::MissingRequiredField {
-                            field_name: "java_enabled",
-                        })?
-                        .to_string()
-                        .to_uppercase(),
+                    accept_header: browser_info.get_accept_header()?,
+                    ip: browser_info.get_ip_address()?,
+                    java_enabled: browser_info.get_java_enabled()?.to_string().to_uppercase(),
                     java_script_enabled: browser_info
-                        .java_script_enabled
-                        .get_required_value("java_script_enabled")
-                        .change_context(errors::ConnectorError::MissingRequiredField {
-                            field_name: "java_script_enabled",
-                        })?
+                        .get_java_script_enabled()?
                         .to_string()
                         .to_uppercase(),
-                    language: browser_info
-                        .language
-                        .get_required_value("language")
-                        .change_context(errors::ConnectorError::MissingRequiredField {
-                            field_name: "language",
-                        })?,
-                    color_depth: browser_info
-                        .color_depth
-                        .get_required_value("color_depth")
-                        .change_context(errors::ConnectorError::MissingRequiredField {
-                            field_name: "color_depth",
-                        })?,
-                    screen_height: browser_info
-                        .screen_height
-                        .get_required_value("screen_height")
-                        .change_context(errors::ConnectorError::MissingRequiredField {
-                            field_name: "screen_height",
-                        })?,
-                    screen_width: browser_info
-                        .screen_width
-                        .get_required_value("screen_width")
-                        .change_context(errors::ConnectorError::MissingRequiredField {
-                            field_name: "screen_width",
-                        })?,
-                    time_zone: browser_info
-                        .time_zone
-                        .get_required_value("time_zone_offset")
-                        .change_context(errors::ConnectorError::MissingRequiredField {
-                            field_name: "time_zone_offset",
-                        })?,
-                    user_agent: browser_info
-                        .user_agent
-                        .get_required_value("user_agent")
-                        .change_context(errors::ConnectorError::MissingRequiredField {
-                            field_name: "user_agent",
-                        })?,
+                    language: browser_info.get_language()?,
+                    screen_height: browser_info.get_screen_height()?,
+                    screen_width: browser_info.get_screen_width()?,
+                    color_depth: browser_info.get_color_depth()?,
+                    user_agent: browser_info.get_user_agent()?,
+                    time_zone: browser_info.get_time_zone()?,
                 }),
                 v2_additional_params: additional_params,
                 notification_url: item.request.complete_authorize_url.clone(),
@@ -882,8 +885,20 @@ impl TryFrom<(&types::PaymentsCompleteAuthorizeRouterData, String)> for NuveiPay
                 }),
                 ..Default::default()
             }),
-            _ => Err(errors::ConnectorError::NotImplemented(
-                "Payment methods".to_string(),
+            Some(api::PaymentMethodData::Wallet(..))
+            | Some(api::PaymentMethodData::PayLater(..))
+            | Some(api::PaymentMethodData::BankDebit(..))
+            | Some(api::PaymentMethodData::BankRedirect(..))
+            | Some(api::PaymentMethodData::BankTransfer(..))
+            | Some(api::PaymentMethodData::Crypto(..))
+            | Some(api::PaymentMethodData::MandatePayment)
+            | Some(api::PaymentMethodData::GiftCard(..))
+            | Some(api::PaymentMethodData::Voucher(..))
+            | Some(api::PaymentMethodData::CardRedirect(..))
+            | Some(api::PaymentMethodData::Reward(..))
+            | Some(api::PaymentMethodData::Upi(..))
+            | None => Err(errors::ConnectorError::NotImplemented(
+                utils::get_unimplemented_payment_method_error_message("nuvei"),
             )),
         }?;
         let request = Self::try_from(NuveiPaymentRequestData {
@@ -922,21 +937,21 @@ impl TryFrom<NuveiPaymentRequestData> for NuveiPaymentsRequest {
         Ok(Self {
             merchant_id: merchant_id.clone(),
             merchant_site_id: merchant_site_id.clone(),
-            client_request_id: client_request_id.clone(),
+            client_request_id: Secret::new(client_request_id.clone()),
             time_stamp: time_stamp.clone(),
             session_token,
             transaction_type: request
                 .capture_method
                 .map(TransactionType::from)
                 .unwrap_or_default(),
-            checksum: encode_payload(vec![
-                merchant_id,
-                merchant_site_id,
-                client_request_id,
-                request.amount.clone(),
-                request.currency.clone().to_string(),
-                time_stamp,
-                merchant_secret,
+            checksum: encode_payload(&[
+                merchant_id.peek(),
+                merchant_site_id.peek(),
+                &client_request_id,
+                &request.amount.clone(),
+                &request.currency.to_string(),
+                &time_stamp,
+                merchant_secret.peek(),
             ])?,
             amount: request.amount,
             currency: request.currency,
@@ -958,19 +973,19 @@ impl TryFrom<NuveiPaymentRequestData> for NuveiPaymentFlowRequest {
                 .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         let merchant_secret = connector_meta.merchant_secret;
         Ok(Self {
-            merchant_id: merchant_id.clone(),
-            merchant_site_id: merchant_site_id.clone(),
+            merchant_id: merchant_id.to_owned(),
+            merchant_site_id: merchant_site_id.to_owned(),
             client_request_id: client_request_id.clone(),
             time_stamp: time_stamp.clone(),
-            checksum: encode_payload(vec![
-                merchant_id,
-                merchant_site_id,
-                client_request_id,
-                request.amount.clone(),
-                request.currency.clone().to_string(),
-                request.related_transaction_id.clone().unwrap_or_default(),
-                time_stamp,
-                merchant_secret,
+            checksum: encode_payload(&[
+                merchant_id.peek(),
+                merchant_site_id.peek(),
+                &client_request_id,
+                &request.amount.clone(),
+                &request.currency.to_string(),
+                &request.related_transaction_id.clone().unwrap_or_default(),
+                &time_stamp,
+                merchant_secret.peek(),
             ])?,
             amount: request.amount,
             currency: request.currency,
@@ -982,12 +997,12 @@ impl TryFrom<NuveiPaymentRequestData> for NuveiPaymentFlowRequest {
 #[derive(Debug, Clone, Default)]
 pub struct NuveiPaymentRequestData {
     pub amount: String,
-    pub currency: storage_models::enums::Currency,
+    pub currency: diesel_models::enums::Currency,
     pub related_transaction_id: Option<String>,
     pub client_request_id: String,
     pub connector_auth_type: types::ConnectorAuthType,
     pub session_token: String,
-    pub capture_method: Option<storage_models::enums::CaptureMethod>,
+    pub capture_method: Option<diesel_models::enums::CaptureMethod>,
 }
 
 impl TryFrom<&types::PaymentsCaptureRouterData> for NuveiPaymentFlowRequest {
@@ -996,7 +1011,10 @@ impl TryFrom<&types::PaymentsCaptureRouterData> for NuveiPaymentFlowRequest {
         Self::try_from(NuveiPaymentRequestData {
             client_request_id: item.attempt_id.clone(),
             connector_auth_type: item.connector_auth_type.clone(),
-            amount: item.request.amount_to_capture.to_string(),
+            amount: utils::to_currency_base_unit(
+                item.request.amount_to_capture,
+                item.request.currency,
+            )?,
             currency: item.request.currency,
             related_transaction_id: Some(item.request.connector_transaction_id.clone()),
             ..Default::default()
@@ -1009,7 +1027,10 @@ impl TryFrom<&types::RefundExecuteRouterData> for NuveiPaymentFlowRequest {
         Self::try_from(NuveiPaymentRequestData {
             client_request_id: item.attempt_id.clone(),
             connector_auth_type: item.connector_auth_type.clone(),
-            amount: item.request.amount.to_string(),
+            amount: utils::to_currency_base_unit(
+                item.request.refund_amount,
+                item.request.currency,
+            )?,
             currency: item.request.currency,
             related_transaction_id: Some(item.request.connector_transaction_id.clone()),
             ..Default::default()
@@ -1033,7 +1054,10 @@ impl TryFrom<&types::PaymentsCancelRouterData> for NuveiPaymentFlowRequest {
         Self::try_from(NuveiPaymentRequestData {
             client_request_id: item.attempt_id.clone(),
             connector_auth_type: item.connector_auth_type.clone(),
-            amount: item.request.get_amount()?.to_string(),
+            amount: utils::to_currency_base_unit(
+                item.request.get_amount()?,
+                item.request.get_currency()?,
+            )?,
             currency: item.request.get_currency()?,
             related_transaction_id: Some(item.request.connector_transaction_id.clone()),
             ..Default::default()
@@ -1043,9 +1067,9 @@ impl TryFrom<&types::PaymentsCancelRouterData> for NuveiPaymentFlowRequest {
 
 // Auth Struct
 pub struct NuveiAuthType {
-    pub(super) merchant_id: String,
-    pub(super) merchant_site_id: String,
-    pub(super) merchant_secret: String,
+    pub(super) merchant_id: Secret<String>,
+    pub(super) merchant_site_id: Secret<String>,
+    pub(super) merchant_secret: Secret<String>,
 }
 
 impl TryFrom<&types::ConnectorAuthType> for NuveiAuthType {
@@ -1058,9 +1082,9 @@ impl TryFrom<&types::ConnectorAuthType> for NuveiAuthType {
         } = auth_type
         {
             Ok(Self {
-                merchant_id: api_key.to_string(),
-                merchant_site_id: key1.to_string(),
-                merchant_secret: api_secret.to_string(),
+                merchant_id: api_key.to_owned(),
+                merchant_site_id: key1.to_owned(),
+                merchant_secret: api_secret.to_owned(),
             })
         } else {
             Err(errors::ConnectorError::FailedToObtainAuthType)?
@@ -1231,8 +1255,8 @@ where
         item: types::ResponseRouterData<F, NuveiPaymentsResponse, T, types::PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
         let redirection_data = match item.data.payment_method {
-            storage_models::enums::PaymentMethod::Wallet
-            | storage_models::enums::PaymentMethod::BankRedirect => item
+            diesel_models::enums::PaymentMethod::Wallet
+            | diesel_models::enums::PaymentMethod::BankRedirect => item
                 .response
                 .payment_option
                 .as_ref()
@@ -1285,6 +1309,7 @@ where
                         None
                     },
                     network_txn_id: None,
+                    connector_response_reference_id: None,
                 })
             },
             ..item.data

@@ -21,10 +21,11 @@ impl utils::Connector for OpennodeTest {
     }
 
     fn get_auth_token(&self) -> types::ConnectorAuthType {
-        types::ConnectorAuthType::from(
+        utils::to_connector_auth_type(
             connector_auth::ConnectorAuthentication::new()
                 .opennode
-                .expect("Missing connector authentication configuration"),
+                .expect("Missing connector authentication configuration")
+                .into(),
         )
     }
 
@@ -65,7 +66,9 @@ fn payment_method_details() -> Option<types::PaymentsAuthorizeData> {
     Some(types::PaymentsAuthorizeData {
         amount: 1,
         currency: enums::Currency::USD,
-        payment_method_data: types::api::PaymentMethodData::Crypto(CryptoData {}),
+        payment_method_data: types::api::PaymentMethodData::Crypto(CryptoData {
+            pay_currency: None,
+        }),
         confirm: true,
         statement_descriptor_suffix: None,
         statement_descriptor: None,

@@ -1,12 +1,12 @@
 use std::marker::PhantomData;
 
+use api_models::enums::CancelTransaction;
 use async_trait::async_trait;
 use common_utils::ext_traits::{AsyncExt, Encode, ValueExt};
+use diesel_models::ephemeral_key;
 use error_stack::{self, ResultExt};
 use router_derive::PaymentOperation;
 use router_env::{instrument, tracing};
-use storage_models::ephemeral_key;
-use uuid::Uuid;
 
 use super::{BoxedOperation, Domain, GetTracker, Operation, UpdateTracker, ValidateRequest};
 use crate::{
@@ -29,8 +29,9 @@ use crate::{
         },
         transformers::ForeignInto,
     },
-    utils::OptionExt,
+    utils::{self, OptionExt},
 };
+
 #[derive(Debug, Clone, Copy, PaymentOperation)]
 #[operation(ops = "all", flow = "authorize")]
 pub struct PaymentCreate;
@@ -43,8 +44,10 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
         state: &'a AppState,
         payment_id: &api::PaymentIdType,
         request: &api::PaymentsRequest,
-        mandate_type: Option<api::MandateTxnType>,
+        mandate_type: Option<api::MandateTransactionType>,
         merchant_account: &domain::MerchantAccount,
+        merchant_key_store: &domain::MerchantKeyStore,
+        _auth_flow: services::AuthFlow,
     ) -> RouterResult<(
         BoxedOperation<'a, F, api::PaymentsRequest>,
         PaymentData<F>,
@@ -54,7 +57,6 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
         let ephemeral_key = Self::get_ephemeral_key(request, state, merchant_account).await;
         let merchant_id = &merchant_account.merchant_id;
         let storage_scheme = merchant_account.storage_scheme;
-
         let (payment_intent, payment_attempt, connector_response);
 
         let money @ (amount, currency) = payments_create_request_validation(request)?;
@@ -63,21 +65,30 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
             .get_payment_intent_id()
             .change_context(errors::ApiErrorResponse::PaymentNotFound)?;
 
-        let (token, payment_method_type, setup_mandate, mandate_connector) =
-            helpers::get_token_pm_type_mandate_details(
-                state,
-                request,
-                mandate_type,
-                merchant_account,
-            )
-            .await?;
+        let (
+            token,
+            payment_method,
+            payment_method_type,
+            setup_mandate,
+            recurring_mandate_payment_data,
+            mandate_connector,
+        ) = helpers::get_token_pm_type_mandate_details(
+            state,
+            request,
+            mandate_type,
+            merchant_account,
+        )
+        .await?;
+
+        let customer_details = helpers::get_customer_details_from_request(request);
 
         let shipping_address = helpers::get_address_for_payment_request(
             db,
             request.shipping.as_ref(),
             None,
             merchant_id,
-            &request.customer_id,
+            customer_details.customer_id.as_ref(),
+            merchant_key_store,
         )
         .await?;
 
@@ -86,7 +97,8 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
             request.billing.as_ref(),
             None,
             merchant_id,
-            &request.customer_id,
+            customer_details.customer_id.as_ref(),
+            merchant_key_store,
         )
         .await?;
 
@@ -107,10 +119,13 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
                     &payment_id,
                     merchant_id,
                     money,
+                    payment_method,
                     payment_method_type,
                     request,
                     browser_info,
-                )?,
+                    state,
+                )
+                .await?,
                 storage_scheme,
             )
             .await
@@ -152,7 +167,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
                 let mandate = db
                     .find_mandate_by_merchant_id_mandate_id(merchant_id, mandate_id)
                     .await
-                    .change_context(errors::ApiErrorResponse::MandateNotFound);
+                    .to_not_found_response(errors::ApiErrorResponse::MandateNotFound);
                 Some(mandate.and_then(|mandate_obj| {
                     match (
                         mandate_obj.network_transaction_id,
@@ -244,6 +259,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
                 payment_method_data: request.payment_method_data.clone(),
                 refunds: vec![],
                 disputes: vec![],
+                attempts: None,
                 force_sync: None,
                 connector_response,
                 sessions_token: vec![],
@@ -251,16 +267,13 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
                 creds_identifier,
                 pm_token: None,
                 connector_customer_id: None,
+                recurring_mandate_payment_data,
                 ephemeral_key,
+                multiple_capture_data: None,
                 redirect_response: None,
+                frm_message: None,
             },
-            Some(CustomerDetails {
-                customer_id: request.customer_id.clone(),
-                name: request.name.clone(),
-                email: request.email.clone(),
-                phone: request.phone.clone(),
-                phone_country_code: request.phone_country_code.clone(),
-            }),
+            Some(customer_details),
         ))
     }
 }
@@ -273,7 +286,7 @@ impl<F: Clone + Send> Domain<F, api::PaymentsRequest> for PaymentCreate {
         db: &dyn StorageInterface,
         payment_data: &mut PaymentData<F>,
         request: Option<CustomerDetails>,
-        merchant_id: &str,
+        key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<
         (
             BoxedOperation<'a, F, api::PaymentsRequest>,
@@ -286,7 +299,8 @@ impl<F: Clone + Send> Domain<F, api::PaymentsRequest> for PaymentCreate {
             db,
             payment_data,
             request,
-            merchant_id,
+            &key_store.merchant_id,
+            key_store,
         )
         .await
     }
@@ -309,6 +323,8 @@ impl<F: Clone + Send> Domain<F, api::PaymentsRequest> for PaymentCreate {
         &'a self,
         _state: &'a AppState,
         _payment_attempt: &storage::PaymentAttempt,
+        _requeue: bool,
+        _schedule_time: Option<time::PrimitiveDateTime>,
     ) -> CustomResult<(), errors::ApiErrorResponse> {
         Ok(())
     }
@@ -318,7 +334,8 @@ impl<F: Clone + Send> Domain<F, api::PaymentsRequest> for PaymentCreate {
         _merchant_account: &domain::MerchantAccount,
         state: &AppState,
         request: &api::PaymentsRequest,
-        _payment_intent: &storage::payment_intent::PaymentIntent,
+        _payment_intent: &storage::PaymentIntent,
+        _merchant_key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<api::ConnectorChoice, errors::ApiErrorResponse> {
         helpers::get_connector_default(state, request.routing.clone()).await
     }
@@ -330,11 +347,12 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
     async fn update_trackers<'b>(
         &'b self,
         db: &dyn StorageInterface,
-        _payment_id: &api::PaymentIdType,
         mut payment_data: PaymentData<F>,
         _customer: Option<domain::Customer>,
         storage_scheme: enums::MerchantStorageScheme,
         _updated_customer: Option<storage::CustomerUpdate>,
+        _merchant_key_store: &domain::MerchantKeyStore,
+        _should_cancel_transaction: Option<CancelTransaction>,
     ) -> RouterResult<(BoxedOperation<'b, F, api::PaymentsRequest>, PaymentData<F>)>
     where
         F: 'b + Send,
@@ -346,6 +364,7 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
             },
             IntentStatus::RequiresConfirmation => {
                 if let Some(true) = payment_data.confirm {
+                    //TODO: do this later, request validation should happen before
                     Some(IntentStatus::Processing)
                 } else {
                     None
@@ -409,6 +428,8 @@ impl<F: Send + Clone> ValidateRequest<F, api::PaymentsRequest> for PaymentCreate
         BoxedOperation<'b, F, api::PaymentsRequest>,
         operations::ValidateResult<'a>,
     )> {
+        helpers::validate_customer_details_in_request(request)?;
+
         let given_payment_id = match &request.payment_id {
             Some(id_type) => Some(
                 id_type
@@ -431,6 +452,8 @@ impl<F: Send + Clone> ValidateRequest<F, api::PaymentsRequest> for PaymentCreate
             expected_format: "amount_to_capture lesser than amount".to_string(),
         })?;
 
+        helpers::validate_card_data(request.payment_method_data.clone())?;
+
         helpers::validate_payment_method_fields_present(request)?;
 
         let payment_id = core_utils::get_or_generate_id("payment_id", &given_payment_id, "pay")?;
@@ -451,7 +474,11 @@ impl<F: Send + Clone> ValidateRequest<F, api::PaymentsRequest> for PaymentCreate
                 request.shipping.is_some(),
                 request.billing.is_some(),
                 request.setup_future_usage.is_some(),
-                &request.customer_id,
+                &request
+                    .customer
+                    .clone()
+                    .map(|customer| customer.id)
+                    .or(request.customer_id.clone()),
             )?;
         }
 
@@ -462,6 +489,10 @@ impl<F: Send + Clone> ValidateRequest<F, api::PaymentsRequest> for PaymentCreate
                 payment_id: api::PaymentIdType::PaymentIntentId(payment_id),
                 mandate_type,
                 storage_scheme: merchant_account.storage_scheme,
+                requeue: matches!(
+                    request.retry_action,
+                    Some(api_models::enums::RetryAction::Requeue)
+                ),
             },
         ))
     }
@@ -469,13 +500,16 @@ impl<F: Send + Clone> ValidateRequest<F, api::PaymentsRequest> for PaymentCreate
 
 impl PaymentCreate {
     #[instrument(skip_all)]
-    fn make_payment_attempt(
+    #[allow(clippy::too_many_arguments)]
+    pub async fn make_payment_attempt(
         payment_id: &str,
         merchant_id: &str,
         money: (api::Amount, enums::Currency),
         payment_method: Option<enums::PaymentMethod>,
+        payment_method_type: Option<enums::PaymentMethodType>,
         request: &api::PaymentsRequest,
         browser_info: Option<serde_json::Value>,
+        state: &AppState,
     ) -> RouterResult<storage::PaymentAttemptNew> {
         let created_at @ modified_at @ last_synced = Some(common_utils::date_time::now());
         let status =
@@ -485,32 +519,47 @@ impl PaymentCreate {
         let additional_pm_data = request
             .payment_method_data
             .as_ref()
-            .map(api_models::payments::AdditionalPaymentData::from)
+            .async_map(|payment_method_data| async {
+                helpers::get_additional_payment_data(payment_method_data, &*state.store).await
+            })
+            .await
             .as_ref()
             .map(Encode::<api_models::payments::AdditionalPaymentData>::encode_to_value)
             .transpose()
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to encode additional pm data")?;
+        let attempt_id = if core_utils::is_merchant_enabled_for_payment_id_as_connector_request_id(
+            &state.conf,
+            merchant_id,
+        ) {
+            payment_id.to_string()
+        } else {
+            utils::get_payment_attempt_id(payment_id, 1)
+        };
 
         Ok(storage::PaymentAttemptNew {
             payment_id: payment_id.to_string(),
             merchant_id: merchant_id.to_string(),
-            attempt_id: Uuid::new_v4().simple().to_string(),
+            attempt_id,
             status,
             currency,
             amount: amount.into(),
             payment_method,
-            capture_method: request.capture_method.map(ForeignInto::foreign_into),
+            capture_method: request.capture_method,
             capture_on: request.capture_on,
             confirm: request.confirm.unwrap_or(false),
             created_at,
             modified_at,
             last_synced,
-            authentication_type: request.authentication_type.map(ForeignInto::foreign_into),
+            authentication_type: request.authentication_type,
             browser_info,
-            payment_experience: request.payment_experience.map(ForeignInto::foreign_into),
-            payment_method_type: request.payment_method_type.map(ForeignInto::foreign_into),
+            payment_experience: request.payment_experience,
+            payment_method_type,
             payment_method_data: additional_pm_data,
+            amount_to_capture: request.amount_to_capture,
+            payment_token: request.payment_token.clone(),
+            mandate_id: request.mandate_id.clone(),
+            business_sub_label: request.business_sub_label.clone(),
             mandate_details: request
                 .mandate_data
                 .as_ref()
@@ -535,25 +584,50 @@ impl PaymentCreate {
         let client_secret =
             crate::utils::generate_id(consts::ID_LENGTH, format!("{payment_id}_secret").as_str());
         let (amount, currency) = (money.0, Some(money.1));
-        let metadata = request
-            .metadata
-            .as_ref()
-            .map(|metadata| {
-                let transformed_metadata = api_models::payments::Metadata {
-                    allowed_payment_method_types: request.allowed_payment_method_types.clone(),
-                    ..metadata.clone()
-                };
-                Encode::<api_models::payments::Metadata>::encode_to_value(&transformed_metadata)
-            })
-            .transpose()
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Encoding Metadata to value failed")?;
 
-        let (business_country, business_label) = helpers::get_business_details(
-            request.business_country,
-            request.business_label.as_ref(),
-            merchant_account,
-        )?;
+        let order_details = request
+            .get_order_details_as_value()
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to convert order details to value")?;
+
+        let (business_country, business_label) =
+            match (request.business_country, request.business_label.as_ref()) {
+                (Some(business_country), Some(business_label)) => {
+                    helpers::validate_business_details(
+                        business_country,
+                        business_label,
+                        merchant_account,
+                    )?;
+
+                    Ok((business_country, business_label.clone()))
+                }
+                (None, Some(_)) => Err(errors::ApiErrorResponse::MissingRequiredField {
+                    field_name: "business_country",
+                }),
+                (Some(_), None) => Err(errors::ApiErrorResponse::MissingRequiredField {
+                    field_name: "business_label",
+                }),
+                (None, None) => Ok(helpers::get_business_details(
+                    request.business_country,
+                    request.business_label.as_ref(),
+                    merchant_account,
+                )?),
+            }?;
+
+        let allowed_payment_method_types = request
+            .get_allowed_payment_method_types_as_value()
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Error converting allowed_payment_types to Value")?;
+
+        let connector_metadata = request
+            .get_connector_metadata_as_value()
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Error converting connector_metadata to Value")?;
+
+        let feature_metadata = request
+            .get_feature_metadata_as_value()
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Error converting feature_metadata to Value")?;
 
         Ok(storage::PaymentIntentNew {
             payment_id: payment_id.to_string(),
@@ -566,18 +640,25 @@ impl PaymentCreate {
             modified_at,
             last_synced,
             client_secret: Some(client_secret),
-            setup_future_usage: request.setup_future_usage.map(ForeignInto::foreign_into),
+            setup_future_usage: request.setup_future_usage,
             off_session: request.off_session,
             return_url: request.return_url.as_ref().map(|a| a.to_string()),
             shipping_address_id,
             billing_address_id,
             statement_descriptor_name: request.statement_descriptor_name.clone(),
             statement_descriptor_suffix: request.statement_descriptor_suffix.clone(),
-            metadata: metadata.map(masking::Secret::new),
+            metadata: request.metadata.clone(),
             business_country,
             business_label,
             active_attempt_id,
-            ..storage::PaymentIntentNew::default()
+            order_details,
+            amount_captured: None,
+            customer_id: None,
+            connector_id: None,
+            allowed_payment_method_types,
+            connector_metadata,
+            feature_metadata,
+            attempt_count: 1,
         })
     }
 
@@ -628,10 +709,7 @@ impl PaymentCreate {
 pub fn payments_create_request_validation(
     req: &api::PaymentsRequest,
 ) -> RouterResult<(api::Amount, enums::Currency)> {
-    let currency = req
-        .currency
-        .map(ForeignInto::foreign_into)
-        .get_required_value("currency")?;
+    let currency = req.currency.get_required_value("currency")?;
     let amount = req.amount.get_required_value("amount")?;
     Ok((amount, currency))
 }

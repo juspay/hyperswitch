@@ -1,16 +1,19 @@
 use common_utils::ext_traits::AsyncExt;
 use error_stack::ResultExt;
+use redis_interface::errors::RedisError;
+use storage_impl::redis::{
+    cache::{Cache, CacheKind, Cacheable},
+    pub_sub::PubSubInterface,
+};
 
-use super::Store;
+use super::StorageInterface;
 use crate::{
-    cache::{self, Cacheable},
     consts,
     core::errors::{self, CustomResult},
-    services::PubSubInterface,
 };
 
 pub async fn get_or_populate_redis<T, F, Fut>(
-    store: &Store,
+    store: &dyn StorageInterface,
     key: &str,
     fun: F,
 ) -> CustomResult<T, errors::StorageError>
@@ -21,8 +24,11 @@ where
 {
     let type_name = std::any::type_name::<T>();
     let redis = &store
-        .redis_conn()
-        .map_err(Into::<errors::StorageError>::into)?;
+        .get_redis_conn()
+        .change_context(errors::StorageError::RedisError(
+            RedisError::RedisConnectionError.into(),
+        ))
+        .attach_printable("Failed to get redis connection")?;
     let redis_val = redis.get_and_deserialize_key::<T>(key, type_name).await;
     let get_data_set_redis = || async {
         let data = fun().await?;
@@ -46,10 +52,10 @@ where
 }
 
 pub async fn get_or_populate_in_memory<T, F, Fut>(
-    store: &Store,
+    store: &dyn StorageInterface,
     key: &str,
     fun: F,
-    cache: &cache::Cache,
+    cache: &Cache,
 ) -> CustomResult<T, errors::StorageError>
 where
     T: Cacheable + serde::Serialize + serde::de::DeserializeOwned + std::fmt::Debug + Clone,
@@ -67,10 +73,10 @@ where
 }
 
 pub async fn redact_cache<T, F, Fut>(
-    store: &Store,
+    store: &dyn StorageInterface,
     key: &str,
     fun: F,
-    in_memory: Option<&cache::Cache>,
+    in_memory: Option<&Cache>,
 ) -> CustomResult<T, errors::StorageError>
 where
     F: FnOnce() -> Fut + Send,
@@ -78,18 +84,41 @@ where
 {
     let data = fun().await?;
     in_memory.async_map(|cache| cache.invalidate(key)).await;
-    store
-        .redis_conn()
-        .map_err(Into::<errors::StorageError>::into)?
+
+    let redis_conn = store
+        .get_redis_conn()
+        .change_context(errors::StorageError::RedisError(
+            RedisError::RedisConnectionError.into(),
+        ))
+        .attach_printable("Failed to get redis connection")?;
+
+    redis_conn
         .delete_key(key)
         .await
         .change_context(errors::StorageError::KVError)?;
     Ok(data)
 }
 
+pub async fn publish_into_redact_channel<'a>(
+    store: &dyn StorageInterface,
+    key: CacheKind<'a>,
+) -> CustomResult<usize, errors::StorageError> {
+    let redis_conn = store
+        .get_redis_conn()
+        .change_context(errors::StorageError::RedisError(
+            RedisError::RedisConnectionError.into(),
+        ))
+        .attach_printable("Failed to get redis connection")?;
+
+    redis_conn
+        .publish(consts::PUB_SUB_CHANNEL, key)
+        .await
+        .change_context(errors::StorageError::KVError)
+}
+
 pub async fn publish_and_redact<'a, T, F, Fut>(
-    store: &Store,
-    key: cache::CacheKind<'a>,
+    store: &dyn StorageInterface,
+    key: CacheKind<'a>,
     fun: F,
 ) -> CustomResult<T, errors::StorageError>
 where
@@ -97,11 +126,6 @@ where
     Fut: futures::Future<Output = CustomResult<T, errors::StorageError>> + Send,
 {
     let data = fun().await?;
-    store
-        .redis_conn()
-        .map_err(Into::<errors::StorageError>::into)?
-        .publish(consts::PUB_SUB_CHANNEL, key)
-        .await
-        .change_context(errors::StorageError::KVError)?;
+    publish_into_redact_channel(store, key).await?;
     Ok(data)
 }

@@ -2,6 +2,7 @@
 use std::ops::Deref;
 
 use error_stack::{IntoReport, ResultExt};
+use masking::{ExposeInterface, Secret};
 use md5;
 use ring::{
     aead::{self, BoundKey, OpeningKey, SealingKey, UnboundKey},
@@ -10,7 +11,7 @@ use ring::{
 
 use crate::{
     errors::{self, CustomResult},
-    pii,
+    pii::{self, EncryptionStratergy},
 };
 
 #[derive(Clone, Debug)]
@@ -103,7 +104,7 @@ pub trait DecodeMessage {
     fn decode_message(
         &self,
         _secret: &[u8],
-        _msg: Vec<u8>,
+        _msg: Secret<Vec<u8>, EncryptionStratergy>,
     ) -> CustomResult<Vec<u8>, errors::CryptoError>;
 }
 
@@ -147,9 +148,37 @@ impl DecodeMessage for NoAlgorithm {
     fn decode_message(
         &self,
         _secret: &[u8],
-        msg: Vec<u8>,
+        msg: Secret<Vec<u8>, EncryptionStratergy>,
     ) -> CustomResult<Vec<u8>, errors::CryptoError> {
-        Ok(msg.to_vec())
+        Ok(msg.expose())
+    }
+}
+
+/// Represents the HMAC-SHA-1 algorithm
+#[derive(Debug)]
+pub struct HmacSha1;
+
+impl SignMessage for HmacSha1 {
+    fn sign_message(
+        &self,
+        secret: &[u8],
+        msg: &[u8],
+    ) -> CustomResult<Vec<u8>, errors::CryptoError> {
+        let key = hmac::Key::new(hmac::HMAC_SHA1_FOR_LEGACY_USE_ONLY, secret);
+        Ok(hmac::sign(&key, msg).as_ref().to_vec())
+    }
+}
+
+impl VerifySignature for HmacSha1 {
+    fn verify_signature(
+        &self,
+        secret: &[u8],
+        signature: &[u8],
+        msg: &[u8],
+    ) -> CustomResult<bool, errors::CryptoError> {
+        let key = hmac::Key::new(hmac::HMAC_SHA1_FOR_LEGACY_USE_ONLY, secret);
+
+        Ok(hmac::verify(&key, msg, signature).is_ok())
     }
 }
 
@@ -242,8 +271,9 @@ impl DecodeMessage for GcmAes256 {
     fn decode_message(
         &self,
         secret: &[u8],
-        msg: Vec<u8>,
+        msg: Secret<Vec<u8>, EncryptionStratergy>,
     ) -> CustomResult<Vec<u8>, errors::CryptoError> {
+        let msg = msg.expose();
         let key = UnboundKey::new(&aead::AES_256_GCM, secret)
             .into_report()
             .change_context(errors::CryptoError::DecodingFailed)?;
@@ -264,7 +294,7 @@ impl DecodeMessage for GcmAes256 {
             .into_report()
             .change_context(errors::CryptoError::DecodingFailed)?;
 
-        Ok(result.into())
+        Ok(result.to_vec())
     }
 }
 
@@ -380,14 +410,17 @@ pub fn generate_cryptographically_secure_random_bytes<const N: usize>() -> [u8; 
 #[derive(Debug, Clone)]
 pub struct Encryptable<T: Clone> {
     inner: T,
-    encrypted: Vec<u8>,
+    encrypted: Secret<Vec<u8>, EncryptionStratergy>,
 }
 
-impl<T: Clone, S: masking::Strategy<T>> Encryptable<masking::Secret<T, S>> {
+impl<T: Clone, S: masking::Strategy<T>> Encryptable<Secret<T, S>> {
     ///
     /// constructor function to be used by the encryptor and decryptor to generate the data type
     ///
-    pub fn new(masked_data: masking::Secret<T, S>, encrypted_data: Vec<u8>) -> Self {
+    pub fn new(
+        masked_data: Secret<T, S>,
+        encrypted_data: Secret<Vec<u8>, EncryptionStratergy>,
+    ) -> Self {
         Self {
             inner: masked_data,
             encrypted: encrypted_data,
@@ -397,21 +430,32 @@ impl<T: Clone, S: masking::Strategy<T>> Encryptable<masking::Secret<T, S>> {
 
 impl<T: Clone> Encryptable<T> {
     ///
-    /// Get the inner data while consumping self
+    /// Get the inner data while consuming self
     ///
+    #[inline]
     pub fn into_inner(self) -> T {
         self.inner
     }
+
+    ///
+    /// Get the reference to inner value
+    ///
+    #[inline]
+    pub fn get_inner(&self) -> &T {
+        &self.inner
+    }
+
     ///
     /// Get the inner encrypted data while consuming self
     ///
-    pub fn into_encrypted(self) -> Vec<u8> {
+    #[inline]
+    pub fn into_encrypted(self) -> Secret<Vec<u8>, EncryptionStratergy> {
         self.encrypted
     }
 }
 
-impl<T: Clone> Deref for Encryptable<masking::Secret<T>> {
-    type Target = masking::Secret<T>;
+impl<T: Clone> Deref for Encryptable<Secret<T>> {
+    type Target = Secret<T>;
     fn deref(&self) -> &Self::Target {
         &self.inner
     }
@@ -439,18 +483,17 @@ where
 }
 
 /// Type alias for `Option<Encryptable<Secret<String>>>`
-pub type OptionalEncryptableSecretString = Option<Encryptable<masking::Secret<String>>>;
+pub type OptionalEncryptableSecretString = Option<Encryptable<Secret<String>>>;
 /// Type alias for `Option<Encryptable<Secret<String>>>` used for `name` field
-pub type OptionalEncryptableName = Option<Encryptable<masking::Secret<String>>>;
+pub type OptionalEncryptableName = Option<Encryptable<Secret<String>>>;
 /// Type alias for `Option<Encryptable<Secret<String>>>` used for `email` field
-pub type OptionalEncryptableEmail =
-    Option<Encryptable<masking::Secret<String, pii::EmailStrategy>>>;
+pub type OptionalEncryptableEmail = Option<Encryptable<Secret<String, pii::EmailStrategy>>>;
 /// Type alias for `Option<Encryptable<Secret<String>>>` used for `phone` field
-pub type OptionalEncryptablePhone = Option<Encryptable<masking::Secret<String>>>;
+pub type OptionalEncryptablePhone = Option<Encryptable<Secret<String>>>;
 /// Type alias for `Option<Encryptable<Secret<serde_json::Value>>>` used for `phone` field
-pub type OptionalEncryptableValue = Option<Encryptable<masking::Secret<serde_json::Value>>>;
+pub type OptionalEncryptableValue = Option<Encryptable<Secret<serde_json::Value>>>;
 /// Type alias for `Option<Secret<serde_json::Value>>` used for `phone` field
-pub type OptionalSecretValue = Option<masking::Secret<serde_json::Value>>;
+pub type OptionalSecretValue = Option<Secret<serde_json::Value>>;
 
 #[cfg(test)]
 mod crypto_tests {
@@ -572,7 +615,7 @@ mod crypto_tests {
 
         assert_eq!(
             algorithm
-                .decode_message(&secret, encoded_message)
+                .decode_message(&secret, encoded_message.into())
                 .expect("Decode Failed"),
             message
         );
@@ -580,26 +623,36 @@ mod crypto_tests {
 
     #[test]
     fn test_gcm_aes_256_decode_message() {
+        // Inputs taken from AES GCM test vectors provided by NIST
+        // https://github.com/briansmith/ring/blob/95948b3977013aed16db92ae32e6b8384496a740/tests/aead_aes_256_gcm_tests.txt#L447-L452
+
         let right_secret =
-            hex::decode("000102030405060708090a0b0c0d0e0f000102030405060708090a0b0c0d0e0f")
+            hex::decode("feffe9928665731c6d6a8f9467308308feffe9928665731c6d6a8f9467308308")
                 .expect("Secret decoding");
         let wrong_secret =
-            hex::decode("000102030405060708090a0b0c0d0e0f000102030405060708090a0b0c0d0e0e")
+            hex::decode("feffe9928665731c6d6a8f9467308308feffe9928665731c6d6a8f9467308309")
                 .expect("Secret decoding");
         let message =
-            hex::decode("0A3471C72D9BE49A8520F79C66BBD9A12FF9").expect("Message decoding");
+            // The three parts of the message are the nonce, ciphertext and tag from the test vector
+            hex::decode(
+                "cafebabefacedbaddecaf888\
+                 522dc1f099567d07f47f37a32a84427d643a8cdcbfe5c0c97598a2bd2555d1aa8cb08e48590dbb3da7b08b1056828838c5f61e6393ba7a0abcc9f662898015ad\
+                 b094dac5d93471bdec1a502270e3cc6c"
+            ).expect("Message decoding");
 
-        let algorithm = super::GcmAes256 {
-            // nonce: nonce.to_vec(),
-        };
+        let algorithm = super::GcmAes256;
 
         let decoded = algorithm
-            .decode_message(&right_secret, message.clone())
+            .decode_message(&right_secret, message.clone().into())
             .expect("Decoded message");
 
-        assert_eq!(decoded, r#"{"type":"PAYMENT"}"#.as_bytes());
+        assert_eq!(
+            decoded,
+            hex::decode("d9313225f88406e5a55909c5aff5269a86a7a9531534f7da2e4c303d8a318a721c3c0c95956809532fcf0e2449a6b525b16aedf5aa0de657ba637b391aafd255")
+                .expect("Decoded plaintext message")
+        );
 
-        let err_decoded = algorithm.decode_message(&wrong_secret, message);
+        let err_decoded = algorithm.decode_message(&wrong_secret, message.into());
 
         assert!(err_decoded.is_err());
     }

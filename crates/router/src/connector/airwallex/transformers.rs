@@ -10,9 +10,28 @@ use crate::{
     core::errors,
     pii::Secret,
     services,
-    types::{self, api, storage::enums},
+    types::{self, api, storage::enums, PaymentsSyncData},
 };
 
+pub struct AirwallexAuthType {
+    pub x_api_key: Secret<String>,
+    pub x_client_id: Secret<String>,
+}
+
+impl TryFrom<&types::ConnectorAuthType> for AirwallexAuthType {
+    type Error = error_stack::Report<errors::ConnectorError>;
+
+    fn try_from(auth_type: &types::ConnectorAuthType) -> Result<Self, Self::Error> {
+        if let types::ConnectorAuthType::BodyKey { api_key, key1 } = auth_type {
+            Ok(Self {
+                x_api_key: api_key.clone(),
+                x_client_id: key1.clone(),
+            })
+        } else {
+            Err(errors::ConnectorError::FailedToObtainAuthType)?
+        }
+    }
+}
 #[derive(Default, Debug, Serialize, Eq, PartialEq)]
 pub struct AirwallexIntentRequest {
     // Unique ID to be sent for each transaction/operation request to the connector
@@ -34,7 +53,7 @@ impl TryFrom<&types::PaymentsInitRouterData> for AirwallexIntentRequest {
     }
 }
 
-#[derive(Debug, Serialize, Eq, PartialEq)]
+#[derive(Debug, Serialize)]
 pub struct AirwallexPaymentsRequest {
     // Unique ID to be sent for each transaction/operation request to the connector
     request_id: String,
@@ -43,19 +62,20 @@ pub struct AirwallexPaymentsRequest {
     return_url: Option<String>,
 }
 
-#[derive(Debug, Serialize, Eq, PartialEq)]
+#[derive(Debug, Serialize)]
 #[serde(untagged)]
 pub enum AirwallexPaymentMethod {
     Card(AirwallexCard),
+    Wallets(WalletData),
 }
 
-#[derive(Debug, Serialize, Eq, PartialEq)]
+#[derive(Debug, Serialize)]
 pub struct AirwallexCard {
     card: AirwallexCardDetails,
     #[serde(rename = "type")]
     payment_method_type: AirwallexPaymentType,
 }
-#[derive(Debug, Serialize, Eq, PartialEq)]
+#[derive(Debug, Serialize)]
 pub struct AirwallexCardDetails {
     expiry_month: Secret<String>,
     expiry_year: Secret<String>,
@@ -63,18 +83,44 @@ pub struct AirwallexCardDetails {
     cvc: Secret<String>,
 }
 
-#[derive(Debug, Serialize, Eq, PartialEq)]
+#[derive(Debug, Serialize)]
+#[serde(untagged)]
+pub enum WalletData {
+    GooglePay(GooglePayData),
+}
+
+#[derive(Debug, Serialize)]
+pub struct GooglePayData {
+    googlepay: GooglePayDetails,
+    #[serde(rename = "type")]
+    payment_method_type: AirwallexPaymentType,
+}
+
+#[derive(Debug, Serialize)]
+pub struct GooglePayDetails {
+    encrypted_payment_token: Secret<String>,
+    payment_data_type: GpayPaymentDataType,
+}
+
+#[derive(Debug, Serialize)]
 #[serde(rename_all = "snake_case")]
 pub enum AirwallexPaymentType {
     Card,
+    Googlepay,
 }
 
-#[derive(Debug, Serialize, Eq, PartialEq)]
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum GpayPaymentDataType {
+    EncryptedPaymentToken,
+}
+
+#[derive(Debug, Serialize)]
 #[serde(rename_all = "snake_case")]
 pub enum AirwallexPaymentOptions {
     Card(AirwallexCardPaymentOptions),
 }
-#[derive(Debug, Serialize, Eq, PartialEq)]
+#[derive(Debug, Serialize)]
 pub struct AirwallexCardPaymentOptions {
     auto_capture: bool,
 }
@@ -102,10 +148,12 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for AirwallexPaymentsRequest {
                     payment_method_type: AirwallexPaymentType::Card,
                 }))
             }
+            api::PaymentMethodData::Wallet(ref wallet_data) => get_wallet_details(wallet_data),
             _ => Err(errors::ConnectorError::NotImplemented(
                 "Unknown payment method".to_string(),
             )),
         }?;
+
         Ok(Self {
             request_id: Uuid::new_v4().to_string(),
             payment_method,
@@ -115,11 +163,33 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for AirwallexPaymentsRequest {
     }
 }
 
+fn get_wallet_details(
+    wallet_data: &api_models::payments::WalletData,
+) -> Result<AirwallexPaymentMethod, errors::ConnectorError> {
+    let wallet_details: AirwallexPaymentMethod = match wallet_data {
+        api_models::payments::WalletData::GooglePay(gpay_details) => {
+            AirwallexPaymentMethod::Wallets(WalletData::GooglePay(GooglePayData {
+                googlepay: GooglePayDetails {
+                    encrypted_payment_token: Secret::new(
+                        gpay_details.tokenization_data.token.clone(),
+                    ),
+                    payment_data_type: GpayPaymentDataType::EncryptedPaymentToken,
+                },
+                payment_method_type: AirwallexPaymentType::Googlepay,
+            }))
+        }
+        _ => Err(errors::ConnectorError::NotImplemented(
+            "Payment method".to_string(),
+        ))?,
+    };
+    Ok(wallet_details)
+}
+
 #[derive(Deserialize)]
 pub struct AirwallexAuthUpdateResponse {
     #[serde(with = "common_utils::custom_serde::iso8601")]
     expires_at: PrimitiveDateTime,
-    token: String,
+    token: Secret<String>,
 }
 
 impl<F, T> TryFrom<types::ResponseRouterData<F, AirwallexAuthUpdateResponse, T, types::AccessToken>>
@@ -224,7 +294,7 @@ impl TryFrom<&types::PaymentsCancelRouterData> for AirwallexPaymentsCancelReques
 }
 
 // PaymentsResponse
-#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Default, Deserialize, PartialEq)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum AirwallexPaymentStatus {
     Succeeded,
@@ -237,13 +307,16 @@ pub enum AirwallexPaymentStatus {
     Cancelled,
 }
 
-fn get_payment_status(response: &AirwallexPaymentsResponse) -> enums::AttemptStatus {
-    match response.status.clone() {
+fn get_payment_status(
+    status: &AirwallexPaymentStatus,
+    next_action: &Option<AirwallexPaymentsNextAction>,
+) -> enums::AttemptStatus {
+    match status.clone() {
         AirwallexPaymentStatus::Succeeded => enums::AttemptStatus::Charged,
         AirwallexPaymentStatus::Failed => enums::AttemptStatus::Failure,
         AirwallexPaymentStatus::Pending => enums::AttemptStatus::Pending,
         AirwallexPaymentStatus::RequiresPaymentMethod => enums::AttemptStatus::PaymentMethodAwaited,
-        AirwallexPaymentStatus::RequiresCustomerAction => response.next_action.as_ref().map_or(
+        AirwallexPaymentStatus::RequiresCustomerAction => next_action.as_ref().map_or(
             enums::AttemptStatus::AuthenticationPending,
             |next_action| match next_action.stage {
                 AirwallexNextActionStage::WaitingDeviceDataCollection => {
@@ -258,6 +331,7 @@ fn get_payment_status(response: &AirwallexPaymentsResponse) -> enums::AttemptSta
         AirwallexPaymentStatus::Cancelled => enums::AttemptStatus::Voided,
     }
 }
+
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum AirwallexNextActionStage {
@@ -265,7 +339,7 @@ pub enum AirwallexNextActionStage {
     WaitingUserInfoInput,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Deserialize, PartialEq)]
 pub struct AirwallexRedirectFormData {
     #[serde(rename = "JWT")]
     jwt: Option<String>,
@@ -276,7 +350,7 @@ pub struct AirwallexRedirectFormData {
     version: Option<String>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Deserialize, PartialEq)]
 pub struct AirwallexPaymentsNextAction {
     url: Url,
     method: services::Method,
@@ -284,8 +358,19 @@ pub struct AirwallexPaymentsNextAction {
     stage: AirwallexNextActionStage,
 }
 
-#[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Default, Debug, Clone, Deserialize, PartialEq)]
 pub struct AirwallexPaymentsResponse {
+    status: AirwallexPaymentStatus,
+    //Unique identifier for the PaymentIntent
+    id: String,
+    amount: Option<f32>,
+    //ID of the PaymentConsent related to this PaymentIntent
+    payment_consent_id: Option<String>,
+    next_action: Option<AirwallexPaymentsNextAction>,
+}
+
+#[derive(Default, Debug, Clone, Deserialize, PartialEq)]
+pub struct AirwallexPaymentsSyncResponse {
     status: AirwallexPaymentStatus,
     //Unique identifier for the PaymentIntent
     id: String,
@@ -345,7 +430,10 @@ impl<F, T>
     ) -> Result<Self, Self::Error> {
         let (status, redirection_data) = item.response.next_action.clone().map_or(
             // If no next action is there, map the status and set redirection form as None
-            (get_payment_status(&item.response), None),
+            (
+                get_payment_status(&item.response.status, &item.response.next_action),
+                None,
+            ),
             |response_url_data| {
                 // If the connector sends a customer action response that is already under
                 // process from our end it can cause an infinite loop to break this this check
@@ -377,7 +465,7 @@ impl<F, T>
                 } else {
                     (
                         //Build the redirect form and update the payment status
-                        get_payment_status(&item.response),
+                        get_payment_status(&item.response.status, &item.response.next_action),
                         get_redirection_form(response_url_data),
                     )
                 }
@@ -392,12 +480,53 @@ impl<F, T>
                 mandate_reference: None,
                 connector_metadata: None,
                 network_txn_id: None,
+                connector_response_reference_id: None,
             }),
             ..item.data
         })
     }
 }
 
+impl
+    TryFrom<
+        types::ResponseRouterData<
+            api::PSync,
+            AirwallexPaymentsSyncResponse,
+            PaymentsSyncData,
+            types::PaymentsResponseData,
+        >,
+    > for types::PaymentsSyncRouterData
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        item: types::ResponseRouterData<
+            api::PSync,
+            AirwallexPaymentsSyncResponse,
+            PaymentsSyncData,
+            types::PaymentsResponseData,
+        >,
+    ) -> Result<Self, Self::Error> {
+        let status = get_payment_status(&item.response.status, &item.response.next_action);
+        let redirection_data = if let Some(redirect_url_data) = item.response.next_action {
+            get_redirection_form(redirect_url_data)
+        } else {
+            None
+        };
+        Ok(Self {
+            status,
+            reference_id: Some(item.response.id.clone()),
+            response: Ok(types::PaymentsResponseData::TransactionResponse {
+                resource_id: types::ResponseId::ConnectorTransactionId(item.response.id),
+                redirection_data,
+                mandate_reference: None,
+                connector_metadata: None,
+                network_txn_id: None,
+                connector_response_reference_id: None,
+            }),
+            ..item.data
+        })
+    }
+}
 // Type definition for RefundRequest
 #[derive(Default, Debug, Serialize)]
 pub struct AirwallexRefundRequest {
@@ -427,6 +556,7 @@ impl<F> TryFrom<&types::RefundsRouterData<F>> for AirwallexRefundRequest {
 // Type definition for Refund Response
 #[allow(dead_code)]
 #[derive(Debug, Serialize, Default, Deserialize, Clone)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum RefundStatus {
     Succeeded,
     Failed,
@@ -448,7 +578,7 @@ impl From<RefundStatus> for enums::RefundStatus {
 #[derive(Default, Debug, Clone, Serialize, Deserialize)]
 pub struct RefundResponse {
     //A unique number that tags a credit or debit card transaction when it goes from the merchant's bank through to the cardholder's bank.
-    acquirer_reference_number: String,
+    acquirer_reference_number: Option<String>,
     amount: f32,
     //Unique identifier for the Refund
     id: String,

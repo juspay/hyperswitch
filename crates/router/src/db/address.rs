@@ -1,6 +1,6 @@
 use common_utils::ext_traits::AsyncExt;
+use diesel_models::address::AddressUpdateInternal;
 use error_stack::{IntoReport, ResultExt};
-use storage_models::address::AddressUpdateInternal;
 
 use super::{MockDb, Store};
 use crate::{
@@ -24,16 +24,19 @@ where
         &self,
         address_id: String,
         address: storage::AddressUpdate,
+        key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<domain::Address, errors::StorageError>;
 
     async fn insert_address(
         &self,
         address: domain::Address,
+        key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<domain::Address, errors::StorageError>;
 
     async fn find_address(
         &self,
         address_id: &str,
+        key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<domain::Address, errors::StorageError>;
 
     async fn update_address_by_merchant_id_customer_id(
@@ -41,6 +44,7 @@ where
         customer_id: &str,
         merchant_id: &str,
         address: storage::AddressUpdate,
+        key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<Vec<domain::Address>, errors::StorageError>;
 }
 
@@ -49,6 +53,7 @@ impl AddressInterface for Store {
     async fn find_address(
         &self,
         address_id: &str,
+        key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<domain::Address, errors::StorageError> {
         let conn = connection::pg_connection_read(self).await?;
         storage::Address::find_by_address_id(&conn, address_id)
@@ -56,9 +61,8 @@ impl AddressInterface for Store {
             .map_err(Into::into)
             .into_report()
             .async_and_then(|address| async {
-                let merchant_id = address.merchant_id.clone();
                 address
-                    .convert(self, &merchant_id)
+                    .convert(key_store.key.get_inner())
                     .await
                     .change_context(errors::StorageError::DecryptionError)
             })
@@ -69,6 +73,7 @@ impl AddressInterface for Store {
         &self,
         address_id: String,
         address: storage::AddressUpdate,
+        key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<domain::Address, errors::StorageError> {
         let conn = connection::pg_connection_write(self).await?;
         storage::Address::update_by_address_id(&conn, address_id, address.into())
@@ -76,9 +81,8 @@ impl AddressInterface for Store {
             .map_err(Into::into)
             .into_report()
             .async_and_then(|address| async {
-                let merchant_id = address.merchant_id.clone();
                 address
-                    .convert(self, &merchant_id)
+                    .convert(key_store.key.get_inner())
                     .await
                     .change_context(errors::StorageError::DecryptionError)
             })
@@ -88,6 +92,7 @@ impl AddressInterface for Store {
     async fn insert_address(
         &self,
         address: domain::Address,
+        key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<domain::Address, errors::StorageError> {
         let conn = connection::pg_connection_write(self).await?;
         address
@@ -99,9 +104,8 @@ impl AddressInterface for Store {
             .map_err(Into::into)
             .into_report()
             .async_and_then(|address| async {
-                let merchant_id = address.merchant_id.clone();
                 address
-                    .convert(self, &merchant_id)
+                    .convert(key_store.key.get_inner())
                     .await
                     .change_context(errors::StorageError::DecryptionError)
             })
@@ -113,6 +117,7 @@ impl AddressInterface for Store {
         customer_id: &str,
         merchant_id: &str,
         address: storage::AddressUpdate,
+        key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<Vec<domain::Address>, errors::StorageError> {
         let conn = connection::pg_connection_write(self).await?;
         storage::Address::update_by_merchant_id_customer_id(
@@ -127,10 +132,9 @@ impl AddressInterface for Store {
         .async_and_then(|addresses| async {
             let mut output = Vec::with_capacity(addresses.len());
             for address in addresses.into_iter() {
-                let merchant_id = address.merchant_id.clone();
                 output.push(
                     address
-                        .convert(self, &merchant_id)
+                        .convert(key_store.key.get_inner())
                         .await
                         .change_context(errors::StorageError::DecryptionError)?,
                 )
@@ -146,6 +150,7 @@ impl AddressInterface for MockDb {
     async fn find_address(
         &self,
         address_id: &str,
+        key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<domain::Address, errors::StorageError> {
         match self
             .addresses
@@ -154,14 +159,11 @@ impl AddressInterface for MockDb {
             .iter()
             .find(|address| address.address_id == address_id)
         {
-            Some(address) => {
-                let merchant_id = address.merchant_id.clone();
-                address
-                    .clone()
-                    .convert(self, &merchant_id)
-                    .await
-                    .change_context(errors::StorageError::DecryptionError)
-            }
+            Some(address) => address
+                .clone()
+                .convert(key_store.key.get_inner())
+                .await
+                .change_context(errors::StorageError::DecryptionError),
             None => {
                 return Err(
                     errors::StorageError::ValueNotFound("address not found".to_string()).into(),
@@ -174,6 +176,7 @@ impl AddressInterface for MockDb {
         &self,
         address_id: String,
         address_update: storage::AddressUpdate,
+        key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<domain::Address, errors::StorageError> {
         match self
             .addresses
@@ -187,25 +190,21 @@ impl AddressInterface for MockDb {
                 *a = address_updated.clone();
                 address_updated
             }) {
-            Some(address_updated) => {
-                let merchant_id = address_updated.merchant_id.clone();
-                address_updated
-                    .convert(self, &merchant_id)
-                    .await
-                    .change_context(errors::StorageError::DecryptionError)
-            }
-            None => {
-                return Err(errors::StorageError::ValueNotFound(
-                    "cannot find address to update".to_string(),
-                )
-                .into())
-            }
+            Some(address_updated) => address_updated
+                .convert(key_store.key.get_inner())
+                .await
+                .change_context(errors::StorageError::DecryptionError),
+            None => Err(errors::StorageError::ValueNotFound(
+                "cannot find address to update".to_string(),
+            )
+            .into()),
         }
     }
 
     async fn insert_address(
         &self,
         address_new: domain::Address,
+        key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<domain::Address, errors::StorageError> {
         let mut addresses = self.addresses.lock().await;
 
@@ -213,11 +212,10 @@ impl AddressInterface for MockDb {
             .await
             .change_context(errors::StorageError::EncryptionError)?;
 
-        let merchant_id = address.merchant_id.clone();
         addresses.push(address.clone());
 
         address
-            .convert(self, &merchant_id)
+            .convert(key_store.key.get_inner())
             .await
             .change_context(errors::StorageError::DecryptionError)
     }
@@ -227,6 +225,7 @@ impl AddressInterface for MockDb {
         customer_id: &str,
         merchant_id: &str,
         address_update: storage::AddressUpdate,
+        key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<Vec<domain::Address>, errors::StorageError> {
         match self
             .addresses
@@ -244,15 +243,13 @@ impl AddressInterface for MockDb {
             }) {
             Some(address) => {
                 let address: domain::Address = address
-                    .convert(self, merchant_id)
+                    .convert(key_store.key.get_inner())
                     .await
                     .change_context(errors::StorageError::DecryptionError)?;
                 Ok(vec![address])
             }
             None => {
-                return Err(
-                    errors::StorageError::ValueNotFound("address not found".to_string()).into(),
-                )
+                Err(errors::StorageError::ValueNotFound("address not found".to_string()).into())
             }
         }
     }

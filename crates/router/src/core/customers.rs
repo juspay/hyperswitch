@@ -1,11 +1,7 @@
-use common_utils::{
-    crypto::{Encryptable, GcmAes256},
-    ext_traits::ValueExt,
-};
+use common_utils::crypto::{Encryptable, GcmAes256};
 use error_stack::ResultExt;
 use masking::ExposeInterface;
 use router_env::{instrument, tracing};
-use storage_models::errors as storage_errors;
 
 use crate::{
     consts,
@@ -34,23 +30,16 @@ pub const REDACTED: &str = "Redacted";
 pub async fn create_customer(
     db: &dyn StorageInterface,
     merchant_account: domain::MerchantAccount,
+    key_store: domain::MerchantKeyStore,
     mut customer_data: customers::CustomerRequest,
 ) -> RouterResponse<customers::CustomerResponse> {
     let customer_id = &customer_data.customer_id;
     let merchant_id = &merchant_account.merchant_id;
     customer_data.merchant_id = merchant_id.to_owned();
 
-    let key = types::get_merchant_enc_key(db, merchant_id.clone())
-        .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Failed while getting encryption key")?;
-
+    let key = key_store.key.get_inner().peek();
     if let Some(addr) = &customer_data.address {
-        let customer_address: api_models::payments::AddressDetails = addr
-            .peek()
-            .clone()
-            .parse_value("AddressDetails")
-            .change_context(errors::ApiErrorResponse::AddressNotFound)?;
+        let customer_address: api_models::payments::AddressDetails = addr.clone();
 
         let address = async {
             Ok(domain::Address {
@@ -58,36 +47,36 @@ pub async fn create_customer(
                 country: customer_address.country,
                 line1: customer_address
                     .line1
-                    .async_lift(|inner| types::encrypt_optional(inner, &key))
+                    .async_lift(|inner| types::encrypt_optional(inner, key))
                     .await?,
                 line2: customer_address
                     .line2
-                    .async_lift(|inner| types::encrypt_optional(inner, &key))
+                    .async_lift(|inner| types::encrypt_optional(inner, key))
                     .await?,
                 line3: customer_address
                     .line3
-                    .async_lift(|inner| types::encrypt_optional(inner, &key))
+                    .async_lift(|inner| types::encrypt_optional(inner, key))
                     .await?,
                 zip: customer_address
                     .zip
-                    .async_lift(|inner| types::encrypt_optional(inner, &key))
+                    .async_lift(|inner| types::encrypt_optional(inner, key))
                     .await?,
                 state: customer_address
                     .state
-                    .async_lift(|inner| types::encrypt_optional(inner, &key))
+                    .async_lift(|inner| types::encrypt_optional(inner, key))
                     .await?,
                 first_name: customer_address
                     .first_name
-                    .async_lift(|inner| types::encrypt_optional(inner, &key))
+                    .async_lift(|inner| types::encrypt_optional(inner, key))
                     .await?,
                 last_name: customer_address
                     .last_name
-                    .async_lift(|inner| types::encrypt_optional(inner, &key))
+                    .async_lift(|inner| types::encrypt_optional(inner, key))
                     .await?,
                 phone_number: customer_data
                     .phone
                     .clone()
-                    .async_lift(|inner| types::encrypt_optional(inner, &key))
+                    .async_lift(|inner| types::encrypt_optional(inner, key))
                     .await?,
                 country_code: customer_data.phone_country_code.clone(),
                 customer_id: customer_id.to_string(),
@@ -102,7 +91,7 @@ pub async fn create_customer(
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed while encrypting address")?;
 
-        db.insert_address(address)
+        db.insert_address(address, &key_store)
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed while inserting new address")?;
@@ -114,17 +103,15 @@ pub async fn create_customer(
             merchant_id: merchant_id.to_string(),
             name: customer_data
                 .name
-                .async_lift(|inner| types::encrypt_optional(inner, &key))
+                .async_lift(|inner| types::encrypt_optional(inner, key))
                 .await?,
             email: customer_data
                 .email
-                .async_lift(|inner| {
-                    types::encrypt_optional(inner.map(|inner| inner.expose()), &key)
-                })
+                .async_lift(|inner| types::encrypt_optional(inner.map(|inner| inner.expose()), key))
                 .await?,
             phone: customer_data
                 .phone
-                .async_lift(|inner| types::encrypt_optional(inner, &key))
+                .async_lift(|inner| types::encrypt_optional(inner, key))
                 .await?,
             description: customer_data.description,
             phone_country_code: customer_data.phone_country_code,
@@ -139,11 +126,11 @@ pub async fn create_customer(
     .change_context(errors::ApiErrorResponse::InternalServerError)
     .attach_printable("Failed while encrypting Customer")?;
 
-    let customer = match db.insert_customer(new_customer).await {
+    let customer = match db.insert_customer(new_customer, &key_store).await {
         Ok(customer) => customer,
         Err(error) => {
             if error.current_context().is_db_unique_violation() {
-                db.find_customer_by_customer_id_merchant_id(customer_id, merchant_id)
+                db.find_customer_by_customer_id_merchant_id(customer_id, merchant_id, &key_store)
                     .await
                     .to_not_found_response(errors::ApiErrorResponse::InternalServerError)
                     .attach_printable(format!(
@@ -166,10 +153,15 @@ pub async fn create_customer(
 pub async fn retrieve_customer(
     db: &dyn StorageInterface,
     merchant_account: domain::MerchantAccount,
+    key_store: domain::MerchantKeyStore,
     req: customers::CustomerId,
 ) -> RouterResponse<customers::CustomerResponse> {
     let response = db
-        .find_customer_by_customer_id_merchant_id(&req.customer_id, &merchant_account.merchant_id)
+        .find_customer_by_customer_id_merchant_id(
+            &req.customer_id,
+            &merchant_account.merchant_id,
+            &key_store,
+        )
         .await
         .to_not_found_response(errors::ApiErrorResponse::CustomerNotFound)?;
 
@@ -181,12 +173,17 @@ pub async fn delete_customer(
     state: &AppState,
     merchant_account: domain::MerchantAccount,
     req: customers::CustomerId,
+    key_store: domain::MerchantKeyStore,
 ) -> RouterResponse<customers::CustomerDeleteResponse> {
     let db = &state.store;
 
-    db.find_customer_by_customer_id_merchant_id(&req.customer_id, &merchant_account.merchant_id)
-        .await
-        .to_not_found_response(errors::ApiErrorResponse::CustomerNotFound)?;
+    db.find_customer_by_customer_id_merchant_id(
+        &req.customer_id,
+        &merchant_account.merchant_id,
+        &key_store,
+    )
+    .await
+    .to_not_found_response(errors::ApiErrorResponse::CustomerNotFound)?;
 
     let customer_mandates = db
         .find_mandate_by_merchant_id_customer_id(&merchant_account.merchant_id, &req.customer_id)
@@ -225,21 +222,21 @@ pub async fn delete_customer(
                 .to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)?;
             }
         }
-        Err(error) => match error.current_context() {
-            errors::StorageError::DatabaseError(err) => match err.current_context() {
-                storage_errors::DatabaseError::NotFound => Ok(()),
-                _ => Err(errors::ApiErrorResponse::InternalServerError),
-            },
-            _ => Err(errors::ApiErrorResponse::InternalServerError),
-        }?,
+        Err(error) => {
+            if error.current_context().is_db_not_found() {
+                Ok(())
+            } else {
+                Err(error)
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("failed find_payment_method_by_customer_id_merchant_id_list")
+            }?
+        }
     };
 
-    let key = types::get_merchant_enc_key(&**db, merchant_account.merchant_id.clone())
-        .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Failed while getting key for encryption")?;
+    let key = key_store.key.get_inner().peek();
+
     let redacted_encrypted_value: Encryptable<masking::Secret<_>> =
-        Encryptable::encrypt(REDACTED.to_string().into(), &key, GcmAes256)
+        Encryptable::encrypt(REDACTED.to_string().into(), key, GcmAes256)
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)?;
 
@@ -262,23 +259,26 @@ pub async fn delete_customer(
             &req.customer_id,
             &merchant_account.merchant_id,
             update_address,
+            &key_store,
         )
         .await
     {
         Ok(_) => Ok(()),
-        Err(error) => match error.current_context() {
-            errors::StorageError::DatabaseError(err) => match err.current_context() {
-                storage_errors::DatabaseError::NotFound => Ok(()),
-                _ => Err(errors::ApiErrorResponse::InternalServerError),
-            },
-            _ => Err(errors::ApiErrorResponse::InternalServerError),
-        },
+        Err(error) => {
+            if error.current_context().is_db_not_found() {
+                Ok(())
+            } else {
+                Err(error)
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("failed update_address_by_merchant_id_customer_id")
+            }
+        }
     }?;
 
     let updated_customer = storage::CustomerUpdate::Update {
         name: Some(redacted_encrypted_value.clone()),
         email: Some(
-            Encryptable::encrypt(REDACTED.to_string().into(), &key, GcmAes256)
+            Encryptable::encrypt(REDACTED.to_string().into(), key, GcmAes256)
                 .await
                 .change_context(errors::ApiErrorResponse::InternalServerError)?,
         ),
@@ -292,6 +292,7 @@ pub async fn delete_customer(
         req.customer_id.clone(),
         merchant_account.merchant_id,
         updated_customer,
+        &key_store,
     )
     .await
     .change_context(errors::ApiErrorResponse::CustomerNotFound)?;
@@ -311,62 +312,57 @@ pub async fn update_customer(
     db: &dyn StorageInterface,
     merchant_account: domain::MerchantAccount,
     update_customer: customers::CustomerRequest,
+    key_store: domain::MerchantKeyStore,
 ) -> RouterResponse<customers::CustomerResponse> {
     //Add this in update call if customer can be updated anywhere else
     db.find_customer_by_customer_id_merchant_id(
         &update_customer.customer_id,
         &merchant_account.merchant_id,
+        &key_store,
     )
     .await
     .to_not_found_response(errors::ApiErrorResponse::CustomerNotFound)?;
 
-    let key = types::get_merchant_enc_key(db, merchant_account.merchant_id.clone())
-        .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Failed while getting key for encryption")?;
+    let key = key_store.key.get_inner().peek();
 
     if let Some(addr) = &update_customer.address {
-        let customer_address: api_models::payments::AddressDetails = addr
-            .peek()
-            .clone()
-            .parse_value("AddressDetails")
-            .change_context(errors::ApiErrorResponse::AddressNotFound)?;
+        let customer_address: api_models::payments::AddressDetails = addr.clone();
         let update_address = async {
             Ok(storage::AddressUpdate::Update {
                 city: customer_address.city,
                 country: customer_address.country,
                 line1: customer_address
                     .line1
-                    .async_lift(|inner| types::encrypt_optional(inner, &key))
+                    .async_lift(|inner| types::encrypt_optional(inner, key))
                     .await?,
                 line2: customer_address
                     .line2
-                    .async_lift(|inner| types::encrypt_optional(inner, &key))
+                    .async_lift(|inner| types::encrypt_optional(inner, key))
                     .await?,
                 line3: customer_address
                     .line3
-                    .async_lift(|inner| types::encrypt_optional(inner, &key))
+                    .async_lift(|inner| types::encrypt_optional(inner, key))
                     .await?,
                 zip: customer_address
                     .zip
-                    .async_lift(|inner| types::encrypt_optional(inner, &key))
+                    .async_lift(|inner| types::encrypt_optional(inner, key))
                     .await?,
                 state: customer_address
                     .state
-                    .async_lift(|inner| types::encrypt_optional(inner, &key))
+                    .async_lift(|inner| types::encrypt_optional(inner, key))
                     .await?,
                 first_name: customer_address
                     .first_name
-                    .async_lift(|inner| types::encrypt_optional(inner, &key))
+                    .async_lift(|inner| types::encrypt_optional(inner, key))
                     .await?,
                 last_name: customer_address
                     .last_name
-                    .async_lift(|inner| types::encrypt_optional(inner, &key))
+                    .async_lift(|inner| types::encrypt_optional(inner, key))
                     .await?,
                 phone_number: update_customer
                     .phone
                     .clone()
-                    .async_lift(|inner| types::encrypt_optional(inner, &key))
+                    .async_lift(|inner| types::encrypt_optional(inner, key))
                     .await?,
                 country_code: update_customer.phone_country_code.clone(),
             })
@@ -378,6 +374,7 @@ pub async fn update_customer(
             &update_customer.customer_id,
             &merchant_account.merchant_id,
             update_address,
+            &key_store,
         )
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -395,17 +392,17 @@ pub async fn update_customer(
                 Ok(storage::CustomerUpdate::Update {
                     name: update_customer
                         .name
-                        .async_lift(|inner| types::encrypt_optional(inner, &key))
+                        .async_lift(|inner| types::encrypt_optional(inner, key))
                         .await?,
                     email: update_customer
                         .email
                         .async_lift(|inner| {
-                            types::encrypt_optional(inner.map(|inner| inner.expose()), &key)
+                            types::encrypt_optional(inner.map(|inner| inner.expose()), key)
                         })
                         .await?,
                     phone: update_customer
                         .phone
-                        .async_lift(|inner| types::encrypt_optional(inner, &key))
+                        .async_lift(|inner| types::encrypt_optional(inner, key))
                         .await?,
                     phone_country_code: update_customer.phone_country_code,
                     metadata: update_customer.metadata,
@@ -416,6 +413,7 @@ pub async fn update_customer(
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed while encrypting while updating customer")?,
+            &key_store,
         )
         .await
         .to_not_found_response(errors::ApiErrorResponse::CustomerNotFound)?;

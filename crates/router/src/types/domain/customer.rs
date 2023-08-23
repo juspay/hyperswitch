@@ -1,16 +1,11 @@
-use common_utils::{
-    crypto::{self},
-    date_time, pii,
-};
+use common_utils::{crypto, date_time, pii};
+use diesel_models::{customers::CustomerUpdateInternal, encryption::Encryption};
 use error_stack::ResultExt;
-use storage_models::{customers::CustomerUpdateInternal, encryption::Encryption};
+use masking::{PeekInterface, Secret};
 use time::PrimitiveDateTime;
 
 use super::types::{self, AsyncLift};
-use crate::{
-    db::StorageInterface,
-    errors::{CustomResult, ValidationError},
-};
+use crate::errors::{CustomResult, ValidationError};
 
 #[derive(Clone, Debug)]
 pub struct Customer {
@@ -30,10 +25,10 @@ pub struct Customer {
 
 #[async_trait::async_trait]
 impl super::behaviour::Conversion for Customer {
-    type DstType = storage_models::customers::Customer;
-    type NewDstType = storage_models::customers::CustomerNew;
+    type DstType = diesel_models::customers::Customer;
+    type NewDstType = diesel_models::customers::CustomerNew;
     async fn convert(self) -> CustomResult<Self::DstType, ValidationError> {
-        Ok(storage_models::customers::Customer {
+        Ok(diesel_models::customers::Customer {
             id: self.id.ok_or(ValidationError::MissingRequiredField {
                 field_name: "id".to_string(),
             })?,
@@ -53,20 +48,14 @@ impl super::behaviour::Conversion for Customer {
 
     async fn convert_back(
         item: Self::DstType,
-        db: &dyn StorageInterface,
-        merchant_id: &str,
+        key: &Secret<Vec<u8>>,
     ) -> CustomResult<Self, ValidationError>
     where
         Self: Sized,
     {
-        let key = types::get_merchant_enc_key(db, merchant_id)
-            .await
-            .change_context(ValidationError::InvalidValue {
-                message: "Failed while getting key from key store".to_string(),
-            })?;
         async {
-            let inner_decrypt = |inner| types::decrypt(inner, &key);
-            let inner_decrypt_email = |inner| types::decrypt(inner, &key);
+            let inner_decrypt = |inner| types::decrypt(inner, key.peek());
+            let inner_decrypt_email = |inner| types::decrypt(inner, key.peek());
             Ok(Self {
                 id: Some(item.id),
                 customer_id: item.customer_id,
@@ -90,7 +79,7 @@ impl super::behaviour::Conversion for Customer {
 
     async fn construct_new(self) -> CustomResult<Self::NewDstType, ValidationError> {
         let now = date_time::now();
-        Ok(storage_models::customers::CustomerNew {
+        Ok(diesel_models::customers::CustomerNew {
             customer_id: self.customer_id,
             merchant_id: self.merchant_id,
             name: self.name.map(Encryption::from),

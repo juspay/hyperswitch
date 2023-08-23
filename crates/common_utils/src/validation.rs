@@ -8,6 +8,17 @@ use router_env::logger;
 
 use crate::errors::{CustomResult, ValidationError};
 
+/// Validates a given phone number using the [phonenumber] crate
+///
+/// It returns a [ValidationError::InvalidValue] in case it could not parse the phone number
+pub fn validate_phone_number(phone_number: &str) -> Result<(), ValidationError> {
+    let _ = phonenumber::parse(None, phone_number).map_err(|e| ValidationError::InvalidValue {
+        message: format!("Could not parse phone number: {phone_number}, because: {e:?}"),
+    })?;
+
+    Ok(())
+}
+
 /// Performs a simple validation against a provided email address.
 pub fn validate_email(email: &str) -> CustomResult<(), ValidationError> {
     #[deny(clippy::invalid_regex)]
@@ -54,6 +65,7 @@ mod tests {
         strategy::{Just, NewTree, Strategy},
         test_runner::TestRunner,
     };
+    use test_case::test_case;
 
     use super::*;
 
@@ -79,6 +91,20 @@ mod tests {
 
         let result = validate_email("");
         assert!(result.is_err());
+    }
+
+    #[test_case("+40745323456" ; "Romanian valid phone number")]
+    #[test_case("+34912345678" ; "Spanish valid phone number")]
+    #[test_case("+41 79 123 45 67" ; "Swiss valid phone number")]
+    #[test_case("+66 81 234 5678" ; "Thailand valid phone number")]
+    fn test_validate_phone_number(phone_number: &str) {
+        assert!(validate_phone_number(phone_number).is_ok());
+    }
+
+    #[test_case("0745323456" ; "Romanian invalid phone number")]
+    fn test_invalid_phone_number(phone_number: &str) {
+        let res = validate_phone_number(phone_number);
+        assert!(res.is_err());
     }
 
     proptest::proptest! {

@@ -100,7 +100,7 @@ fn build_bill_to(
         last_name: address.get_last_name()?.to_owned(),
         address1: address.get_line1()?.to_owned(),
         locality: address.get_city()?.to_owned(),
-        administrative_area: address.get_line2()?.to_owned(),
+        administrative_area: address.to_state_code()?,
         postal_code: address.get_zip()?.to_owned(),
         country: address.get_country()?.to_owned(),
         email,
@@ -201,9 +201,9 @@ impl TryFrom<&types::RefundExecuteRouterData> for CybersourcePaymentsRequest {
 }
 
 pub struct CybersourceAuthType {
-    pub(super) api_key: String,
-    pub(super) merchant_account: String,
-    pub(super) api_secret: String,
+    pub(super) api_key: Secret<String>,
+    pub(super) merchant_account: Secret<String>,
+    pub(super) api_secret: Secret<String>,
 }
 
 impl TryFrom<&types::ConnectorAuthType> for CybersourceAuthType {
@@ -216,9 +216,9 @@ impl TryFrom<&types::ConnectorAuthType> for CybersourceAuthType {
         } = auth_type
         {
             Ok(Self {
-                api_key: api_key.to_string(),
-                merchant_account: key1.to_string(),
-                api_secret: api_secret.to_string(),
+                api_key: api_key.to_owned(),
+                merchant_account: key1.to_owned(),
+                api_secret: api_secret.to_owned(),
             })
         } else {
             Err(errors::ConnectorError::FailedToObtainAuthType)?
@@ -318,6 +318,7 @@ impl<F, T>
                     mandate_reference: None,
                     connector_metadata: None,
                     network_txn_id: None,
+                    connector_response_reference_id: None,
                 }),
             },
             ..item.data
@@ -382,6 +383,7 @@ impl<F, T>
                 mandate_reference: None,
                 connector_metadata: None,
                 network_txn_id: None,
+                connector_response_reference_id: None,
             }),
             ..item.data
         })

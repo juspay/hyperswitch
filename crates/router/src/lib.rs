@@ -1,7 +1,6 @@
 #![forbid(unsafe_code)]
 #![recursion_limit = "256"]
 
-pub mod cache;
 #[cfg(feature = "stripe")]
 pub mod compatibility;
 pub mod configs;
@@ -17,7 +16,6 @@ pub mod routes;
 pub mod scheduler;
 
 pub mod middleware;
-#[cfg(feature = "openapi")]
 pub mod openapi;
 pub mod services;
 pub mod types;
@@ -65,6 +63,8 @@ pub mod headers {
     pub const X_ACCEPT_VERSION: &str = "X-Accept-Version";
     pub const X_DATE: &str = "X-Date";
     pub const X_WEBHOOK_SIGNATURE: &str = "X-Webhook-Signature-512";
+
+    pub const STRIPE_COMPATIBLE_WEBHOOK_SIGNATURE: &str = "Stripe-Signature";
 }
 
 pub mod pii {
@@ -106,14 +106,19 @@ pub fn mk_app(
 
     #[cfg(any(feature = "olap", feature = "oltp"))]
     {
+        #[cfg(feature = "olap")]
+        {
+            // This is a more specific route as compared to `MerchantConnectorAccount`
+            // so it is registered before `MerchantConnectorAccount`.
+            server_app = server_app.service(routes::BusinessProfile::server(state.clone()))
+        }
         server_app = server_app
             .service(routes::Payments::server(state.clone()))
             .service(routes::Customers::server(state.clone()))
             .service(routes::Configs::server(state.clone()))
             .service(routes::Refunds::server(state.clone()))
-            .service(routes::Payouts::server(state.clone()))
             .service(routes::MerchantConnectorAccount::server(state.clone()))
-            .service(routes::Mandates::server(state.clone()));
+            .service(routes::Mandates::server(state.clone()))
     }
 
     #[cfg(feature = "oltp")]
@@ -130,7 +135,12 @@ pub fn mk_app(
             .service(routes::MerchantAccount::server(state.clone()))
             .service(routes::ApiKeys::server(state.clone()))
             .service(routes::Files::server(state.clone()))
-            .service(routes::Disputes::server(state.clone()));
+            .service(routes::Disputes::server(state.clone()))
+    }
+
+    #[cfg(feature = "payouts")]
+    {
+        server_app = server_app.service(routes::Payouts::server(state.clone()));
     }
 
     #[cfg(feature = "stripe")]
@@ -138,7 +148,9 @@ pub fn mk_app(
         server_app = server_app.service(routes::StripeApis::server(state.clone()));
     }
     server_app = server_app.service(routes::Cards::server(state.clone()));
+    server_app = server_app.service(routes::Cache::server(state.clone()));
     server_app = server_app.service(routes::Health::server(state));
+
     server_app
 }
 
@@ -220,7 +232,7 @@ pub fn get_application_builder(
             errors::error_handlers::custom_error_handlers,
         ))
         .wrap(middleware::default_response_headers())
-        .wrap(cors::cors())
         .wrap(middleware::RequestId)
+        .wrap(cors::cors())
         .wrap(router_env::tracing_actix_web::TracingLogger::default())
 }

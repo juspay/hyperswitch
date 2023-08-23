@@ -21,10 +21,11 @@ impl Connector for PaypalTest {
     }
 
     fn get_auth_token(&self) -> ConnectorAuthType {
-        types::ConnectorAuthType::from(
+        utils::to_connector_auth_type(
             connector_auth::ConnectorAuthentication::new()
                 .paypal
-                .expect("Missing connector authentication configuration"),
+                .expect("Missing connector authentication configuration")
+                .into(),
         )
     }
 
@@ -93,7 +94,7 @@ async fn should_capture_authorized_payment() {
         )
         .await
         .expect("Capture payment response");
-    assert_eq!(response.status, enums::AttemptStatus::Charged);
+    assert_eq!(response.status, enums::AttemptStatus::Pending);
 }
 
 // Partially captures a payment using the manual capture flow (Non 3DS).
@@ -117,7 +118,7 @@ async fn should_partially_capture_authorized_payment() {
         )
         .await
         .expect("Capture payment response");
-    assert_eq!(response.status, enums::AttemptStatus::Charged);
+    assert_eq!(response.status, enums::AttemptStatus::Pending);
 }
 
 // Synchronizes a payment using the manual capture flow (Non 3DS).
@@ -137,6 +138,7 @@ async fn should_sync_authorized_payment() {
                 connector_transaction_id: router::types::ResponseId::ConnectorTransactionId(txn_id),
                 encoded_data: None,
                 capture_method: None,
+                capture_sync_type: types::CaptureSyncType::SingleCaptureSync,
                 connector_meta,
             }),
             get_default_payment_info(),
@@ -302,7 +304,7 @@ async fn should_make_payment() {
         .make_payment(get_payment_data(), get_default_payment_info())
         .await
         .unwrap();
-    assert_eq!(authorize_response.status, enums::AttemptStatus::Charged);
+    assert_eq!(authorize_response.status, enums::AttemptStatus::Pending);
 }
 
 // Synchronizes a payment using the automatic capture flow (Non 3DS).
@@ -314,7 +316,7 @@ async fn should_sync_auto_captured_payment() {
         .unwrap();
     assert_eq!(
         authorize_response.status.clone(),
-        enums::AttemptStatus::Charged
+        enums::AttemptStatus::Pending
     );
     let txn_id = utils::get_connector_transaction_id(authorize_response.response.clone());
     assert_ne!(txn_id, None, "Empty connector transaction id");
@@ -329,13 +331,14 @@ async fn should_sync_auto_captured_payment() {
                 ),
                 encoded_data: None,
                 capture_method: Some(enums::CaptureMethod::Automatic),
+                capture_sync_type: types::CaptureSyncType::SingleCaptureSync,
                 connector_meta,
             }),
             get_default_payment_info(),
         )
         .await
         .unwrap();
-    assert_eq!(response.status, enums::AttemptStatus::Charged,);
+    assert_eq!(response.status, enums::AttemptStatus::Pending);
 }
 
 // Refunds a payment using the automatic capture flow (Non 3DS).

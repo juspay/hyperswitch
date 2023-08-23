@@ -11,7 +11,7 @@ use router::{
 };
 use tokio::sync::oneshot;
 
-use crate::connector_auth::ConnectorAuthentication;
+use crate::{connector_auth::ConnectorAuthentication, utils};
 
 fn construct_payment_router_data() -> types::PaymentsAuthorizeRouterData {
     let auth = ConnectorAuthentication::new()
@@ -28,7 +28,7 @@ fn construct_payment_router_data() -> types::PaymentsAuthorizeRouterData {
         status: enums::AttemptStatus::default(),
         auth_type: enums::AuthenticationType::NoThreeDs,
         payment_method: enums::PaymentMethod::Card,
-        connector_auth_type: auth.into(),
+        connector_auth_type: utils::to_connector_auth_type(auth.into()),
         description: Some("This is a test".to_string()),
         return_url: None,
         request: types::PaymentsAuthorizeData {
@@ -42,6 +42,10 @@ fn construct_payment_router_data() -> types::PaymentsAuthorizeRouterData {
                 card_cvc: Secret::new("999".to_string()),
                 card_issuer: None,
                 card_network: None,
+                card_type: None,
+                card_issuing_country: None,
+                bank_code: None,
+                nick_name: Some(masking::Secret::new("nick_name".into())),
             }),
             confirm: true,
             statement_descriptor_suffix: None,
@@ -75,7 +79,17 @@ fn construct_payment_router_data() -> types::PaymentsAuthorizeRouterData {
         reference_id: None,
         payment_method_token: None,
         connector_customer: None,
+        recurring_mandate_payment_data: None,
+
         preprocessing_id: None,
+        connector_request_reference_id: uuid::Uuid::new_v4().to_string(),
+        #[cfg(feature = "payouts")]
+        payout_method_data: None,
+        #[cfg(feature = "payouts")]
+        quote_id: None,
+        test_mode: None,
+        payment_method_balance: None,
+        connector_http_status_code: None,
     }
 }
 
@@ -94,11 +108,11 @@ fn construct_refund_router_data<F>() -> types::RefundsRouterData<F> {
         status: enums::AttemptStatus::default(),
         payment_method: enums::PaymentMethod::Card,
         auth_type: enums::AuthenticationType::NoThreeDs,
-        connector_auth_type: auth.into(),
+        connector_auth_type: utils::to_connector_auth_type(auth.into()),
         description: Some("This is a test".to_string()),
         return_url: None,
         request: types::RefundsData {
-            amount: 1000,
+            payment_amount: 1000,
             currency: enums::Currency::USD,
 
             refund_id: uuid::Uuid::new_v4().to_string(),
@@ -119,7 +133,17 @@ fn construct_refund_router_data<F>() -> types::RefundsRouterData<F> {
         reference_id: None,
         payment_method_token: None,
         connector_customer: None,
+        recurring_mandate_payment_data: None,
+
         preprocessing_id: None,
+        connector_request_reference_id: uuid::Uuid::new_v4().to_string(),
+        #[cfg(feature = "payouts")]
+        payout_method_data: None,
+        #[cfg(feature = "payouts")]
+        quote_id: None,
+        test_mode: None,
+        payment_method_balance: None,
+        connector_http_status_code: None,
     }
 }
 
@@ -148,6 +172,7 @@ async fn payments_create_success() {
         connector_integration,
         &request,
         payments::CallConnectorAction::Trigger,
+        None,
     )
     .await
     .unwrap();
@@ -186,6 +211,10 @@ async fn payments_create_failure() {
                 card_cvc: Secret::new("99".to_string()),
                 card_issuer: None,
                 card_network: None,
+                card_type: None,
+                card_issuing_country: None,
+                bank_code: None,
+                nick_name: Some(masking::Secret::new("nick_name".into())),
             });
 
         let response = services::api::execute_connector_processing_step(
@@ -193,6 +222,7 @@ async fn payments_create_failure() {
             connector_integration,
             &request,
             payments::CallConnectorAction::Trigger,
+            None,
         )
         .await
         .is_err();
@@ -225,6 +255,7 @@ async fn refund_for_successful_payments() {
         connector_integration,
         &request,
         payments::CallConnectorAction::Trigger,
+        None,
     )
     .await
     .unwrap();
@@ -250,6 +281,7 @@ async fn refund_for_successful_payments() {
         connector_integration,
         &refund_request,
         payments::CallConnectorAction::Trigger,
+        None,
     )
     .await
     .unwrap();
@@ -285,6 +317,7 @@ async fn refunds_create_failure() {
         connector_integration,
         &request,
         payments::CallConnectorAction::Trigger,
+        None,
     )
     .await
     .is_err();

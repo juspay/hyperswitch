@@ -2,7 +2,7 @@
 //! Errors specific to this custom redis interface
 //!
 
-#[derive(Debug, thiserror::Error)]
+#[derive(Debug, thiserror::Error, PartialEq)]
 pub enum RedisError {
     #[error("Invalid Redis configuration: {0}")]
     InvalidConfiguration(String),

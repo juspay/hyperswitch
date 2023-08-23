@@ -1,8 +1,9 @@
-mod transformers;
+pub mod transformers;
 
 use std::fmt::Debug;
 
 use error_stack::{IntoReport, ResultExt};
+use masking::ExposeInterface;
 use transformers as multisafepay;
 
 use crate::{
@@ -139,7 +140,8 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
         let url = self.base_url(connectors);
         let api_key = multisafepay::MultisafepayAuthType::try_from(&req.connector_auth_type)
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?
-            .api_key;
+            .api_key
+            .expose();
         let ord_id = req.payment_id.clone();
         Ok(format!("{url}v1/json/orders/{ord_id}?api_key={api_key}"))
     }
@@ -223,20 +225,21 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         let url = self.base_url(connectors);
         let api_key = multisafepay::MultisafepayAuthType::try_from(&req.connector_auth_type)
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?
-            .api_key;
+            .api_key
+            .expose();
         Ok(format!("{url}v1/json/orders?api_key={api_key}"))
     }
 
     fn get_request_body(
         &self,
         req: &types::PaymentsAuthorizeRouterData,
-    ) -> CustomResult<Option<String>, errors::ConnectorError> {
+    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
         let req_obj = multisafepay::MultisafepayPaymentsRequest::try_from(req)?;
-        let multisafepay_req =
-            utils::Encode::<multisafepay::MultisafepayPaymentsRequest>::encode_to_string_of_json(
-                &req_obj,
-            )
-            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        let multisafepay_req = types::RequestBody::log_and_get_request_body(
+            &req_obj,
+            utils::Encode::<multisafepay::MultisafepayPaymentsRequest>::encode_to_string_of_json,
+        )
+        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(Some(multisafepay_req))
     }
 
@@ -313,7 +316,8 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
         let url = self.base_url(connectors);
         let api_key = multisafepay::MultisafepayAuthType::try_from(&req.connector_auth_type)
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?
-            .api_key;
+            .api_key
+            .expose();
         let ord_id = req.payment_id.clone();
         Ok(format!(
             "{url}v1/json/orders/{ord_id}/refunds?api_key={api_key}"
@@ -323,10 +327,13 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
     fn get_request_body(
         &self,
         req: &types::RefundsRouterData<api::Execute>,
-    ) -> CustomResult<Option<String>, errors::ConnectorError> {
-        let multisafepay_req =
-            utils::Encode::<multisafepay::MultisafepayRefundRequest>::convert_and_encode(req)
-                .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
+        let connector_req = multisafepay::MultisafepayRefundRequest::try_from(req)?;
+        let multisafepay_req = types::RequestBody::log_and_get_request_body(
+            &connector_req,
+            utils::Encode::<multisafepay::MultisafepayPaymentsRequest>::encode_to_string_of_json,
+        )
+        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(Some(multisafepay_req))
     }
 
@@ -396,7 +403,8 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
         let url = self.base_url(connectors);
         let api_key = multisafepay::MultisafepayAuthType::try_from(&req.connector_auth_type)
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?
-            .api_key;
+            .api_key
+            .expose();
         let ord_id = req.payment_id.clone();
         Ok(format!(
             "{url}v1/json/orders/{ord_id}/refunds?api_key={api_key}"

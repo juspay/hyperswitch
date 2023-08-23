@@ -1,3 +1,4 @@
+use masking::Secret;
 use reqwest::Url;
 use serde::{Deserialize, Serialize};
 
@@ -27,7 +28,7 @@ pub struct BitpayPaymentsRequest {
     #[serde(rename = "notificationURL")]
     notification_url: String,
     transaction_speed: TransactionSpeed,
-    token: String,
+    token: Secret<String>,
 }
 
 impl TryFrom<&types::PaymentsAuthorizeRouterData> for BitpayPaymentsRequest {
@@ -39,7 +40,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for BitpayPaymentsRequest {
 
 // Auth Struct
 pub struct BitpayAuthType {
-    pub(super) api_key: String,
+    pub(super) api_key: Secret<String>,
 }
 
 impl TryFrom<&ConnectorAuthType> for BitpayAuthType {
@@ -47,7 +48,7 @@ impl TryFrom<&ConnectorAuthType> for BitpayAuthType {
     fn try_from(auth_type: &ConnectorAuthType) -> Result<Self, Self::Error> {
         match auth_type {
             types::ConnectorAuthType::HeaderKey { api_key } => Ok(Self {
-                api_key: api_key.to_string(),
+                api_key: api_key.to_owned(),
             }),
             _ => Err(errors::ConnectorError::FailedToObtainAuthType.into()),
         }
@@ -137,6 +138,7 @@ impl<F, T>
                 mandate_reference: None,
                 connector_metadata: None,
                 network_txn_id: None,
+                connector_response_reference_id: None,
             }),
             ..item.data
         })
@@ -240,7 +242,7 @@ fn get_crypto_specific_payment_data(
     let auth_type = item.connector_auth_type.clone();
     let token = match auth_type {
         ConnectorAuthType::HeaderKey { api_key } => api_key,
-        _ => String::default(),
+        _ => String::default().into(),
     };
 
     Ok(BitpayPaymentsRequest {

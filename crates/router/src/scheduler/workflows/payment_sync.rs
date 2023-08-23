@@ -1,12 +1,15 @@
+use common_utils::ext_traits::StringExt;
+use error_stack::ResultExt;
 use router_env::logger;
 
 use super::{PaymentsSyncWorkflow, ProcessTrackerWorkflow};
 use crate::{
     core::payments::{self as payment_flows, operations},
-    db::{get_and_deserialize_key, StorageInterface},
+    db::StorageInterface,
     errors,
     routes::AppState,
     scheduler::{consumer, process_data, utils},
+    services,
     types::{
         api,
         storage::{self, enums, ProcessTrackerExt},
@@ -27,23 +30,37 @@ impl ProcessTrackerWorkflow for PaymentsSyncWorkflow {
             .clone()
             .parse_value("PaymentsRetrieveRequest")?;
 
+        let key_store = db
+            .get_merchant_key_store_by_merchant_id(
+                tracking_data
+                    .merchant_id
+                    .as_ref()
+                    .get_required_value("merchant_id")?,
+                &db.get_master_key().to_vec().into(),
+            )
+            .await?;
+
         let merchant_account = db
             .find_merchant_account_by_merchant_id(
                 tracking_data
                     .merchant_id
                     .as_ref()
                     .get_required_value("merchant_id")?,
+                &key_store,
             )
             .await?;
 
-        let (payment_data, _, _) = payment_flows::payments_operation_core::<api::PSync, _, _, _>(
-            state,
-            merchant_account.clone(),
-            operations::PaymentStatus,
-            tracking_data.clone(),
-            payment_flows::CallConnectorAction::Trigger,
-        )
-        .await?;
+        let (payment_data, _, _, _) =
+            payment_flows::payments_operation_core::<api::PSync, _, _, _>(
+                state,
+                merchant_account.clone(),
+                key_store,
+                operations::PaymentStatus,
+                tracking_data.clone(),
+                payment_flows::CallConnectorAction::Trigger,
+                services::AuthFlow::Client,
+            )
+            .await?;
 
         let terminal_status = vec![
             enums::AttemptStatus::RouterDeclined,
@@ -95,9 +112,19 @@ pub async fn get_sync_process_schedule_time(
     merchant_id: &str,
     retry_count: i32,
 ) -> Result<Option<time::PrimitiveDateTime>, errors::ProcessTrackerError> {
-    let redis_mapping: errors::CustomResult<process_data::ConnectorPTMapping, errors::RedisError> =
-        get_and_deserialize_key(db, &format!("pt_mapping_{connector}"), "ConnectorPTMapping").await;
-    let mapping = match redis_mapping {
+    let mapping: common_utils::errors::CustomResult<
+        process_data::ConnectorPTMapping,
+        errors::StorageError,
+    > = db
+        .find_config_by_key_cached(&format!("pt_mapping_{connector}"))
+        .await
+        .map(|value| value.config)
+        .and_then(|config| {
+            config
+                .parse_struct("ConnectorPTMapping")
+                .change_context(errors::StorageError::DeserializationFailed)
+        });
+    let mapping = match mapping {
         Ok(x) => x,
         Err(err) => {
             logger::info!("Redis Mapping Error: {}", err);

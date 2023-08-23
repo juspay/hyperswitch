@@ -1,6 +1,8 @@
 pub mod address;
 pub mod api_keys;
+pub mod business_profile;
 pub mod cache;
+pub mod capture;
 pub mod cards_info;
 pub mod configs;
 pub mod connector_response;
@@ -9,6 +11,7 @@ pub mod dispute;
 pub mod ephemeral_key;
 pub mod events;
 pub mod file;
+pub mod fraud_check;
 pub mod locker_mock_up;
 pub mod mandate;
 pub mod merchant_account;
@@ -17,6 +20,8 @@ pub mod merchant_key_store;
 pub mod payment_attempt;
 pub mod payment_intent;
 pub mod payment_method;
+pub mod payout_attempt;
+pub mod payouts;
 pub mod process_tracker;
 pub mod queue;
 pub mod refund;
@@ -24,12 +29,12 @@ pub mod reverse_lookup;
 
 use std::sync::Arc;
 
+use data_models::payments::payment_intent::PaymentIntentInterface;
 use futures::lock::Mutex;
+use masking::PeekInterface;
+use storage_impl::redis::kv_store::RedisConnInterface;
 
-use crate::{
-    services::{self, Store},
-    types::storage,
-};
+use crate::{services::Store, types::storage};
 
 #[derive(PartialEq, Eq)]
 pub enum StorageImpl {
@@ -46,20 +51,24 @@ pub trait StorageInterface:
     + address::AddressInterface
     + api_keys::ApiKeyInterface
     + configs::ConfigInterface
+    + capture::CaptureInterface
     + connector_response::ConnectorResponseInterface
     + customers::CustomerInterface
     + dispute::DisputeInterface
     + ephemeral_key::EphemeralKeyInterface
     + events::EventInterface
     + file::FileMetadataInterface
+    + fraud_check::FraudCheckInterface
     + locker_mock_up::LockerMockUpInterface
     + mandate::MandateInterface
     + merchant_account::MerchantAccountInterface
     + merchant_connector_account::ConnectorAccessToken
     + merchant_connector_account::MerchantConnectorAccountInterface
     + payment_attempt::PaymentAttemptInterface
-    + payment_intent::PaymentIntentInterface
+    + PaymentIntentInterface
     + payment_method::PaymentMethodInterface
+    + payout_attempt::PayoutAttemptInterface
+    + payouts::PayoutsInterface
     + process_tracker::ProcessTrackerInterface
     + queue::QueueInterface
     + refund::RefundInterface
@@ -67,7 +76,8 @@ pub trait StorageInterface:
     + cards_info::CardsInfoInterface
     + merchant_key_store::MerchantKeyStoreInterface
     + MasterKeyInterface
-    + services::RedisConnInterface
+    + RedisConnInterface
+    + business_profile::BusinessProfileInterface
     + 'static
 {
 }
@@ -78,7 +88,7 @@ pub trait MasterKeyInterface {
 
 impl MasterKeyInterface for Store {
     fn get_master_key(&self) -> &[u8] {
-        &self.master_key
+        self.master_key().peek()
     }
 }
 
@@ -98,40 +108,52 @@ impl StorageInterface for Store {}
 #[derive(Clone)]
 pub struct MockDb {
     addresses: Arc<Mutex<Vec<storage::Address>>>,
+    configs: Arc<Mutex<Vec<storage::Config>>>,
     merchant_accounts: Arc<Mutex<Vec<storage::MerchantAccount>>>,
     merchant_connector_accounts: Arc<Mutex<Vec<storage::MerchantConnectorAccount>>>,
     payment_attempts: Arc<Mutex<Vec<storage::PaymentAttempt>>>,
     payment_intents: Arc<Mutex<Vec<storage::PaymentIntent>>>,
+    payment_methods: Arc<Mutex<Vec<storage::PaymentMethod>>>,
     customers: Arc<Mutex<Vec<storage::Customer>>>,
     refunds: Arc<Mutex<Vec<storage::Refund>>>,
     processes: Arc<Mutex<Vec<storage::ProcessTracker>>>,
     connector_response: Arc<Mutex<Vec<storage::ConnectorResponse>>>,
     redis: Arc<redis_interface::RedisConnectionPool>,
     api_keys: Arc<Mutex<Vec<storage::ApiKey>>>,
+    ephemeral_keys: Arc<Mutex<Vec<storage::EphemeralKey>>>,
     cards_info: Arc<Mutex<Vec<storage::CardInfo>>>,
     events: Arc<Mutex<Vec<storage::Event>>>,
     disputes: Arc<Mutex<Vec<storage::Dispute>>>,
     lockers: Arc<Mutex<Vec<storage::LockerMockUp>>>,
+    mandates: Arc<Mutex<Vec<storage::Mandate>>>,
+    captures: Arc<Mutex<Vec<storage::Capture>>>,
+    merchant_key_store: Arc<Mutex<Vec<storage::MerchantKeyStore>>>,
 }
 
 impl MockDb {
     pub async fn new(redis: &crate::configs::settings::Settings) -> Self {
         Self {
             addresses: Default::default(),
+            configs: Default::default(),
             merchant_accounts: Default::default(),
             merchant_connector_accounts: Default::default(),
             payment_attempts: Default::default(),
             payment_intents: Default::default(),
+            payment_methods: Default::default(),
             customers: Default::default(),
             refunds: Default::default(),
             processes: Default::default(),
             connector_response: Default::default(),
             redis: Arc::new(crate::connection::redis_connection(redis).await),
             api_keys: Default::default(),
+            ephemeral_keys: Default::default(),
             cards_info: Default::default(),
             events: Default::default(),
             disputes: Default::default(),
             lockers: Default::default(),
+            mandates: Default::default(),
+            captures: Default::default(),
+            merchant_key_store: Default::default(),
         }
     }
 }
@@ -156,9 +178,14 @@ where
         .change_context(redis_interface::errors::RedisError::JsonDeserializationFailed)
 }
 
-impl services::RedisConnInterface for MockDb {
-    fn get_redis_conn(&self) -> Arc<redis_interface::RedisConnectionPool> {
-        self.redis.clone()
+impl RedisConnInterface for MockDb {
+    fn get_redis_conn(
+        &self,
+    ) -> Result<
+        Arc<redis_interface::RedisConnectionPool>,
+        error_stack::Report<redis_interface::errors::RedisError>,
+    > {
+        Ok(self.redis.clone())
     }
 }
 

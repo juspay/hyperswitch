@@ -1,16 +1,18 @@
 pub mod api_error_response;
 pub mod error_handlers;
+pub mod transformers;
 pub mod utils;
 
 use std::fmt::Display;
 
 use actix_web::{body::BoxBody, http::StatusCode, ResponseError};
+use common_utils::errors::ErrorSwitch;
 pub use common_utils::errors::{CustomResult, ParsingError, ValidationError};
 use config::ConfigError;
-use error_stack;
+pub use data_models::errors::StorageError as DataStorageError;
+use diesel_models::errors as storage_errors;
 pub use redis_interface::errors::RedisError;
 use router_env::opentelemetry::metrics::MetricsError;
-use storage_models::errors as storage_errors;
 
 pub use self::{
     api_error_response::ApiErrorResponse,
@@ -79,6 +81,67 @@ pub enum StorageError {
     RedisError(error_stack::Report<RedisError>),
 }
 
+impl ErrorSwitch<DataStorageError> for StorageError {
+    fn switch(&self) -> DataStorageError {
+        self.into()
+    }
+}
+
+#[allow(clippy::from_over_into)]
+impl Into<DataStorageError> for &StorageError {
+    fn into(self) -> DataStorageError {
+        match self {
+            StorageError::DatabaseError(i) => match i.current_context() {
+                storage_errors::DatabaseError::DatabaseConnectionError => {
+                    DataStorageError::DatabaseConnectionError
+                }
+                // TODO: Update this error type to encompass & propagate the missing type (instead of generic `db value not found`)
+                storage_errors::DatabaseError::NotFound => {
+                    DataStorageError::ValueNotFound(String::from("db value not found"))
+                }
+                // TODO: Update this error type to encompass & propagate the duplicate type (instead of generic `db value not found`)
+                storage_errors::DatabaseError::UniqueViolation => {
+                    DataStorageError::DuplicateValue {
+                        entity: "db entity",
+                        key: None,
+                    }
+                }
+                storage_errors::DatabaseError::NoFieldsToUpdate => {
+                    DataStorageError::DatabaseError("No fields to update".to_string())
+                }
+                storage_errors::DatabaseError::QueryGenerationFailed => {
+                    DataStorageError::DatabaseError("Query generation failed".to_string())
+                }
+                storage_errors::DatabaseError::Others => {
+                    DataStorageError::DatabaseError("Unknown database error".to_string())
+                }
+            },
+            StorageError::ValueNotFound(i) => DataStorageError::ValueNotFound(i.clone()),
+            StorageError::DuplicateValue { entity, key } => DataStorageError::DuplicateValue {
+                entity,
+                key: key.clone(),
+            },
+            StorageError::DatabaseConnectionError => DataStorageError::DatabaseConnectionError,
+            StorageError::KVError => DataStorageError::KVError,
+            StorageError::SerializationFailed => DataStorageError::SerializationFailed,
+            StorageError::MockDbError => DataStorageError::MockDbError,
+            StorageError::CustomerRedacted => DataStorageError::CustomerRedacted,
+            StorageError::DeserializationFailed => DataStorageError::DeserializationFailed,
+            StorageError::EncryptionError => DataStorageError::EncryptionError,
+            StorageError::DecryptionError => DataStorageError::DecryptionError,
+            StorageError::RedisError(i) => match i.current_context() {
+                // TODO: Update this error type to encompass & propagate the missing type (instead of generic `redis value not found`)
+                RedisError::NotFound => {
+                    DataStorageError::ValueNotFound("redis value not found".to_string())
+                }
+                RedisError::JsonSerializationFailed => DataStorageError::SerializationFailed,
+                RedisError::JsonDeserializationFailed => DataStorageError::DeserializationFailed,
+                i => DataStorageError::RedisError(format!("{:?}", i)),
+            },
+        }
+    }
+}
+
 impl From<error_stack::Report<RedisError>> for StorageError {
     fn from(err: error_stack::Report<RedisError>) -> Self {
         Self::RedisError(err)
@@ -98,6 +161,7 @@ impl StorageError {
                 err.current_context(),
                 storage_errors::DatabaseError::NotFound
             ),
+            Self::ValueNotFound(_) => true,
             _ => false,
         }
     }
@@ -184,7 +248,7 @@ pub fn http_not_implemented() -> actix_web::HttpResponse<BoxBody> {
     .error_response()
 }
 
-#[derive(Debug, thiserror::Error)]
+#[derive(Debug, thiserror::Error, PartialEq)]
 pub enum ApiClientError {
     #[error("Header map construction failed")]
     HeaderMapConstructionFailed,
@@ -261,12 +325,13 @@ pub enum ConnectorError {
     NotSupported {
         message: String,
         connector: &'static str,
-        payment_experience: String,
     },
     #[error("{flow} flow not supported by {connector} connector")]
     FlowNotSupported { flow: String, connector: String },
     #[error("Capture method not supported")]
     CaptureMethodNotSupported,
+    #[error("Missing connector mandate ID")]
+    MissingConnectorMandateID,
     #[error("Missing connector transaction ID")]
     MissingConnectorTransactionID,
     #[error("Missing connector refund ID")]
@@ -305,6 +370,14 @@ pub enum ConnectorError {
     FileValidationFailed { reason: String },
     #[error("Missing 3DS redirection payload: {field_name}")]
     MissingConnectorRedirectionPayload { field_name: &'static str },
+    #[error("Failed at connector's end with code '{code}'")]
+    FailedAtConnector { message: String, code: String },
+    #[error("Payment Method Type not found")]
+    MissingPaymentMethodType,
+    #[error("Balance in the payment method is low")]
+    InSufficientBalanceInPaymentMethod,
+    #[error("Server responded with Request Timeout")]
+    RequestTimeoutReceived,
 }
 
 #[derive(Debug, thiserror::Error)]
@@ -321,12 +394,18 @@ pub enum VaultError {
     PaymentMethodCreationFailed,
     #[error("The given payment method is currently not supported in vault")]
     PaymentMethodNotSupported,
+    #[error("The given payout method is currently not supported in vault")]
+    PayoutMethodNotSupported,
     #[error("Missing required field: {field_name}")]
     MissingRequiredField { field_name: &'static str },
     #[error("The card vault returned an unexpected response: {0:?}")]
     UnexpectedResponseError(bytes::Bytes),
     #[error("Failed to update in PMD table")]
     UpdateInPaymentMethodDataTableFailed,
+    #[error("Failed to fetch payment method in vault")]
+    FetchPaymentMethodFailed,
+    #[error("Failed to save payment method in vault")]
+    SavePaymentMethodFailed,
 }
 
 #[derive(Debug, thiserror::Error)]
@@ -385,6 +464,8 @@ pub enum ProcessTrackerError {
     EParsingError(error_stack::Report<ParsingError>),
     #[error("Validation Error Received: {0}")]
     EValidationError(error_stack::Report<ValidationError>),
+    #[error("Type Conversion error")]
+    TypeConversionError,
 }
 
 macro_rules! error_to_process_tracker_error {
@@ -470,6 +551,18 @@ pub enum WebhooksFlowError {
     OutgoingWebhookEncodingFailed,
     #[error("Missing required field: {field_name}")]
     MissingRequiredField { field_name: &'static str },
+}
+
+impl ApiClientError {
+    pub fn is_upstream_timeout(&self) -> bool {
+        self == &Self::RequestTimeoutReceived
+    }
+}
+
+impl ConnectorError {
+    pub fn is_connector_timeout(&self) -> bool {
+        self == &Self::RequestTimeoutReceived
+    }
 }
 
 #[cfg(feature = "detailed_errors")]

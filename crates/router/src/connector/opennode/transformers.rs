@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 
+use masking::Secret;
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -30,7 +31,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for OpennodePaymentsRequest {
 //TODO: Fill the struct with respective fields
 // Auth Struct
 pub struct OpennodeAuthType {
-    pub(super) api_key: String,
+    pub(super) api_key: Secret<String>,
 }
 
 impl TryFrom<&types::ConnectorAuthType> for OpennodeAuthType {
@@ -38,7 +39,7 @@ impl TryFrom<&types::ConnectorAuthType> for OpennodeAuthType {
     fn try_from(auth_type: &types::ConnectorAuthType) -> Result<Self, Self::Error> {
         match auth_type {
             types::ConnectorAuthType::HeaderKey { api_key } => Ok(Self {
-                api_key: api_key.to_string(),
+                api_key: api_key.to_owned(),
             }),
             _ => Err(errors::ConnectorError::FailedToObtainAuthType.into()),
         }
@@ -113,6 +114,7 @@ impl<F, T>
                 mandate_reference: None,
                 connector_metadata: None,
                 network_txn_id: None,
+                connector_response_reference_id: None,
             })
         } else {
             Ok(types::PaymentsResponseData::TransactionUnresolvedResponse {
@@ -123,6 +125,7 @@ impl<F, T>
                         "Please check the transaction in opennode dashboard and resolve manually"
                             .to_string(),
                 }),
+                connector_response_reference_id: None,
             })
         };
         Ok(Self {
@@ -145,7 +148,7 @@ impl<F> TryFrom<&types::RefundsRouterData<F>> for OpennodeRefundRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::RefundsRouterData<F>) -> Result<Self, Self::Error> {
         Ok(Self {
-            amount: item.request.amount,
+            amount: item.request.refund_amount,
         })
     }
 }

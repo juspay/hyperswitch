@@ -1,18 +1,17 @@
 use async_trait::async_trait;
 use common_utils::{
-    crypto::{self},
-    date_time,
+    crypto, date_time,
     errors::{CustomResult, ValidationError},
 };
+use diesel_models::{address::AddressUpdateInternal, encryption::Encryption, enums};
 use error_stack::ResultExt;
-use storage_models::{address::AddressUpdateInternal, encryption::Encryption, enums};
+use masking::{PeekInterface, Secret};
 use time::{OffsetDateTime, PrimitiveDateTime};
 
 use super::{
     behaviour,
     types::{self, AsyncLift},
 };
-use crate::db::StorageInterface;
 
 #[derive(Clone, Debug, serde::Serialize)]
 pub struct Address {
@@ -43,11 +42,11 @@ pub struct Address {
 
 #[async_trait]
 impl behaviour::Conversion for Address {
-    type DstType = storage_models::address::Address;
-    type NewDstType = storage_models::address::AddressNew;
+    type DstType = diesel_models::address::Address;
+    type NewDstType = diesel_models::address::AddressNew;
 
     async fn convert(self) -> CustomResult<Self::DstType, ValidationError> {
-        Ok(storage_models::address::Address {
+        Ok(diesel_models::address::Address {
             id: self.id.ok_or(ValidationError::MissingRequiredField {
                 field_name: "id".to_string(),
             })?,
@@ -72,17 +71,10 @@ impl behaviour::Conversion for Address {
 
     async fn convert_back(
         other: Self::DstType,
-        db: &dyn StorageInterface,
-        merchant_id: &str,
+        key: &Secret<Vec<u8>>,
     ) -> CustomResult<Self, ValidationError> {
-        let key = types::get_merchant_enc_key(db, merchant_id)
-            .await
-            .change_context(ValidationError::InvalidValue {
-                message: "Failed while getting key from key store".to_string(),
-            })?;
-
         async {
-            let inner_decrypt = |inner| types::decrypt(inner, &key);
+            let inner_decrypt = |inner| types::decrypt(inner, key.peek());
             Ok(Self {
                 id: Some(other.id),
                 address_id: other.address_id,
@@ -137,7 +129,7 @@ impl behaviour::Conversion for Address {
     }
 }
 
-#[derive(Debug, frunk::LabelledGeneric)]
+#[derive(Debug)]
 pub enum AddressUpdate {
     Update {
         city: Option<String>,

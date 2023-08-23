@@ -27,6 +27,7 @@ impl
         state: &AppState,
         connector_id: &str,
         merchant_account: &domain::MerchantAccount,
+        key_store: &domain::MerchantKeyStore,
         customer: &Option<domain::Customer>,
     ) -> RouterResult<
         types::RouterData<
@@ -40,6 +41,7 @@ impl
             self.clone(),
             connector_id,
             merchant_account,
+            key_store,
             customer,
         )
         .await
@@ -51,24 +53,59 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
         mut self,
         state: &AppState,
         connector: &api::ConnectorData,
-        customer: &Option<domain::Customer>,
+        maybe_customer: &Option<domain::Customer>,
         call_connector_action: payments::CallConnectorAction,
         merchant_account: &domain::MerchantAccount,
+        connector_request: Option<services::Request>,
     ) -> RouterResult<Self> {
-        let resp = self
-            .decide_flow(
+        let connector_integration: services::BoxedConnectorIntegration<
+            '_,
+            api::Authorize,
+            types::PaymentsAuthorizeData,
+            types::PaymentsResponseData,
+        > = connector.connector.get_connector_integration();
+
+        if self.should_proceed_with_authorize() {
+            self.decide_authentication_type();
+            logger::debug!(auth_type=?self.auth_type);
+            let resp = services::execute_connector_processing_step(
+                state,
+                connector_integration,
+                &self,
+                call_connector_action,
+                connector_request,
+            )
+            .await
+            .to_payment_failed_response()?;
+
+            metrics::PAYMENT_COUNT.add(&metrics::CONTEXT, 1, &[]); // Metrics
+
+            let save_payment_result = tokenization::save_payment_method(
                 state,
                 connector,
-                customer,
-                Some(true),
-                call_connector_action,
+                resp.to_owned(),
+                maybe_customer,
                 merchant_account,
+                self.request.payment_method_type,
             )
             .await;
 
-        metrics::PAYMENT_COUNT.add(&metrics::CONTEXT, 1, &[]); // Metrics
+            let pm_id = match save_payment_result {
+                Ok(payment_method_id) => Ok(payment_method_id),
+                Err(error) => {
+                    if resp.request.setup_mandate_details.clone().is_some() {
+                        Err(error)
+                    } else {
+                        logger::error!(save_payment_method_error=?error);
+                        Ok(None)
+                    }
+                }
+            }?;
 
-        resp
+            Ok(mandate::mandate_procedure(state, resp, maybe_customer, pm_id).await?)
+        } else {
+            Ok(self.clone())
+        }
     }
 
     async fn add_access_token<'a>(
@@ -117,30 +154,26 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
         )
         .await
     }
-}
 
-impl types::PaymentsAuthorizeRouterData {
-    pub async fn decide_flow<'a, 'b>(
-        &'b mut self,
-        state: &'a AppState,
+    async fn build_flow_specific_connector_request(
+        &mut self,
+        state: &AppState,
         connector: &api::ConnectorData,
-        maybe_customer: &Option<domain::Customer>,
-        confirm: Option<bool>,
         call_connector_action: payments::CallConnectorAction,
-        merchant_account: &domain::MerchantAccount,
-    ) -> RouterResult<Self> {
-        match confirm {
-            Some(true) => {
+    ) -> RouterResult<(Option<services::Request>, bool)> {
+        match call_connector_action {
+            payments::CallConnectorAction::Trigger => {
                 let connector_integration: services::BoxedConnectorIntegration<
                     '_,
                     api::Authorize,
                     types::PaymentsAuthorizeData,
                     types::PaymentsResponseData,
                 > = connector.connector.get_connector_integration();
+
                 connector_integration
                     .execute_pretasks(self, state)
                     .await
-                    .map_err(|error| error.to_payment_failed_response())?;
+                    .to_payment_failed_response()?;
 
                 metrics::EXECUTE_PRETASK_COUNT.add(
                     &metrics::CONTEXT,
@@ -155,41 +188,32 @@ impl types::PaymentsAuthorizeRouterData {
                 );
 
                 logger::debug!(completed_pre_tasks=?true);
+
                 if self.should_proceed_with_authorize() {
                     self.decide_authentication_type();
                     logger::debug!(auth_type=?self.auth_type);
-                    let resp = services::execute_connector_processing_step(
-                        state,
-                        connector_integration,
-                        self,
-                        call_connector_action,
-                    )
-                    .await
-                    .map_err(|error| error.to_payment_failed_response())?;
 
-                    let pm_id = tokenization::save_payment_method(
-                        state,
-                        connector,
-                        resp.to_owned(),
-                        maybe_customer,
-                        merchant_account,
-                    )
-                    .await?;
-
-                    Ok(mandate::mandate_procedure(state, resp, maybe_customer, pm_id).await?)
+                    Ok((
+                        connector_integration
+                            .build_request(self, &state.conf.connectors)
+                            .to_payment_failed_response()?,
+                        true,
+                    ))
                 } else {
-                    Ok(self.clone())
+                    Ok((None, false))
                 }
             }
-            _ => Ok(self.clone()),
+            _ => Ok((None, true)),
         }
     }
+}
 
+impl types::PaymentsAuthorizeRouterData {
     fn decide_authentication_type(&mut self) {
-        if self.auth_type == storage_models::enums::AuthenticationType::ThreeDs
+        if self.auth_type == diesel_models::enums::AuthenticationType::ThreeDs
             && !self.request.enrolled_for_3ds
         {
-            self.auth_type = storage_models::enums::AuthenticationType::NoThreeDs
+            self.auth_type = diesel_models::enums::AuthenticationType::NoThreeDs
         }
     }
 
@@ -204,12 +228,6 @@ impl types::PaymentsAuthorizeRouterData {
     }
 }
 
-pub enum Action {
-    Update,
-    Insert,
-    Skip,
-}
-
 impl mandate::MandateBehaviour for types::PaymentsAuthorizeData {
     fn get_amount(&self) -> i64 {
         self.amount
@@ -220,7 +238,7 @@ impl mandate::MandateBehaviour for types::PaymentsAuthorizeData {
     fn get_payment_method_data(&self) -> api_models::payments::PaymentMethodData {
         self.payment_method_data.clone()
     }
-    fn get_setup_future_usage(&self) -> Option<storage_models::enums::FutureUsage> {
+    fn get_setup_future_usage(&self) -> Option<diesel_models::enums::FutureUsage> {
         self.setup_future_usage
     }
     fn get_setup_mandate_details(&self) -> Option<&api_models::payments::MandateData> {
@@ -264,9 +282,10 @@ pub async fn authorize_preprocessing_steps<F: Clone>(
             connector_integration,
             &preprocessing_router_data,
             payments::CallConnectorAction::Trigger,
+            None,
         )
         .await
-        .map_err(|error| error.to_payment_failed_response())?;
+        .to_payment_failed_response()?;
 
         metrics::PREPROCESSING_STEPS_COUNT.add(
             &metrics::CONTEXT,
@@ -326,6 +345,7 @@ impl TryFrom<types::PaymentsAuthorizeData> for types::PaymentMethodTokenizationD
     fn try_from(data: types::PaymentsAuthorizeData) -> Result<Self, Self::Error> {
         Ok(Self {
             payment_method_data: data.payment_method_data,
+            browser_info: data.browser_info,
         })
     }
 }
@@ -335,8 +355,16 @@ impl TryFrom<types::PaymentsAuthorizeData> for types::PaymentsPreProcessingData 
 
     fn try_from(data: types::PaymentsAuthorizeData) -> Result<Self, Self::Error> {
         Ok(Self {
+            payment_method_data: Some(data.payment_method_data),
+            amount: Some(data.amount),
             email: data.email,
             currency: Some(data.currency),
+            payment_method_type: data.payment_method_type,
+            setup_mandate_details: data.setup_mandate_details,
+            capture_method: data.capture_method,
+            order_details: data.order_details,
+            router_return_url: data.router_return_url,
+            webhook_url: data.webhook_url,
         })
     }
 }

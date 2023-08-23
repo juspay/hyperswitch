@@ -1,20 +1,19 @@
-mod transformers;
+pub mod transformers;
 
 use std::fmt::Debug;
 
 use common_utils::ext_traits::{ByteSliceExt, ValueExt};
 use error_stack::{IntoReport, ResultExt};
+use masking::PeekInterface;
 use transformers as airwallex;
 
 use super::utils::{AccessTokenRequestInfo, RefundsRequestData};
 use crate::{
     configs::settings,
-    connector::utils as conn_utils,
     core::{
         errors::{self, CustomResult},
         payments,
     },
-    db::StorageInterface,
     headers, logger, routes,
     services::{
         self,
@@ -52,7 +51,7 @@ where
 
         let auth_header = (
             headers::AUTHORIZATION.to_string(),
-            format!("Bearer {}", access_token.token).into_masked(),
+            format!("Bearer {}", access_token.token.peek()).into_masked(),
         );
 
         headers.push(auth_header);
@@ -228,11 +227,13 @@ impl
     fn get_request_body(
         &self,
         req: &types::PaymentsInitRouterData,
-    ) -> CustomResult<Option<String>, errors::ConnectorError> {
+    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
         let req_obj = airwallex::AirwallexIntentRequest::try_from(req)?;
-        let req =
-            utils::Encode::<airwallex::AirwallexIntentRequest>::encode_to_string_of_json(&req_obj)
-                .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        let req = types::RequestBody::log_and_get_request_body(
+            &req_obj,
+            utils::Encode::<airwallex::AirwallexIntentRequest>::encode_to_string_of_json,
+        )
+        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(Some(req))
     }
 
@@ -308,6 +309,7 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
             integ,
             authorize_data,
             payments::CallConnectorAction::Trigger,
+            None,
         )
         .await?;
         router_data.reference_id = resp.reference_id;
@@ -345,10 +347,13 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
     fn get_request_body(
         &self,
         req: &types::PaymentsAuthorizeRouterData,
-    ) -> CustomResult<Option<String>, errors::ConnectorError> {
-        let airwallex_req =
-            utils::Encode::<airwallex::AirwallexPaymentsRequest>::convert_and_encode(req)
-                .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
+        let connector_req = airwallex::AirwallexPaymentsRequest::try_from(req)?;
+        let airwallex_req = types::RequestBody::log_and_get_request_body(
+            &connector_req,
+            utils::Encode::<airwallex::AirwallexPaymentsRequest>::encode_to_string_of_json,
+        )
+        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(Some(airwallex_req))
     }
 
@@ -454,11 +459,11 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
         res: Response,
     ) -> CustomResult<types::PaymentsSyncRouterData, errors::ConnectorError> {
         logger::debug!(payment_sync_response=?res);
-        let response: airwallex::AirwallexPaymentsResponse = res
+        let response: airwallex::AirwallexPaymentsSyncResponse = res
             .response
-            .parse_struct("airwallex PaymentsResponse")
+            .parse_struct("airwallex AirwallexPaymentsSyncResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-        types::RouterData::try_from(types::ResponseRouterData {
+        types::PaymentsSyncRouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
@@ -510,10 +515,12 @@ impl
     fn get_request_body(
         &self,
         req: &types::PaymentsCompleteAuthorizeRouterData,
-    ) -> CustomResult<Option<String>, errors::ConnectorError> {
+    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
         let req_obj = airwallex::AirwallexCompleteRequest::try_from(req)?;
-        let req = utils::Encode::<airwallex::AirwallexCompleteRequest>::encode_to_string_of_json(
+
+        let req = types::RequestBody::log_and_get_request_body(
             &req_obj,
+            utils::Encode::<airwallex::AirwallexCompleteRequest>::encode_to_string_of_json,
         )
         .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(Some(req))
@@ -596,13 +603,15 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
     fn get_request_body(
         &self,
         req: &types::PaymentsCaptureRouterData,
-    ) -> CustomResult<Option<String>, errors::ConnectorError> {
+    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
         let connector_req = airwallex::AirwallexPaymentsCaptureRequest::try_from(req)?;
-        let airwallex_req =
-            utils::Encode::<airwallex::AirwallexPaymentsCaptureRequest>::encode_to_string_of_json(
-                &connector_req,
-            )
-            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+
+        let airwallex_req = types::RequestBody::log_and_get_request_body(
+            &connector_req,
+            utils::Encode::<airwallex::AirwallexPaymentsCaptureRequest>::encode_to_string_of_json,
+        )
+        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+
         Ok(Some(airwallex_req))
     }
 
@@ -692,13 +701,14 @@ impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsR
     fn get_request_body(
         &self,
         req: &types::PaymentsCancelRouterData,
-    ) -> CustomResult<Option<String>, errors::ConnectorError> {
+    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
         let connector_req = airwallex::AirwallexPaymentsCancelRequest::try_from(req)?;
-        let airwallex_req =
-            utils::Encode::<airwallex::AirwallexPaymentsCancelRequest>::encode_to_string_of_json(
-                &connector_req,
-            )
-            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+
+        let airwallex_req = types::RequestBody::log_and_get_request_body(
+            &connector_req,
+            utils::Encode::<airwallex::AirwallexPaymentsCancelRequest>::encode_to_string_of_json,
+        )
+        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(Some(airwallex_req))
     }
     fn handle_response(
@@ -778,10 +788,13 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
     fn get_request_body(
         &self,
         req: &types::RefundsRouterData<api::Execute>,
-    ) -> CustomResult<Option<String>, errors::ConnectorError> {
-        let airwallex_req =
-            utils::Encode::<airwallex::AirwallexRefundRequest>::convert_and_encode(req)
-                .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
+        let connector_req = airwallex::AirwallexRefundRequest::try_from(req)?;
+        let airwallex_req = types::RequestBody::log_and_get_request_body(
+            &connector_req,
+            utils::Encode::<airwallex::AirwallexRefundRequest>::encode_to_string_of_json,
+        )
+        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(Some(airwallex_req))
     }
 
@@ -951,24 +964,6 @@ impl api::IncomingWebhook for Airwallex {
             .into_report()??;
 
         Ok(format!("{}{}", timestamp, String::from_utf8_lossy(request.body)).into_bytes())
-    }
-
-    async fn get_webhook_source_verification_merchant_secret(
-        &self,
-        db: &dyn StorageInterface,
-        merchant_id: &str,
-    ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
-        let key = conn_utils::get_webhook_merchant_secret_key(self.id(), merchant_id);
-        let secret = match db.find_config_by_key(&key).await {
-            Ok(config) => Some(config),
-            Err(e) => {
-                crate::logger::warn!("Unable to fetch merchant webhook secret from DB: {:#?}", e);
-                None
-            }
-        };
-        Ok(secret
-            .map(|conf| conf.config.into_bytes())
-            .unwrap_or_default())
     }
 
     fn get_webhook_object_reference_id(

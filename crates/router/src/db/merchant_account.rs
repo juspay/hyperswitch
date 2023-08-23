@@ -1,12 +1,14 @@
 use common_utils::ext_traits::AsyncExt;
 use error_stack::{IntoReport, ResultExt};
-
-use super::{MockDb, Store};
 #[cfg(feature = "accounts_cache")]
-use crate::cache::{self, ACCOUNTS_CACHE};
+use storage_impl::redis::cache::{CacheKind, ACCOUNTS_CACHE};
+
+use super::{MasterKeyInterface, MockDb, Store};
 use crate::{
     connection,
     core::errors::{self, CustomResult},
+    db::merchant_key_store::MerchantKeyStoreInterface,
+    services::authentication,
     types::{
         domain::{
             self,
@@ -25,29 +27,33 @@ where
     async fn insert_merchant(
         &self,
         merchant_account: domain::MerchantAccount,
+        merchant_key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<domain::MerchantAccount, errors::StorageError>;
 
     async fn find_merchant_account_by_merchant_id(
         &self,
         merchant_id: &str,
+        merchant_key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<domain::MerchantAccount, errors::StorageError>;
 
     async fn update_merchant(
         &self,
         this: domain::MerchantAccount,
         merchant_account: storage::MerchantAccountUpdate,
+        merchant_key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<domain::MerchantAccount, errors::StorageError>;
 
     async fn update_specific_fields_in_merchant(
         &self,
         merchant_id: &str,
         merchant_account: storage::MerchantAccountUpdate,
+        merchant_key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<domain::MerchantAccount, errors::StorageError>;
 
     async fn find_merchant_account_by_publishable_key(
         &self,
         publishable_key: &str,
-    ) -> CustomResult<domain::MerchantAccount, errors::StorageError>;
+    ) -> CustomResult<authentication::AuthenticationData, errors::StorageError>;
 
     async fn delete_merchant_account_by_merchant_id(
         &self,
@@ -60,9 +66,9 @@ impl MerchantAccountInterface for Store {
     async fn insert_merchant(
         &self,
         merchant_account: domain::MerchantAccount,
+        merchant_key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<domain::MerchantAccount, errors::StorageError> {
         let conn = connection::pg_connection_write(self).await?;
-        let merchant_id = merchant_account.merchant_id.clone();
         merchant_account
             .construct_new()
             .await
@@ -71,7 +77,7 @@ impl MerchantAccountInterface for Store {
             .await
             .map_err(Into::into)
             .into_report()?
-            .convert(self, &merchant_id)
+            .convert(merchant_key_store.key.get_inner())
             .await
             .change_context(errors::StorageError::DecryptionError)
     }
@@ -79,6 +85,7 @@ impl MerchantAccountInterface for Store {
     async fn find_merchant_account_by_merchant_id(
         &self,
         merchant_id: &str,
+        merchant_key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<domain::MerchantAccount, errors::StorageError> {
         let fetch_func = || async {
             let conn = connection::pg_connection_read(self).await?;
@@ -92,7 +99,7 @@ impl MerchantAccountInterface for Store {
         {
             fetch_func()
                 .await?
-                .convert(self, merchant_id)
+                .convert(merchant_key_store.key.get_inner())
                 .await
                 .change_context(errors::StorageError::DecryptionError)
         }
@@ -101,7 +108,7 @@ impl MerchantAccountInterface for Store {
         {
             super::cache::get_or_populate_in_memory(self, merchant_id, fetch_func, &ACCOUNTS_CACHE)
                 .await?
-                .convert(self, merchant_id)
+                .convert(merchant_key_store.key.get_inner())
                 .await
                 .change_context(errors::StorageError::DecryptionError)
         }
@@ -111,6 +118,7 @@ impl MerchantAccountInterface for Store {
         &self,
         this: domain::MerchantAccount,
         merchant_account: storage::MerchantAccountUpdate,
+        merchant_key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<domain::MerchantAccount, errors::StorageError> {
         let _merchant_id = this.merchant_id.clone();
         let update_func = || async {
@@ -123,7 +131,7 @@ impl MerchantAccountInterface for Store {
                 .map_err(Into::into)
                 .into_report()
                 .async_and_then(|item| async {
-                    item.convert(self, &_merchant_id)
+                    item.convert(merchant_key_store.key.get_inner())
                         .await
                         .change_context(errors::StorageError::DecryptionError)
                 })
@@ -139,7 +147,7 @@ impl MerchantAccountInterface for Store {
         {
             super::cache::publish_and_redact(
                 self,
-                cache::CacheKind::Accounts((&_merchant_id).into()),
+                CacheKind::Accounts((&_merchant_id).into()),
                 update_func,
             )
             .await
@@ -150,6 +158,7 @@ impl MerchantAccountInterface for Store {
         &self,
         merchant_id: &str,
         merchant_account: storage::MerchantAccountUpdate,
+        merchant_key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<domain::MerchantAccount, errors::StorageError> {
         let update_func = || async {
             let conn = connection::pg_connection_write(self).await?;
@@ -162,7 +171,7 @@ impl MerchantAccountInterface for Store {
             .map_err(Into::into)
             .into_report()
             .async_and_then(|item| async {
-                item.convert(self, merchant_id)
+                item.convert(merchant_key_store.key.get_inner())
                     .await
                     .change_context(errors::StorageError::DecryptionError)
             })
@@ -178,7 +187,7 @@ impl MerchantAccountInterface for Store {
         {
             super::cache::publish_and_redact(
                 self,
-                cache::CacheKind::Accounts(merchant_id.into()),
+                CacheKind::Accounts(merchant_id.into()),
                 update_func,
             )
             .await
@@ -188,19 +197,26 @@ impl MerchantAccountInterface for Store {
     async fn find_merchant_account_by_publishable_key(
         &self,
         publishable_key: &str,
-    ) -> CustomResult<domain::MerchantAccount, errors::StorageError> {
+    ) -> CustomResult<authentication::AuthenticationData, errors::StorageError> {
         let conn = connection::pg_connection_read(self).await?;
-        storage::MerchantAccount::find_by_publishable_key(&conn, publishable_key)
+        let merchant = storage::MerchantAccount::find_by_publishable_key(&conn, publishable_key)
             .await
             .map_err(Into::into)
-            .into_report()
-            .async_and_then(|item| async {
-                let merchant_id = item.merchant_id.clone();
-                item.convert(self, &merchant_id)
-                    .await
-                    .change_context(errors::StorageError::DecryptionError)
-            })
-            .await
+            .into_report()?;
+        let key_store = self
+            .get_merchant_key_store_by_merchant_id(
+                &merchant.merchant_id,
+                &self.get_master_key().to_vec().into(),
+            )
+            .await?;
+
+        Ok(authentication::AuthenticationData {
+            merchant_account: merchant
+                .convert(key_store.key.get_inner())
+                .await
+                .change_context(errors::StorageError::DecryptionError)?,
+            key_store,
+        })
     }
 
     async fn delete_merchant_account_by_merchant_id(
@@ -224,7 +240,7 @@ impl MerchantAccountInterface for Store {
         {
             super::cache::publish_and_redact(
                 self,
-                cache::CacheKind::Accounts(merchant_id.into()),
+                CacheKind::Accounts(merchant_id.into()),
                 delete_func,
             )
             .await
@@ -238,16 +254,16 @@ impl MerchantAccountInterface for MockDb {
     async fn insert_merchant(
         &self,
         merchant_account: domain::MerchantAccount,
+        merchant_key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<domain::MerchantAccount, errors::StorageError> {
         let mut accounts = self.merchant_accounts.lock().await;
         let account = Conversion::convert(merchant_account)
             .await
             .change_context(errors::StorageError::EncryptionError)?;
-        let merchant_id = account.merchant_id.clone();
         accounts.push(account.clone());
 
         account
-            .convert(self, &merchant_id)
+            .convert(merchant_key_store.key.get_inner())
             .await
             .change_context(errors::StorageError::DecryptionError)
     }
@@ -256,6 +272,7 @@ impl MerchantAccountInterface for MockDb {
     async fn find_merchant_account_by_merchant_id(
         &self,
         merchant_id: &str,
+        merchant_key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<domain::MerchantAccount, errors::StorageError> {
         let accounts = self.merchant_accounts.lock().await;
         let account: Option<domain::MerchantAccount> = accounts
@@ -263,7 +280,7 @@ impl MerchantAccountInterface for MockDb {
             .find(|account| account.merchant_id == merchant_id)
             .cloned()
             .async_map(|a| async {
-                a.convert(self, merchant_id)
+                a.convert(merchant_key_store.key.get_inner())
                     .await
                     .change_context(errors::StorageError::DecryptionError)
             })
@@ -281,6 +298,7 @@ impl MerchantAccountInterface for MockDb {
         &self,
         _this: domain::MerchantAccount,
         _merchant_account: storage::MerchantAccountUpdate,
+        _merchant_key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<domain::MerchantAccount, errors::StorageError> {
         // [#172]: Implement function for `MockDb`
         Err(errors::StorageError::MockDbError)?
@@ -290,6 +308,7 @@ impl MerchantAccountInterface for MockDb {
         &self,
         _merchant_id: &str,
         _merchant_account: storage::MerchantAccountUpdate,
+        _merchant_key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<domain::MerchantAccount, errors::StorageError> {
         // [#TODO]: Implement function for `MockDb`
         Err(errors::StorageError::MockDbError)?
@@ -298,7 +317,7 @@ impl MerchantAccountInterface for MockDb {
     async fn find_merchant_account_by_publishable_key(
         &self,
         _publishable_key: &str,
-    ) -> CustomResult<domain::MerchantAccount, errors::StorageError> {
+    ) -> CustomResult<authentication::AuthenticationData, errors::StorageError> {
         // [#172]: Implement function for `MockDb`
         Err(errors::StorageError::MockDbError)?
     }

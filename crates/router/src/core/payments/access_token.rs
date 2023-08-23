@@ -4,15 +4,20 @@ use common_utils::ext_traits::AsyncExt;
 use error_stack::{IntoReport, ResultExt};
 
 use crate::{
+    consts,
     core::{
         errors::{self, RouterResult},
         payments,
     },
     routes::{metrics, AppState},
     services,
-    types::{self, api as api_types, domain, transformers::ForeignInto},
+    types::{self, api as api_types, domain},
 };
 
+/// After we get the access token, check if there was an error and if the flow should proceed further
+/// Returns bool
+/// true - Everything is well, continue with the flow
+/// false - There was an error, cannot proceed further
 pub fn update_router_data_with_access_token_result<F, Req, Res>(
     add_access_token_result: &types::AddAccessTokenResult,
     router_data: &mut types::RouterData<F, Req, Res>,
@@ -55,7 +60,7 @@ pub async fn add_access_token<
 ) -> RouterResult<types::AddAccessTokenResult> {
     if connector
         .connector_name
-        .supports_access_token(router_data.payment_method.foreign_into())
+        .supports_access_token(router_data.payment_method)
     {
         let merchant_id = &merchant_account.merchant_id;
         let store = &*state.store;
@@ -147,15 +152,38 @@ pub async fn refresh_connector_auth(
         types::AccessToken,
     > = connector.connector.get_connector_integration();
 
-    let access_token_router_data = services::execute_connector_processing_step(
+    let access_token_router_data_result = services::execute_connector_processing_step(
         state,
         connector_integration,
         router_data,
         payments::CallConnectorAction::Trigger,
+        None,
     )
-    .await
-    .change_context(errors::ApiErrorResponse::InternalServerError)
-    .attach_printable("Could not refresh access token")?;
+    .await;
+
+    let access_token_router_data = match access_token_router_data_result {
+        Ok(router_data) => Ok(router_data.response),
+        Err(connector_error) => {
+            // If we receive a timeout error from the connector, then
+            // the error has to be handled gracefully by updating the payment status to failed.
+            // further payment flow will not be continued
+            if connector_error.current_context().is_connector_timeout() {
+                let error_response = types::ErrorResponse {
+                    code: consts::REQUEST_TIMEOUT_ERROR_CODE.to_string(),
+                    message: consts::REQUEST_TIMEOUT_ERROR_MESSAGE.to_string(),
+                    reason: Some(consts::REQUEST_TIMEOUT_ERROR_MESSAGE.to_string()),
+                    status_code: 200,
+                };
+
+                Ok(Err(error_response))
+            } else {
+                Err(connector_error
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Could not refresh access token"))
+            }
+        }
+    }?;
+
     metrics::ACCESS_TOKEN_CREATION.add(
         &metrics::CONTEXT,
         1,
@@ -164,5 +192,5 @@ pub async fn refresh_connector_auth(
             connector.connector_name.to_string(),
         )],
     );
-    Ok(access_token_router_data.response)
+    Ok(access_token_router_data)
 }

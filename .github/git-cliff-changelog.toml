@@ -52,6 +52,7 @@ filter_unconventional = false
 split_commits = false
 # regex for preprocessing the commit messages
 commit_preprocessors = [
+    { pattern = "^ +", replace = "" }, # remove spaces at the beginning of the message
     { pattern = " +", replace = " " }, # replace multiple spaces with a single space
     { pattern = "\\(#([0-9]+)\\)", replace = "([#${1}](https://github.com/juspay/hyperswitch/pull/${1}))" }, # replace PR numbers with links
     { pattern = "(\\n?Co-authored-by: .+ <.+@.+>\\n?)+", replace = "" }, # remove co-author information
@@ -68,7 +69,7 @@ commit_parsers = [
     { message = "^(?i)(refactor)", group = "<!-- 4 -->Refactors" },
     { message = "^(?i)(test)", group = "<!-- 5 -->Testing" },
     { message = "^(?i)(docs)", group = "<!-- 6 -->Documentation" },
-    { message = "^(?i)(chore\\(release\\)): prepare for", skip = true },
+    { message = "^(?i)(chore\\(version\\)): V[\\d]+\\.[\\d]+\\.[\\d]+", skip = true },
     { message = "^(?i)(chore)", group = "<!-- 7 -->Miscellaneous Tasks" },
     { message = "^(?i)(build)", group = "<!-- 8 -->Build System / Dependencies" },
     { message = "^(?i)(ci)", skip = true },

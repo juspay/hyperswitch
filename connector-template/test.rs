@@ -1,10 +1,11 @@
 use masking::Secret;
-use router::types::{self, api, storage::enums};
+use router::{
+    core::utils as core_utils,
+    types::{self, api, storage::enums,
+}};
 
-use crate::{
-    connector_auth,
-    utils::{self, ConnectorActions},
-};
+use crate::utils::{self, ConnectorActions};
+use test_utils::connector_auth;
 
 #[derive(Clone, Copy)]
 struct {{project-name | downcase | pascal_case}}Test;
@@ -20,10 +21,10 @@ impl utils::Connector for {{project-name | downcase | pascal_case}}Test {
     }
 
     fn get_auth_token(&self) -> types::ConnectorAuthType {
-        types::ConnectorAuthType::from(
+        utils::to_connector_auth_type(
             connector_auth::ConnectorAuthentication::new()
                 .{{project-name | downcase}}
-                .expect("Missing connector authentication configuration"),
+                .expect("Missing connector authentication configuration").into(),
         )
     }
 
@@ -280,28 +281,6 @@ async fn should_sync_refund() {
 }
 
 // Cards Negative scenerios
-// Creates a payment with incorrect card number.
-#[actix_web::test]
-async fn should_fail_payment_for_incorrect_card_number() {
-    let response = CONNECTOR
-        .make_payment(
-            Some(types::PaymentsAuthorizeData {
-                payment_method_data: types::api::PaymentMethodData::Card(api::Card {
-                    card_number: Secret::new("1234567891011".to_string()),
-                    ..utils::CCardType::default().0
-                }),
-                ..utils::PaymentAuthorizeType::default().0
-            }),
-            get_default_payment_info(),
-        )
-        .await
-        .unwrap();
-    assert_eq!(
-        response.response.unwrap_err().message,
-        "Your card number is incorrect.".to_string(),
-    );
-}
-
 // Creates a payment with incorrect CVC.
 #[actix_web::test]
 async fn should_fail_payment_for_incorrect_cvc() {

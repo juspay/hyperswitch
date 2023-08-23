@@ -1,0 +1,183 @@
+name: CI-push
+
+on:
+  push:
+    branches:
+      - main
+    # paths:
+    #   - ".github/workflows/**"
+    #   - "crates/**"
+    #   - "examples/**"
+    #   - "Cargo.lock"
+    #   - "Cargo.toml"
+
+  merge_group:
+    types:
+      - checks_requested
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  formatting:
+    name: Check formatting
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: nightly
+          components: rustfmt
+
+      - name: Check formatting
+        shell: bash
+        run: cargo +nightly fmt --all --check
+
+  check-msrv:
+    name: Check compilation on MSRV toolchain
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: true
+      matrix:
+        os:
+          - ubuntu-latest
+        # - macos-latest
+        # - windows-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Install mold linker
+        uses: rui314/setup-mold@v1
+        if: ${{ runner.os == 'Linux' }}
+        with:
+          make-default: true
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: 1.65
+
+      - uses: Swatinem/rust-cache@v2.4.0
+        with:
+          save-if: ${{ github.event_name == 'push' }}
+
+      - name: Install cargo-hack
+        uses: baptiste0928/cargo-install@v2.0.0
+        with:
+          crate: cargo-hack
+
+      - name: Deny warnings
+        shell: bash
+        run: sed -i 's/rustflags = \[/rustflags = \[\n    "-Dwarnings",/' .cargo/config.toml
+
+      - name: Cargo hack
+        if: ${{ github.event_name == 'push' }}
+        shell: bash
+        run: cargo hack check --each-feature --no-dev-deps
+      
+      - name: Cargo build release
+        if: ${{ github.event_name == 'merge_group' }}
+        shell: bash
+        run: cargo check --features "release"
+
+  # cargo-deny:
+  #   name: Run cargo-deny
+  #   runs-on: ubuntu-latest
+  #   strategy:
+  #     matrix:
+  #       checks:
+  #         - advisories
+  #         - bans licenses sources
+
+  #   # Prevent sudden announcement of a new advisory from failing CI
+  #   continue-on-error: ${{ matrix.checks == 'advisories' }}
+
+  #   steps:
+  #     - name: Checkout repository
+  #       uses: actions/checkout@v3
+
+  #     - name: Run cargo-deny
+  #       uses: EmbarkStudios/cargo-deny-action@v1.3.2
+  #       with:
+  #         command: check ${{ matrix.checks }}
+
+  test:
+    name: Run tests on stable toolchain
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os:
+          - ubuntu-latest
+        # - macos-latest
+        # - windows-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Install mold linker
+        uses: rui314/setup-mold@v1
+        if: ${{ runner.os == 'Linux' }}
+        with:
+          make-default: true
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: stable
+          components: clippy
+
+      - name: Install cargo-hack
+        uses: baptiste0928/cargo-install@v2.0.0
+        with:
+          crate: cargo-hack
+
+      # - name: Install cargo-nextest
+      #   uses: baptiste0928/cargo-install@v2.0.0
+      #   with:
+      #     crate: cargo-nextest
+
+      - uses: Swatinem/rust-cache@v2.4.0
+        with:
+          save-if: ${{ github.event_name == 'push' }}
+
+      # - name: Setup Embark Studios lint rules
+      #   shell: bash
+      #   run: |
+      #     mkdir -p .cargo
+      #     curl -sL https://raw.githubusercontent.com/EmbarkStudios/rust-ecosystem/main/lints.toml >> .cargo/config.toml
+
+      - name: Deny warnings
+        shell: bash
+        run: sed -i 's/rustflags = \[/rustflags = \[\n    "-Dwarnings",/' .cargo/config.toml
+
+      - name: Run clippy
+        shell: bash
+        run: cargo clippy --all-features --all-targets
+
+      - name: Cargo hack
+        if: ${{ github.event_name == 'push' }}
+        shell: bash
+        run: cargo hack check --each-feature --no-dev-deps
+
+      - name: Cargo build release
+        if: ${{ github.event_name == 'merge_group' }}
+        shell: bash
+        run: cargo check --features "release"
+
+  typos:
+    name: Spell check
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Spell check
+        uses: crate-ci/typos@master

@@ -1,1 +1,2 @@
-pub use storage_models::enums::*;
+pub use data_models::MerchantStorageScheme;
+pub use diesel_models::enums::*;

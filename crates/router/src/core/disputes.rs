@@ -5,7 +5,7 @@ use router_env::{instrument, tracing};
 pub mod transformers;
 
 use super::{
-    errors::{self, RouterResponse, StorageErrorExt},
+    errors::{self, ConnectorErrorExt, RouterResponse, StorageErrorExt},
     metrics,
 };
 use crate::{
@@ -16,7 +16,7 @@ use crate::{
         api::{self, disputes},
         domain,
         storage::enums as storage_enums,
-        transformers::{ForeignFrom, ForeignInto},
+        transformers::ForeignFrom,
         AcceptDisputeRequestData, AcceptDisputeResponse, DefendDisputeRequestData,
         DefendDisputeResponse, SubmitEvidenceRequestData, SubmitEvidenceResponse,
     },
@@ -63,6 +63,7 @@ pub async fn retrieve_disputes_list(
 pub async fn accept_dispute(
     state: &AppState,
     merchant_account: domain::MerchantAccount,
+    key_store: domain::MerchantKeyStore,
     req: disputes::DisputeId,
 ) -> RouterResponse<dispute_models::DisputeResponse> {
     let db = &state.store;
@@ -119,6 +120,7 @@ pub async fn accept_dispute(
         &payment_intent,
         &payment_attempt,
         &merchant_account,
+        &key_store,
         &dispute,
     )
     .await?;
@@ -127,9 +129,10 @@ pub async fn accept_dispute(
         connector_integration,
         &router_data,
         payments::CallConnectorAction::Trigger,
+        None,
     )
     .await
-    .change_context(errors::ApiErrorResponse::InternalServerError)
+    .to_dispute_failed_response()
     .attach_printable("Failed while calling accept dispute connector api")?;
     let accept_dispute_response =
         response
@@ -141,11 +144,8 @@ pub async fn accept_dispute(
                 status_code: err.status_code,
                 reason: err.reason,
             })?;
-    let update_dispute = storage_models::dispute::DisputeUpdate::StatusUpdate {
-        dispute_status: accept_dispute_response
-            .dispute_status
-            .clone()
-            .foreign_into(),
+    let update_dispute = diesel_models::dispute::DisputeUpdate::StatusUpdate {
+        dispute_status: accept_dispute_response.dispute_status,
         connector_status: accept_dispute_response.connector_status.clone(),
     };
     let updated_dispute = db
@@ -163,6 +163,7 @@ pub async fn accept_dispute(
 pub async fn submit_evidence(
     state: &AppState,
     merchant_account: domain::MerchantAccount,
+    key_store: domain::MerchantKeyStore,
     req: dispute_models::SubmitEvidenceRequest,
 ) -> RouterResponse<dispute_models::DisputeResponse> {
     let db = &state.store;
@@ -191,8 +192,14 @@ pub async fn submit_evidence(
             })
         },
     )?;
-    let submit_evidence_request_data =
-        transformers::get_evidence_request_data(state, &merchant_account, req, &dispute).await?;
+    let submit_evidence_request_data = transformers::get_evidence_request_data(
+        state,
+        &merchant_account,
+        &key_store,
+        req,
+        &dispute,
+    )
+    .await?;
     let payment_intent = db
         .find_payment_intent_by_payment_id_merchant_id(
             &dispute.payment_id,
@@ -225,6 +232,7 @@ pub async fn submit_evidence(
         &payment_intent,
         &payment_attempt,
         &merchant_account,
+        &key_store,
         &dispute,
         submit_evidence_request_data,
     )
@@ -234,9 +242,10 @@ pub async fn submit_evidence(
         connector_integration,
         &router_data,
         payments::CallConnectorAction::Trigger,
+        None,
     )
     .await
-    .change_context(errors::ApiErrorResponse::InternalServerError)
+    .to_dispute_failed_response()
     .attach_printable("Failed while calling submit evidence connector api")?;
     let submit_evidence_response =
         response
@@ -262,6 +271,7 @@ pub async fn submit_evidence(
                 &payment_intent,
                 &payment_attempt,
                 &merchant_account,
+                &key_store,
                 &dispute,
             )
             .await?;
@@ -270,9 +280,10 @@ pub async fn submit_evidence(
                 connector_integration_defend_dispute,
                 &defend_dispute_router_data,
                 payments::CallConnectorAction::Trigger,
+                None,
             )
             .await
-            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .to_dispute_failed_response()
             .attach_printable("Failed while calling defend dispute connector api")?;
             let defend_dispute_response = defend_response.response.map_err(|err| {
                 errors::ApiErrorResponse::ExternalConnectorError {
@@ -293,14 +304,16 @@ pub async fn submit_evidence(
                 submit_evidence_response.connector_status,
             )
         };
-    let update_dispute = storage_models::dispute::DisputeUpdate::StatusUpdate {
-        dispute_status: dispute_status.foreign_into(),
+    let update_dispute = diesel_models::dispute::DisputeUpdate::StatusUpdate {
+        dispute_status,
         connector_status,
     };
     let updated_dispute = db
         .update_dispute(dispute.clone(), update_dispute)
         .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .to_not_found_response(errors::ApiErrorResponse::DisputeNotFound {
+            dispute_id: dispute_id.to_owned(),
+        })
         .attach_printable_lazy(|| {
             format!("Unable to update dispute with dispute_id: {dispute_id}")
         })?;
@@ -311,6 +324,7 @@ pub async fn submit_evidence(
 pub async fn attach_evidence(
     state: &AppState,
     merchant_account: domain::MerchantAccount,
+    key_store: domain::MerchantKeyStore,
     attach_evidence_request: api::AttachEvidenceRequest,
 ) -> RouterResponse<files_api_models::CreateFileResponse> {
     let db = &state.store;
@@ -345,6 +359,7 @@ pub async fn attach_evidence(
     let create_file_response = files::files_create_core(
         state,
         merchant_account,
+        key_store,
         attach_evidence_request.create_file_request,
     )
     .await?;
@@ -365,7 +380,7 @@ pub async fn attach_evidence(
         attach_evidence_request.evidence_type,
         file_id,
     );
-    let update_dispute = storage_models::dispute::DisputeUpdate::EvidenceUpdate {
+    let update_dispute = diesel_models::dispute::DisputeUpdate::EvidenceUpdate {
         evidence: utils::Encode::<api::DisputeEvidence>::encode_to_value(&updated_dispute_evidence)
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Error while encoding dispute evidence")?
@@ -373,7 +388,9 @@ pub async fn attach_evidence(
     };
     db.update_dispute(dispute, update_dispute)
         .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .to_not_found_response(errors::ApiErrorResponse::DisputeNotFound {
+            dispute_id: dispute_id.to_owned(),
+        })
         .attach_printable_lazy(|| {
             format!("Unable to update dispute with dispute_id: {dispute_id}")
         })?;

@@ -26,10 +26,11 @@ impl utils::Connector for WorldlineTest {
     }
 
     fn get_auth_token(&self) -> types::ConnectorAuthType {
-        types::ConnectorAuthType::from(
+        utils::to_connector_auth_type(
             ConnectorAuthentication::new()
                 .worldline
-                .expect("Missing connector authentication configuration"),
+                .expect("Missing connector authentication configuration")
+                .into(),
         )
     }
 
@@ -73,6 +74,10 @@ impl WorldlineTest {
                 card_cvc: Secret::new(card_cvc.to_string()),
                 card_issuer: None,
                 card_network: None,
+                card_type: None,
+                card_issuing_country: None,
+                bank_code: None,
+                nick_name: Some(masking::Secret::new("nick_name".into())),
             }),
             confirm: true,
             statement_descriptor_suffix: None,
@@ -147,7 +152,6 @@ async fn should_throw_not_implemented_for_unsupported_issuer() {
         errors::ConnectorError::NotSupported {
             message: "Maestro".to_string(),
             connector: "worldline",
-            payment_experience: "RedirectToUrl".to_string(),
         }
     )
 }

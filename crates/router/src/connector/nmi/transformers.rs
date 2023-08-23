@@ -24,7 +24,7 @@ pub enum TransactionType {
 }
 
 pub struct NmiAuthType {
-    pub(super) api_key: String,
+    pub(super) api_key: Secret<String>,
 }
 
 impl TryFrom<&ConnectorAuthType> for NmiAuthType {
@@ -32,7 +32,7 @@ impl TryFrom<&ConnectorAuthType> for NmiAuthType {
     fn try_from(auth_type: &ConnectorAuthType) -> Result<Self, Self::Error> {
         if let types::ConnectorAuthType::HeaderKey { api_key } = auth_type {
             Ok(Self {
-                api_key: api_key.to_string(),
+                api_key: api_key.to_owned(),
             })
         } else {
             Err(errors::ConnectorError::FailedToObtainAuthType.into())
@@ -68,12 +68,12 @@ pub struct CardData {
 
 #[derive(Debug, Serialize)]
 pub struct GooglePayData {
-    googlepay_payment_data: String,
+    googlepay_payment_data: Secret<String>,
 }
 
 #[derive(Debug, Serialize)]
 pub struct ApplePayData {
-    applepay_payment_data: String,
+    applepay_payment_data: Secret<String>,
 }
 
 impl TryFrom<&types::PaymentsAuthorizeRouterData> for NmiPaymentsRequest {
@@ -90,7 +90,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for NmiPaymentsRequest {
 
         Ok(Self {
             transaction_type,
-            security_key: auth_type.api_key.into(),
+            security_key: auth_type.api_key,
             amount,
             currency: item.request.currency,
             payment_method,
@@ -143,7 +143,7 @@ impl From<&api_models::payments::Card> for PaymentMethod {
 impl From<&api_models::payments::GooglePayWalletData> for PaymentMethod {
     fn from(wallet_data: &api_models::payments::GooglePayWalletData) -> Self {
         let gpay_data = GooglePayData {
-            googlepay_payment_data: wallet_data.tokenization_data.token.clone(),
+            googlepay_payment_data: Secret::new(wallet_data.tokenization_data.token.clone()),
         };
         Self::GPay(Box::new(gpay_data))
     }
@@ -152,7 +152,7 @@ impl From<&api_models::payments::GooglePayWalletData> for PaymentMethod {
 impl From<&api_models::payments::ApplePayWalletData> for PaymentMethod {
     fn from(wallet_data: &api_models::payments::ApplePayWalletData) -> Self {
         let apple_pay_data = ApplePayData {
-            applepay_payment_data: wallet_data.payment_data.clone(),
+            applepay_payment_data: Secret::new(wallet_data.payment_data.clone()),
         };
         Self::ApplePay(Box::new(apple_pay_data))
     }
@@ -165,7 +165,7 @@ impl TryFrom<&types::VerifyRouterData> for NmiPaymentsRequest {
         let payment_method = PaymentMethod::try_from(&item.request.payment_method_data)?;
         Ok(Self {
             transaction_type: TransactionType::Validate,
-            security_key: auth_type.api_key.into(),
+            security_key: auth_type.api_key,
             amount: 0.0,
             currency: item.request.currency,
             payment_method,
@@ -176,7 +176,7 @@ impl TryFrom<&types::VerifyRouterData> for NmiPaymentsRequest {
 #[derive(Debug, Serialize)]
 pub struct NmiSyncRequest {
     pub transaction_id: String,
-    pub security_key: String,
+    pub security_key: Secret<String>,
 }
 
 impl TryFrom<&types::PaymentsSyncRouterData> for NmiSyncRequest {
@@ -209,7 +209,7 @@ impl TryFrom<&types::PaymentsCaptureRouterData> for NmiCaptureRequest {
         let auth = NmiAuthType::try_from(&item.connector_auth_type)?;
         Ok(Self {
             transaction_type: TransactionType::Capture,
-            security_key: auth.api_key.into(),
+            security_key: auth.api_key,
             transactionid: item.request.connector_transaction_id.clone(),
             amount: Some(utils::to_currency_base_unit_asf64(
                 item.request.amount_to_capture,
@@ -248,6 +248,7 @@ impl
                     mandate_reference: None,
                     connector_metadata: None,
                     network_txn_id: None,
+                    connector_response_reference_id: None,
                 }),
                 enums::AttemptStatus::CaptureInitiated,
             ),
@@ -282,7 +283,7 @@ impl TryFrom<&types::PaymentsCancelRouterData> for NmiCancelRequest {
         let auth = NmiAuthType::try_from(&item.connector_auth_type)?;
         Ok(Self {
             transaction_type: TransactionType::Void,
-            security_key: auth.api_key.into(),
+            security_key: auth.api_key,
             transactionid: item.request.connector_transaction_id.clone(),
             void_reason: item.request.cancellation_reason.clone(),
         })
@@ -335,6 +336,7 @@ impl<T>
                     mandate_reference: None,
                     connector_metadata: None,
                     network_txn_id: None,
+                    connector_response_reference_id: None,
                 }),
                 enums::AttemptStatus::Charged,
             ),
@@ -387,8 +389,9 @@ impl TryFrom<types::PaymentsResponseRouterData<StandardResponse>>
                     mandate_reference: None,
                     connector_metadata: None,
                     network_txn_id: None,
+                    connector_response_reference_id: None,
                 }),
-                if let Some(storage_models::enums::CaptureMethod::Automatic) =
+                if let Some(diesel_models::enums::CaptureMethod::Automatic) =
                     item.data.request.capture_method
                 {
                     enums::AttemptStatus::CaptureInitiated
@@ -435,6 +438,7 @@ impl<T>
                     mandate_reference: None,
                     connector_metadata: None,
                     network_txn_id: None,
+                    connector_response_reference_id: None,
                 }),
                 enums::AttemptStatus::VoidInitiated,
             ),
@@ -485,6 +489,7 @@ impl TryFrom<types::PaymentsSyncResponseRouterData<types::Response>>
                 mandate_reference: None,
                 connector_metadata: None,
                 network_txn_id: None,
+                connector_response_reference_id: None,
             }),
             ..item.data
         })
@@ -510,8 +515,7 @@ impl From<NmiStatus> for enums::AttemptStatus {
             NmiStatus::Abandoned => Self::AuthenticationFailed,
             NmiStatus::Cancelled => Self::Voided,
             NmiStatus::Pending => Self::Authorized,
-            NmiStatus::Pendingsettlement => Self::Pending,
-            NmiStatus::Complete => Self::Charged,
+            NmiStatus::Pendingsettlement | NmiStatus::Complete => Self::Charged,
             NmiStatus::InProgress => Self::AuthenticationPending,
             NmiStatus::Failed | NmiStatus::Unknown => Self::Failure,
         }
@@ -523,7 +527,7 @@ impl From<NmiStatus> for enums::AttemptStatus {
 pub struct NmiRefundRequest {
     #[serde(rename = "type")]
     transaction_type: TransactionType,
-    security_key: String,
+    security_key: Secret<String>,
     transactionid: String,
     amount: f64,
 }
@@ -633,10 +637,8 @@ impl From<NmiStatus> for enums::RefundStatus {
             | NmiStatus::Cancelled
             | NmiStatus::Failed
             | NmiStatus::Unknown => Self::Failure,
-            NmiStatus::Pendingsettlement | NmiStatus::Pending | NmiStatus::InProgress => {
-                Self::Pending
-            }
-            NmiStatus::Complete => Self::Success,
+            NmiStatus::Pending | NmiStatus::InProgress => Self::Pending,
+            NmiStatus::Pendingsettlement | NmiStatus::Complete => Self::Success,
         }
     }
 }
@@ -659,14 +661,11 @@ impl From<String> for NmiStatus {
 
 #[derive(Debug, Deserialize)]
 pub struct SyncTransactionResponse {
-    #[serde(rename = "transaction_id")]
     transaction_id: String,
-    #[serde(rename = "condition")]
     condition: String,
 }
 
 #[derive(Debug, Deserialize)]
 struct SyncResponse {
-    #[serde(rename = "transaction")]
     transaction: SyncTransactionResponse,
 }

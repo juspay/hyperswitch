@@ -1,11 +1,11 @@
 use async_bb8_diesel::AsyncRunQueryDsl;
 use common_utils::errors::CustomResult;
 use diesel::{associations::HasTable, ExpressionMethods, QueryDsl};
+pub use diesel_models::dispute::{Dispute, DisputeNew, DisputeUpdate};
+use diesel_models::{errors, query::generics::db_metrics, schema::dispute::dsl};
 use error_stack::{IntoReport, ResultExt};
-pub use storage_models::dispute::{Dispute, DisputeNew, DisputeUpdate};
-use storage_models::{errors, schema::dispute::dsl};
 
-use crate::{connection::PgPooledConn, logger, types::transformers::ForeignInto};
+use crate::{connection::PgPooledConn, logger};
 
 #[async_trait::async_trait]
 pub trait DisputeDbExt: Sized {
@@ -50,14 +50,10 @@ impl DisputeDbExt for Dispute {
             filter = filter.filter(dsl::connector_reason.eq(reason));
         }
         if let Some(dispute_stage) = dispute_list_constraints.dispute_stage {
-            let storage_dispute_stage: storage_models::enums::DisputeStage =
-                dispute_stage.foreign_into();
-            filter = filter.filter(dsl::dispute_stage.eq(storage_dispute_stage));
+            filter = filter.filter(dsl::dispute_stage.eq(dispute_stage));
         }
         if let Some(dispute_status) = dispute_list_constraints.dispute_status {
-            let storage_dispute_status: storage_models::enums::DisputeStatus =
-                dispute_status.foreign_into();
-            filter = filter.filter(dsl::dispute_status.eq(storage_dispute_status));
+            filter = filter.filter(dsl::dispute_status.eq(dispute_status));
         }
         if let Some(limit) = dispute_list_constraints.limit {
             filter = filter.limit(limit);
@@ -65,11 +61,13 @@ impl DisputeDbExt for Dispute {
 
         logger::debug!(query = %diesel::debug_query::<diesel::pg::Pg, _>(&filter).to_string());
 
-        filter
-            .get_results_async(conn)
-            .await
-            .into_report()
-            .change_context(errors::DatabaseError::NotFound)
-            .attach_printable_lazy(|| "Error filtering records by predicate")
+        db_metrics::track_database_call::<<Self as HasTable>::Table, _, _>(
+            filter.get_results_async(conn),
+            db_metrics::DatabaseOperation::Filter,
+        )
+        .await
+        .into_report()
+        .change_context(errors::DatabaseError::NotFound)
+        .attach_printable_lazy(|| "Error filtering records by predicate")
     }
 }

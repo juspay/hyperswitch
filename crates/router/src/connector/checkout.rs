@@ -1,14 +1,15 @@
-#![allow(dead_code)]
-
-mod transformers;
+pub mod transformers;
 
 use std::fmt::Debug;
 
 use common_utils::{crypto, ext_traits::ByteSliceExt};
 use error_stack::{IntoReport, ResultExt};
+use masking::PeekInterface;
 
 use self::transformers as checkout;
-use super::utils::{self as conn_utils, RefundsRequestData};
+use super::utils::{
+    self as conn_utils, ConnectorErrorType, ConnectorErrorTypeMapping, RefundsRequestData,
+};
 use crate::{
     configs::settings,
     consts,
@@ -16,7 +17,6 @@ use crate::{
         errors::{self, CustomResult},
         payments,
     },
-    db::StorageInterface,
     headers,
     services::{
         self,
@@ -72,7 +72,7 @@ impl ConnectorCommon for Checkout {
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
         Ok(vec![(
             headers::AUTHORIZATION.to_string(),
-            format!("Bearer {}", auth.api_secret).into_masked(),
+            format!("Bearer {}", auth.api_secret.peek()).into_masked(),
         )])
     }
 
@@ -102,18 +102,29 @@ impl ConnectorCommon for Checkout {
                 .parse_struct("ErrorResponse")
                 .change_context(errors::ConnectorError::ResponseDeserializationFailed)?
         };
+
+        router_env::logger::info!(error_response=?response);
+        let errors_list = response.error_codes.clone().unwrap_or(vec![]);
+        let option_error_code_message = conn_utils::get_error_code_error_message_based_on_priority(
+            self.clone(),
+            errors_list
+                .into_iter()
+                .map(|errors| errors.into())
+                .collect(),
+        );
         Ok(types::ErrorResponse {
             status_code: res.status_code,
-            code: response
-                .error_type
+            code: option_error_code_message
                 .clone()
-                .unwrap_or_else(|| consts::NO_ERROR_CODE.to_string()),
-            message: response
+                .map(|error_code_message| error_code_message.error_code)
+                .unwrap_or(consts::NO_ERROR_CODE.to_string()),
+            message: option_error_code_message
+                .map(|error_code_message| error_code_message.error_message)
+                .unwrap_or(consts::NO_ERROR_MESSAGE.to_string()),
+            reason: response
                 .error_codes
-                .as_ref()
-                .and_then(|error_codes| error_codes.first().cloned())
-                .unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
-            reason: response.error_codes.map(|errors| errors.join(" & ")),
+                .map(|errors| errors.join(" & "))
+                .or(response.error_type),
         })
     }
 }
@@ -152,7 +163,7 @@ impl
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
         let mut auth = vec![(
             headers::AUTHORIZATION.to_string(),
-            format!("Bearer {}", api_key.api_key).into_masked(),
+            format!("Bearer {}", api_key.api_key.peek()).into_masked(),
         )];
         header.append(&mut auth);
         Ok(header)
@@ -173,11 +184,13 @@ impl
     fn get_request_body(
         &self,
         req: &types::TokenizationRouterData,
-    ) -> CustomResult<Option<String>, errors::ConnectorError> {
+    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
         let connector_req = checkout::TokenRequest::try_from(req)?;
-        let checkout_req =
-            utils::Encode::<checkout::TokenRequest>::encode_to_string_of_json(&connector_req)
-                .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        let checkout_req = types::RequestBody::log_and_get_request_body(
+            &connector_req,
+            utils::Encode::<checkout::TokenRequest>::encode_to_string_of_json,
+        )
+        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(Some(checkout_req))
     }
 
@@ -209,6 +222,7 @@ impl
             .response
             .parse_struct("CheckoutTokenResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        router_env::logger::info!(connector_response=?response);
 
         types::RouterData::try_from(types::ResponseRouterData {
             response,
@@ -271,13 +285,13 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
     fn get_request_body(
         &self,
         req: &types::PaymentsCaptureRouterData,
-    ) -> CustomResult<Option<String>, errors::ConnectorError> {
+    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
         let connector_req = checkout::PaymentCaptureRequest::try_from(req)?;
-        let checkout_req =
-            utils::Encode::<checkout::PaymentCaptureRequest>::encode_to_string_of_json(
-                &connector_req,
-            )
-            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        let checkout_req = types::RequestBody::log_and_get_request_body(
+            &connector_req,
+            utils::Encode::<checkout::PaymentCaptureRequest>::encode_to_string_of_json,
+        )
+        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(Some(checkout_req))
     }
 
@@ -308,6 +322,7 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
             .response
             .parse_struct("CaptureResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        router_env::logger::info!(connector_response=?response);
 
         types::RouterData::try_from(types::ResponseRouterData {
             response,
@@ -382,6 +397,7 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
             .response
             .parse_struct("PaymentsResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        router_env::logger::info!(connector_response=?response);
         types::RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
@@ -420,11 +436,13 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
     fn get_request_body(
         &self,
         req: &types::PaymentsAuthorizeRouterData,
-    ) -> CustomResult<Option<String>, errors::ConnectorError> {
+    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
         let connector_req = checkout::PaymentsRequest::try_from(req)?;
-        let checkout_req =
-            utils::Encode::<checkout::PaymentsRequest>::encode_to_string_of_json(&connector_req)
-                .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        let checkout_req = types::RequestBody::log_and_get_request_body(
+            &connector_req,
+            utils::Encode::<checkout::PaymentsRequest>::encode_to_string_of_json,
+        )
+        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(Some(checkout_req))
     }
     fn build_request(
@@ -460,6 +478,7 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
             .response
             .parse_struct("PaymentIntentResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        router_env::logger::info!(connector_response=?response);
         types::RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
@@ -502,11 +521,13 @@ impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsR
     fn get_request_body(
         &self,
         req: &types::PaymentsCancelRouterData,
-    ) -> CustomResult<Option<String>, errors::ConnectorError> {
+    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
         let connector_req = checkout::PaymentVoidRequest::try_from(req)?;
-        let checkout_req =
-            utils::Encode::<checkout::PaymentVoidRequest>::encode_to_string_of_json(&connector_req)
-                .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        let checkout_req = types::RequestBody::log_and_get_request_body(
+            &connector_req,
+            utils::Encode::<checkout::PaymentVoidRequest>::encode_to_string_of_json,
+        )
+        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(Some(checkout_req))
     }
     fn build_request(
@@ -534,6 +555,7 @@ impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsR
             .response
             .parse_struct("PaymentVoidResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        router_env::logger::info!(connector_response=?response);
         response.status = res.status_code;
         types::RouterData::try_from(types::ResponseRouterData {
             response,
@@ -586,11 +608,13 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
     fn get_request_body(
         &self,
         req: &types::RefundsRouterData<api::Execute>,
-    ) -> CustomResult<Option<String>, errors::ConnectorError> {
+    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
         let connector_req = checkout::RefundRequest::try_from(req)?;
-        let body =
-            utils::Encode::<checkout::RefundRequest>::encode_to_string_of_json(&connector_req)
-                .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        let body = types::RequestBody::log_and_get_request_body(
+            &connector_req,
+            utils::Encode::<checkout::RefundRequest>::encode_to_string_of_json,
+        )
+        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(Some(body))
     }
 
@@ -620,6 +644,7 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
             .response
             .parse_struct("checkout::RefundResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        router_env::logger::info!(connector_response=?response);
         let response = checkout::CheckoutRefundResponse {
             response,
             status: res.status_code,
@@ -690,6 +715,7 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
             .response
             .parse_struct("checkout::CheckoutRefundResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        router_env::logger::info!(connector_response=?response);
 
         let response = response
             .iter()
@@ -886,6 +912,7 @@ impl ConnectorIntegration<api::Upload, types::UploadFileRequestData, types::Uplo
             .response
             .parse_struct("Checkout FileUploadResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        router_env::logger::info!(connector_response=?response);
         Ok(types::UploadFileRouterData {
             response: Ok(types::UploadFileResponse {
                 provider_file_id: response.file_id,
@@ -942,11 +969,13 @@ impl
     fn get_request_body(
         &self,
         req: &types::SubmitEvidenceRouterData,
-    ) -> CustomResult<Option<String>, errors::ConnectorError> {
+    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
         let checkout_req = checkout::Evidence::try_from(req)?;
-        let checkout_req_string =
-            utils::Encode::<checkout::Evidence>::encode_to_string_of_json(&checkout_req)
-                .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        let checkout_req_string = types::RequestBody::log_and_get_request_body(
+            &checkout_req,
+            utils::Encode::<checkout::Evidence>::encode_to_string_of_json,
+        )
+        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(Some(checkout_req_string))
     }
 
@@ -1086,23 +1115,6 @@ impl api::IncomingWebhook for Checkout {
     ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
         Ok(format!("{}", String::from_utf8_lossy(request.body)).into_bytes())
     }
-    async fn get_webhook_source_verification_merchant_secret(
-        &self,
-        db: &dyn StorageInterface,
-        merchant_id: &str,
-    ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
-        let key = conn_utils::get_webhook_merchant_secret_key(self.id(), merchant_id);
-        let secret = match db.find_config_by_key(&key).await {
-            Ok(config) => Some(config),
-            Err(e) => {
-                crate::logger::warn!("Unable to fetch merchant webhook secret from DB: {:#?}", e);
-                None
-            }
-        };
-        Ok(secret
-            .map(|conf| conf.config.into_bytes())
-            .unwrap_or_default())
-    }
     fn get_webhook_object_reference_id(
         &self,
         request: &api::IncomingWebhookRequestDetails<'_>,
@@ -1201,12 +1213,137 @@ impl services::ConnectorRedirectResponse for Checkout {
             .status
             .map(
                 |checkout_status| payments::CallConnectorAction::StatusUpdate {
-                    status: storage_models::enums::AttemptStatus::from(checkout_status),
+                    status: diesel_models::enums::AttemptStatus::from(checkout_status),
                     error_code: None,
                     error_message: None,
                 },
             )
             .unwrap_or(payments::CallConnectorAction::Trigger);
         Ok(connector_action)
+    }
+}
+
+impl ConnectorErrorTypeMapping for Checkout {
+    fn get_connector_error_type(
+        &self,
+        error_code: String,
+        _error_message: String,
+    ) -> ConnectorErrorType {
+        match error_code.as_str() {
+            "action_failure_limit_exceeded" => ConnectorErrorType::BusinessError,
+            "address_invalid" => ConnectorErrorType::UserError,
+            "amount_exceeds_balance" => ConnectorErrorType::BusinessError,
+            "amount_invalid" => ConnectorErrorType::UserError,
+            "api_calls_quota_exceeded" => ConnectorErrorType::TechnicalError,
+            "billing_descriptor_city_invalid" => ConnectorErrorType::UserError,
+            "billing_descriptor_city_required" => ConnectorErrorType::UserError,
+            "billing_descriptor_name_invalid" => ConnectorErrorType::UserError,
+            "billing_descriptor_name_required" => ConnectorErrorType::UserError,
+            "business_invalid" => ConnectorErrorType::BusinessError,
+            "business_settings_missing" => ConnectorErrorType::BusinessError,
+            "capture_value_greater_than_authorized" => ConnectorErrorType::BusinessError,
+            "capture_value_greater_than_remaining_authorized" => ConnectorErrorType::BusinessError,
+            "card_authorization_failed" => ConnectorErrorType::UserError,
+            "card_disabled" => ConnectorErrorType::UserError,
+            "card_expired" => ConnectorErrorType::UserError,
+            "card_expiry_month_invalid" => ConnectorErrorType::UserError,
+            "card_expiry_month_required" => ConnectorErrorType::UserError,
+            "card_expiry_year_invalid" => ConnectorErrorType::UserError,
+            "card_expiry_year_required" => ConnectorErrorType::UserError,
+            "card_holder_invalid" => ConnectorErrorType::UserError,
+            "card_not_found" => ConnectorErrorType::UserError,
+            "card_number_invalid" => ConnectorErrorType::UserError,
+            "card_number_required" => ConnectorErrorType::UserError,
+            "channel_details_invalid" => ConnectorErrorType::BusinessError,
+            "channel_url_missing" => ConnectorErrorType::BusinessError,
+            "charge_details_invalid" => ConnectorErrorType::BusinessError,
+            "city_invalid" => ConnectorErrorType::BusinessError,
+            "country_address_invalid" => ConnectorErrorType::UserError,
+            "country_invalid" => ConnectorErrorType::UserError,
+            "country_phone_code_invalid" => ConnectorErrorType::UserError,
+            "country_phone_code_length_invalid" => ConnectorErrorType::UserError,
+            "currency_invalid" => ConnectorErrorType::UserError,
+            "currency_required" => ConnectorErrorType::UserError,
+            "customer_already_exists" => ConnectorErrorType::BusinessError,
+            "customer_email_invalid" => ConnectorErrorType::UserError,
+            "customer_id_invalid" => ConnectorErrorType::BusinessError,
+            "customer_not_found" => ConnectorErrorType::BusinessError,
+            "customer_number_invalid" => ConnectorErrorType::UserError,
+            "customer_plan_edit_failed" => ConnectorErrorType::BusinessError,
+            "customer_plan_id_invalid" => ConnectorErrorType::BusinessError,
+            "cvv_invalid" => ConnectorErrorType::UserError,
+            "email_in_use" => ConnectorErrorType::BusinessError,
+            "email_invalid" => ConnectorErrorType::UserError,
+            "email_required" => ConnectorErrorType::UserError,
+            "endpoint_invalid" => ConnectorErrorType::TechnicalError,
+            "expiry_date_format_invalid" => ConnectorErrorType::UserError,
+            "fail_url_invalid" => ConnectorErrorType::TechnicalError,
+            "first_name_required" => ConnectorErrorType::UserError,
+            "last_name_required" => ConnectorErrorType::UserError,
+            "ip_address_invalid" => ConnectorErrorType::UserError,
+            "issuer_network_unavailable" => ConnectorErrorType::TechnicalError,
+            "metadata_key_invalid" => ConnectorErrorType::BusinessError,
+            "parameter_invalid" => ConnectorErrorType::UserError,
+            "password_invalid" => ConnectorErrorType::UserError,
+            "payment_expired" => ConnectorErrorType::BusinessError,
+            "payment_invalid" => ConnectorErrorType::BusinessError,
+            "payment_method_invalid" => ConnectorErrorType::UserError,
+            "payment_source_required" => ConnectorErrorType::UserError,
+            "payment_type_invalid" => ConnectorErrorType::UserError,
+            "phone_number_invalid" => ConnectorErrorType::UserError,
+            "phone_number_length_invalid" => ConnectorErrorType::UserError,
+            "previous_payment_id_invalid" => ConnectorErrorType::BusinessError,
+            "recipient_account_number_invalid" => ConnectorErrorType::BusinessError,
+            "recipient_account_number_required" => ConnectorErrorType::UserError,
+            "recipient_dob_required" => ConnectorErrorType::UserError,
+            "recipient_last_name_required" => ConnectorErrorType::UserError,
+            "recipient_zip_invalid" => ConnectorErrorType::UserError,
+            "recipient_zip_required" => ConnectorErrorType::UserError,
+            "recurring_plan_exists" => ConnectorErrorType::BusinessError,
+            "recurring_plan_not_exist" => ConnectorErrorType::BusinessError,
+            "recurring_plan_removal_failed" => ConnectorErrorType::BusinessError,
+            "request_invalid" => ConnectorErrorType::UserError,
+            "request_json_invalid" => ConnectorErrorType::UserError,
+            "risk_enabled_required" => ConnectorErrorType::BusinessError,
+            "server_api_not_allowed" => ConnectorErrorType::TechnicalError,
+            "source_email_invalid" => ConnectorErrorType::UserError,
+            "source_email_required" => ConnectorErrorType::UserError,
+            "source_id_invalid" => ConnectorErrorType::BusinessError,
+            "source_id_or_email_required" => ConnectorErrorType::UserError,
+            "source_id_required" => ConnectorErrorType::UserError,
+            "source_id_unknown" => ConnectorErrorType::BusinessError,
+            "source_invalid" => ConnectorErrorType::BusinessError,
+            "source_or_destination_required" => ConnectorErrorType::BusinessError,
+            "source_token_invalid" => ConnectorErrorType::BusinessError,
+            "source_token_required" => ConnectorErrorType::UserError,
+            "source_token_type_required" => ConnectorErrorType::UserError,
+            "source_token_type_invalid" => ConnectorErrorType::BusinessError,
+            "source_type_required" => ConnectorErrorType::UserError,
+            "sub_entities_count_invalid" => ConnectorErrorType::BusinessError,
+            "success_url_invalid" => ConnectorErrorType::BusinessError,
+            "3ds_malfunction" => ConnectorErrorType::TechnicalError,
+            "3ds_not_configured" => ConnectorErrorType::BusinessError,
+            "3ds_not_enabled_for_card" => ConnectorErrorType::BusinessError,
+            "3ds_not_supported" => ConnectorErrorType::BusinessError,
+            "3ds_payment_required" => ConnectorErrorType::BusinessError,
+            "token_expired" => ConnectorErrorType::BusinessError,
+            "token_in_use" => ConnectorErrorType::BusinessError,
+            "token_invalid" => ConnectorErrorType::BusinessError,
+            "token_required" => ConnectorErrorType::UserError,
+            "token_type_required" => ConnectorErrorType::UserError,
+            "token_used" => ConnectorErrorType::BusinessError,
+            "void_amount_invalid" => ConnectorErrorType::BusinessError,
+            "wallet_id_invalid" => ConnectorErrorType::BusinessError,
+            "zip_invalid" => ConnectorErrorType::UserError,
+            "processing_key_required" => ConnectorErrorType::BusinessError,
+            "processing_value_required" => ConnectorErrorType::BusinessError,
+            "3ds_version_invalid" => ConnectorErrorType::BusinessError,
+            "3ds_version_not_supported" => ConnectorErrorType::BusinessError,
+            "processing_error" => ConnectorErrorType::TechnicalError,
+            "service_unavailable" => ConnectorErrorType::TechnicalError,
+            "token_type_invalid" => ConnectorErrorType::UserError,
+            "token_data_invalid" => ConnectorErrorType::UserError,
+            _ => ConnectorErrorType::UnknownError,
+        }
     }
 }

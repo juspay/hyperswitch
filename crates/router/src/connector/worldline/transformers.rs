@@ -52,10 +52,10 @@ pub struct Order {
 pub struct BillingAddress {
     pub city: Option<String>,
     pub country_code: Option<api_enums::CountryAlpha2>,
-    pub house_number: Option<String>,
+    pub house_number: Option<Secret<String>>,
     pub state: Option<Secret<String>>,
-    pub state_code: Option<String>,
-    pub street: Option<String>,
+    pub state_code: Option<Secret<String>>,
+    pub street: Option<Secret<String>>,
     pub zip: Option<Secret<String>>,
 }
 
@@ -133,7 +133,7 @@ pub struct Giropay {
 #[derive(Debug, Serialize)]
 pub struct Ideal {
     #[serde(rename = "issuerId")]
-    pub issuer_id: WorldlineBic,
+    pub issuer_id: Option<WorldlineBic>,
 }
 
 #[derive(Debug, Serialize)]
@@ -236,7 +236,6 @@ impl TryFrom<utils::CardIssuer> for Gateway {
             _ => Err(errors::ConnectorError::NotSupported {
                 message: issuer.to_string(),
                 connector: "worldline",
-                payment_experience: api_enums::PaymentExperience::RedirectToUrl.to_string(),
             }
             .into()),
         }
@@ -322,7 +321,9 @@ fn make_bank_redirect_request(
         payments::BankRedirectData::Ideal { bank_name, .. } => (
             {
                 PaymentMethodSpecificData::PaymentProduct809SpecificInput(Box::new(Ideal {
-                    issuer_id: WorldlineBic::try_from(bank_name)?,
+                    issuer_id: bank_name
+                        .map(|bank_name| WorldlineBic::try_from(&bank_name))
+                        .transpose()?,
                 }))
             },
             809,
@@ -407,13 +408,13 @@ impl From<payments::AddressDetails> for Shipping {
     }
 }
 
-pub struct AuthType {
-    pub api_key: String,
-    pub api_secret: String,
-    pub merchant_account_id: String,
+pub struct WorldlineAuthType {
+    pub api_key: Secret<String>,
+    pub api_secret: Secret<String>,
+    pub merchant_account_id: Secret<String>,
 }
 
-impl TryFrom<&types::ConnectorAuthType> for AuthType {
+impl TryFrom<&types::ConnectorAuthType> for WorldlineAuthType {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(auth_type: &types::ConnectorAuthType) -> Result<Self, Self::Error> {
         if let types::ConnectorAuthType::SignatureKey {
@@ -423,9 +424,9 @@ impl TryFrom<&types::ConnectorAuthType> for AuthType {
         } = auth_type
         {
             Ok(Self {
-                api_key: api_key.to_string(),
-                api_secret: api_secret.to_string(),
-                merchant_account_id: key1.to_string(),
+                api_key: api_key.to_owned(),
+                api_secret: api_secret.to_owned(),
+                merchant_account_id: key1.to_owned(),
             })
         } else {
             Err(errors::ConnectorError::FailedToObtainAuthType)?
@@ -504,6 +505,7 @@ impl<F, T> TryFrom<types::ResponseRouterData<F, Payment, T, types::PaymentsRespo
                 mandate_reference: None,
                 connector_metadata: None,
                 network_txn_id: None,
+                connector_response_reference_id: None,
             }),
             ..item.data
         })
@@ -554,6 +556,7 @@ impl<F, T> TryFrom<types::ResponseRouterData<F, PaymentResponse, T, types::Payme
                 mandate_reference: None,
                 connector_metadata: None,
                 network_txn_id: None,
+                connector_response_reference_id: None,
             }),
             ..item.data
         })

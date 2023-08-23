@@ -29,11 +29,14 @@ pub enum ParsingError {
     /// Failed to parse email
     #[error("Failed to parse email")]
     EmailParsingError,
+    /// Failed to parse phone number
+    #[error("Failed to parse phone number")]
+    PhoneNumberParsingError,
 }
 
 /// Validation errors.
 #[allow(missing_docs)] // Only to prevent warnings about struct fields not being documented
-#[derive(Debug, thiserror::Error, Clone)]
+#[derive(Debug, thiserror::Error, Clone, PartialEq)]
 pub enum ValidationError {
     /// The provided input is missing a required field.
     #[error("Missing required field: {field_name}")]
@@ -63,6 +66,14 @@ pub enum CryptoError {
     /// The cryptographic algorithm was unable to verify the given signature
     #[error("Failed to verify signature")]
     SignatureVerificationFailed,
+}
+
+/// Errors for Qr code handling
+#[derive(Debug, thiserror::Error)]
+pub enum QrCodeError {
+    /// Failed to encode data into Qr code
+    #[error("Failed to create Qr code")]
+    FailedToCreateQrCode,
 }
 
 /// Allows [error_stack::Report] to change between error contexts

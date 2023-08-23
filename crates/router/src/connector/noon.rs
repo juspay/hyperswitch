@@ -1,10 +1,11 @@
-mod transformers;
+pub mod transformers;
 
 use std::fmt::Debug;
 
 use base64::Engine;
 use common_utils::{crypto, ext_traits::ByteSliceExt};
 use error_stack::{IntoReport, ResultExt};
+use masking::PeekInterface;
 use transformers as noon;
 
 use super::utils::PaymentsSyncRequestData;
@@ -15,7 +16,6 @@ use crate::{
         errors::{self, CustomResult},
         payments,
     },
-    db::StorageInterface,
     headers,
     services::{
         self,
@@ -96,13 +96,19 @@ impl ConnectorCommon for Noon {
     ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
         let auth = noon::NoonAuthType::try_from(auth_type)?;
 
-        let encoded_api_key = consts::BASE64_ENGINE.encode(format!(
-            "{}.{}:{}",
-            auth.business_identifier, auth.application_identifier, auth.api_key
-        ));
+        let encoded_api_key = auth
+            .business_identifier
+            .zip(auth.application_identifier)
+            .zip(auth.api_key)
+            .map(|((business_identifier, application_identifier), api_key)| {
+                consts::BASE64_ENGINE.encode(format!(
+                    "{}.{}:{}",
+                    business_identifier, application_identifier, api_key
+                ))
+            });
         Ok(vec![(
             headers::AUTHORIZATION.to_string(),
-            format!("Key_Test {encoded_api_key}").into_masked(),
+            format!("Key_Test {}", encoded_api_key.peek()).into_masked(),
         )])
     }
 
@@ -166,11 +172,13 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
     fn get_request_body(
         &self,
         req: &types::PaymentsAuthorizeRouterData,
-    ) -> CustomResult<Option<String>, errors::ConnectorError> {
+    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
         let req_obj = noon::NoonPaymentsRequest::try_from(req)?;
-        let noon_req =
-            utils::Encode::<noon::NoonPaymentsRequest>::encode_to_string_of_json(&req_obj)
-                .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        let noon_req = types::RequestBody::log_and_get_request_body(
+            &req_obj,
+            utils::Encode::<noon::NoonPaymentsRequest>::encode_to_string_of_json,
+        )
+        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(Some(noon_req))
     }
 
@@ -310,11 +318,13 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
     fn get_request_body(
         &self,
         req: &types::PaymentsCaptureRouterData,
-    ) -> CustomResult<Option<String>, errors::ConnectorError> {
+    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
         let req_obj = noon::NoonPaymentsActionRequest::try_from(req)?;
-        let noon_req =
-            utils::Encode::<noon::NoonPaymentsRequest>::encode_to_string_of_json(&req_obj)
-                .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        let noon_req = types::RequestBody::log_and_get_request_body(
+            &req_obj,
+            utils::Encode::<noon::NoonPaymentsRequest>::encode_to_string_of_json,
+        )
+        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(Some(noon_req))
     }
 
@@ -385,10 +395,11 @@ impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsR
     fn get_request_body(
         &self,
         req: &types::PaymentsCancelRouterData,
-    ) -> CustomResult<Option<String>, errors::ConnectorError> {
+    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
         let connector_req = noon::NoonPaymentsCancelRequest::try_from(req)?;
-        let noon_req = utils::Encode::<noon::NoonPaymentsCancelRequest>::encode_to_string_of_json(
+        let noon_req = types::RequestBody::log_and_get_request_body(
             &connector_req,
+            utils::Encode::<noon::NoonPaymentsCancelRequest>::encode_to_string_of_json,
         )
         .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(Some(noon_req))
@@ -458,11 +469,13 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
     fn get_request_body(
         &self,
         req: &types::RefundsRouterData<api::Execute>,
-    ) -> CustomResult<Option<String>, errors::ConnectorError> {
+    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
         let req_obj = noon::NoonPaymentsActionRequest::try_from(req)?;
-        let noon_req =
-            utils::Encode::<noon::NoonPaymentsActionRequest>::encode_to_string_of_json(&req_obj)
-                .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        let noon_req = types::RequestBody::log_and_get_request_body(
+            &req_obj,
+            utils::Encode::<noon::NoonPaymentsActionRequest>::encode_to_string_of_json,
+        )
+        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(Some(noon_req))
     }
 
@@ -628,24 +641,6 @@ impl api::IncomingWebhook for Noon {
             webhook_body.time_stamp,
         );
         Ok(message.into_bytes())
-    }
-
-    async fn get_webhook_source_verification_merchant_secret(
-        &self,
-        db: &dyn StorageInterface,
-        merchant_id: &str,
-    ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
-        let key = format!("whsec_verification_{}_{}", self.id(), merchant_id);
-        let secret = match db.find_config_by_key(&key).await {
-            Ok(config) => Some(config),
-            Err(e) => {
-                crate::logger::warn!("Unable to fetch merchant webhook secret from DB: {:#?}", e);
-                None
-            }
-        };
-        Ok(secret
-            .map(|conf| conf.config.into_bytes())
-            .unwrap_or_default())
     }
 
     fn get_webhook_object_reference_id(

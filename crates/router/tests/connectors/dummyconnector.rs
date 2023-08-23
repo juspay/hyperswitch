@@ -3,11 +3,9 @@ use std::str::FromStr;
 use cards::CardNumber;
 use masking::Secret;
 use router::types::{self, api, storage::enums};
+use test_utils::connector_auth;
 
-use crate::{
-    connector_auth,
-    utils::{self, ConnectorActions},
-};
+use crate::utils::{self, ConnectorActions};
 
 #[derive(Clone, Copy)]
 struct DummyConnectorTest;
@@ -23,10 +21,11 @@ impl utils::Connector for DummyConnectorTest {
     }
 
     fn get_auth_token(&self) -> types::ConnectorAuthType {
-        types::ConnectorAuthType::from(
+        utils::to_connector_auth_type(
             connector_auth::ConnectorAuthentication::new()
                 .dummyconnector
-                .expect("Missing connector authentication configuration"),
+                .expect("Missing connector authentication configuration")
+                .into(),
         )
     }
 

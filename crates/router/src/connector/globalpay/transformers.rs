@@ -1,5 +1,6 @@
 use common_utils::crypto::{self, GenerateDigest};
 use error_stack::{IntoReport, ResultExt};
+use masking::{PeekInterface, Secret};
 use rand::distributions::DistString;
 use serde::{Deserialize, Serialize};
 use url::Url;
@@ -12,7 +13,7 @@ use super::{
     response::{GlobalpayPaymentStatus, GlobalpayPaymentsResponse, GlobalpayRefreshTokenResponse},
 };
 use crate::{
-    connector::utils::{self, PaymentsAuthorizeRequestData, RouterData, WalletData},
+    connector::utils::{self, CardData, PaymentsAuthorizeRequestData, RouterData, WalletData},
     consts,
     core::errors,
     services::{self, RedirectForm},
@@ -23,7 +24,7 @@ type Error = error_stack::Report<errors::ConnectorError>;
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct GlobalPayMeta {
-    account_name: String,
+    account_name: Secret<String>,
 }
 
 impl TryFrom<&types::PaymentsAuthorizeRouterData> for GlobalpayPaymentsRequest {
@@ -104,8 +105,8 @@ impl TryFrom<&types::PaymentsCancelRouterData> for requests::GlobalpayCancelRequ
 }
 
 pub struct GlobalpayAuthType {
-    pub app_id: String,
-    pub key: String,
+    pub app_id: Secret<String>,
+    pub key: Secret<String>,
 }
 
 impl TryFrom<&types::ConnectorAuthType> for GlobalpayAuthType {
@@ -113,8 +114,8 @@ impl TryFrom<&types::ConnectorAuthType> for GlobalpayAuthType {
     fn try_from(auth_type: &types::ConnectorAuthType) -> Result<Self, Self::Error> {
         match auth_type {
             types::ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self {
-                app_id: key1.to_string(),
-                key: api_key.to_string(),
+                app_id: key1.to_owned(),
+                key: api_key.to_owned(),
             }),
             _ => Err(errors::ConnectorError::FailedToObtainAuthType.into()),
         }
@@ -141,7 +142,7 @@ impl TryFrom<&types::RefreshTokenRouterData> for GlobalpayRefreshTokenRequest {
             .attach_printable("Could not convert connector_auth to globalpay_auth")?;
 
         let nonce = rand::distributions::Alphanumeric.sample_string(&mut rand::thread_rng(), 12);
-        let nonce_with_api_key = format!("{}{}", nonce, globalpay_auth.key);
+        let nonce_with_api_key = format!("{}{}", nonce, globalpay_auth.key.peek());
         let secret_vec = crypto::Sha512
             .generate_digest(nonce_with_api_key.as_bytes())
             .change_context(errors::ConnectorError::RequestEncodingFailed)
@@ -219,6 +220,7 @@ fn get_payment_response(
             mandate_reference,
             connector_metadata: None,
             network_txn_id: None,
+            connector_response_reference_id: None,
         }),
     }
 }
@@ -340,7 +342,7 @@ fn get_payment_method_data(
         api::PaymentMethodData::Card(ccard) => Ok(PaymentMethodData::Card(requests::Card {
             number: ccard.card_number.clone(),
             expiry_month: ccard.card_exp_month.clone(),
-            expiry_year: ccard.card_exp_year.clone(),
+            expiry_year: ccard.get_card_expiry_year_2_digit(),
             cvv: ccard.card_cvc.clone(),
             account_type: None,
             authcode: None,

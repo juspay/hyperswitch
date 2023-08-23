@@ -1,8 +1,10 @@
 use error_stack::{IntoReport, ResultExt};
 use serde::{Deserialize, Serialize};
+use time::PrimitiveDateTime;
 use url::Url;
 
 use crate::{
+    connector::utils::PaymentsAuthorizeRequestData,
     consts,
     core::errors,
     pii::Secret,
@@ -19,6 +21,8 @@ pub struct RapydPaymentsRequest {
     pub payment_method_options: Option<PaymentMethodOptions>,
     pub capture: Option<bool>,
     pub description: Option<String>,
+    pub complete_payment_url: Option<String>,
+    pub error_payment_url: Option<String>,
 }
 
 #[derive(Default, Debug, Serialize)]
@@ -46,15 +50,15 @@ pub struct PaymentFields {
 
 #[derive(Default, Debug, Serialize)]
 pub struct Address {
-    name: String,
-    line_1: String,
-    line_2: Option<String>,
-    line_3: Option<String>,
+    name: Secret<String>,
+    line_1: Secret<String>,
+    line_2: Option<Secret<String>>,
+    line_3: Option<Secret<String>>,
     city: Option<String>,
-    state: Option<String>,
+    state: Option<Secret<String>>,
     country: Option<String>,
     zip: Option<String>,
-    phone_number: Option<String>,
+    phone_number: Option<Secret<String>>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -69,7 +73,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for RapydPaymentsRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::PaymentsAuthorizeRouterData) -> Result<Self, Self::Error> {
         let (capture, payment_method_options) = match item.payment_method {
-            storage_models::enums::PaymentMethod::Card => {
+            diesel_models::enums::PaymentMethod::Card => {
                 let three_ds_enabled = matches!(item.auth_type, enums::AuthenticationType::ThreeDs);
                 let payment_method_options = PaymentMethodOptions {
                     three_ds: three_ds_enabled,
@@ -124,6 +128,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for RapydPaymentsRequest {
         .change_context(errors::ConnectorError::NotImplemented(
             "payment_method".to_owned(),
         ))?;
+        let return_url = item.request.get_return_url()?;
         Ok(Self {
             amount: item.request.amount,
             currency: item.request.currency,
@@ -131,14 +136,16 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for RapydPaymentsRequest {
             capture,
             payment_method_options,
             description: None,
+            error_payment_url: Some(return_url.clone()),
+            complete_payment_url: Some(return_url),
         })
     }
 }
 
 #[derive(Debug, Deserialize)]
 pub struct RapydAuthType {
-    pub access_key: String,
-    pub secret_key: String,
+    pub access_key: Secret<String>,
+    pub secret_key: Secret<String>,
 }
 
 impl TryFrom<&types::ConnectorAuthType> for RapydAuthType {
@@ -146,8 +153,8 @@ impl TryFrom<&types::ConnectorAuthType> for RapydAuthType {
     fn try_from(auth_type: &types::ConnectorAuthType) -> Result<Self, Self::Error> {
         if let types::ConnectorAuthType::BodyKey { api_key, key1 } = auth_type {
             Ok(Self {
-                access_key: api_key.to_string(),
-                secret_key: key1.to_string(),
+                access_key: api_key.to_owned(),
+                secret_key: key1.to_owned(),
             })
         } else {
             Err(errors::ConnectorError::FailedToObtainAuthType)?
@@ -245,6 +252,23 @@ pub struct ResponseData {
     pub failure_message: Option<String>,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct DisputeResponseData {
+    pub id: String,
+    pub amount: i64,
+    pub currency: api_models::enums::Currency,
+    pub token: String,
+    pub dispute_reason_description: String,
+    #[serde(default, with = "common_utils::custom_serde::timestamp::option")]
+    pub due_date: Option<PrimitiveDateTime>,
+    pub status: RapydWebhookDisputeStatus,
+    #[serde(default, with = "common_utils::custom_serde::timestamp::option")]
+    pub created_at: Option<PrimitiveDateTime>,
+    #[serde(default, with = "common_utils::custom_serde::timestamp::option")]
+    pub updated_at: Option<PrimitiveDateTime>,
+    pub original_transaction_id: String,
+}
+
 #[derive(Default, Debug, Serialize)]
 pub struct RapydRefundRequest {
     pub payment: String,
@@ -257,7 +281,7 @@ impl<F> TryFrom<&types::RefundsRouterData<F>> for RapydRefundRequest {
     fn try_from(item: &types::RefundsRouterData<F>) -> Result<Self, Self::Error> {
         Ok(Self {
             payment: item.request.connector_transaction_id.to_string(),
-            amount: Some(item.request.amount),
+            amount: Some(item.request.refund_amount),
             currency: Some(item.request.currency),
         })
     }
@@ -382,7 +406,7 @@ impl<F, T>
                     data.next_action.to_owned(),
                 ));
                 match attempt_status {
-                    storage_models::enums::AttemptStatus::Failure => (
+                    diesel_models::enums::AttemptStatus::Failure => (
                         enums::AttemptStatus::Failure,
                         Err(types::ErrorResponse {
                             code: data
@@ -419,6 +443,7 @@ impl<F, T>
                                 mandate_reference: None,
                                 connector_metadata: None,
                                 network_txn_id: None,
+                                connector_response_reference_id: None,
                             }),
                         )
                     }
@@ -463,21 +488,34 @@ pub enum RapydWebhookObjectEventType {
     RefundCompleted,
     PaymentRefundRejected,
     PaymentRefundFailed,
+    PaymentDisputeCreated,
+    PaymentDisputeUpdated,
     #[serde(other)]
     Unknown,
 }
 
-impl TryFrom<RapydWebhookObjectEventType> for api::IncomingWebhookEvent {
-    type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(value: RapydWebhookObjectEventType) -> Result<Self, Self::Error> {
+#[derive(Debug, Clone, Deserialize, Serialize, PartialEq, strum::Display)]
+pub enum RapydWebhookDisputeStatus {
+    #[serde(rename = "ACT")]
+    Active,
+    #[serde(rename = "RVW")]
+    Review,
+    #[serde(rename = "LOS")]
+    Lose,
+    #[serde(rename = "WIN")]
+    Win,
+    #[serde(other)]
+    Unknown,
+}
+
+impl From<RapydWebhookDisputeStatus> for api_models::webhooks::IncomingWebhookEvent {
+    fn from(value: RapydWebhookDisputeStatus) -> Self {
         match value {
-            RapydWebhookObjectEventType::PaymentCompleted => Ok(Self::PaymentIntentSuccess),
-            RapydWebhookObjectEventType::PaymentCaptured => Ok(Self::PaymentIntentSuccess),
-            RapydWebhookObjectEventType::PaymentFailed => Ok(Self::PaymentIntentFailure),
-            RapydWebhookObjectEventType::Unknown
-            | RapydWebhookObjectEventType::RefundCompleted
-            | RapydWebhookObjectEventType::PaymentRefundRejected
-            | RapydWebhookObjectEventType::PaymentRefundFailed => Ok(Self::EventNotSupported),
+            RapydWebhookDisputeStatus::Active => Self::DisputeOpened,
+            RapydWebhookDisputeStatus::Review => Self::DisputeChallenged,
+            RapydWebhookDisputeStatus::Lose => Self::DisputeLost,
+            RapydWebhookDisputeStatus::Win => Self::DisputeWon,
+            RapydWebhookDisputeStatus::Unknown => Self::EventNotSupported,
         }
     }
 }
@@ -485,8 +523,9 @@ impl TryFrom<RapydWebhookObjectEventType> for api::IncomingWebhookEvent {
 #[derive(Debug, Deserialize)]
 #[serde(untagged)]
 pub enum WebhookData {
-    PaymentData(ResponseData),
-    RefundData(RefundResponseData),
+    Payment(ResponseData),
+    Refund(RefundResponseData),
+    Dispute(DisputeResponseData),
 }
 
 impl From<ResponseData> for RapydPaymentsResponse {
