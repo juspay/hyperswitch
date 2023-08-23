@@ -1,0 +1,52 @@
+{
+  "method": "POST",
+  "header": [
+    {
+      "key": "Content-Type",
+      "value": "application/json"
+    },
+    {
+      "key": "Accept",
+      "value": "application/json"
+    }
+  ],
+  "body": {
+    "mode": "raw",
+    "raw": "{\n    \"payment_method\": \"wallet\",\n    \"payment_method_type\": \"mb_way\",\n    \"payment_method_data\": {\n        \"wallet\": {\n            \"mb_way_redirect\": {\n                \"telephone_number\": \"351#911222111\"\n            }\n        }\n    }\n}",
+    "options": {
+      "raw": {
+        "language": "json"
+      }
+    },
+    "raw_json_formatted": {
+      "payment_method": "wallet",
+      "payment_method_type": "mb_way",
+      "payment_method_data": {
+        "wallet": {
+          "mb_way_redirect": {
+            "telephone_number": "351#911222111"
+          }
+        }
+      }
+    }
+  },
+  "url": {
+    "raw": "{{baseUrl}}/payments/:id/confirm",
+    "host": [
+      "{{baseUrl}}"
+    ],
+    "path": [
+      "payments",
+      ":id",
+      "confirm"
+    ],
+    "variable": [
+      {
+        "key": "id",
+        "value": "{{payment_id}}",
+        "description": "(Required) unique payment id"
+      }
+    ]
+  },
+  "description": "This API is to confirm the payment request and forward payment to the payment processor. This API provides more granular control upon when the API is forwarded to the payment processor. Alternatively you can confirm the payment within the Payments-Create API"
+}

@@ -1,0 +1,53 @@
+{
+  "method": "POST",
+  "header": [
+    {
+      "key": "Content-Type",
+      "value": "application/json"
+    },
+    {
+      "key": "Accept",
+      "value": "application/json"
+    }
+  ],
+  "body": {
+    "mode": "raw",
+    "raw": "{ \"payment_method\": \"bank_redirect\",\n\"payment_method_type\":\"interac\",\n  \"payment_method_data\": {\n    \"bank_redirect\": {\n      \"interac\": {\n        \"email\": \"test@example.com\",\n        \"country\": \"CA\"\n      }\n    }\n  }\n}",
+    "options": {
+      "raw": {
+        "language": "json"
+      }
+    },
+    "raw_json_formatted": {
+      "payment_method": "bank_redirect",
+      "payment_method_type": "interac",
+      "payment_method_data": {
+        "bank_redirect": {
+          "interac": {
+            "email": "test@example.com",
+            "country": "CA"
+          }
+        }
+      }
+    }
+  },
+  "url": {
+    "raw": "{{baseUrl}}/payments/:id/confirm",
+    "host": [
+      "{{baseUrl}}"
+    ],
+    "path": [
+      "payments",
+      ":id",
+      "confirm"
+    ],
+    "variable": [
+      {
+        "key": "id",
+        "value": "{{payment_id}}",
+        "description": "(Required) unique payment id"
+      }
+    ]
+  },
+  "description": "This API is to confirm the payment request and forward payment to the payment processor. This API provides more granular control upon when the API is forwarded to the payment processor. Alternatively you can confirm the payment within the Payments-Create API"
+}

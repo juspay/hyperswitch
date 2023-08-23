@@ -10,8 +10,8 @@ use test_utils::connector_auth::{ConnectorAuthType, ConnectorAuthenticationMap};
 // Just by the name of the connector, this function generates the name of the collection
 // Example: CONNECTOR_NAME="stripe" -> OUTPUT: postman/stripe.postman_collection.json
 #[inline]
-fn path_generation(name: impl AsRef<str>) -> String {
-    format!("postman/{}.postman_collection.json", name.as_ref())
+fn get_path(name: impl AsRef<str>) -> String {
+    format!("postman/collection-dir/{}", name.as_ref())
 }
 
 #[derive(Parser)]
@@ -25,7 +25,7 @@ struct Args {
     base_url: String,
     /// Admin API Key of the environment
     #[arg(short, long = "admin_api_key")]
-    admin_api_key: String,
+    admin_api_key: String
 }
 
 fn main() {
@@ -35,7 +35,7 @@ fn main() {
     let base_url = args.base_url;
     let admin_api_key = args.admin_api_key;
 
-    let collection_path = path_generation(&connector_name);
+    let collection_path = get_path(&connector_name);
     let auth_map = ConnectorAuthenticationMap::new();
 
     let inner_map = auth_map.inner();

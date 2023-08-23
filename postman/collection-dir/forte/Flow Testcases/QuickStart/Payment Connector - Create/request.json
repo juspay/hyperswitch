@@ -1,0 +1,138 @@
+{
+  "auth": {
+    "type": "apikey",
+    "apikey": [
+      {
+        "key": "value",
+        "value": "{{admin_api_key}}",
+        "type": "string"
+      },
+      {
+        "key": "key",
+        "value": "api-key",
+        "type": "string"
+      },
+      {
+        "key": "in",
+        "value": "header",
+        "type": "string"
+      }
+    ]
+  },
+  "method": "POST",
+  "header": [
+    {
+      "key": "Content-Type",
+      "value": "application/json"
+    },
+    {
+      "key": "Accept",
+      "value": "application/json"
+    }
+  ],
+  "body": {
+    "mode": "raw",
+    "raw": "{\n    \"connector_type\": \"fiz_operations\",\n    \"connector_name\": \"forte\",\n    \"business_country\":\"US\",\n    \"business_label\":\"default\",\n    \"connector_account_details\": {\n        \"auth_type\": \"MultiAuthKey\",\n        \"api_key\": \"{{connector_api_key}}\",\n        \"api_secret\": \"{{connector_api_secret}}\",\n        \"key1\": \"{{connector_key1}}\",\n        \"key2\": \"{{connector_key2}}\"\n    },\n    \"test_mode\": true,\n    \"disabled\": false,\n    \"payment_methods_enabled\": [\n        {\n            \"payment_method\": \"card\",\n            \"payment_method_types\": [\n                {\n                    \"payment_method_type\": \"credit\",\n                    \"card_networks\": [\n                        \"Visa\",\n                        \"Mastercard\"\n                    ],\n                    \"minimum_amount\": 1,\n                    \"maximum_amount\": 68607706,\n                    \"recurring_enabled\": true,\n                    \"installment_payment_enabled\": true\n                },\n                {\n                    \"payment_method_type\": \"debit\",\n                    \"card_networks\": [\n                        \"Visa\",\n                        \"Mastercard\"\n                    ],\n                    \"minimum_amount\": 1,\n                    \"maximum_amount\": 68607706,\n                    \"recurring_enabled\": true,\n                    \"installment_payment_enabled\": true\n                }\n            ]\n        }\n    ],\n    \"metadata\": {\n        \"gpay\": {\n            \"allowed_payment_methods\": [\n                {\n                    \"type\": \"CARD\",\n                    \"parameters\": {\n                        \"allowed_auth_methods\": [\n                            \"PAN_ONLY\",\n                            \"CRYPTOGRAM_3DS\"\n                        ],\n                        \"allowed_card_networks\": [\n                            \"AMEX\",\n                            \"DISCOVER\",\n                            \"INTERAC\",\n                            \"JCB\",\n                            \"MASTERCARD\",\n                            \"VISA\"\n                        ]\n                    },\n                    \"tokenization_specification\": {\n                        \"type\": \"PAYMENT_GATEWAY\",\n                        \"parameters\": {\n                            \"gateway\": \"example\",\n                            \"gateway_merchant_id\": \"exampleGatewayMerchantId\"\n                        }\n                    }\n                }\n            ],\n            \"merchant_info\": {\n                \"merchant_name\": \"Narayan Bhat\"\n            }\n        }\n    }\n}",
+    "options": {
+      "raw": {
+        "language": "json"
+      }
+    },
+    "raw_json_formatted": {
+      "connector_type": "fiz_operations",
+      "connector_name": "forte",
+      "business_country": "US",
+      "business_label": "default",
+      "connector_account_details": {
+        "auth_type": "MultiAuthKey",
+        "api_key": "{{connector_api_key}}",
+        "api_secret": "{{connector_api_secret}}",
+        "key1": "{{connector_key1}}",
+        "key2": "{{connector_key2}}"
+      },
+      "test_mode": true,
+      "disabled": false,
+      "payment_methods_enabled": [
+        {
+          "payment_method": "card",
+          "payment_method_types": [
+            {
+              "payment_method_type": "credit",
+              "card_networks": [
+                "Visa",
+                "Mastercard"
+              ],
+              "minimum_amount": 1,
+              "maximum_amount": 68607706,
+              "recurring_enabled": true,
+              "installment_payment_enabled": true
+            },
+            {
+              "payment_method_type": "debit",
+              "card_networks": [
+                "Visa",
+                "Mastercard"
+              ],
+              "minimum_amount": 1,
+              "maximum_amount": 68607706,
+              "recurring_enabled": true,
+              "installment_payment_enabled": true
+            }
+          ]
+        }
+      ],
+      "metadata": {
+        "gpay": {
+          "allowed_payment_methods": [
+            {
+              "type": "CARD",
+              "parameters": {
+                "allowed_auth_methods": [
+                  "PAN_ONLY",
+                  "CRYPTOGRAM_3DS"
+                ],
+                "allowed_card_networks": [
+                  "AMEX",
+                  "DISCOVER",
+                  "INTERAC",
+                  "JCB",
+                  "MASTERCARD",
+                  "VISA"
+                ]
+              },
+              "tokenization_specification": {
+                "type": "PAYMENT_GATEWAY",
+                "parameters": {
+                  "gateway": "example",
+                  "gateway_merchant_id": "exampleGatewayMerchantId"
+                }
+              }
+            }
+          ],
+          "merchant_info": {
+            "merchant_name": "Narayan Bhat"
+          }
+        }
+      }
+    }
+  },
+  "url": {
+    "raw": "{{baseUrl}}/account/:account_id/connectors",
+    "host": [
+      "{{baseUrl}}"
+    ],
+    "path": [
+      "account",
+      ":account_id",
+      "connectors"
+    ],
+    "variable": [
+      {
+        "key": "account_id",
+        "value": "{{merchant_id}}",
+        "description": "(Required) The unique identifier for the merchant account"
+      }
+    ]
+  },
+  "description": "Create a new Payment Connector for the merchant account. The connector could be a payment processor / facilitator / acquirer or specialised services like Fraud / Accounting etc."
+}

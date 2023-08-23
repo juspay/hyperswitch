@@ -1,0 +1,48 @@
+{
+  "method": "POST",
+  "header": [
+    {
+      "key": "Content-Type",
+      "value": "application/json"
+    },
+    {
+      "key": "Accept",
+      "value": "application/json"
+    }
+  ],
+  "body": {
+    "mode": "raw",
+    "raw": "{\n  \"payment_method\": \"card\",\n  \"payment_method_type\": \"credit\",\n  \"payment_method_issuer\": \"Visa\",\n  \"card\": {\n    \"card_number\": \"4242424242424242\",\n    \"card_exp_month\": \"10\",\n    \"card_exp_year\": \"25\",\n    \"card_holder_name\": \"John Doe\"\n  },\n  \"customer_id\": \"cus_mnewerunwiuwiwqw\",\n  \"metadata\": {\n    \"city\": \"NY\",\n    \"unit\": \"245\"\n  }\n}",
+    "options": {
+      "raw": {
+        "language": "json"
+      }
+    },
+    "raw_json_formatted": {
+      "payment_method": "card",
+      "payment_method_type": "credit",
+      "payment_method_issuer": "Visa",
+      "card": {
+        "card_number": "4242424242424242",
+        "card_exp_month": "10",
+        "card_exp_year": "25",
+        "card_holder_name": "John Doe"
+      },
+      "customer_id": "cus_mnewerunwiuwiwqw",
+      "metadata": {
+        "city": "NY",
+        "unit": "245"
+      }
+    }
+  },
+  "url": {
+    "raw": "{{baseUrl}}/payment_methods",
+    "host": [
+      "{{baseUrl}}"
+    ],
+    "path": [
+      "payment_methods"
+    ]
+  },
+  "description": "To create a payment method against a customer object. In case of cards, this API could be used only by PCI compliant merchants"
+}
