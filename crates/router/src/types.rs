@@ -240,7 +240,7 @@ pub struct RouterData<Flow, Request, Response> {
     pub payment_method_balance: Option<PaymentMethodBalance>,
 
     ///for switching between two different versions of the same connector
-    pub is_connector_new_version: Option<bool>,
+    pub connector_api_version: Option<String>,
 
     /// Contains flow-specific data required to construct a request and send it to the connector.
     pub request: Request,
@@ -924,7 +924,7 @@ impl<F1, F2, T1, T2> From<(&RouterData<F1, T1, PaymentsResponseData>, T2)>
             quote_id: data.quote_id.clone(),
             test_mode: data.test_mode,
             payment_method_balance: data.payment_method_balance.clone(),
-            is_connector_new_version: data.is_connector_new_version,
+            connector_api_version: data.connector_api_version.clone(),
             connector_http_status_code: data.connector_http_status_code,
         }
     }
@@ -997,7 +997,7 @@ impl<F1, F2>
             quote_id: data.quote_id.clone(),
             test_mode: data.test_mode,
             payment_method_balance: None,
-            is_connector_new_version: None,
+            connector_api_version: None,
             connector_http_status_code: data.connector_http_status_code,
         }
     }

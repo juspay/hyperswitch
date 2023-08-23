@@ -394,3 +394,6 @@ adyen.banks = "affin_bank,agro_bank,alliance_bank,am_bank,bank_islam,bank_muamal
 
 [bank_config.online_banking_thailand]
 adyen.banks = "bangkok_bank,krungsri_bank,krung_thai_bank,the_siam_commercial_bank,kasikorn_bank"
+
+[multiple_api_version_supported_connectors]
+supported_connectors = ["braintree"]

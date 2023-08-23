@@ -35,46 +35,70 @@ pub struct TransactionBody {
 impl TryFrom<&types::PaymentsAuthorizeRouterData> for BraintreePaymentsRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::PaymentsAuthorizeRouterData) -> Result<Self, Self::Error> {
-        let query = match item.request.is_auto_capture()?{
-            true => "mutation ChargeCreditCard($input: ChargeCreditCardInput!) { chargeCreditCard(input: $input) { transaction { id legacyId createdAt amount { value currencyCode } status } } }".to_string(),
-            false => "mutation authorizeCreditCard($input: AuthorizeCreditCardInput!) { authorizeCreditCard(input: $input) {  transaction { id legacyId amount { value currencyCode } status } } }".to_string(),
-        };
-        Ok(Self {
-            query,
-            variables: VariablePaymentInput {
-                input: PaymentInput {
-                    payment_method_id: item.get_payment_method_token()?,
-                    transaction: TransactionBody {
-                        amount: utils::to_currency_base_unit(
-                            item.request.amount,
-                            item.request.currency,
-                        )?,
+        match item.request.payment_method_data.clone() {
+            api::PaymentMethodData::Card(_) => {
+                const CHARGE_CREDIT_CARD_MUTATION: &str = "mutation ChargeCreditCard($input: ChargeCreditCardInput!) { chargeCreditCard(input: $input) { transaction { id legacyId createdAt amount { value currencyCode } status } } }";
+                const AUTHORIZE_CREDIT_CARD_MUTATION: &str = "mutation authorizeCreditCard($input: AuthorizeCreditCardInput!) { authorizeCreditCard(input: $input) {  transaction { id legacyId amount { value currencyCode } status } } }";
+
+                let query = match item.request.is_auto_capture()? {
+                    true => CHARGE_CREDIT_CARD_MUTATION.to_string(),
+                    false => AUTHORIZE_CREDIT_CARD_MUTATION.to_string(),
+                };
+                Ok(Self {
+                    query,
+                    variables: VariablePaymentInput {
+                        input: PaymentInput {
+                            payment_method_id: item.get_payment_method_token()?,
+                            transaction: TransactionBody {
+                                amount: utils::to_currency_base_unit(
+                                    item.request.amount,
+                                    item.request.currency,
+                                )?,
+                            },
+                        },
                     },
-                },
-            },
-        })
+                })
+            }
+            api_models::payments::PaymentMethodData::CardRedirect(_)
+            | api_models::payments::PaymentMethodData::Wallet(_)
+            | api_models::payments::PaymentMethodData::PayLater(_)
+            | api_models::payments::PaymentMethodData::BankRedirect(_)
+            | api_models::payments::PaymentMethodData::BankDebit(_)
+            | api_models::payments::PaymentMethodData::BankTransfer(_)
+            | api_models::payments::PaymentMethodData::Crypto(_)
+            | api_models::payments::PaymentMethodData::MandatePayment
+            | api_models::payments::PaymentMethodData::Reward(_)
+            | api_models::payments::PaymentMethodData::Upi(_)
+            | api_models::payments::PaymentMethodData::Voucher(_)
+            | api_models::payments::PaymentMethodData::GiftCard(_) => {
+                Err(errors::ConnectorError::NotImplemented(
+                    utils::get_unimplemented_payment_method_error_message("braintree"),
+                )
+                .into())
+            }
+        }
     }
 }
 
-#[derive(Default, Debug, Clone, Deserialize)]
+#[derive(Debug, Deserialize)]
 pub struct BraintreeAuthResponse {
     data: Option<DataAuthResponse>,
     errors: Option<Vec<ErrorDetails>>,
 }
 
-#[derive(Default, Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize)]
 pub struct TransactionAuthChargeResponseBody {
     id: String,
     status: BraintreePaymentStatus,
 }
 
-#[derive(Default, Debug, Clone, Deserialize)]
+#[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct DataAuthResponse {
     authorize_credit_card: Option<AuthChargeCreditCard>,
 }
 
-#[derive(Default, Debug, Clone, Deserialize)]
+#[derive(Debug, Deserialize)]
 pub struct AuthChargeCreditCard {
     transaction: Option<TransactionAuthChargeResponseBody>,
 }
@@ -190,7 +214,7 @@ fn get_error_response<T>(
 //     }
 // }
 
-#[derive(Debug, Default, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum BraintreePaymentStatus {
     Authorized,
@@ -200,7 +224,6 @@ pub enum BraintreePaymentStatus {
     ProcessorDeclined,
     GatewayRejected,
     Voided,
-    #[default]
     Settling,
     Settled,
     SettlementPending,
@@ -224,7 +247,10 @@ pub struct AdditionalErrorDetails {
 impl From<BraintreePaymentStatus> for enums::AttemptStatus {
     fn from(item: BraintreePaymentStatus) -> Self {
         match item {
-            BraintreePaymentStatus::Settling | BraintreePaymentStatus::Settled => Self::Charged,
+            BraintreePaymentStatus::Settling
+            | BraintreePaymentStatus::Settled
+            | BraintreePaymentStatus::SettlementConfirmed => Self::Charged,
+            BraintreePaymentStatus::Authorizing => Self::Authorizing,
             BraintreePaymentStatus::AuthorizedExpired => Self::AuthorizationFailed,
             BraintreePaymentStatus::Failed
             | BraintreePaymentStatus::GatewayRejected
@@ -232,7 +258,8 @@ impl From<BraintreePaymentStatus> for enums::AttemptStatus {
             | BraintreePaymentStatus::SettlementDeclined => Self::Failure,
             BraintreePaymentStatus::Authorized => Self::Authorized,
             BraintreePaymentStatus::Voided => Self::Voided,
-            _ => Self::Pending,
+            BraintreePaymentStatus::SubmittedForSettlement
+            | BraintreePaymentStatus::SettlementPending => Self::Pending,
         }
     }
 }
@@ -298,13 +325,13 @@ impl<F, T>
     }
 }
 
-#[derive(Default, Debug, Clone, Deserialize)]
+#[derive(Debug, Deserialize)]
 pub struct BraintreePaymentsResponse {
     data: Option<DataResponse>,
     errors: Option<Vec<ErrorDetails>>,
 }
 
-#[derive(Default, Debug, Clone, Deserialize)]
+#[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct DataResponse {
     charge_credit_card: Option<AuthChargeCreditCard>,
@@ -336,7 +363,8 @@ pub struct BraintreeRefundRequest {
 impl<F> TryFrom<&types::RefundsRouterData<F>> for BraintreeRefundRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::RefundsRouterData<F>) -> Result<Self, Self::Error> {
-        let query = "mutation refundTransaction($input:  RefundTransactionInput!) { refundTransaction(input: $input) {clientMutationId refund { id legacyId amount { value currencyCode } status } } }".to_string();
+        const REFUND_TRANSACTION_MUTATION: &str = "mutation refundTransaction($input:  RefundTransactionInput!) { refundTransaction(input: $input) {clientMutationId refund { id legacyId amount { value currencyCode } status } } }";
+        let query = REFUND_TRANSACTION_MUTATION.to_string();
         let variables = BraintreeRefundVariables {
             input: BraintreeRefundInput {
                 transaction_id: item.request.connector_transaction_id.clone(),
@@ -352,7 +380,6 @@ impl<F> TryFrom<&types::RefundsRouterData<F>> for BraintreeRefundRequest {
     }
 }
 
-#[allow(dead_code)]
 #[derive(Default, Debug, Clone, Deserialize)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum BraintreeRefundStatus {
@@ -550,7 +577,6 @@ pub struct CreditCardData {
 #[derive(Default, Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct InputData {
-    client_mutation_id: String,
     credit_card: CreditCardData,
 }
 
@@ -572,7 +598,6 @@ impl TryFrom<&types::TokenizationRouterData> for BraintreeTokenRequest {
             api::PaymentMethodData::Card(card_data) => {
                 let query = "mutation  tokenizeCreditCard($input: TokenizeCreditCardInput!) { tokenizeCreditCard(input: $input) { clientMutationId paymentMethod { id } } }".to_string();
                 let input = InputData {
-                    client_mutation_id: "12345667890".to_string(),
                     credit_card: CreditCardData {
                         number: card_data.card_number,
                         expiration_year: card_data.card_exp_year,
@@ -586,7 +611,23 @@ impl TryFrom<&types::TokenizationRouterData> for BraintreeTokenRequest {
                     variables: VariableInput { input },
                 })
             }
-            _ => Err(errors::ConnectorError::NotImplemented("Payment Method".to_string()).into()),
+            api_models::payments::PaymentMethodData::CardRedirect(_)
+            | api_models::payments::PaymentMethodData::Wallet(_)
+            | api_models::payments::PaymentMethodData::PayLater(_)
+            | api_models::payments::PaymentMethodData::BankRedirect(_)
+            | api_models::payments::PaymentMethodData::BankDebit(_)
+            | api_models::payments::PaymentMethodData::BankTransfer(_)
+            | api_models::payments::PaymentMethodData::Crypto(_)
+            | api_models::payments::PaymentMethodData::MandatePayment
+            | api_models::payments::PaymentMethodData::Reward(_)
+            | api_models::payments::PaymentMethodData::Upi(_)
+            | api_models::payments::PaymentMethodData::Voucher(_)
+            | api_models::payments::PaymentMethodData::GiftCard(_) => {
+                Err(errors::ConnectorError::NotImplemented(
+                    utils::get_unimplemented_payment_method_error_message("braintree"),
+                )
+                .into())
+            }
         }
     }
 }
@@ -679,7 +720,8 @@ pub struct BraintreeCaptureRequest {
 impl TryFrom<&types::PaymentsCaptureRouterData> for BraintreeCaptureRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::PaymentsCaptureRouterData) -> Result<Self, Self::Error> {
-        let query = "mutation captureTransaction($input: CaptureTransactionInput!) { captureTransaction(input: $input) { clientMutationId transaction { id legacyId amount { value currencyCode } status } } }".to_string();
+        const CAPTURE_TRANSACTION_MUTATION: &str = "mutation captureTransaction($input: CaptureTransactionInput!) { captureTransaction(input: $input) { clientMutationId transaction { id legacyId amount { value currencyCode } status } } }";
+        let query = CAPTURE_TRANSACTION_MUTATION.to_string();
         let variables = VariableCaptureInput {
             input: CaptureInputData {
                 transaction_id: item.request.connector_transaction_id.clone(),
@@ -695,24 +737,24 @@ impl TryFrom<&types::PaymentsCaptureRouterData> for BraintreeCaptureRequest {
     }
 }
 
-#[derive(Default, Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize)]
 pub struct CaptureResponseTransactionBody {
     id: String,
     status: BraintreePaymentStatus,
 }
 
-#[derive(Default, Debug, Clone, Deserialize)]
+#[derive(Debug, Deserialize)]
 pub struct CaptureTransactionData {
     transaction: Option<CaptureResponseTransactionBody>,
 }
 
-#[derive(Default, Debug, Clone, Deserialize)]
+#[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CaptureResponseData {
     capture_transaction: Option<CaptureTransactionData>,
 }
 
-#[derive(Default, Debug, Clone, Deserialize)]
+#[derive(Debug, Deserialize)]
 pub struct BraintreeCaptureResponse {
     data: Option<CaptureResponseData>,
     errors: Option<Vec<ErrorDetails>>,
@@ -795,7 +837,8 @@ pub struct BraintreeCancelRequest {
 impl TryFrom<&types::PaymentsCancelRouterData> for BraintreeCancelRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::PaymentsCancelRouterData) -> Result<Self, Self::Error> {
-        let query = "mutation voidTransaction($input:  ReverseTransactionInput!) { reverseTransaction(input: $input) { clientMutationId reversal { ...  on Transaction { id legacyId amount { value currencyCode } status } } } }".to_string();
+        const VOID_TRANSACTION_MUTATION: &str = "mutation voidTransaction($input:  ReverseTransactionInput!) { reverseTransaction(input: $input) { clientMutationId reversal { ...  on Transaction { id legacyId amount { value currencyCode } status } } } }";
+        let query = VOID_TRANSACTION_MUTATION.to_string();
         let variables = VariableCancelInput {
             input: CancelInputData {
                 transaction_id: item.request.connector_transaction_id.clone(),
@@ -805,24 +848,24 @@ impl TryFrom<&types::PaymentsCancelRouterData> for BraintreeCancelRequest {
     }
 }
 
-#[derive(Default, Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize)]
 pub struct CancelResponseTransactionBody {
     id: String,
     status: BraintreePaymentStatus,
 }
 
-#[derive(Default, Debug, Clone, Deserialize)]
+#[derive(Debug, Deserialize)]
 pub struct CancelTransactionData {
     reversal: Option<CancelResponseTransactionBody>,
 }
 
-#[derive(Default, Debug, Clone, Deserialize)]
+#[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CancelResponseData {
     reverse_transaction: Option<CancelTransactionData>,
 }
 
-#[derive(Default, Debug, Clone, Deserialize)]
+#[derive(Debug, Deserialize)]
 pub struct BraintreeCancelResponse {
     data: Option<CancelResponseData>,
     errors: Option<Vec<ErrorDetails>>,
@@ -902,33 +945,33 @@ impl TryFrom<&types::PaymentsSyncRouterData> for BraintreePSyncRequest {
     }
 }
 
-#[derive(Default, Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize)]
 pub struct NodeData {
     id: String,
     status: BraintreePaymentStatus,
 }
 
-#[derive(Default, Debug, Clone, Deserialize)]
+#[derive(Debug, Deserialize)]
 pub struct EdgeData {
     node: NodeData,
 }
 
-#[derive(Default, Debug, Clone, Deserialize)]
+#[derive(Debug, Deserialize)]
 pub struct TransactionData {
     edges: Vec<EdgeData>,
 }
 
-#[derive(Default, Debug, Clone, Deserialize)]
+#[derive(Debug, Deserialize)]
 pub struct SearchData {
     transactions: Option<TransactionData>,
 }
 
-#[derive(Default, Debug, Clone, Deserialize)]
+#[derive(Debug, Deserialize)]
 pub struct PSyncResponseData {
     search: Option<SearchData>,
 }
 
-#[derive(Default, Debug, Clone, Deserialize)]
+#[derive(Debug, Deserialize)]
 pub struct BraintreePSyncResponse {
     data: Option<PSyncResponseData>,
     errors: Option<Vec<ErrorDetails>>,

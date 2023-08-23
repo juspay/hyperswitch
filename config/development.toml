@@ -400,3 +400,6 @@ merchant_ids_send_payment_id_as_connector_request_id = []
 
 [payouts]
 payout_eligibility = true
+
+[multiple_api_version_supported_connectors]
+supported_connectors = "braintree"

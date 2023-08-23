@@ -191,8 +191,8 @@ impl ConnectorIntegration<api::Session, types::PaymentsSessionData, types::Payme
         req: &types::PaymentsSessionRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
-        let is_connector_new_version = req.is_connector_new_version;
-        if is_connector_new_version == Some(true) {
+        let connector_api_version = req.connector_api_version.clone();
+        if connector_api_version == Some("v2".to_string()) {
             Ok(None)
         } else {
             let request = Some(
@@ -301,8 +301,8 @@ impl
         req: &types::TokenizationRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
-        let is_connector_new_version = req.is_connector_new_version;
-        if is_connector_new_version == Some(true) {
+        let connector_api_version = req.connector_api_version.clone();
+        if connector_api_version == Some("v2".to_string()) {
             Ok(Some(
                 services::RequestBuilder::new()
                     .method(services::Method::Post)
@@ -361,8 +361,8 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
         req: &types::PaymentsCaptureRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
-        let is_connector_new_version = req.is_connector_new_version;
-        if is_connector_new_version == Some(true) {
+        let connector_api_version = req.connector_api_version.clone();
+        if connector_api_version == Some("v2".to_string()) {
             self.build_headers(req, connectors)
         } else {
             Ok(vec![])
@@ -378,8 +378,8 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
         req: &types::PaymentsCaptureRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        let is_connector_new_version = req.is_connector_new_version;
-        if is_connector_new_version == Some(true) {
+        let connector_api_version = req.connector_api_version.clone();
+        if connector_api_version == Some("v2".to_string()) {
             let base_url = connectors
                 .braintree
                 .secondary_base_url
@@ -395,8 +395,8 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
         &self,
         req: &types::PaymentsCaptureRouterData,
     ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
-        let is_connector_new_version = req.is_connector_new_version;
-        if is_connector_new_version == Some(true) {
+        let connector_api_version = req.connector_api_version.clone();
+        if connector_api_version == Some("v2".to_string()) {
             let connector_request =
                 braintree_graphql_transformers::BraintreeCaptureRequest::try_from(req)?;
 
@@ -419,8 +419,8 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
         req: &types::PaymentsCaptureRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
-        let is_connector_new_version = req.is_connector_new_version;
-        if is_connector_new_version == Some(true) {
+        let connector_api_version = req.connector_api_version.clone();
+        if connector_api_version == Some("v2".to_string()) {
             Ok(Some(
                 services::RequestBuilder::new()
                     .method(services::Method::Post)
@@ -472,8 +472,8 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
         req: &types::PaymentsSyncRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
-        let is_connector_new_version = req.is_connector_new_version;
-        if is_connector_new_version == Some(true) {
+        let connector_api_version = req.connector_api_version.clone();
+        if connector_api_version == Some("v2".to_string()) {
             self.build_headers(req, connectors)
         } else {
             let mut headers = vec![
@@ -504,8 +504,8 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
         req: &types::PaymentsSyncRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        let is_connector_new_version = req.is_connector_new_version;
-        if is_connector_new_version == Some(true) {
+        let connector_api_version = req.connector_api_version.clone();
+        if connector_api_version == Some("v2".to_string()) {
             let base_url = connectors
                 .braintree
                 .secondary_base_url
@@ -521,10 +521,9 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
                 .get_connector_transaction_id()
                 .change_context(errors::ConnectorError::MissingConnectorTransactionID)?;
             Ok(format!(
-                "{}/merchants/{}/transactions/{}",
+                "{}/merchants/{}/transactions/{connector_payment_id}",
                 self.base_url(connectors),
-                auth_type.merchant_id.peek(),
-                connector_payment_id
+                auth_type.merchant_id.peek()
             ))
         }
     }
@@ -533,8 +532,8 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
         &self,
         req: &types::PaymentsSyncRouterData,
     ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
-        let is_connector_new_version = req.is_connector_new_version;
-        if is_connector_new_version == Some(true) {
+        let connector_api_version = req.connector_api_version.clone();
+        if connector_api_version == Some("v2".to_string()) {
             let connector_request =
                 braintree_graphql_transformers::BraintreePSyncRequest::try_from(req)?;
 
@@ -554,8 +553,8 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
         req: &types::PaymentsSyncRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
-        let is_connector_new_version = req.is_connector_new_version;
-        if is_connector_new_version == Some(true) {
+        let connector_api_version = req.connector_api_version.clone();
+        if connector_api_version == Some("v2".to_string()) {
             Ok(Some(
                 services::RequestBuilder::new()
                     .method(services::Method::Post)
@@ -583,8 +582,8 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
         data: &types::PaymentsSyncRouterData,
         res: types::Response,
     ) -> CustomResult<types::PaymentsSyncRouterData, errors::ConnectorError> {
-        let is_connector_new_version = data.is_connector_new_version;
-        if is_connector_new_version == Some(true) {
+        let connector_api_version = data.connector_api_version.clone();
+        if connector_api_version == Some("v2".to_string()) {
             let response: braintree_graphql_transformers::BraintreePSyncResponse = res
                 .response
                 .parse_struct("Braintree PaymentSyncResponse")
@@ -623,8 +622,8 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         req: &types::PaymentsAuthorizeRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
-        let is_connector_new_version = req.is_connector_new_version;
-        if is_connector_new_version == Some(true) {
+        let connector_api_version = req.connector_api_version.clone();
+        if connector_api_version == Some("v2".to_string()) {
             self.build_headers(req, connectors)
         } else {
             let mut headers = vec![
@@ -651,8 +650,8 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         req: &types::PaymentsAuthorizeRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        let is_connector_new_version = req.is_connector_new_version;
-        if is_connector_new_version == Some(true) {
+        let connector_api_version = req.connector_api_version.clone();
+        if connector_api_version == Some("v2".to_string()) {
             let base_url = connectors
                 .braintree
                 .secondary_base_url
@@ -695,8 +694,8 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         &self,
         req: &types::PaymentsAuthorizeRouterData,
     ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
-        let is_connector_new_version = req.is_connector_new_version;
-        if is_connector_new_version == Some(true) {
+        let connector_api_version = req.connector_api_version.clone();
+        if connector_api_version == Some("v2".to_string()) {
             let connector_request =
                 braintree_graphql_transformers::BraintreePaymentsRequest::try_from(req)?;
             let braintree_payment_request = types::RequestBody::log_and_get_request_body(
@@ -721,8 +720,8 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         data: &types::PaymentsAuthorizeRouterData,
         res: types::Response,
     ) -> CustomResult<types::PaymentsAuthorizeRouterData, errors::ConnectorError> {
-        let is_connector_new_version = data.is_connector_new_version;
-        if is_connector_new_version == Some(true) {
+        let connector_api_version = data.connector_api_version.clone();
+        if connector_api_version == Some("v2".to_string()) {
             match data.request.is_auto_capture()? {
                 true => {
                     let response: braintree_graphql_transformers::BraintreePaymentsResponse = res
@@ -776,8 +775,8 @@ impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsR
         req: &types::PaymentsCancelRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
-        let is_connector_new_version = req.is_connector_new_version;
-        if is_connector_new_version == Some(true) {
+        let connector_api_version = req.connector_api_version.clone();
+        if connector_api_version == Some("v2".to_string()) {
             self.build_headers(req, connectors)
         } else {
             let mut headers = vec![
@@ -808,8 +807,8 @@ impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsR
         req: &types::PaymentsCancelRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        let is_connector_new_version = req.is_connector_new_version;
-        if is_connector_new_version == Some(true) {
+        let connector_api_version = req.connector_api_version.clone();
+        if connector_api_version == Some("v2".to_string()) {
             let base_url = connectors
                 .braintree
                 .secondary_base_url
@@ -848,8 +847,8 @@ impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsR
         &self,
         req: &types::PaymentsCancelRouterData,
     ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
-        let is_connector_new_version = req.is_connector_new_version;
-        if is_connector_new_version == Some(true) {
+        let connector_api_version = req.connector_api_version.clone();
+        if connector_api_version == Some("v2".to_string()) {
             let connector_request =
                 braintree_graphql_transformers::BraintreeCancelRequest::try_from(req)?;
             let braintree_req = types::RequestBody::log_and_get_request_body(
@@ -868,8 +867,8 @@ impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsR
         data: &types::PaymentsCancelRouterData,
         res: types::Response,
     ) -> CustomResult<types::PaymentsCancelRouterData, errors::ConnectorError> {
-        let is_connector_new_version = data.is_connector_new_version;
-        if is_connector_new_version == Some(true) {
+        let connector_api_version = data.connector_api_version.clone();
+        if connector_api_version == Some("v2".to_string()) {
             let response: braintree_graphql_transformers::BraintreeCancelResponse = res
                 .response
                 .parse_struct("Braintree VoidResponse")
@@ -912,8 +911,8 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
         req: &types::RefundsRouterData<api::Execute>,
         connectors: &settings::Connectors,
     ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
-        let is_connector_new_version = req.is_connector_new_version;
-        if is_connector_new_version == Some(true) {
+        let connector_api_version = req.connector_api_version.clone();
+        if connector_api_version == Some("v2".to_string()) {
             self.build_headers(req, connectors)
         } else {
             let mut headers = vec![
@@ -944,8 +943,8 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
         req: &types::RefundsRouterData<api::Execute>,
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        let is_connector_new_version = req.is_connector_new_version;
-        if is_connector_new_version == Some(true) {
+        let connector_api_version = req.connector_api_version.clone();
+        if connector_api_version == Some("v2".to_string()) {
             let base_url = connectors
                 .braintree
                 .secondary_base_url
@@ -969,8 +968,8 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
         &self,
         req: &types::RefundsRouterData<api::Execute>,
     ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
-        let is_connector_new_version = req.is_connector_new_version;
-        if is_connector_new_version == Some(true) {
+        let connector_api_version = req.connector_api_version.clone();
+        if connector_api_version == Some("v2".to_string()) {
             let connector_request =
                 braintree_graphql_transformers::BraintreeRefundRequest::try_from(req)?;
             let braintree_refund_request = types::RequestBody::log_and_get_request_body(
@@ -1012,8 +1011,8 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
         data: &types::RefundsRouterData<api::Execute>,
         res: types::Response,
     ) -> CustomResult<types::RefundsRouterData<api::Execute>, errors::ConnectorError> {
-        let is_connector_new_version = data.is_connector_new_version;
-        if is_connector_new_version == Some(true) {
+        let connector_api_version = data.connector_api_version.clone();
+        if connector_api_version == Some("v2".to_string()) {
             let response: braintree_graphql_transformers::BraintreeRefundResponse = res
                 .response
                 .parse_struct("Braintree RefundResponse")
@@ -1052,8 +1051,8 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
         req: &types::RefundSyncRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
-        let is_connector_new_version = req.is_connector_new_version;
-        if is_connector_new_version == Some(true) {
+        let connector_api_version = req.connector_api_version.clone();
+        if connector_api_version == Some("v2".to_string()) {
             self.build_headers(req, connectors)
         } else {
             Ok(vec![])
@@ -1069,8 +1068,8 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
         req: &types::RefundSyncRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        let is_connector_new_version = req.is_connector_new_version;
-        if is_connector_new_version == Some(true) {
+        let connector_api_version = req.connector_api_version.clone();
+        if connector_api_version == Some("v2".to_string()) {
             let base_url = connectors
                 .braintree
                 .secondary_base_url
@@ -1086,8 +1085,8 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
         &self,
         req: &types::RefundSyncRouterData,
     ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
-        let is_connector_new_version = req.is_connector_new_version;
-        if is_connector_new_version == Some(true) {
+        let connector_api_version = req.connector_api_version.clone();
+        if connector_api_version == Some("v2".to_string()) {
             let connector_request =
                 braintree_graphql_transformers::BraintreeRSyncRequest::try_from(req)?;
             let braintree_refund_request = types::RequestBody::log_and_get_request_body(
@@ -1106,8 +1105,8 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
         req: &types::RefundSyncRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
-        let is_connector_new_version = req.is_connector_new_version;
-        if is_connector_new_version == Some(true) {
+        let connector_api_version = req.connector_api_version.clone();
+        if connector_api_version == Some("v2".to_string()) {
             Ok(Some(
                 services::RequestBuilder::new()
                     .method(services::Method::Post)
@@ -1130,8 +1129,8 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
         types::RouterData<api::RSync, types::RefundsData, types::RefundsResponseData>,
         errors::ConnectorError,
     > {
-        let is_connector_new_version = data.is_connector_new_version;
-        if is_connector_new_version == Some(true) {
+        let connector_api_version = data.connector_api_version.clone();
+        if connector_api_version == Some("v2".to_string()) {
             let response: braintree_graphql_transformers::BraintreeRSyncResponse = res
                 .response
                 .parse_struct("Braintree RefundResponse")

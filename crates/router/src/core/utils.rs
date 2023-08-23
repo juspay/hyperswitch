@@ -182,7 +182,7 @@ pub async fn construct_payout_router_data<'a, F>(
         quote_id: None,
         test_mode,
         payment_method_balance: None,
-        is_connector_new_version: None,
+        connector_api_version: None,
         connector_http_status_code: None,
     };
 
@@ -239,13 +239,28 @@ pub async fn construct_refund_router_data<'a, F>(
     ));
     let test_mode: Option<bool> = merchant_connector_account.is_test_mode_on();
 
-    let is_connector_new_version = state
-        .store
-        .find_config_by_key_cached(&format!("is_connector_new_version_{connector_id}"))
-        .await
-        .map(|value| value.config)
-        .map(|config| bool::from_str(&config).ok().unwrap_or(false))
-        .ok();
+    let supported_connector = &state
+        .conf
+        .multiple_api_version_supported_connectors
+        .supported_connectors;
+    let connector_enum = api_models::enums::Connector::from_str(connector_id)
+        .into_report()
+        .change_context(errors::ConnectorError::InvalidConnectorName)
+        .change_context(errors::ApiErrorResponse::InvalidDataValue {
+            field_name: "connector",
+        })
+        .attach_printable_lazy(|| format!("unable to parse connector name {connector_id:?}"))?;
+
+    let connector_api_version = if supported_connector.contains(&connector_enum) {
+        state
+            .store
+            .find_config_by_key_cached(&format!("connector_api_version_{connector_id}"))
+            .await
+            .map(|value| value.config)
+            .ok()
+    } else {
+        None
+    };
 
     let router_data = types::RouterData {
         flow: PhantomData,
@@ -299,7 +314,7 @@ pub async fn construct_refund_router_data<'a, F>(
         quote_id: None,
         test_mode,
         payment_method_balance: None,
-        is_connector_new_version,
+        connector_api_version,
         connector_http_status_code: None,
     };
 
@@ -518,7 +533,7 @@ pub async fn construct_accept_dispute_router_data<'a>(
         quote_id: None,
         test_mode,
         payment_method_balance: None,
-        is_connector_new_version: None,
+        connector_api_version: None,
         connector_http_status_code: None,
     };
     Ok(router_data)
@@ -594,7 +609,7 @@ pub async fn construct_submit_evidence_router_data<'a>(
         #[cfg(feature = "payouts")]
         quote_id: None,
         test_mode,
-        is_connector_new_version: None,
+        connector_api_version: None,
         connector_http_status_code: None,
     };
     Ok(router_data)
@@ -671,7 +686,7 @@ pub async fn construct_upload_file_router_data<'a>(
         #[cfg(feature = "payouts")]
         quote_id: None,
         test_mode,
-        is_connector_new_version: None,
+        connector_api_version: None,
         connector_http_status_code: None,
     };
     Ok(router_data)
@@ -750,7 +765,7 @@ pub async fn construct_defend_dispute_router_data<'a>(
         #[cfg(feature = "payouts")]
         quote_id: None,
         test_mode,
-        is_connector_new_version: None,
+        connector_api_version: None,
         connector_http_status_code: None,
     };
     Ok(router_data)
@@ -824,7 +839,7 @@ pub async fn construct_retrieve_file_router_data<'a>(
         #[cfg(feature = "payouts")]
         quote_id: None,
         test_mode,
-        is_connector_new_version: None,
+        connector_api_version: None,
         connector_http_status_code: None,
     };
     Ok(router_data)
