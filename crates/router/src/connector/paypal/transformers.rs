@@ -409,7 +409,7 @@ pub struct PaypalPaymentsSyncResponse {
 #[derive(Debug, Serialize, Deserialize)]
 pub struct PaypalMeta {
     pub authorize_id: Option<String>,
-    pub order_id: String,
+    pub capture_id: Option<String>,
     pub psync_flow: PaypalPaymentIntent,
 }
 
@@ -461,19 +461,19 @@ impl<F, T>
             PaypalPaymentIntent::Capture => (
                 serde_json::json!(PaypalMeta {
                     authorize_id: None,
-                    order_id: item.response.id,
+                    capture_id: Some(id),
                     psync_flow: item.response.intent.clone()
                 }),
-                types::ResponseId::ConnectorTransactionId(id),
+                types::ResponseId::ConnectorTransactionId(item.response.id),
             ),
 
             PaypalPaymentIntent::Authorize => (
                 serde_json::json!(PaypalMeta {
                     authorize_id: Some(id),
-                    order_id: item.response.id,
+                    capture_id: None,
                     psync_flow: item.response.intent.clone()
                 }),
-                types::ResponseId::NoResponseId,
+                types::ResponseId::ConnectorTransactionId(item.response.id),
             ),
         };
         //payment collection will always have only one element as we only make one transaction per order.
@@ -538,14 +538,14 @@ impl<F, T>
         let link = get_redirect_url(item.response.clone())?;
         let connector_meta = serde_json::json!(PaypalMeta {
             authorize_id: None,
-            order_id: item.response.id,
+            capture_id: None,
             psync_flow: item.response.intent
         });
 
         Ok(Self {
             status,
             response: Ok(types::PaymentsResponseData::TransactionResponse {
-                resource_id: types::ResponseId::NoResponseId,
+                resource_id: types::ResponseId::ConnectorTransactionId(item.response.id),
                 redirection_data: Some(services::RedirectForm::from((
                     link.ok_or(errors::ConnectorError::ResponseDeserializationFailed)?,
                     services::Method::Get,
@@ -628,7 +628,7 @@ pub enum PaypalPaymentStatus {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-pub struct PaymentCaptureResponse {
+pub struct PaypalCaptureResponse {
     id: String,
     status: PaypalPaymentStatus,
     amount: Option<OrderAmount>,
@@ -651,12 +651,12 @@ impl From<PaypalPaymentStatus> for storage_enums::AttemptStatus {
     }
 }
 
-impl TryFrom<types::PaymentsCaptureResponseRouterData<PaymentCaptureResponse>>
+impl TryFrom<types::PaymentsCaptureResponseRouterData<PaypalCaptureResponse>>
     for types::PaymentsCaptureRouterData
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: types::PaymentsCaptureResponseRouterData<PaymentCaptureResponse>,
+        item: types::PaymentsCaptureResponseRouterData<PaypalCaptureResponse>,
     ) -> Result<Self, Self::Error> {
         let amount_captured = item.data.request.amount_to_capture;
         let status = storage_enums::AttemptStatus::from(item.response.status);
@@ -665,12 +665,14 @@ impl TryFrom<types::PaymentsCaptureResponseRouterData<PaymentCaptureResponse>>
         Ok(Self {
             status,
             response: Ok(types::PaymentsResponseData::TransactionResponse {
-                resource_id: types::ResponseId::ConnectorTransactionId(item.response.id),
+                resource_id: types::ResponseId::ConnectorTransactionId(
+                    item.data.request.clone().connector_transaction_id,
+                ),
                 redirection_data: None,
                 mandate_reference: None,
                 connector_metadata: Some(serde_json::json!(PaypalMeta {
                     authorize_id: connector_payment_id.authorize_id,
-                    order_id: item.data.request.connector_transaction_id.clone(),
+                    capture_id: Some(item.response.id),
                     psync_flow: PaypalPaymentIntent::Capture
                 })),
                 network_txn_id: None,

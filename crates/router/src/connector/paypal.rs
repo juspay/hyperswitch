@@ -24,7 +24,6 @@ use crate::{
     types::{
         self,
         api::{self, CompleteAuthorize, ConnectorCommon, ConnectorCommonExt},
-        storage::enums as storage_enums,
         ErrorResponse, Response,
     },
     utils::{self, BytesExt},
@@ -48,24 +47,6 @@ impl api::RefundExecute for Paypal {}
 impl api::RefundSync for Paypal {}
 
 impl Paypal {
-    pub fn connector_transaction_id(
-        &self,
-        payment_method: Option<storage_enums::PaymentMethod>,
-        connector_meta: &Option<serde_json::Value>,
-    ) -> CustomResult<Option<String>, errors::ConnectorError> {
-        match payment_method {
-            Some(diesel_models::enums::PaymentMethod::Wallet)
-            | Some(diesel_models::enums::PaymentMethod::BankRedirect) => {
-                let meta: PaypalMeta = to_connector_meta(connector_meta.clone())?;
-                Ok(Some(meta.order_id))
-            }
-            _ => {
-                let meta: PaypalMeta = to_connector_meta(connector_meta.clone())?;
-                Ok(meta.authorize_id)
-            }
-        }
-    }
-
     pub fn get_order_error_response(
         &self,
         res: Response,
@@ -434,11 +415,13 @@ impl
         req: &types::PaymentsCompleteAuthorizeRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        let paypal_meta: PaypalMeta = to_connector_meta(req.request.connector_meta.clone())?;
         Ok(format!(
             "{}v2/checkout/orders/{}/capture",
             self.base_url(connectors),
-            paypal_meta.order_id
+            req.request
+                .connector_transaction_id
+                .clone()
+                .ok_or(errors::ConnectorError::MissingConnectorTransactionID)?
         ))
     }
 
@@ -513,14 +496,17 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
             | diesel_models::enums::PaymentMethod::BankRedirect => Ok(format!(
                 "{}v2/checkout/orders/{}",
                 self.base_url(connectors),
-                paypal_meta.order_id
-            )),
-            _ => {
-                let capture_id = req
-                    .request
+                req.request
                     .connector_transaction_id
                     .get_connector_transaction_id()
-                    .change_context(errors::ConnectorError::MissingConnectorTransactionID)?;
+                    .change_context(errors::ConnectorError::MissingConnectorTransactionID)?
+            )),
+            _ => {
+                let capture_id = paypal_meta.capture_id.ok_or(
+                    errors::ConnectorError::RequestEncodingFailedWithReason(
+                        "Missing Authorize id".to_string(),
+                    ),
+                )?;
                 let psync_url = match paypal_meta.psync_flow {
                     transformers::PaypalPaymentIntent::Authorize => format!(
                         "v2/payments/authorizations/{}",
@@ -656,7 +642,7 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
         data: &types::PaymentsCaptureRouterData,
         res: Response,
     ) -> CustomResult<types::PaymentsCaptureRouterData, errors::ConnectorError> {
-        let response: paypal::PaymentCaptureResponse = res
+        let response: paypal::PaypalCaptureResponse = res
             .response
             .parse_struct("Paypal PaymentsCaptureResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;

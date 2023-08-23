@@ -8,7 +8,7 @@ use router_env::{instrument, tracing};
 use super::{flows::Feature, PaymentAddress, PaymentData};
 use crate::{
     configs::settings::{ConnectorRequestReferenceIdConfig, Server},
-    connector::{Nexinets, Paypal},
+    connector::Nexinets,
     core::{
         errors::{self, RouterResponse, RouterResult},
         payments::{self, helpers},
@@ -921,24 +921,6 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsSyncData
             capture_method: payment_data.payment_attempt.capture_method,
             connector_meta: payment_data.payment_attempt.connector_metadata,
         })
-    }
-}
-
-impl api::ConnectorTransactionId for Paypal {
-    fn connector_transaction_id(
-        &self,
-        payment_attempt: storage::PaymentAttempt,
-    ) -> Result<Option<String>, errors::ApiErrorResponse> {
-        let payment_method = payment_attempt.payment_method;
-        let metadata = Self::connector_transaction_id(
-            self,
-            payment_method,
-            &payment_attempt.connector_metadata,
-        );
-        match metadata {
-            Ok(data) => Ok(data),
-            _ => Err(errors::ApiErrorResponse::ResourceIdNotFound),
-        }
     }
 }
 
