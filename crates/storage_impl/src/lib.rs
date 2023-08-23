@@ -7,6 +7,8 @@ use error_stack::ResultExt;
 #[cfg(feature = "kms")]
 use external_services::kms::{decrypt::KmsDecrypt, KmsClient, KmsError};
 use futures::lock::Mutex;
+#[cfg(feature = "kms")]
+use masking::ExposeInterface;
 use masking::{Deserialize, StrongSecret};
 use redis::{kv_store::RedisConnInterface, RedisStore};
 pub mod config;

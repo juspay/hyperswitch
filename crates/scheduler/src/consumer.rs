@@ -104,14 +104,11 @@ pub async fn start_consumer<T: SchedulerAppState + Send + Sync + Clone + 'static
 }
 
 #[instrument(skip_all)]
-pub async fn consumer_operations<T: Send + Sync + Clone + 'static>(
+pub async fn consumer_operations<T: SchedulerAppState + Send + Sync + Clone + 'static>(
     state: &T,
     settings: &SchedulerSettings,
     workflow_selector: impl workflows::ProcessTrackerWorkflows<T> + 'static + Copy + std::fmt::Debug,
-) -> CustomResult<(), errors::ProcessTrackerError>
-where
-    T: SchedulerAppState + Send + Sync + Clone + 'static,
-{
+) -> CustomResult<(), errors::ProcessTrackerError> {
     let stream_name = settings.stream.clone();
     let group_name = settings.consumer.consumer_group.clone();
     let consumer_name = format!("consumer_{}", Uuid::new_v4());
@@ -202,7 +199,7 @@ pub async fn start_workflow<T>(
     workflow_selector: impl workflows::ProcessTrackerWorkflows<T> + 'static + std::fmt::Debug,
 ) -> Result<(), errors::ProcessTrackerError>
 where
-    T: SchedulerAppState + Send + Sync + Clone + 'static,
+    T: SchedulerAppState + Send + Sync + Clone,
 {
     tracing::Span::current().record("workflow_id", Uuid::new_v4().to_string());
     let res = workflow_selector

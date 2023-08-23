@@ -527,6 +527,7 @@ impl<T> OptionExt<T> for Option<T>
 where
     T: std::fmt::Debug,
 {
+    #[track_caller]
     fn check_value_present(
         &self,
         field_name: &'static str,
