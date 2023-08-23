@@ -1,13 +1,15 @@
 use common_utils::ext_traits::AsyncExt;
 use error_stack::ResultExt;
 use redis_interface::errors::RedisError;
+use storage_impl::redis::{
+    cache::{Cache, CacheKind, Cacheable},
+    pub_sub::PubSubInterface,
+};
 
 use super::StorageInterface;
 use crate::{
-    cache::{self, Cacheable},
     consts,
     core::errors::{self, CustomResult},
-    services::PubSubInterface,
 };
 
 pub async fn get_or_populate_redis<T, F, Fut>(
@@ -53,7 +55,7 @@ pub async fn get_or_populate_in_memory<T, F, Fut>(
     store: &dyn StorageInterface,
     key: &str,
     fun: F,
-    cache: &cache::Cache,
+    cache: &Cache,
 ) -> CustomResult<T, errors::StorageError>
 where
     T: Cacheable + serde::Serialize + serde::de::DeserializeOwned + std::fmt::Debug + Clone,
@@ -74,7 +76,7 @@ pub async fn redact_cache<T, F, Fut>(
     store: &dyn StorageInterface,
     key: &str,
     fun: F,
-    in_memory: Option<&cache::Cache>,
+    in_memory: Option<&Cache>,
 ) -> CustomResult<T, errors::StorageError>
 where
     F: FnOnce() -> Fut + Send,
@@ -99,7 +101,7 @@ where
 
 pub async fn publish_into_redact_channel<'a>(
     store: &dyn StorageInterface,
-    key: cache::CacheKind<'a>,
+    key: CacheKind<'a>,
 ) -> CustomResult<usize, errors::StorageError> {
     let redis_conn = store
         .get_redis_conn()
@@ -116,7 +118,7 @@ pub async fn publish_into_redact_channel<'a>(
 
 pub async fn publish_and_redact<'a, T, F, Fut>(
     store: &dyn StorageInterface,
-    key: cache::CacheKind<'a>,
+    key: CacheKind<'a>,
     fun: F,
 ) -> CustomResult<T, errors::StorageError>
 where

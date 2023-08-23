@@ -14,7 +14,7 @@ use crate::{
         payments, refunds,
     },
     logger,
-    routes::AppState,
+    routes::{metrics::request::add_attributes, AppState},
     services,
     types::{
         self as router_types, api, domain,
@@ -42,7 +42,7 @@ pub async fn payments_incoming_webhook_flow<W: types::OutgoingWebhookType>(
     };
     let payments_response = match webhook_details.object_reference_id {
         api_models::webhooks::ObjectReferenceId::PaymentId(id) => {
-            payments::payments_core::<api::PSync, api::PaymentsResponse, _, _, _>(
+            let response = payments::payments_core::<api::PSync, api::PaymentsResponse, _, _, _>(
                 &state,
                 merchant_account.clone(),
                 key_store,
@@ -60,7 +60,30 @@ pub async fn payments_incoming_webhook_flow<W: types::OutgoingWebhookType>(
                 services::AuthFlow::Merchant,
                 consume_or_trigger_flow,
             )
-            .await?
+            .await;
+
+            match response {
+                Ok(value) => value,
+                Err(err)
+                    if matches!(
+                        err.current_context(),
+                        &errors::ApiErrorResponse::PaymentNotFound
+                    ) && state
+                        .conf
+                        .webhooks
+                        .ignore_error
+                        .payment_not_found
+                        .unwrap_or(true) =>
+                {
+                    metrics::WEBHOOK_PAYMENT_NOT_FOUND.add(
+                        &metrics::CONTEXT,
+                        1,
+                        &[add_attributes("merchant_id", merchant_account.merchant_id)],
+                    );
+                    return Ok(());
+                }
+                error @ Err(_) => error?,
+            }
         }
         _ => Err(errors::ApiErrorResponse::WebhookProcessingFailure)
             .into_report()
@@ -70,7 +93,7 @@ pub async fn payments_incoming_webhook_flow<W: types::OutgoingWebhookType>(
     };
 
     match payments_response {
-        services::ApplicationResponse::Json(payments_response) => {
+        services::ApplicationResponse::JsonWithHeaders((payments_response, _)) => {
             let payment_id = payments_response
                 .payment_id
                 .clone()
@@ -78,24 +101,22 @@ pub async fn payments_incoming_webhook_flow<W: types::OutgoingWebhookType>(
                 .change_context(errors::ApiErrorResponse::WebhookProcessingFailure)
                 .attach_printable("payment id not received from payments core")?;
 
-            let event_type: enums::EventType = payments_response
-                .status
-                .foreign_try_into()
-                .into_report()
-                .change_context(errors::ApiErrorResponse::WebhookProcessingFailure)
-                .attach_printable("payment event type mapping failed")?;
+            let event_type: Option<enums::EventType> = payments_response.status.foreign_into();
 
-            create_event_and_trigger_outgoing_webhook::<W>(
-                state,
-                merchant_account,
-                event_type,
-                enums::EventClass::Payments,
-                None,
-                payment_id,
-                enums::EventObjectType::PaymentDetails,
-                api::OutgoingWebhookContent::PaymentDetails(payments_response),
-            )
-            .await?;
+            // If event is NOT an UnsupportedEvent, trigger Outgoing Webhook
+            if let Some(outgoing_event_type) = event_type {
+                create_event_and_trigger_outgoing_webhook::<W>(
+                    state,
+                    merchant_account,
+                    outgoing_event_type,
+                    enums::EventClass::Payments,
+                    None,
+                    payment_id,
+                    enums::EventObjectType::PaymentDetails,
+                    api::OutgoingWebhookContent::PaymentDetails(payments_response),
+                )
+                .await?;
+            }
         }
 
         _ => Err(errors::ApiErrorResponse::WebhookProcessingFailure)
@@ -190,24 +211,24 @@ pub async fn refunds_incoming_webhook_flow<W: types::OutgoingWebhookType>(
             )
         })?
     };
-    let event_type: enums::EventType = updated_refund
-        .refund_status
-        .foreign_try_into()
-        .into_report()
-        .change_context(errors::ApiErrorResponse::WebhookProcessingFailure)
-        .attach_printable("refund status to event type mapping failed")?;
-    let refund_response: api_models::refunds::RefundResponse = updated_refund.foreign_into();
-    create_event_and_trigger_outgoing_webhook::<W>(
-        state,
-        merchant_account,
-        event_type,
-        enums::EventClass::Refunds,
-        None,
-        refund_id,
-        enums::EventObjectType::RefundDetails,
-        api::OutgoingWebhookContent::RefundDetails(refund_response),
-    )
-    .await?;
+    let event_type: Option<enums::EventType> = updated_refund.refund_status.foreign_into();
+
+    // If event is NOT an UnsupportedEvent, trigger Outgoing Webhook
+    if let Some(outgoing_event_type) = event_type {
+        let refund_response: api_models::refunds::RefundResponse = updated_refund.foreign_into();
+        create_event_and_trigger_outgoing_webhook::<W>(
+            state,
+            merchant_account,
+            outgoing_event_type,
+            enums::EventClass::Refunds,
+            None,
+            refund_id,
+            enums::EventObjectType::RefundDetails,
+            api::OutgoingWebhookContent::RefundDetails(refund_response),
+        )
+        .await?;
+    }
+
     Ok(())
 }
 
@@ -362,12 +383,8 @@ pub async fn disputes_incoming_webhook_flow<W: types::OutgoingWebhookType>(
         )
         .await?;
         let disputes_response = Box::new(dispute_object.clone().foreign_into());
-        let event_type: enums::EventType = dispute_object
-            .dispute_status
-            .foreign_try_into()
-            .into_report()
-            .change_context(errors::ApiErrorResponse::WebhookProcessingFailure)
-            .attach_printable("failed to map dispute status to event type")?;
+        let event_type: enums::EventType = dispute_object.dispute_status.foreign_into();
+
         create_event_and_trigger_outgoing_webhook::<W>(
             state,
             merchant_account,
@@ -426,7 +443,7 @@ async fn bank_transfer_webhook_flow<W: types::OutgoingWebhookType>(
     };
 
     match response? {
-        services::ApplicationResponse::Json(payments_response) => {
+        services::ApplicationResponse::JsonWithHeaders((payments_response, _)) => {
             let payment_id = payments_response
                 .payment_id
                 .clone()
@@ -434,24 +451,22 @@ async fn bank_transfer_webhook_flow<W: types::OutgoingWebhookType>(
                 .change_context(errors::ApiErrorResponse::WebhookProcessingFailure)
                 .attach_printable("did not receive payment id from payments core response")?;
 
-            let event_type: enums::EventType = payments_response
-                .status
-                .foreign_try_into()
-                .into_report()
-                .change_context(errors::ApiErrorResponse::WebhookProcessingFailure)
-                .attach_printable("error mapping payments response status to event type")?;
+            let event_type: Option<enums::EventType> = payments_response.status.foreign_into();
 
-            create_event_and_trigger_outgoing_webhook::<W>(
-                state,
-                merchant_account,
-                event_type,
-                enums::EventClass::Payments,
-                None,
-                payment_id,
-                enums::EventObjectType::PaymentDetails,
-                api::OutgoingWebhookContent::PaymentDetails(payments_response),
-            )
-            .await?;
+            // If event is NOT an UnsupportedEvent, trigger Outgoing Webhook
+            if let Some(outgoing_event_type) = event_type {
+                create_event_and_trigger_outgoing_webhook::<W>(
+                    state,
+                    merchant_account,
+                    outgoing_event_type,
+                    enums::EventClass::Payments,
+                    None,
+                    payment_id,
+                    enums::EventObjectType::PaymentDetails,
+                    api::OutgoingWebhookContent::PaymentDetails(payments_response),
+                )
+                .await?;
+            }
         }
 
         _ => Err(errors::ApiErrorResponse::WebhookProcessingFailure)
@@ -685,7 +700,9 @@ pub async fn webhooks_core<W: types::OutgoingWebhookType>(
 
     let event_type = match connector
         .get_webhook_event_type(&request_details)
-        .allow_webhook_event_type_not_found()
+        .allow_webhook_event_type_not_found(
+            state.conf.webhooks.ignore_error.event_type.unwrap_or(true),
+        )
         .switch()
         .attach_printable("Could not find event type in incoming webhook body")?
     {
@@ -726,13 +743,19 @@ pub async fn webhooks_core<W: types::OutgoingWebhookType>(
 
     let flow_type: api::WebhookFlow = event_type.to_owned().into();
     if process_webhook_further && !matches!(flow_type, api::WebhookFlow::ReturnResponse) {
+        let object_ref_id = connector
+            .get_webhook_object_reference_id(&request_details)
+            .switch()
+            .attach_printable("Could not find object reference id in incoming webhook body")?;
+
         let source_verified = connector
             .verify_webhook_source(
                 &*state.store,
                 &request_details,
-                &merchant_account.merchant_id,
+                &merchant_account,
                 connector_name,
                 &key_store,
+                object_ref_id.clone(),
             )
             .await
             .switch()
@@ -750,10 +773,6 @@ pub async fn webhooks_core<W: types::OutgoingWebhookType>(
         }
 
         logger::info!(source_verified=?source_verified);
-        let object_ref_id = connector
-            .get_webhook_object_reference_id(&request_details)
-            .switch()
-            .attach_printable("Could not find object reference id in incoming webhook body")?;
 
         let event_object = connector
             .get_webhook_resource_object(&request_details)

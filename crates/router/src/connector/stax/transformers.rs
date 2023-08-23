@@ -26,6 +26,12 @@ pub struct StaxPaymentsRequest {
 impl TryFrom<&types::PaymentsAuthorizeRouterData> for StaxPaymentsRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::PaymentsAuthorizeRouterData) -> Result<Self, Self::Error> {
+        if item.request.currency != enums::Currency::USD {
+            Err(errors::ConnectorError::NotSupported {
+                message: item.request.currency.to_string(),
+                connector: "Stax",
+            })?
+        }
         let pm_token = item.get_payment_method_token()?;
         match item.request.payment_method_data.clone() {
             api::PaymentMethodData::Card(_) => {
