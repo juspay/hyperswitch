@@ -1926,6 +1926,8 @@ pub struct PaymentListConstraints {
 pub struct PaymentListResponse {
     /// The number of payments included in the list
     pub size: usize,
+    /// The total number of payment_attempts for intents included in the list
+    pub attempt_count: i16,
     // The list of payments response objects
     pub data: Vec<PaymentsResponse>,
 }
