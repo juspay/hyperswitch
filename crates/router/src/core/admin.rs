@@ -1,4 +1,4 @@
-use api_models::{admin::PrimaryBusinessDetails, enums as api_enums};
+use api_models::{admin as admin_types, enums as api_enums};
 use common_utils::{
     crypto::{generate_cryptographically_secure_random_string, OptionalSecretValue},
     date_time,
@@ -51,12 +51,13 @@ pub async fn create_merchant_account(
 
     let publishable_key = Some(create_merchant_publishable_key());
 
-    let primary_business_details = utils::Encode::<Vec<PrimaryBusinessDetails>>::encode_to_value(
-        &req.primary_business_details.unwrap_or_default(),
-    )
-    .change_context(errors::ApiErrorResponse::InvalidDataValue {
-        field_name: "primary_business_details",
-    })?;
+    let primary_business_details =
+        utils::Encode::<Vec<admin_types::PrimaryBusinessDetails>>::encode_to_value(
+            &req.primary_business_details.unwrap_or_default(),
+        )
+        .change_context(errors::ApiErrorResponse::InvalidDataValue {
+            field_name: "primary_business_details",
+        })?;
 
     let merchant_details: OptionalSecretValue =
         req.merchant_details
@@ -117,7 +118,17 @@ pub async fn create_merchant_account(
         &key_store,
     )
     .await?;
-
+    let metadata = req
+        .metadata
+        .as_ref()
+        .map(|meta| {
+            utils::Encode::<admin_types::MerchantAccountMetadata>::encode_to_value(meta)
+                .change_context(errors::ApiErrorResponse::InvalidDataValue {
+                    field_name: "metadata",
+                })
+        })
+        .transpose()?
+        .map(Secret::new);
     let merchant_account = async {
         Ok(domain::MerchantAccount {
             merchant_id: req.merchant_id,
@@ -140,7 +151,7 @@ pub async fn create_merchant_account(
                 .unwrap_or_default(),
             publishable_key,
             locker_id: req.locker_id,
-            metadata: req.metadata,
+            metadata,
             storage_scheme: MerchantStorageScheme::PostgresOnly,
             primary_business_details,
             created_at: date_time::now(),
@@ -231,10 +242,12 @@ pub async fn merchant_account_update(
         .primary_business_details
         .as_ref()
         .map(|primary_business_details| {
-            utils::Encode::<Vec<PrimaryBusinessDetails>>::encode_to_value(primary_business_details)
-                .change_context(errors::ApiErrorResponse::InvalidDataValue {
-                    field_name: "primary_business_details",
-                })
+            utils::Encode::<Vec<admin_types::PrimaryBusinessDetails>>::encode_to_value(
+                primary_business_details,
+            )
+            .change_context(errors::ApiErrorResponse::InvalidDataValue {
+                field_name: "primary_business_details",
+            })
         })
         .transpose()?;
 
