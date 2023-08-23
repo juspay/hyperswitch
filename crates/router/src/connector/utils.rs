@@ -1296,10 +1296,10 @@ mod error_code_error_message_tests {
 
 pub fn validate_currency(
     request_currency: types::storage::enums::Currency,
-    merchant_config_curreny: Option<types::storage::enums::Currency>,
+    merchant_config_currency: Option<types::storage::enums::Currency>,
 ) -> Result<(), errors::ConnectorError> {
     let merchant_config_currency =
-        merchant_config_curreny.ok_or(errors::ConnectorError::NoConnectorMetaData)?;
+        merchant_config_currency.ok_or(errors::ConnectorError::NoConnectorMetaData)?;
     if request_currency != merchant_config_currency {
         Err(errors::ConnectorError::NotSupported {
             message: format!(

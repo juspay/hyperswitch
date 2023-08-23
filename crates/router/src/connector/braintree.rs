@@ -18,8 +18,7 @@ use crate::{
     services::{
         self,
         request::{self, Mask},
-        ConnectorIntegration,
-        ConnectorValidation,
+        ConnectorIntegration, ConnectorValidation,
     },
     types::{
         self,
