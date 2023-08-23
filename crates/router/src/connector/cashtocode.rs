@@ -323,6 +323,7 @@ impl api::IncomingWebhook for Cashtocode {
         connector_label: &str,
         key_store: &domain::MerchantKeyStore,
         object_reference_id: api_models::webhooks::ObjectReferenceId,
+        profile_id: Option<String>,
     ) -> CustomResult<bool, errors::ConnectorError> {
         let signature = self
             .get_webhook_source_verification_signature(request)
@@ -334,6 +335,7 @@ impl api::IncomingWebhook for Cashtocode {
                 connector_label,
                 key_store,
                 object_reference_id,
+                profile_id,
             )
             .await
             .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;

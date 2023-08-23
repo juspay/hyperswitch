@@ -507,6 +507,7 @@ pub async fn create_payment_connector(
             }
             None => None,
         },
+        profile_id: req.profile_id,
     };
 
     let mca = store

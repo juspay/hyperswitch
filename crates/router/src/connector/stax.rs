@@ -762,6 +762,7 @@ impl api::IncomingWebhook for Stax {
         _connector_label: &str,
         _key_store: &domain::MerchantKeyStore,
         _object_reference_id: api_models::webhooks::ObjectReferenceId,
+        _profile_id: Option<String>,
     ) -> CustomResult<bool, errors::ConnectorError> {
         Ok(false)
     }

@@ -434,6 +434,18 @@ impl Webhooks {
                         web::put().to(receive_incoming_webhook::<webhook_type::OutgoingWebhook>),
                     ),
             )
+            .service(
+                web::resource("profiles/{business_profile}/{connector_name}")
+                    .route(web::post().to(receive_incoming_webhook_with_profiles::<
+                        webhook_type::OutgoingWebhook,
+                    >))
+                    .route(web::get().to(receive_incoming_webhook_with_profiles::<
+                        webhook_type::OutgoingWebhook,
+                    >))
+                    .route(web::put().to(receive_incoming_webhook_with_profiles::<
+                        webhook_type::OutgoingWebhook,
+                    >)),
+            )
     }
 }
 

@@ -658,6 +658,7 @@ pub async fn webhooks_core<W: types::OutgoingWebhookType>(
     key_store: domain::MerchantKeyStore,
     connector_name: &str,
     body: actix_web::web::Bytes,
+    profile_id: Option<String>,
 ) -> RouterResponse<serde_json::Value> {
     metrics::WEBHOOK_INCOMING_COUNT.add(
         &metrics::CONTEXT,
@@ -756,6 +757,7 @@ pub async fn webhooks_core<W: types::OutgoingWebhookType>(
                 connector_name,
                 &key_store,
                 object_ref_id.clone(),
+                profile_id,
             )
             .await
             .switch()
