@@ -94,6 +94,7 @@ pub struct Settings {
     #[cfg(feature = "payouts")]
     pub payouts: Payouts,
     pub apple_pay_predecrypt: ApplePayPredecryptConfig,
+    pub applepay_decrypt_keys: ApplePayDecryptConifg,
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
@@ -607,6 +608,12 @@ pub struct DelayedSessionConfig {
 pub struct ApplePayPredecryptConfig {
     #[serde(deserialize_with = "deser_to_get_connectors")]
     pub connectors_with_apple_pay_predecrypt: HashSet<api_models::enums::Connector>,
+}
+
+#[derive(Debug, Deserialize, Clone, Default)]
+pub struct ApplePayDecryptConifg {
+    pub apple_pay_ppc: String,
+    pub apple_pay_ppc_key: String,
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
