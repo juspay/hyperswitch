@@ -619,6 +619,7 @@ pub enum PaypalPaymentStatus {
     Captured,
     Completed,
     Declined,
+    Voided,
     Failed,
     Pending,
     Denied,
@@ -647,6 +648,7 @@ impl From<PaypalPaymentStatus> for storage_enums::AttemptStatus {
             PaypalPaymentStatus::Pending => Self::Pending,
             PaypalPaymentStatus::Denied | PaypalPaymentStatus::Expired => Self::Failure,
             PaypalPaymentStatus::PartiallyCaptured => Self::PartialCharged,
+            PaypalPaymentStatus::Voided => Self::Voided,
         }
     }
 }
@@ -851,4 +853,117 @@ pub struct PaypalPaymentErrorResponse {
 pub struct PaypalAccessTokenErrorResponse {
     pub error: String,
     pub error_description: String,
+}
+
+#[derive(Deserialize, Debug, Serialize)]
+pub struct PaypalWebhooksBody {
+    pub event_type: PaypalWebhookEventType,
+    pub resource: PaypalResource,
+}
+
+#[derive(Deserialize, Debug, Serialize)]
+pub enum PaypalWebhookEventType {
+    #[serde(rename = "PAYMENT.AUTHORIZATION.CREATED")]
+    PaymentAuthorizationCreated,
+    #[serde(rename = "PAYMENT.AUTHORIZATION.VOIDED")]
+    PaymentAuthorizationVoided,
+    #[serde(rename = "PAYMENT.CAPTURE.DECLINED")]
+    PaymentCaptureDeclined,
+    #[serde(rename = "PAYMENT.CAPTURE.COMPLETED")]
+    PaymentCaptureCompleted,
+    #[serde(rename = "PAYMENT.CAPTURE.PENDING")]
+    PaymentCapturePending,
+    #[serde(rename = "PAYMENT.CAPTURE.REFUNDED")]
+    PaymentCaptureRefunded,
+    #[serde(rename = "CHECKOUT.ORDER.APPROVED")]
+    CheckoutOrderApproved,
+    #[serde(rename = "CHECKOUT.ORDER.COMPLETED")]
+    CheckoutOrderCompleted,
+    #[serde(rename = "CHECKOUT.ORDER.PROCESSED")]
+    CheckoutOrderProcessed,
+}
+
+#[derive(Deserialize, Debug, Serialize)]
+#[serde(untagged)]
+pub enum PaypalResource {
+    PaypalCardWebhooks(Box<PaypalCardWebhooks>),
+    PaypalRedirectsWebhooks(Box<PaypalRedirectsWebhooks>),
+    PaypalRefundWebhooks(Box<PaypalRefundWebhooks>),
+}
+
+#[derive(Deserialize, Debug, Serialize)]
+pub struct PaypalRefundWebhooks {
+    pub id: String,
+    pub amount: OrderAmount,
+    pub seller_payable_breakdown: PaypalSellerPayableBreakdown,
+}
+
+#[derive(Deserialize, Debug, Serialize)]
+pub struct PaypalSellerPayableBreakdown {
+    pub total_refunded_amount: OrderAmount,
+}
+
+#[derive(Deserialize, Debug, Serialize)]
+pub struct PaypalCardWebhooks {
+    pub supplementary_data: PaypalSupplementaryData,
+    pub amount: OrderAmount,
+}
+
+#[derive(Deserialize, Debug, Serialize)]
+pub struct PaypalRedirectsWebhooks {
+    pub purchase_units: Vec<PaypalWebhooksPurchaseUnits>,
+}
+
+#[derive(Deserialize, Debug, Serialize)]
+pub struct PaypalWebhooksPurchaseUnits {
+    pub reference_id: String,
+    pub amount: OrderAmount,
+}
+
+#[derive(Deserialize, Debug, Serialize)]
+pub struct PaypalSupplementaryData {
+    pub related_ids: PaypalRelatedIds,
+}
+#[derive(Deserialize, Debug, Serialize)]
+pub struct PaypalRelatedIds {
+    pub order_id: String,
+}
+
+pub fn is_transaction_event(event: &PaypalWebhookEventType) -> bool {
+    matches!(
+        event,
+        PaypalWebhookEventType::PaymentCaptureCompleted
+            | PaypalWebhookEventType::PaymentAuthorizationVoided
+            | PaypalWebhookEventType::PaymentCaptureDeclined
+            | PaypalWebhookEventType::PaymentCapturePending
+            | PaypalWebhookEventType::PaymentAuthorizationCreated
+            | PaypalWebhookEventType::CheckoutOrderApproved
+            | PaypalWebhookEventType::CheckoutOrderCompleted
+            | PaypalWebhookEventType::CheckoutOrderProcessed
+    )
+}
+
+pub fn is_refund_event(event: &PaypalWebhookEventType) -> bool {
+    matches!(event, PaypalWebhookEventType::PaymentCaptureRefunded)
+}
+
+#[derive(Deserialize, Debug, Serialize)]
+pub struct PaypalWebooksEventType {
+    pub event_type: PaypalWebhookEventType,
+}
+
+impl From<PaypalWebhookEventType> for api::IncomingWebhookEvent {
+    fn from(event: PaypalWebhookEventType) -> Self {
+        match event {
+            PaypalWebhookEventType::PaymentCaptureCompleted
+            | PaypalWebhookEventType::PaymentAuthorizationCreated
+            | PaypalWebhookEventType::PaymentAuthorizationVoided
+            | PaypalWebhookEventType::CheckoutOrderCompleted => Self::PaymentIntentSuccess,
+            PaypalWebhookEventType::PaymentCapturePending
+            | PaypalWebhookEventType::CheckoutOrderApproved
+            | PaypalWebhookEventType::CheckoutOrderProcessed => Self::PaymentIntentProcessing,
+            PaypalWebhookEventType::PaymentCaptureDeclined => Self::PaymentIntentFailure,
+            PaypalWebhookEventType::PaymentCaptureRefunded => Self::RefundSuccess,
+        }
+    }
 }

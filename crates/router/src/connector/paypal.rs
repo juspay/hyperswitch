@@ -2,7 +2,8 @@ pub mod transformers;
 use std::fmt::Debug;
 
 use base64::Engine;
-use error_stack::{IntoReport, ResultExt};
+use common_utils::ext_traits::ByteSliceExt;
+use error_stack::ResultExt;
 use masking::PeekInterface;
 use transformers as paypal;
 
@@ -15,6 +16,7 @@ use crate::{
         errors::{self, CustomResult},
         payments,
     },
+    db::StorageInterface,
     headers,
     services::{
         self,
@@ -24,7 +26,7 @@ use crate::{
     types::{
         self,
         api::{self, CompleteAuthorize, ConnectorCommon, ConnectorCommonExt},
-        ErrorResponse, Response,
+        domain, ErrorResponse, Response,
     },
     utils::{self, BytesExt},
 };
@@ -502,21 +504,25 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
                     .change_context(errors::ConnectorError::MissingConnectorTransactionID)?
             )),
             _ => {
-                let capture_id = paypal_meta.capture_id.ok_or(
-                    errors::ConnectorError::RequestEncodingFailedWithReason(
-                        "Missing Authorize id".to_string(),
-                    ),
-                )?;
                 let psync_url = match paypal_meta.psync_flow {
-                    transformers::PaypalPaymentIntent::Authorize => format!(
-                        "v2/payments/authorizations/{}",
-                        paypal_meta.authorize_id.unwrap_or_default()
-                    ),
+                    transformers::PaypalPaymentIntent::Authorize => {
+                        let authorize_id = paypal_meta.authorize_id.ok_or(
+                            errors::ConnectorError::RequestEncodingFailedWithReason(
+                                "Missing Authorize id".to_string(),
+                            ),
+                        )?;
+                        format!("v2/payments/authorizations/{authorize_id}",)
+                    }
                     transformers::PaypalPaymentIntent::Capture => {
-                        format!("v2/payments/captures/{}", capture_id)
+                        let capture_id = paypal_meta.capture_id.ok_or(
+                            errors::ConnectorError::RequestEncodingFailedWithReason(
+                                "Missing Capture id".to_string(),
+                            ),
+                        )?;
+                        format!("v2/payments/captures/{capture_id}")
                     }
                 };
-                Ok(format!("{}{}", self.base_url(connectors), psync_url))
+                Ok(format!("{}{psync_url}", self.base_url(connectors)))
             }
         }
     }
@@ -876,25 +882,76 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
 
 #[async_trait::async_trait]
 impl api::IncomingWebhook for Paypal {
+    async fn verify_webhook_source(
+        &self,
+        _db: &dyn StorageInterface,
+        _request: &api::IncomingWebhookRequestDetails<'_>,
+        _merchant_account: &domain::MerchantAccount,
+        _connector_label: &str,
+        _key_store: &domain::MerchantKeyStore,
+        _object_reference_id: api_models::webhooks::ObjectReferenceId,
+    ) -> CustomResult<bool, errors::ConnectorError> {
+        Ok(false) // Verify webhook source is not implemented for Paypal it requires additional apicall this function needs to be modified once we have a way to verify webhook source
+    }
+
     fn get_webhook_object_reference_id(
         &self,
-        _request: &api::IncomingWebhookRequestDetails<'_>,
+        request: &api::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<api_models::webhooks::ObjectReferenceId, errors::ConnectorError> {
-        Err(errors::ConnectorError::WebhooksNotImplemented).into_report()
+        let payload: paypal::PaypalWebhooksBody =
+            request
+                .body
+                .parse_struct("PaypalWebhooksBody")
+                .change_context(errors::ConnectorError::WebhookReferenceIdNotFound)?;
+        match payload.resource {
+            paypal::PaypalResource::PaypalCardWebhooks(resource) => {
+                Ok(api_models::webhooks::ObjectReferenceId::PaymentId(
+                    api_models::payments::PaymentIdType::ConnectorTransactionId(
+                        resource.supplementary_data.related_ids.order_id,
+                    ),
+                ))
+            }
+            paypal::PaypalResource::PaypalRedirectsWebhooks(resource) => {
+                Ok(api_models::webhooks::ObjectReferenceId::PaymentId(
+                    api_models::payments::PaymentIdType::PaymentAttemptId(
+                        resource
+                            .purchase_units
+                            .first()
+                            .map(|unit| unit.reference_id.clone())
+                            .ok_or(errors::ConnectorError::WebhookReferenceIdNotFound)?,
+                    ),
+                ))
+            }
+            paypal::PaypalResource::PaypalRefundWebhooks(resource) => {
+                Ok(api_models::webhooks::ObjectReferenceId::RefundId(
+                    api_models::webhooks::RefundIdType::ConnectorRefundId(resource.id),
+                ))
+            }
+        }
     }
 
     fn get_webhook_event_type(
         &self,
-        _request: &api::IncomingWebhookRequestDetails<'_>,
+        request: &api::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<api::IncomingWebhookEvent, errors::ConnectorError> {
-        Ok(api::IncomingWebhookEvent::EventNotSupported)
+        let payload: paypal::PaypalWebooksEventType = request
+            .body
+            .parse_struct("PaypalWebooksEventType")
+            .change_context(errors::ConnectorError::WebhookEventTypeNotFound)?;
+        Ok(api::IncomingWebhookEvent::from(payload.event_type))
     }
 
     fn get_webhook_resource_object(
         &self,
-        _request: &api::IncomingWebhookRequestDetails<'_>,
+        request: &api::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<serde_json::Value, errors::ConnectorError> {
-        Err(errors::ConnectorError::WebhooksNotImplemented).into_report()
+        let details: paypal::PaypalWebhooksBody = request
+            .body
+            .parse_struct("PaypalWebooksEventType")
+            .change_context(errors::ConnectorError::WebhookResourceObjectNotFound)?;
+        let res_json = utils::Encode::<transformers::PaypalWebhooksBody>::encode_to_value(&details)
+            .change_context(errors::ConnectorError::WebhookResourceObjectNotFound)?;
+        Ok(res_json)
     }
 }
 
