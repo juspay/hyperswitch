@@ -63,7 +63,7 @@ pub trait ConnectorValidation: ConnectorCommon {
             CaptureMethod::Automatic => Ok(()),
             CaptureMethod::Manual | CaptureMethod::ManualMultiple | CaptureMethod::Scheduled => {
                 Err(errors::ConnectorError::NotSupported {
-                    message: "manual, manual_multiple and scheduled capture method".into(),
+                    message: capture_method.to_string(),
                     connector: self.id(),
                 }
                 .into())
