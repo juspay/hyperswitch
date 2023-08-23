@@ -35,3 +35,5 @@ error-stack = "0.3.1"
 moka = { version = "0.11.3", features = ["future"] }
 once_cell = "1.18.0"
 tokio = { version = "1.28.2", features = ["rt-multi-thread"] }
+serde = "1.0.185"
+serde_json = "1.0.105"

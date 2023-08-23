@@ -2,9 +2,9 @@ use common_utils::errors::CustomResult;
 use data_models::{
     errors,
     mandates::{MandateAmountData, MandateDataType},
-    payments::payment_attempt::{
+    payments::{payment_attempt::{
         PaymentAttempt, PaymentAttemptInterface, PaymentAttemptNew, PaymentAttemptUpdate, PaymentListFilters
-    },
+    }, payment_intent::PaymentIntent},
     MerchantStorageScheme,
 };
 use diesel_models::{
@@ -13,11 +13,14 @@ use diesel_models::{
         PaymentAttempt as DieselPaymentAttempt, PaymentAttemptNew as DieselPaymentAttemptNew,
         PaymentAttemptUpdate as DieselPaymentAttemptUpdate,
     },
+    kv, reverse_lookup::ReverseLookupNew
 };
+use error_stack::{ResultExt, IntoReport};
+use redis_interface::HsetnxReply;
 
 use crate::{
-    utils::{pg_connection_read, pg_connection_write},
-    DataModelExt, DatabaseStore, RouterStore, KVRouterStore
+    utils::{pg_connection_read, pg_connection_write, try_redis_get_else_try_database_get, generate_hscan_pattern_for_attempt},
+    DataModelExt, DatabaseStore, RouterStore, KVRouterStore, redis::kv_store::{RedisConnInterface, PartitionKey}, lookup::ReverseLookupInterface
 };
 
 #[async_trait::async_trait]
@@ -143,7 +146,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for RouterStore<T> {
 
     async fn get_filters_for_payments(
         &self,
-        pi: &[data_models::payments::payment_intent::PaymentIntent],
+        pi: &[PaymentIntent],
         merchant_id: &str,
         _storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<
@@ -268,8 +271,8 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
                     capture_on: payment_attempt.capture_on,
                     confirm: payment_attempt.confirm,
                     authentication_type: payment_attempt.authentication_type,
-                    created_at: payment_attempt.created_at.unwrap_or_else(date_time::now),
-                    modified_at: payment_attempt.created_at.unwrap_or_else(date_time::now),
+                    created_at: payment_attempt.created_at.unwrap_or_else(common_utils::date_time::now),
+                    modified_at: payment_attempt.created_at.unwrap_or_else(common_utils::date_time::now),
                     last_synced: payment_attempt.last_synced,
                     amount_to_capture: payment_attempt.amount_to_capture,
                     cancellation_reason: payment_attempt.cancellation_reason.clone(),
@@ -295,7 +298,10 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
                 let field = format!("pa_{}", created_attempt.attempt_id);
                 match self
                     .get_redis_conn()
-                    .map_err(Into::<errors::StorageError>::into)?
+                    .map_err(|er| {
+                        let error = format!("{}", er);
+                        er.change_context(errors::StorageError::RedisError(error))
+                    })?
                     .serialize_and_set_hash_field_if_not_exist(&key, &field, &created_attempt)
                     .await
                 {
@@ -305,7 +311,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
                     })
                     .into_report(),
                     Ok(HsetnxReply::KeySet) => {
-                        let conn = connection::pg_connection_write(self).await?;
+                        let conn = pg_connection_write(self).await?;
 
                         //Reverse lookup for attempt_id
                         ReverseLookupNew {
@@ -319,17 +325,19 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
                         }
                         .insert(&conn)
                         .await
-                        .map_err(Into::<errors::StorageError>::into)
-                        .into_report()?;
+                        .map_err(|er| {
+                            let error = format!("{}", er);
+                            er.change_context(errors::StorageError::DatabaseError(error))
+                        })?;
 
                         let redis_entry = kv::TypedSql {
                             op: kv::DBOperation::Insert {
-                                insertable: kv::Insertable::PaymentAttempt(payment_attempt),
+                                insertable: kv::Insertable::PaymentAttempt(payment_attempt.to_storage_model()),
                             },
                         };
-                        self.push_to_drainer_stream::<PaymentAttempt>(
+                        self.push_to_drainer_stream::<DieselPaymentAttempt>(
                             redis_entry,
-                            crate::utils::storage_partitioning::PartitionKey::MerchantIdPaymentId {
+                            PartitionKey::MerchantIdPaymentId {
                                 merchant_id: &created_attempt.merchant_id,
                                 payment_id: &created_attempt.payment_id,
                             }
@@ -348,7 +356,108 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
         this: PaymentAttempt,
         payment_attempt: PaymentAttemptUpdate,
         storage_scheme: MerchantStorageScheme,
-    ) -> error_stack::Result<PaymentAttempt, errors::StorageError>;
+    ) -> error_stack::Result<PaymentAttempt, errors::StorageError> {
+        match storage_scheme {
+            MerchantStorageScheme::PostgresOnly => self.router_store.update_payment_attempt_with_attempt_id(this, payment_attempt, storage_scheme).await,
+            MerchantStorageScheme::RedisKv => {
+                let key = format!("{}_{}", this.merchant_id, this.payment_id);
+                let old_connector_transaction_id = &this.connector_transaction_id;
+                let old_preprocessing_id = &this.preprocessing_step_id;
+                let updated_attempt = PaymentAttempt::from_storage_model(payment_attempt.clone().to_storage_model().apply_changeset(this.clone().to_storage_model()));
+                // Check for database presence as well Maybe use a read replica here ?
+                let redis_value = serde_json::to_string(&updated_attempt)
+                    .into_report()
+                    .change_context(errors::StorageError::KVError)?;
+                let field = format!("pa_{}", updated_attempt.attempt_id);
+                let updated_attempt = self
+                    .get_redis_conn()
+                    .map_err(|er| {
+                        let error = format!("{}", er);
+                        er.change_context(errors::StorageError::RedisError(error))
+                    })?
+                    .set_hash_fields(&key, (&field, &redis_value))
+                    .await
+                    .map(|_| updated_attempt)
+                    .change_context(errors::StorageError::KVError)?;
+
+                match (
+                    old_connector_transaction_id,
+                    &updated_attempt.connector_transaction_id,
+                ) {
+                    (None, Some(connector_transaction_id)) => {
+                        add_connector_txn_id_to_reverse_lookup(
+                            self,
+                            key.as_str(),
+                            this.merchant_id.as_str(),
+                            updated_attempt.attempt_id.as_str(),
+                            connector_transaction_id.as_str(),
+                        )
+                        .await?;
+                    }
+                    (Some(old_connector_transaction_id), Some(connector_transaction_id)) => {
+                        if old_connector_transaction_id.ne(connector_transaction_id) {
+                            add_connector_txn_id_to_reverse_lookup(
+                                self,
+                                key.as_str(),
+                                this.merchant_id.as_str(),
+                                updated_attempt.attempt_id.as_str(),
+                                connector_transaction_id.as_str(),
+                            )
+                            .await?;
+                        }
+                    }
+                    (_, _) => {}
+                }
+
+                match (old_preprocessing_id, &updated_attempt.preprocessing_step_id) {
+                    (None, Some(preprocessing_id)) => {
+                        add_preprocessing_id_to_reverse_lookup(
+                            self,
+                            key.as_str(),
+                            this.merchant_id.as_str(),
+                            updated_attempt.attempt_id.as_str(),
+                            preprocessing_id.as_str(),
+                        )
+                        .await?;
+                    }
+                    (Some(old_preprocessing_id), Some(preprocessing_id)) => {
+                        if old_preprocessing_id.ne(preprocessing_id) {
+                            add_preprocessing_id_to_reverse_lookup(
+                                self,
+                                key.as_str(),
+                                this.merchant_id.as_str(),
+                                updated_attempt.attempt_id.as_str(),
+                                preprocessing_id.as_str(),
+                            )
+                            .await?;
+                        }
+                    }
+                    (_, _) => {}
+                }
+
+                let redis_entry = kv::TypedSql {
+                    op: kv::DBOperation::Update {
+                        updatable: kv::Updateable::PaymentAttemptUpdate(
+                            kv::PaymentAttemptUpdateMems {
+                                orig: this.to_storage_model(),
+                                update_data: payment_attempt.to_storage_model(),
+                            },
+                        ),
+                    },
+                };
+                self.push_to_drainer_stream::<DieselPaymentAttempt>(
+                    redis_entry,
+                    PartitionKey::MerchantIdPaymentId {
+                        merchant_id: &updated_attempt.merchant_id,
+                        payment_id: &updated_attempt.payment_id,
+                    },
+                )
+                .await
+                .change_context(errors::StorageError::KVError)?;
+                Ok(updated_attempt)
+            }
+        }
+    }
 
     async fn find_payment_attempt_by_connector_transaction_id_payment_id_merchant_id(
         &self,
@@ -356,21 +465,65 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
         payment_id: &str,
         merchant_id: &str,
         storage_scheme: MerchantStorageScheme,
-    ) -> error_stack::Result<PaymentAttempt, errors::StorageError>;
+    ) -> error_stack::Result<PaymentAttempt, errors::StorageError> {
+        match storage_scheme {
+            MerchantStorageScheme::PostgresOnly => self.router_store.find_payment_attempt_by_connector_transaction_id_payment_id_merchant_id(connector_transaction_id, payment_id, merchant_id, storage_scheme).await,
+            MerchantStorageScheme::RedisKv => {
+
+                    // We assume that PaymentAttempt <=> PaymentIntent is a one-to-one relation for now
+                    let lookup_id = format!("{merchant_id}_{connector_transaction_id}");
+                    let lookup = self.get_lookup_by_lookup_id(&lookup_id).await?;
+                    let key = &lookup.pk_id;
+
+                    try_redis_get_else_try_database_get(
+                        self.get_redis_conn()
+                            .map_err(|er| {
+                                let error = format!("{}", er);
+                                er.change_context(errors::StorageError::RedisError(error))
+                            })?
+                            .get_hash_field_and_deserialize(key, &lookup.sk_id, "PaymentAttempt"),
+                        || async {self.router_store.find_payment_attempt_by_connector_transaction_id_payment_id_merchant_id(connector_transaction_id, payment_id, merchant_id, storage_scheme).await},
+                    )
+                    .await
+            }
+        }
+    }
 
     async fn find_payment_attempt_last_successful_attempt_by_payment_id_merchant_id(
         &self,
         payment_id: &str,
         merchant_id: &str,
         storage_scheme: MerchantStorageScheme,
-    ) -> error_stack::Result<PaymentAttempt, errors::StorageError>;
+    ) -> error_stack::Result<PaymentAttempt, errors::StorageError> {
+        self.router_store.find_payment_attempt_last_successful_attempt_by_payment_id_merchant_id(payment_id, merchant_id, storage_scheme).await
+    }
 
     async fn find_payment_attempt_by_merchant_id_connector_txn_id(
         &self,
         merchant_id: &str,
         connector_txn_id: &str,
         storage_scheme: MerchantStorageScheme,
-    ) -> error_stack::Result<PaymentAttempt, errors::StorageError>;
+    ) -> error_stack::Result<PaymentAttempt, errors::StorageError> {
+        match storage_scheme {
+            MerchantStorageScheme::PostgresOnly => self.router_store.find_payment_attempt_by_merchant_id_connector_txn_id(merchant_id, connector_txn_id, storage_scheme).await,
+            MerchantStorageScheme::RedisKv => {
+                let lookup_id = format!("{merchant_id}_{connector_txn_id}");
+                let lookup = self.get_lookup_by_lookup_id(&lookup_id).await?;
+
+                let key = &lookup.pk_id;
+                try_redis_get_else_try_database_get(
+                    self.get_redis_conn()
+                        .map_err(|er| {
+                            let error = format!("{}", er);
+                            er.change_context(errors::StorageError::RedisError(error))
+                        })?
+                        .get_hash_field_and_deserialize(key, &lookup.sk_id, "PaymentAttempt"),
+                    || async {self.router_store.find_payment_attempt_by_merchant_id_connector_txn_id(merchant_id, connector_txn_id, storage_scheme).await},
+                )
+                .await
+            }
+        }
+    }
 
     async fn find_payment_attempt_by_payment_id_merchant_id_attempt_id(
         &self,
@@ -378,35 +531,114 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
         merchant_id: &str,
         attempt_id: &str,
         storage_scheme: MerchantStorageScheme,
-    ) -> error_stack::Result<PaymentAttempt, errors::StorageError>;
+    ) -> error_stack::Result<PaymentAttempt, errors::StorageError> {
+        match storage_scheme {
+            MerchantStorageScheme::PostgresOnly => self.router_store.find_payment_attempt_by_payment_id_merchant_id_attempt_id(payment_id, merchant_id, attempt_id, storage_scheme).await,
+            MerchantStorageScheme::RedisKv => {
+                let lookup_id = format!("{merchant_id}_{attempt_id}");
+                let lookup = self.get_lookup_by_lookup_id(&lookup_id).await?;
+                let key = &lookup.pk_id;
+                try_redis_get_else_try_database_get(
+                    self.get_redis_conn()
+                        .map_err(|er| {
+                            let error = format!("{}", er);
+                            er.change_context(errors::StorageError::RedisError(error))
+                        })?
+                        .get_hash_field_and_deserialize(key, &lookup.sk_id, "PaymentAttempt"),
+                    || async {self.router_store.find_payment_attempt_by_payment_id_merchant_id_attempt_id(payment_id, merchant_id, attempt_id, storage_scheme).await},
+                )
+                .await
+            }
+        }
+    }
 
     async fn find_payment_attempt_by_attempt_id_merchant_id(
         &self,
         attempt_id: &str,
         merchant_id: &str,
         storage_scheme: MerchantStorageScheme,
-    ) -> error_stack::Result<PaymentAttempt, errors::StorageError>;
+    ) -> error_stack::Result<PaymentAttempt, errors::StorageError> {
+        match storage_scheme {
+            MerchantStorageScheme::PostgresOnly => self.router_store.find_payment_attempt_by_attempt_id_merchant_id(attempt_id, merchant_id, storage_scheme).await,
+            MerchantStorageScheme::RedisKv => {
+
+                let lookup_id = format!("{merchant_id}_{attempt_id}");
+                let lookup = self.get_lookup_by_lookup_id(&lookup_id).await?;
+                let key = &lookup.pk_id;
+                try_redis_get_else_try_database_get(
+                    self.get_redis_conn()
+                        .map_err(|er| {
+                            let error = format!("{}", er);
+                            er.change_context(errors::StorageError::RedisError(error))
+                        })?
+                        .get_hash_field_and_deserialize(key, &lookup.sk_id, "PaymentAttempt")
+                    ,
+                    || async {self.router_store.find_payment_attempt_by_attempt_id_merchant_id(attempt_id, merchant_id, storage_scheme).await},
+                )
+                .await
+            }
+        }
+    }
 
     async fn find_payment_attempt_by_preprocessing_id_merchant_id(
         &self,
         preprocessing_id: &str,
         merchant_id: &str,
         storage_scheme: MerchantStorageScheme,
-    ) -> error_stack::Result<PaymentAttempt, errors::StorageError>;
+    ) -> error_stack::Result<PaymentAttempt, errors::StorageError> {
+        match storage_scheme {
+            MerchantStorageScheme::PostgresOnly => self.router_store.find_payment_attempt_by_preprocessing_id_merchant_id(preprocessing_id, merchant_id, storage_scheme).await,
+            MerchantStorageScheme::RedisKv => {
+                let lookup_id = format!("{merchant_id}_{preprocessing_id}");
+                let lookup = self.get_lookup_by_lookup_id(&lookup_id).await?;
+                let key = &lookup.pk_id;
+
+                try_redis_get_else_try_database_get(
+                    self.get_redis_conn().map_err(|er| {
+                            let error = format!("{}", er);
+                            er.change_context(errors::StorageError::RedisError(error))
+                        })?
+                        .get_hash_field_and_deserialize(key, &lookup.sk_id, "PaymentAttempt"),
+                    || async {self.router_store.find_payment_attempt_by_preprocessing_id_merchant_id(preprocessing_id, merchant_id, storage_scheme).await},
+                )
+                .await
+            }
+        }
+    }
 
     async fn find_attempts_by_merchant_id_payment_id(
         &self,
         merchant_id: &str,
         payment_id: &str,
         storage_scheme: MerchantStorageScheme,
-    ) -> error_stack::Result<Vec<PaymentAttempt>, errors::StorageError>;
+    ) -> error_stack::Result<Vec<PaymentAttempt>, errors::StorageError> {
+        match storage_scheme {
+            MerchantStorageScheme::PostgresOnly => self.router_store.find_attempts_by_merchant_id_payment_id(merchant_id, payment_id, storage_scheme).await,
+            MerchantStorageScheme::RedisKv => {
+                let key = format!("{merchant_id}_{payment_id}");
+                let lookup = self.get_lookup_by_lookup_id(&key).await?;
+
+                let pattern = generate_hscan_pattern_for_attempt(&lookup.sk_id);
+
+                self.get_redis_conn().map_err(|er| {
+                        let error = format!("{}", er);
+                        er.change_context(errors::StorageError::RedisError(error))
+                    })?
+                    .hscan_and_deserialize(&key, &pattern, None)
+                    .await
+                    .change_context(errors::StorageError::KVError)
+            }
+        }
+    }
 
     async fn get_filters_for_payments(
         &self,
         pi: &[PaymentIntent],
         merchant_id: &str,
         storage_scheme: MerchantStorageScheme,
-    ) -> error_stack::Result<PaymentListFilters, errors::StorageError>;
+    ) -> error_stack::Result<PaymentListFilters, errors::StorageError> {
+        self.router_store.get_filters_for_payments(pi, merchant_id, storage_scheme).await
+    }
 }
 
 impl DataModelExt for MandateAmountData {

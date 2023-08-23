@@ -10,6 +10,7 @@ pub mod payments;
 pub mod redis;
 pub mod refund;
 mod utils;
+mod lookup;
 
 use database::store::PgPool;
 use redis_interface::errors::RedisError;
