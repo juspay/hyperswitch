@@ -3634,6 +3634,11 @@
             "type": "string",
             "description": "If there was an error while calling the connectors the reason is received here",
             "nullable": true
+          },
+          "reference_id": {
+            "type": "string",
+            "description": "reference to the capture at connector side",
+            "nullable": true
           }
         }
       },

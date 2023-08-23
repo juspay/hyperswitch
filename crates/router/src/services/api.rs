@@ -172,7 +172,9 @@ pub trait ConnectorIntegration<T, Req, Resp>: ConnectorIntegrationAny<T, Req, Re
     }
 
     // whenever capture sync is implemented at the connector side, this method should be overridden
-    fn get_capture_sync_method(&self) -> CustomResult<CaptureSyncMethod, errors::ConnectorError> {
+    fn get_multiple_capture_sync_method(
+        &self,
+    ) -> CustomResult<CaptureSyncMethod, errors::ConnectorError> {
         Err(
             errors::ConnectorError::NotImplemented("multiple capture sync not implemented".into())
                 .into(),

@@ -4,7 +4,7 @@ pub use diesel_models::payment_attempt::{
 use diesel_models::{capture::CaptureNew, enums};
 use error_stack::ResultExt;
 
-use crate::{errors::RouterResult, utils::OptionExt};
+use crate::{core::errors, errors::RouterResult, utils::OptionExt};
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct RoutingData {
@@ -41,6 +41,7 @@ impl PaymentAttemptExt for PaymentAttempt {
                 .connector
                 .clone()
                 .get_required_value("connector")
+                .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable(
                     "connector field is required in payment_attempt to create a capture",
                 )?,
@@ -53,6 +54,7 @@ impl PaymentAttemptExt for PaymentAttempt {
             authorized_attempt_id: self.attempt_id.clone(),
             capture_sequence,
             connector_capture_id: None,
+            connector_response_reference_id: None,
         })
     }
     fn get_next_capture_id(&self) -> String {

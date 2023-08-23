@@ -111,6 +111,8 @@ diesel::table! {
         #[max_length = 128]
         connector_capture_id -> Nullable<Varchar>,
         capture_sequence -> Int2,
+        #[max_length = 128]
+        connector_response_reference_id -> Nullable<Varchar>,
     }
 }
 

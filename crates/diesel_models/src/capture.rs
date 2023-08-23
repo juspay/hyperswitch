@@ -26,6 +26,8 @@ pub struct Capture {
     pub authorized_attempt_id: String,
     pub connector_capture_id: Option<String>,
     pub capture_sequence: i16,
+    // reference to the capture at connector side
+    pub connector_response_reference_id: Option<String>,
 }
 
 #[derive(Clone, Debug, Insertable, router_derive::DebugAsDisplay, Serialize, Deserialize)]
@@ -49,6 +51,7 @@ pub struct CaptureNew {
     pub authorized_attempt_id: String,
     pub connector_capture_id: Option<String>,
     pub capture_sequence: i16,
+    pub connector_response_reference_id: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -56,6 +59,7 @@ pub enum CaptureUpdate {
     ResponseUpdate {
         status: storage_enums::CaptureStatus,
         connector_capture_id: Option<String>,
+        connector_response_reference_id: Option<String>,
     },
     ErrorUpdate {
         status: storage_enums::CaptureStatus,
@@ -74,6 +78,7 @@ pub struct CaptureUpdateInternal {
     pub error_reason: Option<String>,
     pub modified_at: Option<PrimitiveDateTime>,
     pub connector_capture_id: Option<String>,
+    pub connector_response_reference_id: Option<String>,
 }
 
 impl CaptureUpdate {
@@ -97,10 +102,12 @@ impl From<CaptureUpdate> for CaptureUpdateInternal {
             CaptureUpdate::ResponseUpdate {
                 status,
                 connector_capture_id: connector_transaction_id,
+                connector_response_reference_id,
             } => Self {
                 status: Some(status),
                 connector_capture_id: connector_transaction_id,
                 modified_at: now,
+                connector_response_reference_id,
                 ..Self::default()
             },
             CaptureUpdate::ErrorUpdate {

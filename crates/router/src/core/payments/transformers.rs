@@ -20,6 +20,7 @@ use crate::{
         self, api, domain,
         storage::{self, enums},
         transformers::{ForeignFrom, ForeignInto, ForeignTryFrom},
+        MultipleCaptureRequestData,
     },
     utils::{OptionExt, ValueExt},
 };
@@ -736,6 +737,13 @@ impl ForeignFrom<(storage::PaymentIntent, storage::PaymentAttempt)> for api::Pay
             connector: pa.connector,
             payment_method: pa.payment_method,
             payment_method_type: pa.payment_method_type,
+            business_label: pi.business_label,
+            business_country: pi.business_country,
+            business_sub_label: pa.business_sub_label,
+            setup_future_usage: pi.setup_future_usage,
+            capture_method: pa.capture_method,
+            authentication_type: pa.authentication_type,
+            connector_transaction_id: pa.connector_transaction_id,
             ..Default::default()
         }
     }
@@ -948,9 +956,12 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsSyncData
             encoded_data: payment_data.connector_response.encoded_data,
             capture_method: payment_data.payment_attempt.capture_method,
             connector_meta: payment_data.payment_attempt.connector_metadata,
-            pending_capture_id_list: payment_data.multiple_capture_data.map(
-                |multiple_capture_data| multiple_capture_data.get_pending_connector_capture_ids(),
-            ),
+            capture_sync_type: match payment_data.multiple_capture_data {
+                Some(multiple_capture_data) => types::CaptureSyncType::MultipleCaptureSync(
+                    multiple_capture_data.get_pending_connector_capture_ids(),
+                ),
+                None => types::CaptureSyncType::SingleCaptureSync,
+            },
         })
     }
 }
@@ -1006,7 +1017,16 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsCaptureD
                 .ok_or(errors::ApiErrorResponse::ResourceIdNotFound)?,
             payment_amount: payment_data.amount.into(),
             connector_meta: payment_data.payment_attempt.connector_metadata,
-            multiple_capture_data: payment_data.multiple_capture_data,
+            multiple_capture_data: match payment_data.multiple_capture_data {
+                Some(multiple_capture_data) => Some(MultipleCaptureRequestData {
+                    capture_sequence: multiple_capture_data.get_captures_count()?,
+                    capture_reference: multiple_capture_data
+                        .get_latest_capture()
+                        .capture_id
+                        .clone(),
+                }),
+                None => None,
+            },
         })
     }
 }
@@ -1120,7 +1140,7 @@ impl TryFrom<types::CaptureSyncResponse> for storage::CaptureUpdate {
             types::CaptureSyncResponse::Success {
                 resource_id,
                 status,
-                ..
+                connector_response_reference_id,
             } => {
                 let connector_capture_id = match resource_id {
                     types::ResponseId::ConnectorTransactionId(id) => Some(id),
@@ -1129,6 +1149,7 @@ impl TryFrom<types::CaptureSyncResponse> for storage::CaptureUpdate {
                 Ok(Self::ResponseUpdate {
                     status: enums::CaptureStatus::foreign_try_from(status)?,
                     connector_capture_id,
+                    connector_response_reference_id,
                 })
             }
             types::CaptureSyncResponse::Error {
