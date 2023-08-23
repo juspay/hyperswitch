@@ -46,7 +46,7 @@ fn main() {
     // variables set up for certificate, will consider those variables and will fail.
 
     let mut newman_command = Command::new("newman");
-    newman_command.args(["run", &collection_path]);
+    newman_command.args(["dir-run", &collection_path]);
     newman_command.args(["--env-var", &format!("admin_api_key={admin_api_key}")]);
     newman_command.args(["--env-var", &format!("baseUrl={base_url}")]);
 
