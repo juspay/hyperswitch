@@ -2,6 +2,9 @@ pub use diesel_models::payment_attempt::{
     PaymentAttempt, PaymentAttemptNew, PaymentAttemptUpdate, PaymentAttemptUpdateInternal,
 };
 use diesel_models::{capture::CaptureNew, enums};
+use error_stack::ResultExt;
+
+use crate::{core::errors, errors::RouterResult, utils::OptionExt};
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct RoutingData {
@@ -14,7 +17,7 @@ pub trait PaymentAttemptExt {
         &self,
         capture_amount: i64,
         capture_status: enums::CaptureStatus,
-    ) -> CaptureNew;
+    ) -> RouterResult<CaptureNew>;
 
     fn get_next_capture_id(&self) -> String;
 }
@@ -24,17 +27,24 @@ impl PaymentAttemptExt for PaymentAttempt {
         &self,
         capture_amount: i64,
         capture_status: enums::CaptureStatus,
-    ) -> CaptureNew {
+    ) -> RouterResult<CaptureNew> {
         let capture_sequence = self.multiple_capture_count.unwrap_or_default() + 1;
         let now = common_utils::date_time::now();
-        CaptureNew {
+        Ok(CaptureNew {
             payment_id: self.payment_id.clone(),
             merchant_id: self.merchant_id.clone(),
             capture_id: self.get_next_capture_id(),
             status: capture_status,
             amount: capture_amount,
             currency: self.currency,
-            connector: self.connector.clone(),
+            connector: self
+                .connector
+                .clone()
+                .get_required_value("connector")
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable(
+                    "connector field is required in payment_attempt to create a capture",
+                )?,
             error_message: None,
             tax_amount: None,
             created_at: now,
@@ -43,8 +53,9 @@ impl PaymentAttemptExt for PaymentAttempt {
             error_reason: None,
             authorized_attempt_id: self.attempt_id.clone(),
             capture_sequence,
-            connector_transaction_id: None,
-        }
+            connector_capture_id: None,
+            connector_response_reference_id: None,
+        })
     }
     fn get_next_capture_id(&self) -> String {
         let next_sequence_number = self.multiple_capture_count.unwrap_or_default() + 1;

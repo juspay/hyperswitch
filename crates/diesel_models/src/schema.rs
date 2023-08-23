@@ -96,7 +96,7 @@ diesel::table! {
         amount -> Int8,
         currency -> Nullable<Currency>,
         #[max_length = 255]
-        connector -> Nullable<Varchar>,
+        connector -> Varchar,
         #[max_length = 255]
         error_message -> Nullable<Varchar>,
         #[max_length = 255]
@@ -109,8 +109,10 @@ diesel::table! {
         #[max_length = 64]
         authorized_attempt_id -> Varchar,
         #[max_length = 128]
-        connector_transaction_id -> Nullable<Varchar>,
+        connector_capture_id -> Nullable<Varchar>,
         capture_sequence -> Int2,
+        #[max_length = 128]
+        connector_response_reference_id -> Nullable<Varchar>,
     }
 }
 

@@ -4,7 +4,7 @@ use time::PrimitiveDateTime;
 
 use crate::{enums as storage_enums, schema::captures};
 
-#[derive(Clone, Debug, Eq, PartialEq, Identifiable, Queryable, Serialize, Deserialize)]
+#[derive(Clone, Debug, Eq, PartialEq, Identifiable, Queryable, Serialize, Deserialize, Hash)]
 #[diesel(table_name = captures)]
 #[diesel(primary_key(capture_id))]
 pub struct Capture {
@@ -14,7 +14,7 @@ pub struct Capture {
     pub status: storage_enums::CaptureStatus,
     pub amount: i64,
     pub currency: Option<storage_enums::Currency>,
-    pub connector: Option<String>,
+    pub connector: String,
     pub error_message: Option<String>,
     pub error_code: Option<String>,
     pub error_reason: Option<String>,
@@ -24,8 +24,10 @@ pub struct Capture {
     #[serde(with = "common_utils::custom_serde::iso8601")]
     pub modified_at: PrimitiveDateTime,
     pub authorized_attempt_id: String,
-    pub connector_transaction_id: Option<String>,
+    pub connector_capture_id: Option<String>,
     pub capture_sequence: i16,
+    // reference to the capture at connector side
+    pub connector_response_reference_id: Option<String>,
 }
 
 #[derive(Clone, Debug, Insertable, router_derive::DebugAsDisplay, Serialize, Deserialize)]
@@ -37,7 +39,7 @@ pub struct CaptureNew {
     pub status: storage_enums::CaptureStatus,
     pub amount: i64,
     pub currency: Option<storage_enums::Currency>,
-    pub connector: Option<String>,
+    pub connector: String,
     pub error_message: Option<String>,
     pub error_code: Option<String>,
     pub error_reason: Option<String>,
@@ -47,15 +49,17 @@ pub struct CaptureNew {
     #[serde(with = "common_utils::custom_serde::iso8601")]
     pub modified_at: PrimitiveDateTime,
     pub authorized_attempt_id: String,
-    pub connector_transaction_id: Option<String>,
+    pub connector_capture_id: Option<String>,
     pub capture_sequence: i16,
+    pub connector_response_reference_id: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum CaptureUpdate {
     ResponseUpdate {
         status: storage_enums::CaptureStatus,
-        connector_transaction_id: Option<String>,
+        connector_capture_id: Option<String>,
+        connector_response_reference_id: Option<String>,
     },
     ErrorUpdate {
         status: storage_enums::CaptureStatus,
@@ -73,7 +77,8 @@ pub struct CaptureUpdateInternal {
     pub error_code: Option<String>,
     pub error_reason: Option<String>,
     pub modified_at: Option<PrimitiveDateTime>,
-    pub connector_transaction_id: Option<String>,
+    pub connector_capture_id: Option<String>,
+    pub connector_response_reference_id: Option<String>,
 }
 
 impl CaptureUpdate {
@@ -96,11 +101,13 @@ impl From<CaptureUpdate> for CaptureUpdateInternal {
         match payment_attempt_child_update {
             CaptureUpdate::ResponseUpdate {
                 status,
-                connector_transaction_id,
+                connector_capture_id: connector_transaction_id,
+                connector_response_reference_id,
             } => Self {
                 status: Some(status),
-                connector_transaction_id,
+                connector_capture_id: connector_transaction_id,
                 modified_at: now,
+                connector_response_reference_id,
                 ..Self::default()
             },
             CaptureUpdate::ErrorUpdate {
