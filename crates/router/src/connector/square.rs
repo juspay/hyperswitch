@@ -9,6 +9,7 @@ use transformers as square;
 use super::utils::RefundsRequestData;
 use crate::{
     configs::settings,
+    consts,
     core::{
         errors::{self, CustomResult},
         payments,
@@ -100,8 +101,8 @@ impl ConnectorCommon for Square {
 
         let default_error_details = square::SquareErrorDetails {
             category: Some("".to_string()),
-            code: Some("".to_string()),
-            detail: Some("".to_string()),
+            code: Some(consts::NO_ERROR_CODE.to_string()),
+            detail: Some(consts::NO_ERROR_MESSAGE.to_string()),
         };
 
         Ok(ErrorResponse {
@@ -214,9 +215,12 @@ impl
     fn get_url(
         &self,
         _req: &types::TokenizationRouterData,
-        _connectors: &settings::Connectors,
+        connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Ok("https://pci-connect.squareupsandbox.com/v2/card-nonce".to_string())
+        Ok(format!(
+            "{}v2/card-nonce",
+            connectors.square.secondary_base_url,
+        ))
     }
 
     fn get_request_body(
@@ -304,13 +308,14 @@ impl
     fn get_url(
         &self,
         req: &types::PaymentsAuthorizeSessionTokenRouterData,
-        _connectors: &settings::Connectors,
+        connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         let auth = square::SquareAuthType::try_from(&req.connector_auth_type)
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
 
         Ok(format!(
-            "https://pci-connect.squareupsandbox.com/payments/hydrate?applicationId={}",
+            "{}payments/hydrate?applicationId={}",
+            connectors.square.secondary_base_url,
             auth.key1.peek()
         ))
     }
