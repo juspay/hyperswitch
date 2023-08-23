@@ -803,6 +803,13 @@ pub async fn webhooks_core<W: types::OutgoingWebhookType>(
                 object_ref_id.clone(),
             )
             .await
+            .or_else(|error| match error.current_context() {
+                errors::ConnectorError::WebhookSourceVerificationFailed => {
+                    logger::error!(?error, "Source Verification Failed");
+                    Ok(false)
+                }
+                _ => Err(error),
+            })
             .switch()
             .attach_printable("There was an issue in incoming webhook source verification")?;
 
