@@ -576,6 +576,7 @@ where
                         .set_feature_metadata(payment_intent.feature_metadata)
                         .set_connector_metadata(payment_intent.connector_metadata)
                         .set_reference_id(payment_attempt.connector_response_reference_id)
+                        .set_profile_id(payment_intent.profile_id)
                         .to_owned(),
                     headers,
                 ))
