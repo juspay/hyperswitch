@@ -25,7 +25,7 @@ struct Args {
     base_url: String,
     /// Admin API Key of the environment
     #[arg(short, long = "admin_api_key")]
-    admin_api_key: String
+    admin_api_key: String,
 }
 
 fn main() {
