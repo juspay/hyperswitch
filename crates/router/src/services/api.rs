@@ -175,10 +175,7 @@ pub trait ConnectorIntegration<T, Req, Resp>: ConnectorIntegrationAny<T, Req, Re
     fn get_multiple_capture_sync_method(
         &self,
     ) -> CustomResult<CaptureSyncMethod, errors::ConnectorError> {
-        Err(
-            errors::ConnectorError::NotImplemented("multiple capture sync not implemented".into())
-                .into(),
-        )
+        Err(errors::ConnectorError::NotImplemented("multiple capture sync".into()).into())
     }
 
     fn get_certificate(
