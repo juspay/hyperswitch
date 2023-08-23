@@ -3,7 +3,7 @@ use data_models::{
     errors,
     mandates::{MandateAmountData, MandateDataType},
     payments::payment_attempt::{
-        PaymentAttempt, PaymentAttemptInterface, PaymentAttemptNew, PaymentAttemptUpdate,
+        PaymentAttempt, PaymentAttemptInterface, PaymentAttemptNew, PaymentAttemptUpdate, PaymentListFilters
     },
     MerchantStorageScheme,
 };
@@ -17,7 +17,7 @@ use diesel_models::{
 
 use crate::{
     utils::{pg_connection_read, pg_connection_write},
-    DataModelExt, DatabaseStore, RouterStore,
+    DataModelExt, DatabaseStore, RouterStore, KVRouterStore
 };
 
 #[async_trait::async_trait]
@@ -147,7 +147,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for RouterStore<T> {
         merchant_id: &str,
         _storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<
-        data_models::payments::payment_attempt::PaymentListFilters,
+        PaymentListFilters,
         errors::StorageError,
     > {
         let conn = pg_connection_read(self).await?;
@@ -163,7 +163,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for RouterStore<T> {
                 er.change_context(new_err)
             })
             .map(|(connector, currency, status, payment_method)| {
-                data_models::payments::payment_attempt::PaymentListFilters {
+                PaymentListFilters {
                     connector,
                     currency,
                     status,
@@ -229,6 +229,184 @@ impl<T: DatabaseStore> PaymentAttemptInterface for RouterStore<T> {
             })
             .map(PaymentAttempt::from_storage_model)
     }
+}
+
+
+#[async_trait::async_trait]
+impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
+    async fn insert_payment_attempt(
+        &self,
+        payment_attempt: PaymentAttemptNew,
+        storage_scheme: MerchantStorageScheme,
+    ) -> error_stack::Result<PaymentAttempt, errors::StorageError> {
+        match storage_scheme {
+            MerchantStorageScheme::PostgresOnly => self.router_store.insert_payment_attempt(payment_attempt, storage_scheme).await,
+            MerchantStorageScheme::RedisKv => {
+                let key = format!(
+                    "{}_{}",
+                    payment_attempt.merchant_id, payment_attempt.payment_id
+                );
+
+                let created_attempt = PaymentAttempt {
+                    id: Default::default(),
+                    payment_id: payment_attempt.payment_id.clone(),
+                    merchant_id: payment_attempt.merchant_id.clone(),
+                    attempt_id: payment_attempt.attempt_id.clone(),
+                    status: payment_attempt.status,
+                    amount: payment_attempt.amount,
+                    currency: payment_attempt.currency,
+                    save_to_locker: payment_attempt.save_to_locker,
+                    connector: payment_attempt.connector.clone(),
+                    error_message: payment_attempt.error_message.clone(),
+                    offer_amount: payment_attempt.offer_amount,
+                    surcharge_amount: payment_attempt.surcharge_amount,
+                    tax_amount: payment_attempt.tax_amount,
+                    payment_method_id: payment_attempt.payment_method_id.clone(),
+                    payment_method: payment_attempt.payment_method,
+                    connector_transaction_id: None,
+                    capture_method: payment_attempt.capture_method,
+                    capture_on: payment_attempt.capture_on,
+                    confirm: payment_attempt.confirm,
+                    authentication_type: payment_attempt.authentication_type,
+                    created_at: payment_attempt.created_at.unwrap_or_else(date_time::now),
+                    modified_at: payment_attempt.created_at.unwrap_or_else(date_time::now),
+                    last_synced: payment_attempt.last_synced,
+                    amount_to_capture: payment_attempt.amount_to_capture,
+                    cancellation_reason: payment_attempt.cancellation_reason.clone(),
+                    mandate_id: payment_attempt.mandate_id.clone(),
+                    browser_info: payment_attempt.browser_info.clone(),
+                    payment_token: payment_attempt.payment_token.clone(),
+                    error_code: payment_attempt.error_code.clone(),
+                    connector_metadata: payment_attempt.connector_metadata.clone(),
+                    payment_experience: payment_attempt.payment_experience,
+                    payment_method_type: payment_attempt.payment_method_type,
+                    payment_method_data: payment_attempt.payment_method_data.clone(),
+                    business_sub_label: payment_attempt.business_sub_label.clone(),
+                    straight_through_algorithm: payment_attempt
+                        .straight_through_algorithm
+                        .clone(),
+                    mandate_details: payment_attempt.mandate_details.clone(),
+                    preprocessing_step_id: payment_attempt.preprocessing_step_id.clone(),
+                    error_reason: payment_attempt.error_reason.clone(),
+                    multiple_capture_count: payment_attempt.multiple_capture_count,
+                    connector_response_reference_id: None,
+                };
+
+                let field = format!("pa_{}", created_attempt.attempt_id);
+                match self
+                    .get_redis_conn()
+                    .map_err(Into::<errors::StorageError>::into)?
+                    .serialize_and_set_hash_field_if_not_exist(&key, &field, &created_attempt)
+                    .await
+                {
+                    Ok(HsetnxReply::KeyNotSet) => Err(errors::StorageError::DuplicateValue {
+                        entity: "payment attempt",
+                        key: Some(key),
+                    })
+                    .into_report(),
+                    Ok(HsetnxReply::KeySet) => {
+                        let conn = connection::pg_connection_write(self).await?;
+
+                        //Reverse lookup for attempt_id
+                        ReverseLookupNew {
+                            lookup_id: format!(
+                                "{}_{}",
+                                &created_attempt.merchant_id, &created_attempt.attempt_id,
+                            ),
+                            pk_id: key,
+                            sk_id: field,
+                            source: "payment_attempt".to_string(),
+                        }
+                        .insert(&conn)
+                        .await
+                        .map_err(Into::<errors::StorageError>::into)
+                        .into_report()?;
+
+                        let redis_entry = kv::TypedSql {
+                            op: kv::DBOperation::Insert {
+                                insertable: kv::Insertable::PaymentAttempt(payment_attempt),
+                            },
+                        };
+                        self.push_to_drainer_stream::<PaymentAttempt>(
+                            redis_entry,
+                            crate::utils::storage_partitioning::PartitionKey::MerchantIdPaymentId {
+                                merchant_id: &created_attempt.merchant_id,
+                                payment_id: &created_attempt.payment_id,
+                            }
+                        )
+                        .await.change_context(errors::StorageError::KVError)?;
+                        Ok(created_attempt)
+                    }
+                    Err(error) => Err(error.change_context(errors::StorageError::KVError)),
+                }
+            }
+        }
+    }
+
+    async fn update_payment_attempt_with_attempt_id(
+        &self,
+        this: PaymentAttempt,
+        payment_attempt: PaymentAttemptUpdate,
+        storage_scheme: MerchantStorageScheme,
+    ) -> error_stack::Result<PaymentAttempt, errors::StorageError>;
+
+    async fn find_payment_attempt_by_connector_transaction_id_payment_id_merchant_id(
+        &self,
+        connector_transaction_id: &str,
+        payment_id: &str,
+        merchant_id: &str,
+        storage_scheme: MerchantStorageScheme,
+    ) -> error_stack::Result<PaymentAttempt, errors::StorageError>;
+
+    async fn find_payment_attempt_last_successful_attempt_by_payment_id_merchant_id(
+        &self,
+        payment_id: &str,
+        merchant_id: &str,
+        storage_scheme: MerchantStorageScheme,
+    ) -> error_stack::Result<PaymentAttempt, errors::StorageError>;
+
+    async fn find_payment_attempt_by_merchant_id_connector_txn_id(
+        &self,
+        merchant_id: &str,
+        connector_txn_id: &str,
+        storage_scheme: MerchantStorageScheme,
+    ) -> error_stack::Result<PaymentAttempt, errors::StorageError>;
+
+    async fn find_payment_attempt_by_payment_id_merchant_id_attempt_id(
+        &self,
+        payment_id: &str,
+        merchant_id: &str,
+        attempt_id: &str,
+        storage_scheme: MerchantStorageScheme,
+    ) -> error_stack::Result<PaymentAttempt, errors::StorageError>;
+
+    async fn find_payment_attempt_by_attempt_id_merchant_id(
+        &self,
+        attempt_id: &str,
+        merchant_id: &str,
+        storage_scheme: MerchantStorageScheme,
+    ) -> error_stack::Result<PaymentAttempt, errors::StorageError>;
+
+    async fn find_payment_attempt_by_preprocessing_id_merchant_id(
+        &self,
+        preprocessing_id: &str,
+        merchant_id: &str,
+        storage_scheme: MerchantStorageScheme,
+    ) -> error_stack::Result<PaymentAttempt, errors::StorageError>;
+
+    async fn find_attempts_by_merchant_id_payment_id(
+        &self,
+        merchant_id: &str,
+        payment_id: &str,
+        storage_scheme: MerchantStorageScheme,
+    ) -> error_stack::Result<Vec<PaymentAttempt>, errors::StorageError>;
+
+    async fn get_filters_for_payments(
+        &self,
+        pi: &[PaymentIntent],
+        merchant_id: &str,
+        storage_scheme: MerchantStorageScheme,
+    ) -> error_stack::Result<PaymentListFilters, errors::StorageError>;
 }
 
 impl DataModelExt for MandateAmountData {
