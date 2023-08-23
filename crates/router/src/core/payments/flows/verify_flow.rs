@@ -235,6 +235,8 @@ impl TryFrom<types::VerifyRequestData> for types::PaymentMethodTokenizationData 
         Ok(Self {
             payment_method_data: data.payment_method_data,
             browser_info: None,
+            currency: data.currency,
+            amount: data.amount,
         })
     }
 }

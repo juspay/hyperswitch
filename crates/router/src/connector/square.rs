@@ -22,8 +22,7 @@ use crate::{
     },
     types::{
         self,
-        api::{self, ConnectorCommon, ConnectorCommonExt},
-        storage, ErrorResponse, Response,
+        api::{self, ConnectorCommon, ConnectorCommonExt}, ErrorResponse, Response,
     },
     utils::{self, BytesExt},
 };
@@ -173,8 +172,8 @@ impl
         let authorize_session_token_data = types::AuthorizeSessionTokenData {
             connector_transaction_id: router_data.payment_id.clone(),
             amount_to_capture: None,
-            currency: storage::enums::Currency::USD,
-            amount: 0,
+            currency: router_data.request.currency,
+            amount: router_data.request.amount,
         };
 
         let authorize_data = &types::PaymentsAuthorizeSessionTokenRouterData::from((

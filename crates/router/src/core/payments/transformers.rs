@@ -1035,6 +1035,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::VerifyRequestDat
         Ok(Self {
             currency: payment_data.currency,
             confirm: true,
+            amount: payment_data.amount.into(),
             payment_method_data: payment_data
                 .payment_method_data
                 .get_required_value("payment_method_data")?,
