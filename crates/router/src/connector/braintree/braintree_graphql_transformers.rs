@@ -688,7 +688,6 @@ impl<F, T>
 #[serde(rename_all = "camelCase")]
 pub struct CaptureTransactionBody {
     amount: String,
-    merchant_account_id: Secret<String>,
 }
 
 #[derive(Default, Debug, Clone, Serialize)]
@@ -712,9 +711,6 @@ pub struct BraintreeCaptureRequest {
 impl TryFrom<&types::PaymentsCaptureRouterData> for BraintreeCaptureRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::PaymentsCaptureRouterData) -> Result<Self, Self::Error> {
-        let metadata: BraintreeMeta =
-            utils::to_connector_meta_from_secret(item.connector_meta_data.clone())?;
-        utils::validate_currency(item.request.currency, metadata.merchant_config_currency)?;
         let query = "mutation captureTransaction($input: CaptureTransactionInput!) { captureTransaction(input: $input) { clientMutationId transaction { id legacyId amount { value currencyCode } status } } }".to_string();
         let variables = VariableCaptureInput {
             input: CaptureInputData {
@@ -723,11 +719,6 @@ impl TryFrom<&types::PaymentsCaptureRouterData> for BraintreeCaptureRequest {
                     amount: utils::to_currency_base_unit(
                         item.request.amount_to_capture,
                         item.request.currency,
-                    )?,
-                    merchant_account_id: metadata.merchant_account_id.ok_or(
-                        errors::ConnectorError::MissingRequiredField {
-                            field_name: "merchant_account_id",
-                        },
                     )?,
                 },
             },
