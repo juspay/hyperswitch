@@ -4,6 +4,32 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 1.25.1 (2023-08-22)
+
+### Bug Fixes
+
+- Storage of generic payment methods in permanent locker ([#1799](https://github.com/juspay/hyperswitch/pull/1799)) ([`19ee324`](https://github.com/juspay/hyperswitch/commit/19ee324d373262aea873bb7a120f0e80b918fd84))
+
+**Full Changelog:** [`v1.25.0...v1.25.1`](https://github.com/juspay/hyperswitch/compare/v1.25.0...v1.25.1)
+
+- - -
+
+
+## 1.25.0 (2023-08-22)
+
+### Features
+
+- **storage_impl:** Split payment intent interface implementation ([#1946](https://github.com/juspay/hyperswitch/pull/1946)) ([`88d65a6`](https://github.com/juspay/hyperswitch/commit/88d65a62fc81f217ade71b2d4903d3bbe85e5c94))
+
+### Bug Fixes
+
+- **core:** Update Webhooks Event Mapping and Forced Psync preconditions ([#1970](https://github.com/juspay/hyperswitch/pull/1970)) ([`8cf1f75`](https://github.com/juspay/hyperswitch/commit/8cf1f75fb1705aa020db5f966e15c3d9a80dd908))
+
+**Full Changelog:** [`v1.24.0...v1.25.0`](https://github.com/juspay/hyperswitch/compare/v1.24.0...v1.25.0)
+
+- - -
+
+
 ## 1.24.0 (2023-08-21)
 
 ### Features

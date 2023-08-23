@@ -729,6 +729,13 @@ impl ForeignFrom<(storage::PaymentIntent, storage::PaymentAttempt)> for api::Pay
             connector: pa.connector,
             payment_method: pa.payment_method,
             payment_method_type: pa.payment_method_type,
+            business_label: pi.business_label,
+            business_country: pi.business_country,
+            business_sub_label: pa.business_sub_label,
+            setup_future_usage: pi.setup_future_usage,
+            capture_method: pa.capture_method,
+            authentication_type: pa.authentication_type,
+            connector_transaction_id: pa.connector_transaction_id,
             ..Default::default()
         }
     }
@@ -941,9 +948,12 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsSyncData
             encoded_data: payment_data.connector_response.encoded_data,
             capture_method: payment_data.payment_attempt.capture_method,
             connector_meta: payment_data.payment_attempt.connector_metadata,
-            pending_capture_id_list: payment_data.multiple_capture_data.map(
-                |multiple_capture_data| multiple_capture_data.get_pending_connector_capture_ids(),
-            ),
+            capture_sync_type: match payment_data.multiple_capture_data {
+                Some(multiple_capture_data) => types::CaptureSyncType::MultipleCaptureSync(
+                    multiple_capture_data.get_pending_connector_capture_ids(),
+                ),
+                None => types::CaptureSyncType::SingleCaptureSync,
+            },
         })
     }
 }
