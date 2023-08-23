@@ -61,6 +61,7 @@ url = { version = "2.4.0", features = ["serde"] }
 api_models = { version = "0.1.0", path = "../api_models", features = ["errors"] }
 common_enums = { path = "../common_enums" }
 common_utils = { version = "0.1.0", path = "../common_utils" }
+data_models = { version = "0.1.0", path = "../data_models" }
 external_services = { version = "0.1.0", path = "../external_services" }
 masking = { version = "0.1.0", path = "../masking" }
 router_derive = { version = "0.1.0", path = "../router_derive" }
