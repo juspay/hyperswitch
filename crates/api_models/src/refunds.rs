@@ -130,6 +130,8 @@ pub struct RefundResponse {
 pub struct RefundListRequest {
     /// The identifier for the payment
     pub payment_id: Option<String>,
+    /// The identifier for the refund
+    pub refund_id: Option<String>,
     /// Limit on the number of objects to return
     pub limit: Option<i64>,
     /// The starting point within a list of objects
@@ -160,7 +162,9 @@ pub struct TimeRange {
 #[derive(Debug, Clone, Eq, PartialEq, Deserialize, Serialize, ToSchema)]
 pub struct RefundListResponse {
     /// The number of refunds included in the list
-    pub size: usize,
+    pub count: usize,
+    /// The total number of refunds in the list
+    pub total_count: i64,
     /// The List of refund response object
     pub data: Vec<RefundResponse>,
 }
