@@ -2,7 +2,7 @@ use std::marker::PhantomData;
 
 use api_models::enums::CancelTransaction;
 use async_trait::async_trait;
-use common_utils::ext_traits::AsyncExt;
+use common_utils::{errors::ReportSwitchExt, ext_traits::AsyncExt};
 use error_stack::ResultExt;
 use router_derive::PaymentOperation;
 use router_env::{instrument, tracing};
@@ -11,7 +11,7 @@ use super::{BoxedOperation, Domain, GetTracker, Operation, UpdateTracker, Valida
 use crate::{
     core::{
         errors::{self, CustomResult, RouterResult, StorageErrorExt},
-        payments::{helpers, operations, CustomerDetails, PaymentAddress, PaymentData},
+        payments::{helpers, operations, types, CustomerDetails, PaymentAddress, PaymentData},
     },
     db::StorageInterface,
     routes::AppState,
@@ -106,7 +106,7 @@ impl<F: Clone + Send> Domain<F, api::PaymentsRequest> for PaymentStatus {
         _merchant_account: &domain::MerchantAccount,
         state: &AppState,
         request: &api::PaymentsRequest,
-        _payment_intent: &storage::payment_intent::PaymentIntent,
+        _payment_intent: &storage::PaymentIntent,
         _key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<api::ConnectorChoice, errors::ApiErrorResponse> {
         helpers::get_connector_default(state, request.routing.clone()).await
@@ -218,7 +218,7 @@ async fn get_tracker_for_sync<
             storage_scheme,
         )
         .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .change_context(errors::ApiErrorResponse::PaymentNotFound)
         .attach_printable("Database error when finding connector response")?;
 
     connector_response.encoded_data = request.param.clone();
@@ -243,7 +243,7 @@ async fn get_tracker_for_sync<
             Some(db
                 .find_attempts_by_merchant_id_payment_id(merchant_id, &payment_id_str, storage_scheme)
                 .await
-                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .change_context(errors::ApiErrorResponse::PaymentNotFound)
                 .attach_printable_lazy(|| {
                     format!("Error while retrieving attempt list for, merchant_id: {merchant_id}, payment_id: {payment_id_str}")
                 })?)
@@ -251,10 +251,28 @@ async fn get_tracker_for_sync<
         _ => None,
     };
 
+    let multiple_capture_data = if payment_attempt.multiple_capture_count > Some(0) {
+        let captures = db
+            .find_all_captures_by_merchant_id_payment_id_authorized_attempt_id(
+                &payment_attempt.merchant_id,
+                &payment_attempt.payment_id,
+                &payment_attempt.attempt_id,
+                storage_scheme,
+            )
+            .await
+            .change_context(errors::ApiErrorResponse::PaymentNotFound)
+                .attach_printable_lazy(|| {
+                    format!("Error while retrieving capture list for, merchant_id: {merchant_id}, payment_id: {payment_id_str}")
+                })?;
+        Some(types::MultipleCaptureData::new_for_sync(captures)?)
+    } else {
+        None
+    };
+
     let refunds = db
         .find_refund_by_payment_id_merchant_id(&payment_id_str, merchant_id, storage_scheme)
         .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .change_context(errors::ApiErrorResponse::PaymentNotFound)
         .attach_printable_lazy(|| {
             format!(
                 "Failed while getting refund list for, payment_id: {}, merchant_id: {}",
@@ -265,7 +283,7 @@ async fn get_tracker_for_sync<
     let disputes = db
         .find_disputes_by_merchant_id_payment_id(merchant_id, &payment_id_str)
         .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .change_context(errors::ApiErrorResponse::PaymentNotFound)
         .attach_printable_lazy(|| {
             format!("Error while retrieving dispute list for, merchant_id: {merchant_id}, payment_id: {payment_id_str}")
         })?;
@@ -273,7 +291,7 @@ async fn get_tracker_for_sync<
     let frm_response = db
         .find_fraud_check_by_payment_id(payment_id_str.to_string(), merchant_id.to_string())
         .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .change_context(errors::ApiErrorResponse::PaymentNotFound)
         .attach_printable_lazy(|| {
             format!("Error while retrieving frm_response, merchant_id: {merchant_id}, payment_id: {payment_id_str}")
         });
@@ -353,7 +371,7 @@ async fn get_tracker_for_sync<
             connector_customer_id: None,
             recurring_mandate_payment_data: None,
             ephemeral_key: None,
-            multiple_capture_data: None,
+            multiple_capture_data,
             redirect_response: None,
             frm_message,
         },
@@ -411,7 +429,8 @@ pub async fn get_payment_intent_payment_attempt(
                         pi.active_attempt_id.as_str(),
                         storage_scheme,
                     )
-                    .await?;
+                    .await
+                    .switch()?;
             }
             api_models::payments::PaymentIdType::ConnectorTransactionId(ref id) => {
                 pa = db
@@ -420,7 +439,8 @@ pub async fn get_payment_intent_payment_attempt(
                         id,
                         storage_scheme,
                     )
-                    .await?;
+                    .await
+                    .switch()?;
                 pi = db
                     .find_payment_intent_by_payment_id_merchant_id(
                         pa.payment_id.as_str(),
@@ -432,7 +452,8 @@ pub async fn get_payment_intent_payment_attempt(
             api_models::payments::PaymentIdType::PaymentAttemptId(ref id) => {
                 pa = db
                     .find_payment_attempt_by_attempt_id_merchant_id(id, merchant_id, storage_scheme)
-                    .await?;
+                    .await
+                    .switch()?;
                 pi = db
                     .find_payment_intent_by_payment_id_merchant_id(
                         pa.payment_id.as_str(),
@@ -448,7 +469,8 @@ pub async fn get_payment_intent_payment_attempt(
                         merchant_id,
                         storage_scheme,
                     )
-                    .await?;
+                    .await
+                    .switch()?;
 
                 pi = db
                     .find_payment_intent_by_payment_id_merchant_id(
@@ -459,7 +481,7 @@ pub async fn get_payment_intent_payment_attempt(
                     .await?;
             }
         }
-        Ok((pi, pa))
+        error_stack::Result::<_, errors::DataStorageError>::Ok((pi, pa))
     })()
     .await
     .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)

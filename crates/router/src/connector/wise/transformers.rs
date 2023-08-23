@@ -347,7 +347,6 @@ fn get_payout_bank_details(
         _ => Err(errors::ConnectorError::NotSupported {
             message: "Card payout creation is not supported".to_string(),
             connector: "Wise",
-            payment_experience: "".to_string(),
         }),
     }
 }
@@ -375,7 +374,6 @@ impl<F> TryFrom<&types::PayoutsRouterData<F>> for WiseRecipientCreateRequest {
             storage_enums::PayoutType::Card => Err(errors::ConnectorError::NotSupported {
                 message: "Card payout creation is not supported".to_string(),
                 connector: "Wise",
-                payment_experience: "".to_string(),
             })?,
             storage_enums::PayoutType::Bank => {
                 let account_holder_name = customer_details
@@ -437,7 +435,6 @@ impl<F> TryFrom<&types::PayoutsRouterData<F>> for WisePayoutQuoteRequest {
             storage_enums::PayoutType::Card => Err(errors::ConnectorError::NotSupported {
                 message: "Card payout fulfillment is not supported".to_string(),
                 connector: "Wise",
-                payment_experience: "".to_string(),
             })?,
         }
     }
@@ -495,7 +492,6 @@ impl<F> TryFrom<&types::PayoutsRouterData<F>> for WisePayoutCreateRequest {
             storage_enums::PayoutType::Card => Err(errors::ConnectorError::NotSupported {
                 message: "Card payout fulfillment is not supported".to_string(),
                 connector: "Wise",
-                payment_experience: "".to_string(),
             })?,
         }
     }
@@ -540,7 +536,6 @@ impl<F> TryFrom<&types::PayoutsRouterData<F>> for WisePayoutFulfillRequest {
             storage_enums::PayoutType::Card => Err(errors::ConnectorError::NotSupported {
                 message: "Card payout fulfillment is not supported".to_string(),
                 connector: "Wise",
-                payment_experience: "".to_string(),
             })?,
         }
     }
@@ -607,7 +602,6 @@ impl TryFrom<PayoutMethodData> for RecipientType {
             _ => Err(errors::ConnectorError::NotSupported {
                 message: "Requested payout_method_type is not supported".to_string(),
                 connector: "Wise",
-                payment_experience: "".to_string(),
             }
             .into()),
         }

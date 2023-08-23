@@ -13,7 +13,10 @@ use url::Url;
 use utoipa::ToSchema;
 
 use crate::{
-    admin, disputes, enums as api_enums, ephemeral_key::EphemeralKeyCreateResponse, refunds,
+    admin, disputes,
+    enums::{self as api_enums},
+    ephemeral_key::EphemeralKeyCreateResponse,
+    refunds,
 };
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -305,7 +308,7 @@ pub struct PaymentAttemptResponse {
     /// The payment attempt amount. Amount for the payment in lowest denomination of the currency. (i.e) in cents for USD denomination, in paisa for INR denomination etc.,
     pub amount: i64,
     /// The currency of the amount of the payment attempt
-    #[schema(value_type = Option<Currency>, example = "usd")]
+    #[schema(value_type = Option<Currency>, example = "USD")]
     pub currency: Option<enums::Currency>,
     /// The connector used for the payment
     pub connector: Option<String>,
@@ -340,6 +343,38 @@ pub struct PaymentAttemptResponse {
     pub payment_method_type: Option<enums::PaymentMethodType>,
     /// reference to the payment at connector side
     #[schema(value_type = Option<String>, example = "993672945374576J")]
+    pub reference_id: Option<String>,
+}
+
+#[derive(
+    Default, Debug, serde::Serialize, Clone, PartialEq, ToSchema, router_derive::PolymorphicSchema,
+)]
+pub struct CaptureResponse {
+    /// unique identifier for the capture
+    pub capture_id: String,
+    /// The status of the capture
+    #[schema(value_type = CaptureStatus, example = "charged")]
+    pub status: enums::CaptureStatus,
+    /// The capture amount. Amount for the payment in lowest denomination of the currency. (i.e) in cents for USD denomination, in paisa for INR denomination etc.,
+    pub amount: i64,
+    /// The currency of the amount of the capture
+    #[schema(value_type = Option<Currency>, example = "USD")]
+    pub currency: Option<enums::Currency>,
+    /// The connector used for the payment
+    pub connector: String,
+    /// unique identifier for the parent attempt on which this capture is made
+    pub authorized_attempt_id: String,
+    /// A unique identifier for a capture provided by the connector
+    pub connector_capture_id: Option<String>,
+    /// sequence number of this capture
+    pub capture_sequence: i16,
+    /// If there was an error while calling the connector the error message is received here
+    pub error_message: Option<String>,
+    /// If there was an error while calling the connectors the code is received here
+    pub error_code: Option<String>,
+    /// If there was an error while calling the connectors the reason is received here
+    pub error_reason: Option<String>,
+    /// reference to the capture at connector side
     pub reference_id: Option<String>,
 }
 
@@ -1708,6 +1743,11 @@ pub struct PaymentsResponse {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub attempts: Option<Vec<PaymentAttemptResponse>>,
 
+    /// List of captures done on latest attempt
+    #[schema(value_type = Option<Vec<CaptureResponse>>)]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub captures: Option<Vec<CaptureResponse>>,
+
     /// A unique identifier to link the payment to a mandate, can be use instead of payment_method_data
     #[schema(max_length = 255, example = "mandate_iwer89rnjef349dni3")]
     pub mandate_id: Option<String>,
@@ -1933,12 +1973,12 @@ pub struct PaymentListFilterConstraints {
     /// The identifier for payment
     pub payment_id: Option<String>,
     /// The starting point within a list of objects, limit on number of object will be some constant for join query
-    pub offset: Option<i64>,
+    pub offset: Option<u32>,
     /// The time range for which objects are needed. TimeRange has two fields start_time and end_time from which objects can be filtered as per required scenarios (created_at, time less than, greater than etc).
     #[serde(flatten)]
     pub time_range: Option<TimeRange>,
     /// The list of connectors to filter payments list
-    pub connector: Option<Vec<String>>,
+    pub connector: Option<Vec<api_enums::Connector>>,
     /// The list of currencies to filter payments list
     pub currency: Option<Vec<enums::Currency>>,
     /// The list of payment statuses to filter payments list
@@ -2407,6 +2447,10 @@ pub struct ApplepaySessionTokenResponse {
     pub delayed_session_token: bool,
     /// The next action for the sdk (ex: calling confirm or sync call)
     pub sdk_next_action: SdkNextAction,
+    /// The connector transaction id
+    pub connector_reference_id: Option<String>,
+    /// The public key id is to invoke third party sdk
+    pub connector_sdk_public_key: Option<String>,
 }
 
 #[derive(Debug, Eq, PartialEq, serde::Serialize, Clone, ToSchema)]
@@ -2489,9 +2533,9 @@ pub struct ApplePayPaymentRequest {
     /// Represents the total for the payment.
     pub total: AmountInfo,
     /// The list of merchant capabilities(ex: whether capable of 3ds or no-3ds)
-    pub merchant_capabilities: Vec<String>,
+    pub merchant_capabilities: Option<Vec<String>>,
     /// The list of supported networks
-    pub supported_networks: Vec<String>,
+    pub supported_networks: Option<Vec<String>>,
     pub merchant_identifier: Option<String>,
 }
 
