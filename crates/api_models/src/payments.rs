@@ -2179,7 +2179,7 @@ pub struct PaymentsRetrieveRequest {
     pub merchant_connector_details: Option<admin::MerchantConnectorDetailsWrap>,
     /// This is a token which expires after 15 minutes, used from the client to authenticate and create sessions from the SDK
     pub client_secret: Option<String>,
-    /// If enabled provides list of attempts linked to payment intent
+    /// If enabled provides list of captures linked to latest attempt
     pub expand_captures: Option<bool>,
     /// If enabled provides list of attempts linked to payment intent
     pub expand_attempts: Option<bool>,
@@ -2580,7 +2580,7 @@ pub struct PaymentRetrieveBody {
     pub force_sync: Option<bool>,
     /// This is a token which expires after 15 minutes, used from the client to authenticate and create sessions from the SDK
     pub client_secret: Option<String>,
-    /// If enabled provides list of attempts linked to payment intent
+    /// If enabled provides list of captures linked to latest attempt
     pub expand_captures: Option<bool>,
     /// If enabled provides list of attempts linked to payment intent
     pub expand_attempts: Option<bool>,
