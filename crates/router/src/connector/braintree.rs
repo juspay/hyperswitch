@@ -3,6 +3,7 @@ pub mod transformers;
 
 use std::fmt::Debug;
 
+use diesel_models::enums;
 use error_stack::{IntoReport, Report, ResultExt};
 use masking::PeekInterface;
 
@@ -10,6 +11,7 @@ use self::transformers as braintree;
 use super::utils::PaymentsAuthorizeRequestData;
 use crate::{
     configs::settings,
+    connector::utils as connector_utils,
     consts,
     core::errors::{self, CustomResult},
     headers, logger,
@@ -17,6 +19,7 @@ use crate::{
         self,
         request::{self, Mask},
         ConnectorIntegration,
+        ConnectorValidation,
     },
     types::{
         self,
@@ -122,6 +125,21 @@ impl ConnectorCommon for Braintree {
                 logger::error!(deserialization_error =? error_msg);
                 utils::handle_json_response_deserialization_failure(res, "braintree".to_owned())
             }
+        }
+    }
+}
+
+impl ConnectorValidation for Braintree {
+    fn validate_capture_method(
+        &self,
+        capture_method: Option<enums::CaptureMethod>,
+    ) -> CustomResult<(), errors::ConnectorError> {
+        let capture_method = capture_method.unwrap_or_default();
+        match capture_method {
+            enums::CaptureMethod::Automatic | enums::CaptureMethod::Manual => Ok(()),
+            enums::CaptureMethod::ManualMultiple | enums::CaptureMethod::Scheduled => Err(
+                connector_utils::construct_not_implemented_error_report(capture_method, self.id()),
+            ),
         }
     }
 }
@@ -675,6 +693,7 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         req: &types::PaymentsAuthorizeRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
+        self.validate_capture_method(req.request.capture_method)?;
         Ok(Some(
             services::RequestBuilder::new()
                 .method(services::Method::Post)

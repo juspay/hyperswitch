@@ -293,7 +293,7 @@ where
         _merchant_account: &domain::MerchantAccount,
         state: &AppState,
         _request: &api::VerifyRequest,
-        _payment_intent: &storage::payment_intent::PaymentIntent,
+        _payment_intent: &storage::PaymentIntent,
         _mechant_key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<api::ConnectorChoice, errors::ApiErrorResponse> {
         helpers::get_connector_default(state, None).await
