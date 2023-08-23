@@ -8201,7 +8201,7 @@
           },
           "expand_captures": {
             "type": "boolean",
-            "description": "If enabled provides list of attempts linked to payment intent",
+            "description": "If enabled provides list of captures linked to latest attempt",
             "nullable": true
           },
           "expand_attempts": {
@@ -9368,7 +9368,7 @@
           },
           "expand_captures": {
             "type": "boolean",
-            "description": "If enabled provides list of attempts linked to payment intent",
+            "description": "If enabled provides list of captures linked to latest attempt",
             "nullable": true
           },
           "expand_attempts": {
