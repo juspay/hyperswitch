@@ -9,7 +9,11 @@ use router::{
     core::{errors, errors::ConnectorError, payments, utils as core_utils},
     db::StorageImpl,
     routes, services,
-    types::{self, api, storage::enums, AccessToken, PaymentAddress, RouterData},
+    types::{
+        self, api,
+        storage::{self, enums},
+        AccessToken, PaymentAddress, RouterData,
+    },
 };
 use test_utils::connector_auth::ConnectorAuthType;
 use tokio::sync::oneshot;
@@ -958,6 +962,8 @@ impl Default for TokenType {
         let data = types::PaymentMethodTokenizationData {
             payment_method_data: types::api::PaymentMethodData::Card(CCardType::default().0),
             browser_info: None,
+            amount: 0,
+            currency: storage::enums::Currency::USD,
         };
         Self(data)
     }

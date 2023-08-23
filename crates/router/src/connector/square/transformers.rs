@@ -4,6 +4,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     connector::utils::{CardData, PaymentsAuthorizeRequestData, RouterData},
+    consts,
     core::errors,
     types::{
         self, api,
@@ -55,9 +56,16 @@ impl TryFrom<&types::TokenizationRouterData> for SquareTokenRequest {
                         .into_report()
                         .change_context(errors::ConnectorError::DateFormattingFailed)?,
                 );
+                //The below error will never happen because if session-id is not generated it would give error in execute_pretasks itself.
+                let session_id = Secret::new(item.session_token.clone().ok_or(
+                    errors::ConnectorError::FailedAtConnector {
+                        message: "Unable to generate session ID".to_owned(),
+                        code: consts::NO_ERROR_CODE.to_owned(),
+                    },
+                )?);
                 Ok(Self::Card(SquareTokenizeData {
                     client_id: auth.key1,
-                    session_id: Secret::new(item.session_token.clone().unwrap_or_default()),
+                    session_id,
                     card_data: SquareCardData {
                         exp_year,
                         exp_month,
@@ -70,17 +78,21 @@ impl TryFrom<&types::TokenizationRouterData> for SquareTokenRequest {
             | api::PaymentMethodData::CardRedirect(_)
             | api::PaymentMethodData::Wallet(_)
             | api::PaymentMethodData::PayLater(_)
-            | api::PaymentMethodData::BankRedirect(_)
-            | api::PaymentMethodData::BankTransfer(_)
-            | api::PaymentMethodData::Crypto(_)
             | api::PaymentMethodData::MandatePayment
-            | api::PaymentMethodData::Reward(_)
-            | api::PaymentMethodData::Voucher(_)
             | api::PaymentMethodData::GiftCard(_)
             | api::PaymentMethodData::Upi(_) => Err(errors::ConnectorError::NotImplemented(
                 "Payment Method".to_string(),
             ))
             .into_report(),
+            api::PaymentMethodData::BankRedirect(_)
+            | api::PaymentMethodData::BankTransfer(_)
+            | api::PaymentMethodData::Crypto(_)
+            | api::PaymentMethodData::Reward(_)
+            | api::PaymentMethodData::Voucher(_) => Err(errors::ConnectorError::NotSupported {
+                message: format!("{:?}", item.request.payment_method_data),
+                connector: "Square",
+                payment_experience: api_models::enums::PaymentExperience::RedirectToUrl.to_string(),
+            })?,
         }
     }
 }
@@ -171,7 +183,25 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for SquarePaymentsRequest {
                     source_type: "Card".to_string(),
                 },
             }),
-            _ => Err(errors::ConnectorError::NotImplemented("Payment methods".to_string()).into()),
+            api::PaymentMethodData::BankDebit(_)
+            | api::PaymentMethodData::CardRedirect(_)
+            | api::PaymentMethodData::Wallet(_)
+            | api::PaymentMethodData::PayLater(_)
+            | api::PaymentMethodData::MandatePayment
+            | api::PaymentMethodData::GiftCard(_)
+            | api::PaymentMethodData::Upi(_) => Err(errors::ConnectorError::NotImplemented(
+                "Payment Method".to_string(),
+            ))
+            .into_report(),
+            api::PaymentMethodData::BankRedirect(_)
+            | api::PaymentMethodData::BankTransfer(_)
+            | api::PaymentMethodData::Crypto(_)
+            | api::PaymentMethodData::Reward(_)
+            | api::PaymentMethodData::Voucher(_) => Err(errors::ConnectorError::NotSupported {
+                message: format!("{:?}", item.request.payment_method_data),
+                connector: "Square",
+                payment_experience: api_models::enums::PaymentExperience::RedirectToUrl.to_string(),
+            })?,
         }
     }
 }

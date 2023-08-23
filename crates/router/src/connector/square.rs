@@ -22,7 +22,8 @@ use crate::{
     },
     types::{
         self,
-        api::{self, ConnectorCommon, ConnectorCommonExt}, ErrorResponse, Response,
+        api::{self, ConnectorCommon, ConnectorCommonExt},
+        ErrorResponse, Response,
     },
     utils::{self, BytesExt},
 };
@@ -201,7 +202,7 @@ impl
     ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
         Ok(vec![(
             headers::CONTENT_TYPE.to_string(),
-            types::PaymentsAuthorizeType::get_content_type(self)
+            types::TokenizationType::get_content_type(self)
                 .to_string()
                 .into(),
         )])
@@ -270,7 +271,6 @@ impl
             data: data.clone(),
             http_code: res.status_code,
         })
-        .change_context(errors::ConnectorError::ResponseHandlingFailed)
     }
     fn get_error_response(
         &self,
