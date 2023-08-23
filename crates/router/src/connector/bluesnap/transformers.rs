@@ -32,6 +32,7 @@ pub struct BluesnapPaymentsRequest {
     three_d_secure: Option<BluesnapThreeDSecureInfo>,
     transaction_fraud_info: Option<TransactionFraudInfo>,
     card_holder_info: Option<BluesnapCardHolderInfo>,
+    merchant_transaction_id: Option<String>,
 }
 
 #[derive(Debug, Serialize)]
@@ -318,6 +319,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for BluesnapPaymentsRequest {
                 fraud_session_id: item.payment_id.clone(),
             }),
             card_holder_info,
+            merchant_transaction_id: Some(item.connector_request_reference_id.clone()),
         })
     }
 }
@@ -485,6 +487,7 @@ impl TryFrom<&types::PaymentsCompleteAuthorizeRouterData> for BluesnapPaymentsRe
                 item.get_billing_address()?,
                 item.request.get_email()?,
             )?,
+            merchant_transaction_id: Some(item.connector_request_reference_id.clone()),
         })
     }
 }
@@ -802,6 +805,7 @@ impl TryFrom<types::RefundsResponseRouterData<api::Execute, RefundResponse>>
 #[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct BluesnapWebhookBody {
+    pub merchant_transaction_id: String,
     pub reference_number: String,
 }
 

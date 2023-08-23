@@ -993,8 +993,8 @@ impl api::IncomingWebhook for Bluesnap {
                 .into_report()
                 .change_context(errors::ConnectorError::WebhookSignatureNotFound)?;
         Ok(api_models::webhooks::ObjectReferenceId::PaymentId(
-            api_models::payments::PaymentIdType::ConnectorTransactionId(
-                webhook_body.reference_number,
+            api_models::payments::PaymentIdType::PaymentAttemptId(
+                webhook_body.merchant_transaction_id,
             ),
         ))
     }
