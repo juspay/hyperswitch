@@ -294,6 +294,10 @@ pub struct PaymentsRequest {
 
     /// additional data that might be required by hyperswitch
     pub feature_metadata: Option<FeatureMetadata>,
+
+    /// The business profile to use for this payment, if not passed the default business profile
+    /// associated with the merchant account will be used.
+    pub profile_id: Option<String>,
 }
 
 #[derive(
@@ -1898,6 +1902,9 @@ pub struct PaymentsResponse {
     /// reference to the payment at connector side
     #[schema(value_type = Option<String>, example = "993672945374576J")]
     pub reference_id: Option<String>,
+
+    /// The business profile that is associated with this payment
+    pub profile_id: Option<String>,
 }
 
 #[derive(Clone, Debug, serde::Deserialize, ToSchema)]
@@ -1963,6 +1970,8 @@ pub struct PaymentListConstraints {
 pub struct PaymentListResponse {
     /// The number of payments included in the list
     pub size: usize,
+    /// The total number of payment_attempts for intents included in the list
+    pub attempt_count: i16,
     // The list of payments response objects
     pub data: Vec<PaymentsResponse>,
 }
