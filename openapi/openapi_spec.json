@@ -6357,11 +6357,11 @@
             "format": "int32",
             "description": "Will be used to expire client secret after certain amount of time to be supplied in seconds\n(900) for 15 mins",
             "nullable": true,
-            "minimum": 0
+            "minimum": 0.0
           },
           "default_profile": {
             "type": "string",
-            "description": "The default business profile that must be used for creating merchant accounts and payments",
+            "description": "The default business profile that must be used for creating merchant accounts and payments\nTo unset this field, pass an empty string",
             "nullable": true,
             "maxLength": 64
           }
@@ -10151,11 +10151,6 @@
             "type": "integer",
             "description": "The number of refunds included in the list",
             "minimum": 0.0
-          },
-          "total_count": {
-            "type": "integer",
-            "format": "int64",
-            "description": "The total number of refunds in the list"
           },
           "total_count": {
             "type": "integer",
