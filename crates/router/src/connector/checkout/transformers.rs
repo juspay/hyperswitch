@@ -10,7 +10,8 @@ use crate::{
     consts,
     core::errors,
     services,
-    types::{self, api, storage::enums, transformers::ForeignFrom}, utils::OptionExt,
+    types::{self, api, storage::enums, transformers::ForeignFrom},
+    utils::OptionExt,
 };
 
 #[derive(Debug, Serialize)]
@@ -255,14 +256,22 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PaymentsRequest {
                         source_type: CheckoutSourceTypes::Token,
                         token: match item.get_payment_method_token()? {
                             types::PaymentMethodTokens::Token(token) => token,
-                            types::PaymentMethodTokens::ApplePayDecrypt(_) => Err(errors::ConnectorError::InvalidWalletToken)?,
+                            types::PaymentMethodTokens::ApplePayDecrypt(_) => {
+                                Err(errors::ConnectorError::InvalidWalletToken)?
+                            }
                         },
                     }))
                 }
                 api_models::payments::WalletData::ApplePay(_) => {
-                    let payment_method_token = item.payment_method_token.to_owned().get_required_value("payment_token").change_context(errors::ConnectorError::RequestEncodingFailed)?;
+                    let payment_method_token = item
+                        .payment_method_token
+                        .to_owned()
+                        .get_required_value("payment_token")
+                        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
                     let decrypt_data = match payment_method_token {
-                        types::PaymentMethodTokens::Token(_) => Err(errors::ConnectorError::InvalidWalletToken)?,
+                        types::PaymentMethodTokens::Token(_) => {
+                            Err(errors::ConnectorError::InvalidWalletToken)?
+                        }
                         types::PaymentMethodTokens::ApplePayDecrypt(data) => data,
                     };
                     let expiry_year_4_digit = format!(

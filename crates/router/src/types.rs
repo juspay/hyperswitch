@@ -283,7 +283,7 @@ pub struct ApplePayPredecryptData {
 #[serde(rename_all = "camelCase")]
 pub struct ApplePayCryptogramData {
     pub online_payment_cryptogram: String,
-    pub eci_indicator: Option<String>
+    pub eci_indicator: Option<String>,
 }
 
 #[derive(Debug, Clone)]

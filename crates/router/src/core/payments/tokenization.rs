@@ -49,7 +49,11 @@ where
                     .get_required_value("payment_token")?;
                 let token = match tokens {
                     types::PaymentMethodTokens::Token(connector_token) => connector_token,
-                    types::PaymentMethodTokens::ApplePayDecrypt(_) => Err(errors::ApiErrorResponse::NotSupported { message: "Apple Pay Decrypt token is not supported".to_string() })?,
+                    types::PaymentMethodTokens::ApplePayDecrypt(_) => {
+                        Err(errors::ApiErrorResponse::NotSupported {
+                            message: "Apple Pay Decrypt token is not supported".to_string(),
+                        })?
+                    }
                 };
                 Some((connector, token))
             } else {

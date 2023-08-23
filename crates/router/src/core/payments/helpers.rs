@@ -8,39 +8,28 @@ use common_utils::{
 use diesel_models::{enums, payment_intent};
 // TODO : Evaluate all the helper functions ()
 use error_stack::{report, IntoReport, ResultExt};
-use josekit::jwe;
-use masking::{ExposeInterface, PeekInterface};
-use router_env::{instrument, logger, tracing};
-use time::Duration;
-use uuid::Uuid;
-
 #[cfg(feature = "kms")]
 use external_services::kms;
+use josekit::jwe;
+use masking::{ExposeInterface, PeekInterface};
 #[cfg(feature = "kms")]
 use openssl::derive::Deriver;
 #[cfg(feature = "kms")]
 use openssl::pkey::PKey;
 #[cfg(feature = "kms")]
 use openssl::symm::{decrypt_aead, Cipher};
-#[cfg(feature = "kms")]
-use serde::{Deserialize, Serialize};
-#[cfg(feature = "kms")]
-use std::error::Error;
-#[cfg(feature = "kms")]
-use std::fs::File;
-#[cfg(feature = "kms")]
-use std::io::prelude::*;
-#[cfg(feature = "kms")]
-use std::io::BufReader;
+use router_env::{instrument, logger, tracing};
+use time::Duration;
+use uuid::Uuid;
 #[cfg(feature = "kms")]
 use x509_parser::parse_x509_certificate;
-#[cfg(feature = "kms")]
-use crate::configs::settings::connector::utils::WalletData;
 
 use super::{
     operations::{BoxedOperation, Operation, PaymentResponse},
     CustomerDetails, PaymentData,
 };
+#[cfg(feature = "kms")]
+use crate::connector;
 use crate::{
     configs::settings::{ConnectorRequestReferenceIdConfig, Server},
     consts::{self, BASE64_ENGINE},
@@ -2923,7 +2912,8 @@ impl ApplePayData {
     pub fn token_json(
         wallet_data: api_models::payments::WalletData,
     ) -> Result<Self, error_stack::Report<errors::ConnectorError>> {
-        let json_wallet_data: Self = wallet_data.get_wallet_token_as_json()?;
+        let json_wallet_data: Self =
+            connector::utils::WalletData::get_wallet_token_as_json(&wallet_data)?;
         Ok(json_wallet_data)
     }
 
@@ -2972,7 +2962,7 @@ impl ApplePayData {
 
                 merchant_id
             })
-            .ok_or_else(|| errors::ApplePayDecryptionError::MissingMerchantId)
+            .ok_or(errors::ApplePayDecryptionError::MissingMerchantId)
             .into_report()
             .attach_printable("Unable to find merchant ID extension in the certificate")?;
 

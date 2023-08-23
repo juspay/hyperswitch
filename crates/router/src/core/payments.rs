@@ -13,12 +13,11 @@ use common_utils::pii;
 use diesel_models::ephemeral_key;
 use error_stack::{IntoReport, ResultExt};
 use futures::future::join_all;
+#[cfg(feature = "kms")]
+use helpers::ApplePayData;
 use masking::Secret;
 use router_env::{instrument, tracing};
 use time;
-
-#[cfg(feature = "kms")]
-use crate::core::payments::helpers::ApplePayData;
 
 pub use self::operations::{
     PaymentCancel, PaymentCapture, PaymentConfirm, PaymentCreate, PaymentMethodValidate,
@@ -577,31 +576,34 @@ where
         .await?;
 
     if let Some(payment_method_token) = pm_token {
-        router_data.payment_method_token = Some(types::PaymentMethodTokens::Token(payment_method_token));
+        router_data.payment_method_token =
+            Some(types::PaymentMethodTokens::Token(payment_method_token));
     };
 
     // Tokenization Action will be DecryptApplePayToken, only when payment method type is Apple Pay
     // and the connector supports Apple Pay predecrypt
     #[cfg(feature = "kms")]
     if tokenization_action.eq(&TokenizationAction::DecryptApplePayToken) {
-    let apple_pay_data = match payment_data.payment_method_data.clone() {
-        Some(pmd) => {
-            match pmd {
-                api_models::payments::PaymentMethodData::Wallet(api_models::payments::WalletData::ApplePay(wallet_data)) => {
-                    Some(ApplePayData::token_json(api_models::payments::WalletData::ApplePay(wallet_data)).change_context(errors::ApiErrorResponse::InternalServerError).decrypt(state).await.change_context(errors::ApiErrorResponse::InternalServerError)?)
-                },
-                _ => None
-            }
-        }
-        None => None,
-};
+        let apple_pay_data = match payment_data.payment_method_data.clone() {
+            Some(api_models::payments::PaymentMethodData::Wallet(
+                api_models::payments::WalletData::ApplePay(wallet_data),
+            )) => Some(
+                ApplePayData::token_json(api_models::payments::WalletData::ApplePay(wallet_data))
+                    .change_context(errors::ApiErrorResponse::InternalServerError)?
+                    .decrypt(state)
+                    .await
+                    .change_context(errors::ApiErrorResponse::InternalServerError)?,
+            ),
+            _ => None,
+        };
 
         let apple_pay_predecrypt = apple_pay_data
-            .parse_value::<types::ApplePayPredecryptData>(
-                "ApplePayPredecryptData",
-            ).change_context(errors::ApiErrorResponse::InternalServerError)?;
+            .parse_value::<types::ApplePayPredecryptData>("ApplePayPredecryptData")
+            .change_context(errors::ApiErrorResponse::InternalServerError)?;
 
-        router_data.payment_method_token = Some(types::PaymentMethodTokens::ApplePayDecrypt(apple_pay_predecrypt));
+        router_data.payment_method_token = Some(types::PaymentMethodTokens::ApplePayDecrypt(
+            apple_pay_predecrypt,
+        ));
     }
 
     (router_data, should_continue_further) = complete_preprocessing_steps_if_required(
