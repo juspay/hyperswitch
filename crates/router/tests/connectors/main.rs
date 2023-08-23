@@ -46,6 +46,7 @@ mod shift4;
 mod square;
 mod stax;
 mod stripe;
+mod stripe_connect;
 mod trustpay;
 mod tsys;
 mod utils;

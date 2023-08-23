@@ -34,6 +34,10 @@ pub struct PoQuote;
 pub struct PoRecipient;
 
 #[cfg(feature = "payouts")]
+#[derive(Debug, Clone)]
+pub struct PoRecipientAccount;
+
+#[cfg(feature = "payouts")]
 pub trait PayoutCancel:
     api::ConnectorIntegration<PoCancel, types::PayoutsData, types::PayoutsResponseData>
 {
@@ -70,6 +74,12 @@ pub trait PayoutRecipient:
 }
 
 #[cfg(feature = "payouts")]
+pub trait PayoutRecipientAccount:
+    api::ConnectorIntegration<PoRecipientAccount, types::PayoutsData, types::PayoutsResponseData>
+{
+}
+
+#[cfg(feature = "payouts")]
 pub trait Payouts:
     ConnectorCommon
     + PayoutCancel
@@ -78,6 +88,7 @@ pub trait Payouts:
     + PayoutFulfill
     + PayoutQuote
     + PayoutRecipient
+    + PayoutRecipientAccount
 {
 }
 #[cfg(not(feature = "payouts"))]

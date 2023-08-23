@@ -43,6 +43,7 @@ pub enum RoutingAlgorithm {
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
 pub enum Connector {
+    StripeConnect,
     #[cfg(feature = "dummy_connector")]
     #[serde(rename = "phonypay")]
     #[strum(serialize = "phonypay")]
@@ -226,6 +227,7 @@ pub enum RoutableConnectors {
     Square,
     Stax,
     Stripe,
+    StripeConnect,
     Trustpay,
     // Tsys,
     Tsys,
@@ -253,6 +255,7 @@ pub enum RoutableConnectors {
 #[strum(serialize_all = "snake_case")]
 pub enum PayoutConnectors {
     Adyen,
+    StripeConnect,
     Wise,
 }
 
@@ -261,6 +264,7 @@ impl From<PayoutConnectors> for RoutableConnectors {
     fn from(value: PayoutConnectors) -> Self {
         match value {
             PayoutConnectors::Adyen => Self::Adyen,
+            PayoutConnectors::StripeConnect => Self::StripeConnect,
             PayoutConnectors::Wise => Self::Wise,
         }
     }
