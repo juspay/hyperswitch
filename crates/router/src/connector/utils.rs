@@ -1273,3 +1273,21 @@ mod error_code_error_message_tests {
         assert_eq!(error_code_error_message_none, None);
     }
 }
+
+pub fn validate_currency(
+    request_currency: types::storage::enums::Currency,
+    merchant_config_curreny: Option<types::storage::enums::Currency>,
+) -> Result<(), errors::ConnectorError> {
+    let merchant_config_currency =
+        merchant_config_curreny.ok_or(errors::ConnectorError::NoConnectorMetaData)?;
+    if request_currency != merchant_config_currency {
+        Err(errors::ConnectorError::NotSupported {
+            message: format!(
+                "currency {} is not supported for this merchant account",
+                request_currency
+            ),
+            connector: "Braintree",
+        })?
+    }
+    Ok(())
+}
