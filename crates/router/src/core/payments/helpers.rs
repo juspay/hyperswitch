@@ -1966,7 +1966,7 @@ pub fn generate_mandate(
 }
 
 // A function to manually authenticate the client secret with intent fulfillment time
-pub(crate) fn authenticate_client_secret(
+pub fn authenticate_client_secret(
     request_client_secret: Option<&String>,
     payment_intent: &PaymentIntent,
     merchant_intent_fulfillment_time: Option<i64>,
