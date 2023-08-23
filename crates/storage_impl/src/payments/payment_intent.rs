@@ -89,6 +89,7 @@ impl<T: DatabaseStore> PaymentIntentInterface for KVRouterStore<T> {
                     connector_metadata: new.connector_metadata.clone(),
                     feature_metadata: new.feature_metadata.clone(),
                     attempt_count: new.attempt_count,
+                    profile_id: new.profile_id.clone(),
                 };
 
                 match self
@@ -718,6 +719,7 @@ impl DataModelExt for PaymentIntentNew {
             connector_metadata: self.connector_metadata,
             feature_metadata: self.feature_metadata,
             attempt_count: self.attempt_count,
+            profile_id: self.profile_id,
         }
     }
 
@@ -752,6 +754,7 @@ impl DataModelExt for PaymentIntentNew {
             connector_metadata: storage_model.connector_metadata,
             feature_metadata: storage_model.feature_metadata,
             attempt_count: storage_model.attempt_count,
+            profile_id: storage_model.profile_id,
         }
     }
 }
@@ -791,6 +794,7 @@ impl DataModelExt for PaymentIntent {
             connector_metadata: self.connector_metadata,
             feature_metadata: self.feature_metadata,
             attempt_count: self.attempt_count,
+            profile_id: self.profile_id,
         }
     }
 
@@ -826,6 +830,7 @@ impl DataModelExt for PaymentIntent {
             connector_metadata: storage_model.connector_metadata,
             feature_metadata: storage_model.feature_metadata,
             attempt_count: storage_model.attempt_count,
+            profile_id: storage_model.profile_id,
         }
     }
 }
