@@ -4,9 +4,10 @@ use common_utils::errors::CustomResult;
 use data_models::payments::payment_intent::PaymentIntent;
 use diesel_models::{self as store};
 use error_stack::ResultExt;
+#[cfg(feature = "kms")]
 use external_services::kms::{decrypt::KmsDecrypt, KmsClient, KmsError};
 use futures::lock::Mutex;
-use masking::{Deserialize, ExposeInterface, StrongSecret};
+use masking::{Deserialize, StrongSecret};
 use redis::{kv_store::RedisConnInterface, RedisStore};
 pub mod config;
 pub mod connection;
@@ -311,6 +312,7 @@ pub struct Jwekey {
     pub tunnel_private_key: String,
 }
 
+#[cfg(feature = "kms")]
 #[async_trait::async_trait]
 impl KmsDecrypt for Jwekey {
     type Output = Self;

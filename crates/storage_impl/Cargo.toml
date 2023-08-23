@@ -9,7 +9,7 @@ license.workspace = true
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 [features]
-kms = []
+kms = ["external_services/kms"]
 default = ["olap", "oltp"]
 oltp = ["data_models/oltp"]
 olap = ["data_models/olap"]

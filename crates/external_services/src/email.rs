@@ -106,8 +106,10 @@ impl EmailClient for AwsSes {
 /// Errors that could occur from EmailClient.
 #[derive(Debug, thiserror::Error)]
 pub enum EmailError {
+    /// An error occurred when building email client.
     #[error("Error building email client")]
     ClientBuildingFailure,
+    /// An error occurred when sending email
     #[error("Error sending email to recipient")]
     EmailSendingFailure,
     #[error("Failed to generate email token")]
