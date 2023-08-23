@@ -7683,6 +7683,7 @@
         "type": "object",
         "required": [
           "size",
+          "attempt_count",
           "data"
         ],
         "properties": {
@@ -7690,6 +7691,11 @@
             "type": "integer",
             "description": "The number of payments included in the list",
             "minimum": 0.0
+          },
+          "attempt_count": {
+            "type": "integer",
+            "format": "int32",
+            "description": "The total number of payment_attempts for intents included in the list"
           },
           "data": {
             "type": "array",
@@ -10113,11 +10119,6 @@
             "type": "integer",
             "description": "The number of refunds included in the list",
             "minimum": 0.0
-          },
-          "total_count": {
-            "type": "integer",
-            "format": "int64",
-            "description": "The total number of refunds in the list"
           },
           "total_count": {
             "type": "integer",
