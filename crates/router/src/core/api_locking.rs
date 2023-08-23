@@ -57,14 +57,14 @@ pub async fn get_key_and_lock_resource(
 
     if is_locking_enabled_for_merchant && is_locking_enabled_on_api {
         let expiry_in_seconds = 60; // get it from redis
-        let delay_between_retries_in_milli_seconds = 100; // get it from redis
+    
         let retries = 1; // get from redis based on should_retry, if not present in redis default 1?
         lock_resource(
             state,
             locking_input,
             expiry_in_seconds,
             retries,
-            delay_between_retries_in_milli_seconds,
+         
         )
         .await
     } else {
@@ -83,7 +83,6 @@ pub async fn lock_resource(
     locking_input: LockingInput,
     expiry_in_seconds: u64,
     retries: u32,
-    delay_between_retries_in_milli_seconds: u64,
 ) -> RouterResult<LockStatus> {
     acquire_lock_on_resource_in_redis(
         state,
