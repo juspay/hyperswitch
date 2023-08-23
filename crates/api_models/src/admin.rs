@@ -173,6 +173,7 @@ pub struct MerchantAccountUpdate {
     pub intent_fulfillment_time: Option<u32>,
 
     /// The default business profile that must be used for creating merchant accounts and payments
+    /// To unset this field, pass an empty string
     #[schema(max_length = 64)]
     pub default_profile: Option<String>,
 }

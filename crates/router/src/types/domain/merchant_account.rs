@@ -63,7 +63,7 @@ pub enum MerchantAccountUpdate {
         intent_fulfillment_time: Option<i64>,
         frm_routing_algorithm: Option<serde_json::Value>,
         payout_routing_algorithm: Option<serde_json::Value>,
-        default_profile: Option<String>,
+        default_profile: Option<Option<String>>,
     },
     StorageSchemeUpdate {
         storage_scheme: MerchantStorageScheme,
