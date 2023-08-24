@@ -347,6 +347,8 @@ impl TryFrom<types::PaymentsAuthorizeData> for types::PaymentMethodTokenizationD
         Ok(Self {
             payment_method_data: data.payment_method_data,
             browser_info: data.browser_info,
+            currency: data.currency,
+            amount: data.amount,
         })
     }
 }
@@ -361,6 +363,11 @@ impl TryFrom<types::PaymentsAuthorizeData> for types::PaymentsPreProcessingData 
             email: data.email,
             currency: Some(data.currency),
             payment_method_type: data.payment_method_type,
+            setup_mandate_details: data.setup_mandate_details,
+            capture_method: data.capture_method,
+            order_details: data.order_details,
+            router_return_url: data.router_return_url,
+            webhook_url: data.webhook_url,
         })
     }
 }

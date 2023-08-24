@@ -1,4 +1,4 @@
-mod transformers;
+pub mod transformers;
 
 use std::fmt::Debug;
 
@@ -25,7 +25,7 @@ use crate::{
     types::{
         self,
         api::{self, ConnectorCommon, ConnectorCommonExt},
-        storage, ErrorResponse, Response,
+        ErrorResponse, Response,
     },
     utils::{self, BytesExt},
 };
@@ -103,8 +103,8 @@ impl ConnectorCommon for Square {
 
         let default_error_details = square::SquareErrorDetails {
             category: Some("".to_string()),
-            code: Some("".to_string()),
-            detail: Some("".to_string()),
+            code: Some(consts::NO_ERROR_CODE.to_string()),
+            detail: Some(consts::NO_ERROR_MESSAGE.to_string()),
         };
 
         Ok(ErrorResponse {
@@ -175,8 +175,8 @@ impl
         let authorize_session_token_data = types::AuthorizeSessionTokenData {
             connector_transaction_id: router_data.payment_id.clone(),
             amount_to_capture: None,
-            currency: storage::enums::Currency::USD,
-            amount: 0,
+            currency: router_data.request.currency,
+            amount: router_data.request.amount,
         };
 
         let authorize_data = &types::PaymentsAuthorizeSessionTokenRouterData::from((
@@ -204,7 +204,7 @@ impl
     ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
         Ok(vec![(
             headers::CONTENT_TYPE.to_string(),
-            types::PaymentsAuthorizeType::get_content_type(self)
+            types::TokenizationType::get_content_type(self)
                 .to_string()
                 .into(),
         )])
@@ -217,9 +217,12 @@ impl
     fn get_url(
         &self,
         _req: &types::TokenizationRouterData,
-        _connectors: &settings::Connectors,
+        connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Ok("https://pci-connect.squareupsandbox.com/v2/card-nonce".to_string())
+        Ok(format!(
+            "{}v2/card-nonce",
+            connectors.square.secondary_base_url,
+        ))
     }
 
     fn get_request_body(
@@ -270,7 +273,6 @@ impl
             data: data.clone(),
             http_code: res.status_code,
         })
-        .change_context(errors::ConnectorError::ResponseHandlingFailed)
     }
     fn get_error_response(
         &self,
@@ -307,13 +309,14 @@ impl
     fn get_url(
         &self,
         req: &types::PaymentsAuthorizeSessionTokenRouterData,
-        _connectors: &settings::Connectors,
+        connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         let auth = square::SquareAuthType::try_from(&req.connector_auth_type)
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
 
         Ok(format!(
-            "https://pci-connect.squareupsandbox.com/payments/hydrate?applicationId={}",
+            "{}payments/hydrate?applicationId={}",
+            connectors.square.secondary_base_url,
             auth.key1.peek()
         ))
     }

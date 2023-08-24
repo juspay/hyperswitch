@@ -112,7 +112,7 @@ basilisk_host = ""             # Basilisk host
 locker_signing_key_id = "1"    # Key_id to sign basilisk hs locker
 
 [delayed_session_response]
-connectors_with_delayed_session_response = "trustpay" # List of connectors which has delayed session response
+connectors_with_delayed_session_response = "trustpay,payme" # List of connectors which has delayed session response
 
 [jwekey] # 4 priv/pub key pair
 locker_key_identifier1 = "" # key identifier for key rotation , should be same as basilisk
@@ -189,6 +189,7 @@ powertranz.base_url = "https://staging.ptranz.com/api/"
 rapyd.base_url = "https://sandboxapi.rapyd.net"
 shift4.base_url = "https://api.shift4.com/"
 square.base_url = "https://connect.squareupsandbox.com/"
+square.secondary_base_url = "https://pci-connect.squareupsandbox.com/"
 stax.base_url = "https://apiprod.fattlabs.com/"
 stripe.base_url = "https://api.stripe.com/"
 stripe.base_url_file_upload = "https://files.stripe.com/"

@@ -1,10 +1,10 @@
-use api_models::{admin::PrimaryBusinessDetails, enums as api_enums};
+use api_models::{admin as admin_types, enums as api_enums};
 use common_utils::{
     crypto::{generate_cryptographically_secure_random_string, OptionalSecretValue},
     date_time,
     ext_traits::{Encode, ValueExt},
 };
-use diesel_models::enums;
+use data_models::MerchantStorageScheme;
 use error_stack::{report, FutureExt, ResultExt};
 use masking::{PeekInterface, Secret};
 use uuid::Uuid;
@@ -25,6 +25,7 @@ use crate::{
             types::{self as domain_types, AsyncLift},
         },
         storage,
+        transformers::ForeignTryFrom,
     },
     utils::{self, OptionExt},
 };
@@ -50,12 +51,13 @@ pub async fn create_merchant_account(
 
     let publishable_key = Some(create_merchant_publishable_key());
 
-    let primary_business_details = utils::Encode::<Vec<PrimaryBusinessDetails>>::encode_to_value(
-        &req.primary_business_details.unwrap_or_default(),
-    )
-    .change_context(errors::ApiErrorResponse::InvalidDataValue {
-        field_name: "primary_business_details",
-    })?;
+    let primary_business_details =
+        utils::Encode::<Vec<admin_types::PrimaryBusinessDetails>>::encode_to_value(
+            &req.primary_business_details.unwrap_or_default(),
+        )
+        .change_context(errors::ApiErrorResponse::InvalidDataValue {
+            field_name: "primary_business_details",
+        })?;
 
     let merchant_details: OptionalSecretValue =
         req.merchant_details
@@ -116,7 +118,17 @@ pub async fn create_merchant_account(
         &key_store,
     )
     .await?;
-
+    let metadata = req
+        .metadata
+        .as_ref()
+        .map(|meta| {
+            utils::Encode::<admin_types::MerchantAccountMetadata>::encode_to_value(meta)
+                .change_context(errors::ApiErrorResponse::InvalidDataValue {
+                    field_name: "metadata",
+                })
+        })
+        .transpose()?
+        .map(Secret::new);
     let merchant_account = async {
         Ok(domain::MerchantAccount {
             merchant_id: req.merchant_id,
@@ -139,8 +151,8 @@ pub async fn create_merchant_account(
                 .unwrap_or_default(),
             publishable_key,
             locker_id: req.locker_id,
-            metadata: req.metadata,
-            storage_scheme: diesel_models::enums::MerchantStorageScheme::PostgresOnly,
+            metadata,
+            storage_scheme: MerchantStorageScheme::PostgresOnly,
             primary_business_details,
             created_at: date_time::now(),
             modified_at: date_time::now(),
@@ -230,10 +242,12 @@ pub async fn merchant_account_update(
         .primary_business_details
         .as_ref()
         .map(|primary_business_details| {
-            utils::Encode::<Vec<PrimaryBusinessDetails>>::encode_to_value(primary_business_details)
-                .change_context(errors::ApiErrorResponse::InvalidDataValue {
-                    field_name: "primary_business_details",
-                })
+            utils::Encode::<Vec<admin_types::PrimaryBusinessDetails>>::encode_to_value(
+                primary_business_details,
+            )
+            .change_context(errors::ApiErrorResponse::InvalidDataValue {
+                field_name: "primary_business_details",
+            })
         })
         .transpose()?;
 
@@ -741,23 +755,24 @@ pub async fn kv_for_merchant(
         .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
 
     let updated_merchant_account = match (enable, merchant_account.storage_scheme) {
-        (true, enums::MerchantStorageScheme::RedisKv)
-        | (false, enums::MerchantStorageScheme::PostgresOnly) => Ok(merchant_account),
-        (true, enums::MerchantStorageScheme::PostgresOnly) => {
+        (true, MerchantStorageScheme::RedisKv) | (false, MerchantStorageScheme::PostgresOnly) => {
+            Ok(merchant_account)
+        }
+        (true, MerchantStorageScheme::PostgresOnly) => {
             db.update_merchant(
                 merchant_account,
                 storage::MerchantAccountUpdate::StorageSchemeUpdate {
-                    storage_scheme: enums::MerchantStorageScheme::RedisKv,
+                    storage_scheme: MerchantStorageScheme::RedisKv,
                 },
                 &key_store,
             )
             .await
         }
-        (false, enums::MerchantStorageScheme::RedisKv) => {
+        (false, MerchantStorageScheme::RedisKv) => {
             db.update_merchant(
                 merchant_account,
                 storage::MerchantAccountUpdate::StorageSchemeUpdate {
-                    storage_scheme: enums::MerchantStorageScheme::PostgresOnly,
+                    storage_scheme: MerchantStorageScheme::PostgresOnly,
                 },
                 &key_store,
             )
@@ -771,7 +786,7 @@ pub async fn kv_for_merchant(
     })?;
     let kv_status = matches!(
         updated_merchant_account.storage_scheme,
-        enums::MerchantStorageScheme::RedisKv
+        MerchantStorageScheme::RedisKv
     );
 
     Ok(service_api::ApplicationResponse::Json(
@@ -799,7 +814,7 @@ pub async fn check_merchant_account_kv_status(
 
     let kv_status = matches!(
         merchant_account.storage_scheme,
-        enums::MerchantStorageScheme::RedisKv
+        MerchantStorageScheme::RedisKv
     );
 
     Ok(service_api::ApplicationResponse::Json(
@@ -828,6 +843,218 @@ pub fn get_frm_config_as_secret(
         }
         None => None,
     }
+}
+
+pub async fn create_business_profile(
+    db: &dyn StorageInterface,
+    request: api::BusinessProfileCreate,
+    merchant_id: &str,
+) -> RouterResponse<api_models::admin::BusinessProfileResponse> {
+    let key_store = db
+        .get_merchant_key_store_by_merchant_id(merchant_id, &db.get_master_key().to_vec().into())
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
+
+    // Get the merchant account, if few fields are not passed, then they will be inherited from
+    // merchant account
+    let merchant_account = db
+        .find_merchant_account_by_merchant_id(merchant_id, &key_store)
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
+
+    // Generate a unique profile id
+    let profile_id = common_utils::generate_id_with_default_len("pro");
+
+    let payment_response_hash_key = request
+        .payment_response_hash_key
+        .or(merchant_account.payment_response_hash_key)
+        .unwrap_or(generate_cryptographically_secure_random_string(64));
+
+    let webhook_details = request
+        .webhook_details
+        .as_ref()
+        .map(|webhook_details| {
+            utils::Encode::<api::WebhookDetails>::encode_to_value(webhook_details).change_context(
+                errors::ApiErrorResponse::InvalidDataValue {
+                    field_name: "webhook details",
+                },
+            )
+        })
+        .transpose()?;
+
+    if let Some(ref routing_algorithm) = request.routing_algorithm {
+        let _: api::RoutingAlgorithm = routing_algorithm
+            .clone()
+            .parse_value("RoutingAlgorithm")
+            .change_context(errors::ApiErrorResponse::InvalidDataValue {
+                field_name: "routing_algorithm",
+            })
+            .attach_printable("Invalid routing algorithm given")?;
+    }
+
+    let business_profile_new = storage::business_profile::BusinessProfileNew {
+        profile_id,
+        merchant_id: merchant_id.to_string(),
+        profile_name: request.profile_name.unwrap_or("default".to_string()),
+        created_at: date_time::now(),
+        modified_at: date_time::now(),
+        return_url: request
+            .return_url
+            .map(|return_url| return_url.to_string())
+            .or(merchant_account.return_url),
+        enable_payment_response_hash: request
+            .enable_payment_response_hash
+            .unwrap_or(merchant_account.enable_payment_response_hash),
+        payment_response_hash_key: Some(payment_response_hash_key),
+        redirect_to_merchant_with_http_post: request
+            .redirect_to_merchant_with_http_post
+            .unwrap_or(merchant_account.redirect_to_merchant_with_http_post),
+        webhook_details: webhook_details.or(merchant_account.webhook_details),
+        metadata: request.metadata,
+        routing_algorithm: request
+            .routing_algorithm
+            .or(merchant_account.routing_algorithm),
+        intent_fulfillment_time: request
+            .intent_fulfillment_time
+            .map(i64::from)
+            .or(merchant_account.intent_fulfillment_time),
+        frm_routing_algorithm: request
+            .frm_routing_algorithm
+            .or(merchant_account.frm_routing_algorithm),
+        payout_routing_algorithm: request
+            .payout_routing_algorithm
+            .or(merchant_account.payout_routing_algorithm),
+        is_recon_enabled: merchant_account.is_recon_enabled,
+    };
+
+    let business_profile = db
+        .insert_business_profile(business_profile_new)
+        .await
+        .to_duplicate_response(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to insert Business profile because of duplication error")?;
+    Ok(service_api::ApplicationResponse::Json(
+        api_models::admin::BusinessProfileResponse::foreign_try_from(business_profile)
+            .change_context(errors::ApiErrorResponse::InternalServerError)?,
+    ))
+}
+
+pub async fn list_business_profile(
+    db: &dyn StorageInterface,
+    merchant_id: String,
+) -> RouterResponse<Vec<api_models::admin::BusinessProfileResponse>> {
+    let business_profiles = db
+        .list_business_profile_by_merchant_id(&merchant_id)
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::InternalServerError)?
+        .into_iter()
+        .map(|business_profile| {
+            api_models::admin::BusinessProfileResponse::foreign_try_from(business_profile)
+        })
+        .collect::<Result<Vec<_>, _>>()
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to parse business profile details")?;
+
+    Ok(service_api::ApplicationResponse::Json(business_profiles))
+}
+
+pub async fn retrieve_business_profile(
+    db: &dyn StorageInterface,
+    profile_id: String,
+) -> RouterResponse<api_models::admin::BusinessProfileResponse> {
+    let business_profile = db
+        .find_business_profile_by_profile_id(&profile_id)
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::BusinessProfileNotFound {
+            id: profile_id,
+        })?;
+
+    Ok(service_api::ApplicationResponse::Json(
+        api_models::admin::BusinessProfileResponse::foreign_try_from(business_profile)
+            .change_context(errors::ApiErrorResponse::InternalServerError)?,
+    ))
+}
+
+pub async fn delete_business_profile(
+    db: &dyn StorageInterface,
+    profile_id: String,
+    merchant_id: &str,
+) -> RouterResponse<bool> {
+    let delete_result = db
+        .delete_business_profile_by_profile_id_merchant_id(&profile_id, merchant_id)
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::BusinessProfileNotFound {
+            id: profile_id,
+        })?;
+
+    Ok(service_api::ApplicationResponse::Json(delete_result))
+}
+
+pub async fn update_business_profile(
+    db: &dyn StorageInterface,
+    profile_id: &str,
+    merchant_id: &str,
+    request: api::BusinessProfileUpdate,
+) -> RouterResponse<api::BusinessProfileResponse> {
+    let business_profile = db
+        .find_business_profile_by_profile_id(profile_id)
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::BusinessProfileNotFound {
+            id: profile_id.to_owned(),
+        })?;
+
+    if business_profile.merchant_id != merchant_id {
+        Err(errors::ApiErrorResponse::AccessForbidden)?
+    }
+
+    let webhook_details = request
+        .webhook_details
+        .as_ref()
+        .map(|webhook_details| {
+            utils::Encode::<api::WebhookDetails>::encode_to_value(webhook_details).change_context(
+                errors::ApiErrorResponse::InvalidDataValue {
+                    field_name: "webhook details",
+                },
+            )
+        })
+        .transpose()?;
+
+    if let Some(ref routing_algorithm) = request.routing_algorithm {
+        let _: api::RoutingAlgorithm = routing_algorithm
+            .clone()
+            .parse_value("RoutingAlgorithm")
+            .change_context(errors::ApiErrorResponse::InvalidDataValue {
+                field_name: "routing_algorithm",
+            })
+            .attach_printable("Invalid routing algorithm given")?;
+    }
+
+    let business_profile_update = storage::business_profile::BusinessProfileUpdateInternal {
+        profile_name: request.profile_name,
+        modified_at: Some(date_time::now()),
+        return_url: request.return_url.map(|return_url| return_url.to_string()),
+        enable_payment_response_hash: request.enable_payment_response_hash,
+        payment_response_hash_key: request.payment_response_hash_key,
+        redirect_to_merchant_with_http_post: request.redirect_to_merchant_with_http_post,
+        webhook_details,
+        metadata: request.metadata,
+        routing_algorithm: request.routing_algorithm,
+        intent_fulfillment_time: request.intent_fulfillment_time.map(i64::from),
+        frm_routing_algorithm: request.frm_routing_algorithm,
+        payout_routing_algorithm: request.payout_routing_algorithm,
+        is_recon_enabled: None,
+    };
+
+    let updated_business_profile = db
+        .update_business_profile_by_profile_id(business_profile, business_profile_update)
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::BusinessProfileNotFound {
+            id: profile_id.to_owned(),
+        })?;
+
+    Ok(service_api::ApplicationResponse::Json(
+        api_models::admin::BusinessProfileResponse::foreign_try_from(updated_business_profile)
+            .change_context(errors::ApiErrorResponse::InternalServerError)?,
+    ))
 }
 
 pub(crate) fn validate_auth_type(
@@ -986,7 +1213,7 @@ pub(crate) fn validate_auth_type(
             Ok(())
         }
         api_enums::Connector::Square => {
-            stax::transformers::StaxAuthType::try_from(val)?;
+            square::transformers::SquareAuthType::try_from(val)?;
             Ok(())
         }
         api_enums::Connector::Stax => {

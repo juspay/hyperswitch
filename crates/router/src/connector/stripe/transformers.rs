@@ -813,7 +813,6 @@ impl TryFrom<&api_models::enums::BankNames> for StripeBankNames {
             _ => Err(errors::ConnectorError::NotSupported {
                 message: api_enums::PaymentMethod::BankRedirect.to_string(),
                 connector: "Stripe",
-                payment_experience: api_enums::PaymentExperience::RedirectToUrl.to_string(),
             })?,
         })
     }
@@ -939,7 +938,6 @@ fn infer_stripe_pay_later_type(
         Err(errors::ConnectorError::NotSupported {
             message: pm_type.to_string(),
             connector: "stripe",
-            payment_experience: experience.to_string(),
         })
     }
 }
@@ -3219,7 +3217,6 @@ impl
             | api::PaymentMethodData::Voucher(_) => Err(errors::ConnectorError::NotSupported {
                 message: format!("{pm_type:?}"),
                 connector: "Stripe",
-                payment_experience: api_models::enums::PaymentExperience::RedirectToUrl.to_string(),
             })?,
         }
     }

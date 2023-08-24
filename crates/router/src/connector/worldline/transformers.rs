@@ -236,7 +236,6 @@ impl TryFrom<utils::CardIssuer> for Gateway {
             _ => Err(errors::ConnectorError::NotSupported {
                 message: issuer.to_string(),
                 connector: "worldline",
-                payment_experience: api_enums::PaymentExperience::RedirectToUrl.to_string(),
             }
             .into()),
         }

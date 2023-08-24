@@ -150,6 +150,7 @@ async fn should_sync_authorized_payment() {
                 ),
                 encoded_data: None,
                 capture_method: None,
+                capture_sync_type: types::CaptureSyncType::SingleCaptureSync,
                 connector_meta: None,
                 mandate_id: None,
             }),
@@ -637,7 +638,6 @@ async fn should_throw_not_implemented_for_unsupported_issuer() {
         router::core::errors::ConnectorError::NotSupported {
             message: "Maestro".to_string(),
             connector: "Forte",
-            payment_experience: api::enums::PaymentExperience::RedirectToUrl.to_string(),
         }
     )
 }

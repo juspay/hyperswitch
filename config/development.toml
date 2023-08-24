@@ -22,8 +22,8 @@ pool_size = 5
 connection_timeout = 10
 
 [replica_database]
-username = "replica_user"
-password = "replica_pass"
+username = "db_user"
+password = "db_pass"
 host = "localhost"
 port = 5432
 dbname = "hyperswitch_db"
@@ -160,6 +160,7 @@ powertranz.base_url = "https://staging.ptranz.com/api/"
 rapyd.base_url = "https://sandboxapi.rapyd.net"
 shift4.base_url = "https://api.shift4.com/"
 square.base_url = "https://connect.squareupsandbox.com/"
+square.secondary_base_url = "https://pci-connect.squareupsandbox.com/"
 stax.base_url = "https://apiprod.fattlabs.com/"
 stripe.base_url = "https://api.stripe.com/"
 stripe.base_url_file_upload = "https://files.stripe.com/"
@@ -384,7 +385,7 @@ slack_invite_url = "https://join.slack.com/t/hyperswitch-io/shared_invite/zt-1k6
 discord_invite_url = "https://discord.gg/wJZ7DVW8mm"
 
 [delayed_session_response]
-connectors_with_delayed_session_response = "trustpay"
+connectors_with_delayed_session_response = "trustpay,payme"
 
 [mandates.supported_payment_methods]
 pay_later.klarna = { connector_list = "adyen" }
