@@ -1,7 +1,8 @@
 use std::{fmt::Debug, marker::PhantomData};
 
 use common_utils::fp_utils;
-use diesel_models::{ephemeral_key, payment_attempt::PaymentListFilters};
+use data_models::mandates::MandateData;
+use diesel_models::ephemeral_key;
 use error_stack::{IntoReport, ResultExt};
 use router_env::{instrument, tracing};
 
@@ -310,7 +311,7 @@ pub fn payments_to_payments_response<R, Op>(
     ephemeral_key_option: Option<ephemeral_key::EphemeralKey>,
     session_tokens: Vec<api::SessionToken>,
     frm_message: Option<payments::FrmMessage>,
-    mandate_data: Option<api_models::payments::MandateData>,
+    mandate_data: Option<MandateData>,
     connector_request_reference_id_config: &ConnectorRequestReferenceIdConfig,
     connector_http_status_code: Option<u16>,
 ) -> RouterResponse<api::PaymentsResponse>
@@ -501,7 +502,42 @@ where
                         )
                         .set_mandate_id(mandate_id)
                         .set_mandate_data(
-                            mandate_data.map(api::MandateData::from),
+                            mandate_data.map(|d| api::MandateData {
+                                customer_acceptance: d.customer_acceptance.map(|d| api::CustomerAcceptance {
+                                    acceptance_type: match d.acceptance_type {
+                                        data_models::mandates::AcceptanceType::Online => {
+                                            api::AcceptanceType::Online
+                                        }
+                                        data_models::mandates::AcceptanceType::Offline => {
+                                            api::AcceptanceType::Offline
+                                        }
+                                    },
+                                    accepted_at: d.accepted_at,
+                                    online: d.online.map(|d| {
+                                        api::OnlineMandate {
+                                            ip_address: d.ip_address,
+                                            user_agent: d.user_agent
+                                        }
+                                    }),
+                                }),
+                                mandate_type: d.mandate_type.map(|d| match d {
+                                        data_models::mandates::MandateDataType::MultiUse(Some(i)) => api::MandateType::MultiUse(Some(api::MandateAmountData {
+                                            amount: i.amount,
+                                            currency: i.currency,
+                                            start_date: i.start_date,
+                                            end_date: i.end_date,
+                                            metadata: i.metadata
+                                        })),
+                                        data_models::mandates::MandateDataType::SingleUse(i) => api::MandateType::SingleUse(api::payments::MandateAmountData {
+                                            amount: i.amount,
+                                            currency: i.currency,
+                                            start_date: i.start_date,
+                                            end_date: i.end_date,
+                                            metadata: i.metadata
+                                        }),
+                                        data_models::mandates::MandateDataType::MultiUse(None) => api::MandateType::MultiUse(None)
+                                    })
+                            }),
                             auth_flow == services::AuthFlow::Merchant,
                         )
                         .set_description(payment_intent.description)
@@ -709,17 +745,6 @@ impl ForeignFrom<(storage::PaymentIntent, storage::PaymentAttempt)> for api::Pay
             payment_method: pa.payment_method,
             payment_method_type: pa.payment_method_type,
             ..Default::default()
-        }
-    }
-}
-
-impl ForeignFrom<PaymentListFilters> for api_models::payments::PaymentListFilters {
-    fn foreign_from(item: PaymentListFilters) -> Self {
-        Self {
-            connector: item.connector,
-            currency: item.currency,
-            status: item.status,
-            payment_method: item.payment_method,
         }
     }
 }

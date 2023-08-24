@@ -1677,6 +1677,7 @@ dependencies = [
  "common_enums",
  "common_utils",
  "error-stack",
+ "masking",
  "serde",
  "serde_json",
  "strum 0.25.0",

@@ -5,8 +5,8 @@ use common_utils::{
     ext_traits::{AsyncExt, ByteSliceExt, ValueExt},
     fp_utils, generate_id, pii,
 };
-use data_models::payments::payment_intent::PaymentIntent;
-use diesel_models::{enums, payment_attempt::PaymentAttempt};
+use data_models::{payments::{payment_intent::PaymentIntent, payment_attempt::PaymentAttempt}, mandates::MandateData};
+use diesel_models::enums;
 // TODO : Evaluate all the helper functions ()
 use error_stack::{report, IntoReport, ResultExt};
 use josekit::jwe;
@@ -32,7 +32,7 @@ use crate::{
     scheduler::metrics as scheduler_metrics,
     services,
     types::{
-        api::{self, admin, enums as api_enums, CustomerAcceptanceExt, MandateValidationFieldsExt},
+        api::{self, admin, enums as api_enums, MandateValidationFieldsExt},
         domain::{
             self,
             types::{self, AsyncLift},
@@ -1899,7 +1899,7 @@ pub fn check_if_operation_confirm<Op: std::fmt::Debug>(operations: Op) -> bool {
 pub fn generate_mandate(
     merchant_id: String,
     connector: String,
-    setup_mandate_details: Option<api::MandateData>,
+    setup_mandate_details: Option<MandateData>,
     customer: &Option<domain::Customer>,
     payment_method_id: String,
     connector_mandate_id: Option<pii::SecretSerdeValue>,
@@ -1940,13 +1940,13 @@ pub fn generate_mandate(
 
             Ok(Some(
                 match data.mandate_type.get_required_value("mandate_type")? {
-                    api::MandateType::SingleUse(data) => new_mandate
+                    data_models::mandates::MandateDataType::SingleUse(data) => new_mandate
                         .set_mandate_amount(Some(data.amount))
                         .set_mandate_currency(Some(data.currency))
                         .set_mandate_type(storage_enums::MandateType::SingleUse)
                         .to_owned(),
 
-                    api::MandateType::MultiUse(op_data) => match op_data {
+                    data_models::mandates::MandateDataType::MultiUse(op_data) => match op_data {
                         Some(data) => new_mandate
                             .set_mandate_amount(Some(data.amount))
                             .set_mandate_currency(Some(data.currency))

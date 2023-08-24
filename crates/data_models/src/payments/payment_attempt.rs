@@ -129,7 +129,7 @@ pub struct PaymentAttempt {
     pub connector_response_reference_id: Option<String>,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct PaymentListFilters {
     pub connector: Vec<String>,
     pub currency: Vec<storage_enums::Currency>,

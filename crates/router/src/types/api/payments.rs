@@ -1,6 +1,6 @@
 pub use api_models::payments::{
     AcceptanceType, Address, AddressDetails, Amount, AuthenticationForStartResponse, Card,
-    CryptoData, CustomerAcceptance, MandateData, MandateTransactionType, MandateType,
+    CryptoData, CustomerAcceptance, MandateData, MandateAmountData, MandateTransactionType, MandateType,
     MandateValidationFields, NextActionType, OnlineMandate, PayLaterData, PaymentIdType,
     PaymentListConstraints, PaymentListFilterConstraints, PaymentListFilters, PaymentListResponse,
     PaymentMethodData, PaymentMethodDataResponse, PaymentOp, PaymentRetrieveBody,
@@ -34,28 +34,6 @@ impl PaymentsRequestExt for PaymentsRequest {
     }
 }
 
-pub(crate) trait CustomerAcceptanceExt {
-    fn get_ip_address(&self) -> Option<String>;
-    fn get_user_agent(&self) -> Option<String>;
-    fn get_accepted_at(&self) -> PrimitiveDateTime;
-}
-
-impl CustomerAcceptanceExt for CustomerAcceptance {
-    fn get_ip_address(&self) -> Option<String> {
-        self.online
-            .as_ref()
-            .and_then(|data| data.ip_address.as_ref().map(|ip| ip.peek().to_owned()))
-    }
-
-    fn get_user_agent(&self) -> Option<String> {
-        self.online.as_ref().map(|data| data.user_agent.clone())
-    }
-
-    fn get_accepted_at(&self) -> PrimitiveDateTime {
-        self.accepted_at
-            .unwrap_or_else(common_utils::date_time::now)
-    }
-}
 
 impl super::Router for PaymentsRequest {}
 

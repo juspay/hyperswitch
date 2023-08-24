@@ -11,6 +11,7 @@ use std::{collections::HashMap, fmt::Debug, marker::PhantomData, ops::Deref, tim
 use api_models::payments::FrmMessage;
 use common_utils::{ext_traits::AsyncExt, pii};
 use diesel_models::ephemeral_key;
+use data_models::mandates::MandateData;
 use error_stack::{IntoReport, ResultExt};
 use futures::future::join_all;
 use masking::Secret;
@@ -1124,7 +1125,7 @@ where
     pub mandate_id: Option<api_models::payments::MandateIds>,
     pub mandate_connector: Option<String>,
     pub currency: storage_enums::Currency,
-    pub setup_mandate: Option<api::MandateData>,
+    pub setup_mandate: Option<MandateData>,
     pub address: PaymentAddress,
     pub token: Option<String>,
     pub confirm: Option<bool>,
@@ -1340,6 +1341,8 @@ pub async fn list_payments(
     merchant: domain::MerchantAccount,
     constraints: api::PaymentListConstraints,
 ) -> RouterResponse<api::PaymentListResponse> {
+    use data_models::errors::StorageError;
+
     use crate::types::transformers::ForeignFrom;
 
     helpers::validate_payment_list_request(&constraints)?;
@@ -1362,16 +1365,16 @@ pub async fn list_payments(
                 .await
             {
                 Ok(pa) => Some(Ok((pi, pa))),
-                Err(e) => {
-                    if e.current_context().is_db_not_found() {
+                Err(error) => {
+                    if matches!(error.current_context(), StorageError::ValueNotFound(_)) {
                         logger::warn!(
-                            "payment_attempts missing for payment_id : {} | error : {}",
+                            ?error,
+                            "payment_attempts missing for payment_id : {}",
                             pi.payment_id,
-                            e
                         );
                         return None;
                     }
-                    Some(Err(e))
+                    Some(Err(error))
                 }
             }
         }
@@ -1419,7 +1422,7 @@ pub async fn apply_filters_on_payments(
         .await
         .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?
         .into_iter()
-        .map(|(pi, pa)| (pi, pa.to_storage_model()))
+        .map(|(pi, pa)| (pi, pa))
         .collect();
 
     let data: Vec<api::PaymentsResponse> =
@@ -1460,9 +1463,12 @@ pub async fn get_filters_for_payments(
         .await
         .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
 
-    let filters: api::PaymentListFilters = ForeignFrom::foreign_from(filters);
-
-    Ok(services::ApplicationResponse::Json(filters))
+    Ok(services::ApplicationResponse::Json(api::PaymentListFilters {
+        connector: filters.connector,
+        currency: filters.currency,
+        status: filters.status,
+        payment_method: filters.payment_method,
+    }))
 }
 
 pub async fn add_process_sync_task(
@@ -1653,7 +1659,7 @@ pub fn decide_connector(
     if let Some(ref connector_name) = routing_data.routed_through {
         let connector_data = api::ConnectorData::get_connector_by_name(
             &state.conf.connectors,
-            connector_name,
+            connector_name.as_str(),
             api::GetToken::Connector,
         )
         .change_context(errors::ApiErrorResponse::InternalServerError)

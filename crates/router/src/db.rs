@@ -29,7 +29,7 @@ pub mod reverse_lookup;
 
 use std::sync::Arc;
 
-use data_models::payments::payment_intent::PaymentIntentInterface;
+use data_models::payments::{payment_intent::PaymentIntentInterface, payment_attempt::PaymentAttemptInterface};
 use futures::lock::Mutex;
 use masking::PeekInterface;
 use storage_impl::redis::kv_store::RedisConnInterface;
@@ -64,7 +64,7 @@ pub trait StorageInterface:
     + merchant_account::MerchantAccountInterface
     + merchant_connector_account::ConnectorAccessToken
     + merchant_connector_account::MerchantConnectorAccountInterface
-    + payment_attempt::PaymentAttemptInterface
+    + PaymentAttemptInterface
     + PaymentIntentInterface
     + payment_method::PaymentMethodInterface
     + payout_attempt::PayoutAttemptInterface

@@ -19,7 +19,7 @@ use crate::{
     types::{
         api::{self, PaymentIdTypeExt},
         domain,
-        storage::{self, enums, ConnectorResponseExt, PaymentAttemptExt},
+        storage::{self, enums, ConnectorResponseExt, payment_attempt::PaymentAttemptExt},
     },
     utils::OptionExt,
 };

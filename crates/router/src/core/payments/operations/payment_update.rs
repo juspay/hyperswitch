@@ -299,13 +299,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
             .transpose()?;
 
         // The operation merges mandate data from both request and payment_attempt
-        let setup_mandate = setup_mandate.map(|mandate_data| api_models::payments::MandateData {
-            customer_acceptance: mandate_data.customer_acceptance,
-            mandate_type: mandate_data.mandate_type.or(payment_attempt
-                .mandate_details
-                .clone()
-                .map(ForeignInto::foreign_into)),
-        });
+        let setup_mandate = setup_mandate.map(Into::into);
 
         Ok((
             next_operation,

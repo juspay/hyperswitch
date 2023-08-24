@@ -18,7 +18,7 @@ pub mod mandate;
 pub mod merchant_account;
 pub mod merchant_connector_account;
 pub mod merchant_key_store;
-// pub mod payment_attempt;
+pub mod payment_attempt;
 pub mod payment_method;
 pub mod payout_attempt;
 pub mod payouts;
@@ -41,3 +41,10 @@ pub use self::{
     payment_method::*, payout_attempt::*, payouts::*, process_tracker::*, refund::*,
     reverse_lookup::*,
 };
+
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct RoutingData {
+    pub routed_through: Option<String>,
+    pub algorithm: Option<api_models::admin::StraightThroughAlgorithm>,
+}
