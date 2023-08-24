@@ -562,6 +562,7 @@ impl MerchantConnectorAccountInterface for MockDb {
             created_at: common_utils::date_time::now(),
             modified_at: common_utils::date_time::now(),
             connector_webhook_details: t.connector_webhook_details,
+            profile_id: t.profile_id,
         };
         accounts.push(account.clone());
         account
@@ -751,6 +752,7 @@ mod merchant_connector_account_cache_tests {
             created_at: date_time::now(),
             modified_at: date_time::now(),
             connector_webhook_details: None,
+            profile_id: None,
         };
 
         db.insert_merchant_connector_account(mca, &merchant_key)

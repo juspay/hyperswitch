@@ -22,8 +22,8 @@ pool_size = 5
 connection_timeout = 10
 
 [replica_database]
-username = "replica_user"
-password = "replica_pass"
+username = "db_user"
+password = "db_pass"
 host = "localhost"
 port = 5432
 dbname = "hyperswitch_db"

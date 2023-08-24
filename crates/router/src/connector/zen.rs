@@ -22,7 +22,7 @@ use crate::{
     services::{
         self,
         request::{self, Mask},
-        ConnectorIntegration,
+        ConnectorIntegration, ConnectorValidation,
     },
     types::{
         self,
@@ -128,6 +128,8 @@ impl ConnectorCommon for Zen {
     }
 }
 
+impl ConnectorValidation for Zen {}
+
 impl ConnectorIntegration<api::Session, types::PaymentsSessionData, types::PaymentsResponseData>
     for Zen
 {
@@ -214,6 +216,7 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         req: &types::PaymentsAuthorizeRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
+        self.validate_capture_method(req.request.capture_method)?;
         Ok(Some(
             services::RequestBuilder::new()
                 .method(services::Method::Post)
@@ -546,10 +549,13 @@ impl api::IncomingWebhook for Zen {
             .body
             .parse_struct("ZenWebhookBody")
             .change_context(errors::ConnectorError::WebhookSignatureNotFound)?;
-        let msg = webhook_body.merchant_transaction_id
-            + &webhook_body.currency
-            + &webhook_body.amount
-            + &webhook_body.status.to_string().to_uppercase();
+        let msg = format!(
+            "{}{}{}{}",
+            webhook_body.merchant_transaction_id,
+            webhook_body.currency,
+            webhook_body.amount,
+            webhook_body.status.to_string().to_uppercase()
+        );
         Ok(msg.into_bytes())
     }
 
