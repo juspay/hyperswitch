@@ -1135,11 +1135,9 @@ impl DataModelExt for PaymentAttemptUpdate {
                 error_message,
                 error_reason,
             },
-            Self::MultipleCaptureUpdate {
-                status,
+            Self::MultipleCaptureCountUpdate {
                 multiple_capture_count,
-            } => DieselPaymentAttemptUpdate::MultipleCaptureUpdate {
-                status,
+            } => DieselPaymentAttemptUpdate::MultipleCaptureCountUpdate {
                 multiple_capture_count,
             },
             Self::PreprocessingUpdate {
@@ -1299,11 +1297,9 @@ impl DataModelExt for PaymentAttemptUpdate {
                 error_message,
                 error_reason,
             },
-            DieselPaymentAttemptUpdate::MultipleCaptureUpdate {
-                status,
+            DieselPaymentAttemptUpdate::MultipleCaptureCountUpdate {
                 multiple_capture_count,
-            } => Self::MultipleCaptureUpdate {
-                status,
+            } => Self::MultipleCaptureCountUpdate {
                 multiple_capture_count,
             },
             DieselPaymentAttemptUpdate::PreprocessingUpdate {

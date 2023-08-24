@@ -1,0 +1,10 @@
+{
+  "childrenOrder": [
+    "Create Customer",
+    "Retrieve Customer",
+    "Update Customer",
+    "Ephemeral Key",
+    "Delete Customer"
+  ],
+  "description": "Create a Customer entity which you can use to store and retrieve specific customers' data and payment methods."
+}

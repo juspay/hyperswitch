@@ -47,7 +47,7 @@ use crate::{
         api::{self, PaymentMethodCreateExt},
         domain::{self, types::decrypt},
         storage::{self, enums},
-        transformers::{ForeignFrom},
+        transformers::ForeignFrom,
     },
     utils::{self, ConnectorResponseExt, OptionExt},
 };

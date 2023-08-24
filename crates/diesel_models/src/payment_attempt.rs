@@ -185,9 +185,8 @@ pub enum PaymentAttemptUpdate {
         error_message: Option<Option<String>>,
         error_reason: Option<Option<String>>,
     },
-    MultipleCaptureUpdate {
-        status: Option<storage_enums::AttemptStatus>,
-        multiple_capture_count: Option<i16>,
+    MultipleCaptureCountUpdate {
+        multiple_capture_count: i16,
     },
     PreprocessingUpdate {
         status: storage_enums::AttemptStatus,
@@ -436,12 +435,10 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 connector_response_reference_id,
                 ..Default::default()
             },
-            PaymentAttemptUpdate::MultipleCaptureUpdate {
-                status,
+            PaymentAttemptUpdate::MultipleCaptureCountUpdate {
                 multiple_capture_count,
             } => Self {
-                status,
-                multiple_capture_count,
+                multiple_capture_count: Some(multiple_capture_count),
                 ..Default::default()
             },
         }

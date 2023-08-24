@@ -32,6 +32,7 @@ pub struct MerchantConnectorAccount {
     pub created_at: time::PrimitiveDateTime,
     pub modified_at: time::PrimitiveDateTime,
     pub connector_webhook_details: Option<pii::SecretSerdeValue>,
+    pub profile_id: Option<String>,
 }
 
 #[derive(Debug)]
@@ -80,6 +81,7 @@ impl behaviour::Conversion for MerchantConnectorAccount {
                 created_at: self.created_at,
                 modified_at: self.modified_at,
                 connector_webhook_details: self.connector_webhook_details,
+                profile_id: self.profile_id,
             },
         )
     }
@@ -116,6 +118,7 @@ impl behaviour::Conversion for MerchantConnectorAccount {
             created_at: other.created_at,
             modified_at: other.modified_at,
             connector_webhook_details: other.connector_webhook_details,
+            profile_id: other.profile_id,
         })
     }
 
@@ -140,6 +143,7 @@ impl behaviour::Conversion for MerchantConnectorAccount {
             created_at: now,
             modified_at: now,
             connector_webhook_details: self.connector_webhook_details,
+            profile_id: self.profile_id,
         })
     }
 }

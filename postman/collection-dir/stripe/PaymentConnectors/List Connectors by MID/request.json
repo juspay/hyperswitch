@@ -1,0 +1,41 @@
+{
+  "auth": {
+    "type": "apikey",
+    "apikey": [
+      {
+        "key": "value",
+        "value": "{{admin_api_key}}",
+        "type": "string"
+      },
+      {
+        "key": "key",
+        "value": "api-key",
+        "type": "string"
+      }
+    ]
+  },
+  "method": "GET",
+  "header": [
+    {
+      "key": "Content-Type",
+      "value": "application/json"
+    }
+  ],
+  "url": {
+    "raw": "{{baseUrl}}/account/:account_id/connectors",
+    "host": [
+      "{{baseUrl}}"
+    ],
+    "path": [
+      "account",
+      ":account_id",
+      "connectors"
+    ],
+    "variable": [
+      {
+        "key": "account_id",
+        "value": "{{merchant_id}}"
+      }
+    ]
+  }
+}
