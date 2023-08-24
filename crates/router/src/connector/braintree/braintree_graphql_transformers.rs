@@ -514,7 +514,7 @@ pub struct RSyncResponseData {
     search: RSyncSearchData,
 }
 
-#[derive(Default, Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize)]
 pub struct RSyncResponse {
     data: RSyncResponseData,
 }
