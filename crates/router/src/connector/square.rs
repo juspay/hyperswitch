@@ -819,7 +819,7 @@ impl api::IncomingWebhook for Square {
         _merchant_id: &str,
         _secret: &[u8],
     ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
-        Ok(format!("https://cd71-103-159-11-202.ngrok-free.app{}{}", request.uri, String::from_utf8_lossy(request.body)).into_bytes())
+        Ok(format!("{}{}", request.uri, String::from_utf8_lossy(request.body)).into_bytes())
     }
 
     fn get_webhook_object_reference_id(
