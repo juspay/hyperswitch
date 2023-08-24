@@ -75,7 +75,7 @@ pub struct StripeConnectPayoutCreateResponse {
     amount_reversed: i64,
     balance_transaction: String,
     created: i32,
-    currency: enums::Currency,
+    currency: String,
     description: Option<String>,
     destination: String,
     destination_payment: String,
@@ -113,7 +113,7 @@ pub struct StripeConnectPayoutFulfillResponse {
     automatic: bool,
     balance_transaction: String,
     created: i32,
-    currency: enums::Currency,
+    currency: String,
     description: Option<String>,
     destination: String,
     failure_balance_transaction: Option<String>,
@@ -145,7 +145,7 @@ pub struct StripeConnectReversalResponse {
     amount: i64,
     balance_transaction: String,
     created: i32,
-    currency: enums::Currency,
+    currency: String,
     destination_payment_refund: String,
     source_refund: Option<String>,
     transfer: String,
@@ -167,22 +167,22 @@ pub struct StripeConnectRecipientCreateRequest {
     #[serde(rename = "tos_acceptance[ip]")]
     tos_acceptance_ip: String,
     business_type: String,
-    #[serde(rename = "business_type[mcc]")]
-    business_type_mcc: i32,
-    #[serde(rename = "business_type[url]")]
-    business_type_url: String,
-    #[serde(rename = "business_type[name]")]
-    business_type_name: String,
+    #[serde(rename = "business_profile[mcc]")]
+    business_profile_mcc: i32,
+    #[serde(rename = "business_profile[url]")]
+    business_profile_url: String,
+    #[serde(rename = "business_profile[name]")]
+    business_profile_name: Secret<String>,
     #[serde(rename = "company[address][line1]")]
-    company_address_line1: String,
+    company_address_line1: Secret<String>,
     #[serde(rename = "company[address][line2]")]
-    company_address_line2: String,
+    company_address_line2: Secret<String>,
     #[serde(rename = "company[address][postal_code]")]
-    company_address_postal_code: i32,
+    company_address_postal_code: Secret<String>,
     #[serde(rename = "company[address][city]")]
     company_address_city: String,
     #[serde(rename = "company[address][state]")]
-    company_address_state: String,
+    company_address_state: Secret<String>,
     #[serde(rename = "company[phone]")]
     company_phone: String,
     #[serde(rename = "company[tax_id]")]
@@ -228,7 +228,7 @@ pub struct StripeConnectRecipientCreateResponse {
     charges_enabled: bool,
     country: enums::CountryAlpha2,
     created: i32,
-    default_currency: enums::Currency,
+    default_currency: String,
     email: Email,
     payouts_enabled: bool,
     #[serde(rename = "type")]
@@ -301,7 +301,7 @@ pub struct RecipientBankAccountResponse {
     account_type: Option<String>,
     bank_name: String,
     country: enums::CountryAlpha2,
-    currency: enums::Currency,
+    currency: String,
     default_for_currency: bool,
     fingerprint: String,
     last4: String,
@@ -317,7 +317,7 @@ pub struct RecipientCardAccountResponse {
     account: String,
     brand: String,
     country: enums::CountryAlpha2,
-    currency: enums::Currency,
+    currency: String,
     default_for_currency: bool,
     dynamic_last4: Option<String>,
     exp_month: i8,
@@ -340,7 +340,7 @@ impl<F> TryFrom<&types::PayoutsRouterData<F>> for StripeConnectPayoutCreateReque
             amount: request.amount,
             currency: request.destination_currency,
             destination: connector_customer_id,
-            transfer_group: "".to_string(),
+            transfer_group: request.payout_id,
         })
     }
 }
@@ -393,7 +393,7 @@ impl<F> TryFrom<types::PayoutsResponseRouterData<F, StripeConnectPayoutFulfillRe
 
         Ok(Self {
             response: Ok(types::PayoutsResponseData {
-                status: Some(enums::PayoutStatus::RequiresFulfillment),
+                status: Some(enums::PayoutStatus::foreign_from(response.status)),
                 connector_payout_id: response.id,
                 payout_eligible: None,
             }),
@@ -426,7 +426,7 @@ impl<F> TryFrom<types::PayoutsResponseRouterData<F, StripeConnectReversalRespons
 
         Ok(Self {
             response: Ok(types::PayoutsResponseData {
-                status: Some(enums::PayoutStatus::RequiresFulfillment),
+                status: Some(enums::PayoutStatus::Cancelled),
                 connector_payout_id: response.id,
                 payout_eligible: None,
             }),
@@ -455,6 +455,20 @@ impl<F> TryFrom<&types::PayoutsRouterData<F>> for StripeConnectRecipientCreateRe
                 field_name: "email",
             })?;
         let address = item.get_billing_address()?;
+        let individual_first_name = address
+            .first_name
+            .clone()
+            .get_required_value("first_name")
+            .change_context(errors::ConnectorError::MissingRequiredField {
+                field_name: "address.first_name",
+            })?;
+        let individual_last_name = address
+            .last_name
+            .clone()
+            .get_required_value("last_name")
+            .change_context(errors::ConnectorError::MissingRequiredField {
+                field_name: "address.last_name",
+            })?;
         Ok(Self {
             account_type: "custom".to_string(),
             country: request.country_code,
@@ -464,31 +478,19 @@ impl<F> TryFrom<&types::PayoutsRouterData<F>> for StripeConnectRecipientCreateRe
             tos_acceptance_date: 1680581051,
             tos_acceptance_ip: "103.159.11.202".to_string(),
             business_type: "individual".to_string(),
-            business_type_mcc: 5045,
-            business_type_url: "https://www.pastebin.com".to_string(),
-            business_type_name: "Business".to_string(),
-            company_address_line1: "address_full_match".to_string(),
-            company_address_line2: "Kimberly Way".to_string(),
-            company_address_postal_code: 31062,
+            business_profile_mcc: 5045,
+            business_profile_url: "https://www.pastebin.com".to_string(),
+            business_profile_name: individual_first_name.to_owned(),
+            company_address_line1: Secret::new("address_full_match".to_string()),
+            company_address_line2: Secret::new("Kimberly Way".to_string()),
+            company_address_postal_code: Secret::new("31062".to_string()),
             company_address_city: "Milledgeville".to_string(),
-            company_address_state: "GA".to_string(),
+            company_address_state: Secret::new("GA".to_string()),
             company_phone: "+16168205366".to_string(),
             company_tax_id: "000000000".to_string(),
             company_owners_provided: false,
-            individual_first_name: address
-                .first_name
-                .clone()
-                .get_required_value("first_name")
-                .change_context(errors::ConnectorError::MissingRequiredField {
-                    field_name: "address.first_name",
-                })?,
-            individual_last_name: address
-                .last_name
-                .clone()
-                .get_required_value("last_name")
-                .change_context(errors::ConnectorError::MissingRequiredField {
-                    field_name: "address.last_name",
-                })?,
+            individual_first_name,
+            individual_last_name,
             individual_dob_day: "01".to_string(),
             individual_dob_month: "01".to_string(),
             individual_dob_year: "1901".to_string(),

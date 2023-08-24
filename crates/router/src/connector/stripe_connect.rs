@@ -10,8 +10,11 @@ use transformers as stripe_connect;
 use crate::{
     configs::settings,
     consts,
-    core::errors::{self, CustomResult},
-    headers,
+    core::{
+        errors::{self, CustomResult},
+        payments,
+    },
+    headers, routes,
     services::{
         self,
         request::{self, Mask},
@@ -207,6 +210,10 @@ impl api::PayoutRecipientAccount for StripeConnect {}
 impl ConnectorIntegration<api::PoCancel, types::PayoutsData, types::PayoutsResponseData>
     for StripeConnect
 {
+    fn get_content_type(&self) -> &'static str {
+        self.common_get_content_type()
+    }
+
     fn get_url(
         &self,
         req: &types::PayoutsRouterData<api::PoCancel>,
@@ -238,7 +245,7 @@ impl ConnectorIntegration<api::PoCancel, types::PayoutsData, types::PayoutsRespo
         let connector_req = stripe_connect::StripeConnectReversalRequest::try_from(req)?;
         let stripe_connect_req = types::RequestBody::log_and_get_request_body(
             &connector_req,
-            utils::Encode::<stripe_connect::StripeConnectReversalRequest>::encode_to_string_of_json,
+            utils::Encode::<stripe_connect::StripeConnectReversalRequest>::url_encode,
         )
         .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(Some(stripe_connect_req))
@@ -285,18 +292,21 @@ impl ConnectorIntegration<api::PoCancel, types::PayoutsData, types::PayoutsRespo
     }
 }
 
-#[async_trait::async_trait]
 #[cfg(feature = "payouts")]
 impl ConnectorIntegration<api::PoCreate, types::PayoutsData, types::PayoutsResponseData>
     for StripeConnect
 {
+    fn get_content_type(&self) -> &'static str {
+        self.common_get_content_type()
+    }
+
     fn get_url(
         &self,
         _req: &types::PayoutsRouterData<api::PoCreate>,
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         Ok(format!(
-            "{}/v1/transfers",
+            "{}v1/transfers",
             connectors.stripe_connect.base_url
         ))
     }
@@ -316,7 +326,7 @@ impl ConnectorIntegration<api::PoCreate, types::PayoutsData, types::PayoutsRespo
         let connector_req = stripe_connect::StripeConnectPayoutCreateRequest::try_from(req)?;
         let stripe_connect_req = types::RequestBody::log_and_get_request_body(
             &connector_req,
-            utils::Encode::<stripe_connect::StripeConnectPayoutCreateRequest>::encode_to_string_of_json,
+            utils::Encode::<stripe_connect::StripeConnectPayoutCreateRequest>::url_encode,
         )
         .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(Some(stripe_connect_req))
@@ -367,6 +377,10 @@ impl ConnectorIntegration<api::PoCreate, types::PayoutsData, types::PayoutsRespo
 impl ConnectorIntegration<api::PoFulfill, types::PayoutsData, types::PayoutsResponseData>
     for StripeConnect
 {
+    fn get_content_type(&self) -> &'static str {
+        self.common_get_content_type()
+    }
+
     fn get_url(
         &self,
         _req: &types::PayoutsRouterData<api::PoFulfill>,
@@ -403,7 +417,7 @@ impl ConnectorIntegration<api::PoFulfill, types::PayoutsData, types::PayoutsResp
         let connector_req = stripe_connect::StripeConnectPayoutFulfillRequest::try_from(req)?;
         let stripe_connect_req = types::RequestBody::log_and_get_request_body(
             &connector_req,
-            utils::Encode::<stripe_connect::StripeConnectPayoutFulfillRequest>::encode_to_string_of_json,
+            utils::Encode::<stripe_connect::StripeConnectPayoutFulfillRequest>::url_encode,
         )
         .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(Some(stripe_connect_req))
@@ -452,10 +466,44 @@ impl ConnectorIntegration<api::PoFulfill, types::PayoutsData, types::PayoutsResp
     }
 }
 
+#[async_trait::async_trait]
 #[cfg(feature = "payouts")]
 impl ConnectorIntegration<api::PoRecipient, types::PayoutsData, types::PayoutsResponseData>
     for StripeConnect
 {
+    fn get_content_type(&self) -> &'static str {
+        self.common_get_content_type()
+    }
+
+    async fn execute_posttasks(
+        &self,
+        router_data: &mut types::PayoutsRouterData<api::PoRecipient>,
+        app_state: &routes::AppState,
+    ) -> CustomResult<(), errors::ConnectorError> {
+        // Create recipient's external account
+        let recipient_router_data =
+            &types::PayoutsRouterData::from((&router_data, router_data.request.clone()));
+        let recipient_connector_integration: Box<
+            &(dyn ConnectorIntegration<
+                api::PoRecipientAccount,
+                types::PayoutsData,
+                types::PayoutsResponseData,
+            > + Send
+                  + Sync
+                  + 'static),
+        > = Box::new(self);
+        services::execute_connector_processing_step(
+            app_state,
+            recipient_connector_integration,
+            recipient_router_data,
+            payments::CallConnectorAction::Trigger,
+            None,
+        )
+        .await?;
+
+        Ok(())
+    }
+
     fn get_url(
         &self,
         _req: &types::PayoutsRouterData<api::PoRecipient>,
@@ -479,7 +527,7 @@ impl ConnectorIntegration<api::PoRecipient, types::PayoutsData, types::PayoutsRe
         let connector_req = stripe_connect::StripeConnectRecipientCreateRequest::try_from(req)?;
         let wise_req = types::RequestBody::log_and_get_request_body(
             &connector_req,
-            utils::Encode::<stripe_connect::StripeConnectRecipientCreateRequest>::encode_to_string_of_json,
+            utils::Encode::<stripe_connect::StripeConnectRecipientCreateRequest>::url_encode,
         )
         .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(Some(wise_req))
@@ -532,6 +580,10 @@ impl ConnectorIntegration<api::PoRecipient, types::PayoutsData, types::PayoutsRe
 impl ConnectorIntegration<api::PoRecipientAccount, types::PayoutsData, types::PayoutsResponseData>
     for StripeConnect
 {
+    fn get_content_type(&self) -> &'static str {
+        self.common_get_content_type()
+    }
+
     fn get_url(
         &self,
         req: &types::PayoutsRouterData<api::PoRecipientAccount>,
@@ -566,7 +618,7 @@ impl ConnectorIntegration<api::PoRecipientAccount, types::PayoutsData, types::Pa
             stripe_connect::StripeConnectRecipientAccountCreateRequest::try_from(req)?;
         let wise_req = types::RequestBody::log_and_get_request_body(
             &connector_req,
-            utils::Encode::<stripe_connect::StripeConnectRecipientAccountCreateRequest>::encode_to_string_of_json,
+            utils::Encode::<stripe_connect::StripeConnectRecipientAccountCreateRequest>::url_encode,
         )
         .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(Some(wise_req))

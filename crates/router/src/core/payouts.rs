@@ -8,7 +8,10 @@ use error_stack::{report, ResultExt};
 use router_env::{instrument, tracing};
 use serde_json;
 
-use super::errors::{ConnectorErrorExt, StorageErrorExt};
+use super::{
+    errors::{ConnectorErrorExt, StorageErrorExt},
+    payments::customers,
+};
 use crate::{
     core::{
         errors::{self, RouterResponse, RouterResult},
@@ -580,7 +583,7 @@ pub async fn create_recipient(
         );
     if should_call_connector {
         // 1. Form router data
-        let customer_router_data = core_utils::construct_payout_router_data(
+        let mut router_data = core_utils::construct_payout_router_data(
             state,
             &connector_name,
             merchant_account,
@@ -601,8 +604,8 @@ pub async fn create_recipient(
         // 3. Call connector service
         let router_resp = services::execute_connector_processing_step(
             state,
-            connector_integration,
-            &customer_router_data,
+            connector_integration.to_owned(),
+            &router_data,
             payments::CallConnectorAction::Trigger,
             None,
         )
@@ -611,26 +614,37 @@ pub async fn create_recipient(
 
         match router_resp.response {
             Ok(recipient_create_data) => {
+                // Execute post tasks
+                router_data.connector_customer =
+                    Some(recipient_create_data.connector_payout_id.to_owned());
+                connector_integration
+                    .execute_posttasks(&mut router_data, state)
+                    .await
+                    .to_payout_failed_response()?;
                 if let Some(customer) = customer_details {
                     let db = &*state.store;
                     let customer_id = customer.customer_id.to_owned();
                     let merchant_id = merchant_account.merchant_id.to_owned();
-                    let updated_customer = storage::CustomerUpdate::ConnectorCustomer {
-                        connector_customer: Some(
-                            serde_json::json!({"id": recipient_create_data.connector_payout_id}),
-                        ),
-                    };
-                    payout_data.customer_details = Some(
-                        db.update_customer_by_customer_id_merchant_id(
-                            customer_id,
-                            merchant_id,
-                            updated_customer,
-                            key_store,
+                    if let Some(updated_customer) =
+                        customers::update_connector_customer_in_customers(
+                            &connector_label,
+                            Some(&customer),
+                            &Some(recipient_create_data.connector_payout_id),
                         )
                         .await
-                        .change_context(errors::ApiErrorResponse::InternalServerError)
-                        .attach_printable("Error updating customers in db")?,
-                    )
+                    {
+                        payout_data.customer_details = Some(
+                            db.update_customer_by_customer_id_merchant_id(
+                                customer_id,
+                                merchant_id,
+                                updated_customer,
+                                key_store,
+                            )
+                            .await
+                            .change_context(errors::ApiErrorResponse::InternalServerError)
+                            .attach_printable("Error updating customers in db")?,
+                        )
+                    }
                 }
             }
             Err(err) => Err(errors::ApiErrorResponse::PayoutFailed {

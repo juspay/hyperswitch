@@ -79,7 +79,7 @@ pub async fn construct_payout_router_data<'a, F>(
     _request: &api_models::payouts::PayoutRequest,
     payout_data: &mut PayoutData,
 ) -> RouterResult<types::PayoutsRouterData<F>> {
-    let (business_country, _) = helpers::get_business_details(
+    let (business_country, business_label) = helpers::get_business_details(
         payout_data.payout_attempt.business_country,
         payout_data.payout_attempt.business_label.as_ref(),
         merchant_account,
@@ -130,10 +130,16 @@ pub async fn construct_payout_router_data<'a, F>(
     let payouts = &payout_data.payouts;
     let payout_attempt = &payout_data.payout_attempt;
     let customer_details = &payout_data.customer_details;
+    let connector_label = format!(
+        "{}_{}_{}",
+        connector_id.to_string(),
+        business_country.to_string(),
+        business_label
+    );
     let connector_customer_id = customer_details
         .as_ref()
         .and_then(|c| c.connector_customer.as_ref())
-        .and_then(|cc| cc.get("id"))
+        .and_then(|cc| cc.get(connector_label))
         .and_then(|id| serde_json::from_value::<String>(id.to_owned()).ok());
     let router_data = types::RouterData {
         flow: PhantomData,
