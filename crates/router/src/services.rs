@@ -3,7 +3,9 @@ pub mod authentication;
 pub mod encryption;
 pub mod logger;
 
-use data_models::errors::{StorageError, StorageResult};
+#[cfg(feature = "kms")]
+use data_models::errors::StorageError;
+use data_models::errors::StorageResult;
 use error_stack::{IntoReport, ResultExt};
 #[cfg(feature = "kms")]
 use external_services::kms::{self, decrypt::KmsDecrypt};
