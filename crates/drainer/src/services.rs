@@ -16,6 +16,7 @@ pub struct StoreConfig {
 }
 
 impl Store {
+    #[allow(clippy::expect_used)]
     pub async fn new(config: &crate::settings::Settings, test_transaction: bool) -> Self {
         Self {
             master_pool: diesel_make_pg_pool(
