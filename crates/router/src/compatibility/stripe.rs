@@ -1,6 +1,7 @@
 pub mod app;
 pub mod customers;
 pub mod payment_intents;
+pub mod payouts;
 pub mod refunds;
 pub mod setup_intents;
 pub mod webhooks;

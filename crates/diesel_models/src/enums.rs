@@ -40,6 +40,7 @@ pub enum EventClass {
     Refunds,
     Disputes,
     Mandates,
+    Payouts,
 }
 
 #[derive(
@@ -61,6 +62,7 @@ pub enum EventObjectType {
     RefundDetails,
     DisputeDetails,
     MandateDetails,
+    PayoutDetails,
 }
 
 #[derive(

@@ -1,3 +1,5 @@
+#[cfg(feature = "payouts")]
+use api_models::enums::PayoutStatus;
 pub use api_models::payouts::{
     AchBankTransfer, BacsBankTransfer, Bank as BankPayout, Card as CardPayout, PayoutActionRequest,
     PayoutCreateRequest, PayoutCreateResponse, PayoutMethodData, PayoutRequest, PayoutRetrieveBody,
@@ -8,6 +10,12 @@ pub use api_models::payouts::{
 use super::ConnectorCommon;
 #[cfg(feature = "payouts")]
 use crate::{services::api, types};
+
+#[cfg(feature = "payouts")]
+pub struct PayoutPayload {
+    pub connector_payout_id: String,
+    pub connector_status: PayoutStatus,
+}
 
 #[cfg(feature = "payouts")]
 #[derive(Debug, Clone)]

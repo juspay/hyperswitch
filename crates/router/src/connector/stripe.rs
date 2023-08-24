@@ -1871,6 +1871,13 @@ impl api::IncomingWebhook for Stripe {
                     ),
                 }
             }
+            stripe::WebhookEventObjectType::Payout => {
+                api_models::webhooks::ObjectReferenceId::PayoutId(
+                    api_models::webhooks::PayoutIdType::ConnectorPayoutId(
+                        details.event_data.event_object.id,
+                    ),
+                )
+            }
         })
     }
 
@@ -1937,7 +1944,13 @@ impl api::IncomingWebhook for Stripe {
             stripe::WebhookEventType::ChargeDisputeFundsReinstated => {
                 api::IncomingWebhookEvent::DisputeWon
             }
+            stripe::WebhookEventType::PayoutCancelled => api::IncomingWebhookEvent::PayoutCancelled,
+            stripe::WebhookEventType::PayoutCreated => api::IncomingWebhookEvent::PayoutCreated,
+            stripe::WebhookEventType::PayoutFailed => api::IncomingWebhookEvent::PayoutFailed,
+            stripe::WebhookEventType::PayoutSuccess => api::IncomingWebhookEvent::PayoutSuccess,
             stripe::WebhookEventType::Unknown
+            | stripe::WebhookEventType::PayoutUpdated
+            | stripe::WebhookEventType::PayoutReconCompleted
             | stripe::WebhookEventType::ChargeCaptured
             | stripe::WebhookEventType::ChargeExpired
             | stripe::WebhookEventType::ChargeFailed
@@ -1964,6 +1977,33 @@ impl api::IncomingWebhook for Stripe {
             .change_context(errors::ConnectorError::WebhookResourceObjectNotFound)?;
 
         Ok(details.data.object)
+    }
+    fn get_payout_details(
+        &self,
+        request: &api::IncomingWebhookRequestDetails<'_>,
+    ) -> CustomResult<api::payouts::PayoutPayload, errors::ConnectorError> {
+        let details: stripe::WebhookEvent = request
+            .body
+            .parse_struct("WebhookEvent")
+            .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
+        let status = if let Some(ref event_status) = details.event_data.event_object.status {
+            match event_status {
+                stripe::WebhookEventStatus::Succeeded => Some(enums::PayoutStatus::Success),
+                stripe::WebhookEventStatus::Failed => Some(enums::PayoutStatus::Failed),
+                stripe::WebhookEventStatus::Canceled => Some(enums::PayoutStatus::Cancelled),
+                stripe::WebhookEventStatus::Pending | stripe::WebhookEventStatus::Processing => {
+                    Some(enums::PayoutStatus::Pending)
+                }
+                _ => None,
+            }
+        } else {
+            None
+        };
+        Ok(api::payouts::PayoutPayload {
+            connector_payout_id: details.event_data.event_object.id,
+            connector_status: status
+                .ok_or(errors::ConnectorError::WebhookResourceObjectNotFound)?,
+        })
     }
     fn get_dispute_details(
         &self,

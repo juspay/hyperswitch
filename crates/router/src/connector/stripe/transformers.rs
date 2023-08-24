@@ -791,6 +791,7 @@ impl From<WebhookEventStatus> for api_models::webhooks::IncomingWebhookEvent {
             | WebhookEventStatus::Canceled
             | WebhookEventStatus::Chargeable
             | WebhookEventStatus::Failed
+            | WebhookEventStatus::Pending
             | WebhookEventStatus::Unknown => Self::EventNotSupported,
         }
     }
@@ -3219,6 +3220,7 @@ pub enum WebhookEventObjectType {
     Charge,
     Source,
     Refund,
+    Payout,
 }
 
 #[derive(Debug, Deserialize)]
@@ -3269,6 +3271,18 @@ pub enum WebhookEventType {
     SourceTransactionCreated,
     #[serde(rename = "payment_intent.partially_funded")]
     PaymentIntentPartiallyFunded,
+    #[serde(rename = "payout.canceled")]
+    PayoutCancelled,
+    #[serde(rename = "payout.created")]
+    PayoutCreated,
+    #[serde(rename = "payout.failed")]
+    PayoutFailed,
+    #[serde(rename = "payout.paid")]
+    PayoutSuccess,
+    #[serde(rename = "payout.reconciliation_completed")]
+    PayoutReconCompleted,
+    #[serde(rename = "payout.updated")]
+    PayoutUpdated,
     #[serde(other)]
     Unknown,
 }
@@ -3293,6 +3307,7 @@ pub enum WebhookEventStatus {
     Canceled,
     Chargeable,
     Failed,
+    Pending,
     #[serde(other)]
     Unknown,
 }
@@ -3807,6 +3822,8 @@ pub struct StripeConnectPayoutCreateRequest {
     currency: enums::Currency,
     destination: String,
     transfer_group: String,
+    #[serde(rename = "metadata[order_id]")]
+    metadata_order_id: String,
 }
 
 #[cfg(feature = "payouts")]
@@ -3844,6 +3861,8 @@ pub struct TransferReversals {
 pub struct StripeConnectPayoutFulfillRequest {
     amount: i64,
     currency: enums::Currency,
+    #[serde(rename = "metadata[order_id]")]
+    metadata_order_id: String,
 }
 
 #[cfg(feature = "payouts")]
@@ -4084,6 +4103,7 @@ impl<F> TryFrom<&types::PayoutsRouterData<F>> for StripeConnectPayoutCreateReque
             currency: request.destination_currency,
             destination: connector_customer_id,
             transfer_group: request.payout_id,
+            metadata_order_id: item.connector_request_reference_id.to_owned(),
         })
     }
 }
@@ -4120,6 +4140,7 @@ impl<F> TryFrom<&types::PayoutsRouterData<F>> for StripeConnectPayoutFulfillRequ
         Ok(Self {
             amount: request.amount,
             currency: request.destination_currency,
+            metadata_order_id: item.connector_request_reference_id.to_owned(),
         })
     }
 }

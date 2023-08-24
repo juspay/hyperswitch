@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
 use utoipa::ToSchema;
 
-use crate::{disputes, enums as api_enums, mandates, payments, refunds};
+use crate::{disputes, enums as api_enums, mandates, payments, payouts, refunds};
 
 #[derive(Clone, Debug, PartialEq, Eq, Hash, Serialize, Deserialize, Copy)]
 #[serde(rename_all = "snake_case")]
@@ -30,6 +30,18 @@ pub enum IncomingWebhookEvent {
     MandateActive,
     MandateRevoked,
     EndpointVerification,
+
+    // Payouts
+    PayoutCancelled,
+    PayoutCreated,
+    PayoutFailed,
+    PayoutFundsConverted,
+    PayoutSent,
+    PayoutSuccess,
+    PayoutExpired,
+    PayoutReversed,
+    PayoutBouncedBack,
+    PayoutRefunded,
 }
 
 pub enum WebhookFlow {
@@ -40,6 +52,7 @@ pub enum WebhookFlow {
     ReturnResponse,
     BankTransfer,
     Mandate,
+    Payout,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
@@ -63,6 +76,10 @@ pub enum WebhookResponseTracker {
         mandate_id: String,
         status: common_enums::MandateStatus,
     },
+    Payout {
+        payout_id: String,
+        status: common_enums::PayoutStatus,
+    },
     NoEffect,
 }
 
@@ -72,7 +89,7 @@ impl WebhookResponseTracker {
             Self::Payment { payment_id, .. }
             | Self::Refund { payment_id, .. }
             | Self::Dispute { payment_id, .. } => Some(payment_id.to_string()),
-            Self::NoEffect | Self::Mandate { .. } => None,
+            Self::NoEffect | Self::Mandate { .. } | Self::Payout { .. } => None,
         }
     }
 }
@@ -102,11 +119,27 @@ impl From<IncomingWebhookEvent> for WebhookFlow {
             IncomingWebhookEvent::EndpointVerification => Self::ReturnResponse,
             IncomingWebhookEvent::SourceChargeable
             | IncomingWebhookEvent::SourceTransactionCreated => Self::BankTransfer,
+            IncomingWebhookEvent::PayoutCancelled
+            | IncomingWebhookEvent::PayoutCreated
+            | IncomingWebhookEvent::PayoutFailed
+            | IncomingWebhookEvent::PayoutFundsConverted
+            | IncomingWebhookEvent::PayoutSent
+            | IncomingWebhookEvent::PayoutSuccess
+            | IncomingWebhookEvent::PayoutExpired
+            | IncomingWebhookEvent::PayoutReversed
+            | IncomingWebhookEvent::PayoutBouncedBack
+            | IncomingWebhookEvent::PayoutRefunded => Self::Payout,
         }
     }
 }
 
 pub type MerchantWebhookConfig = std::collections::HashSet<IncomingWebhookEvent>;
+
+#[derive(Debug, Clone)]
+pub enum PayoutIdType {
+    PayoutId(String),
+    ConnectorPayoutId(String),
+}
 
 #[derive(Clone)]
 pub enum RefundIdType {
@@ -125,6 +158,7 @@ pub enum ObjectReferenceId {
     PaymentId(payments::PaymentIdType),
     RefundId(RefundIdType),
     MandateId(MandateIdType),
+    PayoutId(PayoutIdType),
 }
 
 pub struct IncomingWebhookDetails {
@@ -163,6 +197,8 @@ pub enum OutgoingWebhookContent {
     DisputeDetails(Box<disputes::DisputeResponse>),
     #[schema(value_type = MandateResponse)]
     MandateDetails(Box<mandates::MandateResponse>),
+    #[schema(value_type = PayoutCreateResponse)]
+    PayoutDetails(Box<payouts::PayoutCreateResponse>),
 }
 
 #[derive(Debug, Clone, Serialize)]

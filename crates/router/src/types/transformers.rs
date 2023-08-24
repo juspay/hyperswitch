@@ -266,6 +266,21 @@ impl ForeignFrom<api_enums::IntentStatus> for Option<storage_enums::EventType> {
     }
 }
 
+impl ForeignFrom<api_enums::PayoutStatus> for Option<storage_enums::EventType> {
+    fn foreign_from(value: api_enums::PayoutStatus) -> Self {
+        match value {
+            api_enums::PayoutStatus::Success => Some(api_enums::EventType::PayoutSucceeded),
+            api_enums::PayoutStatus::Failed => Some(api_enums::EventType::PayoutFailed),
+            api_enums::PayoutStatus::Cancelled => Some(api_enums::EventType::PayoutFailed),
+            api_enums::PayoutStatus::Pending => Some(api_enums::EventType::PayoutProcessing),
+            api_enums::PayoutStatus::Ineligible => Some(api_enums::EventType::PayoutFailed),
+            api_enums::PayoutStatus::RequiresCreation => None,
+            api_enums::PayoutStatus::RequiresPayoutMethodData => None,
+            api_enums::PayoutStatus::RequiresFulfillment => None,
+        }
+    }
+}
+
 impl ForeignFrom<api_enums::PaymentMethodType> for api_enums::PaymentMethod {
     fn foreign_from(payment_method_type: api_enums::PaymentMethodType) -> Self {
         match payment_method_type {

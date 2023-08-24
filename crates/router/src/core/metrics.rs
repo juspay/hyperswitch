@@ -19,6 +19,7 @@ counter_metric!(
     INCOMING_DISPUTE_WEBHOOK_MERCHANT_NOTIFIED_METRIC,
     GLOBAL_METER
 ); // No. of incoming dispute webhooks which are notified to merchant
+counter_metric!(INCOMING_PAYOUTS_WEBHOOK_METRIC, GLOBAL_METER); // No. of incoming payout webhooks
 counter_metric!(
     ACCEPT_DISPUTE_STATUS_VALIDATION_FAILURE_METRIC,
     GLOBAL_METER

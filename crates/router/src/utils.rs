@@ -16,6 +16,7 @@ pub use common_utils::{
     validation::validate_email,
 };
 use data_models::payments::payment_intent::PaymentIntent;
+use diesel_models::payout_attempt::PayoutAttempt;
 use error_stack::{IntoReport, ResultExt};
 use image::Luma;
 use nanoid::nanoid;
@@ -327,6 +328,26 @@ pub async fn find_payment_intent_from_mandate_id_type(
     .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)
 }
 
+pub async fn find_payout_attempt_from_payout_id_type(
+    db: &dyn StorageInterface,
+    payout_id_type: webhooks::PayoutIdType,
+    merchant_account: &domain::MerchantAccount,
+) -> CustomResult<PayoutAttempt, errors::ApiErrorResponse> {
+    match payout_id_type {
+        webhooks::PayoutIdType::PayoutId(payout_id) => db
+            .find_payout_attempt_by_merchant_id_payout_id(&merchant_account.merchant_id, &payout_id)
+            .await
+            .to_not_found_response(errors::ApiErrorResponse::PayoutNotFound),
+        webhooks::PayoutIdType::ConnectorPayoutId(connector_payout_id) => db
+            .find_payout_attempt_by_merchant_id_connector_payout_id(
+                &merchant_account.merchant_id,
+                &connector_payout_id,
+            )
+            .await
+            .to_not_found_response(errors::ApiErrorResponse::PayoutNotFound),
+    }
+}
+
 pub async fn get_profile_id_using_object_reference_id(
     db: &dyn StorageInterface,
     object_reference_id: webhooks::ObjectReferenceId,
@@ -336,37 +357,73 @@ pub async fn get_profile_id_using_object_reference_id(
     match merchant_account.default_profile.as_ref() {
         Some(profile_id) => Ok(profile_id.clone()),
         _ => {
-            let payment_intent = match object_reference_id {
+            let (business_country, business_label, profile_id) = match object_reference_id {
                 webhooks::ObjectReferenceId::PaymentId(payment_id_type) => {
-                    find_payment_intent_from_payment_id_type(db, payment_id_type, merchant_account)
-                        .await?
+                    let payment_intent = find_payment_intent_from_payment_id_type(
+                        db,
+                        payment_id_type,
+                        merchant_account,
+                    )
+                    .await?;
+                    (
+                        payment_intent.business_country,
+                        payment_intent.business_label,
+                        payment_intent.profile_id,
+                    )
                 }
                 webhooks::ObjectReferenceId::RefundId(refund_id_type) => {
-                    find_payment_intent_from_refund_id_type(
+                    let payment_intent = find_payment_intent_from_refund_id_type(
                         db,
                         refund_id_type,
                         merchant_account,
                         connector_name,
                     )
-                    .await?
+                    .await?;
+                    (
+                        payment_intent.business_country,
+                        payment_intent.business_label,
+                        payment_intent.profile_id,
+                    )
+                }
+                webhooks::ObjectReferenceId::PayoutId(payout_id_type) => {
+                    let payout_attempt = find_payout_attempt_from_payout_id_type(
+                        db,
+                        payout_id_type,
+                        merchant_account,
+                    )
+                    .await?;
+                    (
+                        payout_attempt.business_country,
+                        payout_attempt.business_label,
+                        payout_attempt.profile_id,
+                    )
                 }
                 webhooks::ObjectReferenceId::MandateId(mandate_id_type) => {
-                    find_payment_intent_from_mandate_id_type(db, mandate_id_type, merchant_account)
-                        .await?
+                    let payment_intent = find_payment_intent_from_mandate_id_type(
+                        db,
+                        mandate_id_type,
+                        merchant_account,
+                    )
+                    .await?;
+                    (
+                        payment_intent.business_country,
+                        payment_intent.business_label,
+                        payment_intent.profile_id,
+                    )
                 }
             };
 
             let profile_id = utils::get_profile_id_from_business_details(
-                payment_intent.business_country,
-                payment_intent.business_label.as_ref(),
+                business_country,
+                business_label.as_ref(),
                 merchant_account,
-                payment_intent.profile_id.as_ref(),
+                profile_id.as_ref(),
                 db,
                 false,
             )
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("profile_id is not set in payment_intent")?;
+            .attach_printable("profile_id is not set in payment_intent or payout")?;
 
             Ok(profile_id)
         }

@@ -26,6 +26,12 @@ pub trait PayoutAttemptInterface {
         &self,
         _payout: storage::PayoutAttemptNew,
     ) -> CustomResult<storage::PayoutAttempt, errors::StorageError>;
+
+    async fn find_payout_attempt_by_merchant_id_connector_payout_id(
+        &self,
+        _merchant_id: &str,
+        _connector_payout_id: &str,
+    ) -> CustomResult<storage::PayoutAttempt, errors::StorageError>;
 }
 
 #[async_trait::async_trait]
@@ -67,6 +73,22 @@ impl PayoutAttemptInterface for Store {
         let conn = connection::pg_connection_write(self).await?;
         payout.insert(&conn).await.map_err(Into::into).into_report()
     }
+
+    async fn find_payout_attempt_by_merchant_id_connector_payout_id(
+        &self,
+        merchant_id: &str,
+        connector_payout_id: &str,
+    ) -> CustomResult<storage::PayoutAttempt, errors::StorageError> {
+        let conn = connection::pg_connection_read(self).await?;
+        storage::PayoutAttempt::find_by_merchant_id_connector_payout_id(
+            &conn,
+            merchant_id,
+            connector_payout_id,
+        )
+        .await
+        .map_err(Into::into)
+        .into_report()
+    }
 }
 
 #[async_trait::async_trait]
@@ -93,6 +115,15 @@ impl PayoutAttemptInterface for MockDb {
     async fn insert_payout_attempt(
         &self,
         _payout: storage::PayoutAttemptNew,
+    ) -> CustomResult<storage::PayoutAttempt, errors::StorageError> {
+        // TODO: Implement function for `MockDb`
+        Err(errors::StorageError::MockDbError)?
+    }
+
+    async fn find_payout_attempt_by_merchant_id_connector_payout_id(
+        &self,
+        _merchant_id: &str,
+        _connector_payout_id: &str,
     ) -> CustomResult<storage::PayoutAttempt, errors::StorageError> {
         // TODO: Implement function for `MockDb`
         Err(errors::StorageError::MockDbError)?

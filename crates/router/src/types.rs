@@ -24,12 +24,9 @@ use error_stack::{self, IntoReport, ResultExt};
 use masking::Secret;
 
 use self::{api::payments, storage::enums as storage_enums};
-pub use crate::core::payments::{CustomerDetails, PaymentAddress};
 #[cfg(feature = "payouts")]
-use crate::{
-    connector::utils::missing_field_err,
-    core::utils::IRRELEVANT_CONNECTOR_REQUEST_REFERENCE_ID_IN_PAYOUTS_FLOW,
-};
+use crate::connector::utils::missing_field_err;
+pub use crate::core::payments::{CustomerDetails, PaymentAddress};
 use crate::{
     core::{
         errors::{self, RouterResult},
@@ -1184,8 +1181,7 @@ impl<F1, F2>
             recurring_mandate_payment_data: None,
             preprocessing_id: None,
             connector_customer: data.connector_customer.clone(),
-            connector_request_reference_id:
-                IRRELEVANT_CONNECTOR_REQUEST_REFERENCE_ID_IN_PAYOUTS_FLOW.to_string(),
+            connector_request_reference_id: data.connector_request_reference_id.to_string(),
             payout_method_data: data.payout_method_data.clone(),
             quote_id: data.quote_id.clone(),
             test_mode: data.test_mode,

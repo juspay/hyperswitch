@@ -8,7 +8,8 @@ use router_env::logger;
 use serde::Serialize;
 
 use super::{
-    payment_intents::types::StripePaymentIntentResponse, refunds::types::StripeRefundResponse,
+    payment_intents::types::StripePaymentIntentResponse, payouts::types::StripePayoutResponse,
+    refunds::types::StripeRefundResponse,
 };
 use crate::{
     core::{errors, webhooks::types::OutgoingWebhookType},
@@ -74,6 +75,7 @@ pub enum StripeWebhookObject {
     Refund(StripeRefundResponse),
     Dispute(StripeDisputeResponse),
     Mandate(StripeMandateResponse),
+    Payout(StripePayoutResponse),
 }
 
 #[derive(Serialize, Debug)]
@@ -168,6 +170,8 @@ fn get_stripe_event_type(event_type: api_models::enums::EventType) -> &'static s
         api_models::enums::EventType::PaymentSucceeded => "payment_intent.succeeded",
         api_models::enums::EventType::PaymentFailed => "payment_intent.payment_failed",
         api_models::enums::EventType::PaymentProcessing => "payment_intent.processing",
+        api_models::enums::EventType::PayoutSucceeded => "payout.paid",
+        api_models::enums::EventType::PayoutFailed => "payout.failed",
 
         // the below are not really stripe compatible because stripe doesn't provide this
         api_models::enums::EventType::ActionRequired => "action.required",
@@ -182,6 +186,7 @@ fn get_stripe_event_type(event_type: api_models::enums::EventType) -> &'static s
         api_models::enums::EventType::DisputeLost => "dispute.lost",
         api_models::enums::EventType::MandateActive => "mandate.active",
         api_models::enums::EventType::MandateRevoked => "mandate.revoked",
+        api_models::enums::EventType::PayoutProcessing => "payout.paid",
     }
 }
 
@@ -222,6 +227,7 @@ impl From<api::OutgoingWebhookContent> for StripeWebhookObject {
             api::OutgoingWebhookContent::MandateDetails(mandate) => {
                 Self::Mandate((*mandate).into())
             }
+            api::OutgoingWebhookContent::PayoutDetails(payout) => Self::Payout((*payout).into()),
         }
     }
 }
