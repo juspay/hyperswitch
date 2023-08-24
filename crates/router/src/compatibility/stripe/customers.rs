@@ -30,7 +30,7 @@ pub async fn customer_create(
 
     let flow = Flow::CustomersCreate;
 
-    wrap::compatibility_api_wrap::<
+    Box::pin(wrap::compatibility_api_wrap::<
         _,
         _,
         _,
@@ -48,7 +48,7 @@ pub async fn customer_create(
             customers::create_customer(&*state.store, auth.merchant_account, auth.key_store, req)
         },
         &auth::ApiKeyAuth,
-    )
+    ))
     .await
 }
 
@@ -64,7 +64,7 @@ pub async fn customer_retrieve(
 
     let flow = Flow::CustomersRetrieve;
 
-    wrap::compatibility_api_wrap::<
+    Box::pin(wrap::compatibility_api_wrap::<
         _,
         _,
         _,
@@ -82,7 +82,7 @@ pub async fn customer_retrieve(
             customers::retrieve_customer(&*state.store, auth.merchant_account, auth.key_store, req)
         },
         &auth::ApiKeyAuth,
-    )
+    ))
     .await
 }
 
@@ -107,7 +107,7 @@ pub async fn customer_update(
 
     let flow = Flow::CustomersUpdate;
 
-    wrap::compatibility_api_wrap::<
+    Box::pin(wrap::compatibility_api_wrap::<
         _,
         _,
         _,
@@ -125,7 +125,7 @@ pub async fn customer_update(
             customers::update_customer(&*state.store, auth.merchant_account, req, auth.key_store)
         },
         &auth::ApiKeyAuth,
-    )
+    ))
     .await
 }
 
@@ -141,7 +141,7 @@ pub async fn customer_delete(
 
     let flow = Flow::CustomersDelete;
 
-    wrap::compatibility_api_wrap::<
+    Box::pin(wrap::compatibility_api_wrap::<
         _,
         _,
         _,
@@ -159,7 +159,7 @@ pub async fn customer_delete(
             customers::delete_customer(state, auth.merchant_account, req, auth.key_store)
         },
         &auth::ApiKeyAuth,
-    )
+    ))
     .await
 }
 
@@ -174,7 +174,7 @@ pub async fn list_customer_payment_method_api(
     let customer_id = path.into_inner();
     let flow = Flow::CustomerPaymentMethodsList;
 
-    wrap::compatibility_api_wrap::<
+    Box::pin(wrap::compatibility_api_wrap::<
         _,
         _,
         _,
@@ -198,6 +198,6 @@ pub async fn list_customer_payment_method_api(
             )
         },
         &auth::ApiKeyAuth,
-    )
+    ))
     .await
 }
