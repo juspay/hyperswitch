@@ -819,7 +819,7 @@ impl api::IncomingWebhook for Square {
         _merchant_id: &str,
         _secret: &[u8],
     ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
-        Ok(format!("{}{}", request.uri, String::from_utf8_lossy(request.body)).into_bytes())
+        Ok(format!("https://cd71-103-159-11-202.ngrok-free.app{}{}", request.uri, String::from_utf8_lossy(request.body)).into_bytes())
     }
 
     fn get_webhook_object_reference_id(
@@ -855,30 +855,7 @@ impl api::IncomingWebhook for Square {
             .body
             .parse_struct("SquareWebhookEventType")
             .change_context(errors::ConnectorError::WebhookEventTypeNotFound)?;
-
-        Ok(match details.data.object {
-            square::SquareWebhookObject::Payment(payment_data) => match payment_data.status {
-                square::SquarePaymentStatus::Completed => {
-                    api::IncomingWebhookEvent::PaymentIntentSuccess
-                }
-                square::SquarePaymentStatus::Failed => {
-                    api::IncomingWebhookEvent::PaymentIntentFailure
-                }
-                square::SquarePaymentStatus::Approved
-                | square::SquarePaymentStatus::Canceled
-                | square::SquarePaymentStatus::Pending
-                | square::SquarePaymentStatus::Processing => {
-                    api::IncomingWebhookEvent::EventNotSupported
-                }
-            },
-            square::SquareWebhookObject::Refund(refund_data) => match refund_data.status {
-                square::RefundStatus::Completed => api::IncomingWebhookEvent::RefundSuccess,
-                square::RefundStatus::Failed => api::IncomingWebhookEvent::RefundFailure,
-                square::RefundStatus::Pending | square::RefundStatus::Processing => {
-                    api::IncomingWebhookEvent::EventNotSupported
-                }
-            },
-        })
+        Ok(api::IncomingWebhookEvent::from(details.data.object))
     }
 
     fn get_webhook_resource_object(
