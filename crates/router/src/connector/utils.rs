@@ -10,6 +10,7 @@ use common_utils::{
     errors::ReportSwitchExt,
     pii::{self, Email, IpAddress},
 };
+use diesel_models::enums;
 use error_stack::{report, IntoReport, ResultExt};
 use masking::{ExposeInterface, Secret};
 use once_cell::sync::Lazy;
@@ -970,6 +971,25 @@ pub fn to_currency_base_unit(
         .to_currency_base_unit(amount)
         .into_report()
         .change_context(errors::ConnectorError::RequestEncodingFailed)
+}
+
+pub fn construct_not_implemented_error_report(
+    capture_method: enums::CaptureMethod,
+    connector_name: &str,
+) -> error_stack::Report<errors::ConnectorError> {
+    errors::ConnectorError::NotImplemented(format!("{} for {}", capture_method, connector_name))
+        .into()
+}
+
+pub fn construct_not_supported_error_report(
+    capture_method: enums::CaptureMethod,
+    connector_name: &'static str,
+) -> error_stack::Report<errors::ConnectorError> {
+    errors::ConnectorError::NotSupported {
+        message: capture_method.to_string(),
+        connector: connector_name,
+    }
+    .into()
 }
 
 pub fn to_currency_base_unit_with_zero_decimal_check(
