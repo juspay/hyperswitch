@@ -3,7 +3,6 @@ use common_utils::errors::ErrorSwitch;
 use http::StatusCode;
 
 use super::{ApiErrorResponse, ConnectorError, CustomersErrorResponse, StorageError};
-use crate::compatibility::stripe::errors::StripeErrorCode;
 
 impl ErrorSwitch<api_models::errors::types::ApiErrorResponse> for ApiErrorResponse {
     fn switch(&self) -> api_models::errors::types::ApiErrorResponse {
@@ -318,18 +317,6 @@ impl ErrorSwitch<CustomersErrorResponse> for StorageError {
 impl ErrorSwitch<CustomersErrorResponse> for common_utils::errors::CryptoError {
     fn switch(&self) -> CustomersErrorResponse {
         CustomersErrorResponse::InternalServerError
-    }
-}
-
-impl ErrorSwitch<StripeErrorCode> for CustomersErrorResponse {
-    fn switch(&self) -> StripeErrorCode {
-        use StripeErrorCode as SC;
-        match self {
-            Self::CustomerRedacted => SC::CustomerRedacted,
-            Self::InternalServerError => SC::InternalServerError,
-            Self::MandateActive => SC::MandateActive,
-            Self::CustomerNotFound => SC::CustomerNotFound,
-        }
     }
 }
 
