@@ -15,6 +15,7 @@ impl Default for super::settings::Server {
             request_body_limit: 16 * 1024, // POST request body is limited to 16KiB
             base_url: "http://localhost:8080".into(),
             shutdown_timeout: 30,
+            router_internal_ip: "http://localhost:8080".into(),
         }
     }
 }

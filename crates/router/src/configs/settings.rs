@@ -418,6 +418,7 @@ pub struct Server {
     pub request_body_limit: usize,
     pub base_url: String,
     pub shutdown_timeout: u64,
+    pub router_internal_ip: String,
 }
 
 #[derive(Debug, Deserialize, Clone)]
