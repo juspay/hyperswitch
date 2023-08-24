@@ -9025,7 +9025,8 @@
           "currency",
           "payment_method",
           "business_country",
-          "business_label"
+          "business_label",
+          "attempt_count"
         ],
         "properties": {
           "payment_id": {
@@ -9395,6 +9396,11 @@
             "type": "string",
             "description": "The business profile that is associated with this payment",
             "nullable": true
+          },
+          "attempt_count": {
+            "type": "integer",
+            "format": "int32",
+            "description": "total number of attempts associated with this payment"
           }
         }
       },
