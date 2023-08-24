@@ -219,7 +219,11 @@ impl
     ) -> CustomResult<String, errors::ConnectorError> {
         Ok(format!(
             "{}v2/card-nonce",
-            connectors.square.secondary_base_url,
+            connectors
+                .square
+                .secondary_base_url
+                .clone()
+                .ok_or(errors::ConnectorError::FailedToObtainIntegrationUrl)?,
         ))
     }
 
@@ -314,7 +318,11 @@ impl
 
         Ok(format!(
             "{}payments/hydrate?applicationId={}",
-            connectors.square.secondary_base_url,
+            connectors
+                .square
+                .secondary_base_url
+                .clone()
+                .ok_or(errors::ConnectorError::FailedToObtainIntegrationUrl)?,
             auth.key1.peek()
         ))
     }
