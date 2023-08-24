@@ -10163,6 +10163,11 @@
             "format": "int64",
             "description": "The total number of refunds in the list"
           },
+          "total_count": {
+            "type": "integer",
+            "format": "int64",
+            "description": "The total number of refunds in the list"
+          },
           "data": {
             "type": "array",
             "items": {
