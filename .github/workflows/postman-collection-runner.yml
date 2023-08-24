@@ -107,6 +107,10 @@ jobs:
               fi
           done
 
+      - name: Install newman from fork
+        run: |
+          npm install -g 'git+ssh://git@github.com:knutties/newman.git#feature/newman-dir'
+
       - name: Run Tests
         env:
           BASE_URL: "http://localhost:8080"
@@ -117,6 +121,8 @@ jobs:
         run: |
           RED='\033[0;31m'
           RESET='\033[0m'
+          NEWMAN_PATH=$(npm config get prefix)/bin
+          export PATH=${NEWMAN_PATH}:${PATH}
           failed_connectors=()
       
           for i in $(echo "$CONNECTORS" | tr "," "\n"); do
