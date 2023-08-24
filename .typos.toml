@@ -32,6 +32,7 @@ unsuccess = "unsuccess"       # Used in cryptopay request
 ba = "ba" # ignore minor commit conversions
 ede = "ede" # ignore minor commit conversions
 daa = "daa" # Commit id
+deriver = "deriver"
 
 [files]
 extend-exclude = [
