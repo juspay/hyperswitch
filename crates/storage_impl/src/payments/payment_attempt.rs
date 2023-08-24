@@ -13,7 +13,7 @@ use diesel_models::{
         PaymentAttempt as DieselPaymentAttempt, PaymentAttemptNew as DieselPaymentAttemptNew,
         PaymentAttemptUpdate as DieselPaymentAttemptUpdate,
     },
-    kv, reverse_lookup::ReverseLookupNew
+    kv, reverse_lookup::{ReverseLookupNew, ReverseLookup}
 };
 use error_stack::{ResultExt, IntoReport};
 use redis_interface::HsetnxReply;
@@ -386,7 +386,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
                 ) {
                     (None, Some(connector_transaction_id)) => {
                         add_connector_txn_id_to_reverse_lookup(
-                            self,
+                            &self.router_store,
                             key.as_str(),
                             this.merchant_id.as_str(),
                             updated_attempt.attempt_id.as_str(),
@@ -397,7 +397,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
                     (Some(old_connector_transaction_id), Some(connector_transaction_id)) => {
                         if old_connector_transaction_id.ne(connector_transaction_id) {
                             add_connector_txn_id_to_reverse_lookup(
-                                self,
+                                &self.router_store,
                                 key.as_str(),
                                 this.merchant_id.as_str(),
                                 updated_attempt.attempt_id.as_str(),
@@ -412,7 +412,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
                 match (old_preprocessing_id, &updated_attempt.preprocessing_step_id) {
                     (None, Some(preprocessing_id)) => {
                         add_preprocessing_id_to_reverse_lookup(
-                            self,
+                            &self.router_store,
                             key.as_str(),
                             this.merchant_id.as_str(),
                             updated_attempt.attempt_id.as_str(),
@@ -423,7 +423,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
                     (Some(old_preprocessing_id), Some(preprocessing_id)) => {
                         if old_preprocessing_id.ne(preprocessing_id) {
                             add_preprocessing_id_to_reverse_lookup(
-                                self,
+                                &self.router_store,
                                 key.as_str(),
                                 this.merchant_id.as_str(),
                                 updated_attempt.attempt_id.as_str(),
@@ -1209,4 +1209,52 @@ impl DataModelExt for PaymentAttemptUpdate {
             },
         }
     }
+}
+
+#[inline]
+async fn add_connector_txn_id_to_reverse_lookup<T: DatabaseStore>(
+    store: &RouterStore<T>,
+    key: &str,
+    merchant_id: &str,
+    updated_attempt_attempt_id: &str,
+    connector_transaction_id: &str,
+) -> CustomResult<ReverseLookup, errors::StorageError> {
+    let conn = pg_connection_write(store).await?;
+    let field = format!("pa_{}", updated_attempt_attempt_id);
+    ReverseLookupNew {
+        lookup_id: format!("{}_{}", merchant_id, connector_transaction_id),
+        pk_id: key.to_owned(),
+        sk_id: field.clone(),
+        source: "payment_attempt".to_string(),
+    }
+    .insert(&conn)
+    .await
+    .map_err(|err| {
+        let error = format!("{}", err);
+        err.change_context(errors::StorageError::DatabaseError(error))
+    })
+}
+
+#[inline]
+async fn add_preprocessing_id_to_reverse_lookup<T: DatabaseStore>(
+    store: &RouterStore<T>,
+    key: &str,
+    merchant_id: &str,
+    updated_attempt_attempt_id: &str,
+    preprocessing_id: &str,
+) -> CustomResult<ReverseLookup, errors::StorageError> {
+    let conn = pg_connection_write(store).await?;
+    let field = format!("pa_{}", updated_attempt_attempt_id);
+    ReverseLookupNew {
+        lookup_id: format!("{}_{}", merchant_id, preprocessing_id),
+        pk_id: key.to_owned(),
+        sk_id: field.clone(),
+        source: "payment_attempt".to_string(),
+    }
+    .insert(&conn)
+    .await
+    .map_err(|er| {
+        let error = format!("{}", er);
+        er.change_context(errors::StorageError::DatabaseError(error))
+    })
 }
