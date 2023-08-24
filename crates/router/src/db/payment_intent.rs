@@ -53,7 +53,7 @@ impl PaymentIntentInterface for MockDb {
         _merchant_id: &str,
         _constraints: &PaymentIntentFetchConstraints,
         _storage_scheme: enums::MerchantStorageScheme,
-    ) -> CustomResult<Vec<String>, errors::StorageError> {
+    ) -> error_stack::Result<Vec<String>, errors::DataStorageError> {
         // [#172]: Implement function for `MockDb`
         Err(errors::DataStorageError::MockDbError)?
     }

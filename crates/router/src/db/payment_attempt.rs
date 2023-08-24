@@ -1,4 +1,4 @@
-use api_models::enums::PaymentMethod;
+use api_models::enums::{Connector, PaymentMethod};
 
 use super::MockDb;
 use crate::{
@@ -83,7 +83,7 @@ pub trait PaymentAttemptInterface {
         &self,
         merchant_id: &str,
         active_attempt_ids: &[String],
-        connector: Option<Vec<String>>,
+        connector: Option<Vec<Connector>>,
         payment_methods: Option<Vec<PaymentMethod>>,
         storage_scheme: enums::MerchantStorageScheme,
     ) -> CustomResult<i64, errors::StorageError>;
@@ -227,16 +227,26 @@ mod storage {
             &self,
             merchant_id: &str,
             active_attempt_ids: &[String],
-            connector: Option<Vec<String>>,
+            connector: Option<Vec<Connector>>,
             payment_methods: Option<Vec<PaymentMethod>>,
             _storage_scheme: enums::MerchantStorageScheme,
         ) -> CustomResult<i64, errors::StorageError> {
             let conn = connection::pg_connection_read(self).await?;
+            let connector_strings = if let Some(connector_vec) = &connector {
+                Some(
+                    connector_vec
+                        .iter()
+                        .map(|c| c.to_string())
+                        .collect::<Vec<String>>(),
+                )
+            } else {
+                None
+            };
             PaymentAttempt::get_total_count_of_attempts(
                 &conn,
                 merchant_id,
                 active_attempt_ids,
-                connector,
+                connector_strings,
                 payment_methods,
             )
             .await
@@ -318,7 +328,7 @@ impl PaymentAttemptInterface for MockDb {
         &self,
         _merchant_id: &str,
         _active_attempt_ids: &[String],
-        _connector: Option<Vec<String>>,
+        _connector: Option<Vec<Connector>>,
         _payment_methods: Option<Vec<PaymentMethod>>,
         _storage_scheme: enums::MerchantStorageScheme,
     ) -> CustomResult<i64, errors::StorageError> {
@@ -969,16 +979,24 @@ mod storage {
             &self,
             merchant_id: &str,
             active_attempt_ids: &[String],
-            connector: Option<Vec<String>>,
+            connector: Option<Vec<api_models::enums::Connector>>,
             payment_methods: Option<Vec<api_models::enums::PaymentMethod>>,
             _storage_scheme: enums::MerchantStorageScheme,
         ) -> CustomResult<i64, errors::StorageError> {
             let conn = connection::pg_connection_read(self).await?;
+
+            let connector_strings = connector.as_ref().map(|connector_vec| {
+                connector_vec
+                    .iter()
+                    .map(|c| c.to_string())
+                    .collect::<Vec<String>>()
+            });
+
             PaymentAttempt::get_total_count_of_attempts(
                 &conn,
                 merchant_id,
                 active_attempt_ids,
-                connector,
+                connector_strings,
                 payment_methods,
             )
             .await

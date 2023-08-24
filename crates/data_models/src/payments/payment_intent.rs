@@ -53,6 +53,14 @@ pub trait PaymentIntentInterface {
         Vec<(PaymentIntent, super::payment_attempt::PaymentAttempt)>,
         errors::StorageError,
     >;
+
+    #[cfg(feature = "olap")]
+    async fn get_filtered_active_attempt_ids_for_total_count(
+        &self,
+        merchant_id: &str,
+        constraints: &PaymentIntentFetchConstraints,
+        storage_scheme: MerchantStorageScheme,
+    ) -> error_stack::Result<Vec<String>, errors::StorageError>;
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
@@ -419,7 +427,7 @@ impl From<api_models::payments::PaymentListFilterConstraints> for PaymentIntentF
                 customer_id: None,
                 starting_after_id: None,
                 ending_before_id: None,
-                limit: None,
+                limit: value.limit,
             }
         }
     }

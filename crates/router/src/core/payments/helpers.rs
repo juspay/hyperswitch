@@ -1688,8 +1688,8 @@ pub(super) fn validate_payment_list_request(
 }
 #[cfg(feature = "olap")]
 pub(super) fn validate_payment_list_request_for_joins(
-    limit: i64,
-    max_limit: i64,
+    limit: u32,
+    max_limit: u32,
 ) -> CustomResult<(), errors::ApiErrorResponse> {
     utils::when(limit > max_limit || limit < 1, || {
         Err(errors::ApiErrorResponse::InvalidRequestData {

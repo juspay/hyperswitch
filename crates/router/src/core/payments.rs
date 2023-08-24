@@ -44,7 +44,7 @@ use crate::{
 };
 
 #[cfg(feature = "olap")]
-const PAYMENTS_LIST_MAX_LIMIT: i64 = 20;
+const PAYMENTS_LIST_MAX_LIMIT: u32 = 20;
 #[instrument(skip_all, fields(payment_id, merchant_id))]
 pub async fn payments_operation_core<F, Req, Op, FData>(
     state: &AppState,
@@ -1333,7 +1333,7 @@ pub async fn apply_filters_on_payments(
     db: &dyn StorageInterface,
     merchant: domain::MerchantAccount,
     constraints: api::PaymentListFilterConstraints,
-) -> RouterResponse<api::PaymentListResponse> {
+) -> RouterResponse<api::PaymentListResponseV2> {
     use storage_impl::DataModelExt;
 
     use crate::types::transformers::ForeignFrom;
@@ -1353,15 +1353,13 @@ pub async fn apply_filters_on_payments(
         .map(|(pi, pa)| (pi, pa.to_storage_model()))
         .collect();
 
-    let attempt_count = list.iter().map(|item| item.0.attempt_count).sum();
-
     let data: Vec<api::PaymentsResponse> =
         list.into_iter().map(ForeignFrom::foreign_from).collect();
 
     let active_attempt_ids = db
         .get_filtered_active_attempt_ids_for_total_count(
             &merchant.merchant_id,
-            &constraints,
+            &constraints.clone().into(),
             merchant.storage_scheme,
         )
         .await
