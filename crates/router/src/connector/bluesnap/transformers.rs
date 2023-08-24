@@ -32,6 +32,7 @@ pub struct BluesnapPaymentsRequest {
     three_d_secure: Option<BluesnapThreeDSecureInfo>,
     transaction_fraud_info: Option<TransactionFraudInfo>,
     card_holder_info: Option<BluesnapCardHolderInfo>,
+    merchant_transaction_id: Option<String>,
 }
 
 #[derive(Debug, Serialize)]
@@ -153,6 +154,11 @@ pub struct ApplepayHeader {
     ephemeral_public_key: Secret<String>,
     public_key_hash: Secret<String>,
     transaction_id: Secret<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct BluesnapMetaData {
+    pub merchant_id: String,
 }
 
 impl TryFrom<&types::PaymentsAuthorizeRouterData> for BluesnapPaymentsRequest {
@@ -318,6 +324,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for BluesnapPaymentsRequest {
                 fraud_session_id: item.payment_id.clone(),
             }),
             card_holder_info,
+            merchant_transaction_id: Some(item.connector_request_reference_id.to_owned()),
         })
     }
 }
@@ -485,6 +492,7 @@ impl TryFrom<&types::PaymentsCompleteAuthorizeRouterData> for BluesnapPaymentsRe
                 item.get_billing_address()?,
                 item.request.get_email()?,
             )?,
+            merchant_transaction_id: Some(item.connector_request_reference_id.to_owned()),
         })
     }
 }
