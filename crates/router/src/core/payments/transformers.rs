@@ -577,6 +577,7 @@ where
                         .set_connector_metadata(payment_intent.connector_metadata)
                         .set_reference_id(payment_attempt.connector_response_reference_id)
                         .set_profile_id(payment_intent.profile_id)
+                        .set_attempt_count(payment_intent.attempt_count)
                         .to_owned(),
                     headers,
                 ))
@@ -634,6 +635,7 @@ where
                 connector_metadata: payment_intent.connector_metadata,
                 allowed_payment_method_types: payment_intent.allowed_payment_method_types,
                 reference_id: payment_attempt.connector_response_reference_id,
+                attempt_count: payment_intent.attempt_count,
                 ..Default::default()
             },
             headers,
@@ -737,6 +739,7 @@ impl ForeignFrom<(storage::PaymentIntent, storage::PaymentAttempt)> for api::Pay
             capture_method: pa.capture_method,
             authentication_type: pa.authentication_type,
             connector_transaction_id: pa.connector_transaction_id,
+            attempt_count: pi.attempt_count,
             ..Default::default()
         }
     }
