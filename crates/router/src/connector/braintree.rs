@@ -18,8 +18,7 @@ use crate::{
     services::{
         self,
         request::{self, Mask},
-        ConnectorIntegration,
-        ConnectorValidation,
+        ConnectorIntegration, ConnectorValidation,
     },
     types::{
         self,
@@ -34,6 +33,13 @@ pub struct Braintree;
 
 pub const BRAINTREE_VERSION: &str = "Braintree-Version";
 pub const BRAINTREE_VERSION_VALUE: &str = "2019-01-01";
+pub const BRAINTREE_API_VERSION: &str = "graphql_api";
+
+impl Braintree {
+    pub fn is_braintree_graphql_version(&self, connector_api_version: &Option<String>) -> bool {
+        *connector_api_version == Some(BRAINTREE_API_VERSION.to_string())
+    }
+}
 
 impl<Flow, Request, Response> ConnectorCommonExt<Flow, Request, Response> for Braintree
 where
@@ -209,22 +215,23 @@ impl ConnectorIntegration<api::Session, types::PaymentsSessionData, types::Payme
         req: &types::PaymentsSessionRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
-        let connector_api_version = req.connector_api_version.clone();
-        if connector_api_version == Some("v2".to_string()) {
-            Ok(None)
-        } else {
-            let request = Some(
-                services::RequestBuilder::new()
-                    .method(services::Method::Post)
-                    .url(&types::PaymentsSessionType::get_url(self, req, connectors)?)
-                    .attach_default_headers()
-                    .headers(types::PaymentsSessionType::get_headers(
-                        self, req, connectors,
-                    )?)
-                    .body(types::PaymentsSessionType::get_request_body(self, req)?)
-                    .build(),
-            );
-            Ok(request)
+        let connector_api_version = &req.connector_api_version;
+        match self.is_braintree_graphql_version(connector_api_version) {
+            true => Ok(None),
+            false => {
+                let request = Some(
+                    services::RequestBuilder::new()
+                        .method(services::Method::Post)
+                        .url(&types::PaymentsSessionType::get_url(self, req, connectors)?)
+                        .attach_default_headers()
+                        .headers(types::PaymentsSessionType::get_headers(
+                            self, req, connectors,
+                        )?)
+                        .body(types::PaymentsSessionType::get_request_body(self, req)?)
+                        .build(),
+                );
+                Ok(request)
+            }
         }
     }
 
@@ -319,9 +326,9 @@ impl
         req: &types::TokenizationRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
-        let connector_api_version = req.connector_api_version.clone();
-        if connector_api_version == Some("v2".to_string()) {
-            Ok(Some(
+        let connector_api_version = &req.connector_api_version;
+        match self.is_braintree_graphql_version(connector_api_version) {
+            true => Ok(Some(
                 services::RequestBuilder::new()
                     .method(services::Method::Post)
                     .url(&types::TokenizationType::get_url(self, req, connectors)?)
@@ -329,9 +336,8 @@ impl
                     .headers(types::TokenizationType::get_headers(self, req, connectors)?)
                     .body(types::TokenizationType::get_request_body(self, req)?)
                     .build(),
-            ))
-        } else {
-            Ok(None)
+            )),
+            false => Ok(None),
         }
     }
 
@@ -379,11 +385,10 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
         req: &types::PaymentsCaptureRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
-        let connector_api_version = req.connector_api_version.clone();
-        if connector_api_version == Some("v2".to_string()) {
-            self.build_headers(req, connectors)
-        } else {
-            Ok(vec![])
+        let connector_api_version = &req.connector_api_version.clone();
+        match self.is_braintree_graphql_version(connector_api_version) {
+            true => self.build_headers(req, connectors),
+            false => Ok(vec![]),
         }
     }
 
@@ -397,15 +402,18 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         let connector_api_version = req.connector_api_version.clone();
-        if connector_api_version == Some("v2".to_string()) {
-            let base_url = connectors
-                .braintree
-                .secondary_base_url
-                .as_ref()
-                .ok_or(errors::ConnectorError::FailedToObtainIntegrationUrl)?;
-            Ok(base_url.to_string())
-        } else {
-            Err(errors::ConnectorError::NotImplemented("get_url method".to_string()).into())
+        match self.is_braintree_graphql_version(&connector_api_version) {
+            true => {
+                let base_url = connectors
+                    .braintree
+                    .secondary_base_url
+                    .as_ref()
+                    .ok_or(errors::ConnectorError::FailedToObtainIntegrationUrl)?;
+                Ok(base_url.to_string())
+            }
+            false => {
+                Err(errors::ConnectorError::NotImplemented("get_url method".to_string()).into())
+            }
         }
     }
 
@@ -413,22 +421,23 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
         &self,
         req: &types::PaymentsCaptureRouterData,
     ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
-        let connector_api_version = req.connector_api_version.clone();
-        if connector_api_version == Some("v2".to_string()) {
-            let connector_request =
-                braintree_graphql_transformers::BraintreeCaptureRequest::try_from(req)?;
+        let connector_api_version = &req.connector_api_version.clone();
+        match self.is_braintree_graphql_version(connector_api_version) {
+            true => {
+                let connector_request =
+                    braintree_graphql_transformers::BraintreeCaptureRequest::try_from(req)?;
 
-            let braintree_req = types::RequestBody::log_and_get_request_body(
+                let braintree_req = types::RequestBody::log_and_get_request_body(
             &connector_request,
             utils::Encode::<braintree_graphql_transformers::BraintreeCaptureRequest>::encode_to_string_of_json,
         )
         .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-            Ok(Some(braintree_req))
-        } else {
-            Err(
-                errors::ConnectorError::NotImplemented("get_request_body method".to_string())
-                    .into(),
+                Ok(Some(braintree_req))
+            }
+            false => Err(errors::ConnectorError::NotImplemented(
+                "get_request_body method".to_string(),
             )
+            .into()),
         }
     }
 
@@ -437,9 +446,9 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
         req: &types::PaymentsCaptureRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
-        let connector_api_version = req.connector_api_version.clone();
-        if connector_api_version == Some("v2".to_string()) {
-            Ok(Some(
+        let connector_api_version = &req.connector_api_version;
+        match self.is_braintree_graphql_version(connector_api_version) {
+            true => Ok(Some(
                 services::RequestBuilder::new()
                     .method(services::Method::Post)
                     .url(&types::PaymentsCaptureType::get_url(self, req, connectors)?)
@@ -449,12 +458,11 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
                     )?)
                     .body(types::PaymentsCaptureType::get_request_body(self, req)?)
                     .build(),
-            ))
-        } else {
-            Err(
-                errors::ConnectorError::NotImplemented("Capture flow not Implemented".to_string())
-                    .into(),
+            )),
+            false => Err(errors::ConnectorError::NotImplemented(
+                "Capture flow not Implemented".to_string(),
             )
+            .into()),
         }
     }
 
@@ -490,26 +498,27 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
         req: &types::PaymentsSyncRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
-        let connector_api_version = req.connector_api_version.clone();
-        if connector_api_version == Some("v2".to_string()) {
-            self.build_headers(req, connectors)
-        } else {
-            let mut headers = vec![
-                (
-                    headers::CONTENT_TYPE.to_string(),
-                    types::PaymentsSyncType::get_content_type(self)
-                        .to_string()
-                        .into(),
-                ),
-                (headers::X_API_VERSION.to_string(), "6".to_string().into()),
-                (
-                    headers::ACCEPT.to_string(),
-                    "application/json".to_string().into(),
-                ),
-            ];
-            let mut api_key = self.get_auth_header(&req.connector_auth_type)?;
-            headers.append(&mut api_key);
-            Ok(headers)
+        let connector_api_version = &req.connector_api_version;
+        match self.is_braintree_graphql_version(connector_api_version) {
+            true => self.build_headers(req, connectors),
+            false => {
+                let mut headers = vec![
+                    (
+                        headers::CONTENT_TYPE.to_string(),
+                        types::PaymentsSyncType::get_content_type(self)
+                            .to_string()
+                            .into(),
+                    ),
+                    (headers::X_API_VERSION.to_string(), "6".to_string().into()),
+                    (
+                        headers::ACCEPT.to_string(),
+                        "application/json".to_string().into(),
+                    ),
+                ];
+                let mut api_key = self.get_auth_header(&req.connector_auth_type)?;
+                headers.append(&mut api_key);
+                Ok(headers)
+            }
         }
     }
 
@@ -522,27 +531,30 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
         req: &types::PaymentsSyncRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        let connector_api_version = req.connector_api_version.clone();
-        if connector_api_version == Some("v2".to_string()) {
-            let base_url = connectors
-                .braintree
-                .secondary_base_url
-                .as_ref()
-                .ok_or(errors::ConnectorError::FailedToObtainIntegrationUrl)?;
-            Ok(base_url.to_string())
-        } else {
-            let auth_type = braintree::BraintreeAuthType::try_from(&req.connector_auth_type)
-                .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
-            let connector_payment_id = req
-                .request
-                .connector_transaction_id
-                .get_connector_transaction_id()
-                .change_context(errors::ConnectorError::MissingConnectorTransactionID)?;
-            Ok(format!(
-                "{}/merchants/{}/transactions/{connector_payment_id}",
-                self.base_url(connectors),
-                auth_type.merchant_id.peek()
-            ))
+        let connector_api_version = &req.connector_api_version;
+        match self.is_braintree_graphql_version(connector_api_version) {
+            true => {
+                let base_url = connectors
+                    .braintree
+                    .secondary_base_url
+                    .as_ref()
+                    .ok_or(errors::ConnectorError::FailedToObtainIntegrationUrl)?;
+                Ok(base_url.to_string())
+            }
+            false => {
+                let auth_type = braintree::BraintreeAuthType::try_from(&req.connector_auth_type)
+                    .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
+                let connector_payment_id = req
+                    .request
+                    .connector_transaction_id
+                    .get_connector_transaction_id()
+                    .change_context(errors::ConnectorError::MissingConnectorTransactionID)?;
+                Ok(format!(
+                    "{}/merchants/{}/transactions/{connector_payment_id}",
+                    self.base_url(connectors),
+                    auth_type.merchant_id.peek()
+                ))
+            }
         }
     }
 
@@ -550,19 +562,20 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
         &self,
         req: &types::PaymentsSyncRouterData,
     ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
-        let connector_api_version = req.connector_api_version.clone();
-        if connector_api_version == Some("v2".to_string()) {
-            let connector_request =
-                braintree_graphql_transformers::BraintreePSyncRequest::try_from(req)?;
+        let connector_api_version = &req.connector_api_version;
+        match self.is_braintree_graphql_version(connector_api_version) {
+            true => {
+                let connector_request =
+                    braintree_graphql_transformers::BraintreePSyncRequest::try_from(req)?;
 
-            let braintree_req = types::RequestBody::log_and_get_request_body(
+                let braintree_req = types::RequestBody::log_and_get_request_body(
             &connector_request,
             utils::Encode::<braintree_graphql_transformers::BraintreePSyncRequest>::encode_to_string_of_json,
         )
         .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-            Ok(Some(braintree_req))
-        } else {
-            Ok(None)
+                Ok(Some(braintree_req))
+            }
+            false => Ok(None),
         }
     }
 
@@ -571,9 +584,9 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
         req: &types::PaymentsSyncRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
-        let connector_api_version = req.connector_api_version.clone();
-        if connector_api_version == Some("v2".to_string()) {
-            Ok(Some(
+        let connector_api_version = &req.connector_api_version;
+        match self.is_braintree_graphql_version(connector_api_version) {
+            true => Ok(Some(
                 services::RequestBuilder::new()
                     .method(services::Method::Post)
                     .url(&types::PaymentsSyncType::get_url(self, req, connectors)?)
@@ -581,9 +594,8 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
                     .headers(types::PaymentsSyncType::get_headers(self, req, connectors)?)
                     .body(types::PaymentsSyncType::get_request_body(self, req)?)
                     .build(),
-            ))
-        } else {
-            Ok(Some(
+            )),
+            false => Ok(Some(
                 services::RequestBuilder::new()
                     .method(services::Method::Get)
                     .url(&types::PaymentsSyncType::get_url(self, req, connectors)?)
@@ -591,7 +603,7 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
                     .headers(types::PaymentsSyncType::get_headers(self, req, connectors)?)
                     .body(types::PaymentsSyncType::get_request_body(self, req)?)
                     .build(),
-            ))
+            )),
         }
     }
 
@@ -600,27 +612,30 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
         data: &types::PaymentsSyncRouterData,
         res: types::Response,
     ) -> CustomResult<types::PaymentsSyncRouterData, errors::ConnectorError> {
-        let connector_api_version = data.connector_api_version.clone();
-        if connector_api_version == Some("v2".to_string()) {
-            let response: braintree_graphql_transformers::BraintreePSyncResponse = res
-                .response
-                .parse_struct("Braintree PaymentSyncResponse")
-                .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-            types::RouterData::try_from(types::ResponseRouterData {
-                response,
-                data: data.clone(),
-                http_code: res.status_code,
-            })
-        } else {
-            let response: braintree::BraintreePaymentsResponse = res
-                .response
-                .parse_struct("Braintree PaymentsResponse")
-                .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-            types::RouterData::try_from(types::ResponseRouterData {
-                response,
-                data: data.clone(),
-                http_code: res.status_code,
-            })
+        let connector_api_version = &data.connector_api_version;
+        match self.is_braintree_graphql_version(connector_api_version) {
+            true => {
+                let response: braintree_graphql_transformers::BraintreePSyncResponse = res
+                    .response
+                    .parse_struct("Braintree PaymentSyncResponse")
+                    .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+                types::RouterData::try_from(types::ResponseRouterData {
+                    response,
+                    data: data.clone(),
+                    http_code: res.status_code,
+                })
+            }
+            false => {
+                let response: braintree::BraintreePaymentsResponse = res
+                    .response
+                    .parse_struct("Braintree PaymentsResponse")
+                    .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+                types::RouterData::try_from(types::ResponseRouterData {
+                    response,
+                    data: data.clone(),
+                    http_code: res.status_code,
+                })
+            }
         }
     }
 
@@ -640,26 +655,27 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         req: &types::PaymentsAuthorizeRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
-        let connector_api_version = req.connector_api_version.clone();
-        if connector_api_version == Some("v2".to_string()) {
-            self.build_headers(req, connectors)
-        } else {
-            let mut headers = vec![
-                (
-                    headers::CONTENT_TYPE.to_string(),
-                    types::PaymentsAuthorizeType::get_content_type(self)
-                        .to_string()
-                        .into(),
-                ),
-                (headers::X_API_VERSION.to_string(), "6".to_string().into()),
-                (
-                    headers::ACCEPT.to_string(),
-                    "application/json".to_string().into(),
-                ),
-            ];
-            let mut api_key = self.get_auth_header(&req.connector_auth_type)?;
-            headers.append(&mut api_key);
-            Ok(headers)
+        let connector_api_version = &req.connector_api_version;
+        match self.is_braintree_graphql_version(connector_api_version) {
+            true => self.build_headers(req, connectors),
+            false => {
+                let mut headers = vec![
+                    (
+                        headers::CONTENT_TYPE.to_string(),
+                        types::PaymentsAuthorizeType::get_content_type(self)
+                            .to_string()
+                            .into(),
+                    ),
+                    (headers::X_API_VERSION.to_string(), "6".to_string().into()),
+                    (
+                        headers::ACCEPT.to_string(),
+                        "application/json".to_string().into(),
+                    ),
+                ];
+                let mut api_key = self.get_auth_header(&req.connector_auth_type)?;
+                headers.append(&mut api_key);
+                Ok(headers)
+            }
         }
     }
 
@@ -668,23 +684,26 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         req: &types::PaymentsAuthorizeRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        let connector_api_version = req.connector_api_version.clone();
-        if connector_api_version == Some("v2".to_string()) {
-            let base_url = connectors
-                .braintree
-                .secondary_base_url
-                .as_ref()
-                .ok_or(errors::ConnectorError::FailedToObtainIntegrationUrl)?;
-            Ok(base_url.to_string())
-        } else {
-            let auth_type = braintree::BraintreeAuthType::try_from(&req.connector_auth_type)
-                .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
+        let connector_api_version = &req.connector_api_version;
+        match self.is_braintree_graphql_version(connector_api_version) {
+            true => {
+                let base_url = connectors
+                    .braintree
+                    .secondary_base_url
+                    .as_ref()
+                    .ok_or(errors::ConnectorError::FailedToObtainIntegrationUrl)?;
+                Ok(base_url.to_string())
+            }
+            false => {
+                let auth_type = braintree::BraintreeAuthType::try_from(&req.connector_auth_type)
+                    .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
 
-            Ok(format!(
-                "{}merchants/{}/transactions",
-                self.base_url(connectors),
-                auth_type.merchant_id.peek()
-            ))
+                Ok(format!(
+                    "{}merchants/{}/transactions",
+                    self.base_url(connectors),
+                    auth_type.merchant_id.peek()
+                ))
+            }
         }
     }
 
@@ -713,24 +732,27 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         &self,
         req: &types::PaymentsAuthorizeRouterData,
     ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
-        let connector_api_version = req.connector_api_version.clone();
-        if connector_api_version == Some("v2".to_string()) {
-            let connector_request =
-                braintree_graphql_transformers::BraintreePaymentsRequest::try_from(req)?;
-            let braintree_payment_request = types::RequestBody::log_and_get_request_body(
+        let connector_api_version = &req.connector_api_version;
+        match self.is_braintree_graphql_version(connector_api_version) {
+            true => {
+                let connector_request =
+                    braintree_graphql_transformers::BraintreePaymentsRequest::try_from(req)?;
+                let braintree_payment_request = types::RequestBody::log_and_get_request_body(
                     &connector_request,
                     utils::Encode::<braintree_graphql_transformers::BraintreePaymentsRequest>::encode_to_string_of_json,
                 )
                 .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-            Ok(Some(braintree_payment_request))
-        } else {
-            let connector_request = braintree::BraintreePaymentsRequest::try_from(req)?;
-            let braintree_payment_request = types::RequestBody::log_and_get_request_body(
-                &connector_request,
-                utils::Encode::<braintree::BraintreePaymentsRequest>::encode_to_string_of_json,
-            )
-            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-            Ok(Some(braintree_payment_request))
+                Ok(Some(braintree_payment_request))
+            }
+            false => {
+                let connector_request = braintree::BraintreePaymentsRequest::try_from(req)?;
+                let braintree_payment_request = types::RequestBody::log_and_get_request_body(
+                    &connector_request,
+                    utils::Encode::<braintree::BraintreePaymentsRequest>::encode_to_string_of_json,
+                )
+                .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+                Ok(Some(braintree_payment_request))
+            }
         }
     }
 
@@ -739,9 +761,9 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         data: &types::PaymentsAuthorizeRouterData,
         res: types::Response,
     ) -> CustomResult<types::PaymentsAuthorizeRouterData, errors::ConnectorError> {
-        let connector_api_version = data.connector_api_version.clone();
-        if connector_api_version == Some("v2".to_string()) {
-            match data.request.is_auto_capture()? {
+        let connector_api_version = &data.connector_api_version;
+        match self.is_braintree_graphql_version(connector_api_version) {
+            true => match data.request.is_auto_capture()? {
                 true => {
                     let response: braintree_graphql_transformers::BraintreePaymentsResponse = res
                         .response
@@ -764,17 +786,18 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
                         http_code: res.status_code,
                     })
                 }
+            },
+            false => {
+                let response: braintree::BraintreePaymentsResponse = res
+                    .response
+                    .parse_struct("Braintree PaymentsResponse")
+                    .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+                types::RouterData::try_from(types::ResponseRouterData {
+                    response,
+                    data: data.clone(),
+                    http_code: res.status_code,
+                })
             }
-        } else {
-            let response: braintree::BraintreePaymentsResponse = res
-                .response
-                .parse_struct("Braintree PaymentsResponse")
-                .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-            types::RouterData::try_from(types::ResponseRouterData {
-                response,
-                data: data.clone(),
-                http_code: res.status_code,
-            })
         }
     }
 
@@ -794,26 +817,27 @@ impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsR
         req: &types::PaymentsCancelRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
-        let connector_api_version = req.connector_api_version.clone();
-        if connector_api_version == Some("v2".to_string()) {
-            self.build_headers(req, connectors)
-        } else {
-            let mut headers = vec![
-                (
-                    headers::CONTENT_TYPE.to_string(),
-                    types::PaymentsVoidType::get_content_type(self)
-                        .to_string()
-                        .into(),
-                ),
-                (headers::X_API_VERSION.to_string(), "6".to_string().into()),
-                (
-                    headers::ACCEPT.to_string(),
-                    "application/json".to_string().into(),
-                ),
-            ];
-            let mut api_key = self.get_auth_header(&req.connector_auth_type)?;
-            headers.append(&mut api_key);
-            Ok(headers)
+        let connector_api_version = &req.connector_api_version;
+        match self.is_braintree_graphql_version(connector_api_version) {
+            true => self.build_headers(req, connectors),
+            false => {
+                let mut headers = vec![
+                    (
+                        headers::CONTENT_TYPE.to_string(),
+                        types::PaymentsVoidType::get_content_type(self)
+                            .to_string()
+                            .into(),
+                    ),
+                    (headers::X_API_VERSION.to_string(), "6".to_string().into()),
+                    (
+                        headers::ACCEPT.to_string(),
+                        "application/json".to_string().into(),
+                    ),
+                ];
+                let mut api_key = self.get_auth_header(&req.connector_auth_type)?;
+                headers.append(&mut api_key);
+                Ok(headers)
+            }
         }
     }
 
@@ -826,23 +850,26 @@ impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsR
         req: &types::PaymentsCancelRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        let connector_api_version = req.connector_api_version.clone();
-        if connector_api_version == Some("v2".to_string()) {
-            let base_url = connectors
-                .braintree
-                .secondary_base_url
-                .as_ref()
-                .ok_or(errors::ConnectorError::FailedToObtainIntegrationUrl)?;
-            Ok(base_url.to_string())
-        } else {
-            let auth_type = braintree::BraintreeAuthType::try_from(&req.connector_auth_type)
-                .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
-            Ok(format!(
-                "{}merchants/{}/transactions/{}/void",
-                self.base_url(connectors),
-                auth_type.merchant_id.peek(),
-                req.request.connector_transaction_id
-            ))
+        let connector_api_version = &req.connector_api_version;
+        match self.is_braintree_graphql_version(connector_api_version) {
+            true => {
+                let base_url = connectors
+                    .braintree
+                    .secondary_base_url
+                    .as_ref()
+                    .ok_or(errors::ConnectorError::FailedToObtainIntegrationUrl)?;
+                Ok(base_url.to_string())
+            }
+            false => {
+                let auth_type = braintree::BraintreeAuthType::try_from(&req.connector_auth_type)
+                    .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
+                Ok(format!(
+                    "{}merchants/{}/transactions/{}/void",
+                    self.base_url(connectors),
+                    auth_type.merchant_id.peek(),
+                    req.request.connector_transaction_id
+                ))
+            }
         }
     }
 
@@ -866,18 +893,19 @@ impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsR
         &self,
         req: &types::PaymentsCancelRouterData,
     ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
-        let connector_api_version = req.connector_api_version.clone();
-        if connector_api_version == Some("v2".to_string()) {
-            let connector_request =
-                braintree_graphql_transformers::BraintreeCancelRequest::try_from(req)?;
-            let braintree_req = types::RequestBody::log_and_get_request_body(
+        let connector_api_version = &req.connector_api_version;
+        match self.is_braintree_graphql_version(connector_api_version) {
+            true => {
+                let connector_request =
+                    braintree_graphql_transformers::BraintreeCancelRequest::try_from(req)?;
+                let braintree_req = types::RequestBody::log_and_get_request_body(
             &connector_request,
             utils::Encode::<braintree_graphql_transformers::BraintreeCancelRequest>::encode_to_string_of_json,
         )
         .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-            Ok(Some(braintree_req))
-        } else {
-            Ok(None)
+                Ok(Some(braintree_req))
+            }
+            false => Ok(None),
         }
     }
 
@@ -886,27 +914,30 @@ impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsR
         data: &types::PaymentsCancelRouterData,
         res: types::Response,
     ) -> CustomResult<types::PaymentsCancelRouterData, errors::ConnectorError> {
-        let connector_api_version = data.connector_api_version.clone();
-        if connector_api_version == Some("v2".to_string()) {
-            let response: braintree_graphql_transformers::BraintreeCancelResponse = res
-                .response
-                .parse_struct("Braintree VoidResponse")
-                .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-            types::RouterData::try_from(types::ResponseRouterData {
-                response,
-                data: data.clone(),
-                http_code: res.status_code,
-            })
-        } else {
-            let response: braintree::BraintreePaymentsResponse = res
-                .response
-                .parse_struct("Braintree PaymentsVoidResponse")
-                .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-            types::RouterData::try_from(types::ResponseRouterData {
-                response,
-                data: data.clone(),
-                http_code: res.status_code,
-            })
+        let connector_api_version = &data.connector_api_version;
+        match self.is_braintree_graphql_version(connector_api_version) {
+            true => {
+                let response: braintree_graphql_transformers::BraintreeCancelResponse = res
+                    .response
+                    .parse_struct("Braintree VoidResponse")
+                    .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+                types::RouterData::try_from(types::ResponseRouterData {
+                    response,
+                    data: data.clone(),
+                    http_code: res.status_code,
+                })
+            }
+            false => {
+                let response: braintree::BraintreePaymentsResponse = res
+                    .response
+                    .parse_struct("Braintree PaymentsVoidResponse")
+                    .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+                types::RouterData::try_from(types::ResponseRouterData {
+                    response,
+                    data: data.clone(),
+                    http_code: res.status_code,
+                })
+            }
         }
     }
 
@@ -930,26 +961,27 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
         req: &types::RefundsRouterData<api::Execute>,
         connectors: &settings::Connectors,
     ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
-        let connector_api_version = req.connector_api_version.clone();
-        if connector_api_version == Some("v2".to_string()) {
-            self.build_headers(req, connectors)
-        } else {
-            let mut headers = vec![
-                (
-                    headers::CONTENT_TYPE.to_string(),
-                    types::RefundExecuteType::get_content_type(self)
-                        .to_string()
-                        .into(),
-                ),
-                (headers::X_API_VERSION.to_string(), "6".to_string().into()),
-                (
-                    headers::ACCEPT.to_string(),
-                    "application/json".to_string().into(),
-                ),
-            ];
-            let mut api_key = self.get_auth_header(&req.connector_auth_type)?;
-            headers.append(&mut api_key);
-            Ok(headers)
+        let connector_api_version = &req.connector_api_version;
+        match self.is_braintree_graphql_version(connector_api_version) {
+            true => self.build_headers(req, connectors),
+            false => {
+                let mut headers = vec![
+                    (
+                        headers::CONTENT_TYPE.to_string(),
+                        types::RefundExecuteType::get_content_type(self)
+                            .to_string()
+                            .into(),
+                    ),
+                    (headers::X_API_VERSION.to_string(), "6".to_string().into()),
+                    (
+                        headers::ACCEPT.to_string(),
+                        "application/json".to_string().into(),
+                    ),
+                ];
+                let mut api_key = self.get_auth_header(&req.connector_auth_type)?;
+                headers.append(&mut api_key);
+                Ok(headers)
+            }
         }
     }
 
@@ -962,24 +994,27 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
         req: &types::RefundsRouterData<api::Execute>,
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        let connector_api_version = req.connector_api_version.clone();
-        if connector_api_version == Some("v2".to_string()) {
-            let base_url = connectors
-                .braintree
-                .secondary_base_url
-                .as_ref()
-                .ok_or(errors::ConnectorError::FailedToObtainIntegrationUrl)?;
-            Ok(base_url.to_string())
-        } else {
-            let auth_type = braintree::BraintreeAuthType::try_from(&req.connector_auth_type)
-                .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
-            let connector_payment_id = req.request.connector_transaction_id.clone();
-            Ok(format!(
-                "{}merchants/{}/transactions/{}",
-                self.base_url(connectors),
-                auth_type.merchant_id.peek(),
-                connector_payment_id
-            ))
+        let connector_api_version = &req.connector_api_version;
+        match self.is_braintree_graphql_version(connector_api_version) {
+            true => {
+                let base_url = connectors
+                    .braintree
+                    .secondary_base_url
+                    .as_ref()
+                    .ok_or(errors::ConnectorError::FailedToObtainIntegrationUrl)?;
+                Ok(base_url.to_string())
+            }
+            false => {
+                let auth_type = braintree::BraintreeAuthType::try_from(&req.connector_auth_type)
+                    .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
+                let connector_payment_id = req.request.connector_transaction_id.clone();
+                Ok(format!(
+                    "{}merchants/{}/transactions/{}",
+                    self.base_url(connectors),
+                    auth_type.merchant_id.peek(),
+                    connector_payment_id
+                ))
+            }
         }
     }
 
@@ -987,24 +1022,27 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
         &self,
         req: &types::RefundsRouterData<api::Execute>,
     ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
-        let connector_api_version = req.connector_api_version.clone();
-        if connector_api_version == Some("v2".to_string()) {
-            let connector_request =
-                braintree_graphql_transformers::BraintreeRefundRequest::try_from(req)?;
-            let braintree_refund_request = types::RequestBody::log_and_get_request_body(
+        let connector_api_version = &req.connector_api_version;
+        match self.is_braintree_graphql_version(connector_api_version) {
+            true => {
+                let connector_request =
+                    braintree_graphql_transformers::BraintreeRefundRequest::try_from(req)?;
+                let braintree_refund_request = types::RequestBody::log_and_get_request_body(
             &connector_request,
             utils::Encode::<braintree_graphql_transformers::BraintreeRefundRequest>::encode_to_string_of_json,
         )
         .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-            Ok(Some(braintree_refund_request))
-        } else {
-            let connector_request = braintree::BraintreeRefundRequest::try_from(req)?;
-            let braintree_refund_request = types::RequestBody::log_and_get_request_body(
-                &connector_request,
-                utils::Encode::<braintree::BraintreeRefundRequest>::encode_to_string_of_json,
-            )
-            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-            Ok(Some(braintree_refund_request))
+                Ok(Some(braintree_refund_request))
+            }
+            false => {
+                let connector_request = braintree::BraintreeRefundRequest::try_from(req)?;
+                let braintree_refund_request = types::RequestBody::log_and_get_request_body(
+                    &connector_request,
+                    utils::Encode::<braintree::BraintreeRefundRequest>::encode_to_string_of_json,
+                )
+                .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+                Ok(Some(braintree_refund_request))
+            }
         }
     }
 
@@ -1030,27 +1068,30 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
         data: &types::RefundsRouterData<api::Execute>,
         res: types::Response,
     ) -> CustomResult<types::RefundsRouterData<api::Execute>, errors::ConnectorError> {
-        let connector_api_version = data.connector_api_version.clone();
-        if connector_api_version == Some("v2".to_string()) {
-            let response: braintree_graphql_transformers::BraintreeRefundResponse = res
-                .response
-                .parse_struct("Braintree RefundResponse")
-                .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-            types::RouterData::try_from(types::ResponseRouterData {
-                response,
-                data: data.clone(),
-                http_code: res.status_code,
-            })
-        } else {
-            let response: braintree::RefundResponse = res
-                .response
-                .parse_struct("Braintree RefundResponse")
-                .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-            types::RouterData::try_from(types::ResponseRouterData {
-                response,
-                data: data.clone(),
-                http_code: res.status_code,
-            })
+        let connector_api_version = &data.connector_api_version;
+        match self.is_braintree_graphql_version(connector_api_version) {
+            true => {
+                let response: braintree_graphql_transformers::BraintreeRefundResponse = res
+                    .response
+                    .parse_struct("Braintree RefundResponse")
+                    .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+                types::RouterData::try_from(types::ResponseRouterData {
+                    response,
+                    data: data.clone(),
+                    http_code: res.status_code,
+                })
+            }
+            false => {
+                let response: braintree::RefundResponse = res
+                    .response
+                    .parse_struct("Braintree RefundResponse")
+                    .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+                types::RouterData::try_from(types::ResponseRouterData {
+                    response,
+                    data: data.clone(),
+                    http_code: res.status_code,
+                })
+            }
         }
     }
 
@@ -1070,11 +1111,10 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
         req: &types::RefundSyncRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
-        let connector_api_version = req.connector_api_version.clone();
-        if connector_api_version == Some("v2".to_string()) {
-            self.build_headers(req, connectors)
-        } else {
-            Ok(vec![])
+        let connector_api_version = &req.connector_api_version;
+        match self.is_braintree_graphql_version(connector_api_version) {
+            true => self.build_headers(req, connectors),
+            false => Ok(vec![]),
         }
     }
 
@@ -1087,16 +1127,19 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
         req: &types::RefundSyncRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        let connector_api_version = req.connector_api_version.clone();
-        if connector_api_version == Some("v2".to_string()) {
-            let base_url = connectors
-                .braintree
-                .secondary_base_url
-                .as_ref()
-                .ok_or(errors::ConnectorError::FailedToObtainIntegrationUrl)?;
-            Ok(base_url.to_string())
-        } else {
-            Err(errors::ConnectorError::NotImplemented("get_url method".to_string()).into())
+        let connector_api_version = &req.connector_api_version;
+        match self.is_braintree_graphql_version(connector_api_version) {
+            true => {
+                let base_url = connectors
+                    .braintree
+                    .secondary_base_url
+                    .as_ref()
+                    .ok_or(errors::ConnectorError::FailedToObtainIntegrationUrl)?;
+                Ok(base_url.to_string())
+            }
+            false => {
+                Err(errors::ConnectorError::NotImplemented("get_url method".to_string()).into())
+            }
         }
     }
 
@@ -1104,18 +1147,19 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
         &self,
         req: &types::RefundSyncRouterData,
     ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
-        let connector_api_version = req.connector_api_version.clone();
-        if connector_api_version == Some("v2".to_string()) {
-            let connector_request =
-                braintree_graphql_transformers::BraintreeRSyncRequest::try_from(req)?;
-            let braintree_refund_request = types::RequestBody::log_and_get_request_body(
+        let connector_api_version = &req.connector_api_version;
+        match self.is_braintree_graphql_version(connector_api_version) {
+            true => {
+                let connector_request =
+                    braintree_graphql_transformers::BraintreeRSyncRequest::try_from(req)?;
+                let braintree_refund_request = types::RequestBody::log_and_get_request_body(
             &connector_request,
             utils::Encode::<braintree_graphql_transformers::BraintreeRSyncRequest>::encode_to_string_of_json,
         )
         .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-            Ok(Some(braintree_refund_request))
-        } else {
-            Ok(None)
+                Ok(Some(braintree_refund_request))
+            }
+            false => Ok(None),
         }
     }
 
@@ -1124,9 +1168,9 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
         req: &types::RefundSyncRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
-        let connector_api_version = req.connector_api_version.clone();
-        if connector_api_version == Some("v2".to_string()) {
-            Ok(Some(
+        let connector_api_version = &req.connector_api_version;
+        match self.is_braintree_graphql_version(connector_api_version) {
+            true => Ok(Some(
                 services::RequestBuilder::new()
                     .method(services::Method::Post)
                     .url(&types::RefundSyncType::get_url(self, req, connectors)?)
@@ -1134,9 +1178,8 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
                     .headers(types::RefundSyncType::get_headers(self, req, connectors)?)
                     .body(types::RefundSyncType::get_request_body(self, req)?)
                     .build(),
-            ))
-        } else {
-            Ok(None)
+            )),
+            false => Ok(None),
         }
     }
 
@@ -1148,27 +1191,30 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
         types::RouterData<api::RSync, types::RefundsData, types::RefundsResponseData>,
         errors::ConnectorError,
     > {
-        let connector_api_version = data.connector_api_version.clone();
-        if connector_api_version == Some("v2".to_string()) {
-            let response: braintree_graphql_transformers::BraintreeRSyncResponse = res
-                .response
-                .parse_struct("Braintree RefundResponse")
-                .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-            types::RouterData::try_from(types::ResponseRouterData {
-                response,
-                data: data.clone(),
-                http_code: res.status_code,
-            })
-        } else {
-            let response: braintree::RefundResponse = res
-                .response
-                .parse_struct("Braintree RefundResponse")
-                .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-            types::RouterData::try_from(types::ResponseRouterData {
-                response,
-                data: data.clone(),
-                http_code: res.status_code,
-            })
+        let connector_api_version = &data.connector_api_version;
+        match self.is_braintree_graphql_version(connector_api_version) {
+            true => {
+                let response: braintree_graphql_transformers::BraintreeRSyncResponse = res
+                    .response
+                    .parse_struct("Braintree RefundResponse")
+                    .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+                types::RouterData::try_from(types::ResponseRouterData {
+                    response,
+                    data: data.clone(),
+                    http_code: res.status_code,
+                })
+            }
+            false => {
+                let response: braintree::RefundResponse = res
+                    .response
+                    .parse_struct("Braintree RefundResponse")
+                    .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+                types::RouterData::try_from(types::ResponseRouterData {
+                    response,
+                    data: data.clone(),
+                    http_code: res.status_code,
+                })
+            }
         }
     }
     fn get_error_response(

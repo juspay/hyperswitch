@@ -9,6 +9,12 @@ use crate::{
     types::{self, api, storage::enums},
 };
 
+pub const CHARGE_CREDIT_CARD_MUTATION: &str = "mutation ChargeCreditCard($input: ChargeCreditCardInput!) { chargeCreditCard(input: $input) { transaction { id legacyId createdAt amount { value currencyCode } status } } }";
+pub const AUTHORIZE_CREDIT_CARD_MUTATION: &str = "mutation authorizeCreditCard($input: AuthorizeCreditCardInput!) { authorizeCreditCard(input: $input) {  transaction { id legacyId amount { value currencyCode } status } } }";
+pub const CAPTURE_TRANSACTION_MUTATION: &str = "mutation captureTransaction($input: CaptureTransactionInput!) { captureTransaction(input: $input) { clientMutationId transaction { id legacyId amount { value currencyCode } status } } }";
+pub const VOID_TRANSACTION_MUTATION: &str = "mutation voidTransaction($input:  ReverseTransactionInput!) { reverseTransaction(input: $input) { clientMutationId reversal { ...  on Transaction { id legacyId amount { value currencyCode } status } } } }";
+pub const REFUND_TRANSACTION_MUTATION: &str = "mutation refundTransaction($input:  RefundTransactionInput!) { refundTransaction(input: $input) {clientMutationId refund { id legacyId amount { value currencyCode } status } } }";
+
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PaymentInput {
@@ -45,14 +51,10 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for BraintreePaymentsRequest {
     fn try_from(item: &types::PaymentsAuthorizeRouterData) -> Result<Self, Self::Error> {
         let metadata: BraintreeMeta =
             utils::to_connector_meta_from_secret(item.connector_meta_data.clone())?;
-
         utils::validate_currency(item.request.currency, metadata.merchant_config_currency)?;
 
         match item.request.payment_method_data.clone() {
             api::PaymentMethodData::Card(_) => {
-                const CHARGE_CREDIT_CARD_MUTATION: &str = "mutation ChargeCreditCard($input: ChargeCreditCardInput!) { chargeCreditCard(input: $input) { transaction { id legacyId createdAt amount { value currencyCode } status } } }";
-                const AUTHORIZE_CREDIT_CARD_MUTATION: &str = "mutation authorizeCreditCard($input: AuthorizeCreditCardInput!) { authorizeCreditCard(input: $input) {  transaction { id legacyId amount { value currencyCode } status } } }";
-
                 let query = match item.request.is_auto_capture()? {
                     true => CHARGE_CREDIT_CARD_MUTATION.to_string(),
                     false => AUTHORIZE_CREDIT_CARD_MUTATION.to_string(),
@@ -68,12 +70,12 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for BraintreePaymentsRequest {
                                     item.request.currency,
                                 )?,
                                 merchant_account_id: metadata.merchant_account_id.ok_or(
-                            errors::ConnectorError::MissingRequiredField {
-                                field_name: "merchant_account_id",
-                            },
+                                    errors::ConnectorError::MissingRequiredField {
+                                        field_name: "merchant_account_id",
+                                    },
                                 )?,
-                    },
-                },
+                            },
+                        },
                     },
                 })
             }
@@ -387,7 +389,6 @@ impl<F> TryFrom<&types::RefundsRouterData<F>> for BraintreeRefundRequest {
             utils::to_connector_meta_from_secret(item.connector_meta_data.clone())?;
 
         utils::validate_currency(item.request.currency, metadata.merchant_config_currency)?;
-        const REFUND_TRANSACTION_MUTATION: &str = "mutation refundTransaction($input:  RefundTransactionInput!) { refundTransaction(input: $input) {clientMutationId refund { id legacyId amount { value currencyCode } status } } }";
         let query = REFUND_TRANSACTION_MUTATION.to_string();
         let variables = BraintreeRefundVariables {
             input: BraintreeRefundInput {
@@ -409,13 +410,12 @@ impl<F> TryFrom<&types::RefundsRouterData<F>> for BraintreeRefundRequest {
     }
 }
 
-#[derive(Default, Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum BraintreeRefundStatus {
     SettlementPending,
     Settling,
     Settled,
-    #[default]
     SubmittedForSettlement,
     Failed,
 }
@@ -518,33 +518,33 @@ impl TryFrom<&types::RefundSyncRouterData> for BraintreeRSyncRequest {
     }
 }
 
-#[derive(Default, Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize)]
 pub struct RSyncNodeData {
     id: String,
     status: BraintreeRefundStatus,
 }
 
-#[derive(Default, Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize)]
 pub struct RSyncEdgeData {
     node: RSyncNodeData,
 }
 
-#[derive(Default, Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize)]
 pub struct RefundData {
     edges: Vec<RSyncEdgeData>,
 }
 
-#[derive(Default, Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize)]
 pub struct RSyncSearchData {
     refunds: Option<RefundData>,
 }
 
-#[derive(Default, Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize)]
 pub struct RSyncResponseData {
     search: Option<RSyncSearchData>,
 }
 
-#[derive(Default, Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize)]
 pub struct BraintreeRSyncResponse {
     data: Option<RSyncResponseData>,
     errors: Option<Vec<ErrorDetails>>,
@@ -752,7 +752,6 @@ pub struct BraintreeCaptureRequest {
 impl TryFrom<&types::PaymentsCaptureRouterData> for BraintreeCaptureRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::PaymentsCaptureRouterData) -> Result<Self, Self::Error> {
-        const CAPTURE_TRANSACTION_MUTATION: &str = "mutation captureTransaction($input: CaptureTransactionInput!) { captureTransaction(input: $input) { clientMutationId transaction { id legacyId amount { value currencyCode } status } } }";
         let query = CAPTURE_TRANSACTION_MUTATION.to_string();
         let variables = VariableCaptureInput {
             input: CaptureInputData {
@@ -869,7 +868,6 @@ pub struct BraintreeCancelRequest {
 impl TryFrom<&types::PaymentsCancelRouterData> for BraintreeCancelRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::PaymentsCancelRouterData) -> Result<Self, Self::Error> {
-        const VOID_TRANSACTION_MUTATION: &str = "mutation voidTransaction($input:  ReverseTransactionInput!) { reverseTransaction(input: $input) { clientMutationId reversal { ...  on Transaction { id legacyId amount { value currencyCode } status } } } }";
         let query = VOID_TRANSACTION_MUTATION.to_string();
         let variables = VariableCancelInput {
             input: CancelInputData {
