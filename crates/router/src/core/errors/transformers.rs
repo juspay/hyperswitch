@@ -277,7 +277,7 @@ impl ErrorSwitch<api_models::errors::types::ApiErrorResponse> for CustomersError
         use api_models::errors::types::{ApiError, ApiErrorResponse as AER};
         match self {
             Self::CustomerRedacted => AER::BadRequest(ApiError::new(
-                "IR",
+                "HE",
                 0,
                 "Customer has already been redacted",
                 None,
@@ -286,13 +286,13 @@ impl ErrorSwitch<api_models::errors::types::ApiErrorResponse> for CustomersError
                 AER::InternalServerError(ApiError::new("IR", 1, "Something went wrong", None))
             }
             Self::MandateActive => AER::BadRequest(ApiError::new(
-                "IR",
+                "HE",
                 2,
                 "Customer has active mandate/subsciption",
                 None,
             )),
             Self::CustomerNotFound => AER::NotFound(ApiError::new(
-                "IR",
+                "HE",
                 3,
                 "Customer does not exist in our records",
                 None,
