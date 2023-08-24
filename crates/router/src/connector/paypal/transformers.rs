@@ -244,7 +244,10 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PaypalPaymentsRequest {
                 };
                 let amount = OrderAmount {
                     currency_code: item.request.currency,
-                    value: item.request.amount.to_string(),
+                    value: utils::to_currency_base_unit_with_zero_decimal_check(
+                        item.request.amount,
+                        item.request.currency,
+                    )?,
                 };
                 let reference_id = item.attempt_id.clone();
                 let purchase_units = vec![PurchaseUnitRequest {
