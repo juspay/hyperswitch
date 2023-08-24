@@ -881,6 +881,8 @@ pub enum PaypalWebhookEventType {
     CheckoutOrderCompleted,
     #[serde(rename = "CHECKOUT.ORDER.PROCESSED")]
     CheckoutOrderProcessed,
+    #[serde(other)]
+    Unknown,
 }
 
 #[derive(Deserialize, Debug, Serialize)]
@@ -929,24 +931,6 @@ pub struct PaypalRelatedIds {
     pub order_id: String,
 }
 
-pub fn is_transaction_event(event: &PaypalWebhookEventType) -> bool {
-    matches!(
-        event,
-        PaypalWebhookEventType::PaymentCaptureCompleted
-            | PaypalWebhookEventType::PaymentAuthorizationVoided
-            | PaypalWebhookEventType::PaymentCaptureDeclined
-            | PaypalWebhookEventType::PaymentCapturePending
-            | PaypalWebhookEventType::PaymentAuthorizationCreated
-            | PaypalWebhookEventType::CheckoutOrderApproved
-            | PaypalWebhookEventType::CheckoutOrderCompleted
-            | PaypalWebhookEventType::CheckoutOrderProcessed
-    )
-}
-
-pub fn is_refund_event(event: &PaypalWebhookEventType) -> bool {
-    matches!(event, PaypalWebhookEventType::PaymentCaptureRefunded)
-}
-
 #[derive(Deserialize, Debug, Serialize)]
 pub struct PaypalWebooksEventType {
     pub event_type: PaypalWebhookEventType,
@@ -964,6 +948,7 @@ impl From<PaypalWebhookEventType> for api::IncomingWebhookEvent {
             | PaypalWebhookEventType::CheckoutOrderProcessed => Self::PaymentIntentProcessing,
             PaypalWebhookEventType::PaymentCaptureDeclined => Self::PaymentIntentFailure,
             PaypalWebhookEventType::PaymentCaptureRefunded => Self::RefundSuccess,
+            PaypalWebhookEventType::Unknown => Self::EventNotSupported,
         }
     }
 }
