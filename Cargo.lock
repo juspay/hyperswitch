@@ -1645,6 +1645,22 @@ dependencies = [
 ]
 
 [[package]]
+name = "data_models"
+version = "0.1.0"
+dependencies = [
+ "api_models",
+ "async-trait",
+ "common_enums",
+ "common_utils",
+ "error-stack",
+ "serde",
+ "serde_json",
+ "strum 0.25.0",
+ "thiserror",
+ "time 0.3.22",
+]
+
+[[package]]
 name = "deadpool"
 version = "0.9.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1824,9 +1840,9 @@ dependencies = [
 
 [[package]]
 name = "dyn-clone"
-version = "1.0.11"
+version = "1.0.13"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "68b0cf012f1230e43cd00ebb729c6bb58707ecfa8ad08b52ef3a4ccd2697fc30"
+checksum = "bbfc4744c1b8f2a09adc0e55242f60b1af195d88596bd8700be74418c056c555"
 
 [[package]]
 name = "either"
@@ -2998,9 +3014,9 @@ dependencies = [
 
 [[package]]
 name = "moka"
-version = "0.11.2"
+version = "0.11.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "206bf83f415b0579fd885fe0804eb828e727636657dc1bf73d80d2f1218e14a1"
+checksum = "fa6e72583bf6830c956235bff0d5afec8cf2952f579ebad18ae7821a917d950f"
 dependencies = [
  "async-io",
  "async-lock",
@@ -3968,7 +3984,7 @@ dependencies = [
  "clap",
  "common_utils",
  "config",
- "crc32fast",
+ "data_models",
  "derive_deref",
  "diesel",
  "diesel_models",
@@ -3988,7 +4004,6 @@ dependencies = [
  "maud",
  "mimalloc",
  "mime",
- "moka",
  "nanoid",
  "num_cpus",
  "once_cell",
@@ -4588,11 +4603,24 @@ checksum = "6e63cff320ae2c57904679ba7cb63280a3dc4613885beafb148ee7bf9aa9042d"
 name = "storage_impl"
 version = "0.1.0"
 dependencies = [
+ "api_models",
  "async-bb8-diesel",
  "async-trait",
  "bb8",
+ "common_utils",
+ "crc32fast",
+ "data_models",
  "diesel",
+ "diesel_models",
+ "dyn-clone",
+ "error-stack",
+ "futures",
  "masking",
+ "moka",
+ "once_cell",
+ "redis_interface",
+ "router_env",
+ "tokio",
 ]
 
 [[package]]
