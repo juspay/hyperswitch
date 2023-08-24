@@ -402,7 +402,7 @@ pub async fn business_profile_create(
         state.get_ref(),
         &req,
         payload,
-        |state, _, req| create_business_profile(&*state.store, req, &merchant_id),
+        |state, _, req| create_business_profile(&*state.store, req, &merchant_id, None),
         &auth::AdminApiAuth,
     )
     .await
