@@ -100,10 +100,16 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for BraintreePaymentsRequest {
     }
 }
 
-#[derive(Debug, Deserialize)]
-pub struct BraintreeAuthResponse {
-    data: Option<DataAuthResponse>,
-    errors: Option<Vec<ErrorDetails>>,
+#[derive(Debug, Clone, Deserialize)]
+pub struct AuthResponse {
+    data: DataAuthResponse,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(untagged)]
+pub enum BraintreeAuthResponse {
+    AuthResponse(Box<AuthResponse>),
+    ErrorResponse(Box<ErrorResponse>),
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -112,15 +118,15 @@ pub struct TransactionAuthChargeResponseBody {
     status: BraintreePaymentStatus,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct DataAuthResponse {
-    authorize_credit_card: Option<AuthChargeCreditCard>,
+    authorize_credit_card: AuthChargeCreditCard,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Clone, Deserialize)]
 pub struct AuthChargeCreditCard {
-    transaction: Option<TransactionAuthChargeResponseBody>,
+    transaction: TransactionAuthChargeResponseBody,
 }
 
 impl<F, T>
@@ -131,49 +137,29 @@ impl<F, T>
     fn try_from(
         item: types::ResponseRouterData<F, BraintreeAuthResponse, T, types::PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
-        if item.response.errors.is_some() {
-            Ok(Self {
-                response: build_error_response(
-                    &item
-                        .response
-                        .errors
-                        .ok_or(errors::ConnectorError::ResponseDeserializationFailed)?,
-                    item.http_code,
-                ),
+        match item.response {
+            BraintreeAuthResponse::ErrorResponse(error_response) => Ok(Self {
+                response: build_error_response(&error_response.errors, item.http_code),
                 ..item.data
-            })
-        } else {
-            let transaction_data = match &item.response.data {
-                Some(transaction_info) => transaction_info
-                    .authorize_credit_card
-                    .as_ref()
-                    .ok_or(errors::ConnectorError::ResponseDeserializationFailed)?
-                    .transaction
-                    .as_ref(),
-                None => Err(errors::ConnectorError::ResponseDeserializationFailed)?,
-            };
-            Ok(Self {
-                status: enums::AttemptStatus::from(
-                    transaction_data
-                        .ok_or(errors::ConnectorError::ResponseDeserializationFailed)?
-                        .status
-                        .clone(),
-                ),
-                response: Ok(types::PaymentsResponseData::TransactionResponse {
-                    resource_id: types::ResponseId::ConnectorTransactionId(
-                        transaction_data
-                            .ok_or(errors::ConnectorError::ResponseDeserializationFailed)?
-                            .id
-                            .clone(),
-                    ),
-                    redirection_data: None,
-                    mandate_reference: None,
-                    connector_metadata: None,
-                    network_txn_id: None,
-                    connector_response_reference_id: None,
-                }),
-                ..item.data
-            })
+            }),
+            BraintreeAuthResponse::AuthResponse(auth_response) => {
+                let transaction_data = auth_response.data.authorize_credit_card.transaction;
+
+                Ok(Self {
+                    status: enums::AttemptStatus::from(transaction_data.status.clone()),
+                    response: Ok(types::PaymentsResponseData::TransactionResponse {
+                        resource_id: types::ResponseId::ConnectorTransactionId(
+                            transaction_data.id.clone(),
+                        ),
+                        redirection_data: None,
+                        mandate_reference: None,
+                        connector_metadata: None,
+                        network_txn_id: None,
+                        connector_response_reference_id: None,
+                    }),
+                    ..item.data
+                })
+            }
         }
     }
 }
@@ -182,6 +168,16 @@ fn build_error_response<T>(
     response: &[ErrorDetails],
     http_code: u16,
 ) -> Result<T, types::ErrorResponse> {
+    let error_messages = response
+        .iter()
+        .map(|error| error.message.to_string())
+        .collect::<Vec<String>>();
+
+    let reason = match !error_messages.is_empty() {
+        true => Some(error_messages.join(" ")),
+        false => None,
+    };
+
     get_error_response(
         response
             .get(0)
@@ -190,6 +186,7 @@ fn build_error_response<T>(
         response
             .get(0)
             .map(|err_details| err_details.message.clone()),
+        reason,
         http_code,
     )
 }
@@ -197,12 +194,13 @@ fn build_error_response<T>(
 fn get_error_response<T>(
     error_code: Option<String>,
     error_msg: Option<String>,
+    error_reason: Option<String>,
     http_code: u16,
 ) -> Result<T, types::ErrorResponse> {
     Err(types::ErrorResponse {
         code: error_code.unwrap_or_else(|| consts::NO_ERROR_CODE.to_string()),
         message: error_msg.unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
-        reason: None,
+        reason: error_reason,
         status_code: http_code,
     })
 }
@@ -297,64 +295,49 @@ impl<F, T>
             types::PaymentsResponseData,
         >,
     ) -> Result<Self, Self::Error> {
-        if item.response.errors.is_some() {
-            Ok(Self {
-                response: build_error_response(
-                    &item
-                        .response
-                        .errors
-                        .ok_or(errors::ConnectorError::ResponseDeserializationFailed)?
-                        .clone(),
-                    item.http_code,
-                ),
+        match item.response {
+            BraintreePaymentsResponse::ErrorResponse(error_response) => Ok(Self {
+                response: build_error_response(&error_response.errors.clone(), item.http_code),
                 ..item.data
-            })
-        } else {
-            let transaction_data = match &item.response.data {
-                Some(transaction_info) => transaction_info
-                    .charge_credit_card
-                    .as_ref()
-                    .ok_or(errors::ConnectorError::ResponseDeserializationFailed)?
-                    .transaction
-                    .as_ref(),
-                None => Err(errors::ConnectorError::ResponseDeserializationFailed)?,
-            };
-            Ok(Self {
-                status: enums::AttemptStatus::from(
-                    transaction_data
-                        .ok_or(errors::ConnectorError::ResponseDeserializationFailed)?
-                        .status
-                        .clone(),
-                ),
-                response: Ok(types::PaymentsResponseData::TransactionResponse {
-                    resource_id: types::ResponseId::ConnectorTransactionId(
-                        transaction_data
-                            .ok_or(errors::ConnectorError::ResponseDeserializationFailed)?
-                            .id
-                            .clone(),
-                    ),
-                    redirection_data: None,
-                    mandate_reference: None,
-                    connector_metadata: None,
-                    network_txn_id: None,
-                    connector_response_reference_id: None,
-                }),
-                ..item.data
-            })
+            }),
+            BraintreePaymentsResponse::PaymentsResponse(payment_response) => {
+                let transaction_data = payment_response.data.charge_credit_card.transaction;
+
+                Ok(Self {
+                    status: enums::AttemptStatus::from(transaction_data.status.clone()),
+                    response: Ok(types::PaymentsResponseData::TransactionResponse {
+                        resource_id: types::ResponseId::ConnectorTransactionId(
+                            transaction_data.id.clone(),
+                        ),
+                        redirection_data: None,
+                        mandate_reference: None,
+                        connector_metadata: None,
+                        network_txn_id: None,
+                        connector_response_reference_id: None,
+                    }),
+                    ..item.data
+                })
+            }
         }
     }
 }
 
-#[derive(Debug, Deserialize)]
-pub struct BraintreePaymentsResponse {
-    data: Option<DataResponse>,
-    errors: Option<Vec<ErrorDetails>>,
+#[derive(Debug, Clone, Deserialize)]
+pub struct PaymentsResponse {
+    data: DataResponse,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Clone, Deserialize)]
+#[serde(untagged)]
+pub enum BraintreePaymentsResponse {
+    PaymentsResponse(Box<PaymentsResponse>),
+    ErrorResponse(Box<ErrorResponse>),
+}
+
+#[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct DataResponse {
-    charge_credit_card: Option<AuthChargeCreditCard>,
+    charge_credit_card: AuthChargeCreditCard,
 }
 
 #[derive(Default, Debug, Clone, Serialize)]
@@ -439,19 +422,26 @@ pub struct BraintreeRefundTransactionBody {
 
 #[derive(Debug, Clone, Deserialize)]
 pub struct BraintreeRefundTransaction {
-    pub refund: Option<BraintreeRefundTransactionBody>,
+    pub refund: BraintreeRefundTransactionBody,
 }
 
 #[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct BraintreeRefundResponseData {
-    pub refund_transaction: Option<BraintreeRefundTransaction>,
+    pub refund_transaction: BraintreeRefundTransaction,
 }
 
 #[derive(Debug, Clone, Deserialize)]
-pub struct BraintreeRefundResponse {
-    pub data: Option<BraintreeRefundResponseData>,
-    pub errors: Option<Vec<ErrorDetails>>,
+
+pub struct RefundResponse {
+    pub data: BraintreeRefundResponseData,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(untagged)]
+pub enum BraintreeRefundResponse {
+    RefundResponse(Box<RefundResponse>),
+    ErrorResponse(Box<ErrorResponse>),
 }
 
 impl TryFrom<types::RefundsResponseRouterData<api::Execute, BraintreeRefundResponse>>
@@ -462,38 +452,18 @@ impl TryFrom<types::RefundsResponseRouterData<api::Execute, BraintreeRefundRespo
         item: types::RefundsResponseRouterData<api::Execute, BraintreeRefundResponse>,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
-            response: if item.response.errors.is_some() {
-                build_error_response(
-                    &item
-                        .response
-                        .errors
-                        .ok_or(errors::ConnectorError::ResponseDeserializationFailed)?,
-                    item.http_code,
-                )
-            } else {
-                let refund_data = match &item.response.data {
-                    Some(refund_info) => refund_info
-                        .refund_transaction
-                        .as_ref()
-                        .ok_or(errors::ConnectorError::ResponseDeserializationFailed)?
-                        .refund
-                        .as_ref(),
-                    None => Err(errors::ConnectorError::ResponseDeserializationFailed)?,
-                };
+            response: match item.response {
+                BraintreeRefundResponse::ErrorResponse(error_response) => {
+                    build_error_response(&error_response.errors, item.http_code)
+                }
+                BraintreeRefundResponse::RefundResponse(refund_data) => {
+                    let refund_data = refund_data.data.refund_transaction.refund;
 
-                Ok(types::RefundsResponseData {
-                    connector_refund_id: refund_data
-                        .ok_or(errors::ConnectorError::ResponseDeserializationFailed)?
-                        .id
-                        .clone(),
-                    refund_status: enums::RefundStatus::from(
-                        refund_data
-                            .as_ref()
-                            .ok_or(errors::ConnectorError::ResponseDeserializationFailed)?
-                            .status
-                            .clone(),
-                    ),
-                })
+                    Ok(types::RefundsResponseData {
+                        connector_refund_id: refund_data.id.clone(),
+                        refund_status: enums::RefundStatus::from(refund_data.status.clone()),
+                    })
+                }
             },
             ..item.data
         })
@@ -536,18 +506,24 @@ pub struct RefundData {
 
 #[derive(Debug, Clone, Deserialize)]
 pub struct RSyncSearchData {
-    refunds: Option<RefundData>,
+    refunds: RefundData,
 }
 
 #[derive(Debug, Clone, Deserialize)]
 pub struct RSyncResponseData {
-    search: Option<RSyncSearchData>,
+    search: RSyncSearchData,
+}
+
+#[derive(Default, Debug, Clone, Deserialize)]
+pub struct RSyncResponse {
+    data: RSyncResponseData,
 }
 
 #[derive(Debug, Clone, Deserialize)]
-pub struct BraintreeRSyncResponse {
-    data: Option<RSyncResponseData>,
-    errors: Option<Vec<ErrorDetails>>,
+#[serde(untagged)]
+pub enum BraintreeRSyncResponse {
+    RSyncResponse(Box<RSyncResponse>),
+    ErrorResponse(Box<ErrorResponse>),
 }
 
 impl TryFrom<types::RefundsResponseRouterData<api::RSync, BraintreeRSyncResponse>>
@@ -557,41 +533,29 @@ impl TryFrom<types::RefundsResponseRouterData<api::RSync, BraintreeRSyncResponse
     fn try_from(
         item: types::RefundsResponseRouterData<api::RSync, BraintreeRSyncResponse>,
     ) -> Result<Self, Self::Error> {
-        if item.response.errors.is_some() {
-            Ok(Self {
-                response: build_error_response(
-                    &item
-                        .response
-                        .errors
-                        .ok_or(errors::ConnectorError::ResponseDeserializationFailed)?,
-                    item.http_code,
-                ),
+        match item.response {
+            BraintreeRSyncResponse::ErrorResponse(error_response) => Ok(Self {
+                response: build_error_response(&error_response.errors, item.http_code),
                 ..item.data
-            })
-        } else {
-            let edge_data = item
-                .response
-                .data
-                .as_ref()
-                .ok_or(errors::ConnectorError::ResponseDeserializationFailed)?
-                .search
-                .as_ref()
-                .ok_or(errors::ConnectorError::ResponseDeserializationFailed)?
-                .refunds
-                .as_ref()
-                .ok_or(errors::ConnectorError::ResponseDeserializationFailed)?
-                .edges
-                .first()
-                .ok_or(errors::ConnectorError::MissingConnectorRefundID)?;
-            let connector_refund_id = &edge_data.node.id;
-            let response = Ok(types::RefundsResponseData {
-                connector_refund_id: connector_refund_id.to_string(),
-                refund_status: enums::RefundStatus::from(edge_data.node.status.clone()),
-            });
-            Ok(Self {
-                response,
-                ..item.data
-            })
+            }),
+            BraintreeRSyncResponse::RSyncResponse(rsync_response) => {
+                let edge_data = rsync_response
+                    .data
+                    .search
+                    .refunds
+                    .edges
+                    .first()
+                    .ok_or(errors::ConnectorError::MissingConnectorRefundID)?;
+                let connector_refund_id = &edge_data.node.id;
+                let response = Ok(types::RefundsResponseData {
+                    connector_refund_id: connector_refund_id.to_string(),
+                    refund_status: enums::RefundStatus::from(edge_data.node.status.clone()),
+                });
+                Ok(Self {
+                    response,
+                    ..item.data
+                })
+            }
         }
     }
 }
@@ -672,19 +636,30 @@ pub struct TokenizePaymentMethodData {
 #[derive(Default, Debug, Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct TokenizeCreditCardData {
-    payment_method: Option<TokenizePaymentMethodData>,
+    payment_method: TokenizePaymentMethodData,
 }
 
 #[derive(Default, Debug, Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct TokenizeCreditCard {
-    tokenize_credit_card: Option<TokenizeCreditCardData>,
+    tokenize_credit_card: TokenizeCreditCardData,
 }
 
 #[derive(Default, Debug, Clone, Deserialize)]
-pub struct BraintreeTokenResponse {
-    data: Option<TokenizeCreditCard>,
-    errors: Option<Vec<ErrorDetails>>,
+pub struct TokenResponse {
+    data: TokenizeCreditCard,
+}
+
+#[derive(Default, Debug, Clone, Deserialize)]
+pub struct ErrorResponse {
+    errors: Vec<ErrorDetails>,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(untagged)]
+pub enum BraintreeTokenResponse {
+    TokenResponse(Box<TokenResponse>),
+    ErrorResponse(Box<ErrorResponse>),
 }
 
 impl<F, T>
@@ -696,29 +671,21 @@ impl<F, T>
         item: types::ResponseRouterData<F, BraintreeTokenResponse, T, types::PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
-            response: if item.response.errors.is_some() {
-                build_error_response(
-                    &item
-                        .response
-                        .errors
-                        .ok_or(errors::ConnectorError::ResponseDeserializationFailed)?,
-                    item.http_code,
-                )
-            } else {
-                Ok(types::PaymentsResponseData::TokenizationResponse {
-                    token: item
-                        .response
-                        .data
-                        .ok_or(errors::ConnectorError::MissingConnectorTransactionID)?
-                        .tokenize_credit_card
-                        .as_ref()
-                        .ok_or(errors::ConnectorError::ResponseDeserializationFailed)?
-                        .payment_method
-                        .as_ref()
-                        .ok_or(errors::ConnectorError::ResponseDeserializationFailed)?
-                        .id
-                        .clone(),
-                })
+            response: match item.response {
+                BraintreeTokenResponse::ErrorResponse(error_response) => {
+                    build_error_response(error_response.errors.as_ref(), item.http_code)
+                }
+
+                BraintreeTokenResponse::TokenResponse(token_response) => {
+                    Ok(types::PaymentsResponseData::TokenizationResponse {
+                        token: token_response
+                            .data
+                            .tokenize_credit_card
+                            .payment_method
+                            .id
+                            .clone(),
+                    })
+                }
             },
             ..item.data
         })
@@ -774,21 +741,27 @@ pub struct CaptureResponseTransactionBody {
     status: BraintreePaymentStatus,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Clone, Deserialize)]
 pub struct CaptureTransactionData {
-    transaction: Option<CaptureResponseTransactionBody>,
+    transaction: CaptureResponseTransactionBody,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CaptureResponseData {
-    capture_transaction: Option<CaptureTransactionData>,
+    capture_transaction: CaptureTransactionData,
 }
 
-#[derive(Debug, Deserialize)]
-pub struct BraintreeCaptureResponse {
-    data: Option<CaptureResponseData>,
-    errors: Option<Vec<ErrorDetails>>,
+#[derive(Debug, Clone, Deserialize)]
+pub struct CaptureResponse {
+    data: CaptureResponseData,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(untagged)]
+pub enum BraintreeCaptureResponse {
+    CaptureResponse(Box<CaptureResponse>),
+    ErrorResponse(Box<ErrorResponse>),
 }
 
 impl TryFrom<types::PaymentsCaptureResponseRouterData<BraintreeCaptureResponse>>
@@ -798,52 +771,29 @@ impl TryFrom<types::PaymentsCaptureResponseRouterData<BraintreeCaptureResponse>>
     fn try_from(
         item: types::PaymentsCaptureResponseRouterData<BraintreeCaptureResponse>,
     ) -> Result<Self, Self::Error> {
-        if item.response.errors.is_some() {
-            Ok(Self {
-                response: build_error_response(
-                    &item
-                        .response
-                        .errors
-                        .ok_or(errors::ConnectorError::RequestEncodingFailed)?,
-                    item.http_code,
-                ),
+        match item.response {
+            BraintreeCaptureResponse::CaptureResponse(capture_data) => {
+                let transaction_data = capture_data.data.capture_transaction.transaction;
+
+                Ok(Self {
+                    status: enums::AttemptStatus::from(transaction_data.status.clone()),
+                    response: Ok(types::PaymentsResponseData::TransactionResponse {
+                        resource_id: types::ResponseId::ConnectorTransactionId(
+                            transaction_data.id.clone(),
+                        ),
+                        redirection_data: None,
+                        mandate_reference: None,
+                        connector_metadata: None,
+                        network_txn_id: None,
+                        connector_response_reference_id: None,
+                    }),
+                    ..item.data
+                })
+            }
+            BraintreeCaptureResponse::ErrorResponse(error_data) => Ok(Self {
+                response: build_error_response(&error_data.errors, item.http_code),
                 ..item.data
-            })
-        } else {
-            let transaction_data = match &item.response.data {
-                Some(transaction_info) => {
-                    &transaction_info
-                        .capture_transaction
-                        .as_ref()
-                        .ok_or(errors::ConnectorError::ResponseDeserializationFailed)?
-                        .transaction
-                }
-                None => Err(errors::ConnectorError::ResponseDeserializationFailed)?,
-            };
-            Ok(Self {
-                status: enums::AttemptStatus::from(
-                    transaction_data
-                        .as_ref()
-                        .ok_or(errors::ConnectorError::ResponseDeserializationFailed)?
-                        .status
-                        .clone(),
-                ),
-                response: Ok(types::PaymentsResponseData::TransactionResponse {
-                    resource_id: types::ResponseId::ConnectorTransactionId(
-                        transaction_data
-                            .as_ref()
-                            .ok_or(errors::ConnectorError::ResponseDeserializationFailed)?
-                            .id
-                            .clone(),
-                    ),
-                    redirection_data: None,
-                    mandate_reference: None,
-                    connector_metadata: None,
-                    network_txn_id: None,
-                    connector_response_reference_id: None,
-                }),
-                ..item.data
-            })
+            }),
         }
     }
 }
@@ -884,21 +834,27 @@ pub struct CancelResponseTransactionBody {
     status: BraintreePaymentStatus,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Clone, Deserialize)]
 pub struct CancelTransactionData {
-    reversal: Option<CancelResponseTransactionBody>,
+    reversal: CancelResponseTransactionBody,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CancelResponseData {
-    reverse_transaction: Option<CancelTransactionData>,
+    reverse_transaction: CancelTransactionData,
 }
 
-#[derive(Debug, Deserialize)]
-pub struct BraintreeCancelResponse {
-    data: Option<CancelResponseData>,
-    errors: Option<Vec<ErrorDetails>>,
+#[derive(Debug, Clone, Deserialize)]
+pub struct CancelResponse {
+    data: CancelResponseData,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(untagged)]
+pub enum BraintreeCancelResponse {
+    CancelResponse(Box<CancelResponse>),
+    ErrorResponse(Box<ErrorResponse>),
 }
 
 impl<F, T>
@@ -909,50 +865,30 @@ impl<F, T>
     fn try_from(
         item: types::ResponseRouterData<F, BraintreeCancelResponse, T, types::PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
-        if item.response.errors.is_some() {
-            Ok(Self {
-                response: build_error_response(
-                    &item
-                        .response
-                        .errors
-                        .ok_or(errors::ConnectorError::ResponseDeserializationFailed)?,
-                    item.http_code,
-                ),
+        match item.response {
+            BraintreeCancelResponse::ErrorResponse(error_response) => Ok(Self {
+                response: build_error_response(&error_response.errors, item.http_code),
                 ..item.data
-            })
-        } else {
-            let void_data = match &item.response.data {
-                Some(void_info) => void_info
-                    .reverse_transaction
-                    .as_ref()
-                    .ok_or(errors::ConnectorError::ResponseDeserializationFailed)?
-                    .reversal
-                    .as_ref(),
-                None => Err(errors::ConnectorError::ResponseDeserializationFailed)?,
-            };
-            let transaction_id = void_data
-                .ok_or(errors::ConnectorError::ResponseDeserializationFailed)?
-                .id
-                .clone();
-            Ok(Self {
-                status: enums::AttemptStatus::from(
-                    void_data
-                        .ok_or(errors::ConnectorError::ResponseDeserializationFailed)?
-                        .status
-                        .clone(),
-                ),
-                response: Ok(types::PaymentsResponseData::TransactionResponse {
-                    resource_id: types::ResponseId::ConnectorTransactionId(
-                        transaction_id.to_string(),
-                    ),
-                    redirection_data: None,
-                    mandate_reference: None,
-                    connector_metadata: None,
-                    network_txn_id: None,
-                    connector_response_reference_id: None,
-                }),
-                ..item.data
-            })
+            }),
+            BraintreeCancelResponse::CancelResponse(void_response) => {
+                let void_data = void_response.data.reverse_transaction.reversal;
+
+                let transaction_id = void_data.id.clone();
+                Ok(Self {
+                    status: enums::AttemptStatus::from(void_data.status.clone()),
+                    response: Ok(types::PaymentsResponseData::TransactionResponse {
+                        resource_id: types::ResponseId::ConnectorTransactionId(
+                            transaction_id.to_string(),
+                        ),
+                        redirection_data: None,
+                        mandate_reference: None,
+                        connector_metadata: None,
+                        network_txn_id: None,
+                        connector_response_reference_id: None,
+                    }),
+                    ..item.data
+                })
+            }
         }
     }
 }
@@ -981,30 +917,36 @@ pub struct NodeData {
     status: BraintreePaymentStatus,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Clone, Deserialize)]
 pub struct EdgeData {
     node: NodeData,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Clone, Deserialize)]
 pub struct TransactionData {
     edges: Vec<EdgeData>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Clone, Deserialize)]
 pub struct SearchData {
-    transactions: Option<TransactionData>,
+    transactions: TransactionData,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Clone, Deserialize)]
 pub struct PSyncResponseData {
-    search: Option<SearchData>,
+    search: SearchData,
 }
 
-#[derive(Debug, Deserialize)]
-pub struct BraintreePSyncResponse {
-    data: Option<PSyncResponseData>,
-    errors: Option<Vec<ErrorDetails>>,
+#[derive(Debug, Clone, Deserialize)]
+#[serde(untagged)]
+pub enum BraintreePSyncResponse {
+    PSyncResponse(Box<PSyncResponse>),
+    ErrorResponse(Box<ErrorResponse>),
+}
+
+#[derive(Debug, Clone, Deserialize)]
+pub struct PSyncResponse {
+    data: PSyncResponseData,
 }
 
 impl<F, T>
@@ -1015,47 +957,35 @@ impl<F, T>
     fn try_from(
         item: types::ResponseRouterData<F, BraintreePSyncResponse, T, types::PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
-        if item.response.errors.is_some() {
-            Ok(Self {
-                response: build_error_response(
-                    &item
-                        .response
-                        .errors
-                        .ok_or(errors::ConnectorError::ResponseDeserializationFailed)?,
-                    item.http_code,
-                ),
+        match item.response {
+            BraintreePSyncResponse::ErrorResponse(error_response) => Ok(Self {
+                response: build_error_response(&error_response.errors, item.http_code),
                 ..item.data
-            })
-        } else {
-            let edge_data = item
-                .response
-                .data
-                .as_ref()
-                .ok_or(errors::ConnectorError::ResponseDeserializationFailed)?
-                .search
-                .as_ref()
-                .ok_or(errors::ConnectorError::ResponseDeserializationFailed)?
-                .transactions
-                .as_ref()
-                .ok_or(errors::ConnectorError::ResponseDeserializationFailed)?
-                .edges
-                .first()
-                .ok_or(errors::ConnectorError::MissingConnectorTransactionID)?;
-            let transaction_id = &edge_data.node.id;
-            Ok(Self {
-                status: enums::AttemptStatus::from(edge_data.node.status.clone()),
-                response: Ok(types::PaymentsResponseData::TransactionResponse {
-                    resource_id: types::ResponseId::ConnectorTransactionId(
-                        transaction_id.to_string(),
-                    ),
-                    redirection_data: None,
-                    mandate_reference: None,
-                    connector_metadata: None,
-                    network_txn_id: None,
-                    connector_response_reference_id: None,
-                }),
-                ..item.data
-            })
+            }),
+            BraintreePSyncResponse::PSyncResponse(psync_response) => {
+                let edge_data = psync_response
+                    .data
+                    .search
+                    .transactions
+                    .edges
+                    .first()
+                    .ok_or(errors::ConnectorError::MissingConnectorTransactionID)?;
+                let transaction_id = &edge_data.node.id;
+                Ok(Self {
+                    status: enums::AttemptStatus::from(edge_data.node.status.clone()),
+                    response: Ok(types::PaymentsResponseData::TransactionResponse {
+                        resource_id: types::ResponseId::ConnectorTransactionId(
+                            transaction_id.to_string(),
+                        ),
+                        redirection_data: None,
+                        mandate_reference: None,
+                        connector_metadata: None,
+                        network_txn_id: None,
+                        connector_response_reference_id: None,
+                    }),
+                    ..item.data
+                })
+            }
         }
     }
 }
