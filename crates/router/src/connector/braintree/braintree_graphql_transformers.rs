@@ -166,6 +166,16 @@ fn build_error_response<T>(
     response: &[ErrorDetails],
     http_code: u16,
 ) -> Result<T, types::ErrorResponse> {
+    let error_messages = response
+        .iter()
+        .map(|error| error.message.to_string())
+        .collect::<Vec<String>>();
+
+    let reason = match !error_messages.is_empty() {
+        true => Some(error_messages.join(" ")),
+        false => None,
+    };
+
     get_error_response(
         response
             .get(0)
@@ -174,6 +184,7 @@ fn build_error_response<T>(
         response
             .get(0)
             .map(|err_details| err_details.message.clone()),
+        reason,
         http_code,
     )
 }
@@ -181,12 +192,13 @@ fn build_error_response<T>(
 fn get_error_response<T>(
     error_code: Option<String>,
     error_msg: Option<String>,
+    error_reason: Option<String>,
     http_code: u16,
 ) -> Result<T, types::ErrorResponse> {
     Err(types::ErrorResponse {
         code: error_code.unwrap_or_else(|| consts::NO_ERROR_CODE.to_string()),
         message: error_msg.unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
-        reason: None,
+        reason: error_reason,
         status_code: http_code,
     })
 }
