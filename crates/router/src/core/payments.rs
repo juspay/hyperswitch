@@ -17,6 +17,8 @@ use futures::future::join_all;
 use masking::Secret;
 use router_env::{instrument, tracing};
 use time;
+#[cfg(feature = "olap")]
+use crate::types::transformers::ForeignFrom;
 
 pub use self::operations::{
     PaymentCancel, PaymentCapture, PaymentConfirm, PaymentCreate, PaymentMethodValidate,
@@ -1343,7 +1345,7 @@ pub async fn list_payments(
 ) -> RouterResponse<api::PaymentListResponse> {
     use data_models::errors::StorageError;
 
-    use crate::types::transformers::ForeignFrom;
+
 
     helpers::validate_payment_list_request(&constraints)?;
     let merchant_id = &merchant.merchant_id;
@@ -1409,9 +1411,7 @@ pub async fn apply_filters_on_payments(
     merchant: domain::MerchantAccount,
     constraints: api::PaymentListFilterConstraints,
 ) -> RouterResponse<api::PaymentListResponse> {
-    use storage_impl::DataModelExt;
 
-    use crate::types::transformers::ForeignFrom;
 
     let list: Vec<(storage::PaymentIntent, storage::PaymentAttempt)> = db
         .get_filtered_payment_intents_attempt(
@@ -1442,7 +1442,7 @@ pub async fn get_filters_for_payments(
     merchant: domain::MerchantAccount,
     time_range: api::TimeRange,
 ) -> RouterResponse<api::PaymentListFilters> {
-    use crate::types::transformers::ForeignFrom;
+
 
     let pi = db
         .filter_payment_intents_by_time_range_constraints(

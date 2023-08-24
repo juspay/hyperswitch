@@ -28,7 +28,6 @@ use crate::{
             self,
             enums::{self, IntentStatus},
         },
-        transformers::ForeignInto,
     },
     utils::{self, OptionExt},
 };

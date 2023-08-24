@@ -2,7 +2,7 @@ use std::marker::PhantomData;
 
 use api_models::enums::CancelTransaction;
 use async_trait::async_trait;
-use common_utils::{errors::ReportSwitchExt, ext_traits::AsyncExt};
+use common_utils::ext_traits::AsyncExt;
 use error_stack::ResultExt;
 use router_derive::PaymentOperation;
 use router_env::{instrument, tracing};

@@ -12,7 +12,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     connector::utils::{
-        self, AddressDetailsData, BrowserInformationData, MandateData,
+        self, AddressDetailsData, BrowserInformationData,
         PaymentsAuthorizeRequestData, PaymentsCancelRequestData, RouterData,
     },
     consts,
