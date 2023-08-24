@@ -1,4 +1,4 @@
-use std::{fmt::Debug, marker::PhantomData};
+use std::{fmt::Debug, marker::PhantomData, str::FromStr};
 
 use common_utils::fp_utils;
 use diesel_models::{ephemeral_key, payment_attempt::PaymentListFilters};
@@ -19,7 +19,8 @@ use crate::{
     types::{
         self, api, domain,
         storage::{self, enums},
-        transformers::{ForeignFrom, ForeignInto},
+        transformers::{ForeignFrom, ForeignInto, ForeignTryFrom},
+        MultipleCaptureRequestData,
     },
     utils::{OptionExt, ValueExt},
 };
@@ -98,6 +99,29 @@ where
 
     let customer_id = customer.to_owned().map(|customer| customer.customer_id);
 
+    let supported_connector = &state
+        .conf
+        .multiple_api_version_supported_connectors
+        .supported_connectors;
+    let connector_enum = api_models::enums::Connector::from_str(connector_id)
+        .into_report()
+        .change_context(errors::ConnectorError::InvalidConnectorName)
+        .change_context(errors::ApiErrorResponse::InvalidDataValue {
+            field_name: "connector",
+        })
+        .attach_printable_lazy(|| format!("unable to parse connector name {connector_id:?}"))?;
+
+    let connector_api_version = if supported_connector.contains(&connector_enum) {
+        state
+            .store
+            .find_config_by_key_cached(&format!("connector_api_version_{connector_id}"))
+            .await
+            .map(|value| value.config)
+            .ok()
+    } else {
+        None
+    };
+
     router_data = types::RouterData {
         flow: PhantomData,
         merchant_id: merchant_account.merchant_id.clone(),
@@ -138,6 +162,7 @@ where
         quote_id: None,
         test_mode,
         payment_method_balance: None,
+        connector_api_version,
         connector_http_status_code: None,
     };
 
@@ -185,6 +210,15 @@ where
             payment_data.refunds,
             payment_data.disputes,
             payment_data.attempts,
+            payment_data
+                .multiple_capture_data
+                .map(|multiple_capture_data| {
+                    multiple_capture_data
+                        .get_all_captures()
+                        .into_iter()
+                        .cloned()
+                        .collect()
+                }),
             payment_data.payment_method_data,
             customer,
             auth_flow,
@@ -300,6 +334,7 @@ pub fn payments_to_payments_response<R, Op>(
     refunds: Vec<storage::Refund>,
     disputes: Vec<storage::Dispute>,
     option_attempts: Option<Vec<storage::PaymentAttempt>>,
+    captures: Option<Vec<storage::Capture>>,
     payment_method_data: Option<api::PaymentMethodData>,
     customer: Option<domain::Customer>,
     auth_flow: services::AuthFlow,
@@ -349,6 +384,14 @@ where
             .map(ForeignInto::foreign_into)
             .collect()
     });
+
+    let captures_response = captures.map(|captures| {
+        captures
+            .into_iter()
+            .map(ForeignInto::foreign_into)
+            .collect()
+    });
+
     let merchant_id = payment_attempt.merchant_id.to_owned();
     let payment_method_type = payment_attempt
         .payment_method_type
@@ -508,6 +551,7 @@ where
                         .set_refunds(refunds_response) // refunds.iter().map(refund_to_refund_response),
                         .set_disputes(disputes_response)
                         .set_attempts(attempts_response)
+                        .set_captures(captures_response)
                         .set_payment_method(
                             payment_attempt.payment_method,
                             auth_flow == services::AuthFlow::Merchant,
@@ -556,6 +600,7 @@ where
                         .set_feature_metadata(payment_intent.feature_metadata)
                         .set_connector_metadata(payment_intent.connector_metadata)
                         .set_reference_id(payment_attempt.connector_response_reference_id)
+                        .set_profile_id(payment_intent.profile_id)
                         .to_owned(),
                     headers,
                 ))
@@ -577,6 +622,7 @@ where
                 refunds: refunds_response,
                 disputes: disputes_response,
                 attempts: attempts_response,
+                captures: captures_response,
                 payment_method: payment_attempt.payment_method,
                 capture_method: payment_attempt.capture_method,
                 error_message: payment_attempt
@@ -708,6 +754,13 @@ impl ForeignFrom<(storage::PaymentIntent, storage::PaymentAttempt)> for api::Pay
             connector: pa.connector,
             payment_method: pa.payment_method,
             payment_method_type: pa.payment_method_type,
+            business_label: pi.business_label,
+            business_country: pi.business_country,
+            business_sub_label: pa.business_sub_label,
+            setup_future_usage: pi.setup_future_usage,
+            capture_method: pa.capture_method,
+            authentication_type: pa.authentication_type,
+            connector_transaction_id: pa.connector_transaction_id,
             ..Default::default()
         }
     }
@@ -920,6 +973,12 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsSyncData
             encoded_data: payment_data.connector_response.encoded_data,
             capture_method: payment_data.payment_attempt.capture_method,
             connector_meta: payment_data.payment_attempt.connector_metadata,
+            capture_sync_type: match payment_data.multiple_capture_data {
+                Some(multiple_capture_data) => types::CaptureSyncType::MultipleCaptureSync(
+                    multiple_capture_data.get_pending_connector_capture_ids(),
+                ),
+                None => types::CaptureSyncType::SingleCaptureSync,
+            },
         })
     }
 }
@@ -975,10 +1034,16 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsCaptureD
                 .ok_or(errors::ApiErrorResponse::ResourceIdNotFound)?,
             payment_amount: payment_data.amount.into(),
             connector_meta: payment_data.payment_attempt.connector_metadata,
-            capture_method: payment_data
-                .payment_attempt
-                .capture_method
-                .unwrap_or_default(),
+            multiple_capture_data: match payment_data.multiple_capture_data {
+                Some(multiple_capture_data) => Some(MultipleCaptureRequestData {
+                    capture_sequence: multiple_capture_data.get_captures_count()?,
+                    capture_reference: multiple_capture_data
+                        .get_latest_capture()
+                        .capture_id
+                        .clone(),
+                }),
+                None => None,
+            },
         })
     }
 }
@@ -1081,6 +1146,44 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::VerifyRequestDat
             browser_info,
             payment_method_type: attempt.payment_method_type,
         })
+    }
+}
+
+impl TryFrom<types::CaptureSyncResponse> for storage::CaptureUpdate {
+    type Error = error_stack::Report<errors::ApiErrorResponse>;
+
+    fn try_from(capture_sync_response: types::CaptureSyncResponse) -> Result<Self, Self::Error> {
+        match capture_sync_response {
+            types::CaptureSyncResponse::Success {
+                resource_id,
+                status,
+                connector_response_reference_id,
+            } => {
+                let connector_capture_id = match resource_id {
+                    types::ResponseId::ConnectorTransactionId(id) => Some(id),
+                    types::ResponseId::EncodedData(_) | types::ResponseId::NoResponseId => None,
+                };
+                Ok(Self::ResponseUpdate {
+                    status: enums::CaptureStatus::foreign_try_from(status)?,
+                    connector_capture_id,
+                    connector_response_reference_id,
+                })
+            }
+            types::CaptureSyncResponse::Error {
+                code,
+                message,
+                reason,
+                status_code,
+            } => Ok(Self::ErrorUpdate {
+                status: match status_code {
+                    500..=511 => storage::enums::CaptureStatus::Pending,
+                    _ => storage::enums::CaptureStatus::Failed,
+                },
+                error_code: Some(code),
+                error_message: Some(message),
+                error_reason: reason,
+            }),
+        }
     }
 }
 

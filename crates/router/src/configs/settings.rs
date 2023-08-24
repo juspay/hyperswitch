@@ -93,6 +93,7 @@ pub struct Settings {
     pub connector_request_reference_id_config: ConnectorRequestReferenceIdConfig,
     #[cfg(feature = "payouts")]
     pub payouts: Payouts,
+    pub multiple_api_version_supported_connectors: MultipleApiVersionSupportedConnectors,
     #[cfg(feature = "release")]
     pub applepay_merchant_configs: ApplepayMerchantConfigs,
 }
@@ -102,6 +103,12 @@ pub struct Settings {
 pub struct ApplepayMerchantConfigs {
     pub merchant_cert: String,
     pub merchant_cert_key: String,
+}
+
+#[derive(Debug, Deserialize, Clone, Default)]
+pub struct MultipleApiVersionSupportedConnectors {
+    #[serde(deserialize_with = "connector_deser")]
+    pub supported_connectors: HashSet<api_models::enums::Connector>,
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
