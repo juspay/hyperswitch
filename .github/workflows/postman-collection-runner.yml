@@ -110,7 +110,6 @@ jobs:
       - name: Install newman from fork
         run: |
           npm install -g 'git+ssh://git@github.com:knutties/newman.git#feature/newman-dir'
-          npm config get prefix 
 
       - name: Run Tests
         env:
