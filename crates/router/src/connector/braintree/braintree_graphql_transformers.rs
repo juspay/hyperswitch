@@ -948,8 +948,8 @@ impl<F, T>
         item: types::ResponseRouterData<F, BraintreePSyncResponse, T, types::PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
         match item.response {
-            BraintreePSyncResponse::ErrorResponse(error_reponse) => Ok(Self {
-                response: build_error_response(&error_reponse.errors, item.http_code),
+            BraintreePSyncResponse::ErrorResponse(error_response) => Ok(Self {
+                response: build_error_response(&error_response.errors, item.http_code),
                 ..item.data
             }),
             BraintreePSyncResponse::PSyncResponse(psync_response) => {
