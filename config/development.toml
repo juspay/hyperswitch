@@ -40,6 +40,10 @@ master_enc_key = "73ad7bbbbc640c845a150f67d058b279849370cd2c1f3c67c4dd6c869213e1
 jwt_secret = "secret"
 recon_admin_api_key = "recon_test_admin"
 
+[applepay_merchant_configs]
+merchant_cert_key = "MERCHANT CERTIFICATE KEY"
+merchant_cert = "MERCHANT CERTIFICATE"
+
 [locker]
 host = ""
 mock_locker = true

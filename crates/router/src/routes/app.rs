@@ -9,11 +9,12 @@ use tokio::sync::oneshot;
 use super::dummy_connector::*;
 #[cfg(feature = "payouts")]
 use super::payouts::*;
+#[cfg(any(feature = "olap", feature = "oltp"))]
+#[cfg(feature = "release")]
+use super::verification::apple_pay_merchant_registration;
 #[cfg(feature = "olap")]
 use super::{admin::*, api_keys::*, disputes::*, files::*};
-use super::{cache::*, health::*};
-#[cfg(any(feature = "olap", feature = "oltp"))]
-use super::{configs::*, customers::*, mandates::*, payments::*, refunds::*};
+use super::{cache::*, configs::*, customers::*, health::*, mandates::*, payments::*, refunds::*};
 #[cfg(feature = "oltp")]
 use super::{ephemeral_key::*, payment_methods::*, webhooks::*};
 use crate::{
@@ -546,6 +547,21 @@ impl BusinessProfile {
                     .route(web::get().to(business_profile_retrieve))
                     .route(web::post().to(business_profile_update))
                     .route(web::delete().to(business_profile_delete)),
+            )
+    }
+}
+
+#[cfg(feature = "release")]
+pub struct Verify;
+
+#[cfg(feature = "release")]
+impl Verify {
+    pub fn server(state: AppState) -> Scope {
+        web::scope("/verify")
+            .app_data(web::Data::new(state))
+            .service(
+                web::resource("/{merchant_id}/apple_pay")
+                    .route(web::post().to(apple_pay_merchant_registration)),
             )
     }
 }

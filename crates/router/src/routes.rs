@@ -18,12 +18,16 @@ pub mod payments;
 #[cfg(feature = "payouts")]
 pub mod payouts;
 pub mod refunds;
+#[cfg(feature = "release")]
+pub mod verification;
 pub mod webhooks;
 
 #[cfg(feature = "dummy_connector")]
 pub use self::app::DummyConnector;
 #[cfg(feature = "payouts")]
 pub use self::app::Payouts;
+#[cfg(feature = "release")]
+pub use self::app::Verify;
 pub use self::app::{
     ApiKeys, AppState, BusinessProfile, Cache, Cards, Configs, Customers, Disputes, EphemeralKey,
     Files, Health, Mandates, MerchantAccount, MerchantConnectorAccount, PaymentMethods, Payments,

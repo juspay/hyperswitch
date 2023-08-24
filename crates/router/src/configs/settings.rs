@@ -93,6 +93,15 @@ pub struct Settings {
     pub connector_request_reference_id_config: ConnectorRequestReferenceIdConfig,
     #[cfg(feature = "payouts")]
     pub payouts: Payouts,
+    #[cfg(feature = "release")]
+    pub applepay_merchant_configs: ApplepayMerchantConfigs,
+}
+
+#[derive(Debug, Deserialize, Clone, Default)]
+#[serde(default)]
+pub struct ApplepayMerchantConfigs {
+    pub merchant_cert: String,
+    pub merchant_cert_key: String,
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
