@@ -3090,19 +3090,19 @@ impl ApplePayData {
             .attach_printable("Failed to deserialize the private key")?;
 
         // Create the Deriver object and set the peer public key
-        let mut deriver = Deriver::new(&private_key)
+        let mut deriver_key = Deriver::new(&private_key)
             .into_report()
             .change_context(errors::ApplePayDecryptionError::DerivingSharedSecretKeyFailed)
             .attach_printable("Failed to create a deriver for the private key")?;
 
-        deriver
+        deriver_key
             .set_peer(&public_key)
             .into_report()
             .change_context(errors::ApplePayDecryptionError::DerivingSharedSecretKeyFailed)
             .attach_printable("Failed to set the peer key for the secret derivation")?;
 
         // Compute the shared secret
-        let shared_secret = deriver
+        let shared_secret = deriver_key
             .derive_to_vec()
             .into_report()
             .change_context(errors::ApplePayDecryptionError::DerivingSharedSecretKeyFailed)

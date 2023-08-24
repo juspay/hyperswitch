@@ -9,7 +9,9 @@ use router::{
     core::{errors, errors::ConnectorError, payments, utils as core_utils},
     db::StorageImpl,
     routes, services,
-    types::{self, api, storage::enums, AccessToken, PaymentAddress, RouterData},
+    types::{
+        self, api, storage::enums, AccessToken, PaymentAddress, PaymentMethodTokens, RouterData,
+    },
 };
 use test_utils::connector_auth::ConnectorAuthType;
 use tokio::sync::oneshot;
@@ -493,7 +495,9 @@ pub trait ConnectorActions: Connector {
             access_token: info.clone().and_then(|a| a.access_token),
             session_token: None,
             reference_id: None,
-            payment_method_token: info.clone().and_then(|a| a.payment_method_token),
+            payment_method_token: info
+                .clone()
+                .and_then(|a| a.payment_method_token.map(PaymentMethodTokens::Token)),
             connector_customer: info.clone().and_then(|a| a.connector_customer),
             recurring_mandate_payment_data: None,
 
