@@ -20,7 +20,7 @@ use crate::{
     configs::settings,
     db::{MockDb, StorageImpl, StorageInterface},
     routes::cards_info::card_iin_info,
-    services::Store,
+    services::get_store,
 };
 
 #[derive(Clone)]
@@ -69,7 +69,7 @@ impl AppState {
         let testable = storage_impl == StorageImpl::PostgresqlTest;
         let store: Box<dyn StorageInterface> = match storage_impl {
             StorageImpl::Postgresql | StorageImpl::PostgresqlTest => {
-                Box::new(Store::new(&conf, testable, shut_down_signal).await)
+                Box::new(get_store(&conf, shut_down_signal, testable).await)
             }
             StorageImpl::Mock => Box::new(MockDb::new(&conf).await),
         };
@@ -526,5 +526,26 @@ impl Cache {
         web::scope("/cache")
             .app_data(web::Data::new(state))
             .service(web::resource("/invalidate/{key}").route(web::post().to(invalidate)))
+    }
+}
+
+pub struct BusinessProfile;
+
+#[cfg(feature = "olap")]
+impl BusinessProfile {
+    pub fn server(state: AppState) -> Scope {
+        web::scope("/account/{account_id}/business_profile")
+            .app_data(web::Data::new(state))
+            .service(
+                web::resource("")
+                    .route(web::post().to(business_profile_create))
+                    .route(web::get().to(business_profiles_list)),
+            )
+            .service(
+                web::resource("/{profile_id}")
+                    .route(web::get().to(business_profile_retrieve))
+                    .route(web::post().to(business_profile_update))
+                    .route(web::delete().to(business_profile_delete)),
+            )
     }
 }

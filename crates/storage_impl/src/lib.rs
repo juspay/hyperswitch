@@ -1,21 +1,74 @@
+use std::sync::Arc;
+
 use error_stack::ResultExt;
 use masking::StrongSecret;
-use redis::CacheStore;
+use redis::{kv_store::RedisConnInterface, RedisStore};
 pub mod config;
-pub mod diesel;
+pub mod database;
+pub mod metrics;
+pub mod payments;
 pub mod redis;
+pub mod refund;
+mod utils;
 
-pub use crate::diesel::store::DatabaseStore;
+use database::store::PgPool;
+use redis_interface::errors::RedisError;
 
-#[allow(dead_code)]
+pub use crate::database::store::DatabaseStore;
+
+#[derive(Debug, Clone)]
 pub struct RouterStore<T: DatabaseStore> {
     db_store: T,
-    cache_store: CacheStore,
+    cache_store: RedisStore,
     master_encryption_key: StrongSecret<Vec<u8>>,
 }
 
+#[async_trait::async_trait]
+impl<T: DatabaseStore> DatabaseStore for RouterStore<T>
+where
+    T::Config: Send,
+{
+    type Config = (
+        T::Config,
+        redis_interface::RedisSettings,
+        StrongSecret<Vec<u8>>,
+        tokio::sync::oneshot::Sender<()>,
+        &'static str,
+    );
+    async fn new(config: Self::Config, test_transaction: bool) -> Self {
+        let (db_conf, cache_conf, encryption_key, cache_error_signal, inmemory_cache_stream) =
+            config;
+        if test_transaction {
+            Self::test_store(db_conf, &cache_conf, encryption_key).await
+        } else {
+            Self::from_config(
+                db_conf,
+                &cache_conf,
+                encryption_key,
+                cache_error_signal,
+                inmemory_cache_stream,
+            )
+            .await
+        }
+    }
+    fn get_master_pool(&self) -> &PgPool {
+        self.db_store.get_master_pool()
+    }
+    fn get_replica_pool(&self) -> &PgPool {
+        self.db_store.get_replica_pool()
+    }
+}
+
+impl<T: DatabaseStore> RedisConnInterface for RouterStore<T> {
+    fn get_redis_conn(
+        &self,
+    ) -> error_stack::Result<Arc<redis_interface::RedisConnectionPool>, RedisError> {
+        self.cache_store.get_redis_conn()
+    }
+}
+
 impl<T: DatabaseStore> RouterStore<T> {
-    pub async fn new(
+    pub async fn from_config(
         db_conf: T::Config,
         cache_conf: &redis_interface::RedisSettings,
         encryption_key: StrongSecret<Vec<u8>>,
@@ -25,7 +78,7 @@ impl<T: DatabaseStore> RouterStore<T> {
         // TODO: create an error enum and return proper error here
         let db_store = T::new(db_conf, false).await;
         #[allow(clippy::expect_used)]
-        let cache_store = CacheStore::new(cache_conf)
+        let cache_store = RedisStore::new(cache_conf)
             .await
             .expect("Failed to create cache store");
         cache_store.set_error_callback(cache_error_signal);
@@ -40,6 +93,11 @@ impl<T: DatabaseStore> RouterStore<T> {
             master_encryption_key: encryption_key,
         }
     }
+
+    pub fn master_key(&self) -> &StrongSecret<Vec<u8>> {
+        &self.master_encryption_key
+    }
+
     pub async fn test_store(
         db_conf: T::Config,
         cache_conf: &redis_interface::RedisSettings,
@@ -48,7 +106,7 @@ impl<T: DatabaseStore> RouterStore<T> {
         // TODO: create an error enum and return proper error here
         let db_store = T::new(db_conf, true).await;
         #[allow(clippy::expect_used)]
-        let cache_store = CacheStore::new(cache_conf)
+        let cache_store = RedisStore::new(cache_conf)
             .await
             .expect("Failed to create cache store");
         Self {
@@ -59,12 +117,39 @@ impl<T: DatabaseStore> RouterStore<T> {
     }
 }
 
+#[derive(Debug, Clone)]
 pub struct KVRouterStore<T: DatabaseStore> {
     router_store: RouterStore<T>,
     drainer_stream_name: String,
     drainer_num_partitions: u8,
 }
 
+#[async_trait::async_trait]
+impl<T> DatabaseStore for KVRouterStore<T>
+where
+    RouterStore<T>: DatabaseStore,
+    T: DatabaseStore,
+{
+    type Config = (RouterStore<T>, String, u8);
+    async fn new(config: Self::Config, _test_transaction: bool) -> Self {
+        let (router_store, drainer_stream_name, drainer_num_partitions) = config;
+        Self::from_store(router_store, drainer_stream_name, drainer_num_partitions)
+    }
+    fn get_master_pool(&self) -> &PgPool {
+        self.router_store.get_master_pool()
+    }
+    fn get_replica_pool(&self) -> &PgPool {
+        self.router_store.get_replica_pool()
+    }
+}
+
+impl<T: DatabaseStore> RedisConnInterface for KVRouterStore<T> {
+    fn get_redis_conn(
+        &self,
+    ) -> error_stack::Result<Arc<redis_interface::RedisConnectionPool>, RedisError> {
+        self.router_store.get_redis_conn()
+    }
+}
 impl<T: DatabaseStore> KVRouterStore<T> {
     pub fn from_store(
         store: RouterStore<T>,
@@ -78,16 +163,19 @@ impl<T: DatabaseStore> KVRouterStore<T> {
         }
     }
 
+    pub fn master_key(&self) -> &StrongSecret<Vec<u8>> {
+        self.router_store.master_key()
+    }
+
     pub fn get_drainer_stream_name(&self, shard_key: &str) -> String {
         format!("{{{}}}_{}", shard_key, self.drainer_stream_name)
     }
 
-    #[allow(dead_code)]
-    async fn push_to_drainer_stream<R>(
+    pub async fn push_to_drainer_stream<R>(
         &self,
         redis_entry: diesel_models::kv::TypedSql,
         partition_key: redis::kv_store::PartitionKey<'_>,
-    ) -> error_stack::Result<(), redis_interface::errors::RedisError>
+    ) -> error_stack::Result<(), RedisError>
     where
         R: crate::redis::kv_store::KvStorePartition,
     {
@@ -101,9 +189,63 @@ impl<T: DatabaseStore> KVRouterStore<T> {
                 &redis_interface::RedisEntryId::AutoGeneratedID,
                 redis_entry
                     .to_field_value_pairs()
-                    .change_context(redis_interface::errors::RedisError::JsonSerializationFailed)?,
+                    .change_context(RedisError::JsonSerializationFailed)?,
             )
             .await
-            .change_context(redis_interface::errors::RedisError::StreamAppendFailed)
+            .change_context(RedisError::StreamAppendFailed)
+    }
+}
+
+// TODO: This should not be used beyond this crate
+// Remove the pub modified once StorageScheme usage is completed
+pub trait DataModelExt {
+    type StorageModel;
+    fn to_storage_model(self) -> Self::StorageModel;
+    fn from_storage_model(storage_model: Self::StorageModel) -> Self;
+}
+
+impl DataModelExt for data_models::MerchantStorageScheme {
+    type StorageModel = diesel_models::enums::MerchantStorageScheme;
+
+    fn to_storage_model(self) -> Self::StorageModel {
+        match self {
+            Self::PostgresOnly => diesel_models::enums::MerchantStorageScheme::PostgresOnly,
+            Self::RedisKv => diesel_models::enums::MerchantStorageScheme::RedisKv,
+        }
+    }
+
+    fn from_storage_model(storage_model: Self::StorageModel) -> Self {
+        match storage_model {
+            diesel_models::enums::MerchantStorageScheme::PostgresOnly => Self::PostgresOnly,
+            diesel_models::enums::MerchantStorageScheme::RedisKv => Self::RedisKv,
+        }
+    }
+}
+
+pub(crate) fn diesel_error_to_data_error(
+    diesel_error: &diesel_models::errors::DatabaseError,
+) -> data_models::errors::StorageError {
+    match diesel_error {
+        diesel_models::errors::DatabaseError::DatabaseConnectionError => {
+            data_models::errors::StorageError::DatabaseConnectionError
+        }
+        diesel_models::errors::DatabaseError::NotFound => {
+            data_models::errors::StorageError::ValueNotFound("Value not found".to_string())
+        }
+        diesel_models::errors::DatabaseError::UniqueViolation => {
+            data_models::errors::StorageError::DuplicateValue {
+                entity: "entity ",
+                key: None,
+            }
+        }
+        diesel_models::errors::DatabaseError::NoFieldsToUpdate => {
+            data_models::errors::StorageError::DatabaseError("No fields to update".to_string())
+        }
+        diesel_models::errors::DatabaseError::QueryGenerationFailed => {
+            data_models::errors::StorageError::DatabaseError("Query generation failed".to_string())
+        }
+        diesel_models::errors::DatabaseError::Others => {
+            data_models::errors::StorageError::DatabaseError("Others".to_string())
+        }
     }
 }

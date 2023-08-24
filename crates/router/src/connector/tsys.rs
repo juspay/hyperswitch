@@ -2,17 +2,19 @@ pub mod transformers;
 
 use std::fmt::Debug;
 
+use diesel_models::enums;
 use error_stack::{IntoReport, ResultExt};
 use transformers as tsys;
 
 use crate::{
     configs::settings,
+    connector::utils as connector_utils,
     core::errors::{self, CustomResult},
     headers,
     services::{
         self,
         request::{self},
-        ConnectorIntegration,
+        ConnectorIntegration, ConnectorValidation,
     },
     types::{
         self,
@@ -78,6 +80,21 @@ impl ConnectorCommon for Tsys {
     }
 }
 
+impl ConnectorValidation for Tsys {
+    fn validate_capture_method(
+        &self,
+        capture_method: Option<enums::CaptureMethod>,
+    ) -> CustomResult<(), errors::ConnectorError> {
+        let capture_method = capture_method.unwrap_or_default();
+        match capture_method {
+            enums::CaptureMethod::Automatic | enums::CaptureMethod::Manual => Ok(()),
+            enums::CaptureMethod::ManualMultiple | enums::CaptureMethod::Scheduled => Err(
+                connector_utils::construct_not_supported_error_report(capture_method, self.id()),
+            ),
+        }
+    }
+}
+
 impl ConnectorIntegration<api::Session, types::PaymentsSessionData, types::PaymentsResponseData>
     for Tsys
 {
@@ -137,6 +154,7 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         req: &types::PaymentsAuthorizeRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
+        self.validate_capture_method(req.request.capture_method)?;
         Ok(Some(
             services::RequestBuilder::new()
                 .method(services::Method::Post)

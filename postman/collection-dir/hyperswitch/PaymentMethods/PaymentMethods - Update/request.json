@@ -1,0 +1,51 @@
+{
+  "method": "POST",
+  "header": [
+    {
+      "key": "Content-Type",
+      "value": "application/json"
+    },
+    {
+      "key": "Accept",
+      "value": "application/json"
+    }
+  ],
+  "body": {
+    "mode": "raw",
+    "options": {
+      "raw": {
+        "language": "json"
+      }
+    },
+    "raw_json_formatted": {
+      "card": {
+        "card_number": "4242424242424242",
+        "card_exp_month": "10",
+        "card_exp_year": "25",
+        "card_holder_name": "John Doe"
+      },
+      "metadata": {
+        "city": "NY",
+        "unit": "245"
+      }
+    }
+  },
+  "url": {
+    "raw": "{{baseUrl}}/payment_methods/:id",
+    "host": [
+      "{{baseUrl}}"
+    ],
+    "path": [
+      "payment_methods",
+      ":id"
+    ],
+    "variable": [
+      {
+        "key": "id",
+        "value": "{{payment_method_id}}",
+        "description": "(Required) The unique identifier for the payment method"
+      }
+    ]
+  },
+  "description": "To update an existing a payment method attached to a customer object. This API is useful for use cases such as updating the card number for expired cards, to prevent discontinuity in recurring payments"
+}

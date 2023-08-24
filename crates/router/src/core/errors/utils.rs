@@ -11,6 +11,41 @@ pub trait StorageErrorExt<T, E> {
 }
 
 impl<T> StorageErrorExt<T, errors::ApiErrorResponse>
+    for error_stack::Result<T, data_models::errors::StorageError>
+{
+    #[track_caller]
+    fn to_not_found_response(
+        self,
+        not_found_response: errors::ApiErrorResponse,
+    ) -> error_stack::Result<T, errors::ApiErrorResponse> {
+        self.map_err(|err| {
+            let new_err = match err.current_context() {
+                data_models::errors::StorageError::ValueNotFound(_) => not_found_response,
+                data_models::errors::StorageError::CustomerRedacted => {
+                    errors::ApiErrorResponse::CustomerRedacted
+                }
+                _ => errors::ApiErrorResponse::InternalServerError,
+            };
+            err.change_context(new_err)
+        })
+    }
+
+    #[track_caller]
+    fn to_duplicate_response(
+        self,
+        duplicate_response: errors::ApiErrorResponse,
+    ) -> error_stack::Result<T, errors::ApiErrorResponse> {
+        self.map_err(|err| {
+            let new_err = match err.current_context() {
+                data_models::errors::StorageError::DuplicateValue { .. } => duplicate_response,
+                _ => errors::ApiErrorResponse::InternalServerError,
+            };
+            err.change_context(new_err)
+        })
+    }
+}
+
+impl<T> StorageErrorExt<T, errors::ApiErrorResponse>
     for error_stack::Result<T, errors::StorageError>
 {
     #[track_caller]
@@ -31,6 +66,7 @@ impl<T> StorageErrorExt<T, errors::ApiErrorResponse>
         })
     }
 
+    #[track_caller]
     fn to_duplicate_response(
         self,
         duplicate_response: errors::ApiErrorResponse,
@@ -128,8 +164,8 @@ impl<T> ConnectorErrorExt<T> for error_stack::Result<T, errors::ConnectorError> 
                             "payment_method_data, payment_method_type and payment_experience does not match",
                     }
                 },
-                errors::ConnectorError::NotSupported { message, connector, payment_experience } => {
-                    errors::ApiErrorResponse::NotSupported { message: format!("{message} is not supported by {connector} through payment experience {payment_experience}") }
+                errors::ConnectorError::NotSupported { message, connector } => {
+                    errors::ApiErrorResponse::NotSupported { message: format!("{message} is not supported by {connector}") }
                 },
                 errors::ConnectorError::FlowNotSupported{ flow, connector } => {
                     errors::ApiErrorResponse::FlowNotSupported { flow: flow.to_owned(), connector: connector.to_owned() }
