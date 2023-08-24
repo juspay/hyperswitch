@@ -25,7 +25,7 @@ async fn should_make_webhook(web_driver: WebDriver) -> Result<(), WebDriverError
                 vec!["status=succeeded", "status=processing"],
             )),
         ],
-        5,
+        10,
         "succeeded",
     )
     .await?;
