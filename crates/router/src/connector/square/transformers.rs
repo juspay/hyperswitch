@@ -98,7 +98,6 @@ impl TryFrom<&types::TokenizationRouterData> for SquareTokenRequest {
             | api::PaymentMethodData::Voucher(_) => Err(errors::ConnectorError::NotSupported {
                 message: format!("{:?}", item.request.payment_method_data),
                 connector: "Square",
-                payment_experience: api_models::enums::PaymentExperience::RedirectToUrl.to_string(),
             })?,
         }
     }
@@ -207,7 +206,6 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for SquarePaymentsRequest {
             | api::PaymentMethodData::Voucher(_) => Err(errors::ConnectorError::NotSupported {
                 message: format!("{:?}", item.request.payment_method_data),
                 connector: "Square",
-                payment_experience: api_models::enums::PaymentExperience::RedirectToUrl.to_string(),
             })?,
         }
     }
