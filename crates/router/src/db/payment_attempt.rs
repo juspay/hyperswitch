@@ -1,4 +1,4 @@
-use data_models::payments::payment_attempt::PaymentAttemptInterface;
+use data_models::{errors, payments::payment_attempt::PaymentAttemptInterface};
 use storage_impl::DataModelExt;
 
 use super::MockDb;
@@ -6,7 +6,6 @@ use crate::{
     core::errors::CustomResult,
     types::storage::{self as types, enums},
 };
-use data_models::errors;
 
 #[async_trait::async_trait]
 impl PaymentAttemptInterface for MockDb {
@@ -26,8 +25,10 @@ impl PaymentAttemptInterface for MockDb {
         _pi: &[data_models::payments::payment_intent::PaymentIntent],
         _merchant_id: &str,
         _storage_scheme: enums::MerchantStorageScheme,
-    ) -> CustomResult<data_models::payments::payment_attempt::PaymentListFilters, errors::StorageError>
-    {
+    ) -> CustomResult<
+        data_models::payments::payment_attempt::PaymentListFilters,
+        errors::StorageError,
+    > {
         Err(errors::StorageError::MockDbError)?
     }
 
@@ -143,7 +144,11 @@ impl PaymentAttemptInterface for MockDb {
             .find(|item| item.attempt_id == this.attempt_id)
             .unwrap();
 
-        *item = types::PaymentAttempt::from_storage_model(payment_attempt.to_storage_model().apply_changeset(this.to_storage_model()));
+        *item = types::PaymentAttempt::from_storage_model(
+            payment_attempt
+                .to_storage_model()
+                .apply_changeset(this.to_storage_model()),
+        );
 
         Ok(item.clone())
     }

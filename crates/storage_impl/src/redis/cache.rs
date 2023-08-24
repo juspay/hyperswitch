@@ -1,12 +1,15 @@
 use std::{any::Any, borrow::Cow, sync::Arc};
 
-use common_utils::{errors::{self, CustomResult}, ext_traits::AsyncExt};
+use common_utils::{
+    errors::{self, CustomResult},
+    ext_traits::AsyncExt,
+};
 use data_models::errors::StorageError;
 use dyn_clone::DynClone;
 use error_stack::{Report, ResultExt};
 use moka::future::Cache as MokaCache;
 use once_cell::sync::Lazy;
-use redis_interface::{RedisValue, errors::RedisError};
+use redis_interface::{errors::RedisError, RedisValue};
 
 use super::{kv_store::RedisConnInterface, pub_sub::PubSubInterface};
 
@@ -133,7 +136,6 @@ impl Cache {
     }
 }
 
-
 pub async fn get_or_populate_redis<T, F, Fut>(
     store: &(dyn RedisConnInterface + Send + Sync),
     key: &str,
@@ -149,9 +151,7 @@ where
         .get_redis_conn()
         .map_err(|er| {
             let error = format!("{}", er);
-            er.change_context(StorageError::RedisError(
-                error
-            ))
+            er.change_context(StorageError::RedisError(error))
         })
         .attach_printable("Failed to get redis connection")?;
     let redis_val = redis.get_and_deserialize_key::<T>(key, type_name).await;
@@ -214,9 +214,7 @@ where
         .get_redis_conn()
         .map_err(|er| {
             let error = format!("{}", er);
-            er.change_context(StorageError::RedisError(
-                error
-            ))
+            er.change_context(StorageError::RedisError(error))
         })
         .attach_printable("Failed to get redis connection")?;
 
@@ -235,9 +233,7 @@ pub async fn publish_into_redact_channel<'a>(
         .get_redis_conn()
         .map_err(|er| {
             let error = format!("{}", er);
-            er.change_context(StorageError::RedisError(
-                error
-            ))
+            er.change_context(StorageError::RedisError(error))
         })
         .attach_printable("Failed to get redis connection")?;
 
@@ -260,7 +256,6 @@ where
     publish_into_redact_channel(store, key).await?;
     Ok(data)
 }
-
 
 #[cfg(test)]
 mod cache_tests {

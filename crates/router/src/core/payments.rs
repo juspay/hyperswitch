@@ -10,8 +10,8 @@ use std::{collections::HashMap, fmt::Debug, marker::PhantomData, ops::Deref, tim
 
 use api_models::payments::FrmMessage;
 use common_utils::{ext_traits::AsyncExt, pii};
-use diesel_models::ephemeral_key;
 use data_models::mandates::MandateData;
+use diesel_models::ephemeral_key;
 use error_stack::{IntoReport, ResultExt};
 use futures::future::join_all;
 use masking::Secret;
@@ -1463,12 +1463,14 @@ pub async fn get_filters_for_payments(
         .await
         .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
 
-    Ok(services::ApplicationResponse::Json(api::PaymentListFilters {
-        connector: filters.connector,
-        currency: filters.currency,
-        status: filters.status,
-        payment_method: filters.payment_method,
-    }))
+    Ok(services::ApplicationResponse::Json(
+        api::PaymentListFilters {
+            connector: filters.connector,
+            currency: filters.currency,
+            status: filters.status,
+            payment_method: filters.payment_method,
+        },
+    ))
 }
 
 pub async fn add_process_sync_task(

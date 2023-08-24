@@ -1,9 +1,11 @@
 use common_utils::errors::CustomResult;
 use data_models::errors;
-use diesel_models::reverse_lookup::{ReverseLookup as DieselReverseLookup, ReverseLookupNew as DieselReverseLookupNew};
-use error_stack::{ResultExt, IntoReport};
+use diesel_models::reverse_lookup::{
+    ReverseLookup as DieselReverseLookup, ReverseLookupNew as DieselReverseLookupNew,
+};
+use error_stack::{IntoReport, ResultExt};
 
-use crate::{DatabaseStore, RouterStore, KVRouterStore, redis::cache::get_or_populate_redis};
+use crate::{redis::cache::get_or_populate_redis, DatabaseStore, KVRouterStore, RouterStore};
 
 #[async_trait::async_trait]
 pub trait ReverseLookupInterface {
@@ -23,7 +25,12 @@ impl<T: DatabaseStore> ReverseLookupInterface for RouterStore<T> {
         &self,
         new: DieselReverseLookupNew,
     ) -> CustomResult<DieselReverseLookup, errors::StorageError> {
-        let conn = self.get_master_pool().get().await.into_report().change_context(errors::StorageError::DatabaseConnectionError)?;
+        let conn = self
+            .get_master_pool()
+            .get()
+            .await
+            .into_report()
+            .change_context(errors::StorageError::DatabaseConnectionError)?;
         new.insert(&conn).await.map_err(|er| {
             let error = format!("{}", er);
             er.change_context(errors::StorageError::DatabaseError(error))
@@ -47,7 +54,6 @@ impl<T: DatabaseStore> ReverseLookupInterface for RouterStore<T> {
     }
 }
 
-
 #[async_trait::async_trait]
 impl<T: DatabaseStore> ReverseLookupInterface for KVRouterStore<T> {
     async fn insert_reverse_lookup(
@@ -64,4 +70,3 @@ impl<T: DatabaseStore> ReverseLookupInterface for KVRouterStore<T> {
         self.router_store.get_lookup_by_lookup_id(id).await
     }
 }
-

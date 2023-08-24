@@ -29,7 +29,9 @@ pub mod reverse_lookup;
 
 use std::sync::Arc;
 
-use data_models::payments::{payment_intent::PaymentIntentInterface, payment_attempt::PaymentAttemptInterface};
+use data_models::payments::{
+    payment_attempt::PaymentAttemptInterface, payment_intent::PaymentIntentInterface,
+};
 use futures::lock::Mutex;
 use masking::PeekInterface;
 use storage_impl::redis::kv_store::RedisConnInterface;

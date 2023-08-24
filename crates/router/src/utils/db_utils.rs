@@ -10,7 +10,6 @@ pub fn generate_hscan_pattern_for_refund(sk: &str) -> String {
         .join("_")
 }
 
-
 // The first argument should be a future while the second argument should be a closure that returns a future for a database call
 pub async fn try_redis_get_else_try_database_get<F, RFut, DFut, T>(
     redis_fut: RFut,

@@ -236,7 +236,8 @@ pub async fn get_payment_attempt_from_object_reference_id(
     state: &AppState,
     object_reference_id: api_models::webhooks::ObjectReferenceId,
     merchant_account: &domain::MerchantAccount,
-) -> CustomResult<data_models::payments::payment_attempt::PaymentAttempt, errors::ApiErrorResponse> {
+) -> CustomResult<data_models::payments::payment_attempt::PaymentAttempt, errors::ApiErrorResponse>
+{
     let db = &*state.store;
     match object_reference_id {
         api::ObjectReferenceId::PaymentId(api::PaymentIdType::ConnectorTransactionId(ref id)) => db

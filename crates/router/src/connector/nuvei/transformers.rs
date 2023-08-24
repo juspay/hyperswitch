@@ -798,17 +798,21 @@ fn get_card_info<F>(
                             })?
                         }
                     };
-                    let mandate_meta: NuveiMandateMeta =
-                        utils::to_connector_meta_from_secret(Some(details.get_metadata().ok_or_else(utils::missing_field_err(
+                    let mandate_meta: NuveiMandateMeta = utils::to_connector_meta_from_secret(
+                        Some(details.get_metadata().ok_or_else(utils::missing_field_err(
                             "mandate_data.mandate_type.{multi_use|single_use}.metadata",
-                        ))?))?;
+                        ))?),
+                    )?;
                     (
                         Some("0".to_string()), // In case of first installment, rebilling should be 0
                         Some(V2AdditionalParams {
                             rebill_expiry: Some(
-                                details.get_end_date(date_time::DateFormat::YYYYMMDD).change_context(errors::ConnectorError::DateFormattingFailed)?.ok_or_else(utils::missing_field_err(
-                                    "mandate_data.mandate_type.{multi_use|single_use}.end_date",
-                                ))?,
+                                details
+                                    .get_end_date(date_time::DateFormat::YYYYMMDD)
+                                    .change_context(errors::ConnectorError::DateFormattingFailed)?
+                                    .ok_or_else(utils::missing_field_err(
+                                        "mandate_data.mandate_type.{multi_use|single_use}.end_date",
+                                    ))?,
                             ),
                             rebill_frequency: Some(mandate_meta.frequency),
                             challenge_window_size: None,

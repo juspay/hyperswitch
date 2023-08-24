@@ -1,9 +1,13 @@
+use api_models::payments::{
+    AcceptanceType as ApiAcceptanceType, CustomerAcceptance as ApiCustomerAcceptance,
+    MandateAmountData as ApiMandateAmountData, MandateData as ApiMandateData, MandateType,
+    OnlineMandate as ApiOnlineMandate,
+};
 use common_enums::Currency;
-use common_utils::{pii, errors::ParsingError, date_time};
+use common_utils::{date_time, errors::ParsingError, pii};
 use error_stack::{IntoReport, ResultExt};
-use masking::{Secret, PeekInterface};
+use masking::{PeekInterface, Secret};
 use time::PrimitiveDateTime;
-use api_models::payments::{MandateType, MandateAmountData as ApiMandateAmountData, MandateData as ApiMandateData, CustomerAcceptance as ApiCustomerAcceptance, AcceptanceType as ApiAcceptanceType, OnlineMandate as ApiOnlineMandate};
 
 #[derive(serde::Serialize, serde::Deserialize, Debug, Clone, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
@@ -60,10 +64,10 @@ impl From<MandateType> for MandateDataType {
     fn from(mandate_type: MandateType) -> Self {
         match mandate_type {
             MandateType::SingleUse(mandate_amount_data) => {
-                MandateDataType::SingleUse(mandate_amount_data.into())
+                Self::SingleUse(mandate_amount_data.into())
             }
             MandateType::MultiUse(mandate_amount_data) => {
-                MandateDataType::MultiUse(mandate_amount_data.map(|d| d.into()))
+                Self::MultiUse(mandate_amount_data.map(|d| d.into()))
             }
         }
     }
@@ -103,8 +107,8 @@ impl From<ApiCustomerAcceptance> for CustomerAcceptance {
 impl From<ApiAcceptanceType> for AcceptanceType {
     fn from(value: ApiAcceptanceType) -> Self {
         match value {
-            ApiAcceptanceType::Online => AcceptanceType::Online,
-            ApiAcceptanceType::Offline => AcceptanceType::Offline,
+            ApiAcceptanceType::Online => Self::Online,
+            ApiAcceptanceType::Offline => Self::Offline,
         }
     }
 }
@@ -112,12 +116,11 @@ impl From<ApiAcceptanceType> for AcceptanceType {
 impl From<ApiOnlineMandate> for OnlineMandate {
     fn from(value: ApiOnlineMandate) -> Self {
         Self {
-            ip_address: value.ip_address.map(|d| d.into()),
+            ip_address: value.ip_address,
             user_agent: value.user_agent,
         }
     }
 }
-
 
 impl CustomerAcceptance {
     pub fn get_ip_address(&self) -> Option<String> {
@@ -137,12 +140,17 @@ impl CustomerAcceptance {
 }
 
 impl MandateAmountData {
-    pub fn get_end_date(&self, format: date_time::DateFormat) -> error_stack::Result<Option<String>, ParsingError> {
-        self.end_date.map(|date| 
-            date_time::format_date(date, format)
-                .into_report()
-                .change_context(ParsingError::DateTimeParsingError)
-        ).transpose()
+    pub fn get_end_date(
+        &self,
+        format: date_time::DateFormat,
+    ) -> error_stack::Result<Option<String>, ParsingError> {
+        self.end_date
+            .map(|date| {
+                date_time::format_date(date, format)
+                    .into_report()
+                    .change_context(ParsingError::DateTimeParsingError)
+            })
+            .transpose()
     }
     pub fn get_metadata(&self) -> Option<pii::SecretSerdeValue> {
         self.metadata.clone()

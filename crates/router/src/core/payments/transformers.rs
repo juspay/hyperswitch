@@ -503,40 +503,48 @@ where
                         .set_mandate_id(mandate_id)
                         .set_mandate_data(
                             mandate_data.map(|d| api::MandateData {
-                                customer_acceptance: d.customer_acceptance.map(|d| api::CustomerAcceptance {
-                                    acceptance_type: match d.acceptance_type {
-                                        data_models::mandates::AcceptanceType::Online => {
-                                            api::AcceptanceType::Online
-                                        }
-                                        data_models::mandates::AcceptanceType::Offline => {
-                                            api::AcceptanceType::Offline
-                                        }
-                                    },
-                                    accepted_at: d.accepted_at,
-                                    online: d.online.map(|d| {
-                                        api::OnlineMandate {
+                                customer_acceptance: d.customer_acceptance.map(|d| {
+                                    api::CustomerAcceptance {
+                                        acceptance_type: match d.acceptance_type {
+                                            data_models::mandates::AcceptanceType::Online => {
+                                                api::AcceptanceType::Online
+                                            }
+                                            data_models::mandates::AcceptanceType::Offline => {
+                                                api::AcceptanceType::Offline
+                                            }
+                                        },
+                                        accepted_at: d.accepted_at,
+                                        online: d.online.map(|d| api::OnlineMandate {
                                             ip_address: d.ip_address,
-                                            user_agent: d.user_agent
-                                        }
-                                    }),
+                                            user_agent: d.user_agent,
+                                        }),
+                                    }
                                 }),
                                 mandate_type: d.mandate_type.map(|d| match d {
-                                        data_models::mandates::MandateDataType::MultiUse(Some(i)) => api::MandateType::MultiUse(Some(api::MandateAmountData {
+                                    data_models::mandates::MandateDataType::MultiUse(Some(i)) => {
+                                        api::MandateType::MultiUse(Some(api::MandateAmountData {
                                             amount: i.amount,
                                             currency: i.currency,
                                             start_date: i.start_date,
                                             end_date: i.end_date,
-                                            metadata: i.metadata
-                                        })),
-                                        data_models::mandates::MandateDataType::SingleUse(i) => api::MandateType::SingleUse(api::payments::MandateAmountData {
-                                            amount: i.amount,
-                                            currency: i.currency,
-                                            start_date: i.start_date,
-                                            end_date: i.end_date,
-                                            metadata: i.metadata
-                                        }),
-                                        data_models::mandates::MandateDataType::MultiUse(None) => api::MandateType::MultiUse(None)
-                                    })
+                                            metadata: i.metadata,
+                                        }))
+                                    }
+                                    data_models::mandates::MandateDataType::SingleUse(i) => {
+                                        api::MandateType::SingleUse(
+                                            api::payments::MandateAmountData {
+                                                amount: i.amount,
+                                                currency: i.currency,
+                                                start_date: i.start_date,
+                                                end_date: i.end_date,
+                                                metadata: i.metadata,
+                                            },
+                                        )
+                                    }
+                                    data_models::mandates::MandateDataType::MultiUse(None) => {
+                                        api::MandateType::MultiUse(None)
+                                    }
+                                }),
                             }),
                             auth_flow == services::AuthFlow::Merchant,
                         )

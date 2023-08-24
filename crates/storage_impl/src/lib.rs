@@ -5,12 +5,12 @@ use masking::StrongSecret;
 use redis::{kv_store::RedisConnInterface, RedisStore};
 pub mod config;
 pub mod database;
+mod lookup;
 pub mod metrics;
 pub mod payments;
 pub mod redis;
 pub mod refund;
 mod utils;
-mod lookup;
 
 use database::store::PgPool;
 use redis_interface::errors::RedisError;

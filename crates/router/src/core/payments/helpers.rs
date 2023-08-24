@@ -5,7 +5,10 @@ use common_utils::{
     ext_traits::{AsyncExt, ByteSliceExt, ValueExt},
     fp_utils, generate_id, pii,
 };
-use data_models::{payments::{payment_intent::PaymentIntent, payment_attempt::PaymentAttempt}, mandates::MandateData};
+use data_models::{
+    mandates::MandateData,
+    payments::{payment_attempt::PaymentAttempt, payment_intent::PaymentIntent},
+};
 use diesel_models::enums;
 // TODO : Evaluate all the helper functions ()
 use error_stack::{report, IntoReport, ResultExt};
