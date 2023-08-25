@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, ops::Deref};
 
 use async_trait::async_trait;
 use error_stack::ResultExt;
@@ -9,16 +9,16 @@ use crate::{
     core::{
         errors::{self, RouterResult, StorageErrorExt},
         mandate,
-        payments::{types::MultipleCaptureData, PaymentData},
+        payments::{types::MultipleCaptureData, PaymentData}, refunds::refund_create_core,
     },
     db::StorageInterface,
-    routes::metrics,
+    routes::{metrics, AppState},
     services::RedirectForm,
     types::{
-        self, api,
+        self, api::{self, PaymentSync},
         storage::{self, enums},
         transformers::{ForeignFrom, ForeignTryFrom},
-        CaptureSyncResponse,
+        CaptureSyncResponse, domain,
     },
     utils,
 };
@@ -221,11 +221,15 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::CompleteAuthorizeData
 
 async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
     db: &dyn StorageInterface,
+    db`
+    merchant_account: &domain::MerchantAccount,
+    key_store: domain::MerchantKeyStore,
     _payment_id: &api::PaymentIdType,
     mut payment_data: PaymentData<F>,
     router_data: types::RouterData<F, T, types::PaymentsResponseData>,
     storage_scheme: enums::MerchantStorageScheme,
-) -> RouterResult<PaymentData<F>> {
+) -> RouterResult<PaymentData<F>> 
+{
     let (capture_update, mut payment_attempt_update, connector_response_update) = match router_data
         .response
         .clone()
@@ -450,6 +454,53 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
         None => None,
     };
 
+<<<<<<< Updated upstream
+=======
+    let previous_payment_status = payment_data.payment_attempt.status;
+
+    let updated_payment_status = match payment_attempt_update.clone() {
+        Some(payment_attempt_update) => payment_attempt_update.get_updated_status(),
+        None => None,
+    };
+
+    let needs_to_be_refunded = match updated_payment_status {
+        Some(payment_status) =>
+        ( payment_status == api_models::enums::AttemptStatus::Charged
+            || payment_status == api_models::enums::AttemptStatus::PartialCharged )
+        && ( previous_payment_status == api_models::enums::AttemptStatus::AuthenticationFailed
+            || previous_payment_status == api_models::enums::AttemptStatus::RouterDeclined
+            || previous_payment_status == api_models::enums::AttemptStatus::AuthorizationFailed
+            || previous_payment_status == api_models::enums::AttemptStatus::Failure),
+        None => false,
+    };
+
+    if needs_to_be_refunded
+    {
+        let ref_req = api_models::refunds::RefundRequest {
+        refund_id: None,
+        payment_id: payment_data.payment_intent.payment_id.clone(),
+        merchant_id: Some(merchant_account.merchant_id),
+        amount: None,
+        reason: Some("auto-refunded".to_string()),
+        refund_type: Some(api::refunds::RefundType::Scheduled),
+        metadata: None,
+        merchant_connector_details: None,
+        };
+        let boxed_store: Box<dyn StorageInterface> = Box::new(db);
+
+        refund_create_core(
+            &AppState {
+                flow_name: String::from("default"),
+                store: boxed_store,
+                conf:
+            },
+            merchant_account.clone(),
+            key_store,
+            ref_req,
+        );
+    }
+    
+>>>>>>> Stashed changes
     payment_data.payment_attempt = match payment_attempt_update {
         Some(payment_attempt_update) => db
             .update_payment_attempt_with_attempt_id(
