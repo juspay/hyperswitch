@@ -1196,16 +1196,16 @@ pub async fn make_pm_data<'a, F: Clone, R>(
                         .get_required_value("payment_method")?,
                 );
 
-        let key = redis_conn
-            .get_key::<Option<String>>(&key)
-            .await
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Failed to fetch the token from redis")?
-            .ok_or(error_stack::Report::new(
-                errors::ApiErrorResponse::UnprocessableEntity {
-                    message: token + " is invalid or expired",
-                },
-            ))?;
+                let key = redis_conn
+                    .get_key::<Option<String>>(&key)
+                    .await
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Failed to fetch the token from redis")?
+                    .ok_or(error_stack::Report::new(
+                        errors::ApiErrorResponse::UnprocessableEntity {
+                            message: token + " is invalid or expired",
+                        },
+                    ))?;
 
                 Some(key)
             } else {
