@@ -1176,35 +1176,40 @@ pub async fn make_pm_data<'a, F: Clone, R>(
     let request = &payment_data.payment_method_data;
     let token = payment_data.token.clone();
 
-    let hyperswitch_token = if let Some(token) = token {
-        let redis_conn = state
-            .store
-            .get_redis_conn()
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Failed to get redis connection")?;
+    let hyperswitch_token = match payment_data.mandate_id {
+        Some(_) => token,
+        None => {
+            if let Some(token) = token {
+                let redis_conn = state
+                    .store
+                    .get_redis_conn()
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Failed to get redis connection")?;
 
-        let key = format!(
-            "pm_token_{}_{}_hyperswitch",
-            token,
-            payment_data
-                .payment_attempt
-                .payment_method
-                .to_owned()
-                .get_required_value("payment_method")?,
-        );
+                let key = format!(
+                    "pm_token_{}_{}_hyperswitch",
+                    token,
+                    payment_data
+                        .payment_attempt
+                        .payment_method
+                        .to_owned()
+                        .get_required_value("payment_method")?,
+                );
 
-        let key = redis_conn
-            .get_key::<Option<String>>(&key)
-            .await
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Failed to fetch the token from redis")?
-            .ok_or(error_stack::Report::new(
-                errors::ApiErrorResponse::UnprocessableEntity { entity: token },
-            ))?;
+                let key = redis_conn
+                    .get_key::<Option<String>>(&key)
+                    .await
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Failed to fetch the token from redis")?
+                    .ok_or(error_stack::Report::new(
+                        errors::ApiErrorResponse::UnprocessableEntity { entity: token },
+                    ))?;
 
-        Some(key)
-    } else {
-        None
+                Some(key)
+            } else {
+                None
+            }
+        }
     };
 
     let card_cvc = payment_data.card_cvc.clone();
