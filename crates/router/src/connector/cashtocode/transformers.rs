@@ -41,7 +41,7 @@ fn get_mid(
             Some(enums::PaymentMethodType::Evoucher) => Ok(cashtocode_auth
                 .merchant_id_evoucher
                 .ok_or(errors::ConnectorError::FailedToObtainAuthType)?),
-            _ => return Err(errors::ConnectorError::FailedToObtainAuthType),
+            _ => Err(errors::ConnectorError::FailedToObtainAuthType),
         },
         Err(_) => Err(errors::ConnectorError::FailedToObtainAuthType)?,
     }
