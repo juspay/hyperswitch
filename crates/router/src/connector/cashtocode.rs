@@ -177,7 +177,7 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
             Ok(cashtocode_auth) => {
                 get_b64_auth_cashtocode(&req.request.payment_method_type, &cashtocode_auth)
             }
-            Err(err) => return Err(err.into()),
+            Err(err) => return Err(err),
         };
 
         let mut api_key = match auth_differentiator {

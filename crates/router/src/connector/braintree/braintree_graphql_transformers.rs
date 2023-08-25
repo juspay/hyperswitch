@@ -150,7 +150,7 @@ impl<F, T>
                     status: enums::AttemptStatus::from(transaction_data.status.clone()),
                     response: Ok(types::PaymentsResponseData::TransactionResponse {
                         resource_id: types::ResponseId::ConnectorTransactionId(
-                            transaction_data.id.clone(),
+                            transaction_data.id,
                         ),
                         redirection_data: None,
                         mandate_reference: None,

@@ -41,7 +41,7 @@ fn get_mid(
             Some(enums::PaymentMethodType::Evoucher) => Ok(cashtocode_auth
                 .merchant_id_evoucher
                 .ok_or(errors::ConnectorError::FailedToObtainAuthType)?),
-            _ => return Err(errors::ConnectorError::FailedToObtainAuthType.into()),
+            _ => return Err(errors::ConnectorError::FailedToObtainAuthType),
         },
         Err(_) => Err(errors::ConnectorError::FailedToObtainAuthType)?,
     }
@@ -115,7 +115,7 @@ impl TryFrom<&types::ConnectorAuthType> for CashtocodeAuthType {
                     })
                     .collect::<Result<_, Self::Error>>()?;
 
-                Ok(CashtocodeAuthType {
+                Ok(Self {
                     auths: transformed_auths,
                 })
             }
@@ -132,7 +132,7 @@ impl TryFrom<(&types::ConnectorAuthType, &enums::Currency)> for CashtocodeAuth {
 
         if let types::ConnectorAuthType::CurrencyAuthKey { auth_key_map } = auth_type {
             if let Some(identity_auth_key) = auth_key_map.get(currency) {
-                let cashtocode_auth: CashtocodeAuth = identity_auth_key
+                let cashtocode_auth: Self = identity_auth_key
                     .to_owned()
                     .parse_value("CashtocodeAuth")
                     .change_context(errors::ConnectorError::ParsingFailed)?;
