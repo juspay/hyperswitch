@@ -39,9 +39,6 @@ use crate::{
     DataModelExt, DatabaseStore, KVRouterStore,
 };
 
-#[cfg(feature = "olap")]
-const QUERY_LIMIT: u32 = 20;
-
 #[async_trait::async_trait]
 impl<T: DatabaseStore> PaymentIntentInterface for KVRouterStore<T> {
     async fn insert_payment_intent(
@@ -352,7 +349,7 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
                 limit,
             } => {
                 if let Some(limit) = limit {
-                    query = query.limit(limit.into());
+                    query = query.limit((*limit).into());
                 };
 
                 if let Some(customer_id) = customer_id {
@@ -475,7 +472,7 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
                 limit,
             } => {
                 if let Some(limit) = limit {
-                    query = query.limit(limit.into());
+                    query = query.limit((*limit).into());
                 }
 
                 if let Some(customer_id) = customer_id {
