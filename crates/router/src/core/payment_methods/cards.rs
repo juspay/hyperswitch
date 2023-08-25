@@ -197,6 +197,7 @@ pub async fn add_card_to_locker(
                 })
         },
         &metrics::CARD_ADD_TIME,
+        &[],
     )
     .await
 }
@@ -221,6 +222,7 @@ pub async fn get_card_from_locker(
                 })
         },
         &metrics::CARD_GET_TIME,
+        &[]
     )
     .await
 }
@@ -243,6 +245,7 @@ pub async fn delete_card_from_locker(
                 })
         },
         &metrics::CARD_DELETE_TIME,
+        &[],
     )
     .await
 }

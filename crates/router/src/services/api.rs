@@ -28,7 +28,11 @@ use crate::{
         payments,
     },
     logger,
-    routes::{app::AppStateInfo, metrics, AppState},
+    routes::{
+        app::AppStateInfo,
+        metrics::{self, request as metrics_request},
+        AppState,
+    },
     services::authentication as auth,
     types::{
         self,
@@ -393,9 +397,23 @@ pub async fn call_connector_api(
     state: &AppState,
     request: Request,
 ) -> CustomResult<Result<types::Response, types::Response>, errors::ApiClientError> {
+    let url = reqwest::Url::parse(&request.url)
+        .into_report()
+        .change_context(errors::ApiClientError::UrlEncodingFailed)?;
+
+    let tag = router_env::opentelemetry::KeyValue {
+        key: "host".into(),
+        value: url.host_str().unwrap_or_default().to_string().into(),
+    };
+
     let current_time = Instant::now();
 
-    let response = send_request(state, request, None).await;
+    let response = metrics_request::record_operation_time(
+        send_request(state, request, None),
+        &metrics::EXTERNAL_REQUEST_TIME,
+        &[tag],
+    )
+    .await;
 
     let elapsed_time = current_time.elapsed();
     logger::info!(request_time=?elapsed_time);

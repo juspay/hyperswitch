@@ -1,5 +1,6 @@
 use super::utils as metric_utils;
 use crate::services::ApplicationResponse;
+use router_env::opentelemetry;
 
 pub async fn record_request_time_metric<F, R>(
     future: F,
@@ -23,12 +24,13 @@ where
 pub async fn record_operation_time<F, R>(
     future: F,
     metric: &once_cell::sync::Lazy<router_env::opentelemetry::metrics::Histogram<f64>>,
+    key_value: &[opentelemetry::KeyValue],
 ) -> R
 where
     F: futures::Future<Output = R>,
 {
     let (result, time) = metric_utils::time_future(future).await;
-    metric.record(&super::CONTEXT, time.as_secs_f64(), &[]);
+    metric.record(&super::CONTEXT, time.as_secs_f64(), key_value);
     result
 }
 
