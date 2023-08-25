@@ -475,9 +475,7 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
     }
     
     payment_data.payment_attempt = match payment_attempt_update {
-        Some(payment_attempt_update) => 
-        
-        db
+        Some(payment_attempt_update) => db
             .update_payment_attempt_with_attempt_id(
                 payment_data.payment_attempt,
                 payment_attempt_update,
