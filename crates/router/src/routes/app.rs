@@ -62,7 +62,6 @@ impl AppState {
     /// # Panics
     ///
     /// Panics if Store can't be created or JWE decryption fails
-    #[allow(clippy::expect_used)]
     pub async fn with_storage(
         conf: settings::Settings,
         storage_impl: StorageImpl,
@@ -73,6 +72,7 @@ impl AppState {
         let testable = storage_impl == StorageImpl::PostgresqlTest;
         let store: Box<dyn StorageInterface> = match storage_impl {
             StorageImpl::Postgresql | StorageImpl::PostgresqlTest => Box::new(
+                #[allow(clippy::expect_used)]
                 get_store(&conf, shut_down_signal, testable)
                     .await
                     .expect("Failed to create store"),
@@ -81,6 +81,7 @@ impl AppState {
         };
 
         #[cfg(feature = "kms")]
+        #[allow(clippy::expect_used)]
         let kms_secrets = settings::ActiveKmsSecrets {
             jwekey: conf.jwekey.clone().into(),
         }
