@@ -80,6 +80,7 @@ fn construct_payment_router_data() -> types::PaymentsAuthorizeRouterData {
         payment_method_token: None,
         connector_customer: None,
         recurring_mandate_payment_data: None,
+
         preprocessing_id: None,
         connector_request_reference_id: uuid::Uuid::new_v4().to_string(),
         #[cfg(feature = "payouts")]
@@ -133,6 +134,7 @@ fn construct_refund_router_data<F>() -> types::RefundsRouterData<F> {
         payment_method_token: None,
         connector_customer: None,
         recurring_mandate_payment_data: None,
+
         preprocessing_id: None,
         connector_request_reference_id: uuid::Uuid::new_v4().to_string(),
         #[cfg(feature = "payouts")]

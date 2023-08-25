@@ -69,7 +69,7 @@ pub struct MerchantAccountCreate {
 
     /// You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Metadata is useful for storing additional, structured information on an object.
     #[schema(value_type = Option<Object>, example = r#"{ "city": "NY", "unit": "245" }"#)]
-    pub metadata: Option<pii::SecretSerdeValue>,
+    pub metadata: Option<MerchantAccountMetadata>,
 
     /// API key that will be used for server side API access
     #[schema(example = "AH3423bkjbkjdsfbkj")]
@@ -96,6 +96,13 @@ pub struct MerchantAccountCreate {
     pub organization_id: Option<String>,
 }
 
+#[derive(Clone, Debug, Deserialize, Serialize, ToSchema)]
+pub struct MerchantAccountMetadata {
+    pub compatible_connector: Option<api_enums::Connector>,
+
+    #[serde(flatten)]
+    pub data: Option<pii::SecretSerdeValue>,
+}
 #[derive(Clone, Debug, Deserialize, ToSchema)]
 #[serde(deny_unknown_fields)]
 pub struct MerchantAccountUpdate {

@@ -1,8 +1,8 @@
-use api_models::{admin::PrimaryBusinessDetails, enums as api_enums};
+use api_models::{admin as admin_types, enums as api_enums};
 use common_utils::{
     crypto::{generate_cryptographically_secure_random_string, OptionalSecretValue},
     date_time,
-    ext_traits::{Encode, ValueExt},
+    ext_traits::{ConfigExt, Encode, ValueExt},
 };
 use data_models::MerchantStorageScheme;
 use error_stack::{report, FutureExt, ResultExt};
@@ -52,12 +52,13 @@ pub async fn create_merchant_account(
 
     let publishable_key = Some(create_merchant_publishable_key());
 
-    let primary_business_details = utils::Encode::<Vec<PrimaryBusinessDetails>>::encode_to_value(
-        &req.primary_business_details.unwrap_or_default(),
-    )
-    .change_context(errors::ApiErrorResponse::InvalidDataValue {
-        field_name: "primary_business_details",
-    })?;
+    let primary_business_details =
+        utils::Encode::<Vec<admin_types::PrimaryBusinessDetails>>::encode_to_value(
+            &req.primary_business_details.unwrap_or_default(),
+        )
+        .change_context(errors::ApiErrorResponse::InvalidDataValue {
+            field_name: "primary_business_details",
+        })?;
 
     let merchant_details: OptionalSecretValue =
         req.merchant_details
@@ -119,6 +120,18 @@ pub async fn create_merchant_account(
     )
     .await?;
 
+    let metadata = req
+        .metadata
+        .as_ref()
+        .map(|meta| {
+            utils::Encode::<admin_types::MerchantAccountMetadata>::encode_to_value(meta)
+                .change_context(errors::ApiErrorResponse::InvalidDataValue {
+                    field_name: "metadata",
+                })
+        })
+        .transpose()?
+        .map(Secret::new);
+
     let mut merchant_account = async {
         Ok(domain::MerchantAccount {
             merchant_id: req.merchant_id,
@@ -141,7 +154,7 @@ pub async fn create_merchant_account(
                 .unwrap_or_default(),
             publishable_key,
             locker_id: req.locker_id,
-            metadata: req.metadata,
+            metadata,
             storage_scheme: MerchantStorageScheme::PostgresOnly,
             primary_business_details,
             created_at: date_time::now(),
@@ -244,22 +257,30 @@ pub async fn merchant_account_update(
         .primary_business_details
         .as_ref()
         .map(|primary_business_details| {
-            utils::Encode::<Vec<PrimaryBusinessDetails>>::encode_to_value(primary_business_details)
-                .change_context(errors::ApiErrorResponse::InvalidDataValue {
-                    field_name: "primary_business_details",
-                })
+            utils::Encode::<Vec<admin_types::PrimaryBusinessDetails>>::encode_to_value(
+                primary_business_details,
+            )
+            .change_context(errors::ApiErrorResponse::InvalidDataValue {
+                field_name: "primary_business_details",
+            })
         })
         .transpose()?;
 
     let key = key_store.key.get_inner().peek();
 
-    // Validate whether profile_id passed in request is valid and is linked to the merchant
-    let business_profile = core_utils::validate_and_get_business_profile(
-        db,
-        req.default_profile.as_ref(),
-        merchant_id,
-    )
-    .await?;
+    let business_profile_id_update = if let Some(profile_id) = req.default_profile {
+        if !profile_id.is_empty_after_trim() {
+            // Validate whether profile_id passed in request is valid and is linked to the merchant
+            core_utils::validate_and_get_business_profile(db, Some(&profile_id), merchant_id)
+                .await?
+                .map(|business_profile| Some(business_profile.profile_id))
+        } else {
+            // If empty, Update profile_id to None in the database
+            Some(None)
+        }
+    } else {
+        None
+    };
 
     let updated_merchant_account = storage::MerchantAccountUpdate::Update {
         merchant_name: req
@@ -312,7 +333,7 @@ pub async fn merchant_account_update(
         frm_routing_algorithm: req.frm_routing_algorithm,
         intent_fulfillment_time: req.intent_fulfillment_time.map(i64::from),
         payout_routing_algorithm: req.payout_routing_algorithm,
-        default_profile: business_profile.map(|business_profile| business_profile.profile_id),
+        default_profile: business_profile_id_update,
     };
 
     let response = db

@@ -93,5 +93,5 @@ pub struct MerchantAccountUpdateInternal {
     pub payout_routing_algorithm: Option<serde_json::Value>,
     pub organization_id: Option<String>,
     pub is_recon_enabled: bool,
-    pub default_profile: Option<String>,
+    pub default_profile: Option<Option<String>>,
 }
