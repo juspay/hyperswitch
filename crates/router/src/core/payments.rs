@@ -91,13 +91,7 @@ where
         )
         .await?;
 
-    authenticate_client_secret(
-        req.get_client_secret(),
-        &payment_data.payment_intent,
-        merchant_account.intent_fulfillment_time,
-    )?;
-
-    let (operation, customer) = operation
+    let aoperation, customer) = operation
         .to_domain()?
         .get_or_create_customer_details(
             &*state.store,
