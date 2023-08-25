@@ -25,7 +25,9 @@ fn get_client_builder(
     let mut client_builder = reqwest::Client::builder()
         .redirect(reqwest::redirect::Policy::none())
         .pool_idle_timeout(std::time::Duration::from_secs(
-            proxy_config.idle_pool_connection_timeout.unwrap_or(90),
+            proxy_config
+                .idle_pool_connection_timeout
+                .unwrap_or_default(),
         ));
 
     if should_bypass_proxy {

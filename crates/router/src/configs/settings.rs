@@ -409,7 +409,7 @@ pub struct Jwekey {
     pub tunnel_private_key: String,
 }
 
-#[derive(Debug, Deserialize, Clone, Default)]
+#[derive(Debug, Deserialize, Clone)]
 #[serde(default)]
 pub struct Proxy {
     pub http_url: Option<String>,
