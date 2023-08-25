@@ -153,6 +153,36 @@ impl ConnectorValidation for Bluesnap {
             ),
         }
     }
+
+    fn validate_psync_reference_id(
+        &self,
+        data: &types::PaymentsSyncRouterData,
+    ) -> Result<(), errors::ConnectorError> {
+        // if connector_transaction_id is present, psync can be made
+        if data
+            .request
+            .connector_transaction_id
+            .get_connector_transaction_id()
+            .is_ok()
+        {
+            return Ok(());
+        }
+        // if merchant_id is present, psync can be made along with attempt_id
+        match data.connector_meta_data.clone().expose_option() {
+            Some(value) => {
+                let meta_data: Result<bluesnap::BluesnapMetaData, Report<errors::ConnectorError>> =
+                    serde_json::from_value(value)
+                        .into_report()
+                        .change_context(errors::ConnectorError::ResponseDeserializationFailed);
+
+                match meta_data {
+                    Ok(_) => Ok(()),
+                    Err(_) => Err(errors::ConnectorError::ResponseDeserializationFailed),
+                }
+            }
+            None => Err(errors::ConnectorError::NoConnectorMetaData)?,
+        }
+    }
 }
 
 impl api::Payment for Bluesnap {}
