@@ -3038,10 +3038,13 @@ impl ApplePayData {
             .await
             .change_context(errors::ApplePayDecryptionError::DecryptionFailed)?;
 
-        let cert_data_bytes = &cert_data.into_bytes();
+        let base64_decode_cert_data = BASE64_ENGINE
+            .decode(cert_data)
+            .into_report()
+            .change_context(errors::ApplePayDecryptionError::Base64DecodingFailed)?;
 
         // Parsing the certificate using x509-parser
-        let (_, certificate) = parse_x509_certificate(cert_data_bytes)
+        let (_, certificate) = parse_x509_certificate(&base64_decode_cert_data)
             .into_report()
             .change_context(errors::ApplePayDecryptionError::CertificateParsingFailed)
             .attach_printable("Error parsing apple pay PPC")?;
