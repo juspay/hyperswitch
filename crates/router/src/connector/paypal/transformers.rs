@@ -203,7 +203,12 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PaypalPaymentsRequest {
             }
             api::PaymentMethodData::Wallet(ref wallet_data) => match wallet_data {
                 api_models::payments::WalletData::PaypalRedirect(_) => {
-                    let intent = PaypalPaymentIntent::Capture;
+                    let intent = match item.request.is_auto_capture()? {
+                        true => PaypalPaymentIntent::Capture,
+                        false => Err(errors::ConnectorError::NotImplemented(
+                            "Manual capture method for Paypal wallet".to_string(),
+                        ))?,
+                    };
                     let amount = OrderAmount {
                         currency_code: item.request.currency,
                         value: utils::to_currency_base_unit_with_zero_decimal_check(
@@ -404,6 +409,7 @@ pub struct PaypalPaymentsSyncResponse {
     id: String,
     status: PaypalPaymentStatus,
     amount: OrderAmount,
+    supplementary_data: PaypalSupplementaryData,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -577,7 +583,9 @@ impl<F, T>
         Ok(Self {
             status: storage_enums::AttemptStatus::from(item.response.status),
             response: Ok(types::PaymentsResponseData::TransactionResponse {
-                resource_id: types::ResponseId::ConnectorTransactionId(item.response.id),
+                resource_id: types::ResponseId::ConnectorTransactionId(
+                    item.response.supplementary_data.related_ids.order_id,
+                ),
                 redirection_data: None,
                 mandate_reference: None,
                 connector_metadata: None,
@@ -668,7 +676,7 @@ impl TryFrom<types::PaymentsCaptureResponseRouterData<PaypalCaptureResponse>>
             status,
             response: Ok(types::PaymentsResponseData::TransactionResponse {
                 resource_id: types::ResponseId::ConnectorTransactionId(
-                    item.data.request.clone().connector_transaction_id,
+                    item.data.request.connector_transaction_id.clone(),
                 ),
                 redirection_data: None,
                 mandate_reference: None,

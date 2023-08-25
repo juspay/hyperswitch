@@ -775,11 +775,16 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
         req: &types::RefundsRouterData<api::Execute>,
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        let id = req.request.connector_transaction_id.clone();
+        let paypal_meta: PaypalMeta = to_connector_meta(req.request.connector_metadata.clone())?;
+        let capture_id = paypal_meta.capture_id.ok_or(
+            errors::ConnectorError::RequestEncodingFailedWithReason(
+                "Missing Capture id".to_string(),
+            ),
+        )?;
         Ok(format!(
             "{}v2/payments/captures/{}/refund",
             self.base_url(connectors),
-            id,
+            capture_id,
         ))
     }
 
