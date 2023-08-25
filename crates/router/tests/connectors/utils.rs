@@ -496,6 +496,7 @@ pub trait ConnectorActions: Connector {
             payment_method_token: info.clone().and_then(|a| a.payment_method_token),
             connector_customer: info.clone().and_then(|a| a.connector_customer),
             recurring_mandate_payment_data: None,
+
             preprocessing_id: None,
             connector_request_reference_id: uuid::Uuid::new_v4().to_string(),
             #[cfg(feature = "payouts")]
@@ -504,6 +505,7 @@ pub trait ConnectorActions: Connector {
             quote_id: None,
             test_mode: None,
             payment_method_balance: None,
+            connector_api_version: None,
             connector_http_status_code: None,
         }
     }
@@ -523,6 +525,7 @@ pub trait ConnectorActions: Connector {
             Ok(types::PaymentsResponseData::ConnectorCustomerResponse { .. }) => None,
             Ok(types::PaymentsResponseData::PreProcessingResponse { .. }) => None,
             Ok(types::PaymentsResponseData::ThreeDSEnrollmentResponse { .. }) => None,
+            Ok(types::PaymentsResponseData::MultipleCaptureResponse { .. }) => None,
             Err(_) => None,
         }
     }
@@ -918,6 +921,7 @@ impl Default for PaymentSyncType {
             ),
             encoded_data: None,
             capture_method: None,
+            capture_sync_type: types::CaptureSyncType::SingleCaptureSync,
             connector_meta: None,
         };
         Self(data)
@@ -978,6 +982,7 @@ pub fn get_connector_transaction_id(
         Ok(types::PaymentsResponseData::PreProcessingResponse { .. }) => None,
         Ok(types::PaymentsResponseData::ConnectorCustomerResponse { .. }) => None,
         Ok(types::PaymentsResponseData::ThreeDSEnrollmentResponse { .. }) => None,
+        Ok(types::PaymentsResponseData::MultipleCaptureResponse { .. }) => None,
         Err(_) => None,
     }
 }

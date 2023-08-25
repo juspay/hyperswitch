@@ -3571,6 +3571,86 @@
           "scheduled"
         ]
       },
+      "CaptureResponse": {
+        "type": "object",
+        "required": [
+          "capture_id",
+          "status",
+          "amount",
+          "connector",
+          "authorized_attempt_id",
+          "capture_sequence"
+        ],
+        "properties": {
+          "capture_id": {
+            "type": "string",
+            "description": "unique identifier for the capture"
+          },
+          "status": {
+            "$ref": "#/components/schemas/CaptureStatus"
+          },
+          "amount": {
+            "type": "integer",
+            "format": "int64",
+            "description": "The capture amount. Amount for the payment in lowest denomination of the currency. (i.e) in cents for USD denomination, in paisa for INR denomination etc.,"
+          },
+          "currency": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/Currency"
+              }
+            ],
+            "nullable": true
+          },
+          "connector": {
+            "type": "string",
+            "description": "The connector used for the payment"
+          },
+          "authorized_attempt_id": {
+            "type": "string",
+            "description": "unique identifier for the parent attempt on which this capture is made"
+          },
+          "connector_capture_id": {
+            "type": "string",
+            "description": "A unique identifier for a capture provided by the connector",
+            "nullable": true
+          },
+          "capture_sequence": {
+            "type": "integer",
+            "format": "int32",
+            "description": "sequence number of this capture"
+          },
+          "error_message": {
+            "type": "string",
+            "description": "If there was an error while calling the connector the error message is received here",
+            "nullable": true
+          },
+          "error_code": {
+            "type": "string",
+            "description": "If there was an error while calling the connectors the code is received here",
+            "nullable": true
+          },
+          "error_reason": {
+            "type": "string",
+            "description": "If there was an error while calling the connectors the reason is received here",
+            "nullable": true
+          },
+          "reference_id": {
+            "type": "string",
+            "description": "reference to the capture at connector side",
+            "nullable": true
+          }
+        }
+      },
+      "CaptureStatus": {
+        "type": "string",
+        "enum": [
+          "started",
+          "charged",
+          "pending",
+          "failed"
+        ]
+      },
       "Card": {
         "type": "object",
         "required": [
@@ -4926,6 +5006,30 @@
           {
             "type": "string",
             "enum": [
+              "card_number"
+            ]
+          },
+          {
+            "type": "string",
+            "enum": [
+              "card_expiry_month"
+            ]
+          },
+          {
+            "type": "string",
+            "enum": [
+              "card_expiry_year"
+            ]
+          },
+          {
+            "type": "string",
+            "enum": [
+              "card_c_v_c"
+            ]
+          },
+          {
+            "type": "string",
+            "enum": [
               "user_full_name"
             ]
           },
@@ -4939,6 +5043,12 @@
             "type": "string",
             "enum": [
               "user_phone_number"
+            ]
+          },
+          {
+            "type": "string",
+            "enum": [
+              "user_country_code"
             ]
           },
           {
@@ -4962,6 +5072,34 @@
                 }
               }
             }
+          },
+          {
+            "type": "object",
+            "required": [
+              "user_currency"
+            ],
+            "properties": {
+              "user_currency": {
+                "type": "object",
+                "required": [
+                  "options"
+                ],
+                "properties": {
+                  "options": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          {
+            "type": "string",
+            "enum": [
+              "user_billing_name"
+            ]
           },
           {
             "type": "string",
@@ -4994,36 +5132,12 @@
             ]
           },
           {
-            "type": "string",
-            "enum": [
-              "user_address_country"
-            ]
-          },
-          {
-            "type": "string",
-            "enum": [
-              "user_blik_code"
-            ]
-          },
-          {
-            "type": "string",
-            "enum": [
-              "user_billing_name"
-            ]
-          },
-          {
-            "type": "string",
-            "enum": [
-              "user_bank"
-            ]
-          },
-          {
             "type": "object",
             "required": [
-              "user_currency"
+              "user_address_country"
             ],
             "properties": {
-              "user_currency": {
+              "user_address_country": {
                 "type": "object",
                 "required": [
                   "options"
@@ -5038,6 +5152,18 @@
                 }
               }
             }
+          },
+          {
+            "type": "string",
+            "enum": [
+              "user_blik_code"
+            ]
+          },
+          {
+            "type": "string",
+            "enum": [
+              "user_bank"
+            ]
           },
           {
             "type": "string",
@@ -5931,7 +6057,7 @@
             "description": "Will be used to expire client secret after certain amount of time to be supplied in seconds\n(900) for 15 mins",
             "example": 900,
             "nullable": true,
-            "minimum": 0
+            "minimum": 0.0
           },
           "organization_id": {
             "type": "string",
@@ -6100,6 +6226,12 @@
           "is_recon_enabled": {
             "type": "boolean",
             "description": "A boolean value to indicate if the merchant has recon service is enabled or not, by default value is false"
+          },
+          "default_profile": {
+            "type": "string",
+            "description": "The default business profile that must be used for creating merchant accounts and payments",
+            "nullable": true,
+            "maxLength": 64
           }
         }
       },
@@ -6225,7 +6357,13 @@
             "format": "int32",
             "description": "Will be used to expire client secret after certain amount of time to be supplied in seconds\n(900) for 15 mins",
             "nullable": true,
-            "minimum": 0
+            "minimum": 0.0
+          },
+          "default_profile": {
+            "type": "string",
+            "description": "The default business profile that must be used for creating merchant accounts and payments\nTo unset this field, pass an empty string",
+            "nullable": true,
+            "maxLength": 64
           }
         }
       },
@@ -6351,6 +6489,11 @@
                 "$ref": "#/components/schemas/MerchantConnectorWebhookDetails"
               }
             ],
+            "nullable": true
+          },
+          "profile_id": {
+            "type": "string",
+            "description": "Identifier for the business profile, if not provided default will be chosen from merchant account",
             "nullable": true
           }
         }
@@ -6558,6 +6701,12 @@
               }
             ],
             "nullable": true
+          },
+          "profile_id": {
+            "type": "string",
+            "description": "The business profile this connector must be created in\ndefault value from merchant account is taken if not passed",
+            "nullable": true,
+            "maxLength": 64
           }
         }
       },
@@ -6946,13 +7095,13 @@
             "type": "integer",
             "format": "int64",
             "description": "Timestamp at which session is requested",
-            "minimum": 0
+            "minimum": 0.0
           },
           "expires_at": {
             "type": "integer",
             "format": "int64",
             "description": "Timestamp at which session expires",
-            "minimum": 0
+            "minimum": 0.0
           },
           "merchant_session_identifier": {
             "type": "string",
@@ -6986,7 +7135,7 @@
             "type": "integer",
             "format": "int32",
             "description": "The number of retries to get the session response",
-            "minimum": 0
+            "minimum": 0.0
           },
           "psp_id": {
             "type": "string",
@@ -7040,7 +7189,7 @@
             "format": "int32",
             "description": "The quantity of the product to be purchased",
             "example": 1,
-            "minimum": 0
+            "minimum": 0.0
           }
         }
       },
@@ -7063,7 +7212,7 @@
             "format": "int32",
             "description": "The quantity of the product to be purchased",
             "example": 1,
-            "minimum": 0
+            "minimum": 0.0
           },
           "amount": {
             "type": "integer",
@@ -7375,7 +7524,6 @@
                 "$ref": "#/components/schemas/AuthenticationType"
               }
             ],
-            "default": "three_ds",
             "nullable": true
           },
           "cancellation_reason": {
@@ -7558,13 +7706,19 @@
         "type": "object",
         "required": [
           "size",
+          "attempt_count",
           "data"
         ],
         "properties": {
           "size": {
             "type": "integer",
             "description": "The number of payments included in the list",
-            "minimum": 0
+            "minimum": 0.0
+          },
+          "attempt_count": {
+            "type": "integer",
+            "format": "int32",
+            "description": "The total number of payment_attempts for intents included in the list"
           },
           "data": {
             "type": "array",
@@ -8215,7 +8369,7 @@
             "description": "The payment amount. Amount for the payment in lowest denomination of the currency. (i.e) in cents for USD denomination, in paisa for INR denomination etc.,",
             "example": 6540,
             "nullable": true,
-            "minimum": 0
+            "minimum": 0.0
           },
           "routing": {
             "allOf": [
@@ -8349,7 +8503,6 @@
                 "$ref": "#/components/schemas/AuthenticationType"
               }
             ],
-            "default": "three_ds",
             "nullable": true
           },
           "payment_method_data": {
@@ -8522,6 +8675,11 @@
                 "$ref": "#/components/schemas/FeatureMetadata"
               }
             ],
+            "nullable": true
+          },
+          "profile_id": {
+            "type": "string",
+            "description": "The business profile to use for this payment, if not passed the default business profile\nassociated with the merchant account will be used.",
             "nullable": true
           }
         }
@@ -8550,7 +8708,7 @@
             "description": "The payment amount. Amount for the payment in lowest denomination of the currency. (i.e) in cents for USD denomination, in paisa for INR denomination etc.,",
             "example": 6540,
             "nullable": true,
-            "minimum": 0
+            "minimum": 0.0
           },
           "routing": {
             "allOf": [
@@ -8684,7 +8842,6 @@
                 "$ref": "#/components/schemas/AuthenticationType"
               }
             ],
-            "default": "three_ds",
             "nullable": true
           },
           "payment_method_data": {
@@ -8857,6 +9014,11 @@
                 "$ref": "#/components/schemas/FeatureMetadata"
               }
             ],
+            "nullable": true
+          },
+          "profile_id": {
+            "type": "string",
+            "description": "The business profile to use for this payment, if not passed the default business profile\nassociated with the merchant account will be used.",
             "nullable": true
           }
         }
@@ -8888,12 +9050,7 @@
             "maxLength": 255
           },
           "status": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/IntentStatus"
-              }
-            ],
-            "default": "requires_confirmation"
+            "$ref": "#/components/schemas/IntentStatus"
           },
           "amount": {
             "type": "integer",
@@ -8907,7 +9064,7 @@
             "description": "The maximum amount that could be captured from the payment",
             "example": 6540,
             "nullable": true,
-            "minimum": 100
+            "minimum": 100.0
           },
           "amount_received": {
             "type": "integer",
@@ -8915,7 +9072,7 @@
             "description": "The amount which is already captured from the payment",
             "example": 6540,
             "nullable": true,
-            "minimum": 100
+            "minimum": 100.0
           },
           "connector": {
             "type": "string",
@@ -8974,6 +9131,14 @@
               "$ref": "#/components/schemas/PaymentAttemptResponse"
             },
             "description": "List of attempts that happened on this intent",
+            "nullable": true
+          },
+          "captures": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CaptureResponse"
+            },
+            "description": "List of captures done on latest attempt",
             "nullable": true
           },
           "mandate_id": {
@@ -9095,7 +9260,6 @@
                 "$ref": "#/components/schemas/AuthenticationType"
               }
             ],
-            "default": "three_ds",
             "nullable": true
           },
           "statement_descriptor_name": {
@@ -9231,6 +9395,11 @@
             "type": "string",
             "description": "reference to the payment at connector side",
             "example": "993672945374576J",
+            "nullable": true
+          },
+          "profile_id": {
+            "type": "string",
+            "description": "The business profile that is associated with this payment",
             "nullable": true
           }
         }
@@ -9987,7 +10156,7 @@
           "count": {
             "type": "integer",
             "description": "The number of refunds included in the list",
-            "minimum": 0
+            "minimum": 0.0
           },
           "total_count": {
             "type": "integer",
@@ -10037,7 +10206,7 @@
             "description": "Total amount for which the refund is to be initiated. Amount for the payment in lowest denomination of the currency. (i.e) in cents for USD denomination, in paisa for INR denomination etc., If not provided, this will default to the full payment amount",
             "example": 6540,
             "nullable": true,
-            "minimum": 100
+            "minimum": 100.0
           },
           "reason": {
             "type": "string",
@@ -10052,7 +10221,6 @@
                 "$ref": "#/components/schemas/RefundType"
               }
             ],
-            "default": "Instant",
             "nullable": true
           },
           "metadata": {
