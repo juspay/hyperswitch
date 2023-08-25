@@ -353,7 +353,7 @@ pub enum PaymentIntentFetchConstraints {
         payment_intent_id: String,
     },
     List {
-        offset: Option<u32>,
+        offset: u32,
         starting_at: Option<PrimitiveDateTime>,
         ending_at: Option<PrimitiveDateTime>,
         connector: Option<Vec<api_models::enums::Connector>>,
@@ -370,7 +370,7 @@ pub enum PaymentIntentFetchConstraints {
 impl From<api_models::payments::PaymentListConstraints> for PaymentIntentFetchConstraints {
     fn from(value: api_models::payments::PaymentListConstraints) -> Self {
         Self::List {
-            offset: None,
+            offset: 0,
             starting_at: value.created_gte.or(value.created_gt).or(value.created),
             ending_at: value.created_lte.or(value.created_lt).or(value.created),
             connector: None,
@@ -380,7 +380,7 @@ impl From<api_models::payments::PaymentListConstraints> for PaymentIntentFetchCo
             customer_id: value.customer_id,
             starting_after_id: value.starting_after,
             ending_before_id: value.ending_before,
-            limit: None,
+            limit: Some(std::cmp::min(value.limit, 100)),
         }
     }
 }
@@ -388,7 +388,7 @@ impl From<api_models::payments::PaymentListConstraints> for PaymentIntentFetchCo
 impl From<api_models::payments::TimeRange> for PaymentIntentFetchConstraints {
     fn from(value: api_models::payments::TimeRange) -> Self {
         Self::List {
-            offset: None,
+            offset: 0,
             starting_at: Some(value.start_time),
             ending_at: value.end_time,
             connector: None,
@@ -419,7 +419,7 @@ impl From<api_models::payments::PaymentListFilterConstraints> for PaymentIntentF
                 customer_id: None,
                 starting_after_id: None,
                 ending_before_id: None,
-                limit: None,
+                limit: Some(20),
             }
         }
     }
