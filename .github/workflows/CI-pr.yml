@@ -290,7 +290,7 @@ jobs:
       - name: Install Rust
         uses: dtolnay/rust-toolchain@master
         with:
-          toolchain: stable 2 weeks ago
+          toolchain: stable
           components: clippy
 
       - name: Install cargo-hack
