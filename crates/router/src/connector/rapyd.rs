@@ -15,8 +15,7 @@ use crate::{
     connector::{utils as connector_utils, utils as conn_utils},
     consts,
     core::errors::{self, CustomResult},
-    db::StorageInterface,
-    headers, logger,
+    headers, logger, routes,
     services::{
         self,
         request::{self, Mask},
@@ -762,7 +761,7 @@ impl api::IncomingWebhook for Rapyd {
 
     async fn verify_webhook_source(
         &self,
-        db: &dyn StorageInterface,
+        state: &routes::AppState,
         request: &api::IncomingWebhookRequestDetails<'_>,
         merchant_account: &domain::MerchantAccount,
         connector_label: &str,
@@ -774,7 +773,7 @@ impl api::IncomingWebhook for Rapyd {
             .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
         let secret = self
             .get_webhook_source_verification_merchant_secret(
-                db,
+                &*state.store,
                 merchant_account,
                 connector_label,
                 key_store,

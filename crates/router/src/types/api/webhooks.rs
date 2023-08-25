@@ -11,7 +11,7 @@ use super::ConnectorCommon;
 use crate::{
     core::errors::{self, CustomResult},
     db::StorageInterface,
-    logger, services,
+    logger, routes, services,
     types::domain,
     utils::{self, crypto},
 };
@@ -158,7 +158,7 @@ pub trait IncomingWebhook: ConnectorCommon + Sync {
 
     async fn verify_webhook_source(
         &self,
-        db: &dyn StorageInterface,
+        state: &routes::AppState,
         request: &IncomingWebhookRequestDetails<'_>,
         merchant_account: &domain::MerchantAccount,
         connector_label: &str,
@@ -174,7 +174,7 @@ pub trait IncomingWebhook: ConnectorCommon + Sync {
             .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
         let secret = self
             .get_webhook_source_verification_merchant_secret(
-                db,
+                &*state.store,
                 merchant_account,
                 connector_label,
                 key_store,

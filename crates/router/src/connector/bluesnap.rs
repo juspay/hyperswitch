@@ -23,8 +23,7 @@ use crate::{
         errors::{self, CustomResult},
         payments,
     },
-    db::StorageInterface,
-    headers, logger,
+    headers, logger, routes,
     services::{
         self,
         request::{self, Mask},
@@ -1007,7 +1006,7 @@ impl api::IncomingWebhook for Bluesnap {
 
     async fn verify_webhook_source(
         &self,
-        db: &dyn StorageInterface,
+        state: &routes::AppState,
         request: &api::IncomingWebhookRequestDetails<'_>,
         merchant_account: &domain::MerchantAccount,
         connector_label: &str,
@@ -1023,7 +1022,7 @@ impl api::IncomingWebhook for Bluesnap {
             .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
         let mut secret = self
             .get_webhook_source_verification_merchant_secret(
-                db,
+                &*state.store,
                 merchant_account,
                 connector_label,
                 key_store,

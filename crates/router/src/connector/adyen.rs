@@ -18,7 +18,6 @@ use crate::{
         self,
         errors::{self, CustomResult},
     },
-    db::StorageInterface,
     headers, logger, routes,
     services::{
         self,
@@ -1398,7 +1397,7 @@ impl api::IncomingWebhook for Adyen {
 
     async fn verify_webhook_source(
         &self,
-        db: &dyn StorageInterface,
+        state: &routes::AppState,
         request: &api::IncomingWebhookRequestDetails<'_>,
         merchant_account: &domain::MerchantAccount,
         connector_label: &str,
@@ -1410,7 +1409,7 @@ impl api::IncomingWebhook for Adyen {
             .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
         let secret = self
             .get_webhook_source_verification_merchant_secret(
-                db,
+                &*state.store,
                 merchant_account,
                 connector_label,
                 key_store,

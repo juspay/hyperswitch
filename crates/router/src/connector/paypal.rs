@@ -4,7 +4,7 @@ use std::fmt::Debug;
 use base64::Engine;
 use common_utils::ext_traits::ByteSliceExt;
 use diesel_models::enums;
-use error_stack::ResultExt;
+use error_stack::{IntoReport, ResultExt};
 use masking::PeekInterface;
 use transformers as paypal;
 
@@ -20,8 +20,7 @@ use crate::{
         errors::{self, CustomResult},
         payments,
     },
-    db::StorageInterface,
-    headers,
+    headers, routes,
     services::{
         self,
         request::{self, Mask},
@@ -904,14 +903,76 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
 impl api::IncomingWebhook for Paypal {
     async fn verify_webhook_source(
         &self,
-        _db: &dyn StorageInterface,
-        _request: &api::IncomingWebhookRequestDetails<'_>,
-        _merchant_account: &domain::MerchantAccount,
-        _connector_label: &str,
-        _key_store: &domain::MerchantKeyStore,
-        _object_reference_id: api_models::webhooks::ObjectReferenceId,
+        state: &routes::AppState,
+        request: &api::IncomingWebhookRequestDetails<'_>,
+        merchant_account: &domain::MerchantAccount,
+        connector_label: &str,
+        key_store: &domain::MerchantKeyStore,
+        object_reference_id: api_models::webhooks::ObjectReferenceId,
     ) -> CustomResult<bool, errors::ConnectorError> {
-        Ok(false) // Verify webhook source is not implemented for Paypal it requires additional apicall this function needs to be modified once we have a way to verify webhook source
+        let url = format!(
+            "{}/v1/notifications/verify-webhook-signature",
+            state.conf.connectors.paypal.base_url
+        );
+
+        let secret = self
+            .get_webhook_source_verification_merchant_secret(
+                &*state.store,
+                merchant_account,
+                connector_label,
+                key_store,
+                object_reference_id,
+            )
+            .await
+            .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
+
+        let webhook_id = String::from_utf8(secret)
+            .into_report()
+            .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
+
+        let source_request =
+            transformers::PaypalWebhookSourceRequest::try_from((request, webhook_id))?;
+
+        let webhooks_source_request = types::RequestBody::log_and_get_request_body(
+            &source_request,
+            utils::Encode::<paypal::PaypalWebhookSourceRequest>::encode_to_string_of_json,
+        )
+        .change_context(errors::ConnectorError::RequestEncodingFailed)
+        .attach_printable("Failed to encode encode request to a string of json")?;
+
+        let webhook_source_verification_request = services::RequestBuilder::new()
+            .method(services::Method::Post)
+            .url(url.as_str())
+            .attach_default_headers()
+            .headers(vec![(
+                headers::CONTENT_TYPE.to_string(),
+                "application/json".to_string().into(),
+            )])
+            .body(Some(webhooks_source_request))
+            .build();
+
+        let response =
+            services::call_connector_api(state, webhook_source_verification_request).await;
+
+        let source_verified = response
+            .ok()
+            .map(
+                |connector_webhook_source_response| match connector_webhook_source_response {
+                    Ok(res) => {
+                        let response: Result<paypal::PaypalSourceVerificationResponse, _> = res
+                            .response
+                            .parse_struct("paypal PaypalSourceVerificationResponse");
+
+                        response
+                            .map(|res| res.verification_status == *"SUCCESS".to_string())
+                            .unwrap_or(false)
+                    }
+                    Err(_) => false,
+                },
+            )
+            .unwrap_or(false);
+
+        Ok(source_verified)
     }
 
     fn get_webhook_object_reference_id(

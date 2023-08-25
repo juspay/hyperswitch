@@ -14,8 +14,7 @@ use crate::{
     configs::settings,
     consts,
     core::errors::{self, CustomResult},
-    db::StorageInterface,
-    headers,
+    headers, routes,
     services::{
         self,
         request::{self, Mask},
@@ -773,7 +772,7 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
 impl api::IncomingWebhook for Stax {
     async fn verify_webhook_source(
         &self,
-        _db: &dyn StorageInterface,
+        _state: &routes::AppState,
         _request: &api::IncomingWebhookRequestDetails<'_>,
         _merchant_account: &domain::MerchantAccount,
         _connector_label: &str,

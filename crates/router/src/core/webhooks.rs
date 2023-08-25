@@ -714,7 +714,7 @@ pub async fn webhooks_core<W: types::OutgoingWebhookType>(
         )],
     );
 
-    let connector = api::ConnectorData::get_connector_by_name(
+    let connector_data = api::ConnectorData::get_connector_by_name(
         &state.conf.connectors,
         connector_name,
         api::GetToken::Connector,
@@ -724,7 +724,7 @@ pub async fn webhooks_core<W: types::OutgoingWebhookType>(
     })
     .attach_printable("Failed construction of ConnectorData")?;
 
-    let connector = connector.connector;
+    let connector = connector_data.connector;
     let mut request_details = api::IncomingWebhookRequestDetails {
         method: req.method().clone(),
         headers: req.headers(),
@@ -796,7 +796,7 @@ pub async fn webhooks_core<W: types::OutgoingWebhookType>(
 
         let source_verified = connector
             .verify_webhook_source(
-                &*state.store,
+                state,
                 &request_details,
                 &merchant_account,
                 connector_name,

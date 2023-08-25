@@ -1,5 +1,6 @@
 use api_models::payments::BankRedirectData;
 use common_utils::errors::CustomResult;
+use error_stack::{IntoReport, ResultExt};
 use masking::Secret;
 use serde::{Deserialize, Serialize};
 use url::Url;
@@ -950,5 +951,67 @@ impl From<PaypalWebhookEventType> for api::IncomingWebhookEvent {
             PaypalWebhookEventType::PaymentCaptureRefunded => Self::RefundSuccess,
             PaypalWebhookEventType::Unknown => Self::EventNotSupported,
         }
+    }
+}
+
+#[derive(Debug, Serialize)]
+pub struct PaypalWebhookSourceRequest {
+    pub transmission_id: String,
+    pub transmission_time: String,
+    pub cert_url: String,
+    pub transmission_sig: String,
+    pub webhook_id: String,
+    pub webhook_event: serde_json::Value,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct PaypalSourceVerificationResponse {
+    pub verification_status: String,
+}
+
+impl TryFrom<(&api::IncomingWebhookRequestDetails<'_>, String)> for PaypalWebhookSourceRequest {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        (request, webhook_id): (&api::IncomingWebhookRequestDetails<'_>, String),
+    ) -> Result<Self, Self::Error> {
+        let webhook_event = serde_json::to_value(request.body)
+            .into_report()
+            .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
+        Ok(Self {
+            transmission_id: request
+                .headers
+                .get("paypal-transmission-id")
+                .ok_or(errors::ConnectorError::WebhookResponseEncodingFailed)?
+                .to_str()
+                .into_report()
+                .change_context(errors::ConnectorError::WebhookResponseEncodingFailed)?
+                .to_string(),
+            transmission_time: request
+                .headers
+                .get("paypal-transmission-time")
+                .ok_or(errors::ConnectorError::WebhookResponseEncodingFailed)?
+                .to_str()
+                .into_report()
+                .change_context(errors::ConnectorError::WebhookResponseEncodingFailed)?
+                .to_string(),
+            cert_url: request
+                .headers
+                .get("paypal-cert-url")
+                .ok_or(errors::ConnectorError::WebhookResponseEncodingFailed)?
+                .to_str()
+                .into_report()
+                .change_context(errors::ConnectorError::WebhookResponseEncodingFailed)?
+                .to_string(),
+            transmission_sig: request
+                .headers
+                .get("paypal-transmission-sig")
+                .ok_or(errors::ConnectorError::WebhookResponseEncodingFailed)?
+                .to_str()
+                .into_report()
+                .change_context(errors::ConnectorError::WebhookResponseEncodingFailed)?
+                .to_string(),
+            webhook_id,
+            webhook_event,
+        })
     }
 }
