@@ -264,7 +264,7 @@ dependencies = [
  "serde_urlencoded",
  "smallvec",
  "socket2 0.4.9",
- "time 0.3.27",
+ "time 0.3.22",
  "url",
 ]
 
@@ -402,7 +402,7 @@ dependencies = [
  "serde",
  "serde_json",
  "strum 0.24.1",
- "time 0.3.27",
+ "time 0.3.22",
  "url",
  "utoipa",
 ]
@@ -614,7 +614,7 @@ dependencies = [
  "http",
  "hyper",
  "ring",
- "time 0.3.27",
+ "time 0.3.22",
  "tokio",
  "tower",
  "tracing",
@@ -834,7 +834,7 @@ dependencies = [
  "percent-encoding",
  "regex",
  "sha2",
- "time 0.3.27",
+ "time 0.3.22",
  "tracing",
 ]
 
@@ -974,7 +974,7 @@ dependencies = [
  "itoa",
  "num-integer",
  "ryu",
- "time 0.3.27",
+ "time 0.3.22",
 ]
 
 [[package]]
@@ -1135,9 +1135,9 @@ checksum = "b4682ae6287fcf752ecaabbfcc7b6f9b72aa33933dc23a554d853aea8eea8635"
 
 [[package]]
 name = "blake3"
-version = "1.4.1"
+version = "1.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "199c42ab6972d92c9f8995f086273d25c42fc0f7b2a1fcefba465c1352d25ba5"
+checksum = "729b71f35bd3fa1a4c86b85d32c8b9069ea7fe14f7a53cfabb65f62d4265b888"
 dependencies = [
  "arrayref",
  "arrayvec",
@@ -1246,7 +1246,7 @@ dependencies = [
  "serde",
  "serde_json",
  "thiserror",
- "time 0.3.27",
+ "time 0.3.22",
 ]
 
 [[package]]
@@ -1389,7 +1389,7 @@ dependencies = [
  "serde",
  "serde_json",
  "strum 0.25.0",
- "time 0.3.27",
+ "time 0.3.22",
  "utoipa",
 ]
 
@@ -1422,7 +1422,7 @@ dependencies = [
  "signal-hook-tokio",
  "test-case",
  "thiserror",
- "time 0.3.27",
+ "time 0.3.22",
  "tokio",
 ]
 
@@ -1456,9 +1456,9 @@ dependencies = [
 
 [[package]]
 name = "constant_time_eq"
-version = "0.3.0"
+version = "0.2.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f7144d30dcf0fafbce74250a3963025d8d52177934239851c917d29f1df280c2"
+checksum = "21a53c0a4d288377e7415b53dcfc3c04da5cdc2cc95c8d5ac178b58f0b861ad6"
 
 [[package]]
 name = "convert_case"
@@ -1473,7 +1473,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e859cd57d0710d9e06c381b550c06e76992472a8c6d527aecd2fc673dcc231fb"
 dependencies = [
  "percent-encoding",
- "time 0.3.27",
+ "time 0.3.22",
  "version_check",
 ]
 
@@ -1682,7 +1682,7 @@ dependencies = [
  "serde_json",
  "strum 0.25.0",
  "thiserror",
- "time 0.3.27",
+ "time 0.3.22",
 ]
 
 [[package]]
@@ -1712,15 +1712,6 @@ checksum = "73770f8e1fe7d64df17ca66ad28994a0a623ea497fa69486e14984e715c5d174"
 dependencies = [
  "adler32",
  "byteorder",
-]
-
-[[package]]
-name = "deranged"
-version = "0.3.8"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f2696e8a945f658fd14dc3b87242e6b80cd0f36ff04ea560fa39082368847946"
-dependencies = [
- "serde",
 ]
 
 [[package]]
@@ -1760,7 +1751,7 @@ dependencies = [
  "pq-sys",
  "r2d2",
  "serde_json",
- "time 0.3.27",
+ "time 0.3.22",
 ]
 
 [[package]]
@@ -1793,7 +1784,7 @@ dependencies = [
  "serde_json",
  "strum 0.24.1",
  "thiserror",
- "time 0.3.27",
+ "time 0.3.22",
 ]
 
 [[package]]
@@ -2006,7 +1997,7 @@ dependencies = [
  "mime",
  "serde",
  "serde_json",
- "time 0.3.27",
+ "time 0.3.22",
  "tokio",
  "url",
  "webdriver",
@@ -2703,7 +2694,7 @@ dependencies = [
  "serde",
  "serde_json",
  "thiserror",
- "time 0.3.27",
+ "time 0.3.22",
 ]
 
 [[package]]
@@ -4086,7 +4077,7 @@ dependencies = [
  "test_utils",
  "thirtyfour",
  "thiserror",
- "time 0.3.27",
+ "time 0.3.22",
  "tokio",
  "toml 0.7.6",
  "url",
@@ -4126,7 +4117,7 @@ dependencies = [
  "serde_json",
  "serde_path_to_error",
  "strum 0.24.1",
- "time 0.3.27",
+ "time 0.3.22",
  "tokio",
  "tracing",
  "tracing-actix-web",
@@ -4496,7 +4487,7 @@ dependencies = [
  "serde",
  "serde_json",
  "serde_with_macros",
- "time 0.3.27",
+ "time 0.3.22",
 ]
 
 [[package]]
@@ -4627,7 +4618,7 @@ dependencies = [
  "num-bigint",
  "num-traits",
  "thiserror",
- "time 0.3.27",
+ "time 0.3.22",
 ]
 
 [[package]]
@@ -4889,7 +4880,7 @@ dependencies = [
  "serde_urlencoded",
  "serial_test",
  "thirtyfour",
- "time 0.3.27",
+ "time 0.3.22",
  "tokio",
  "toml 0.7.6",
  "uuid",
@@ -4987,11 +4978,10 @@ dependencies = [
 
 [[package]]
 name = "time"
-version = "0.3.27"
+version = "0.3.22"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0bb39ee79a6d8de55f48f2293a830e040392f1c5f16e336bdd1788cd0aadce07"
+checksum = "ea9e1b3cf1243ae005d9e74085d4d542f3125458f3a81af210d901dcd7411efd"
 dependencies = [
- "deranged",
  "itoa",
  "libc",
  "num_threads",
@@ -5008,9 +4998,9 @@ checksum = "7300fbefb4dadc1af235a9cef3737cea692a9d97e1b9cbcd4ebdae6f8868e6fb"
 
 [[package]]
 name = "time-macros"
-version = "0.2.13"
+version = "0.2.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "733d258752e9303d392b94b75230d07b0b9c489350c69b851fc6c065fde3e8f9"
+checksum = "372950940a5f07bf38dbe211d7283c9e6d7327df53794992d293e534c733d09b"
 dependencies = [
  "time-core",
 ]
@@ -5257,7 +5247,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "09d48f71a791638519505cefafe162606f706c25592e4bde4d97600c0195312e"
 dependencies = [
  "crossbeam-channel",
- "time 0.3.27",
+ "time 0.3.22",
  "tracing-subscriber",
 ]
 
@@ -5522,7 +5512,7 @@ dependencies = [
  "git2",
  "rustc_version",
  "rustversion",
- "time 0.3.27",
+ "time 0.3.22",
 ]
 
 [[package]]
@@ -5679,7 +5669,7 @@ dependencies = [
  "serde",
  "serde_derive",
  "serde_json",
- "time 0.3.27",
+ "time 0.3.22",
  "unicode-segmentation",
  "url",
 ]
