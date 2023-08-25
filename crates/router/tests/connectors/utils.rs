@@ -505,6 +505,7 @@ pub trait ConnectorActions: Connector {
             quote_id: None,
             test_mode: None,
             payment_method_balance: None,
+            connector_api_version: None,
             connector_http_status_code: None,
         }
     }

@@ -672,7 +672,7 @@ impl<F, T>
 pub struct PaymeErrorResponse {
     pub status_code: u16,
     pub status_error_details: String,
-    pub status_additional_info: String,
+    pub status_additional_info: serde_json::Value,
     pub status_error_code: u16,
 }
 
