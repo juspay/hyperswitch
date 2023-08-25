@@ -24,7 +24,6 @@ pub use self::operations::{
 };
 use self::{
     flows::{ConstructFlowSpecificData, Feature},
-    helpers::authenticate_client_secret,
     operations::{payment_complete_authorize, BoxedOperation, Operation},
 };
 use super::errors::StorageErrorExt;
@@ -91,7 +90,7 @@ where
         )
         .await?;
 
-    let aoperation, customer) = operation
+    let (operation, customer) = operation
         .to_domain()?
         .get_or_create_customer_details(
             &*state.store,

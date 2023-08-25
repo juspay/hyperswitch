@@ -80,7 +80,11 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
             "update",
         )?;
 
-        helpers::authenticate_client_secret(request.client_secret, payment_intent.client_secret, merchant_account.intent_fulfillment_time);
+        helpers::authenticate_client_secret(
+            request.client_secret.as_ref(),
+            &payment_intent,
+            merchant_account.intent_fulfillment_time,
+        )?;
         let (
             token,
             payment_method,

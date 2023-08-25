@@ -67,7 +67,11 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsStartRequest> f
             "update",
         )?;
 
-        helpers::authenticate_client_secret(payment_intent.client_secret, payment_intent.client_secret, merchant_account.intent_fulfillment_time);
+        helpers::authenticate_client_secret(
+            payment_intent.client_secret.as_ref(),
+            &payment_intent,
+            merchant_account.intent_fulfillment_time,
+        )?;
         payment_attempt = db
             .find_payment_attempt_by_payment_id_merchant_id_attempt_id(
                 payment_intent.payment_id.as_str(),
