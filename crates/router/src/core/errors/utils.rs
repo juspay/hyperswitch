@@ -173,6 +173,7 @@ impl<T> ConnectorErrorExt<T> for error_stack::Result<T, errors::ConnectorError> 
                 errors::ConnectorError::InvalidDataFormat { field_name } => {
                     errors::ApiErrorResponse::InvalidDataValue { field_name }
                 },
+                errors::ConnectorError::CurrencyNotSupported => errors::ApiErrorResponse::NotSupported {message: "Payment method for given currency is not configured with the given connector".into()},
                 _ => errors::ApiErrorResponse::InternalServerError,
             };
             err.change_context(error)

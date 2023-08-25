@@ -382,6 +382,8 @@ pub enum ConnectorError {
     InSufficientBalanceInPaymentMethod,
     #[error("Server responded with Request Timeout")]
     RequestTimeoutReceived,
+    #[error("The given currency method is not configured with the given connector")]
+    CurrencyNotSupported,
 }
 
 #[derive(Debug, thiserror::Error)]
