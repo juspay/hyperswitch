@@ -5,12 +5,12 @@ use external_services::email::{AwsSes, EmailClient};
 use external_services::kms::{self, decrypt::KmsDecrypt};
 use tokio::sync::oneshot;
 
-#[cfg(feature = "release")]
-use super::verification::apple_pay_merchant_registration;
 #[cfg(feature = "dummy_connector")]
 use super::dummy_connector::*;
 #[cfg(feature = "payouts")]
 use super::payouts::*;
+#[cfg(feature = "release")]
+use super::verification::apple_pay_merchant_registration;
 #[cfg(feature = "olap")]
 use super::{admin::*, api_keys::*, disputes::*, files::*};
 use super::{cache::*, health::*};
