@@ -557,6 +557,7 @@ where
         }
     }
 
+    #[track_caller]
     fn parse_enum<E>(self, enum_name: &'static str) -> CustomResult<E, errors::ParsingError>
     where
         T: AsRef<str>,
@@ -573,6 +574,7 @@ where
             .attach_printable_lazy(|| format!("Invalid {{ {enum_name}: {value:?} }} "))
     }
 
+    #[track_caller]
     fn parse_value<U>(self, type_name: &'static str) -> CustomResult<U, errors::ParsingError>
     where
         T: ValueExt,

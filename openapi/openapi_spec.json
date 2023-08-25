@@ -7661,9 +7661,11 @@
           },
           "limit": {
             "type": "integer",
-            "format": "int64",
+            "format": "int32",
             "description": "limit on the number of objects to return",
-            "default": 10
+            "default": 10,
+            "maximum": 100.0,
+            "minimum": 0.0
           },
           "created": {
             "type": "string",
