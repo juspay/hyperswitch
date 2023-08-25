@@ -91,30 +91,12 @@ fn get_applepay_metadata(
         })
 }
 
-fn mk_applepay_session_request(
+fn build_apple_pay_session_request(
     state: &routes::AppState,
-    router_data: &types::PaymentsSessionRouterData,
+    request: payment_types::ApplepaySessionRequest,
+    apple_pay_merchant_cert: String,
+    apple_pay_merchant_cert_key: String,
 ) -> RouterResult<services::Request> {
-    let applepay_metadata = get_applepay_metadata(router_data.connector_meta_data.clone())?;
-    let request = payment_types::ApplepaySessionRequest {
-        merchant_identifier: applepay_metadata
-            .data
-            .session_token_data
-            .merchant_identifier
-            .clone(),
-        display_name: applepay_metadata
-            .data
-            .session_token_data
-            .display_name
-            .clone(),
-        initiative: applepay_metadata.data.session_token_data.initiative.clone(),
-        initiative_context: applepay_metadata
-            .data
-            .session_token_data
-            .initiative_context
-            .clone(),
-    };
-
     let applepay_session_request = types::RequestBody::log_and_get_request_body(
         &request,
         utils::Encode::<payment_types::ApplepaySessionRequest>::encode_to_string_of_json,
@@ -134,16 +116,8 @@ fn mk_applepay_session_request(
             "application/json".to_string().into(),
         )])
         .body(Some(applepay_session_request))
-        .add_certificate(Some(
-            applepay_metadata
-                .data
-                .session_token_data
-                .certificate
-                .clone(),
-        ))
-        .add_certificate_key(Some(
-            applepay_metadata.data.session_token_data.certificate_keys,
-        ))
+        .add_certificate(Some(apple_pay_merchant_cert))
+        .add_certificate_key(Some(apple_pay_merchant_cert_key))
         .build();
     Ok(session_request)
 }
@@ -166,53 +140,79 @@ async fn create_applepay_session_token(
             payment_types::NextActionCall::Confirm,
         )
     } else {
-        let applepay_metadata = get_applepay_metadata(router_data.connector_meta_data.clone())?;
+        // Get the apple pay metadata
+        let apple_pay_metadata = get_applepay_metadata(router_data.connector_meta_data.clone())?;
 
-        let amount_info = payment_types::AmountInfo {
-            label: applepay_metadata.data.payment_request_data.label,
-            total_type: Some("final".to_string()),
-            amount: router_data
-                .request
-                .currency
-                .to_currency_base_unit(router_data.request.amount)
-                .into_report()
-                .change_context(errors::ApiErrorResponse::PreconditionFailed {
-                    message: "Failed to convert currency to base unit".to_string(),
-                })?,
+        // Get payment request data , apple pay session request and merchant keys
+        let (
+            payment_request_data,
+            apple_pay_session_request,
+            apple_pay_merchant_cert,
+            apple_pay_merchant_cert_key,
+        ) = match apple_pay_metadata {
+            payment_types::ApplepaySessionTokenData::ApplePayCombined(
+                apple_pay_combined_metadata,
+            ) => match apple_pay_combined_metadata {
+                payment_types::ApplePayCombinedMetadata::Simplified {
+                    payment_request_data,
+                    session_token_data,
+                } => {
+                    let apple_pay_session_request =
+                        get_session_request_for_simplified_apple_pay(session_token_data)?;
+                    (
+                        payment_request_data,
+                        apple_pay_session_request,
+                        "".to_string(),
+                        "".to_string(),
+                    )
+                }
+                payment_types::ApplePayCombinedMetadata::Manual {
+                    payment_request_data,
+                    session_token_data,
+                } => {
+                    let apple_pay_session_request =
+                        get_session_request_for_manual_apple_pay(session_token_data.clone())?;
+                    (
+                        payment_request_data,
+                        apple_pay_session_request,
+                        session_token_data.certificate.clone(),
+                        session_token_data.certificate_keys,
+                    )
+                }
+            },
+            payment_types::ApplepaySessionTokenData::ApplePay(apple_pay_metadata) => {
+                let apple_pay_session_request = get_session_request_for_manual_apple_pay(
+                    apple_pay_metadata.session_token_data.clone(),
+                )?;
+                (
+                    apple_pay_metadata.payment_request_data,
+                    apple_pay_session_request,
+                    apple_pay_metadata.session_token_data.certificate.clone(),
+                    apple_pay_metadata.session_token_data.certificate_keys,
+                )
+            }
         };
 
-        let applepay_payment_request = payment_types::ApplePayPaymentRequest {
-            country_code: router_data
-                .request
-                .country
-                .to_owned()
-                .get_required_value("country_code")
-                .change_context(errors::ApiErrorResponse::MissingRequiredField {
-                    field_name: "country_code",
-                })?,
-            currency_code: router_data.request.currency,
-            total: amount_info,
-            merchant_capabilities: Some(
-                applepay_metadata
-                    .data
-                    .payment_request_data
-                    .merchant_capabilities,
-            ),
-            supported_networks: Some(
-                applepay_metadata
-                    .data
-                    .payment_request_data
-                    .supported_networks,
-            ),
-            merchant_identifier: Some(
-                applepay_metadata
-                    .data
-                    .session_token_data
-                    .merchant_identifier,
-            ),
-        };
+        // Get amount info for apple pay
+        let amount_info = get_apple_pay_amount_info(
+            payment_request_data.label.as_str(),
+            router_data.request.to_owned(),
+        )?;
 
-        let applepay_session_request = mk_applepay_session_request(state, router_data)?;
+        // Get apple pay payment request
+        let applepay_payment_request = get_apple_pay_payment_request(
+            amount_info,
+            payment_request_data,
+            router_data.request.to_owned(),
+            apple_pay_session_request.merchant_identifier.as_str(),
+        )?;
+
+        let applepay_session_request = build_apple_pay_session_request(
+            state,
+            apple_pay_session_request,
+            apple_pay_merchant_cert,
+            apple_pay_merchant_cert_key,
+        )?;
         let response = services::call_connector_api(state, applepay_session_request).await;
 
         // logging the error if present in session call response
@@ -251,6 +251,72 @@ async fn create_applepay_session_token(
             payment_types::NextActionCall::Confirm,
         )
     }
+}
+
+fn get_session_request_for_simplified_apple_pay(
+    session_token_data: payment_types::SessionTokenForSimplifiedApplePay,
+) -> RouterResult<payment_types::ApplepaySessionRequest> {
+    let request = payment_types::ApplepaySessionRequest {
+        merchant_identifier: "".to_string(),
+        display_name: "Apple pay".to_string(),
+        initiative: "web".to_string(),
+        initiative_context: session_token_data.initiative_context,
+    };
+    Ok(request)
+}
+
+fn get_session_request_for_manual_apple_pay(
+    session_token_data: payment_types::SessionTokenInfo,
+) -> RouterResult<payment_types::ApplepaySessionRequest> {
+    let request = payment_types::ApplepaySessionRequest {
+        merchant_identifier: session_token_data.merchant_identifier.clone(),
+        display_name: session_token_data.display_name.clone(),
+        initiative: session_token_data.initiative.clone(),
+        initiative_context: session_token_data.initiative_context,
+    };
+    Ok(request)
+}
+
+fn get_apple_pay_amount_info(
+    label: &str,
+    session_data: types::PaymentsSessionData,
+) -> RouterResult<payment_types::AmountInfo> {
+    let amount_info = payment_types::AmountInfo {
+        label: label.to_string(),
+        total_type: Some("final".to_string()),
+        amount: session_data
+            .currency
+            .to_currency_base_unit(session_data.amount)
+            .into_report()
+            .change_context(errors::ApiErrorResponse::PreconditionFailed {
+                message: "Failed to convert currency to base unit".to_string(),
+            })?,
+    };
+
+    Ok(amount_info)
+}
+
+fn get_apple_pay_payment_request(
+    amount_info: payment_types::AmountInfo,
+    payment_request_data: payment_types::PaymentRequestMetadata,
+    session_data: types::PaymentsSessionData,
+    merchant_identifier: &str,
+) -> RouterResult<payment_types::ApplePayPaymentRequest> {
+    let applepay_payment_request = payment_types::ApplePayPaymentRequest {
+        country_code: session_data
+            .country
+            .to_owned()
+            .get_required_value("country_code")
+            .change_context(errors::ApiErrorResponse::MissingRequiredField {
+                field_name: "country_code",
+            })?,
+        currency_code: session_data.currency,
+        total: amount_info,
+        merchant_capabilities: Some(payment_request_data.merchant_capabilities),
+        supported_networks: Some(payment_request_data.supported_networks),
+        merchant_identifier: Some(merchant_identifier.to_string()),
+    };
+    Ok(applepay_payment_request)
 }
 
 fn create_apple_pay_session_response(

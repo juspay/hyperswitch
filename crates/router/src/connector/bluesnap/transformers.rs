@@ -341,11 +341,22 @@ impl TryFrom<&types::PaymentsSessionRouterData> for BluesnapCreateWalletToken {
                 "ApplepaySessionTokenData",
             )
             .change_context(errors::ConnectorError::ParsingFailed)?;
+        let session_token_data = match applepay_metadata {
+            payments::ApplepaySessionTokenData::ApplePay(apple_pay_data) => {
+                Ok(apple_pay_data.session_token_data)
+            }
+            payments::ApplepaySessionTokenData::ApplePayCombined(_apple_pay_combined_data) => {
+                Err(errors::ConnectorError::FlowNotSupported {
+                    flow: "apple pay combined".to_string(),
+                    connector: "bluesnap".to_string(),
+                })
+            }
+        }?;
         Ok(Self {
             wallet_type: "APPLE_PAY".to_string(),
             validation_url: consts::APPLEPAY_VALIDATION_URL.to_string().into(),
-            domain_name: applepay_metadata.data.session_token_data.initiative_context,
-            display_name: Some(applepay_metadata.data.session_token_data.display_name),
+            domain_name: session_token_data.initiative_context,
+            display_name: Some(session_token_data.display_name),
         })
     }
 }
@@ -376,6 +387,18 @@ impl TryFrom<types::PaymentsSessionResponseRouterData<BluesnapWalletTokenRespons
             )
             .change_context(errors::ConnectorError::ParsingFailed)?;
 
+        let (payment_request_data, session_token_data) = match applepay_metadata {
+            payments::ApplepaySessionTokenData::ApplePayCombined(_apple_pay_combined) => {
+                Err(errors::ConnectorError::FlowNotSupported {
+                    flow: "apple pay combined".to_string(),
+                    connector: "bluesnap".to_string(),
+                })
+            }
+            payments::ApplepaySessionTokenData::ApplePay(apple_pay) => {
+                Ok((apple_pay.payment_request_data, apple_pay.session_token_data))
+            }
+        }?;
+
         Ok(Self {
             response: Ok(types::PaymentsResponseData::SessionResponse {
                 session_token: types::api::SessionToken::ApplePay(Box::new(
@@ -388,28 +411,13 @@ impl TryFrom<types::PaymentsSessionResponseRouterData<BluesnapWalletTokenRespons
                             country_code: item.data.get_billing_country()?,
                             currency_code: item.data.request.currency,
                             total: api_models::payments::AmountInfo {
-                                label: applepay_metadata.data.payment_request_data.label,
+                                label: payment_request_data.label,
                                 total_type: Some("final".to_string()),
                                 amount: item.data.request.amount.to_string(),
                             },
-                            merchant_capabilities: Some(
-                                applepay_metadata
-                                    .data
-                                    .payment_request_data
-                                    .merchant_capabilities,
-                            ),
-                            supported_networks: Some(
-                                applepay_metadata
-                                    .data
-                                    .payment_request_data
-                                    .supported_networks,
-                            ),
-                            merchant_identifier: Some(
-                                applepay_metadata
-                                    .data
-                                    .session_token_data
-                                    .merchant_identifier,
-                            ),
+                            merchant_capabilities: Some(payment_request_data.merchant_capabilities),
+                            supported_networks: Some(payment_request_data.supported_networks),
+                            merchant_identifier: Some(session_token_data.merchant_identifier),
                         }),
                         connector: "bluesnap".to_string(),
                         delayed_session_token: false,
