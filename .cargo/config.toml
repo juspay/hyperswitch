@@ -1,4 +1,4 @@
-[build]
+[target.'cfg(all())']
 rustflags = [
     "-Funsafe_code",
     "-Wclippy::as_conversions",
