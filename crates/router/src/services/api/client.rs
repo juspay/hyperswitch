@@ -22,7 +22,13 @@ fn get_client_builder(
     proxy_config: &Proxy,
     should_bypass_proxy: bool,
 ) -> CustomResult<reqwest::ClientBuilder, ApiClientError> {
-    let mut client_builder = reqwest::Client::builder().redirect(reqwest::redirect::Policy::none());
+    let mut client_builder = reqwest::Client::builder()
+        .redirect(reqwest::redirect::Policy::none())
+        .pool_idle_timeout(
+            proxy_config
+                .idle_pool_connection_timeout
+                .map(std::time::Duration::from_secs),
+        );
 
     if should_bypass_proxy {
         return Ok(client_builder);

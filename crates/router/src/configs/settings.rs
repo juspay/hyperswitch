@@ -414,6 +414,7 @@ pub struct Jwekey {
 pub struct Proxy {
     pub http_url: Option<String>,
     pub https_url: Option<String>,
+    pub idle_pool_connection_timeout: Option<u64>,
 }
 
 #[derive(Debug, Deserialize, Clone)]
