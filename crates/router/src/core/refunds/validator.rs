@@ -1,12 +1,20 @@
-use error_stack::{report, IntoReport};
+use common_utils::pii;
+use error_stack::{report, IntoReport, ResultExt};
 use router_env::{instrument, tracing};
 use time::PrimitiveDateTime;
 
 use crate::{
-    core::errors::{self, CustomResult, RouterResult},
+    core::{
+        errors::{self, CustomResult, RouterResult},
+        utils as core_utils,
+    },
     db::StorageInterface,
     logger,
-    types::storage::{self, enums},
+    types::{
+        api::refunds,
+        domain,
+        storage::{self, enums},
+    },
     utils::{self, OptionExt},
 };
 
@@ -14,6 +22,111 @@ use crate::{
 pub const LOWER_LIMIT: i64 = 1;
 pub const UPPER_LIMIT: i64 = 100;
 pub const DEFAULT_LIMIT: i64 = 10;
+
+pub struct ValidateRefundResult {
+    pub refund_id: String,
+    pub refund_amount: i64,
+    pub metadata: Option<pii::SecretSerdeValue>,
+    pub reason: Option<String>,
+    pub refund_type: refunds::RefundType,
+    pub connecter_transaction_id: String,
+    pub currency: enums::Currency,
+    pub connector: String,
+}
+
+#[async_trait::async_trait]
+pub trait ValidateRefundRequest {
+    async fn validate_request(
+        self,
+        state: &crate::AppState,
+        payment_intent: &storage::PaymentIntent,
+        payment_attempt: &storage::PaymentAttempt,
+        merchant_account: &domain::MerchantAccount,
+    ) -> RouterResult<ValidateRefundResult>;
+}
+
+#[async_trait::async_trait]
+impl ValidateRefundRequest for refunds::RefundRequest {
+    async fn validate_request(
+        self,
+        state: &crate::AppState,
+        payment_intent: &storage::PaymentIntent,
+        payment_attempt: &storage::PaymentAttempt,
+        merchant_account: &domain::MerchantAccount,
+    ) -> RouterResult<ValidateRefundResult> {
+        utils::when(
+            payment_intent.status != enums::IntentStatus::Succeeded,
+            || {
+                Err(report!(errors::ApiErrorResponse::PaymentNotSucceeded)
+                    .attach_printable("unable to refund for a unsuccessful payment intent"))
+            },
+        )?;
+
+        let amount = self.amount.unwrap_or(
+            payment_intent
+                .amount_captured
+                .ok_or(errors::ApiErrorResponse::InternalServerError)
+                .into_report()
+                .attach_printable("amount captured is none in a successful payment")?,
+        );
+
+        utils::when(amount <= 0, || {
+            Err(report!(errors::ApiErrorResponse::InvalidDataFormat {
+                field_name: "amount".to_string(),
+                expected_format: "positive integer".to_string()
+            })
+            .attach_printable("amount less than or equal to zero"))
+        })?;
+
+        let predicate = self
+            .merchant_id
+            .as_ref()
+            .map(|merchant_id| merchant_id != &merchant_account.merchant_id);
+
+        let currency = payment_attempt.currency.get_required_value("currency")?;
+        let connecter_transaction_id = payment_attempt.clone().connector_transaction_id.ok_or_else(|| {
+                report!(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Transaction in invalid. Missing field \"connector_transaction_id\" in payment_attempt.")
+            })?;
+
+        utils::when(predicate.unwrap_or(false), || {
+            Err(report!(errors::ApiErrorResponse::InvalidDataFormat {
+                field_name: "merchant_id".to_string(),
+                expected_format: "merchant_id from merchant account".to_string()
+            })
+            .attach_printable("invalid merchant_id in request"))
+        })?;
+
+        validate_payment_order_age(&payment_intent.created_at, state.conf.refund.max_age)
+            .change_context(errors::ApiErrorResponse::InvalidDataFormat {
+                field_name: "created_at".to_string(),
+                expected_format: format!(
+                    "created_at not older than {} days",
+                    state.conf.refund.max_age,
+                ),
+            })?;
+
+        let connector = payment_attempt
+            .connector
+            .clone()
+            .ok_or(errors::ApiErrorResponse::InternalServerError)
+            .into_report()
+            .attach_printable("No connector populated in payment attempt")?;
+
+        let refund_id = core_utils::get_or_generate_id("refund_id", &self.refund_id, "ref")?;
+
+        Ok(ValidateRefundResult {
+            refund_id,
+            refund_amount: amount,
+            currency,
+            connecter_transaction_id,
+            connector,
+            metadata: self.metadata,
+            reason: self.reason,
+            refund_type: self.refund_type.unwrap_or_default(),
+        })
+    }
+}
 
 #[derive(Debug, thiserror::Error)]
 pub enum RefundValidationError {
