@@ -41,8 +41,8 @@ impl CashtocodeTest {
         payment_method_data: types::api::PaymentMethodData,
     ) -> Option<types::PaymentsAuthorizeData> {
         Some(types::PaymentsAuthorizeData {
-            amount: 3500,
-            currency: enums::Currency::USD,
+            amount: 1000,
+            currency: enums::Currency::EUR,
             payment_method_data,
             confirm: true,
             statement_descriptor_suffix: None,
@@ -61,7 +61,7 @@ impl CashtocodeTest {
             session_token: None,
             enrolled_for_3ds: false,
             related_transaction_id: None,
-            router_return_url: Some(String::from("http://localhost:8080")),
+            router_return_url: Some(String::from("https://google.com")),
             webhook_url: None,
             complete_authorize_url: None,
             customer_id: Some("John Doe".to_owned()),
@@ -86,7 +86,7 @@ impl CashtocodeTest {
     }
 }
 
-//fetch payurl for payment's create
+//fetch payurl for payment create
 #[actix_web::test]
 async fn should_fetch_pay_url_classic() {
     let authorize_response = CONNECTOR
