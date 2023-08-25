@@ -7,12 +7,14 @@ use common_utils::{
     crypto,
     ext_traits::{StringExt, ValueExt},
 };
+use diesel_models::enums;
 use error_stack::{IntoReport, ResultExt};
 use masking::PeekInterface;
 use transformers as bluesnap;
 
 use super::utils::{
-    self as connector_utils, PaymentsAuthorizeRequestData, RefundsRequestData, RouterData,
+    self as connector_utils, get_error_code_error_message_based_on_priority, ConnectorErrorType,
+    ConnectorErrorTypeMapping, PaymentsAuthorizeRequestData, RefundsRequestData, RouterData,
 };
 use crate::{
     configs::settings,
@@ -26,14 +28,12 @@ use crate::{
     services::{
         self,
         request::{self, Mask},
-        ConnectorIntegration,
+        ConnectorIntegration, ConnectorValidation,
     },
     types::{
         self,
         api::{self, ConnectorCommon, ConnectorCommonExt},
-        domain,
-        storage::enums,
-        ErrorResponse, Response,
+        domain, ErrorResponse, Response,
     },
     utils::{self, BytesExt},
 };
@@ -99,24 +99,34 @@ impl ConnectorCommon for Bluesnap {
         router_env::logger::info!(error_response=?response);
 
         let response_error_message = match response {
-            bluesnap::BluesnapErrors::Payment(error_res) => error_res.message.first().map_or(
+            bluesnap::BluesnapErrors::Payment(error_response) => {
+                let error_list = error_response.message.clone();
+                let option_error_code_message = get_error_code_error_message_based_on_priority(
+                    Self.clone(),
+                    error_list.into_iter().map(|errors| errors.into()).collect(),
+                );
+                let reason = error_response
+                    .message
+                    .iter()
+                    .map(|error| error.description.clone())
+                    .collect::<Vec<String>>()
+                    .join(" & ");
                 ErrorResponse {
                     status_code: res.status_code,
-                    code: consts::NO_ERROR_CODE.to_string(),
-                    message: consts::NO_ERROR_MESSAGE.to_string(),
-                    reason: None,
-                },
-                |error_response| ErrorResponse {
-                    status_code: res.status_code,
-                    code: error_response.code.clone(),
-                    message: error_response.description.clone(),
-                    reason: Some(error_response.description.clone()),
-                },
-            ),
+                    code: option_error_code_message
+                        .clone()
+                        .map(|error_code_message| error_code_message.error_code)
+                        .unwrap_or(consts::NO_ERROR_CODE.to_string()),
+                    message: option_error_code_message
+                        .map(|error_code_message| error_code_message.error_message)
+                        .unwrap_or(consts::NO_ERROR_MESSAGE.to_string()),
+                    reason: Some(reason),
+                }
+            }
             bluesnap::BluesnapErrors::Auth(error_res) => ErrorResponse {
                 status_code: res.status_code,
                 code: error_res.error_code.clone(),
-                message: error_res.error_description.clone(),
+                message: error_res.error_name.clone(),
                 reason: Some(error_res.error_description),
             },
             bluesnap::BluesnapErrors::General(error_response) => ErrorResponse {
@@ -127,6 +137,21 @@ impl ConnectorCommon for Bluesnap {
             },
         };
         Ok(response_error_message)
+    }
+}
+
+impl ConnectorValidation for Bluesnap {
+    fn validate_capture_method(
+        &self,
+        capture_method: Option<enums::CaptureMethod>,
+    ) -> CustomResult<(), errors::ConnectorError> {
+        let capture_method = capture_method.unwrap_or_default();
+        match capture_method {
+            enums::CaptureMethod::Automatic | enums::CaptureMethod::Manual => Ok(()),
+            enums::CaptureMethod::ManualMultiple | enums::CaptureMethod::Scheduled => Err(
+                connector_utils::construct_not_supported_error_report(capture_method, self.id()),
+            ),
+        }
     }
 }
 
@@ -634,6 +659,7 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         req: &types::PaymentsAuthorizeRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
+        self.validate_capture_method(req.request.capture_method)?;
         Ok(Some(
             services::RequestBuilder::new()
                 .method(services::Method::Post)
@@ -983,9 +1009,10 @@ impl api::IncomingWebhook for Bluesnap {
         &self,
         db: &dyn StorageInterface,
         request: &api::IncomingWebhookRequestDetails<'_>,
-        merchant_id: &str,
+        merchant_account: &domain::MerchantAccount,
         connector_label: &str,
         key_store: &domain::MerchantKeyStore,
+        object_reference_id: api_models::webhooks::ObjectReferenceId,
     ) -> CustomResult<bool, errors::ConnectorError> {
         let algorithm = self
             .get_webhook_source_verification_algorithm(request)
@@ -997,14 +1024,19 @@ impl api::IncomingWebhook for Bluesnap {
         let mut secret = self
             .get_webhook_source_verification_merchant_secret(
                 db,
-                merchant_id,
+                merchant_account,
                 connector_label,
                 key_store,
+                object_reference_id,
             )
             .await
             .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
         let mut message = self
-            .get_webhook_source_verification_message(request, merchant_id, &secret)
+            .get_webhook_source_verification_message(
+                request,
+                &merchant_account.merchant_id,
+                &secret,
+            )
             .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
         message.append(&mut secret);
         algorithm
@@ -1096,6 +1128,134 @@ impl services::ConnectorRedirectResponse for Bluesnap {
                     .and_then(|info| info.errors.as_ref().and_then(|error| error.first()))
                     .cloned(),
             }),
+        }
+    }
+}
+
+impl ConnectorErrorTypeMapping for Bluesnap {
+    fn get_connector_error_type(
+        &self,
+        error_code: String,
+        error_message: String,
+    ) -> ConnectorErrorType {
+        match (error_code.as_str(), error_message.as_str()) {
+            ("7", "INVALID_TRANSACTION_TYPE") => ConnectorErrorType::UserError,
+            ("30", "MISSING_SHOPPER_OR_CARD_HOLDER") => ConnectorErrorType::UserError,
+            ("85", "INVALID_HTTP_METHOD") => ConnectorErrorType::BusinessError,
+            ("90", "MISSING_CARD_TYPE") => ConnectorErrorType::BusinessError,
+            ("10000", "INVALID_API_VERSION") => ConnectorErrorType::BusinessError,
+            ("10000", "PAYMENT_GENERAL_FAILURE") => ConnectorErrorType::TechnicalError,
+            ("10000", "SERVER_GENERAL_FAILURE") => ConnectorErrorType::BusinessError,
+            ("10001", "VALIDATION_GENERAL_FAILURE") => ConnectorErrorType::BusinessError,
+            ("10001", "INVALID_MERCHANT_TRANSACTION_ID") => ConnectorErrorType::BusinessError,
+            ("10001", "INVALID_RECURRING_TRANSACTION") => ConnectorErrorType::BusinessError,
+            ("10001", "MERCHANT_CONFIGURATION_ERROR") => ConnectorErrorType::BusinessError,
+            ("10001", "MISSING_CARD_TYPE") => ConnectorErrorType::BusinessError,
+            ("11001", "XSS_EXCEPTION") => ConnectorErrorType::UserError,
+            ("14002", "THREE_D_SECURITY_AUTHENTICATION_REQUIRED") => {
+                ConnectorErrorType::TechnicalError
+            }
+            ("14002", "ACCOUNT_CLOSED") => ConnectorErrorType::BusinessError,
+            ("14002", "AUTHORIZATION_AMOUNT_ALREADY_REVERSED") => ConnectorErrorType::BusinessError,
+            ("14002", "AUTHORIZATION_AMOUNT_NOT_VALID") => ConnectorErrorType::BusinessError,
+            ("14002", "AUTHORIZATION_EXPIRED") => ConnectorErrorType::BusinessError,
+            ("14002", "AUTHORIZATION_REVOKED") => ConnectorErrorType::BusinessError,
+            ("14002", "AUTHORIZATION_NOT_FOUND") => ConnectorErrorType::UserError,
+            ("14002", "BLS_CONNECTION_PROBLEM") => ConnectorErrorType::BusinessError,
+            ("14002", "CALL_ISSUER") => ConnectorErrorType::UnknownError,
+            ("14002", "CARD_LOST_OR_STOLEN") => ConnectorErrorType::UserError,
+            ("14002", "CVV_ERROR") => ConnectorErrorType::UserError,
+            ("14002", "DO_NOT_HONOR") => ConnectorErrorType::TechnicalError,
+            ("14002", "EXPIRED_CARD") => ConnectorErrorType::UserError,
+            ("14002", "GENERAL_PAYMENT_PROCESSING_ERROR") => ConnectorErrorType::TechnicalError,
+            ("14002", "HIGH_RISK_ERROR") => ConnectorErrorType::BusinessError,
+            ("14002", "INCORRECT_INFORMATION") => ConnectorErrorType::BusinessError,
+            ("14002", "INCORRECT_SETUP") => ConnectorErrorType::BusinessError,
+            ("14002", "INSUFFICIENT_FUNDS") => ConnectorErrorType::UserError,
+            ("14002", "INVALID_AMOUNT") => ConnectorErrorType::BusinessError,
+            ("14002", "INVALID_CARD_NUMBER") => ConnectorErrorType::UserError,
+            ("14002", "INVALID_CARD_TYPE") => ConnectorErrorType::BusinessError,
+            ("14002", "INVALID_PIN_OR_PW_OR_ID_ERROR") => ConnectorErrorType::UserError,
+            ("14002", "INVALID_TRANSACTION") => ConnectorErrorType::BusinessError,
+            ("14002", "LIMIT_EXCEEDED") => ConnectorErrorType::TechnicalError,
+            ("14002", "PICKUP_CARD") => ConnectorErrorType::UserError,
+            ("14002", "PROCESSING_AMOUNT_ERROR") => ConnectorErrorType::BusinessError,
+            ("14002", "PROCESSING_DUPLICATE") => ConnectorErrorType::BusinessError,
+            ("14002", "PROCESSING_GENERAL_DECLINE") => ConnectorErrorType::TechnicalError,
+            ("14002", "PROCESSING_TIMEOUT") => ConnectorErrorType::TechnicalError,
+            ("14002", "REFUND_FAILED") => ConnectorErrorType::TechnicalError,
+            ("14002", "RESTRICTED_CARD") => ConnectorErrorType::UserError,
+            ("14002", "STRONG_CUSTOMER_AUTHENTICATION_REQUIRED") => ConnectorErrorType::UserError,
+            ("14002", "SYSTEM_TECHNICAL_ERROR") => ConnectorErrorType::BusinessError,
+            ("14002", "THE_ISSUER_IS_UNAVAILABLE_OR_OFFLINE") => ConnectorErrorType::TechnicalError,
+            ("14002", "THREE_D_SECURE_FAILURE") => ConnectorErrorType::UserError,
+            ("14010", "FAILED_CREATING_PAYPAL_TOKEN") => ConnectorErrorType::TechnicalError,
+            ("14011", "PAYMENT_METHOD_NOT_SUPPORTED") => ConnectorErrorType::BusinessError,
+            ("14016", "NO_AVAILABLE_PROCESSORS") => ConnectorErrorType::TechnicalError,
+            ("14034", "INVALID_PAYMENT_DETAILS") => ConnectorErrorType::UserError,
+            ("15008", "SHOPPER_NOT_FOUND") => ConnectorErrorType::BusinessError,
+            ("15012", "SHOPPER_COUNTRY_OFAC_SANCTIONED") => ConnectorErrorType::BusinessError,
+            ("16003", "MULTIPLE_PAYMENT_METHODS_NON_SELECTED") => ConnectorErrorType::BusinessError,
+            ("16001", "MISSING_ARGUMENTS") => ConnectorErrorType::BusinessError,
+            ("17005", "INVALID_STEP_FIELD") => ConnectorErrorType::BusinessError,
+            ("20002", "MULTIPLE_TRANSACTIONS_FOUND") => ConnectorErrorType::BusinessError,
+            ("20003", "TRANSACTION_LOCKED") => ConnectorErrorType::BusinessError,
+            ("20004", "TRANSACTION_PAYMENT_METHOD_NOT_SUPPORTED") => {
+                ConnectorErrorType::BusinessError
+            }
+            ("20005", "TRANSACTION_NOT_AUTHORIZED") => ConnectorErrorType::UserError,
+            ("20006", "TRANSACTION_ALREADY_EXISTS") => ConnectorErrorType::BusinessError,
+            ("20007", "TRANSACTION_EXPIRED") => ConnectorErrorType::UserError,
+            ("20008", "TRANSACTION_ID_REQUIRED") => ConnectorErrorType::TechnicalError,
+            ("20009", "INVALID_TRANSACTION_ID") => ConnectorErrorType::BusinessError,
+            ("20010", "TRANSACTION_ALREADY_CAPTURED") => ConnectorErrorType::BusinessError,
+            ("20017", "TRANSACTION_CARD_NOT_VALID") => ConnectorErrorType::UserError,
+            ("20031", "MISSING_RELEVANT_METHOD_FOR_SHOPPER") => ConnectorErrorType::BusinessError,
+            ("20020", "INVALID_ALT_TRANSACTION_TYPE") => ConnectorErrorType::BusinessError,
+            ("20021", "MULTI_SHOPPER_INFORMATION") => ConnectorErrorType::BusinessError,
+            ("20022", "MISSING_SHOPPER_INFORMATION") => ConnectorErrorType::UserError,
+            ("20023", "MISSING_PAYER_INFO_FIELDS") => ConnectorErrorType::UserError,
+            ("20024", "EXPECT_NO_ECP_DETAILS") => ConnectorErrorType::UserError,
+            ("20025", "INVALID_ECP_ACCOUNT_TYPE") => ConnectorErrorType::UserError,
+            ("20025", "INVALID_PAYER_INFO_FIELDS") => ConnectorErrorType::UserError,
+            ("20026", "MISMATCH_SUBSCRIPTION_CURRENCY") => ConnectorErrorType::BusinessError,
+            ("20027", "PAYPAL_UNSUPPORTED_CURRENCY") => ConnectorErrorType::UserError,
+            ("20033", "IDEAL_UNSUPPORTED_PAYMENT_INFO") => ConnectorErrorType::BusinessError,
+            ("20035", "SOFORT_UNSUPPORTED_PAYMENT_INFO") => ConnectorErrorType::BusinessError,
+            ("23001", "MISSING_WALLET_FIELDS") => ConnectorErrorType::BusinessError,
+            ("23002", "INVALID_WALLET_FIELDS") => ConnectorErrorType::UserError,
+            ("23003", "WALLET_PROCESSING_FAILURE") => ConnectorErrorType::TechnicalError,
+            ("23005", "WALLET_EXPIRED") => ConnectorErrorType::UserError,
+            ("23006", "WALLET_DUPLICATE_PAYMENT_METHODS") => ConnectorErrorType::BusinessError,
+            ("23007", "WALLET_PAYMENT_NOT_ENABLED") => ConnectorErrorType::BusinessError,
+            ("23008", "DUPLICATE_WALLET_RESOURCE") => ConnectorErrorType::BusinessError,
+            ("23009", "WALLET_CLIENT_KEY_FAILURE") => ConnectorErrorType::BusinessError,
+            ("23010", "INVALID_WALLET_PAYMENT_DATA") => ConnectorErrorType::UserError,
+            ("23011", "WALLET_ONBOARDING_ERROR") => ConnectorErrorType::BusinessError,
+            ("23012", "WALLET_MISSING_DOMAIN") => ConnectorErrorType::UserError,
+            ("23013", "WALLET_UNREGISTERED_DOMAIN") => ConnectorErrorType::BusinessError,
+            ("23014", "WALLET_CHECKOUT_CANCELED") => ConnectorErrorType::UserError,
+            ("24012", "USER_NOT_AUTHORIZED") => ConnectorErrorType::UserError,
+            ("24011", "CURRENCY_CODE_NOT_FOUND") => ConnectorErrorType::UserError,
+            ("90009", "SUBSCRIPTION_NOT_FOUND") => ConnectorErrorType::UserError,
+            (_, " MISSING_ARGUMENTS") => ConnectorErrorType::UnknownError,
+            ("43008", "EXTERNAL_TAX_SERVICE_MISMATCH_CURRENCY") => {
+                ConnectorErrorType::BusinessError
+            }
+            ("43009", "EXTERNAL_TAX_SERVICE_UNEXPECTED_TOTAL_PAYMENT") => {
+                ConnectorErrorType::BusinessError
+            }
+            ("43010", "EXTERNAL_TAX_SERVICE_TAX_REFERENCE_ALREADY_USED") => {
+                ConnectorErrorType::BusinessError
+            }
+            (
+                _,
+                "USER_NOT_AUTHORIZED"
+                | "CREDIT_CARD_DETAILS_PLAIN_AND_ENCRYPTED"
+                | "CREDIT_CARD_ENCRYPTED_SECURITY_CODE_REQUIRED"
+                | "CREDIT_CARD_ENCRYPTED_NUMBER_REQUIRED",
+            ) => ConnectorErrorType::UserError,
+            _ => ConnectorErrorType::UnknownError,
         }
     }
 }

@@ -7,11 +7,12 @@ use utoipa::ToSchema;
 pub mod diesel_exports {
     pub use super::{
         DbAttemptStatus as AttemptStatus, DbAuthenticationType as AuthenticationType,
-        DbCaptureMethod as CaptureMethod, DbConnectorType as ConnectorType,
-        DbCountryAlpha2 as CountryAlpha2, DbCurrency as Currency, DbDisputeStage as DisputeStage,
-        DbDisputeStatus as DisputeStatus, DbEventType as EventType, DbFutureUsage as FutureUsage,
-        DbIntentStatus as IntentStatus, DbMandateStatus as MandateStatus,
-        DbPaymentMethodIssuerCode as PaymentMethodIssuerCode, DbRefundStatus as RefundStatus,
+        DbCaptureMethod as CaptureMethod, DbCaptureStatus as CaptureStatus,
+        DbConnectorType as ConnectorType, DbCountryAlpha2 as CountryAlpha2, DbCurrency as Currency,
+        DbDisputeStage as DisputeStage, DbDisputeStatus as DisputeStatus, DbEventType as EventType,
+        DbFutureUsage as FutureUsage, DbIntentStatus as IntentStatus,
+        DbMandateStatus as MandateStatus, DbPaymentMethodIssuerCode as PaymentMethodIssuerCode,
+        DbRefundStatus as RefundStatus,
     };
 }
 
@@ -91,6 +92,35 @@ pub enum AuthenticationType {
     Debug,
     Default,
     Eq,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    strum::EnumString,
+    ToSchema,
+    Hash,
+)]
+#[router_derive::diesel_enum(storage_type = "pg_enum")]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum CaptureStatus {
+    // Capture request initiated
+    #[default]
+    Started,
+    // Capture request was successful
+    Charged,
+    // Capture is pending at connector side
+    Pending,
+    // Capture request failed
+    Failed,
+}
+
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Default,
+    Eq,
     Hash,
     PartialEq,
     serde::Deserialize,
@@ -146,6 +176,8 @@ pub enum ConnectorType {
     BankingEntities,
     /// All types of non-banking financial institutions including Insurance, Credit / Lending etc
     NonBankingFinance,
+    /// Acquirers, Gateways etc
+    PayoutProcessor,
 }
 
 #[allow(clippy::upper_case_acronyms)]
@@ -708,6 +740,7 @@ impl Currency {
     serde::Serialize,
     strum::Display,
     strum::EnumString,
+    ToSchema,
 )]
 #[router_derive::diesel_enum(storage_type = "pg_enum")]
 #[serde(rename_all = "snake_case")]
@@ -756,6 +789,7 @@ pub enum IntentStatus {
     #[default]
     RequiresConfirmation,
     RequiresCapture,
+    PartiallyCaptured,
 }
 
 #[derive(
@@ -878,6 +912,7 @@ pub enum PaymentMethodType {
     Bacs,
     BancontactCard,
     Becs,
+    Benefit,
     Bizum,
     Blik,
     Boleto,
@@ -907,9 +942,11 @@ pub enum PaymentMethodType {
     Klarna,
     KakaoPay,
     MandiriVa,
+    Knet,
     MbWay,
     MobilePay,
     Momo,
+    MomoAtm,
     Multibanco,
     OnlineBankingThailand,
     OnlineBankingCzechRepublic,
@@ -920,6 +957,7 @@ pub enum PaymentMethodType {
     Oxxo,
     PagoEfectivo,
     PermataBankTransfer,
+    OpenBankingUk,
     PayBright,
     Paypal,
     Pix,
@@ -939,6 +977,12 @@ pub enum PaymentMethodType {
     Vipps,
     Walley,
     WeChatPay,
+    SevenEleven,
+    Lawson,
+    MiniStop,
+    FamilyMart,
+    Seicomart,
+    PayEasy,
 }
 
 #[derive(
@@ -963,6 +1007,7 @@ pub enum PaymentMethodType {
 pub enum PaymentMethod {
     #[default]
     Card,
+    CardRedirect,
     PayLater,
     Wallet,
     BankRedirect,

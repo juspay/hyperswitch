@@ -179,6 +179,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsSessionRequest>
                 connector_customer_id: None,
                 recurring_mandate_payment_data: None,
                 ephemeral_key: None,
+                multiple_capture_data: None,
                 redirect_response: None,
                 frm_message: None,
             },
@@ -308,7 +309,7 @@ where
         merchant_account: &domain::MerchantAccount,
         state: &AppState,
         request: &api::PaymentsSessionRequest,
-        payment_intent: &storage::payment_intent::PaymentIntent,
+        payment_intent: &storage::PaymentIntent,
         key_store: &domain::MerchantKeyStore,
     ) -> RouterResult<api::ConnectorChoice> {
         let db = &state.store;

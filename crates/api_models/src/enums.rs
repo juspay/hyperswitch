@@ -264,6 +264,46 @@ impl From<PayoutConnectors> for RoutableConnectors {
     }
 }
 
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    Hash,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    strum::EnumString,
+    ToSchema,
+)]
+#[strum(serialize_all = "snake_case")]
+#[serde(rename_all = "snake_case")]
+pub enum BankType {
+    Checking,
+    Savings,
+}
+
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    Hash,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    strum::EnumString,
+    ToSchema,
+)]
+#[strum(serialize_all = "snake_case")]
+#[serde(rename_all = "snake_case")]
+pub enum BankHolderType {
+    Personal,
+    Business,
+}
+
 /// Name of banks supported by Hyperswitch
 #[derive(
     Clone,
@@ -405,6 +445,24 @@ pub enum BankNames {
     KrungThaiBank,
     TheSiamCommercialBank,
     KasikornBank,
+    OpenBankSuccess,
+    OpenBankFailure,
+    OpenBankCancelled,
+    Aib,
+    BankOfScotland,
+    DanskeBank,
+    FirstDirect,
+    FirstTrust,
+    Halifax,
+    Lloyds,
+    Monzo,
+    NatWest,
+    NationwideBank,
+    RoyalBankOfScotland,
+    Starling,
+    TsbBank,
+    TescoBank,
+    UlsterBank,
 }
 
 #[derive(
@@ -450,19 +508,24 @@ pub struct UnresolvedResponseReason {
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
 pub enum FieldType {
+    CardNumber,
+    CardExpiryMonth,
+    CardExpiryYear,
+    CardCVC,
     UserFullName,
     UserEmailAddress,
     UserPhoneNumber,
-    UserCountry { options: Vec<String> },
+    UserCountryCode,                      //phone number's country code
+    UserCountry { options: Vec<String> }, //for country inside payment method data ex- bank redirect
+    UserCurrency { options: Vec<String> },
+    UserBillingName,
     UserAddressline1,
     UserAddressline2,
     UserAddressCity,
     UserAddressPincode,
     UserAddressState,
-    UserAddressCountry,
+    UserAddressCountry { options: Vec<String> },
     UserBlikCode,
-    FieldsComplete,
-    UserBillingName,
     UserBank,
     Text,
     DropDown { options: Vec<String> },

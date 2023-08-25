@@ -1,10 +1,10 @@
 use api_models::enums::AuthenticationInfo;
 use common_utils::ext_traits::AsyncExt;
 use error_stack::{IntoReport, ResultExt};
+#[cfg(feature = "accounts_cache")]
+use storage_impl::redis::cache::{CacheKind, ACCOUNTS_CACHE};
 
 use super::{MasterKeyInterface, MockDb, Store};
-#[cfg(feature = "accounts_cache")]
-use crate::cache::{self, ACCOUNTS_CACHE};
 use crate::{
     connection,
     core::errors::{self, CustomResult},
@@ -148,7 +148,7 @@ impl MerchantAccountInterface for Store {
         {
             super::cache::publish_and_redact(
                 self,
-                cache::CacheKind::Accounts((&_merchant_id).into()),
+                CacheKind::Accounts((&_merchant_id).into()),
                 update_func,
             )
             .await
@@ -188,7 +188,7 @@ impl MerchantAccountInterface for Store {
         {
             super::cache::publish_and_redact(
                 self,
-                cache::CacheKind::Accounts(merchant_id.into()),
+                CacheKind::Accounts(merchant_id.into()),
                 update_func,
             )
             .await
@@ -246,7 +246,7 @@ impl MerchantAccountInterface for Store {
         {
             super::cache::publish_and_redact(
                 self,
-                cache::CacheKind::Accounts(merchant_id.into()),
+                CacheKind::Accounts(merchant_id.into()),
                 delete_func,
             )
             .await

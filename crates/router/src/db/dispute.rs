@@ -167,6 +167,7 @@ impl DisputeInterface for MockDb {
             created_at: now,
             modified_at: now,
             connector: dispute.connector,
+            profile_id: dispute.profile_id,
             evidence,
         };
 
@@ -399,6 +400,7 @@ mod tests {
                 connector_updated_at: Some(datetime!(2019-01-03 0:00)),
                 connector: "connector".into(),
                 evidence: Some(Secret::from(Value::String("evidence".into()))),
+                profile_id: None,
             }
         }
 

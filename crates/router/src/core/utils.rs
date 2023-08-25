@@ -1,9 +1,9 @@
 use std::marker::PhantomData;
 
 use api_models::enums::{DisputeStage, DisputeStatus};
-use common_utils::errors::CustomResult;
 #[cfg(feature = "payouts")]
 use common_utils::{crypto::Encryptable, pii::Email};
+use common_utils::{errors::CustomResult, ext_traits::AsyncExt};
 use error_stack::{IntoReport, ResultExt};
 use router_env::{instrument, tracing};
 use uuid::Uuid;
@@ -16,7 +16,8 @@ use crate::core::payments;
 use crate::{
     configs::settings,
     consts,
-    core::errors::{self, RouterResult},
+    core::errors::{self, RouterResult, StorageErrorExt},
+    db::StorageInterface,
     routes::AppState,
     types::{
         self, domain,
@@ -182,6 +183,7 @@ pub async fn construct_payout_router_data<'a, F>(
         quote_id: None,
         test_mode,
         payment_method_balance: None,
+        connector_http_status_code: None,
     };
 
     Ok(router_data)
@@ -289,6 +291,7 @@ pub async fn construct_refund_router_data<'a, F>(
         quote_id: None,
         test_mode,
         payment_method_balance: None,
+        connector_http_status_code: None,
     };
 
     Ok(router_data)
@@ -506,6 +509,7 @@ pub async fn construct_accept_dispute_router_data<'a>(
         quote_id: None,
         test_mode,
         payment_method_balance: None,
+        connector_http_status_code: None,
     };
     Ok(router_data)
 }
@@ -580,6 +584,7 @@ pub async fn construct_submit_evidence_router_data<'a>(
         #[cfg(feature = "payouts")]
         quote_id: None,
         test_mode,
+        connector_http_status_code: None,
     };
     Ok(router_data)
 }
@@ -655,6 +660,7 @@ pub async fn construct_upload_file_router_data<'a>(
         #[cfg(feature = "payouts")]
         quote_id: None,
         test_mode,
+        connector_http_status_code: None,
     };
     Ok(router_data)
 }
@@ -732,6 +738,7 @@ pub async fn construct_defend_dispute_router_data<'a>(
         #[cfg(feature = "payouts")]
         quote_id: None,
         test_mode,
+        connector_http_status_code: None,
     };
     Ok(router_data)
 }
@@ -804,6 +811,7 @@ pub async fn construct_retrieve_file_router_data<'a>(
         #[cfg(feature = "payouts")]
         quote_id: None,
         test_mode,
+        connector_http_status_code: None,
     };
     Ok(router_data)
 }
@@ -831,4 +839,32 @@ pub fn get_connector_request_reference_id(
     } else {
         payment_attempt.attempt_id.clone()
     }
+}
+
+/// Validate whether the profile_id exists and is associated with the merchant_id
+pub async fn validate_and_get_business_profile(
+    db: &dyn StorageInterface,
+    profile_id: Option<&String>,
+    merchant_id: &str,
+) -> RouterResult<Option<storage::business_profile::BusinessProfile>> {
+    profile_id
+        .async_map(|profile_id| async {
+            db.find_business_profile_by_profile_id(profile_id)
+                .await
+                .to_not_found_response(errors::ApiErrorResponse::BusinessProfileNotFound {
+                    id: profile_id.to_owned(),
+                })
+        })
+        .await
+        .transpose()?
+        .map(|business_profile| {
+            // Check if the merchant_id of business profile is same as the current merchant_id
+            if business_profile.merchant_id.ne(merchant_id) {
+                Err(errors::ApiErrorResponse::AccessForbidden)
+            } else {
+                Ok(business_profile)
+            }
+        })
+        .transpose()
+        .into_report()
 }
