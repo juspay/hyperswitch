@@ -33,16 +33,15 @@ fn get_mid(
     payment_method_type: Option<enums::PaymentMethodType>,
     currency: enums::Currency,
 ) -> Result<Secret<String>, errors::ConnectorError> {
-    match CashtocodeAuth::try_from((
-        connector_auth_type,
-        &currency,
-    )) {
-        Ok(cashtocode_auth) => {
-            match payment_method_type {
-                Some(enums::PaymentMethodType::ClassicReward) => Ok(cashtocode_auth.merchant_id_classic.ok_or(errors::ConnectorError::FailedToObtainAuthType)?),
-                Some(enums::PaymentMethodType::Evoucher) => Ok(cashtocode_auth.merchant_id_evoucher.ok_or(errors::ConnectorError::FailedToObtainAuthType)?),
-                _ => return Err(errors::ConnectorError::FailedToObtainAuthType.into()),
-            }
+    match CashtocodeAuth::try_from((connector_auth_type, &currency)) {
+        Ok(cashtocode_auth) => match payment_method_type {
+            Some(enums::PaymentMethodType::ClassicReward) => Ok(cashtocode_auth
+                .merchant_id_classic
+                .ok_or(errors::ConnectorError::FailedToObtainAuthType)?),
+            Some(enums::PaymentMethodType::Evoucher) => Ok(cashtocode_auth
+                .merchant_id_evoucher
+                .ok_or(errors::ConnectorError::FailedToObtainAuthType)?),
+            _ => return Err(errors::ConnectorError::FailedToObtainAuthType.into()),
         },
         Err(_) => Err(errors::ConnectorError::FailedToObtainAuthType)?,
     }
@@ -53,7 +52,12 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for CashtocodePaymentsRequest 
     fn try_from(item: &types::PaymentsAuthorizeRouterData) -> Result<Self, Self::Error> {
         let customer_id = item.get_customer_id()?;
         let url = item.request.get_router_return_url()?;
-        let mid = get_mid(&item.connector_auth_type, item.request.payment_method_type, item.request.currency).into_report()?;
+        let mid = get_mid(
+            &item.connector_auth_type,
+            item.request.payment_method_type,
+            item.request.currency,
+        )
+        .into_report()?;
         match item.payment_method {
             diesel_models::enums::PaymentMethod::Reward => Ok(Self {
                 amount: utils::to_currency_base_unit_asf64(
@@ -103,13 +107,17 @@ impl TryFrom<&types::ConnectorAuthType> for CashtocodeAuthType {
                         let cashtocode_auth = identity_auth_key
                             .to_owned()
                             .parse_value::<CashtocodeAuth>("CashtocodeAuth")
-                            .change_context(errors::ConnectorError::InvalidDataFormat { field_name: "auth_key_map" })?;
+                            .change_context(errors::ConnectorError::InvalidDataFormat {
+                                field_name: "auth_key_map",
+                            })?;
 
                         Ok((currency.to_owned(), cashtocode_auth))
                     })
                     .collect::<Result<_, Self::Error>>()?;
 
-                Ok(CashtocodeAuthType { auths: transformed_auths })
+                Ok(CashtocodeAuthType {
+                    auths: transformed_auths,
+                })
             }
             _ => Err(errors::ConnectorError::FailedToObtainAuthType.into()),
         }
@@ -117,7 +125,7 @@ impl TryFrom<&types::ConnectorAuthType> for CashtocodeAuthType {
 }
 
 impl TryFrom<(&types::ConnectorAuthType, &enums::Currency)> for CashtocodeAuth {
-    type Error =error_stack::Report<errors::ConnectorError>;
+    type Error = error_stack::Report<errors::ConnectorError>;
 
     fn try_from(value: (&types::ConnectorAuthType, &enums::Currency)) -> Result<Self, Self::Error> {
         let (auth_type, currency) = value;
