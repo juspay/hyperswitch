@@ -36,6 +36,7 @@ pub struct Refund {
     pub attempt_id: String,
     pub refund_reason: Option<String>,
     pub refund_error_code: Option<String>,
+    pub profile_id: Option<String>,
 }
 
 #[derive(
@@ -75,6 +76,7 @@ pub struct RefundNew {
     pub description: Option<String>,
     pub attempt_id: String,
     pub refund_reason: Option<String>,
+    pub profile_id: Option<String>,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]

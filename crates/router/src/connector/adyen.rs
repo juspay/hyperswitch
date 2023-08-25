@@ -4,7 +4,7 @@ use std::fmt::Debug;
 
 use api_models::webhooks::IncomingWebhookEvent;
 use base64::Engine;
-use diesel_models::enums as storage_enums;
+use diesel_models::{enums as storage_enums, enums};
 use error_stack::{IntoReport, ResultExt};
 use ring::hmac;
 use router_env::{instrument, tracing};
@@ -12,6 +12,7 @@ use router_env::{instrument, tracing};
 use self::transformers as adyen;
 use crate::{
     configs::settings,
+    connector::utils as connector_utils,
     consts,
     core::{
         self,
@@ -22,6 +23,7 @@ use crate::{
     services::{
         self,
         request::{self, Mask},
+        ConnectorValidation,
     },
     types::{
         self,
@@ -69,6 +71,21 @@ impl ConnectorCommon for Adyen {
             message: response.message,
             reason: None,
         })
+    }
+}
+
+impl ConnectorValidation for Adyen {
+    fn validate_capture_method(
+        &self,
+        capture_method: Option<storage_enums::CaptureMethod>,
+    ) -> CustomResult<(), errors::ConnectorError> {
+        let capture_method = capture_method.unwrap_or_default();
+        match capture_method {
+            enums::CaptureMethod::Automatic | enums::CaptureMethod::Manual => Ok(()),
+            enums::CaptureMethod::ManualMultiple | enums::CaptureMethod::Scheduled => Err(
+                connector_utils::construct_not_implemented_error_report(capture_method, self.id()),
+            ),
+        }
     }
 }
 
@@ -582,6 +599,7 @@ impl
         req: &types::PaymentsAuthorizeRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
+        self.validate_capture_method(req.request.capture_method)?;
         check_for_payment_method_balance(req)?;
         Ok(Some(
             services::RequestBuilder::new()

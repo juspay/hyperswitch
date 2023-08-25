@@ -1966,7 +1966,7 @@ pub fn generate_mandate(
 }
 
 // A function to manually authenticate the client secret with intent fulfillment time
-pub(crate) fn authenticate_client_secret(
+pub fn authenticate_client_secret(
     request_client_secret: Option<&String>,
     payment_intent: &PaymentIntent,
     merchant_intent_fulfillment_time: Option<i64>,
@@ -2204,6 +2204,7 @@ mod tests {
             connector_metadata: None,
             feature_metadata: None,
             attempt_count: 1,
+            profile_id: None,
         };
         let req_cs = Some("1".to_string());
         let merchant_fulfillment_time = Some(900);
@@ -2248,6 +2249,7 @@ mod tests {
             connector_metadata: None,
             feature_metadata: None,
             attempt_count: 1,
+            profile_id: None,
         };
         let req_cs = Some("1".to_string());
         let merchant_fulfillment_time = Some(10);
@@ -2292,6 +2294,7 @@ mod tests {
             connector_metadata: None,
             feature_metadata: None,
             attempt_count: 1,
+            profile_id: None,
         };
         let req_cs = Some("1".to_string());
         let merchant_fulfillment_time = Some(10);

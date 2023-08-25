@@ -90,6 +90,7 @@ pub struct PaymentIntent {
     pub connector_metadata: Option<serde_json::Value>,
     pub feature_metadata: Option<serde_json::Value>,
     pub attempt_count: i16,
+    pub profile_id: Option<String>,
 }
 
 #[derive(Clone, Debug, Default, Eq, PartialEq, Serialize, Deserialize)]
@@ -126,6 +127,7 @@ pub struct PaymentIntentNew {
     pub connector_metadata: Option<serde_json::Value>,
     pub feature_metadata: Option<serde_json::Value>,
     pub attempt_count: i16,
+    pub profile_id: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

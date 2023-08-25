@@ -143,6 +143,7 @@ impl behaviour::Conversion for MerchantConnectorAccount {
             created_at: now,
             modified_at: now,
             connector_webhook_details: self.connector_webhook_details,
+            profile_id: self.profile_id,
         })
     }
 }
