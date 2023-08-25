@@ -567,7 +567,6 @@ impl api::IncomingWebhook for Zen {
         connector_label: &str,
         key_store: &domain::MerchantKeyStore,
         object_reference_id: api_models::webhooks::ObjectReferenceId,
-        profile_id: Option<String>,
     ) -> CustomResult<bool, errors::ConnectorError> {
         let algorithm = self.get_webhook_source_verification_algorithm(request)?;
 
@@ -579,7 +578,6 @@ impl api::IncomingWebhook for Zen {
                 connector_label,
                 key_store,
                 object_reference_id,
-                profile_id,
             )
             .await?;
         let mut message = self.get_webhook_source_verification_message(

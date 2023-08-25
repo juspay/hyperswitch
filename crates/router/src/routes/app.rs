@@ -425,7 +425,7 @@ impl Webhooks {
         web::scope("/webhooks")
             .app_data(web::Data::new(config))
             .service(
-                web::resource("/{merchant_id}/{connector_name}")
+                web::resource("/{merchant_id}/{connector_id_or_name}")
                     .route(
                         web::post().to(receive_incoming_webhook::<webhook_type::OutgoingWebhook>),
                     )
@@ -434,18 +434,18 @@ impl Webhooks {
                         web::put().to(receive_incoming_webhook::<webhook_type::OutgoingWebhook>),
                     ),
             )
-            .service(
-                web::resource("profiles/{business_profile}/{connector_name}")
-                    .route(web::post().to(receive_incoming_webhook_with_profiles::<
-                        webhook_type::OutgoingWebhook,
-                    >))
-                    .route(web::get().to(receive_incoming_webhook_with_profiles::<
-                        webhook_type::OutgoingWebhook,
-                    >))
-                    .route(web::put().to(receive_incoming_webhook_with_profiles::<
-                        webhook_type::OutgoingWebhook,
-                    >)),
-            )
+        // .service(
+        //     web::resource("profiles/{business_profile}/{connector_name}")
+        //         .route(web::post().to(receive_incoming_webhook_with_profiles::<
+        //             webhook_type::OutgoingWebhook,
+        //         >))
+        //         .route(web::get().to(receive_incoming_webhook_with_profiles::<
+        //             webhook_type::OutgoingWebhook,
+        //         >))
+        //         .route(web::put().to(receive_incoming_webhook_with_profiles::<
+        //             webhook_type::OutgoingWebhook,
+        //         >)),
+        // )
     }
 }
 

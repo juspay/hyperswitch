@@ -702,10 +702,28 @@ pub async fn webhooks_core<W: types::OutgoingWebhookType>(
     req: &actix_web::HttpRequest,
     merchant_account: domain::MerchantAccount,
     key_store: domain::MerchantKeyStore,
-    connector_name: &str,
+    connector_name_or_id: &str,
     body: actix_web::web::Bytes,
-    profile_id: Option<String>,
 ) -> RouterResponse<serde_json::Value> {
+    let connector_label = if connector_name_or_id.starts_with("mcd_") {
+        let mca = state
+            .store
+            .find_by_merchant_connector_account_merchant_id_merchant_connector_id(
+                &merchant_account.merchant_id,
+                connector_name_or_id,
+                &key_store,
+            )
+            .await
+            .map_err(
+                |_err| errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
+                    id: connector_name_or_id.to_string(),
+                },
+            )?;
+        mca.connector_label.clone()
+    } else {
+        connector_name_or_id.to_string()
+    };
+
     metrics::WEBHOOK_INCOMING_COUNT.add(
         &metrics::CONTEXT,
         1,
@@ -717,7 +735,7 @@ pub async fn webhooks_core<W: types::OutgoingWebhookType>(
 
     let connector = api::ConnectorData::get_connector_by_name(
         &state.conf.connectors,
-        connector_name,
+        connector_label.as_str(),
         api::GetToken::Connector,
     )
     .change_context(errors::ApiErrorResponse::InvalidRequestData {
@@ -766,7 +784,7 @@ pub async fn webhooks_core<W: types::OutgoingWebhookType>(
                 1,
                 &[
                     metrics::KeyValue::new(MERCHANT_ID, merchant_account.merchant_id.clone()),
-                    metrics::KeyValue::new("connector", connector_name.to_string()),
+                    metrics::KeyValue::new("connector", connector_label.to_string()),
                 ],
             );
 
@@ -779,7 +797,7 @@ pub async fn webhooks_core<W: types::OutgoingWebhookType>(
 
     let process_webhook_further = utils::lookup_webhook_event(
         &*state.store,
-        connector_name,
+        connector_label.as_str(),
         &merchant_account.merchant_id,
         &event_type,
     )
@@ -800,10 +818,9 @@ pub async fn webhooks_core<W: types::OutgoingWebhookType>(
                 &*state.store,
                 &request_details,
                 &merchant_account,
-                connector_name,
+                connector_label.as_str(),
                 &key_store,
                 object_ref_id.clone(),
-                profile_id,
             )
             .await
             .or_else(|error| match error.current_context() {
@@ -859,7 +876,7 @@ pub async fn webhooks_core<W: types::OutgoingWebhookType>(
                 merchant_account,
                 key_store,
                 webhook_details,
-                connector_name,
+                connector_label.as_str(),
                 source_verified,
                 event_type,
             )

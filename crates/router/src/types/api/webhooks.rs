@@ -82,7 +82,6 @@ pub trait IncomingWebhook: ConnectorCommon + Sync {
         connector_name: &str,
         key_store: &domain::MerchantKeyStore,
         object_reference_id: ObjectReferenceId,
-        profile_id: Option<String>,
     ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
         let merchant_id = merchant_account.merchant_id.as_str();
         let debug_suffix = format!(
@@ -100,23 +99,13 @@ pub trait IncomingWebhook: ConnectorCommon + Sync {
         .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)
         .attach_printable("Error while fetching connector_label")?;
 
-        let merchant_connector_account_result = if profile_id.is_some() {
-            let profile_id =
-                profile_id.unwrap_or_else(|| "unable to unwrap profile_id".to_string());
-            db.find_merchant_connector_account_by_profile_id_connector_name(
-                &profile_id,
-                connector_name,
-                key_store,
-            )
-            .await
-        } else {
-            db.find_merchant_connector_account_by_merchant_id_connector_label(
+        let merchant_connector_account_result = db
+            .find_merchant_connector_account_by_merchant_id_connector_label(
                 merchant_id,
                 &connector_label,
                 key_store,
             )
-            .await
-        };
+            .await;
 
         let merchant_secret = match merchant_connector_account_result {
             Ok(mca) => match mca.connector_webhook_details {
@@ -177,7 +166,6 @@ pub trait IncomingWebhook: ConnectorCommon + Sync {
         connector_label: &str,
         key_store: &domain::MerchantKeyStore,
         object_reference_id: ObjectReferenceId,
-        profile_id: Option<String>,
     ) -> CustomResult<bool, errors::ConnectorError> {
         let algorithm = self
             .get_webhook_source_verification_algorithm(request)
@@ -193,7 +181,6 @@ pub trait IncomingWebhook: ConnectorCommon + Sync {
                 connector_label,
                 key_store,
                 object_reference_id,
-                profile_id,
             )
             .await
             .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
