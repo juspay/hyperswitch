@@ -54,6 +54,8 @@ where
         &connector_label,
         payment_data.creds_identifier.to_owned(),
         key_store,
+        payment_data.payment_intent.profile_id.as_ref(),
+        connector_id,
     )
     .await?;
 

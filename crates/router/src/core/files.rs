@@ -39,6 +39,7 @@ pub async fn files_create_core(
         file_upload_provider: None,
         available: false,
         connector_label: None,
+        profile_id: None,
     };
     let file_metadata_object = state
         .store

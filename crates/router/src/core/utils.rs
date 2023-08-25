@@ -60,6 +60,8 @@ pub async fn get_mca_for_payout<'a>(
                 &connector_label,
                 None,
                 key_store,
+                payout_attempt.profile_id.as_ref(),
+                connector_id,
             )
             .await?;
             Ok(merchant_connector_account)
@@ -215,6 +217,8 @@ pub async fn construct_refund_router_data<'a, F>(
         &connector_label,
         creds_identifier,
         key_store,
+        payment_intent.profile_id.as_ref(),
+        connector_id,
     )
     .await?;
 
@@ -459,6 +463,8 @@ pub async fn construct_accept_dispute_router_data<'a>(
         &connector_label,
         None,
         key_store,
+        payment_intent.profile_id.as_ref(),
+        connector_id,
     )
     .await?;
     let test_mode: Option<bool> = merchant_connector_account.is_test_mode_on();
@@ -537,6 +543,8 @@ pub async fn construct_submit_evidence_router_data<'a>(
         &connector_label,
         None,
         key_store,
+        payment_intent.profile_id.as_ref(),
+        connector_id,
     )
     .await?;
     let test_mode: Option<bool> = merchant_connector_account.is_test_mode_on();
@@ -608,6 +616,8 @@ pub async fn construct_upload_file_router_data<'a>(
         &connector_label,
         None,
         key_store,
+        payment_intent.profile_id.as_ref(),
+        connector_id,
     )
     .await?;
     let test_mode: Option<bool> = merchant_connector_account.is_test_mode_on();
@@ -688,6 +698,8 @@ pub async fn construct_defend_dispute_router_data<'a>(
         &connector_label,
         None,
         key_store,
+        payment_intent.profile_id.as_ref(),
+        connector_id,
     )
     .await?;
     let test_mode: Option<bool> = merchant_connector_account.is_test_mode_on();
@@ -763,6 +775,8 @@ pub async fn construct_retrieve_file_router_data<'a>(
         &connector_label,
         None,
         key_store,
+        file_metadata.profile_id.as_ref(),
+        connector_id,
     )
     .await?;
     let test_mode: Option<bool> = merchant_connector_account.is_test_mode_on();

@@ -2377,12 +2377,16 @@ impl MerchantConnectorAccountType {
     }
 }
 
+/// Query for merchant connector account either by business label or profile id
+/// If profile_id is passed use it, or use connector_label to query merchant connector account
 pub async fn get_merchant_connector_account(
     state: &AppState,
     merchant_id: &str,
     connector_label: &str,
     creds_identifier: Option<String>,
     key_store: &domain::MerchantKeyStore,
+    profile_id: Option<&String>,
+    connector_name: &str,
 ) -> RouterResult<MerchantConnectorAccountType> {
     let db = &*state.store;
     match creds_identifier {
@@ -2424,17 +2428,32 @@ pub async fn get_merchant_connector_account(
 
             Ok(MerchantConnectorAccountType::CacheVal(res))
         }
-        None => db
-            .find_merchant_connector_account_by_merchant_id_connector_label(
+        None => if let Some(profile_id) = profile_id {
+            db.find_merchant_connector_account_by_profile_id_connector_name(
+                profile_id,
+                connector_name,
+                key_store,
+            )
+            .await
+            .to_not_found_response(
+                errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
+                    id: profile_id.to_owned(),
+                },
+            )
+        } else {
+            db.find_merchant_connector_account_by_merchant_id_connector_label(
                 merchant_id,
                 connector_label,
                 key_store,
             )
             .await
-            .map(MerchantConnectorAccountType::DbVal)
-            .change_context(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
-                id: connector_label.to_string(),
-            }),
+            .to_not_found_response(
+                errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
+                    id: connector_label.to_string(),
+                },
+            )
+        }
+        .map(MerchantConnectorAccountType::DbVal),
     }
 }
 

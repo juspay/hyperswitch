@@ -280,6 +280,8 @@ diesel::table! {
         created_at -> Timestamp,
         #[max_length = 255]
         connector_label -> Nullable<Varchar>,
+        #[max_length = 64]
+        profile_id -> Nullable<Varchar>,
     }
 }
 
