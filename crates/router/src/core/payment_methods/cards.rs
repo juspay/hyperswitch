@@ -222,7 +222,7 @@ pub async fn get_card_from_locker(
                 })
         },
         &metrics::CARD_GET_TIME,
-        &[]
+        &[],
     )
     .await
 }

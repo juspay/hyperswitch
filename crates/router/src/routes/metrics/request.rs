@@ -1,6 +1,7 @@
+use router_env::opentelemetry;
+
 use super::utils as metric_utils;
 use crate::services::ApplicationResponse;
-use router_env::opentelemetry;
 
 pub async fn record_request_time_metric<F, R>(
     future: F,
