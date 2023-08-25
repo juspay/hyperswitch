@@ -23,7 +23,6 @@ use crate::{
         errors::{self, CustomResult},
         payments,
     },
-    db::StorageInterface,
     headers, logger,
     services::{
         self,
@@ -33,7 +32,7 @@ use crate::{
     types::{
         self,
         api::{self, ConnectorCommon, ConnectorCommonExt},
-        domain, ErrorResponse, Response,
+        ErrorResponse, Response,
     },
     utils::{self, BytesExt},
 };
@@ -1034,19 +1033,17 @@ impl api::IncomingWebhook for Bluesnap {
         &self,
         _request: &api::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<Box<dyn crypto::VerifySignature + Send>, errors::ConnectorError> {
-        Ok(Box::new(crypto::Md5))
+        Ok(Box::new(crypto::HmacSha256))
     }
 
     fn get_webhook_source_verification_signature(
         &self,
         request: &api::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
-        let webhook_body: bluesnap::BluesnapWebhookBody =
-            serde_urlencoded::from_bytes(request.body)
-                .into_report()
-                .change_context(errors::ConnectorError::WebhookSignatureNotFound)?;
-        let signature = webhook_body.auth_key;
-        hex::decode(signature)
+        let security_header =
+            connector_utils::get_header_key_value("bls-signature", request.headers)?;
+
+        hex::decode(security_header)
             .into_report()
             .change_context(errors::ConnectorError::WebhookSignatureNotFound)
     }
@@ -1056,51 +1053,10 @@ impl api::IncomingWebhook for Bluesnap {
         _merchant_id: &str,
         _secret: &[u8],
     ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
-        let webhook_body: bluesnap::BluesnapWebhookBody =
-            serde_urlencoded::from_bytes(request.body)
-                .into_report()
-                .change_context(errors::ConnectorError::WebhookSignatureNotFound)?;
-        let msg = webhook_body.reference_number + webhook_body.contract_id.as_str();
-        Ok(msg.into_bytes())
-    }
+        let timestamp =
+            connector_utils::get_header_key_value("bls-ipn-timestamp", request.headers)?;
 
-    async fn verify_webhook_source(
-        &self,
-        db: &dyn StorageInterface,
-        request: &api::IncomingWebhookRequestDetails<'_>,
-        merchant_account: &domain::MerchantAccount,
-        connector_label: &str,
-        key_store: &domain::MerchantKeyStore,
-        object_reference_id: api_models::webhooks::ObjectReferenceId,
-    ) -> CustomResult<bool, errors::ConnectorError> {
-        let algorithm = self
-            .get_webhook_source_verification_algorithm(request)
-            .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
-
-        let signature = self
-            .get_webhook_source_verification_signature(request)
-            .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
-        let mut secret = self
-            .get_webhook_source_verification_merchant_secret(
-                db,
-                merchant_account,
-                connector_label,
-                key_store,
-                object_reference_id,
-            )
-            .await
-            .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
-        let mut message = self
-            .get_webhook_source_verification_message(
-                request,
-                &merchant_account.merchant_id,
-                &secret,
-            )
-            .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
-        message.append(&mut secret);
-        algorithm
-            .verify_signature(&secret, &signature, &message)
-            .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)
+        Ok(format!("{}{}", timestamp, String::from_utf8_lossy(request.body)).into_bytes())
     }
 
     fn get_webhook_object_reference_id(
@@ -1112,8 +1068,8 @@ impl api::IncomingWebhook for Bluesnap {
                 .into_report()
                 .change_context(errors::ConnectorError::WebhookSignatureNotFound)?;
         Ok(api_models::webhooks::ObjectReferenceId::PaymentId(
-            api_models::payments::PaymentIdType::ConnectorTransactionId(
-                webhook_body.reference_number,
+            api_models::payments::PaymentIdType::PaymentAttemptId(
+                webhook_body.merchant_transaction_id,
             ),
         ))
     }
@@ -1149,8 +1105,34 @@ impl api::IncomingWebhook for Bluesnap {
             serde_urlencoded::from_bytes(request.body)
                 .into_report()
                 .change_context(errors::ConnectorError::WebhookResourceObjectNotFound)?;
+
+        let (card_transaction_type, processing_status) = match details.transaction_type {
+            bluesnap::BluesnapWebhookEvents::Decline
+            | bluesnap::BluesnapWebhookEvents::CcChargeFailed => Ok((
+                bluesnap::BluesnapTxnType::Capture,
+                bluesnap::BluesnapProcessingStatus::Fail,
+            )),
+            bluesnap::BluesnapWebhookEvents::Charge => Ok((
+                bluesnap::BluesnapTxnType::Capture,
+                bluesnap::BluesnapProcessingStatus::Success,
+            )),
+            bluesnap::BluesnapWebhookEvents::Unknown => {
+                Err(errors::ConnectorError::WebhookEventTypeNotFound)
+            }
+        }?;
+
+        let psync_struct = bluesnap::BluesnapPaymentsResponse {
+            processing_info: bluesnap::ProcessingInfoResponse {
+                processing_status,
+                authorization_code: None,
+                network_transaction_id: None,
+            },
+            transaction_id: details.reference_number,
+            card_transaction_type,
+        };
+
         let res_json =
-            utils::Encode::<transformers::BluesnapWebhookObjectResource>::encode_to_value(&details)
+            utils::Encode::<transformers::BluesnapPaymentsResponse>::encode_to_value(&psync_struct)
                 .change_context(errors::ConnectorError::WebhookResourceObjectNotFound)?;
 
         Ok(res_json)

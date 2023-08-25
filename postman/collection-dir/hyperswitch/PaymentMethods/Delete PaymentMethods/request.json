@@ -1,0 +1,27 @@
+{
+  "method": "DELETE",
+  "header": [
+    {
+      "key": "Accept",
+      "value": "application/json"
+    }
+  ],
+  "url": {
+    "raw": "{{baseUrl}}/payment_methods/:id",
+    "host": [
+      "{{baseUrl}}"
+    ],
+    "path": [
+      "payment_methods",
+      ":id"
+    ],
+    "variable": [
+      {
+        "key": "id",
+        "value": "{{payment_token}}",
+        "description": "(Required) The unique identifier for the payment method"
+      }
+    ]
+  },
+  "description": "Detaches a PaymentMethod object from a Customer."
+}
