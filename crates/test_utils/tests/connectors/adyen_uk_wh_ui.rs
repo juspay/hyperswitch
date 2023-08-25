@@ -3,27 +3,22 @@ use thirtyfour::{prelude::*, WebDriver};
 
 use crate::{selenium::*, tester};
 
-struct CheckoutSeleniumTest;
+struct AdyenSeleniumTest;
 
-impl SeleniumTest for CheckoutSeleniumTest {
+impl SeleniumTest for AdyenSeleniumTest {
     fn get_connector_name(&self) -> String {
-        "checkout".to_string()
+        "adyen_uk".to_string()
     }
 }
 
 async fn should_make_webhook(web_driver: WebDriver) -> Result<(), WebDriverError> {
-    let conn = CheckoutSeleniumTest {};
+    let conn = AdyenSeleniumTest {};
     conn.make_webhook_test(
         web_driver,
-        &format!("{CHEKOUT_BASE_URL}/saved/18"),
+        &format!("{CHEKOUT_BASE_URL}/saved/104"),
         vec![
             Event::Trigger(Trigger::Click(By::Id("card-submit-btn"))),
-            Event::Trigger(Trigger::Sleep(8)),
-            Event::Assert(Assert::IsPresent("Google")),
-            Event::Assert(Assert::ContainsAny(
-                Selector::QueryParamStr,
-                vec!["status=succeeded", "status=processing"],
-            )),
+            Event::Assert(Assert::IsPresent("succeeded")),
         ],
         10,
         "succeeded",
