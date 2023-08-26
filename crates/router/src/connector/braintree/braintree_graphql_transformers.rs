@@ -149,9 +149,7 @@ impl<F, T>
                 Ok(Self {
                     status: enums::AttemptStatus::from(transaction_data.status.clone()),
                     response: Ok(types::PaymentsResponseData::TransactionResponse {
-                        resource_id: types::ResponseId::ConnectorTransactionId(
-                            transaction_data.id,
-                        ),
+                        resource_id: types::ResponseId::ConnectorTransactionId(transaction_data.id),
                         redirection_data: None,
                         mandate_reference: None,
                         connector_metadata: None,
