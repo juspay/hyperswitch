@@ -135,10 +135,13 @@ impl TryFrom<(&types::ConnectorAuthType, &enums::Currency)> for CashtocodeAuth {
                 let cashtocode_auth: Self = identity_auth_key
                     .to_owned()
                     .parse_value("CashtocodeAuth")
-                    .change_context(errors::ConnectorError::ParsingFailed)?;
+                    .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
                 Ok(cashtocode_auth)
             } else {
-                Err(errors::ConnectorError::CurrencyNotSupported.into())
+                Err(errors::ConnectorError::CurrencyNotSupported{
+                    message: currency.to_string(),
+                    connector: "CashToCode",
+                }.into())
             }
         } else {
             Err(errors::ConnectorError::FailedToObtainAuthType.into())

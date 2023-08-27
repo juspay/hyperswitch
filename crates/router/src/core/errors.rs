@@ -383,7 +383,10 @@ pub enum ConnectorError {
     #[error("Server responded with Request Timeout")]
     RequestTimeoutReceived,
     #[error("The given currency method is not configured with the given connector")]
-    CurrencyNotSupported,
+    CurrencyNotSupported {
+        message: String,
+        connector: &'static str,
+    },
 }
 
 #[derive(Debug, thiserror::Error)]

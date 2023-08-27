@@ -225,6 +225,8 @@ pub enum StripeErrorCode {
     PaymentMethodUnactivated,
     #[error(error_type = StripeErrorType::HyperswitchError, code = "", message = "{entity} expired or invalid")]
     HyperswitchUnprocessableEntity { entity: String },
+    #[error(error_type = StripeErrorType::InvalidRequestError, code = "", message = "{message}")]
+    CurrencyNotSupported {message: String},
     // [#216]: https://github.com/juspay/hyperswitch/issues/216
     // Implement the remaining stripe error codes
 
@@ -553,6 +555,7 @@ impl From<errors::ApiErrorResponse> for StripeErrorCode {
                 Self::MerchantConnectorAccountDisabled
             }
             errors::ApiErrorResponse::NotSupported { .. } => Self::InternalServerError,
+            errors::ApiErrorResponse::CurrencyNotSupported { message } => Self::CurrencyNotSupported {message: message.to_owned()},
             errors::ApiErrorResponse::FileProviderNotSupported { .. } => {
                 Self::FileProviderNotSupported
             }
@@ -628,6 +631,7 @@ impl actix_web::ResponseError for StripeErrorCode {
             | Self::FileNotFound
             | Self::FileNotAvailable
             | Self::FileProviderNotSupported
+            | Self::CurrencyNotSupported { .. }
             | Self::PaymentMethodUnactivated => StatusCode::BAD_REQUEST,
             Self::RefundFailed
             | Self::PayoutFailed
