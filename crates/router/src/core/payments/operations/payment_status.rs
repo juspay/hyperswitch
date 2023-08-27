@@ -329,10 +329,6 @@ async fn get_tracker_for_sync<
         })
         .await
         .transpose()?;
-    println!(
-        "pysnc_flow_here {:?}",
-        payment_attempt.connector_metadata.is_some()
-    );
     Ok((
         Box::new(operation),
         PaymentData {
