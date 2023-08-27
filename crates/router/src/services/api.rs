@@ -10,7 +10,7 @@ use std::{
 };
 
 use actix_web::{body, HttpRequest, HttpResponse, Responder, ResponseError};
-use api_models::enums::CaptureMethod;
+use api_models::enums::{CaptureMethod, PaymentMethodType};
 use common_utils::errors::ReportSwitchExt;
 use error_stack::{report, IntoReport, Report, ResultExt};
 use masking::{ExposeOptionInterface, PeekInterface};
@@ -73,16 +73,11 @@ pub trait ConnectorValidation: ConnectorCommon {
 
     fn validate_psync_reference_id(
         &self,
-        data: &types::PaymentsSyncRouterData,
-    ) -> Result<(), errors::ConnectorError> {
-        match data
-            .request
-            .connector_transaction_id
-            .get_connector_transaction_id()
-        {
-            Ok(_) => Ok(()),
-            Err(_) => Err(errors::ConnectorError::MissingConnectorTransactionID),
-        }
+        _payment_method_type: Option<PaymentMethodType>,
+        connector_transaction_id: Option<String>,
+    ) -> bool {
+        // default case: psync can only be made to connector when transaction id is generated
+        connector_transaction_id.is_some()
     }
 }
 

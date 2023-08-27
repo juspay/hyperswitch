@@ -329,6 +329,10 @@ async fn get_tracker_for_sync<
         })
         .await
         .transpose()?;
+    println!(
+        "pysnc_flow_here {:?}",
+        payment_attempt.connector_metadata.is_some()
+    );
     Ok((
         Box::new(operation),
         PaymentData {
@@ -355,7 +359,7 @@ async fn get_tracker_for_sync<
             payment_method_data: None,
             force_sync: Some(
                 request.force_sync
-                    && (helpers::check_force_psync_precondition(&payment_attempt.status)
+                    && (helpers::check_force_psync_precondition(&payment_attempt).unwrap_or(false)
                         || contains_encoded_data),
             ),
             payment_attempt,

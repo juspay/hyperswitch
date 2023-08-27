@@ -59,15 +59,6 @@ impl Feature<api::PSync, types::PaymentsSyncData>
             types::PaymentsResponseData,
         > = connector.connector.get_connector_integration();
 
-        // validating required parameters for hitting connector
-        if connector
-            .connector
-            .validate_psync_reference_id(&self)
-            .is_err()
-        {
-            return Ok(self);
-        }
-
         let capture_sync_method_result = connector_integration
             .get_multiple_capture_sync_method()
             .to_payment_failed_response();
@@ -122,14 +113,6 @@ impl Feature<api::PSync, types::PaymentsSyncData>
         connector: &api::ConnectorData,
         call_connector_action: payments::CallConnectorAction,
     ) -> RouterResult<(Option<services::Request>, bool)> {
-        if connector
-            .connector
-            .validate_psync_reference_id(&self)
-            .is_err()
-        {
-            return Ok((None, false));
-        }
-
         let request = match call_connector_action {
             payments::CallConnectorAction::Trigger => {
                 let connector_integration: services::BoxedConnectorIntegration<

@@ -341,6 +341,81 @@ impl ConnectorData {
             .change_context(errors::ApiErrorResponse::InternalServerError),
         }
     }
+
+    pub fn convert_connector_only_by_name(
+        connector_name: &str,
+    ) -> CustomResult<BoxedConnector, errors::ApiErrorResponse> {
+        match enums::Connector::from_str(connector_name) {
+            Ok(name) => match name {
+                enums::Connector::Aci => Ok(Box::new(&connector::Aci)),
+                enums::Connector::Adyen => Ok(Box::new(&connector::Adyen)),
+                enums::Connector::Airwallex => Ok(Box::new(&connector::Airwallex)),
+                enums::Connector::Authorizedotnet => Ok(Box::new(&connector::Authorizedotnet)),
+                enums::Connector::Bambora => Ok(Box::new(&connector::Bambora)),
+                enums::Connector::Bitpay => Ok(Box::new(&connector::Bitpay)),
+                enums::Connector::Bluesnap => Ok(Box::new(&connector::Bluesnap)),
+                enums::Connector::Boku => Ok(Box::new(&connector::Boku)),
+                enums::Connector::Braintree => Ok(Box::new(&connector::Braintree)),
+                enums::Connector::Cashtocode => Ok(Box::new(&connector::Cashtocode)),
+                enums::Connector::Checkout => Ok(Box::new(&connector::Checkout)),
+                enums::Connector::Coinbase => Ok(Box::new(&connector::Coinbase)),
+                enums::Connector::Cryptopay => Ok(Box::new(&connector::Cryptopay)),
+                enums::Connector::Cybersource => Ok(Box::new(&connector::Cybersource)),
+                enums::Connector::Dlocal => Ok(Box::new(&connector::Dlocal)),
+                #[cfg(feature = "dummy_connector")]
+                enums::Connector::DummyConnector1 => Ok(Box::new(&connector::DummyConnector::<1>)),
+                #[cfg(feature = "dummy_connector")]
+                enums::Connector::DummyConnector2 => Ok(Box::new(&connector::DummyConnector::<2>)),
+                #[cfg(feature = "dummy_connector")]
+                enums::Connector::DummyConnector3 => Ok(Box::new(&connector::DummyConnector::<3>)),
+                #[cfg(feature = "dummy_connector")]
+                enums::Connector::DummyConnector4 => Ok(Box::new(&connector::DummyConnector::<4>)),
+                #[cfg(feature = "dummy_connector")]
+                enums::Connector::DummyConnector5 => Ok(Box::new(&connector::DummyConnector::<5>)),
+                #[cfg(feature = "dummy_connector")]
+                enums::Connector::DummyConnector6 => Ok(Box::new(&connector::DummyConnector::<6>)),
+                #[cfg(feature = "dummy_connector")]
+                enums::Connector::DummyConnector7 => Ok(Box::new(&connector::DummyConnector::<7>)),
+                enums::Connector::Fiserv => Ok(Box::new(&connector::Fiserv)),
+                enums::Connector::Forte => Ok(Box::new(&connector::Forte)),
+                enums::Connector::Globalpay => Ok(Box::new(&connector::Globalpay)),
+                enums::Connector::Globepay => Ok(Box::new(&connector::Globepay)),
+                enums::Connector::Iatapay => Ok(Box::new(&connector::Iatapay)),
+                enums::Connector::Klarna => Ok(Box::new(&connector::Klarna)),
+                enums::Connector::Mollie => Ok(Box::new(&connector::Mollie)),
+                enums::Connector::Nmi => Ok(Box::new(&connector::Nmi)),
+                enums::Connector::Noon => Ok(Box::new(&connector::Noon)),
+                enums::Connector::Nuvei => Ok(Box::new(&connector::Nuvei)),
+                enums::Connector::Opennode => Ok(Box::new(&connector::Opennode)),
+                // "payeezy" => Ok(Box::new(&connector::Payeezy)), As psync and rsync are not supported by this connector, it is added as template code for future usage
+                enums::Connector::Payme => Ok(Box::new(&connector::Payme)),
+                enums::Connector::Payu => Ok(Box::new(&connector::Payu)),
+                enums::Connector::Powertranz => Ok(Box::new(&connector::Powertranz)),
+                enums::Connector::Rapyd => Ok(Box::new(&connector::Rapyd)),
+                enums::Connector::Shift4 => Ok(Box::new(&connector::Shift4)),
+                //enums::Connector::Square => Ok(Box::new(&connector::Square)), it is added as template code for future usage
+                enums::Connector::Stax => Ok(Box::new(&connector::Stax)),
+                enums::Connector::Stripe => Ok(Box::new(&connector::Stripe)),
+                enums::Connector::Wise => Ok(Box::new(&connector::Wise)),
+                enums::Connector::Worldline => Ok(Box::new(&connector::Worldline)),
+                enums::Connector::Worldpay => Ok(Box::new(&connector::Worldpay)),
+                enums::Connector::Multisafepay => Ok(Box::new(&connector::Multisafepay)),
+                enums::Connector::Nexinets => Ok(Box::new(&connector::Nexinets)),
+                enums::Connector::Paypal => Ok(Box::new(&connector::Paypal)),
+                enums::Connector::Trustpay => Ok(Box::new(&connector::Trustpay)),
+                enums::Connector::Tsys => Ok(Box::new(&connector::Tsys)),
+                enums::Connector::Zen => Ok(Box::new(&connector::Zen)),
+                enums::Connector::Signifyd => {
+                    Err(report!(errors::ConnectorError::InvalidConnectorName)
+                        .attach_printable(format!("invalid connector name: {connector_name}")))
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                }
+            },
+            Err(_) => Err(report!(errors::ConnectorError::InvalidConnectorName)
+                .attach_printable(format!("invalid connector name: {connector_name}")))
+            .change_context(errors::ApiErrorResponse::InternalServerError),
+        }
+    }
 }
 
 #[cfg(test)]

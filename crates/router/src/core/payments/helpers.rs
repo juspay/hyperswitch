@@ -1636,16 +1636,31 @@ pub fn validate_payment_method_type_against_payment_method(
     }
 }
 
-pub fn check_force_psync_precondition(status: &storage_enums::AttemptStatus) -> bool {
-    !matches!(
-        status,
+pub fn check_force_psync_precondition(
+    data: &PaymentAttempt,
+) -> CustomResult<bool, errors::ApiErrorResponse> {
+    let connector_name = data
+        .connector
+        .clone()
+        .ok_or(errors::ApiErrorResponse::IncorrectConnectorNameGiven)?;
+    let connector = api::ConnectorData::convert_connector_only_by_name(connector_name.as_str())?;
+
+    // connector specific validation
+    let connector_condition = connector.validate_psync_reference_id(
+        data.payment_method_type,
+        data.connector_transaction_id.clone(),
+    );
+
+    let status_condition = !matches!(
+        data.status,
         storage_enums::AttemptStatus::Charged
             | storage_enums::AttemptStatus::AutoRefunded
             | storage_enums::AttemptStatus::Voided
             | storage_enums::AttemptStatus::CodInitiated
             | storage_enums::AttemptStatus::Started
             | storage_enums::AttemptStatus::Failure
-    )
+    );
+    Ok(connector_condition && status_condition)
 }
 
 pub fn append_option<T, U, F, V>(func: F, option1: Option<T>, option2: Option<U>) -> Option<V>
