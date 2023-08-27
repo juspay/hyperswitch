@@ -138,10 +138,11 @@ impl TryFrom<(&types::ConnectorAuthType, &enums::Currency)> for CashtocodeAuth {
                     .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
                 Ok(cashtocode_auth)
             } else {
-                Err(errors::ConnectorError::CurrencyNotSupported{
+                Err(errors::ConnectorError::CurrencyNotSupported {
                     message: currency.to_string(),
                     connector: "CashToCode",
-                }.into())
+                }
+                .into())
             }
         } else {
             Err(errors::ConnectorError::FailedToObtainAuthType.into())
