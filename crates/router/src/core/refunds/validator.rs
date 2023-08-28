@@ -358,6 +358,7 @@ mod refund_validate_tests {
             connector_metadata: None,
             feature_metadata: None,
             attempt_count: 1,
+            profile_id: None,
         }
     }
 
@@ -387,9 +388,11 @@ mod refund_validate_tests {
             payout_routing_algorithm: None,
             organization_id: None,
             is_recon_enabled: false,
+            default_profile: None,
         }
     }
 
+    #[allow(clippy::unwrap_used)]
     async fn make_merchant_key_store(
         merchant_id: String,
         master_key: &[u8],
@@ -415,6 +418,7 @@ mod refund_validate_tests {
         }
     }
 
+    #[allow(clippy::unwrap_used)]
     #[tokio::test]
     async fn validate_request_ok() {
         let mockdb = MockDb::new(&Default::default()).await;
