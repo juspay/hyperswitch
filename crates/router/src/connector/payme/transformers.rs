@@ -209,12 +209,11 @@ impl<F, T> TryFrom<types::ResponseRouterData<F, SaleQueryResponse, T, types::Pay
 
 impl From<(&SaleQuery, u16)> for types::ErrorResponse {
     fn from((sale_query_response, http_code): (&SaleQuery, u16)) -> Self {
-        let code = sale_query_response
-            .sale_error_code
-            .map(|error_code| error_code.to_string())
-            .unwrap_or(consts::NO_ERROR_CODE.to_string());
         Self {
-            code,
+            code: sale_query_response
+                .sale_error_code
+                .clone()
+                .unwrap_or(consts::NO_ERROR_CODE.to_string()),
             message: sale_query_response
                 .sale_error_text
                 .clone()
@@ -591,7 +590,7 @@ pub struct SaleQuery {
     sale_status: SaleStatus,
     sale_payme_id: String,
     sale_error_text: Option<String>,
-    sale_error_code: Option<u32>,
+    sale_error_code: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
