@@ -8,14 +8,15 @@ use diesel_models::{
     enums::{EventClass, EventObjectType},
     payment_intent::PaymentIntent,
 };
-use error_stack::{IntoReport, ResultExt};
 
 use super::{AutoRefundWorkflow, ProcessTrackerWorkflow};
 use crate::{
     core::{
         errors::ProcessTrackerError,
         refunds::refund_create_core,
-        webhooks::{create_event_and_trigger_outgoing_webhook, types::OutgoingWebhookType},
+        webhooks::{
+            create_event_and_trigger_appropriate_outgoing_webhook, types::OutgoingWebhookType,
+        },
     },
     errors,
     logger::error,
@@ -57,21 +58,20 @@ impl ProcessTrackerWorkflow for AutoRefundWorkflow {
             refund_create_core(state, merchant_account.clone(), key_store, ref_req).await?;
         match refund_response {
             crate::services::ApplicationResponse::Json(refund_details) => {
-                create_event_and_trigger_outgoing_webhook::<OutgoingWebhookType>(
-                    *state,
+                create_event_and_trigger_appropriate_outgoing_webhook(
+                    state.clone(),
                     merchant_account,
                     EventType::RefundSucceeded,
                     EventClass::Refunds,
                     None,
-                    "".to_string(),
+                    refund_details.clone().refund_id,
                     EventObjectType::RefundDetails,
                     OutgoingWebhookContent::RefundDetails(refund_details),
                 )
                 .await?;
             }
             _ => {
-                self.error_handler(state, process, ProcessTrackerError::DeserializationFailed)
-                    .await;
+                return Err(ProcessTrackerError::UnexpectedFlow);
             }
         };
         Ok(())
