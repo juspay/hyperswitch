@@ -4,6 +4,7 @@ use common_utils::ext_traits::AsyncExt;
 use error_stack::{report, IntoReport, ResultExt};
 use router_env::{instrument, tracing};
 
+use self::validator::ValidateRefundRequest;
 use crate::{
     consts,
     core::{
@@ -24,8 +25,6 @@ use crate::{
     },
     utils::{self, OptionExt},
 };
-
-use self::validator::ValidateRefundRequest;
 
 // ********************************************** REFUND EXECUTE **********************************************
 

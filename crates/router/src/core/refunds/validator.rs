@@ -297,18 +297,6 @@ pub fn validate_for_valid_refunds(
 
 #[cfg(test)]
 mod refund_validate_tests {
-    use crate::configs::settings::Settings;
-    use crate::db::merchant_key_store::MerchantKeyStoreInterface;
-    use crate::db::MasterKeyInterface;
-    use crate::db::{
-        merchant_account::MerchantAccountInterface, payment_attempt::PaymentAttemptInterface,
-        MockDb,
-    };
-    use crate::types::{
-        domain::{self, MerchantAccount},
-        storage::{enums::MerchantStorageScheme, PaymentAttemptNew},
-    };
-    use crate::{routes, services};
     use api_models::{
         enums::{CountryAlpha2, Currency, IntentStatus},
         refunds::RefundRequest,
@@ -317,6 +305,19 @@ mod refund_validate_tests {
     use time::macros::datetime;
 
     use super::*;
+    use crate::{
+        configs::settings::Settings,
+        db::{
+            merchant_account::MerchantAccountInterface,
+            merchant_key_store::MerchantKeyStoreInterface,
+            payment_attempt::PaymentAttemptInterface, MasterKeyInterface, MockDb,
+        },
+        routes, services,
+        types::{
+            domain::{self, MerchantAccount},
+            storage::{enums::MerchantStorageScheme, PaymentAttemptNew},
+        },
+    };
 
     fn make_payment_attempt(merchant_id: String, payment_id: String) -> PaymentAttemptNew {
         PaymentAttemptNew {
