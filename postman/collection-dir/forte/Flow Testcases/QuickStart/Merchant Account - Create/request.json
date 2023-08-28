@@ -69,10 +69,6 @@
         "payment_succeeded_enabled": true,
         "payment_failed_enabled": true
       },
-      "routing_algorithm": {
-        "type": "single",
-        "data": "stripe"
-      },
       "primary_business_details": [
         {
           "country": "US",

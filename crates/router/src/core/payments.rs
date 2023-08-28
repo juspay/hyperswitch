@@ -25,7 +25,6 @@ pub use self::operations::{
 };
 use self::{
     flows::{ConstructFlowSpecificData, Feature},
-    helpers::authenticate_client_secret,
     operations::{payment_complete_authorize, BoxedOperation, Operation},
 };
 use super::errors::StorageErrorExt;
@@ -93,12 +92,6 @@ where
             auth_flow,
         )
         .await?;
-
-    authenticate_client_secret(
-        req.get_client_secret(),
-        &payment_data.payment_intent,
-        merchant_account.intent_fulfillment_time,
-    )?;
 
     let (operation, customer) = operation
         .to_domain()?
