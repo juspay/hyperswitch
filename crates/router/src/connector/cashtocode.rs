@@ -2,13 +2,14 @@ pub mod transformers;
 
 use std::fmt::Debug;
 
+use base64::Engine;
 use diesel_models::enums;
 use error_stack::{IntoReport, ResultExt};
-use masking::PeekInterface;
+use masking::{PeekInterface, Secret};
 use transformers as cashtocode;
 
 use crate::{
-    configs::settings,
+    configs::settings::{self},
     connector::{utils as connector_utils, utils as conn_utils},
     core::errors::{self, CustomResult},
     db::StorageInterface,
@@ -42,33 +43,40 @@ impl api::Refund for Cashtocode {}
 impl api::RefundExecute for Cashtocode {}
 impl api::RefundSync for Cashtocode {}
 
-fn get_auth_cashtocode(
+fn get_b64_auth_cashtocode(
     payment_method_type: &Option<storage::enums::PaymentMethodType>,
-    auth_type: &types::ConnectorAuthType,
+    auth_type: &transformers::CashtocodeAuth,
 ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
-    match (*payment_method_type).ok_or_else(conn_utils::missing_field_err("payment_method_type")) {
-        Ok(reward_type) => match reward_type {
-            storage::enums::PaymentMethodType::ClassicReward => match auth_type {
-                types::ConnectorAuthType::BodyKey { api_key, .. } => Ok(vec![(
-                    headers::AUTHORIZATION.to_string(),
-                    format!("Basic {}", api_key.peek()).into_masked(),
-                )]),
-                _ => Err(errors::ConnectorError::FailedToObtainAuthType.into()),
-            },
-            storage::enums::PaymentMethodType::Evoucher => match auth_type {
-                types::ConnectorAuthType::BodyKey { key1, .. } => Ok(vec![(
-                    headers::AUTHORIZATION.to_string(),
-                    format!("Basic {}", key1.peek()).into_masked(),
-                )]),
-                _ => Err(errors::ConnectorError::FailedToObtainAuthType.into()),
-            },
-            _ => Err(error_stack::report!(errors::ConnectorError::NotSupported {
-                message: reward_type.to_string(),
-                connector: "cashtocode",
-            })),
-        },
-        Err(_) => Err(errors::ConnectorError::FailedToObtainAuthType.into()),
+    fn construct_basic_auth(
+        username: Option<Secret<String>>,
+        password: Option<Secret<String>>,
+    ) -> Result<request::Maskable<String>, errors::ConnectorError> {
+        let username = username.ok_or(errors::ConnectorError::FailedToObtainAuthType)?;
+        let password = password.ok_or(errors::ConnectorError::FailedToObtainAuthType)?;
+        Ok(format!(
+            "Basic {}",
+            base64::engine::general_purpose::STANDARD.encode(format!(
+                "{}:{}",
+                username.peek(),
+                password.peek()
+            ))
+        )
+        .into_masked())
     }
+
+    let auth_header = match payment_method_type {
+        Some(storage::enums::PaymentMethodType::ClassicReward) => construct_basic_auth(
+            auth_type.username_classic.to_owned(),
+            auth_type.password_classic.to_owned(),
+        ),
+        Some(storage::enums::PaymentMethodType::Evoucher) => construct_basic_auth(
+            auth_type.username_evoucher.to_owned(),
+            auth_type.password_evoucher.to_owned(),
+        ),
+        _ => return Err(errors::ConnectorError::MissingPaymentMethodType)?,
+    }?;
+
+    Ok(vec![(headers::AUTHORIZATION.to_string(), auth_header)])
 }
 
 impl
@@ -97,18 +105,6 @@ impl ConnectorCommon for Cashtocode {
 
     fn base_url<'a>(&self, connectors: &'a settings::Connectors) -> &'a str {
         connectors.cashtocode.base_url.as_ref()
-    }
-
-    fn get_auth_header(
-        &self,
-        auth_type: &types::ConnectorAuthType,
-    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
-        let auth = cashtocode::CashtocodeAuthType::try_from(auth_type)
-            .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
-        Ok(vec![(
-            headers::AUTHORIZATION.to_string(),
-            auth.api_key.into_masked(),
-        )])
     }
 
     fn build_error_response(
@@ -173,13 +169,14 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
                 .to_owned()
                 .into(),
         )];
-        let auth_differentiator =
-            get_auth_cashtocode(&req.request.payment_method_type, &req.connector_auth_type);
 
-        let mut api_key = match auth_differentiator {
-            Ok(auth_type) => auth_type,
-            Err(err) => return Err(err),
-        };
+        let auth_type = transformers::CashtocodeAuth::try_from((
+            &req.connector_auth_type,
+            &req.request.currency,
+        ))?;
+
+        let mut api_key = get_b64_auth_cashtocode(&req.request.payment_method_type, &auth_type)?;
+
         header.append(&mut api_key);
         Ok(header)
     }

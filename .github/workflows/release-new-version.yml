@@ -32,7 +32,7 @@ jobs:
       - name: Install Rust
         uses: dtolnay/rust-toolchain@master
         with:
-          toolchain: stable
+          toolchain: stable 2 weeks ago
 
       - name: Install cocogitto
         uses: baptiste0928/cargo-install@v2.1.0

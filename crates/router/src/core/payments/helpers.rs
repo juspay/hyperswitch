@@ -1176,35 +1176,40 @@ pub async fn make_pm_data<'a, F: Clone, R>(
     let request = &payment_data.payment_method_data;
     let token = payment_data.token.clone();
 
-    let hyperswitch_token = if let Some(token) = token {
-        let redis_conn = state
-            .store
-            .get_redis_conn()
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Failed to get redis connection")?;
+    let hyperswitch_token = match payment_data.mandate_id {
+        Some(_) => token,
+        None => {
+            if let Some(token) = token {
+                let redis_conn = state
+                    .store
+                    .get_redis_conn()
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Failed to get redis connection")?;
 
-        let key = format!(
-            "pm_token_{}_{}_hyperswitch",
-            token,
-            payment_data
-                .payment_attempt
-                .payment_method
-                .to_owned()
-                .get_required_value("payment_method")?,
-        );
+                let key = format!(
+                    "pm_token_{}_{}_hyperswitch",
+                    token,
+                    payment_data
+                        .payment_attempt
+                        .payment_method
+                        .to_owned()
+                        .get_required_value("payment_method")?,
+                );
 
-        let key = redis_conn
-            .get_key::<Option<String>>(&key)
-            .await
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Failed to fetch the token from redis")?
-            .ok_or(error_stack::Report::new(
-                errors::ApiErrorResponse::UnprocessableEntity { entity: token },
-            ))?;
+                let key = redis_conn
+                    .get_key::<Option<String>>(&key)
+                    .await
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Failed to fetch the token from redis")?
+                    .ok_or(error_stack::Report::new(
+                        errors::ApiErrorResponse::UnprocessableEntity { entity: token },
+                    ))?;
 
-        Some(key)
-    } else {
-        None
+                Some(key)
+            } else {
+                None
+            }
+        }
     };
 
     let card_cvc = payment_data.card_cvc.clone();
@@ -1296,7 +1301,7 @@ pub async fn make_pm_data<'a, F: Clone, R>(
         (pm @ Some(api::PaymentMethodData::BankDebit(_)), _) => Ok(pm.to_owned()),
         (pm @ Some(api::PaymentMethodData::Upi(_)), _) => Ok(pm.to_owned()),
         (pm @ Some(api::PaymentMethodData::Voucher(_)), _) => Ok(pm.to_owned()),
-        (pm @ Some(api::PaymentMethodData::Reward(_)), _) => Ok(pm.to_owned()),
+        (pm @ Some(api::PaymentMethodData::Reward), _) => Ok(pm.to_owned()),
         (pm @ Some(api::PaymentMethodData::CardRedirect(_)), _) => Ok(pm.to_owned()),
         (pm @ Some(api::PaymentMethodData::GiftCard(_)), _) => Ok(pm.to_owned()),
         (pm_opt @ Some(pm @ api::PaymentMethodData::BankTransfer(_)), _) => {
@@ -2483,6 +2488,7 @@ pub fn router_data_type_conversion<F1, F2, Req1, Req2, Res1, Res2>(
         #[cfg(feature = "payouts")]
         quote_id: None,
         test_mode: router_data.test_mode,
+        connector_api_version: router_data.connector_api_version,
         connector_http_status_code: router_data.connector_http_status_code,
     }
 }
@@ -2942,7 +2948,7 @@ pub async fn get_additional_payment_data(
         api_models::payments::PaymentMethodData::MandatePayment => {
             api_models::payments::AdditionalPaymentData::MandatePayment {}
         }
-        api_models::payments::PaymentMethodData::Reward(_) => {
+        api_models::payments::PaymentMethodData::Reward => {
             api_models::payments::AdditionalPaymentData::Reward {}
         }
         api_models::payments::PaymentMethodData::Upi(_) => {

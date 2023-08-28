@@ -123,13 +123,6 @@ where
         key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<domain::MerchantConnectorAccount, errors::StorageError>;
 
-    async fn find_merchant_connector_account_by_profile_id_connector_name(
-        &self,
-        profile_id: &str,
-        connector: &str,
-        key_store: &domain::MerchantKeyStore,
-    ) -> CustomResult<domain::MerchantConnectorAccount, errors::StorageError>;
-
     async fn find_merchant_connector_account_by_merchant_id_connector_name(
         &self,
         merchant_id: &str,
@@ -262,51 +255,6 @@ impl MerchantConnectorAccountInterface for Store {
                     errors::StorageError::ValueNotFound("MerchantConnectorAccount".into()).into(),
                 ),
             },
-        }
-    }
-
-    async fn find_merchant_connector_account_by_profile_id_connector_name(
-        &self,
-        profile_id: &str,
-        connector_name: &str,
-        key_store: &domain::MerchantKeyStore,
-    ) -> CustomResult<domain::MerchantConnectorAccount, errors::StorageError> {
-        let find_call = || async {
-            let conn = connection::pg_connection_read(self).await?;
-            storage::MerchantConnectorAccount::find_by_profile_id_connector(
-                &conn,
-                connector_name,
-                profile_id,
-            )
-            .await
-            .map_err(Into::into)
-            .into_report()
-        };
-
-        #[cfg(not(feature = "accounts_cache"))]
-        {
-            find_call()
-                .await?
-                .convert(key_store.key.get_inner())
-                .await
-                .change_context(errors::StorageError::DeserializationFailed)
-        }
-
-        #[cfg(feature = "accounts_cache")]
-        {
-            super::cache::get_or_populate_in_memory(
-                self,
-                &format!("{}_{}", profile_id, connector_name),
-                find_call,
-                &cache::ACCOUNTS_CACHE,
-            )
-            .await
-            .async_and_then(|item| async {
-                item.convert(key_store.key.get_inner())
-                    .await
-                    .change_context(errors::StorageError::DecryptionError)
-            })
-            .await
         }
     }
 
@@ -550,40 +498,6 @@ impl MerchantConnectorAccountInterface for MockDb {
                     errors::StorageError::ValueNotFound("MerchantConnectorAccount".into()).into(),
                 ),
             },
-        }
-    }
-
-    async fn find_merchant_connector_account_by_profile_id_connector_name(
-        &self,
-        profile_id: &str,
-        connector_name: &str,
-        key_store: &domain::MerchantKeyStore,
-    ) -> CustomResult<domain::MerchantConnectorAccount, errors::StorageError> {
-        match self
-            .merchant_connector_accounts
-            .lock()
-            .await
-            .iter()
-            .find(|account| {
-                account.profile_id == Some(profile_id.to_string())
-                    && account.connector_name == connector_name
-            })
-            .cloned()
-            .async_map(|account| async {
-                account
-                    .convert(key_store.key.get_inner())
-                    .await
-                    .change_context(errors::StorageError::DecryptionError)
-            })
-            .await
-        {
-            Some(result) => result,
-            None => {
-                return Err(errors::StorageError::ValueNotFound(
-                    "cannot find merchant connector account".to_string(),
-                )
-                .into())
-            }
         }
     }
 
