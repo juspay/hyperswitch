@@ -776,7 +776,7 @@ pub enum PaymentMethodData {
     BankTransfer(Box<BankTransferData>),
     Crypto(CryptoData),
     MandatePayment,
-    Reward(RewardData),
+    Reward,
     Upi(UpiData),
     Voucher(VoucherData),
     GiftCard(Box<GiftCardData>),
