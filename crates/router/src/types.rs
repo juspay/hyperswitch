@@ -781,6 +781,9 @@ pub enum ConnectorAuthType {
         api_secret: Secret<String>,
         key2: Secret<String>,
     },
+    CurrencyAuthKey {
+        auth_key_map: HashMap<storage_enums::Currency, pii::SecretSerdeValue>,
+    },
     #[default]
     NoKey,
 }
