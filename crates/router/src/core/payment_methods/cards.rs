@@ -754,7 +754,7 @@ pub fn get_banks(
 
 fn get_val(str: String, val: &serde_json::Value) -> Option<String> {
     str.split('.')
-        .fold(Some(val), |acc, x| acc.and_then(|v| v.get(x)))
+        .try_fold(val, |acc, x| acc.get(x))
         .and_then(|v| v.as_str())
         .map(|s| s.to_string())
 }

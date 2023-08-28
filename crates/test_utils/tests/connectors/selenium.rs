@@ -832,7 +832,7 @@ fn get_chrome_profile_path() -> Result<String, WebDriverError> {
             fp.join(&MAIN_SEPARATOR.to_string())
         })
         .unwrap();
-    base_path.push_str(r#"/Library/Application\ Support/Google/Chrome/Default"#); //Issue: 1573
+    base_path.push_str(r"/Library/Application\ Support/Google/Chrome/Default"); //Issue: 1573
     Ok(base_path)
 }
 

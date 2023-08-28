@@ -604,11 +604,7 @@ pub mod error_stack_parsing {
                         attachments: current_error.attachments,
                     }]
                     .into_iter()
-                    .chain(
-                        Into::<VecLinearErrorStack<'a>>::into(current_error.sources)
-                            .0
-                            .into_iter(),
-                    )
+                    .chain(Into::<VecLinearErrorStack<'a>>::into(current_error.sources).0)
                 })
                 .collect();
             Self(multi_layered_errors)
