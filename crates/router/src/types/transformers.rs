@@ -310,7 +310,7 @@ impl ForeignTryFrom<api_models::payments::PaymentMethodData> for api_enums::Paym
             api_models::payments::PaymentMethodData::BankDebit(..) => Ok(Self::BankDebit),
             api_models::payments::PaymentMethodData::BankTransfer(..) => Ok(Self::BankTransfer),
             api_models::payments::PaymentMethodData::Crypto(..) => Ok(Self::Crypto),
-            api_models::payments::PaymentMethodData::Reward(..) => Ok(Self::Reward),
+            api_models::payments::PaymentMethodData::Reward => Ok(Self::Reward),
             api_models::payments::PaymentMethodData::Upi(..) => Ok(Self::Upi),
             api_models::payments::PaymentMethodData::Voucher(..) => Ok(Self::Voucher),
             api_models::payments::PaymentMethodData::GiftCard(..) => Ok(Self::GiftCard),
@@ -607,6 +607,7 @@ impl TryFrom<domain::MerchantConnectorAccount> for api_models::admin::MerchantCo
                     .change_context(errors::ApiErrorResponse::InternalServerError)
                 })
                 .transpose()?,
+            profile_id: item.profile_id,
         })
     }
 }
@@ -632,6 +633,25 @@ impl ForeignFrom<storage::PaymentAttempt> for api_models::payments::PaymentAttem
             payment_experience: payment_attempt.payment_experience,
             payment_method_type: payment_attempt.payment_method_type,
             reference_id: payment_attempt.connector_response_reference_id,
+        }
+    }
+}
+
+impl ForeignFrom<storage::Capture> for api_models::payments::CaptureResponse {
+    fn foreign_from(capture: storage::Capture) -> Self {
+        Self {
+            capture_id: capture.capture_id,
+            status: capture.status,
+            amount: capture.amount,
+            currency: capture.currency,
+            connector: capture.connector,
+            authorized_attempt_id: capture.authorized_attempt_id,
+            connector_capture_id: capture.connector_capture_id,
+            capture_sequence: capture.capture_sequence,
+            error_message: capture.error_message,
+            error_code: capture.error_code,
+            error_reason: capture.error_reason,
+            reference_id: capture.connector_response_reference_id,
         }
     }
 }

@@ -1,4 +1,4 @@
-use diesel::{associations::HasTable, BoolExpressionMethods, ExpressionMethods, Table};
+use diesel::{associations::HasTable, BoolExpressionMethods, ExpressionMethods};
 use router_env::{instrument, tracing};
 
 use super::generics;
@@ -58,12 +58,7 @@ impl Capture {
         authorized_attempt_id: &str,
         conn: &PgPooledConn,
     ) -> StorageResult<Vec<Self>> {
-        generics::generic_filter::<
-            <Self as HasTable>::Table,
-            _,
-            <<Self as HasTable>::Table as Table>::PrimaryKey,
-            _,
-        >(
+        generics::generic_filter::<<Self as HasTable>::Table, _, _, _>(
             conn,
             dsl::authorized_attempt_id
                 .eq(authorized_attempt_id.to_owned())
@@ -71,7 +66,7 @@ impl Capture {
                 .and(dsl::payment_id.eq(payment_id.to_owned())),
             None,
             None,
-            None,
+            Some(dsl::created_at.asc()),
         )
         .await
     }

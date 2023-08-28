@@ -54,6 +54,9 @@ impl ErrorSwitch<api_models::errors::types::ApiErrorResponse> for ApiErrorRespon
             Self::ClientSecretInvalid => {
                 AER::BadRequest(ApiError::new("IR", 9, "The client_secret provided does not match the client_secret associated with the Payment", None))
             }
+            Self::CurrencyNotSupported { message } => {
+                AER::BadRequest(ApiError::new("IR", 9, message, None))
+            }
             Self::MandateActive => {
                 AER::BadRequest(ApiError::new("IR", 10, "Customer has active mandate/subsciption", None))
             }

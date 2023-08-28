@@ -1176,35 +1176,40 @@ pub async fn make_pm_data<'a, F: Clone, R>(
     let request = &payment_data.payment_method_data;
     let token = payment_data.token.clone();
 
-    let hyperswitch_token = if let Some(token) = token {
-        let redis_conn = state
-            .store
-            .get_redis_conn()
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Failed to get redis connection")?;
+    let hyperswitch_token = match payment_data.mandate_id {
+        Some(_) => token,
+        None => {
+            if let Some(token) = token {
+                let redis_conn = state
+                    .store
+                    .get_redis_conn()
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Failed to get redis connection")?;
 
-        let key = format!(
-            "pm_token_{}_{}_hyperswitch",
-            token,
-            payment_data
-                .payment_attempt
-                .payment_method
-                .to_owned()
-                .get_required_value("payment_method")?,
-        );
+                let key = format!(
+                    "pm_token_{}_{}_hyperswitch",
+                    token,
+                    payment_data
+                        .payment_attempt
+                        .payment_method
+                        .to_owned()
+                        .get_required_value("payment_method")?,
+                );
 
-        let key = redis_conn
-            .get_key::<Option<String>>(&key)
-            .await
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Failed to fetch the token from redis")?
-            .ok_or(error_stack::Report::new(
-                errors::ApiErrorResponse::UnprocessableEntity { entity: token },
-            ))?;
+                let key = redis_conn
+                    .get_key::<Option<String>>(&key)
+                    .await
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Failed to fetch the token from redis")?
+                    .ok_or(error_stack::Report::new(
+                        errors::ApiErrorResponse::UnprocessableEntity { entity: token },
+                    ))?;
 
-        Some(key)
-    } else {
-        None
+                Some(key)
+            } else {
+                None
+            }
+        }
     };
 
     let card_cvc = payment_data.card_cvc.clone();
@@ -1296,7 +1301,7 @@ pub async fn make_pm_data<'a, F: Clone, R>(
         (pm @ Some(api::PaymentMethodData::BankDebit(_)), _) => Ok(pm.to_owned()),
         (pm @ Some(api::PaymentMethodData::Upi(_)), _) => Ok(pm.to_owned()),
         (pm @ Some(api::PaymentMethodData::Voucher(_)), _) => Ok(pm.to_owned()),
-        (pm @ Some(api::PaymentMethodData::Reward(_)), _) => Ok(pm.to_owned()),
+        (pm @ Some(api::PaymentMethodData::Reward), _) => Ok(pm.to_owned()),
         (pm @ Some(api::PaymentMethodData::CardRedirect(_)), _) => Ok(pm.to_owned()),
         (pm @ Some(api::PaymentMethodData::GiftCard(_)), _) => Ok(pm.to_owned()),
         (pm_opt @ Some(pm @ api::PaymentMethodData::BankTransfer(_)), _) => {
@@ -1966,7 +1971,7 @@ pub fn generate_mandate(
 }
 
 // A function to manually authenticate the client secret with intent fulfillment time
-pub(crate) fn authenticate_client_secret(
+pub fn authenticate_client_secret(
     request_client_secret: Option<&String>,
     payment_intent: &PaymentIntent,
     merchant_intent_fulfillment_time: Option<i64>,
@@ -2204,6 +2209,7 @@ mod tests {
             connector_metadata: None,
             feature_metadata: None,
             attempt_count: 1,
+            profile_id: None,
         };
         let req_cs = Some("1".to_string());
         let merchant_fulfillment_time = Some(900);
@@ -2248,6 +2254,7 @@ mod tests {
             connector_metadata: None,
             feature_metadata: None,
             attempt_count: 1,
+            profile_id: None,
         };
         let req_cs = Some("1".to_string());
         let merchant_fulfillment_time = Some(10);
@@ -2292,6 +2299,7 @@ mod tests {
             connector_metadata: None,
             feature_metadata: None,
             attempt_count: 1,
+            profile_id: None,
         };
         let req_cs = Some("1".to_string());
         let merchant_fulfillment_time = Some(10);
@@ -2480,6 +2488,7 @@ pub fn router_data_type_conversion<F1, F2, Req1, Req2, Res1, Res2>(
         #[cfg(feature = "payouts")]
         quote_id: None,
         test_mode: router_data.test_mode,
+        connector_api_version: router_data.connector_api_version,
         connector_http_status_code: router_data.connector_http_status_code,
     }
 }
@@ -2496,6 +2505,14 @@ pub fn get_attempt_type(
                 request.retry_action,
                 Some(api_models::enums::RetryAction::ManualRetry)
             ) {
+                metrics::MANUAL_RETRY_REQUEST_COUNT.add(
+                    &metrics::CONTEXT,
+                    1,
+                    &[metrics::request::add_attributes(
+                        "merchant_id",
+                        payment_attempt.merchant_id.clone(),
+                    )],
+                );
                 match payment_attempt.status {
                     enums::AttemptStatus::Started
                     | enums::AttemptStatus::AuthenticationPending
@@ -2514,6 +2531,14 @@ pub fn get_attempt_type(
                     | enums::AttemptStatus::AutoRefunded
                     | enums::AttemptStatus::PaymentMethodAwaited
                     | enums::AttemptStatus::DeviceDataCollectionPending => {
+                        metrics::MANUAL_RETRY_VALIDATION_FAILED.add(
+                            &metrics::CONTEXT,
+                            1,
+                            &[metrics::request::add_attributes(
+                                "merchant_id",
+                                payment_attempt.merchant_id.clone(),
+                            )],
+                        );
                         Err(errors::ApiErrorResponse::InternalServerError)
                             .into_report()
                             .attach_printable("Payment Attempt unexpected state")
@@ -2521,15 +2546,35 @@ pub fn get_attempt_type(
 
                     storage_enums::AttemptStatus::VoidFailed
                     | storage_enums::AttemptStatus::RouterDeclined
-                    | storage_enums::AttemptStatus::CaptureFailed =>  Err(report!(errors::ApiErrorResponse::PreconditionFailed {
-                        message:
-                            format!("You cannot {action} this payment because it has status {}, and the previous attempt has the status {}", payment_intent.status, payment_attempt.status)
-                        }
-                    )),
+                    | storage_enums::AttemptStatus::CaptureFailed => {
+                        metrics::MANUAL_RETRY_VALIDATION_FAILED.add(
+                            &metrics::CONTEXT,
+                            1,
+                            &[metrics::request::add_attributes(
+                                "merchant_id",
+                                payment_attempt.merchant_id.clone(),
+                            )],
+                        );
+                        Err(report!(errors::ApiErrorResponse::PreconditionFailed {
+                            message:
+                                format!("You cannot {action} this payment because it has status {}, and the previous attempt has the status {}", payment_intent.status, payment_attempt.status)
+                            }
+                        ))
+                    }
 
                     storage_enums::AttemptStatus::AuthenticationFailed
                     | storage_enums::AttemptStatus::AuthorizationFailed
-                    | storage_enums::AttemptStatus::Failure => Ok(AttemptType::New),
+                    | storage_enums::AttemptStatus::Failure => {
+                        metrics::MANUAL_RETRY_COUNT.add(
+                            &metrics::CONTEXT,
+                            1,
+                            &[metrics::request::add_attributes(
+                                "merchant_id",
+                                payment_attempt.merchant_id.clone(),
+                            )],
+                        );
+                        Ok(AttemptType::New)
+                    }
                 }
             } else {
                 Err(report!(errors::ApiErrorResponse::PreconditionFailed {
@@ -2677,6 +2722,12 @@ impl AttemptType {
                     )
                     .await
                     .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
+
+                logger::info!(
+                    "manual_retry payment for {} with attempt_id {}",
+                    updated_payment_intent.payment_id,
+                    new_payment_attempt.attempt_id
+                );
 
                 Ok((updated_payment_intent, new_payment_attempt))
             }
@@ -2897,7 +2948,7 @@ pub async fn get_additional_payment_data(
         api_models::payments::PaymentMethodData::MandatePayment => {
             api_models::payments::AdditionalPaymentData::MandatePayment {}
         }
-        api_models::payments::PaymentMethodData::Reward(_) => {
+        api_models::payments::PaymentMethodData::Reward => {
             api_models::payments::AdditionalPaymentData::Reward {}
         }
         api_models::payments::PaymentMethodData::Upi(_) => {
