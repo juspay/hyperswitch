@@ -8261,11 +8261,6 @@
             "description": "Concatenated with the statement descriptor suffix that’s set on the account to form the complete statement descriptor.",
             "nullable": true
           },
-          "last_capture": {
-            "type": "boolean",
-            "description": "Indicates weather the partial capture is last capture or not",
-            "nullable": true
-          },
           "merchant_connector_details": {
             "allOf": [
               {

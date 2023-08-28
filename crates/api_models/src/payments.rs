@@ -1511,8 +1511,6 @@ pub struct PaymentsCaptureRequest {
     pub statement_descriptor_suffix: Option<String>,
     /// Concatenated with the statement descriptor suffix that’s set on the account to form the complete statement descriptor.
     pub statement_descriptor_prefix: Option<String>,
-    /// Indicates weather the partial capture is last capture or not
-    pub last_capture: Option<bool>,
     /// Merchant connector details used to make payments.
     #[schema(value_type = Option<MerchantConnectorDetailsWrap>)]
     pub merchant_connector_details: Option<admin::MerchantConnectorDetailsWrap>,
