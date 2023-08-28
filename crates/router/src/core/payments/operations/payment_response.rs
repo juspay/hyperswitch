@@ -253,7 +253,7 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                     Some(storage::PaymentAttemptUpdate::ErrorUpdate {
                         connector: None,
                         status: match err.status_code {
-                            500..=511 => storage::enums::AttemptStatus::Pending,
+                            500..=511 => router_data.status,
                             _ => storage::enums::AttemptStatus::Failure,
                         },
                         error_message: Some(Some(err.message)),
