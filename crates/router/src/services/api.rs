@@ -425,7 +425,8 @@ pub async fn send_request(
         .starts_with(&state.conf.connectors.dummyconnector.base_url)
         || client::proxy_bypass_urls(&state.conf.locker).contains(&url.to_string());
     #[cfg(not(feature = "dummy_connector"))]
-    let should_bypass_proxy = client::proxy_bypass_urls(&state.conf.locker).contains(url.as_str());
+    let should_bypass_proxy =
+        client::proxy_bypass_urls(&state.conf.locker).contains(&url.to_string());
     let client = client::create_client(
         &state.conf.proxy,
         should_bypass_proxy,
