@@ -310,7 +310,7 @@ impl ForeignTryFrom<api_models::payments::PaymentMethodData> for api_enums::Paym
             api_models::payments::PaymentMethodData::BankDebit(..) => Ok(Self::BankDebit),
             api_models::payments::PaymentMethodData::BankTransfer(..) => Ok(Self::BankTransfer),
             api_models::payments::PaymentMethodData::Crypto(..) => Ok(Self::Crypto),
-            api_models::payments::PaymentMethodData::Reward(..) => Ok(Self::Reward),
+            api_models::payments::PaymentMethodData::Reward => Ok(Self::Reward),
             api_models::payments::PaymentMethodData::Upi(..) => Ok(Self::Upi),
             api_models::payments::PaymentMethodData::Voucher(..) => Ok(Self::Voucher),
             api_models::payments::PaymentMethodData::GiftCard(..) => Ok(Self::GiftCard),
@@ -607,6 +607,7 @@ impl TryFrom<domain::MerchantConnectorAccount> for api_models::admin::MerchantCo
                     .change_context(errors::ApiErrorResponse::InternalServerError)
                 })
                 .transpose()?,
+            profile_id: item.profile_id,
         })
     }
 }

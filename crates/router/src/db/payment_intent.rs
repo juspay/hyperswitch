@@ -5,6 +5,7 @@ use data_models::payments::payment_intent::{
 use data_models::payments::{
     payment_attempt::PaymentAttempt, payment_intent::PaymentIntentFetchConstraints,
 };
+use error_stack::{IntoReport, ResultExt};
 
 use super::MockDb;
 #[cfg(feature = "olap")]
@@ -56,8 +57,11 @@ impl PaymentIntentInterface for MockDb {
         let mut payment_intents = self.payment_intents.lock().await;
         let time = common_utils::date_time::now();
         let payment_intent = PaymentIntent {
-            #[allow(clippy::as_conversions)]
-            id: payment_intents.len() as i32,
+            id: payment_intents
+                .len()
+                .try_into()
+                .into_report()
+                .change_context(errors::DataStorageError::MockDbError)?,
             payment_id: new.payment_id,
             merchant_id: new.merchant_id,
             status: new.status,
@@ -87,6 +91,7 @@ impl PaymentIntentInterface for MockDb {
             connector_metadata: new.connector_metadata,
             feature_metadata: new.feature_metadata,
             attempt_count: new.attempt_count,
+            profile_id: new.profile_id,
         };
         payment_intents.push(payment_intent.clone());
         Ok(payment_intent)

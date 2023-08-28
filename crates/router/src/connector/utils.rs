@@ -10,6 +10,7 @@ use common_utils::{
     errors::ReportSwitchExt,
     pii::{self, Email, IpAddress},
 };
+use diesel_models::enums;
 use error_stack::{report, IntoReport, ResultExt};
 use masking::{ExposeInterface, Secret};
 use once_cell::sync::Lazy;
@@ -972,6 +973,25 @@ pub fn to_currency_base_unit(
         .change_context(errors::ConnectorError::RequestEncodingFailed)
 }
 
+pub fn construct_not_implemented_error_report(
+    capture_method: enums::CaptureMethod,
+    connector_name: &str,
+) -> error_stack::Report<errors::ConnectorError> {
+    errors::ConnectorError::NotImplemented(format!("{} for {}", capture_method, connector_name))
+        .into()
+}
+
+pub fn construct_not_supported_error_report(
+    capture_method: enums::CaptureMethod,
+    connector_name: &'static str,
+) -> error_stack::Report<errors::ConnectorError> {
+    errors::ConnectorError::NotSupported {
+        message: capture_method.to_string(),
+        connector: connector_name,
+    }
+    .into()
+}
+
 pub fn to_currency_base_unit_with_zero_decimal_check(
     amount: i64,
     currency: diesel_models::enums::Currency,
@@ -1272,4 +1292,22 @@ mod error_code_error_message_tests {
         );
         assert_eq!(error_code_error_message_none, None);
     }
+}
+
+pub fn validate_currency(
+    request_currency: types::storage::enums::Currency,
+    merchant_config_currency: Option<types::storage::enums::Currency>,
+) -> Result<(), errors::ConnectorError> {
+    let merchant_config_currency =
+        merchant_config_currency.ok_or(errors::ConnectorError::NoConnectorMetaData)?;
+    if request_currency != merchant_config_currency {
+        Err(errors::ConnectorError::NotSupported {
+            message: format!(
+                "currency {} is not supported for this merchant account",
+                request_currency
+            ),
+            connector: "Braintree",
+        })?
+    }
+    Ok(())
 }
