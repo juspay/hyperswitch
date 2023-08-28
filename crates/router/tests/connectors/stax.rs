@@ -73,7 +73,7 @@ fn token_details() -> Option<types::PaymentMethodTokenizationData> {
             ..utils::CCardType::default().0
         }),
         browser_info: None,
-        amount: 0,
+        amount: 100,
         currency: storage::enums::Currency::USD,
     })
 }

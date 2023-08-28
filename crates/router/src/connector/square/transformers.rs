@@ -4,7 +4,6 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     connector::utils::{CardData, PaymentsAuthorizeRequestData, RouterData},
-    consts,
     core::errors,
     types::{
         self, api,
@@ -37,12 +36,11 @@ impl TryFrom<(&types::TokenizationRouterData, api_models::payments::Card)> for S
                 .change_context(errors::ConnectorError::DateFormattingFailed)?,
         );
         //The below error will never happen because if session-id is not generated it would give error in execute_pretasks itself.
-        let session_id = Secret::new(item.session_token.clone().ok_or(
-            errors::ConnectorError::FailedAtConnector {
-                message: "Unable to generate session ID".to_owned(),
-                code: consts::NO_ERROR_CODE.to_owned(),
-            },
-        )?);
+        let session_id = Secret::new(
+            item.session_token
+                .clone()
+                .ok_or(errors::ConnectorError::RequestEncodingFailed)?,
+        );
         Ok(Self::Card(SquareTokenizeData {
             client_id: auth.key1,
             session_id,
@@ -177,7 +175,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for SquarePaymentsRequest {
         let autocomplete = item.request.is_auto_capture()?;
         match item.request.payment_method_data.clone() {
             api::PaymentMethodData::Card(_) => Ok(Self {
-                idempotency_key: Secret::new(item.payment_id.clone()),
+                idempotency_key: Secret::new(item.attempt_id.clone()),
                 source_id: Secret::new(item.get_payment_method_token()?),
                 amount_money: SquarePaymentsAmountData {
                     amount: item.request.amount,
@@ -230,7 +228,7 @@ impl TryFrom<&types::ConnectorAuthType> for SquareAuthType {
     }
 }
 // PaymentsResponse
-#[derive(Debug, Default, Deserialize)]
+#[derive(Debug, Deserialize)]
 #[serde(rename_all = "UPPERCASE")]
 pub enum SquarePaymentStatus {
     Completed,
@@ -238,8 +236,6 @@ pub enum SquarePaymentStatus {
     Approved,
     Canceled,
     Pending,
-    #[default]
-    Processing,
 }
 
 impl From<SquarePaymentStatus> for enums::AttemptStatus {
@@ -249,7 +245,7 @@ impl From<SquarePaymentStatus> for enums::AttemptStatus {
             SquarePaymentStatus::Approved => Self::Authorized,
             SquarePaymentStatus::Failed => Self::Failure,
             SquarePaymentStatus::Canceled => Self::Voided,
-            SquarePaymentStatus::Processing | SquarePaymentStatus::Pending => Self::Authorizing,
+            SquarePaymentStatus::Pending => Self::Pending,
         }
     }
 }
@@ -312,22 +308,21 @@ impl<F> TryFrom<&types::RefundsRouterData<F>> for SquareRefundRequest {
     }
 }
 
-#[derive(Debug, Default, Deserialize)]
+#[derive(Debug, Deserialize)]
 #[serde(rename_all = "UPPERCASE")]
 pub enum RefundStatus {
     Completed,
     Failed,
     Pending,
-    #[default]
-    Processing,
+    Rejected,
 }
 
 impl From<RefundStatus> for enums::RefundStatus {
     fn from(item: RefundStatus) -> Self {
         match item {
             RefundStatus::Completed => Self::Success,
-            RefundStatus::Failed => Self::Failure,
-            RefundStatus::Processing | RefundStatus::Pending => Self::Pending,
+            RefundStatus::Failed | RefundStatus::Rejected => Self::Failure,
+            RefundStatus::Pending => Self::Pending,
         }
     }
 }

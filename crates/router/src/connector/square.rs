@@ -104,7 +104,11 @@ impl ConnectorCommon for Square {
             code: Some(consts::NO_ERROR_CODE.to_string()),
             detail: Some(consts::NO_ERROR_MESSAGE.to_string()),
         };
+        let mut reason = "Error".to_string();
 
+        for t in response.errors.iter() {
+            reason = format!("{}; {}", reason, t.detail.clone().unwrap_or("".to_string()))
+        }
         Ok(ErrorResponse {
             status_code: res.status_code,
             code: response
@@ -118,15 +122,10 @@ impl ConnectorCommon for Square {
                 .errors
                 .first()
                 .unwrap_or(&default_error_details)
-                .detail
+                .category
                 .clone()
                 .unwrap_or("".to_string()),
-            reason: response
-                .errors
-                .first()
-                .unwrap_or(&default_error_details)
-                .category
-                .clone(),
+            reason: Some(reason),
         })
     }
 }
