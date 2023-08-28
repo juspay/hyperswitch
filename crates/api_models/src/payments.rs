@@ -776,7 +776,7 @@ pub enum PaymentMethodData {
     BankTransfer(Box<BankTransferData>),
     Crypto(CryptoData),
     MandatePayment,
-    Reward(RewardData),
+    Reward,
     Upi(UpiData),
     Voucher(VoucherData),
     GiftCard(Box<GiftCardData>),
@@ -1926,9 +1926,9 @@ pub struct PaymentListConstraints {
     pub ending_before: Option<String>,
 
     /// limit on the number of objects to return
-    #[schema(default = 10)]
+    #[schema(default = 10, maximum = 100)]
     #[serde(default = "default_limit")]
-    pub limit: i64,
+    pub limit: u32,
 
     /// The time at which payment is created
     #[schema(example = "2022-09-10T10:11:12Z")]
@@ -2038,7 +2038,7 @@ pub struct VerifyResponse {
     pub error_message: Option<String>,
 }
 
-fn default_limit() -> i64 {
+fn default_limit() -> u32 {
     10
 }
 
