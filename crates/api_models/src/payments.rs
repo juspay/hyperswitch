@@ -294,6 +294,10 @@ pub struct PaymentsRequest {
 
     /// additional data that might be required by hyperswitch
     pub feature_metadata: Option<FeatureMetadata>,
+
+    /// The business profile to use for this payment, if not passed the default business profile
+    /// associated with the merchant account will be used.
+    pub profile_id: Option<String>,
 }
 
 #[derive(
@@ -772,7 +776,7 @@ pub enum PaymentMethodData {
     BankTransfer(Box<BankTransferData>),
     Crypto(CryptoData),
     MandatePayment,
-    Reward(RewardData),
+    Reward,
     Upi(UpiData),
     Voucher(VoucherData),
     GiftCard(Box<GiftCardData>),
@@ -1898,6 +1902,9 @@ pub struct PaymentsResponse {
     /// reference to the payment at connector side
     #[schema(value_type = Option<String>, example = "993672945374576J")]
     pub reference_id: Option<String>,
+
+    /// The business profile that is associated with this payment
+    pub profile_id: Option<String>,
 }
 
 #[derive(Clone, Debug, serde::Deserialize, ToSchema)]
@@ -1916,9 +1923,9 @@ pub struct PaymentListConstraints {
     pub ending_before: Option<String>,
 
     /// limit on the number of objects to return
-    #[schema(default = 10)]
+    #[schema(default = 10, maximum = 100)]
     #[serde(default = "default_limit")]
-    pub limit: i64,
+    pub limit: u32,
 
     /// The time at which payment is created
     #[schema(example = "2022-09-10T10:11:12Z")]
@@ -1963,6 +1970,8 @@ pub struct PaymentListConstraints {
 pub struct PaymentListResponse {
     /// The number of payments included in the list
     pub size: usize,
+    /// The total number of payment_attempts for intents included in the list
+    pub attempt_count: i16,
     // The list of payments response objects
     pub data: Vec<PaymentsResponse>,
 }
@@ -2028,7 +2037,7 @@ pub struct VerifyResponse {
     pub error_message: Option<String>,
 }
 
-fn default_limit() -> i64 {
+fn default_limit() -> u32 {
     10
 }
 

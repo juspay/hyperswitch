@@ -82,6 +82,7 @@ bitpay.base_url = "https://test.bitpay.com"
 bluesnap.base_url = "https://sandbox.bluesnap.com/"
 boku.base_url = "https://$-api4-stage.boku.com"
 braintree.base_url = "https://api.sandbox.braintreegateway.com/"
+braintree.secondary_base_url = "https://payments.sandbox.braintree-api.com/graphql"
 cashtocode.base_url = "https://cluster05.api-test.cashtocode.com"
 checkout.base_url = "https://api.sandbox.checkout.com/"
 coinbase.base_url = "https://api.commerce.coinbase.com"
@@ -196,6 +197,7 @@ checkout = { long_lived_token = false, payment_method = "wallet" }
 mollie = {long_lived_token = false, payment_method = "card"}
 stax = { long_lived_token = true, payment_method = "card,bank_debit" }
 square = {long_lived_token = false, payment_method = "card"}
+braintree = { long_lived_token = false, payment_method = "card" }
 
 [dummy_connector]
 payment_ttl = 172800
@@ -284,3 +286,6 @@ card.debit = {connector_list = "stripe,adyen,authorizedotnet,globalpay,worldpay,
 [connector_customer]
 connector_list = "stax"
 payout_connector_list = "wise"
+
+[multiple_api_version_supported_connectors]
+supported_connectors = ["braintree"]
