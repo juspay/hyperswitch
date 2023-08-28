@@ -380,7 +380,7 @@ impl TryFrom<&PaymentMethodData> for SalePaymentMethod {
             | PaymentMethodData::BankTransfer(_)
             | PaymentMethodData::Crypto(_)
             | PaymentMethodData::MandatePayment
-            | PaymentMethodData::Reward(_)
+            | PaymentMethodData::Reward
             | PaymentMethodData::GiftCard(_)
             | PaymentMethodData::CardRedirect(_)
             | PaymentMethodData::Upi(_)
@@ -780,6 +780,12 @@ pub struct PaymentCaptureRequest {
 impl TryFrom<&types::PaymentsCaptureRouterData> for PaymentCaptureRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::PaymentsCaptureRouterData) -> Result<Self, Self::Error> {
+        if item.request.amount_to_capture != item.request.payment_amount {
+            Err(errors::ConnectorError::NotSupported {
+                message: "Partial Capture".to_string(),
+                connector: "Payme",
+            })?
+        }
         Ok(Self {
             payme_sale_id: item.request.connector_transaction_id.clone(),
             sale_price: item.request.amount_to_capture,
@@ -908,7 +914,7 @@ fn get_services(item: &types::PaymentsPreProcessingRouterData) -> Option<ThreeDS
 pub struct PaymeErrorResponse {
     pub status_code: u16,
     pub status_error_details: String,
-    pub status_additional_info: String,
+    pub status_additional_info: serde_json::Value,
     pub status_error_code: u16,
 }
 

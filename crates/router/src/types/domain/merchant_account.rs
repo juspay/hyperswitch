@@ -1,12 +1,15 @@
 use common_utils::{
     crypto::{OptionalEncryptableName, OptionalEncryptableValue},
-    date_time, pii,
+    date_time,
+    ext_traits::ValueExt,
+    pii,
 };
-use diesel_models::{
-    encryption::Encryption, enums, merchant_account::MerchantAccountUpdateInternal,
-};
+use data_models::MerchantStorageScheme;
+use diesel_models::{encryption::Encryption, merchant_account::MerchantAccountUpdateInternal};
 use error_stack::ResultExt;
 use masking::{PeekInterface, Secret};
+use router_env::logger;
+use storage_impl::DataModelExt;
 
 use crate::{
     errors::{CustomResult, ValidationError},
@@ -27,7 +30,7 @@ pub struct MerchantAccount {
     pub sub_merchants_enabled: Option<bool>,
     pub parent_merchant_id: Option<String>,
     pub publishable_key: Option<String>,
-    pub storage_scheme: enums::MerchantStorageScheme,
+    pub storage_scheme: MerchantStorageScheme,
     pub locker_id: Option<String>,
     pub metadata: Option<pii::SecretSerdeValue>,
     pub routing_algorithm: Option<serde_json::Value>,
@@ -39,6 +42,7 @@ pub struct MerchantAccount {
     pub payout_routing_algorithm: Option<serde_json::Value>,
     pub organization_id: Option<String>,
     pub is_recon_enabled: bool,
+    pub default_profile: Option<String>,
 }
 
 #[allow(clippy::large_enum_variant)]
@@ -62,9 +66,10 @@ pub enum MerchantAccountUpdate {
         intent_fulfillment_time: Option<i64>,
         frm_routing_algorithm: Option<serde_json::Value>,
         payout_routing_algorithm: Option<serde_json::Value>,
+        default_profile: Option<Option<String>>,
     },
     StorageSchemeUpdate {
-        storage_scheme: enums::MerchantStorageScheme,
+        storage_scheme: MerchantStorageScheme,
     },
     ReconUpdate {
         is_recon_enabled: bool,
@@ -92,6 +97,7 @@ impl From<MerchantAccountUpdate> for MerchantAccountUpdateInternal {
                 intent_fulfillment_time,
                 frm_routing_algorithm,
                 payout_routing_algorithm,
+                default_profile,
             } => Self {
                 merchant_name: merchant_name.map(Encryption::from),
                 merchant_details: merchant_details.map(Encryption::from),
@@ -111,10 +117,11 @@ impl From<MerchantAccountUpdate> for MerchantAccountUpdateInternal {
                 modified_at: Some(date_time::now()),
                 intent_fulfillment_time,
                 payout_routing_algorithm,
+                default_profile,
                 ..Default::default()
             },
             MerchantAccountUpdate::StorageSchemeUpdate { storage_scheme } => Self {
-                storage_scheme: Some(storage_scheme),
+                storage_scheme: Some(storage_scheme.to_storage_model()),
                 modified_at: Some(date_time::now()),
                 ..Default::default()
             },
@@ -146,7 +153,7 @@ impl super::behaviour::Conversion for MerchantAccount {
             sub_merchants_enabled: self.sub_merchants_enabled,
             parent_merchant_id: self.parent_merchant_id,
             publishable_key: self.publishable_key,
-            storage_scheme: self.storage_scheme,
+            storage_scheme: self.storage_scheme.to_storage_model(),
             locker_id: self.locker_id,
             metadata: self.metadata,
             routing_algorithm: self.routing_algorithm,
@@ -158,6 +165,7 @@ impl super::behaviour::Conversion for MerchantAccount {
             payout_routing_algorithm: self.payout_routing_algorithm,
             organization_id: self.organization_id,
             is_recon_enabled: self.is_recon_enabled,
+            default_profile: self.default_profile,
         })
     }
 
@@ -188,7 +196,7 @@ impl super::behaviour::Conversion for MerchantAccount {
                 sub_merchants_enabled: item.sub_merchants_enabled,
                 parent_merchant_id: item.parent_merchant_id,
                 publishable_key: item.publishable_key,
-                storage_scheme: item.storage_scheme,
+                storage_scheme: MerchantStorageScheme::from_storage_model(item.storage_scheme),
                 locker_id: item.locker_id,
                 metadata: item.metadata,
                 routing_algorithm: item.routing_algorithm,
@@ -200,6 +208,7 @@ impl super::behaviour::Conversion for MerchantAccount {
                 payout_routing_algorithm: item.payout_routing_algorithm,
                 organization_id: item.organization_id,
                 is_recon_enabled: item.is_recon_enabled,
+                default_profile: item.default_profile,
             })
         }
         .await
@@ -233,6 +242,20 @@ impl super::behaviour::Conversion for MerchantAccount {
             payout_routing_algorithm: self.payout_routing_algorithm,
             organization_id: self.organization_id,
             is_recon_enabled: self.is_recon_enabled,
+            default_profile: self.default_profile,
         })
+    }
+}
+
+impl MerchantAccount {
+    pub fn get_compatible_connector(&self) -> Option<api_models::enums::Connector> {
+        let metadata: Option<api_models::admin::MerchantAccountMetadata> =
+            self.metadata.as_ref().and_then(|meta| {
+                meta.clone()
+                    .parse_value("MerchantAccountMetadata")
+                    .map_err(|err| logger::error!("Failed to deserialize {:?}", err))
+                    .ok()
+            });
+        metadata.and_then(|a| a.compatible_connector)
     }
 }

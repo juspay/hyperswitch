@@ -1,5 +1,6 @@
 pub mod address;
 pub mod api_keys;
+pub mod business_profile;
 pub mod cache;
 pub mod capture;
 pub mod cards_info;
@@ -28,6 +29,7 @@ pub mod reverse_lookup;
 
 use std::sync::Arc;
 
+use data_models::payments::payment_intent::PaymentIntentInterface;
 use futures::lock::Mutex;
 use masking::PeekInterface;
 use storage_impl::redis::kv_store::RedisConnInterface;
@@ -63,7 +65,7 @@ pub trait StorageInterface:
     + merchant_connector_account::ConnectorAccessToken
     + merchant_connector_account::MerchantConnectorAccountInterface
     + payment_attempt::PaymentAttemptInterface
-    + payment_intent::PaymentIntentInterface
+    + PaymentIntentInterface
     + payment_method::PaymentMethodInterface
     + payout_attempt::PayoutAttemptInterface
     + payouts::PayoutsInterface
@@ -75,6 +77,7 @@ pub trait StorageInterface:
     + merchant_key_store::MerchantKeyStoreInterface
     + MasterKeyInterface
     + RedisConnInterface
+    + business_profile::BusinessProfileInterface
     + 'static
 {
 }

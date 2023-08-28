@@ -5,9 +5,11 @@ use masking::StrongSecret;
 use redis::{kv_store::RedisConnInterface, RedisStore};
 pub mod config;
 pub mod database;
+pub mod metrics;
 pub mod payments;
 pub mod redis;
 pub mod refund;
+mod utils;
 
 use database::store::PgPool;
 use redis_interface::errors::RedisError;
@@ -191,5 +193,59 @@ impl<T: DatabaseStore> KVRouterStore<T> {
             )
             .await
             .change_context(RedisError::StreamAppendFailed)
+    }
+}
+
+// TODO: This should not be used beyond this crate
+// Remove the pub modified once StorageScheme usage is completed
+pub trait DataModelExt {
+    type StorageModel;
+    fn to_storage_model(self) -> Self::StorageModel;
+    fn from_storage_model(storage_model: Self::StorageModel) -> Self;
+}
+
+impl DataModelExt for data_models::MerchantStorageScheme {
+    type StorageModel = diesel_models::enums::MerchantStorageScheme;
+
+    fn to_storage_model(self) -> Self::StorageModel {
+        match self {
+            Self::PostgresOnly => diesel_models::enums::MerchantStorageScheme::PostgresOnly,
+            Self::RedisKv => diesel_models::enums::MerchantStorageScheme::RedisKv,
+        }
+    }
+
+    fn from_storage_model(storage_model: Self::StorageModel) -> Self {
+        match storage_model {
+            diesel_models::enums::MerchantStorageScheme::PostgresOnly => Self::PostgresOnly,
+            diesel_models::enums::MerchantStorageScheme::RedisKv => Self::RedisKv,
+        }
+    }
+}
+
+pub(crate) fn diesel_error_to_data_error(
+    diesel_error: &diesel_models::errors::DatabaseError,
+) -> data_models::errors::StorageError {
+    match diesel_error {
+        diesel_models::errors::DatabaseError::DatabaseConnectionError => {
+            data_models::errors::StorageError::DatabaseConnectionError
+        }
+        diesel_models::errors::DatabaseError::NotFound => {
+            data_models::errors::StorageError::ValueNotFound("Value not found".to_string())
+        }
+        diesel_models::errors::DatabaseError::UniqueViolation => {
+            data_models::errors::StorageError::DuplicateValue {
+                entity: "entity ",
+                key: None,
+            }
+        }
+        diesel_models::errors::DatabaseError::NoFieldsToUpdate => {
+            data_models::errors::StorageError::DatabaseError("No fields to update".to_string())
+        }
+        diesel_models::errors::DatabaseError::QueryGenerationFailed => {
+            data_models::errors::StorageError::DatabaseError("Query generation failed".to_string())
+        }
+        diesel_models::errors::DatabaseError::Others => {
+            data_models::errors::StorageError::DatabaseError("Others".to_string())
+        }
     }
 }

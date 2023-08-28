@@ -22,8 +22,8 @@ pool_size = 5
 connection_timeout = 10
 
 [replica_database]
-username = "replica_user"
-password = "replica_pass"
+username = "db_user"
+password = "db_pass"
 host = "localhost"
 port = 5432
 dbname = "hyperswitch_db"
@@ -130,6 +130,7 @@ bitpay.base_url = "https://test.bitpay.com"
 bluesnap.base_url = "https://sandbox.bluesnap.com/"
 boku.base_url = "https://$-api4-stage.boku.com"
 braintree.base_url = "https://api.sandbox.braintreegateway.com/"
+braintree.secondary_base_url = "https://payments.sandbox.braintree-api.com/graphql"
 cashtocode.base_url = "https://cluster05.api-test.cashtocode.com"
 checkout.base_url = "https://api.sandbox.checkout.com/"
 coinbase.base_url = "https://api.commerce.coinbase.com"
@@ -358,6 +359,7 @@ stripe = { long_lived_token = false, payment_method = "wallet", payment_method_t
 checkout = { long_lived_token = false, payment_method = "wallet" }
 stax = { long_lived_token = true, payment_method = "card,bank_debit" }
 mollie = {long_lived_token = false, payment_method = "card"}
+braintree = { long_lived_token = false, payment_method = "card" }
 payme = {long_lived_token = false, payment_method = "card"}
 
 
@@ -400,3 +402,6 @@ merchant_ids_send_payment_id_as_connector_request_id = []
 
 [payouts]
 payout_eligibility = true
+
+[multiple_api_version_supported_connectors]
+supported_connectors = "braintree"
