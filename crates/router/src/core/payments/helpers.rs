@@ -1638,17 +1638,19 @@ pub fn validate_payment_method_type_against_payment_method(
 
 pub fn check_force_psync_precondition(
     data: &PaymentAttempt,
+    merchant_account: &domain::MerchantAccount,
 ) -> CustomResult<bool, errors::ApiErrorResponse> {
     let connector_name = data
         .connector
         .clone()
         .ok_or(errors::ApiErrorResponse::IncorrectConnectorNameGiven)?;
-    let connector = api::ConnectorData::convert_connector_only_by_name(connector_name.as_str())?;
+    let connector = api::ConnectorData::convert_connector_by_name(connector_name.as_str())?;
 
     // connector specific validation
     let connector_condition = connector.validate_psync_reference_id(
         data.payment_method_type,
         data.connector_transaction_id.clone(),
+        merchant_account.metadata.clone(),
     );
 
     let status_condition = !matches!(
@@ -1660,6 +1662,7 @@ pub fn check_force_psync_precondition(
             | storage_enums::AttemptStatus::Started
             | storage_enums::AttemptStatus::Failure
     );
+
     Ok(connector_condition && status_condition)
 }
 

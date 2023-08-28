@@ -11,7 +11,7 @@ use std::{
 
 use actix_web::{body, HttpRequest, HttpResponse, Responder, ResponseError};
 use api_models::enums::{CaptureMethod, PaymentMethodType};
-use common_utils::errors::ReportSwitchExt;
+use common_utils::{errors::ReportSwitchExt, pii};
 use error_stack::{report, IntoReport, Report, ResultExt};
 use masking::{ExposeOptionInterface, PeekInterface};
 use router_env::{instrument, tracing, Tag};
@@ -75,6 +75,7 @@ pub trait ConnectorValidation: ConnectorCommon {
         &self,
         _payment_method_type: Option<PaymentMethodType>,
         connector_transaction_id: Option<String>,
+        _connector_metadata: Option<pii::SecretSerdeValue>,
     ) -> bool {
         // default case: psync can only be made to connector when transaction id is generated
         connector_transaction_id.is_some()

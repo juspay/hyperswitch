@@ -315,8 +315,6 @@ async fn get_tracker_for_sync<
         None => None,
     };
 
-    let contains_encoded_data = connector_response.encoded_data.is_some();
-
     let creds_identifier = request
         .merchant_connector_details
         .as_ref()
@@ -353,11 +351,7 @@ async fn get_tracker_for_sync<
             },
             confirm: Some(request.force_sync),
             payment_method_data: None,
-            force_sync: Some(
-                request.force_sync
-                    && (helpers::check_force_psync_precondition(&payment_attempt).unwrap_or(false)
-                        || contains_encoded_data),
-            ),
+            force_sync: Some(request.force_sync),
             payment_attempt,
             refunds,
             disputes,

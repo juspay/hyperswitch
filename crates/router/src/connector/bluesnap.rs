@@ -6,6 +6,7 @@ use base64::Engine;
 use common_utils::{
     crypto,
     ext_traits::{StringExt, ValueExt},
+    pii::SecretSerdeValue,
 };
 use diesel_models::enums;
 use error_stack::{IntoReport, Report, ResultExt};
@@ -156,10 +157,24 @@ impl ConnectorValidation for Bluesnap {
     fn validate_psync_reference_id(
         &self,
         _payment_method_type: Option<enums::PaymentMethodType>,
-        _connector_transaction_id: Option<String>,
+        connector_transaction_id: Option<String>,
+        connector_metadata: Option<SecretSerdeValue>,
     ) -> bool {
-        // since we pass our own reference id, psync can be made in absence of connector_transaction_id
-        true
+        let txn_id_present = connector_transaction_id.is_some();
+
+        let merchant_id_present = match connector_metadata.expose_option() {
+            Some(value) => {
+                let meta_data: Result<bluesnap::BluesnapMetaData, Report<errors::ConnectorError>> =
+                    serde_json::from_value(value)
+                        .into_report()
+                        .change_context(errors::ConnectorError::ResponseDeserializationFailed);
+
+                meta_data.is_ok()
+            }
+            None => false,
+        };
+
+        txn_id_present || merchant_id_present
     }
 }
 
