@@ -528,6 +528,7 @@ impl api::IncomingWebhook for Zen {
     fn get_webhook_source_verification_signature(
         &self,
         request: &api::IncomingWebhookRequestDetails<'_>,
+        _secret: &Option<masking::Secret<String>>,
     ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
         let webhook_body: zen::ZenWebhookSignature = request
             .body
@@ -569,9 +570,7 @@ impl api::IncomingWebhook for Zen {
         object_reference_id: api_models::webhooks::ObjectReferenceId,
     ) -> CustomResult<bool, errors::ConnectorError> {
         let algorithm = self.get_webhook_source_verification_algorithm(request)?;
-
-        let signature = self.get_webhook_source_verification_signature(request)?;
-        let mut secret = self
+        let (mut secret, additional_secret) = self
             .get_webhook_source_verification_merchant_secret(
                 db,
                 merchant_account,
@@ -580,6 +579,9 @@ impl api::IncomingWebhook for Zen {
                 object_reference_id,
             )
             .await?;
+        let signature =
+            self.get_webhook_source_verification_signature(request, &additional_secret)?;
+
         let mut message = self.get_webhook_source_verification_message(
             request,
             &merchant_account.merchant_id,

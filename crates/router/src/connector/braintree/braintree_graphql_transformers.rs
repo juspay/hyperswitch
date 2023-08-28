@@ -1,12 +1,13 @@
 use error_stack::ResultExt;
 use masking::Secret;
 use serde::{Deserialize, Serialize};
+use time::PrimitiveDateTime;
 
 use crate::{
     connector::utils::{self, PaymentsAuthorizeRequestData, RefundsRequestData, RouterData},
     consts,
     core::errors,
-    types::{self, api, storage::enums},
+    types::{self, api, storage::enums, transformers::ForeignFrom},
 };
 
 #[derive(Debug, Serialize)]
@@ -16,6 +17,11 @@ pub struct PaymentInput {
     transaction: TransactionBody,
 }
 
+#[derive(Debug, Deserialize)]
+pub struct BraintreeWebhookResponse {
+    pub bt_signature: String,
+    pub bt_payload: String,
+}
 #[derive(Debug, Serialize)]
 pub struct VariablePaymentInput {
     input: PaymentInput,
@@ -27,10 +33,63 @@ pub struct BraintreePaymentsRequest {
     variables: VariablePaymentInput,
 }
 
+#[derive(Debug, Deserialize, Serialize)]
+#[serde(rename_all = "kebab-case")]
+pub struct Notification {
+    pub kind: String, // xml parse only string to fields
+    pub timestamp: String,
+    pub dispute: Option<BraintreeDisputeData>,
+    pub subject: Option<Subject>,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+pub struct Subject {
+    pub check: Option<bool>,
+}
+
+impl ForeignFrom<&str> for api_models::webhooks::IncomingWebhookEvent {
+    fn foreign_from(status: &str) -> Self {
+        match status {
+            "dispute_opened" => Self::DisputeOpened,
+            "dispute_lost" => Self::DisputeLost,
+            "dispute_won" => Self::DisputeWon,
+            "dispute_accepted" => Self::DisputeAccepted,
+            "dispute_auto_accepted" => Self::DisputeAccepted,
+            "dispute_expired" => Self::DisputeExpired,
+            "dispute_disputed" => Self::DisputeChallenged,
+            "check" => Self::PaymentIntentSuccess,
+            _ => Self::EventNotSupported,
+        }
+    }
+}
+
 #[derive(Debug, Deserialize)]
 pub struct BraintreeMeta {
     merchant_account_id: Option<Secret<String>>,
     merchant_config_currency: Option<types::storage::enums::Currency>,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+pub struct TestResponse {
+    pub timestamp: Option<String>,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+pub struct BraintreeDisputeData {
+    pub amount_disputed: String,
+    pub amount_won: Option<String>,
+    pub case_number: String,
+    pub chargeback_protection_level: String,
+    pub currency_iso_code: String,
+    pub created_at: Option<PrimitiveDateTime>,
+    pub evidence: DisputeEvidence,
+    pub id: String,
+    pub kind: String, // xml parse only string to fields
+    pub status: String,
+    pub reason: Option<String>,
+    pub reason_code: Option<String>,
+    pub updated_at: Option<PrimitiveDateTime>,
+    pub reply_by_date: Option<PrimitiveDateTime>,
 }
 
 #[derive(Debug, Serialize)]
@@ -38,6 +97,14 @@ pub struct BraintreeMeta {
 pub struct TransactionBody {
     amount: String,
     merchant_account_id: Secret<String>,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+pub struct DisputeEvidence {
+    pub comment: String,
+    pub id: Secret<String>,
+    pub created_at: Option<PrimitiveDateTime>,
+    pub url: url::Url,
 }
 
 impl TryFrom<&types::PaymentsAuthorizeRouterData> for BraintreePaymentsRequest {
@@ -95,6 +162,15 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for BraintreePaymentsRequest {
                 .into())
             }
         }
+    }
+}
+
+pub(crate) fn get_dispute_stage(code: &str) -> enums::DisputeStage {
+    match code {
+        "CHARGEBACK" => enums::DisputeStage::Dispute,
+        "PRE_ARBITATION" => enums::DisputeStage::PreArbitration,
+        "RETRIEVAL" => enums::DisputeStage::PreDispute,
+        _ => enums::DisputeStage::Dispute,
     }
 }
 

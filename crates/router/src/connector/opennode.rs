@@ -342,6 +342,7 @@ impl api::IncomingWebhook for Opennode {
     fn get_webhook_source_verification_signature(
         &self,
         request: &api::IncomingWebhookRequestDetails<'_>,
+        _secret: &Option<masking::Secret<String>>,
     ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
         let notif = serde_urlencoded::from_bytes::<OpennodeWebhookDetails>(request.body)
             .into_report()

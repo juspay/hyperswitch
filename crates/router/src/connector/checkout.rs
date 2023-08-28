@@ -1118,6 +1118,7 @@ impl api::IncomingWebhook for Checkout {
     fn get_webhook_source_verification_signature(
         &self,
         request: &api::IncomingWebhookRequestDetails<'_>,
+        _secret: &Option<masking::Secret<String>>,
     ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
         let signature = conn_utils::get_header_key_value("cko-signature", request.headers)
             .change_context(errors::ConnectorError::WebhookSignatureNotFound)?;

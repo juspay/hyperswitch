@@ -723,6 +723,7 @@ impl api::IncomingWebhook for Worldline {
     fn get_webhook_source_verification_signature(
         &self,
         request: &api::IncomingWebhookRequestDetails<'_>,
+        _secret: &Option<masking::Secret<String>>,
     ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
         let header_value = conn_utils::get_header_key_value("X-GCS-Signature", request.headers)?;
         let signature = consts::BASE64_ENGINE

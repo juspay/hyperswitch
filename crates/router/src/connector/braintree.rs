@@ -1,11 +1,15 @@
 pub mod braintree_graphql_transformers;
 pub mod transformers;
-
 use std::fmt::Debug;
 
+use api_models::webhooks::IncomingWebhookEvent;
+use base64::Engine;
+use common_utils::{crypto, ext_traits::XmlExt};
 use diesel_models::enums;
 use error_stack::{IntoReport, Report, ResultExt};
-use masking::PeekInterface;
+use masking::{ExposeInterface, PeekInterface, Secret};
+use ring::hmac;
+use sha1::{Digest, Sha1};
 
 use self::transformers as braintree;
 use super::utils::PaymentsAuthorizeRequestData;
@@ -14,6 +18,7 @@ use crate::{
     connector::utils as connector_utils,
     consts,
     core::errors::{self, CustomResult},
+    db::StorageInterface,
     headers, logger,
     services::{
         self,
@@ -23,6 +28,8 @@ use crate::{
     types::{
         self,
         api::{self, ConnectorCommon, ConnectorCommonExt},
+        domain,
+        transformers::ForeignFrom,
         ErrorResponse,
     },
     utils::{self, BytesExt},
@@ -1180,24 +1187,206 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
 
 #[async_trait::async_trait]
 impl api::IncomingWebhook for Braintree {
+    fn get_webhook_source_verification_algorithm(
+        &self,
+        _request: &api::IncomingWebhookRequestDetails<'_>,
+    ) -> CustomResult<Box<dyn crypto::VerifySignature + Send>, errors::ConnectorError> {
+        Ok(Box::new(crypto::HmacSha1))
+    }
+
+    fn get_webhook_source_verification_signature(
+        &self,
+        request: &api::IncomingWebhookRequestDetails<'_>,
+        secret: &Option<Secret<String>>,
+    ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
+        let notif_item = get_webhook_object_from_body(request.body)
+            .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
+
+        let signature_pairs: Vec<(&str, &str)> = notif_item
+            .bt_signature
+            .split("&")
+            .collect::<Vec<&str>>()
+            .into_iter()
+            .map(|pair| {
+                let key_signature: Vec<&str> = pair.split("|").collect();
+                (key_signature[0], key_signature[1])
+            })
+            .collect();
+
+        let merchant_secret = secret
+            .clone()
+            .ok_or(errors::ConnectorError::WebhookVerificationSecretNotFound)?
+            .expose();
+
+        let signature = get_matching_webhook_signature(signature_pairs, merchant_secret)
+            .ok_or(errors::ConnectorError::WebhookSourceVerificationFailed)?;
+        Ok(signature.as_bytes().to_vec())
+    }
+
+    fn get_webhook_source_verification_message(
+        &self,
+        request: &api::IncomingWebhookRequestDetails<'_>,
+        _merchant_id: &str,
+        _secret: &[u8],
+    ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
+        let notify = get_webhook_object_from_body(request.body)
+            .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
+
+        let message = notify.bt_payload.to_string();
+
+        Ok(message.into_bytes())
+    }
+
+    async fn verify_webhook_source(
+        &self,
+        db: &dyn StorageInterface,
+        request: &api::IncomingWebhookRequestDetails<'_>,
+        merchant_account: &domain::MerchantAccount,
+        connector_label: &str,
+        key_store: &domain::MerchantKeyStore,
+        object_reference_id: api_models::webhooks::ObjectReferenceId,
+    ) -> CustomResult<bool, errors::ConnectorError> {
+        let (secret, additional_secret) = self
+            .get_webhook_source_verification_merchant_secret(
+                db,
+                merchant_account,
+                connector_label,
+                key_store,
+                object_reference_id,
+            )
+            .await
+            .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
+
+        let signature = self
+            .get_webhook_source_verification_signature(request, &additional_secret)
+            .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
+
+        let message = self
+            .get_webhook_source_verification_message(
+                request,
+                &merchant_account.merchant_id,
+                &secret,
+            )
+            .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
+
+        let sha1_hash_key = Sha1::digest(&secret);
+
+        let signing_key = hmac::Key::new(hmac::HMAC_SHA1_FOR_LEGACY_USE_ONLY, &sha1_hash_key);
+        let signed_messaged = hmac::sign(&signing_key, &message);
+        let payload_sign: String = hex::encode(signed_messaged);
+        Ok(payload_sign.as_bytes().eq(&signature))
+    }
+
     fn get_webhook_object_reference_id(
         &self,
         _request: &api::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<api_models::webhooks::ObjectReferenceId, errors::ConnectorError> {
-        Err(errors::ConnectorError::WebhooksNotImplemented).into_report()
+        Err(errors::ConnectorError::WebhookReferenceIdNotFound).into_report()
     }
 
     fn get_webhook_event_type(
         &self,
-        _request: &api::IncomingWebhookRequestDetails<'_>,
-    ) -> CustomResult<api::IncomingWebhookEvent, errors::ConnectorError> {
-        Ok(api::IncomingWebhookEvent::EventNotSupported)
+        request: &api::IncomingWebhookRequestDetails<'_>,
+    ) -> CustomResult<IncomingWebhookEvent, errors::ConnectorError> {
+        let notif = get_webhook_object_from_body(request.body)
+            .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
+
+        let response = decode_webhook_payload(notif.bt_payload.replace("\n", "").as_bytes())?;
+
+        Ok(IncomingWebhookEvent::foreign_from(response.kind.as_str()))
     }
 
     fn get_webhook_resource_object(
         &self,
-        _request: &api::IncomingWebhookRequestDetails<'_>,
+        request: &api::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<serde_json::Value, errors::ConnectorError> {
-        Err(errors::ConnectorError::WebhooksNotImplemented).into_report()
+        let notif = get_webhook_object_from_body(request.body)
+            .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
+
+        let response = decode_webhook_payload(notif.bt_payload.replace("\n", "").as_bytes())?;
+
+        let res_json = serde_json::to_value(response)
+            .into_report()
+            .change_context(errors::ConnectorError::WebhookResourceObjectNotFound)?;
+
+        Ok(res_json)
     }
+
+    fn get_webhook_api_response(
+        &self,
+        _request: &api::IncomingWebhookRequestDetails<'_>,
+    ) -> CustomResult<services::api::ApplicationResponse<serde_json::Value>, errors::ConnectorError>
+    {
+        Ok(services::api::ApplicationResponse::TextPlain(
+            "[accepted]".to_string(),
+        ))
+    }
+
+    fn get_dispute_details(
+        &self,
+        request: &api::IncomingWebhookRequestDetails<'_>,
+    ) -> CustomResult<api::disputes::DisputePayload, errors::ConnectorError> {
+        let notif = get_webhook_object_from_body(request.body)
+            .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
+
+        let response = decode_webhook_payload(notif.bt_payload.replace("\n", "").as_bytes())?;
+
+        match response.dispute {
+            Some(dispute_data) => Ok(api::disputes::DisputePayload {
+                amount: dispute_data.amount_disputed,
+                currency: dispute_data.currency_iso_code,
+                dispute_stage: braintree_graphql_transformers::get_dispute_stage(
+                    dispute_data.kind.as_str(),
+                ),
+                connector_dispute_id: dispute_data.id,
+                connector_reason: dispute_data.reason,
+                connector_reason_code: dispute_data.reason_code,
+                challenge_required_by: dispute_data.reply_by_date,
+                connector_status: dispute_data.status,
+                created_at: dispute_data.created_at,
+                updated_at: dispute_data.updated_at,
+            }),
+            None => Err(errors::ConnectorError::WebhookResourceObjectNotFound)?,
+        }
+    }
+}
+
+fn get_matching_webhook_signature(
+    signature_pairs: Vec<(&str, &str)>,
+    secret: String,
+) -> Option<String> {
+    for (public_key, signature) in signature_pairs {
+        if public_key.to_string() == secret {
+            return Some(signature.to_string());
+        }
+    }
+    return None;
+}
+
+fn get_webhook_object_from_body(
+    body: &[u8],
+) -> CustomResult<braintree_graphql_transformers::BraintreeWebhookResponse, errors::ParsingError> {
+    serde_urlencoded::from_bytes::<braintree_graphql_transformers::BraintreeWebhookResponse>(body)
+        .into_report()
+        .change_context(errors::ParsingError::StructParseFailure(
+            "BraintreeWebhookResponse",
+        ))
+}
+
+fn decode_webhook_payload(
+    payload: &[u8],
+) -> CustomResult<braintree_graphql_transformers::Notification, errors::ConnectorError> {
+    let decoded_response = consts::BASE64_ENGINE
+        .decode(payload)
+        .into_report()
+        .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
+
+    let xml_response = String::from_utf8(decoded_response)
+        .into_report()
+        .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
+
+    Ok(xml_response
+        .parse_xml::<braintree_graphql_transformers::Notification>()
+        .into_report()
+        .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?)
 }

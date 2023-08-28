@@ -651,6 +651,7 @@ impl api::IncomingWebhook for Worldpay {
     fn get_webhook_source_verification_signature(
         &self,
         request: &api::IncomingWebhookRequestDetails<'_>,
+        _secret: &Option<masking::Secret<String>>,
     ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
         let event_signature =
             utils::get_header_key_value("Event-Signature", request.headers)?.split(',');

@@ -718,6 +718,7 @@ impl api::IncomingWebhook for Rapyd {
     fn get_webhook_source_verification_signature(
         &self,
         request: &api::IncomingWebhookRequestDetails<'_>,
+        _secret: &Option<masking::Secret<String>>,
     ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
         let base64_signature = conn_utils::get_header_key_value("signature", request.headers)?;
         let signature = consts::BASE64_ENGINE_URL_SAFE
@@ -769,10 +770,7 @@ impl api::IncomingWebhook for Rapyd {
         key_store: &domain::MerchantKeyStore,
         object_reference_id: api_models::webhooks::ObjectReferenceId,
     ) -> CustomResult<bool, errors::ConnectorError> {
-        let signature = self
-            .get_webhook_source_verification_signature(request)
-            .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
-        let secret = self
+        let (secret, additional_secret) = self
             .get_webhook_source_verification_merchant_secret(
                 db,
                 merchant_account,
@@ -781,6 +779,9 @@ impl api::IncomingWebhook for Rapyd {
                 object_reference_id,
             )
             .await
+            .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
+        let signature = self
+            .get_webhook_source_verification_signature(request, &additional_secret)
             .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
         let message = self
             .get_webhook_source_verification_message(

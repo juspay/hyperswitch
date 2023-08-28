@@ -6,6 +6,7 @@ use api_models::webhooks::IncomingWebhookEvent;
 use base64::Engine;
 use diesel_models::{enums as storage_enums, enums};
 use error_stack::{IntoReport, ResultExt};
+use masking::Secret;
 use ring::hmac;
 use router_env::{instrument, tracing};
 
@@ -1364,6 +1365,7 @@ impl api::IncomingWebhook for Adyen {
     fn get_webhook_source_verification_signature(
         &self,
         request: &api::IncomingWebhookRequestDetails<'_>,
+        _secret: &Option<Secret<String>>,
     ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
         let notif_item = get_webhook_object_from_body(request.body)
             .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
@@ -1405,10 +1407,7 @@ impl api::IncomingWebhook for Adyen {
         key_store: &domain::MerchantKeyStore,
         object_reference_id: api_models::webhooks::ObjectReferenceId,
     ) -> CustomResult<bool, errors::ConnectorError> {
-        let signature = self
-            .get_webhook_source_verification_signature(request)
-            .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
-        let secret = self
+        let (secret, additional_secret) = self
             .get_webhook_source_verification_merchant_secret(
                 db,
                 merchant_account,
@@ -1418,6 +1417,11 @@ impl api::IncomingWebhook for Adyen {
             )
             .await
             .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
+
+        let signature = self
+            .get_webhook_source_verification_signature(request, &additional_secret)
+            .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
+
         let message = self
             .get_webhook_source_verification_message(
                 request,

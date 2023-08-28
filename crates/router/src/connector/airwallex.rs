@@ -5,7 +5,7 @@ use std::fmt::Debug;
 use common_utils::ext_traits::{ByteSliceExt, ValueExt};
 use diesel_models::enums;
 use error_stack::{IntoReport, ResultExt};
-use masking::PeekInterface;
+use masking::{PeekInterface, Secret};
 use transformers as airwallex;
 
 use super::utils::{AccessTokenRequestInfo, RefundsRequestData};
@@ -943,6 +943,7 @@ impl api::IncomingWebhook for Airwallex {
     fn get_webhook_source_verification_signature(
         &self,
         request: &api::IncomingWebhookRequestDetails<'_>,
+        _secret: &Option<Secret<String>>,
     ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
         let security_header = request
             .headers

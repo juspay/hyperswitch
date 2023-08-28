@@ -581,6 +581,7 @@ impl api::IncomingWebhook for Iatapay {
     fn get_webhook_source_verification_signature(
         &self,
         request: &api::IncomingWebhookRequestDetails<'_>,
+        _secret: &Option<masking::Secret<String>>,
     ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
         let base64_signature = utils::get_header_key_value("Authorization", request.headers)?;
         let base64_signature = base64_signature.replace("IATAPAY-HMAC-SHA256 ", "");

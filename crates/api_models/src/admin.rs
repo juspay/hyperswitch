@@ -636,6 +636,8 @@ pub struct MerchantConnectorCreate {
 pub struct MerchantConnectorWebhookDetails {
     #[schema(value_type = String, example = "12345678900987654321")]
     pub merchant_secret: Secret<String>,
+    #[schema(value_type = String, example = "12345678900987654321")]
+    pub additional_secret: Option<Secret<String>>,
 }
 
 /// Response of creating a new Merchant Connector for the merchant account."

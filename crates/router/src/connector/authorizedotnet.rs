@@ -5,6 +5,7 @@ use std::fmt::Debug;
 use common_utils::{crypto, ext_traits::ByteSliceExt};
 use diesel_models::enums;
 use error_stack::{IntoReport, ResultExt};
+use masking::Secret;
 use transformers as authorizedotnet;
 
 use crate::{
@@ -742,6 +743,7 @@ impl api::IncomingWebhook for Authorizedotnet {
     fn get_webhook_source_verification_signature(
         &self,
         request: &api::IncomingWebhookRequestDetails<'_>,
+        _secret: &Option<Secret<String>>,
     ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
         let security_header = request
             .headers

@@ -872,6 +872,7 @@ impl api::IncomingWebhook for Trustpay {
     fn get_webhook_source_verification_signature(
         &self,
         request: &api::IncomingWebhookRequestDetails<'_>,
+        _secret: &Option<masking::Secret<String>>,
     ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
         let response: trustpay::TrustpayWebhookResponse = request
             .body
