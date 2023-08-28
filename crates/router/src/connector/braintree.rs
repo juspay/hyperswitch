@@ -1281,7 +1281,19 @@ impl api::IncomingWebhook for Braintree {
         &self,
         _request: &api::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<api_models::webhooks::ObjectReferenceId, errors::ConnectorError> {
-        Err(errors::ConnectorError::WebhookReferenceIdNotFound).into_report()
+        let notif = get_webhook_object_from_body(_request.body)
+            .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
+
+        let response = decode_webhook_payload(notif.bt_payload.replace("\n", "").as_bytes())?;
+
+        match response.dispute {
+            Some(dispute_data) => Ok(api_models::webhooks::ObjectReferenceId::PaymentId(
+                api_models::payments::PaymentIdType::ConnectorTransactionId(
+                    dispute_data.transaction.id,
+                ),
+            )),
+            None => Err(errors::ConnectorError::WebhookReferenceIdNotFound).into_report(),
+        }
     }
 
     fn get_webhook_event_type(
@@ -1333,7 +1345,7 @@ impl api::IncomingWebhook for Braintree {
 
         match response.dispute {
             Some(dispute_data) => Ok(api::disputes::DisputePayload {
-                amount: dispute_data.amount_disputed,
+                amount: dispute_data.amount_disputed.to_string(),
                 currency: dispute_data.currency_iso_code,
                 dispute_stage: braintree_graphql_transformers::get_dispute_stage(
                     dispute_data.kind.as_str(),

@@ -39,12 +39,6 @@ pub struct Notification {
     pub kind: String, // xml parse only string to fields
     pub timestamp: String,
     pub dispute: Option<BraintreeDisputeData>,
-    pub subject: Option<Subject>,
-}
-
-#[derive(Debug, Deserialize, Serialize)]
-pub struct Subject {
-    pub check: Option<bool>,
 }
 
 impl ForeignFrom<&str> for api_models::webhooks::IncomingWebhookEvent {
@@ -57,7 +51,6 @@ impl ForeignFrom<&str> for api_models::webhooks::IncomingWebhookEvent {
             "dispute_auto_accepted" => Self::DisputeAccepted,
             "dispute_expired" => Self::DisputeExpired,
             "dispute_disputed" => Self::DisputeChallenged,
-            "check" => Self::PaymentIntentSuccess,
             _ => Self::EventNotSupported,
         }
     }
@@ -76,11 +69,12 @@ pub struct TestResponse {
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct BraintreeDisputeData {
-    pub amount_disputed: String,
+    pub amount_disputed: i64,
     pub amount_won: Option<String>,
     pub case_number: String,
     pub chargeback_protection_level: String,
     pub currency_iso_code: String,
+    #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
     pub created_at: Option<PrimitiveDateTime>,
     pub evidence: DisputeEvidence,
     pub id: String,
@@ -88,8 +82,11 @@ pub struct BraintreeDisputeData {
     pub status: String,
     pub reason: Option<String>,
     pub reason_code: Option<String>,
+    #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
     pub updated_at: Option<PrimitiveDateTime>,
+    #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
     pub reply_by_date: Option<PrimitiveDateTime>,
+    pub transaction: DisputeTransaction,
 }
 
 #[derive(Debug, Serialize)]
@@ -97,6 +94,12 @@ pub struct BraintreeDisputeData {
 pub struct TransactionBody {
     amount: String,
     merchant_account_id: Secret<String>,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+pub struct DisputeTransaction {
+    pub amount: String,
+    pub id: String,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
