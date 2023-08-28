@@ -6361,7 +6361,7 @@
           },
           "default_profile": {
             "type": "string",
-            "description": "The default business profile that must be used for creating merchant accounts and payments\nTo unset this field, pass an empty string",
+            "description": "The default business profile that must be used for creating merchant accounts and payments",
             "nullable": true,
             "maxLength": 64
           }
