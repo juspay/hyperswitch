@@ -4,7 +4,7 @@ use diesel_models::payment_intent::PaymentIntent;
 
 use super::{ProcessTrackerWorkflow,AutoRefundWorkflow};
 use crate::{
-    errors, logger::error, routes::AppState, types::storage, core::refunds::refund_create_core,
+    errors, logger::error, routes::AppState, types::storage, core::{refunds::refund_create_core, errors::ProcessTrackerError},
 };
 
 #[async_trait::async_trait]
@@ -13,7 +13,7 @@ impl ProcessTrackerWorkflow for AutoRefundWorkflow {
         &'a self,
         state: &'a AppState,
         process: storage::ProcessTracker,
-    ) -> Result<api_models::refunds::RefundResponse, errors::ProcessTrackerError> {
+    ) -> Result<() , ProcessTrackerError> {
             let db = &*state.store;
             let tracking_data: PaymentIntent = process
                 .tracking_data
@@ -39,7 +39,7 @@ impl ProcessTrackerWorkflow for AutoRefundWorkflow {
                 metadata: None,
                 merchant_connector_details: None,
             };
-        Ok(refund_create_core(state, merchant_account.clone(), key_store, ref_req,).await?)
+            let refund_response = refund_create_core(state, merchant_account.clone(), key_store, ref_req,).await;
     }
 
     async fn error_handler<'a>(
