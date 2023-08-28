@@ -776,6 +776,7 @@ impl api::IncomingWebhook for Stax {
         _db: &dyn StorageInterface,
         _request: &api::IncomingWebhookRequestDetails<'_>,
         _merchant_account: &domain::MerchantAccount,
+        _merchant_connector_account: Option<domain::MerchantConnectorAccount>,
         _connector_label: &str,
         _key_store: &domain::MerchantKeyStore,
         _object_reference_id: api_models::webhooks::ObjectReferenceId,

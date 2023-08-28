@@ -80,6 +80,7 @@ pub trait IncomingWebhook: ConnectorCommon + Sync {
         db: &dyn StorageInterface,
         merchant_account: &domain::MerchantAccount,
         connector_name: &str,
+        merchant_connector_account: Option<domain::MerchantConnectorAccount>,
         key_store: &domain::MerchantKeyStore,
         object_reference_id: ObjectReferenceId,
     ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
@@ -99,14 +100,17 @@ pub trait IncomingWebhook: ConnectorCommon + Sync {
         .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)
         .attach_printable("Error while fetching connector_label")?;
 
-        let merchant_connector_account_result = db
-            .find_merchant_connector_account_by_merchant_id_connector_label(
-                merchant_id,
-                &connector_label,
-                key_store,
-            )
-            .await;
-
+        let merchant_connector_account_result =
+            if let Some(merchant_connector_account) = &merchant_connector_account {
+                Ok(merchant_connector_account.clone())
+            } else {
+                db.find_merchant_connector_account_by_merchant_id_connector_label(
+                    merchant_id,
+                    &connector_label,
+                    key_store,
+                )
+                .await
+            };
         let merchant_secret = match merchant_connector_account_result {
             Ok(mca) => match mca.connector_webhook_details {
                 Some(merchant_connector_webhook_details) => merchant_connector_webhook_details
@@ -163,6 +167,7 @@ pub trait IncomingWebhook: ConnectorCommon + Sync {
         db: &dyn StorageInterface,
         request: &IncomingWebhookRequestDetails<'_>,
         merchant_account: &domain::MerchantAccount,
+        merchant_connector_account: Option<domain::MerchantConnectorAccount>,
         connector_label: &str,
         key_store: &domain::MerchantKeyStore,
         object_reference_id: ObjectReferenceId,
@@ -179,6 +184,7 @@ pub trait IncomingWebhook: ConnectorCommon + Sync {
                 db,
                 merchant_account,
                 connector_label,
+                merchant_connector_account,
                 key_store,
                 object_reference_id,
             )

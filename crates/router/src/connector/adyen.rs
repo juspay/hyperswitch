@@ -1401,6 +1401,7 @@ impl api::IncomingWebhook for Adyen {
         db: &dyn StorageInterface,
         request: &api::IncomingWebhookRequestDetails<'_>,
         merchant_account: &domain::MerchantAccount,
+        merchant_connector_account: Option<domain::MerchantConnectorAccount>,
         connector_label: &str,
         key_store: &domain::MerchantKeyStore,
         object_reference_id: api_models::webhooks::ObjectReferenceId,
@@ -1413,6 +1414,7 @@ impl api::IncomingWebhook for Adyen {
                 db,
                 merchant_account,
                 connector_label,
+                merchant_connector_account,
                 key_store,
                 object_reference_id,
             )

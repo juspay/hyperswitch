@@ -705,7 +705,16 @@ pub async fn webhooks_core<W: types::OutgoingWebhookType>(
     connector_name_or_id: &str,
     body: actix_web::web::Bytes,
 ) -> RouterResponse<serde_json::Value> {
-    let connector_label = if connector_name_or_id.starts_with("mcd_") {
+    metrics::WEBHOOK_INCOMING_COUNT.add(
+        &metrics::CONTEXT,
+        1,
+        &[metrics::KeyValue::new(
+            MERCHANT_ID,
+            merchant_account.merchant_id.clone(),
+        )],
+    );
+
+    let merchant_connector_account = if connector_name_or_id.starts_with("mca_") {
         let mca = state
             .store
             .find_by_merchant_connector_account_merchant_id_merchant_connector_id(
@@ -719,23 +728,20 @@ pub async fn webhooks_core<W: types::OutgoingWebhookType>(
                     id: connector_name_or_id.to_string(),
                 },
             )?;
-        mca.connector_label.clone()
+        Some(mca)
+    } else {
+        None
+    };
+
+    let connector_name = if let Some(account) = merchant_connector_account.clone() {
+        account.connector_name
     } else {
         connector_name_or_id.to_string()
     };
 
-    metrics::WEBHOOK_INCOMING_COUNT.add(
-        &metrics::CONTEXT,
-        1,
-        &[metrics::KeyValue::new(
-            MERCHANT_ID,
-            merchant_account.merchant_id.clone(),
-        )],
-    );
-
     let connector = api::ConnectorData::get_connector_by_name(
         &state.conf.connectors,
-        connector_label.as_str(),
+        connector_name.as_str(),
         api::GetToken::Connector,
     )
     .change_context(errors::ApiErrorResponse::InvalidRequestData {
@@ -784,7 +790,7 @@ pub async fn webhooks_core<W: types::OutgoingWebhookType>(
                 1,
                 &[
                     metrics::KeyValue::new(MERCHANT_ID, merchant_account.merchant_id.clone()),
-                    metrics::KeyValue::new("connector", connector_label.to_string()),
+                    metrics::KeyValue::new("connector", connector_name.to_string()),
                 ],
             );
 
@@ -797,7 +803,7 @@ pub async fn webhooks_core<W: types::OutgoingWebhookType>(
 
     let process_webhook_further = utils::lookup_webhook_event(
         &*state.store,
-        connector_label.as_str(),
+        connector_name.as_str(),
         &merchant_account.merchant_id,
         &event_type,
     )
@@ -818,7 +824,8 @@ pub async fn webhooks_core<W: types::OutgoingWebhookType>(
                 &*state.store,
                 &request_details,
                 &merchant_account,
-                connector_label.as_str(),
+                merchant_connector_account.clone(),
+                connector_name.as_str(),
                 &key_store,
                 object_ref_id.clone(),
             )
@@ -876,7 +883,7 @@ pub async fn webhooks_core<W: types::OutgoingWebhookType>(
                 merchant_account,
                 key_store,
                 webhook_details,
-                connector_label.as_str(),
+                connector_name.as_str(),
                 source_verified,
                 event_type,
             )
