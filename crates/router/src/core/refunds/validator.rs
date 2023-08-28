@@ -294,3 +294,172 @@ pub fn validate_for_valid_refunds(
         _ => Ok(()),
     }
 }
+
+#[cfg(test)]
+mod refund_validate_tests {
+    use crate::configs::settings::Settings;
+    use crate::db::merchant_key_store::MerchantKeyStoreInterface;
+    use crate::db::MasterKeyInterface;
+    use crate::db::{
+        merchant_account::MerchantAccountInterface, payment_attempt::PaymentAttemptInterface,
+        MockDb,
+    };
+    use crate::types::{
+        domain::{self, MerchantAccount},
+        storage::{enums::MerchantStorageScheme, PaymentAttemptNew},
+    };
+    use crate::{routes, services};
+    use api_models::{
+        enums::{CountryAlpha2, Currency, IntentStatus},
+        refunds::RefundRequest,
+    };
+    use data_models::payments::payment_intent::{PaymentIntentInterface, PaymentIntentNew};
+    use time::macros::datetime;
+
+    use super::*;
+
+    fn make_payment_attempt(merchant_id: String, payment_id: String) -> PaymentAttemptNew {
+        PaymentAttemptNew {
+            payment_id,
+            connector: Some("stripe".to_string()),
+            merchant_id,
+            currency: Some(Currency::USD),
+            ..PaymentAttemptNew::default()
+        }
+    }
+    fn make_payment_intent(merchant_id: String, payment_id: String) -> PaymentIntentNew {
+        PaymentIntentNew {
+            payment_id,
+            merchant_id,
+            status: IntentStatus::Succeeded,
+            amount: 20,
+            currency: Some(Currency::USD),
+            amount_captured: Some(20),
+            customer_id: None,
+            description: None,
+            return_url: None,
+            metadata: None,
+            connector_id: None,
+            shipping_address_id: None,
+            billing_address_id: None,
+            statement_descriptor_name: None,
+            statement_descriptor_suffix: None,
+            created_at: None,
+            modified_at: None,
+            last_synced: None,
+            setup_future_usage: None,
+            off_session: None,
+            client_secret: None,
+            active_attempt_id: "active_123".to_string(),
+            business_country: CountryAlpha2::US,
+            business_label: "bus".to_string(),
+            order_details: None,
+            allowed_payment_method_types: None,
+            connector_metadata: None,
+            feature_metadata: None,
+            attempt_count: 1,
+        }
+    }
+
+    fn make_merchant_account(merchant_id: String) -> MerchantAccount {
+        MerchantAccount {
+            id: Some(0),
+            merchant_id,
+            return_url: None,
+            enable_payment_response_hash: false,
+            payment_response_hash_key: None,
+            redirect_to_merchant_with_http_post: false,
+            merchant_name: None,
+            merchant_details: None,
+            webhook_details: None,
+            sub_merchants_enabled: None,
+            parent_merchant_id: None,
+            publishable_key: None,
+            storage_scheme: MerchantStorageScheme::PostgresOnly,
+            locker_id: None,
+            metadata: None,
+            routing_algorithm: None,
+            primary_business_details: Default::default(),
+            frm_routing_algorithm: None,
+            created_at: common_utils::date_time::now(),
+            modified_at: common_utils::date_time::now(),
+            intent_fulfillment_time: None,
+            payout_routing_algorithm: None,
+            organization_id: None,
+            is_recon_enabled: false,
+        }
+    }
+
+    async fn make_merchant_key_store(
+        merchant_id: String,
+        master_key: &[u8],
+    ) -> domain::MerchantKeyStore {
+        domain::MerchantKeyStore {
+            merchant_id,
+            key: domain::types::encrypt(
+                services::generate_aes256_key().unwrap().to_vec().into(),
+                master_key,
+            )
+            .await
+            .unwrap(),
+            created_at: datetime!(2023-02-01 0:00),
+        }
+    }
+
+    fn make_refund_request(payment_id: String, merchant_id: String) -> RefundRequest {
+        RefundRequest {
+            payment_id,
+            merchant_id: Some(merchant_id),
+            amount: Some(20),
+            ..RefundRequest::default()
+        }
+    }
+
+    #[tokio::test]
+    async fn validate_request_ok() {
+        let mockdb = MockDb::new(&Default::default()).await;
+        let master_key = mockdb.get_master_key();
+
+        let (tx, _) = tokio::sync::oneshot::channel();
+        let state = routes::AppState::new(Settings::default(), tx).await;
+
+        let merchant_id = "merchant_123";
+        let payment_id = "payment_123";
+
+        let merchant_account = make_merchant_account(merchant_id.to_string());
+
+        let key_store = mockdb
+            .insert_merchant_key_store(
+                make_merchant_key_store(merchant_id.to_string(), master_key).await,
+                &master_key.to_vec().into(),
+            )
+            .await
+            .unwrap();
+
+        let merchant_account = mockdb
+            .insert_merchant(merchant_account, &key_store)
+            .await
+            .unwrap();
+
+        let payment_intent = make_payment_intent(merchant_id.to_string(), payment_id.to_string());
+        let payment_intent = mockdb
+            .insert_payment_intent(payment_intent, MerchantStorageScheme::PostgresOnly)
+            .await
+            .unwrap();
+
+        let payment_attempt = make_payment_attempt(merchant_id.to_string(), payment_id.to_string());
+        let mut payment_attempt = mockdb
+            .insert_payment_attempt(payment_attempt, MerchantStorageScheme::PostgresOnly)
+            .await
+            .unwrap();
+
+        payment_attempt.connector_transaction_id = Some("connector_123".to_string());
+
+        let refund_request = make_refund_request(payment_id.to_string(), merchant_id.to_string());
+
+        assert!(refund_request
+            .validate_request(&state, &payment_intent, &payment_attempt, &merchant_account)
+            .await
+            .is_ok());
+    }
+}
