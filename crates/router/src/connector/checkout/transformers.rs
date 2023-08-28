@@ -623,7 +623,9 @@ impl TryFrom<types::PaymentsCaptureResponseRouterData<PaymentCaptureResponse>>
             (enums::AttemptStatus::Pending, None)
         };
 
-        let resource_id = if item.data.request.multiple_capture_data.is_some() {
+        // if multiple capture request, return capture action_id so that it will be updated in the captures table.
+        // else return previous connector_transaction_id.
+        let resource_id = if item.data.request.is_multiple_capture() {
             item.response.action_id
         } else {
             item.data.request.connector_transaction_id.to_owned()
