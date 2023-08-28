@@ -208,6 +208,5 @@ pub struct RefundCoreWorkflow {
 
 #[derive(Debug, Eq, PartialEq, Deserialize, Serialize)]
 pub struct AutoRefundWorkflow {
-    pub payment_id: String,
-    pub merchant_id: String
+    pub payment_intent: crate::payment_intent::PaymentIntent,
 }
