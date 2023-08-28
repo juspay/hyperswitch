@@ -13,7 +13,7 @@ impl ProcessTrackerWorkflow for AutoRefundWorkflow {
         &'a self,
         state: &'a AppState,
         process: storage::ProcessTracker,
-    ) -> Result<(), errors::ProcessTrackerError> {
+    ) -> Result<api_models::refunds::RefundResponse, errors::ProcessTrackerError> {
             let db = &*state.store;
             let tracking_data: PaymentIntent = process
                 .tracking_data
