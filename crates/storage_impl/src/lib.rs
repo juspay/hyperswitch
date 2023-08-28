@@ -1,5 +1,6 @@
 use std::sync::Arc;
 
+use data_models::errors::{StorageError, StorageResult};
 use error_stack::ResultExt;
 use masking::StrongSecret;
 use redis::{kv_store::RedisConnInterface, RedisStore};
@@ -36,11 +37,13 @@ where
         tokio::sync::oneshot::Sender<()>,
         &'static str,
     );
-    async fn new(config: Self::Config, test_transaction: bool) -> Self {
+    async fn new(config: Self::Config, test_transaction: bool) -> StorageResult<Self> {
         let (db_conf, cache_conf, encryption_key, cache_error_signal, inmemory_cache_stream) =
             config;
         if test_transaction {
-            Self::test_store(db_conf, &cache_conf, encryption_key).await
+            Self::test_store(db_conf, &cache_conf, encryption_key)
+                .await
+                .attach_printable("failed to create test router store")
         } else {
             Self::from_config(
                 db_conf,
@@ -50,6 +53,7 @@ where
                 inmemory_cache_stream,
             )
             .await
+            .attach_printable("failed to create store")
         }
     }
     fn get_master_pool(&self) -> &PgPool {
@@ -75,46 +79,48 @@ impl<T: DatabaseStore> RouterStore<T> {
         encryption_key: StrongSecret<Vec<u8>>,
         cache_error_signal: tokio::sync::oneshot::Sender<()>,
         inmemory_cache_stream: &str,
-    ) -> Self {
-        // TODO: create an error enum and return proper error here
-        let db_store = T::new(db_conf, false).await;
-        #[allow(clippy::expect_used)]
+    ) -> StorageResult<Self> {
+        let db_store = T::new(db_conf, false).await?;
         let cache_store = RedisStore::new(cache_conf)
             .await
-            .expect("Failed to create cache store");
+            .change_context(StorageError::InitializationError)
+            .attach_printable("Failed to create cache store")?;
         cache_store.set_error_callback(cache_error_signal);
-        #[allow(clippy::expect_used)]
         cache_store
             .subscribe_to_channel(inmemory_cache_stream)
             .await
-            .expect("Failed to subscribe to inmemory cache stream");
-        Self {
+            .change_context(StorageError::InitializationError)
+            .attach_printable("Failed to subscribe to inmemory cache stream")?;
+        Ok(Self {
             db_store,
             cache_store,
             master_encryption_key: encryption_key,
-        }
+        })
     }
 
     pub fn master_key(&self) -> &StrongSecret<Vec<u8>> {
         &self.master_encryption_key
     }
 
+    /// # Panics
+    ///
+    /// Will panic if `CONNECTOR_AUTH_FILE_PATH` is not set
     pub async fn test_store(
         db_conf: T::Config,
         cache_conf: &redis_interface::RedisSettings,
         encryption_key: StrongSecret<Vec<u8>>,
-    ) -> Self {
+    ) -> StorageResult<Self> {
         // TODO: create an error enum and return proper error here
-        let db_store = T::new(db_conf, true).await;
-        #[allow(clippy::expect_used)]
+        let db_store = T::new(db_conf, true).await?;
         let cache_store = RedisStore::new(cache_conf)
             .await
-            .expect("Failed to create cache store");
-        Self {
+            .change_context(StorageError::InitializationError)
+            .attach_printable("failed to create redis cache")?;
+        Ok(Self {
             db_store,
             cache_store,
             master_encryption_key: encryption_key,
-        }
+        })
     }
 }
 
@@ -132,9 +138,13 @@ where
     T: DatabaseStore,
 {
     type Config = (RouterStore<T>, String, u8);
-    async fn new(config: Self::Config, _test_transaction: bool) -> Self {
+    async fn new(config: Self::Config, _test_transaction: bool) -> StorageResult<Self> {
         let (router_store, drainer_stream_name, drainer_num_partitions) = config;
-        Self::from_store(router_store, drainer_stream_name, drainer_num_partitions)
+        Ok(Self::from_store(
+            router_store,
+            drainer_stream_name,
+            drainer_num_partitions,
+        ))
     }
     fn get_master_pool(&self) -> &PgPool {
         self.router_store.get_master_pool()
@@ -225,28 +235,26 @@ impl DataModelExt for data_models::MerchantStorageScheme {
 
 pub(crate) fn diesel_error_to_data_error(
     diesel_error: &diesel_models::errors::DatabaseError,
-) -> data_models::errors::StorageError {
+) -> StorageError {
     match diesel_error {
         diesel_models::errors::DatabaseError::DatabaseConnectionError => {
-            data_models::errors::StorageError::DatabaseConnectionError
+            StorageError::DatabaseConnectionError
         }
         diesel_models::errors::DatabaseError::NotFound => {
-            data_models::errors::StorageError::ValueNotFound("Value not found".to_string())
+            StorageError::ValueNotFound("Value not found".to_string())
         }
-        diesel_models::errors::DatabaseError::UniqueViolation => {
-            data_models::errors::StorageError::DuplicateValue {
-                entity: "entity ",
-                key: None,
-            }
-        }
+        diesel_models::errors::DatabaseError::UniqueViolation => StorageError::DuplicateValue {
+            entity: "entity ",
+            key: None,
+        },
         diesel_models::errors::DatabaseError::NoFieldsToUpdate => {
-            data_models::errors::StorageError::DatabaseError("No fields to update".to_string())
+            StorageError::DatabaseError("No fields to update".to_string())
         }
         diesel_models::errors::DatabaseError::QueryGenerationFailed => {
-            data_models::errors::StorageError::DatabaseError("Query generation failed".to_string())
+            StorageError::DatabaseError("Query generation failed".to_string())
         }
         diesel_models::errors::DatabaseError::Others => {
-            data_models::errors::StorageError::DatabaseError("Others".to_string())
+            StorageError::DatabaseError("Others".to_string())
         }
     }
 }

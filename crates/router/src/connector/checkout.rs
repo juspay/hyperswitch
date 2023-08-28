@@ -848,7 +848,7 @@ impl api::FileUpload for Checkout {
         match purpose {
             api::FilePurpose::DisputeEvidence => {
                 let supported_file_types =
-                    vec!["image/jpeg", "image/jpg", "image/png", "application/pdf"];
+                    ["image/jpeg", "image/jpg", "image/png", "application/pdf"];
                 // 4 Megabytes (MB)
                 if file_size > 4000000 {
                     Err(errors::ConnectorError::FileValidationFailed {
