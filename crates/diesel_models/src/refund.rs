@@ -208,8 +208,6 @@ pub struct RefundCoreWorkflow {
 
 #[derive(Debug, Eq, PartialEq, Deserialize, Serialize)]
 pub struct AutoRefundWorkflow {
-    pub refund_internal_reference_id: String,
-    pub connector_transaction_id: String,
-    pub merchant_id: String,
     pub payment_id: String,
+    pub merchant_id: String
 }
