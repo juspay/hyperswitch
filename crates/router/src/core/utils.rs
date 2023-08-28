@@ -70,15 +70,18 @@ pub async fn get_mca_for_payout<'a>(
 }
 
 #[cfg(feature = "payouts")]
-#[instrument(skip_all)]
 pub async fn construct_payout_router_data<'a, F>(
     state: &'a AppState,
-    connector_id: &str,
+    connector_name: &api_models::enums::PayoutConnectors,
     merchant_account: &domain::MerchantAccount,
     key_store: &domain::MerchantKeyStore,
     _request: &api_models::payouts::PayoutRequest,
     payout_data: &mut PayoutData,
 ) -> RouterResult<types::PayoutsRouterData<F>> {
+    use api_models::payouts::PayoutVendorAccountDetails;
+    use masking::PeekInterface;
+
+    let connector_id = connector_name.to_string();
     let (business_country, business_label) = helpers::get_business_details(
         payout_data.payout_attempt.business_country,
         payout_data.payout_attempt.business_label.as_ref(),
@@ -86,7 +89,7 @@ pub async fn construct_payout_router_data<'a, F>(
     )?;
     let merchant_connector_account = get_mca_for_payout(
         state,
-        connector_id,
+        &connector_id,
         merchant_account,
         key_store,
         payout_data,
@@ -130,17 +133,29 @@ pub async fn construct_payout_router_data<'a, F>(
     let payouts = &payout_data.payouts;
     let payout_attempt = &payout_data.payout_attempt;
     let customer_details = &payout_data.customer_details;
-    let connector_label = format!(
-        "{}_{}_{}",
-        connector_id.to_string(),
-        business_country.to_string(),
-        business_label
-    );
+    let connector_label = format!("{}_{}_{}", connector_id, business_country, business_label);
     let connector_customer_id = customer_details
         .as_ref()
         .and_then(|c| c.connector_customer.as_ref())
         .and_then(|cc| cc.get(connector_label))
         .and_then(|id| serde_json::from_value::<String>(id.to_owned()).ok());
+    let vendor_details: Option<PayoutVendorAccountDetails> = match connector_name {
+        api_models::enums::PayoutConnectors::Adyen => None,
+        api_models::enums::PayoutConnectors::Stripe => {
+            payout_data.payouts.metadata.to_owned().and_then(|meta| {
+                let val = meta
+                    .peek()
+                    .to_owned()
+                    .parse_value("PayoutVendorAccountDetails")
+                    .change_context(errors::ApiErrorResponse::MissingRequiredFields {
+                        field_names: ["vendor_details", "individual_details"].to_vec(),
+                    })
+                    .ok();
+                val
+            })
+        }
+        api_models::enums::PayoutConnectors::Wise => None,
+    };
     let router_data = types::RouterData {
         flow: PhantomData,
         merchant_id: merchant_account.merchant_id.to_owned(),
@@ -168,6 +183,7 @@ pub async fn construct_payout_router_data<'a, F>(
             entity_type: payouts.entity_type.to_owned(),
             payout_type: payouts.payout_type,
             country_code: business_country,
+            vendor_details,
             customer_details: customer_details
                 .to_owned()
                 .map(|c| payments::CustomerDetails {

@@ -197,7 +197,6 @@ square.base_url = "https://connect.squareupsandbox.com/"
 square.secondary_base_url = "https://pci-connect.squareupsandbox.com/"
 stax.base_url = "https://apiprod.fattlabs.com/"
 stripe.base_url = "https://api.stripe.com/"
-stripe_connect.base_url = "https://api.stripe.com/"
 stripe.base_url_file_upload = "https://files.stripe.com/"
 wise.base_url = "https://api.sandbox.transferwise.tech/"
 worldline.base_url = "https://eu.sandbox.api-ingenico.com/"
@@ -253,7 +252,6 @@ cards = [
     "square",
     "stax",
     "stripe",
-    "stripe_connect",
     "worldpay",
     "zen",
 ]
@@ -401,7 +399,7 @@ cashapp = {country = "US", currency = "USD"}
 
 [connector_customer]
 connector_list = "stax"
-payout_connector_list = "stripe_connect,wise"
+payout_connector_list = "stripe,wise"
 
 [bank_config.online_banking_fpx]
 adyen.banks = "affin_bank,agro_bank,alliance_bank,am_bank,bank_islam,bank_muamalat,bank_rakyat,bank_simpanan_nasional,cimb_bank,hong_leong_bank,hsbc_bank,kuwait_finance_house,may_bank,ocbc_bank,public_bank,rhb_bank,standard_chartered_bank,uob_bank"

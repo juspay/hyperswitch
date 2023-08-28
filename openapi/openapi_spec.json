@@ -9591,6 +9591,7 @@
         "type": "string",
         "enum": [
           "adyen",
+          "stripe",
           "wise"
         ]
       },

@@ -1,3 +1,5 @@
+#![allow(dead_code)]
+
 use std::ops::Deref;
 
 use api_models::{self, enums as api_enums, payments};
@@ -27,8 +29,10 @@ pub struct StripeAuthType {
     pub(super) api_key: Secret<String>,
 }
 
+type Error = error_stack::Report<errors::ConnectorError>;
+
 impl TryFrom<&types::ConnectorAuthType> for StripeAuthType {
-    type Error = error_stack::Report<errors::ConnectorError>;
+    type Error = Error;
     fn try_from(item: &types::ConnectorAuthType) -> Result<Self, Self::Error> {
         if let types::ConnectorAuthType::HeaderKey { api_key } = item {
             Ok(Self {
@@ -559,7 +563,6 @@ pub enum StripePaymentMethodType {
 
 #[derive(Debug, Eq, PartialEq, Serialize)]
 #[serde(rename_all = "snake_case")]
-#[allow(dead_code)]
 pub enum StripeCreditTransferTypes {
     AchCreditTransfer,
     Multibanco,
@@ -567,7 +570,7 @@ pub enum StripeCreditTransferTypes {
 }
 
 impl TryFrom<enums::PaymentMethodType> for StripePaymentMethodType {
-    type Error = error_stack::Report<errors::ConnectorError>;
+    type Error = Error;
     fn try_from(value: enums::PaymentMethodType) -> Result<Self, Self::Error> {
         match value {
             enums::PaymentMethodType::Credit => Ok(Self::Card),
@@ -1529,7 +1532,7 @@ fn create_stripe_payment_method(
 }
 
 impl TryFrom<&payments::GooglePayWalletData> for StripePaymentMethodData {
-    type Error = error_stack::Report<errors::ConnectorError>;
+    type Error = Error;
     fn try_from(gpay_data: &payments::GooglePayWalletData) -> Result<Self, Self::Error> {
         Ok(Self::Wallet(StripeWallet::GooglepayToken(GooglePayToken {
             token: Secret::new(
@@ -1547,7 +1550,7 @@ impl TryFrom<&payments::GooglePayWalletData> for StripePaymentMethodData {
 }
 
 impl TryFrom<&types::PaymentsAuthorizeRouterData> for PaymentIntentRequest {
-    type Error = error_stack::Report<errors::ConnectorError>;
+    type Error = Error;
     fn try_from(item: &types::PaymentsAuthorizeRouterData) -> Result<Self, Self::Error> {
         let order_id = item.connector_request_reference_id.clone();
 
@@ -1791,7 +1794,7 @@ fn get_payment_method_type_for_saved_payment_method_payment(
 }
 
 impl TryFrom<&types::VerifyRouterData> for SetupIntentRequest {
-    type Error = error_stack::Report<errors::ConnectorError>;
+    type Error = Error;
     fn try_from(item: &types::VerifyRouterData) -> Result<Self, Self::Error> {
         let metadata_order_id = item.connector_request_reference_id.clone();
         let metadata_txn_id = format!("{}_{}_{}", item.merchant_id, item.payment_id, "1");
@@ -1821,7 +1824,7 @@ impl TryFrom<&types::VerifyRouterData> for SetupIntentRequest {
 }
 
 impl TryFrom<&types::TokenizationRouterData> for TokenRequest {
-    type Error = error_stack::Report<errors::ConnectorError>;
+    type Error = Error;
     fn try_from(item: &types::TokenizationRouterData) -> Result<Self, Self::Error> {
         let payment_data = create_stripe_payment_method(
             None,
@@ -1837,7 +1840,7 @@ impl TryFrom<&types::TokenizationRouterData> for TokenRequest {
 }
 
 impl TryFrom<&types::ConnectorCustomerRouterData> for CustomerRequest {
-    type Error = error_stack::Report<errors::ConnectorError>;
+    type Error = Error;
     fn try_from(item: &types::ConnectorCustomerRouterData) -> Result<Self, Self::Error> {
         Ok(Self {
             description: item.request.description.to_owned(),
@@ -2149,7 +2152,7 @@ impl<F, T>
     TryFrom<types::ResponseRouterData<F, PaymentIntentResponse, T, types::PaymentsResponseData>>
     for types::RouterData<F, T, types::PaymentsResponseData>
 {
-    type Error = error_stack::Report<errors::ConnectorError>;
+    type Error = Error;
     fn try_from(
         item: types::ResponseRouterData<F, PaymentIntentResponse, T, types::PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
@@ -2256,7 +2259,7 @@ impl<F, T>
     TryFrom<types::ResponseRouterData<F, PaymentIntentSyncResponse, T, types::PaymentsResponseData>>
     for types::RouterData<F, T, types::PaymentsResponseData>
 {
-    type Error = error_stack::Report<errors::ConnectorError>;
+    type Error = Error;
     fn try_from(
         item: types::ResponseRouterData<
             F,
@@ -2331,7 +2334,7 @@ impl<F, T>
     TryFrom<types::ResponseRouterData<F, SetupIntentResponse, T, types::PaymentsResponseData>>
     for types::RouterData<F, T, types::PaymentsResponseData>
 {
-    type Error = error_stack::Report<errors::ConnectorError>;
+    type Error = Error;
     fn try_from(
         item: types::ResponseRouterData<F, SetupIntentResponse, T, types::PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
@@ -2518,7 +2521,7 @@ pub struct RefundRequest {
 }
 
 impl<F> TryFrom<&types::RefundsRouterData<F>> for RefundRequest {
-    type Error = error_stack::Report<errors::ConnectorError>;
+    type Error = Error;
     fn try_from(item: &types::RefundsRouterData<F>) -> Result<Self, Self::Error> {
         let amount = item.request.refund_amount;
         let payment_intent = item.request.connector_transaction_id.clone();
@@ -2570,7 +2573,7 @@ pub struct RefundResponse {
 impl TryFrom<types::RefundsResponseRouterData<api::Execute, RefundResponse>>
     for types::RefundsRouterData<api::Execute>
 {
-    type Error = error_stack::Report<errors::ConnectorError>;
+    type Error = Error;
     fn try_from(
         item: types::RefundsResponseRouterData<api::Execute, RefundResponse>,
     ) -> Result<Self, Self::Error> {
@@ -2587,7 +2590,7 @@ impl TryFrom<types::RefundsResponseRouterData<api::Execute, RefundResponse>>
 impl TryFrom<types::RefundsResponseRouterData<api::RSync, RefundResponse>>
     for types::RefundsRouterData<api::RSync>
 {
-    type Error = error_stack::Report<errors::ConnectorError>;
+    type Error = Error;
     fn try_from(
         item: types::RefundsResponseRouterData<api::RSync, RefundResponse>,
     ) -> Result<Self, Self::Error> {
@@ -2668,7 +2671,7 @@ pub struct CancelRequest {
 }
 
 impl TryFrom<&types::PaymentsCancelRouterData> for CancelRequest {
-    type Error = error_stack::Report<errors::ConnectorError>;
+    type Error = Error;
     fn try_from(item: &types::PaymentsCancelRouterData) -> Result<Self, Self::Error> {
         Ok(Self {
             cancellation_reason: item.request.cancellation_reason.clone(),
@@ -2740,7 +2743,7 @@ pub struct CaptureRequest {
 }
 
 impl TryFrom<&types::PaymentsCaptureRouterData> for CaptureRequest {
-    type Error = error_stack::Report<errors::ConnectorError>;
+    type Error = Error;
     fn try_from(item: &types::PaymentsCaptureRouterData) -> Result<Self, Self::Error> {
         Ok(Self {
             amount_to_capture: Some(item.request.amount_to_capture),
@@ -2749,7 +2752,7 @@ impl TryFrom<&types::PaymentsCaptureRouterData> for CaptureRequest {
 }
 
 impl TryFrom<&types::PaymentsPreProcessingRouterData> for StripeCreditTransferSourceRequest {
-    type Error = error_stack::Report<errors::ConnectorError>;
+    type Error = Error;
     fn try_from(item: &types::PaymentsPreProcessingRouterData) -> Result<Self, Self::Error> {
         let currency = item.request.get_currency()?;
 
@@ -2820,7 +2823,7 @@ impl<F, T>
     TryFrom<types::ResponseRouterData<F, StripeSourceResponse, T, types::PaymentsResponseData>>
     for types::RouterData<F, T, types::PaymentsResponseData>
 {
-    type Error = error_stack::Report<errors::ConnectorError>;
+    type Error = Error;
     fn try_from(
         item: types::ResponseRouterData<F, StripeSourceResponse, T, types::PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
@@ -2854,7 +2857,7 @@ impl<F, T>
 }
 
 impl TryFrom<&types::PaymentsAuthorizeRouterData> for ChargesRequest {
-    type Error = error_stack::Report<errors::ConnectorError>;
+    type Error = Error;
 
     fn try_from(value: &types::PaymentsAuthorizeRouterData) -> Result<Self, Self::Error> {
         Ok(Self {
@@ -2869,7 +2872,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for ChargesRequest {
 impl<F, T> TryFrom<types::ResponseRouterData<F, ChargesResponse, T, types::PaymentsResponseData>>
     for types::RouterData<F, T, types::PaymentsResponseData>
 {
-    type Error = error_stack::Report<errors::ConnectorError>;
+    type Error = Error;
     fn try_from(
         item: types::ResponseRouterData<F, ChargesResponse, T, types::PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
@@ -2898,7 +2901,7 @@ impl<F, T>
     TryFrom<types::ResponseRouterData<F, StripeTokenResponse, T, types::PaymentsResponseData>>
     for types::RouterData<F, T, types::PaymentsResponseData>
 {
-    type Error = error_stack::Report<errors::ConnectorError>;
+    type Error = Error;
     fn try_from(
         item: types::ResponseRouterData<F, StripeTokenResponse, T, types::PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
@@ -2915,7 +2918,7 @@ impl<F, T>
     TryFrom<types::ResponseRouterData<F, StripeCustomerResponse, T, types::PaymentsResponseData>>
     for types::RouterData<F, T, types::PaymentsResponseData>
 {
-    type Error = error_stack::Report<errors::ConnectorError>;
+    type Error = Error;
     fn try_from(
         item: types::ResponseRouterData<F, StripeCustomerResponse, T, types::PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
@@ -3140,7 +3143,7 @@ impl
         StripePaymentMethodType,
     )> for StripePaymentMethodData
 {
-    type Error = error_stack::Report<errors::ConnectorError>;
+    type Error = Error;
     fn try_from(
         (pm_data, auth_type, pm_type): (
             api::PaymentMethodData,
@@ -3443,7 +3446,7 @@ pub struct Evidence {
 }
 
 impl TryFrom<&types::SubmitEvidenceRouterData> for Evidence {
-    type Error = error_stack::Report<errors::ConnectorError>;
+    type Error = Error;
     fn try_from(item: &types::SubmitEvidenceRouterData) -> Result<Self, Self::Error> {
         let submit_evidence_request_data = item.request.clone();
         Ok(Self {
@@ -3672,6 +3675,649 @@ mod test_validate_shipping_address_against_payment_method {
             line2: Some(Secret::new(String::from("line2"))),
             state: Some(Secret::new(String::from("state"))),
             phone: Some(Secret::new(String::from("pbone number"))),
+        }
+    }
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum StripeConnectStatus {
+    Succeeded,
+    Failed,
+    Processing,
+    Canceled,
+    Consumed,
+    Pending,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+pub struct StripeConnectErrorResponse {
+    pub error: ErrorDetails,
+}
+
+// Payouts
+#[cfg(feature = "payouts")]
+#[derive(Clone, Debug, Serialize)]
+pub struct StripeConnectPayoutCreateRequest {
+    amount: i64,
+    currency: enums::Currency,
+    destination: String,
+    transfer_group: String,
+}
+
+#[cfg(feature = "payouts")]
+#[derive(Clone, Debug, Deserialize)]
+pub struct StripeConnectPayoutCreateResponse {
+    id: String,
+    object: String,
+    amount: i64,
+    amount_reversed: i64,
+    balance_transaction: String,
+    created: i32,
+    currency: String,
+    description: Option<String>,
+    destination: String,
+    destination_payment: String,
+    livemode: bool,
+    reversals: TransferReversals,
+    reversed: bool,
+    source_transaction: Option<String>,
+    source_type: String,
+    transfer_group: String,
+}
+
+#[cfg(feature = "payouts")]
+#[derive(Clone, Debug, Deserialize)]
+pub struct TransferReversals {
+    object: String,
+    has_more: bool,
+    total_count: i32,
+    url: String,
+}
+
+#[cfg(feature = "payouts")]
+#[derive(Clone, Debug, Serialize)]
+pub struct StripeConnectPayoutFulfillRequest {
+    amount: i64,
+    currency: enums::Currency,
+}
+
+#[cfg(feature = "payouts")]
+#[derive(Clone, Debug, Deserialize)]
+pub struct StripeConnectPayoutFulfillResponse {
+    id: String,
+    object: String,
+    amount: i64,
+    arrival_date: i32,
+    automatic: bool,
+    balance_transaction: String,
+    created: i32,
+    currency: String,
+    description: Option<String>,
+    destination: String,
+    failure_balance_transaction: Option<String>,
+    failure_code: Option<String>,
+    failure_message: Option<String>,
+    livemode: bool,
+    method: String,
+    original_payout: Option<String>,
+    reconciliation_status: String,
+    reversed_by: Option<String>,
+    source_type: String,
+    statement_descriptor: Option<String>,
+    status: StripeConnectStatus,
+    #[serde(rename = "type")]
+    account_type: String,
+}
+
+#[cfg(feature = "payouts")]
+#[derive(Clone, Debug, Serialize)]
+pub struct StripeConnectReversalRequest {
+    amount: i64,
+}
+
+#[cfg(feature = "payouts")]
+#[derive(Clone, Debug, Deserialize)]
+pub struct StripeConnectReversalResponse {
+    id: String,
+    object: String,
+    amount: i64,
+    balance_transaction: String,
+    created: i32,
+    currency: String,
+    destination_payment_refund: String,
+    source_refund: Option<String>,
+    transfer: String,
+}
+
+#[cfg(feature = "payouts")]
+#[derive(Clone, Debug, Serialize)]
+pub struct StripeConnectRecipientCreateRequest {
+    #[serde(rename = "type")]
+    account_type: String,
+    country: enums::CountryAlpha2,
+    email: Email,
+    #[serde(rename = "capabilities[card_payments][requested]")]
+    capabilities_card_payments: bool,
+    #[serde(rename = "capabilities[transfers][requested]")]
+    capabilities_transfers: bool,
+    #[serde(rename = "tos_acceptance[date]")]
+    tos_acceptance_date: i64,
+    #[serde(rename = "tos_acceptance[ip]")]
+    tos_acceptance_ip: Secret<String>,
+    business_type: String,
+    #[serde(rename = "business_profile[mcc]")]
+    business_profile_mcc: i32,
+    #[serde(rename = "business_profile[url]")]
+    business_profile_url: String,
+    #[serde(rename = "business_profile[name]")]
+    business_profile_name: Secret<String>,
+    #[serde(rename = "company[address][line1]")]
+    company_address_line1: Secret<String>,
+    #[serde(rename = "company[address][line2]")]
+    company_address_line2: Secret<String>,
+    #[serde(rename = "company[address][postal_code]")]
+    company_address_postal_code: Secret<String>,
+    #[serde(rename = "company[address][city]")]
+    company_address_city: Secret<String>,
+    #[serde(rename = "company[address][state]")]
+    company_address_state: Secret<String>,
+    #[serde(rename = "company[phone]")]
+    company_phone: Secret<String>,
+    #[serde(rename = "company[tax_id]")]
+    company_tax_id: Secret<String>,
+    #[serde(rename = "company[owners_provided]")]
+    company_owners_provided: bool,
+    #[serde(rename = "individual[first_name]")]
+    individual_first_name: Secret<String>,
+    #[serde(rename = "individual[last_name]")]
+    individual_last_name: Secret<String>,
+    #[serde(rename = "individual[dob][day]")]
+    individual_dob_day: Secret<String>,
+    #[serde(rename = "individual[dob][month]")]
+    individual_dob_month: Secret<String>,
+    #[serde(rename = "individual[dob][year]")]
+    individual_dob_year: Secret<String>,
+    #[serde(rename = "individual[address][line1]")]
+    individual_address_line1: Secret<String>,
+    #[serde(rename = "individual[address][line2]")]
+    individual_address_line2: Secret<String>,
+    #[serde(rename = "individual[address][postal_code]")]
+    individual_address_postal_code: Secret<String>,
+    #[serde(rename = "individual[address][city]")]
+    individual_address_city: String,
+    #[serde(rename = "individual[address][state]")]
+    individual_address_state: Secret<String>,
+    #[serde(rename = "individual[email]")]
+    individual_email: Email,
+    #[serde(rename = "individual[phone]")]
+    individual_phone: Secret<String>,
+    #[serde(rename = "individual[id_number]")]
+    individual_id_number: Secret<String>,
+    #[serde(rename = "individual[ssn_last_4]")]
+    individual_ssn_last_4: Secret<String>,
+}
+
+#[cfg(feature = "payouts")]
+#[derive(Clone, Debug, Default, Deserialize)]
+pub struct StripeConnectRecipientCreateResponse {
+    id: String,
+    object: String,
+    business_type: String,
+    charges_enabled: bool,
+    country: enums::CountryAlpha2,
+    created: i32,
+    default_currency: String,
+    email: Email,
+    payouts_enabled: bool,
+    #[serde(rename = "type")]
+    account_type: String,
+}
+
+#[cfg(feature = "payouts")]
+#[derive(Clone, Debug, Serialize)]
+#[serde(untagged)]
+pub enum StripeConnectRecipientAccountCreateRequest {
+    Bank(RecipientBankAccountRequest),
+    Card(RecipientCardAccountRequest),
+    Token(RecipientTokenRequest),
+}
+
+#[cfg(feature = "payouts")]
+#[derive(Clone, Debug, Serialize)]
+pub struct RecipientTokenRequest {
+    external_account: String,
+}
+
+#[cfg(feature = "payouts")]
+#[derive(Clone, Debug, Serialize)]
+pub struct RecipientCardAccountRequest {
+    #[serde(rename = "external_account[object]")]
+    external_account_object: String,
+    #[serde(rename = "external_account[number]")]
+    external_account_number: String,
+    #[serde(rename = "external_account[exp_month]")]
+    external_account_exp_month: String,
+    #[serde(rename = "external_account[exp_year]")]
+    external_account_exp_year: String,
+}
+
+#[cfg(feature = "payouts")]
+#[derive(Clone, Debug, Serialize)]
+pub struct RecipientBankAccountRequest {
+    #[serde(rename = "external_account[object]")]
+    external_account_object: String,
+    #[serde(rename = "external_account[country]")]
+    external_account_country: enums::CountryAlpha2,
+    #[serde(rename = "external_account[currency]")]
+    external_account_currency: enums::Currency,
+    #[serde(rename = "external_account[account_holder_name]")]
+    external_account_account_holder_name: Secret<String>,
+    #[serde(rename = "external_account[account_number]")]
+    external_account_account_number: Secret<String>,
+    #[serde(rename = "external_account[account_holder_type]")]
+    external_account_account_holder_type: String,
+    #[serde(rename = "external_account[routing_number]")]
+    external_account_routing_number: Secret<String>,
+}
+
+#[cfg(feature = "payouts")]
+#[derive(Clone, Debug, Deserialize)]
+#[serde(untagged)]
+pub enum StripeConnectRecipientAccountCreateResponse {
+    Bank(RecipientBankAccountResponse),
+    Card(RecipientCardAccountResponse),
+}
+
+#[cfg(feature = "payouts")]
+#[derive(Clone, Debug, Default, Deserialize)]
+pub struct RecipientBankAccountResponse {
+    id: String,
+    object: String,
+    account: String,
+    account_holder_name: String,
+    account_holder_type: String,
+    account_type: Option<String>,
+    bank_name: String,
+    country: enums::CountryAlpha2,
+    currency: String,
+    default_for_currency: bool,
+    fingerprint: String,
+    last4: String,
+    routing_number: String,
+    status: String,
+}
+
+#[cfg(feature = "payouts")]
+#[derive(Clone, Debug, Default, Deserialize)]
+pub struct RecipientCardAccountResponse {
+    id: String,
+    object: String,
+    account: String,
+    brand: String,
+    country: enums::CountryAlpha2,
+    currency: String,
+    default_for_currency: bool,
+    dynamic_last4: Option<String>,
+    exp_month: i8,
+    exp_year: i8,
+    fingerprint: String,
+    funding: String,
+    last4: String,
+    name: String,
+    status: String,
+}
+
+// Payouts create/transfer request transform
+#[cfg(feature = "payouts")]
+impl<F> TryFrom<&types::PayoutsRouterData<F>> for StripeConnectPayoutCreateRequest {
+    type Error = Error;
+    fn try_from(item: &types::PayoutsRouterData<F>) -> Result<Self, Self::Error> {
+        let request = item.request.to_owned();
+        let connector_customer_id = item.get_connector_customer_id()?;
+        Ok(Self {
+            amount: request.amount,
+            currency: request.destination_currency,
+            destination: connector_customer_id,
+            transfer_group: request.payout_id,
+        })
+    }
+}
+
+// Payouts create response transform
+#[cfg(feature = "payouts")]
+impl<F> TryFrom<types::PayoutsResponseRouterData<F, StripeConnectPayoutCreateResponse>>
+    for types::PayoutsRouterData<F>
+{
+    type Error = Error;
+    fn try_from(
+        item: types::PayoutsResponseRouterData<F, StripeConnectPayoutCreateResponse>,
+    ) -> Result<Self, Self::Error> {
+        let response: StripeConnectPayoutCreateResponse = item.response;
+
+        Ok(Self {
+            response: Ok(types::PayoutsResponseData {
+                status: Some(enums::PayoutStatus::RequiresFulfillment),
+                connector_payout_id: response.id,
+                payout_eligible: None,
+            }),
+            ..item.data
+        })
+    }
+}
+
+// Payouts fulfill request transform
+#[cfg(feature = "payouts")]
+impl<F> TryFrom<&types::PayoutsRouterData<F>> for StripeConnectPayoutFulfillRequest {
+    type Error = Error;
+    fn try_from(item: &types::PayoutsRouterData<F>) -> Result<Self, Self::Error> {
+        let request = item.request.to_owned();
+        Ok(Self {
+            amount: request.amount,
+            currency: request.destination_currency,
+        })
+    }
+}
+
+// Payouts fulfill response transform
+#[cfg(feature = "payouts")]
+impl<F> TryFrom<types::PayoutsResponseRouterData<F, StripeConnectPayoutFulfillResponse>>
+    for types::PayoutsRouterData<F>
+{
+    type Error = Error;
+    fn try_from(
+        item: types::PayoutsResponseRouterData<F, StripeConnectPayoutFulfillResponse>,
+    ) -> Result<Self, Self::Error> {
+        let response: StripeConnectPayoutFulfillResponse = item.response;
+
+        Ok(Self {
+            response: Ok(types::PayoutsResponseData {
+                status: Some(enums::PayoutStatus::foreign_from(response.status)),
+                connector_payout_id: response.id,
+                payout_eligible: None,
+            }),
+            ..item.data
+        })
+    }
+}
+
+// Payouts reversal request transform
+#[cfg(feature = "payouts")]
+impl<F> TryFrom<&types::PayoutsRouterData<F>> for StripeConnectReversalRequest {
+    type Error = Error;
+    fn try_from(item: &types::PayoutsRouterData<F>) -> Result<Self, Self::Error> {
+        Ok(Self {
+            amount: item.request.amount,
+        })
+    }
+}
+
+// Payouts reversal response transform
+#[cfg(feature = "payouts")]
+impl<F> TryFrom<types::PayoutsResponseRouterData<F, StripeConnectReversalResponse>>
+    for types::PayoutsRouterData<F>
+{
+    type Error = Error;
+    fn try_from(
+        item: types::PayoutsResponseRouterData<F, StripeConnectReversalResponse>,
+    ) -> Result<Self, Self::Error> {
+        let response: StripeConnectReversalResponse = item.response;
+
+        Ok(Self {
+            response: Ok(types::PayoutsResponseData {
+                status: Some(enums::PayoutStatus::Cancelled),
+                connector_payout_id: response.id,
+                payout_eligible: None,
+            }),
+            ..item.data
+        })
+    }
+}
+
+// Recipient creation request transform
+// TODO: remove hardcoded data
+#[cfg(feature = "payouts")]
+impl<F> TryFrom<&types::PayoutsRouterData<F>> for StripeConnectRecipientCreateRequest {
+    type Error = Error;
+    fn try_from(item: &types::PayoutsRouterData<F>) -> Result<Self, Self::Error> {
+        let request = item.request.to_owned();
+        let customer_details = request
+            .customer_details
+            .get_required_value("customer_details")
+            .change_context(errors::ConnectorError::MissingRequiredField {
+                field_name: "customer_details",
+            })?;
+        let customer_email = customer_details
+            .email
+            .get_required_value("email")
+            .change_context(errors::ConnectorError::MissingRequiredField {
+                field_name: "email",
+            })?;
+        let address = item.get_billing_address()?;
+        let individual_first_name = address
+            .first_name
+            .clone()
+            .get_required_value("first_name")
+            .change_context(errors::ConnectorError::MissingRequiredField {
+                field_name: "address.first_name",
+            })?;
+        let individual_last_name = address
+            .last_name
+            .clone()
+            .get_required_value("last_name")
+            .change_context(errors::ConnectorError::MissingRequiredField {
+                field_name: "address.last_name",
+            })?;
+        let payout_vendor_details = request
+            .vendor_details
+            .get_required_value("vendor_details")
+            .change_context(errors::ConnectorError::MissingRequiredFields {
+                field_names: ["vendor_details", "individual_details"].to_vec(),
+            })?;
+        let (vendor_details, individual_details) = (
+            payout_vendor_details.vendor_details,
+            payout_vendor_details.individual_details,
+        );
+        Ok(Self {
+            account_type: vendor_details.account_type,
+            country: request.country_code,
+            email: customer_email.clone(),
+            capabilities_card_payments: vendor_details.capabilities_card_payments,
+            capabilities_transfers: vendor_details.capabilities_transfers,
+            tos_acceptance_date: individual_details.tos_acceptance_date,
+            tos_acceptance_ip: individual_details.tos_acceptance_ip,
+            business_type: vendor_details.business_type,
+            business_profile_mcc: vendor_details.business_profile_mcc,
+            business_profile_url: vendor_details.business_profile_url,
+            business_profile_name: vendor_details.business_profile_name,
+            company_address_line1: vendor_details.company_address_line1,
+            company_address_line2: vendor_details.company_address_line2,
+            company_address_postal_code: vendor_details.company_address_postal_code,
+            company_address_city: vendor_details.company_address_city,
+            company_address_state: vendor_details.company_address_state,
+            company_phone: vendor_details.company_phone,
+            company_tax_id: vendor_details.company_tax_id,
+            company_owners_provided: vendor_details.company_owners_provided,
+            individual_first_name,
+            individual_last_name,
+            individual_dob_day: individual_details.individual_dob_day,
+            individual_dob_month: individual_details.individual_dob_month,
+            individual_dob_year: individual_details.individual_dob_year,
+            individual_address_line1: address
+                .line1
+                .clone()
+                .get_required_value("line1")
+                .change_context(errors::ConnectorError::MissingRequiredField {
+                    field_name: "address.line1",
+                })?,
+            individual_address_line2: address
+                .line2
+                .clone()
+                .get_required_value("line2")
+                .change_context(errors::ConnectorError::MissingRequiredField {
+                    field_name: "address.line2",
+                })?,
+            individual_address_postal_code: address
+                .zip
+                .clone()
+                .get_required_value("zip")
+                .change_context(errors::ConnectorError::MissingRequiredField {
+                    field_name: "address.zip",
+                })?,
+            individual_address_city: address
+                .city
+                .clone()
+                .get_required_value("city")
+                .change_context(errors::ConnectorError::MissingRequiredField {
+                    field_name: "address.city",
+                })?,
+            individual_address_state: address
+                .state
+                .clone()
+                .get_required_value("state")
+                .change_context(errors::ConnectorError::MissingRequiredField {
+                    field_name: "address.state",
+                })?,
+            individual_email: customer_email,
+            individual_phone: customer_details
+                .phone
+                .get_required_value("phone")
+                .change_context(errors::ConnectorError::MissingRequiredField {
+                    field_name: "address.phone",
+                })?,
+            individual_id_number: individual_details.individual_id_number,
+            individual_ssn_last_4: individual_details.individual_ssn_last_4,
+        })
+    }
+}
+
+// Recipient creation response transform
+#[cfg(feature = "payouts")]
+impl<F> TryFrom<types::PayoutsResponseRouterData<F, StripeConnectRecipientCreateResponse>>
+    for types::PayoutsRouterData<F>
+{
+    type Error = Error;
+    fn try_from(
+        item: types::PayoutsResponseRouterData<F, StripeConnectRecipientCreateResponse>,
+    ) -> Result<Self, Self::Error> {
+        let response: StripeConnectRecipientCreateResponse = item.response;
+
+        Ok(Self {
+            response: Ok(types::PayoutsResponseData {
+                status: Some(enums::PayoutStatus::RequiresPayoutMethodData),
+                connector_payout_id: response.id,
+                payout_eligible: None,
+            }),
+            ..item.data
+        })
+    }
+}
+
+// Recipient account's creation request
+#[cfg(feature = "payouts")]
+impl<F> TryFrom<&types::PayoutsRouterData<F>> for StripeConnectRecipientAccountCreateRequest {
+    type Error = Error;
+    fn try_from(item: &types::PayoutsRouterData<F>) -> Result<Self, Self::Error> {
+        let request = item.request.to_owned();
+        let payout_method_data = item.get_payout_method_data()?;
+        let customer_details = request
+            .customer_details
+            .get_required_value("customer_details")
+            .change_context(errors::ConnectorError::MissingRequiredField {
+                field_name: "customer_details",
+            })?;
+        let customer_name = customer_details
+            .name
+            .get_required_value("name")
+            .change_context(errors::ConnectorError::MissingRequiredField {
+                field_name: "customer_details.name",
+            })?;
+        let payout_vendor_details = request
+            .vendor_details
+            .get_required_value("vendor_details")
+            .change_context(errors::ConnectorError::MissingRequiredField {
+                field_name: "vendor_details",
+            })?;
+        let (_vendor_details, individual_details) = (
+            payout_vendor_details.vendor_details,
+            payout_vendor_details.individual_details,
+        );
+        match payout_method_data {
+            api_models::payouts::PayoutMethodData::Card(_c) => {
+                Ok(Self::Token(RecipientTokenRequest {
+                    external_account: "tok_visa_debit".to_string(),
+                }))
+            }
+            api_models::payouts::PayoutMethodData::Bank(bank) => match bank {
+                api_models::payouts::Bank::Ach(bank_details) => {
+                    Ok(Self::Bank(RecipientBankAccountRequest {
+                        external_account_object: "bank_account".to_string(),
+                        external_account_country: request.country_code.to_owned(),
+                        external_account_currency: request.destination_currency.to_owned(),
+                        external_account_account_holder_name: customer_name,
+                        external_account_account_holder_type: individual_details
+                            .external_account_account_holder_type,
+                        external_account_account_number: bank_details.bank_account_number,
+                        external_account_routing_number: bank_details.bank_routing_number,
+                    }))
+                }
+                api_models::payouts::Bank::Bacs(_) => Err(errors::ConnectorError::NotSupported {
+                    message: "BACS payouts are not supported".to_string(),
+                    connector: "stripe",
+                }
+                .into()),
+                api_models::payouts::Bank::Sepa(_) => Err(errors::ConnectorError::NotSupported {
+                    message: "SEPA payouts are not supported".to_string(),
+                    connector: "stripe",
+                }
+                .into()),
+            },
+        }
+    }
+}
+
+// Recipient account's creation response
+#[cfg(feature = "payouts")]
+impl<F> TryFrom<types::PayoutsResponseRouterData<F, StripeConnectRecipientAccountCreateResponse>>
+    for types::PayoutsRouterData<F>
+{
+    type Error = Error;
+    fn try_from(
+        item: types::PayoutsResponseRouterData<F, StripeConnectRecipientAccountCreateResponse>,
+    ) -> Result<Self, Self::Error> {
+        let response: StripeConnectRecipientAccountCreateResponse = item.response;
+
+        match response {
+            StripeConnectRecipientAccountCreateResponse::Bank(bank_response) => Ok(Self {
+                response: Ok(types::PayoutsResponseData {
+                    status: Some(enums::PayoutStatus::RequiresCreation),
+                    connector_payout_id: bank_response.id,
+                    payout_eligible: None,
+                }),
+                ..item.data
+            }),
+            StripeConnectRecipientAccountCreateResponse::Card(card_response) => Ok(Self {
+                response: Ok(types::PayoutsResponseData {
+                    status: Some(enums::PayoutStatus::RequiresCreation),
+                    connector_payout_id: card_response.id,
+                    payout_eligible: None,
+                }),
+                ..item.data
+            }),
+        }
+    }
+}
+
+#[cfg(feature = "payouts")]
+impl ForeignFrom<StripeConnectStatus> for enums::PayoutStatus {
+    fn foreign_from(stripe_connect_status: StripeConnectStatus) -> Self {
+        match stripe_connect_status {
+            StripeConnectStatus::Succeeded => Self::Success,
+            StripeConnectStatus::Failed => Self::Failed,
+            StripeConnectStatus::Canceled => Self::Cancelled,
+            StripeConnectStatus::Pending
+            | StripeConnectStatus::Processing
+            | StripeConnectStatus::Consumed => Self::Pending,
         }
     }
 }

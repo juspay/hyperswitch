@@ -534,7 +534,6 @@ pub struct Connectors {
     pub square: ConnectorParams,
     pub stax: ConnectorParams,
     pub stripe: ConnectorParamsWithFileUploadUrl,
-    pub stripe_connect: ConnectorParams,
     pub trustpay: ConnectorParamsWithMoreUrls,
     pub tsys: ConnectorParams,
     pub wise: ConnectorParams,

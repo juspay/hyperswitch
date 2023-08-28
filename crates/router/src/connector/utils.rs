@@ -511,6 +511,20 @@ impl RefundsRequestData for types::RefundsData {
     }
 }
 
+#[cfg(feature = "payouts")]
+pub trait PayoutsCancelData {
+    fn get_transfer_id(&self) -> Result<String, Error>;
+}
+
+#[cfg(feature = "payouts")]
+impl PayoutsCancelData for types::PayoutsData {
+    fn get_transfer_id(&self) -> Result<String, Error> {
+        self.connector_payout_id
+            .clone()
+            .ok_or_else(missing_field_err("transfer_id"))
+    }
+}
+
 #[derive(Clone, Debug, serde::Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct GooglePayWalletData {

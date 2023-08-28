@@ -238,7 +238,7 @@ impl PayoutConnectorData {
         match enums::PayoutConnectors::from_str(connector_name) {
             Ok(name) => match name {
                 enums::PayoutConnectors::Adyen => Ok(Box::new(&connector::Adyen)),
-                enums::PayoutConnectors::StripeConnect => Ok(Box::new(&connector::StripeConnect)),
+                enums::PayoutConnectors::Stripe => Ok(Box::new(&connector::Stripe)),
                 enums::PayoutConnectors::Wise => Ok(Box::new(&connector::Wise)),
             },
             Err(_) => Err(report!(errors::ConnectorError::InvalidConnectorName)
@@ -323,7 +323,6 @@ impl ConnectorData {
                 enums::Connector::Square => Ok(Box::new(&connector::Square)),
                 enums::Connector::Stax => Ok(Box::new(&connector::Stax)),
                 enums::Connector::Stripe => Ok(Box::new(&connector::Stripe)),
-                enums::Connector::StripeConnect => Ok(Box::new(&connector::StripeConnect)),
                 enums::Connector::Wise => Ok(Box::new(&connector::Wise)),
                 enums::Connector::Worldline => Ok(Box::new(&connector::Worldline)),
                 enums::Connector::Worldpay => Ok(Box::new(&connector::Worldpay)),

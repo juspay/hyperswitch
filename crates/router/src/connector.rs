@@ -40,7 +40,6 @@ pub mod shift4;
 pub mod square;
 pub mod stax;
 pub mod stripe;
-pub mod stripe_connect;
 pub mod trustpay;
 pub mod tsys;
 pub mod utils;
@@ -60,6 +59,6 @@ pub use self::{
     multisafepay::Multisafepay, nexinets::Nexinets, nmi::Nmi, noon::Noon, nuvei::Nuvei,
     opayo::Opayo, opennode::Opennode, payeezy::Payeezy, payme::Payme, paypal::Paypal, payu::Payu,
     powertranz::Powertranz, rapyd::Rapyd, shift4::Shift4, square::Square, stax::Stax,
-    stripe::Stripe, stripe_connect::StripeConnect, trustpay::Trustpay, tsys::Tsys, wise::Wise,
-    worldline::Worldline, worldpay::Worldpay, zen::Zen,
+    stripe::Stripe, trustpay::Trustpay, tsys::Tsys, wise::Wise, worldline::Worldline,
+    worldpay::Worldpay, zen::Zen,
 };

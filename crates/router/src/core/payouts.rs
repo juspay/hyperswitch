@@ -585,7 +585,7 @@ pub async fn create_recipient(
         // 1. Form router data
         let mut router_data = core_utils::construct_payout_router_data(
             state,
-            &connector_name,
+            &connector_data.connector_name,
             merchant_account,
             key_store,
             &payouts::PayoutRequest::PayoutCreateRequest(req.to_owned()),
@@ -667,7 +667,7 @@ pub async fn check_payout_eligibility(
     // 1. Form Router data
     let router_data = core_utils::construct_payout_router_data(
         state,
-        &connector_data.connector_name.to_string(),
+        &connector_data.connector_name,
         merchant_account,
         key_store,
         &payouts::PayoutRequest::PayoutCreateRequest(req.to_owned()),
@@ -767,7 +767,7 @@ pub async fn create_payout(
     // 1. Form Router data
     let mut router_data = core_utils::construct_payout_router_data(
         state,
-        &connector_data.connector_name.to_string(),
+        &connector_data.connector_name,
         merchant_account,
         key_store,
         &payouts::PayoutRequest::PayoutCreateRequest(req.to_owned()),
@@ -873,7 +873,7 @@ pub async fn cancel_payout(
     // 1. Form Router data
     let router_data = core_utils::construct_payout_router_data(
         state,
-        &connector_data.connector_name.to_string(),
+        &connector_data.connector_name,
         merchant_account,
         key_store,
         req,
@@ -965,7 +965,7 @@ pub async fn fulfill_payout(
     // 1. Form Router data
     let router_data = core_utils::construct_payout_router_data(
         state,
-        &connector_data.connector_name.to_string(),
+        &connector_data.connector_name,
         merchant_account,
         key_store,
         req,

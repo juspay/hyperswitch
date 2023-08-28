@@ -142,7 +142,6 @@ impl<const T: u8>
 }
 
 default_imp_for_complete_authorize!(
-    connector::StripeConnect,
     connector::Aci,
     connector::Adyen,
     connector::Bitpay,
@@ -207,7 +206,6 @@ impl<const T: u8>
 }
 
 default_imp_for_create_customer!(
-    connector::StripeConnect,
     connector::Aci,
     connector::Adyen,
     connector::Airwallex,
@@ -283,7 +281,6 @@ impl<const T: u8> services::ConnectorRedirectResponse for connector::DummyConnec
 }
 
 default_imp_for_connector_redirect_response!(
-    connector::StripeConnect,
     connector::Aci,
     connector::Adyen,
     connector::Bitpay,
@@ -329,7 +326,6 @@ macro_rules! default_imp_for_connector_request_id {
 impl<const T: u8> api::ConnectorTransactionId for connector::DummyConnector<T> {}
 
 default_imp_for_connector_request_id!(
-    connector::StripeConnect,
     connector::Aci,
     connector::Adyen,
     connector::Airwallex,
@@ -408,7 +404,6 @@ impl<const T: u8>
 }
 
 default_imp_for_accept_dispute!(
-    connector::StripeConnect,
     connector::Aci,
     connector::Adyen,
     connector::Airwallex,
@@ -506,7 +501,6 @@ impl<const T: u8>
 }
 
 default_imp_for_file_upload!(
-    connector::StripeConnect,
     connector::Aci,
     connector::Adyen,
     connector::Airwallex,
@@ -581,7 +575,6 @@ impl<const T: u8>
 }
 
 default_imp_for_submit_evidence!(
-    connector::StripeConnect,
     connector::Aci,
     connector::Adyen,
     connector::Airwallex,
@@ -656,7 +649,6 @@ impl<const T: u8>
 }
 
 default_imp_for_defend_dispute!(
-    connector::StripeConnect,
     connector::Aci,
     connector::Adyen,
     connector::Airwallex,
@@ -732,7 +724,6 @@ impl<const T: u8>
 }
 
 default_imp_for_pre_processing_steps!(
-    connector::StripeConnect,
     connector::Aci,
     connector::Adyen,
     connector::Airwallex,
@@ -827,7 +818,6 @@ default_imp_for_payouts!(
     connector::Rapyd,
     connector::Square,
     connector::Stax,
-    connector::Stripe,
     connector::Shift4,
     connector::Trustpay,
     connector::Tsys,
@@ -902,7 +892,6 @@ default_imp_for_payouts_create!(
     connector::Rapyd,
     connector::Square,
     connector::Stax,
-    connector::Stripe,
     connector::Shift4,
     connector::Trustpay,
     connector::Tsys,
@@ -943,7 +932,6 @@ impl<const T: u8>
 
 #[cfg(feature = "payouts")]
 default_imp_for_payouts_eligibility!(
-    connector::StripeConnect,
     connector::Aci,
     connector::Airwallex,
     connector::Authorizedotnet,
@@ -1056,7 +1044,6 @@ default_imp_for_payouts_fulfill!(
     connector::Rapyd,
     connector::Square,
     connector::Stax,
-    connector::Stripe,
     connector::Shift4,
     connector::Trustpay,
     connector::Tsys,
@@ -1131,7 +1118,6 @@ default_imp_for_payouts_cancel!(
     connector::Rapyd,
     connector::Square,
     connector::Stax,
-    connector::Stripe,
     connector::Shift4,
     connector::Trustpay,
     connector::Tsys,
@@ -1208,7 +1194,6 @@ default_imp_for_payouts_quote!(
     connector::Square,
     connector::Stax,
     connector::Stripe,
-    connector::StripeConnect,
     connector::Shift4,
     connector::Trustpay,
     connector::Tsys,
@@ -1284,7 +1269,6 @@ default_imp_for_payouts_recipient!(
     connector::Rapyd,
     connector::Square,
     connector::Stax,
-    connector::Stripe,
     connector::Shift4,
     connector::Trustpay,
     connector::Tsys,
@@ -1513,7 +1497,6 @@ default_imp_for_payouts_recipient_account!(
     connector::Rapyd,
     connector::Square,
     connector::Stax,
-    connector::Stripe,
     connector::Shift4,
     connector::Trustpay,
     connector::Tsys,

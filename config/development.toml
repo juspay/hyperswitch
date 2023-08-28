@@ -104,7 +104,6 @@ cards = [
     "square",
     "stax",
     "stripe",
-    "stripe_connect",
     "trustpay",
     "tsys",
     "wise",
@@ -174,7 +173,6 @@ square.base_url = "https://connect.squareupsandbox.com/"
 square.secondary_base_url = "https://pci-connect.squareupsandbox.com/"
 stax.base_url = "https://apiprod.fattlabs.com/"
 stripe.base_url = "https://api.stripe.com/"
-stripe_connect.base_url = "https://api.stripe.com/"
 stripe.base_url_file_upload = "https://files.stripe.com/"
 wise.base_url = "https://api.sandbox.transferwise.tech/"
 worldline.base_url = "https://eu.sandbox.api-ingenico.com/"
@@ -381,7 +379,7 @@ stripe = {payment_method = "card,bank_redirect,pay_later,wallet,bank_debit"}
 
 [connector_customer]
 connector_list = "bluesnap,stax,stripe"
-payout_connector_list = "stripe_connect,wise"
+payout_connector_list = "stripe,wise"
 
 [dummy_connector]
 enabled = true

@@ -271,7 +271,7 @@ pub struct RouterData<Flow, Request, Response> {
     pub payout_method_data: Option<api::PayoutMethodData>,
 
     #[cfg(feature = "payouts")]
-    /// Contains payout method data
+    /// Contains payout's quote ID
     pub quote_id: Option<String>,
 
     pub test_mode: Option<bool>,
@@ -321,6 +321,7 @@ pub struct PayoutsData {
     pub entity_type: storage_enums::PayoutEntityType,
     pub country_code: storage_enums::CountryAlpha2,
     pub customer_details: Option<CustomerDetails>,
+    pub vendor_details: Option<api_models::payouts::PayoutVendorAccountDetails>,
 }
 
 #[cfg(feature = "payouts")]

@@ -119,7 +119,6 @@ square.secondary_base_url = "https://pci-connect.squareupsandbox.com/"
 stax.base_url = "https://apiprod.fattlabs.com/"
 stripe.base_url = "https://api.stripe.com/"
 stripe.base_url_file_upload = "https://files.stripe.com/"
-stripe_connect.base_url = "https://api.stripe.com/"
 wise.base_url = "https://api.sandbox.transferwise.tech/"
 worldline.base_url = "https://eu.sandbox.api-ingenico.com/"
 worldpay.base_url = "https://try.access.worldpay.com/"
@@ -175,7 +174,6 @@ cards = [
     "square",
     "stax",
     "stripe",
-    "stripe_connect",
     "trustpay",
     "tsys",
     "wise",
@@ -295,7 +293,7 @@ card.debit = {connector_list = "stripe,adyen,authorizedotnet,globalpay,worldpay,
 
 [connector_customer]
 connector_list = "stax"
-payout_connector_list = "stripe_connect,wise"
+payout_connector_list = "stripe,wise"
 
 [multiple_api_version_supported_connectors]
 supported_connectors = "braintree"

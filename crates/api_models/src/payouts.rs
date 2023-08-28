@@ -4,6 +4,7 @@ use common_utils::{
     pii::{self, Email},
 };
 use masking::Secret;
+use router_derive::DebugAsDisplay;
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
@@ -412,4 +413,41 @@ pub struct PayoutActionRequest {
         example = "payout_mbabizu24mvu3mela5njyhpit4"
     )]
     pub payout_id: String,
+}
+
+#[derive(Default, DebugAsDisplay, Debug, ToSchema, Clone, Deserialize)]
+pub struct PayoutVendorAccountDetails {
+    pub vendor_details: PayoutVendorDetails,
+    pub individual_details: PayoutIndividualDetails,
+}
+
+#[derive(Default, DebugAsDisplay, Debug, Serialize, ToSchema, Clone, Deserialize)]
+pub struct PayoutVendorDetails {
+    pub account_type: String,
+    pub business_type: String,
+    pub business_profile_mcc: i32,
+    pub business_profile_url: String,
+    pub business_profile_name: Secret<String>,
+    pub company_address_line1: Secret<String>,
+    pub company_address_line2: Secret<String>,
+    pub company_address_postal_code: Secret<String>,
+    pub company_address_city: Secret<String>,
+    pub company_address_state: Secret<String>,
+    pub company_phone: Secret<String>,
+    pub company_tax_id: Secret<String>,
+    pub company_owners_provided: bool,
+    pub capabilities_card_payments: bool,
+    pub capabilities_transfers: bool,
+}
+
+#[derive(Default, DebugAsDisplay, Debug, Serialize, ToSchema, Clone, Deserialize)]
+pub struct PayoutIndividualDetails {
+    pub tos_acceptance_date: i64,
+    pub tos_acceptance_ip: Secret<String>,
+    pub individual_dob_day: Secret<String>,
+    pub individual_dob_month: Secret<String>,
+    pub individual_dob_year: Secret<String>,
+    pub individual_id_number: Secret<String>,
+    pub individual_ssn_last_4: Secret<String>,
+    pub external_account_account_holder_type: String,
 }

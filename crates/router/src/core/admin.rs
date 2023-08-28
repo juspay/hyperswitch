@@ -1357,10 +1357,6 @@ pub(crate) fn validate_auth_type(
             stripe::transformers::StripeAuthType::try_from(val)?;
             Ok(())
         }
-        api_enums::Connector::StripeConnect => {
-            stripe_connect::transformers::StripeConnectAuthType::try_from(val)?;
-            Ok(())
-        }
         api_enums::Connector::Trustpay => {
             trustpay::transformers::TrustpayAuthType::try_from(val)?;
             Ok(())
