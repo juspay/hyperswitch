@@ -167,9 +167,10 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PaypalPaymentsRequest {
     fn try_from(item: &types::PaymentsAuthorizeRouterData) -> Result<Self, Self::Error> {
         match item.request.payment_method_data {
             api_models::payments::PaymentMethodData::Card(ref ccard) => {
-                let intent = match item.request.is_auto_capture()? {
-                    true => PaypalPaymentIntent::Capture,
-                    false => PaypalPaymentIntent::Authorize,
+                let intent = if item.request.is_auto_capture()? {
+                    PaypalPaymentIntent::Capture
+                } else {
+                    PaypalPaymentIntent::Authorize
                 };
                 let amount = OrderAmount {
                     currency_code: item.request.currency,
@@ -203,11 +204,12 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PaypalPaymentsRequest {
             }
             api::PaymentMethodData::Wallet(ref wallet_data) => match wallet_data {
                 api_models::payments::WalletData::PaypalRedirect(_) => {
-                    let intent = match item.request.is_auto_capture()? {
-                        true => PaypalPaymentIntent::Capture,
-                        false => Err(errors::ConnectorError::NotImplemented(
+                    let intent = if item.request.is_auto_capture()? {
+                        PaypalPaymentIntent::Capture
+                    } else {
+                        Err(errors::ConnectorError::NotImplemented(
                             "Manual capture method for Paypal wallet".to_string(),
-                        ))?,
+                        ))?
                     };
                     let amount = OrderAmount {
                         currency_code: item.request.currency,
@@ -240,12 +242,13 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PaypalPaymentsRequest {
                 ))?,
             },
             api::PaymentMethodData::BankRedirect(ref bank_redirection_data) => {
-                let intent = match item.request.is_auto_capture()? {
-                    true => PaypalPaymentIntent::Capture,
-                    false => Err(errors::ConnectorError::FlowNotSupported {
+                let intent = if item.request.is_auto_capture()? {
+                    PaypalPaymentIntent::Capture
+                } else {
+                    Err(errors::ConnectorError::FlowNotSupported {
                         flow: "Manual capture method for Bank Redirect".to_string(),
                         connector: "Paypal".to_string(),
-                    })?,
+                    })?
                 };
                 let amount = OrderAmount {
                     currency_code: item.request.currency,
@@ -951,15 +954,15 @@ impl From<PaypalWebhookEventType> for api::IncomingWebhookEvent {
     fn from(event: PaypalWebhookEventType) -> Self {
         match event {
             PaypalWebhookEventType::PaymentCaptureCompleted
-            | PaypalWebhookEventType::PaymentAuthorizationCreated
-            | PaypalWebhookEventType::PaymentAuthorizationVoided
             | PaypalWebhookEventType::CheckoutOrderCompleted => Self::PaymentIntentSuccess,
             PaypalWebhookEventType::PaymentCapturePending
             | PaypalWebhookEventType::CheckoutOrderApproved
             | PaypalWebhookEventType::CheckoutOrderProcessed => Self::PaymentIntentProcessing,
             PaypalWebhookEventType::PaymentCaptureDeclined => Self::PaymentIntentFailure,
             PaypalWebhookEventType::PaymentCaptureRefunded => Self::RefundSuccess,
-            PaypalWebhookEventType::Unknown => Self::EventNotSupported,
+            PaypalWebhookEventType::Unknown
+            | PaypalWebhookEventType::PaymentAuthorizationCreated
+            | PaypalWebhookEventType::PaymentAuthorizationVoided => Self::EventNotSupported,
         }
     }
 }
