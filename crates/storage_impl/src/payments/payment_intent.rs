@@ -39,9 +39,6 @@ use crate::{
     DataModelExt, DatabaseStore, KVRouterStore,
 };
 
-#[cfg(feature = "olap")]
-const QUERY_LIMIT: u32 = 20;
-
 #[async_trait::async_trait]
 impl<T: DatabaseStore> PaymentIntentInterface for KVRouterStore<T> {
     async fn insert_payment_intent(
@@ -89,6 +86,7 @@ impl<T: DatabaseStore> PaymentIntentInterface for KVRouterStore<T> {
                     connector_metadata: new.connector_metadata.clone(),
                     feature_metadata: new.feature_metadata.clone(),
                     attempt_count: new.attempt_count,
+                    profile_id: new.profile_id.clone(),
                 };
 
                 match self
@@ -338,7 +336,7 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
                 query = query.filter(pi_dsl::payment_id.eq(payment_intent_id.to_owned()));
             }
             PaymentIntentFetchConstraints::List {
-                offset: _,
+                offset,
                 starting_at,
                 ending_at,
                 connector: _,
@@ -350,7 +348,9 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
                 ending_before_id,
                 limit,
             } => {
-                query = query.limit(limit.unwrap_or(QUERY_LIMIT).into());
+                if let Some(limit) = limit {
+                    query = query.limit((*limit).into());
+                };
 
                 if let Some(customer_id) = customer_id {
                     query = query.filter(pi_dsl::customer_id.eq(customer_id.clone()));
@@ -389,6 +389,8 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
                     }
                     (None, None) => query,
                 };
+                query = query.offset((*offset).into());
+
                 query = match currency {
                     Some(currency) => query.filter(pi_dsl::currency.eq_any(currency.clone())),
                     None => query,
@@ -469,7 +471,9 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
                 ending_before_id,
                 limit,
             } => {
-                query = query.limit(limit.unwrap_or(QUERY_LIMIT).into());
+                if let Some(limit) = limit {
+                    query = query.limit((*limit).into());
+                }
 
                 if let Some(customer_id) = customer_id {
                     query = query.filter(pi_dsl::customer_id.eq(customer_id.clone()));
@@ -509,10 +513,7 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
                     (None, None) => query,
                 };
 
-                query = match offset {
-                    Some(offset) => query.offset((*offset).into()),
-                    None => query,
-                };
+                query = query.offset((*offset).into());
 
                 query = match currency {
                     Some(currency) => query.filter(pi_dsl::currency.eq_any(currency.clone())),
@@ -603,6 +604,7 @@ impl DataModelExt for PaymentIntentNew {
             connector_metadata: self.connector_metadata,
             feature_metadata: self.feature_metadata,
             attempt_count: self.attempt_count,
+            profile_id: self.profile_id,
         }
     }
 
@@ -637,6 +639,7 @@ impl DataModelExt for PaymentIntentNew {
             connector_metadata: storage_model.connector_metadata,
             feature_metadata: storage_model.feature_metadata,
             attempt_count: storage_model.attempt_count,
+            profile_id: storage_model.profile_id,
         }
     }
 }
@@ -676,6 +679,7 @@ impl DataModelExt for PaymentIntent {
             connector_metadata: self.connector_metadata,
             feature_metadata: self.feature_metadata,
             attempt_count: self.attempt_count,
+            profile_id: self.profile_id,
         }
     }
 
@@ -711,6 +715,7 @@ impl DataModelExt for PaymentIntent {
             connector_metadata: storage_model.connector_metadata,
             feature_metadata: storage_model.feature_metadata,
             attempt_count: storage_model.attempt_count,
+            profile_id: storage_model.profile_id,
         }
     }
 }
