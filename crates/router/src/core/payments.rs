@@ -1212,8 +1212,8 @@ pub fn should_call_connector<Op: Debug, F: Clone>(
     operation: &Op,
     payment_data: &PaymentData<F>,
     merchant_account: &domain::MerchantAccount,
-) -> bool {
-    match format!("{operation:?}").as_str() {
+) -> RouterResult<bool> {
+    let should_call = match format!("{operation:?}").as_str() {
         "PaymentConfirm" => true,
         "PaymentStart" => {
             !matches!(
@@ -1226,11 +1226,13 @@ pub fn should_call_connector<Op: Debug, F: Clone>(
         }
         "PaymentStatus" => {
             payment_data.force_sync.unwrap_or(false)
-                && helpers::check_force_psync_precondition(
+            // connector specific check for psync
+                && (helpers::check_force_psync_precondition(
                     &payment_data.payment_attempt,
                     merchant_account,
-                )
-                .unwrap_or(false)
+                )?
+            // if encoded data is present for connector
+            || payment_data.connector_response.encoded_data.is_some())
         }
         "PaymentCancel" => matches!(
             payment_data.payment_intent.status,
@@ -1246,7 +1248,8 @@ pub fn should_call_connector<Op: Debug, F: Clone>(
         "CompleteAuthorize" => true,
         "PaymentSession" => true,
         _ => false,
-    }
+    };
+    Ok(should_call)
 }
 
 pub fn is_operation_confirm<Op: Debug>(operation: &Op) -> bool {
@@ -1484,7 +1487,7 @@ where
         )
         .await?;
 
-    let connector = if should_call_connector(operation, payment_data, merchant_account) {
+    let connector = if should_call_connector(operation, payment_data, merchant_account)? {
         Some(match connector_choice {
             api::ConnectorChoice::SessionMultiple(session_connectors) => {
                 api::ConnectorCallType::Multiple(session_connectors)

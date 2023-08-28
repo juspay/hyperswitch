@@ -1639,7 +1639,7 @@ pub fn validate_payment_method_type_against_payment_method(
 pub fn check_force_psync_precondition(
     data: &PaymentAttempt,
     merchant_account: &domain::MerchantAccount,
-) -> CustomResult<bool, errors::ApiErrorResponse> {
+) -> RouterResult<bool> {
     let connector_name = data
         .connector
         .clone()

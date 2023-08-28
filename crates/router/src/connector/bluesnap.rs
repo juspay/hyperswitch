@@ -160,21 +160,25 @@ impl ConnectorValidation for Bluesnap {
         connector_transaction_id: Option<String>,
         connector_metadata: Option<SecretSerdeValue>,
     ) -> bool {
-        let txn_id_present = connector_transaction_id.is_some();
+        // if connector_transaction_id is present, we can make the psync call
+        let is_connector_transaction_id_present = connector_transaction_id.is_some();
 
-        let merchant_id_present = match connector_metadata.expose_option() {
+        // if merchant_id is provided, we can make psync call even without connector_transaction_id
+        let is_merchant_id_present = match connector_metadata.expose_option() {
             Some(value) => {
-                let meta_data: Result<bluesnap::BluesnapMetaData, Report<errors::ConnectorError>> =
-                    serde_json::from_value(value)
-                        .into_report()
-                        .change_context(errors::ConnectorError::ResponseDeserializationFailed);
+                let meta_data: Result<
+                    bluesnap::BluesnapConnectorMetaData,
+                    Report<errors::ConnectorError>,
+                > = serde_json::from_value(value)
+                    .into_report()
+                    .change_context(errors::ConnectorError::ResponseDeserializationFailed);
 
                 meta_data.is_ok()
             }
             None => false,
         };
 
-        txn_id_present || merchant_id_present
+        is_connector_transaction_id_present || is_merchant_id_present
     }
 }
 
@@ -405,10 +409,12 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
     ) -> CustomResult<String, errors::ConnectorError> {
         match req.connector_meta_data.clone().expose_option() {
             Some(value) => {
-                let meta_data: Result<bluesnap::BluesnapMetaData, Report<errors::ConnectorError>> =
-                    serde_json::from_value(value)
-                        .into_report()
-                        .change_context(errors::ConnectorError::ResponseDeserializationFailed);
+                let meta_data: Result<
+                    bluesnap::BluesnapConnectorMetaData,
+                    Report<errors::ConnectorError>,
+                > = serde_json::from_value(value)
+                    .into_report()
+                    .change_context(errors::ConnectorError::ResponseDeserializationFailed);
 
                 match meta_data {
                     Ok(data) => get_url_with_merchant_transaction_id(
@@ -416,15 +422,16 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
                         data.merchant_id,
                         req.attempt_id.to_owned(),
                     ),
-                    Err(_) => get_url_with_connector_transaction_id(
-                        req,
+                    Err(_) => get_psync_url_with_connector_transaction_id(
+                        &req.request.connector_transaction_id.clone(),
                         self.base_url(connectors).to_string(),
                     ),
                 }
             }
-            None => {
-                get_url_with_connector_transaction_id(req, self.base_url(connectors).to_string())
-            }
+            None => get_psync_url_with_connector_transaction_id(
+                &req.request.connector_transaction_id.clone(),
+                self.base_url(connectors).to_string(),
+            ),
         }
     }
 
@@ -957,10 +964,12 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
     ) -> CustomResult<String, errors::ConnectorError> {
         match req.connector_meta_data.clone().expose_option() {
             Some(value) => {
-                let meta_data: Result<bluesnap::BluesnapMetaData, Report<errors::ConnectorError>> =
-                    serde_json::from_value(value)
-                        .into_report()
-                        .change_context(errors::ConnectorError::ResponseDeserializationFailed);
+                let meta_data: Result<
+                    bluesnap::BluesnapConnectorMetaData,
+                    Report<errors::ConnectorError>,
+                > = serde_json::from_value(value)
+                    .into_report()
+                    .change_context(errors::ConnectorError::ResponseDeserializationFailed);
 
                 match meta_data {
                     Ok(data) => get_url_with_merchant_transaction_id(
@@ -968,15 +977,16 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
                         data.merchant_id,
                         req.attempt_id.to_owned(),
                     ),
-                    Err(_) => get_rsync_url_with_conn_transaction_id(
+                    Err(_) => get_rsync_url_with_connector_transaction_id(
                         req,
                         self.base_url(connectors).to_string(),
                     ),
                 }
             }
-            None => {
-                get_rsync_url_with_conn_transaction_id(req, self.base_url(connectors).to_string())
-            }
+            None => get_rsync_url_with_connector_transaction_id(
+                req,
+                self.base_url(connectors).to_string(),
+            ),
         }
     }
 
@@ -1306,13 +1316,11 @@ fn get_url_with_merchant_transaction_id(
     ))
 }
 
-fn get_url_with_connector_transaction_id(
-    req: &types::PaymentsSyncRouterData,
+fn get_psync_url_with_connector_transaction_id(
+    connector_transaction_id: &types::ResponseId,
     base_url: String,
 ) -> CustomResult<String, errors::ConnectorError> {
-    let connector_transaction_id = req
-        .request
-        .connector_transaction_id
+    let connector_transaction_id = connector_transaction_id
         .get_connector_transaction_id()
         .change_context(errors::ConnectorError::MissingConnectorTransactionID)?;
     Ok(format!(
@@ -1321,7 +1329,7 @@ fn get_url_with_connector_transaction_id(
     ))
 }
 
-fn get_rsync_url_with_conn_transaction_id(
+fn get_rsync_url_with_connector_transaction_id(
     req: &types::RefundSyncRouterData,
     base_url: String,
 ) -> CustomResult<String, errors::ConnectorError> {
