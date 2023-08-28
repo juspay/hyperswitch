@@ -31,7 +31,7 @@ pub async fn refund_create(
 
     let flow = Flow::RefundsCreate;
 
-    wrap::compatibility_api_wrap::<
+    Box::pin(wrap::compatibility_api_wrap::<
         _,
         _,
         _,
@@ -49,7 +49,7 @@ pub async fn refund_create(
             refunds::refund_create_core(state, auth.merchant_account, auth.key_store, req)
         },
         &auth::ApiKeyAuth,
-    )
+    ))
     .await
 }
 
@@ -70,7 +70,7 @@ pub async fn refund_retrieve_with_gateway_creds(
 
     let flow = Flow::RefundsRetrieve;
 
-    wrap::compatibility_api_wrap::<
+    Box::pin(wrap::compatibility_api_wrap::<
         _,
         _,
         _,
@@ -94,7 +94,7 @@ pub async fn refund_retrieve_with_gateway_creds(
             )
         },
         &auth::ApiKeyAuth,
-    )
+    ))
     .await
 }
 
@@ -112,7 +112,7 @@ pub async fn refund_retrieve(
 
     let flow = Flow::RefundsRetrieve;
 
-    wrap::compatibility_api_wrap::<
+    Box::pin(wrap::compatibility_api_wrap::<
         _,
         _,
         _,
@@ -136,7 +136,7 @@ pub async fn refund_retrieve(
             )
         },
         &auth::ApiKeyAuth,
-    )
+    ))
     .await
 }
 
@@ -152,7 +152,7 @@ pub async fn refund_update(
     let create_refund_update_req: refund_types::RefundUpdateRequest = payload.into();
     let flow = Flow::RefundsUpdate;
 
-    wrap::compatibility_api_wrap::<
+    Box::pin(wrap::compatibility_api_wrap::<
         _,
         _,
         _,
@@ -170,6 +170,6 @@ pub async fn refund_update(
             refunds::refund_update_core(&*state.store, auth.merchant_account, &refund_id, req)
         },
         &auth::ApiKeyAuth,
-    )
+    ))
     .await
 }
