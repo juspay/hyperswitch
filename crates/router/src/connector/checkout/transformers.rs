@@ -6,7 +6,7 @@ use time::PrimitiveDateTime;
 use url::Url;
 
 use crate::{
-    connector::utils::{self, RouterData, WalletData},
+    connector::utils::{self, PaymentsCaptureRequestData, RouterData, WalletData},
     consts,
     core::errors,
     services,
@@ -573,6 +573,7 @@ pub struct PaymentCaptureRequest {
     pub amount: Option<i64>,
     pub capture_type: Option<CaptureType>,
     pub processing_channel_id: Secret<String>,
+    pub reference: Option<String>,
 }
 
 impl TryFrom<&types::PaymentsCaptureRouterData> for PaymentCaptureRequest {
@@ -581,10 +582,21 @@ impl TryFrom<&types::PaymentsCaptureRouterData> for PaymentCaptureRequest {
         let connector_auth = &item.connector_auth_type;
         let auth_type: CheckoutAuthType = connector_auth.try_into()?;
         let processing_channel_id = auth_type.processing_channel_id;
+        let capture_type = if item.request.is_multiple_capture() {
+            CaptureType::NonFinal
+        } else {
+            CaptureType::Final
+        };
+        let reference = item
+            .request
+            .multiple_capture_data
+            .as_ref()
+            .map(|multiple_capture_data| multiple_capture_data.capture_reference.clone());
         Ok(Self {
             amount: Some(item.request.amount_to_capture),
-            capture_type: Some(CaptureType::Final),
+            capture_type: Some(capture_type),
             processing_channel_id,
+            reference, // hyperswitch's reference for this capture
         })
     }
 }
@@ -592,6 +604,7 @@ impl TryFrom<&types::PaymentsCaptureRouterData> for PaymentCaptureRequest {
 #[derive(Debug, Deserialize)]
 pub struct PaymentCaptureResponse {
     pub action_id: String,
+    pub reference: Option<String>,
 }
 
 impl TryFrom<types::PaymentsCaptureResponseRouterData<PaymentCaptureResponse>>
@@ -609,16 +622,23 @@ impl TryFrom<types::PaymentsCaptureResponseRouterData<PaymentCaptureResponse>>
         } else {
             (enums::AttemptStatus::Pending, None)
         };
+
+        // if multiple capture request, return capture action_id so that it will be updated in the captures table.
+        // else return previous connector_transaction_id.
+        let resource_id = if item.data.request.is_multiple_capture() {
+            item.response.action_id
+        } else {
+            item.data.request.connector_transaction_id.to_owned()
+        };
+
         Ok(Self {
             response: Ok(types::PaymentsResponseData::TransactionResponse {
-                resource_id: types::ResponseId::ConnectorTransactionId(
-                    item.data.request.connector_transaction_id.to_owned(),
-                ),
+                resource_id: types::ResponseId::ConnectorTransactionId(resource_id),
                 redirection_data: None,
                 mandate_reference: None,
                 connector_metadata: None,
                 network_txn_id: None,
-                connector_response_reference_id: None,
+                connector_response_reference_id: item.response.reference,
             }),
             status,
             amount_captured,

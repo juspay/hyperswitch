@@ -166,6 +166,7 @@ pub async fn create_merchant_account(
             organization_id: req.organization_id,
             is_recon_enabled: false,
             default_profile: None,
+            recon_status: diesel_models::enums::ReconStatus::NotRequested,
         })
     }
     .await
