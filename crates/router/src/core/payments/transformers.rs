@@ -114,7 +114,7 @@ where
     let connector_api_version = if supported_connector.contains(&connector_enum) {
         state
             .store
-            .find_config_by_key_cached(&format!("connector_api_version_{connector_id}"))
+            .find_config_by_key(&format!("connector_api_version_{connector_id}"))
             .await
             .map(|value| value.config)
             .ok()
