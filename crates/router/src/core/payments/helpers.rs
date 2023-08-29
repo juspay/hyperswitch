@@ -2349,7 +2349,7 @@ pub async fn insert_merchant_connector_creds_to_config(
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub enum MerchantConnectorAccountType {
     DbVal(domain::MerchantConnectorAccount),
     CacheVal(api_models::admin::MerchantConnectorDetails),
@@ -2362,6 +2362,7 @@ impl MerchantConnectorAccountType {
             Self::CacheVal(val) => val.metadata.to_owned(),
         }
     }
+
     pub fn get_connector_account_details(&self) -> serde_json::Value {
         match self {
             Self::DbVal(val) => val.connector_account_details.peek().to_owned(),
@@ -3035,10 +3036,13 @@ impl ApplePayData {
             .await
             .change_context(errors::ApplePayDecryptionError::DecryptionFailed)?;
 
-        let cert_data_bytes = &cert_data.into_bytes();
+        let base64_decode_cert_data = BASE64_ENGINE
+            .decode(cert_data)
+            .into_report()
+            .change_context(errors::ApplePayDecryptionError::Base64DecodingFailed)?;
 
         // Parsing the certificate using x509-parser
-        let (_, certificate) = parse_x509_certificate(cert_data_bytes)
+        let (_, certificate) = parse_x509_certificate(&base64_decode_cert_data)
             .into_report()
             .change_context(errors::ApplePayDecryptionError::CertificateParsingFailed)
             .attach_printable("Error parsing apple pay PPC")?;

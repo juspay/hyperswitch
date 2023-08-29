@@ -31,8 +31,9 @@ pub async fn construct_payment_router_data<'a, F, T>(
     payment_data: PaymentData<F>,
     connector_id: &str,
     merchant_account: &domain::MerchantAccount,
-    key_store: &domain::MerchantKeyStore,
+    _key_store: &domain::MerchantKeyStore,
     customer: &Option<domain::Customer>,
+    merchant_connector_account: &helpers::MerchantConnectorAccountType,
 ) -> RouterResult<types::RouterData<F, T, types::PaymentsResponseData>>
 where
     T: TryFrom<PaymentAdditionalData<'a, F>>,
@@ -41,22 +42,7 @@ where
     error_stack::Report<errors::ApiErrorResponse>:
         From<<T as TryFrom<PaymentAdditionalData<'a, F>>>::Error>,
 {
-    let (merchant_connector_account, payment_method, router_data);
-    let connector_label = helpers::get_connector_label(
-        payment_data.payment_intent.business_country,
-        &payment_data.payment_intent.business_label,
-        payment_data.payment_attempt.business_sub_label.as_ref(),
-        connector_id,
-    );
-
-    merchant_connector_account = helpers::get_merchant_connector_account(
-        state,
-        merchant_account.merchant_id.as_str(),
-        &connector_label,
-        payment_data.creds_identifier.to_owned(),
-        key_store,
-    )
-    .await?;
+    let (payment_method, router_data);
 
     fp_utils::when(merchant_connector_account.is_disabled(), || {
         Err(errors::ApiErrorResponse::MerchantConnectorAccountDisabled)

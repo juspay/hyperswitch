@@ -637,6 +637,8 @@ pub struct ApplePayPredecryptConfig {
 pub struct ApplePayDecryptConifg {
     pub apple_pay_ppc: String,
     pub apple_pay_ppc_key: String,
+    pub apple_pay_merchant_cert: String,
+    pub apple_pay_merchant_cert_key: String,
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]

@@ -5,9 +5,10 @@ use error_stack::{IntoReport, Report, ResultExt};
 
 use super::{ConstructFlowSpecificData, Feature};
 use crate::{
+    consts,
     core::{
         errors::{self, ConnectorErrorExt, RouterResult},
-        payments::{self, access_token, transformers, PaymentData},
+        payments::{self, access_token, helpers, transformers, PaymentData},
     },
     headers, logger,
     routes::{self, metrics},
@@ -28,6 +29,7 @@ impl
         merchant_account: &domain::MerchantAccount,
         key_store: &domain::MerchantKeyStore,
         customer: &Option<domain::Customer>,
+        merchant_connector_account: &helpers::MerchantConnectorAccountType,
     ) -> RouterResult<types::PaymentsSessionRouterData> {
         transformers::construct_payment_router_data::<api::Session, types::PaymentsSessionData>(
             state,
@@ -36,6 +38,7 @@ impl
             merchant_account,
             key_store,
             customer,
+            merchant_connector_account,
         )
         .await
     }
@@ -162,8 +165,16 @@ async fn create_applepay_session_token(
                     (
                         payment_request_data,
                         apple_pay_session_request,
-                        "".to_string(),
-                        "".to_string(),
+                        state
+                            .conf
+                            .applepay_decrypt_keys
+                            .apple_pay_merchant_cert
+                            .to_owned(),
+                        state
+                            .conf
+                            .applepay_decrypt_keys
+                            .apple_pay_merchant_cert_key
+                            .to_owned(),
                     )
                 }
                 payment_types::ApplePayCombinedMetadata::Manual {
@@ -257,7 +268,7 @@ fn get_session_request_for_simplified_apple_pay(
     session_token_data: payment_types::SessionTokenForSimplifiedApplePay,
 ) -> RouterResult<payment_types::ApplepaySessionRequest> {
     let request = payment_types::ApplepaySessionRequest {
-        merchant_identifier: "".to_string(),
+        merchant_identifier: consts::APPLE_PAY_MERCHANT_ID.to_owned(),
         display_name: "Apple pay".to_string(),
         initiative: "web".to_string(),
         initiative_context: session_token_data.initiative_context,

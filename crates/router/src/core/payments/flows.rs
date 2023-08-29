@@ -12,7 +12,7 @@ use crate::{
     connector,
     core::{
         errors::{ConnectorError, CustomResult, RouterResult},
-        payments,
+        payments::{self, helpers},
     },
     routes::AppState,
     services,
@@ -28,6 +28,7 @@ pub trait ConstructFlowSpecificData<F, Req, Res> {
         merchant_account: &domain::MerchantAccount,
         key_store: &domain::MerchantKeyStore,
         customer: &Option<domain::Customer>,
+        merchant_connector_account: &helpers::MerchantConnectorAccountType,
     ) -> RouterResult<types::RouterData<F, Req, Res>>;
 }
 
