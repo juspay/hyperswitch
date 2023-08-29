@@ -1340,6 +1340,7 @@ where
     T: MultipleCaptureSyncResponse,
 {
     let mut hashmap = HashMap::new();
+    // initiatize the hashmap
     connector_capture_ids
         .into_iter()
         .for_each(|connector_capture_id| {
@@ -1352,6 +1353,7 @@ where
                 },
             );
         });
+    // update hashmap with actual connector response
     capture_sync_response_list
         .into_iter()
         .for_each(|capture_sync_response| {
