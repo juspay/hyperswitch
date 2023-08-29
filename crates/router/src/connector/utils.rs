@@ -242,6 +242,16 @@ impl PaymentsPreProcessingData for types::PaymentsPreProcessingData {
     }
 }
 
+pub trait PaymentsCaptureRequestData {
+    fn is_multiple_capture(&self) -> bool;
+}
+
+impl PaymentsCaptureRequestData for types::PaymentsCaptureData {
+    fn is_multiple_capture(&self) -> bool {
+        self.multiple_capture_data.is_some()
+    }
+}
+
 pub trait PaymentsAuthorizeRequestData {
     fn is_auto_capture(&self) -> Result<bool, Error>;
     fn get_email(&self) -> Result<Email, Error>;

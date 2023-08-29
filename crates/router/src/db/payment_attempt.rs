@@ -1,3 +1,5 @@
+use api_models::enums::{Connector, PaymentMethod};
+
 use super::MockDb;
 use crate::{
     core::errors::{self, CustomResult},
@@ -76,10 +78,20 @@ pub trait PaymentAttemptInterface {
         merchant_id: &str,
         storage_scheme: enums::MerchantStorageScheme,
     ) -> CustomResult<diesel_models::payment_attempt::PaymentListFilters, errors::StorageError>;
+
+    async fn get_total_count_of_filtered_payment_attempts(
+        &self,
+        merchant_id: &str,
+        active_attempt_ids: &[String],
+        connector: Option<Vec<Connector>>,
+        payment_methods: Option<Vec<PaymentMethod>>,
+        storage_scheme: enums::MerchantStorageScheme,
+    ) -> CustomResult<i64, errors::StorageError>;
 }
 
 #[cfg(not(feature = "kv_store"))]
 mod storage {
+    use api_models::enums::{Connector, PaymentMethod};
     use error_stack::IntoReport;
     use storage_impl::DataModelExt;
 
@@ -211,6 +223,37 @@ mod storage {
                 .into_report()
         }
 
+        async fn get_total_count_of_filtered_payment_attempts(
+            &self,
+            merchant_id: &str,
+            active_attempt_ids: &[String],
+            connector: Option<Vec<Connector>>,
+            payment_methods: Option<Vec<PaymentMethod>>,
+            _storage_scheme: enums::MerchantStorageScheme,
+        ) -> CustomResult<i64, errors::StorageError> {
+            let conn = connection::pg_connection_read(self).await?;
+            let connector_strings = if let Some(connector_vec) = &connector {
+                Some(
+                    connector_vec
+                        .iter()
+                        .map(|c| c.to_string())
+                        .collect::<Vec<String>>(),
+                )
+            } else {
+                None
+            };
+            PaymentAttempt::get_total_count_of_attempts(
+                &conn,
+                merchant_id,
+                active_attempt_ids,
+                connector_strings,
+                payment_methods,
+            )
+            .await
+            .map_err(Into::into)
+            .into_report()
+        }
+
         async fn find_payment_attempt_by_preprocessing_id_merchant_id(
             &self,
             preprocessing_id: &str,
@@ -278,6 +321,17 @@ impl PaymentAttemptInterface for MockDb {
         _storage_scheme: enums::MerchantStorageScheme,
     ) -> CustomResult<diesel_models::payment_attempt::PaymentListFilters, errors::StorageError>
     {
+        Err(errors::StorageError::MockDbError)?
+    }
+
+    async fn get_total_count_of_filtered_payment_attempts(
+        &self,
+        _merchant_id: &str,
+        _active_attempt_ids: &[String],
+        _connector: Option<Vec<Connector>>,
+        _payment_methods: Option<Vec<PaymentMethod>>,
+        _storage_scheme: enums::MerchantStorageScheme,
+    ) -> CustomResult<i64, errors::StorageError> {
         Err(errors::StorageError::MockDbError)?
     }
 
@@ -919,6 +973,35 @@ mod storage {
                 .await
                 .map_err(Into::into)
                 .into_report()
+        }
+
+        async fn get_total_count_of_filtered_payment_attempts(
+            &self,
+            merchant_id: &str,
+            active_attempt_ids: &[String],
+            connector: Option<Vec<api_models::enums::Connector>>,
+            payment_methods: Option<Vec<api_models::enums::PaymentMethod>>,
+            _storage_scheme: enums::MerchantStorageScheme,
+        ) -> CustomResult<i64, errors::StorageError> {
+            let conn = connection::pg_connection_read(self).await?;
+
+            let connector_strings = connector.as_ref().map(|connector_vec| {
+                connector_vec
+                    .iter()
+                    .map(|c| c.to_string())
+                    .collect::<Vec<String>>()
+            });
+
+            PaymentAttempt::get_total_count_of_attempts(
+                &conn,
+                merchant_id,
+                active_attempt_ids,
+                connector_strings,
+                payment_methods,
+            )
+            .await
+            .map_err(Into::into)
+            .into_report()
         }
     }
 

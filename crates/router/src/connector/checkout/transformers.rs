@@ -6,7 +6,7 @@ use time::PrimitiveDateTime;
 use url::Url;
 
 use crate::{
-    connector::utils::{self, RouterData, WalletData},
+    connector::utils::{self, PaymentsCaptureRequestData, RouterData, WalletData},
     consts,
     core::errors,
     services,
@@ -607,7 +607,7 @@ impl TryFrom<&types::PaymentsCaptureRouterData> for PaymentCaptureRequest {
         let connector_auth = &item.connector_auth_type;
         let auth_type: CheckoutAuthType = connector_auth.try_into()?;
         let processing_channel_id = auth_type.processing_channel_id;
-        let capture_type = if item.request.multiple_capture_data.is_some() {
+        let capture_type = if item.request.is_multiple_capture() {
             CaptureType::NonFinal
         } else {
             CaptureType::Final
@@ -648,7 +648,9 @@ impl TryFrom<types::PaymentsCaptureResponseRouterData<PaymentCaptureResponse>>
             (enums::AttemptStatus::Pending, None)
         };
 
-        let resource_id = if item.data.request.multiple_capture_data.is_some() {
+        // if multiple capture request, return capture action_id so that it will be updated in the captures table.
+        // else return previous connector_transaction_id.
+        let resource_id = if item.data.request.is_multiple_capture() {
             item.response.action_id
         } else {
             item.data.request.connector_transaction_id.to_owned()
