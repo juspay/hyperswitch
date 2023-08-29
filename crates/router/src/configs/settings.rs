@@ -441,16 +441,16 @@ pub struct Database {
 }
 
 #[cfg(not(feature = "kms"))]
-impl Into<storage_impl::config::Database> for Database {
-    fn into(self) -> storage_impl::config::Database {
-        storage_impl::config::Database {
-            username: self.username,
-            password: self.password,
-            host: self.host,
-            port: self.port,
-            dbname: self.dbname,
-            pool_size: self.pool_size,
-            connection_timeout: self.connection_timeout,
+impl From<Database> for storage_impl::config::Database {
+    fn from(val: Database) -> Self {
+        Self {
+            username: val.username,
+            password: val.password,
+            host: val.host,
+            port: val.port,
+            dbname: val.dbname,
+            pool_size: val.pool_size,
+            connection_timeout: val.connection_timeout,
         }
     }
 }
