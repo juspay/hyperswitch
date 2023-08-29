@@ -372,8 +372,14 @@ where
                         }
                         Err(error) => {
                             if error.current_context().is_upstream_timeout() {
-                                Err(error
-                                    .change_context(errors::ConnectorError::RequestTimeoutReceived))
+                                let error_response = ErrorResponse {
+                                    code: consts::REQUEST_TIMEOUT_ERROR_CODE.to_string(),
+                                    message: consts::REQUEST_TIMEOUT_ERROR_MESSAGE.to_string(),
+                                    reason: Some(consts::REQUEST_TIMEOUT_ERROR_MESSAGE.to_string()),
+                                    status_code: 504,
+                                };
+                                router_data.response = Err(error_response);
+                                Ok(router_data)
                             } else {
                                 Err(error.change_context(
                                     errors::ConnectorError::ProcessingStepFailed(None),
