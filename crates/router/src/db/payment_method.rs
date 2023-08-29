@@ -1,5 +1,5 @@
 use diesel_models::payment_method::PaymentMethodUpdateInternal;
-use error_stack::IntoReport;
+use error_stack::{IntoReport, ResultExt};
 
 use super::{MockDb, Store};
 use crate::{
@@ -134,8 +134,11 @@ impl PaymentMethodInterface for MockDb {
         let mut payment_methods = self.payment_methods.lock().await;
 
         let payment_method = storage::PaymentMethod {
-            #[allow(clippy::as_conversions)]
-            id: payment_methods.len() as i32,
+            id: payment_methods
+                .len()
+                .try_into()
+                .into_report()
+                .change_context(errors::StorageError::MockDbError)?,
             customer_id: payment_method_new.customer_id,
             merchant_id: payment_method_new.merchant_id,
             payment_method_id: payment_method_new.payment_method_id,

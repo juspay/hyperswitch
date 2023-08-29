@@ -1905,6 +1905,9 @@ pub struct PaymentsResponse {
 
     /// The business profile that is associated with this payment
     pub profile_id: Option<String>,
+
+    /// total number of attempts associated with this payment
+    pub attempt_count: i16,
 }
 
 #[derive(Clone, Debug, serde::Deserialize, ToSchema)]
@@ -1970,9 +1973,16 @@ pub struct PaymentListConstraints {
 pub struct PaymentListResponse {
     /// The number of payments included in the list
     pub size: usize,
-    /// The total number of payment_attempts for intents included in the list
-    pub attempt_count: i16,
     // The list of payments response objects
+    pub data: Vec<PaymentsResponse>,
+}
+#[derive(Clone, Debug, serde::Serialize)]
+pub struct PaymentListResponseV2 {
+    /// The number of payments included in the list for given constraints
+    pub count: usize,
+    /// The total number of available payments for given constraints
+    pub total_count: i64,
+    /// The list of payments response objects
     pub data: Vec<PaymentsResponse>,
 }
 
@@ -1981,7 +1991,9 @@ pub struct PaymentListResponse {
 pub struct PaymentListFilterConstraints {
     /// The identifier for payment
     pub payment_id: Option<String>,
-    /// The starting point within a list of objects, limit on number of object will be some constant for join query
+    /// The limit on the number of objects. The max limit is 20
+    pub limit: Option<u32>,
+    /// The starting point within a list of objects
     pub offset: Option<u32>,
     /// The time range for which objects are needed. TimeRange has two fields start_time and end_time from which objects can be filtered as per required scenarios (created_at, time less than, greater than etc).
     #[serde(flatten)]

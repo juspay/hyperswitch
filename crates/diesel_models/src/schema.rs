@@ -434,6 +434,7 @@ diesel::table! {
         is_recon_enabled -> Bool,
         #[max_length = 64]
         default_profile -> Nullable<Varchar>,
+        recon_status -> ReconStatus,
     }
 }
 
