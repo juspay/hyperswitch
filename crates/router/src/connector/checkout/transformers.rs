@@ -508,6 +508,31 @@ impl TryFrom<types::PaymentsSyncResponseRouterData<PaymentsResponse>>
     }
 }
 
+impl
+    TryFrom<(
+        types::PaymentsSyncResponseRouterData<Vec<ActionResponse>>,
+        Vec<String>,
+    )> for types::PaymentsSyncRouterData
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+
+    fn try_from(
+        (item, connector_capture_ids): (
+            types::PaymentsSyncResponseRouterData<Vec<ActionResponse>>,
+            Vec<String>,
+        ),
+    ) -> Result<Self, Self::Error> {
+        let capture_sync_response_list =
+            utils::construct_captures_response_hashmap(connector_capture_ids, item.response);
+        Ok(Self {
+            response: Ok(types::PaymentsResponseData::MultipleCaptureResponse {
+                capture_sync_response_list,
+            }),
+            ..item.data
+        })
+    }
+}
+
 #[derive(Clone, Default, Debug, Eq, PartialEq, Serialize)]
 pub struct PaymentVoidRequest {
     reference: String,
@@ -758,6 +783,24 @@ impl From<&ActionResponse> for enums::RefundStatus {
             Some(false) => Self::Failure,
             None => Self::Pending,
         }
+    }
+}
+
+impl utils::MultipleCaptureSyncResponse for ActionResponse {
+    fn get_connector_capture_id(&self) -> String {
+        self.action_id.clone()
+    }
+
+    fn get_capture_attempt_status(&self) -> enums::AttemptStatus {
+        match self.approved {
+            Some(true) => enums::AttemptStatus::Charged,
+            Some(false) => enums::AttemptStatus::Failure,
+            None => enums::AttemptStatus::Pending,
+        }
+    }
+
+    fn get_connector_reference_id(&self) -> Option<String> {
+        self.reference.clone()
     }
 }
 

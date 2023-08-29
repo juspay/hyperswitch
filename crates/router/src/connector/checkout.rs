@@ -356,14 +356,19 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
         req: &types::PaymentsSyncRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
+        let suffix = match req.request.sync_type {
+            types::SyncRequestType::MultipleCaptureSync(_) => "/actions",
+            types::SyncRequestType::SinglePaymentSync => "",
+        };
         Ok(format!(
-            "{}{}{}",
+            "{}{}{}{}",
             self.base_url(connectors),
             "payments/",
             req.request
                 .connector_transaction_id
                 .get_connector_transaction_id()
-                .change_context(errors::ConnectorError::MissingConnectorTransactionID)?
+                .change_context(errors::ConnectorError::MissingConnectorTransactionID)?,
+            suffix
         ))
     }
 
@@ -393,17 +398,42 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
         types::PaymentsSyncData: Clone,
         types::PaymentsResponseData: Clone,
     {
-        let response: checkout::PaymentsResponse = res
-            .response
-            .parse_struct("PaymentsResponse")
-            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-        router_env::logger::info!(connector_response=?response);
-        types::RouterData::try_from(types::ResponseRouterData {
-            response,
-            data: data.clone(),
-            http_code: res.status_code,
-        })
-        .change_context(errors::ConnectorError::ResponseHandlingFailed)
+        match &data.request.sync_type {
+            types::SyncRequestType::MultipleCaptureSync(connector_capture_ids) => {
+                let response: Vec<checkout::ActionResponse> = res
+                    .response
+                    .parse_struct("Vec<checkout::ActionResponse>")
+                    .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+                types::RouterData::try_from((
+                    types::ResponseRouterData {
+                        response,
+                        data: data.clone(),
+                        http_code: res.status_code,
+                    },
+                    connector_capture_ids.to_owned(),
+                ))
+                .change_context(errors::ConnectorError::ResponseHandlingFailed)
+            }
+            types::SyncRequestType::SinglePaymentSync => {
+                let response: checkout::PaymentsResponse = res
+                    .response
+                    .parse_struct("PaymentsResponse")
+                    .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+                router_env::logger::info!(connector_response=?response);
+                types::RouterData::try_from(types::ResponseRouterData {
+                    response,
+                    data: data.clone(),
+                    http_code: res.status_code,
+                })
+                .change_context(errors::ConnectorError::ResponseHandlingFailed)
+            }
+        }
+    }
+
+    fn get_multiple_capture_sync_method(
+        &self,
+    ) -> CustomResult<services::CaptureSyncMethod, errors::ConnectorError> {
+        Ok(services::CaptureSyncMethod::Bulk)
     }
 
     fn get_error_response(
