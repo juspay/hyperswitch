@@ -559,19 +559,17 @@ pub async fn create_recipient(
     let customer_details = payout_data.customer_details.to_owned();
     let connector_name = connector_data.connector_name.to_string();
 
-    let connector_label = payment_helpers::get_connector_label(
-        payout_data
-            .payout_attempt
-            .business_country
-            .unwrap_or_default(),
-        &payout_data
-            .payout_attempt
-            .business_label
-            .to_owned()
-            .unwrap_or_default(),
-        None,
-        &connector_name,
-    );
+    let profile_id = payment_helpers::get_profile_id_from_business_details(
+        payout_data.payout_attempt.business_country,
+        payout_data.payout_attempt.business_label.as_ref(),
+        merchant_account,
+        payout_data.payout_attempt.profile_id.as_ref(),
+        &*state.store,
+    )
+    .await?;
+
+    // Create the connector label using {profile_id}_{connector_name}
+    let connector_label = format!("{profile_id}_{}", connector_name);
 
     let (should_call_connector, _connector_customer_id) =
         helpers::should_call_payout_connector_create_customer(

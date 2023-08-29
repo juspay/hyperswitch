@@ -195,6 +195,20 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
         payment_intent.metadata = request.metadata.clone().or(payment_intent.metadata);
         Self::populate_payment_intent_with_request(&mut payment_intent, request);
 
+        let profile_id = helpers::get_profile_id_from_business_details(
+            request.business_country,
+            request.business_label.as_ref(),
+            merchant_account,
+            request
+                .profile_id
+                .as_ref()
+                .or(payment_intent.profile_id.as_ref()),
+            db,
+        )
+        .await?;
+
+        payment_intent.profile_id = Some(profile_id);
+
         let token = token.or_else(|| payment_attempt.payment_token.clone());
 
         if request.confirm.unwrap_or(false) {
@@ -509,8 +523,8 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
 
         let return_url = payment_data.payment_intent.return_url.clone();
         let setup_future_usage = payment_data.payment_intent.setup_future_usage;
-        let business_label = Some(payment_data.payment_intent.business_label.clone());
-        let business_country = Some(payment_data.payment_intent.business_country);
+        let business_label = payment_data.payment_intent.business_label.clone();
+        let business_country = payment_data.payment_intent.business_country;
         let description = payment_data.payment_intent.description.clone();
         let statement_descriptor_name = payment_data
             .payment_intent
@@ -522,6 +536,7 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
             .clone();
         let order_details = payment_data.payment_intent.order_details.clone();
         let metadata = payment_data.payment_intent.metadata.clone();
+        let profile_id = payment_data.payment_intent.profile_id.clone();
 
         payment_data.payment_intent = db
             .update_payment_intent(
@@ -542,6 +557,7 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
                     statement_descriptor_suffix,
                     order_details,
                     metadata,
+                    profile_id,
                 },
                 storage_scheme,
             )
@@ -645,13 +661,10 @@ impl PaymentUpdate {
             .clone()
             .map(|i| payment_intent.return_url.replace(i.to_string()));
 
-        payment_intent.business_country = request
-            .business_country
-            .unwrap_or(payment_intent.business_country);
-        payment_intent.business_label = request
-            .business_label
-            .clone()
-            .unwrap_or(payment_intent.business_label.clone());
+        payment_intent.business_country = request.business_country;
+
+        payment_intent.business_label = request.business_label.clone();
+
         request
             .description
             .clone()

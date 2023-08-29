@@ -42,20 +42,24 @@ where
         From<<T as TryFrom<PaymentAdditionalData<'a, F>>>::Error>,
 {
     let (merchant_connector_account, payment_method, router_data);
-    let connector_label = helpers::get_connector_label(
-        payment_data.payment_intent.business_country,
-        &payment_data.payment_intent.business_label,
-        payment_data.payment_attempt.business_sub_label.as_ref(),
-        connector_id,
-    );
+
+    let profile_id = payment_data
+        .payment_intent
+        .profile_id
+        .as_ref()
+        .ok_or(errors::ApiErrorResponse::MissingRequiredField {
+            field_name: "business_profile",
+        })
+        .into_report()
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("profile_id is not set in payment_intent")?;
 
     merchant_connector_account = helpers::get_merchant_connector_account(
         state,
         merchant_account.merchant_id.as_str(),
-        &connector_label,
         payment_data.creds_identifier.to_owned(),
         key_store,
-        payment_data.payment_intent.profile_id.as_ref(),
+        profile_id,
         connector_id,
     )
     .await?;
@@ -505,10 +509,10 @@ where
                 let mut response: api::PaymentsResponse = Default::default();
                 let routed_through = payment_attempt.connector.clone();
 
-                let connector_label = routed_through.as_ref().map(|connector_name| {
+                let connector_label = routed_through.as_ref().and_then(|connector_name| {
                     helpers::get_connector_label(
                         payment_intent.business_country,
-                        &payment_intent.business_label,
+                        payment_intent.business_label.as_ref(),
                         payment_attempt.business_sub_label.as_ref(),
                         connector_name,
                     )

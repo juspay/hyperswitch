@@ -75,17 +75,14 @@ pub fn create_identity_from_certificate_and_key(
         .change_context(errors::ApiClientError::CertificateDecodeFailed)
 }
 
-pub fn filter_mca_based_on_business_details(
+pub fn filter_mca_based_on_business_profile(
     merchant_connector_accounts: Vec<domain::MerchantConnectorAccount>,
     payment_intent: Option<&PaymentIntent>,
 ) -> Vec<domain::MerchantConnectorAccount> {
     if let Some(payment_intent) = payment_intent {
         merchant_connector_accounts
             .into_iter()
-            .filter(|mca| {
-                mca.business_country == payment_intent.business_country
-                    && mca.business_label == payment_intent.business_label
-            })
+            .filter(|mca| mca.profile_id == payment_intent.profile_id)
             .collect::<Vec<_>>()
     } else {
         merchant_connector_accounts
@@ -2078,33 +2075,38 @@ fn connector_needs_business_sub_label(connector_name: &str) -> bool {
 /// Create the connector label
 /// {connector_name}_{country}_{business_label}
 pub fn get_connector_label(
-    business_country: api_models::enums::CountryAlpha2,
-    business_label: &str,
+    business_country: Option<api_models::enums::CountryAlpha2>,
+    business_label: Option<&String>,
     business_sub_label: Option<&String>,
     connector_name: &str,
-) -> String {
-    let mut connector_label = format!("{connector_name}_{business_country}_{business_label}");
+) -> Option<String> {
+    business_country
+        .zip(business_label)
+        .map(|(business_country, business_label)| {
+            let mut connector_label =
+                format!("{connector_name}_{business_country}_{business_label}");
 
-    // Business sub label is currently being used only for cybersource
-    // To ensure backwards compatibality, cybersource mca's created before this change
-    // will have the business_sub_label value as default.
-    //
-    // Even when creating the connector account, if no sub label is provided, default will be used
-    if connector_needs_business_sub_label(connector_name) {
-        if let Some(sub_label) = business_sub_label {
-            connector_label.push_str(&format!("_{sub_label}"));
-        } else {
-            connector_label.push_str("_default"); // For backwards compatibality
-        }
-    }
+            // Business sub label is currently being used only for cybersource
+            // To ensure backwards compatibality, cybersource mca's created before this change
+            // will have the business_sub_label value as default.
+            //
+            // Even when creating the connector account, if no sub label is provided, default will be used
+            if connector_needs_business_sub_label(connector_name) {
+                if let Some(sub_label) = business_sub_label {
+                    connector_label.push_str(&format!("_{sub_label}"));
+                } else {
+                    connector_label.push_str("_default"); // For backwards compatibality
+                }
+            }
 
-    connector_label
+            connector_label
+        })
 }
 
 /// Check whether the business details are configured in the merchant account
 pub fn validate_business_details(
-    business_country: api_enums::CountryAlpha2,
-    business_label: &String,
+    business_country: Option<api_enums::CountryAlpha2>,
+    business_label: Option<&String>,
     merchant_account: &domain::MerchantAccount,
 ) -> RouterResult<()> {
     let primary_business_details = merchant_account
@@ -2114,15 +2116,21 @@ pub fn validate_business_details(
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("failed to parse primary business details")?;
 
-    primary_business_details
-        .iter()
-        .find(|business_details| {
-            &business_details.business == business_label
-                && business_details.country == business_country
+    business_country
+        .zip(business_label)
+        .map(|(business_country, business_label)| {
+            primary_business_details
+                .iter()
+                .find(|business_details| {
+                    &business_details.business == business_label
+                        && business_details.country == business_country
+                })
+                .ok_or(errors::ApiErrorResponse::PreconditionFailed {
+                    message: "business_details are not configured in the merchant account"
+                        .to_string(),
+                })
         })
-        .ok_or(errors::ApiErrorResponse::PreconditionFailed {
-            message: "business_details are not configured in the merchant account".to_string(),
-        })?;
+        .transpose()?;
 
     Ok(())
 }
@@ -2157,6 +2165,40 @@ pub fn get_business_details(
             )),
             _ => Err(report!(errors::ApiErrorResponse::MissingRequiredField {
                 field_name: "business_country, business_label"
+            })),
+        },
+    }
+}
+
+/// If profile_id is not passed, use default profile if available, or
+/// If business_details (business_country and business_label) are passed, get the business_profile
+/// or return a `MissingRequiredField` error
+pub async fn get_profile_id_from_business_details(
+    business_country: Option<api_enums::CountryAlpha2>,
+    business_label: Option<&String>,
+    merchant_account: &domain::MerchantAccount,
+    request_profile_id: Option<&String>,
+    db: &dyn StorageInterface,
+) -> RouterResult<String> {
+    match request_profile_id.or(merchant_account.default_profile.as_ref()) {
+        Some(profile_id) => Ok(profile_id.clone()),
+        None => match business_country.zip(business_label) {
+            Some((business_country, business_label)) => {
+                let profile_name = format!("{business_country}_{business_label}");
+                let business_profile = db
+                    .find_business_profile_by_profile_name_merchant_id(
+                        &profile_name,
+                        &merchant_account.merchant_id,
+                    )
+                    .await
+                    .to_not_found_response(errors::ApiErrorResponse::BusinessProfileNotFound {
+                        id: profile_name,
+                    })?;
+
+                Ok(business_profile.profile_id)
+            }
+            _ => Err(report!(errors::ApiErrorResponse::MissingRequiredField {
+                field_name: "profile_id or business_country, business_label"
             })),
         },
     }
@@ -2202,8 +2244,8 @@ mod tests {
             off_session: None,
             client_secret: Some("1".to_string()),
             active_attempt_id: "nopes".to_string(),
-            business_country: storage_enums::CountryAlpha2::AG,
-            business_label: "no".to_string(),
+            business_country: None,
+            business_label: None,
             order_details: None,
             allowed_payment_method_types: None,
             connector_metadata: None,
@@ -2247,8 +2289,8 @@ mod tests {
             off_session: None,
             client_secret: Some("1".to_string()),
             active_attempt_id: "nopes".to_string(),
-            business_country: storage_enums::CountryAlpha2::AG,
-            business_label: "no".to_string(),
+            business_country: None,
+            business_label: None,
             order_details: None,
             allowed_payment_method_types: None,
             connector_metadata: None,
@@ -2292,8 +2334,8 @@ mod tests {
             off_session: None,
             client_secret: None,
             active_attempt_id: "nopes".to_string(),
-            business_country: storage_enums::CountryAlpha2::AG,
-            business_label: "no".to_string(),
+            business_country: None,
+            business_label: None,
             order_details: None,
             allowed_payment_method_types: None,
             connector_metadata: None,
@@ -2387,10 +2429,9 @@ impl MerchantConnectorAccountType {
 pub async fn get_merchant_connector_account(
     state: &AppState,
     merchant_id: &str,
-    connector_label: &str,
     creds_identifier: Option<String>,
     key_store: &domain::MerchantKeyStore,
-    profile_id: Option<&String>,
+    profile_id: &String,
     connector_name: &str,
 ) -> RouterResult<MerchantConnectorAccountType> {
     let db = &*state.store;
@@ -2401,7 +2442,7 @@ pub async fn get_merchant_connector_account(
                 .await
                 .to_not_found_response(
                     errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
-                        id: connector_label.to_string(),
+                        id: format!("mcd_{merchant_id}_{creds_identifier}"),
                     },
                 )?;
 
@@ -2433,7 +2474,7 @@ pub async fn get_merchant_connector_account(
 
             Ok(MerchantConnectorAccountType::CacheVal(res))
         }
-        None => if let Some(profile_id) = profile_id {
+        None => {
             db.find_merchant_connector_account_by_profile_id_connector_name(
                 profile_id,
                 connector_name,
@@ -2442,19 +2483,7 @@ pub async fn get_merchant_connector_account(
             .await
             .to_not_found_response(
                 errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
-                    id: profile_id.to_owned(),
-                },
-            )
-        } else {
-            db.find_merchant_connector_account_by_merchant_id_connector_label(
-                merchant_id,
-                connector_label,
-                key_store,
-            )
-            .await
-            .to_not_found_response(
-                errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
-                    id: connector_label.to_string(),
+                    id: format!("profile id {profile_id} and connector name {connector_name}"),
                 },
             )
         }

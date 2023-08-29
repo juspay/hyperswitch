@@ -102,7 +102,7 @@ pub fn should_call_connector_create_customer<'a>(
 
     if connector_needs_customer {
         let connector_customer_details = customer.as_ref().and_then(|customer| {
-            get_connector_customer_details_if_present(customer, connector_label)
+            get_connector_customer_details_if_present(customer, &connector_label)
         });
         let should_call_connector = connector_customer_details.is_none();
         (should_call_connector, connector_customer_details)

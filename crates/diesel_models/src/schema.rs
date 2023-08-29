@@ -456,10 +456,10 @@ diesel::table! {
         connector_type -> ConnectorType,
         metadata -> Nullable<Jsonb>,
         #[max_length = 255]
-        connector_label -> Varchar,
-        business_country -> CountryAlpha2,
+        connector_label -> Nullable<Varchar>,
+        business_country -> Nullable<CountryAlpha2>,
         #[max_length = 255]
-        business_label -> Varchar,
+        business_label -> Nullable<Varchar>,
         #[max_length = 64]
         business_sub_label -> Nullable<Varchar>,
         frm_configs -> Nullable<Jsonb>,
@@ -586,9 +586,9 @@ diesel::table! {
         client_secret -> Nullable<Varchar>,
         #[max_length = 64]
         active_attempt_id -> Varchar,
-        business_country -> CountryAlpha2,
+        business_country -> Nullable<CountryAlpha2>,
         #[max_length = 64]
-        business_label -> Varchar,
+        business_label -> Nullable<Varchar>,
         order_details -> Nullable<Array<Nullable<Jsonb>>>,
         allowed_payment_method_types -> Nullable<Json>,
         connector_metadata -> Nullable<Json>,

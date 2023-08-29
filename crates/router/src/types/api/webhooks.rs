@@ -89,7 +89,7 @@ pub trait IncomingWebhook: ConnectorCommon + Sync {
             merchant_id, connector_name
         );
         let default_secret = "default_secret".to_string();
-        let connector_label = utils::get_connector_label_using_object_reference_id(
+        let profile_id = utils::get_profile_id_using_object_reference_id(
             db,
             object_reference_id,
             merchant_account,
@@ -97,11 +97,12 @@ pub trait IncomingWebhook: ConnectorCommon + Sync {
         )
         .await
         .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)
-        .attach_printable("Error while fetching connector_label")?;
+        .attach_printable("Error while fetching business_profile")?;
+
         let merchant_connector_account_result = db
-            .find_merchant_connector_account_by_merchant_id_connector_label(
-                merchant_id,
-                &connector_label,
+            .find_merchant_connector_account_by_profile_id_connector_name(
+                &profile_id,
+                &merchant_account.merchant_id,
                 key_store,
             )
             .await;

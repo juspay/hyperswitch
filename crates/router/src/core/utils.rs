@@ -45,22 +45,22 @@ pub async fn get_mca_for_payout<'a>(
     match payout_data.merchant_connector_account.to_owned() {
         Some(mca) => Ok(mca),
         None => {
-            let (business_country, business_label) = helpers::get_business_details(
-                payout_attempt.business_country,
-                payout_attempt.business_label.as_ref(),
-                merchant_account,
-            )?;
-
-            let connector_label =
-                helpers::get_connector_label(business_country, &business_label, None, connector_id);
+            let profile_id = payout_attempt
+                .profile_id
+                .as_ref()
+                .ok_or(errors::ApiErrorResponse::MissingRequiredField {
+                    field_name: "business_profile",
+                })
+                .into_report()
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("profile_id is not set in payment_intent")?;
 
             let merchant_connector_account = helpers::get_merchant_connector_account(
                 state,
                 merchant_account.merchant_id.as_str(),
-                &connector_label,
                 None,
                 key_store,
-                payout_attempt.profile_id.as_ref(),
+                profile_id,
                 connector_id,
             )
             .await?;
@@ -205,20 +205,22 @@ pub async fn construct_refund_router_data<'a, F>(
     refund: &'a storage::Refund,
     creds_identifier: Option<String>,
 ) -> RouterResult<types::RefundsRouterData<F>> {
-    let connector_label = helpers::get_connector_label(
-        payment_intent.business_country,
-        &payment_intent.business_label,
-        None,
-        connector_id,
-    );
+    let profile_id = payment_intent
+        .profile_id
+        .as_ref()
+        .ok_or(errors::ApiErrorResponse::MissingRequiredField {
+            field_name: "business_profile",
+        })
+        .into_report()
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("profile_id is not set in payment_intent")?;
 
     let merchant_connector_account = helpers::get_merchant_connector_account(
         state,
         merchant_account.merchant_id.as_str(),
-        &connector_label,
         creds_identifier,
         key_store,
-        payment_intent.profile_id.as_ref(),
+        profile_id,
         connector_id,
     )
     .await?;
@@ -475,23 +477,26 @@ pub async fn construct_accept_dispute_router_data<'a>(
     key_store: &domain::MerchantKeyStore,
     dispute: &storage::Dispute,
 ) -> RouterResult<types::AcceptDisputeRouterData> {
-    let connector_id = &dispute.connector;
-    let connector_label = helpers::get_connector_label(
-        payment_intent.business_country,
-        &payment_intent.business_label,
-        payment_attempt.business_sub_label.as_ref(),
-        connector_id,
-    );
+    let profile_id = payment_intent
+        .profile_id
+        .as_ref()
+        .ok_or(errors::ApiErrorResponse::MissingRequiredField {
+            field_name: "profile_id",
+        })
+        .into_report()
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("profile_id is not set in payment_intent")?;
+
     let merchant_connector_account = helpers::get_merchant_connector_account(
         state,
         merchant_account.merchant_id.as_str(),
-        &connector_label,
         None,
         key_store,
-        payment_intent.profile_id.as_ref(),
-        connector_id,
+        profile_id,
+        &dispute.connector,
     )
     .await?;
+
     let test_mode: Option<bool> = merchant_connector_account.is_test_mode_on();
     let auth_type: types::ConnectorAuthType = merchant_connector_account
         .get_connector_account_details()
@@ -503,7 +508,7 @@ pub async fn construct_accept_dispute_router_data<'a>(
     let router_data = types::RouterData {
         flow: PhantomData,
         merchant_id: merchant_account.merchant_id.clone(),
-        connector: connector_id.to_string(),
+        connector: dispute.connector.to_string(),
         payment_id: payment_attempt.payment_id.clone(),
         attempt_id: payment_attempt.attempt_id.clone(),
         status: payment_attempt.status,
@@ -557,22 +562,26 @@ pub async fn construct_submit_evidence_router_data<'a>(
     submit_evidence_request_data: types::SubmitEvidenceRequestData,
 ) -> RouterResult<types::SubmitEvidenceRouterData> {
     let connector_id = &dispute.connector;
-    let connector_label = helpers::get_connector_label(
-        payment_intent.business_country,
-        &payment_intent.business_label,
-        payment_attempt.business_sub_label.as_ref(),
-        connector_id,
-    );
+    let profile_id = payment_intent
+        .profile_id
+        .as_ref()
+        .ok_or(errors::ApiErrorResponse::MissingRequiredField {
+            field_name: "profile_id",
+        })
+        .into_report()
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("profile_id is not set in payment_intent")?;
+
     let merchant_connector_account = helpers::get_merchant_connector_account(
         state,
         merchant_account.merchant_id.as_str(),
-        &connector_label,
         None,
         key_store,
-        payment_intent.profile_id.as_ref(),
+        profile_id,
         connector_id,
     )
     .await?;
+
     let test_mode: Option<bool> = merchant_connector_account.is_test_mode_on();
     let auth_type: types::ConnectorAuthType = merchant_connector_account
         .get_connector_account_details()
@@ -635,15 +644,23 @@ pub async fn construct_upload_file_router_data<'a>(
     create_file_request: &types::api::CreateFileRequest,
     connector_id: &str,
     file_key: String,
-    connector_label: String,
 ) -> RouterResult<types::UploadFileRouterData> {
+    let profile_id = payment_intent
+        .profile_id
+        .as_ref()
+        .ok_or(errors::ApiErrorResponse::MissingRequiredField {
+            field_name: "profile_id",
+        })
+        .into_report()
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("profile_id is not set in payment_intent")?;
+
     let merchant_connector_account = helpers::get_merchant_connector_account(
         state,
         merchant_account.merchant_id.as_str(),
-        &connector_label,
         None,
         key_store,
-        payment_intent.profile_id.as_ref(),
+        profile_id,
         connector_id,
     )
     .await?;
@@ -714,22 +731,26 @@ pub async fn construct_defend_dispute_router_data<'a>(
 ) -> RouterResult<types::DefendDisputeRouterData> {
     let _db = &*state.store;
     let connector_id = &dispute.connector;
-    let connector_label = helpers::get_connector_label(
-        payment_intent.business_country,
-        &payment_intent.business_label,
-        payment_attempt.business_sub_label.as_ref(),
-        connector_id,
-    );
+    let profile_id = payment_intent
+        .profile_id
+        .as_ref()
+        .ok_or(errors::ApiErrorResponse::MissingRequiredField {
+            field_name: "profile_id",
+        })
+        .into_report()
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("profile_id is not set in payment_intent")?;
+
     let merchant_connector_account = helpers::get_merchant_connector_account(
         state,
         merchant_account.merchant_id.as_str(),
-        &connector_label,
         None,
         key_store,
-        payment_intent.profile_id.as_ref(),
+        profile_id,
         connector_id,
     )
     .await?;
+
     let test_mode: Option<bool> = merchant_connector_account.is_test_mode_on();
     let auth_type: types::ConnectorAuthType = merchant_connector_account
         .get_connector_account_details()
@@ -792,19 +813,22 @@ pub async fn construct_retrieve_file_router_data<'a>(
     file_metadata: &diesel_models::file::FileMetadata,
     connector_id: &str,
 ) -> RouterResult<types::RetrieveFileRouterData> {
-    let connector_label = file_metadata
-        .connector_label
-        .clone()
-        .ok_or(errors::ApiErrorResponse::InternalServerError)
+    let profile_id = file_metadata
+        .profile_id
+        .as_ref()
+        .ok_or(errors::ApiErrorResponse::MissingRequiredField {
+            field_name: "profile_id",
+        })
         .into_report()
-        .attach_printable("Missing connector label")?;
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("profile_id is not set in file_metadata")?;
+
     let merchant_connector_account = helpers::get_merchant_connector_account(
         state,
         merchant_account.merchant_id.as_str(),
-        &connector_label,
         None,
         key_store,
-        file_metadata.profile_id.as_ref(),
+        profile_id,
         connector_id,
     )
     .await?;

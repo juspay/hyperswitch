@@ -459,13 +459,13 @@ pub async fn create_payment_connector(
 
     helpers::validate_business_details(
         req.business_country,
-        &req.business_label,
+        req.business_label.as_ref(),
         &merchant_account,
     )?;
 
     let connector_label = helpers::get_connector_label(
         req.business_country,
-        &req.business_label,
+        req.business_label.as_ref(),
         req.business_sub_label.as_ref(),
         &req.connector_name.to_string(),
     );
@@ -510,14 +510,14 @@ pub async fn create_payment_connector(
 
     let frm_configs = get_frm_config_as_secret(req.frm_configs);
 
-    // Validate whether profile_id passed in request is valid and is linked to the merchant
-    let business_profile_from_request =
-        core_utils::validate_and_get_business_profile(store, req.profile_id.as_ref(), merchant_id)
-            .await?;
-
-    let profile_id = business_profile_from_request
-        .map(|business_profile| business_profile.profile_id)
-        .or(merchant_account.default_profile.clone());
+    let profile_id = helpers::get_profile_id_from_business_details(
+        req.business_country,
+        req.business_label.as_ref(),
+        &merchant_account,
+        req.profile_id.as_ref(),
+        store,
+    )
+    .await?;
 
     let merchant_connector_account = domain::MerchantConnectorAccount {
         merchant_id: merchant_id.to_string(),
@@ -559,7 +559,7 @@ pub async fn create_payment_connector(
             }
             None => None,
         },
-        profile_id,
+        profile_id: Some(profile_id.clone()),
     };
 
     let mca = store
@@ -567,7 +567,8 @@ pub async fn create_payment_connector(
         .await
         .to_duplicate_response(
             errors::ApiErrorResponse::DuplicateMerchantConnectorAccount {
-                connector_label: connector_label.clone(),
+                profile_id,
+                connector_name: req.connector_name.to_string(),
             },
         )?;
 

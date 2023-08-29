@@ -776,6 +776,7 @@ impl DataModelExt for PaymentIntentUpdate {
                 statement_descriptor_suffix,
                 order_details,
                 metadata,
+                profile_id,
             } => DieselPaymentIntentUpdate::Update {
                 amount,
                 currency,
@@ -792,6 +793,7 @@ impl DataModelExt for PaymentIntentUpdate {
                 statement_descriptor_suffix,
                 order_details,
                 metadata,
+                profile_id,
             },
             Self::PaymentAttemptAndAttemptCountUpdate {
                 active_attempt_id,
@@ -865,6 +867,7 @@ impl DataModelExt for PaymentIntentUpdate {
                 statement_descriptor_suffix,
                 order_details,
                 metadata,
+                profile_id,
             } => Self::Update {
                 amount,
                 currency,
@@ -881,6 +884,7 @@ impl DataModelExt for PaymentIntentUpdate {
                 statement_descriptor_suffix,
                 order_details,
                 metadata,
+                profile_id,
             },
             DieselPaymentIntentUpdate::PaymentAttemptAndAttemptCountUpdate {
                 active_attempt_id,

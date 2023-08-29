@@ -794,12 +794,17 @@ where
                 api::GetToken::Connector,
             )?;
 
-            let connector_label = helpers::get_connector_label(
+            let profile_id = helpers::get_profile_id_from_business_details(
                 payment_data.payment_intent.business_country,
-                &payment_data.payment_intent.business_label,
-                payment_data.payment_attempt.business_sub_label.as_ref(),
-                &connector_name,
-            );
+                payment_data.payment_intent.business_label.as_ref(),
+                merchant_account,
+                payment_data.payment_intent.profile_id.as_ref(),
+                &*state.store,
+            )
+            .await?;
+
+            // Create the connector label using {profile_id}_{connector_name}
+            let connector_label = format!("{profile_id}_{}", connector.connector_name);
 
             let (should_call_connector, existing_connector_customer_id) =
                 customers::should_call_connector_create_customer(
