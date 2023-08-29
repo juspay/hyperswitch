@@ -1168,7 +1168,7 @@ pub async fn add_auto_refund_task_to_process_tracker(
         .to_duplicate_response(errors::ApiErrorResponse::DuplicateRefundRequest)
         .attach_printable_lazy(|| {
             format!(
-                "Failed while inserting task in process_tracker: payment_id: {}",
+                "Failed while inserting auto refund task in process_tracker for payment_id: {}",
                 payment_intent.clone().payment_id
             )
         })?;
