@@ -76,9 +76,18 @@ where
         .or(payment_data.payment_attempt.payment_method)
         .get_required_value("payment_method_type")?;
 
+    let resource_id = match payment_data
+        .payment_attempt
+        .connector_transaction_id
+        .clone()
+    {
+        Some(id) => types::ResponseId::ConnectorTransactionId(id),
+        None => types::ResponseId::NoResponseId,
+    };
+
     // [#44]: why should response be filled during request
     let response = Ok(types::PaymentsResponseData::TransactionResponse {
-        resource_id: types::ResponseId::NoResponseId,
+        resource_id,
         redirection_data: None,
         mandate_reference: None,
         connector_metadata: None,

@@ -169,10 +169,12 @@ impl ConnectorValidation for Bluesnap {
         // if merchant_id is present, psync can be made along with attempt_id
         match data.connector_meta_data.clone().expose_option() {
             Some(value) => {
-                let meta_data: Result<bluesnap::BluesnapMetaData, Report<errors::ConnectorError>> =
-                    serde_json::from_value(value)
-                        .into_report()
-                        .change_context(errors::ConnectorError::ResponseDeserializationFailed);
+                let meta_data: Result<
+                    bluesnap::BluesnapConnectorMetaData,
+                    Report<errors::ConnectorError>,
+                > = serde_json::from_value(value)
+                    .into_report()
+                    .change_context(errors::ConnectorError::ResponseDeserializationFailed);
 
                 match meta_data {
                     Ok(_) => Ok(()),
@@ -411,25 +413,33 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
     ) -> CustomResult<String, errors::ConnectorError> {
         match req.connector_meta_data.clone().expose_option() {
             Some(value) => {
-                let meta_data: Result<bluesnap::BluesnapMetaData, Report<errors::ConnectorError>> =
-                    serde_json::from_value(value)
-                        .into_report()
-                        .change_context(errors::ConnectorError::ResponseDeserializationFailed);
+                let meta_data: Result<
+                    bluesnap::BluesnapConnectorMetaData,
+                    Report<errors::ConnectorError>,
+                > = serde_json::from_value(value)
+                    .into_report()
+                    .change_context(errors::ConnectorError::ResponseDeserializationFailed);
 
                 match meta_data {
+                    // if merchant_id is present in meta_data, we can make psync with merchant_transaction_id
                     Ok(data) => get_url_with_merchant_transaction_id(
                         self.base_url(connectors).to_string(),
                         data.merchant_id,
                         req.attempt_id.to_owned(),
                     ),
-                    Err(_) => get_url_with_connector_transaction_id(
-                        req,
+                    // otherwise we make psync with connector_transaction_id
+                    Err(_) => get_psync_url_with_connector_transaction_id(
+                        &req.request.connector_transaction_id,
                         self.base_url(connectors).to_string(),
                     ),
                 }
             }
             None => {
-                get_url_with_connector_transaction_id(req, self.base_url(connectors).to_string())
+                // if no metadata is present, we make psync with connector_transaction_id
+                get_psync_url_with_connector_transaction_id(
+                    &req.request.connector_transaction_id,
+                    self.base_url(connectors).to_string(),
+                )
             }
         }
     }
@@ -963,25 +973,33 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
     ) -> CustomResult<String, errors::ConnectorError> {
         match req.connector_meta_data.clone().expose_option() {
             Some(value) => {
-                let meta_data: Result<bluesnap::BluesnapMetaData, Report<errors::ConnectorError>> =
-                    serde_json::from_value(value)
-                        .into_report()
-                        .change_context(errors::ConnectorError::ResponseDeserializationFailed);
+                let meta_data: Result<
+                    bluesnap::BluesnapConnectorMetaData,
+                    Report<errors::ConnectorError>,
+                > = serde_json::from_value(value)
+                    .into_report()
+                    .change_context(errors::ConnectorError::ResponseDeserializationFailed);
 
                 match meta_data {
+                    // if merchant_id is present in meta_data, we can make rsync with merchant_transaction_id
                     Ok(data) => get_url_with_merchant_transaction_id(
                         self.base_url(connectors).to_string(),
                         data.merchant_id,
                         req.attempt_id.to_owned(),
                     ),
-                    Err(_) => get_rsync_url_with_conn_transaction_id(
+                    // otherwise we make rsync with connector_transaction_id
+                    Err(_) => get_rsync_url_with_connector_transaction_id(
                         req,
                         self.base_url(connectors).to_string(),
                     ),
                 }
             }
             None => {
-                get_rsync_url_with_conn_transaction_id(req, self.base_url(connectors).to_string())
+                // if no metadata is present, we make rsync with connector_transaction_id
+                get_rsync_url_with_connector_transaction_id(
+                    req,
+                    self.base_url(connectors).to_string(),
+                )
             }
         }
     }
@@ -1312,13 +1330,11 @@ fn get_url_with_merchant_transaction_id(
     ))
 }
 
-fn get_url_with_connector_transaction_id(
-    req: &types::PaymentsSyncRouterData,
+fn get_psync_url_with_connector_transaction_id(
+    connector_transaction_id: &types::ResponseId,
     base_url: String,
 ) -> CustomResult<String, errors::ConnectorError> {
-    let connector_transaction_id = req
-        .request
-        .connector_transaction_id
+    let connector_transaction_id = connector_transaction_id
         .get_connector_transaction_id()
         .change_context(errors::ConnectorError::MissingConnectorTransactionID)?;
     Ok(format!(
@@ -1327,7 +1343,7 @@ fn get_url_with_connector_transaction_id(
     ))
 }
 
-fn get_rsync_url_with_conn_transaction_id(
+fn get_rsync_url_with_connector_transaction_id(
     req: &types::RefundSyncRouterData,
     base_url: String,
 ) -> CustomResult<String, errors::ConnectorError> {
