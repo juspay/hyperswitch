@@ -4,7 +4,6 @@ use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
 
 use crate::{errors, MerchantStorageScheme};
-const QUERY_LIMIT: u32 = 20;
 const MAX_LIMIT: u32 = 100;
 #[async_trait::async_trait]
 pub trait PaymentIntentInterface {
