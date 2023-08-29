@@ -10,6 +10,7 @@ use std::{
 };
 
 use actix_web::{body, HttpRequest, HttpResponse, Responder, ResponseError};
+use api_models::enums::CaptureMethod;
 use common_utils::errors::ReportSwitchExt;
 use error_stack::{report, IntoReport, Report, ResultExt};
 use masking::{ExposeOptionInterface, PeekInterface};
@@ -29,7 +30,11 @@ use crate::{
     logger,
     routes::{app::AppStateInfo, metrics, AppState},
     services::authentication as auth,
-    types::{self, api, ErrorResponse},
+    types::{
+        self,
+        api::{self, ConnectorCommon},
+        ErrorResponse,
+    },
 };
 
 pub type BoxedConnectorIntegration<'a, T, Req, Resp> =
@@ -45,6 +50,25 @@ where
 {
     fn get_connector_integration(&self) -> BoxedConnectorIntegration<'_, T, Req, Resp> {
         Box::new(self)
+    }
+}
+
+pub trait ConnectorValidation: ConnectorCommon {
+    fn validate_capture_method(
+        &self,
+        capture_method: Option<CaptureMethod>,
+    ) -> CustomResult<(), errors::ConnectorError> {
+        let capture_method = capture_method.unwrap_or_default();
+        match capture_method {
+            CaptureMethod::Automatic => Ok(()),
+            CaptureMethod::Manual | CaptureMethod::ManualMultiple | CaptureMethod::Scheduled => {
+                Err(errors::ConnectorError::NotSupported {
+                    message: capture_method.to_string(),
+                    connector: self.id(),
+                }
+                .into())
+            }
+        }
     }
 }
 
@@ -175,10 +199,7 @@ pub trait ConnectorIntegration<T, Req, Resp>: ConnectorIntegrationAny<T, Req, Re
     fn get_multiple_capture_sync_method(
         &self,
     ) -> CustomResult<CaptureSyncMethod, errors::ConnectorError> {
-        Err(
-            errors::ConnectorError::NotImplemented("multiple capture sync not implemented".into())
-                .into(),
-        )
+        Err(errors::ConnectorError::NotImplemented("multiple capture sync".into()).into())
     }
 
     fn get_certificate(

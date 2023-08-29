@@ -79,6 +79,7 @@ cards = [
     "forte",
     "globalpay",
     "globepay",
+    "helcim",
     "iatapay",
     "mollie",
     "multisafepay",
@@ -130,6 +131,7 @@ bitpay.base_url = "https://test.bitpay.com"
 bluesnap.base_url = "https://sandbox.bluesnap.com/"
 boku.base_url = "https://$-api4-stage.boku.com"
 braintree.base_url = "https://api.sandbox.braintreegateway.com/"
+braintree.secondary_base_url = "https://payments.sandbox.braintree-api.com/graphql"
 cashtocode.base_url = "https://cluster05.api-test.cashtocode.com"
 checkout.base_url = "https://api.sandbox.checkout.com/"
 coinbase.base_url = "https://api.commerce.coinbase.com"
@@ -141,6 +143,7 @@ fiserv.base_url = "https://cert.api.fiservapps.com/"
 forte.base_url = "https://sandbox.forte.net/api/v3"
 globalpay.base_url = "https://apis.sandbox.globalpay.com/ucp/"
 globepay.base_url = "https://pay.globepay.co/"
+helcim.base_url = "https://api.helcim.com/"
 iatapay.base_url = "https://sandbox.iata-pay.iata.org/api/v1"
 klarna.base_url = "https://api-na.playground.klarna.com/"
 mollie.base_url = "https://api.mollie.com/v2/"
@@ -358,6 +361,7 @@ stripe = { long_lived_token = false, payment_method = "wallet", payment_method_t
 checkout = { long_lived_token = false, payment_method = "wallet" }
 stax = { long_lived_token = true, payment_method = "card,bank_debit" }
 mollie = {long_lived_token = false, payment_method = "card"}
+braintree = { long_lived_token = false, payment_method = "card" }
 
 [connector_customer]
 connector_list = "bluesnap,stax,stripe"
@@ -399,8 +403,8 @@ merchant_ids_send_payment_id_as_connector_request_id = []
 [payouts]
 payout_eligibility = true
 
-[apple_pay_predecrypt]
-connectors_with_apple_pay_predecrypt = "checkout"
+[multiple_api_version_supported_connectors]
+supported_connectors = "braintree"
 
 [applepay_decrypt_keys]
 apple_pay_ppc = "AQICAHgOtO2q+CzdZZhY13M+XN6q8Yj9ThAShIuQIH9ziwez8wHjmPO9eZy0FzAgVQD3HTPNAAAGfDCCBngGCSqGSIb3DQEHBqCCBmkwggZlAgEAMIIGXgYJKoZIhvcNAQcBMB4GCWCGSAFlAwQBLjARBAzPhHblxVFwC6EUEf8CARCAggYvRFrKbtC6V2q2GnV/Q+4RKt/CWQvi/z2ITMue3X6m4kVNIBB/LCXUUSInEyarDozS0Z1DyX4f3KhS3kmUJM8+fYMzIi2XmOVFzpXUWW/Xbx0ebpzhI5fA3F/2UOTud6dzUNUrpBf8ofgWYE+C9guDZB5bVja0gSylGkDjgYdqEbO34FnIDkb6VSXAhNIXzMX8bdN1pExZJ+QohSXTUeilW3e47Hb79ExuOvJo2SN0nGv0gO2qgdtRB8i7b5UPKWcIkX0YDDJpdNjieFwn45YfVmHQe6swVl+yOxnXVMvJYd2RUpAS+DxbTv33ptjvu8PqitibEdbTcqGGXzZoeq3k6g5730J8SbyKuyfyMvl2Kd3ru8FI7arJtdXkaI7wH5HVuqqWYAXWHg4SHsCvmM4EW29fhY8gRsYdlHmas46C65dZ9HWup3jd3/MJzkOXqZuivlmgxIy+BkGGsqXvviW372W7Py//QD/yc6wGhYal5Yr/vpUWeHnapU7zJVVtfmaZFCatY0W9QSQPp1YJg1S2mP9+OvLWS6Qg0cU/omoHiU4LZ80oDSUcKelRfnbX1By7cd6F66cdjKo6rQEHnbeO2i6Xxw3PCZuAk7e9Py+NZfIO1rYf801OwfRV6FRKJKrtqlCAMOSnHatbeHNdQMDOrVtcn4MhD747OufhVCqxpG7eoSt0oE5mlazWe6bjlXjEkOo9eiqxWMr1tLrgJhQpPfg6GprjNQLajpBEPQbXfAf726aTTSGXy/y9pHHU0Bs2XEt5VjX3cKN1IhKiesyrHxwne7its8GCIW675cLUW0yDoVMXmquWl8KqWLw/bEzs13s+6SMG3PFb3uNFBGJq4AUHCouxW4ffyZptSJZhfrDYZUtXLxr0xfXGSjjVcbEA4jeKFQU76wqfDl9wTYqr7NanW4Tcegb4wJBZypLNHaXzi4PQEdGVPNQLbTQUGFhHKS1D5g4w0rdjBxwxCNzn6vo43tE77gAl647D8EZVEddxrsPVzhMPq1Td80LxI5xD3o60QgMuS8pcyKrRLXQviDwsN7gJVCQ9hWMTHlI1is2SYrUJXsDJvpN70D+YVlzfBTolqgo0m2dBkRLZczqrvWAA/YBYrDlvetjYbIUIx4fI/+W73ey6KYCCccrIpwJ1ymFqDS+uWvslHKgaX4zbz1+1ycOwT6PIj18vaoFrhOLECpJcRM/cR1fqy+bJ2RqMnOI5nY8zqKivw+o0nnCaPly2Et1uZPUBEdUUO/uUJCvu+dVkin56P1OcsCk1nRkYQ4hIUyouLX62hN72jDFp2LX1tC+LXh8GYipH9YrG//lduXDCKVYPhRbb9Hs59WAmn2WMh7bz3svLg6g0UDy0WWPsen8ntNZ/nakcR1eu+S75X2xN6wpRhi5LYI3/wO7GuVkVQrHMBErO0AGcQXNBYRGmVw0zf5dIdUwBwM6y/G1HXFqjG1HAof7pbcpNXmWKVHP6H/QITUEtUI6OzW2vx7zHm22F6IQj8fjtBI4B1jMX4a585cDqZyFZG4a9EL1JhEDwYm+FBvL2vnZVPCqNb6h65XKoQ9oD8RcqW09l4GbVjNL2Y74/1EfYL4DhRcWzOevMXBq1FP0ccp5LU4Cx2XKgW49XN12ICK6o6FDIA3/egXop1vJTbqOe+2CZS38mgmL+k8BmSbv9yo89gql0B4S3Dzd3gSwYJbldAH5QoYr+pzsbSAJFEiNwcQkDLOkTZEFCENPgG7MvIQn0ebLucPi3c17+CYfjKG+0Q+/bKwbnlVULvBYgIcwteFXn2I6dHXhL8wDlYrZv2LhvKzIk3fQVgCSDqec4ww/Y4YJHuNQ2m+QxCGOYRC+BGpFYyZC6PJj0Y2hTIxMxSKX7gvR+SLTqBJ672H1Dncf5iw4q57+HRdiGN9fB3d263QfKR4xaaxPnPqUHdc7baaC4ji/RcjP2W/i1hVeZ99svfDMdUKQmLL5SFIvr03ODan0Fe5cv6RPLpr9TY+EfSRKWpjyOvtbN8lTPvLZb71neaiug2dT+2NDaUlEa6AyEUiYCzkVGiOGGshGMuft1wdFGs2yBxO/atrlegJvhL22o2uMkDIKEcktIh9gzjK/bZXYtpk8="

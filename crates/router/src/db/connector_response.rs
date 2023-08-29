@@ -1,4 +1,4 @@
-use error_stack::IntoReport;
+use error_stack::{IntoReport, ResultExt};
 
 use super::{MockDb, Store};
 use crate::{
@@ -88,8 +88,11 @@ impl ConnectorResponseInterface for MockDb {
     ) -> CustomResult<storage::ConnectorResponse, errors::StorageError> {
         let mut connector_response = self.connector_response.lock().await;
         let response = storage::ConnectorResponse {
-            #[allow(clippy::as_conversions)]
-            id: connector_response.len() as i32,
+            id: connector_response
+                .len()
+                .try_into()
+                .into_report()
+                .change_context(errors::StorageError::MockDbError)?,
             payment_id: new.payment_id,
             merchant_id: new.merchant_id,
             attempt_id: new.attempt_id,

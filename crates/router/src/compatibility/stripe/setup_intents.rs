@@ -39,7 +39,7 @@ pub async fn setup_intents_create(
 
     let flow = Flow::PaymentsCreate;
 
-    wrap::compatibility_api_wrap::<
+    Box::pin(wrap::compatibility_api_wrap::<
         _,
         _,
         _,
@@ -65,7 +65,7 @@ pub async fn setup_intents_create(
             )
         },
         &auth::ApiKeyAuth,
-    )
+    ))
     .await
 }
 
@@ -95,7 +95,7 @@ pub async fn setup_intents_retrieve(
 
     let flow = Flow::PaymentsRetrieve;
 
-    wrap::compatibility_api_wrap::<
+    Box::pin(wrap::compatibility_api_wrap::<
         _,
         _,
         _,
@@ -121,7 +121,7 @@ pub async fn setup_intents_retrieve(
             )
         },
         &*auth_type,
-    )
+    ))
     .await
 }
 
@@ -158,7 +158,7 @@ pub async fn setup_intents_update(
 
     let flow = Flow::PaymentsUpdate;
 
-    wrap::compatibility_api_wrap::<
+    Box::pin(wrap::compatibility_api_wrap::<
         _,
         _,
         _,
@@ -184,7 +184,7 @@ pub async fn setup_intents_update(
             )
         },
         &*auth_type,
-    )
+    ))
     .await
 }
 
@@ -222,7 +222,7 @@ pub async fn setup_intents_confirm(
 
     let flow = Flow::PaymentsConfirm;
 
-    wrap::compatibility_api_wrap::<
+    Box::pin(wrap::compatibility_api_wrap::<
         _,
         _,
         _,
@@ -248,6 +248,6 @@ pub async fn setup_intents_confirm(
             )
         },
         &*auth_type,
-    )
+    ))
     .await
 }

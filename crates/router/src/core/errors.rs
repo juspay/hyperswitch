@@ -258,6 +258,10 @@ pub enum ApiClientError {
     ClientConstructionFailed,
     #[error("Certificate decode failed")]
     CertificateDecodeFailed,
+    #[error("Request body serialization failed")]
+    BodySerializationFailed,
+    #[error("Unexpected state reached/Invariants conflicted")]
+    UnexpectedState,
 
     #[error("URL encoding of request payload failed")]
     UrlEncodingFailed,
@@ -378,6 +382,11 @@ pub enum ConnectorError {
     InSufficientBalanceInPaymentMethod,
     #[error("Server responded with Request Timeout")]
     RequestTimeoutReceived,
+    #[error("The given currency method is not configured with the given connector")]
+    CurrencyNotSupported {
+        message: String,
+        connector: &'static str,
+    },
 }
 
 #[derive(Debug, thiserror::Error)]
@@ -611,11 +620,7 @@ pub mod error_stack_parsing {
                         attachments: current_error.attachments,
                     }]
                     .into_iter()
-                    .chain(
-                        Into::<VecLinearErrorStack<'a>>::into(current_error.sources)
-                            .0
-                            .into_iter(),
-                    )
+                    .chain(Into::<VecLinearErrorStack<'a>>::into(current_error.sources).0)
                 })
                 .collect();
             Self(multi_layered_errors)
