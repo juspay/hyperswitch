@@ -1144,7 +1144,7 @@ pub async fn auto_refund_task(
     ))
     .into_report()
     .change_context(errors::ApiErrorResponse::InternalServerError)
-    .attach_printable_lazy(|| format!("unable to parse intoj json"))?;
+    .attach_printable_lazy(|| format!("unable to parse into json"))?;
     let task = "AUTO_REFUND";
     let process_tracker_entry = storage::ProcessTrackerNew {
         id: format!("{}_{}_{}", runner, task, payment_intent.payment_id),
