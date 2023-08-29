@@ -1,6 +1,6 @@
 use api_models::{
     enums::EventType,
-    refunds::{self, RefundRequest, RefundType},
+    refunds::{RefundRequest, RefundType},
     webhooks::OutgoingWebhookContent,
 };
 use common_utils::ext_traits::ValueExt;
@@ -12,11 +12,8 @@ use diesel_models::{
 use super::{AutoRefundWorkflow, ProcessTrackerWorkflow};
 use crate::{
     core::{
-        errors::ProcessTrackerError,
         refunds::refund_create_core,
-        webhooks::{
-            create_event_and_trigger_appropriate_outgoing_webhook, types::OutgoingWebhookType,
-        },
+        webhooks::create_event_and_trigger_appropriate_outgoing_webhook
     },
     errors,
     logger::error,
@@ -30,7 +27,7 @@ impl ProcessTrackerWorkflow for AutoRefundWorkflow {
         &'a self,
         state: &'a AppState,
         process: storage::ProcessTracker,
-    ) -> Result<(), ProcessTrackerError> {
+    ) -> Result<(), errors::ProcessTrackerError> {
         let db = &*state.store;
         let tracking_data: PaymentIntent =
             process.tracking_data.clone().parse_value("PaymentIntent")?;
@@ -71,7 +68,7 @@ impl ProcessTrackerWorkflow for AutoRefundWorkflow {
                 .await?;
             }
             _ => {
-                return Err(ProcessTrackerError::UnexpectedFlow);
+                return Err(errors::ProcessTrackerError::UnexpectedFlow);
             }
         };
         Ok(())
