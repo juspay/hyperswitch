@@ -1144,7 +1144,7 @@ pub async fn add_auto_refund_task_to_process_tracker(
     ))
     .into_report()
     .change_context(errors::ApiErrorResponse::InternalServerError)
-    .attach_printable_lazy(||"unable to parse into json".to_string())?;
+    .attach_printable_lazy(|| "unable to parse into json".to_string())?;
     let task = "AUTO_REFUND";
     let process_tracker_entry = storage::ProcessTrackerNew {
         id: format!("{}_{}_{}", runner, task, payment_intent.clone().payment_id),
