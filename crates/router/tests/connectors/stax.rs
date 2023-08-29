@@ -1,11 +1,7 @@
 use std::{str::FromStr, time::Duration};
 
 use masking::Secret;
-use router::types::{
-    self, api,
-    storage::enums,
-    PaymentsResponseData,
-};
+use router::types::{self, api, storage::enums, PaymentsResponseData};
 use test_utils::connector_auth;
 
 use crate::utils::{self, ConnectorActions};
