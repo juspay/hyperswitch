@@ -2,6 +2,7 @@ pub mod transformers;
 
 use std::fmt::Debug;
 
+use api_models::enums;
 use error_stack::{IntoReport, ResultExt};
 use masking::PeekInterface;
 use transformers as square;
@@ -104,11 +105,12 @@ impl ConnectorCommon for Square {
             code: Some(consts::NO_ERROR_CODE.to_string()),
             detail: Some(consts::NO_ERROR_MESSAGE.to_string()),
         };
-        let mut reason = "Error".to_string();
-
+        let mut reason_list = Vec::new();
         for t in response.errors.iter() {
-            reason = format!("{}; {}", reason, t.detail.clone().unwrap_or("".to_string()))
+            reason_list.push(t.detail.clone().unwrap_or("".to_string()))
         }
+        let reason = reason_list.join(" ");
+
         Ok(ErrorResponse {
             status_code: res.status_code,
             code: response
@@ -130,7 +132,20 @@ impl ConnectorCommon for Square {
     }
 }
 
-impl ConnectorValidation for Square {}
+impl ConnectorValidation for Square {
+    fn validate_capture_method(
+        &self,
+        capture_method: Option<enums::CaptureMethod>,
+    ) -> CustomResult<(), errors::ConnectorError> {
+        let capture_method = capture_method.unwrap_or_default();
+        match capture_method {
+            enums::CaptureMethod::Automatic | enums::CaptureMethod::Manual => Ok(()),
+            enums::CaptureMethod::ManualMultiple | enums::CaptureMethod::Scheduled => Err(
+                super::utils::construct_not_implemented_error_report(capture_method, self.id()),
+            ),
+        }
+    }
+}
 
 impl ConnectorIntegration<api::Session, types::PaymentsSessionData, types::PaymentsResponseData>
     for Square

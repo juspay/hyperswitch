@@ -453,7 +453,7 @@ async fn should_fail_payment_for_incorrect_cvc() {
             .unwrap_err()
             .reason
             .unwrap_or("".to_string()),
-        "Error; Missing required parameter.".to_string(),
+        "Missing required parameter.".to_string(),
     );
 }
 
@@ -484,7 +484,7 @@ async fn should_fail_payment_for_invalid_exp_month() {
             .unwrap_err()
             .reason
             .unwrap_or("".to_string()),
-        "Error; Invalid card expiration date.".to_string(),
+        "Invalid card expiration date.".to_string(),
     );
 }
 
@@ -515,7 +515,7 @@ async fn should_fail_payment_for_incorrect_expiry_year() {
             .unwrap_err()
             .reason
             .unwrap_or("".to_string()),
-        "Error; Invalid card expiration date.".to_string(),
+        "Invalid card expiration date.".to_string(),
     );
 }
 
@@ -543,7 +543,7 @@ async fn should_fail_void_payment_for_auto_capture() {
     let connector_transaction_id = txn_id.unwrap();
     assert_eq!(
         void_response.response.unwrap_err().reason.unwrap_or("".to_string()),
-        format!("Error; Payment {connector_transaction_id} is in inflight state COMPLETED, which is invalid for the requested operation")
+        format!("Payment {connector_transaction_id} is in inflight state COMPLETED, which is invalid for the requested operation")
     );
 }
 
@@ -564,7 +564,7 @@ async fn should_fail_capture_for_invalid_payment() {
             .unwrap_err()
             .reason
             .unwrap_or("".to_string()),
-        String::from("Error; Could not find payment with id: 123456789")
+        String::from("Could not find payment with id: 123456789")
     );
 }
 
@@ -588,7 +588,7 @@ async fn should_fail_for_refund_amount_higher_than_payment_amount() {
             .unwrap_err()
             .reason
             .unwrap_or("".to_string()),
-        "Error; The requested refund amount exceeds the amount available to refund.",
+        "The requested refund amount exceeds the amount available to refund.",
     );
 }
 
