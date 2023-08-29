@@ -94,6 +94,7 @@ fiserv.base_url = "https://cert.api.fiservapps.com/"
 forte.base_url = "https://sandbox.forte.net/api/v3"
 globalpay.base_url = "https://apis.sandbox.globalpay.com/ucp/"
 globepay.base_url = "https://pay.globepay.co/"
+helcim.base_url = "https://api.helcim.com/"
 iatapay.base_url = "https://sandbox.iata-pay.iata.org/api/v1"
 klarna.base_url = "https://api-na.playground.klarna.com/"
 mollie.base_url = "https://api.mollie.com/v2/"
@@ -153,6 +154,7 @@ cards = [
     "forte",
     "globalpay",
     "globepay",
+    "helcim",
     "iatapay",
     "mollie",
     "multisafepay",
