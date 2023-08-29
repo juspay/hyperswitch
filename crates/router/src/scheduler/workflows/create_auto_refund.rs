@@ -61,25 +61,30 @@ impl ProcessTrackerWorkflow for AutoRefundWorkflow {
             metadata: None,
             merchant_connector_details: None,
         };
-        let refund_response =
-            refund_create_core(state, merchant_account.clone(), key_store, ref_req).await?;
-        match refund_response {
-            crate::services::ApplicationResponse::Json(refund_details) => {
-                create_event_and_trigger_appropriate_outgoing_webhook(
-                    state.clone(),
-                    merchant_account,
-                    EventType::RefundSucceeded,
-                    EventClass::Refunds,
-                    None,
-                    refund_details.clone().refund_id,
-                    EventObjectType::RefundDetails,
-                    OutgoingWebhookContent::RefundDetails(refund_details),
-                )
-                .await?;
+        let refund_flow_result =
+            refund_create_core(state, merchant_account.clone(), key_store, ref_req).await;
+        match refund_flow_result {
+            Ok(refund_response) => {
+                match refund_response {
+                    crate::services::ApplicationResponse::Json(refund_details) => {
+                        create_event_and_trigger_appropriate_outgoing_webhook(
+                            state.clone(),
+                            merchant_account,
+                            EventType::RefundSucceeded,
+                            EventClass::Refunds,
+                            None,
+                            refund_details.clone().refund_id,
+                            EventObjectType::RefundDetails,
+                            OutgoingWebhookContent::RefundDetails(refund_details),
+                        )
+                        .await?;
+                    }
+                    _ => {
+                        return Err(errors::ProcessTrackerError::UnexpectedFlow);
+                    }
+                };
             }
-            _ => {
-                return Err(errors::ProcessTrackerError::UnexpectedFlow);
-            }
+            Err(err) => {}
         };
         Ok(())
     }
