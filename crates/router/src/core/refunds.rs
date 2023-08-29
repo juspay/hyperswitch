@@ -1115,7 +1115,7 @@ pub async fn retry_refund_sync_task(
     }
 }
 
-#[instrument]
+#[instrument(skip_all)]
 pub fn payment_intent_to_auto_refund_struct(
     payment_intent: PaymentIntent,
     retry_count: i32,
