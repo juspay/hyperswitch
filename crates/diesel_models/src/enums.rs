@@ -12,7 +12,7 @@ pub mod diesel_exports {
         DbMerchantStorageScheme as MerchantStorageScheme,
         DbPaymentMethodIssuerCode as PaymentMethodIssuerCode, DbPayoutStatus as PayoutStatus,
         DbPayoutType as PayoutType, DbProcessTrackerStatus as ProcessTrackerStatus,
-        DbRefundStatus as RefundStatus, DbRefundType as RefundType,
+        DbReconStatus as ReconStatus, DbRefundStatus as RefundStatus, DbRefundType as RefundType,
     };
 }
 pub use common_enums::*;

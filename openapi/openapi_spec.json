@@ -6093,7 +6093,8 @@
           "enable_payment_response_hash",
           "redirect_to_merchant_with_http_post",
           "primary_business_details",
-          "is_recon_enabled"
+          "is_recon_enabled",
+          "recon_status"
         ],
         "properties": {
           "merchant_id": {
@@ -6232,6 +6233,9 @@
             "description": "The default business profile that must be used for creating merchant accounts and payments",
             "nullable": true,
             "maxLength": 64
+          },
+          "recon_status": {
+            "$ref": "#/components/schemas/ReconStatus"
           }
         }
       },
@@ -10064,6 +10068,15 @@
             "nullable": true
           }
         }
+      },
+      "ReconStatus": {
+        "type": "string",
+        "enum": [
+          "not_requested",
+          "requested",
+          "active",
+          "disabled"
+        ]
       },
       "RedirectResponse": {
         "type": "object",
