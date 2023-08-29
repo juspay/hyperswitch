@@ -238,6 +238,10 @@ pub struct RouterData<Flow, Request, Response> {
     pub preprocessing_id: Option<String>,
     /// This is the balance amount for gift cards or voucher
     pub payment_method_balance: Option<PaymentMethodBalance>,
+
+    ///for switching between two different versions of the same connector
+    pub connector_api_version: Option<String>,
+
     /// Contains flow-specific data required to construct a request and send it to the connector.
     pub request: Request,
 
@@ -777,6 +781,9 @@ pub enum ConnectorAuthType {
         api_secret: Secret<String>,
         key2: Secret<String>,
     },
+    CurrencyAuthKey {
+        auth_key_map: HashMap<storage_enums::Currency, pii::SecretSerdeValue>,
+    },
     #[default]
     NoKey,
 }
@@ -954,6 +961,7 @@ impl<F1, F2, T1, T2> From<(&RouterData<F1, T1, PaymentsResponseData>, T2)>
             quote_id: data.quote_id.clone(),
             test_mode: data.test_mode,
             payment_method_balance: data.payment_method_balance.clone(),
+            connector_api_version: data.connector_api_version.clone(),
             connector_http_status_code: data.connector_http_status_code,
         }
     }
@@ -1026,6 +1034,7 @@ impl<F1, F2>
             quote_id: data.quote_id.clone(),
             test_mode: data.test_mode,
             payment_method_balance: None,
+            connector_api_version: None,
             connector_http_status_code: data.connector_http_status_code,
         }
     }

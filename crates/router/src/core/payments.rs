@@ -24,7 +24,6 @@ pub use self::operations::{
 };
 use self::{
     flows::{ConstructFlowSpecificData, Feature},
-    helpers::authenticate_client_secret,
     operations::{payment_complete_authorize, BoxedOperation, Operation},
 };
 use super::errors::StorageErrorExt;
@@ -92,12 +91,6 @@ where
             auth_flow,
         )
         .await?;
-
-    authenticate_client_secret(
-        req.get_client_secret(),
-        &payment_data.payment_intent,
-        merchant_account.intent_fulfillment_time,
-    )?;
 
     let (operation, customer) = operation
         .to_domain()?
@@ -1271,11 +1264,6 @@ pub async fn list_payments(
             .await
             .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
 
-    let attempt_count = payment_intents
-        .iter()
-        .map(|intent| intent.attempt_count)
-        .sum();
-
     let collected_futures = payment_intents.into_iter().map(|pi| {
         async {
             match db
@@ -1323,7 +1311,6 @@ pub async fn list_payments(
     Ok(services::ApplicationResponse::Json(
         api::PaymentListResponse {
             size: data.len(),
-            attempt_count,
             data,
         },
     ))

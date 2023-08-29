@@ -776,7 +776,7 @@ pub enum PaymentMethodData {
     BankTransfer(Box<BankTransferData>),
     Crypto(CryptoData),
     MandatePayment,
-    Reward(RewardData),
+    Reward,
     Upi(UpiData),
     Voucher(VoucherData),
     GiftCard(Box<GiftCardData>),
@@ -1905,6 +1905,9 @@ pub struct PaymentsResponse {
 
     /// The business profile that is associated with this payment
     pub profile_id: Option<String>,
+
+    /// total number of attempts associated with this payment
+    pub attempt_count: i16,
 }
 
 #[derive(Clone, Debug, serde::Deserialize, ToSchema)]
@@ -1923,9 +1926,9 @@ pub struct PaymentListConstraints {
     pub ending_before: Option<String>,
 
     /// limit on the number of objects to return
-    #[schema(default = 10)]
+    #[schema(default = 10, maximum = 100)]
     #[serde(default = "default_limit")]
-    pub limit: i64,
+    pub limit: u32,
 
     /// The time at which payment is created
     #[schema(example = "2022-09-10T10:11:12Z")]
@@ -1970,8 +1973,6 @@ pub struct PaymentListConstraints {
 pub struct PaymentListResponse {
     /// The number of payments included in the list
     pub size: usize,
-    /// The total number of payment_attempts for intents included in the list
-    pub attempt_count: i16,
     // The list of payments response objects
     pub data: Vec<PaymentsResponse>,
 }
@@ -2048,7 +2049,7 @@ pub struct VerifyResponse {
     pub error_message: Option<String>,
 }
 
-fn default_limit() -> i64 {
+fn default_limit() -> u32 {
     10
 }
 

@@ -16,6 +16,8 @@ request_body_limit = 32_768
 [proxy]
 # http_url = "http proxy url"   # Proxy all HTTP traffic via this proxy
 # https_url = "https proxy url" # Proxy all HTTPS traffic via this proxy
+idle_pool_connection_timeout = 90 # Timeout for idle pool connections (defaults to 90s)
+
 
 # Main SQL data store credentials
 [master_database]
@@ -159,6 +161,7 @@ bitpay.base_url = "https://test.bitpay.com"
 bluesnap.base_url = "https://sandbox.bluesnap.com/"
 boku.base_url = "https://$-api4-stage.boku.com"
 braintree.base_url = "https://api.sandbox.braintreegateway.com/"
+braintree.secondary_base_url = "https://payments.sandbox.braintree-api.com/graphql"
 cashtocode.base_url = "https://cluster05.api-test.cashtocode.com"
 checkout.base_url = "https://api.sandbox.checkout.com/"
 coinbase.base_url = "https://api.commerce.coinbase.com"
@@ -170,6 +173,7 @@ fiserv.base_url = "https://cert.api.fiservapps.com/"
 forte.base_url = "https://sandbox.forte.net/api/v3"
 globalpay.base_url = "https://apis.sandbox.globalpay.com/ucp/"
 globepay.base_url = "https://pay.globepay.co/"
+helcim.base_url = "https://api.helcim.com/"
 iatapay.base_url = "https://sandbox.iata-pay.iata.org/api/v1"
 klarna.base_url = "https://api-na.playground.klarna.com/"
 mollie.base_url = "https://api.mollie.com/v2/"
@@ -239,6 +243,7 @@ cards = [
     "cybersource",
     "globalpay",
     "globepay",
+    "helcim",
     "mollie",
     "paypal",
     "shift4",
@@ -301,6 +306,7 @@ stripe = { long_lived_token = false, payment_method = "wallet", payment_method_t
 checkout = { long_lived_token = false, payment_method = "wallet" }
 mollie = {long_lived_token = false, payment_method = "card"}
 stax = { long_lived_token = true, payment_method = "card,bank_debit" }
+braintree = { long_lived_token = false, payment_method = "card" }
 
 [dummy_connector]
 payment_ttl = 172800             # Time to live for dummy connector payment in redis
@@ -392,3 +398,6 @@ adyen.banks = "affin_bank,agro_bank,alliance_bank,am_bank,bank_islam,bank_muamal
 
 [bank_config.online_banking_thailand]
 adyen.banks = "bangkok_bank,krungsri_bank,krung_thai_bank,the_siam_commercial_bank,kasikorn_bank"
+
+[multiple_api_version_supported_connectors]
+supported_connectors = ["braintree"]
