@@ -1129,9 +1129,9 @@ pub fn payment_intent_to_auto_refund_struct(
 }
 
 #[instrument(skip_all)]
-pub async fn auto_refund_task(
+pub async fn add_auto_refund_task_to_process_tracker(
     db: &dyn db::StorageInterface,
-    payment_intent: &PaymentIntent,
+    payment_intent: PaymentIntent,
     retry_count: i32,
     max_retries: i32,
     runner: &str,
@@ -1144,10 +1144,10 @@ pub async fn auto_refund_task(
     ))
     .into_report()
     .change_context(errors::ApiErrorResponse::InternalServerError)
-    .attach_printable_lazy(|| format!("unable to parse into json"))?;
+    .attach_printable_lazy(||"unable to parse into json".to_string())?;
     let task = "AUTO_REFUND";
     let process_tracker_entry = storage::ProcessTrackerNew {
-        id: format!("{}_{}_{}", runner, task, payment_intent.payment_id),
+        id: format!("{}_{}_{}", runner, task, payment_intent.clone().payment_id),
         name: Some(String::from(task)),
         tag: vec![String::from("REFUND")],
         runner: Some(String::from(runner)),
@@ -1169,7 +1169,7 @@ pub async fn auto_refund_task(
         .attach_printable_lazy(|| {
             format!(
                 "Failed while inserting task in process_tracker: payment_id: {}",
-                payment_intent.payment_id
+                payment_intent.clone().payment_id
             )
         })?;
     Ok(response)

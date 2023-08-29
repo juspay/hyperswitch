@@ -12,7 +12,8 @@ use diesel_models::{
 use super::{AutoRefundWorkflow, ProcessTrackerWorkflow};
 use crate::{
     core::{
-        errors::ApiErrorResponse, refunds::refund_create_core,
+        errors::ApiErrorResponse,
+        refunds::{add_auto_refund_task_to_process_tracker, refund_create_core},
         webhooks::create_event_and_trigger_appropriate_outgoing_webhook,
     },
     errors,
@@ -44,17 +45,20 @@ impl ProcessTrackerWorkflow for AutoRefundWorkflow {
         let key_store = state
             .store
             .get_merchant_key_store_by_merchant_id(
-                payment_intent.merchant_id.as_str(),
+                payment_intent.clone().merchant_id.as_str(),
                 &state.store.get_master_key().to_vec().into(),
             )
             .await?;
         let merchant_account = db
-            .find_merchant_account_by_merchant_id(payment_intent.merchant_id.as_str(), &key_store)
+            .find_merchant_account_by_merchant_id(
+                payment_intent.clone().merchant_id.as_str(),
+                &key_store,
+            )
             .await?;
         let ref_req = RefundRequest {
             refund_id: None,
-            payment_id: payment_intent.payment_id,
-            merchant_id: Some(payment_intent.merchant_id),
+            payment_id: payment_intent.clone().payment_id,
+            merchant_id: Some(payment_intent.clone().merchant_id),
             amount: None,
             reason: Some("Auto Refund".to_string()),
             refund_type: Some(RefundType::Scheduled),
@@ -90,7 +94,14 @@ impl ProcessTrackerWorkflow for AutoRefundWorkflow {
                     ApiErrorResponse::InvalidJwtToken
                     | ApiErrorResponse::ExternalConnectorError { .. }
                     | ApiErrorResponse::RefundFailed { .. } => {
-                        // retry refund
+                        add_auto_refund_task_to_process_tracker(
+                            db,
+                            payment_intent.clone(),
+                            retry_count + 1,
+                            max_retries,
+                            "REFUND_WORKFLOW_ROUTER",
+                        )
+                        .await?;
                     }
                     _ => {
                         return Err(errors::ProcessTrackerError::FlowExecutionError {
