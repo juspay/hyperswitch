@@ -1262,11 +1262,6 @@ pub async fn list_payments(
             .await
             .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
 
-    let attempt_count = payment_intents
-        .iter()
-        .map(|intent| intent.attempt_count)
-        .sum();
-
     let collected_futures = payment_intents.into_iter().map(|pi| {
         async {
             match db
@@ -1314,7 +1309,6 @@ pub async fn list_payments(
     Ok(services::ApplicationResponse::Json(
         api::PaymentListResponse {
             size: data.len(),
-            attempt_count,
             data,
         },
     ))
@@ -1341,15 +1335,12 @@ pub async fn apply_filters_on_payments(
         .map(|(pi, pa)| (pi, pa.to_storage_model()))
         .collect();
 
-    let attempt_count = list.iter().map(|item| item.0.attempt_count).sum();
-
     let data: Vec<api::PaymentsResponse> =
         list.into_iter().map(ForeignFrom::foreign_from).collect();
 
     Ok(services::ApplicationResponse::Json(
         api::PaymentListResponse {
             size: data.len(),
-            attempt_count,
             data,
         },
     ))
