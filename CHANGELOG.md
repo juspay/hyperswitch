@@ -4,6 +4,16 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 1.28.1+hotfix.1 (2023-08-29)
+
+### Bug Fixes
+
+- **payments list:** Revert payment list operation to choose a common pool ([`9b8ace6`](https://github.com/juspay/hyperswitch/commit/9b8ace6c4e406f3a904cf56cbd14f050397b5120))
+
+**Full Changelog:** [`v1.28.1...v1.28.1+hotfix.1`](https://github.com/juspay/hyperswitch/compare/v1.28.1...v1.28.1+hotfix.1)
+
+- - -
+
 ## 1.28.1 (2023-08-28)
 
 ### Bug Fixes
