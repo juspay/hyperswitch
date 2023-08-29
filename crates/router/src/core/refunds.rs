@@ -1,6 +1,7 @@
 pub mod validator;
 
 use common_utils::ext_traits::AsyncExt;
+use diesel_models::{payment_intent::PaymentIntent, refund};
 use error_stack::{report, IntoReport, ResultExt};
 use router_env::{instrument, tracing};
 
@@ -1112,4 +1113,64 @@ pub async fn retry_refund_sync_task(
                 .await
         }
     }
+}
+
+#[instrument]
+pub fn payment_intent_to_auto_refund_struct(
+    payment_intent: PaymentIntent,
+    retry_count: i32,
+    max_retries: i32,
+) -> refund::AutoRefundWorkflow {
+    refund::AutoRefundWorkflow {
+        payment_intent,
+        retry_count,
+        max_retries,
+    }
+}
+
+#[instrument(skip_all)]
+pub async fn auto_refund_task(
+    db: &dyn db::StorageInterface,
+    payment_intent: &PaymentIntent,
+    retry_count: i32,
+    max_retries: i32,
+    runner: &str,
+) -> RouterResult<storage::ProcessTracker> {
+    let current_time = common_utils::date_time::now();
+    let auto_refund_workflow_data = serde_json::to_value(payment_intent_to_auto_refund_struct(
+        payment_intent.clone(),
+        retry_count,
+        max_retries,
+    ))
+    .into_report()
+    .change_context(errors::ApiErrorResponse::InternalServerError)
+    .attach_printable_lazy(|| format!("unable to parse intoj json"))?;
+    let task = "AUTO_REFUND";
+    let process_tracker_entry = storage::ProcessTrackerNew {
+        id: format!("{}_{}_{}", runner, task, payment_intent.payment_id),
+        name: Some(String::from(task)),
+        tag: vec![String::from("REFUND")],
+        runner: Some(String::from(runner)),
+        retry_count,
+        schedule_time: Some(common_utils::date_time::now()),
+        rule: String::new(),
+        tracking_data: auto_refund_workflow_data,
+        business_status: String::from("Pending"),
+        status: enums::ProcessTrackerStatus::New,
+        event: vec![],
+        created_at: current_time,
+        updated_at: current_time,
+    };
+
+    let response = db
+        .insert_process(process_tracker_entry)
+        .await
+        .to_duplicate_response(errors::ApiErrorResponse::DuplicateRefundRequest)
+        .attach_printable_lazy(|| {
+            format!(
+                "Failed while inserting task in process_tracker: payment_id: {}",
+                payment_intent.payment_id
+            )
+        })?;
+    Ok(response)
 }
