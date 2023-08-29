@@ -274,7 +274,10 @@ async fn get_tracker_for_sync<
                 .attach_printable_lazy(|| {
                     format!("Error while retrieving capture list for, merchant_id: {}, payment_id: {payment_id_str}", merchant_account.merchant_id)
                 })?;
-        Some(types::MultipleCaptureData::new_for_sync(captures)?)
+        Some(types::MultipleCaptureData::new_for_sync(
+            captures,
+            request.expand_captures,
+        )?)
     } else {
         None
     };

@@ -204,6 +204,21 @@ where
         connector_request_reference_id_config: &ConnectorRequestReferenceIdConfig,
         connector_http_status_code: Option<u16>,
     ) -> RouterResponse<Self> {
+        let captures = payment_data
+            .multiple_capture_data
+            .and_then(|multiple_capture_data| {
+                multiple_capture_data
+                    .expand_captures
+                    .and_then(|should_expand| {
+                        should_expand.then_some(
+                            multiple_capture_data
+                                .get_all_captures()
+                                .into_iter()
+                                .cloned()
+                                .collect(),
+                        )
+                    })
+            });
         payments_to_payments_response(
             req,
             payment_data.payment_attempt,
@@ -211,15 +226,7 @@ where
             payment_data.refunds,
             payment_data.disputes,
             payment_data.attempts,
-            payment_data
-                .multiple_capture_data
-                .map(|multiple_capture_data| {
-                    multiple_capture_data
-                        .get_all_captures()
-                        .into_iter()
-                        .cloned()
-                        .collect()
-                }),
+            captures,
             payment_data.payment_method_data,
             customer,
             auth_flow,
