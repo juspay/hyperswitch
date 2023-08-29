@@ -1,4 +1,4 @@
-use std::{fmt::Debug, marker::PhantomData};
+use std::{fmt::Debug, marker::PhantomData, str::FromStr};
 
 use common_utils::fp_utils;
 use diesel_models::{ephemeral_key, payment_attempt::PaymentListFilters};
@@ -8,7 +8,7 @@ use router_env::{instrument, tracing};
 use super::{flows::Feature, PaymentAddress, PaymentData};
 use crate::{
     configs::settings::{ConnectorRequestReferenceIdConfig, Server},
-    connector::{Nexinets, Paypal},
+    connector::Nexinets,
     core::{
         errors::{self, RouterResponse, RouterResult},
         payments::{self, helpers},
@@ -99,6 +99,29 @@ where
 
     let customer_id = customer.to_owned().map(|customer| customer.customer_id);
 
+    let supported_connector = &state
+        .conf
+        .multiple_api_version_supported_connectors
+        .supported_connectors;
+    let connector_enum = api_models::enums::Connector::from_str(connector_id)
+        .into_report()
+        .change_context(errors::ConnectorError::InvalidConnectorName)
+        .change_context(errors::ApiErrorResponse::InvalidDataValue {
+            field_name: "connector",
+        })
+        .attach_printable_lazy(|| format!("unable to parse connector name {connector_id:?}"))?;
+
+    let connector_api_version = if supported_connector.contains(&connector_enum) {
+        state
+            .store
+            .find_config_by_key_cached(&format!("connector_api_version_{connector_id}"))
+            .await
+            .map(|value| value.config)
+            .ok()
+    } else {
+        None
+    };
+
     router_data = types::RouterData {
         flow: PhantomData,
         merchant_id: merchant_account.merchant_id.clone(),
@@ -139,6 +162,7 @@ where
         quote_id: None,
         test_mode,
         payment_method_balance: None,
+        connector_api_version,
         connector_http_status_code: None,
     };
 
@@ -576,6 +600,8 @@ where
                         .set_feature_metadata(payment_intent.feature_metadata)
                         .set_connector_metadata(payment_intent.connector_metadata)
                         .set_reference_id(payment_attempt.connector_response_reference_id)
+                        .set_profile_id(payment_intent.profile_id)
+                        .set_attempt_count(payment_intent.attempt_count)
                         .to_owned(),
                     headers,
                 ))
@@ -633,6 +659,7 @@ where
                 connector_metadata: payment_intent.connector_metadata,
                 allowed_payment_method_types: payment_intent.allowed_payment_method_types,
                 reference_id: payment_attempt.connector_response_reference_id,
+                attempt_count: payment_intent.attempt_count,
                 ..Default::default()
             },
             headers,
@@ -736,6 +763,7 @@ impl ForeignFrom<(storage::PaymentIntent, storage::PaymentAttempt)> for api::Pay
             capture_method: pa.capture_method,
             authentication_type: pa.authentication_type,
             connector_transaction_id: pa.connector_transaction_id,
+            attempt_count: pi.attempt_count,
             ..Default::default()
         }
     }
@@ -955,24 +983,6 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsSyncData
                 None => types::SyncRequestType::SinglePaymentSync,
             },
         })
-    }
-}
-
-impl api::ConnectorTransactionId for Paypal {
-    fn connector_transaction_id(
-        &self,
-        payment_attempt: storage::PaymentAttempt,
-    ) -> Result<Option<String>, errors::ApiErrorResponse> {
-        let payment_method = payment_attempt.payment_method;
-        let metadata = Self::connector_transaction_id(
-            self,
-            payment_method,
-            &payment_attempt.connector_metadata,
-        );
-        match metadata {
-            Ok(data) => Ok(data),
-            _ => Err(errors::ApiErrorResponse::ResourceIdNotFound),
-        }
     }
 }
 

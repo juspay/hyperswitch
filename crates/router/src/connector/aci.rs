@@ -14,6 +14,7 @@ use crate::{
     services::{
         self,
         request::{self, Mask},
+        ConnectorValidation,
     },
     types::{
         self,
@@ -78,6 +79,8 @@ impl ConnectorCommon for Aci {
         })
     }
 }
+
+impl ConnectorValidation for Aci {}
 
 impl api::Payment for Aci {}
 
@@ -295,6 +298,7 @@ impl
         >,
         connectors: &settings::Connectors,
     ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
+        self.validate_capture_method(req.request.capture_method)?;
         Ok(Some(
             services::RequestBuilder::new()
                 .method(services::Method::Post)

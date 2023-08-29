@@ -6226,6 +6226,12 @@
           "is_recon_enabled": {
             "type": "boolean",
             "description": "A boolean value to indicate if the merchant has recon service is enabled or not, by default value is false"
+          },
+          "default_profile": {
+            "type": "string",
+            "description": "The default business profile that must be used for creating merchant accounts and payments",
+            "nullable": true,
+            "maxLength": 64
           }
         }
       },
@@ -6352,6 +6358,12 @@
             "description": "Will be used to expire client secret after certain amount of time to be supplied in seconds\n(900) for 15 mins",
             "nullable": true,
             "minimum": 0.0
+          },
+          "default_profile": {
+            "type": "string",
+            "description": "The default business profile that must be used for creating merchant accounts and payments\nTo unset this field, pass an empty string",
+            "nullable": true,
+            "maxLength": 64
           }
         }
       },
@@ -6477,6 +6489,11 @@
                 "$ref": "#/components/schemas/MerchantConnectorWebhookDetails"
               }
             ],
+            "nullable": true
+          },
+          "profile_id": {
+            "type": "string",
+            "description": "Identifier for the business profile, if not provided default will be chosen from merchant account",
             "nullable": true
           }
         }
@@ -6684,6 +6701,12 @@
               }
             ],
             "nullable": true
+          },
+          "profile_id": {
+            "type": "string",
+            "description": "The business profile this connector must be created in\ndefault value from merchant account is taken if not passed",
+            "nullable": true,
+            "maxLength": 64
           }
         }
       },
@@ -7638,9 +7661,11 @@
           },
           "limit": {
             "type": "integer",
-            "format": "int64",
+            "format": "int32",
             "description": "limit on the number of objects to return",
-            "default": 10
+            "default": 10,
+            "maximum": 100.0,
+            "minimum": 0.0
           },
           "created": {
             "type": "string",
@@ -7871,15 +7896,10 @@
             ]
           },
           {
-            "type": "object",
-            "required": [
+            "type": "string",
+            "enum": [
               "reward"
-            ],
-            "properties": {
-              "reward": {
-                "$ref": "#/components/schemas/RewardData"
-              }
-            }
+            ]
           },
           {
             "type": "object",
@@ -8647,6 +8667,11 @@
               }
             ],
             "nullable": true
+          },
+          "profile_id": {
+            "type": "string",
+            "description": "The business profile to use for this payment, if not passed the default business profile\nassociated with the merchant account will be used.",
+            "nullable": true
           }
         }
       },
@@ -8981,6 +9006,11 @@
               }
             ],
             "nullable": true
+          },
+          "profile_id": {
+            "type": "string",
+            "description": "The business profile to use for this payment, if not passed the default business profile\nassociated with the merchant account will be used.",
+            "nullable": true
           }
         }
       },
@@ -8992,7 +9022,8 @@
           "currency",
           "payment_method",
           "business_country",
-          "business_label"
+          "business_label",
+          "attempt_count"
         ],
         "properties": {
           "payment_id": {
@@ -9357,6 +9388,16 @@
             "description": "reference to the payment at connector side",
             "example": "993672945374576J",
             "nullable": true
+          },
+          "profile_id": {
+            "type": "string",
+            "description": "The business profile that is associated with this payment",
+            "nullable": true
+          },
+          "attempt_count": {
+            "type": "integer",
+            "format": "int32",
+            "description": "total number of attempts associated with this payment"
           }
         }
       },

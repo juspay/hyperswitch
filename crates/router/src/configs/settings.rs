@@ -93,6 +93,13 @@ pub struct Settings {
     pub connector_request_reference_id_config: ConnectorRequestReferenceIdConfig,
     #[cfg(feature = "payouts")]
     pub payouts: Payouts,
+    pub multiple_api_version_supported_connectors: MultipleApiVersionSupportedConnectors,
+}
+
+#[derive(Debug, Deserialize, Clone, Default)]
+pub struct MultipleApiVersionSupportedConnectors {
+    #[serde(deserialize_with = "connector_deser")]
+    pub supported_connectors: HashSet<api_models::enums::Connector>,
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
@@ -402,11 +409,12 @@ pub struct Jwekey {
     pub tunnel_private_key: String,
 }
 
-#[derive(Debug, Deserialize, Clone, Default)]
+#[derive(Debug, Deserialize, Clone)]
 #[serde(default)]
 pub struct Proxy {
     pub http_url: Option<String>,
     pub https_url: Option<String>,
+    pub idle_pool_connection_timeout: Option<u64>,
 }
 
 #[derive(Debug, Deserialize, Clone)]
@@ -481,6 +489,7 @@ pub struct Connectors {
     pub forte: ConnectorParams,
     pub globalpay: ConnectorParams,
     pub globepay: ConnectorParams,
+    pub helcim: ConnectorParams,
     pub iatapay: ConnectorParams,
     pub klarna: ConnectorParams,
     pub mollie: ConnectorParams,

@@ -97,7 +97,7 @@ impl TryFrom<&types::TokenizationRouterData> for TokenRequest {
             | api_models::payments::PaymentMethodData::BankTransfer(_)
             | api_models::payments::PaymentMethodData::Crypto(_)
             | api_models::payments::PaymentMethodData::MandatePayment
-            | api_models::payments::PaymentMethodData::Reward(_)
+            | api_models::payments::PaymentMethodData::Reward
             | api_models::payments::PaymentMethodData::Upi(_)
             | api_models::payments::PaymentMethodData::Voucher(_)
             | api_models::payments::PaymentMethodData::CardRedirect(_)
@@ -273,7 +273,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PaymentsRequest {
             | api_models::payments::PaymentMethodData::BankTransfer(_)
             | api_models::payments::PaymentMethodData::Crypto(_)
             | api_models::payments::PaymentMethodData::MandatePayment
-            | api_models::payments::PaymentMethodData::Reward(_)
+            | api_models::payments::PaymentMethodData::Reward
             | api_models::payments::PaymentMethodData::Upi(_)
             | api_models::payments::PaymentMethodData::Voucher(_)
             | api_models::payments::PaymentMethodData::CardRedirect(_)
@@ -858,7 +858,6 @@ impl From<CheckoutRedirectResponseStatus> for enums::AttemptStatus {
     fn from(item: CheckoutRedirectResponseStatus) -> Self {
         match item {
             CheckoutRedirectResponseStatus::Success => Self::AuthenticationSuccessful,
-
             CheckoutRedirectResponseStatus::Failure => Self::Failure,
         }
     }
