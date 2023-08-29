@@ -239,6 +239,16 @@ impl PaymentsPreProcessingData for types::PaymentsPreProcessingData {
     }
 }
 
+pub trait PaymentsCaptureRequestData {
+    fn is_multiple_capture(&self) -> bool;
+}
+
+impl PaymentsCaptureRequestData for types::PaymentsCaptureData {
+    fn is_multiple_capture(&self) -> bool {
+        self.multiple_capture_data.is_some()
+    }
+}
+
 pub trait PaymentsAuthorizeRequestData {
     fn is_auto_capture(&self) -> Result<bool, Error>;
     fn get_email(&self) -> Result<Email, Error>;
@@ -923,6 +933,23 @@ where
 {
     let json = connector_meta.ok_or_else(missing_field_err("connector_meta_data"))?;
     json.parse_value(std::any::type_name::<T>()).switch()
+}
+
+pub fn to_connector_meta_from_secret_with_required_field<T>(
+    connector_meta: Option<Secret<serde_json::Value>>,
+    error_message: &'static str,
+) -> Result<T, Error>
+where
+    T: serde::de::DeserializeOwned,
+{
+    let connector_error = errors::ConnectorError::MissingRequiredField {
+        field_name: error_message,
+    };
+    let parsed_meta = to_connector_meta_from_secret(connector_meta).ok();
+    match parsed_meta {
+        Some(meta) => Ok(meta),
+        _ => Err(connector_error.into()),
+    }
 }
 
 pub fn to_connector_meta_from_secret<T>(
