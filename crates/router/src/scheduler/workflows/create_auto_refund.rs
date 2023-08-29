@@ -105,7 +105,7 @@ impl ProcessTrackerWorkflow for AutoRefundWorkflow {
                     }
                     _ => {
                         return Err(errors::ProcessTrackerError::FlowExecutionError {
-                            flow: "RefundCreate",
+                            flow: "AutoRefund",
                         });
                     }
                 }
