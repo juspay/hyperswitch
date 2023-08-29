@@ -322,7 +322,7 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
         filters: &PaymentIntentFetchConstraints,
         storage_scheme: MerchantStorageScheme,
     ) -> error_stack::Result<Vec<PaymentIntent>, StorageError> {
-        let conn = self.get_replica_pool();
+        let conn = pg_connection_read(self).await?;
 
         //[#350]: Replace this with Boxable Expression and pass it into generic filter
         // when https://github.com/rust-lang/rust/issues/52662 becomes stable
@@ -444,7 +444,7 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
         constraints: &PaymentIntentFetchConstraints,
         storage_scheme: MerchantStorageScheme,
     ) -> error_stack::Result<Vec<(PaymentIntent, PaymentAttempt)>, StorageError> {
-        let conn = self.get_replica_pool();
+        let conn = pg_connection_read(self).await?;
 
         let mut query = DieselPaymentIntent::table()
             .inner_join(
