@@ -612,17 +612,12 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
                 query.filter(pi_dsl::payment_id.eq(payment_intent_id.to_owned()))
             }
             PaymentIntentFetchConstraints::List {
-                offset: _,
                 starting_at,
                 ending_at,
-                connector: _,
                 currency,
                 status,
-                payment_methods: _,
                 customer_id,
-                starting_after_id: _,
-                ending_before_id: _,
-                limit: _,
+                ..
             } => {
                 if let Some(customer_id) = customer_id {
                     query = query.filter(pi_dsl::customer_id.eq(customer_id.clone()));
