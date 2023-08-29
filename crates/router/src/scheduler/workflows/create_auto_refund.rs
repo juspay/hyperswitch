@@ -12,7 +12,7 @@ use diesel_models::{
 use super::{AutoRefundWorkflow, ProcessTrackerWorkflow};
 use crate::{
     core::{
-        refunds::refund_create_core,
+        errors::ApiErrorResponse, refunds::refund_create_core,
         webhooks::create_event_and_trigger_appropriate_outgoing_webhook,
     },
     errors,
@@ -84,7 +84,21 @@ impl ProcessTrackerWorkflow for AutoRefundWorkflow {
                     }
                 };
             }
-            Err(err) => {}
+            Err(err) => {
+                let error = err.current_context().clone();
+                match error {
+                    ApiErrorResponse::InvalidJwtToken
+                    | ApiErrorResponse::ExternalConnectorError { .. }
+                    | ApiErrorResponse::RefundFailed { .. } => {
+                        // retry refund
+                    }
+                    _ => {
+                        return Err(errors::ProcessTrackerError::FlowExecutionError {
+                            flow: "RefundCreate",
+                        });
+                    }
+                }
+            }
         };
         Ok(())
     }
