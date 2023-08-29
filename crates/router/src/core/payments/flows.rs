@@ -352,6 +352,7 @@ default_imp_for_connector_request_id!(
     connector::Opennode,
     connector::Payeezy,
     connector::Payme,
+    connector::Paypal,
     connector::Payu,
     connector::Powertranz,
     connector::Rapyd,
