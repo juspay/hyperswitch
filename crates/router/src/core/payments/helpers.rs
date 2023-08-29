@@ -1694,6 +1694,18 @@ pub(super) fn validate_payment_list_request(
     })?;
     Ok(())
 }
+#[cfg(feature = "olap")]
+pub(super) fn validate_payment_list_request_for_joins(
+    limit: u32,
+    max_limit: u32,
+) -> CustomResult<(), errors::ApiErrorResponse> {
+    utils::when(limit > max_limit || limit < 1, || {
+        Err(errors::ApiErrorResponse::InvalidRequestData {
+            message: format!("limit should be in between 1 and {}", max_limit),
+        })
+    })?;
+    Ok(())
+}
 
 pub fn get_handle_response_url(
     payment_id: String,

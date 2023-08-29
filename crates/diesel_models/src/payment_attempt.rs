@@ -58,6 +58,13 @@ pub struct PaymentAttempt {
     pub connector_response_reference_id: Option<String>,
 }
 
+#[derive(Clone, Debug, Eq, PartialEq, Queryable, Serialize, Deserialize)]
+pub struct PaymentListFilters {
+    pub connector: Vec<String>,
+    pub currency: Vec<storage_enums::Currency>,
+    pub status: Vec<storage_enums::IntentStatus>,
+    pub payment_method: Vec<storage_enums::PaymentMethod>,
+}
 #[derive(
     Clone, Debug, Default, Insertable, router_derive::DebugAsDisplay, Serialize, Deserialize,
 )]

@@ -77,6 +77,15 @@ pub trait PaymentAttemptInterface {
         merchant_id: &str,
         storage_scheme: MerchantStorageScheme,
     ) -> error_stack::Result<PaymentListFilters, errors::StorageError>;
+
+    async fn get_total_count_of_filtered_payment_attempts(
+        &self,
+        merchant_id: &str,
+        active_attempt_ids: &[String],
+        connector: Option<Vec<api_models::enums::Connector>>,
+        payment_methods: Option<Vec<storage_enums::PaymentMethod>>,
+        storage_scheme: MerchantStorageScheme,
+    ) -> error_stack::Result<i64, errors::StorageError>;
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]

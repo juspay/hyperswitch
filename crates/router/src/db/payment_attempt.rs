@@ -1,3 +1,4 @@
+use api_models::enums::{Connector, PaymentMethod};
 use data_models::{errors, payments::payment_attempt::PaymentAttemptInterface};
 use storage_impl::DataModelExt;
 
@@ -29,6 +30,17 @@ impl PaymentAttemptInterface for MockDb {
         data_models::payments::payment_attempt::PaymentListFilters,
         errors::StorageError,
     > {
+        Err(errors::StorageError::MockDbError)?
+    }
+
+    async fn get_total_count_of_filtered_payment_attempts(
+        &self,
+        _merchant_id: &str,
+        _active_attempt_ids: &[String],
+        _connector: Option<Vec<Connector>>,
+        _payment_methods: Option<Vec<PaymentMethod>>,
+        _storage_scheme: enums::MerchantStorageScheme,
+    ) -> CustomResult<i64, errors::StorageError> {
         Err(errors::StorageError::MockDbError)?
     }
 

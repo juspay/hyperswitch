@@ -1,7 +1,10 @@
 use std::collections::HashSet;
 
 use async_bb8_diesel::AsyncRunQueryDsl;
-use diesel::{associations::HasTable, BoolExpressionMethods, ExpressionMethods, QueryDsl, Table};
+use diesel::{
+    associations::HasTable, debug_query, pg::Pg, BoolExpressionMethods, ExpressionMethods,
+    QueryDsl, Table,
+};
 use error_stack::{IntoReport, ResultExt};
 use router_env::{instrument, tracing};
 
@@ -13,6 +16,7 @@ use crate::{
         PaymentAttempt, PaymentAttemptNew, PaymentAttemptUpdate, PaymentAttemptUpdateInternal,
     },
     payment_intent::PaymentIntent,
+    query::generics::db_metrics,
     schema::payment_attempt::dsl,
     PgPooledConn, StorageResult,
 };
@@ -274,5 +278,36 @@ impl PaymentAttempt {
             intent_status,
             filter_payment_method,
         ))
+    }
+    pub async fn get_total_count_of_attempts(
+        conn: &PgPooledConn,
+        merchant_id: &str,
+        active_attempt_ids: &[String],
+        connector: Option<Vec<String>>,
+        payment_method: Option<Vec<enums::PaymentMethod>>,
+    ) -> StorageResult<i64> {
+        let mut filter = <Self as HasTable>::table()
+            .count()
+            .filter(dsl::merchant_id.eq(merchant_id.to_owned()))
+            .filter(dsl::attempt_id.eq_any(active_attempt_ids.to_owned()))
+            .into_boxed();
+
+        if let Some(connector) = connector.clone() {
+            filter = filter.filter(dsl::connector.eq_any(connector));
+        }
+
+        if let Some(payment_method) = payment_method.clone() {
+            filter = filter.filter(dsl::payment_method.eq_any(payment_method));
+        }
+        router_env::logger::debug!(query = %debug_query::<Pg, _>(&filter).to_string());
+
+        db_metrics::track_database_call::<<Self as HasTable>::Table, _, _>(
+            filter.get_result_async::<i64>(conn),
+            db_metrics::DatabaseOperation::Filter,
+        )
+        .await
+        .into_report()
+        .change_context(errors::DatabaseError::Others)
+        .attach_printable("Error filtering count of payments")
     }
 }

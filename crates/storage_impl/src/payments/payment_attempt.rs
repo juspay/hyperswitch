@@ -1,3 +1,4 @@
+use api_models::enums::{Connector, PaymentMethod};
 use common_utils::errors::CustomResult;
 use data_models::{
     errors,
@@ -238,6 +239,45 @@ impl<T: DatabaseStore> PaymentAttemptInterface for RouterStore<T> {
                 er.change_context(new_err)
             })
             .map(PaymentAttempt::from_storage_model)
+    }
+
+    async fn get_total_count_of_filtered_payment_attempts(
+        &self,
+        merchant_id: &str,
+        active_attempt_ids: &[String],
+        connector: Option<Vec<Connector>>,
+        payment_methods: Option<Vec<PaymentMethod>>,
+        _storage_scheme: MerchantStorageScheme,
+    ) -> CustomResult<i64, errors::StorageError> {
+        let conn = self
+            .db_store
+            .get_replica_pool()
+            .get()
+            .await
+            .into_report()
+            .change_context(errors::StorageError::DatabaseConnectionError)?;
+        let connector_strings = if let Some(connector_vec) = &connector {
+            Some(
+                connector_vec
+                    .iter()
+                    .map(|c| c.to_string())
+                    .collect::<Vec<String>>(),
+            )
+        } else {
+            None
+        };
+        DieselPaymentAttempt::get_total_count_of_attempts(
+            &conn,
+            merchant_id,
+            active_attempt_ids,
+            connector_strings,
+            payment_methods,
+        )
+        .await
+        .map_err(|er| {
+            let new_err = crate::diesel_error_to_data_error(er.current_context());
+            er.change_context(new_err)
+        })
     }
 }
 
@@ -751,6 +791,25 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
     ) -> error_stack::Result<PaymentListFilters, errors::StorageError> {
         self.router_store
             .get_filters_for_payments(pi, merchant_id, storage_scheme)
+            .await
+    }
+
+    async fn get_total_count_of_filtered_payment_attempts(
+        &self,
+        merchant_id: &str,
+        active_attempt_ids: &[String],
+        connector: Option<Vec<Connector>>,
+        payment_methods: Option<Vec<PaymentMethod>>,
+        storage_scheme: MerchantStorageScheme,
+    ) -> CustomResult<i64, errors::StorageError> {
+        self.router_store
+            .get_total_count_of_filtered_payment_attempts(
+                merchant_id,
+                active_attempt_ids,
+                connector,
+                payment_methods,
+                storage_scheme,
+            )
             .await
     }
 }
