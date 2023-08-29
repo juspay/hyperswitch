@@ -418,11 +418,12 @@ pub struct Jwekey {
     pub tunnel_private_key: String,
 }
 
-#[derive(Debug, Deserialize, Clone, Default)]
+#[derive(Debug, Deserialize, Clone)]
 #[serde(default)]
 pub struct Proxy {
     pub http_url: Option<String>,
     pub https_url: Option<String>,
+    pub idle_pool_connection_timeout: Option<u64>,
 }
 
 #[derive(Debug, Deserialize, Clone)]
