@@ -3,7 +3,7 @@ use std::{str::FromStr, time::Duration};
 use masking::Secret;
 use router::types::{
     self, api,
-    storage::{self, enums},
+    storage::enums,
     PaymentsResponseData,
 };
 use test_utils::connector_auth;
@@ -74,7 +74,7 @@ fn token_details() -> Option<types::PaymentMethodTokenizationData> {
         }),
         browser_info: None,
         amount: 100,
-        currency: storage::enums::Currency::USD,
+        currency: enums::Currency::USD,
     })
 }
 
@@ -484,7 +484,7 @@ async fn should_fail_payment_for_incorrect_cvc() {
                 }),
                 browser_info: None,
                 amount: 0,
-                currency: storage::enums::Currency::USD,
+                currency: enums::Currency::USD,
             }),
             get_default_payment_info(connector_customer_id, None),
         )
@@ -522,7 +522,7 @@ async fn should_fail_payment_for_invalid_exp_month() {
                 }),
                 browser_info: None,
                 amount: 0,
-                currency: storage::enums::Currency::USD,
+                currency: enums::Currency::USD,
             }),
             get_default_payment_info(connector_customer_id, None),
         )
@@ -560,7 +560,7 @@ async fn should_fail_payment_for_incorrect_expiry_year() {
                 }),
                 browser_info: None,
                 amount: 0,
-                currency: storage::enums::Currency::USD,
+                currency: enums::Currency::USD,
             }),
             get_default_payment_info(connector_customer_id, None),
         )

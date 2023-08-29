@@ -11,7 +11,7 @@ use router::{
     routes, services,
     types::{
         self, api,
-        storage::{self, enums},
+        storage::enums,
         AccessToken, PaymentAddress, RouterData,
     },
 };
@@ -968,7 +968,7 @@ impl Default for TokenType {
             payment_method_data: types::api::PaymentMethodData::Card(CCardType::default().0),
             browser_info: None,
             amount: 100,
-            currency: storage::enums::Currency::USD,
+            currency: enums::Currency::USD,
         };
         Self(data)
     }

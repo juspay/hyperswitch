@@ -106,8 +106,8 @@ impl ConnectorCommon for Square {
             detail: Some(consts::NO_ERROR_MESSAGE.to_string()),
         };
         let mut reason_list = Vec::new();
-        for t in response.errors.iter() {
-            reason_list.push(t.detail.clone().unwrap_or("".to_string()))
+        for error_iter in response.errors.iter() {
+            reason_list.push(error_iter.detail.clone().unwrap_or("".to_string()))
         }
         let reason = reason_list.join(" ");
 
