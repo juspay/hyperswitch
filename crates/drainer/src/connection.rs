@@ -18,6 +18,10 @@ pub async fn redis_connection(
         .expect("Failed to create Redis connection Pool")
 }
 
+// TODO: use stores defined in storage_impl instead
+/// # Panics
+///
+/// Will panic if could not create a db pool
 #[allow(clippy::expect_used)]
 pub async fn diesel_make_pg_pool(
     database: &Database,

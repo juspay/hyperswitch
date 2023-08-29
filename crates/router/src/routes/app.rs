@@ -61,6 +61,9 @@ impl AppStateInfo for AppState {
 }
 
 impl AppState {
+    /// # Panics
+    ///
+    /// Panics if Store can't be created or JWE decryption fails
     pub async fn with_storage(
         conf: settings::Settings,
         storage_impl: StorageImpl,
@@ -70,9 +73,12 @@ impl AppState {
         let kms_client = kms::get_kms_client(&conf.kms).await;
         let testable = storage_impl == StorageImpl::PostgresqlTest;
         let store: Box<dyn StorageInterface> = match storage_impl {
-            StorageImpl::Postgresql | StorageImpl::PostgresqlTest => {
-                Box::new(get_store(&conf, shut_down_signal, testable).await)
-            }
+            StorageImpl::Postgresql | StorageImpl::PostgresqlTest => Box::new(
+                #[allow(clippy::expect_used)]
+                get_store(&conf, shut_down_signal, testable)
+                    .await
+                    .expect("Failed to create store"),
+            ),
             StorageImpl::Mock => Box::new(MockDb::new(&conf).await),
         };
 
@@ -86,7 +92,6 @@ impl AppState {
         .expect("Failed while performing KMS decryption");
 
         #[cfg(feature = "email")]
-        #[allow(clippy::expect_used)]
         let email_client = Box::new(AwsSes::new(&conf.email).await);
         Self {
             flow_name: String::from("default"),
