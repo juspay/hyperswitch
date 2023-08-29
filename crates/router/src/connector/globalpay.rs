@@ -490,6 +490,11 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
         })
         .change_context(errors::ConnectorError::ResponseHandlingFailed)
     }
+    fn get_multiple_capture_sync_method(
+        &self,
+    ) -> CustomResult<services::CaptureSyncMethod, errors::ConnectorError> {
+        Ok(services::CaptureSyncMethod::Individual)
+    }
 }
 
 impl api::PaymentCapture for Globalpay {}
