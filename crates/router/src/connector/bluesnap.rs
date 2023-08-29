@@ -125,7 +125,7 @@ impl ConnectorCommon for Bluesnap {
             bluesnap::BluesnapErrors::Auth(error_res) => ErrorResponse {
                 status_code: res.status_code,
                 code: error_res.error_code.clone(),
-                message: error_res.error_name.clone(),
+                message: error_res.error_name.clone().unwrap_or(error_res.error_code),
                 reason: Some(error_res.error_description),
             },
             bluesnap::BluesnapErrors::General(error_response) => ErrorResponse {
