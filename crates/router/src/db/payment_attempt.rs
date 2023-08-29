@@ -92,6 +92,7 @@ pub trait PaymentAttemptInterface {
 #[cfg(not(feature = "kv_store"))]
 mod storage {
     use api_models::enums::PaymentMethod;
+    use api_models::enums::Connector;
     use error_stack::IntoReport;
     use storage_impl::DataModelExt;
 
