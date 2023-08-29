@@ -1,3 +1,4 @@
+/// The request body for verification of merchant (everything except domain_names are prefilled)
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ApplepayMerchantVerificationConfigs {
@@ -7,12 +8,14 @@ pub struct ApplepayMerchantVerificationConfigs {
     pub partner_merchant_name: String,
 }
 
+/// The derivation point for domain names from request body
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ApplepayMerchantVerificationRequest {
     pub domain_names: Vec<String>,
 }
 
+/// Response to be sent for the verify/applepay api
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ApplepayMerchantResponse {

@@ -17,6 +17,7 @@ const APPLEPAY_MERCHANT_VERIFICATION_URL: &str =
 const APPLEPAY_INTERNAL_MERCHANT_IDENTIFIER: &str = "merchant.com.noon.juspay";
 const APPLEPAY_INTERNAL_MERCHANT_NAME: &str = "Applepay_merchant";
 
+///
 pub async fn verify_merchant_creds_for_applepay(
     state: &AppState,
     _req: &actix_web::HttpRequest,
@@ -79,10 +80,13 @@ pub async fn verify_merchant_creds_for_applepay(
             status_code: "200".to_string(),
             status_message: "Applepay verification Completed".to_string(),
         }),
-        Err(_) => services::api::ApplicationResponse::Json(ApplepayMerchantResponse {
-            status_code: "200".to_string(),
-            status_message: "Applepay verification Failed".to_string(),
-        }),
+        Err(error) => {
+            logger::error!(?error);
+            services::api::ApplicationResponse::Json(ApplepayMerchantResponse {
+                status_code: "200".to_string(),
+                status_message: "Applepay verification Failed".to_string(),
+            })
+        }
     })
 }
 
