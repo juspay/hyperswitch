@@ -9,7 +9,7 @@ use tokio::sync::oneshot;
 use super::dummy_connector::*;
 #[cfg(feature = "payouts")]
 use super::payouts::*;
-#[cfg(feature = "release")]
+#[cfg(all(feature = "olap", feature = "kms"))]
 use super::verification::apple_pay_merchant_registration;
 #[cfg(feature = "olap")]
 use super::{admin::*, api_keys::*, disputes::*, files::*};
@@ -552,10 +552,10 @@ impl BusinessProfile {
     }
 }
 
-#[cfg(feature = "release")]
+#[cfg(all(feature = "olap", feature = "kms"))]
 pub struct Verify;
 
-#[cfg(feature = "release")]
+#[cfg(all(feature = "olap", feature = "kms"))]
 impl Verify {
     pub fn server(state: AppState) -> Scope {
         web::scope("/verify")

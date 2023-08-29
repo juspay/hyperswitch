@@ -1,5 +1,5 @@
 use actix_web::{web, HttpRequest, Responder};
-#[cfg(feature = "release")]
+#[cfg(all(feature = "olap", feature = "kms"))]
 use api_models::verifications;
 use router_env::{instrument, tracing, Flow};
 

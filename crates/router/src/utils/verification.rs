@@ -1,5 +1,5 @@
 use actix_web::web;
-#[cfg(feature = "release")]
+#[cfg(all(feature = "olap", feature = "kms"))]
 use api_models::verifications::{self, ApplepayMerchantResponse};
 use error_stack::{Report, ResultExt};
 #[cfg(feature = "kms")]
@@ -17,7 +17,6 @@ const APPLEPAY_MERCHANT_VERIFICATION_URL: &str =
 const APPLEPAY_INTERNAL_MERCHANT_IDENTIFIER: &str = "merchant.com.noon.juspay";
 const APPLEPAY_INTERNAL_MERCHANT_NAME: &str = "Applepay_merchant";
 
-///
 pub async fn verify_merchant_creds_for_applepay(
     state: &AppState,
     _req: &actix_web::HttpRequest,

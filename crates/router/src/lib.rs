@@ -138,7 +138,7 @@ pub fn mk_app(
             .service(routes::Disputes::server(state.clone()))
     }
 
-    #[cfg(feature = "release")]
+    #[cfg(all(feature = "olap", feature = "kms"))]
     {
         server_app = server_app.service(routes::Verify::server(state.clone()));
     }
