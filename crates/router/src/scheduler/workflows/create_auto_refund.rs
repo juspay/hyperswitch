@@ -6,14 +6,14 @@ use api_models::{
 use common_utils::ext_traits::ValueExt;
 use diesel_models::{
     enums::{EventClass, EventObjectType},
-    payment_intent::PaymentIntent,
+    refund,
 };
 
 use super::{AutoRefundWorkflow, ProcessTrackerWorkflow};
 use crate::{
     core::{
         refunds::refund_create_core,
-        webhooks::create_event_and_trigger_appropriate_outgoing_webhook
+        webhooks::create_event_and_trigger_appropriate_outgoing_webhook,
     },
     errors,
     logger::error,
@@ -29,22 +29,32 @@ impl ProcessTrackerWorkflow for AutoRefundWorkflow {
         process: storage::ProcessTracker,
     ) -> Result<(), errors::ProcessTrackerError> {
         let db = &*state.store;
-        let tracking_data: PaymentIntent =
-            process.tracking_data.clone().parse_value("PaymentIntent")?;
+        let tracking_data: refund::AutoRefundWorkflow = process
+            .tracking_data
+            .clone()
+            .parse_value("AutoRefundWorkflow")?;
+        let payment_intent = tracking_data.payment_intent;
+        let retry_count = tracking_data.retry_count;
+        let max_retries = tracking_data.max_retries;
+        if retry_count > max_retries {
+            return Err(errors::ProcessTrackerError::FlowExecutionError {
+                flow: "RefundCreate",
+            });
+        }
         let key_store = state
             .store
             .get_merchant_key_store_by_merchant_id(
-                tracking_data.merchant_id.as_str(),
+                payment_intent.merchant_id.as_str(),
                 &state.store.get_master_key().to_vec().into(),
             )
             .await?;
         let merchant_account = db
-            .find_merchant_account_by_merchant_id(tracking_data.merchant_id.as_str(), &key_store)
+            .find_merchant_account_by_merchant_id(payment_intent.merchant_id.as_str(), &key_store)
             .await?;
         let ref_req = RefundRequest {
             refund_id: None,
-            payment_id: tracking_data.payment_id,
-            merchant_id: Some(tracking_data.merchant_id),
+            payment_id: payment_intent.payment_id,
+            merchant_id: Some(payment_intent.merchant_id),
             amount: None,
             reason: Some("Auto Refund".to_string()),
             refund_type: Some(RefundType::Scheduled),
