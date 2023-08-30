@@ -75,15 +75,11 @@ pub trait ConnectorValidation: ConnectorCommon {
         &self,
         data: &types::PaymentsSyncRouterData,
     ) -> CustomResult<(), errors::ConnectorError> {
-        match data
-            .request
+        data.request
             .connector_transaction_id
             .get_connector_transaction_id()
             .change_context(errors::ConnectorError::MissingConnectorTransactionID)
-        {
-            Ok(_) => Ok(()),
-            Err(err) => Err(err),
-        }
+            .map(|_| ())
     }
 }
 

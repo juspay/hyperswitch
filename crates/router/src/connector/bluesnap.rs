@@ -170,10 +170,7 @@ impl ConnectorValidation for Bluesnap {
         let meta_data: CustomResult<bluesnap::BluesnapConnectorMetaData, errors::ConnectorError> =
             connector_utils::to_connector_meta_from_secret(data.connector_meta_data.clone());
 
-        match meta_data {
-            Ok(_) => Ok(()),
-            Err(err) => Err(err),
-        }
+        meta_data.map(|_| ())
     }
 }
 
