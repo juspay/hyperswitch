@@ -9,7 +9,6 @@ use transformers as zen;
 use uuid::Uuid;
 
 use self::transformers::{ZenPaymentStatus, ZenWebhookTxnType};
-use super::utils::RefundsRequestData;
 use crate::{
     configs::settings,
     consts,
@@ -128,7 +127,17 @@ impl ConnectorCommon for Zen {
     }
 }
 
-impl ConnectorValidation for Zen {}
+impl ConnectorValidation for Zen {
+    fn validate_psync_reference_id(
+        &self,
+        _payment_method_type: Option<api_models::enums::PaymentMethodType>,
+        _connector_transaction_id: Option<String>,
+        _connector_metadata: Option<common_utils::pii::SecretSerdeValue>,
+    ) -> bool {
+        // since psync can be made with our own reference id, we don't need connector_transaction_id check
+        true
+    }
+}
 
 impl ConnectorIntegration<api::Session, types::PaymentsSessionData, types::PaymentsResponseData>
     for Zen
@@ -279,15 +288,10 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
         req: &types::PaymentsSyncRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        let payment_id = req
-            .request
-            .connector_transaction_id
-            .get_connector_transaction_id()
-            .change_context(errors::ConnectorError::MissingConnectorTransactionID)?;
-
         Ok(format!(
-            "{}v1/transactions/{payment_id}",
+            "{}v1/transactions/merchant/{}",
             self.base_url(connectors),
+            req.attempt_id,
         ))
     }
 
@@ -469,9 +473,9 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         Ok(format!(
-            "{}v1/transactions/{}",
+            "{}v1/transactions/merchant/{}",
             self.base_url(connectors),
-            req.request.get_connector_refund_id()?
+            req.request.refund_id
         ))
     }
 
