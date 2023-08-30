@@ -13,6 +13,9 @@ pub(crate) const ALPHABETS: [char; 62] = [
 pub const REQUEST_TIME_OUT: u64 = 30;
 pub const REQUEST_TIMEOUT_ERROR_CODE: &str = "TIMEOUT";
 pub const REQUEST_TIMEOUT_ERROR_MESSAGE: &str = "Connector did not respond in specified time";
+pub const CONNECTION_CLOSED_ERROR_CODE: &str = "CONNECTION_CLOSED";
+pub const CONNECTION_CLOSED_ERROR_MESSAGE: &str =
+    "Connection closed before a message could complete";
 
 ///Payment intent fulfillment default timeout (in seconds)
 pub const DEFAULT_FULFILLMENT_TIME: i64 = 15 * 60;

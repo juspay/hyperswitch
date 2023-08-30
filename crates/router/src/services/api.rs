@@ -3,6 +3,7 @@ pub mod request;
 
 use std::{
     collections::HashMap,
+    error::Error,
     fmt::Debug,
     future::Future,
     str,
@@ -380,6 +381,17 @@ where
                                 };
                                 router_data.response = Err(error_response);
                                 Ok(router_data)
+                            } else if error.current_context().is_connection_closed() {
+                                let error_response = ErrorResponse {
+                                    code: consts::CONNECTION_CLOSED_ERROR_CODE.to_string(),
+                                    message: consts::CONNECTION_CLOSED_ERROR_MESSAGE.to_string(),
+                                    reason: Some(
+                                        consts::CONNECTION_CLOSED_ERROR_MESSAGE.to_string(),
+                                    ),
+                                    status_code: 504,
+                                };
+                                router_data.response = Err(error_response);
+                                Ok(router_data)
                             } else {
                                 Err(error.change_context(
                                     errors::ConnectorError::ProcessingStepFailed(None),
@@ -485,10 +497,27 @@ pub async fn send_request(
             metrics::REQUEST_BUILD_FAILURE.add(&metrics::CONTEXT, 1, &[]);
             errors::ApiClientError::RequestTimeoutReceived
         }
+        error if is_connection_closed(&error) => {
+            metrics::REQUEST_BUILD_FAILURE.add(&metrics::CONTEXT, 1, &[]);
+            errors::ApiClientError::ConnectionClosed
+        }
         _ => errors::ApiClientError::RequestNotSent(error.to_string()),
     })
     .into_report()
     .attach_printable("Unable to send request to connector")
+}
+
+fn is_connection_closed(error: &reqwest::Error) -> bool {
+    let mut source = error.source();
+    while let Some(err) = source {
+        if let Some(hyper_err) = err.downcast_ref::<hyper::Error>() {
+            if hyper_err.is_incomplete_message() {
+                return true;
+            }
+        }
+        source = err.source();
+    }
+    false
 }
 
 #[instrument(skip_all)]
