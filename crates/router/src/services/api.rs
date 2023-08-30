@@ -377,6 +377,7 @@ where
                                     status_code: 504,
                                 };
                                 router_data.response = Err(error_response);
+                                router_data.connector_http_status_code = Some(504);
                                 Ok(router_data)
                             } else if error.current_context().is_connection_closed() {
                                 let error_response = ErrorResponse {
@@ -388,6 +389,7 @@ where
                                     status_code: 504,
                                 };
                                 router_data.response = Err(error_response);
+                                router_data.connector_http_status_code = Some(504);
                                 Ok(router_data)
                             } else {
                                 Err(error.change_context(
