@@ -4,6 +4,22 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 1.31.0 (2023-08-30)
+
+### Features
+
+- **core:** Conditionally return captures list during payment sync. ([#2033](https://github.com/juspay/hyperswitch/pull/2033)) ([`c2aa014`](https://github.com/juspay/hyperswitch/commit/c2aa0142ed5af0b5fcf21b35cb129addd92c6125))
+
+### Bug Fixes
+
+- **configs:** Fix supported connectors in `multiple_api_version_supported_connectors` table ([#2051](https://github.com/juspay/hyperswitch/pull/2051)) ([`416ad8f`](https://github.com/juspay/hyperswitch/commit/416ad8fd97e423bfdb95409271628085aa97af76))
+- **connector:** [Cryptopay] fix amount to its currency base unit  ([#2049](https://github.com/juspay/hyperswitch/pull/2049)) ([`d3f1858`](https://github.com/juspay/hyperswitch/commit/d3f18584f8e8a6090f24c4a469c6a18440d6711e))
+
+**Full Changelog:** [`v1.30.0...v1.31.0`](https://github.com/juspay/hyperswitch/compare/v1.30.0...v1.31.0)
+
+- - -
+
+
 ## 1.30.0 (2023-08-29)
 
 ### Features
