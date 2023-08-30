@@ -130,12 +130,10 @@ impl ConnectorCommon for Zen {
 impl ConnectorValidation for Zen {
     fn validate_psync_reference_id(
         &self,
-        _payment_method_type: Option<api_models::enums::PaymentMethodType>,
-        _connector_transaction_id: Option<String>,
-        _connector_metadata: Option<common_utils::pii::SecretSerdeValue>,
-    ) -> bool {
-        // since psync can be made with our own reference id, we don't need connector_transaction_id check
-        true
+        _data: &types::PaymentsSyncRouterData,
+    ) -> Result<(), errors::ConnectorError> {
+        // since we can make psync call with our reference_id, having connector_transaction_id is not an mandatory criteria
+        Ok(())
     }
 }
 
