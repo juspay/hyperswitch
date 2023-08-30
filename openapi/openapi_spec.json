@@ -6814,10 +6814,15 @@
       "MerchantConnectorWebhookDetails": {
         "type": "object",
         "required": [
-          "merchant_secret"
+          "merchant_secret",
+          "additional_secret"
         ],
         "properties": {
           "merchant_secret": {
+            "type": "string",
+            "example": "12345678900987654321"
+          },
+          "additional_secret": {
             "type": "string",
             "example": "12345678900987654321"
           }
