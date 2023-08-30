@@ -79,9 +79,10 @@ pub trait ConnectorValidation: ConnectorCommon {
             .request
             .connector_transaction_id
             .get_connector_transaction_id()
+            .change_context(errors::ConnectorError::MissingConnectorTransactionID)
         {
             Ok(_) => Ok(()),
-            Err(_) => Err(errors::ConnectorError::MissingConnectorTransactionID).into_report(),
+            Err(err) => Err(err),
         }
     }
 }
