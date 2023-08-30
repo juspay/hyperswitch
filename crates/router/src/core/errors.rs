@@ -340,6 +340,8 @@ pub enum ConnectorError {
     MissingConnectorTransactionID,
     #[error("Missing connector refund ID")]
     MissingConnectorRefundID,
+    #[error("Missing apple pay tokenization data")]
+    MissingApplePayTokenData,
     #[error("Webhooks not implemented for this connector")]
     WebhooksNotImplemented,
     #[error("Failed to decode webhook event body")]

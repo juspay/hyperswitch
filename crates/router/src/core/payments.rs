@@ -661,7 +661,7 @@ where
         .add_payment_method_token(state, &connector, &tokenization_action)
         .await?;
 
-    if let Some(payment_method_token) = pm_token {
+    if let Some(payment_method_token) = pm_token.clone() {
         router_data.payment_method_token = Some(router_types::PaymentMethodTokens::Token(
             payment_method_token,
         ));
