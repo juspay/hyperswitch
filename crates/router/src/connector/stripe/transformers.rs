@@ -1290,12 +1290,7 @@ fn create_stripe_payment_method(
         }
         payments::PaymentMethodData::Wallet(wallet_data) => match wallet_data {
             payments::WalletData::ApplePay(applepay_data) => {
-                let payment_method_token = payment_method_token
-                    .to_owned()
-                    .get_required_value("payment_token")
-                    .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-
-                let mut decrypt_data = match payment_method_token {
+                let mut apple_pay_decrypt_data = payment_method_token.and_then(|pmt| match pmt {
                     types::PaymentMethodTokens::ApplePayDecrypt(decrypt_data) => {
                         let expiry_year_4_digit = format!(
                             "20{}",
@@ -1315,10 +1310,10 @@ fn create_stripe_payment_method(
                         ))
                     }
                     _ => None,
-                };
+                });
 
-                if decrypt_data.is_none() {
-                    decrypt_data = Some(StripePaymentMethodData::Wallet(
+                if apple_pay_decrypt_data.is_none() {
+                    apple_pay_decrypt_data = Some(StripePaymentMethodData::Wallet(
                         StripeWallet::ApplepayToken(StripeApplePay {
                             pk_token: applepay_data
                                 .get_applepay_decoded_payment_data()
@@ -1337,7 +1332,8 @@ fn create_stripe_payment_method(
                         }),
                     ));
                 };
-                let pmd = decrypt_data.ok_or(errors::ConnectorError::MissingApplePayTokenData)?;
+                let pmd = apple_pay_decrypt_data
+                    .ok_or(errors::ConnectorError::MissingApplePayTokenData)?;
                 Ok((pmd, None, StripeBillingAddress::default()))
             }
 
