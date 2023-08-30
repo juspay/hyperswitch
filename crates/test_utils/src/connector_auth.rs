@@ -32,6 +32,7 @@ pub struct ConnectorAuthentication {
     pub forte: Option<MultiAuthKey>,
     pub globalpay: Option<BodyKey>,
     pub globepay: Option<BodyKey>,
+    pub helcim: Option<HeaderKey>,
     pub iatapay: Option<SignatureKey>,
     pub mollie: Option<BodyKey>,
     pub multisafepay: Option<HeaderKey>,
