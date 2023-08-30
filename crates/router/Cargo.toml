@@ -51,6 +51,7 @@ error-stack = "0.3.1"
 futures = "0.3.28"
 hex = "0.4.3"
 http = "0.2.9"
+hyper = "0.14.27"
 image = "0.23.14"
 infer = "0.13.0"
 josekit = "0.8.3"
@@ -83,7 +84,6 @@ url = { version = "2.4.0", features = ["serde"] }
 utoipa = { version = "3.3.0", features = ["preserve_order", "time"] }
 utoipa-swagger-ui = { version = "3.1.3", features = ["actix-web"] }
 uuid = { version = "1.3.3", features = ["serde", "v4"] }
-hyper = "0.14.27"
 
 # First party crates
 api_models = { version = "0.1.0", path = "../api_models", features = ["errors"] }
