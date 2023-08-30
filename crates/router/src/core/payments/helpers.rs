@@ -1202,7 +1202,9 @@ pub async fn make_pm_data<'a, F: Clone, R>(
                     .change_context(errors::ApiErrorResponse::InternalServerError)
                     .attach_printable("Failed to fetch the token from redis")?
                     .ok_or(error_stack::Report::new(
-                        errors::ApiErrorResponse::UnprocessableEntity { entity: token },
+                        errors::ApiErrorResponse::UnprocessableEntity {
+                            entity: "Token".to_string(),
+                        },
                     ))?;
 
                 Some(key)
