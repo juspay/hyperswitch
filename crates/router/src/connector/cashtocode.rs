@@ -323,7 +323,7 @@ impl api::IncomingWebhook for Cashtocode {
     fn get_webhook_source_verification_signature(
         &self,
         request: &api::IncomingWebhookRequestDetails<'_>,
-        _secret: &Option<masking::Secret<String>>,
+        _secret: &Option<Secret<String>>,
     ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
         let base64_signature = conn_utils::get_header_key_value("authorization", request.headers)?;
         let signature = base64_signature.as_bytes().to_owned();
