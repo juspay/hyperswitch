@@ -131,7 +131,7 @@ impl ConnectorValidation for Zen {
     fn validate_psync_reference_id(
         &self,
         _data: &types::PaymentsSyncRouterData,
-    ) -> Result<(), errors::ConnectorError> {
+    ) -> CustomResult<(), errors::ConnectorError> {
         // since we can make psync call with our reference_id, having connector_transaction_id is not an mandatory criteria
         Ok(())
     }
