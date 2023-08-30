@@ -39,9 +39,6 @@ use crate::{
     DataModelExt, DatabaseStore, KVRouterStore,
 };
 
-#[cfg(feature = "olap")]
-const QUERY_LIMIT: u32 = 20;
-
 #[async_trait::async_trait]
 impl<T: DatabaseStore> PaymentIntentInterface for KVRouterStore<T> {
     async fn insert_payment_intent(
@@ -265,6 +262,28 @@ impl<T: DatabaseStore> PaymentIntentInterface for KVRouterStore<T> {
             MerchantStorageScheme::RedisKv => Err(StorageError::KVError.into()),
         }
     }
+
+    #[cfg(feature = "olap")]
+    async fn get_filtered_active_attempt_ids_for_total_count(
+        &self,
+        merchant_id: &str,
+        constraints: &PaymentIntentFetchConstraints,
+        storage_scheme: MerchantStorageScheme,
+    ) -> error_stack::Result<Vec<String>, StorageError> {
+        match storage_scheme {
+            MerchantStorageScheme::PostgresOnly => {
+                self.router_store
+                    .get_filtered_active_attempt_ids_for_total_count(
+                        merchant_id,
+                        constraints,
+                        storage_scheme,
+                    )
+                    .await
+            }
+
+            MerchantStorageScheme::RedisKv => Err(StorageError::KVError.into()),
+        }
+    }
 }
 
 #[async_trait::async_trait]
@@ -339,7 +358,7 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
                 query = query.filter(pi_dsl::payment_id.eq(payment_intent_id.to_owned()));
             }
             PaymentIntentFetchConstraints::List {
-                offset: _,
+                offset,
                 starting_at,
                 ending_at,
                 connector: _,
@@ -351,7 +370,9 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
                 ending_before_id,
                 limit,
             } => {
-                query = query.limit(limit.unwrap_or(QUERY_LIMIT).into());
+                if let Some(limit) = limit {
+                    query = query.limit((*limit).into());
+                };
 
                 if let Some(customer_id) = customer_id {
                     query = query.filter(pi_dsl::customer_id.eq(customer_id.clone()));
@@ -390,6 +411,8 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
                     }
                     (None, None) => query,
                 };
+                query = query.offset((*offset).into());
+
                 query = match currency {
                     Some(currency) => query.filter(pi_dsl::currency.eq_any(currency.clone())),
                     None => query,
@@ -453,6 +476,7 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
             .filter(pi_dsl::merchant_id.eq(merchant_id.to_owned()))
             .order(pi_dsl::created_at.desc())
             .into_boxed();
+
         query = match constraints {
             PaymentIntentFetchConstraints::Single { payment_intent_id } => {
                 query.filter(pi_dsl::payment_id.eq(payment_intent_id.to_owned()))
@@ -470,7 +494,9 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
                 ending_before_id,
                 limit,
             } => {
-                query = query.limit(limit.unwrap_or(QUERY_LIMIT).into());
+                if let Some(limit) = limit {
+                    query = query.limit((*limit).into());
+                }
 
                 if let Some(customer_id) = customer_id {
                     query = query.filter(pi_dsl::customer_id.eq(customer_id.clone()));
@@ -510,10 +536,7 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
                     (None, None) => query,
                 };
 
-                query = match offset {
-                    Some(offset) => query.offset((*offset).into()),
-                    None => query,
-                };
+                query = query.offset((*offset).into());
 
                 query = match currency {
                     Some(currency) => query.filter(pi_dsl::currency.eq_any(currency.clone())),
@@ -567,6 +590,74 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
                 er.change_context(new_er)
             })
             .attach_printable("Error filtering payment records")
+    }
+
+    #[cfg(feature = "olap")]
+    async fn get_filtered_active_attempt_ids_for_total_count(
+        &self,
+        merchant_id: &str,
+        constraints: &PaymentIntentFetchConstraints,
+        _storage_scheme: MerchantStorageScheme,
+    ) -> error_stack::Result<Vec<String>, StorageError> {
+        let conn = self.get_replica_pool();
+
+        let mut query = DieselPaymentIntent::table()
+            .select(pi_dsl::active_attempt_id)
+            .filter(pi_dsl::merchant_id.eq(merchant_id.to_owned()))
+            .order(pi_dsl::created_at.desc())
+            .into_boxed();
+
+        query = match constraints {
+            PaymentIntentFetchConstraints::Single { payment_intent_id } => {
+                query.filter(pi_dsl::payment_id.eq(payment_intent_id.to_owned()))
+            }
+            PaymentIntentFetchConstraints::List {
+                starting_at,
+                ending_at,
+                currency,
+                status,
+                customer_id,
+                ..
+            } => {
+                if let Some(customer_id) = customer_id {
+                    query = query.filter(pi_dsl::customer_id.eq(customer_id.clone()));
+                }
+
+                query = match starting_at {
+                    Some(starting_at) => query.filter(pi_dsl::created_at.ge(*starting_at)),
+                    None => query,
+                };
+
+                query = match ending_at {
+                    Some(ending_at) => query.filter(pi_dsl::created_at.le(*ending_at)),
+                    None => query,
+                };
+
+                query = match currency {
+                    Some(currency) => query.filter(pi_dsl::currency.eq_any(currency.clone())),
+                    None => query,
+                };
+
+                query = match status {
+                    Some(status) => query.filter(pi_dsl::status.eq_any(status.clone())),
+                    None => query,
+                };
+
+                query
+            }
+        };
+
+        db_metrics::track_database_call::<<DieselPaymentIntent as HasTable>::Table, _, _>(
+            query.get_results_async::<String>(conn),
+            db_metrics::DatabaseOperation::Filter,
+        )
+        .await
+        .into_report()
+        .map_err(|er| {
+            let new_err = StorageError::DatabaseError(format!("{er:?}"));
+            er.change_context(new_err)
+        })
+        .attach_printable_lazy(|| "Error filtering records by predicate")
     }
 }
 

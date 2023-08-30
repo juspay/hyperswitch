@@ -1,6 +1,8 @@
 use async_bb8_diesel::{AsyncConnection, ConnectionError};
 use bb8::CustomizeConnection;
+use data_models::errors::{StorageError, StorageResult};
 use diesel::PgConnection;
+use error_stack::{IntoReport, ResultExt};
 use masking::PeekInterface;
 
 use crate::config::Database;
@@ -11,7 +13,7 @@ pub type PgPooledConn = async_bb8_diesel::Connection<PgConnection>;
 #[async_trait::async_trait]
 pub trait DatabaseStore: Clone + Send + Sync {
     type Config: Send;
-    async fn new(config: Self::Config, test_transaction: bool) -> Self;
+    async fn new(config: Self::Config, test_transaction: bool) -> StorageResult<Self>;
     fn get_master_pool(&self) -> &PgPool;
     fn get_replica_pool(&self) -> &PgPool;
 }
@@ -24,10 +26,10 @@ pub struct Store {
 #[async_trait::async_trait]
 impl DatabaseStore for Store {
     type Config = Database;
-    async fn new(config: Database, test_transaction: bool) -> Self {
-        Self {
-            master_pool: diesel_make_pg_pool(&config, test_transaction).await,
-        }
+    async fn new(config: Database, test_transaction: bool) -> StorageResult<Self> {
+        Ok(Self {
+            master_pool: diesel_make_pg_pool(&config, test_transaction).await?,
+        })
     }
 
     fn get_master_pool(&self) -> &PgPool {
@@ -48,14 +50,18 @@ pub struct ReplicaStore {
 #[async_trait::async_trait]
 impl DatabaseStore for ReplicaStore {
     type Config = (Database, Database);
-    async fn new(config: (Database, Database), test_transaction: bool) -> Self {
+    async fn new(config: (Database, Database), test_transaction: bool) -> StorageResult<Self> {
         let (master_config, replica_config) = config;
-        let master_pool = diesel_make_pg_pool(&master_config, test_transaction).await;
-        let replica_pool = diesel_make_pg_pool(&replica_config, test_transaction).await;
-        Self {
+        let master_pool = diesel_make_pg_pool(&master_config, test_transaction)
+            .await
+            .attach_printable("failed to create master pool")?;
+        let replica_pool = diesel_make_pg_pool(&replica_config, test_transaction)
+            .await
+            .attach_printable("failed to create replica pool")?;
+        Ok(Self {
             master_pool,
             replica_pool,
-        }
+        })
     }
 
     fn get_master_pool(&self) -> &PgPool {
@@ -67,8 +73,10 @@ impl DatabaseStore for ReplicaStore {
     }
 }
 
-#[allow(clippy::expect_used)]
-pub async fn diesel_make_pg_pool(database: &Database, test_transaction: bool) -> PgPool {
+pub async fn diesel_make_pg_pool(
+    database: &Database,
+    test_transaction: bool,
+) -> StorageResult<PgPool> {
     let database_url = format!(
         "postgres://{}:{}@{}:{}/{}",
         database.username,
@@ -88,7 +96,9 @@ pub async fn diesel_make_pg_pool(database: &Database, test_transaction: bool) ->
 
     pool.build(manager)
         .await
-        .expect("Failed to create PostgreSQL connection pool")
+        .into_report()
+        .change_context(StorageError::InitializationError)
+        .attach_printable("Failed to create PostgreSQL connection pool")
 }
 
 #[derive(Debug)]

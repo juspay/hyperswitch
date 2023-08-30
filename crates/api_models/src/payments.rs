@@ -776,7 +776,7 @@ pub enum PaymentMethodData {
     BankTransfer(Box<BankTransferData>),
     Crypto(CryptoData),
     MandatePayment,
-    Reward(RewardData),
+    Reward,
     Upi(UpiData),
     Voucher(VoucherData),
     GiftCard(Box<GiftCardData>),
@@ -1905,6 +1905,9 @@ pub struct PaymentsResponse {
 
     /// The business profile that is associated with this payment
     pub profile_id: Option<String>,
+
+    /// total number of attempts associated with this payment
+    pub attempt_count: i16,
 }
 
 #[derive(Clone, Debug, serde::Deserialize, ToSchema)]
@@ -1923,9 +1926,9 @@ pub struct PaymentListConstraints {
     pub ending_before: Option<String>,
 
     /// limit on the number of objects to return
-    #[schema(default = 10)]
+    #[schema(default = 10, maximum = 100)]
     #[serde(default = "default_limit")]
-    pub limit: i64,
+    pub limit: u32,
 
     /// The time at which payment is created
     #[schema(example = "2022-09-10T10:11:12Z")]
@@ -1970,9 +1973,16 @@ pub struct PaymentListConstraints {
 pub struct PaymentListResponse {
     /// The number of payments included in the list
     pub size: usize,
-    /// The total number of payment_attempts for intents included in the list
-    pub attempt_count: i16,
     // The list of payments response objects
+    pub data: Vec<PaymentsResponse>,
+}
+#[derive(Clone, Debug, serde::Serialize)]
+pub struct PaymentListResponseV2 {
+    /// The number of payments included in the list for given constraints
+    pub count: usize,
+    /// The total number of available payments for given constraints
+    pub total_count: i64,
+    /// The list of payments response objects
     pub data: Vec<PaymentsResponse>,
 }
 
@@ -1981,7 +1991,9 @@ pub struct PaymentListResponse {
 pub struct PaymentListFilterConstraints {
     /// The identifier for payment
     pub payment_id: Option<String>,
-    /// The starting point within a list of objects, limit on number of object will be some constant for join query
+    /// The limit on the number of objects. The max limit is 20
+    pub limit: Option<u32>,
+    /// The starting point within a list of objects
     pub offset: Option<u32>,
     /// The time range for which objects are needed. TimeRange has two fields start_time and end_time from which objects can be filtered as per required scenarios (created_at, time less than, greater than etc).
     #[serde(flatten)]
@@ -2037,7 +2049,7 @@ pub struct VerifyResponse {
     pub error_message: Option<String>,
 }
 
-fn default_limit() -> i64 {
+fn default_limit() -> u32 {
     10
 }
 
@@ -2186,6 +2198,8 @@ pub struct PaymentsRetrieveRequest {
     pub merchant_connector_details: Option<admin::MerchantConnectorDetailsWrap>,
     /// This is a token which expires after 15 minutes, used from the client to authenticate and create sessions from the SDK
     pub client_secret: Option<String>,
+    /// If enabled provides list of captures linked to latest attempt
+    pub expand_captures: Option<bool>,
     /// If enabled provides list of attempts linked to payment intent
     pub expand_attempts: Option<bool>,
 }
@@ -2585,6 +2599,8 @@ pub struct PaymentRetrieveBody {
     pub force_sync: Option<bool>,
     /// This is a token which expires after 15 minutes, used from the client to authenticate and create sessions from the SDK
     pub client_secret: Option<String>,
+    /// If enabled provides list of captures linked to latest attempt
+    pub expand_captures: Option<bool>,
     /// If enabled provides list of attempts linked to payment intent
     pub expand_attempts: Option<bool>,
 }

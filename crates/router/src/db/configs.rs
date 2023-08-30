@@ -1,5 +1,5 @@
 use diesel_models::configs::ConfigUpdateInternal;
-use error_stack::IntoReport;
+use error_stack::{IntoReport, ResultExt};
 use storage_impl::redis::{
     cache::{CacheKind, CONFIG_CACHE},
     kv_store::RedisConnInterface,
@@ -126,8 +126,11 @@ impl ConfigInterface for MockDb {
         let mut configs = self.configs.lock().await;
 
         let config_new = storage::Config {
-            #[allow(clippy::as_conversions)]
-            id: configs.len() as i32,
+            id: configs
+                .len()
+                .try_into()
+                .into_report()
+                .change_context(errors::StorageError::MockDbError)?,
             key: config.key,
             config: config.config,
         };

@@ -1311,7 +1311,7 @@ impl api::FileUpload for Stripe {
     ) -> CustomResult<(), errors::ConnectorError> {
         match purpose {
             api::FilePurpose::DisputeEvidence => {
-                let supported_file_types = vec!["image/jpeg", "image/png", "application/pdf"];
+                let supported_file_types = ["image/jpeg", "image/png", "application/pdf"];
                 // 5 Megabytes (MB)
                 if file_size > 5000000 {
                     Err(errors::ConnectorError::FileValidationFailed {
