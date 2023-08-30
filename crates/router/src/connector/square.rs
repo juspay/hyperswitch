@@ -100,14 +100,11 @@ impl ConnectorCommon for Square {
             .parse_struct("SquareErrorResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
 
-        let default_error_details = square::SquareErrorDetails {
-            category: Some("".to_string()),
-            code: Some(consts::NO_ERROR_CODE.to_string()),
-            detail: Some(consts::NO_ERROR_MESSAGE.to_string()),
-        };
         let mut reason_list = Vec::new();
         for error_iter in response.errors.iter() {
-            reason_list.push(error_iter.detail.clone().unwrap_or("".to_string()))
+            if let Some(error) = error_iter.detail.clone() {
+                reason_list.push(error)
+            }
         }
         let reason = reason_list.join(" ");
 
@@ -116,17 +113,13 @@ impl ConnectorCommon for Square {
             code: response
                 .errors
                 .first()
-                .unwrap_or(&default_error_details)
-                .code
-                .clone()
-                .unwrap_or("".to_string()),
+                .and_then(|error| error.code.clone())
+                .unwrap_or(consts::NO_ERROR_CODE.to_string()),
             message: response
                 .errors
                 .first()
-                .unwrap_or(&default_error_details)
-                .category
-                .clone()
-                .unwrap_or("".to_string()),
+                .and_then(|error| error.category.clone())
+                .unwrap_or(consts::NO_ERROR_CODE.to_string()),
             reason: Some(reason),
         })
     }
@@ -190,7 +183,7 @@ impl
             connector_transaction_id: router_data.payment_id.clone(),
             amount_to_capture: None,
             currency: router_data.request.currency,
-            amount: router_data.request.amount,
+            amount: router_data.request.amount.unwrap_or(0),
         };
 
         let authorize_data = &types::PaymentsAuthorizeSessionTokenRouterData::from((

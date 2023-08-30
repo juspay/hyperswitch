@@ -69,7 +69,7 @@ fn token_details() -> Option<types::PaymentMethodTokenizationData> {
             ..utils::CCardType::default().0
         }),
         browser_info: None,
-        amount: 100,
+        amount: None,
         currency: enums::Currency::USD,
     })
 }
@@ -479,7 +479,7 @@ async fn should_fail_payment_for_incorrect_cvc() {
                     ..utils::CCardType::default().0
                 }),
                 browser_info: None,
-                amount: 0,
+                amount: None,
                 currency: enums::Currency::USD,
             }),
             get_default_payment_info(connector_customer_id, None),
@@ -517,7 +517,7 @@ async fn should_fail_payment_for_invalid_exp_month() {
                     ..utils::CCardType::default().0
                 }),
                 browser_info: None,
-                amount: 0,
+                amount: None,
                 currency: enums::Currency::USD,
             }),
             get_default_payment_info(connector_customer_id, None),
@@ -555,7 +555,7 @@ async fn should_fail_payment_for_incorrect_expiry_year() {
                     ..utils::CCardType::default().0
                 }),
                 browser_info: None,
-                amount: 0,
+                amount: None,
                 currency: enums::Currency::USD,
             }),
             get_default_payment_info(connector_customer_id, None),

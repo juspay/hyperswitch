@@ -348,7 +348,7 @@ impl TryFrom<types::PaymentsAuthorizeData> for types::PaymentMethodTokenizationD
             payment_method_data: data.payment_method_data,
             browser_info: data.browser_info,
             currency: data.currency,
-            amount: data.amount,
+            amount: Some(data.amount),
         })
     }
 }

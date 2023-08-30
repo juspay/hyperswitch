@@ -368,7 +368,7 @@ pub struct PaymentMethodTokenizationData {
     pub payment_method_data: payments::PaymentMethodData,
     pub browser_info: Option<BrowserInformation>,
     pub currency: storage_enums::Currency,
-    pub amount: i64,
+    pub amount: Option<i64>,
 }
 
 #[derive(Debug, Clone)]
@@ -450,7 +450,7 @@ pub struct PaymentsSessionData {
 pub struct VerifyRequestData {
     pub currency: storage_enums::Currency,
     pub payment_method_data: payments::PaymentMethodData,
-    pub amount: i64,
+    pub amount: Option<i64>,
     pub confirm: bool,
     pub statement_descriptor_suffix: Option<String>,
     pub mandate_id: Option<api_models::payments::MandateIds>,
@@ -902,7 +902,7 @@ impl<F> From<&RouterData<F, PaymentsAuthorizeData, PaymentsResponseData>>
             payment_method_data: data.request.payment_method_data.clone(),
             browser_info: None,
             currency: data.request.currency,
-            amount: data.request.amount,
+            amount: Some(data.request.amount),
         }
     }
 }
