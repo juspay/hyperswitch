@@ -156,7 +156,7 @@ impl ConnectorValidation for Bluesnap {
     fn validate_psync_reference_id(
         &self,
         data: &types::PaymentsSyncRouterData,
-    ) -> Result<(), errors::ConnectorError> {
+    ) -> CustomResult<(), errors::ConnectorError> {
         // if connector_transaction_id is present, psync can be made
         if data
             .request
@@ -170,10 +170,7 @@ impl ConnectorValidation for Bluesnap {
         let meta_data: CustomResult<bluesnap::BluesnapConnectorMetaData, errors::ConnectorError> =
             connector_utils::to_connector_meta_from_secret(data.connector_meta_data.clone());
 
-        match meta_data {
-            Ok(_) => Ok(()),
-            Err(_) => Err(errors::ConnectorError::ResponseDeserializationFailed),
-        }
+        meta_data.map(|_| ())
     }
 }
 
