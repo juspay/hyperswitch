@@ -1,6 +1,6 @@
 use std::marker::PhantomData;
 
-use api_models::{enums::FrmSuggestion, payments::PaymentsDeclineRequest};
+use api_models::{enums::FrmSuggestion, payments::PaymentsRejectRequest};
 use async_trait::async_trait;
 use error_stack::ResultExt;
 use router_derive;
@@ -24,23 +24,23 @@ use crate::{
 };
 
 #[derive(Debug, Clone, Copy, router_derive::PaymentOperation)]
-#[operation(ops = "all", flow = "decline")]
-pub struct PaymentDecline;
+#[operation(ops = "all", flow = "reject")]
+pub struct PaymentReject;
 
 #[async_trait]
-impl<F: Send + Clone> GetTracker<F, PaymentData<F>, PaymentsDeclineRequest> for PaymentDecline {
+impl<F: Send + Clone> GetTracker<F, PaymentData<F>, PaymentsRejectRequest> for PaymentReject {
     #[instrument(skip_all)]
     async fn get_trackers<'a>(
         &'a self,
         state: &'a AppState,
         payment_id: &api::PaymentIdType,
-        _request: &PaymentsDeclineRequest,
+        _request: &PaymentsRejectRequest,
         _mandate_type: Option<api::MandateTransactionType>,
         merchant_account: &domain::MerchantAccount,
         key_store: &domain::MerchantKeyStore,
         _auth_flow: services::AuthFlow,
     ) -> RouterResult<(
-        BoxedOperation<'a, F, PaymentsDeclineRequest>,
+        BoxedOperation<'a, F, PaymentsRejectRequest>,
         PaymentData<F>,
         Option<CustomerDetails>,
     )> {
@@ -63,7 +63,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, PaymentsDeclineRequest> for 
                 enums::IntentStatus::Succeeded,
                 enums::IntentStatus::Processing,
             ],
-            "decline",
+            "reject",
         )?;
 
         let attempt_id = payment_intent.active_attempt_id.clone();
@@ -158,7 +158,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, PaymentsDeclineRequest> for 
 }
 
 #[async_trait]
-impl<F: Clone> UpdateTracker<F, PaymentData<F>, PaymentsDeclineRequest> for PaymentDecline {
+impl<F: Clone> UpdateTracker<F, PaymentData<F>, PaymentsRejectRequest> for PaymentReject {
     #[instrument(skip_all)]
     async fn update_trackers<'b>(
         &'b self,
@@ -169,10 +169,7 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, PaymentsDeclineRequest> for Paym
         _updated_customer: Option<storage::CustomerUpdate>,
         _mechant_key_store: &domain::MerchantKeyStore,
         _should_decline_transaction: Option<FrmSuggestion>,
-    ) -> RouterResult<(
-        BoxedOperation<'b, F, PaymentsDeclineRequest>,
-        PaymentData<F>,
-    )>
+    ) -> RouterResult<(BoxedOperation<'b, F, PaymentsRejectRequest>, PaymentData<F>)>
     where
         F: 'b + Send,
     {
@@ -189,7 +186,7 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, PaymentsDeclineRequest> for Paym
                         Some(fraud_check.frm_reason.map(|reason| reason.to_string())),
                     )
                 });
-        let attempt_status_update = storage::PaymentAttemptUpdate::DeclineUpdate {
+        let attempt_status_update = storage::PaymentAttemptUpdate::RejectUpdate {
             status: enums::AttemptStatus::Failure,
             merchant_decision: Some(Some(enums::MerchantDecision::Declined.to_string())),
             error_code,
@@ -218,14 +215,14 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, PaymentsDeclineRequest> for Paym
     }
 }
 
-impl<F: Send + Clone> ValidateRequest<F, PaymentsDeclineRequest> for PaymentDecline {
+impl<F: Send + Clone> ValidateRequest<F, PaymentsRejectRequest> for PaymentReject {
     #[instrument(skip_all)]
     fn validate_request<'a, 'b>(
         &'b self,
-        request: &PaymentsDeclineRequest,
+        request: &PaymentsRejectRequest,
         merchant_account: &'a domain::MerchantAccount,
     ) -> RouterResult<(
-        BoxedOperation<'b, F, PaymentsDeclineRequest>,
+        BoxedOperation<'b, F, PaymentsRejectRequest>,
         operations::ValidateResult<'a>,
     )> {
         Ok((

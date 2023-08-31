@@ -125,7 +125,7 @@ pub enum Flow {
     /// Payments approve flow.
     PaymentsApprove,
     /// Payments decline flow.
-    PaymentsDecline,
+    PaymentsReject,
     /// Payments Session Token flow
     PaymentsSessionToken,
     /// Payments start flow.

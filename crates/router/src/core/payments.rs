@@ -18,8 +18,9 @@ use router_env::{instrument, tracing};
 use time;
 
 pub use self::operations::{
-    PaymentApprove, PaymentCancel, PaymentCapture, PaymentConfirm, PaymentCreate, PaymentDecline,
-    PaymentMethodValidate, PaymentResponse, PaymentSession, PaymentStatus, PaymentUpdate,
+    PaymentApprove, PaymentCancel, PaymentCapture, PaymentConfirm, PaymentCreate,
+    PaymentMethodValidate, PaymentReject, PaymentResponse, PaymentSession, PaymentStatus,
+    PaymentUpdate,
 };
 use self::{
     flows::{ConstructFlowSpecificData, Feature},

@@ -12,9 +12,8 @@ use crate::{
 };
 
 #[async_trait]
-impl
-    ConstructFlowSpecificData<api::Decline, types::PaymentsDeclineData, types::PaymentsResponseData>
-    for PaymentData<api::Decline>
+impl ConstructFlowSpecificData<api::Reject, types::PaymentsRejectData, types::PaymentsResponseData>
+    for PaymentData<api::Reject>
 {
     async fn construct_router_data<'a>(
         &self,
@@ -23,8 +22,8 @@ impl
         merchant_account: &domain::MerchantAccount,
         key_store: &domain::MerchantKeyStore,
         customer: &Option<domain::Customer>,
-    ) -> RouterResult<types::PaymentsDeclineRouterData> {
-        transformers::construct_payment_router_data::<api::Decline, types::PaymentsDeclineData>(
+    ) -> RouterResult<types::PaymentsRejectRouterData> {
+        transformers::construct_payment_router_data::<api::Reject, types::PaymentsRejectData>(
             state,
             self.clone(),
             connector_id,
@@ -37,8 +36,8 @@ impl
 }
 
 #[async_trait]
-impl Feature<api::Decline, types::PaymentsDeclineData>
-    for types::RouterData<api::Decline, types::PaymentsDeclineData, types::PaymentsResponseData>
+impl Feature<api::Reject, types::PaymentsRejectData>
+    for types::RouterData<api::Reject, types::PaymentsRejectData, types::PaymentsResponseData>
 {
     async fn decide_flows<'a>(
         self,

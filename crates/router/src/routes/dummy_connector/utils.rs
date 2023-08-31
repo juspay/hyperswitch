@@ -247,26 +247,26 @@ impl types::DummyConnectorCard {
             "5105105105105100" | "4000000000000002" => {
                 Ok(types::DummyConnectorCardFlow::NoThreeDS(
                     types::DummyConnectorStatus::Failed,
-                    Some(errors::DummyConnectorErrors::PaymentDeclined {
+                    Some(errors::DummyConnectorErrors::PaymentRejectd {
                         message: "Card declined",
                     }),
                 ))
             }
             "4000000000009995" => Ok(types::DummyConnectorCardFlow::NoThreeDS(
                 types::DummyConnectorStatus::Failed,
-                Some(errors::DummyConnectorErrors::PaymentDeclined {
+                Some(errors::DummyConnectorErrors::PaymentRejectd {
                     message: "Insufficient funds",
                 }),
             )),
             "4000000000009987" => Ok(types::DummyConnectorCardFlow::NoThreeDS(
                 types::DummyConnectorStatus::Failed,
-                Some(errors::DummyConnectorErrors::PaymentDeclined {
+                Some(errors::DummyConnectorErrors::PaymentRejectd {
                     message: "Lost card",
                 }),
             )),
             "4000000000009979" => Ok(types::DummyConnectorCardFlow::NoThreeDS(
                 types::DummyConnectorStatus::Failed,
-                Some(errors::DummyConnectorErrors::PaymentDeclined {
+                Some(errors::DummyConnectorErrors::PaymentRejectd {
                     message: "Stolen card",
                 }),
             )),

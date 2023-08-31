@@ -20,7 +20,7 @@ use router_env::{instrument, tracing};
 pub use self::{
     payment_approve::PaymentApprove, payment_cancel::PaymentCancel,
     payment_capture::PaymentCapture, payment_confirm::PaymentConfirm,
-    payment_create::PaymentCreate, payment_decline::PaymentDecline,
+    payment_create::PaymentCreate, payment_decline::PaymentReject,
     payment_method_validate::PaymentMethodValidate, payment_response::PaymentResponse,
     payment_session::PaymentSession, payment_start::PaymentStart, payment_status::PaymentStatus,
     payment_update::PaymentUpdate,
@@ -347,10 +347,10 @@ where
 }
 
 #[async_trait]
-impl<F: Clone + Send, Op: Send + Sync + Operation<F, api::PaymentsDeclineRequest>>
-    Domain<F, api::PaymentsDeclineRequest> for Op
+impl<F: Clone + Send, Op: Send + Sync + Operation<F, api::PaymentsRejectRequest>>
+    Domain<F, api::PaymentsRejectRequest> for Op
 where
-    for<'a> &'a Op: Operation<F, api::PaymentsDeclineRequest>,
+    for<'a> &'a Op: Operation<F, api::PaymentsRejectRequest>,
 {
     #[instrument(skip_all)]
     async fn get_or_create_customer_details<'a>(
@@ -361,7 +361,7 @@ where
         merchant_key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<
         (
-            BoxedOperation<'a, F, api::PaymentsDeclineRequest>,
+            BoxedOperation<'a, F, api::PaymentsRejectRequest>,
             Option<domain::Customer>,
         ),
         errors::StorageError,
@@ -386,7 +386,7 @@ where
         _payment_data: &mut PaymentData<F>,
         _storage_scheme: enums::MerchantStorageScheme,
     ) -> RouterResult<(
-        BoxedOperation<'a, F, api::PaymentsDeclineRequest>,
+        BoxedOperation<'a, F, api::PaymentsRejectRequest>,
         Option<api::PaymentMethodData>,
     )> {
         Ok((Box::new(self), None))
@@ -396,7 +396,7 @@ where
         &'a self,
         _merchant_account: &domain::MerchantAccount,
         state: &AppState,
-        _request: &api::PaymentsDeclineRequest,
+        _request: &api::PaymentsRejectRequest,
         _payment_intent: &storage::PaymentIntent,
         _merchant_key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<api::ConnectorChoice, errors::ApiErrorResponse> {

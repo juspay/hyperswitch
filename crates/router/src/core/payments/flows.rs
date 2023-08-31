@@ -3,8 +3,8 @@ pub mod authorize_flow;
 pub mod cancel_flow;
 pub mod capture_flow;
 pub mod complete_authorize_flow;
-pub mod decline_flow;
 pub mod psync_flow;
+pub mod reject_flow;
 pub mod session_flow;
 pub mod verify_flow;
 
@@ -1359,14 +1359,14 @@ default_imp_for_approve!(
     connector::Zen
 );
 
-macro_rules! default_imp_for_decline {
+macro_rules! default_imp_for_reject {
     ($($path:ident::$connector:ident),*) => {
         $(
-            impl api::PaymentDecline for $path::$connector {}
+            impl api::PaymentReject for $path::$connector {}
             impl
             services::ConnectorIntegration<
-            api::Decline,
-            types::PaymentsDeclineData,
+            api::Reject,
+            types::PaymentsRejectData,
             types::PaymentsResponseData,
         > for $path::$connector
         {}
@@ -1375,18 +1375,18 @@ macro_rules! default_imp_for_decline {
 }
 
 #[cfg(feature = "dummy_connector")]
-impl<const T: u8> api::PaymentDecline for connector::DummyConnector<T> {}
+impl<const T: u8> api::PaymentReject for connector::DummyConnector<T> {}
 #[cfg(feature = "dummy_connector")]
 impl<const T: u8>
     services::ConnectorIntegration<
-        api::Decline,
-        types::PaymentsDeclineData,
+        api::Reject,
+        types::PaymentsRejectData,
         types::PaymentsResponseData,
     > for connector::DummyConnector<T>
 {
 }
 
-default_imp_for_decline!(
+default_imp_for_reject!(
     connector::Aci,
     connector::Adyen,
     connector::Airwallex,

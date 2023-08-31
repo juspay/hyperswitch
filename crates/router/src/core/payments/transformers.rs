@@ -1084,7 +1084,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsApproveD
     }
 }
 
-impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsDeclineData {
+impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsRejectData {
     type Error = error_stack::Report<errors::ApiErrorResponse>;
 
     fn try_from(additional_data: PaymentAdditionalData<'_, F>) -> Result<Self, Self::Error> {

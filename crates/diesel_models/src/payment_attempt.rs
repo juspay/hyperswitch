@@ -166,7 +166,7 @@ pub enum PaymentAttemptUpdate {
     ApproveUpdate {
         merchant_decision: Option<Option<String>>,
     },
-    DeclineUpdate {
+    RejectUpdate {
         status: storage_enums::AttemptStatus,
         merchant_decision: Option<Option<String>>,
         error_code: Option<Option<String>>,
@@ -369,7 +369,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 merchant_decision,
                 ..Default::default()
             },
-            PaymentAttemptUpdate::DeclineUpdate {
+            PaymentAttemptUpdate::RejectUpdate {
                 status,
                 merchant_decision,
                 error_code,

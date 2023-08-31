@@ -2640,7 +2640,7 @@ pub struct PaymentsApproveRequest {
 }
 
 #[derive(Default, Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
-pub struct PaymentsDeclineRequest {
+pub struct PaymentsRejectRequest {
     /// The identifier for the payment
     #[serde(skip)]
     pub payment_id: String,

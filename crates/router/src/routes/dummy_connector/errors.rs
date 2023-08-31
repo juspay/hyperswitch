@@ -36,7 +36,7 @@ pub enum DummyConnectorErrors {
     PaymentStoringError,
 
     #[error(error_type = ErrorType::InvalidRequestError, code = "DC_08", message = "Payment declined: {message}")]
-    PaymentDeclined { message: &'static str },
+    PaymentRejectd { message: &'static str },
 }
 
 impl core::fmt::Display for DummyConnectorErrors {
@@ -80,7 +80,7 @@ impl common_utils::errors::ErrorSwitch<api_models::errors::types::ApiErrorRespon
             Self::PaymentStoringError => {
                 AER::InternalServerError(ApiError::new("DC", 7, self.error_message(), None))
             }
-            Self::PaymentDeclined { message: _ } => {
+            Self::PaymentRejectd { message: _ } => {
                 AER::BadRequest(ApiError::new("DC", 8, self.error_message(), None))
             }
         }

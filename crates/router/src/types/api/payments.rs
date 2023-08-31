@@ -5,11 +5,11 @@ pub use api_models::payments::{
     PaymentListConstraints, PaymentListFilterConstraints, PaymentListFilters, PaymentListResponse,
     PaymentListResponseV2, PaymentMethodData, PaymentMethodDataResponse, PaymentOp,
     PaymentRetrieveBody, PaymentRetrieveBodyWithCredentials, PaymentsApproveRequest,
-    PaymentsCancelRequest, PaymentsCaptureRequest, PaymentsDeclineRequest, PaymentsRedirectRequest,
-    PaymentsRedirectionResponse, PaymentsRequest, PaymentsResponse, PaymentsResponseForm,
-    PaymentsRetrieveRequest, PaymentsSessionRequest, PaymentsSessionResponse, PaymentsStartRequest,
-    PgRedirectResponse, PhoneDetails, RedirectionResponse, SessionToken, TimeRange, UrlDetails,
-    VerifyRequest, VerifyResponse, WalletData,
+    PaymentsCancelRequest, PaymentsCaptureRequest, PaymentsRedirectRequest,
+    PaymentsRedirectionResponse, PaymentsRejectRequest, PaymentsRequest, PaymentsResponse,
+    PaymentsResponseForm, PaymentsRetrieveRequest, PaymentsSessionRequest, PaymentsSessionResponse,
+    PaymentsStartRequest, PgRedirectResponse, PhoneDetails, RedirectionResponse, SessionToken,
+    TimeRange, UrlDetails, VerifyRequest, VerifyResponse, WalletData,
 };
 use error_stack::{IntoReport, ResultExt};
 use masking::PeekInterface;
@@ -89,7 +89,7 @@ pub struct PSync;
 pub struct Void;
 
 #[derive(Debug, Clone)]
-pub struct Decline;
+pub struct Reject;
 
 #[derive(Debug, Clone)]
 pub struct Session;
@@ -169,8 +169,8 @@ pub trait PaymentApprove:
 {
 }
 
-pub trait PaymentDecline:
-    api::ConnectorIntegration<Decline, types::PaymentsDeclineData, types::PaymentsResponseData>
+pub trait PaymentReject:
+    api::ConnectorIntegration<Reject, types::PaymentsRejectData, types::PaymentsResponseData>
 {
 }
 
@@ -234,7 +234,7 @@ pub trait Payment:
     + PaymentCapture
     + PaymentVoid
     + PaymentApprove
-    + PaymentDecline
+    + PaymentReject
     + PreVerify
     + PaymentSession
     + PaymentToken
