@@ -171,3 +171,6 @@ key1 = "transaction key"
 
 [square]
 api_key="API Key"
+
+[helcim]
+api_key="API Key"

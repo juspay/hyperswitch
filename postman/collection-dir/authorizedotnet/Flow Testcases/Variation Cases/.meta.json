@@ -1,0 +1,15 @@
+{
+  "childrenOrder": [
+    "Scenario1-Create payment with Invalid card details",
+    "Scenario2-Create payment with Manual capture",
+    "Scenario3-Confirming the payment without PMD",
+    "Scenario4-Void the payment",
+    "Scenario5-Capture the succeeded payment",
+    "Scenario6-Capture greater amount",
+    "Scenario7-Void the success_slash_failure payment",
+    "Scenario8-Refund full payment Copy",
+    "Scenario9-Refund exceeds amount",
+    "Scenario10-Create a mandate and recurring payment",
+    "Scenario11-Create a recurring payment with greater mandate amount"
+  ]
+}
