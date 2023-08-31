@@ -12,6 +12,7 @@ use std::{
 
 use actix_web::{body, HttpRequest, HttpResponse, Responder, ResponseError};
 use api_models::enums::CaptureMethod;
+pub use client::{proxy_bypass_urls, ApiClient, MockApiClient, ProxyClient};
 use common_utils::errors::ReportSwitchExt;
 use error_stack::{report, IntoReport, Report, ResultExt};
 use masking::{ExposeOptionInterface, PeekInterface};
@@ -451,7 +452,7 @@ pub async fn send_request(
     let should_bypass_proxy = url
         .as_str()
         .starts_with(&state.conf.connectors.dummyconnector.base_url)
-        || client::proxy_bypass_urls(&state.conf.locker).contains(&url.to_string());
+        || proxy_bypass_urls(&state.conf.locker).contains(&url.to_string());
     #[cfg(not(feature = "dummy_connector"))]
     let should_bypass_proxy =
         client::proxy_bypass_urls(&state.conf.locker).contains(&url.to_string());
