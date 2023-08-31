@@ -48,9 +48,6 @@ use crate::{
     },
 };
 
-const QUERY_LIMIT: u32 = 20;
-const MAX_LIMIT: u32 = 100;
-
 pub fn create_identity_from_certificate_and_key(
     encoded_certificate: String,
     encoded_certificate_key: String,
@@ -1686,20 +1683,33 @@ pub(super) async fn filter_by_constraints(
 pub(super) fn validate_payment_list_request(
     req: &api::PaymentListConstraints,
 ) -> CustomResult<(), errors::ApiErrorResponse> {
-    utils::when(req.limit > MAX_LIMIT || req.limit < 1, || {
-        Err(errors::ApiErrorResponse::InvalidRequestData {
-            message: format!("limit should be in between 1 and {}", MAX_LIMIT),
-        })
-    })?;
+    use common_utils::consts::PAYMENTS_LIST_MAX_LIMIT_V1;
+
+    utils::when(
+        req.limit > PAYMENTS_LIST_MAX_LIMIT_V1 || req.limit < 1,
+        || {
+            Err(errors::ApiErrorResponse::InvalidRequestData {
+                message: format!(
+                    "limit should be in between 1 and {}",
+                    PAYMENTS_LIST_MAX_LIMIT_V1
+                ),
+            })
+        },
+    )?;
     Ok(())
 }
 #[cfg(feature = "olap")]
 pub(super) fn validate_payment_list_request_for_joins(
     limit: u32,
 ) -> CustomResult<(), errors::ApiErrorResponse> {
-    utils::when(!(1..=QUERY_LIMIT).contains(&limit), || {
+    use common_utils::consts::PAYMENTS_LIST_MAX_LIMIT_V2;
+
+    utils::when(!(1..=PAYMENTS_LIST_MAX_LIMIT_V2).contains(&limit), || {
         Err(errors::ApiErrorResponse::InvalidRequestData {
-            message: format!("limit should be in between 1 and {}", QUERY_LIMIT),
+            message: format!(
+                "limit should be in between 1 and {}",
+                PAYMENTS_LIST_MAX_LIMIT_V2
+            ),
         })
     })?;
     Ok(())
