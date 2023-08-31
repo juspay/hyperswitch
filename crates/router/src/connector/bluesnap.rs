@@ -125,7 +125,7 @@ impl ConnectorCommon for Bluesnap {
             bluesnap::BluesnapErrors::Auth(error_res) => ErrorResponse {
                 status_code: res.status_code,
                 code: error_res.error_code.clone(),
-                message: error_res.error_name.clone(),
+                message: error_res.error_name.clone().unwrap_or(error_res.error_code),
                 reason: Some(error_res.error_description),
             },
             bluesnap::BluesnapErrors::General(error_response) => ErrorResponse {
@@ -151,6 +151,26 @@ impl ConnectorValidation for Bluesnap {
                 connector_utils::construct_not_supported_error_report(capture_method, self.id()),
             ),
         }
+    }
+
+    fn validate_psync_reference_id(
+        &self,
+        data: &types::PaymentsSyncRouterData,
+    ) -> CustomResult<(), errors::ConnectorError> {
+        // if connector_transaction_id is present, psync can be made
+        if data
+            .request
+            .connector_transaction_id
+            .get_connector_transaction_id()
+            .is_ok()
+        {
+            return Ok(());
+        }
+        // if merchant_id is present, psync can be made along with attempt_id
+        let meta_data: CustomResult<bluesnap::BluesnapConnectorMetaData, errors::ConnectorError> =
+            connector_utils::to_connector_meta_from_secret(data.connector_meta_data.clone());
+
+        meta_data.map(|_| ())
     }
 }
 
@@ -379,17 +399,22 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
         req: &types::PaymentsSyncRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        let connector_payment_id = req
-            .request
-            .connector_transaction_id
-            .get_connector_transaction_id()
-            .change_context(errors::ConnectorError::MissingConnectorTransactionID)?;
-        Ok(format!(
-            "{}{}{}",
-            self.base_url(connectors),
-            "services/2/transactions/",
-            connector_payment_id
-        ))
+        let meta_data: CustomResult<bluesnap::BluesnapConnectorMetaData, errors::ConnectorError> =
+            connector_utils::to_connector_meta_from_secret(req.connector_meta_data.clone());
+
+        match meta_data {
+            // if merchant_id is present, psync can be made using merchant_transaction_id
+            Ok(data) => get_url_with_merchant_transaction_id(
+                self.base_url(connectors).to_string(),
+                data.merchant_id,
+                req.attempt_id.to_owned(),
+            ),
+            // otherwise psync is made using connector_transaction_id
+            Err(_) => get_psync_url_with_connector_transaction_id(
+                &req.request.connector_transaction_id,
+                self.base_url(connectors).to_string(),
+            ),
+        }
     }
 
     fn build_request(
@@ -919,12 +944,22 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
         req: &types::RefundSyncRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Ok(format!(
-            "{}{}{}",
-            self.base_url(connectors),
-            "services/2/transactions/",
-            req.request.get_connector_refund_id()?
-        ))
+        let meta_data: CustomResult<bluesnap::BluesnapConnectorMetaData, errors::ConnectorError> =
+            connector_utils::to_connector_meta_from_secret(req.connector_meta_data.clone());
+
+        match meta_data {
+            // if merchant_id is present, rsync can be made using merchant_transaction_id
+            Ok(data) => get_url_with_merchant_transaction_id(
+                self.base_url(connectors).to_string(),
+                data.merchant_id,
+                req.attempt_id.to_owned(),
+            ),
+            // otherwise rsync is made using connector_transaction_id
+            Err(_) => get_rsync_url_with_connector_transaction_id(
+                req,
+                self.base_url(connectors).to_string(),
+            ),
+        }
     }
 
     fn build_request(
@@ -1264,4 +1299,40 @@ impl ConnectorErrorTypeMapping for Bluesnap {
             _ => ConnectorErrorType::UnknownError,
         }
     }
+}
+
+fn get_url_with_merchant_transaction_id(
+    base_url: String,
+    merchant_id: String,
+    merchant_transaction_id: String,
+) -> CustomResult<String, errors::ConnectorError> {
+    Ok(format!(
+        "{}{}{},{}",
+        base_url, "services/2/transactions/", merchant_transaction_id, merchant_id
+    ))
+}
+
+fn get_psync_url_with_connector_transaction_id(
+    connector_transaction_id: &types::ResponseId,
+    base_url: String,
+) -> CustomResult<String, errors::ConnectorError> {
+    let connector_transaction_id = connector_transaction_id
+        .get_connector_transaction_id()
+        .change_context(errors::ConnectorError::MissingConnectorTransactionID)?;
+    Ok(format!(
+        "{}{}{}",
+        base_url, "services/2/transactions/", connector_transaction_id
+    ))
+}
+
+fn get_rsync_url_with_connector_transaction_id(
+    req: &types::RefundSyncRouterData,
+    base_url: String,
+) -> CustomResult<String, errors::ConnectorError> {
+    Ok(format!(
+        "{}{}{}",
+        base_url,
+        "services/2/transactions/",
+        req.request.get_connector_refund_id()?
+    ))
 }

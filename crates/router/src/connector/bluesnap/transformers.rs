@@ -156,6 +156,11 @@ pub struct ApplepayHeader {
     transaction_id: Secret<String>,
 }
 
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct BluesnapConnectorMetaData {
+    pub merchant_id: String,
+}
+
 impl TryFrom<&types::PaymentsAuthorizeRouterData> for BluesnapPaymentsRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::PaymentsAuthorizeRouterData) -> Result<Self, Self::Error> {
@@ -893,7 +898,7 @@ pub struct BluesnapWebhookObjectResource {
 pub struct ErrorDetails {
     pub code: String,
     pub description: String,
-    pub error_name: String,
+    pub error_name: Option<String>,
 }
 
 #[derive(Default, Debug, Clone, Deserialize)]
@@ -907,7 +912,7 @@ pub struct BluesnapErrorResponse {
 pub struct BluesnapAuthErrorResponse {
     pub error_code: String,
     pub error_description: String,
-    pub error_name: String,
+    pub error_name: Option<String>,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -933,7 +938,7 @@ impl From<ErrorDetails> for utils::ErrorCodeAndMessage {
     fn from(error: ErrorDetails) -> Self {
         Self {
             error_code: error.code.to_string(),
-            error_message: error.error_name,
+            error_message: error.error_name.unwrap_or(error.code.to_string()),
         }
     }
 }

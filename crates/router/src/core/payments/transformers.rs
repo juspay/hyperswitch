@@ -76,19 +76,24 @@ where
         .or(payment_data.payment_attempt.payment_method)
         .get_required_value("payment_method_type")?;
 
-    // [#44]: why should response be filled during request
-    let response = payment_data
+    let resource_id = match payment_data
         .payment_attempt
         .connector_transaction_id
-        .as_ref()
-        .map(|id| types::PaymentsResponseData::TransactionResponse {
-            resource_id: types::ResponseId::ConnectorTransactionId(id.to_string()),
-            redirection_data: None,
-            mandate_reference: None,
-            connector_metadata: None,
-            network_txn_id: None,
-            connector_response_reference_id: None,
-        });
+        .clone()
+    {
+        Some(id) => types::ResponseId::ConnectorTransactionId(id),
+        None => types::ResponseId::NoResponseId,
+    };
+
+    // [#44]: why should response be filled during request
+    let response = Ok(types::PaymentsResponseData::TransactionResponse {
+        resource_id,
+        redirection_data: None,
+        mandate_reference: None,
+        connector_metadata: None,
+        network_txn_id: None,
+        connector_response_reference_id: None,
+    });
 
     let additional_data = PaymentAdditionalData {
         router_base_url: state.conf.server.base_url.clone(),
@@ -142,7 +147,7 @@ where
             .unwrap_or_default(),
         connector_meta_data: merchant_connector_account.get_metadata(),
         request: T::try_from(additional_data)?,
-        response: response.map_or_else(|| Err(types::ErrorResponse::default()), Ok),
+        response,
         amount_captured: payment_data.payment_intent.amount_captured,
         access_token: None,
         session_token: None,
@@ -1124,6 +1129,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::VerifyRequestDat
         Ok(Self {
             currency: payment_data.currency,
             confirm: true,
+            amount: Some(payment_data.amount.into()),
             payment_method_data: payment_data
                 .payment_method_data
                 .get_required_value("payment_method_data")?,
