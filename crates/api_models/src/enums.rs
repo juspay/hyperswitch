@@ -108,7 +108,7 @@ pub enum Connector {
     Powertranz,
     Rapyd,
     Shift4,
-    // Square, added as template code for future usage,
+    Square,
     Stax,
     Stripe,
     Trustpay,
@@ -223,7 +223,7 @@ pub enum RoutableConnectors {
     Powertranz,
     Rapyd,
     Shift4,
-    //Square, added as template code for future usage
+    Square,
     Stax,
     Stripe,
     Trustpay,

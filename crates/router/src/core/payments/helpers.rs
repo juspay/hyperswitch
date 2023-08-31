@@ -1203,7 +1203,7 @@ pub async fn make_pm_data<'a, F: Clone, R>(
                     .attach_printable("Failed to fetch the token from redis")?
                     .ok_or(error_stack::Report::new(
                         errors::ApiErrorResponse::UnprocessableEntity {
-                            entity: "Token".to_string(),
+                            message: "Token is invalid or expired".to_owned(),
                         },
                     ))?;
 
@@ -1643,10 +1643,7 @@ pub fn validate_payment_method_type_against_payment_method(
     }
 }
 
-pub fn check_force_psync_precondition(
-    status: &storage_enums::AttemptStatus,
-    connector_transaction_id: &Option<String>,
-) -> bool {
+pub fn check_force_psync_precondition(status: &storage_enums::AttemptStatus) -> bool {
     !matches!(
         status,
         storage_enums::AttemptStatus::Charged
@@ -1655,7 +1652,7 @@ pub fn check_force_psync_precondition(
             | storage_enums::AttemptStatus::CodInitiated
             | storage_enums::AttemptStatus::Started
             | storage_enums::AttemptStatus::Failure
-    ) && connector_transaction_id.is_some()
+    )
 }
 
 pub fn append_option<T, U, F, V>(func: F, option1: Option<T>, option2: Option<U>) -> Option<V>
@@ -2429,7 +2426,7 @@ pub async fn get_merchant_connector_account(
             let decrypted_mca = services::decrypt_jwe(mca_config.config.as_str(), services::KeyIdCheck::SkipKeyIdCheck, private_key, jwe::RSA_OAEP_256)
                                      .await
                                      .change_context(errors::ApiErrorResponse::UnprocessableEntity{
-                                        entity: "merchant_connector_details".to_string()})
+                                        message: "decoding merchant_connector_details failed due to invalid data format!".into()})
                                      .attach_printable(
                                         "Failed to decrypt merchant_connector_details sent in request and then put in cache",
                                     )?;
