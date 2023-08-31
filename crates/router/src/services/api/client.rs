@@ -335,7 +335,7 @@ impl ApiClient for MockApiClient {
         _method: Method,
         _url: String,
     ) -> CustomResult<Box<dyn RequestBuilder>, ApiClientError> {
-        // []:
+        // [#2066]: Add Mock implementation for ApiClient
         Err(ApiClientError::UnexpectedState.into())
     }
 
@@ -346,7 +346,7 @@ impl ApiClient for MockApiClient {
         _certificate: Option<String>,
         _certificate_key: Option<String>,
     ) -> CustomResult<Box<dyn RequestBuilder>, ApiClientError> {
-        // []:
+        // [#2066]: Add Mock implementation for ApiClient
         Err(ApiClientError::UnexpectedState.into())
     }
 }
