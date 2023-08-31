@@ -122,7 +122,6 @@ pub async fn auto_refund_core(
     key_store: domain::MerchantKeyStore,
     req: refunds::RefundRequest,
 ) -> RouterResponse<refunds::RefundResponse> {
-    
     let db = &*state.store;
 
     let (merchant_id, payment_intent, amount);
@@ -184,7 +183,6 @@ pub async fn auto_refund_core(
     )
     .await
     .map(services::ApplicationResponse::Json)
-    
 }
 
 #[instrument(skip_all)]
