@@ -127,7 +127,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PayuPaymentsRequest {
                 | api_models::payments::WalletData::CashappQr(_)
                 | api_models::payments::WalletData::SwishQr(_) => {
                     Err(errors::ConnectorError::NotSupported {
-                        message: utils::get_unsupported_payment_method_error_message(),
+                        message: utils::SELECTED_PAYMENT_METHOD.to_string(),
                         connector: "Payu",
                     })
                 }
@@ -145,7 +145,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PayuPaymentsRequest {
             | api::PaymentMethodData::MandatePayment
             | api::PaymentMethodData::Reward
             | api::PaymentMethodData::Voucher(_) => Err(errors::ConnectorError::NotSupported {
-                message: utils::get_unsupported_payment_method_error_message(),
+                message: utils::SELECTED_PAYMENT_METHOD.to_string(),
                 connector: "Payu",
             }),
         }?;

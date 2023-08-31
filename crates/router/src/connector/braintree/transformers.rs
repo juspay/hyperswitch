@@ -159,7 +159,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for BraintreePaymentsRequest {
                         | api_models::payments::WalletData::CashappQr(_)
                         | api_models::payments::WalletData::SwishQr(_) => {
                             Err(errors::ConnectorError::NotSupported {
-                                message: utils::get_unsupported_payment_method_error_message(),
+                                message: utils::SELECTED_PAYMENT_METHOD.to_string(),
                                 connector: "Braintree",
                             })?
                         }
@@ -181,7 +181,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for BraintreePaymentsRequest {
             | api::PaymentMethodData::Upi(_)
             | api::PaymentMethodData::Voucher(_)
             | api::PaymentMethodData::GiftCard(_) => Err(errors::ConnectorError::NotSupported {
-                message: utils::get_unsupported_payment_method_error_message(),
+                message: utils::SELECTED_PAYMENT_METHOD.to_string(),
                 connector: "Braintree",
             })?,
         }?;

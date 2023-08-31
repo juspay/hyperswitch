@@ -462,7 +462,7 @@ fn get_wallet_data(
         | api_models::payments::WalletData::CashappQr(_)
         | api_models::payments::WalletData::SwishQr(_) => {
             Err(errors::ConnectorError::NotSupported {
-                message: utils::get_unsupported_payment_method_error_message(),
+                message: utils::SELECTED_PAYMENT_METHOD.to_string(),
                 connector: "Globalpay",
             })?
         }
@@ -513,7 +513,7 @@ impl TryFrom<&api_models::payments::BankRedirectData> for PaymentMethodData {
             | api_models::payments::BankRedirectData::OnlineBankingThailand { .. }
             | api_models::payments::BankRedirectData::OpenBankingUk { .. } => {
                 Err(errors::ConnectorError::NotSupported {
-                    message: utils::get_unsupported_payment_method_error_message(),
+                    message: utils::SELECTED_PAYMENT_METHOD.to_string(),
                     connector: "Globalpay",
                 })
                 .into_report()

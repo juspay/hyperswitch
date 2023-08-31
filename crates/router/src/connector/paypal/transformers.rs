@@ -172,7 +172,7 @@ fn get_payment_source(
         | BankRedirectData::OnlineBankingThailand { .. }
         | api_models::payments::BankRedirectData::OpenBankingUk { .. } => {
             Err(errors::ConnectorError::NotSupported {
-                message: utils::get_unsupported_payment_method_error_message(),
+                message: utils::SELECTED_PAYMENT_METHOD.to_string(),
                 connector: "Paypal",
             }
             .into())
@@ -281,7 +281,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PaypalPaymentsRequest {
                 | api_models::payments::WalletData::CashappQr(_)
                 | api_models::payments::WalletData::SwishQr(_) => {
                     Err(errors::ConnectorError::NotSupported {
-                        message: utils::get_unsupported_payment_method_error_message(),
+                        message: utils::SELECTED_PAYMENT_METHOD.to_string(),
                         connector: "Paypal",
                     })?
                 }
@@ -331,7 +331,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PaypalPaymentsRequest {
             | api_models::payments::PaymentMethodData::Voucher(_)
             | api_models::payments::PaymentMethodData::GiftCard(_) => {
                 Err(errors::ConnectorError::NotSupported {
-                    message: utils::get_unsupported_payment_method_error_message(),
+                    message: utils::SELECTED_PAYMENT_METHOD.to_string(),
                     connector: "Paypal",
                 }
                 .into())

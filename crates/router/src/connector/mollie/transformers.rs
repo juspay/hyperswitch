@@ -167,7 +167,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for MolliePaymentsRequest {
                 | api_models::payments::PaymentMethodData::Reward
                 | api_models::payments::PaymentMethodData::Upi(_) => {
                     Err(errors::ConnectorError::NotSupported {
-                        message: utils::get_unsupported_payment_method_error_message(),
+                        message: utils::SELECTED_PAYMENT_METHOD.to_string(),
                         connector: "Mollie",
                     })
                     .into_report()
@@ -230,7 +230,7 @@ impl TryFrom<&api_models::payments::BankRedirectData> for PaymentMethodData {
             | api_models::payments::BankRedirectData::OnlineBankingThailand { .. }
             | api_models::payments::BankRedirectData::OpenBankingUk { .. } => {
                 Err(errors::ConnectorError::NotSupported {
-                    message: utils::get_unsupported_payment_method_error_message(),
+                    message: utils::SELECTED_PAYMENT_METHOD.to_string(),
                     connector: "Mollie",
                 }
                 .into())
@@ -255,7 +255,7 @@ impl TryFrom<&api_models::payments::BankDebitData> for PaymentMethodData {
             | api_models::payments::BankDebitData::BecsBankDebit { .. }
             | api_models::payments::BankDebitData::BacsBankDebit { .. } => {
                 Err(errors::ConnectorError::NotSupported {
-                    message: utils::get_unsupported_payment_method_error_message(),
+                    message: utils::SELECTED_PAYMENT_METHOD.to_string(),
                     connector: "Mollie",
                 }
                 .into())
@@ -271,7 +271,7 @@ impl TryFrom<&api_models::payments::CardRedirectData> for PaymentMethodData {
             payments::CardRedirectData::Knet {}
             | payments::CardRedirectData::Benefit {}
             | payments::CardRedirectData::MomoAtm {} => Err(errors::ConnectorError::NotSupported {
-                message: utils::get_unsupported_payment_method_error_message(),
+                message: utils::SELECTED_PAYMENT_METHOD.to_string(),
                 connector: "Mollie",
             })
             .into_report(),
@@ -297,7 +297,7 @@ impl TryFrom<&api_models::payments::PayLaterData> for PaymentMethodData {
             | payments::PayLaterData::AlmaRedirect {}
             | payments::PayLaterData::AtomeRedirect {} => {
                 Err(errors::ConnectorError::NotSupported {
-                    message: utils::get_unsupported_payment_method_error_message(),
+                    message: utils::SELECTED_PAYMENT_METHOD.to_string(),
                     connector: "Mollie",
                 })
                 .into_report()
@@ -330,7 +330,7 @@ impl TryFrom<&api_models::payments::BankTransferData> for PaymentMethodData {
             | payments::BankTransferData::MandiriVaBankTransfer { .. }
             | payments::BankTransferData::Pix {}
             | payments::BankTransferData::Pse {} => Err(errors::ConnectorError::NotSupported {
-                message: utils::get_unsupported_payment_method_error_message(),
+                message: utils::SELECTED_PAYMENT_METHOD.to_string(),
                 connector: "Mollie",
             })
             .into_report(),
@@ -356,7 +356,7 @@ impl TryFrom<&api_models::payments::VoucherData> for PaymentMethodData {
             | payments::VoucherData::Seicomart(_)
             | payments::VoucherData::PayEasy(_)
             | payments::VoucherData::Oxxo => Err(errors::ConnectorError::NotSupported {
-                message: utils::get_unsupported_payment_method_error_message(),
+                message: utils::SELECTED_PAYMENT_METHOD.to_string(),
                 connector: "Mollie",
             })
             .into_report(),
@@ -373,7 +373,7 @@ impl TryFrom<&api_models::payments::GiftCardData> for PaymentMethodData {
             ))
             .into_report(),
             payments::GiftCardData::Givex(_) => Err(errors::ConnectorError::NotSupported {
-                message: utils::get_unsupported_payment_method_error_message(),
+                message: utils::SELECTED_PAYMENT_METHOD.to_string(),
                 connector: "Mollie",
             })
             .into_report(),
@@ -489,7 +489,7 @@ fn get_payment_method_for_wallet(
         | api_models::payments::WalletData::CashappQr(_)
         | api_models::payments::WalletData::SwishQr(_) => {
             Err(errors::ConnectorError::NotSupported {
-                message: utils::get_unsupported_payment_method_error_message(),
+                message: utils::SELECTED_PAYMENT_METHOD.to_string(),
                 connector: "Mollie",
             })
             .into_report()

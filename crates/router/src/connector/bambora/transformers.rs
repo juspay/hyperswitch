@@ -147,20 +147,22 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for BamboraPaymentsRequest {
             api_models::payments::PaymentMethodData::GiftCard(ref giftcard_data) => {
                 Self::try_from(giftcard_data.as_ref())
             }
+            api::PaymentMethodData::BankTransfer(ref bank_transfer_data) => {
+                Self::try_from(bank_transfer_data.as_ref())
+            }
+            api::PaymentMethodData::BankRedirect(ref bank_redirect_data) => {
+                Self::try_from(bank_redirect_data)
+            }
+            api::PaymentMethodData::BankDebit(ref bank_debit_data) => {
+                Self::try_from(bank_debit_data)
+            }
             api::PaymentMethodData::Crypto(_)
             | api::PaymentMethodData::MandatePayment
             | api::PaymentMethodData::Reward
             | api::PaymentMethodData::Upi(_) => Err(errors::ConnectorError::NotSupported {
-                message: format!("{:?}", item.request.payment_method_data),
+                message: utils::SELECTED_PAYMENT_METHOD.to_string(),
                 connector: "Bambora",
             }
-            .into()),
-
-            api::PaymentMethodData::BankTransfer(_)
-            | api::PaymentMethodData::BankRedirect(_)
-            | api::PaymentMethodData::BankDebit(_) => Err(errors::ConnectorError::NotImplemented(
-                utils::get_unimplemented_payment_method_error_message("bambora"),
-            )
             .into()),
         }
     }
@@ -202,7 +204,7 @@ impl TryFrom<&api_models::payments::WalletData> for BamboraPaymentsRequest {
             | api_models::payments::WalletData::CashappQr(_)
             | api_models::payments::WalletData::SwishQr(_) => {
                 Err(errors::ConnectorError::NotSupported {
-                    message: utils::get_unsupported_payment_method_error_message(),
+                    message: utils::SELECTED_PAYMENT_METHOD.to_string(),
                     connector: "Bambora",
                 }
                 .into())
@@ -218,7 +220,7 @@ impl TryFrom<&api_models::payments::CardRedirectData> for BamboraPaymentsRequest
             payments::CardRedirectData::Knet {}
             | payments::CardRedirectData::Benefit {}
             | payments::CardRedirectData::MomoAtm {} => Err(errors::ConnectorError::NotSupported {
-                message: utils::get_unsupported_payment_method_error_message(),
+                message: utils::SELECTED_PAYMENT_METHOD.to_string(),
                 connector: "Bambora",
             })
             .into_report(),
@@ -239,7 +241,7 @@ impl TryFrom<&api_models::payments::PayLaterData> for BamboraPaymentsRequest {
             | payments::PayLaterData::AlmaRedirect {}
             | payments::PayLaterData::AtomeRedirect {} => {
                 Err(errors::ConnectorError::NotSupported {
-                    message: utils::get_unsupported_payment_method_error_message(),
+                    message: utils::SELECTED_PAYMENT_METHOD.to_string(),
                     connector: "Bambora",
                 })
                 .into_report()
@@ -266,7 +268,7 @@ impl TryFrom<&api_models::payments::VoucherData> for BamboraPaymentsRequest {
             | payments::VoucherData::Seicomart(_)
             | payments::VoucherData::PayEasy(_)
             | payments::VoucherData::Oxxo => Err(errors::ConnectorError::NotSupported {
-                message: utils::get_unsupported_payment_method_error_message(),
+                message: utils::SELECTED_PAYMENT_METHOD.to_string(),
                 connector: "Bambora",
             })
             .into_report(),
@@ -280,10 +282,99 @@ impl TryFrom<&api_models::payments::GiftCardData> for BamboraPaymentsRequest {
         match value {
             payments::GiftCardData::PaySafeCard {} | payments::GiftCardData::Givex(_) => {
                 Err(errors::ConnectorError::NotSupported {
-                    message: utils::get_unsupported_payment_method_error_message(),
+                    message: utils::SELECTED_PAYMENT_METHOD.to_string(),
                     connector: "Bambora",
                 })
                 .into_report()
+            }
+        }
+    }
+}
+
+impl TryFrom<&api_models::payments::BankTransferData> for BamboraPaymentsRequest {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(value: &api_models::payments::BankTransferData) -> Result<Self, Self::Error> {
+        match value {
+            payments::BankTransferData::AchBankTransfer { .. } => {
+                Err(errors::ConnectorError::NotImplemented(
+                    utils::get_unimplemented_payment_method_error_message("Bambora"),
+                )
+                .into())
+            }
+            payments::BankTransferData::SepaBankTransfer { .. }
+            | payments::BankTransferData::BacsBankTransfer { .. }
+            | payments::BankTransferData::MultibancoBankTransfer { .. }
+            | payments::BankTransferData::PermataBankTransfer { .. }
+            | payments::BankTransferData::BcaBankTransfer { .. }
+            | payments::BankTransferData::BniVaBankTransfer { .. }
+            | payments::BankTransferData::BriVaBankTransfer { .. }
+            | payments::BankTransferData::CimbVaBankTransfer { .. }
+            | payments::BankTransferData::DanamonVaBankTransfer { .. }
+            | payments::BankTransferData::MandiriVaBankTransfer { .. }
+            | payments::BankTransferData::Pix {}
+            | payments::BankTransferData::Pse {} => Err(errors::ConnectorError::NotSupported {
+                message: utils::SELECTED_PAYMENT_METHOD.to_string(),
+                connector: "Bambora",
+            })
+            .into_report(),
+        }
+    }
+}
+
+impl TryFrom<&api_models::payments::BankRedirectData> for BamboraPaymentsRequest {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(value: &api_models::payments::BankRedirectData) -> Result<Self, Self::Error> {
+        match value {
+            payments::BankRedirectData::Interac { .. } => {
+                Err(errors::ConnectorError::NotImplemented(
+                    utils::get_unimplemented_payment_method_error_message("bambora"),
+                )
+                .into())
+            }
+            payments::BankRedirectData::BancontactCard { .. }
+            | payments::BankRedirectData::Bizum {}
+            | payments::BankRedirectData::Blik { .. }
+            | payments::BankRedirectData::Eps { .. }
+            | payments::BankRedirectData::Giropay { .. }
+            | payments::BankRedirectData::Ideal { .. }
+            | payments::BankRedirectData::OnlineBankingCzechRepublic { .. }
+            | payments::BankRedirectData::OnlineBankingFinland { .. }
+            | payments::BankRedirectData::OnlineBankingPoland { .. }
+            | payments::BankRedirectData::OnlineBankingSlovakia { .. }
+            | payments::BankRedirectData::OpenBankingUk { .. }
+            | payments::BankRedirectData::Przelewy24 { .. }
+            | payments::BankRedirectData::Sofort { .. }
+            | payments::BankRedirectData::Trustly { .. }
+            | payments::BankRedirectData::OnlineBankingFpx { .. }
+            | payments::BankRedirectData::OnlineBankingThailand { .. } => {
+                Err(errors::ConnectorError::NotSupported {
+                    message: utils::SELECTED_PAYMENT_METHOD.to_string(),
+                    connector: "Bambora",
+                }
+                .into())
+            }
+        }
+    }
+}
+
+impl TryFrom<&api_models::payments::BankDebitData> for BamboraPaymentsRequest {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(value: &api_models::payments::BankDebitData) -> Result<Self, Self::Error> {
+        match value {
+            payments::BankDebitData::AchBankDebit { .. } => {
+                Err(errors::ConnectorError::NotImplemented(
+                    utils::get_unimplemented_payment_method_error_message("bambora"),
+                )
+                .into())
+            }
+            payments::BankDebitData::SepaBankDebit { .. }
+            | payments::BankDebitData::BecsBankDebit { .. }
+            | payments::BankDebitData::BacsBankDebit { .. } => {
+                Err(errors::ConnectorError::NotSupported {
+                    message: utils::SELECTED_PAYMENT_METHOD.to_string(),
+                    connector: "Bambora",
+                }
+                .into())
             }
         }
     }
