@@ -1732,15 +1732,21 @@ impl api::IncomingWebhook for Stripe {
             .change_context(errors::ConnectorError::WebhookReferenceIdNotFound)?;
 
         Ok(match details.event_data.event_object.object {
-            stripe::WebhookEventObjectType::PaymentIntent => {
+            stripe::WebhookEventObjectType::PaymentIntent
+            | stripe::WebhookEventObjectType::Charge => {
                 api_models::webhooks::ObjectReferenceId::PaymentId(
-                    api_models::payments::PaymentIdType::ConnectorTransactionId(
-                        details.event_data.event_object.id,
+                    api_models::payments::PaymentIdType::PaymentAttemptId(
+                        details
+                            .event_data
+                            .event_object
+                            .metadata
+                            .ok_or(errors::ConnectorError::WebhookReferenceIdNotFound)?
+                            .order_id,
                     ),
                 )
             }
 
-            stripe::WebhookEventObjectType::Charge | stripe::WebhookEventObjectType::Dispute => {
+            stripe::WebhookEventObjectType::Dispute => {
                 api_models::webhooks::ObjectReferenceId::PaymentId(
                     api_models::payments::PaymentIdType::ConnectorTransactionId(
                         details
@@ -1760,8 +1766,13 @@ impl api::IncomingWebhook for Stripe {
             }
             stripe::WebhookEventObjectType::Refund => {
                 api_models::webhooks::ObjectReferenceId::RefundId(
-                    api_models::webhooks::RefundIdType::ConnectorRefundId(
-                        details.event_data.event_object.id,
+                    api_models::webhooks::RefundIdType::RefundId(
+                        details
+                            .event_data
+                            .event_object
+                            .metadata
+                            .ok_or(errors::ConnectorError::WebhookReferenceIdNotFound)?
+                            .order_id,
                     ),
                 )
             }

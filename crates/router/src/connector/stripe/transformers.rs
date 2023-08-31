@@ -2446,7 +2446,7 @@ impl<F> TryFrom<&types::RefundsRouterData<F>> for RefundRequest {
         Ok(Self {
             amount: Some(amount),
             payment_intent,
-            metadata_order_id: item.payment_id.clone(),
+            metadata_order_id: item.request.refund_id.clone(),
             metadata_txn_id,
             metadata_txn_uuid,
         })
@@ -2956,6 +2956,12 @@ pub struct WebhookEventObjectData {
     pub created: PrimitiveDateTime,
     pub evidence_details: Option<EvidenceDetails>,
     pub status: Option<WebhookEventStatus>,
+    pub metadata: Option<WebhookMetaData>,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct WebhookMetaData {
+    pub order_id: String,
 }
 
 #[derive(Debug, Deserialize, strum::Display)]
