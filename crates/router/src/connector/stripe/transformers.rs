@@ -4343,7 +4343,7 @@ impl From<StripeConnectPayoutStatus> for enums::PayoutStatus {
             StripeConnectPayoutStatus::Failed => Self::Failed,
             StripeConnectPayoutStatus::Canceled => Self::Cancelled,
             StripeConnectPayoutStatus::Pending | StripeConnectPayoutStatus::InTransit => {
-                Self::Pending
+                Self::Processing
             }
         }
     }

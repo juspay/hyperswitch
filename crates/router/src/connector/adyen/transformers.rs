@@ -4126,10 +4126,12 @@ impl<F> TryFrom<types::PayoutsResponseRouterData<F, AdyenPayoutResponse>>
 impl From<AdyenStatus> for storage_enums::PayoutStatus {
     fn from(adyen_status: AdyenStatus) -> Self {
         match adyen_status {
-            AdyenStatus::Authorised | AdyenStatus::PayoutConfirmReceived => Self::Success,
+            AdyenStatus::Authorised | AdyenStatus::PayoutConfirmReceived => {
+                Self::OutgoingPaymentSent
+            }
             AdyenStatus::Cancelled | AdyenStatus::PayoutDeclineReceived => Self::Cancelled,
             AdyenStatus::Error => Self::Failed,
-            AdyenStatus::Pending => Self::Pending,
+            AdyenStatus::Pending => Self::Processing,
             AdyenStatus::PayoutSubmitReceived => Self::RequiresFulfillment,
             _ => Self::Ineligible,
         }

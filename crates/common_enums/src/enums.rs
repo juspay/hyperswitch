@@ -1668,15 +1668,19 @@ pub enum CanadaStatesAbbreviation {
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
 pub enum PayoutStatus {
+    RequiresCustomerAction,
+    RequiresPayoutMethodData,
+    #[default]
+    RequiresCreation,
+    RequiresFulfillment,
+    Processing,
+    OutgoingPaymentSent,
     Success,
     Failed,
     Cancelled,
-    Pending,
     Ineligible,
-    #[default]
-    RequiresCreation,
-    RequiresPayoutMethodData,
-    RequiresFulfillment,
+    Expired,
+    FundsRefunded,
 }
 
 #[derive(

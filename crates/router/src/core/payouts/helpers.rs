@@ -427,17 +427,20 @@ pub fn should_call_payout_connector_create_customer<'a>(
 pub fn is_payout_initiated(status: api_enums::PayoutStatus) -> bool {
     matches!(
         status,
-        api_enums::PayoutStatus::Pending | api_enums::PayoutStatus::RequiresFulfillment
+        api_enums::PayoutStatus::OutgoingPaymentSent | api_enums::PayoutStatus::RequiresFulfillment
     )
 }
 
 pub fn is_payout_terminal_state(status: api_enums::PayoutStatus) -> bool {
-    !matches!(
+    matches!(
         status,
-        api_enums::PayoutStatus::Pending
-            | api_enums::PayoutStatus::RequiresCreation
-            | api_enums::PayoutStatus::RequiresFulfillment
-            | api_enums::PayoutStatus::RequiresPayoutMethodData
+        api_enums::PayoutStatus::OutgoingPaymentSent
+            | api_enums::PayoutStatus::Success
+            | api_enums::PayoutStatus::Failed
+            | api_enums::PayoutStatus::Cancelled
+            | api_enums::PayoutStatus::Ineligible
+            | api_enums::PayoutStatus::Expired
+            | api_enums::PayoutStatus::FundsRefunded
     )
 }
 
@@ -447,13 +450,15 @@ pub fn is_payout_err_state(status: api_enums::PayoutStatus) -> bool {
         api_enums::PayoutStatus::Cancelled
             | api_enums::PayoutStatus::Failed
             | api_enums::PayoutStatus::Ineligible
+            | api_enums::PayoutStatus::Expired
     )
 }
 
 pub fn is_eligible_for_local_payout_cancellation(status: api_enums::PayoutStatus) -> bool {
     matches!(
         status,
-        api_enums::PayoutStatus::RequiresCreation
-            | api_enums::PayoutStatus::RequiresPayoutMethodData,
+        api_enums::PayoutStatus::RequiresCustomerAction
+            | api_enums::PayoutStatus::RequiresPayoutMethodData
+            | api_enums::PayoutStatus::RequiresCreation
     )
 }

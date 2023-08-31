@@ -570,12 +570,12 @@ impl<F> TryFrom<types::PayoutsResponseRouterData<F, WiseFulfillResponse>>
 impl From<WiseStatus> for storage_enums::PayoutStatus {
     fn from(wise_status: WiseStatus) -> Self {
         match wise_status {
-            WiseStatus::Completed => Self::Success,
             WiseStatus::Rejected => Self::Failed,
             WiseStatus::Cancelled => Self::Cancelled,
-            WiseStatus::Pending | WiseStatus::Processing | WiseStatus::IncomingPaymentWaiting => {
-                Self::Pending
-            }
+            WiseStatus::Completed
+            | WiseStatus::Pending
+            | WiseStatus::Processing
+            | WiseStatus::IncomingPaymentWaiting => Self::OutgoingPaymentSent,
         }
     }
 }
