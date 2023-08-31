@@ -5,6 +5,7 @@ use time::PrimitiveDateTime;
 
 use crate::{errors, MerchantStorageScheme};
 const MAX_LIMIT: u32 = 100;
+const QUERY_LIMIT: u32 = 20;
 #[async_trait::async_trait]
 pub trait PaymentIntentInterface {
     async fn update_payment_intent(
@@ -427,7 +428,7 @@ impl From<api_models::payments::PaymentListFilterConstraints> for PaymentIntentF
                 customer_id: None,
                 starting_after_id: None,
                 ending_before_id: None,
-                limit: value.limit,
+                limit: Some(std::cmp::min(value.limit, QUERY_LIMIT)),
             }
         }
     }
