@@ -694,7 +694,7 @@ impl api::IncomingWebhook for Payme {
     fn get_webhook_source_verification_signature(
         &self,
         request: &api::IncomingWebhookRequestDetails<'_>,
-        _secret: &Option<masking::Secret<String>>,
+        _merchant_webhook_secret: &api::WebhookMerchantSecretDetails,
     ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
         let resource =
             serde_urlencoded::from_bytes::<payme::WebhookEventDataResourceSignature>(request.body)
@@ -707,7 +707,7 @@ impl api::IncomingWebhook for Payme {
         &self,
         request: &api::IncomingWebhookRequestDetails<'_>,
         _merchant_id: &str,
-        secret: &[u8],
+        merchant_webhook_secret: &api::WebhookMerchantSecretDetails,
     ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
         let resource =
             serde_urlencoded::from_bytes::<payme::WebhookEventDataResource>(request.body)
@@ -715,7 +715,7 @@ impl api::IncomingWebhook for Payme {
                 .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
         Ok(format!(
             "{}{}{}",
-            String::from_utf8_lossy(secret),
+            String::from_utf8_lossy(&merchant_webhook_secret.merchant_secret),
             resource.payme_transaction_id,
             resource.payme_sale_id
         )

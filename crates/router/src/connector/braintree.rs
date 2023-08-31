@@ -7,7 +7,7 @@ use base64::Engine;
 use common_utils::{crypto, ext_traits::XmlExt};
 use diesel_models::enums;
 use error_stack::{IntoReport, Report, ResultExt};
-use masking::{ExposeInterface, PeekInterface, Secret};
+use masking::PeekInterface;
 use ring::hmac;
 use sha1::{Digest, Sha1};
 
@@ -1244,7 +1244,7 @@ impl api::IncomingWebhook for Braintree {
     fn get_webhook_source_verification_signature(
         &self,
         request: &api::IncomingWebhookRequestDetails<'_>,
-        secret: &Option<Secret<String>>,
+        merchant_webhook_secret: &api::WebhookMerchantSecretDetails,
     ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
         let notif_item = get_webhook_object_from_body(request.body)
             .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
@@ -1260,10 +1260,10 @@ impl api::IncomingWebhook for Braintree {
             })
             .collect();
 
-        let merchant_secret = secret
+        let merchant_secret = merchant_webhook_secret
+            .additional_secret //public key
             .clone()
-            .ok_or(errors::ConnectorError::WebhookVerificationSecretNotFound)?
-            .expose();
+            .ok_or(errors::ConnectorError::WebhookVerificationSecretNotFound)?;
 
         let signature = get_matching_webhook_signature(signature_pairs, merchant_secret)
             .ok_or(errors::ConnectorError::WebhookSourceVerificationFailed)?;
@@ -1274,7 +1274,7 @@ impl api::IncomingWebhook for Braintree {
         &self,
         request: &api::IncomingWebhookRequestDetails<'_>,
         _merchant_id: &str,
-        _secret: &[u8],
+        _merchant_webhook_secret: &api::WebhookMerchantSecretDetails,
     ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
         let notify = get_webhook_object_from_body(request.body)
             .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
@@ -1293,7 +1293,7 @@ impl api::IncomingWebhook for Braintree {
         key_store: &domain::MerchantKeyStore,
         object_reference_id: api_models::webhooks::ObjectReferenceId,
     ) -> CustomResult<bool, errors::ConnectorError> {
-        let (secret, additional_secret) = self
+        let merchant_webhook_secret = self
             .get_webhook_source_verification_merchant_secret(
                 db,
                 merchant_account,
@@ -1305,18 +1305,18 @@ impl api::IncomingWebhook for Braintree {
             .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
 
         let signature = self
-            .get_webhook_source_verification_signature(request, &additional_secret)
+            .get_webhook_source_verification_signature(request, &merchant_webhook_secret)
             .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
 
         let message = self
             .get_webhook_source_verification_message(
                 request,
                 &merchant_account.merchant_id,
-                &secret,
+                &merchant_webhook_secret,
             )
             .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
 
-        let sha1_hash_key = Sha1::digest(&secret);
+        let sha1_hash_key = Sha1::digest(&merchant_webhook_secret.merchant_secret);
 
         let signing_key = hmac::Key::new(hmac::HMAC_SHA1_FOR_LEGACY_USE_ONLY, &sha1_hash_key);
         let signed_messaged = hmac::sign(&signing_key, &message);

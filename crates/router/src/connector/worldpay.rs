@@ -651,7 +651,7 @@ impl api::IncomingWebhook for Worldpay {
     fn get_webhook_source_verification_signature(
         &self,
         request: &api::IncomingWebhookRequestDetails<'_>,
-        _secret: &Option<masking::Secret<String>>,
+        _merchant_webhook_secret: &api::WebhookMerchantSecretDetails,
     ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
         let event_signature =
             utils::get_header_key_value("Event-Signature", request.headers)?.split(',');
@@ -671,9 +671,9 @@ impl api::IncomingWebhook for Worldpay {
         &self,
         request: &api::IncomingWebhookRequestDetails<'_>,
         _merchant_id: &str,
-        secret: &[u8],
+        merchant_webhook_secret: &api::WebhookMerchantSecretDetails,
     ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
-        let secret_str = std::str::from_utf8(secret)
+        let secret_str = std::str::from_utf8(&merchant_webhook_secret.merchant_secret)
             .into_report()
             .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
         let to_sign = format!(

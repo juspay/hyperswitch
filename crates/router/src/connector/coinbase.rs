@@ -358,7 +358,7 @@ impl api::IncomingWebhook for Coinbase {
     fn get_webhook_source_verification_signature(
         &self,
         request: &api::IncomingWebhookRequestDetails<'_>,
-        _secret: &Option<masking::Secret<String>>,
+        _merchant_webhook_secret: &api::WebhookMerchantSecretDetails,
     ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
         let base64_signature =
             utils::get_header_key_value("X-CC-Webhook-Signature", request.headers)?;
@@ -371,7 +371,7 @@ impl api::IncomingWebhook for Coinbase {
         &self,
         request: &api::IncomingWebhookRequestDetails<'_>,
         _merchant_id: &str,
-        _secret: &[u8],
+        _merchant_webhook_secret: &api::WebhookMerchantSecretDetails,
     ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
         let message = std::str::from_utf8(request.body)
             .into_report()

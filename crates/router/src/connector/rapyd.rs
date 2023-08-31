@@ -718,7 +718,7 @@ impl api::IncomingWebhook for Rapyd {
     fn get_webhook_source_verification_signature(
         &self,
         request: &api::IncomingWebhookRequestDetails<'_>,
-        _secret: &Option<masking::Secret<String>>,
+        _merchant_webhook_secret: &api::WebhookMerchantSecretDetails,
     ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
         let base64_signature = conn_utils::get_header_key_value("signature", request.headers)?;
         let signature = consts::BASE64_ENGINE_URL_SAFE
@@ -732,14 +732,14 @@ impl api::IncomingWebhook for Rapyd {
         &self,
         request: &api::IncomingWebhookRequestDetails<'_>,
         merchant_id: &str,
-        secret: &[u8],
+        merchant_webhook_secret: &api::WebhookMerchantSecretDetails,
     ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
         let host = conn_utils::get_header_key_value("host", request.headers)?;
         let connector = self.id();
         let url_path = format!("https://{host}/webhooks/{merchant_id}/{connector}");
         let salt = conn_utils::get_header_key_value("salt", request.headers)?;
         let timestamp = conn_utils::get_header_key_value("timestamp", request.headers)?;
-        let stringify_auth = String::from_utf8(secret.to_vec())
+        let stringify_auth = String::from_utf8(merchant_webhook_secret.merchant_secret.to_vec())
             .into_report()
             .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)
             .attach_printable("Could not convert secret to UTF-8")?;
@@ -770,7 +770,7 @@ impl api::IncomingWebhook for Rapyd {
         key_store: &domain::MerchantKeyStore,
         object_reference_id: api_models::webhooks::ObjectReferenceId,
     ) -> CustomResult<bool, errors::ConnectorError> {
-        let (secret, additional_secret) = self
+        let merchant_webhook_secret = self
             .get_webhook_source_verification_merchant_secret(
                 db,
                 merchant_account,
@@ -781,17 +781,17 @@ impl api::IncomingWebhook for Rapyd {
             .await
             .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
         let signature = self
-            .get_webhook_source_verification_signature(request, &additional_secret)
+            .get_webhook_source_verification_signature(request, &merchant_webhook_secret)
             .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
         let message = self
             .get_webhook_source_verification_message(
                 request,
                 &merchant_account.merchant_id,
-                &secret,
+                &merchant_webhook_secret,
             )
             .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
 
-        let stringify_auth = String::from_utf8(secret.to_vec())
+        let stringify_auth = String::from_utf8(merchant_webhook_secret.merchant_secret.to_vec())
             .into_report()
             .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)
             .attach_printable("Could not convert secret to UTF-8")?;

@@ -5,7 +5,7 @@ pub use api_models::webhooks::{
 };
 use common_utils::ext_traits::ValueExt;
 use error_stack::ResultExt;
-use masking::{ExposeInterface, Secret};
+use masking::ExposeInterface;
 
 use super::ConnectorCommon;
 use crate::{
@@ -21,6 +21,11 @@ pub struct IncomingWebhookRequestDetails<'a> {
     pub headers: &'a actix_web::http::header::HeaderMap,
     pub body: &'a [u8],
     pub query_params: String,
+}
+
+pub struct WebhookMerchantSecretDetails {
+    pub merchant_secret: Vec<u8>,
+    pub additional_secret: Option<String>,
 }
 
 #[async_trait::async_trait]
@@ -82,7 +87,7 @@ pub trait IncomingWebhook: ConnectorCommon + Sync {
         connector_name: &str,
         key_store: &domain::MerchantKeyStore,
         object_reference_id: ObjectReferenceId,
-    ) -> CustomResult<(Vec<u8>, Option<Secret<String>>), errors::ConnectorError> {
+    ) -> CustomResult<WebhookMerchantSecretDetails, errors::ConnectorError> {
         let merchant_id = merchant_account.merchant_id.as_str();
         let debug_suffix = format!(
             "For merchant_id: {}, and connector_name: {}",
@@ -124,7 +129,9 @@ pub trait IncomingWebhook: ConnectorCommon + Sync {
                         })?;
                     (
                         connector_webhook_details.merchant_secret.expose(),
-                        connector_webhook_details.additional_secret,
+                        connector_webhook_details
+                            .additional_secret
+                            .map(|secret| secret.expose()),
                     )
                 }
                 None => (default_secret, None),
@@ -143,13 +150,16 @@ pub trait IncomingWebhook: ConnectorCommon + Sync {
 
         //If merchant has not set the secret for webhook source verification, "default_secret" is returned.
         //So it will fail during verification step and goes to psync flow.
-        Ok((merchant_secret.into_bytes(), additional_secret))
+        Ok(WebhookMerchantSecretDetails {
+            merchant_secret: merchant_secret.into_bytes(),
+            additional_secret,
+        })
     }
 
     fn get_webhook_source_verification_signature(
         &self,
         _request: &IncomingWebhookRequestDetails<'_>,
-        _secret: &Option<Secret<String>>,
+        _merchant_webhook_secret: &WebhookMerchantSecretDetails,
     ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
         Ok(Vec::new())
     }
@@ -158,7 +168,7 @@ pub trait IncomingWebhook: ConnectorCommon + Sync {
         &self,
         _request: &IncomingWebhookRequestDetails<'_>,
         _merchant_id: &str,
-        _secret: &[u8],
+        _merchant_webhook_secret: &WebhookMerchantSecretDetails,
     ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
         Ok(Vec::new())
     }
@@ -176,7 +186,7 @@ pub trait IncomingWebhook: ConnectorCommon + Sync {
             .get_webhook_source_verification_algorithm(request)
             .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
 
-        let (secret, additional_secret) = self
+        let webhooks_merchant_secret = self
             .get_webhook_source_verification_merchant_secret(
                 db,
                 merchant_account,
@@ -188,18 +198,23 @@ pub trait IncomingWebhook: ConnectorCommon + Sync {
             .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
 
         let signature = self
-            .get_webhook_source_verification_signature(request, &additional_secret)
+            .get_webhook_source_verification_signature(request, &webhooks_merchant_secret)
             .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
 
         let message = self
             .get_webhook_source_verification_message(
                 request,
                 &merchant_account.merchant_id,
-                &secret,
+                &webhooks_merchant_secret,
             )
             .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
+
         algorithm
-            .verify_signature(&secret, &signature, &message)
+            .verify_signature(
+                &webhooks_merchant_secret.merchant_secret,
+                &signature,
+                &message,
+            )
             .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)
     }
 
