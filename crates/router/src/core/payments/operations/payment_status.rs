@@ -274,7 +274,10 @@ async fn get_tracker_for_sync<
                 .attach_printable_lazy(|| {
                     format!("Error while retrieving capture list for, merchant_id: {}, payment_id: {payment_id_str}", merchant_account.merchant_id)
                 })?;
-        Some(types::MultipleCaptureData::new_for_sync(captures)?)
+        Some(types::MultipleCaptureData::new_for_sync(
+            captures,
+            request.expand_captures,
+        )?)
     } else {
         None
     };
@@ -374,10 +377,8 @@ async fn get_tracker_for_sync<
             payment_method_data: None,
             force_sync: Some(
                 request.force_sync
-                    && (helpers::check_force_psync_precondition(
-                        &payment_attempt.status,
-                        &payment_attempt.connector_transaction_id,
-                    ) || contains_encoded_data),
+                    && (helpers::check_force_psync_precondition(&payment_attempt.status)
+                        || contains_encoded_data),
             ),
             payment_attempt,
             refunds,

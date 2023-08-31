@@ -92,8 +92,8 @@ pub enum ApiErrorResponse {
     AccessForbidden { resource: String },
     #[error(error_type = ErrorType::InvalidRequestError, code = "IR_23", message = "{message}")]
     FileProviderNotSupported { message: String },
-    #[error(error_type = ErrorType::InvalidRequestError, code = "IR_23", message = "{entity} expired or invalid")]
-    UnprocessableEntity { entity: String },
+    #[error(error_type = ErrorType::InvalidRequestError, code = "IR_23", message = "{message}")]
+    UnprocessableEntity { message: String },
     #[error(error_type = ErrorType::ConnectorError, code = "CE_00", message = "{code}: {message}", ignore = "status_code")]
     ExternalConnectorError {
         code: String,

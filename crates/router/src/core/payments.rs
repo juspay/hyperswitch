@@ -504,6 +504,7 @@ impl PaymentRedirectFlow for PaymentRedirectSync {
             }),
             client_secret: None,
             expand_attempts: None,
+            expand_captures: None,
         };
         payments_core::<api::PSync, api::PaymentsResponse, _, _, _>(
             state,

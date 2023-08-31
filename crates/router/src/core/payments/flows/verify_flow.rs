@@ -86,17 +86,18 @@ impl Feature<api::Verify, types::VerifyRequestData> for types::VerifyRouterData 
     }
 
     async fn add_payment_method_token<'a>(
-        &self,
+        &mut self,
         state: &AppState,
         connector: &api::ConnectorData,
         tokenization_action: &payments::TokenizationAction,
     ) -> RouterResult<Option<String>> {
+        let request = self.request.clone();
         tokenization::add_payment_method_token(
             state,
             connector,
             tokenization_action,
             self,
-            types::PaymentMethodTokenizationData::try_from(self.request.to_owned())?,
+            types::PaymentMethodTokenizationData::try_from(request)?,
         )
         .await
     }
@@ -234,6 +235,8 @@ impl TryFrom<types::VerifyRequestData> for types::PaymentMethodTokenizationData 
         Ok(Self {
             payment_method_data: data.payment_method_data,
             browser_info: None,
+            currency: data.currency,
+            amount: data.amount,
         })
     }
 }

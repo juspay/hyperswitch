@@ -9,6 +9,8 @@ use tokio::sync::oneshot;
 use super::dummy_connector::*;
 #[cfg(feature = "payouts")]
 use super::payouts::*;
+#[cfg(all(feature = "olap", feature = "kms"))]
+use super::verification::apple_pay_merchant_registration;
 #[cfg(feature = "olap")]
 use super::{admin::*, api_keys::*, disputes::*, files::*};
 use super::{cache::*, health::*};
@@ -551,6 +553,21 @@ impl BusinessProfile {
                     .route(web::get().to(business_profile_retrieve))
                     .route(web::post().to(business_profile_update))
                     .route(web::delete().to(business_profile_delete)),
+            )
+    }
+}
+
+#[cfg(all(feature = "olap", feature = "kms"))]
+pub struct Verify;
+
+#[cfg(all(feature = "olap", feature = "kms"))]
+impl Verify {
+    pub fn server(state: AppState) -> Scope {
+        web::scope("/verify")
+            .app_data(web::Data::new(state))
+            .service(
+                web::resource("/{merchant_id}/apple_pay")
+                    .route(web::post().to(apple_pay_merchant_registration)),
             )
     }
 }
