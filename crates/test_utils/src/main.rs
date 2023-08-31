@@ -7,11 +7,11 @@ use clap::{arg, command, Parser};
 use masking::PeekInterface;
 use test_utils::connector_auth::{ConnectorAuthType, ConnectorAuthenticationMap};
 
-// Just by the name of the connector, this function generates the name of the collection
-// Example: CONNECTOR_NAME="stripe" -> OUTPUT: postman/stripe.postman_collection.json
+// Just by the name of the connector, this function generates the name of the collection dir
+// Example: CONNECTOR_NAME="stripe" -> OUTPUT: postman/collection-dir/stripe
 #[inline]
-fn path_generation(name: impl AsRef<str>) -> String {
-    format!("postman/{}.postman_collection.json", name.as_ref())
+fn get_path(name: impl AsRef<str>) -> String {
+    format!("postman/collection-dir/{}", name.as_ref())
 }
 
 #[derive(Parser)]
@@ -35,7 +35,7 @@ fn main() {
     let base_url = args.base_url;
     let admin_api_key = args.admin_api_key;
 
-    let collection_path = path_generation(&connector_name);
+    let collection_path = get_path(&connector_name);
     let auth_map = ConnectorAuthenticationMap::new();
 
     let inner_map = auth_map.inner();
@@ -46,7 +46,7 @@ fn main() {
     // variables set up for certificate, will consider those variables and will fail.
 
     let mut newman_command = Command::new("newman");
-    newman_command.args(["run", &collection_path]);
+    newman_command.args(["dir-run", &collection_path]);
     newman_command.args(["--env-var", &format!("admin_api_key={admin_api_key}")]);
     newman_command.args(["--env-var", &format!("baseUrl={base_url}")]);
 

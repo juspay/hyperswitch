@@ -2,7 +2,7 @@ use api_models::{admin as admin_types, enums as api_enums};
 use common_utils::{
     crypto::{generate_cryptographically_secure_random_string, OptionalSecretValue},
     date_time,
-    ext_traits::{Encode, ValueExt},
+    ext_traits::{ConfigExt, Encode, ValueExt},
 };
 use data_models::MerchantStorageScheme;
 use error_stack::{report, FutureExt, ResultExt};
@@ -14,6 +14,7 @@ use crate::{
     core::{
         errors::{self, RouterResponse, RouterResult, StorageErrorExt},
         payments::helpers,
+        utils as core_utils,
     },
     db::StorageInterface,
     routes::metrics,
@@ -118,6 +119,7 @@ pub async fn create_merchant_account(
         &key_store,
     )
     .await?;
+
     let metadata = req
         .metadata
         .as_ref()
@@ -129,7 +131,8 @@ pub async fn create_merchant_account(
         })
         .transpose()?
         .map(Secret::new);
-    let merchant_account = async {
+
+    let mut merchant_account = async {
         Ok(domain::MerchantAccount {
             merchant_id: req.merchant_id,
             merchant_name: req
@@ -162,10 +165,23 @@ pub async fn create_merchant_account(
             id: None,
             organization_id: req.organization_id,
             is_recon_enabled: false,
+            default_profile: None,
+            recon_status: diesel_models::enums::ReconStatus::NotRequested,
         })
     }
     .await
     .change_context(errors::ApiErrorResponse::InternalServerError)?;
+
+    // Create a default business profile
+    let business_profile = create_and_insert_business_profile(
+        db,
+        api_models::admin::BusinessProfileCreate::default(),
+        merchant_account.clone(),
+    )
+    .await?;
+
+    // Update merchant account with the business profile id
+    merchant_account.default_profile = Some(business_profile.profile_id);
 
     let merchant_account = db
         .insert_merchant(merchant_account, &key_store)
@@ -253,6 +269,20 @@ pub async fn merchant_account_update(
 
     let key = key_store.key.get_inner().peek();
 
+    let business_profile_id_update = if let Some(profile_id) = req.default_profile {
+        if !profile_id.is_empty_after_trim() {
+            // Validate whether profile_id passed in request is valid and is linked to the merchant
+            core_utils::validate_and_get_business_profile(db, Some(&profile_id), merchant_id)
+                .await?
+                .map(|business_profile| Some(business_profile.profile_id))
+        } else {
+            // If empty, Update profile_id to None in the database
+            Some(None)
+        }
+    } else {
+        None
+    };
+
     let updated_merchant_account = storage::MerchantAccountUpdate::Update {
         merchant_name: req
             .merchant_name
@@ -304,6 +334,7 @@ pub async fn merchant_account_update(
         frm_routing_algorithm: req.frm_routing_algorithm,
         intent_fulfillment_time: req.intent_fulfillment_time.map(i64::from),
         payout_routing_algorithm: req.payout_routing_algorithm,
+        default_profile: business_profile_id_update,
     };
 
     let response = db
@@ -480,6 +511,15 @@ pub async fn create_payment_connector(
 
     let frm_configs = get_frm_config_as_secret(req.frm_configs);
 
+    // Validate whether profile_id passed in request is valid and is linked to the merchant
+    let business_profile_from_request =
+        core_utils::validate_and_get_business_profile(store, req.profile_id.as_ref(), merchant_id)
+            .await?;
+
+    let profile_id = business_profile_from_request
+        .map(|business_profile| business_profile.profile_id)
+        .or(merchant_account.default_profile.clone());
+
     let merchant_connector_account = domain::MerchantConnectorAccount {
         merchant_id: merchant_id.to_string(),
         connector_type: req.connector_type,
@@ -520,6 +560,7 @@ pub async fn create_payment_connector(
             }
             None => None,
         },
+        profile_id,
     };
 
     let mca = store
@@ -845,42 +886,45 @@ pub fn get_frm_config_as_secret(
     }
 }
 
+pub async fn create_and_insert_business_profile(
+    db: &dyn StorageInterface,
+    request: api::BusinessProfileCreate,
+    merchant_account: domain::MerchantAccount,
+) -> RouterResult<storage::business_profile::BusinessProfile> {
+    let business_profile_new = storage::business_profile::BusinessProfileNew::foreign_try_from((
+        merchant_account,
+        request,
+    ))?;
+
+    db.insert_business_profile(business_profile_new)
+        .await
+        .to_duplicate_response(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to insert Business profile because of duplication error")
+}
+
 pub async fn create_business_profile(
     db: &dyn StorageInterface,
     request: api::BusinessProfileCreate,
     merchant_id: &str,
+    merchant_account: Option<domain::MerchantAccount>,
 ) -> RouterResponse<api_models::admin::BusinessProfileResponse> {
-    let key_store = db
-        .get_merchant_key_store_by_merchant_id(merchant_id, &db.get_master_key().to_vec().into())
-        .await
-        .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
-
-    // Get the merchant account, if few fields are not passed, then they will be inherited from
-    // merchant account
-    let merchant_account = db
-        .find_merchant_account_by_merchant_id(merchant_id, &key_store)
-        .await
-        .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
-
-    // Generate a unique profile id
-    let profile_id = common_utils::generate_id_with_default_len("pro");
-
-    let payment_response_hash_key = request
-        .payment_response_hash_key
-        .or(merchant_account.payment_response_hash_key)
-        .unwrap_or(generate_cryptographically_secure_random_string(64));
-
-    let webhook_details = request
-        .webhook_details
-        .as_ref()
-        .map(|webhook_details| {
-            utils::Encode::<api::WebhookDetails>::encode_to_value(webhook_details).change_context(
-                errors::ApiErrorResponse::InvalidDataValue {
-                    field_name: "webhook details",
-                },
+    let merchant_account = if let Some(merchant_account) = merchant_account {
+        merchant_account
+    } else {
+        let key_store = db
+            .get_merchant_key_store_by_merchant_id(
+                merchant_id,
+                &db.get_master_key().to_vec().into(),
             )
-        })
-        .transpose()?;
+            .await
+            .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
+
+        // Get the merchant account, if few fields are not passed, then they will be inherited from
+        // merchant account
+        db.find_merchant_account_by_merchant_id(merchant_id, &key_store)
+            .await
+            .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?
+    };
 
     if let Some(ref routing_algorithm) = request.routing_algorithm {
         let _: api::RoutingAlgorithm = routing_algorithm
@@ -892,46 +936,9 @@ pub async fn create_business_profile(
             .attach_printable("Invalid routing algorithm given")?;
     }
 
-    let business_profile_new = storage::business_profile::BusinessProfileNew {
-        profile_id,
-        merchant_id: merchant_id.to_string(),
-        profile_name: request.profile_name.unwrap_or("default".to_string()),
-        created_at: date_time::now(),
-        modified_at: date_time::now(),
-        return_url: request
-            .return_url
-            .map(|return_url| return_url.to_string())
-            .or(merchant_account.return_url),
-        enable_payment_response_hash: request
-            .enable_payment_response_hash
-            .unwrap_or(merchant_account.enable_payment_response_hash),
-        payment_response_hash_key: Some(payment_response_hash_key),
-        redirect_to_merchant_with_http_post: request
-            .redirect_to_merchant_with_http_post
-            .unwrap_or(merchant_account.redirect_to_merchant_with_http_post),
-        webhook_details: webhook_details.or(merchant_account.webhook_details),
-        metadata: request.metadata,
-        routing_algorithm: request
-            .routing_algorithm
-            .or(merchant_account.routing_algorithm),
-        intent_fulfillment_time: request
-            .intent_fulfillment_time
-            .map(i64::from)
-            .or(merchant_account.intent_fulfillment_time),
-        frm_routing_algorithm: request
-            .frm_routing_algorithm
-            .or(merchant_account.frm_routing_algorithm),
-        payout_routing_algorithm: request
-            .payout_routing_algorithm
-            .or(merchant_account.payout_routing_algorithm),
-        is_recon_enabled: merchant_account.is_recon_enabled,
-    };
+    let business_profile =
+        create_and_insert_business_profile(db, request, merchant_account).await?;
 
-    let business_profile = db
-        .insert_business_profile(business_profile_new)
-        .await
-        .to_duplicate_response(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Failed to insert Business profile because of duplication error")?;
     Ok(service_api::ApplicationResponse::Json(
         api_models::admin::BusinessProfileResponse::foreign_try_from(business_profile)
             .change_context(errors::ApiErrorResponse::InternalServerError)?,

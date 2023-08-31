@@ -2,13 +2,12 @@ pub mod transformers;
 
 use std::fmt::Debug;
 
-use base64::Engine;
-use common_utils::{crypto, ext_traits::ByteSliceExt};
+use api_models::enums;
 use error_stack::{IntoReport, ResultExt};
 use masking::PeekInterface;
 use transformers as square;
 
-use super::utils::{self as super_utils, RefundsRequestData};
+use super::utils::RefundsRequestData;
 use crate::{
     configs::settings,
     consts,
@@ -20,7 +19,7 @@ use crate::{
     services::{
         self,
         request::{self, Mask},
-        ConnectorIntegration,
+        ConnectorIntegration, ConnectorValidation,
     },
     types::{
         self,
@@ -101,35 +100,43 @@ impl ConnectorCommon for Square {
             .parse_struct("SquareErrorResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
 
-        let default_error_details = square::SquareErrorDetails {
-            category: Some("".to_string()),
-            code: Some(consts::NO_ERROR_CODE.to_string()),
-            detail: Some(consts::NO_ERROR_MESSAGE.to_string()),
-        };
+        let mut reason_list = Vec::new();
+        for error_iter in response.errors.iter() {
+            if let Some(error) = error_iter.detail.clone() {
+                reason_list.push(error)
+            }
+        }
+        let reason = reason_list.join(" ");
 
         Ok(ErrorResponse {
             status_code: res.status_code,
             code: response
                 .errors
                 .first()
-                .unwrap_or(&default_error_details)
-                .code
-                .clone()
-                .unwrap_or("".to_string()),
+                .and_then(|error| error.code.clone())
+                .unwrap_or(consts::NO_ERROR_CODE.to_string()),
             message: response
                 .errors
                 .first()
-                .unwrap_or(&default_error_details)
-                .detail
-                .clone()
-                .unwrap_or("".to_string()),
-            reason: response
-                .errors
-                .first()
-                .unwrap_or(&default_error_details)
-                .category
-                .clone(),
+                .and_then(|error| error.category.clone())
+                .unwrap_or(consts::NO_ERROR_MESSAGE.to_string()),
+            reason: Some(reason),
         })
+    }
+}
+
+impl ConnectorValidation for Square {
+    fn validate_capture_method(
+        &self,
+        capture_method: Option<enums::CaptureMethod>,
+    ) -> CustomResult<(), errors::ConnectorError> {
+        let capture_method = capture_method.unwrap_or_default();
+        match capture_method {
+            enums::CaptureMethod::Automatic | enums::CaptureMethod::Manual => Ok(()),
+            enums::CaptureMethod::ManualMultiple | enums::CaptureMethod::Scheduled => Err(
+                super::utils::construct_not_implemented_error_report(capture_method, self.id()),
+            ),
+        }
     }
 }
 
@@ -415,6 +422,7 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         req: &types::PaymentsAuthorizeRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
+        self.validate_capture_method(req.request.capture_method)?;
         Ok(Some(
             services::RequestBuilder::new()
                 .method(services::Method::Post)

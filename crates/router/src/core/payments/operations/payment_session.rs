@@ -69,6 +69,11 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsSessionRequest>
             "create a session token for",
         )?;
 
+        helpers::authenticate_client_secret(
+            Some(&request.client_secret),
+            &payment_intent,
+            merchant_account.intent_fulfillment_time,
+        )?;
         let mut payment_attempt = db
             .find_payment_attempt_by_payment_id_merchant_id_attempt_id(
                 payment_intent.payment_id.as_str(),

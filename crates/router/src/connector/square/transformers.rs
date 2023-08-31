@@ -1,16 +1,35 @@
+use api_models::payments::{BankDebitData, PayLaterData, WalletData};
 use error_stack::{IntoReport, ResultExt};
 use masking::{ExposeInterface, PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 
 use crate::{
     connector::utils::{CardData, PaymentsAuthorizeRequestData, RouterData},
-    consts,
     core::errors,
     types::{
         self, api,
         storage::{self, enums},
     },
 };
+
+impl TryFrom<(&types::TokenizationRouterData, BankDebitData)> for SquareTokenRequest {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        value: (&types::TokenizationRouterData, BankDebitData),
+    ) -> Result<Self, Self::Error> {
+        let (item, bank_debit_data) = value;
+        match bank_debit_data {
+            BankDebitData::AchBankDebit { .. } => Err(errors::ConnectorError::NotImplemented(
+                "Payment Method".to_string(),
+            ))
+            .into_report(),
+            _ => Err(errors::ConnectorError::NotSupported {
+                message: format!("{:?}", item.request.payment_method_data),
+                connector: "Square",
+            })?,
+        }
+    }
+}
 
 impl TryFrom<(&types::TokenizationRouterData, api_models::payments::Card)> for SquareTokenRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
@@ -37,12 +56,11 @@ impl TryFrom<(&types::TokenizationRouterData, api_models::payments::Card)> for S
                 .change_context(errors::ConnectorError::DateFormattingFailed)?,
         );
         //The below error will never happen because if session-id is not generated it would give error in execute_pretasks itself.
-        let session_id = Secret::new(item.session_token.clone().ok_or(
-            errors::ConnectorError::FailedAtConnector {
-                message: "Unable to generate session ID".to_owned(),
-                code: consts::NO_ERROR_CODE.to_owned(),
-            },
-        )?);
+        let session_id = Secret::new(
+            item.session_token
+                .clone()
+                .ok_or(errors::ConnectorError::RequestEncodingFailed)?,
+        );
         Ok(Self::Card(SquareTokenizeData {
             client_id: auth.key1,
             session_id,
@@ -53,6 +71,46 @@ impl TryFrom<(&types::TokenizationRouterData, api_models::payments::Card)> for S
                 cvv: card_data.card_cvc,
             },
         }))
+    }
+}
+
+impl TryFrom<(&types::TokenizationRouterData, PayLaterData)> for SquareTokenRequest {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        value: (&types::TokenizationRouterData, PayLaterData),
+    ) -> Result<Self, Self::Error> {
+        let (item, pay_later_data) = value;
+        match pay_later_data {
+            PayLaterData::AfterpayClearpayRedirect { .. } => Err(
+                errors::ConnectorError::NotImplemented("Payment Method".to_string()),
+            )
+            .into_report(),
+            _ => Err(errors::ConnectorError::NotSupported {
+                message: format!("{:?}", item.request.payment_method_data),
+                connector: "Square",
+            })?,
+        }
+    }
+}
+
+impl TryFrom<(&types::TokenizationRouterData, WalletData)> for SquareTokenRequest {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(value: (&types::TokenizationRouterData, WalletData)) -> Result<Self, Self::Error> {
+        let (item, wallet_data) = value;
+        match wallet_data {
+            WalletData::ApplePay(_) => Err(errors::ConnectorError::NotImplemented(
+                "Payment Method".to_string(),
+            ))
+            .into_report(),
+            WalletData::GooglePay(_) => Err(errors::ConnectorError::NotImplemented(
+                "Payment Method".to_string(),
+            ))
+            .into_report(),
+            _ => Err(errors::ConnectorError::NotSupported {
+                message: format!("{:?}", item.request.payment_method_data),
+                connector: "Square",
+            })?,
+        }
     }
 }
 
@@ -80,21 +138,25 @@ impl TryFrom<&types::TokenizationRouterData> for SquareTokenRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::TokenizationRouterData) -> Result<Self, Self::Error> {
         match item.request.payment_method_data.clone() {
+            api::PaymentMethodData::BankDebit(bank_debit_data) => {
+                Self::try_from((item, bank_debit_data))
+            }
             api::PaymentMethodData::Card(card_data) => Self::try_from((item, card_data)),
-            api::PaymentMethodData::BankDebit(_)
-            | api::PaymentMethodData::CardRedirect(_)
-            | api::PaymentMethodData::Wallet(_)
-            | api::PaymentMethodData::PayLater(_)
-            | api::PaymentMethodData::MandatePayment
-            | api::PaymentMethodData::GiftCard(_)
-            | api::PaymentMethodData::Upi(_) => Err(errors::ConnectorError::NotImplemented(
+            api::PaymentMethodData::Wallet(wallet_data) => Self::try_from((item, wallet_data)),
+            api::PaymentMethodData::PayLater(pay_later_data) => {
+                Self::try_from((item, pay_later_data))
+            }
+            api::PaymentMethodData::GiftCard(_) => Err(errors::ConnectorError::NotImplemented(
                 "Payment Method".to_string(),
             ))
             .into_report(),
             api::PaymentMethodData::BankRedirect(_)
             | api::PaymentMethodData::BankTransfer(_)
+            | api::PaymentMethodData::CardRedirect(_)
             | api::PaymentMethodData::Crypto(_)
-            | api::PaymentMethodData::Reward(_)
+            | api::PaymentMethodData::MandatePayment
+            | api::PaymentMethodData::Reward
+            | api::PaymentMethodData::Upi(_)
             | api::PaymentMethodData::Voucher(_) => Err(errors::ConnectorError::NotSupported {
                 message: format!("{:?}", item.request.payment_method_data),
                 connector: "Square",
@@ -177,7 +239,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for SquarePaymentsRequest {
         let autocomplete = item.request.is_auto_capture()?;
         match item.request.payment_method_data.clone() {
             api::PaymentMethodData::Card(_) => Ok(Self {
-                idempotency_key: Secret::new(item.payment_id.clone()),
+                idempotency_key: Secret::new(item.attempt_id.clone()),
                 source_id: Secret::new(item.get_payment_method_token()?),
                 amount_money: SquarePaymentsAmountData {
                     amount: item.request.amount,
@@ -190,19 +252,19 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for SquarePaymentsRequest {
                 },
             }),
             api::PaymentMethodData::BankDebit(_)
-            | api::PaymentMethodData::CardRedirect(_)
-            | api::PaymentMethodData::Wallet(_)
-            | api::PaymentMethodData::PayLater(_)
-            | api::PaymentMethodData::MandatePayment
             | api::PaymentMethodData::GiftCard(_)
-            | api::PaymentMethodData::Upi(_) => Err(errors::ConnectorError::NotImplemented(
+            | api::PaymentMethodData::PayLater(_)
+            | api::PaymentMethodData::Wallet(_) => Err(errors::ConnectorError::NotImplemented(
                 "Payment Method".to_string(),
             ))
             .into_report(),
             api::PaymentMethodData::BankRedirect(_)
             | api::PaymentMethodData::BankTransfer(_)
+            | api::PaymentMethodData::CardRedirect(_)
             | api::PaymentMethodData::Crypto(_)
-            | api::PaymentMethodData::Reward(_)
+            | api::PaymentMethodData::MandatePayment
+            | api::PaymentMethodData::Reward
+            | api::PaymentMethodData::Upi(_)
             | api::PaymentMethodData::Voucher(_) => Err(errors::ConnectorError::NotSupported {
                 message: format!("{:?}", item.request.payment_method_data),
                 connector: "Square",
@@ -230,7 +292,7 @@ impl TryFrom<&types::ConnectorAuthType> for SquareAuthType {
     }
 }
 // PaymentsResponse
-#[derive(Debug, Default, Deserialize)]
+#[derive(Debug, Deserialize)]
 #[serde(rename_all = "UPPERCASE")]
 pub enum SquarePaymentStatus {
     Completed,
@@ -238,8 +300,6 @@ pub enum SquarePaymentStatus {
     Approved,
     Canceled,
     Pending,
-    #[default]
-    Processing,
 }
 
 impl From<SquarePaymentStatus> for enums::AttemptStatus {
@@ -249,7 +309,7 @@ impl From<SquarePaymentStatus> for enums::AttemptStatus {
             SquarePaymentStatus::Approved => Self::Authorized,
             SquarePaymentStatus::Failed => Self::Failure,
             SquarePaymentStatus::Canceled => Self::Voided,
-            SquarePaymentStatus::Processing | SquarePaymentStatus::Pending => Self::Authorizing,
+            SquarePaymentStatus::Pending => Self::Pending,
         }
     }
 }
@@ -312,22 +372,21 @@ impl<F> TryFrom<&types::RefundsRouterData<F>> for SquareRefundRequest {
     }
 }
 
-#[derive(Debug, Default, Deserialize)]
+#[derive(Debug, Deserialize)]
 #[serde(rename_all = "UPPERCASE")]
 pub enum RefundStatus {
     Completed,
     Failed,
     Pending,
-    #[default]
-    Processing,
+    Rejected,
 }
 
 impl From<RefundStatus> for enums::RefundStatus {
     fn from(item: RefundStatus) -> Self {
         match item {
             RefundStatus::Completed => Self::Success,
-            RefundStatus::Failed => Self::Failure,
-            RefundStatus::Processing | RefundStatus::Pending => Self::Pending,
+            RefundStatus::Failed | RefundStatus::Rejected => Self::Failure,
+            RefundStatus::Pending => Self::Pending,
         }
     }
 }

@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
 
 use crate::{errors, MerchantStorageScheme};
-
+const MAX_LIMIT: u32 = 100;
 #[async_trait::async_trait]
 pub trait PaymentIntentInterface {
     async fn update_payment_intent(
@@ -53,6 +53,14 @@ pub trait PaymentIntentInterface {
         Vec<(PaymentIntent, super::payment_attempt::PaymentAttempt)>,
         errors::StorageError,
     >;
+
+    #[cfg(feature = "olap")]
+    async fn get_filtered_active_attempt_ids_for_total_count(
+        &self,
+        merchant_id: &str,
+        constraints: &PaymentIntentFetchConstraints,
+        storage_scheme: MerchantStorageScheme,
+    ) -> error_stack::Result<Vec<String>, errors::StorageError>;
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
@@ -90,6 +98,7 @@ pub struct PaymentIntent {
     pub connector_metadata: Option<serde_json::Value>,
     pub feature_metadata: Option<serde_json::Value>,
     pub attempt_count: i16,
+    pub profile_id: Option<String>,
 }
 
 #[derive(Clone, Debug, Default, Eq, PartialEq, Serialize, Deserialize)]
@@ -126,6 +135,7 @@ pub struct PaymentIntentNew {
     pub connector_metadata: Option<serde_json::Value>,
     pub feature_metadata: Option<serde_json::Value>,
     pub attempt_count: i16,
+    pub profile_id: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -351,7 +361,7 @@ pub enum PaymentIntentFetchConstraints {
         payment_intent_id: String,
     },
     List {
-        offset: Option<u32>,
+        offset: u32,
         starting_at: Option<PrimitiveDateTime>,
         ending_at: Option<PrimitiveDateTime>,
         connector: Option<Vec<api_models::enums::Connector>>,
@@ -368,7 +378,7 @@ pub enum PaymentIntentFetchConstraints {
 impl From<api_models::payments::PaymentListConstraints> for PaymentIntentFetchConstraints {
     fn from(value: api_models::payments::PaymentListConstraints) -> Self {
         Self::List {
-            offset: None,
+            offset: 0,
             starting_at: value.created_gte.or(value.created_gt).or(value.created),
             ending_at: value.created_lte.or(value.created_lt).or(value.created),
             connector: None,
@@ -378,7 +388,7 @@ impl From<api_models::payments::PaymentListConstraints> for PaymentIntentFetchCo
             customer_id: value.customer_id,
             starting_after_id: value.starting_after,
             ending_before_id: value.ending_before,
-            limit: None,
+            limit: Some(std::cmp::min(value.limit, MAX_LIMIT)),
         }
     }
 }
@@ -386,7 +396,7 @@ impl From<api_models::payments::PaymentListConstraints> for PaymentIntentFetchCo
 impl From<api_models::payments::TimeRange> for PaymentIntentFetchConstraints {
     fn from(value: api_models::payments::TimeRange) -> Self {
         Self::List {
-            offset: None,
+            offset: 0,
             starting_at: Some(value.start_time),
             ending_at: value.end_time,
             connector: None,
@@ -407,7 +417,7 @@ impl From<api_models::payments::PaymentListFilterConstraints> for PaymentIntentF
             Self::Single { payment_intent_id }
         } else {
             Self::List {
-                offset: value.offset,
+                offset: value.offset.unwrap_or_default(),
                 starting_at: value.time_range.map(|t| t.start_time),
                 ending_at: value.time_range.and_then(|t| t.end_time),
                 connector: value.connector,
@@ -417,7 +427,7 @@ impl From<api_models::payments::PaymentListFilterConstraints> for PaymentIntentF
                 customer_id: None,
                 starting_after_id: None,
                 ending_before_id: None,
-                limit: None,
+                limit: value.limit,
             }
         }
     }

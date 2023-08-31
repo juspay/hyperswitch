@@ -509,6 +509,7 @@ pub trait ConnectorActions: Connector {
             quote_id: None,
             test_mode: None,
             payment_method_balance: None,
+            connector_api_version: None,
             connector_http_status_code: None,
         }
     }
@@ -966,8 +967,8 @@ impl Default for TokenType {
         let data = types::PaymentMethodTokenizationData {
             payment_method_data: types::api::PaymentMethodData::Card(CCardType::default().0),
             browser_info: None,
-            amount: 0,
-            currency: storage::enums::Currency::USD,
+            amount: Some(100),
+            currency: enums::Currency::USD,
         };
         Self(data)
     }

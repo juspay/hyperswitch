@@ -238,6 +238,10 @@ pub struct RouterData<Flow, Request, Response> {
     pub preprocessing_id: Option<String>,
     /// This is the balance amount for gift cards or voucher
     pub payment_method_balance: Option<PaymentMethodBalance>,
+
+    ///for switching between two different versions of the same connector
+    pub connector_api_version: Option<String>,
+
     /// Contains flow-specific data required to construct a request and send it to the connector.
     pub request: Request,
 
@@ -347,7 +351,7 @@ pub struct AuthorizeSessionTokenData {
     pub amount_to_capture: Option<i64>,
     pub currency: storage_enums::Currency,
     pub connector_transaction_id: String,
-    pub amount: i64,
+    pub amount: Option<i64>,
 }
 
 #[derive(Debug, Clone)]
@@ -364,7 +368,7 @@ pub struct PaymentMethodTokenizationData {
     pub payment_method_data: payments::PaymentMethodData,
     pub browser_info: Option<BrowserInformation>,
     pub currency: storage_enums::Currency,
-    pub amount: i64,
+    pub amount: Option<i64>,
 }
 
 #[derive(Debug, Clone)]
@@ -446,7 +450,7 @@ pub struct PaymentsSessionData {
 pub struct VerifyRequestData {
     pub currency: storage_enums::Currency,
     pub payment_method_data: payments::PaymentMethodData,
-    pub amount: i64,
+    pub amount: Option<i64>,
     pub confirm: bool,
     pub statement_descriptor_suffix: Option<String>,
     pub mandate_id: Option<api_models::payments::MandateIds>,
@@ -780,6 +784,9 @@ pub enum ConnectorAuthType {
         api_secret: Secret<String>,
         key2: Secret<String>,
     },
+    CurrencyAuthKey {
+        auth_key_map: HashMap<storage_enums::Currency, pii::SecretSerdeValue>,
+    },
     #[default]
     NoKey,
 }
@@ -870,7 +877,7 @@ impl From<&&mut PaymentsAuthorizeRouterData> for AuthorizeSessionTokenData {
             amount_to_capture: data.amount_captured,
             currency: data.request.currency,
             connector_transaction_id: data.payment_id.clone(),
-            amount: data.request.amount,
+            amount: Some(data.request.amount),
         }
     }
 }
@@ -895,7 +902,7 @@ impl<F> From<&RouterData<F, PaymentsAuthorizeData, PaymentsResponseData>>
             payment_method_data: data.request.payment_method_data.clone(),
             browser_info: None,
             currency: data.request.currency,
-            amount: data.request.amount,
+            amount: Some(data.request.amount),
         }
     }
 }
@@ -991,6 +998,7 @@ impl<F1, F2, T1, T2> From<(&RouterData<F1, T1, PaymentsResponseData>, T2)>
             quote_id: data.quote_id.clone(),
             test_mode: data.test_mode,
             payment_method_balance: data.payment_method_balance.clone(),
+            connector_api_version: data.connector_api_version.clone(),
             connector_http_status_code: data.connector_http_status_code,
         }
     }
@@ -1063,6 +1071,7 @@ impl<F1, F2>
             quote_id: data.quote_id.clone(),
             test_mode: data.test_mode,
             payment_method_balance: None,
+            connector_api_version: None,
             connector_http_status_code: data.connector_http_status_code,
         }
     }

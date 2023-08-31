@@ -68,7 +68,7 @@ fn token_details() -> Option<types::PaymentMethodTokenizationData> {
             ..utils::CCardType::default().0
         }),
         browser_info: None,
-        amount: 0,
+        amount: None,
         currency: storage::enums::Currency::USD,
     })
 }
@@ -440,7 +440,7 @@ async fn should_fail_payment_for_incorrect_cvc() {
                     ..utils::CCardType::default().0
                 }),
                 browser_info: None,
-                amount: 0,
+                amount: None,
                 currency: storage::enums::Currency::USD,
             }),
             get_default_payment_info(None),
@@ -448,7 +448,11 @@ async fn should_fail_payment_for_incorrect_cvc() {
         .await
         .expect("Authorize payment response");
     assert_eq!(
-        token_response.response.unwrap_err().message,
+        token_response
+            .response
+            .unwrap_err()
+            .reason
+            .unwrap_or("".to_string()),
         "Missing required parameter.".to_string(),
     );
 }
@@ -467,7 +471,7 @@ async fn should_fail_payment_for_invalid_exp_month() {
                     ..utils::CCardType::default().0
                 }),
                 browser_info: None,
-                amount: 0,
+                amount: None,
                 currency: storage::enums::Currency::USD,
             }),
             get_default_payment_info(None),
@@ -475,7 +479,11 @@ async fn should_fail_payment_for_invalid_exp_month() {
         .await
         .expect("Authorize payment response");
     assert_eq!(
-        token_response.response.unwrap_err().message,
+        token_response
+            .response
+            .unwrap_err()
+            .reason
+            .unwrap_or("".to_string()),
         "Invalid card expiration date.".to_string(),
     );
 }
@@ -494,7 +502,7 @@ async fn should_fail_payment_for_incorrect_expiry_year() {
                     ..utils::CCardType::default().0
                 }),
                 browser_info: None,
-                amount: 0,
+                amount: None,
                 currency: storage::enums::Currency::USD,
             }),
             get_default_payment_info(None),
@@ -502,7 +510,11 @@ async fn should_fail_payment_for_incorrect_expiry_year() {
         .await
         .expect("Authorize payment response");
     assert_eq!(
-        token_response.response.unwrap_err().message,
+        token_response
+            .response
+            .unwrap_err()
+            .reason
+            .unwrap_or("".to_string()),
         "Invalid card expiration date.".to_string(),
     );
 }
@@ -530,7 +542,7 @@ async fn should_fail_void_payment_for_auto_capture() {
         .unwrap();
     let connector_transaction_id = txn_id.unwrap();
     assert_eq!(
-        void_response.response.unwrap_err().message,
+        void_response.response.unwrap_err().reason.unwrap_or("".to_string()),
         format!("Payment {connector_transaction_id} is in inflight state COMPLETED, which is invalid for the requested operation")
     );
 }
@@ -547,7 +559,11 @@ async fn should_fail_capture_for_invalid_payment() {
         .await
         .unwrap();
     assert_eq!(
-        capture_response.response.unwrap_err().message,
+        capture_response
+            .response
+            .unwrap_err()
+            .reason
+            .unwrap_or("".to_string()),
         String::from("Could not find payment with id: 123456789")
     );
 }
@@ -567,7 +583,11 @@ async fn should_fail_for_refund_amount_higher_than_payment_amount() {
         .await
         .unwrap();
     assert_eq!(
-        response.response.unwrap_err().message,
+        response
+            .response
+            .unwrap_err()
+            .reason
+            .unwrap_or("".to_string()),
         "The requested refund amount exceeds the amount available to refund.",
     );
 }
