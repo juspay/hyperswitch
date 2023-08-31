@@ -188,7 +188,7 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, PaymentsRejectRequest> for Payme
                 });
         let attempt_status_update = storage::PaymentAttemptUpdate::RejectUpdate {
             status: enums::AttemptStatus::Failure,
-            merchant_decision: Some(Some(enums::MerchantDecision::Declined.to_string())),
+            merchant_decision: Some(Some(enums::MerchantDecision::Rejected.to_string())),
             error_code,
             error_message,
         };

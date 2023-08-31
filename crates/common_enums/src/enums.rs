@@ -1677,7 +1677,7 @@ pub enum PayoutEntityType {
 #[strum(serialize_all = "snake_case")]
 pub enum MerchantDecision {
     Approved,
-    Declined,
+    Rejected,
 }
 
 #[derive(

@@ -426,7 +426,7 @@ where
                 field_name: "payment_method_data",
             })?;
     let merchant_decision = payment_attempt.merchant_decision.to_owned();
-    let frm_message = fraud_check.map(|fc| FrmMessage::foreign_from(fc));
+    let frm_message = fraud_check.map(FrmMessage::foreign_from);
 
     let payment_method_data_response =
         additional_payment_method_data.map(api::PaymentMethodDataResponse::from);
