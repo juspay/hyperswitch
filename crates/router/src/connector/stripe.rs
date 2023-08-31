@@ -1734,16 +1734,20 @@ impl api::IncomingWebhook for Stripe {
         Ok(match details.event_data.event_object.object {
             stripe::WebhookEventObjectType::PaymentIntent
             | stripe::WebhookEventObjectType::Charge => {
-                api_models::webhooks::ObjectReferenceId::PaymentId(
-                    api_models::payments::PaymentIdType::PaymentAttemptId(
-                        details
-                            .event_data
-                            .event_object
-                            .metadata
-                            .ok_or(errors::ConnectorError::WebhookReferenceIdNotFound)?
-                            .order_id,
+                match details.event_data.event_object.metadata {
+                    // if order_id is present
+                    Some(meta_data) => api_models::webhooks::ObjectReferenceId::PaymentId(
+                        api_models::payments::PaymentIdType::PaymentAttemptId(
+                            meta_data.metadata_order_id,
+                        ),
                     ),
-                )
+                    // else used connector_transaction_id
+                    None => api_models::webhooks::ObjectReferenceId::PaymentId(
+                        api_models::payments::PaymentIdType::ConnectorTransactionId(
+                            details.event_data.event_object.id,
+                        ),
+                    ),
+                }
             }
 
             stripe::WebhookEventObjectType::Dispute => {
@@ -1765,16 +1769,32 @@ impl api::IncomingWebhook for Stripe {
                 )
             }
             stripe::WebhookEventObjectType::Refund => {
-                api_models::webhooks::ObjectReferenceId::RefundId(
-                    api_models::webhooks::RefundIdType::RefundId(
-                        details
-                            .event_data
-                            .event_object
-                            .metadata
-                            .ok_or(errors::ConnectorError::WebhookReferenceIdNotFound)?
-                            .order_id,
+                match details.event_data.event_object.metadata {
+                    // if meta_data is present
+                    Some(meta_data) => {
+                        match meta_data.is_refund_id {
+                            // if the order_id is refund_id
+                            Some(true) => api_models::webhooks::ObjectReferenceId::RefundId(
+                                api_models::webhooks::RefundIdType::RefundId(
+                                    meta_data.metadata_order_id,
+                                ),
+                            ),
+                            // if the order_id is payment_id
+                            // since payment_id was being passed before the deployment of this pr
+                            _ => api_models::webhooks::ObjectReferenceId::RefundId(
+                                api_models::webhooks::RefundIdType::ConnectorRefundId(
+                                    details.event_data.event_object.id,
+                                ),
+                            ),
+                        }
+                    }
+                    // else use connector_transaction_id
+                    None => api_models::webhooks::ObjectReferenceId::RefundId(
+                        api_models::webhooks::RefundIdType::ConnectorRefundId(
+                            details.event_data.event_object.id,
+                        ),
                     ),
-                )
+                }
             }
         })
     }

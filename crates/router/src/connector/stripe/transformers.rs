@@ -96,12 +96,8 @@ pub struct PaymentIntentRequest {
     pub currency: String,
     pub statement_descriptor_suffix: Option<String>,
     pub statement_descriptor: Option<String>,
-    #[serde(rename = "metadata[order_id]")]
-    pub metadata_order_id: String,
-    #[serde(rename = "metadata[txn_id]")]
-    pub metadata_txn_id: String,
-    #[serde(rename = "metadata[txn_uuid]")]
-    pub metadata_txn_uuid: String,
+    #[serde(flatten)]
+    pub meta_data: ConnectorMetaData,
     pub return_url: String,
     pub confirm: bool,
     pub mandate: Option<Secret<String>>,
@@ -122,6 +118,21 @@ pub struct PaymentIntentRequest {
     pub off_session: Option<bool>,
     #[serde(rename = "payment_method_types[0]")]
     pub payment_method_types: Option<StripePaymentMethodType>,
+}
+
+#[derive(Debug, Eq, PartialEq, Serialize, Deserialize)]
+pub struct ConnectorMetaData {
+    // merchant_reference_id
+    #[serde(rename = "metadata[order_id]")]
+    pub metadata_order_id: String,
+    #[serde(rename = "metadata[txn_id]")]
+    pub metadata_txn_id: String,
+    #[serde(rename = "metadata[txn_uuid]")]
+    pub metadata_txn_uuid: String,
+    // to check whether the order_id is refund_id or payemnt_id
+    // before deployment, order id is set to payemnt_id in refunds but now it is set as refund_id
+    #[serde(rename = "metadata[is_refund_id]")]
+    pub is_refund_id: Option<bool>,
 }
 
 #[derive(Debug, Eq, PartialEq, Serialize)]
@@ -1640,9 +1651,12 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PaymentIntentRequest {
             currency: item.request.currency.to_string(), //we need to copy the value and not transfer ownership
             statement_descriptor_suffix: item.request.statement_descriptor_suffix.clone(),
             statement_descriptor: item.request.statement_descriptor.clone(),
-            metadata_order_id,
-            metadata_txn_id,
-            metadata_txn_uuid,
+            meta_data: ConnectorMetaData {
+                metadata_order_id,
+                metadata_txn_id,
+                metadata_txn_uuid,
+                is_refund_id: None,
+            },
             return_url: item
                 .request
                 .router_return_url
@@ -2424,16 +2438,12 @@ pub struct BacsFinancialDetails {
 // REFUND :
 // Type definition for Stripe RefundRequest
 
-#[derive(Default, Debug, Serialize)]
+#[derive(Debug, Serialize)]
 pub struct RefundRequest {
     pub amount: Option<i64>, //amount in cents, hence passed as integer
     pub payment_intent: String,
-    #[serde(rename = "metadata[order_id]")]
-    pub metadata_order_id: String,
-    #[serde(rename = "metadata[txn_id]")]
-    pub metadata_txn_id: String,
-    #[serde(rename = "metadata[txn_uuid]")]
-    pub metadata_txn_uuid: String,
+    #[serde(flatten)]
+    pub meta_data: ConnectorMetaData,
 }
 
 impl<F> TryFrom<&types::RefundsRouterData<F>> for RefundRequest {
@@ -2446,9 +2456,12 @@ impl<F> TryFrom<&types::RefundsRouterData<F>> for RefundRequest {
         Ok(Self {
             amount: Some(amount),
             payment_intent,
-            metadata_order_id: item.request.refund_id.clone(),
-            metadata_txn_id,
-            metadata_txn_uuid,
+            meta_data: ConnectorMetaData {
+                metadata_order_id: item.request.refund_id.clone(),
+                metadata_txn_id,
+                metadata_txn_uuid,
+                is_refund_id: Some(true),
+            },
         })
     }
 }
@@ -2956,12 +2969,8 @@ pub struct WebhookEventObjectData {
     pub created: PrimitiveDateTime,
     pub evidence_details: Option<EvidenceDetails>,
     pub status: Option<WebhookEventStatus>,
-    pub metadata: Option<WebhookMetaData>,
-}
-
-#[derive(Debug, Deserialize)]
-pub struct WebhookMetaData {
-    pub order_id: String,
+    #[serde(flatten)]
+    pub metadata: Option<ConnectorMetaData>,
 }
 
 #[derive(Debug, Deserialize, strum::Display)]
