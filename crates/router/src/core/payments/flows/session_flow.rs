@@ -2,6 +2,8 @@ use api_models::payments as payment_types;
 use async_trait::async_trait;
 use common_utils::ext_traits::ByteSliceExt;
 use error_stack::{IntoReport, Report, ResultExt};
+#[cfg(feature = "kms")]
+use external_services::kms;
 
 use super::{ConstructFlowSpecificData, Feature};
 use crate::{
@@ -160,21 +162,41 @@ async fn create_applepay_session_token(
                     payment_request_data,
                     session_token_data,
                 } => {
+                    #[cfg(feature = "kms")]
+                    let decrypted_apple_pay_merchant_cert = kms::get_kms_client(&state.conf.kms)
+                        .await
+                        .decrypt(&state.conf.applepay_decrypt_keys.apple_pay_merchant_cert)
+                        .await
+                        .change_context(errors::ApiErrorResponse::InternalServerError)
+                        .attach_printable("Apple pay merchant certificate decryption failed")?;
+
+                    #[cfg(feature = "kms")]
+                    let decrypted_apple_pay_merchant_cert_key =
+                        kms::get_kms_client(&state.conf.kms)
+                            .await
+                            .decrypt(&state.conf.applepay_decrypt_keys.apple_pay_merchant_cert_key)
+                            .await
+                            .change_context(errors::ApiErrorResponse::InternalServerError)
+                            .attach_printable(
+                                "Apple pay merchant certificate key decryption failed",
+                            )?;
+
                     let apple_pay_session_request =
                         get_session_request_for_simplified_apple_pay(session_token_data)?;
+
+                    #[cfg(not(feature = "kms"))]
+                    let decrypted_apple_pay_merchant_cert =
+                        &state.conf.applepay_decrypt_keys.apple_pay_merchant_cert;
+
+                    #[cfg(not(feature = "kms"))]
+                    let decrypted_apple_pay_merchant_cert_key =
+                        &state.conf.applepay_decrypt_keys.apple_pay_merchant_cert_key;
+
                     (
                         payment_request_data,
                         apple_pay_session_request,
-                        state
-                            .conf
-                            .applepay_decrypt_keys
-                            .apple_pay_merchant_cert
-                            .to_owned(),
-                        state
-                            .conf
-                            .applepay_decrypt_keys
-                            .apple_pay_merchant_cert_key
-                            .to_owned(),
+                        decrypted_apple_pay_merchant_cert.to_owned(),
+                        decrypted_apple_pay_merchant_cert_key.to_owned(),
                     )
                 }
                 payment_types::ApplePayCombinedMetadata::Manual {
