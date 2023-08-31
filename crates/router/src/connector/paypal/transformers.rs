@@ -1,5 +1,6 @@
 use api_models::payments::BankRedirectData;
 use common_utils::errors::CustomResult;
+use error_stack::{IntoReport, ResultExt};
 use masking::Secret;
 use serde::{Deserialize, Serialize};
 use url::Url;
@@ -11,7 +12,10 @@ use crate::{
     },
     core::errors,
     services,
-    types::{self, api, storage::enums as storage_enums, transformers::ForeignFrom},
+    types::{
+        self, api, storage::enums as storage_enums, transformers::ForeignFrom,
+        VerifyWebhookSourceResponseData,
+    },
 };
 
 #[derive(Debug, Clone, Serialize, Deserialize, Eq, PartialEq)]
@@ -810,7 +814,7 @@ impl TryFrom<types::RefundsResponseRouterData<api::Execute, RefundResponse>>
     }
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct RefundSyncResponse {
     id: String,
     status: RefundStatus,
@@ -895,8 +899,6 @@ pub enum PaypalWebhookEventType {
     CheckoutOrderCompleted,
     #[serde(rename = "CHECKOUT.ORDER.PROCESSED")]
     CheckoutOrderProcessed,
-    #[serde(other)]
-    Unknown,
 }
 
 #[derive(Deserialize, Debug, Serialize)]
@@ -928,6 +930,9 @@ pub struct PaypalCardWebhooks {
 #[derive(Deserialize, Debug, Serialize)]
 pub struct PaypalRedirectsWebhooks {
     pub purchase_units: Vec<PaypalWebhooksPurchaseUnits>,
+    pub links: Vec<PaypalLinks>,
+    pub id: String,
+    pub intent: PaypalPaymentIntent,
 }
 
 #[derive(Deserialize, Debug, Serialize)]
@@ -960,9 +965,202 @@ impl From<PaypalWebhookEventType> for api::IncomingWebhookEvent {
             | PaypalWebhookEventType::CheckoutOrderProcessed => Self::PaymentIntentProcessing,
             PaypalWebhookEventType::PaymentCaptureDeclined => Self::PaymentIntentFailure,
             PaypalWebhookEventType::PaymentCaptureRefunded => Self::RefundSuccess,
-            PaypalWebhookEventType::Unknown
-            | PaypalWebhookEventType::PaymentAuthorizationCreated
+            PaypalWebhookEventType::PaymentAuthorizationCreated
             | PaypalWebhookEventType::PaymentAuthorizationVoided => Self::EventNotSupported,
         }
     }
+}
+
+#[derive(Deserialize, Serialize, Debug)]
+pub struct PaypalSourceVerificationRequest {
+    pub transmission_id: String,
+    pub transmission_time: String,
+    pub cert_url: String,
+    pub transmission_sig: String,
+    pub auth_algo: String,
+    pub webhook_id: String,
+    pub webhook_event: serde_json::Value,
+}
+
+#[derive(Deserialize, Serialize, Debug)]
+
+pub struct PaypalSourceVerificationResponse {
+    pub verification_status: PaypalSourceVerificationStatus,
+}
+
+#[derive(Deserialize, Serialize, Debug)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum PaypalSourceVerificationStatus {
+    Success,
+    Failure,
+}
+
+impl
+    TryFrom<
+        types::ResponseRouterData<
+            api::VerifyWebhookSource,
+            PaypalSourceVerificationResponse,
+            types::VerifyWebhookSourceRequestData,
+            VerifyWebhookSourceResponseData,
+        >,
+    > for types::VerifyWebhookSourceRouterData
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        item: types::ResponseRouterData<
+            api::VerifyWebhookSource,
+            PaypalSourceVerificationResponse,
+            types::VerifyWebhookSourceRequestData,
+            VerifyWebhookSourceResponseData,
+        >,
+    ) -> Result<Self, Self::Error> {
+        Ok(Self {
+            response: Ok(VerifyWebhookSourceResponseData {
+                verify_webhook_status: types::VerifyWebhookStatus::from(
+                    item.response.verification_status,
+                ),
+            }),
+            ..item.data
+        })
+    }
+}
+
+impl From<PaypalSourceVerificationStatus> for types::VerifyWebhookStatus {
+    fn from(item: PaypalSourceVerificationStatus) -> Self {
+        match item {
+            PaypalSourceVerificationStatus::Success => Self::SourceVerified,
+            PaypalSourceVerificationStatus::Failure => Self::SourceNotVerified,
+        }
+    }
+}
+
+impl TryFrom<(PaypalCardWebhooks, PaypalWebhookEventType)> for PaypalPaymentsSyncResponse {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(items: (PaypalCardWebhooks, PaypalWebhookEventType)) -> Result<Self, Self::Error> {
+        let webhook_event = items.1;
+        let webhook_body = items.0;
+        Ok(Self {
+            id: webhook_body.supplementary_data.related_ids.order_id.clone(),
+            status: PaypalPaymentStatus::from(webhook_event),
+            amount: webhook_body.amount,
+            supplementary_data: webhook_body.supplementary_data,
+        })
+    }
+}
+
+impl TryFrom<(PaypalRedirectsWebhooks, PaypalWebhookEventType)> for PaypalRedirectResponse {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        item: (PaypalRedirectsWebhooks, PaypalWebhookEventType),
+    ) -> Result<Self, Self::Error> {
+        let webhook_event = item.1;
+        let webhook_body = item.0;
+        Ok(Self {
+            id: webhook_body.id,
+            intent: webhook_body.intent,
+            status: PaypalOrderStatus::try_from(webhook_event)?,
+            links: webhook_body.links,
+        })
+    }
+}
+
+impl TryFrom<(PaypalRefundWebhooks, PaypalWebhookEventType)> for RefundSyncResponse {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        items: (PaypalRefundWebhooks, PaypalWebhookEventType),
+    ) -> Result<Self, Self::Error> {
+        Ok(Self {
+            id: items.0.id,
+            status: RefundStatus::try_from(items.1)?,
+        })
+    }
+}
+
+impl From<PaypalWebhookEventType> for PaypalPaymentStatus {
+    fn from(event: PaypalWebhookEventType) -> Self {
+        match event {
+            PaypalWebhookEventType::PaymentCaptureCompleted
+            | PaypalWebhookEventType::CheckoutOrderCompleted => Self::Completed,
+            PaypalWebhookEventType::PaymentAuthorizationVoided => Self::Voided,
+            PaypalWebhookEventType::PaymentCaptureDeclined => Self::Declined,
+            PaypalWebhookEventType::PaymentCapturePending
+            | PaypalWebhookEventType::CheckoutOrderApproved
+            | PaypalWebhookEventType::CheckoutOrderProcessed => Self::Pending,
+            PaypalWebhookEventType::PaymentAuthorizationCreated => Self::Created,
+            PaypalWebhookEventType::PaymentCaptureRefunded => Self::Refunded,
+        }
+    }
+}
+
+impl TryFrom<PaypalWebhookEventType> for RefundStatus {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(event: PaypalWebhookEventType) -> Result<Self, Self::Error> {
+        match event {
+            PaypalWebhookEventType::PaymentCaptureRefunded => Ok(Self::Completed),
+            _ => Err(errors::ConnectorError::WebhookEventTypeNotFound.into()),
+        }
+    }
+}
+
+impl TryFrom<PaypalWebhookEventType> for PaypalOrderStatus {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(event: PaypalWebhookEventType) -> Result<Self, Self::Error> {
+        match event {
+            PaypalWebhookEventType::PaymentCaptureCompleted
+            | PaypalWebhookEventType::CheckoutOrderCompleted => Ok(Self::Completed),
+            PaypalWebhookEventType::PaymentAuthorizationVoided => Ok(Self::Voided),
+            PaypalWebhookEventType::PaymentCapturePending
+            | PaypalWebhookEventType::CheckoutOrderApproved
+            | PaypalWebhookEventType::CheckoutOrderProcessed => Ok(Self::Pending),
+            PaypalWebhookEventType::PaymentAuthorizationCreated => Ok(Self::Created),
+            _ => Err(errors::ConnectorError::WebhookEventTypeNotFound.into()),
+        }
+    }
+}
+
+impl TryFrom<&types::VerifyWebhookSourceRequestData> for PaypalSourceVerificationRequest {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(req: &types::VerifyWebhookSourceRequestData) -> Result<Self, Self::Error> {
+        let details = std::str::from_utf8(&req.webhook_body)
+            .into_report()
+            .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
+        let req_body = serde_json::from_str(details)
+            .into_report()
+            .change_context(errors::ConnectorError::WebhookResourceObjectNotFound)?;
+        Ok(Self {
+            transmission_id: get_headers(
+                &req.webhook_headers,
+                "paypal-transmission-id".to_owned(),
+            )?,
+            transmission_time: get_headers(
+                &req.webhook_headers,
+                "paypal-transmission-time".to_owned(),
+            )?,
+            cert_url: get_headers(&req.webhook_headers, "paypal-cert-url".to_owned())?,
+            transmission_sig: get_headers(
+                &req.webhook_headers,
+                "paypal-transmission-sig".to_owned(),
+            )?,
+            auth_algo: get_headers(&req.webhook_headers, "paypal-auth-algo".to_owned())?,
+            webhook_id: String::from_utf8(req.merchant_secret.to_vec())
+                .into_report()
+                .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)
+                .attach_printable("Could not convert secret to UTF-8")?,
+            webhook_event: req_body,
+        })
+    }
+}
+
+fn get_headers(
+    header: &actix_web::http::header::HeaderMap,
+    key: String,
+) -> CustomResult<String, errors::ConnectorError> {
+    let header_value = header
+        .get(key)
+        .ok_or(errors::ConnectorError::WebhookSourceVerificationFailed)?
+        .to_str()
+        .into_report()
+        .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?
+        .to_owned();
+    Ok(header_value)
 }

@@ -167,6 +167,11 @@ pub type AcceptDisputeType = dyn services::ConnectorIntegration<
     AcceptDisputeRequestData,
     AcceptDisputeResponse,
 >;
+pub type VerifyWebhookSourceType = dyn services::ConnectorIntegration<
+    api::VerifyWebhookSource,
+    VerifyWebhookSourceRequestData,
+    VerifyWebhookSourceResponseData,
+>;
 
 pub type SubmitEvidenceType = dyn services::ConnectorIntegration<
     api::Evidence,
@@ -193,6 +198,12 @@ pub type VerifyRouterData = RouterData<api::Verify, VerifyRequestData, PaymentsR
 
 pub type AcceptDisputeRouterData =
     RouterData<api::Accept, AcceptDisputeRequestData, AcceptDisputeResponse>;
+
+pub type VerifyWebhookSourceRouterData = RouterData<
+    api::VerifyWebhookSource,
+    VerifyWebhookSourceRequestData,
+    VerifyWebhookSourceResponseData,
+>;
 
 pub type SubmitEvidenceRouterData =
     RouterData<api::Evidence, SubmitEvidenceRequestData, SubmitEvidenceResponse>;
@@ -645,6 +656,24 @@ pub struct RefundsResponseData {
 pub enum Redirection {
     Redirect,
     NoRedirect,
+}
+
+#[derive(Debug, Clone)]
+pub struct VerifyWebhookSourceRequestData {
+    pub webhook_headers: actix_web::http::header::HeaderMap,
+    pub webhook_body: Vec<u8>,
+    pub merchant_secret: Vec<u8>,
+}
+
+#[derive(Debug, Clone)]
+pub struct VerifyWebhookSourceResponseData {
+    pub verify_webhook_status: VerifyWebhookStatus,
+}
+
+#[derive(Debug, Clone)]
+pub enum VerifyWebhookStatus {
+    SourceVerified,
+    SourceNotVerified,
 }
 
 #[derive(Default, Debug, Clone)]

@@ -90,6 +90,7 @@ pub struct Settings {
     pub mandates: Mandates,
     pub required_fields: RequiredFields,
     pub delayed_session_response: DelayedSessionConfig,
+    pub webhook_source_verification_call: WebhookSourceVerificationCall,
     pub connector_request_reference_id_config: ConnectorRequestReferenceIdConfig,
     #[cfg(feature = "payouts")]
     pub payouts: Payouts,
@@ -632,6 +633,12 @@ pub struct FileUploadConfig {
 pub struct DelayedSessionConfig {
     #[serde(deserialize_with = "delayed_session_deser")]
     pub connectors_with_delayed_session_response: HashSet<api_models::enums::Connector>,
+}
+
+#[derive(Debug, Deserialize, Clone, Default)]
+pub struct WebhookSourceVerificationCall {
+    #[serde(deserialize_with = "delayed_session_deser")]
+    pub connectors_with_webhook_source_verification_call: HashSet<api_models::enums::Connector>,
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]

@@ -116,6 +116,9 @@ locker_signing_key_id = "1"    # Key_id to sign basilisk hs locker
 [delayed_session_response]
 connectors_with_delayed_session_response = "trustpay,payme" # List of connectors which has delayed session response
 
+[webhook_source_verification_call]
+connectors_with_webhook_source_verification_call = "paypal" # List of connectors which has additional source verification api-call
+
 [jwekey] # 4 priv/pub key pair
 locker_key_identifier1 = "" # key identifier for key rotation , should be same as basilisk
 locker_key_identifier2 = "" # key identifier for key rotation , should be same as basilisk

@@ -183,6 +183,8 @@ cards = [
 [delayed_session_response]
 connectors_with_delayed_session_response = "trustpay,payme"
 
+[webhook_source_verification_call]
+connectors_with_webhook_source_verification_call = "paypal"
 
 [scheduler]
 stream = "SCHEDULER_STREAM"

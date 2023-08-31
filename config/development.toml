@@ -389,6 +389,9 @@ discord_invite_url = "https://discord.gg/wJZ7DVW8mm"
 [delayed_session_response]
 connectors_with_delayed_session_response = "trustpay,payme"
 
+[webhook_source_verification_call]
+connectors_with_webhook_source_verification_call = "paypal"
+
 [mandates.supported_payment_methods]
 pay_later.klarna = { connector_list = "adyen" }
 wallet.google_pay = { connector_list = "stripe,adyen" }

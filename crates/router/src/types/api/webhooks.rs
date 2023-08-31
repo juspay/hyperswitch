@@ -9,10 +9,15 @@ use masking::ExposeInterface;
 
 use super::ConnectorCommon;
 use crate::{
-    core::errors::{self, CustomResult},
+    core::{
+        errors::{self, CustomResult},
+        payments,
+        webhooks::utils::construct_webhook_router_data,
+    },
     db::StorageInterface,
-    logger, services,
-    types::domain,
+    logger,
+    services::{self},
+    types::{self, domain},
     utils::{self, crypto},
 };
 
@@ -154,6 +159,62 @@ pub trait IncomingWebhook: ConnectorCommon + Sync {
         _secret: &[u8],
     ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
         Ok(Vec::new())
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    async fn verify_webhook_source_verification_call(
+        &self,
+        state: &crate::routes::AppState,
+        connector_name: &str,
+        merchant_account: &domain::MerchantAccount,
+        merchant_secret: Vec<u8>,
+        object_reference_id: &ObjectReferenceId,
+        request_details: &IncomingWebhookRequestDetails<'_>,
+        key_store: &domain::MerchantKeyStore,
+    ) -> CustomResult<bool, errors::ConnectorError> {
+        let connector_data = types::api::ConnectorData::get_connector_by_name(
+            &state.conf.connectors,
+            connector_name,
+            types::api::GetToken::Connector,
+        )
+        .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)
+        .attach_printable("invalid connector name received in payment attempt")?;
+        let connector_integration: services::BoxedConnectorIntegration<
+            '_,
+            types::api::VerifyWebhookSource,
+            types::VerifyWebhookSourceRequestData,
+            types::VerifyWebhookSourceResponseData,
+        > = connector_data.connector.get_connector_integration();
+
+        let router_data = construct_webhook_router_data(
+            state,
+            merchant_account,
+            key_store,
+            connector_name,
+            merchant_secret.to_vec(),
+            object_reference_id,
+            request_details,
+        )
+        .await
+        .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)
+        .attach_printable("Failed while constructing webhook router data")?;
+
+        let response = services::execute_connector_processing_step(
+            state,
+            connector_integration,
+            &router_data,
+            payments::CallConnectorAction::Trigger,
+            None,
+        )
+        .await?;
+
+        let verification_result = response
+            .response
+            .map(|response| response.verify_webhook_status);
+        match verification_result {
+            Ok(types::VerifyWebhookStatus::SourceVerified) => Ok(true),
+            _ => Ok(false),
+        }
     }
 
     async fn verify_webhook_source(
