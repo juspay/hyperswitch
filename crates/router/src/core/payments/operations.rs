@@ -10,6 +10,7 @@ pub mod payment_start;
 pub mod payment_status;
 pub mod payment_update;
 
+use api_models::enums::CancelTransaction;
 use async_trait::async_trait;
 use error_stack::{report, ResultExt};
 use router_env::{instrument, tracing};
@@ -133,7 +134,7 @@ pub trait Domain<F: Clone, R>: Send + Sync {
         merchant_account: &domain::MerchantAccount,
         state: &AppState,
         request: &R,
-        payment_intent: &storage::payment_intent::PaymentIntent,
+        payment_intent: &storage::PaymentIntent,
         mechant_key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<api::ConnectorChoice, errors::ApiErrorResponse>;
 }
@@ -149,6 +150,7 @@ pub trait UpdateTracker<F, D, Req>: Send {
         storage_scheme: enums::MerchantStorageScheme,
         updated_customer: Option<storage::CustomerUpdate>,
         mechant_key_store: &domain::MerchantKeyStore,
+        should_cancel_transaction: Option<CancelTransaction>,
     ) -> RouterResult<(BoxedOperation<'b, F, Req>, D)>
     where
         F: 'b + Send;
@@ -206,7 +208,7 @@ where
         _merchant_account: &domain::MerchantAccount,
         state: &AppState,
         _request: &api::PaymentsRetrieveRequest,
-        _payment_intent: &storage::payment_intent::PaymentIntent,
+        _payment_intent: &storage::PaymentIntent,
         _merchant_key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<api::ConnectorChoice, errors::ApiErrorResponse> {
         helpers::get_connector_default(state, None).await
@@ -276,7 +278,7 @@ where
         _merchant_account: &domain::MerchantAccount,
         state: &AppState,
         _request: &api::PaymentsCaptureRequest,
-        _payment_intent: &storage::payment_intent::PaymentIntent,
+        _payment_intent: &storage::PaymentIntent,
         _merchant_key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<api::ConnectorChoice, errors::ApiErrorResponse> {
         helpers::get_connector_default(state, None).await
@@ -334,7 +336,7 @@ where
         _merchant_account: &domain::MerchantAccount,
         state: &AppState,
         _request: &api::PaymentsCancelRequest,
-        _payment_intent: &storage::payment_intent::PaymentIntent,
+        _payment_intent: &storage::PaymentIntent,
         _merchant_key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<api::ConnectorChoice, errors::ApiErrorResponse> {
         helpers::get_connector_default(state, None).await

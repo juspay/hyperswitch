@@ -1,6 +1,6 @@
 mod requests;
 mod response;
-mod transformers;
+pub mod transformers;
 
 use std::fmt::Debug;
 
@@ -13,12 +13,13 @@ use self::{requests::*, response::*};
 use super::utils::{self, RefundsRequestData};
 use crate::{
     configs::settings,
+    connector::utils as connector_utils,
     core::errors::{self, CustomResult},
     headers,
     services::{
         self,
         request::{self, Mask},
-        ConnectorIntegration,
+        ConnectorIntegration, ConnectorValidation,
     },
     types::{
         self,
@@ -59,14 +60,6 @@ impl ConnectorCommon for Worldpay {
         "application/vnd.worldpay.payments-v6+json"
     }
 
-    fn validate_auth_type(
-        &self,
-        val: &types::ConnectorAuthType,
-    ) -> Result<(), error_stack::Report<errors::ConnectorError>> {
-        worldpay::WorldpayAuthType::try_from(val)?;
-        Ok(())
-    }
-
     fn base_url<'a>(&self, connectors: &'a settings::Connectors) -> &'a str {
         connectors.worldpay.base_url.as_ref()
     }
@@ -98,6 +91,21 @@ impl ConnectorCommon for Worldpay {
             message: response.message,
             reason: response.validation_errors.map(|e| e.to_string()),
         })
+    }
+}
+
+impl ConnectorValidation for Worldpay {
+    fn validate_capture_method(
+        &self,
+        capture_method: Option<enums::CaptureMethod>,
+    ) -> CustomResult<(), errors::ConnectorError> {
+        let capture_method = capture_method.unwrap_or_default();
+        match capture_method {
+            enums::CaptureMethod::Automatic | enums::CaptureMethod::Manual => Ok(()),
+            enums::CaptureMethod::ManualMultiple | enums::CaptureMethod::Scheduled => Err(
+                connector_utils::construct_not_implemented_error_report(capture_method, self.id()),
+            ),
+        }
     }
 }
 
@@ -430,6 +438,7 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         req: &types::PaymentsAuthorizeRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
+        self.validate_capture_method(req.request.capture_method)?;
         Ok(Some(
             services::RequestBuilder::new()
                 .method(services::Method::Post)

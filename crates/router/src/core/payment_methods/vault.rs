@@ -16,7 +16,7 @@ use crate::{
     core::errors::{self, CustomResult, RouterResult},
     logger, routes,
     types::{
-        api::{self},
+        api,
         storage::{self, enums},
     },
     utils::{self, StringExt},
@@ -211,12 +211,57 @@ impl Vaultable for api::WalletData {
     }
 }
 
+impl Vaultable for api_models::payments::BankRedirectData {
+    fn get_value1(&self, _customer_id: Option<String>) -> CustomResult<String, errors::VaultError> {
+        let value1 = api_models::payment_methods::TokenizedBankRedirectValue1 {
+            data: self.to_owned(),
+        };
+
+        utils::Encode::<api_models::payment_methods::TokenizedBankRedirectValue1>::encode_to_string_of_json(&value1)
+            .change_context(errors::VaultError::RequestEncodingFailed)
+            .attach_printable("Failed to encode bank redirect data")
+    }
+
+    fn get_value2(&self, customer_id: Option<String>) -> CustomResult<String, errors::VaultError> {
+        let value2 = api_models::payment_methods::TokenizedBankRedirectValue2 { customer_id };
+
+        utils::Encode::<api_models::payment_methods::TokenizedBankRedirectValue2>::encode_to_string_of_json(&value2)
+            .change_context(errors::VaultError::RequestEncodingFailed)
+            .attach_printable("Failed to encode bank redirect supplementary data")
+    }
+
+    fn from_values(
+        value1: String,
+        value2: String,
+    ) -> CustomResult<(Self, SupplementaryVaultData), errors::VaultError> {
+        let value1: api_models::payment_methods::TokenizedBankRedirectValue1 = value1
+            .parse_struct("TokenizedBankRedirectValue1")
+            .change_context(errors::VaultError::ResponseDeserializationFailed)
+            .attach_printable("Could not deserialize into bank redirect data")?;
+
+        let value2: api_models::payment_methods::TokenizedBankRedirectValue2 = value2
+            .parse_struct("TokenizedBankRedirectValue2")
+            .change_context(errors::VaultError::ResponseDeserializationFailed)
+            .attach_printable("Could not deserialize into supplementary bank redirect data")?;
+
+        let bank_transfer_data = value1.data;
+
+        let supp_data = SupplementaryVaultData {
+            customer_id: value2.customer_id,
+            payment_method_id: None,
+        };
+
+        Ok((bank_transfer_data, supp_data))
+    }
+}
+
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 #[serde(tag = "type", content = "value", rename_all = "snake_case")]
 pub enum VaultPaymentMethod {
     Card(String),
     Wallet(String),
     BankTransfer(String),
+    BankRedirect(String),
 }
 
 impl Vaultable for api::PaymentMethodData {
@@ -226,6 +271,9 @@ impl Vaultable for api::PaymentMethodData {
             Self::Wallet(wallet) => VaultPaymentMethod::Wallet(wallet.get_value1(customer_id)?),
             Self::BankTransfer(bank_transfer) => {
                 VaultPaymentMethod::BankTransfer(bank_transfer.get_value1(customer_id)?)
+            }
+            Self::BankRedirect(bank_redirect) => {
+                VaultPaymentMethod::BankRedirect(bank_redirect.get_value1(customer_id)?)
             }
             _ => Err(errors::VaultError::PaymentMethodNotSupported)
                 .into_report()
@@ -243,6 +291,9 @@ impl Vaultable for api::PaymentMethodData {
             Self::Wallet(wallet) => VaultPaymentMethod::Wallet(wallet.get_value2(customer_id)?),
             Self::BankTransfer(bank_transfer) => {
                 VaultPaymentMethod::BankTransfer(bank_transfer.get_value2(customer_id)?)
+            }
+            Self::BankRedirect(bank_redirect) => {
+                VaultPaymentMethod::BankRedirect(bank_redirect.get_value2(customer_id)?)
             }
             _ => Err(errors::VaultError::PaymentMethodNotSupported)
                 .into_report()
@@ -285,6 +336,15 @@ impl Vaultable for api::PaymentMethodData {
                     api_models::payments::BankTransferData::from_values(mvalue1, mvalue2)?;
                 Ok((Self::BankTransfer(Box::new(bank_transfer)), supp_data))
             }
+            (
+                VaultPaymentMethod::BankRedirect(mvalue1),
+                VaultPaymentMethod::BankRedirect(mvalue2),
+            ) => {
+                let (bank_redirect, supp_data) =
+                    api_models::payments::BankRedirectData::from_values(mvalue1, mvalue2)?;
+                Ok((Self::BankRedirect(bank_redirect), supp_data))
+            }
+
             _ => Err(errors::VaultError::PaymentMethodNotSupported)
                 .into_report()
                 .attach_printable("Payment method not supported"),

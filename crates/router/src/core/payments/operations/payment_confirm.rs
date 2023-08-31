@@ -1,5 +1,6 @@
 use std::marker::PhantomData;
 
+use api_models::enums::CancelTransaction;
 use async_trait::async_trait;
 use common_utils::ext_traits::{AsyncExt, Encode};
 use error_stack::ResultExt;
@@ -74,6 +75,11 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
             "confirm",
         )?;
 
+        helpers::authenticate_client_secret(
+            request.client_secret.as_ref(),
+            &payment_intent,
+            merchant_account.intent_fulfillment_time,
+        )?;
         payment_attempt = db
             .find_payment_attempt_by_payment_id_merchant_id_attempt_id(
                 payment_intent.payment_id.as_str(),
@@ -289,6 +295,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
                 connector_customer_id: None,
                 recurring_mandate_payment_data,
                 ephemeral_key: None,
+                multiple_capture_data: None,
                 redirect_response: None,
                 frm_message: None,
             },
@@ -360,7 +367,7 @@ impl<F: Clone + Send> Domain<F, api::PaymentsRequest> for PaymentConfirm {
         _merchant_account: &domain::MerchantAccount,
         state: &AppState,
         request: &api::PaymentsRequest,
-        _payment_intent: &storage::payment_intent::PaymentIntent,
+        _payment_intent: &storage::PaymentIntent,
         _key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<api::ConnectorChoice, errors::ApiErrorResponse> {
         // Use a new connector in the confirm call or use the same one which was passed when
@@ -380,6 +387,7 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
         storage_scheme: storage_enums::MerchantStorageScheme,
         updated_customer: Option<storage::CustomerUpdate>,
         key_store: &domain::MerchantKeyStore,
+        should_cancel_transaction: Option<CancelTransaction>,
     ) -> RouterResult<(BoxedOperation<'b, F, api::PaymentsRequest>, PaymentData<F>)>
     where
         F: 'b + Send,
@@ -387,10 +395,18 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
         let payment_method = payment_data.payment_attempt.payment_method;
         let browser_info = payment_data.payment_attempt.browser_info.clone();
 
-        let (intent_status, attempt_status) = (
-            storage_enums::IntentStatus::Processing,
-            storage_enums::AttemptStatus::Pending,
-        );
+        let (intent_status, attempt_status) = match should_cancel_transaction {
+            Some(should_cancel) => match should_cancel {
+                CancelTransaction::FrmCancelTransaction => (
+                    storage_enums::IntentStatus::Failed,
+                    storage_enums::AttemptStatus::Failure,
+                ),
+            },
+            None => (
+                storage_enums::IntentStatus::Processing,
+                storage_enums::AttemptStatus::Pending,
+            ),
+        };
 
         let connector = payment_data.payment_attempt.connector.clone();
         let straight_through_algorithm = payment_data

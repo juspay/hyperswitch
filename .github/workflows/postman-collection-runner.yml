@@ -16,24 +16,16 @@ env:
   RUSTUP_MAX_RETRIES: 10
   RUST_BACKTRACE: short
   CARGO_REGISTRIES_CRATES_IO_PROTOCOL: sparse
+  CONNECTORS: stripe
 
 jobs:
   runner:
     name: Run postman tests
     runs-on: ubuntu-latest
 
-    strategy:
-      fail-fast: false
-      matrix:
-        connector:
-          # Grouping connectors based on their time consumption
-          # This would help in parallelizing the tests
-          - aci, checkout, stripe
-          - bluesnap, nmi, worldline
-
     services:
       redis:
-        image: "${{ github.event_name != 'pull_request' && 'redis' || '' }}"
+        image: 'redis'
         options: >-
           --health-cmd "redis-cli ping"
           --health-interval 10s
@@ -42,7 +34,7 @@ jobs:
         ports:
           - 6379:6379
       postgres:
-        image: "${{ github.event_name != 'pull_request' && 'postgres:14.5' || '' }}"
+        image: 'postgres:14.5'
         env:
           POSTGRES_USER: db_user
           POSTGRES_PASSWORD: db_pass
@@ -56,33 +48,25 @@ jobs:
           - 5432:5432
 
     steps:
-      - name: Ignore Tests incase of pull request
-        if: github.event_name == 'pull_request'
-        shell: bash
-        run: |
-          echo "Skipped tests as the event is pull request" 
-          exit 0
-
       - name: Repository checkout
-        if: github.event_name != 'pull_request'
         uses: actions/checkout@v3
 
       - name: Decrypt connector auth file
-        if: github.event_name != 'pull_request'
+        if: ${{ ((github.event_name == 'pull_request') && (github.event.pull_request.head.repo.full_name == github.event.pull_request.base.repo.full_name)) || (github.event_name == 'merge_group')}}
         env:
           CONNECTOR_AUTH_PASSPHRASE: ${{ secrets.CONNECTOR_AUTH_PASSPHRASE }}
         shell: bash
         run: ./scripts/decrypt_connector_auth.sh
 
       - name: Set paths in env
-        if: github.event_name != 'pull_request'
+        if: ${{ ((github.event_name == 'pull_request') && (github.event.pull_request.head.repo.full_name == github.event.pull_request.base.repo.full_name)) || (github.event_name == 'merge_group')}}
         id: config_path
         shell: bash
         run: |
           echo "CONNECTOR_AUTH_FILE_PATH=$HOME/target/test/connector_auth.toml" >> $GITHUB_ENV
 
       - name: Fetch keys
-        if: github.event_name != 'pull_request'
+        if: ${{ ((github.event_name == 'pull_request') && (github.event.pull_request.head.repo.full_name == github.event.pull_request.base.repo.full_name)) || (github.event_name == 'merge_group')}}
         env:
           TOML_PATH: "./config/development.toml"
         run: |
@@ -90,17 +74,17 @@ jobs:
           echo "ADMIN_API_KEY=$LOCAL_ADMIN_API_KEY" >> $GITHUB_ENV
 
       - name: Install Rust
-        if: github.event_name != 'pull_request'
+        if: ${{ ((github.event_name == 'pull_request') && (github.event.pull_request.head.repo.full_name == github.event.pull_request.base.repo.full_name)) || (github.event_name == 'merge_group')}}
         uses: dtolnay/rust-toolchain@master
         with:
-          toolchain: stable
+          toolchain: stable 2 weeks ago
 
       - name: Build and Cache Rust Dependencies
-        if: github.event_name != 'pull_request'
+        if: ${{ ((github.event_name == 'pull_request') && (github.event.pull_request.head.repo.full_name == github.event.pull_request.base.repo.full_name)) || (github.event_name == 'merge_group')}}
         uses: Swatinem/rust-cache@v2.4.0
 
       - name: Install Diesel CLI with Postgres Support
-        if: github.event_name != 'pull_request'
+        if: ${{ ((github.event_name == 'pull_request') && (github.event.pull_request.head.repo.full_name == github.event.pull_request.base.repo.full_name)) || (github.event_name == 'merge_group')}}
         uses: baptiste0928/cargo-install@v2.1.0
         with:
           crate: diesel_cli
@@ -108,14 +92,14 @@ jobs:
           args: "--no-default-features"
 
       - name: Diesel migration run
-        if: github.event_name != 'pull_request'
+        if: ${{ ((github.event_name == 'pull_request') && (github.event.pull_request.head.repo.full_name == github.event.pull_request.base.repo.full_name)) || (github.event_name == 'merge_group')}}
         shell: bash
         env:
           DATABASE_URL: postgres://db_user:db_pass@localhost:5432/hyperswitch_db
         run: diesel migration run
 
       - name: Setup Local Server
-        if: github.event_name != 'pull_request'
+        if: ${{ ((github.event_name == 'pull_request') && (github.event.pull_request.head.repo.full_name == github.event.pull_request.base.repo.full_name)) || (github.event_name == 'merge_group')}}
         run: |
           cargo run &
           COUNT=0
@@ -131,26 +115,32 @@ jobs:
               fi
           done
 
+      - name: Install newman from fork
+        run: |
+          npm install -g 'git+ssh://git@github.com:knutties/newman.git#37708c1fbf6b36240ac796a42dc5a7b435990764'
+
       - name: Run Tests
-        if: github.event_name != 'pull_request'
+        if: ${{ ((github.event_name == 'pull_request') && (github.event.pull_request.head.repo.full_name == github.event.pull_request.base.repo.full_name)) || (github.event_name == 'merge_group')}}
         env:
           BASE_URL: "http://localhost:8080"
           GATEWAY_MERCHANT_ID: ${{ secrets.STRIPE_GATEWAY_MERCHANT_ID }}
           GPAY_CERTIFICATE: ${{ secrets.STRIPE_GPAY_CERTIFICATE }}
           GPAY_CERTIFICATE_KEYS: ${{ secrets.STRIPE_GPAY_CERTIFICATE_KEYS }}
-          INPUT: ${{ matrix.connector }}
         shell: bash
         run: |
           RED='\033[0;31m'
           RESET='\033[0m'
+          NEWMAN_PATH=$(npm config get prefix)/bin
+          export PATH=${NEWMAN_PATH}:${PATH}
           failed_connectors=()
-
-          for i in $(echo "$INPUT" | tr "," "\n"); do
+      
+          for i in $(echo "$CONNECTORS" | tr "," "\n"); do
+            echo $i
             if ! cargo run --bin test_utils -- --connector_name="$i" --base_url="$BASE_URL" --admin_api_key="$ADMIN_API_KEY"; then
               failed_connectors+=("$i")
             fi
           done
-
+      
           if [ ${#failed_connectors[@]} -gt 0 ]; then
             echo -e "${RED}One or more connectors failed to run:${RESET}"
             printf '%s\n' "${failed_connectors[@]}"

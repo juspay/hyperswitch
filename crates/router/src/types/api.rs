@@ -65,11 +65,6 @@ pub trait ConnectorCommon {
         "application/json"
     }
 
-    fn validate_auth_type(
-        &self,
-        val: &types::ConnectorAuthType,
-    ) -> Result<(), error_stack::Report<errors::ConnectorError>>;
-
     // FIXME write doc - think about this
     // fn headers(&self) -> Vec<(&str, &str)>;
 
@@ -284,7 +279,7 @@ impl ConnectorData {
                 enums::Connector::Bambora => Ok(Box::new(&connector::Bambora)),
                 enums::Connector::Bitpay => Ok(Box::new(&connector::Bitpay)),
                 enums::Connector::Bluesnap => Ok(Box::new(&connector::Bluesnap)),
-                // enums::Connector::Boku => Ok(Box::new(&connector::Boku)),  added as template code for future usage
+                enums::Connector::Boku => Ok(Box::new(&connector::Boku)),
                 enums::Connector::Braintree => Ok(Box::new(&connector::Braintree)),
                 enums::Connector::Cashtocode => Ok(Box::new(&connector::Cashtocode)),
                 enums::Connector::Checkout => Ok(Box::new(&connector::Checkout)),
@@ -310,6 +305,7 @@ impl ConnectorData {
                 enums::Connector::Forte => Ok(Box::new(&connector::Forte)),
                 enums::Connector::Globalpay => Ok(Box::new(&connector::Globalpay)),
                 enums::Connector::Globepay => Ok(Box::new(&connector::Globepay)),
+                //enums::Connector::Helcim => Ok(Box::new(&connector::Helcim)), , it is added as template code for future usage
                 enums::Connector::Iatapay => Ok(Box::new(&connector::Iatapay)),
                 enums::Connector::Klarna => Ok(Box::new(&connector::Klarna)),
                 enums::Connector::Mollie => Ok(Box::new(&connector::Mollie)),
@@ -323,6 +319,7 @@ impl ConnectorData {
                 enums::Connector::Powertranz => Ok(Box::new(&connector::Powertranz)),
                 enums::Connector::Rapyd => Ok(Box::new(&connector::Rapyd)),
                 enums::Connector::Shift4 => Ok(Box::new(&connector::Shift4)),
+                //enums::Connector::Square => Ok(Box::new(&connector::Square)), it is added as template code for future usage
                 enums::Connector::Stax => Ok(Box::new(&connector::Stax)),
                 enums::Connector::Stripe => Ok(Box::new(&connector::Stripe)),
                 enums::Connector::Wise => Ok(Box::new(&connector::Wise)),

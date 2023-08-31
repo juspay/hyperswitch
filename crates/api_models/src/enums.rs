@@ -78,7 +78,7 @@ pub enum Connector {
     Bitpay,
     Bambora,
     Bluesnap,
-    // Boku, added as template code for future usage
+    Boku,
     Braintree,
     Cashtocode,
     Checkout,
@@ -90,6 +90,7 @@ pub enum Connector {
     Forte,
     Globalpay,
     Globepay,
+    //Helcim, added as template code for future usage,
     Iatapay,
     Klarna,
     Mollie,
@@ -107,6 +108,7 @@ pub enum Connector {
     Powertranz,
     Rapyd,
     Shift4,
+    // Square, added as template code for future usage,
     Stax,
     Stripe,
     Trustpay,
@@ -156,7 +158,6 @@ impl Connector {
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
 pub enum RoutableConnectors {
-    Stax,
     #[cfg(feature = "dummy_connector")]
     #[serde(rename = "phonypay")]
     #[strum(serialize = "phonypay")]
@@ -192,7 +193,7 @@ pub enum RoutableConnectors {
     Bitpay,
     Bambora,
     Bluesnap,
-    // Boku, added as template code for future usage
+    Boku,
     Braintree,
     Cashtocode,
     Checkout,
@@ -204,6 +205,7 @@ pub enum RoutableConnectors {
     Forte,
     Globalpay,
     Globepay,
+    //Helcim, added as template code for future usage,
     Iatapay,
     Klarna,
     Mollie,
@@ -221,6 +223,8 @@ pub enum RoutableConnectors {
     Powertranz,
     Rapyd,
     Shift4,
+    //Square, added as template code for future usage
+    Stax,
     Stripe,
     Trustpay,
     // Tsys,
@@ -260,6 +264,46 @@ impl From<PayoutConnectors> for RoutableConnectors {
             PayoutConnectors::Wise => Self::Wise,
         }
     }
+}
+
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    Hash,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    strum::EnumString,
+    ToSchema,
+)]
+#[strum(serialize_all = "snake_case")]
+#[serde(rename_all = "snake_case")]
+pub enum BankType {
+    Checking,
+    Savings,
+}
+
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    Hash,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    strum::EnumString,
+    ToSchema,
+)]
+#[strum(serialize_all = "snake_case")]
+#[serde(rename_all = "snake_case")]
+pub enum BankHolderType {
+    Personal,
+    Business,
 }
 
 /// Name of banks supported by Hyperswitch
@@ -403,6 +447,24 @@ pub enum BankNames {
     KrungThaiBank,
     TheSiamCommercialBank,
     KasikornBank,
+    OpenBankSuccess,
+    OpenBankFailure,
+    OpenBankCancelled,
+    Aib,
+    BankOfScotland,
+    DanskeBank,
+    FirstDirect,
+    FirstTrust,
+    Halifax,
+    Lloyds,
+    Monzo,
+    NatWest,
+    NationwideBank,
+    RoyalBankOfScotland,
+    Starling,
+    TsbBank,
+    TescoBank,
+    UlsterBank,
 }
 
 #[derive(
@@ -448,19 +510,24 @@ pub struct UnresolvedResponseReason {
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
 pub enum FieldType {
+    CardNumber,
+    CardExpiryMonth,
+    CardExpiryYear,
+    CardCVC,
     UserFullName,
     UserEmailAddress,
     UserPhoneNumber,
-    UserCountry { options: Vec<String> },
+    UserCountryCode,                      //phone number's country code
+    UserCountry { options: Vec<String> }, //for country inside payment method data ex- bank redirect
+    UserCurrency { options: Vec<String> },
+    UserBillingName,
     UserAddressline1,
     UserAddressline2,
     UserAddressCity,
     UserAddressPincode,
     UserAddressState,
-    UserAddressCountry,
+    UserAddressCountry { options: Vec<String> },
     UserBlikCode,
-    FieldsComplete,
-    UserBillingName,
     UserBank,
     Text,
     DropDown { options: Vec<String> },

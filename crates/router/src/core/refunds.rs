@@ -203,7 +203,7 @@ pub async fn trigger_refund_to_gateway(
     let refund_update = match router_data_res.response {
         Err(err) => storage::RefundUpdate::ErrorUpdate {
             refund_status: Some(enums::RefundStatus::Failure),
-            refund_error_message: Some(err.message),
+            refund_error_message: err.reason.or(Some(err.message)),
             refund_error_code: Some(err.code),
         },
         Ok(response) => {
@@ -430,7 +430,7 @@ pub async fn sync_refund_with_gateway(
     let refund_update = match router_data_res.response {
         Err(error_message) => storage::RefundUpdate::ErrorUpdate {
             refund_status: None,
-            refund_error_message: Some(error_message.message),
+            refund_error_message: error_message.reason.or(Some(error_message.message)),
             refund_error_code: Some(error_message.code),
         },
         Ok(response) => storage::RefundUpdate::Update {
@@ -665,9 +665,19 @@ pub async fn refund_list(
         .map(ForeignInto::foreign_into)
         .collect();
 
+    let total_count = db
+        .get_total_count_of_refunds(
+            &merchant_account.merchant_id,
+            &req,
+            merchant_account.storage_scheme,
+        )
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::InternalServerError)?;
+
     Ok(services::ApplicationResponse::Json(
         api_models::refunds::RefundListResponse {
-            size: data.len(),
+            count: data.len(),
+            total_count,
             data,
         },
     ))
@@ -832,7 +842,7 @@ pub async fn sync_refund_with_gateway_workflow(
         },
     )
     .await?;
-    let terminal_status = vec![
+    let terminal_status = [
         enums::RefundStatus::Success,
         enums::RefundStatus::Failure,
         enums::RefundStatus::TransactionFailure,

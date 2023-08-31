@@ -308,7 +308,8 @@ impl From<api_enums::IntentStatus> for StripeSetupStatus {
             api_enums::IntentStatus::RequiresMerchantAction => Self::RequiresAction,
             api_enums::IntentStatus::RequiresPaymentMethod => Self::RequiresPaymentMethod,
             api_enums::IntentStatus::RequiresConfirmation => Self::RequiresConfirmation,
-            api_enums::IntentStatus::RequiresCapture => {
+            api_enums::IntentStatus::RequiresCapture
+            | api_enums::IntentStatus::PartiallyCaptured => {
                 logger::error!("Invalid status change");
                 Self::Canceled
             }
@@ -370,6 +371,14 @@ pub enum StripeNextAction {
     },
     QrCodeInformation {
         image_data_url: url::Url,
+        display_to_timestamp: Option<i64>,
+    },
+    DisplayVoucherInformation {
+        voucher_details: payments::VoucherNextStepData,
+    },
+    WaitScreenInformation {
+        display_from_timestamp: i128,
+        display_to_timestamp: Option<i128>,
     },
 }
 
@@ -394,9 +403,23 @@ pub(crate) fn into_stripe_next_action(
         payments::NextActionData::ThirdPartySdkSessionToken { session_token } => {
             StripeNextAction::ThirdPartySdkSessionToken { session_token }
         }
-        payments::NextActionData::QrCodeInformation { image_data_url } => {
-            StripeNextAction::QrCodeInformation { image_data_url }
+        payments::NextActionData::QrCodeInformation {
+            image_data_url,
+            display_to_timestamp,
+        } => StripeNextAction::QrCodeInformation {
+            image_data_url,
+            display_to_timestamp,
+        },
+        payments::NextActionData::DisplayVoucherInformation { voucher_details } => {
+            StripeNextAction::DisplayVoucherInformation { voucher_details }
         }
+        payments::NextActionData::WaitScreenInformation {
+            display_from_timestamp,
+            display_to_timestamp,
+        } => StripeNextAction::WaitScreenInformation {
+            display_from_timestamp,
+            display_to_timestamp,
+        },
     })
 }
 
@@ -488,7 +511,7 @@ pub struct StripePaymentListConstraints {
     pub starting_after: Option<String>,
     pub ending_before: Option<String>,
     #[serde(default = "default_limit")]
-    pub limit: i64,
+    pub limit: u32,
     pub created: Option<i64>,
     #[serde(rename = "created[lt]")]
     pub created_lt: Option<i64>,
@@ -500,7 +523,7 @@ pub struct StripePaymentListConstraints {
     pub created_gte: Option<i64>,
 }
 
-fn default_limit() -> i64 {
+fn default_limit() -> u32 {
     10
 }
 

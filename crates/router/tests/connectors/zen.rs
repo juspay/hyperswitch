@@ -25,10 +25,11 @@ impl utils::Connector for ZenTest {
     }
 
     fn get_auth_token(&self) -> types::ConnectorAuthType {
-        types::ConnectorAuthType::from(
+        utils::to_connector_auth_type(
             connector_auth::ConnectorAuthentication::new()
                 .zen
-                .expect("Missing connector authentication configuration"),
+                .expect("Missing connector authentication configuration")
+                .into(),
         )
     }
 
@@ -98,6 +99,7 @@ async fn should_sync_authorized_payment() {
                 ),
                 encoded_data: None,
                 capture_method: None,
+                capture_sync_type: types::CaptureSyncType::SingleCaptureSync,
                 connector_meta: None,
                 mandate_id: None,
             }),
@@ -211,6 +213,7 @@ async fn should_sync_auto_captured_payment() {
                 ),
                 encoded_data: None,
                 capture_method: Some(enums::CaptureMethod::Automatic),
+                capture_sync_type: types::CaptureSyncType::SingleCaptureSync,
                 connector_meta: None,
                 mandate_id: None,
             }),

@@ -22,14 +22,61 @@ use diesel::{
 use error_stack::{report, IntoReport, ResultExt};
 use router_env::{instrument, logger, tracing};
 
-use crate::{errors, PgPooledConn, StorageResult};
+use crate::{
+    errors::{self},
+    PgPooledConn, StorageResult,
+};
+
+pub mod db_metrics {
+    use router_env::opentelemetry::KeyValue;
+
+    #[derive(Debug)]
+    pub enum DatabaseOperation {
+        FindOne,
+        Filter,
+        Update,
+        Insert,
+        Delete,
+        DeleteWithResult,
+        UpdateWithResults,
+        UpdateOne,
+    }
+
+    #[inline]
+    pub async fn track_database_call<T, Fut, U>(future: Fut, operation: DatabaseOperation) -> U
+    where
+        Fut: std::future::Future<Output = U>,
+    {
+        let start = std::time::Instant::now();
+        let output = future.await;
+        let time_elapsed = start.elapsed();
+
+        let table_name = std::any::type_name::<T>().rsplit("::").nth(1);
+
+        let attributes = [
+            KeyValue::new("table", table_name.unwrap_or("undefined")),
+            KeyValue::new("operation", format!("{:?}", operation)),
+        ];
+
+        crate::metrics::DATABASE_CALLS_COUNT.add(&crate::metrics::CONTEXT, 1, &attributes);
+        crate::metrics::DATABASE_CALL_TIME.record(
+            &crate::metrics::CONTEXT,
+            time_elapsed.as_secs_f64(),
+            &attributes,
+        );
+
+        output
+    }
+}
+
+use db_metrics::*;
 
 #[instrument(level = "DEBUG", skip_all)]
 pub async fn generic_insert<T, V, R>(conn: &PgPooledConn, values: V) -> StorageResult<R>
 where
-    T: HasTable<Table = T> + Table + 'static,
+    T: HasTable<Table = T> + Table + 'static + Debug,
     V: Debug + Insertable<T>,
-    <T as QuerySource>::FromClause: QueryFragment<Pg>,
+    <T as QuerySource>::FromClause: QueryFragment<Pg> + Debug,
     <V as Insertable<T>>::Values: CanInsertInSingleQuery<Pg> + QueryFragment<Pg> + 'static,
     InsertStatement<T, <V as Insertable<T>>::Values>:
         AsQuery + LoadQuery<'static, PgConnection, R> + Send,
@@ -40,7 +87,10 @@ where
     let query = diesel::insert_into(<T as HasTable>::table()).values(values);
     logger::debug!(query = %debug_query::<Pg, _>(&query).to_string());
 
-    match query.get_result_async(conn).await.into_report() {
+    match track_database_call::<T, _, _>(query.get_result_async(conn), DatabaseOperation::Insert)
+        .await
+        .into_report()
+    {
         Ok(value) => Ok(value),
         Err(err) => match err.current_context() {
             ConnectionError::Query(DieselError::DatabaseError(
@@ -74,8 +124,7 @@ where
     let query = diesel::update(<T as HasTable>::table().filter(predicate)).set(values);
     logger::debug!(query = %debug_query::<Pg, _>(&query).to_string());
 
-    query
-        .execute_async(conn)
+    track_database_call::<T, _, _>(query.execute_async(conn), DatabaseOperation::Update)
         .await
         .into_report()
         .change_context(errors::DatabaseError::Others)
@@ -109,7 +158,12 @@ where
 
     let query = diesel::update(<T as HasTable>::table().filter(predicate)).set(values);
 
-    match query.to_owned().get_results_async(conn).await {
+    match track_database_call::<T, _, _>(
+        query.to_owned().get_results_async(conn),
+        DatabaseOperation::UpdateWithResults,
+    )
+    .await
+    {
         Ok(result) => {
             logger::debug!(query = %debug_query::<Pg, _>(&query).to_string());
             Ok(result)
@@ -195,7 +249,12 @@ where
 
     let query = diesel::update(<T as HasTable>::table().find(id.to_owned())).set(values);
 
-    match query.to_owned().get_result_async(conn).await {
+    match track_database_call::<T, _, _>(
+        query.to_owned().get_result_async(conn),
+        DatabaseOperation::UpdateOne,
+    )
+    .await
+    {
         Ok(result) => {
             logger::debug!(query = %debug_query::<Pg, _>(&query).to_string());
             Ok(result)
@@ -226,8 +285,7 @@ where
     let query = diesel::delete(<T as HasTable>::table().filter(predicate));
     logger::debug!(query = %debug_query::<Pg, _>(&query).to_string());
 
-    query
-        .execute_async(conn)
+    track_database_call::<T, _, _>(query.execute_async(conn), DatabaseOperation::Delete)
         .await
         .into_report()
         .change_context(errors::DatabaseError::Others)
@@ -261,18 +319,20 @@ where
     let query = diesel::delete(<T as HasTable>::table().filter(predicate));
     logger::debug!(query = %debug_query::<Pg, _>(&query).to_string());
 
-    query
-        .get_results_async(conn)
-        .await
-        .into_report()
-        .change_context(errors::DatabaseError::Others)
-        .attach_printable_lazy(|| "Error while deleting")
-        .and_then(|result| {
-            result.first().cloned().ok_or_else(|| {
-                report!(errors::DatabaseError::NotFound)
-                    .attach_printable("Object to be deleted does not exist")
-            })
+    track_database_call::<T, _, _>(
+        query.get_results_async(conn),
+        DatabaseOperation::DeleteWithResult,
+    )
+    .await
+    .into_report()
+    .change_context(errors::DatabaseError::Others)
+    .attach_printable_lazy(|| "Error while deleting")
+    .and_then(|result| {
+        result.first().cloned().ok_or_else(|| {
+            report!(errors::DatabaseError::NotFound)
+                .attach_printable("Object to be deleted does not exist")
         })
+    })
 }
 
 #[instrument(level = "DEBUG", skip_all)]
@@ -287,7 +347,10 @@ where
     let query = <T as HasTable>::table().find(id.to_owned());
     logger::debug!(query = %debug_query::<Pg, _>(&query).to_string());
 
-    match query.first_async(conn).await.into_report() {
+    match track_database_call::<T, _, _>(query.first_async(conn), DatabaseOperation::FindOne)
+        .await
+        .into_report()
+    {
         Ok(value) => Ok(value),
         Err(err) => match err.current_context() {
             ConnectionError::Query(DieselError::NotFound) => {
@@ -337,8 +400,7 @@ where
     let query = <T as HasTable>::table().filter(predicate);
     logger::debug!(query = %debug_query::<Pg, _>(&query).to_string());
 
-    query
-        .get_result_async(conn)
+    track_database_call::<T, _, _>(query.get_result_async(conn), DatabaseOperation::FindOne)
         .await
         .into_report()
         .map_err(|err| match err.current_context() {
@@ -410,8 +472,7 @@ where
 
     logger::debug!(query = %debug_query::<Pg, _>(&query).to_string());
 
-    query
-        .get_results_async(conn)
+    track_database_call::<T, _, _>(query.get_results_async(conn), DatabaseOperation::Filter)
         .await
         .into_report()
         .change_context(errors::DatabaseError::NotFound)

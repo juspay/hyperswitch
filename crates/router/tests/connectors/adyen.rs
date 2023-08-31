@@ -32,10 +32,11 @@ impl utils::Connector for AdyenTest {
     }
 
     fn get_auth_token(&self) -> types::ConnectorAuthType {
-        types::ConnectorAuthType::from(
+        utils::to_connector_auth_type(
             connector_auth::ConnectorAuthentication::new()
                 .adyen_uk
-                .expect("Missing connector authentication configuration"),
+                .expect("Missing connector authentication configuration")
+                .into(),
         )
     }
 
@@ -476,7 +477,7 @@ async fn should_fail_payment_for_invalid_exp_month() {
         )
         .await
         .unwrap();
-    let errors = vec!["The provided Expiry Date is not valid.: Expiry month should be between 1 and 12 inclusive: 20","Refused"];
+    let errors = ["The provided Expiry Date is not valid.: Expiry month should be between 1 and 12 inclusive: 20","Refused"];
     assert!(errors.contains(&response.response.unwrap_err().message.as_str()))
 }
 

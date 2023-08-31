@@ -805,6 +805,7 @@ pub struct GlobalpayRefundRequest {
 #[derive(Default, Debug, Serialize)]
 pub struct GlobalpayCaptureRequest {
     pub amount: Option<String>,
+    pub capture_sequence: Option<Sequence>,
 }
 
 #[derive(Default, Debug, Serialize)]

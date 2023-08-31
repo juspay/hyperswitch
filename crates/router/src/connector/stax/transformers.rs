@@ -1,45 +1,56 @@
-use masking::Secret;
+use common_utils::pii::Email;
+use error_stack::IntoReport;
+use masking::{ExposeInterface, Secret};
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    connector::utils::PaymentsAuthorizeRequestData,
+    connector::utils::{missing_field_err, CardData, PaymentsAuthorizeRequestData, RouterData},
     core::errors,
     types::{self, api, storage::enums},
 };
 
-//TODO: Fill the struct with respective fields
-#[derive(Default, Debug, Serialize, Eq, PartialEq)]
-pub struct StaxPaymentsRequest {
-    amount: i64,
-    card: StaxCard,
+#[derive(Debug, Serialize)]
+pub struct StaxPaymentsRequestMetaData {
+    tax: i64,
 }
 
-#[derive(Default, Debug, Serialize, Eq, PartialEq)]
-pub struct StaxCard {
-    name: Secret<String>,
-    number: cards::CardNumber,
-    expiry_month: Secret<String>,
-    expiry_year: Secret<String>,
-    cvc: Secret<String>,
-    complete: bool,
+#[derive(Debug, Serialize)]
+pub struct StaxPaymentsRequest {
+    payment_method_id: Secret<String>,
+    total: i64,
+    is_refundable: bool,
+    pre_auth: bool,
+    meta: StaxPaymentsRequestMetaData,
 }
 
 impl TryFrom<&types::PaymentsAuthorizeRouterData> for StaxPaymentsRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::PaymentsAuthorizeRouterData) -> Result<Self, Self::Error> {
+        if item.request.currency != enums::Currency::USD {
+            Err(errors::ConnectorError::NotSupported {
+                message: item.request.currency.to_string(),
+                connector: "Stax",
+            })?
+        }
         match item.request.payment_method_data.clone() {
-            api::PaymentMethodData::Card(req_card) => {
-                let card = StaxCard {
-                    name: req_card.card_holder_name,
-                    number: req_card.card_number,
-                    expiry_month: req_card.card_exp_month,
-                    expiry_year: req_card.card_exp_year,
-                    cvc: req_card.card_cvc,
-                    complete: item.request.is_auto_capture()?,
-                };
+            api::PaymentMethodData::Card(_) => {
+                let pre_auth = !item.request.is_auto_capture()?;
                 Ok(Self {
-                    amount: item.request.amount,
-                    card,
+                    meta: StaxPaymentsRequestMetaData { tax: 0 },
+                    total: item.request.amount,
+                    is_refundable: true,
+                    pre_auth,
+                    payment_method_id: Secret::new(item.get_payment_method_token()?),
+                })
+            }
+            api::PaymentMethodData::BankDebit(_) => {
+                let pre_auth = !item.request.is_auto_capture()?;
+                Ok(Self {
+                    meta: StaxPaymentsRequestMetaData { tax: 0 },
+                    total: item.request.amount,
+                    is_refundable: true,
+                    pre_auth,
+                    payment_method_id: Secret::new(item.get_payment_method_token()?),
                 })
             }
             _ => Err(errors::ConnectorError::NotImplemented("Payment methods".to_string()).into()),
@@ -47,7 +58,6 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for StaxPaymentsRequest {
     }
 }
 
-//TODO: Fill the struct with respective fields
 // Auth Struct
 pub struct StaxAuthType {
     pub(super) api_key: Secret<String>,
@@ -64,32 +74,187 @@ impl TryFrom<&types::ConnectorAuthType> for StaxAuthType {
         }
     }
 }
-// PaymentsResponse
-//TODO: Append the remaining status flags
-#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
-#[serde(rename_all = "lowercase")]
-pub enum StaxPaymentStatus {
-    Succeeded,
-    Failed,
-    #[default]
-    Processing,
+
+#[derive(Debug, Serialize)]
+pub struct StaxCustomerRequest {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    email: Option<Email>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    firstname: Option<String>,
 }
 
-impl From<StaxPaymentStatus> for enums::AttemptStatus {
-    fn from(item: StaxPaymentStatus) -> Self {
-        match item {
-            StaxPaymentStatus::Succeeded => Self::Charged,
-            StaxPaymentStatus::Failed => Self::Failure,
-            StaxPaymentStatus::Processing => Self::Authorizing,
+impl TryFrom<&types::ConnectorCustomerRouterData> for StaxCustomerRequest {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(item: &types::ConnectorCustomerRouterData) -> Result<Self, Self::Error> {
+        if item.request.email.is_none() && item.request.name.is_none() {
+            Err(errors::ConnectorError::MissingRequiredField {
+                field_name: "email or name",
+            })
+            .into_report()
+        } else {
+            Ok(Self {
+                email: item.request.email.to_owned(),
+                firstname: item.request.name.to_owned(),
+            })
         }
     }
 }
 
-//TODO: Fill the struct with respective fields
-#[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq)]
-pub struct StaxPaymentsResponse {
-    status: StaxPaymentStatus,
+#[derive(Debug, Deserialize)]
+pub struct StaxCustomerResponse {
+    id: Secret<String>,
+}
+
+impl<F, T>
+    TryFrom<types::ResponseRouterData<F, StaxCustomerResponse, T, types::PaymentsResponseData>>
+    for types::RouterData<F, T, types::PaymentsResponseData>
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        item: types::ResponseRouterData<F, StaxCustomerResponse, T, types::PaymentsResponseData>,
+    ) -> Result<Self, Self::Error> {
+        Ok(Self {
+            response: Ok(types::PaymentsResponseData::ConnectorCustomerResponse {
+                connector_customer_id: item.response.id.expose(),
+            }),
+            ..item.data
+        })
+    }
+}
+
+#[derive(Debug, Serialize)]
+pub struct StaxTokenizeData {
+    person_name: Secret<String>,
+    card_number: cards::CardNumber,
+    card_exp: Secret<String>,
+    card_cvv: Secret<String>,
+    customer_id: Secret<String>,
+}
+
+#[derive(Debug, Serialize)]
+pub struct StaxBankTokenizeData {
+    person_name: Secret<String>,
+    bank_account: Secret<String>,
+    bank_routing: Secret<String>,
+    bank_name: api_models::enums::BankNames,
+    bank_type: api_models::enums::BankType,
+    bank_holder_type: api_models::enums::BankHolderType,
+    customer_id: Secret<String>,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(tag = "method")]
+#[serde(rename_all = "lowercase")]
+pub enum StaxTokenRequest {
+    Card(StaxTokenizeData),
+    Bank(StaxBankTokenizeData),
+}
+
+impl TryFrom<&types::TokenizationRouterData> for StaxTokenRequest {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(item: &types::TokenizationRouterData) -> Result<Self, Self::Error> {
+        let customer_id = item.get_connector_customer_id()?;
+        match item.request.payment_method_data.clone() {
+            api::PaymentMethodData::Card(card_data) => {
+                let stax_card_data = StaxTokenizeData {
+                    card_exp: card_data
+                        .get_card_expiry_month_year_2_digit_with_delimiter("".to_string()),
+                    person_name: card_data.card_holder_name,
+                    card_number: card_data.card_number,
+                    card_cvv: card_data.card_cvc,
+                    customer_id: Secret::new(customer_id),
+                };
+                Ok(Self::Card(stax_card_data))
+            }
+            api_models::payments::PaymentMethodData::BankDebit(
+                api_models::payments::BankDebitData::AchBankDebit {
+                    billing_details,
+                    account_number,
+                    routing_number,
+                    bank_name,
+                    bank_type,
+                    bank_holder_type,
+                    ..
+                },
+            ) => {
+                let stax_bank_data = StaxBankTokenizeData {
+                    person_name: billing_details.name,
+                    bank_account: account_number,
+                    bank_routing: routing_number,
+                    bank_name: bank_name.ok_or_else(missing_field_err("bank_name"))?,
+                    bank_type: bank_type.ok_or_else(missing_field_err("bank_type"))?,
+                    bank_holder_type: bank_holder_type
+                        .ok_or_else(missing_field_err("bank_holder_type"))?,
+                    customer_id: Secret::new(customer_id),
+                };
+                Ok(Self::Bank(stax_bank_data))
+            }
+            api::PaymentMethodData::BankDebit(_)
+            | api::PaymentMethodData::Wallet(_)
+            | api::PaymentMethodData::PayLater(_)
+            | api::PaymentMethodData::BankRedirect(_)
+            | api::PaymentMethodData::BankTransfer(_)
+            | api::PaymentMethodData::Crypto(_)
+            | api::PaymentMethodData::MandatePayment
+            | api::PaymentMethodData::Reward
+            | api::PaymentMethodData::Voucher(_)
+            | api::PaymentMethodData::GiftCard(_)
+            | api::PaymentMethodData::CardRedirect(_)
+            | api::PaymentMethodData::Upi(_) => Err(errors::ConnectorError::NotImplemented(
+                "Payment Method".to_string(),
+            ))
+            .into_report(),
+        }
+    }
+}
+
+#[derive(Debug, Deserialize)]
+pub struct StaxTokenResponse {
+    id: Secret<String>,
+}
+
+impl<F, T> TryFrom<types::ResponseRouterData<F, StaxTokenResponse, T, types::PaymentsResponseData>>
+    for types::RouterData<F, T, types::PaymentsResponseData>
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        item: types::ResponseRouterData<F, StaxTokenResponse, T, types::PaymentsResponseData>,
+    ) -> Result<Self, Self::Error> {
+        Ok(Self {
+            response: Ok(types::PaymentsResponseData::TokenizationResponse {
+                token: item.response.id.expose(),
+            }),
+            ..item.data
+        })
+    }
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum StaxPaymentResponseTypes {
+    Charge,
+    PreAuth,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct StaxChildCapture {
     id: String,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct StaxPaymentsResponse {
+    success: bool,
+    id: String,
+    is_captured: i8,
+    is_voided: bool,
+    child_captures: Vec<StaxChildCapture>,
+    #[serde(rename = "type")]
+    payment_response_type: StaxPaymentResponseTypes,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+pub struct StaxMetaData {
+    pub capture_id: String,
 }
 
 impl<F, T>
@@ -100,13 +265,36 @@ impl<F, T>
     fn try_from(
         item: types::ResponseRouterData<F, StaxPaymentsResponse, T, types::PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
+        let mut connector_metadata = None;
+        let mut status = match item.response.success {
+            true => match item.response.payment_response_type {
+                StaxPaymentResponseTypes::Charge => enums::AttemptStatus::Charged,
+                StaxPaymentResponseTypes::PreAuth => match item.response.is_captured {
+                    0 => enums::AttemptStatus::Authorized,
+                    _ => {
+                        connector_metadata =
+                            item.response.child_captures.first().map(|child_captures| {
+                                serde_json::json!(StaxMetaData {
+                                    capture_id: child_captures.id.clone()
+                                })
+                            });
+                        enums::AttemptStatus::Charged
+                    }
+                },
+            },
+            false => enums::AttemptStatus::Failure,
+        };
+        if item.response.is_voided {
+            status = enums::AttemptStatus::Voided;
+        }
+
         Ok(Self {
-            status: enums::AttemptStatus::from(item.response.status),
+            status,
             response: Ok(types::PaymentsResponseData::TransactionResponse {
                 resource_id: types::ResponseId::ConnectorTransactionId(item.response.id),
                 redirection_data: None,
                 mandate_reference: None,
-                connector_metadata: None,
+                connector_metadata,
                 network_txn_id: None,
                 connector_response_reference_id: None,
             }),
@@ -115,50 +303,48 @@ impl<F, T>
     }
 }
 
-//TODO: Fill the struct with respective fields
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct StaxCaptureRequest {
+    total: Option<i64>,
+}
+
+impl TryFrom<&types::PaymentsCaptureRouterData> for StaxCaptureRequest {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(item: &types::PaymentsCaptureRouterData) -> Result<Self, Self::Error> {
+        let total = item.request.amount_to_capture;
+        Ok(Self { total: Some(total) })
+    }
+}
+
 // REFUND :
 // Type definition for RefundRequest
-#[derive(Default, Debug, Serialize)]
+#[derive(Debug, Serialize)]
 pub struct StaxRefundRequest {
-    pub amount: i64,
+    pub total: i64,
 }
 
 impl<F> TryFrom<&types::RefundsRouterData<F>> for StaxRefundRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::RefundsRouterData<F>) -> Result<Self, Self::Error> {
         Ok(Self {
-            amount: item.request.refund_amount,
+            total: item.request.refund_amount,
         })
     }
 }
 
-// Type definition for Refund Response
-
-#[allow(dead_code)]
-#[derive(Debug, Serialize, Default, Deserialize, Clone)]
-pub enum RefundStatus {
-    Succeeded,
-    Failed,
-    #[default]
-    Processing,
+#[derive(Debug, Deserialize)]
+pub struct ChildTransactionsInResponse {
+    id: String,
+    success: bool,
+    created_at: String,
+    total: i64,
 }
-
-impl From<RefundStatus> for enums::RefundStatus {
-    fn from(item: RefundStatus) -> Self {
-        match item {
-            RefundStatus::Succeeded => Self::Success,
-            RefundStatus::Failed => Self::Failure,
-            RefundStatus::Processing => Self::Pending,
-            //TODO: Review mapping
-        }
-    }
-}
-
-//TODO: Fill the struct with respective fields
-#[derive(Default, Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Deserialize)]
 pub struct RefundResponse {
     id: String,
-    status: RefundStatus,
+    success: bool,
+    child_transactions: Vec<ChildTransactionsInResponse>,
 }
 
 impl TryFrom<types::RefundsResponseRouterData<api::Execute, RefundResponse>>
@@ -168,10 +354,32 @@ impl TryFrom<types::RefundsResponseRouterData<api::Execute, RefundResponse>>
     fn try_from(
         item: types::RefundsResponseRouterData<api::Execute, RefundResponse>,
     ) -> Result<Self, Self::Error> {
+        let filtered_txn: Vec<&ChildTransactionsInResponse> = item
+            .response
+            .child_transactions
+            .iter()
+            .filter(|txn| txn.total == item.data.request.refund_amount)
+            .collect();
+
+        let mut refund_txn = filtered_txn
+            .first()
+            .ok_or(errors::ConnectorError::ResponseHandlingFailed)?;
+
+        for child in filtered_txn.iter() {
+            if child.created_at > refund_txn.created_at {
+                refund_txn = child;
+            }
+        }
+
+        let refund_status = match refund_txn.success {
+            true => enums::RefundStatus::Success,
+            false => enums::RefundStatus::Failure,
+        };
+
         Ok(Self {
             response: Ok(types::RefundsResponseData {
-                connector_refund_id: item.response.id.to_string(),
-                refund_status: enums::RefundStatus::from(item.response.status),
+                connector_refund_id: refund_txn.id.clone(),
+                refund_status,
             }),
             ..item.data
         })
@@ -185,21 +393,37 @@ impl TryFrom<types::RefundsResponseRouterData<api::RSync, RefundResponse>>
     fn try_from(
         item: types::RefundsResponseRouterData<api::RSync, RefundResponse>,
     ) -> Result<Self, Self::Error> {
+        let refund_status = match item.response.success {
+            true => enums::RefundStatus::Success,
+            false => enums::RefundStatus::Failure,
+        };
         Ok(Self {
             response: Ok(types::RefundsResponseData {
-                connector_refund_id: item.response.id.to_string(),
-                refund_status: enums::RefundStatus::from(item.response.status),
+                connector_refund_id: item.response.id,
+                refund_status,
             }),
             ..item.data
         })
     }
 }
 
-//TODO: Fill the struct with respective fields
-#[derive(Default, Debug, Serialize, Deserialize, PartialEq)]
-pub struct StaxErrorResponse {
-    pub status_code: u16,
-    pub code: String,
-    pub message: String,
-    pub reason: Option<String>,
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum StaxWebhookEventType {
+    PreAuth,
+    Capture,
+    Charge,
+    Void,
+    Refund,
+    #[serde(other)]
+    Unknown,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct StaxWebhookBody {
+    #[serde(rename = "type")]
+    pub transaction_type: StaxWebhookEventType,
+    pub id: String,
+    pub auth_id: Option<String>,
+    pub success: bool,
 }

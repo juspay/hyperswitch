@@ -1,5 +1,6 @@
 use std::marker::PhantomData;
 
+use api_models::enums::CancelTransaction;
 use async_trait::async_trait;
 use error_stack::ResultExt;
 use router_derive::PaymentOperation;
@@ -233,6 +234,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Co
                 connector_customer_id: None,
                 recurring_mandate_payment_data,
                 ephemeral_key: None,
+                multiple_capture_data: None,
                 redirect_response,
                 frm_message: None,
             },
@@ -310,7 +312,7 @@ impl<F: Clone + Send> Domain<F, api::PaymentsRequest> for CompleteAuthorize {
         _merchant_account: &domain::MerchantAccount,
         state: &AppState,
         request: &api::PaymentsRequest,
-        _payment_intent: &storage::payment_intent::PaymentIntent,
+        _payment_intent: &storage::PaymentIntent,
         _key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<api::ConnectorChoice, errors::ApiErrorResponse> {
         // Use a new connector in the confirm call or use the same one which was passed when
@@ -330,6 +332,7 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Comple
         _storage_scheme: storage_enums::MerchantStorageScheme,
         _updated_customer: Option<storage::CustomerUpdate>,
         _merchant_key_store: &domain::MerchantKeyStore,
+        _should_cancel_transaction: Option<CancelTransaction>,
     ) -> RouterResult<(BoxedOperation<'b, F, api::PaymentsRequest>, PaymentData<F>)>
     where
         F: 'b + Send,

@@ -32,6 +32,7 @@ pub struct MerchantConnectorAccount {
     pub created_at: time::PrimitiveDateTime,
     pub modified_at: time::PrimitiveDateTime,
     pub connector_webhook_details: Option<pii::SecretSerdeValue>,
+    pub profile_id: Option<String>,
 }
 
 #[derive(Debug)]
@@ -71,7 +72,8 @@ impl behaviour::Conversion for MerchantConnectorAccount {
                 payment_methods_enabled: self.payment_methods_enabled,
                 connector_type: self.connector_type,
                 metadata: self.metadata,
-                frm_configs: self.frm_configs,
+                frm_configs: None,
+                frm_config: self.frm_configs,
                 business_country: self.business_country,
                 business_label: self.business_label,
                 connector_label: self.connector_label,
@@ -79,6 +81,7 @@ impl behaviour::Conversion for MerchantConnectorAccount {
                 created_at: self.created_at,
                 modified_at: self.modified_at,
                 connector_webhook_details: self.connector_webhook_details,
+                profile_id: self.profile_id,
             },
         )
     }
@@ -107,7 +110,7 @@ impl behaviour::Conversion for MerchantConnectorAccount {
             connector_type: other.connector_type,
             metadata: other.metadata,
 
-            frm_configs: other.frm_configs,
+            frm_configs: other.frm_config,
             business_country: other.business_country,
             business_label: other.business_label,
             connector_label: other.connector_label,
@@ -115,6 +118,7 @@ impl behaviour::Conversion for MerchantConnectorAccount {
             created_at: other.created_at,
             modified_at: other.modified_at,
             connector_webhook_details: other.connector_webhook_details,
+            profile_id: other.profile_id,
         })
     }
 
@@ -130,7 +134,8 @@ impl behaviour::Conversion for MerchantConnectorAccount {
             payment_methods_enabled: self.payment_methods_enabled,
             connector_type: Some(self.connector_type),
             metadata: self.metadata,
-            frm_configs: self.frm_configs,
+            frm_configs: None,
+            frm_config: self.frm_configs,
             business_country: self.business_country,
             business_label: self.business_label,
             connector_label: self.connector_label,
@@ -138,6 +143,7 @@ impl behaviour::Conversion for MerchantConnectorAccount {
             created_at: now,
             modified_at: now,
             connector_webhook_details: self.connector_webhook_details,
+            profile_id: self.profile_id,
         })
     }
 }
@@ -167,7 +173,8 @@ impl From<MerchantConnectorAccountUpdate> for MerchantConnectorAccountUpdateInte
                 merchant_connector_id,
                 payment_methods_enabled,
                 metadata,
-                frm_configs,
+                frm_configs: None,
+                frm_config: frm_configs,
                 modified_at: Some(common_utils::date_time::now()),
                 connector_webhook_details,
             },

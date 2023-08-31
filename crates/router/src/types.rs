@@ -11,7 +11,7 @@ pub mod domain;
 pub mod storage;
 pub mod transformers;
 
-use std::marker::PhantomData;
+use std::{collections::HashMap, marker::PhantomData};
 
 pub use api_models::{
     enums::{Connector, PayoutConnectors},
@@ -40,6 +40,8 @@ pub type PaymentsCompleteAuthorizeRouterData =
     RouterData<api::CompleteAuthorize, CompleteAuthorizeData, PaymentsResponseData>;
 pub type PaymentsInitRouterData =
     RouterData<api::InitPayment, PaymentsAuthorizeData, PaymentsResponseData>;
+pub type PaymentsBalanceRouterData =
+    RouterData<api::Balance, PaymentsAuthorizeData, PaymentsResponseData>;
 pub type PaymentsSyncRouterData = RouterData<api::PSync, PaymentsSyncData, PaymentsResponseData>;
 pub type PaymentsCaptureRouterData =
     RouterData<api::Capture, PaymentsCaptureData, PaymentsResponseData>;
@@ -61,6 +63,8 @@ pub type PaymentsResponseRouterData<R> =
     ResponseRouterData<api::Authorize, R, PaymentsAuthorizeData, PaymentsResponseData>;
 pub type PaymentsCancelResponseRouterData<R> =
     ResponseRouterData<api::Void, R, PaymentsCancelData, PaymentsResponseData>;
+pub type PaymentsBalanceResponseRouterData<R> =
+    ResponseRouterData<api::Balance, R, PaymentsAuthorizeData, PaymentsResponseData>;
 pub type PaymentsSyncResponseRouterData<R> =
     ResponseRouterData<api::PSync, R, PaymentsSyncData, PaymentsResponseData>;
 pub type PaymentsSessionResponseRouterData<R> =
@@ -109,6 +113,8 @@ pub type PaymentsInitType = dyn services::ConnectorIntegration<
     PaymentsAuthorizeData,
     PaymentsResponseData,
 >;
+pub type PaymentsBalanceType =
+    dyn services::ConnectorIntegration<api::Balance, PaymentsAuthorizeData, PaymentsResponseData>;
 pub type PaymentsSyncType =
     dyn services::ConnectorIntegration<api::PSync, PaymentsSyncData, PaymentsResponseData>;
 pub type PaymentsCaptureType =
@@ -230,6 +236,11 @@ pub struct RouterData<Flow, Request, Response> {
     pub payment_method_token: Option<String>,
     pub recurring_mandate_payment_data: Option<RecurringMandatePaymentData>,
     pub preprocessing_id: Option<String>,
+    /// This is the balance amount for gift cards or voucher
+    pub payment_method_balance: Option<PaymentMethodBalance>,
+
+    ///for switching between two different versions of the same connector
+    pub connector_api_version: Option<String>,
 
     /// Contains flow-specific data required to construct a request and send it to the connector.
     pub request: Request,
@@ -252,6 +263,13 @@ pub struct RouterData<Flow, Request, Response> {
     pub quote_id: Option<String>,
 
     pub test_mode: Option<bool>,
+    pub connector_http_status_code: Option<u16>,
+}
+
+#[derive(Debug, Clone)]
+pub struct PaymentMethodBalance {
+    pub amount: i64,
+    pub currency: String,
 }
 
 #[cfg(feature = "payouts")]
@@ -317,7 +335,15 @@ pub struct PaymentsCaptureData {
     pub currency: storage_enums::Currency,
     pub connector_transaction_id: String,
     pub payment_amount: i64,
+    pub multiple_capture_data: Option<MultipleCaptureRequestData>,
     pub connector_meta: Option<serde_json::Value>,
+}
+
+#[allow(dead_code)]
+#[derive(Debug, Clone, Default)]
+pub struct MultipleCaptureRequestData {
+    pub capture_sequence: i16,
+    pub capture_reference: String,
 }
 
 #[derive(Debug, Clone)]
@@ -350,6 +376,11 @@ pub struct PaymentsPreProcessingData {
     pub email: Option<Email>,
     pub currency: Option<storage_enums::Currency>,
     pub payment_method_type: Option<storage_enums::PaymentMethodType>,
+    pub setup_mandate_details: Option<payments::MandateData>,
+    pub capture_method: Option<storage_enums::CaptureMethod>,
+    pub order_details: Option<Vec<api_models::payments::OrderDetailsWithAmount>>,
+    pub router_return_url: Option<String>,
+    pub webhook_url: Option<String>,
 }
 
 #[derive(Debug, Clone)]
@@ -385,7 +416,15 @@ pub struct PaymentsSyncData {
     pub encoded_data: Option<String>,
     pub capture_method: Option<storage_enums::CaptureMethod>,
     pub connector_meta: Option<serde_json::Value>,
+    pub capture_sync_type: CaptureSyncType,
     pub mandate_id: Option<api_models::payments::MandateIds>,
+}
+
+#[derive(Debug, Default, Clone)]
+pub enum CaptureSyncType {
+    MultipleCaptureSync(Vec<String>),
+    #[default]
+    SingleCaptureSync,
 }
 
 #[derive(Debug, Default, Clone)]
@@ -475,6 +514,21 @@ pub struct MandateReference {
 }
 
 #[derive(Debug, Clone)]
+pub enum CaptureSyncResponse {
+    Success {
+        resource_id: ResponseId,
+        status: storage_enums::AttemptStatus,
+        connector_response_reference_id: Option<String>,
+    },
+    Error {
+        code: String,
+        message: String,
+        reason: Option<String>,
+        status_code: u16,
+    },
+}
+
+#[derive(Debug, Clone)]
 pub enum PaymentsResponseData {
     TransactionResponse {
         resource_id: ResponseId,
@@ -483,6 +537,10 @@ pub enum PaymentsResponseData {
         connector_metadata: Option<serde_json::Value>,
         network_txn_id: Option<String>,
         connector_response_reference_id: Option<String>,
+    },
+    MultipleCaptureResponse {
+        // pending_capture_id_list: Vec<String>,
+        capture_sync_response_list: HashMap<String, CaptureSyncResponse>,
     },
     SessionResponse {
         session_token: api::SessionToken,
@@ -723,6 +781,9 @@ pub enum ConnectorAuthType {
         api_secret: Secret<String>,
         key2: Secret<String>,
     },
+    CurrencyAuthKey {
+        auth_key_map: HashMap<storage_enums::Currency, pii::SecretSerdeValue>,
+    },
     #[default]
     NoKey,
 }
@@ -899,6 +960,9 @@ impl<F1, F2, T1, T2> From<(&RouterData<F1, T1, PaymentsResponseData>, T2)>
             #[cfg(feature = "payouts")]
             quote_id: data.quote_id.clone(),
             test_mode: data.test_mode,
+            payment_method_balance: data.payment_method_balance.clone(),
+            connector_api_version: data.connector_api_version.clone(),
+            connector_http_status_code: data.connector_http_status_code,
         }
     }
 }
@@ -969,6 +1033,9 @@ impl<F1, F2>
             payout_method_data: data.payout_method_data.clone(),
             quote_id: data.quote_id.clone(),
             test_mode: data.test_mode,
+            payment_method_balance: None,
+            connector_api_version: None,
+            connector_http_status_code: data.connector_http_status_code,
         }
     }
 }

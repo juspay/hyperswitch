@@ -5,6 +5,7 @@ pub mod ext_traits;
 #[cfg(feature = "kv_store")]
 pub mod storage_partitioning;
 
+use api_models::{payments, webhooks};
 use base64::Engine;
 pub use common_utils::{
     crypto,
@@ -17,13 +18,17 @@ use image::Luma;
 use nanoid::nanoid;
 use qrcode;
 use serde::de::DeserializeOwned;
+use serde_json::Value;
 use uuid::Uuid;
 
 pub use self::ext_traits::{OptionExt, ValidateCall};
 use crate::{
     consts,
-    core::errors::{self, RouterResult},
-    logger, types,
+    core::errors::{self, CustomResult, RouterResult, StorageErrorExt},
+    db::StorageInterface,
+    logger,
+    routes::metrics,
+    types::{self, domain, storage},
 };
 
 pub mod error_parser {
@@ -129,51 +134,6 @@ impl<E> ConnectorResponseExt
     }
 }
 
-/// Convert the amount to its base denomination based on Currency and return String
-pub fn to_currency_base_unit(
-    amount: i64,
-    currency: diesel_models::enums::Currency,
-) -> Result<String, error_stack::Report<errors::ValidationError>> {
-    let amount_f64 = to_currency_base_unit_asf64(amount, currency)?;
-    Ok(format!("{amount_f64:.2}"))
-}
-
-/// Convert the amount to its base denomination based on Currency and check for zero decimal currency and return String
-/// Paypal Connector accepts Zero and Two decimal currency but not three decimal and it should be updated as required for 3 decimal currencies.
-/// Paypal Ref - https://developer.paypal.com/docs/reports/reference/paypal-supported-currencies/
-pub fn to_currency_base_unit_with_zero_decimal_check(
-    amount: i64,
-    currency: diesel_models::enums::Currency,
-) -> Result<String, error_stack::Report<errors::ValidationError>> {
-    let amount_f64 = to_currency_base_unit_asf64(amount, currency)?;
-    if currency.is_zero_decimal_currency() {
-        Ok(amount_f64.to_string())
-    } else {
-        Ok(format!("{amount_f64:.2}"))
-    }
-}
-
-/// Convert the amount to its base denomination based on Currency and return f64
-pub fn to_currency_base_unit_asf64(
-    amount: i64,
-    currency: diesel_models::enums::Currency,
-) -> Result<f64, error_stack::Report<errors::ValidationError>> {
-    let amount_u32 = u32::try_from(amount).into_report().change_context(
-        errors::ValidationError::InvalidValue {
-            message: amount.to_string(),
-        },
-    )?;
-    let amount_f64 = f64::from(amount_u32);
-    let amount = if currency.is_zero_decimal_currency() {
-        amount_f64
-    } else if currency.is_three_decimal_currency() {
-        amount_f64 / 1000.00
-    } else {
-        amount_f64 / 100.00
-    };
-    Ok(amount)
-}
-
 #[inline]
 pub fn get_payment_attempt_id(payment_id: impl std::fmt::Display, attempt_count: i16) -> String {
     format!("{payment_id}_{attempt_count}")
@@ -219,5 +179,231 @@ mod tests {
     fn test_image_data_source_url() {
         let qr_image_data_source_url = utils::QrImage::new_from_data("Hyperswitch".to_string());
         assert!(qr_image_data_source_url.is_ok());
+    }
+}
+
+pub async fn find_payment_intent_from_payment_id_type(
+    db: &dyn StorageInterface,
+    payment_id_type: payments::PaymentIdType,
+    merchant_account: &domain::MerchantAccount,
+) -> CustomResult<storage::PaymentIntent, errors::ApiErrorResponse> {
+    match payment_id_type {
+        payments::PaymentIdType::PaymentIntentId(payment_id) => db
+            .find_payment_intent_by_payment_id_merchant_id(
+                &payment_id,
+                &merchant_account.merchant_id,
+                merchant_account.storage_scheme,
+            )
+            .await
+            .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound),
+        payments::PaymentIdType::ConnectorTransactionId(connector_transaction_id) => {
+            let attempt = db
+                .find_payment_attempt_by_merchant_id_connector_txn_id(
+                    &merchant_account.merchant_id,
+                    &connector_transaction_id,
+                    merchant_account.storage_scheme,
+                )
+                .await
+                .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
+            db.find_payment_intent_by_payment_id_merchant_id(
+                &attempt.payment_id,
+                &merchant_account.merchant_id,
+                merchant_account.storage_scheme,
+            )
+            .await
+            .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)
+        }
+        payments::PaymentIdType::PaymentAttemptId(attempt_id) => {
+            let attempt = db
+                .find_payment_attempt_by_attempt_id_merchant_id(
+                    &attempt_id,
+                    &merchant_account.merchant_id,
+                    merchant_account.storage_scheme,
+                )
+                .await
+                .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
+            db.find_payment_intent_by_payment_id_merchant_id(
+                &attempt.payment_id,
+                &merchant_account.merchant_id,
+                merchant_account.storage_scheme,
+            )
+            .await
+            .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)
+        }
+        payments::PaymentIdType::PreprocessingId(_) => {
+            Err(errors::ApiErrorResponse::PaymentNotFound)?
+        }
+    }
+}
+
+pub async fn find_payment_intent_from_refund_id_type(
+    db: &dyn StorageInterface,
+    refund_id_type: webhooks::RefundIdType,
+    merchant_account: &domain::MerchantAccount,
+    connector_name: &str,
+) -> CustomResult<storage::PaymentIntent, errors::ApiErrorResponse> {
+    let refund = match refund_id_type {
+        webhooks::RefundIdType::RefundId(id) => db
+            .find_refund_by_merchant_id_refund_id(
+                &merchant_account.merchant_id,
+                &id,
+                merchant_account.storage_scheme,
+            )
+            .await
+            .to_not_found_response(errors::ApiErrorResponse::RefundNotFound)?,
+        webhooks::RefundIdType::ConnectorRefundId(id) => db
+            .find_refund_by_merchant_id_connector_refund_id_connector(
+                &merchant_account.merchant_id,
+                &id,
+                connector_name,
+                merchant_account.storage_scheme,
+            )
+            .await
+            .to_not_found_response(errors::ApiErrorResponse::RefundNotFound)?,
+    };
+    let attempt = db
+        .find_payment_attempt_by_attempt_id_merchant_id(
+            &refund.attempt_id,
+            &merchant_account.merchant_id,
+            merchant_account.storage_scheme,
+        )
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
+    db.find_payment_intent_by_payment_id_merchant_id(
+        &attempt.payment_id,
+        &merchant_account.merchant_id,
+        merchant_account.storage_scheme,
+    )
+    .await
+    .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)
+}
+
+pub async fn get_connector_label_using_object_reference_id(
+    db: &dyn StorageInterface,
+    object_reference_id: webhooks::ObjectReferenceId,
+    merchant_account: &domain::MerchantAccount,
+    connector_name: &str,
+) -> CustomResult<String, errors::ApiErrorResponse> {
+    let mut primary_business_details = merchant_account
+        .primary_business_details
+        .clone()
+        .parse_value::<Vec<api_models::admin::PrimaryBusinessDetails>>("PrimaryBusinessDetails")
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("failed to parse primary business details")?;
+    //check if there is only one primary business details and get those details
+    let (option_business_country, option_business_label) = match primary_business_details.pop() {
+        Some(business_details) => {
+            if primary_business_details.is_empty() {
+                (
+                    Some(business_details.country),
+                    Some(business_details.business),
+                )
+            } else {
+                (None, None)
+            }
+        }
+        None => (None, None),
+    };
+    match (option_business_country, option_business_label) {
+        (Some(business_country), Some(business_label)) => Ok(format!(
+            "{connector_name}_{}_{}",
+            business_country, business_label
+        )),
+        _ => {
+            let payment_intent = match object_reference_id {
+                webhooks::ObjectReferenceId::PaymentId(payment_id_type) => {
+                    find_payment_intent_from_payment_id_type(db, payment_id_type, merchant_account)
+                        .await?
+                }
+                webhooks::ObjectReferenceId::RefundId(refund_id_type) => {
+                    find_payment_intent_from_refund_id_type(
+                        db,
+                        refund_id_type,
+                        merchant_account,
+                        connector_name,
+                    )
+                    .await?
+                }
+            };
+            Ok(format!(
+                "{connector_name}_{}_{}",
+                payment_intent.business_country, payment_intent.business_label
+            ))
+        }
+    }
+}
+
+// validate json format for the error
+pub fn handle_json_response_deserialization_failure(
+    res: types::Response,
+    connector: String,
+) -> CustomResult<types::ErrorResponse, errors::ConnectorError> {
+    metrics::RESPONSE_DESERIALIZATION_FAILURE.add(
+        &metrics::CONTEXT,
+        1,
+        &[metrics::request::add_attributes("connector", connector)],
+    );
+
+    let response_data = String::from_utf8(res.response.to_vec())
+        .into_report()
+        .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+
+    // check for whether the response is in json format
+    match serde_json::from_str::<Value>(&response_data) {
+        // in case of unexpected response but in json format
+        Ok(_) => Err(errors::ConnectorError::ResponseDeserializationFailed)?,
+        // in case of unexpected response but in html or string format
+        Err(error_msg) => {
+            logger::error!(deserialization_error=?error_msg);
+            logger::error!("UNEXPECTED RESPONSE FROM CONNECTOR: {}", response_data);
+            Ok(types::ErrorResponse {
+                status_code: res.status_code,
+                code: consts::NO_ERROR_CODE.to_string(),
+                message: consts::UNSUPPORTED_ERROR_MESSAGE.to_string(),
+                reason: Some(response_data),
+            })
+        }
+    }
+}
+
+pub fn get_http_status_code_type(
+    status_code: u16,
+) -> CustomResult<String, errors::ApiErrorResponse> {
+    let status_code_type = match status_code {
+        100..=199 => "1xx",
+        200..=299 => "2xx",
+        300..=399 => "3xx",
+        400..=499 => "4xx",
+        500..=599 => "5xx",
+        _ => Err(errors::ApiErrorResponse::InternalServerError)
+            .into_report()
+            .attach_printable("Invalid http status code")?,
+    };
+    Ok(status_code_type.to_string())
+}
+
+pub fn add_connector_http_status_code_metrics(option_status_code: Option<u16>) {
+    if let Some(status_code) = option_status_code {
+        let status_code_type = get_http_status_code_type(status_code).ok();
+        match status_code_type.as_deref() {
+            Some("1xx") => {
+                metrics::CONNECTOR_HTTP_STATUS_CODE_1XX_COUNT.add(&metrics::CONTEXT, 1, &[])
+            }
+            Some("2xx") => {
+                metrics::CONNECTOR_HTTP_STATUS_CODE_2XX_COUNT.add(&metrics::CONTEXT, 1, &[])
+            }
+            Some("3xx") => {
+                metrics::CONNECTOR_HTTP_STATUS_CODE_3XX_COUNT.add(&metrics::CONTEXT, 1, &[])
+            }
+            Some("4xx") => {
+                metrics::CONNECTOR_HTTP_STATUS_CODE_4XX_COUNT.add(&metrics::CONTEXT, 1, &[])
+            }
+            Some("5xx") => {
+                metrics::CONNECTOR_HTTP_STATUS_CODE_5XX_COUNT.add(&metrics::CONTEXT, 1, &[])
+            }
+            _ => logger::info!("Skip metrics as invalid http status code received from connector"),
+        };
+    } else {
+        logger::info!("Skip metrics as no http status code received from connector")
     }
 }

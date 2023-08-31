@@ -1,4 +1,4 @@
-mod transformers;
+pub mod transformers;
 
 use std::fmt::Debug;
 
@@ -22,7 +22,7 @@ use crate::{
     services::{
         self,
         request::{self, Mask},
-        ConnectorIntegration,
+        ConnectorIntegration, ConnectorValidation,
     },
     types::{
         self,
@@ -83,13 +83,6 @@ impl ConnectorCommon for Zen {
     fn common_get_content_type(&self) -> &'static str {
         mime::APPLICATION_JSON.essence_str()
     }
-    fn validate_auth_type(
-        &self,
-        val: &types::ConnectorAuthType,
-    ) -> Result<(), error_stack::Report<errors::ConnectorError>> {
-        zen::ZenAuthType::try_from(val)?;
-        Ok(())
-    }
 
     fn base_url<'a>(&self, connectors: &'a settings::Connectors) -> &'a str {
         connectors.zen.base_url.as_ref()
@@ -134,6 +127,8 @@ impl ConnectorCommon for Zen {
         })
     }
 }
+
+impl ConnectorValidation for Zen {}
 
 impl ConnectorIntegration<api::Session, types::PaymentsSessionData, types::PaymentsResponseData>
     for Zen
@@ -221,6 +216,7 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         req: &types::PaymentsAuthorizeRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
+        self.validate_capture_method(req.request.capture_method)?;
         Ok(Some(
             services::RequestBuilder::new()
                 .method(services::Method::Post)
@@ -553,10 +549,13 @@ impl api::IncomingWebhook for Zen {
             .body
             .parse_struct("ZenWebhookBody")
             .change_context(errors::ConnectorError::WebhookSignatureNotFound)?;
-        let msg = webhook_body.merchant_transaction_id
-            + &webhook_body.currency
-            + &webhook_body.amount
-            + &webhook_body.status.to_string().to_uppercase();
+        let msg = format!(
+            "{}{}{}{}",
+            webhook_body.merchant_transaction_id,
+            webhook_body.currency,
+            webhook_body.amount,
+            webhook_body.status.to_string().to_uppercase()
+        );
         Ok(msg.into_bytes())
     }
 
@@ -564,9 +563,10 @@ impl api::IncomingWebhook for Zen {
         &self,
         db: &dyn StorageInterface,
         request: &api::IncomingWebhookRequestDetails<'_>,
-        merchant_id: &str,
+        merchant_account: &domain::MerchantAccount,
         connector_label: &str,
         key_store: &domain::MerchantKeyStore,
+        object_reference_id: api_models::webhooks::ObjectReferenceId,
     ) -> CustomResult<bool, errors::ConnectorError> {
         let algorithm = self.get_webhook_source_verification_algorithm(request)?;
 
@@ -574,13 +574,17 @@ impl api::IncomingWebhook for Zen {
         let mut secret = self
             .get_webhook_source_verification_merchant_secret(
                 db,
-                merchant_id,
+                merchant_account,
                 connector_label,
                 key_store,
+                object_reference_id,
             )
             .await?;
-        let mut message =
-            self.get_webhook_source_verification_message(request, merchant_id, &secret)?;
+        let mut message = self.get_webhook_source_verification_message(
+            request,
+            &merchant_account.merchant_id,
+            &secret,
+        )?;
         message.append(&mut secret);
         algorithm
             .verify_signature(&secret, &signature, &message)

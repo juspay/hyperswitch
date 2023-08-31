@@ -1,3 +1,5 @@
+use std::num::TryFromIntError;
+
 use router_derive;
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
@@ -5,11 +7,12 @@ use utoipa::ToSchema;
 pub mod diesel_exports {
     pub use super::{
         DbAttemptStatus as AttemptStatus, DbAuthenticationType as AuthenticationType,
-        DbCaptureMethod as CaptureMethod, DbConnectorType as ConnectorType,
-        DbCountryAlpha2 as CountryAlpha2, DbCurrency as Currency, DbDisputeStage as DisputeStage,
-        DbDisputeStatus as DisputeStatus, DbEventType as EventType, DbFutureUsage as FutureUsage,
-        DbIntentStatus as IntentStatus, DbMandateStatus as MandateStatus,
-        DbPaymentMethodIssuerCode as PaymentMethodIssuerCode, DbRefundStatus as RefundStatus,
+        DbCaptureMethod as CaptureMethod, DbCaptureStatus as CaptureStatus,
+        DbConnectorType as ConnectorType, DbCountryAlpha2 as CountryAlpha2, DbCurrency as Currency,
+        DbDisputeStage as DisputeStage, DbDisputeStatus as DisputeStatus, DbEventType as EventType,
+        DbFutureUsage as FutureUsage, DbIntentStatus as IntentStatus,
+        DbMandateStatus as MandateStatus, DbPaymentMethodIssuerCode as PaymentMethodIssuerCode,
+        DbRefundStatus as RefundStatus,
     };
 }
 
@@ -89,6 +92,35 @@ pub enum AuthenticationType {
     Debug,
     Default,
     Eq,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    strum::EnumString,
+    ToSchema,
+    Hash,
+)]
+#[router_derive::diesel_enum(storage_type = "pg_enum")]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum CaptureStatus {
+    // Capture request initiated
+    #[default]
+    Started,
+    // Capture request was successful
+    Charged,
+    // Capture is pending at connector side
+    Pending,
+    // Capture request failed
+    Failed,
+}
+
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Default,
+    Eq,
     Hash,
     PartialEq,
     serde::Deserialize,
@@ -144,6 +176,8 @@ pub enum ConnectorType {
     BankingEntities,
     /// All types of non-banking financial institutions including Insurance, Credit / Lending etc
     NonBankingFinance,
+    /// Acquirers, Gateways etc
+    PayoutProcessor,
 }
 
 #[allow(clippy::upper_case_acronyms)]
@@ -289,6 +323,40 @@ pub enum Currency {
 }
 
 impl Currency {
+    /// Convert the amount to its base denomination based on Currency and return String
+    pub fn to_currency_base_unit(&self, amount: i64) -> Result<String, TryFromIntError> {
+        let amount_f64 = self.to_currency_base_unit_asf64(amount)?;
+        Ok(format!("{amount_f64:.2}"))
+    }
+
+    /// Convert the amount to its base denomination based on Currency and return f64
+    pub fn to_currency_base_unit_asf64(&self, amount: i64) -> Result<f64, TryFromIntError> {
+        let amount_f64: f64 = u32::try_from(amount)?.into();
+        let amount = if self.is_zero_decimal_currency() {
+            amount_f64
+        } else if self.is_three_decimal_currency() {
+            amount_f64 / 1000.00
+        } else {
+            amount_f64 / 100.00
+        };
+        Ok(amount)
+    }
+
+    /// Convert the amount to its base denomination based on Currency and check for zero decimal currency and return String
+    /// Paypal Connector accepts Zero and Two decimal currency but not three decimal and it should be updated as required for 3 decimal currencies.
+    /// Paypal Ref - https://developer.paypal.com/docs/reports/reference/paypal-supported-currencies/
+    pub fn to_currency_base_unit_with_zero_decimal_check(
+        &self,
+        amount: i64,
+    ) -> Result<String, TryFromIntError> {
+        let amount_f64 = self.to_currency_base_unit_asf64(amount)?;
+        if self.is_zero_decimal_currency() {
+            Ok(amount_f64.to_string())
+        } else {
+            Ok(format!("{amount_f64:.2}"))
+        }
+    }
+
     pub fn iso_4217(&self) -> &'static str {
         match *self {
             Self::AED => "784",
@@ -672,6 +740,7 @@ impl Currency {
     serde::Serialize,
     strum::Display,
     strum::EnumString,
+    ToSchema,
 )]
 #[router_derive::diesel_enum(storage_type = "pg_enum")]
 #[serde(rename_all = "snake_case")]
@@ -720,6 +789,7 @@ pub enum IntentStatus {
     #[default]
     RequiresConfirmation,
     RequiresCapture,
+    PartiallyCaptured,
 }
 
 #[derive(
@@ -728,10 +798,13 @@ pub enum IntentStatus {
     Debug,
     Default,
     Eq,
+    Hash,
     PartialEq,
     serde::Deserialize,
     serde::Serialize,
     strum::Display,
+    strum::EnumVariantNames,
+    strum::EnumIter,
     strum::EnumString,
     ToSchema,
 )]
@@ -804,6 +877,8 @@ pub enum PaymentExperience {
     LinkWallet,
     /// Contains the data for invoking the sdk client for completing the payment.
     InvokePaymentApp,
+    /// Contains the data for displaying wait screen
+    DisplayWaitScreen,
 }
 
 #[derive(
@@ -828,6 +903,7 @@ pub enum PaymentMethodType {
     Ach,
     Affirm,
     AfterpayClearpay,
+    Alfamart,
     AliPay,
     AliPayHk,
     Alma,
@@ -836,29 +912,41 @@ pub enum PaymentMethodType {
     Bacs,
     BancontactCard,
     Becs,
+    Benefit,
     Bizum,
     Blik,
     Boleto,
+    BcaBankTransfer,
+    BniVa,
+    BriVa,
+    CimbVa,
     #[serde(rename = "classic")]
     ClassicReward,
     Credit,
     CryptoCurrency,
+    Cashapp,
     Dana,
+    DanamonVa,
     Debit,
     Efecty,
     Eps,
     Evoucher,
     Giropay,
+    Givex,
     GooglePay,
     GoPay,
     Gcash,
     Ideal,
     Interac,
+    Indomaret,
     Klarna,
     KakaoPay,
+    MandiriVa,
+    Knet,
     MbWay,
     MobilePay,
     Momo,
+    MomoAtm,
     Multibanco,
     OnlineBankingThailand,
     OnlineBankingCzechRepublic,
@@ -866,10 +954,14 @@ pub enum PaymentMethodType {
     OnlineBankingFpx,
     OnlineBankingPoland,
     OnlineBankingSlovakia,
+    Oxxo,
     PagoEfectivo,
+    PermataBankTransfer,
+    OpenBankingUk,
     PayBright,
     Paypal,
     Pix,
+    PaySafeCard,
     Przelewy24,
     Pse,
     RedCompra,
@@ -885,6 +977,12 @@ pub enum PaymentMethodType {
     Vipps,
     Walley,
     WeChatPay,
+    SevenEleven,
+    Lawson,
+    MiniStop,
+    FamilyMart,
+    Seicomart,
+    PayEasy,
 }
 
 #[derive(
@@ -909,6 +1007,7 @@ pub enum PaymentMethodType {
 pub enum PaymentMethod {
     #[default]
     Card,
+    CardRedirect,
     PayLater,
     Wallet,
     BankRedirect,
@@ -918,6 +1017,7 @@ pub enum PaymentMethod {
     Reward,
     Upi,
     Voucher,
+    GiftCard,
 }
 
 #[derive(
@@ -1560,4 +1660,50 @@ pub enum PayoutEntityType {
     #[serde(rename = "lowercase")]
     Business,
     Personal,
+}
+
+#[derive(
+    Clone,
+    Copy,
+    Default,
+    Debug,
+    Eq,
+    Hash,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    strum::EnumString,
+    ToSchema,
+)]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum CancelTransaction {
+    #[default]
+    FrmCancelTransaction,
+}
+
+#[derive(
+    Clone,
+    Debug,
+    Eq,
+    Default,
+    Hash,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    strum::EnumString,
+    utoipa::ToSchema,
+    Copy,
+)]
+#[router_derive::diesel_enum(storage_type = "pg_enum")]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum ReconStatus {
+    #[default]
+    NotRequested,
+    Requested,
+    Active,
+    Disabled,
 }

@@ -21,10 +21,11 @@ impl Connector for PaypalTest {
     }
 
     fn get_auth_token(&self) -> ConnectorAuthType {
-        types::ConnectorAuthType::from(
+        utils::to_connector_auth_type(
             connector_auth::ConnectorAuthentication::new()
                 .paypal
-                .expect("Missing connector authentication configuration"),
+                .expect("Missing connector authentication configuration")
+                .into(),
         )
     }
 
@@ -137,6 +138,7 @@ async fn should_sync_authorized_payment() {
                 connector_transaction_id: router::types::ResponseId::ConnectorTransactionId(txn_id),
                 encoded_data: None,
                 capture_method: None,
+                capture_sync_type: types::CaptureSyncType::SingleCaptureSync,
                 connector_meta,
             }),
             get_default_payment_info(),
@@ -329,6 +331,7 @@ async fn should_sync_auto_captured_payment() {
                 ),
                 encoded_data: None,
                 capture_method: Some(enums::CaptureMethod::Automatic),
+                capture_sync_type: types::CaptureSyncType::SingleCaptureSync,
                 connector_meta,
             }),
             get_default_payment_info(),
