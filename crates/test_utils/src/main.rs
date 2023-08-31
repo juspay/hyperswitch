@@ -27,7 +27,7 @@ struct Args {
     #[arg(short, long = "admin_api_key")]
     admin_api_key: String,
     /// Optional Verbose logs
-    #[arg(short, long = "verbose")]
+    #[arg(short, long)]
     verbose: bool,
 }
 

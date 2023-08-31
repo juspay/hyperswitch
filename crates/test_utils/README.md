@@ -5,8 +5,8 @@ The heart of `newman-dir` and `UI-tests`
 ## Usage
 
 - Make sure you that you've **do not** have the official newman installed but rather `newman-dir`
-  - `newman-dir` can be installed by running `npm install -g 'git+ssh://git@github.com:knutties/newman.git#feature/newman-dir'`
-  ```doc
+  - `newman-dir` can be installed by running `npm install -g 'https://github.com/knutties/newman.git#feature/newman-dir'`
+  ```text
   Usage: newman [options] [command]
 
   Options:
@@ -27,11 +27,11 @@ The heart of `newman-dir` and `UI-tests`
   ```
 - Add the connector credentials to the `connector_auth.toml` / `auth.toml`
 - Export the auth file path as an environment variable:
-  ```zsh
+  ```shell
   export CONNECTOR_AUTH_FILE_PATH=/path/to/auth.toml
   ```
 - Run the tests:
-  ```zsh
+  ```shell
   cargo run --package test_utils --bin test_utils -- --connector_name=<connector_name> --base_url=<base_url> --admin_api_key=<admin_api_key>
   ```
 
@@ -39,13 +39,13 @@ The heart of `newman-dir` and `UI-tests`
 
 You can optionally pass `--verbose` to see the logs of the tests. But make sure you that passing `--verbose` will also print the API-Keys in the logs. So, make sure you don't push the logs to any public repository.
 Example:
-```zsh
+```shell
 cargo run --package test_utils --bin test_utils -- --connector_name=<connector_name> --base_url=<base_url> --admin_api_key=<admin_api_key> --verbose
 ```
 
 ## Running locally
 
-```zsh
+```shell
 export CONNECTOR_AUTH_FILE_PATH=/path/to/auth.toml
 cargo run --package test_utils --bin test_utils -- --connector_name=<connector_name> --base_url=http://127.0.0.1:8080 --admin_api_key=test_admin
 # Optionally, add `--verbose` in the end
