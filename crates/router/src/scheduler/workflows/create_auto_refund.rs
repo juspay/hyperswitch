@@ -38,9 +38,7 @@ impl ProcessTrackerWorkflow for AutoRefundWorkflow {
         let retry_count = tracking_data.retry_count;
         let max_retries = tracking_data.max_retries;
         if retry_count > max_retries {
-            return Err(errors::ProcessTrackerError::FlowExecutionError {
-                flow: "AutoRefund",
-            });
+            return Err(errors::ProcessTrackerError::FlowExecutionError { flow: "AutoRefund" });
         }
         let key_store = state
             .store
@@ -50,10 +48,7 @@ impl ProcessTrackerWorkflow for AutoRefundWorkflow {
             )
             .await?;
         let merchant_account = db
-            .find_merchant_account_by_merchant_id(
-                &payment_attempt.merchant_id,
-                &key_store,
-            )
+            .find_merchant_account_by_merchant_id(&payment_attempt.merchant_id, &key_store)
             .await?;
         let ref_req = RefundRequest {
             refund_id: None,
@@ -88,27 +83,25 @@ impl ProcessTrackerWorkflow for AutoRefundWorkflow {
                     }
                 };
             }
-            Err(err) => {
-                match err.current_context() {
-                    ApiErrorResponse::InvalidJwtToken
-                    | ApiErrorResponse::ExternalConnectorError { .. }
-                    | ApiErrorResponse::RefundFailed { .. } => {
-                        add_auto_refund_task_to_process_tracker(
-                            db,
-                            payment_attempt.clone(),
-                            retry_count + 1,
-                            max_retries,
-                            "REFUND_WORKFLOW_ROUTER",
-                        )
-                        .await?;
-                    }
-                    _ => {
-                        return Err(errors::ProcessTrackerError::FlowExecutionError {
-                            flow: "AutoRefund",
-                        });
-                    }
+            Err(err) => match err.current_context() {
+                ApiErrorResponse::InvalidJwtToken
+                | ApiErrorResponse::ExternalConnectorError { .. }
+                | ApiErrorResponse::RefundFailed { .. } => {
+                    add_auto_refund_task_to_process_tracker(
+                        db,
+                        payment_attempt.clone(),
+                        retry_count + 1,
+                        max_retries,
+                        "REFUND_WORKFLOW_ROUTER",
+                    )
+                    .await?;
                 }
-            }
+                _ => {
+                    return Err(errors::ProcessTrackerError::FlowExecutionError {
+                        flow: "AutoRefund",
+                    });
+                }
+            },
         };
         Ok(())
     }

@@ -1,7 +1,7 @@
 pub mod validator;
 
 use common_utils::ext_traits::AsyncExt;
-use diesel_models::{payment_intent::PaymentIntent, refund, payment_attempt::PaymentAttempt};
+use diesel_models::{payment_attempt::PaymentAttempt, payment_intent::PaymentIntent, refund};
 use error_stack::{report, IntoReport, ResultExt};
 use router_env::{instrument, tracing};
 
@@ -1165,7 +1165,9 @@ pub async fn add_auto_refund_task_to_process_tracker(
     let response = db
         .insert_process(process_tracker_entry)
         .await
-        .to_duplicate_response(errors::ApiErrorResponse::UnprocessableEntity{ message : "Auto Refund failed".to_string() })
+        .to_duplicate_response(errors::ApiErrorResponse::UnprocessableEntity {
+            message: "Auto Refund failed".to_string(),
+        })
         .attach_printable_lazy(|| {
             format!(
                 "Failed while inserting auto refund task in process_tracker for payment_id: {}",
