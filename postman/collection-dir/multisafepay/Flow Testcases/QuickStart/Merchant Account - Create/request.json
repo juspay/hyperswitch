@@ -75,10 +75,7 @@
         "payment_succeeded_enabled": true,
         "payment_failed_enabled": true
       },
-      "routing_algorithm": {
-        "type": "single",
-        "data": "stripe"
-      },
+      
       "sub_merchants_enabled": false,
       "metadata": {
         "city": "NY",

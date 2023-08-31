@@ -10,6 +10,7 @@ use crate::{
         self, missing_field_err, AddressDetailsData, CardData, PaymentsAuthorizeRequestData,
         PaymentsPreProcessingData, PaymentsSyncRequestData, RouterData,
     },
+    consts,
     core::errors,
     services,
     types::{self, api, storage::enums, BrowserInformation, MandateReference},
@@ -169,6 +170,12 @@ impl<F, T>
     fn try_from(
         item: types::ResponseRouterData<F, PaymePaySaleResponse, T, types::PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
+        let response = if item.response.sale_status == SaleStatus::Failed {
+            // To populate error message in case of failure
+            Err(types::ErrorResponse::from((&item.response, item.http_code)))
+        } else {
+            Ok(types::PaymentsResponseData::try_from(&item.response)?)
+        };
         let redirection_data = match item.data.auth_type {
             AuthenticationType::ThreeDs => item.response.redirect_url.clone().map(|url| {
                 let form_fields = std::collections::HashMap::from_iter(
@@ -185,24 +192,49 @@ impl<F, T>
         };
         Ok(Self {
             status: enums::AttemptStatus::from(item.response.sale_status),
-            response: Ok(types::PaymentsResponseData::TransactionResponse {
-                resource_id: types::ResponseId::ConnectorTransactionId(item.response.payme_sale_id),
-                redirection_data,
-                mandate_reference: item.response.buyer_key.map(|buyer_key| MandateReference {
-                    connector_mandate_id: Some(buyer_key.expose()),
-                    payment_method_id: None,
-                }),
-                connector_metadata: Some(
-                    serde_json::to_value(PaymeMetadata {
-                        payme_transaction_id: item.response.payme_transaction_id,
-                    })
-                    .into_report()
-                    .change_context(errors::ConnectorError::ResponseHandlingFailed)?,
-                ),
-                network_txn_id: None,
-                connector_response_reference_id: None,
-            }),
+            response,
             ..item.data
+        })
+    }
+}
+
+impl From<(&PaymePaySaleResponse, u16)> for types::ErrorResponse {
+    fn from((pay_sale_response, http_code): (&PaymePaySaleResponse, u16)) -> Self {
+        let code = pay_sale_response
+            .status_error_code
+            .map(|error_code| error_code.to_string())
+            .unwrap_or(consts::NO_ERROR_CODE.to_string());
+        Self {
+            code,
+            message: pay_sale_response
+                .status_error_details
+                .clone()
+                .unwrap_or(consts::NO_ERROR_MESSAGE.to_string()),
+            reason: pay_sale_response.status_error_details.to_owned(),
+            status_code: http_code,
+        }
+    }
+}
+
+impl TryFrom<&PaymePaySaleResponse> for types::PaymentsResponseData {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(value: &PaymePaySaleResponse) -> Result<Self, Self::Error> {
+        Ok(Self::TransactionResponse {
+            resource_id: types::ResponseId::ConnectorTransactionId(value.payme_sale_id.clone()),
+            redirection_data: None,
+            mandate_reference: value.buyer_key.clone().map(|buyer_key| MandateReference {
+                connector_mandate_id: Some(buyer_key.expose()),
+                payment_method_id: None,
+            }),
+            connector_metadata: Some(
+                serde_json::to_value(PaymeMetadata {
+                    payme_transaction_id: value.payme_transaction_id.clone(),
+                })
+                .into_report()
+                .change_context(errors::ConnectorError::ResponseHandlingFailed)?,
+            ),
+            network_txn_id: None,
+            connector_response_reference_id: None,
         })
     }
 }
@@ -221,21 +253,51 @@ impl<F, T> TryFrom<types::ResponseRouterData<F, SaleQueryResponse, T, types::Pay
             .first()
             .cloned()
             .ok_or(errors::ConnectorError::ResponseHandlingFailed)?;
+        let response = if transaction_response.sale_status == SaleStatus::Failed {
+            // To populate error message in case of failure
+            Err(types::ErrorResponse::from((
+                &transaction_response,
+                item.http_code,
+            )))
+        } else {
+            Ok(types::PaymentsResponseData::from(&transaction_response))
+        };
         Ok(Self {
             status: enums::AttemptStatus::from(transaction_response.sale_status),
-            response: Ok(types::PaymentsResponseData::TransactionResponse {
-                resource_id: types::ResponseId::ConnectorTransactionId(
-                    transaction_response.sale_payme_id,
-                ),
-                redirection_data: None,
-                // mandate reference will be updated with webhooks only. That has been handled with PaymePaySaleResponse struct
-                mandate_reference: None,
-                connector_metadata: None,
-                network_txn_id: None,
-                connector_response_reference_id: None,
-            }),
+            response,
             ..item.data
         })
+    }
+}
+
+impl From<(&SaleQuery, u16)> for types::ErrorResponse {
+    fn from((sale_query_response, http_code): (&SaleQuery, u16)) -> Self {
+        Self {
+            code: sale_query_response
+                .sale_error_code
+                .clone()
+                .unwrap_or(consts::NO_ERROR_CODE.to_string()),
+            message: sale_query_response
+                .sale_error_text
+                .clone()
+                .unwrap_or(consts::NO_ERROR_MESSAGE.to_string()),
+            reason: sale_query_response.sale_error_text.clone(),
+            status_code: http_code,
+        }
+    }
+}
+
+impl From<&SaleQuery> for types::PaymentsResponseData {
+    fn from(value: &SaleQuery) -> Self {
+        Self::TransactionResponse {
+            resource_id: types::ResponseId::ConnectorTransactionId(value.sale_payme_id.clone()),
+            redirection_data: None,
+            // mandate reference will be updated with webhooks only. That has been handled with PaymePaySaleResponse struct
+            mandate_reference: None,
+            connector_metadata: None,
+            network_txn_id: None,
+            connector_response_reference_id: None,
+        }
     }
 }
 
@@ -687,7 +749,7 @@ impl TryFrom<&types::PaymentsPreProcessingRouterData> for SaleType {
     }
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "kebab-case")]
 pub enum SaleStatus {
     Initial,
@@ -731,6 +793,8 @@ pub struct SaleQueryResponse {
 pub struct SaleQuery {
     sale_status: SaleStatus,
     sale_payme_id: String,
+    sale_error_text: Option<String>,
+    sale_error_code: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -744,6 +808,8 @@ pub struct PaymePaySaleResponse {
     payme_sale_id: String,
     payme_transaction_id: String,
     buyer_key: Option<Secret<String>>,
+    status_error_details: Option<String>,
+    status_error_code: Option<u32>,
     sale_3ds: bool,
     redirect_url: Option<Url>,
 }
@@ -915,7 +981,7 @@ pub struct PaymeErrorResponse {
     pub status_code: u16,
     pub status_error_details: String,
     pub status_additional_info: serde_json::Value,
-    pub status_error_code: u16,
+    pub status_error_code: u32,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -939,6 +1005,8 @@ pub struct WebhookEventDataResource {
     pub payme_transaction_id: String,
     pub sale_3ds: bool,
     pub redirect_url: Option<Url>,
+    pub status_error_details: Option<String>,
+    pub status_error_code: Option<u32>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -961,6 +1029,8 @@ impl From<WebhookEventDataResource> for PaymePaySaleResponse {
             buyer_key: value.buyer_key,
             sale_3ds: value.sale_3ds,
             redirect_url: value.redirect_url,
+            status_error_code: value.status_error_code,
+            status_error_details: value.status_error_details,
         }
     }
 }

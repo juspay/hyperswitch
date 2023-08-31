@@ -85,6 +85,7 @@ pub async fn setup_intents_retrieve(
         merchant_connector_details: None,
         client_secret: query_payload.client_secret.clone(),
         expand_attempts: None,
+        expand_captures: None,
     };
 
     let (auth_type, auth_flow) =

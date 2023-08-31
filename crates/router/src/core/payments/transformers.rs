@@ -8,7 +8,7 @@ use router_env::{instrument, tracing};
 use super::{flows::Feature, PaymentAddress, PaymentData};
 use crate::{
     configs::settings::{ConnectorRequestReferenceIdConfig, Server},
-    connector::{Nexinets, Paypal},
+    connector::Nexinets,
     core::{
         errors::{self, RouterResponse, RouterResult},
         payments::{self, helpers},
@@ -203,6 +203,21 @@ where
         connector_request_reference_id_config: &ConnectorRequestReferenceIdConfig,
         connector_http_status_code: Option<u16>,
     ) -> RouterResponse<Self> {
+        let captures = payment_data
+            .multiple_capture_data
+            .and_then(|multiple_capture_data| {
+                multiple_capture_data
+                    .expand_captures
+                    .and_then(|should_expand| {
+                        should_expand.then_some(
+                            multiple_capture_data
+                                .get_all_captures()
+                                .into_iter()
+                                .cloned()
+                                .collect(),
+                        )
+                    })
+            });
         payments_to_payments_response(
             req,
             payment_data.payment_attempt,
@@ -210,15 +225,7 @@ where
             payment_data.refunds,
             payment_data.disputes,
             payment_data.attempts,
-            payment_data
-                .multiple_capture_data
-                .map(|multiple_capture_data| {
-                    multiple_capture_data
-                        .get_all_captures()
-                        .into_iter()
-                        .cloned()
-                        .collect()
-                }),
+            captures,
             payment_data.payment_method_data,
             customer,
             auth_flow,
@@ -601,6 +608,7 @@ where
                         .set_connector_metadata(payment_intent.connector_metadata)
                         .set_reference_id(payment_attempt.connector_response_reference_id)
                         .set_profile_id(payment_intent.profile_id)
+                        .set_attempt_count(payment_intent.attempt_count)
                         .to_owned(),
                     headers,
                 ))
@@ -658,6 +666,7 @@ where
                 connector_metadata: payment_intent.connector_metadata,
                 allowed_payment_method_types: payment_intent.allowed_payment_method_types,
                 reference_id: payment_attempt.connector_response_reference_id,
+                attempt_count: payment_intent.attempt_count,
                 ..Default::default()
             },
             headers,
@@ -761,6 +770,7 @@ impl ForeignFrom<(storage::PaymentIntent, storage::PaymentAttempt)> for api::Pay
             capture_method: pa.capture_method,
             authentication_type: pa.authentication_type,
             connector_transaction_id: pa.connector_transaction_id,
+            attempt_count: pi.attempt_count,
             ..Default::default()
         }
     }
@@ -980,24 +990,6 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsSyncData
                 None => types::CaptureSyncType::SingleCaptureSync,
             },
         })
-    }
-}
-
-impl api::ConnectorTransactionId for Paypal {
-    fn connector_transaction_id(
-        &self,
-        payment_attempt: storage::PaymentAttempt,
-    ) -> Result<Option<String>, errors::ApiErrorResponse> {
-        let payment_method = payment_attempt.payment_method;
-        let metadata = Self::connector_transaction_id(
-            self,
-            payment_method,
-            &payment_attempt.connector_metadata,
-        );
-        match metadata {
-            Ok(data) => Ok(data),
-            _ => Err(errors::ApiErrorResponse::ResourceIdNotFound),
-        }
     }
 }
 
