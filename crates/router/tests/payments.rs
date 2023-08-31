@@ -226,7 +226,7 @@ async fn payments_todo() {
     let client = awc::Client::default();
     let mut response;
     let mut response_body;
-    let _post_endpoints = vec!["123/update", "123/confirm", "cancel"];
+    let _post_endpoints = ["123/update", "123/confirm", "cancel"];
     let get_endpoints = vec!["list"];
 
     for endpoint in get_endpoints {
