@@ -1,7 +1,7 @@
 pub mod validator;
 
 use common_utils::ext_traits::AsyncExt;
-use diesel_models::{payment_intent::PaymentIntent, refund};
+use diesel_models::{payment_intent::PaymentIntent, refund, payment_attempt::PaymentAttempt};
 use error_stack::{report, IntoReport, ResultExt};
 use router_env::{instrument, tracing};
 
@@ -1117,12 +1117,12 @@ pub async fn retry_refund_sync_task(
 
 #[instrument(skip_all)]
 pub fn payment_intent_to_auto_refund_struct(
-    payment_intent: PaymentIntent,
+    payment_attempt: PaymentAttempt,
     retry_count: i32,
     max_retries: i32,
 ) -> refund::AutoRefundWorkflow {
     refund::AutoRefundWorkflow {
-        payment_intent,
+        payment_attempt,
         retry_count,
         max_retries,
     }
@@ -1131,14 +1131,14 @@ pub fn payment_intent_to_auto_refund_struct(
 #[instrument(skip_all)]
 pub async fn add_auto_refund_task_to_process_tracker(
     db: &dyn db::StorageInterface,
-    payment_intent: PaymentIntent,
+    payment_attempt: PaymentAttempt,
     retry_count: i32,
     max_retries: i32,
     runner: &str,
 ) -> RouterResult<storage::ProcessTracker> {
     let current_time = common_utils::date_time::now();
     let auto_refund_workflow_data = serde_json::to_value(payment_intent_to_auto_refund_struct(
-        payment_intent.clone(),
+        payment_attempt.clone(),
         retry_count,
         max_retries,
     ))
@@ -1147,7 +1147,7 @@ pub async fn add_auto_refund_task_to_process_tracker(
     .attach_printable_lazy(|| "unable to parse into json".to_string())?;
     let task = "AUTO_REFUND";
     let process_tracker_entry = storage::ProcessTrackerNew {
-        id: format!("{}_{}_{}", runner, task, payment_intent.clone().payment_id),
+        id: format!("{}_{}_{}", runner, task, payment_attempt.payment_id.clone()),
         name: Some(String::from(task)),
         tag: vec![String::from("REFUND")],
         runner: Some(String::from(runner)),
@@ -1165,11 +1165,11 @@ pub async fn add_auto_refund_task_to_process_tracker(
     let response = db
         .insert_process(process_tracker_entry)
         .await
-        .to_duplicate_response(errors::ApiErrorResponse::DuplicateRefundRequest)
+        .to_duplicate_response(errors::ApiErrorResponse::UnprocessableEntity{ message : "Auto Refund failed".to_string() })
         .attach_printable_lazy(|| {
             format!(
                 "Failed while inserting auto refund task in process_tracker for payment_id: {}",
-                payment_intent.clone().payment_id
+                &payment_attempt.payment_id
             )
         })?;
     Ok(response)

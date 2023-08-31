@@ -208,7 +208,7 @@ pub struct RefundCoreWorkflow {
 
 #[derive(Debug, Eq, PartialEq, Deserialize, Serialize)]
 pub struct AutoRefundWorkflow {
-    pub payment_intent: crate::payment_intent::PaymentIntent,
+    pub payment_attempt: crate::payment_attempt::PaymentAttempt,
     pub retry_count: i32,
     pub max_retries: i32,
 }
