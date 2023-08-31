@@ -156,6 +156,11 @@ pub struct ApplepayHeader {
     transaction_id: Secret<String>,
 }
 
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct BluesnapConnectorMetaData {
+    pub merchant_id: String,
+}
+
 impl TryFrom<&types::PaymentsAuthorizeRouterData> for BluesnapPaymentsRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::PaymentsAuthorizeRouterData) -> Result<Self, Self::Error> {

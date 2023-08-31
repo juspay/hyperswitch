@@ -211,6 +211,7 @@ pub trait PaymentsPreProcessing:
 
 pub trait Payment:
     api_types::ConnectorCommon
+    + api_types::ConnectorValidation
     + PaymentAuthorize
     + PaymentsCompleteAuthorize
     + PaymentSync
