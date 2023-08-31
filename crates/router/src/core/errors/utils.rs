@@ -11,6 +11,41 @@ pub trait StorageErrorExt<T, E> {
 }
 
 impl<T> StorageErrorExt<T, errors::ApiErrorResponse>
+    for error_stack::Result<T, data_models::errors::StorageError>
+{
+    #[track_caller]
+    fn to_not_found_response(
+        self,
+        not_found_response: errors::ApiErrorResponse,
+    ) -> error_stack::Result<T, errors::ApiErrorResponse> {
+        self.map_err(|err| {
+            let new_err = match err.current_context() {
+                data_models::errors::StorageError::ValueNotFound(_) => not_found_response,
+                data_models::errors::StorageError::CustomerRedacted => {
+                    errors::ApiErrorResponse::CustomerRedacted
+                }
+                _ => errors::ApiErrorResponse::InternalServerError,
+            };
+            err.change_context(new_err)
+        })
+    }
+
+    #[track_caller]
+    fn to_duplicate_response(
+        self,
+        duplicate_response: errors::ApiErrorResponse,
+    ) -> error_stack::Result<T, errors::ApiErrorResponse> {
+        self.map_err(|err| {
+            let new_err = match err.current_context() {
+                data_models::errors::StorageError::DuplicateValue { .. } => duplicate_response,
+                _ => errors::ApiErrorResponse::InternalServerError,
+            };
+            err.change_context(new_err)
+        })
+    }
+}
+
+impl<T> StorageErrorExt<T, errors::ApiErrorResponse>
     for error_stack::Result<T, errors::StorageError>
 {
     #[track_caller]
@@ -31,6 +66,7 @@ impl<T> StorageErrorExt<T, errors::ApiErrorResponse>
         })
     }
 
+    #[track_caller]
     fn to_duplicate_response(
         self,
         duplicate_response: errors::ApiErrorResponse,
@@ -63,6 +99,7 @@ pub trait ConnectorErrorExt<T> {
     #[track_caller]
     fn allow_webhook_event_type_not_found(
         self,
+        enabled: bool,
     ) -> error_stack::Result<Option<T>, errors::ConnectorError>;
 }
 
@@ -127,8 +164,8 @@ impl<T> ConnectorErrorExt<T> for error_stack::Result<T, errors::ConnectorError> 
                             "payment_method_data, payment_method_type and payment_experience does not match",
                     }
                 },
-                errors::ConnectorError::NotSupported { message, connector, payment_experience } => {
-                    errors::ApiErrorResponse::NotSupported { message: format!("{message} is not supported by {connector} through payment experience {payment_experience}") }
+                errors::ConnectorError::NotSupported { message, connector } => {
+                    errors::ApiErrorResponse::NotSupported { message: format!("{message} is not supported by {connector}") }
                 },
                 errors::ConnectorError::FlowNotSupported{ flow, connector } => {
                     errors::ApiErrorResponse::FlowNotSupported { flow: flow.to_owned(), connector: connector.to_owned() }
@@ -136,6 +173,7 @@ impl<T> ConnectorErrorExt<T> for error_stack::Result<T, errors::ConnectorError> 
                 errors::ConnectorError::InvalidDataFormat { field_name } => {
                     errors::ApiErrorResponse::InvalidDataValue { field_name }
                 },
+                errors::ConnectorError::CurrencyNotSupported { message, connector} => errors::ApiErrorResponse::CurrencyNotSupported { message: format!("Credentials for the currency {message} are not configured with the connector {connector}/hyperswitch") },
                 _ => errors::ApiErrorResponse::InternalServerError,
             };
             err.change_context(error)
@@ -240,11 +278,14 @@ impl<T> ConnectorErrorExt<T> for error_stack::Result<T, errors::ConnectorError> 
         })
     }
 
-    fn allow_webhook_event_type_not_found(self) -> CustomResult<Option<T>, errors::ConnectorError> {
+    fn allow_webhook_event_type_not_found(
+        self,
+        enabled: bool,
+    ) -> CustomResult<Option<T>, errors::ConnectorError> {
         match self {
             Ok(event_type) => Ok(Some(event_type)),
             Err(error) => match error.current_context() {
-                errors::ConnectorError::WebhookEventTypeNotFound => Ok(None),
+                errors::ConnectorError::WebhookEventTypeNotFound if enabled => Ok(None),
                 _ => Err(error),
             },
         }

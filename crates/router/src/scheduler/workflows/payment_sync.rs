@@ -50,18 +50,19 @@ impl ProcessTrackerWorkflow for PaymentsSyncWorkflow {
             )
             .await?;
 
-        let (payment_data, _, _) = payment_flows::payments_operation_core::<api::PSync, _, _, _>(
-            state,
-            merchant_account.clone(),
-            key_store,
-            operations::PaymentStatus,
-            tracking_data.clone(),
-            payment_flows::CallConnectorAction::Trigger,
-            services::AuthFlow::Client,
-        )
-        .await?;
+        let (payment_data, _, _, _) =
+            payment_flows::payments_operation_core::<api::PSync, _, _, _>(
+                state,
+                merchant_account.clone(),
+                key_store,
+                operations::PaymentStatus,
+                tracking_data.clone(),
+                payment_flows::CallConnectorAction::Trigger,
+                services::AuthFlow::Client,
+            )
+            .await?;
 
-        let terminal_status = vec![
+        let terminal_status = [
             enums::AttemptStatus::RouterDeclined,
             enums::AttemptStatus::Charged,
             enums::AttemptStatus::AutoRefunded,

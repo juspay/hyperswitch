@@ -4,7 +4,7 @@ use std::fmt::Debug;
 
 use api_models::webhooks::IncomingWebhookEvent;
 use base64::Engine;
-use diesel_models::enums as storage_enums;
+use diesel_models::{enums as storage_enums, enums};
 use error_stack::{IntoReport, ResultExt};
 use ring::hmac;
 use router_env::{instrument, tracing};
@@ -12,6 +12,7 @@ use router_env::{instrument, tracing};
 use self::transformers as adyen;
 use crate::{
     configs::settings,
+    connector::utils as connector_utils,
     consts,
     core::{
         self,
@@ -22,6 +23,7 @@ use crate::{
     services::{
         self,
         request::{self, Mask},
+        ConnectorValidation,
     },
     types::{
         self,
@@ -69,6 +71,21 @@ impl ConnectorCommon for Adyen {
             message: response.message,
             reason: None,
         })
+    }
+}
+
+impl ConnectorValidation for Adyen {
+    fn validate_capture_method(
+        &self,
+        capture_method: Option<storage_enums::CaptureMethod>,
+    ) -> CustomResult<(), errors::ConnectorError> {
+        let capture_method = capture_method.unwrap_or_default();
+        match capture_method {
+            enums::CaptureMethod::Automatic | enums::CaptureMethod::Manual => Ok(()),
+            enums::CaptureMethod::ManualMultiple | enums::CaptureMethod::Scheduled => Err(
+                connector_utils::construct_not_implemented_error_report(capture_method, self.id()),
+            ),
+        }
     }
 }
 
@@ -385,6 +402,17 @@ impl
                             ),
                         }
                     }
+                    adyen::AdyenRedirectRequestTypes::AdyenRefusal(req) => {
+                        adyen::AdyenRedirectRequest {
+                            details: adyen::AdyenRedirectRequestTypes::AdyenRefusal(
+                                adyen::AdyenRefusal {
+                                    payload: req.payload,
+                                    type_of_redirection_result: None,
+                                    result_code: None,
+                                },
+                            ),
+                        }
+                    }
                 };
 
                 let adyen_request = types::RequestBody::log_and_get_request_body(
@@ -571,6 +599,7 @@ impl
         req: &types::PaymentsAuthorizeRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
+        self.validate_capture_method(req.request.capture_method)?;
         check_for_payment_method_balance(req)?;
         Ok(Some(
             services::RequestBuilder::new()
@@ -1340,7 +1369,6 @@ impl api::IncomingWebhook for Adyen {
             .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
 
         let base64_signature = notif_item.additional_data.hmac_signature;
-
         Ok(base64_signature.as_bytes().to_vec())
     }
 
@@ -1372,9 +1400,10 @@ impl api::IncomingWebhook for Adyen {
         &self,
         db: &dyn StorageInterface,
         request: &api::IncomingWebhookRequestDetails<'_>,
-        merchant_id: &str,
+        merchant_account: &domain::MerchantAccount,
         connector_label: &str,
         key_store: &domain::MerchantKeyStore,
+        object_reference_id: api_models::webhooks::ObjectReferenceId,
     ) -> CustomResult<bool, errors::ConnectorError> {
         let signature = self
             .get_webhook_source_verification_signature(request)
@@ -1382,14 +1411,19 @@ impl api::IncomingWebhook for Adyen {
         let secret = self
             .get_webhook_source_verification_merchant_secret(
                 db,
-                merchant_id,
+                merchant_account,
                 connector_label,
                 key_store,
+                object_reference_id,
             )
             .await
             .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
         let message = self
-            .get_webhook_source_verification_message(request, merchant_id, &secret)
+            .get_webhook_source_verification_message(
+                request,
+                &merchant_account.merchant_id,
+                &secret,
+            )
             .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
 
         let raw_key = hex::decode(secret)

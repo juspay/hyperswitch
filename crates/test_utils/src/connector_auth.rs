@@ -32,6 +32,7 @@ pub struct ConnectorAuthentication {
     pub forte: Option<MultiAuthKey>,
     pub globalpay: Option<BodyKey>,
     pub globepay: Option<BodyKey>,
+    pub helcim: Option<HeaderKey>,
     pub iatapay: Option<SignatureKey>,
     pub mollie: Option<BodyKey>,
     pub multisafepay: Option<HeaderKey>,
@@ -70,6 +71,9 @@ impl Default for ConnectorAuthentication {
 
 #[allow(dead_code)]
 impl ConnectorAuthentication {
+    /// # Panics
+    ///
+    /// Will panic if `CONNECTOR_AUTH_FILE_PATH` env is not set
     #[allow(clippy::expect_used)]
     pub fn new() -> Self {
         // Do `export CONNECTOR_AUTH_FILE_PATH="/hyperswitch/crates/router/tests/connectors/sample_auth.toml"`
@@ -99,6 +103,9 @@ impl ConnectorAuthenticationMap {
         &self.0
     }
 
+    /// # Panics
+    ///
+    /// Will panic if `CONNECTOR_AUTH_FILE_PATH` env  is not set
     #[allow(clippy::expect_used)]
     pub fn new() -> Self {
         // Do `export CONNECTOR_AUTH_FILE_PATH="/hyperswitch/crates/router/tests/connectors/sample_auth.toml"`
@@ -269,6 +276,9 @@ impl From<MultiAuthKey> for ConnectorAuthType {
 pub struct AutomationConfigs {
     pub hs_base_url: Option<String>,
     pub hs_api_key: Option<String>,
+    pub hs_api_keys: Option<String>,
+    pub hs_webhook_url: Option<String>,
+    pub hs_test_env: Option<String>,
     pub hs_test_browser: Option<String>,
     pub chrome_profile_path: Option<String>,
     pub firefox_profile_path: Option<String>,

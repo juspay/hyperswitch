@@ -15,12 +15,26 @@ use crate::{
     utils::{self, OptionExt},
 };
 
+#[derive(Debug, Serialize)]
+#[serde(untagged)]
+pub enum StoreLockerReq<'a> {
+    LockerCard(StoreCardReq<'a>),
+    LockerGeneric(StoreGenericReq<'a>),
+}
+
 #[derive(Debug, Deserialize, Serialize)]
 pub struct StoreCardReq<'a> {
     pub merchant_id: &'a str,
     pub merchant_customer_id: String,
     pub card: Card,
-    pub enc_card_data: Option<String>,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+pub struct StoreGenericReq<'a> {
+    pub merchant_id: &'a str,
+    pub merchant_customer_id: String,
+    #[serde(rename = "enc_card_data")]
+    pub enc_data: String,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -147,6 +161,7 @@ pub struct DeleteCardResponse {
 }
 
 #[derive(Debug, Deserialize, Serialize)]
+#[serde(transparent)]
 pub struct PaymentMethodMetadata {
     pub payment_method_tokenization: std::collections::HashMap<String, String>,
 }
@@ -252,32 +267,13 @@ pub async fn mk_basilisk_req(
     Ok(jwe_body)
 }
 
-pub async fn mk_add_card_request_hs(
+pub async fn mk_add_locker_request_hs<'a>(
     #[cfg(not(feature = "kms"))] jwekey: &settings::Jwekey,
     #[cfg(feature = "kms")] jwekey: &settings::ActiveKmsSecrets,
     locker: &settings::Locker,
-    card: &api::CardDetail,
-    enc_value: Option<&str>,
-    customer_id: &str,
-    merchant_id: &str,
+    payload: &StoreLockerReq<'a>,
 ) -> CustomResult<services::Request, errors::VaultError> {
-    let merchant_customer_id = customer_id.to_owned();
-    let card = Card {
-        card_number: card.card_number.to_owned(),
-        name_on_card: card.card_holder_name.to_owned(),
-        card_exp_month: card.card_exp_month.to_owned(),
-        card_exp_year: card.card_exp_year.to_owned(),
-        card_brand: None,
-        card_isin: None,
-        nick_name: card.nick_name.to_owned().map(masking::Secret::expose),
-    };
-    let store_card_req = StoreCardReq {
-        merchant_id,
-        merchant_customer_id,
-        card,
-        enc_card_data: enc_value.map(|e| e.to_string()),
-    };
-    let payload = utils::Encode::<StoreCardReq<'_>>::encode_to_vec(&store_card_req)
+    let payload = utils::Encode::<StoreCardReq<'_>>::encode_to_vec(&payload)
         .change_context(errors::VaultError::RequestEncodingFailed)?;
 
     #[cfg(feature = "kms")]

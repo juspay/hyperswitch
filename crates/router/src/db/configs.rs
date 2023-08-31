@@ -1,12 +1,15 @@
 use diesel_models::configs::ConfigUpdateInternal;
-use error_stack::IntoReport;
+use error_stack::{IntoReport, ResultExt};
+use storage_impl::redis::{
+    cache::{CacheKind, CONFIG_CACHE},
+    kv_store::RedisConnInterface,
+    pub_sub::PubSubInterface,
+};
 
 use super::{cache, MockDb, Store};
 use crate::{
-    cache::{CacheKind, CONFIG_CACHE},
     connection, consts,
     core::errors::{self, CustomResult},
-    services::PubSubInterface,
     types::storage,
 };
 
@@ -104,7 +107,7 @@ impl ConfigInterface for Store {
             .map_err(Into::into)
             .into_report()?;
 
-        self.redis_conn()
+        self.get_redis_conn()
             .map_err(Into::<errors::StorageError>::into)?
             .publish(consts::PUB_SUB_CHANNEL, CacheKind::Config(key.into()))
             .await
@@ -123,8 +126,11 @@ impl ConfigInterface for MockDb {
         let mut configs = self.configs.lock().await;
 
         let config_new = storage::Config {
-            #[allow(clippy::as_conversions)]
-            id: configs.len() as i32,
+            id: configs
+                .len()
+                .try_into()
+                .into_report()
+                .change_context(errors::StorageError::MockDbError)?,
             key: config.key,
             config: config.config,
         };

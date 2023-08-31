@@ -8,7 +8,7 @@ use url::Url;
 use super::{
     requests::{
         self, ApmProvider, GlobalpayPaymentsRequest, GlobalpayRefreshTokenRequest, Initiator,
-        PaymentMethodData, StoredCredential,
+        PaymentMethodData, Sequence, StoredCredential,
     },
     response::{GlobalpayPaymentStatus, GlobalpayPaymentsResponse, GlobalpayRefreshTokenResponse},
 };
@@ -91,6 +91,13 @@ impl TryFrom<&types::PaymentsCaptureRouterData> for requests::GlobalpayCaptureRe
     fn try_from(value: &types::PaymentsCaptureRouterData) -> Result<Self, Self::Error> {
         Ok(Self {
             amount: Some(value.request.amount_to_capture.to_string()),
+            capture_sequence: value.request.multiple_capture_data.clone().map(|mcd| {
+                if mcd.capture_sequence == 1 {
+                    Sequence::First
+                } else {
+                    Sequence::Subsequent
+                }
+            }),
         })
     }
 }
@@ -187,6 +194,7 @@ impl From<Option<enums::CaptureMethod>> for requests::CaptureMode {
     fn from(capture_method: Option<enums::CaptureMethod>) -> Self {
         match capture_method {
             Some(enums::CaptureMethod::Manual) => Self::Later,
+            Some(enums::CaptureMethod::ManualMultiple) => Self::Multiple,
             _ => Self::Auto,
         }
     }

@@ -356,6 +356,7 @@ fn is_payment_failed(payment_status: &str) -> (bool, &'static str) {
         "100.390.115" => (true, "Authentication failed due to invalid message format"),
         "100.390.118" => (true, "Authentication failed due to suspected fraud"),
         "100.400.304" => (true, "Invalid input data"),
+        "100.550.312" => (true, "Amount is outside allowed ticket size boundaries"),
         "200.300.404" => (true, "Invalid or missing parameter"),
         "300.100.100" => (
             true,
@@ -377,6 +378,8 @@ fn is_payment_failed(payment_status: &str) -> (bool, &'static str) {
         "800.100.153" => (true, "Transaction declined (invalid CVV)"),
         "800.100.155" => (true, "Transaction declined (amount exceeds credit)"),
         "800.100.157" => (true, "Transaction declined (wrong expiry date)"),
+        "800.100.158" => (true, "transaction declined (suspecting manipulation)"),
+        "800.100.160" => (true, "transaction declined (card blocked)"),
         "800.100.162" => (true, "Transaction declined (limit exceeded)"),
         "800.100.163" => (
             true,
@@ -384,6 +387,7 @@ fn is_payment_failed(payment_status: &str) -> (bool, &'static str) {
         ),
         "800.100.168" => (true, "Transaction declined (restricted card)"),
         "800.100.170" => (true, "Transaction declined (transaction not permitted)"),
+        "800.100.171" => (true, "transaction declined (pick up card)"),
         "800.100.172" => (true, "Transaction declined (account blocked)"),
         "800.100.190" => (true, "Transaction declined (invalid configuration data)"),
         "800.120.100" => (true, "Rejected by throttling"),
@@ -1048,8 +1052,10 @@ pub fn get_apple_pay_session<F, T>(
                     payment_request_data: Some(api_models::payments::ApplePayPaymentRequest {
                         country_code: apple_pay_init_result.country_code,
                         currency_code: apple_pay_init_result.currency_code,
-                        supported_networks: apple_pay_init_result.supported_networks.clone(),
-                        merchant_capabilities: apple_pay_init_result.merchant_capabilities.clone(),
+                        supported_networks: Some(apple_pay_init_result.supported_networks.clone()),
+                        merchant_capabilities: Some(
+                            apple_pay_init_result.merchant_capabilities.clone(),
+                        ),
                         total: apple_pay_init_result.total.into(),
                         merchant_identifier: None,
                     }),
@@ -1060,6 +1066,8 @@ pub fn get_apple_pay_session<F, T>(
                             next_action: api_models::payments::NextActionCall::Sync,
                         }
                     },
+                    connector_reference_id: None,
+                    connector_sdk_public_key: None,
                 },
             ))),
             connector_response_reference_id: None,

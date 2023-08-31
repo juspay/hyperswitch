@@ -1,4 +1,4 @@
-mod transformers;
+pub mod transformers;
 
 use std::fmt::Debug;
 use error_stack::{ResultExt, IntoReport};
@@ -10,7 +10,7 @@ use crate::{
     core::{
         errors::{self, CustomResult},
     },
-    headers, services::{self, ConnectorIntegration, request::{self, Mask}},
+    headers, services::{self, ConnectorIntegration, ConnectorValidation, request::{self, Mask}},
     types::{
         self,
         api::{self, ConnectorCommon, ConnectorCommonExt},
@@ -77,14 +77,6 @@ impl ConnectorCommon for {{project-name | downcase | pascal_case}} {
     fn base_url<'a>(&self, connectors: &'a settings::Connectors) -> &'a str {
         connectors.{{project-name}}.base_url.as_ref()
     }
-    
-    fn validate_auth_type(
-        &self,
-        val: &types::ConnectorAuthType,
-    ) -> Result<(), error_stack::Report<errors::ConnectorError>> {
-        {{project-name | downcase}}::{{project-name | downcase | pascal_case}}AuthType::try_from(val)?;
-        Ok(())
-    }
 
     fn get_auth_header(&self, auth_type:&types::ConnectorAuthType)-> CustomResult<Vec<(String,request::Maskable<String>)>,errors::ConnectorError> {
         let auth =  {{project-name | downcase}}::{{project-name | downcase | pascal_case}}AuthType::try_from(auth_type)
@@ -108,6 +100,11 @@ impl ConnectorCommon for {{project-name | downcase | pascal_case}} {
             reason: response.reason,
         })
     }
+}
+
+impl ConnectorValidation for {{project-name | downcase | pascal_case}} 
+{
+    //TODO: implement functions when support enabled
 }
 
 impl
@@ -164,6 +161,7 @@ impl
         req: &types::PaymentsAuthorizeRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
+        self.validate_capture_method(req.request.capture_method)?;
         Ok(Some(
             services::RequestBuilder::new()
                 .method(services::Method::Post)

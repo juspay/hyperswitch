@@ -1,3 +1,5 @@
+use api_models::enums::{Connector, PaymentMethod};
+
 use super::MockDb;
 use crate::{
     core::errors::{self, CustomResult},
@@ -72,15 +74,26 @@ pub trait PaymentAttemptInterface {
 
     async fn get_filters_for_payments(
         &self,
-        pi: &[diesel_models::payment_intent::PaymentIntent],
+        pi: &[types::PaymentIntent],
         merchant_id: &str,
         storage_scheme: enums::MerchantStorageScheme,
     ) -> CustomResult<diesel_models::payment_attempt::PaymentListFilters, errors::StorageError>;
+
+    async fn get_total_count_of_filtered_payment_attempts(
+        &self,
+        merchant_id: &str,
+        active_attempt_ids: &[String],
+        connector: Option<Vec<Connector>>,
+        payment_methods: Option<Vec<PaymentMethod>>,
+        storage_scheme: enums::MerchantStorageScheme,
+    ) -> CustomResult<i64, errors::StorageError>;
 }
 
 #[cfg(not(feature = "kv_store"))]
 mod storage {
+    use api_models::enums::{Connector, PaymentMethod};
     use error_stack::IntoReport;
+    use storage_impl::DataModelExt;
 
     use super::PaymentAttemptInterface;
     use crate::{
@@ -111,7 +124,7 @@ mod storage {
             payment_attempt: PaymentAttemptUpdate,
             _storage_scheme: enums::MerchantStorageScheme,
         ) -> CustomResult<PaymentAttempt, errors::StorageError> {
-            let conn = connection::pg_connection_write(&self).await?;
+            let conn = connection::pg_connection_write(self).await?;
             this.update_with_attempt_id(&conn, payment_attempt)
                 .await
                 .map_err(Into::into)
@@ -193,16 +206,52 @@ mod storage {
 
         async fn get_filters_for_payments(
             &self,
-            pi: &[diesel_models::payment_intent::PaymentIntent],
+            pi: &[data_models::payments::payment_intent::PaymentIntent],
             merchant_id: &str,
             _storage_scheme: enums::MerchantStorageScheme,
         ) -> CustomResult<diesel_models::payment_attempt::PaymentListFilters, errors::StorageError>
         {
             let conn = connection::pg_connection_read(self).await?;
-            PaymentAttempt::get_filters_for_payments(&conn, pi, merchant_id)
+            let intents = pi
+                .iter()
+                .cloned()
+                .map(|pi| pi.to_storage_model())
+                .collect::<Vec<diesel_models::payment_intent::PaymentIntent>>();
+            PaymentAttempt::get_filters_for_payments(&conn, intents.as_slice(), merchant_id)
                 .await
                 .map_err(Into::into)
                 .into_report()
+        }
+
+        async fn get_total_count_of_filtered_payment_attempts(
+            &self,
+            merchant_id: &str,
+            active_attempt_ids: &[String],
+            connector: Option<Vec<Connector>>,
+            payment_methods: Option<Vec<PaymentMethod>>,
+            _storage_scheme: enums::MerchantStorageScheme,
+        ) -> CustomResult<i64, errors::StorageError> {
+            let conn = connection::pg_connection_read(self).await?;
+            let connector_strings = if let Some(connector_vec) = &connector {
+                Some(
+                    connector_vec
+                        .iter()
+                        .map(|c| c.to_string())
+                        .collect::<Vec<String>>(),
+                )
+            } else {
+                None
+            };
+            PaymentAttempt::get_total_count_of_attempts(
+                &conn,
+                merchant_id,
+                active_attempt_ids,
+                connector_strings,
+                payment_methods,
+            )
+            .await
+            .map_err(Into::into)
+            .into_report()
         }
 
         async fn find_payment_attempt_by_preprocessing_id_merchant_id(
@@ -267,11 +316,22 @@ impl PaymentAttemptInterface for MockDb {
 
     async fn get_filters_for_payments(
         &self,
-        _pi: &[diesel_models::payment_intent::PaymentIntent],
+        _pi: &[data_models::payments::payment_intent::PaymentIntent],
         _merchant_id: &str,
         _storage_scheme: enums::MerchantStorageScheme,
     ) -> CustomResult<diesel_models::payment_attempt::PaymentListFilters, errors::StorageError>
     {
+        Err(errors::StorageError::MockDbError)?
+    }
+
+    async fn get_total_count_of_filtered_payment_attempts(
+        &self,
+        _merchant_id: &str,
+        _active_attempt_ids: &[String],
+        _connector: Option<Vec<Connector>>,
+        _payment_methods: Option<Vec<PaymentMethod>>,
+        _storage_scheme: enums::MerchantStorageScheme,
+    ) -> CustomResult<i64, errors::StorageError> {
         Err(errors::StorageError::MockDbError)?
     }
 
@@ -365,6 +425,7 @@ impl PaymentAttemptInterface for MockDb {
             mandate_details: payment_attempt.mandate_details,
             preprocessing_step_id: payment_attempt.preprocessing_step_id,
             error_reason: payment_attempt.error_reason,
+            multiple_capture_count: payment_attempt.multiple_capture_count,
             connector_response_reference_id: None,
         };
         payment_attempts.push(payment_attempt.clone());
@@ -429,6 +490,7 @@ mod storage {
     use diesel_models::reverse_lookup::ReverseLookup;
     use error_stack::{IntoReport, ResultExt};
     use redis_interface::HsetnxReply;
+    use storage_impl::{redis::kv_store::RedisConnInterface, DataModelExt};
 
     use super::PaymentAttemptInterface;
     use crate::{
@@ -504,12 +566,13 @@ mod storage {
                         mandate_details: payment_attempt.mandate_details.clone(),
                         preprocessing_step_id: payment_attempt.preprocessing_step_id.clone(),
                         error_reason: payment_attempt.error_reason.clone(),
+                        multiple_capture_count: payment_attempt.multiple_capture_count,
                         connector_response_reference_id: None,
                     };
 
                     let field = format!("pa_{}", created_attempt.attempt_id);
                     match self
-                        .redis_conn()
+                        .get_redis_conn()
                         .map_err(Into::<errors::StorageError>::into)?
                         .serialize_and_set_hash_field_if_not_exist(&key, &field, &created_attempt)
                         .await
@@ -549,7 +612,7 @@ mod storage {
                                     payment_id: &created_attempt.payment_id,
                                 }
                             )
-                            .await?;
+                            .await.change_context(errors::StorageError::KVError)?;
                             Ok(created_attempt)
                         }
                         Err(error) => Err(error.change_context(errors::StorageError::KVError)),
@@ -584,7 +647,8 @@ mod storage {
                         .change_context(errors::StorageError::KVError)?;
                     let field = format!("pa_{}", updated_attempt.attempt_id);
                     let updated_attempt = self
-                        .redis_conn
+                        .get_redis_conn()
+                        .change_context(errors::StorageError::KVError)?
                         .set_hash_fields(&key, (&field, &redis_value))
                         .await
                         .map(|_| updated_attempt)
@@ -662,7 +726,8 @@ mod storage {
                             payment_id: &updated_attempt.payment_id,
                         },
                     )
-                    .await?;
+                    .await
+                    .change_context(errors::StorageError::KVError)?;
                     Ok(updated_attempt)
                 }
             }
@@ -696,7 +761,7 @@ mod storage {
                     let key = &lookup.pk_id;
 
                     db_utils::try_redis_get_else_try_database_get(
-                        self.redis_conn()
+                        self.get_redis_conn()
                             .map_err(Into::<errors::StorageError>::into)?
                             .get_hash_field_and_deserialize(key, &lookup.sk_id, "PaymentAttempt"),
                         database_call,
@@ -749,7 +814,7 @@ mod storage {
 
                     let key = &lookup.pk_id;
                     db_utils::try_redis_get_else_try_database_get(
-                        self.redis_conn()
+                        self.get_redis_conn()
                             .map_err(Into::<errors::StorageError>::into)?
                             .get_hash_field_and_deserialize(key, &lookup.sk_id, "PaymentAttempt"),
                         database_call,
@@ -780,7 +845,7 @@ mod storage {
                     let lookup = self.get_lookup_by_lookup_id(&lookup_id).await?;
                     let key = &lookup.pk_id;
                     db_utils::try_redis_get_else_try_database_get(
-                        self.redis_conn()
+                        self.get_redis_conn()
                             .map_err(Into::<errors::StorageError>::into)?
                             .get_hash_field_and_deserialize(key, &lookup.sk_id, "PaymentAttempt"),
                         database_call,
@@ -815,7 +880,7 @@ mod storage {
                     let key = &lookup.pk_id;
 
                     db_utils::try_redis_get_else_try_database_get(
-                        self.redis_conn()
+                        self.get_redis_conn()
                             .map_err(Into::<errors::StorageError>::into)?
                             .get_hash_field_and_deserialize(key, &lookup.sk_id, "PaymentAttempt"),
                         database_call,
@@ -852,7 +917,7 @@ mod storage {
                     let lookup = self.get_lookup_by_lookup_id(&lookup_id).await?;
                     let key = &lookup.pk_id;
                     db_utils::try_redis_get_else_try_database_get(
-                        self.redis_conn()
+                        self.get_redis_conn()
                             .map_err(Into::<errors::StorageError>::into)?
                             .get_hash_field_and_deserialize(key, &lookup.sk_id, "PaymentAttempt"),
                         database_call,
@@ -882,7 +947,7 @@ mod storage {
 
                     let pattern = db_utils::generate_hscan_pattern_for_attempt(&lookup.sk_id);
 
-                    self.redis_conn()
+                    self.get_redis_conn()
                         .map_err(Into::<errors::StorageError>::into)?
                         .hscan_and_deserialize(&key, &pattern, None)
                         .await
@@ -893,16 +958,50 @@ mod storage {
 
         async fn get_filters_for_payments(
             &self,
-            pi: &[diesel_models::payment_intent::PaymentIntent],
+            pi: &[data_models::payments::payment_intent::PaymentIntent],
             merchant_id: &str,
             _storage_scheme: enums::MerchantStorageScheme,
         ) -> CustomResult<diesel_models::payment_attempt::PaymentListFilters, errors::StorageError>
         {
             let conn = connection::pg_connection_read(self).await?;
-            PaymentAttempt::get_filters_for_payments(&conn, pi, merchant_id)
+            let intents = pi
+                .iter()
+                .cloned()
+                .map(|pi| pi.to_storage_model())
+                .collect::<Vec<diesel_models::payment_intent::PaymentIntent>>();
+            PaymentAttempt::get_filters_for_payments(&conn, intents.as_slice(), merchant_id)
                 .await
                 .map_err(Into::into)
                 .into_report()
+        }
+
+        async fn get_total_count_of_filtered_payment_attempts(
+            &self,
+            merchant_id: &str,
+            active_attempt_ids: &[String],
+            connector: Option<Vec<api_models::enums::Connector>>,
+            payment_methods: Option<Vec<api_models::enums::PaymentMethod>>,
+            _storage_scheme: enums::MerchantStorageScheme,
+        ) -> CustomResult<i64, errors::StorageError> {
+            let conn = connection::pg_connection_read(self).await?;
+
+            let connector_strings = connector.as_ref().map(|connector_vec| {
+                connector_vec
+                    .iter()
+                    .map(|c| c.to_string())
+                    .collect::<Vec<String>>()
+            });
+
+            PaymentAttempt::get_total_count_of_attempts(
+                &conn,
+                merchant_id,
+                active_attempt_ids,
+                connector_strings,
+                payment_methods,
+            )
+            .await
+            .map_err(Into::into)
+            .into_report()
         }
     }
 
