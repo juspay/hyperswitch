@@ -1035,8 +1035,12 @@ impl api::IncomingWebhook for Bluesnap {
                 .into_report()
                 .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
         Ok(api::disputes::DisputePayload {
-            amount: dispute_details.invoice_charge_amount,
-            currency: dispute_details.currency,
+            amount: connector_utils::to_currency_higher_unit(
+                dispute_details.invoice_charge_amount.abs().to_string(),
+                dispute_details.currency,
+            )?
+            .to_string(),
+            currency: dispute_details.currency.to_string(),
             dispute_stage: api_models::enums::DisputeStage::Dispute,
             connector_dispute_id: dispute_details.reversal_ref_num,
             connector_reason: dispute_details.reversal_reason,
@@ -1078,7 +1082,7 @@ impl api::IncomingWebhook for Bluesnap {
                 return Ok(res_json);
             }
             bluesnap::BluesnapWebhookEvents::Unknown => {
-                Err(errors::ConnectorError::WebhookEventTypeNotFound)
+                Err(errors::ConnectorError::WebhookResourceObjectNotFound)
             }
         }?;
 

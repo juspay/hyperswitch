@@ -858,8 +858,9 @@ impl TryFrom<BluesnapWebhookObjectEventType> for api::IncomingWebhookEvent {
                     .cb_status
                     .ok_or(errors::ConnectorError::WebhookEventTypeNotFound)?
                 {
-                    BluesnapChargebackStatus::New => Ok(Self::DisputeOpened),
-                    BluesnapChargebackStatus::Working => Ok(Self::DisputeChallenged),
+                    BluesnapChargebackStatus::New | BluesnapChargebackStatus::Working => {
+                        Ok(Self::DisputeOpened)
+                    }
                     BluesnapChargebackStatus::Closed => Ok(Self::DisputeExpired),
                     BluesnapChargebackStatus::CompletedLost => Ok(Self::DisputeLost),
                     BluesnapChargebackStatus::CompletedPending => Ok(Self::DisputeChallenged),
@@ -874,8 +875,8 @@ impl TryFrom<BluesnapWebhookObjectEventType> for api::IncomingWebhookEvent {
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct BluesnapDisputeWebhookBody {
-    pub invoice_charge_amount: String,
-    pub currency: String,
+    pub invoice_charge_amount: f64,
+    pub currency: diesel_models::enums::Currency,
     pub reversal_reason: Option<String>,
     pub reversal_ref_num: String,
     pub cb_status: String,

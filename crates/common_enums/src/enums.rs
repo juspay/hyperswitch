@@ -1,4 +1,4 @@
-use std::num::TryFromIntError;
+use std::num::{ParseFloatError, TryFromIntError};
 
 use router_derive;
 use serde::{Deserialize, Serialize};
@@ -340,6 +340,18 @@ impl Currency {
             amount_f64 / 100.00
         };
         Ok(amount)
+    }
+
+    pub fn to_currency_higher_unit(&self, amount: String) -> Result<i64, ParseFloatError> {
+        let amount_f64 = amount.parse::<f64>()?;
+        let amount_string = if self.is_zero_decimal_currency() {
+            amount_f64
+        } else if self.is_three_decimal_currency() {
+            amount_f64 * 1000.00
+        } else {
+            amount_f64 * 100.00
+        };
+        Ok(amount_string as i64)
     }
 
     /// Convert the amount to its base denomination based on Currency and check for zero decimal currency and return String
