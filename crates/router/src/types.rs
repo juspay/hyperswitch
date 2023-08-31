@@ -351,7 +351,7 @@ pub struct AuthorizeSessionTokenData {
     pub amount_to_capture: Option<i64>,
     pub currency: storage_enums::Currency,
     pub connector_transaction_id: String,
-    pub amount: i64,
+    pub amount: Option<i64>,
 }
 
 #[derive(Debug, Clone)]
@@ -877,7 +877,7 @@ impl From<&&mut PaymentsAuthorizeRouterData> for AuthorizeSessionTokenData {
             amount_to_capture: data.amount_captured,
             currency: data.request.currency,
             connector_transaction_id: data.payment_id.clone(),
-            amount: data.request.amount,
+            amount: Some(data.request.amount),
         }
     }
 }

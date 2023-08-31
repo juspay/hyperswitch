@@ -119,7 +119,7 @@ impl ConnectorCommon for Square {
                 .errors
                 .first()
                 .and_then(|error| error.category.clone())
-                .unwrap_or(consts::NO_ERROR_CODE.to_string()),
+                .unwrap_or(consts::NO_ERROR_MESSAGE.to_string()),
             reason: Some(reason),
         })
     }
@@ -183,7 +183,7 @@ impl
             connector_transaction_id: router_data.payment_id.clone(),
             amount_to_capture: None,
             currency: router_data.request.currency,
-            amount: router_data.request.amount.unwrap_or(0),
+            amount: router_data.request.amount,
         };
 
         let authorize_data = &types::PaymentsAuthorizeSessionTokenRouterData::from((
