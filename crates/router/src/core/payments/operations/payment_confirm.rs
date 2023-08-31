@@ -75,6 +75,11 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
             "confirm",
         )?;
 
+        helpers::authenticate_client_secret(
+            request.client_secret.as_ref(),
+            &payment_intent,
+            merchant_account.intent_fulfillment_time,
+        )?;
         payment_attempt = db
             .find_payment_attempt_by_payment_id_merchant_id_attempt_id(
                 payment_intent.payment_id.as_str(),

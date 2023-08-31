@@ -382,6 +382,11 @@ pub enum ConnectorError {
     InSufficientBalanceInPaymentMethod,
     #[error("Server responded with Request Timeout")]
     RequestTimeoutReceived,
+    #[error("The given currency method is not configured with the given connector")]
+    CurrencyNotSupported {
+        message: String,
+        connector: &'static str,
+    },
 }
 
 #[derive(Debug, thiserror::Error)]
@@ -599,11 +604,7 @@ pub mod error_stack_parsing {
                         attachments: current_error.attachments,
                     }]
                     .into_iter()
-                    .chain(
-                        Into::<VecLinearErrorStack<'a>>::into(current_error.sources)
-                            .0
-                            .into_iter(),
-                    )
+                    .chain(Into::<VecLinearErrorStack<'a>>::into(current_error.sources).0)
                 })
                 .collect();
             Self(multi_layered_errors)

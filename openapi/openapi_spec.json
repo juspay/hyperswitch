@@ -6093,7 +6093,8 @@
           "enable_payment_response_hash",
           "redirect_to_merchant_with_http_post",
           "primary_business_details",
-          "is_recon_enabled"
+          "is_recon_enabled",
+          "recon_status"
         ],
         "properties": {
           "merchant_id": {
@@ -6232,6 +6233,9 @@
             "description": "The default business profile that must be used for creating merchant accounts and payments",
             "nullable": true,
             "maxLength": 64
+          },
+          "recon_status": {
+            "$ref": "#/components/schemas/ReconStatus"
           }
         }
       },
@@ -7661,9 +7665,11 @@
           },
           "limit": {
             "type": "integer",
-            "format": "int64",
+            "format": "int32",
             "description": "limit on the number of objects to return",
-            "default": 10
+            "default": 10,
+            "maximum": 100.0,
+            "minimum": 0.0
           },
           "created": {
             "type": "string",
@@ -7706,7 +7712,6 @@
         "type": "object",
         "required": [
           "size",
-          "attempt_count",
           "data"
         ],
         "properties": {
@@ -7714,11 +7719,6 @@
             "type": "integer",
             "description": "The number of payments included in the list",
             "minimum": 0.0
-          },
-          "attempt_count": {
-            "type": "integer",
-            "format": "int32",
-            "description": "The total number of payment_attempts for intents included in the list"
           },
           "data": {
             "type": "array",
@@ -7900,15 +7900,10 @@
             ]
           },
           {
-            "type": "object",
-            "required": [
+            "type": "string",
+            "enum": [
               "reward"
-            ],
-            "properties": {
-              "reward": {
-                "$ref": "#/components/schemas/RewardData"
-              }
-            }
+            ]
           },
           {
             "type": "object",
@@ -8272,6 +8267,11 @@
           "client_secret": {
             "type": "string",
             "description": "This is a token which expires after 15 minutes, used from the client to authenticate and create sessions from the SDK",
+            "nullable": true
+          },
+          "expand_captures": {
+            "type": "boolean",
+            "description": "If enabled provides list of captures linked to latest attempt",
             "nullable": true
           },
           "expand_attempts": {
@@ -9031,7 +9031,8 @@
           "currency",
           "payment_method",
           "business_country",
-          "business_label"
+          "business_label",
+          "attempt_count"
         ],
         "properties": {
           "payment_id": {
@@ -9401,6 +9402,11 @@
             "type": "string",
             "description": "The business profile that is associated with this payment",
             "nullable": true
+          },
+          "attempt_count": {
+            "type": "integer",
+            "format": "int32",
+            "description": "total number of attempts associated with this payment"
           }
         }
       },
@@ -9444,6 +9450,11 @@
           "client_secret": {
             "type": "string",
             "description": "This is a token which expires after 15 minutes, used from the client to authenticate and create sessions from the SDK",
+            "nullable": true
+          },
+          "expand_captures": {
+            "type": "boolean",
+            "description": "If enabled provides list of captures linked to latest attempt",
             "nullable": true
           },
           "expand_attempts": {
@@ -10068,6 +10079,15 @@
             "nullable": true
           }
         }
+      },
+      "ReconStatus": {
+        "type": "string",
+        "enum": [
+          "not_requested",
+          "requested",
+          "active",
+          "disabled"
+        ]
       },
       "RedirectResponse": {
         "type": "object",

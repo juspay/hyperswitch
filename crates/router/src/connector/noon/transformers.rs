@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     connector::utils::{
-        self as conn_utils, PaymentsAuthorizeRequestData, RefundsRequestData, RouterData,
+        self as conn_utils, CardData, PaymentsAuthorizeRequestData, RefundsRequestData, RouterData,
         WalletData,
     },
     core::errors,
@@ -181,10 +181,10 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for NoonPaymentsRequest {
             _ => (
                 match item.request.payment_method_data.clone() {
                     api::PaymentMethodData::Card(req_card) => Ok(NoonPaymentData::Card(NoonCard {
-                        name_on_card: req_card.card_holder_name,
-                        number_plain: req_card.card_number,
-                        expiry_month: req_card.card_exp_month,
-                        expiry_year: req_card.card_exp_year,
+                        name_on_card: req_card.card_holder_name.clone(),
+                        number_plain: req_card.card_number.clone(),
+                        expiry_month: req_card.card_exp_month.clone(),
+                        expiry_year: req_card.get_expiry_year_4_digit(),
                         cvv: req_card.card_cvc,
                     })),
                     api::PaymentMethodData::Wallet(wallet_data) => match wallet_data.clone() {
@@ -312,6 +312,8 @@ pub enum NoonPaymentStatus {
     Cancelled,
     #[serde(rename = "3DS_ENROLL_INITIATED")]
     ThreeDsEnrollInitiated,
+    #[serde(rename = "3DS_ENROLL_CHECKED")]
+    ThreeDsEnrollChecked,
     Failed,
     #[default]
     Pending,
@@ -324,7 +326,9 @@ impl From<NoonPaymentStatus> for enums::AttemptStatus {
             NoonPaymentStatus::Captured | NoonPaymentStatus::PartiallyCaptured => Self::Charged,
             NoonPaymentStatus::Reversed => Self::Voided,
             NoonPaymentStatus::Cancelled => Self::AuthenticationFailed,
-            NoonPaymentStatus::ThreeDsEnrollInitiated => Self::AuthenticationPending,
+            NoonPaymentStatus::ThreeDsEnrollInitiated | NoonPaymentStatus::ThreeDsEnrollChecked => {
+                Self::AuthenticationPending
+            }
             NoonPaymentStatus::Failed => Self::Failure,
             NoonPaymentStatus::Pending => Self::Pending,
         }

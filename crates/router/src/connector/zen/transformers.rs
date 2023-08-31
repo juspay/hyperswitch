@@ -655,7 +655,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for ZenPaymentsRequest {
             | api_models::payments::PaymentMethodData::BankDebit(_)
             | api_models::payments::PaymentMethodData::Crypto(_)
             | api_models::payments::PaymentMethodData::MandatePayment
-            | api_models::payments::PaymentMethodData::Reward(_)
+            | api_models::payments::PaymentMethodData::Reward
             | api_models::payments::PaymentMethodData::Upi(_)
             | api_models::payments::PaymentMethodData::CardRedirect(_)
             | api_models::payments::PaymentMethodData::GiftCard(_) => {
