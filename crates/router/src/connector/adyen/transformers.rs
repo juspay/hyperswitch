@@ -1342,7 +1342,7 @@ impl<'a> TryFrom<&types::PaymentsAuthorizeRouterData> for AdyenPaymentRequest<'a
                 }
                 payments::PaymentMethodData::Crypto(_)
                 | payments::PaymentMethodData::MandatePayment
-                | payments::PaymentMethodData::Reward(_)
+                | payments::PaymentMethodData::Reward
                 | payments::PaymentMethodData::Upi(_) => {
                     Err(errors::ConnectorError::NotSupported {
                         message: utils::SELECTED_PAYMENT_METHOD.to_string(),
@@ -2224,7 +2224,7 @@ impl<'a>
                     | payments::PaymentMethodData::BankTransfer(_)
                     | payments::PaymentMethodData::Crypto(_)
                     | payments::PaymentMethodData::MandatePayment
-                    | payments::PaymentMethodData::Reward(_)
+                    | payments::PaymentMethodData::Reward
                     | payments::PaymentMethodData::Upi(_)
                     | payments::PaymentMethodData::Voucher(_)
                     | payments::PaymentMethodData::GiftCard(_) => {
