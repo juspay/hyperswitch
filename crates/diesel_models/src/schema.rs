@@ -616,6 +616,7 @@ diesel::table! {
         token -> Nullable<Varchar>,
         #[max_length = 255]
         cardholder_name -> Nullable<Varchar>,
+        card_details ->  Nullable<Bytea>,
         #[max_length = 64]
         issuer_name -> Nullable<Varchar>,
         #[max_length = 64]

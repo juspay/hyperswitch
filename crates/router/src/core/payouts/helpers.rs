@@ -209,6 +209,22 @@ pub async fn save_payout_data_to_locker(
     .change_context(errors::ApiErrorResponse::InternalServerError)
     .attach_printable("Error updating payouts in saved payout method")?;
 
+    // last4 and other details not available here
+    let card = api::CardDetailsPaymentMethod {
+        scheme: None,
+        last4_digits: None,
+        issuer_country: None,
+        expiry_month: card_details.as_ref().map(|c| c.card_exp_month.clone()),
+        expiry_year: card_details.as_ref().map(|c| c.card_exp_year.clone()),
+        nick_name: card_details.as_ref().and_then(|c| c.nick_name.clone()),
+        card_holder_name: card_details
+            .as_ref()
+            .and_then(|c| c.card_holder_name.clone()),
+    };
+
+    let card_details_encrypted =
+        cards::create_encrypted_card_details(state, merchant_account, Some(card)).await;
+
     // Insert in payment_method table
     let payment_method = api::PaymentMethodCreate {
         payment_method: api_enums::PaymentMethod::foreign_from(payout_method_data.to_owned()),
@@ -220,6 +236,7 @@ pub async fn save_payout_data_to_locker(
         customer_id: Some(payout_attempt.customer_id.to_owned()),
         card_network: None,
     };
+
     cards::create_payment_method(
         db,
         &payment_method,
@@ -227,6 +244,7 @@ pub async fn save_payout_data_to_locker(
         &stored_resp.card_reference,
         &merchant_account.merchant_id,
         None,
+        card_details_encrypted,
     )
     .await
     .change_context(errors::ApiErrorResponse::InternalServerError)

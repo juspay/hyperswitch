@@ -13,7 +13,7 @@ use crate::{
     services,
     types::{
         self,
-        api::{self, PaymentMethodCreateExt},
+        api::{self, CardDetailsPaymentMethod, PaymentMethodCreateExt},
         domain,
         storage::enums as storage_enums,
     },
@@ -71,6 +71,19 @@ where
                 .await?;
                 let is_duplicate = locker_response.1;
 
+                let card_details = locker_response
+                    .0
+                    .card
+                    .as_ref()
+                    .map(|card| CardDetailsPaymentMethod::from(card.clone()));
+
+                let card_details_encrypted = payment_methods::cards::create_encrypted_card_details(
+                    state,
+                    merchant_account,
+                    card_details,
+                )
+                .await;
+
                 if is_duplicate {
                     let existing_pm = db
                         .find_payment_method(&locker_response.0.payment_method_id)
@@ -103,6 +116,7 @@ where
                                             &locker_response.0.payment_method_id,
                                             merchant_id,
                                             pm_metadata,
+                                            card_details_encrypted,
                                         )
                                         .await
                                         .change_context(
@@ -131,6 +145,7 @@ where
                         &locker_response.0.payment_method_id,
                         merchant_id,
                         pm_metadata,
+                        card_details_encrypted,
                     )
                     .await
                     .change_context(errors::ApiErrorResponse::InternalServerError)

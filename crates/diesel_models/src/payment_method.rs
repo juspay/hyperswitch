@@ -4,7 +4,7 @@ use masking::Secret;
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
 
-use crate::{enums as storage_enums, schema::payment_methods};
+use crate::{encryption::Encryption, enums as storage_enums, schema::payment_methods};
 
 #[derive(Clone, Debug, Eq, PartialEq, Identifiable, Queryable)]
 #[diesel(table_name = payment_methods)]
@@ -18,6 +18,7 @@ pub struct PaymentMethod {
     pub scheme: Option<String>,
     pub token: Option<String>,
     pub cardholder_name: Option<Secret<String>>,
+    pub card_details: Option<Encryption>,
     pub issuer_name: Option<String>,
     pub issuer_country: Option<String>,
     #[diesel(deserialize_as = super::OptionalDieselArray<String>)]
@@ -48,6 +49,7 @@ pub struct PaymentMethodNew {
     pub scheme: Option<String>,
     pub token: Option<String>,
     pub cardholder_name: Option<Secret<String>>,
+    pub card_details: Option<Encryption>,
     pub issuer_name: Option<String>,
     pub issuer_country: Option<String>,
     pub payer_country: Option<Vec<String>>,
@@ -84,6 +86,7 @@ impl Default for PaymentMethodNew {
             created_at: now,
             last_modified: now,
             metadata: Option::default(),
+            card_details: Option::default(),
         }
     }
 }

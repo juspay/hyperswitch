@@ -159,6 +159,7 @@ impl PaymentMethodInterface for MockDb {
             payment_method_issuer: payment_method_new.payment_method_issuer,
             payment_method_issuer_code: payment_method_new.payment_method_issuer_code,
             metadata: payment_method_new.metadata,
+            card_details: payment_method_new.card_details,
         };
         payment_methods.push(payment_method.clone());
         Ok(payment_method)
