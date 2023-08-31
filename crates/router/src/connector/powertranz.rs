@@ -1,14 +1,17 @@
-mod transformers;
+pub mod transformers;
 
 use std::fmt::Debug;
 
 use api_models::enums::AuthenticationType;
 use common_utils::ext_traits::ValueExt;
+use diesel_models::enums;
 use error_stack::{IntoReport, ResultExt};
 use masking::ExposeInterface;
 use transformers as powertranz;
 
-use super::utils::{PaymentsAuthorizeRequestData, PaymentsCompleteAuthorizeRequestData};
+use super::utils::{
+    self as connector_utils, PaymentsAuthorizeRequestData, PaymentsCompleteAuthorizeRequestData,
+};
 use crate::{
     configs::settings,
     consts,
@@ -17,7 +20,7 @@ use crate::{
     services::{
         self,
         request::{self, Mask},
-        ConnectorIntegration,
+        ConnectorIntegration, ConnectorValidation,
     },
     types::{
         self,
@@ -84,14 +87,6 @@ impl ConnectorCommon for Powertranz {
         "application/json"
     }
 
-    fn validate_auth_type(
-        &self,
-        val: &types::ConnectorAuthType,
-    ) -> Result<(), error_stack::Report<errors::ConnectorError>> {
-        powertranz::PowertranzAuthType::try_from(val)?;
-        Ok(())
-    }
-
     fn base_url<'a>(&self, connectors: &'a settings::Connectors) -> &'a str {
         connectors.powertranz.base_url.as_ref()
     }
@@ -126,6 +121,21 @@ impl ConnectorCommon for Powertranz {
             message: consts::NO_ERROR_MESSAGE.to_string(),
             reason: None,
         })
+    }
+}
+
+impl ConnectorValidation for Powertranz {
+    fn validate_capture_method(
+        &self,
+        capture_method: Option<enums::CaptureMethod>,
+    ) -> CustomResult<(), errors::ConnectorError> {
+        let capture_method = capture_method.unwrap_or_default();
+        match capture_method {
+            enums::CaptureMethod::Automatic | enums::CaptureMethod::Manual => Ok(()),
+            enums::CaptureMethod::ManualMultiple | enums::CaptureMethod::Scheduled => Err(
+                connector_utils::construct_not_supported_error_report(capture_method, self.id()),
+            ),
+        }
     }
 }
 
@@ -194,6 +204,7 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         req: &types::PaymentsAuthorizeRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
+        self.validate_capture_method(req.request.capture_method)?;
         Ok(Some(
             services::RequestBuilder::new()
                 .method(services::Method::Post)

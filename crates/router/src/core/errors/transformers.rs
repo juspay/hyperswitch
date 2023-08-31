@@ -54,6 +54,9 @@ impl ErrorSwitch<api_models::errors::types::ApiErrorResponse> for ApiErrorRespon
             Self::ClientSecretInvalid => {
                 AER::BadRequest(ApiError::new("IR", 9, "The client_secret provided does not match the client_secret associated with the Payment", None))
             }
+            Self::CurrencyNotSupported { message } => {
+                AER::BadRequest(ApiError::new("IR", 9, message, None))
+            }
             Self::MandateActive => {
                 AER::BadRequest(ApiError::new("IR", 10, "Customer has active mandate/subsciption", None))
             }
@@ -207,6 +210,9 @@ impl ErrorSwitch<api_models::errors::types::ApiErrorResponse> for ApiErrorRespon
             }
             Self::DisputeNotFound { .. } => {
                 AER::NotFound(ApiError::new("HE", 2, "Dispute does not exist in our records", None))
+            },
+            Self::BusinessProfileNotFound { id } => {
+                AER::NotFound(ApiError::new("HE", 2, format!("Business profile with the given id {id} does not exist"), None))
             }
             Self::FileNotFound => {
                 AER::NotFound(ApiError::new("HE", 2, "File does not exist in our records", None))

@@ -1,8 +1,9 @@
-mod transformers;
+pub mod transformers;
 
 use std::fmt::Debug;
 
 use common_utils::crypto::{self, GenerateDigest};
+use diesel_models::enums;
 use error_stack::{IntoReport, ResultExt};
 use hex::encode;
 use masking::ExposeInterface;
@@ -15,11 +16,10 @@ use crate::{
     consts,
     core::errors::{self, CustomResult},
     headers,
-    services::{self, request, ConnectorIntegration},
+    services::{self, request, ConnectorIntegration, ConnectorValidation},
     types::{
         self,
         api::{self, ConnectorCommon, ConnectorCommonExt},
-        storage::enums,
         ErrorResponse, Response,
     },
     utils::{self, BytesExt},
@@ -103,13 +103,6 @@ impl ConnectorCommon for Globepay {
     fn common_get_content_type(&self) -> &'static str {
         "application/json"
     }
-    fn validate_auth_type(
-        &self,
-        val: &types::ConnectorAuthType,
-    ) -> Result<(), error_stack::Report<errors::ConnectorError>> {
-        globepay::GlobepayAuthType::try_from(val)?;
-        Ok(())
-    }
 
     fn base_url<'a>(&self, connectors: &'a settings::Connectors) -> &'a str {
         connectors.globepay.base_url.as_ref()
@@ -132,6 +125,8 @@ impl ConnectorCommon for Globepay {
         })
     }
 }
+
+impl ConnectorValidation for Globepay {}
 
 impl ConnectorIntegration<api::Session, types::PaymentsSessionData, types::PaymentsResponseData>
     for Globepay
@@ -203,6 +198,7 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         req: &types::PaymentsAuthorizeRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
+        self.validate_capture_method(req.request.capture_method)?;
         Ok(Some(
             services::RequestBuilder::new()
                 .method(services::Method::Put)

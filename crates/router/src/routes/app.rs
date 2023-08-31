@@ -20,7 +20,7 @@ use crate::{
     configs::settings,
     db::{MockDb, StorageImpl, StorageInterface},
     routes::cards_info::card_iin_info,
-    services::Store,
+    services::get_store,
 };
 
 #[derive(Clone)]
@@ -59,6 +59,9 @@ impl AppStateInfo for AppState {
 }
 
 impl AppState {
+    /// # Panics
+    ///
+    /// Panics if Store can't be created or JWE decryption fails
     pub async fn with_storage(
         conf: settings::Settings,
         storage_impl: StorageImpl,
@@ -68,9 +71,12 @@ impl AppState {
         let kms_client = kms::get_kms_client(&conf.kms).await;
         let testable = storage_impl == StorageImpl::PostgresqlTest;
         let store: Box<dyn StorageInterface> = match storage_impl {
-            StorageImpl::Postgresql | StorageImpl::PostgresqlTest => {
-                Box::new(Store::new(&conf, testable, shut_down_signal).await)
-            }
+            StorageImpl::Postgresql | StorageImpl::PostgresqlTest => Box::new(
+                #[allow(clippy::expect_used)]
+                get_store(&conf, shut_down_signal, testable)
+                    .await
+                    .expect("Failed to create store"),
+            ),
             StorageImpl::Mock => Box::new(MockDb::new(&conf).await),
         };
 
@@ -84,7 +90,6 @@ impl AppState {
         .expect("Failed while performing KMS decryption");
 
         #[cfg(feature = "email")]
-        #[allow(clippy::expect_used)]
         let email_client = Box::new(AwsSes::new(&conf.email).await);
         Self {
             flow_name: String::from("default"),
@@ -526,5 +531,26 @@ impl Cache {
         web::scope("/cache")
             .app_data(web::Data::new(state))
             .service(web::resource("/invalidate/{key}").route(web::post().to(invalidate)))
+    }
+}
+
+pub struct BusinessProfile;
+
+#[cfg(feature = "olap")]
+impl BusinessProfile {
+    pub fn server(state: AppState) -> Scope {
+        web::scope("/account/{account_id}/business_profile")
+            .app_data(web::Data::new(state))
+            .service(
+                web::resource("")
+                    .route(web::post().to(business_profile_create))
+                    .route(web::get().to(business_profiles_list)),
+            )
+            .service(
+                web::resource("/{profile_id}")
+                    .route(web::get().to(business_profile_retrieve))
+                    .route(web::post().to(business_profile_update))
+                    .route(web::delete().to(business_profile_delete)),
+            )
     }
 }

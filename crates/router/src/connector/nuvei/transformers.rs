@@ -561,7 +561,6 @@ impl<F>
             _ => Err(errors::ConnectorError::NotSupported {
                 message: "Bank Redirect".to_string(),
                 connector: "Nuvei",
-                payment_experience: "Redirection".to_string(),
             })?,
         };
         Ok(Self {
@@ -691,7 +690,8 @@ impl<F>
                 | payments::BankRedirectData::Przelewy24 { .. }
                 | payments::BankRedirectData::Trustly { .. }
                 | payments::BankRedirectData::OnlineBankingFpx { .. }
-                | payments::BankRedirectData::OnlineBankingThailand { .. } => {
+                | payments::BankRedirectData::OnlineBankingThailand { .. }
+                | payments::BankRedirectData::OpenBankingUk { .. } => {
                     Err(errors::ConnectorError::NotImplemented(
                         utils::get_unimplemented_payment_method_error_message("nuvei"),
                     )
@@ -721,9 +721,10 @@ impl<F>
             | payments::PaymentMethodData::BankTransfer(_)
             | payments::PaymentMethodData::Crypto(_)
             | payments::PaymentMethodData::MandatePayment
-            | payments::PaymentMethodData::Reward(_)
+            | payments::PaymentMethodData::Reward
             | payments::PaymentMethodData::Upi(_)
             | payments::PaymentMethodData::Voucher(_)
+            | api_models::payments::PaymentMethodData::CardRedirect(_)
             | payments::PaymentMethodData::GiftCard(_) => {
                 Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("nuvei"),
@@ -893,7 +894,8 @@ impl TryFrom<(&types::PaymentsCompleteAuthorizeRouterData, String)> for NuveiPay
             | Some(api::PaymentMethodData::MandatePayment)
             | Some(api::PaymentMethodData::GiftCard(..))
             | Some(api::PaymentMethodData::Voucher(..))
-            | Some(api::PaymentMethodData::Reward(..))
+            | Some(api::PaymentMethodData::CardRedirect(..))
+            | Some(api::PaymentMethodData::Reward)
             | Some(api::PaymentMethodData::Upi(..))
             | None => Err(errors::ConnectorError::NotImplemented(
                 utils::get_unimplemented_payment_method_error_message("nuvei"),

@@ -13,9 +13,9 @@ impl KmsDecrypt for settings::Jwekey {
         kms_client: &KmsClient,
     ) -> CustomResult<Self::Output, KmsError> {
         (
+            self.locker_encryption_key1,
             self.locker_encryption_key2,
             self.locker_decryption_key1,
-            self.locker_encryption_key1,
             self.locker_decryption_key2,
             self.vault_encryption_key,
             self.vault_private_key,
@@ -42,5 +42,25 @@ impl KmsDecrypt for settings::ActiveKmsSecrets {
     ) -> CustomResult<Self::Output, KmsError> {
         self.jwekey = self.jwekey.expose().decrypt_inner(kms_client).await?.into();
         Ok(self)
+    }
+}
+
+#[async_trait::async_trait]
+impl KmsDecrypt for settings::Database {
+    type Output = storage_impl::config::Database;
+
+    async fn decrypt_inner(
+        mut self,
+        kms_client: &KmsClient,
+    ) -> CustomResult<Self::Output, KmsError> {
+        Ok(storage_impl::config::Database {
+            host: self.host,
+            port: self.port,
+            dbname: self.dbname,
+            username: self.username,
+            password: self.password.decrypt_inner(kms_client).await?.into(),
+            pool_size: self.pool_size,
+            connection_timeout: self.connection_timeout,
+        })
     }
 }

@@ -1,6 +1,8 @@
 pub mod address;
 pub mod api_keys;
+pub mod business_profile;
 pub mod cache;
+pub mod capture;
 pub mod cards_info;
 pub mod configs;
 pub mod connector_response;
@@ -27,12 +29,12 @@ pub mod reverse_lookup;
 
 use std::sync::Arc;
 
+use data_models::payments::payment_intent::PaymentIntentInterface;
 use futures::lock::Mutex;
+use masking::PeekInterface;
+use storage_impl::redis::kv_store::RedisConnInterface;
 
-use crate::{
-    services::{self, Store},
-    types::storage,
-};
+use crate::{services::Store, types::storage};
 
 #[derive(PartialEq, Eq)]
 pub enum StorageImpl {
@@ -49,6 +51,7 @@ pub trait StorageInterface:
     + address::AddressInterface
     + api_keys::ApiKeyInterface
     + configs::ConfigInterface
+    + capture::CaptureInterface
     + connector_response::ConnectorResponseInterface
     + customers::CustomerInterface
     + dispute::DisputeInterface
@@ -62,7 +65,7 @@ pub trait StorageInterface:
     + merchant_connector_account::ConnectorAccessToken
     + merchant_connector_account::MerchantConnectorAccountInterface
     + payment_attempt::PaymentAttemptInterface
-    + payment_intent::PaymentIntentInterface
+    + PaymentIntentInterface
     + payment_method::PaymentMethodInterface
     + payout_attempt::PayoutAttemptInterface
     + payouts::PayoutsInterface
@@ -73,7 +76,8 @@ pub trait StorageInterface:
     + cards_info::CardsInfoInterface
     + merchant_key_store::MerchantKeyStoreInterface
     + MasterKeyInterface
-    + services::RedisConnInterface
+    + RedisConnInterface
+    + business_profile::BusinessProfileInterface
     + 'static
 {
 }
@@ -84,7 +88,7 @@ pub trait MasterKeyInterface {
 
 impl MasterKeyInterface for Store {
     fn get_master_key(&self) -> &[u8] {
-        &self.master_key
+        self.master_key().peek()
     }
 }
 
@@ -122,6 +126,7 @@ pub struct MockDb {
     disputes: Arc<Mutex<Vec<storage::Dispute>>>,
     lockers: Arc<Mutex<Vec<storage::LockerMockUp>>>,
     mandates: Arc<Mutex<Vec<storage::Mandate>>>,
+    captures: Arc<Mutex<Vec<storage::Capture>>>,
     merchant_key_store: Arc<Mutex<Vec<storage::MerchantKeyStore>>>,
 }
 
@@ -147,6 +152,7 @@ impl MockDb {
             disputes: Default::default(),
             lockers: Default::default(),
             mandates: Default::default(),
+            captures: Default::default(),
             merchant_key_store: Default::default(),
         }
     }
@@ -172,7 +178,7 @@ where
         .change_context(redis_interface::errors::RedisError::JsonDeserializationFailed)
 }
 
-impl services::RedisConnInterface for MockDb {
+impl RedisConnInterface for MockDb {
     fn get_redis_conn(
         &self,
     ) -> Result<

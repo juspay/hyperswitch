@@ -19,32 +19,6 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
-env:
-  # Disable incremental compilation.
-  #
-  # Incremental compilation is useful as part of an edit-build-test-edit cycle,
-  # as it lets the compiler avoid recompiling code that hasn't changed. However,
-  # on CI, we're not making small edits; we're almost always building the entire
-  # project from scratch. Thus, incremental compilation on CI actually
-  # introduces *additional* overhead to support making future builds
-  # faster...but no future builds will ever occur in any given CI environment.
-  #
-  # See https://matklad.github.io/2021/09/04/fast-rust-builds.html#ci-workflow
-  # for details.
-  CARGO_INCREMENTAL: 0
-  # Allow more retries for network requests in cargo (downloading crates) and
-  # rustup (installing toolchains). This should help to reduce flaky CI failures
-  # from transient network timeouts or other issues.
-  CARGO_NET_RETRY: 10
-  RUSTUP_MAX_RETRIES: 10
-  # Don't emit giant backtraces in the CI logs.
-  RUST_BACKTRACE: short
-  # Use cargo's sparse index protocol
-  CARGO_REGISTRIES_CRATES_IO_PROTOCOL: sparse
-  # Enable and use the sccache action for caching
-  SCCACHE_GHA_ENABLED: "true"
-  RUSTC_WRAPPER: "sccache"
-
 jobs:
   formatting:
     name: Check formatting
@@ -89,7 +63,9 @@ jobs:
         with:
           toolchain: 1.65
 
-      - uses: mozilla-actions/sccache-action@v0.0.3
+      - uses: Swatinem/rust-cache@v2.4.0
+        with:
+          save-if: ${{ github.event_name == 'push' }}
 
       - name: Install cargo-hack
         uses: baptiste0928/cargo-install@v2.1.0
@@ -101,8 +77,14 @@ jobs:
         run: sed -i 's/rustflags = \[/rustflags = \[\n    "-Dwarnings",/' .cargo/config.toml
 
       - name: Cargo hack
+        if: ${{ github.event_name == 'push' }}
         shell: bash
         run: cargo hack check --each-feature --no-dev-deps
+      
+      - name: Cargo build release
+        if: ${{ github.event_name == 'merge_group' }}
+        shell: bash
+        run: cargo check --features "release"
 
   # cargo-deny:
   #   name: Run cargo-deny
@@ -160,7 +142,7 @@ jobs:
       - name: Install Rust
         uses: dtolnay/rust-toolchain@master
         with:
-          toolchain: stable
+          toolchain: stable 2 weeks ago
           components: clippy
 
       - name: Install cargo-hack
@@ -173,7 +155,9 @@ jobs:
         with:
           crate: cargo-nextest
 
-      - uses: mozilla-actions/sccache-action@v0.0.3
+      - uses: Swatinem/rust-cache@v2.4.0
+        with:
+          save-if: ${{ github.event_name == 'push' }}
 
       # - name: Setup Embark Studios lint rules
       #   shell: bash
@@ -190,8 +174,14 @@ jobs:
         run: cargo clippy --all-features --all-targets
 
       - name: Cargo hack
+        if: ${{ github.event_name == 'push' }}
         shell: bash
         run: cargo hack check --each-feature --no-dev-deps
+
+      - name: Cargo build release
+        if: ${{ github.event_name == 'merge_group' }}
+        shell: bash
+        run: cargo check --features "release"
 
       - name: Run unit tests
         shell: bash

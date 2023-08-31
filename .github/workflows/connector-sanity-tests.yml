@@ -38,9 +38,6 @@ env:
   RUST_BACKTRACE: short
   # Use cargo's sparse index protocol
   CARGO_REGISTRIES_CRATES_IO_PROTOCOL: sparse
-  # Enable and use the sccache action for caching
-  SCCACHE_GHA_ENABLED: "true"
-  RUSTC_WRAPPER: "sccache"
 
 jobs:
   test_connectors:
@@ -87,9 +84,9 @@ jobs:
       - name: Install Rust
         uses: dtolnay/rust-toolchain@master
         with:
-          toolchain: stable
+          toolchain: stable 2 weeks ago
 
-      - uses: mozilla-actions/sccache-action@v0.0.3
+      - uses: Swatinem/rust-cache@v2.4.0
 
       - name: Decrypt connector auth file
         env:

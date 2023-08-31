@@ -10,6 +10,7 @@ use common_utils::{
     errors::ReportSwitchExt,
     pii::{self, Email, IpAddress},
 };
+use diesel_models::enums;
 use error_stack::{report, IntoReport, ResultExt};
 use masking::{ExposeInterface, Secret};
 use once_cell::sync::Lazy;
@@ -193,6 +194,10 @@ pub trait PaymentsPreProcessingData {
     fn get_payment_method_type(&self) -> Result<diesel_models::enums::PaymentMethodType, Error>;
     fn get_currency(&self) -> Result<diesel_models::enums::Currency, Error>;
     fn get_amount(&self) -> Result<i64, Error>;
+    fn is_auto_capture(&self) -> Result<bool, Error>;
+    fn get_order_details(&self) -> Result<Vec<OrderDetailsWithAmount>, Error>;
+    fn get_webhook_url(&self) -> Result<String, Error>;
+    fn get_return_url(&self) -> Result<String, Error>;
 }
 
 impl PaymentsPreProcessingData for types::PaymentsPreProcessingData {
@@ -209,6 +214,38 @@ impl PaymentsPreProcessingData for types::PaymentsPreProcessingData {
     }
     fn get_amount(&self) -> Result<i64, Error> {
         self.amount.ok_or_else(missing_field_err("amount"))
+    }
+    fn is_auto_capture(&self) -> Result<bool, Error> {
+        match self.capture_method {
+            Some(diesel_models::enums::CaptureMethod::Automatic) | None => Ok(true),
+            Some(diesel_models::enums::CaptureMethod::Manual) => Ok(false),
+            Some(_) => Err(errors::ConnectorError::CaptureMethodNotSupported.into()),
+        }
+    }
+    fn get_order_details(&self) -> Result<Vec<OrderDetailsWithAmount>, Error> {
+        self.order_details
+            .clone()
+            .ok_or_else(missing_field_err("order_details"))
+    }
+    fn get_webhook_url(&self) -> Result<String, Error> {
+        self.webhook_url
+            .clone()
+            .ok_or_else(missing_field_err("webhook_url"))
+    }
+    fn get_return_url(&self) -> Result<String, Error> {
+        self.router_return_url
+            .clone()
+            .ok_or_else(missing_field_err("return_url"))
+    }
+}
+
+pub trait PaymentsCaptureRequestData {
+    fn is_multiple_capture(&self) -> bool;
+}
+
+impl PaymentsCaptureRequestData for types::PaymentsCaptureData {
+    fn is_multiple_capture(&self) -> bool {
+        self.multiple_capture_data.is_some()
     }
 }
 
@@ -898,6 +935,23 @@ where
     json.parse_value(std::any::type_name::<T>()).switch()
 }
 
+pub fn to_connector_meta_from_secret_with_required_field<T>(
+    connector_meta: Option<Secret<serde_json::Value>>,
+    error_message: &'static str,
+) -> Result<T, Error>
+where
+    T: serde::de::DeserializeOwned,
+{
+    let connector_error = errors::ConnectorError::MissingRequiredField {
+        field_name: error_message,
+    };
+    let parsed_meta = to_connector_meta_from_secret(connector_meta).ok();
+    match parsed_meta {
+        Some(meta) => Ok(meta),
+        _ => Err(connector_error.into()),
+    }
+}
+
 pub fn to_connector_meta_from_secret<T>(
     connector_meta: Option<Secret<serde_json::Value>>,
 ) -> Result<T, Error>
@@ -944,6 +998,25 @@ pub fn to_currency_base_unit(
         .to_currency_base_unit(amount)
         .into_report()
         .change_context(errors::ConnectorError::RequestEncodingFailed)
+}
+
+pub fn construct_not_implemented_error_report(
+    capture_method: enums::CaptureMethod,
+    connector_name: &str,
+) -> error_stack::Report<errors::ConnectorError> {
+    errors::ConnectorError::NotImplemented(format!("{} for {}", capture_method, connector_name))
+        .into()
+}
+
+pub fn construct_not_supported_error_report(
+    capture_method: enums::CaptureMethod,
+    connector_name: &'static str,
+) -> error_stack::Report<errors::ConnectorError> {
+    errors::ConnectorError::NotSupported {
+        message: capture_method.to_string(),
+        connector: connector_name,
+    }
+    .into()
 }
 
 pub fn to_currency_base_unit_with_zero_decimal_check(
@@ -1246,4 +1319,22 @@ mod error_code_error_message_tests {
         );
         assert_eq!(error_code_error_message_none, None);
     }
+}
+
+pub fn validate_currency(
+    request_currency: types::storage::enums::Currency,
+    merchant_config_currency: Option<types::storage::enums::Currency>,
+) -> Result<(), errors::ConnectorError> {
+    let merchant_config_currency =
+        merchant_config_currency.ok_or(errors::ConnectorError::NoConnectorMetaData)?;
+    if request_currency != merchant_config_currency {
+        Err(errors::ConnectorError::NotSupported {
+            message: format!(
+                "currency {} is not supported for this merchant account",
+                request_currency
+            ),
+            connector: "Braintree",
+        })?
+    }
+    Ok(())
 }

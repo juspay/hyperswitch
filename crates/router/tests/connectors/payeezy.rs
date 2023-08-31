@@ -9,7 +9,7 @@ use router::{
 };
 
 use crate::{
-    connector_auth::{self},
+    connector_auth,
     utils::{self, ConnectorActions, PaymentInfo},
 };
 
@@ -382,7 +382,6 @@ async fn should_throw_not_implemented_for_unsupported_issuer() {
         errors::ConnectorError::NotSupported {
             message: "card".to_string(),
             connector: "Payeezy",
-            payment_experience: "RedirectToUrl".to_string(),
         }
     )
 }

@@ -82,6 +82,7 @@ bitpay.base_url = "https://test.bitpay.com"
 bluesnap.base_url = "https://sandbox.bluesnap.com/"
 boku.base_url = "https://$-api4-stage.boku.com"
 braintree.base_url = "https://api.sandbox.braintreegateway.com/"
+braintree.secondary_base_url = "https://payments.sandbox.braintree-api.com/graphql"
 cashtocode.base_url = "https://cluster05.api-test.cashtocode.com"
 checkout.base_url = "https://api.sandbox.checkout.com/"
 coinbase.base_url = "https://api.commerce.coinbase.com"
@@ -93,6 +94,7 @@ fiserv.base_url = "https://cert.api.fiservapps.com/"
 forte.base_url = "https://sandbox.forte.net/api/v3"
 globalpay.base_url = "https://apis.sandbox.globalpay.com/ucp/"
 globepay.base_url = "https://pay.globepay.co/"
+helcim.base_url = "https://api.helcim.com/"
 iatapay.base_url = "https://sandbox.iata-pay.iata.org/api/v1"
 klarna.base_url = "https://api-na.playground.klarna.com/"
 mollie.base_url = "https://api.mollie.com/v2/"
@@ -151,6 +153,7 @@ cards = [
     "forte",
     "globalpay",
     "globepay",
+    "helcim",
     "iatapay",
     "mollie",
     "multisafepay",
@@ -178,7 +181,7 @@ cards = [
 ]
 
 [delayed_session_response]
-connectors_with_delayed_session_response = "trustpay"
+connectors_with_delayed_session_response = "trustpay,payme"
 
 
 [scheduler]
@@ -193,7 +196,8 @@ consumer_group = "SCHEDULER_GROUP"
 stripe = { long_lived_token = false, payment_method = "wallet", payment_method_type = { type = "disable_only", list = "google_pay" } }
 checkout = { long_lived_token = false, payment_method = "wallet" }
 mollie = {long_lived_token = false, payment_method = "card"}
-stax = { long_lived_token = true, payment_method = "card" }
+stax = { long_lived_token = true, payment_method = "card,bank_debit" }
+braintree = { long_lived_token = false, payment_method = "card" }
 
 [dummy_connector]
 payment_ttl = 172800
@@ -201,12 +205,18 @@ payment_duration = 1000
 payment_tolerance = 100
 payment_retrieve_duration = 500
 payment_retrieve_tolerance = 100
+payment_complete_duration = 500
+payment_complete_tolerance = 100
 refund_ttl = 172800
 refund_duration = 1000
 refund_tolerance = 100
 refund_retrieve_duration = 500
 refund_retrieve_tolerance = 100
 authorize_ttl = 36000
+assets_base_url = "https://app.hyperswitch.io/assets/TestProcessor/"
+default_return_url = "https://app.hyperswitch.io/"
+slack_invite_url = "https://join.slack.com/t/hyperswitch-io/shared_invite/zt-1k6cz4lee-SAJzhz6bjmpp4jZCDOtOIg"
+discord_invite_url = "https://discord.gg/wJZ7DVW8mm"
 
 [payouts]
 payout_eligibility = true
@@ -226,8 +236,15 @@ danamon_va = {country = "ID", currency = "IDR"}
 mandiri_va = {country = "ID", currency = "IDR"}
 alfamart = {country = "ID", currency = "IDR"}
 indomaret = {country = "ID", currency = "IDR"}
+open_banking_uk = {country = "GB", currency = "GBP"}
 oxxo = {country = "MX", currency = "MXN"}
 pay_safe_card = {country = "AT,AU,BE,BR,BE,CA,HR,CY,CZ,DK,FI,FR,GE,DE,GI,HU,IS,IE,KW,LV,IE,LI,LT,LU,MT,MX,MD,ME,NL,NZ,NO,PY,PE,PL,PT,RO,SA,RS,SK,SI,ES,SE,CH,TR,UAE,UK,US,UY", currency = "EUR,AUD,BRL,CAD,CZK,DKK,GEL,GIP,HUF,ISK,KWD,CHF,MXN,MDL,NZD,NOK,PYG,PEN,PLN,RON,SAR,RSD,SEK,TRY,AED,GBP,USD,UYU"}
+seven_eleven = {country = "JP", currency = "JPY"}
+lawson = {country = "JP", currency = "JPY"}
+mini_stop = {country = "JP", currency = "JPY"}
+family_mart = {country = "JP", currency = "JPY"}
+seicomart = {country = "JP", currency = "JPY"}
+pay_easy = {country = "JP", currency = "JPY"}
 
 [pm_filters.zen]
 credit = { not_available_flows = { capture_method = "manual" } }
@@ -255,6 +272,9 @@ adyen.banks = "affin_bank,agro_bank,alliance_bank,am_bank,bank_islam,bank_muamal
 [bank_config.online_banking_thailand]
 adyen.banks = "bangkok_bank,krungsri_bank,krung_thai_bank,the_siam_commercial_bank,kasikorn_bank"
 
+[bank_config.open_banking_uk]
+adyen = { banks = "aib,bank_of_scotland,danske_bank,first_direct,first_trust,halifax,lloyds,monzo,nat_west,nationwide_bank,royal_bank_of_scotland,starling,tsb_bank,tesco_bank,ulster_bank,barclays,hsbc_bank,revolut,santander_przelew24,open_bank_success,open_bank_failure,open_bank_cancelled"}
+
 [mandates.supported_payment_methods]
 pay_later.klarna = {connector_list = "adyen"}
 wallet.google_pay = {connector_list = "stripe,adyen"}
@@ -265,3 +285,7 @@ card.debit = {connector_list = "stripe,adyen,authorizedotnet,globalpay,worldpay,
 
 [connector_customer]
 connector_list = "stax"
+payout_connector_list = "wise"
+
+[multiple_api_version_supported_connectors]
+supported_connectors = "braintree"

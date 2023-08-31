@@ -93,6 +93,13 @@ pub struct Settings {
     pub connector_request_reference_id_config: ConnectorRequestReferenceIdConfig,
     #[cfg(feature = "payouts")]
     pub payouts: Payouts,
+    pub multiple_api_version_supported_connectors: MultipleApiVersionSupportedConnectors,
+}
+
+#[derive(Debug, Deserialize, Clone, Default)]
+pub struct MultipleApiVersionSupportedConnectors {
+    #[serde(deserialize_with = "connector_deser")]
+    pub supported_connectors: HashSet<api_models::enums::Connector>,
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
@@ -145,12 +152,18 @@ pub struct DummyConnector {
     pub payment_tolerance: u64,
     pub payment_retrieve_duration: u64,
     pub payment_retrieve_tolerance: u64,
+    pub payment_complete_duration: i64,
+    pub payment_complete_tolerance: i64,
     pub refund_ttl: i64,
     pub refund_duration: u64,
     pub refund_tolerance: u64,
     pub refund_retrieve_duration: u64,
     pub refund_retrieve_tolerance: u64,
     pub authorize_ttl: i64,
+    pub assets_base_url: String,
+    pub default_return_url: String,
+    pub slack_invite_url: String,
+    pub discord_invite_url: String,
 }
 
 #[derive(Debug, Deserialize, Clone)]
@@ -396,11 +409,12 @@ pub struct Jwekey {
     pub tunnel_private_key: String,
 }
 
-#[derive(Debug, Deserialize, Clone, Default)]
+#[derive(Debug, Deserialize, Clone)]
 #[serde(default)]
 pub struct Proxy {
     pub http_url: Option<String>,
     pub https_url: Option<String>,
+    pub idle_pool_connection_timeout: Option<u64>,
 }
 
 #[derive(Debug, Deserialize, Clone)]
@@ -424,6 +438,21 @@ pub struct Database {
     pub dbname: String,
     pub pool_size: u32,
     pub connection_timeout: u64,
+}
+
+#[cfg(not(feature = "kms"))]
+impl Into<storage_impl::config::Database> for Database {
+    fn into(self) -> storage_impl::config::Database {
+        storage_impl::config::Database {
+            username: self.username,
+            password: self.password,
+            host: self.host,
+            port: self.port,
+            dbname: self.dbname,
+            pool_size: self.pool_size,
+            connection_timeout: self.connection_timeout,
+        }
+    }
 }
 
 #[derive(Debug, Deserialize, Clone)]
@@ -460,6 +489,7 @@ pub struct Connectors {
     pub forte: ConnectorParams,
     pub globalpay: ConnectorParams,
     pub globepay: ConnectorParams,
+    pub helcim: ConnectorParams,
     pub iatapay: ConnectorParams,
     pub klarna: ConnectorParams,
     pub mollie: ConnectorParams,
@@ -560,6 +590,14 @@ pub struct DrainerSettings {
 #[serde(default)]
 pub struct WebhooksSettings {
     pub outgoing_enabled: bool,
+    pub ignore_error: WebhookIgnoreErrorSettings,
+}
+
+#[derive(Debug, Clone, Deserialize, Default)]
+#[serde(default)]
+pub struct WebhookIgnoreErrorSettings {
+    pub event_type: Option<bool>,
+    pub payment_not_found: Option<bool>,
 }
 
 #[derive(Debug, Deserialize, Clone)]

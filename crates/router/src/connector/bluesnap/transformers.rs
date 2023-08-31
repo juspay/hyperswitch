@@ -32,6 +32,7 @@ pub struct BluesnapPaymentsRequest {
     three_d_secure: Option<BluesnapThreeDSecureInfo>,
     transaction_fraud_info: Option<TransactionFraudInfo>,
     card_holder_info: Option<BluesnapCardHolderInfo>,
+    merchant_transaction_id: Option<String>,
 }
 
 #[derive(Debug, Serialize)]
@@ -298,8 +299,9 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for BluesnapPaymentsRequest {
             | payments::PaymentMethodData::BankTransfer(_)
             | payments::PaymentMethodData::Crypto(_)
             | payments::PaymentMethodData::MandatePayment
-            | payments::PaymentMethodData::Reward(_)
+            | payments::PaymentMethodData::Reward
             | payments::PaymentMethodData::Upi(_)
+            | payments::PaymentMethodData::CardRedirect(_)
             | payments::PaymentMethodData::Voucher(_)
             | payments::PaymentMethodData::GiftCard(_) => {
                 Err(errors::ConnectorError::NotImplemented(
@@ -317,6 +319,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for BluesnapPaymentsRequest {
                 fraud_session_id: item.payment_id.clone(),
             }),
             card_holder_info,
+            merchant_transaction_id: Some(item.connector_request_reference_id.clone()),
         })
     }
 }
@@ -391,14 +394,18 @@ impl TryFrom<types::PaymentsSessionResponseRouterData<BluesnapWalletTokenRespons
                                 total_type: Some("final".to_string()),
                                 amount: item.data.request.amount.to_string(),
                             },
-                            merchant_capabilities: applepay_metadata
-                                .data
-                                .payment_request_data
-                                .merchant_capabilities,
-                            supported_networks: applepay_metadata
-                                .data
-                                .payment_request_data
-                                .supported_networks,
+                            merchant_capabilities: Some(
+                                applepay_metadata
+                                    .data
+                                    .payment_request_data
+                                    .merchant_capabilities,
+                            ),
+                            supported_networks: Some(
+                                applepay_metadata
+                                    .data
+                                    .payment_request_data
+                                    .supported_networks,
+                            ),
                             merchant_identifier: Some(
                                 applepay_metadata
                                     .data
@@ -413,6 +420,8 @@ impl TryFrom<types::PaymentsSessionResponseRouterData<BluesnapWalletTokenRespons
                                 next_action: payments::NextActionCall::Confirm,
                             }
                         },
+                        connector_reference_id: None,
+                        connector_sdk_public_key: None,
                     },
                 )),
             }),
@@ -478,6 +487,7 @@ impl TryFrom<&types::PaymentsCompleteAuthorizeRouterData> for BluesnapPaymentsRe
                 item.get_billing_address()?,
                 item.request.get_email()?,
             )?,
+            merchant_transaction_id: Some(item.connector_request_reference_id.clone()),
         })
     }
 }
@@ -672,9 +682,9 @@ impl From<BluesnapProcessingStatus> for enums::RefundStatus {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct BluesnapPaymentsResponse {
-    processing_info: ProcessingInfoResponse,
-    transaction_id: String,
-    card_transaction_type: BluesnapTxnType,
+    pub processing_info: ProcessingInfoResponse,
+    pub transaction_id: String,
+    pub card_transaction_type: BluesnapTxnType,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -694,9 +704,9 @@ pub struct Refund {
 #[derive(Default, Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ProcessingInfoResponse {
-    processing_status: BluesnapProcessingStatus,
-    authorization_code: Option<String>,
-    network_transaction_id: Option<Secret<String>>,
+    pub processing_status: BluesnapProcessingStatus,
+    pub authorization_code: Option<String>,
+    pub network_transaction_id: Option<Secret<String>>,
 }
 
 impl<F, T>
@@ -795,8 +805,7 @@ impl TryFrom<types::RefundsResponseRouterData<api::Execute, RefundResponse>>
 #[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct BluesnapWebhookBody {
-    pub auth_key: String,
-    pub contract_id: String,
+    pub merchant_transaction_id: String,
     pub reference_number: String,
 }
 
@@ -815,12 +824,11 @@ pub enum BluesnapWebhookEvents {
     #[serde(other)]
     Unknown,
 }
-#[derive(Default, Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct BluesnapWebhookObjectResource {
-    pub auth_key: String,
-    pub contract_id: String,
     pub reference_number: String,
+    pub transaction_type: BluesnapWebhookEvents,
 }
 
 #[derive(Default, Debug, Clone, Serialize, Deserialize)]
@@ -828,6 +836,7 @@ pub struct BluesnapWebhookObjectResource {
 pub struct ErrorDetails {
     pub code: String,
     pub description: String,
+    pub error_name: String,
 }
 
 #[derive(Default, Debug, Clone, Deserialize)]
@@ -841,6 +850,7 @@ pub struct BluesnapErrorResponse {
 pub struct BluesnapAuthErrorResponse {
     pub error_code: String,
     pub error_description: String,
+    pub error_name: String,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -860,4 +870,13 @@ fn get_card_holder_info(
         last_name: address.get_last_name()?.clone(),
         email,
     }))
+}
+
+impl From<ErrorDetails> for utils::ErrorCodeAndMessage {
+    fn from(error: ErrorDetails) -> Self {
+        Self {
+            error_code: error.code.to_string(),
+            error_message: error.error_name,
+        }
+    }
 }
