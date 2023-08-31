@@ -81,24 +81,6 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
             merchant_account.intent_fulfillment_time,
         )?;
 
-        // Validate whether profile_id passed in request is valid and is linked to the merchant
-        core_utils::validate_and_get_business_profile(db, request.profile_id.as_ref(), merchant_id)
-            .await?;
-
-        let profile_id = helpers::get_profile_id_from_business_details(
-            request.business_country,
-            request.business_label.as_ref(),
-            merchant_account,
-            request
-                .profile_id
-                .as_ref()
-                .or(payment_intent.profile_id.as_ref()),
-            db,
-        )
-        .await?;
-
-        payment_intent.profile_id = Some(profile_id);
-
         payment_attempt = db
             .find_payment_attempt_by_payment_id_merchant_id_attempt_id(
                 payment_intent.payment_id.as_str(),
@@ -492,7 +474,6 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
             .take();
         let order_details = payment_data.payment_intent.order_details.clone();
         let metadata = payment_data.payment_intent.metadata.clone();
-        let profile_id = payment_data.payment_intent.profile_id.clone();
 
         payment_data.payment_intent = db
             .update_payment_intent(
@@ -513,7 +494,6 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
                     statement_descriptor_suffix,
                     order_details,
                     metadata,
-                    profile_id,
                 },
                 storage_scheme,
             )

@@ -195,20 +195,6 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
         payment_intent.metadata = request.metadata.clone().or(payment_intent.metadata);
         Self::populate_payment_intent_with_request(&mut payment_intent, request);
 
-        let profile_id = helpers::get_profile_id_from_business_details(
-            request.business_country,
-            request.business_label.as_ref(),
-            merchant_account,
-            request
-                .profile_id
-                .as_ref()
-                .or(payment_intent.profile_id.as_ref()),
-            db,
-        )
-        .await?;
-
-        payment_intent.profile_id = Some(profile_id);
-
         let token = token.or_else(|| payment_attempt.payment_token.clone());
 
         if request.confirm.unwrap_or(false) {
@@ -536,7 +522,6 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
             .clone();
         let order_details = payment_data.payment_intent.order_details.clone();
         let metadata = payment_data.payment_intent.metadata.clone();
-        let profile_id = payment_data.payment_intent.profile_id.clone();
 
         payment_data.payment_intent = db
             .update_payment_intent(
@@ -557,7 +542,6 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
                     statement_descriptor_suffix,
                     order_details,
                     metadata,
-                    profile_id,
                 },
                 storage_scheme,
             )

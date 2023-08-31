@@ -26,6 +26,7 @@ use crate::{
         errors::{self, CustomResult, RouterResult, StorageErrorExt},
         payment_methods::{cards, vault},
         payments,
+        utils::validate_and_get_business_profile,
     },
     db::StorageInterface,
     routes::{metrics, payment_methods, AppState},
@@ -2193,7 +2194,16 @@ pub async fn get_profile_id_from_business_details(
     db: &dyn StorageInterface,
 ) -> RouterResult<String> {
     match request_profile_id.or(merchant_account.default_profile.as_ref()) {
-        Some(profile_id) => Ok(profile_id.clone()),
+        Some(profile_id) => {
+            // Check whether this business profile belongs to the merchant
+            let _ = validate_and_get_business_profile(
+                db,
+                Some(profile_id),
+                &merchant_account.merchant_id,
+            )
+            .await?;
+            Ok(profile_id.clone())
+        }
         None => match business_country.zip(business_label) {
             Some((business_country, business_label)) => {
                 let profile_name = format!("{business_country}_{business_label}");
