@@ -103,6 +103,7 @@ pub struct Settings {
 pub struct ApplepayMerchantConfigs {
     pub merchant_cert: String,
     pub merchant_cert_key: String,
+    pub common_merchant_identifier: String,
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]

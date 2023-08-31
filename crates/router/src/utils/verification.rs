@@ -14,7 +14,6 @@ use crate::{
 
 const APPLEPAY_MERCHANT_VERIFICATION_URL: &str =
     "https://apple-pay-gateway.apple.com/paymentservices/registerMerchant";
-const APPLEPAY_INTERNAL_MERCHANT_IDENTIFIER: &str = "merchant.com.noon.juspay";
 const APPLEPAY_INTERNAL_MERCHANT_NAME: &str = "Applepay_merchant";
 
 pub async fn verify_merchant_creds_for_applepay(
@@ -26,8 +25,15 @@ pub async fn verify_merchant_creds_for_applepay(
     services::ApplicationResponse<ApplepayMerchantResponse>,
     api_error_response::ApiErrorResponse,
 > {
+    let encrypted_merchant_identifier = &state.conf.applepay_merchant_configs.common_merchant_identifier;
     let encrypted_cert = &state.conf.applepay_merchant_configs.merchant_cert;
     let encrypted_key = &state.conf.applepay_merchant_configs.merchant_cert_key;
+
+    let applepay_internal_merchant_identifier = kms::get_kms_client(kms_config)
+        .await
+        .decrypt(encrypted_cert)
+        .await
+        .change_context(api_error_response::ApiErrorResponse::InternalServerError)?;
 
     let cert_data = kms::get_kms_client(kms_config)
         .await
@@ -43,8 +49,8 @@ pub async fn verify_merchant_creds_for_applepay(
 
     let request_body = verifications::ApplepayMerchantVerificationConfigs {
         domain_names: body.domain_names.clone(),
-        encrypt_to: APPLEPAY_INTERNAL_MERCHANT_IDENTIFIER.to_string(),
-        partner_internal_merchant_identifier: APPLEPAY_INTERNAL_MERCHANT_IDENTIFIER.to_string(),
+        encrypt_to: applepay_internal_merchant_identifier.to_string(),
+        partner_internal_merchant_identifier: applepay_internal_merchant_identifier.to_string(),
         partner_merchant_name: APPLEPAY_INTERNAL_MERCHANT_NAME.to_string(),
     };
 
@@ -73,6 +79,7 @@ pub async fn verify_merchant_creds_for_applepay(
 
     let applepay_response =
         response.change_context(api_error_response::ApiErrorResponse::InternalServerError)?;
+
     // Error is already logged
     Ok(match applepay_response {
         Ok(_) => services::api::ApplicationResponse::Json(ApplepayMerchantResponse {
