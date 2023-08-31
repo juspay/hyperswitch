@@ -74,6 +74,17 @@ pub trait ConnectorValidation: ConnectorCommon {
             }
         }
     }
+
+    fn validate_psync_reference_id(
+        &self,
+        data: &types::PaymentsSyncRouterData,
+    ) -> CustomResult<(), errors::ConnectorError> {
+        data.request
+            .connector_transaction_id
+            .get_connector_transaction_id()
+            .change_context(errors::ConnectorError::MissingConnectorTransactionID)
+            .map(|_| ())
+    }
 }
 
 #[async_trait::async_trait]
