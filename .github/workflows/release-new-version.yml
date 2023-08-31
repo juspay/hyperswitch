@@ -66,6 +66,16 @@ jobs:
         run: |
           git config --local user.name 'github-actions'
           git config --local user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          # maybe we need to move this package.json as we need it in multiple workflows
+          npm install -g 'git+ssh://git@github.com:knutties/newman.git#37708c1fbf6b36240ac796a42dc5a7b435990764'
+          POSTMAN_DIR=postman/collection-dir
+          # generate postman collections for all postman directories
+          for connector_dir in ${POSTMAN_DIR}/*
+          do
+            connector=$(basename ${connector_dir})
+            newman dir-import ${POSTMAN_DIR}/${connector} -o ${POSTMAN_DIR}/${connector}.postman_collection.json
+          done
+          (git diff --quiet && git diff --staged --quiet) || (git commit -am 'test(postman): updated postman collection files' && echo "Committed changes") || (echo "Unable to commit following changes:" && git diff)
           cog bump --auto
 
       - name: Push created commit and tag
