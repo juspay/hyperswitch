@@ -25,7 +25,10 @@ pub async fn verify_merchant_creds_for_applepay(
     services::ApplicationResponse<ApplepayMerchantResponse>,
     api_error_response::ApiErrorResponse,
 > {
-    let encrypted_merchant_identifier = &state.conf.applepay_merchant_configs.common_merchant_identifier;
+    let encrypted_merchant_identifier = &state
+        .conf
+        .applepay_merchant_configs
+        .common_merchant_identifier;
     let encrypted_cert = &state.conf.applepay_merchant_configs.merchant_cert;
     let encrypted_key = &state.conf.applepay_merchant_configs.merchant_cert_key;
 
