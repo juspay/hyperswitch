@@ -143,7 +143,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PayuPaymentsRequest {
             api::PaymentMethodData::CardRedirect(_)
             | api::PaymentMethodData::Crypto(_)
             | api::PaymentMethodData::MandatePayment
-            | api::PaymentMethodData::Reward(_)
+            | api::PaymentMethodData::Reward
             | api::PaymentMethodData::Voucher(_) => Err(errors::ConnectorError::NotSupported {
                 message: utils::get_unsupported_payment_method_error_message(),
                 connector: "Payu",

@@ -151,7 +151,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for FiservPaymentsRequest {
             | api::PaymentMethodData::BankTransfer(_)
             | api::PaymentMethodData::Crypto(_)
             | api::PaymentMethodData::MandatePayment
-            | api::PaymentMethodData::Reward(_)
+            | api::PaymentMethodData::Reward
             | api::PaymentMethodData::Upi(_)
             | api::PaymentMethodData::Voucher(_)
             | api::PaymentMethodData::GiftCard(_) => Err(errors::ConnectorError::NotSupported {

@@ -376,7 +376,7 @@ fn get_payment_method_data(
         ))?,
         api::PaymentMethodData::CardRedirect(_)
         | api::PaymentMethodData::MandatePayment
-        | api::PaymentMethodData::Reward(_)
+        | api::PaymentMethodData::Reward
         | api::PaymentMethodData::Upi(_)
         | api::PaymentMethodData::Voucher(_) => Err(errors::ConnectorError::NotSupported {
             message: format!("{:?}", item.request.payment_method_data),

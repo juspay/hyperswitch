@@ -326,7 +326,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PaypalPaymentsRequest {
             | api_models::payments::PaymentMethodData::BankTransfer(_)
             | api_models::payments::PaymentMethodData::Crypto(_)
             | api_models::payments::PaymentMethodData::MandatePayment
-            | api_models::payments::PaymentMethodData::Reward(_)
+            | api_models::payments::PaymentMethodData::Reward
             | api_models::payments::PaymentMethodData::Upi(_)
             | api_models::payments::PaymentMethodData::Voucher(_)
             | api_models::payments::PaymentMethodData::GiftCard(_) => {
