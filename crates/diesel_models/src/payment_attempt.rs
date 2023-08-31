@@ -56,7 +56,7 @@ pub struct PaymentAttempt {
     pub multiple_capture_count: Option<i16>,
     // reference to the payment at connector side
     pub connector_response_reference_id: Option<String>,
-    // Denotes the action(approve or decline) taken by merchant in case of manual review.
+    // Denotes the action(approve or reject) taken by merchant in case of manual review.
     // Manual review can occur when the transaction is marked as risky by the payment processor, frm_processor or when there is underpayment/over payment incase of crypto payment
     pub merchant_decision: Option<String>,
 }

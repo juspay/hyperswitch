@@ -1909,7 +1909,7 @@ pub struct PaymentsResponse {
     /// total number of attempts associated with this payment
     pub attempt_count: i16,
 
-    /// Denotes the action(approve or decline) taken by merchant in case of manual review. Manual review can occur when the transaction is marked as risky by the frm_processor, payment processor, or when there is underpayment/over payment incase of crypto payment
+    /// Denotes the action(approve or reject) taken by merchant in case of manual review. Manual review can occur when the transaction is marked as risky by the frm_processor, payment processor or when there is underpayment/over payment incase of crypto payment
     pub merchant_decision: Option<String>,
 }
 

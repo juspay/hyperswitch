@@ -4,8 +4,8 @@ pub mod payment_capture;
 pub mod payment_complete_authorize;
 pub mod payment_confirm;
 pub mod payment_create;
-pub mod payment_decline;
 pub mod payment_method_validate;
+pub mod payment_reject;
 pub mod payment_response;
 pub mod payment_session;
 pub mod payment_start;
@@ -20,8 +20,8 @@ use router_env::{instrument, tracing};
 pub use self::{
     payment_approve::PaymentApprove, payment_cancel::PaymentCancel,
     payment_capture::PaymentCapture, payment_confirm::PaymentConfirm,
-    payment_create::PaymentCreate, payment_decline::PaymentReject,
-    payment_method_validate::PaymentMethodValidate, payment_response::PaymentResponse,
+    payment_create::PaymentCreate, payment_method_validate::PaymentMethodValidate,
+    payment_reject::PaymentReject, payment_response::PaymentResponse,
     payment_session::PaymentSession, payment_start::PaymentStart, payment_status::PaymentStatus,
     payment_update::PaymentUpdate,
 };
