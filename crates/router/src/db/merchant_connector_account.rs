@@ -847,9 +847,10 @@ mod merchant_connector_account_cache_tests {
             profile_id: Some(profile_id.to_string()),
         };
 
-        db.insert_merchant_connector_account(mca, &merchant_key)
+        db.insert_merchant_connector_account(mca.clone(), &merchant_key)
             .await
             .unwrap();
+
         let find_call = || async {
             db.find_merchant_connector_account_by_profile_id_connector_name(
                 profile_id,
