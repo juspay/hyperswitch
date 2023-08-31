@@ -305,9 +305,7 @@ impl<F, T>
                 Ok(Self {
                     status: enums::AttemptStatus::from(transaction_data.status.clone()),
                     response: Ok(types::PaymentsResponseData::TransactionResponse {
-                        resource_id: types::ResponseId::ConnectorTransactionId(
-                            transaction_data.id.clone(),
-                        ),
+                        resource_id: types::ResponseId::ConnectorTransactionId(transaction_data.id),
                         redirection_data: None,
                         mandate_reference: None,
                         connector_metadata: None,
@@ -460,7 +458,7 @@ impl TryFrom<types::RefundsResponseRouterData<api::Execute, BraintreeRefundRespo
 
                     Ok(types::RefundsResponseData {
                         connector_refund_id: refund_data.id.clone(),
-                        refund_status: enums::RefundStatus::from(refund_data.status.clone()),
+                        refund_status: enums::RefundStatus::from(refund_data.status),
                     })
                 }
             },
@@ -777,9 +775,7 @@ impl TryFrom<types::PaymentsCaptureResponseRouterData<BraintreeCaptureResponse>>
                 Ok(Self {
                     status: enums::AttemptStatus::from(transaction_data.status.clone()),
                     response: Ok(types::PaymentsResponseData::TransactionResponse {
-                        resource_id: types::ResponseId::ConnectorTransactionId(
-                            transaction_data.id.clone(),
-                        ),
+                        resource_id: types::ResponseId::ConnectorTransactionId(transaction_data.id),
                         redirection_data: None,
                         mandate_reference: None,
                         connector_metadata: None,
@@ -872,13 +868,11 @@ impl<F, T>
             BraintreeCancelResponse::CancelResponse(void_response) => {
                 let void_data = void_response.data.reverse_transaction.reversal;
 
-                let transaction_id = void_data.id.clone();
+                let transaction_id = void_data.id;
                 Ok(Self {
-                    status: enums::AttemptStatus::from(void_data.status.clone()),
+                    status: enums::AttemptStatus::from(void_data.status),
                     response: Ok(types::PaymentsResponseData::TransactionResponse {
-                        resource_id: types::ResponseId::ConnectorTransactionId(
-                            transaction_id.to_string(),
-                        ),
+                        resource_id: types::ResponseId::ConnectorTransactionId(transaction_id),
                         redirection_data: None,
                         mandate_reference: None,
                         connector_metadata: None,

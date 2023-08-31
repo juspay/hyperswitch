@@ -372,5 +372,5 @@ pub struct IatapayErrorResponse {
 #[derive(Deserialize, Debug)]
 pub struct IatapayAccessTokenErrorResponse {
     pub error: String,
-    pub error_description: String,
+    pub path: String,
 }
