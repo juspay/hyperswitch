@@ -90,6 +90,7 @@ pub enum Connector {
     Forte,
     Globalpay,
     Globepay,
+    //Helcim, added as template code for future usage,
     Iatapay,
     Klarna,
     Mollie,
@@ -204,6 +205,7 @@ pub enum RoutableConnectors {
     Forte,
     Globalpay,
     Globepay,
+    //Helcim, added as template code for future usage,
     Iatapay,
     Klarna,
     Mollie,
@@ -508,20 +510,25 @@ pub struct UnresolvedResponseReason {
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
 pub enum FieldType {
+    CardNumber,
+    CardExpiryMonth,
+    CardExpiryYear,
+    CardCVC,
     UserFullName,
     UserEmailAddress,
     UserPhoneNumber,
-    UserCountry { options: Vec<String> },
+    UserCountryCode,                      //phone number's country code
+    UserCountry { options: Vec<String> }, //for country inside payment method data ex- bank redirect
+    UserCurrency { options: Vec<String> },
+    UserBillingName,
     UserAddressline1,
     UserAddressline2,
     UserAddressCity,
     UserAddressPincode,
     UserAddressState,
-    UserAddressCountry,
+    UserAddressCountry { options: Vec<String> },
     UserBlikCode,
-    UserBillingName,
     UserBank,
-    UserCurrency { options: Vec<String> },
     Text,
     DropDown { options: Vec<String> },
 }

@@ -665,9 +665,19 @@ pub async fn refund_list(
         .map(ForeignInto::foreign_into)
         .collect();
 
+    let total_count = db
+        .get_total_count_of_refunds(
+            &merchant_account.merchant_id,
+            &req,
+            merchant_account.storage_scheme,
+        )
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::InternalServerError)?;
+
     Ok(services::ApplicationResponse::Json(
         api_models::refunds::RefundListResponse {
-            size: data.len(),
+            count: data.len(),
+            total_count,
             data,
         },
     ))
@@ -832,7 +842,7 @@ pub async fn sync_refund_with_gateway_workflow(
         },
     )
     .await?;
-    let terminal_status = vec![
+    let terminal_status = [
         enums::RefundStatus::Success,
         enums::RefundStatus::Failure,
         enums::RefundStatus::TransactionFailure,

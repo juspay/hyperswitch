@@ -67,6 +67,11 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsStartRequest> f
             "update",
         )?;
 
+        helpers::authenticate_client_secret(
+            payment_intent.client_secret.as_ref(),
+            &payment_intent,
+            merchant_account.intent_fulfillment_time,
+        )?;
         payment_attempt = db
             .find_payment_attempt_by_payment_id_merchant_id_attempt_id(
                 payment_intent.payment_id.as_str(),
@@ -275,7 +280,7 @@ where
         _merchant_account: &domain::MerchantAccount,
         state: &AppState,
         _request: &api::PaymentsStartRequest,
-        _payment_intent: &storage::payment_intent::PaymentIntent,
+        _payment_intent: &storage::PaymentIntent,
         _mechant_key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<api::ConnectorChoice, errors::ApiErrorResponse> {
         helpers::get_connector_default(state, None).await

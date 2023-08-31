@@ -1,0 +1,14 @@
+{
+  "childrenOrder": [
+    "Health check",
+    "MerchantAccounts",
+    "API Key",
+    "PaymentConnectors",
+    "QuickStart",
+    "Customers",
+    "Payments",
+    "Refunds",
+    "PaymentMethods",
+    "Hackathon"
+  ]
+}

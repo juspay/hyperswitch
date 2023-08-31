@@ -7,11 +7,12 @@ use utoipa::ToSchema;
 pub mod diesel_exports {
     pub use super::{
         DbAttemptStatus as AttemptStatus, DbAuthenticationType as AuthenticationType,
-        DbCaptureMethod as CaptureMethod, DbConnectorType as ConnectorType,
-        DbCountryAlpha2 as CountryAlpha2, DbCurrency as Currency, DbDisputeStage as DisputeStage,
-        DbDisputeStatus as DisputeStatus, DbEventType as EventType, DbFutureUsage as FutureUsage,
-        DbIntentStatus as IntentStatus, DbMandateStatus as MandateStatus,
-        DbPaymentMethodIssuerCode as PaymentMethodIssuerCode, DbRefundStatus as RefundStatus,
+        DbCaptureMethod as CaptureMethod, DbCaptureStatus as CaptureStatus,
+        DbConnectorType as ConnectorType, DbCountryAlpha2 as CountryAlpha2, DbCurrency as Currency,
+        DbDisputeStage as DisputeStage, DbDisputeStatus as DisputeStatus, DbEventType as EventType,
+        DbFutureUsage as FutureUsage, DbIntentStatus as IntentStatus,
+        DbMandateStatus as MandateStatus, DbPaymentMethodIssuerCode as PaymentMethodIssuerCode,
+        DbRefundStatus as RefundStatus,
     };
 }
 
@@ -96,6 +97,7 @@ pub enum AuthenticationType {
     serde::Serialize,
     strum::Display,
     strum::EnumString,
+    ToSchema,
     Hash,
 )]
 #[router_derive::diesel_enum(storage_type = "pg_enum")]
@@ -1679,4 +1681,29 @@ pub enum PayoutEntityType {
 pub enum CancelTransaction {
     #[default]
     FrmCancelTransaction,
+}
+
+#[derive(
+    Clone,
+    Debug,
+    Eq,
+    Default,
+    Hash,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    strum::EnumString,
+    utoipa::ToSchema,
+    Copy,
+)]
+#[router_derive::diesel_enum(storage_type = "pg_enum")]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum ReconStatus {
+    #[default]
+    NotRequested,
+    Requested,
+    Active,
+    Disabled,
 }

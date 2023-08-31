@@ -3,6 +3,7 @@ pub mod transformers;
 use std::fmt::Debug;
 
 use common_utils::{crypto, ext_traits::ByteSliceExt};
+use diesel_models::enums;
 use error_stack::{IntoReport, ResultExt};
 use masking::PeekInterface;
 
@@ -12,6 +13,7 @@ use super::utils::{
 };
 use crate::{
     configs::settings,
+    connector::utils as connector_utils,
     consts,
     core::{
         errors::{self, CustomResult},
@@ -21,7 +23,7 @@ use crate::{
     services::{
         self,
         request::{self, Mask},
-        ConnectorIntegration,
+        ConnectorIntegration, ConnectorValidation,
     },
     types::{
         self,
@@ -126,6 +128,23 @@ impl ConnectorCommon for Checkout {
                 .map(|errors| errors.join(" & "))
                 .or(response.error_type),
         })
+    }
+}
+
+impl ConnectorValidation for Checkout {
+    fn validate_capture_method(
+        &self,
+        capture_method: Option<enums::CaptureMethod>,
+    ) -> CustomResult<(), errors::ConnectorError> {
+        let capture_method = capture_method.unwrap_or_default();
+        match capture_method {
+            enums::CaptureMethod::Automatic
+            | enums::CaptureMethod::Manual
+            | enums::CaptureMethod::ManualMultiple => Ok(()),
+            enums::CaptureMethod::Scheduled => Err(
+                connector_utils::construct_not_implemented_error_report(capture_method, self.id()),
+            ),
+        }
     }
 }
 
@@ -454,6 +473,7 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         >,
         connectors: &settings::Connectors,
     ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
+        self.validate_capture_method(req.request.capture_method)?;
         Ok(Some(
             services::RequestBuilder::new()
                 .method(services::Method::Post)
@@ -830,7 +850,7 @@ impl api::FileUpload for Checkout {
         match purpose {
             api::FilePurpose::DisputeEvidence => {
                 let supported_file_types =
-                    vec!["image/jpeg", "image/jpg", "image/png", "application/pdf"];
+                    ["image/jpeg", "image/jpg", "image/png", "application/pdf"];
                 // 4 Megabytes (MB)
                 if file_size > 4000000 {
                     Err(errors::ConnectorError::FileValidationFailed {

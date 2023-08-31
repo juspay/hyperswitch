@@ -57,6 +57,34 @@ diesel::table! {
     use diesel::sql_types::*;
     use crate::enums::diesel_exports::*;
 
+    business_profile (profile_id) {
+        #[max_length = 64]
+        profile_id -> Varchar,
+        #[max_length = 64]
+        merchant_id -> Varchar,
+        #[max_length = 64]
+        profile_name -> Varchar,
+        created_at -> Timestamp,
+        modified_at -> Timestamp,
+        return_url -> Nullable<Text>,
+        enable_payment_response_hash -> Bool,
+        #[max_length = 255]
+        payment_response_hash_key -> Nullable<Varchar>,
+        redirect_to_merchant_with_http_post -> Bool,
+        webhook_details -> Nullable<Json>,
+        metadata -> Nullable<Json>,
+        routing_algorithm -> Nullable<Json>,
+        intent_fulfillment_time -> Nullable<Int8>,
+        frm_routing_algorithm -> Nullable<Jsonb>,
+        payout_routing_algorithm -> Nullable<Jsonb>,
+        is_recon_enabled -> Bool,
+    }
+}
+
+diesel::table! {
+    use diesel::sql_types::*;
+    use crate::enums::diesel_exports::*;
+
     captures (capture_id) {
         #[max_length = 64]
         capture_id -> Varchar,
@@ -68,7 +96,7 @@ diesel::table! {
         amount -> Int8,
         currency -> Nullable<Currency>,
         #[max_length = 255]
-        connector -> Nullable<Varchar>,
+        connector -> Varchar,
         #[max_length = 255]
         error_message -> Nullable<Varchar>,
         #[max_length = 255]
@@ -81,8 +109,10 @@ diesel::table! {
         #[max_length = 64]
         authorized_attempt_id -> Varchar,
         #[max_length = 128]
-        connector_transaction_id -> Nullable<Varchar>,
+        connector_capture_id -> Nullable<Varchar>,
         capture_sequence -> Int2,
+        #[max_length = 128]
+        connector_response_reference_id -> Nullable<Varchar>,
     }
 }
 
@@ -205,6 +235,8 @@ diesel::table! {
         #[max_length = 255]
         connector -> Varchar,
         evidence -> Jsonb,
+        #[max_length = 64]
+        profile_id -> Nullable<Varchar>,
     }
 }
 
@@ -398,6 +430,9 @@ diesel::table! {
         #[max_length = 32]
         organization_id -> Nullable<Varchar>,
         is_recon_enabled -> Bool,
+        #[max_length = 64]
+        default_profile -> Nullable<Varchar>,
+        recon_status -> ReconStatus,
     }
 }
 
@@ -431,6 +466,8 @@ diesel::table! {
         modified_at -> Timestamp,
         connector_webhook_details -> Nullable<Jsonb>,
         frm_config -> Nullable<Array<Nullable<Jsonb>>>,
+        #[max_length = 64]
+        profile_id -> Nullable<Varchar>,
     }
 }
 
@@ -556,6 +593,8 @@ diesel::table! {
         connector_metadata -> Nullable<Json>,
         feature_metadata -> Nullable<Json>,
         attempt_count -> Int2,
+        #[max_length = 64]
+        profile_id -> Nullable<Varchar>,
     }
 }
 
@@ -631,6 +670,8 @@ diesel::table! {
         business_label -> Nullable<Varchar>,
         created_at -> Timestamp,
         last_modified_at -> Timestamp,
+        #[max_length = 64]
+        profile_id -> Nullable<Varchar>,
     }
 }
 
@@ -734,6 +775,8 @@ diesel::table! {
         #[max_length = 255]
         refund_reason -> Nullable<Varchar>,
         refund_error_code -> Nullable<Text>,
+        #[max_length = 64]
+        profile_id -> Nullable<Varchar>,
     }
 }
 
@@ -756,6 +799,7 @@ diesel::table! {
 diesel::allow_tables_to_appear_in_same_query!(
     address,
     api_keys,
+    business_profile,
     captures,
     cards_info,
     configs,

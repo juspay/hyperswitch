@@ -1,0 +1,85 @@
+{
+  "method": "POST",
+  "header": [
+    {
+      "key": "Content-Type",
+      "value": "application/json"
+    },
+    {
+      "key": "Accept",
+      "value": "application/json"
+    }
+  ],
+  "body": {
+    "mode": "raw",
+    "options": {
+      "raw": {
+        "language": "json"
+      }
+    },
+    "raw_json_formatted": {
+      "amount": 1000,
+      "currency": "USD",
+      "confirm": true,
+      "capture_method": "automatic",
+      "capture_on": "2022-09-10T10:11:12Z",
+      "amount_to_capture": 100,
+      "customer_id": "StripeCustomer",
+      "email": "guest@example.com",
+      "name": "John Doe",
+      "phone": "999999999",
+      "phone_country_code": "+1",
+      "description": "Its my first payment request",
+      "authentication_type": "no_three_ds",
+      "return_url": "https://duck.com",
+      "payment_method": "card",
+      "payment_method_type": "credit",
+      "payment_method_data": {
+        "card": {
+          "card_number": "4012000000020006",
+          "card_exp_month": "10",
+          "card_exp_year": "25",
+          "card_holder_name": "joseph Doe",
+          "card_cvc": "123"
+        }
+      },
+      "statement_descriptor_name": "joseph",
+      "statement_descriptor_suffix": "JS",
+      "metadata": {
+        "order_details": {
+          "product_name": "iphone 13",
+          "quantity": 1
+        }
+      },
+      "order_details": [
+        {
+          "product_name": "Apple iphone 15",
+          "quantity": 1,
+          "amount": 1000,
+          "account_name": "transaction_processing"
+        }
+      ],
+      "browser_info": {
+        "user_agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/111.0.0.0 Safari/537.36",
+        "accept_header": "text\\/html,application\\/xhtml+xml,application\\/xml;q=0.9,image\\/webp,image\\/apng,*\\/*;q=0.8",
+        "language": "en-GB",
+        "color_depth": 24,
+        "screen_height": 1440,
+        "screen_width": 2560,
+        "time_zone": -330,
+        "java_enabled": true,
+        "java_script_enabled": true
+      }
+    }
+  },
+  "url": {
+    "raw": "{{baseUrl}}/payments",
+    "host": [
+      "{{baseUrl}}"
+    ],
+    "path": [
+      "payments"
+    ]
+  },
+  "description": "To process a payment you will have to create a payment, attach a payment method and confirm. Depending on the user journey you wish to achieve, you may opt to all the steps in a single request or in a sequence of API request using following APIs: (i) Payments - Update, (ii) Payments - Confirm, and (iii) Payments - Capture"
+}
