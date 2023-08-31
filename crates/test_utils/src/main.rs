@@ -26,6 +26,9 @@ struct Args {
     /// Admin API Key of the environment
     #[arg(short, long = "admin_api_key")]
     admin_api_key: String,
+    /// Optional Verbose logs
+    #[arg(short, long = "verbose")]
+    verbose: bool,
 }
 
 fn main() {
@@ -129,6 +132,10 @@ fn main() {
     newman_command.arg("--delay-request").arg("5");
 
     newman_command.arg("--color").arg("on");
+
+    if args.verbose {
+        newman_command.arg("--verbose");
+    }
 
     // Execute the newman command
     let output = newman_command.spawn();
