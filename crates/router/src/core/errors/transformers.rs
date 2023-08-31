@@ -93,7 +93,7 @@ impl ErrorSwitch<api_models::errors::types::ApiErrorResponse> for ApiErrorRespon
             Self::FileProviderNotSupported { message } => {
                 AER::BadRequest(ApiError::new("IR", 23, message.to_string(), None))
             },
-            Self::UnprocessableEntity {entity} => AER::Unprocessable(ApiError::new("IR", 23, format!("{entity} expired or invalid"), None)),
+            Self::UnprocessableEntity {message} => AER::Unprocessable(ApiError::new("IR", 23, message.to_string(), None)),
             Self::ExternalConnectorError {
                 code,
                 message,

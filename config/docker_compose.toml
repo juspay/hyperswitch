@@ -288,4 +288,4 @@ connector_list = "stax"
 payout_connector_list = "wise"
 
 [multiple_api_version_supported_connectors]
-supported_connectors = ["braintree"]
+supported_connectors = "braintree"

@@ -76,19 +76,24 @@ where
         .or(payment_data.payment_attempt.payment_method)
         .get_required_value("payment_method_type")?;
 
-    // [#44]: why should response be filled during request
-    let response = payment_data
+    let resource_id = match payment_data
         .payment_attempt
         .connector_transaction_id
-        .as_ref()
-        .map(|id| types::PaymentsResponseData::TransactionResponse {
-            resource_id: types::ResponseId::ConnectorTransactionId(id.to_string()),
-            redirection_data: None,
-            mandate_reference: None,
-            connector_metadata: None,
-            network_txn_id: None,
-            connector_response_reference_id: None,
-        });
+        .clone()
+    {
+        Some(id) => types::ResponseId::ConnectorTransactionId(id),
+        None => types::ResponseId::NoResponseId,
+    };
+
+    // [#44]: why should response be filled during request
+    let response = Ok(types::PaymentsResponseData::TransactionResponse {
+        resource_id,
+        redirection_data: None,
+        mandate_reference: None,
+        connector_metadata: None,
+        network_txn_id: None,
+        connector_response_reference_id: None,
+    });
 
     let additional_data = PaymentAdditionalData {
         router_base_url: state.conf.server.base_url.clone(),
@@ -142,7 +147,7 @@ where
             .unwrap_or_default(),
         connector_meta_data: merchant_connector_account.get_metadata(),
         request: T::try_from(additional_data)?,
-        response: response.map_or_else(|| Err(types::ErrorResponse::default()), Ok),
+        response,
         amount_captured: payment_data.payment_intent.amount_captured,
         access_token: None,
         session_token: None,
@@ -203,6 +208,21 @@ where
         connector_request_reference_id_config: &ConnectorRequestReferenceIdConfig,
         connector_http_status_code: Option<u16>,
     ) -> RouterResponse<Self> {
+        let captures = payment_data
+            .multiple_capture_data
+            .and_then(|multiple_capture_data| {
+                multiple_capture_data
+                    .expand_captures
+                    .and_then(|should_expand| {
+                        should_expand.then_some(
+                            multiple_capture_data
+                                .get_all_captures()
+                                .into_iter()
+                                .cloned()
+                                .collect(),
+                        )
+                    })
+            });
         payments_to_payments_response(
             req,
             payment_data.payment_attempt,
@@ -210,15 +230,7 @@ where
             payment_data.refunds,
             payment_data.disputes,
             payment_data.attempts,
-            payment_data
-                .multiple_capture_data
-                .map(|multiple_capture_data| {
-                    multiple_capture_data
-                        .get_all_captures()
-                        .into_iter()
-                        .cloned()
-                        .collect()
-                }),
+            captures,
             payment_data.payment_method_data,
             customer,
             auth_flow,
