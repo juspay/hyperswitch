@@ -34,7 +34,7 @@ pub async fn verify_merchant_creds_for_applepay(
 
     let applepay_internal_merchant_identifier = kms::get_kms_client(kms_config)
         .await
-        .decrypt(encrypted_cert)
+        .decrypt(encrypted_merchant_identifier)
         .await
         .change_context(api_error_response::ApiErrorResponse::InternalServerError)?;
 
