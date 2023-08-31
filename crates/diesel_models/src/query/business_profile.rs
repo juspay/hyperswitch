@@ -48,7 +48,7 @@ impl BusinessProfile {
     }
 
     #[instrument(skip(conn))]
-    pub async fn find_by_profile_name_connector_name(
+    pub async fn find_by_profile_name_merchant_id(
         conn: &PgPooledConn,
         profile_name: &str,
         merchant_id: &str,

@@ -75,7 +75,7 @@ impl BusinessProfileInterface for Store {
         merchant_id: &str,
     ) -> CustomResult<business_profile::BusinessProfile, errors::StorageError> {
         let conn = connection::pg_connection_read(self).await?;
-        storage::business_profile::BusinessProfile::find_by_profile_name_connector_name(
+        storage::business_profile::BusinessProfile::find_by_profile_name_merchant_id(
             &conn,
             profile_name,
             merchant_id,
