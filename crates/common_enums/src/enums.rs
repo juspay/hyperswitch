@@ -1665,6 +1665,24 @@ pub enum PayoutEntityType {
 #[derive(
     Clone,
     Copy,
+    Debug,
+    Eq,
+    PartialEq,
+    serde::Serialize,
+    serde::Deserialize,
+    strum::Display,
+    strum::EnumString,
+)]
+#[router_derive::diesel_enum(storage_type = "text")]
+#[strum(serialize_all = "snake_case")]
+pub enum MerchantDecision {
+    Approved,
+    Declined,
+}
+
+#[derive(
+    Clone,
+    Copy,
     Default,
     Debug,
     Eq,
@@ -1678,7 +1696,8 @@ pub enum PayoutEntityType {
 )]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
-pub enum CancelTransaction {
+pub enum FrmSuggestion {
     #[default]
     FrmCancelTransaction,
+    FrmManualReview,
 }

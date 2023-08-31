@@ -28,10 +28,10 @@ use crate::{
 
 #[derive(Debug, Clone, Copy, PaymentOperation)]
 #[operation(ops = "all", flow = "authorize")]
-pub struct CompleteAuthorize;
+pub struct PaymentApprove;
 
 #[async_trait]
-impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for CompleteAuthorize {
+impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for PaymentApprove {
     #[instrument(skip_all)]
     async fn get_trackers<'a>(
         &'a self,
@@ -97,11 +97,12 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Co
                 field_name: "browser_info",
             })?;
 
+        let attempt_id = payment_intent.active_attempt_id.clone();
         payment_attempt = db
             .find_payment_attempt_by_payment_id_merchant_id_attempt_id(
                 &payment_intent.payment_id,
                 merchant_id,
-                &payment_intent.active_attempt_id,
+                &attempt_id.clone(),
                 storage_scheme,
             )
             .await
@@ -203,6 +204,14 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Co
                 .or(mandate_data.mandate_type),
         });
 
+        let frm_response = db
+        .find_fraud_check_by_payment_id(payment_intent.payment_id.clone(), merchant_account.merchant_id.clone())
+        .await
+        .change_context(errors::ApiErrorResponse::PaymentNotFound)
+        .attach_printable_lazy(|| {
+            format!("Error while retrieving frm_response, merchant_id: {}, payment_id: {attempt_id}", &merchant_account.merchant_id)
+        });
+
         Ok((
             Box::new(self),
             PaymentData {
@@ -236,7 +245,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Co
                 ephemeral_key: None,
                 multiple_capture_data: None,
                 redirect_response,
-                frm_message: None,
+                frm_message: frm_response.ok(),
             },
             Some(CustomerDetails {
                 customer_id: request.customer_id.clone(),
@@ -250,7 +259,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Co
 }
 
 #[async_trait]
-impl<F: Clone + Send> Domain<F, api::PaymentsRequest> for CompleteAuthorize {
+impl<F: Clone + Send> Domain<F, api::PaymentsRequest> for PaymentApprove {
     #[instrument(skip_all)]
     async fn get_or_create_customer_details<'a>(
         &'a self,
@@ -322,14 +331,14 @@ impl<F: Clone + Send> Domain<F, api::PaymentsRequest> for CompleteAuthorize {
 }
 
 #[async_trait]
-impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for CompleteAuthorize {
+impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for PaymentApprove {
     #[instrument(skip_all)]
     async fn update_trackers<'b>(
         &'b self,
-        _db: &dyn StorageInterface,
-        payment_data: PaymentData<F>,
+        db: &dyn StorageInterface,
+        mut payment_data: PaymentData<F>,
         _customer: Option<domain::Customer>,
-        _storage_scheme: storage_enums::MerchantStorageScheme,
+        storage_scheme: storage_enums::MerchantStorageScheme,
         _updated_customer: Option<storage::CustomerUpdate>,
         _merchant_key_store: &domain::MerchantKeyStore,
         _frm_suggestion: Option<FrmSuggestion>,
@@ -337,11 +346,23 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Comple
     where
         F: 'b + Send,
     {
+        let attempt_status_update = storage::PaymentAttemptUpdate::ApproveUpdate {
+            merchant_decision: Some(Some(storage_enums::MerchantDecision::Approved.to_string())),
+        };
+        payment_data.payment_attempt = db
+            .update_payment_attempt_with_attempt_id(
+                payment_data.payment_attempt.clone(),
+                attempt_status_update,
+                storage_scheme,
+            )
+            .await
+            .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
+
         Ok((Box::new(self), payment_data))
     }
 }
 
-impl<F: Send + Clone> ValidateRequest<F, api::PaymentsRequest> for CompleteAuthorize {
+impl<F: Send + Clone> ValidateRequest<F, api::PaymentsRequest> for PaymentApprove {
     #[instrument(skip_all)]
     fn validate_request<'a, 'b>(
         &'b self,

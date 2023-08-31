@@ -1,5 +1,6 @@
 use std::{fmt::Debug, marker::PhantomData, str::FromStr};
 
+use api_models::payments::FrmMessage;
 use common_utils::fp_utils;
 use diesel_models::{ephemeral_key, payment_attempt::PaymentListFilters};
 use error_stack::{IntoReport, ResultExt};
@@ -344,7 +345,7 @@ pub fn payments_to_payments_response<R, Op>(
     operation: &Op,
     ephemeral_key_option: Option<ephemeral_key::EphemeralKey>,
     session_tokens: Vec<api::SessionToken>,
-    frm_message: Option<payments::FrmMessage>,
+    fraud_check: Option<payments::FraudCheck>,
     mandate_data: Option<api_models::payments::MandateData>,
     connector_request_reference_id_config: &ConnectorRequestReferenceIdConfig,
     connector_http_status_code: Option<u16>,
@@ -412,6 +413,8 @@ where
             .change_context(errors::ApiErrorResponse::InvalidDataValue {
                 field_name: "payment_method_data",
             })?;
+    let merchant_decision = payment_attempt.merchant_decision.to_owned();
+    let frm_message = fraud_check.map(|fc| FrmMessage::foreign_from(fc));
 
     let payment_method_data_response =
         additional_payment_method_data.map(api::PaymentMethodDataResponse::from);
@@ -590,6 +593,7 @@ where
                         )
                         .set_ephemeral_key(ephemeral_key_option.map(ForeignFrom::foreign_from))
                         .set_frm_message(frm_message)
+                        .set_merchant_decision(merchant_decision)
                         .set_manual_retry_allowed(helpers::is_manual_retry_allowed(
                             &payment_intent.status,
                             &payment_attempt.status,
@@ -1071,6 +1075,40 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsCancelDa
     }
 }
 
+impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsApproveData {
+    type Error = error_stack::Report<errors::ApiErrorResponse>;
+
+    fn try_from(additional_data: PaymentAdditionalData<'_, F>) -> Result<Self, Self::Error> {
+        let payment_data = additional_data.payment_data;
+        Ok(Self {
+            amount: Some(payment_data.amount.into()),
+            currency: Some(payment_data.currency),
+        })
+    }
+}
+
+impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsDeclineData {
+    type Error = error_stack::Report<errors::ApiErrorResponse>;
+
+    fn try_from(additional_data: PaymentAdditionalData<'_, F>) -> Result<Self, Self::Error> {
+        let payment_data = additional_data.payment_data;
+        let connector = api::ConnectorData::get_connector_by_name(
+            &additional_data.state.conf.connectors,
+            &additional_data.connector_name,
+            api::GetToken::Connector,
+        )?;
+        Ok(Self {
+            amount: Some(payment_data.amount.into()),
+            currency: Some(payment_data.currency),
+            connector_transaction_id: connector
+                .connector
+                .connector_transaction_id(payment_data.payment_attempt.clone())?
+                .ok_or(errors::ApiErrorResponse::ResourceIdNotFound)?,
+            connector_meta: payment_data.payment_attempt.connector_metadata,
+        })
+    }
+}
+
 impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsSessionData {
     type Error = error_stack::Report<errors::ApiErrorResponse>;
 
@@ -1281,5 +1319,19 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsPreProce
             router_return_url,
             webhook_url,
         })
+    }
+}
+
+impl ForeignFrom<payments::FraudCheck> for FrmMessage {
+    fn foreign_from(fraud_check: payments::FraudCheck) -> Self {
+        Self {
+            frm_name: fraud_check.frm_name,
+            frm_transaction_id: fraud_check.frm_transaction_id,
+            frm_transaction_type: Some(fraud_check.frm_transaction_type.to_string()),
+            frm_status: Some(fraud_check.frm_status.to_string()),
+            frm_score: fraud_check.frm_score,
+            frm_reason: fraud_check.frm_reason,
+            frm_error: fraud_check.frm_error,
+        }
     }
 }

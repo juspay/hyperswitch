@@ -1,8 +1,7 @@
 use std::marker::PhantomData;
 
-use api_models::enums::FrmSuggestion;
+use api_models::{enums::FrmSuggestion, payments::PaymentsDeclineRequest};
 use async_trait::async_trait;
-use common_utils::ext_traits::AsyncExt;
 use error_stack::ResultExt;
 use router_derive;
 use router_env::{instrument, tracing};
@@ -25,23 +24,23 @@ use crate::{
 };
 
 #[derive(Debug, Clone, Copy, router_derive::PaymentOperation)]
-#[operation(ops = "all", flow = "cancel")]
-pub struct PaymentCancel;
+#[operation(ops = "all", flow = "decline")]
+pub struct PaymentDecline;
 
 #[async_trait]
-impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsCancelRequest> for PaymentCancel {
+impl<F: Send + Clone> GetTracker<F, PaymentData<F>, PaymentsDeclineRequest> for PaymentDecline {
     #[instrument(skip_all)]
     async fn get_trackers<'a>(
         &'a self,
         state: &'a AppState,
         payment_id: &api::PaymentIdType,
-        request: &api::PaymentsCancelRequest,
+        _request: &PaymentsDeclineRequest,
         _mandate_type: Option<api::MandateTransactionType>,
         merchant_account: &domain::MerchantAccount,
         key_store: &domain::MerchantKeyStore,
         _auth_flow: services::AuthFlow,
     ) -> RouterResult<(
-        BoxedOperation<'a, F, api::PaymentsCancelRequest>,
+        BoxedOperation<'a, F, PaymentsDeclineRequest>,
         PaymentData<F>,
         Option<CustomerDetails>,
     )> {
@@ -62,18 +61,17 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsCancelRequest> 
             &[
                 enums::IntentStatus::Failed,
                 enums::IntentStatus::Succeeded,
-                enums::IntentStatus::Cancelled,
                 enums::IntentStatus::Processing,
-                enums::IntentStatus::RequiresMerchantAction,
             ],
-            "cancel",
+            "decline",
         )?;
 
-        let mut payment_attempt = db
+        let attempt_id = payment_intent.active_attempt_id.clone();
+        let payment_attempt = db
             .find_payment_attempt_by_payment_id_merchant_id_attempt_id(
                 payment_intent.payment_id.as_str(),
                 merchant_id,
-                payment_intent.active_attempt_id.as_str(),
+                attempt_id.clone().as_str(),
                 storage_scheme,
             )
             .await
@@ -111,25 +109,13 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsCancelRequest> 
         let currency = payment_attempt.currency.get_required_value("currency")?;
         let amount = payment_attempt.amount.into();
 
-        payment_attempt.cancellation_reason = request.cancellation_reason.clone();
-
-        let creds_identifier = request
-            .merchant_connector_details
-            .as_ref()
-            .map(|mcd| mcd.creds_identifier.to_owned());
-        request
-            .merchant_connector_details
-            .to_owned()
-            .async_map(|mcd| async {
-                helpers::insert_merchant_connector_creds_to_config(
-                    db,
-                    merchant_account.merchant_id.as_str(),
-                    mcd,
-                )
-                .await
-            })
-            .await
-            .transpose()?;
+        let frm_response = db
+        .find_fraud_check_by_payment_id(payment_intent.payment_id.clone(), merchant_account.merchant_id.clone())
+        .await
+        .change_context(errors::ApiErrorResponse::PaymentNotFound)
+        .attach_printable_lazy(|| {
+            format!("Error while retrieving frm_response, merchant_id: {}, payment_id: {attempt_id}", &merchant_account.merchant_id)
+        });
 
         Ok((
             Box::new(self),
@@ -157,14 +143,14 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsCancelRequest> 
                 connector_response,
                 sessions_token: vec![],
                 card_cvc: None,
-                creds_identifier,
+                creds_identifier: None,
                 pm_token: None,
                 connector_customer_id: None,
                 recurring_mandate_payment_data: None,
                 ephemeral_key: None,
                 multiple_capture_data: None,
                 redirect_response: None,
-                frm_message: None,
+                frm_message: frm_response.ok(),
             },
             None,
         ))
@@ -172,7 +158,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsCancelRequest> 
 }
 
 #[async_trait]
-impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsCancelRequest> for PaymentCancel {
+impl<F: Clone> UpdateTracker<F, PaymentData<F>, PaymentsDeclineRequest> for PaymentDecline {
     #[instrument(skip_all)]
     async fn update_trackers<'b>(
         &'b self,
@@ -182,58 +168,64 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsCancelRequest> for 
         storage_scheme: enums::MerchantStorageScheme,
         _updated_customer: Option<storage::CustomerUpdate>,
         _mechant_key_store: &domain::MerchantKeyStore,
-        _frm_suggestion: Option<FrmSuggestion>,
+        _should_decline_transaction: Option<FrmSuggestion>,
     ) -> RouterResult<(
-        BoxedOperation<'b, F, api::PaymentsCancelRequest>,
+        BoxedOperation<'b, F, PaymentsDeclineRequest>,
         PaymentData<F>,
     )>
     where
         F: 'b + Send,
     {
-        let cancellation_reason = payment_data.payment_attempt.cancellation_reason.clone();
-        let (intent_status_update, attempt_status_update) =
-            if payment_data.payment_intent.status != enums::IntentStatus::RequiresCapture {
-                let payment_intent_update = storage::PaymentIntentUpdate::PGStatusUpdate {
-                    status: enums::IntentStatus::Cancelled,
-                };
-                (Some(payment_intent_update), enums::AttemptStatus::Voided)
-            } else {
-                (None, enums::AttemptStatus::VoidInitiated)
-            };
+        let intent_status_update = storage::PaymentIntentUpdate::PGStatusUpdate {
+            status: enums::IntentStatus::Failed,
+        };
+        let (error_code, error_message) =
+            payment_data
+                .frm_message
+                .clone()
+                .map_or((None, None), |fraud_check| {
+                    (
+                        Some(Some(fraud_check.frm_status.to_string())),
+                        Some(fraud_check.frm_reason.map(|reason| reason.to_string())),
+                    )
+                });
+        let attempt_status_update = storage::PaymentAttemptUpdate::DeclineUpdate {
+            status: enums::AttemptStatus::Failure,
+            merchant_decision: Some(Some(enums::MerchantDecision::Declined.to_string())),
+            error_code,
+            error_message,
+        };
 
-        if let Some(payment_intent_update) = intent_status_update {
-            payment_data.payment_intent = db
-                .update_payment_intent(
-                    payment_data.payment_intent,
-                    payment_intent_update,
-                    storage_scheme,
-                )
-                .await
-                .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
-        }
+        payment_data.payment_intent = db
+            .update_payment_intent(
+                payment_data.payment_intent,
+                intent_status_update,
+                storage_scheme,
+            )
+            .await
+            .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
 
-        db.update_payment_attempt_with_attempt_id(
-            payment_data.payment_attempt.clone(),
-            storage::PaymentAttemptUpdate::VoidUpdate {
-                status: attempt_status_update,
-                cancellation_reason,
-            },
-            storage_scheme,
-        )
-        .await
-        .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
+        payment_data.payment_attempt = db
+            .update_payment_attempt_with_attempt_id(
+                payment_data.payment_attempt.clone(),
+                attempt_status_update,
+                storage_scheme,
+            )
+            .await
+            .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
+
         Ok((Box::new(self), payment_data))
     }
 }
 
-impl<F: Send + Clone> ValidateRequest<F, api::PaymentsCancelRequest> for PaymentCancel {
+impl<F: Send + Clone> ValidateRequest<F, PaymentsDeclineRequest> for PaymentDecline {
     #[instrument(skip_all)]
     fn validate_request<'a, 'b>(
         &'b self,
-        request: &api::PaymentsCancelRequest,
+        request: &PaymentsDeclineRequest,
         merchant_account: &'a domain::MerchantAccount,
     ) -> RouterResult<(
-        BoxedOperation<'b, F, api::PaymentsCancelRequest>,
+        BoxedOperation<'b, F, PaymentsDeclineRequest>,
         operations::ValidateResult<'a>,
     )> {
         Ok((

@@ -1,0 +1,1 @@
+alter table payment_attempt drop column merchant_decision;

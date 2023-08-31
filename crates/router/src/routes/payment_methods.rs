@@ -1,5 +1,6 @@
 use actix_web::{web, HttpRequest, HttpResponse};
 use common_utils::{consts::TOKEN_TTL, errors::CustomResult};
+use diesel_models::enums::IntentStatus;
 use error_stack::{IntoReport, ResultExt};
 use router_env::{instrument, logger, tracing, Flow};
 use time::PrimitiveDateTime;
@@ -8,10 +9,7 @@ use super::app::AppState;
 use crate::{
     core::{errors, payment_methods::cards},
     services::{api, authentication as auth},
-    types::{
-        api::payment_methods::{self, PaymentMethodId},
-        storage::enums as storage_enums,
-    },
+    types::api::payment_methods::{self, PaymentMethodId},
 };
 
 /// PaymentMethods - Create
@@ -408,11 +406,13 @@ impl ParentPaymentMethodToken {
         Ok(())
     }
 
-    pub fn should_delete_payment_method_token(&self, status: storage_enums::IntentStatus) -> bool {
-        !matches!(
-            status,
-            diesel_models::enums::IntentStatus::RequiresCustomerAction
-        )
+    pub fn should_delete_payment_method_token(&self, status: IntentStatus) -> bool {
+        // RequiresMerchantAction: When the payment goes for merchant review incase of potential fraud allow payment_method_token to be stored until resolved
+        ![
+            IntentStatus::RequiresCustomerAction,
+            IntentStatus::RequiresMerchantAction,
+        ]
+        .contains(&status)
     }
 
     pub async fn delete(&self, state: &AppState) -> CustomResult<(), errors::ApiErrorResponse> {

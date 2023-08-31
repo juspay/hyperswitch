@@ -331,7 +331,7 @@ diesel::table! {
         card_fingerprint -> Varchar,
         #[max_length = 255]
         card_global_fingerprint -> Varchar,
-        #[max_length = 255]
+        #[max_length = 64]
         merchant_id -> Varchar,
         #[max_length = 255]
         card_number -> Varchar,
@@ -486,6 +486,21 @@ diesel::table! {
     use diesel::sql_types::*;
     use crate::enums::diesel_exports::*;
 
+    onboarding_data (id) {
+        id -> Int4,
+        #[max_length = 64]
+        user_id -> Varchar,
+        onboarding_step -> Int4,
+        created_at -> Timestamp,
+        last_modified -> Timestamp,
+        subscribed -> Nullable<Bool>,
+    }
+}
+
+diesel::table! {
+    use diesel::sql_types::*;
+    use crate::enums::diesel_exports::*;
+
     payment_attempt (id) {
         id -> Int4,
         #[max_length = 64]
@@ -541,6 +556,8 @@ diesel::table! {
         multiple_capture_count -> Nullable<Int2>,
         #[max_length = 128]
         connector_response_reference_id -> Nullable<Varchar>,
+        #[max_length = 64]
+        merchant_decision -> Nullable<Varchar>,
     }
 }
 
@@ -795,6 +812,28 @@ diesel::table! {
     }
 }
 
+diesel::table! {
+    use diesel::sql_types::*;
+    use crate::enums::diesel_exports::*;
+
+    users (id) {
+        id -> Int4,
+        #[max_length = 64]
+        user_id -> Varchar,
+        #[max_length = 255]
+        email -> Varchar,
+        #[max_length = 255]
+        name -> Varchar,
+        #[max_length = 255]
+        password -> Varchar,
+        #[max_length = 64]
+        merchant_id -> Nullable<Varchar>,
+        is_verified -> Bool,
+        created_at -> Timestamp,
+        last_modified -> Timestamp,
+    }
+}
+
 diesel::allow_tables_to_appear_in_same_query!(
     address,
     api_keys,
@@ -813,6 +852,7 @@ diesel::allow_tables_to_appear_in_same_query!(
     merchant_account,
     merchant_connector_account,
     merchant_key_store,
+    onboarding_data,
     payment_attempt,
     payment_intent,
     payment_methods,
@@ -821,4 +861,5 @@ diesel::allow_tables_to_appear_in_same_query!(
     process_tracker,
     refund,
     reverse_lookup,
+    users,
 );

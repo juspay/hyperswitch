@@ -1,0 +1,1 @@
+alter table payment_attempt add column merchant_decision VARCHAR(64);

@@ -56,6 +56,9 @@ pub struct PaymentAttempt {
     pub multiple_capture_count: Option<i16>,
     // reference to the payment at connector side
     pub connector_response_reference_id: Option<String>,
+    // Denotes the action(approve or decline) taken by merchant in case of manual review.
+    // Manual review can occur when the transaction is marked as risky by the payment processor, frm_processor or when there is underpayment/over payment incase of crypto payment
+    pub merchant_decision: Option<String>,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Queryable, Serialize, Deserialize)]
@@ -154,10 +157,21 @@ pub enum PaymentAttemptUpdate {
         payment_experience: Option<storage_enums::PaymentExperience>,
         business_sub_label: Option<String>,
         straight_through_algorithm: Option<serde_json::Value>,
+        error_code: Option<Option<String>>,
+        error_message: Option<Option<String>>,
     },
     VoidUpdate {
         status: storage_enums::AttemptStatus,
         cancellation_reason: Option<String>,
+    },
+    ApproveUpdate {
+        merchant_decision: Option<Option<String>>,
+    },
+    DeclineUpdate {
+        status: storage_enums::AttemptStatus,
+        merchant_decision: Option<Option<String>>,
+        error_code: Option<Option<String>>,
+        error_message: Option<Option<String>>,
     },
     ResponseUpdate {
         status: storage_enums::AttemptStatus,
@@ -236,6 +250,7 @@ pub struct PaymentAttemptUpdateInternal {
     capture_method: Option<storage_enums::CaptureMethod>,
     connector_response_reference_id: Option<String>,
     multiple_capture_count: Option<i16>,
+    merchant_decision: Option<Option<String>>,
 }
 
 impl PaymentAttemptUpdate {
@@ -322,6 +337,8 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 payment_experience,
                 business_sub_label,
                 straight_through_algorithm,
+                error_code,
+                error_message,
             } => Self {
                 amount: Some(amount),
                 currency: Some(currency),
@@ -337,6 +354,8 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 payment_experience,
                 business_sub_label,
                 straight_through_algorithm,
+                error_code,
+                error_message,
                 ..Default::default()
             },
             PaymentAttemptUpdate::VoidUpdate {
@@ -345,6 +364,22 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
             } => Self {
                 status: Some(status),
                 cancellation_reason,
+                ..Default::default()
+            },
+            PaymentAttemptUpdate::ApproveUpdate { merchant_decision } => Self {
+                merchant_decision,
+                ..Default::default()
+            },
+            PaymentAttemptUpdate::DeclineUpdate {
+                status,
+                merchant_decision,
+                error_code,
+                error_message,
+            } => Self {
+                status: Some(status),
+                merchant_decision,
+                error_code,
+                error_message,
                 ..Default::default()
             },
             PaymentAttemptUpdate::ResponseUpdate {
