@@ -608,7 +608,7 @@ impl api::IncomingWebhook for Zen {
                 ),
             ),
             ZenWebhookTxnType::TrtRefund => api_models::webhooks::ObjectReferenceId::RefundId(
-                api_models::webhooks::RefundIdType::ConnectorRefundId(webhook_body.transaction_id),
+                api_models::webhooks::RefundIdType::RefundId(webhook_body.merchant_transaction_id),
             ),
 
             ZenWebhookTxnType::Unknown => Err(errors::ConnectorError::WebhookReferenceIdNotFound)?,
