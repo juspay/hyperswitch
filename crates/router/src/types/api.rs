@@ -26,7 +26,7 @@ use crate::{
     configs::settings::Connectors,
     connector, consts,
     core::errors::{self, CustomResult},
-    services::{request, ConnectorIntegration, ConnectorRedirectResponse},
+    services::{request, ConnectorIntegration, ConnectorRedirectResponse, ConnectorValidation},
     types::{self, api::enums as api_enums},
 };
 
@@ -305,6 +305,7 @@ impl ConnectorData {
                 enums::Connector::Forte => Ok(Box::new(&connector::Forte)),
                 enums::Connector::Globalpay => Ok(Box::new(&connector::Globalpay)),
                 enums::Connector::Globepay => Ok(Box::new(&connector::Globepay)),
+                //enums::Connector::Helcim => Ok(Box::new(&connector::Helcim)), , it is added as template code for future usage
                 enums::Connector::Iatapay => Ok(Box::new(&connector::Iatapay)),
                 enums::Connector::Klarna => Ok(Box::new(&connector::Klarna)),
                 enums::Connector::Mollie => Ok(Box::new(&connector::Mollie)),

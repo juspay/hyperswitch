@@ -26,6 +26,7 @@ mod fiserv;
 mod forte;
 mod globalpay;
 mod globepay;
+mod helcim;
 mod iatapay;
 mod mollie;
 mod multisafepay;

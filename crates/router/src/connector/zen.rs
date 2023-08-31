@@ -22,7 +22,7 @@ use crate::{
     services::{
         self,
         request::{self, Mask},
-        ConnectorIntegration,
+        ConnectorIntegration, ConnectorValidation,
     },
     types::{
         self,
@@ -128,6 +128,8 @@ impl ConnectorCommon for Zen {
     }
 }
 
+impl ConnectorValidation for Zen {}
+
 impl ConnectorIntegration<api::Session, types::PaymentsSessionData, types::PaymentsResponseData>
     for Zen
 {
@@ -214,6 +216,7 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         req: &types::PaymentsAuthorizeRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
+        self.validate_capture_method(req.request.capture_method)?;
         Ok(Some(
             services::RequestBuilder::new()
                 .method(services::Method::Post)
@@ -546,10 +549,13 @@ impl api::IncomingWebhook for Zen {
             .body
             .parse_struct("ZenWebhookBody")
             .change_context(errors::ConnectorError::WebhookSignatureNotFound)?;
-        let msg = webhook_body.merchant_transaction_id
-            + &webhook_body.currency
-            + &webhook_body.amount
-            + &webhook_body.status.to_string().to_uppercase();
+        let msg = format!(
+            "{}{}{}{}",
+            webhook_body.merchant_transaction_id,
+            webhook_body.currency,
+            webhook_body.amount,
+            webhook_body.status.to_string().to_uppercase()
+        );
         Ok(msg.into_bytes())
     }
 
@@ -565,7 +571,7 @@ impl api::IncomingWebhook for Zen {
         let algorithm = self.get_webhook_source_verification_algorithm(request)?;
 
         let signature = self.get_webhook_source_verification_signature(request)?;
-        let (mut secret, _additional_secret) = self
+        let mut connector_webhook_secrets = self
             .get_webhook_source_verification_merchant_secret(
                 db,
                 merchant_account,
@@ -577,11 +583,11 @@ impl api::IncomingWebhook for Zen {
         let mut message = self.get_webhook_source_verification_message(
             request,
             &merchant_account.merchant_id,
-            &secret,
+            &connector_webhook_secrets.secret,
         )?;
-        message.append(&mut secret);
+        message.append(&mut connector_webhook_secrets.secret);
         algorithm
-            .verify_signature(&secret, &signature, &message)
+            .verify_signature(&connector_webhook_secrets.secret, &signature, &message)
             .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)
     }
 

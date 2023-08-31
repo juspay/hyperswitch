@@ -82,7 +82,7 @@ pub trait IncomingWebhook: ConnectorCommon + Sync {
         connector_name: &str,
         key_store: &domain::MerchantKeyStore,
         object_reference_id: ObjectReferenceId,
-    ) -> CustomResult<(Vec<u8>, Option<masking::Secret<String>>), errors::ConnectorError> {
+    ) -> CustomResult<api_models::webhooks::ConnectorWebhookSecrets, errors::ConnectorError> {
         let merchant_id = merchant_account.merchant_id.as_str();
         let debug_suffix = format!(
             "For merchant_id: {}, and connector_name: {}",
@@ -143,7 +143,10 @@ pub trait IncomingWebhook: ConnectorCommon + Sync {
 
         //If merchant has not set the secret for webhook source verification, "default_secret" is returned.
         //So it will fail during verification step and goes to psync flow.
-        Ok((merchant_secret.into_bytes(), additional_secret))
+        Ok(api_models::webhooks::ConnectorWebhookSecrets {
+            secret: merchant_secret.into_bytes(),
+            additional_secret,
+        })
     }
 
     fn get_webhook_source_verification_signature(
@@ -178,7 +181,7 @@ pub trait IncomingWebhook: ConnectorCommon + Sync {
         let signature = self
             .get_webhook_source_verification_signature(request)
             .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
-        let (secret, _additional_secret) = self
+        let connector_webhook_secrets = self
             .get_webhook_source_verification_merchant_secret(
                 db,
                 merchant_account,
@@ -192,11 +195,11 @@ pub trait IncomingWebhook: ConnectorCommon + Sync {
             .get_webhook_source_verification_message(
                 request,
                 &merchant_account.merchant_id,
-                &secret,
+                &connector_webhook_secrets.secret,
             )
             .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
         algorithm
-            .verify_signature(&secret, &signature, &message)
+            .verify_signature(&connector_webhook_secrets.secret, &signature, &message)
             .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)
     }
 
