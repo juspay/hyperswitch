@@ -1976,13 +1976,24 @@ pub struct PaymentListResponse {
     // The list of payments response objects
     pub data: Vec<PaymentsResponse>,
 }
+#[derive(Clone, Debug, serde::Serialize)]
+pub struct PaymentListResponseV2 {
+    /// The number of payments included in the list for given constraints
+    pub count: usize,
+    /// The total number of available payments for given constraints
+    pub total_count: i64,
+    /// The list of payments response objects
+    pub data: Vec<PaymentsResponse>,
+}
 
 #[derive(Clone, Debug, serde::Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct PaymentListFilterConstraints {
     /// The identifier for payment
     pub payment_id: Option<String>,
-    /// The starting point within a list of objects, limit on number of object will be some constant for join query
+    /// The limit on the number of objects. The max limit is 20
+    pub limit: Option<u32>,
+    /// The starting point within a list of objects
     pub offset: Option<u32>,
     /// The time range for which objects are needed. TimeRange has two fields start_time and end_time from which objects can be filtered as per required scenarios (created_at, time less than, greater than etc).
     #[serde(flatten)]
@@ -2187,6 +2198,8 @@ pub struct PaymentsRetrieveRequest {
     pub merchant_connector_details: Option<admin::MerchantConnectorDetailsWrap>,
     /// This is a token which expires after 15 minutes, used from the client to authenticate and create sessions from the SDK
     pub client_secret: Option<String>,
+    /// If enabled provides list of captures linked to latest attempt
+    pub expand_captures: Option<bool>,
     /// If enabled provides list of attempts linked to payment intent
     pub expand_attempts: Option<bool>,
 }
@@ -2586,6 +2599,8 @@ pub struct PaymentRetrieveBody {
     pub force_sync: Option<bool>,
     /// This is a token which expires after 15 minutes, used from the client to authenticate and create sessions from the SDK
     pub client_secret: Option<String>,
+    /// If enabled provides list of captures linked to latest attempt
+    pub expand_captures: Option<bool>,
     /// If enabled provides list of attempts linked to payment intent
     pub expand_attempts: Option<bool>,
 }
