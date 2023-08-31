@@ -8,8 +8,8 @@ use url::Url;
 
 use crate::{
     connector::utils::{
-        to_connector_meta, PaymentsAuthorizeRequestData, PaymentsCompleteAuthorizeRequestData,
-        RouterData,
+        self, to_connector_meta, PaymentsAuthorizeRequestData,
+        PaymentsCompleteAuthorizeRequestData, RouterData,
     },
     core::errors,
     pii, services,
@@ -65,7 +65,7 @@ pub struct CardsNon3DSRequest {
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Flow {
-    pub return_url: Option<String>,
+    pub return_url: String,
 }
 
 #[derive(Debug, Serialize)]
@@ -127,13 +127,118 @@ impl<T> TryFrom<&types::RouterData<T, types::PaymentsAuthorizeData, types::Payme
     fn try_from(
         item: &types::RouterData<T, types::PaymentsAuthorizeData, types::PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
-        match &item.request.payment_method_data {
-            api::PaymentMethodData::Card(ccard) => get_card_payment_request(item, ccard),
-            api::PaymentMethodData::BankRedirect(redirect_data) => {
-                get_bank_redirect_request(item, redirect_data)
+        let submit_for_settlement = item.request.is_auto_capture()?;
+        let amount = item.request.amount.to_string();
+        let currency = item.request.currency;
+        let payment_method = Shift4PaymentMethod::try_from(item)?;
+        Ok(Self {
+            amount,
+            currency,
+            captured: submit_for_settlement,
+            payment_method,
+        })
+    }
+}
+
+impl<T> TryFrom<&types::RouterData<T, types::PaymentsAuthorizeData, types::PaymentsResponseData>>
+    for Shift4PaymentMethod
+{
+    type Error = Error;
+    fn try_from(
+        item: &types::RouterData<T, types::PaymentsAuthorizeData, types::PaymentsResponseData>,
+    ) -> Result<Self, Self::Error> {
+        match item.request.payment_method_data {
+            payments::PaymentMethodData::Card(ref ccard) => Self::try_from((item, ccard)),
+            payments::PaymentMethodData::BankRedirect(ref redirect) => {
+                Self::try_from((item, redirect))
             }
-            _ => Err(errors::ConnectorError::NotImplemented("Payment Method".to_string()).into()),
+            payments::PaymentMethodData::CardRedirect(_)
+            | payments::PaymentMethodData::Wallet(_)
+            | payments::PaymentMethodData::PayLater(_)
+            | payments::PaymentMethodData::BankDebit(_)
+            | payments::PaymentMethodData::BankTransfer(_)
+            | payments::PaymentMethodData::Crypto(_)
+            | payments::PaymentMethodData::MandatePayment
+            | payments::PaymentMethodData::Reward
+            | payments::PaymentMethodData::Upi(_)
+            | payments::PaymentMethodData::Voucher(_)
+            | payments::PaymentMethodData::GiftCard(_) => {
+                Err(errors::ConnectorError::NotImplemented(
+                    utils::get_unimplemented_payment_method_error_message("shift4"),
+                )
+                .into())
+            }
         }
+    }
+}
+
+impl<T>
+    TryFrom<(
+        &types::RouterData<T, types::PaymentsAuthorizeData, types::PaymentsResponseData>,
+        &api_models::payments::Card,
+    )> for Shift4PaymentMethod
+{
+    type Error = Error;
+    fn try_from(
+        item: (
+            &types::RouterData<T, types::PaymentsAuthorizeData, types::PaymentsResponseData>,
+            &api_models::payments::Card,
+        ),
+    ) -> Result<Self, Self::Error> {
+        let card = item.1;
+        let item = item.0;
+        let card_object = Card {
+            number: card.card_number.clone(),
+            exp_month: card.card_exp_month.clone(),
+            exp_year: card.card_exp_year.clone(),
+            cardholder_name: card.card_holder_name.clone(),
+        };
+        if item.is_three_ds() {
+            Ok(Self::Cards3DSRequest(Box::new(Cards3DSRequest {
+                card_number: card_object.number,
+                card_exp_month: card_object.exp_month,
+                card_exp_year: card_object.exp_year,
+                return_url: item
+                    .request
+                    .complete_authorize_url
+                    .clone()
+                    .ok_or_else(|| errors::ConnectorError::RequestEncodingFailed)?,
+            })))
+        } else {
+            Ok(Self::CardsNon3DSRequest(Box::new(CardsNon3DSRequest {
+                card: CardPayment::RawCard(Box::new(card_object)),
+                description: item.description.clone(),
+            })))
+        }
+    }
+}
+
+impl<T>
+    TryFrom<(
+        &types::RouterData<T, types::PaymentsAuthorizeData, types::PaymentsResponseData>,
+        &payments::BankRedirectData,
+    )> for Shift4PaymentMethod
+{
+    type Error = Error;
+    fn try_from(
+        items: (
+            &types::RouterData<T, types::PaymentsAuthorizeData, types::PaymentsResponseData>,
+            &payments::BankRedirectData,
+        ),
+    ) -> Result<Self, Self::Error> {
+        let redirect_data = items.1;
+        let item = items.0;
+        let flow = Flow::try_from(&item.request.router_return_url)?;
+        let method_type = PaymentMethodType::try_from(redirect_data)?;
+        let billing = Billing::try_from(item)?;
+        let payment_method = PaymentMethod {
+            method_type,
+            billing,
+        };
+        Ok(Self::BankRedirectRequest(Box::new(BankRedirectRequest {
+            payment_method,
+            flow,
+        })))
     }
 }
 
@@ -165,67 +270,6 @@ impl<T> TryFrom<&types::RouterData<T, types::CompleteAuthorizeData, types::Payme
     }
 }
 
-fn get_card_payment_request<T>(
-    item: &types::RouterData<T, types::PaymentsAuthorizeData, types::PaymentsResponseData>,
-    card: &api_models::payments::Card,
-) -> Result<Shift4PaymentsRequest, Error> {
-    let captured = item.request.is_auto_capture()?;
-    let card = Card {
-        number: card.card_number.clone(),
-        exp_month: card.card_exp_month.clone(),
-        exp_year: card.card_exp_year.clone(),
-        cardholder_name: card.card_holder_name.clone(),
-    };
-    let amount = item.request.amount.to_string();
-    let currency = item.request.currency;
-    let payment_method = if item.is_three_ds() {
-        Shift4PaymentMethod::Cards3DSRequest(Box::new(Cards3DSRequest {
-            card_number: card.number,
-            card_exp_month: card.exp_month,
-            card_exp_year: card.exp_year,
-            return_url: item
-                .request
-                .complete_authorize_url
-                .clone()
-                .ok_or_else(|| errors::ConnectorError::RequestEncodingFailed)?,
-        }))
-    } else {
-        Shift4PaymentMethod::CardsNon3DSRequest(Box::new(CardsNon3DSRequest {
-            card: CardPayment::RawCard(Box::new(card)),
-            description: item.description.clone(),
-        }))
-    };
-    Ok(Shift4PaymentsRequest {
-        amount,
-        currency,
-        payment_method,
-        captured,
-    })
-}
-
-fn get_bank_redirect_request<T>(
-    item: &types::RouterData<T, types::PaymentsAuthorizeData, types::PaymentsResponseData>,
-    redirect_data: &payments::BankRedirectData,
-) -> Result<Shift4PaymentsRequest, Error> {
-    let captured = item.request.is_auto_capture()?;
-    let method_type = PaymentMethodType::try_from(redirect_data)?;
-    let billing = get_billing(item)?;
-    let payment_method = PaymentMethod {
-        method_type,
-        billing,
-    };
-    let flow = get_flow(item);
-    Ok(Shift4PaymentsRequest {
-        amount: item.request.amount.to_string(),
-        currency: item.request.currency,
-        payment_method: Shift4PaymentMethod::BankRedirectRequest(Box::new(BankRedirectRequest {
-            payment_method,
-            flow,
-        })),
-        captured,
-    })
-}
-
 impl TryFrom<&payments::BankRedirectData> for PaymentMethodType {
     type Error = Error;
     fn try_from(value: &payments::BankRedirectData) -> Result<Self, Self::Error> {
@@ -239,30 +283,38 @@ impl TryFrom<&payments::BankRedirectData> for PaymentMethodType {
     }
 }
 
-fn get_flow<T>(
-    item: &types::RouterData<T, types::PaymentsAuthorizeData, types::PaymentsResponseData>,
-) -> Flow {
-    Flow {
-        return_url: item.request.router_return_url.clone(),
+impl TryFrom<&Option<String>> for Flow {
+    type Error = Error;
+    fn try_from(router_return_url: &Option<String>) -> Result<Self, Self::Error> {
+        Ok(Self {
+            return_url: router_return_url
+                .clone()
+                .ok_or(errors::ConnectorError::RequestEncodingFailed)?,
+        })
     }
 }
 
-fn get_billing<T>(
-    item: &types::RouterData<T, types::PaymentsAuthorizeData, types::PaymentsResponseData>,
-) -> Result<Billing, Error> {
-    let billing_address = item
-        .address
-        .billing
-        .as_ref()
-        .and_then(|billing| billing.address.as_ref());
-    let address = get_address_details(billing_address);
-    Ok(Billing {
-        name: billing_address.map(|billing| {
-            Secret::new(format!("{:?} {:?}", billing.first_name, billing.last_name))
-        }),
-        email: item.request.email.clone(),
-        address,
-    })
+impl<T> TryFrom<&types::RouterData<T, types::PaymentsAuthorizeData, types::PaymentsResponseData>>
+    for Billing
+{
+    type Error = Error;
+    fn try_from(
+        item: &types::RouterData<T, types::PaymentsAuthorizeData, types::PaymentsResponseData>,
+    ) -> Result<Self, Self::Error> {
+        let billing_address = item
+            .address
+            .billing
+            .as_ref()
+            .and_then(|billing| billing.address.as_ref());
+        let address = get_address_details(billing_address);
+        Ok(Self {
+            name: billing_address.map(|billing| {
+                Secret::new(format!("{:?} {:?}", billing.first_name, billing.last_name))
+            }),
+            email: item.request.email.clone(),
+            address,
+        })
+    }
 }
 
 fn get_address_details(address_details: Option<&payments::AddressDetails>) -> Option<Address> {
