@@ -713,7 +713,6 @@ pub async fn webhooks_core<W: types::OutgoingWebhookType>(
             merchant_account.merchant_id.clone(),
         )],
     );
-
     let merchant_connector_account = if connector_name_or_id.starts_with("mca_") {
         let mca = state
             .store
@@ -723,11 +722,14 @@ pub async fn webhooks_core<W: types::OutgoingWebhookType>(
                 &key_store,
             )
             .await
-            .map_err(
-                |_err| errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
+            .map_err(|err| {
+                err.change_context(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
                     id: connector_name_or_id.to_string(),
-                },
-            )?;
+                })
+                .attach_printable(
+                    "error while fetching merchant_connector_account from connector_id",
+                )
+            })?;
         Some(mca)
     } else {
         None
