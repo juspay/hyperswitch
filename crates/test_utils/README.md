@@ -1,12 +1,12 @@
 # Test Utils
 
-The heart of `newman-dir` and `UI-tests`
+The heart of `newman`(with directory support) and `UI-tests`
 
 ## Newman Usage
 
-- Make sure you that you've _**do not**_ have the official newman installed but rather `newman-dir`
-  - `newman-dir` can be installed by running `npm install -g 'https://github.com/knutties/newman.git#feature/newman-dir'`
-  - To see the features that `newman-dir` supports,  click [_**here**_](https://github.com/knutties/newman/blob/feature/newman-dir/DIR_COMMANDS.md)
+- Make sure you that you've _**do not**_ have the official newman installed but rather the `newman` fork with directory support
+  - `newman` can be installed by running `npm install -g 'https://github.com/knutties/newman.git#feature/newman-dir'`
+  - To see the features that the fork of `newman` supports,  click [_**here**_](https://github.com/knutties/newman/blob/feature/newman-dir/DIR_COMMANDS.md)
 - Add the connector credentials to the `connector_auth.toml` / `auth.toml`
 - Export the auth file path as an environment variable:
   ```shell
