@@ -201,6 +201,8 @@ pub enum Flow {
     BusinessProfileDelete,
     /// List all the business profiles for a merchant
     BusinessProfileList,
+    /// Different verification flows
+    Verification,
 }
 
 ///
