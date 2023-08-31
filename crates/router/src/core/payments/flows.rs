@@ -220,6 +220,7 @@ default_imp_for_webhook_source_verification!(
     connector::Forte,
     connector::Globalpay,
     connector::Globepay,
+    connector::Helcim,
     connector::Iatapay,
     connector::Klarna,
     connector::Mollie,
