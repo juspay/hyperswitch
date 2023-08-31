@@ -49,7 +49,7 @@ where
     ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
         let mut header = vec![(
             headers::CONTENT_TYPE.to_string(),
-            Self::common_get_content_type(&self).to_string().into(),
+            Self::common_get_content_type(self).to_string().into(),
         )];
         let mut api_key = self.get_auth_header(&req.connector_auth_type)?;
         header.append(&mut api_key);

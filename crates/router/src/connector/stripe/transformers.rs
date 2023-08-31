@@ -3795,67 +3795,67 @@ pub struct StripeConnectReversalResponse {
 pub struct StripeConnectRecipientCreateRequest {
     #[serde(rename = "type")]
     account_type: String,
-    country: enums::CountryAlpha2,
-    email: Email,
+    country: Option<enums::CountryAlpha2>,
+    email: Option<Email>,
     #[serde(rename = "capabilities[card_payments][requested]")]
-    capabilities_card_payments: bool,
+    capabilities_card_payments: Option<bool>,
     #[serde(rename = "capabilities[transfers][requested]")]
-    capabilities_transfers: bool,
+    capabilities_transfers: Option<bool>,
     #[serde(rename = "tos_acceptance[date]")]
-    tos_acceptance_date: i64,
+    tos_acceptance_date: Option<i64>,
     #[serde(rename = "tos_acceptance[ip]")]
-    tos_acceptance_ip: Secret<String>,
+    tos_acceptance_ip: Option<Secret<String>>,
     business_type: String,
     #[serde(rename = "business_profile[mcc]")]
-    business_profile_mcc: i32,
+    business_profile_mcc: Option<i32>,
     #[serde(rename = "business_profile[url]")]
-    business_profile_url: String,
+    business_profile_url: Option<String>,
     #[serde(rename = "business_profile[name]")]
-    business_profile_name: Secret<String>,
+    business_profile_name: Option<Secret<String>>,
     #[serde(rename = "company[address][line1]")]
-    company_address_line1: Secret<String>,
+    company_address_line1: Option<Secret<String>>,
     #[serde(rename = "company[address][line2]")]
-    company_address_line2: Secret<String>,
+    company_address_line2: Option<Secret<String>>,
     #[serde(rename = "company[address][postal_code]")]
-    company_address_postal_code: Secret<String>,
+    company_address_postal_code: Option<Secret<String>>,
     #[serde(rename = "company[address][city]")]
-    company_address_city: Secret<String>,
+    company_address_city: Option<Secret<String>>,
     #[serde(rename = "company[address][state]")]
-    company_address_state: Secret<String>,
+    company_address_state: Option<Secret<String>>,
     #[serde(rename = "company[phone]")]
-    company_phone: Secret<String>,
+    company_phone: Option<Secret<String>>,
     #[serde(rename = "company[tax_id]")]
-    company_tax_id: Secret<String>,
+    company_tax_id: Option<Secret<String>>,
     #[serde(rename = "company[owners_provided]")]
-    company_owners_provided: bool,
+    company_owners_provided: Option<bool>,
     #[serde(rename = "individual[first_name]")]
-    individual_first_name: Secret<String>,
+    individual_first_name: Option<Secret<String>>,
     #[serde(rename = "individual[last_name]")]
-    individual_last_name: Secret<String>,
+    individual_last_name: Option<Secret<String>>,
     #[serde(rename = "individual[dob][day]")]
-    individual_dob_day: Secret<String>,
+    individual_dob_day: Option<Secret<String>>,
     #[serde(rename = "individual[dob][month]")]
-    individual_dob_month: Secret<String>,
+    individual_dob_month: Option<Secret<String>>,
     #[serde(rename = "individual[dob][year]")]
-    individual_dob_year: Secret<String>,
+    individual_dob_year: Option<Secret<String>>,
     #[serde(rename = "individual[address][line1]")]
-    individual_address_line1: Secret<String>,
+    individual_address_line1: Option<Secret<String>>,
     #[serde(rename = "individual[address][line2]")]
-    individual_address_line2: Secret<String>,
+    individual_address_line2: Option<Secret<String>>,
     #[serde(rename = "individual[address][postal_code]")]
-    individual_address_postal_code: Secret<String>,
+    individual_address_postal_code: Option<Secret<String>>,
     #[serde(rename = "individual[address][city]")]
-    individual_address_city: String,
+    individual_address_city: Option<String>,
     #[serde(rename = "individual[address][state]")]
-    individual_address_state: Secret<String>,
+    individual_address_state: Option<Secret<String>>,
     #[serde(rename = "individual[email]")]
-    individual_email: Email,
+    individual_email: Option<Email>,
     #[serde(rename = "individual[phone]")]
-    individual_phone: Secret<String>,
+    individual_phone: Option<Secret<String>>,
     #[serde(rename = "individual[id_number]")]
-    individual_id_number: Secret<String>,
+    individual_id_number: Option<Secret<String>>,
     #[serde(rename = "individual[ssn_last_4]")]
-    individual_ssn_last_4: Secret<String>,
+    individual_ssn_last_4: Option<Secret<String>>,
 }
 
 #[cfg(feature = "payouts")]
@@ -4093,21 +4093,7 @@ impl<F> TryFrom<&types::PayoutsRouterData<F>> for StripeConnectRecipientCreateRe
             .change_context(errors::ConnectorError::MissingRequiredField {
                 field_name: "email",
             })?;
-        let address = item.get_billing_address()?;
-        let individual_first_name = address
-            .first_name
-            .clone()
-            .get_required_value("first_name")
-            .change_context(errors::ConnectorError::MissingRequiredField {
-                field_name: "address.first_name",
-            })?;
-        let individual_last_name = address
-            .last_name
-            .clone()
-            .get_required_value("last_name")
-            .change_context(errors::ConnectorError::MissingRequiredField {
-                field_name: "address.last_name",
-            })?;
+        let address = item.get_billing_address()?.clone();
         let payout_vendor_details = request
             .vendor_details
             .get_required_value("vendor_details")
@@ -4120,8 +4106,8 @@ impl<F> TryFrom<&types::PayoutsRouterData<F>> for StripeConnectRecipientCreateRe
         );
         Ok(Self {
             account_type: vendor_details.account_type,
-            country: request.country_code,
-            email: customer_email.clone(),
+            country: Some(request.country_code),
+            email: Some(customer_email.clone()),
             capabilities_card_payments: vendor_details.capabilities_card_payments,
             capabilities_transfers: vendor_details.capabilities_transfers,
             tos_acceptance_date: individual_details.tos_acceptance_date,
@@ -4138,53 +4124,18 @@ impl<F> TryFrom<&types::PayoutsRouterData<F>> for StripeConnectRecipientCreateRe
             company_phone: vendor_details.company_phone,
             company_tax_id: vendor_details.company_tax_id,
             company_owners_provided: vendor_details.company_owners_provided,
-            individual_first_name,
-            individual_last_name,
+            individual_first_name: address.first_name,
+            individual_last_name: address.last_name,
             individual_dob_day: individual_details.individual_dob_day,
             individual_dob_month: individual_details.individual_dob_month,
             individual_dob_year: individual_details.individual_dob_year,
-            individual_address_line1: address
-                .line1
-                .clone()
-                .get_required_value("line1")
-                .change_context(errors::ConnectorError::MissingRequiredField {
-                    field_name: "address.line1",
-                })?,
-            individual_address_line2: address
-                .line2
-                .clone()
-                .get_required_value("line2")
-                .change_context(errors::ConnectorError::MissingRequiredField {
-                    field_name: "address.line2",
-                })?,
-            individual_address_postal_code: address
-                .zip
-                .clone()
-                .get_required_value("zip")
-                .change_context(errors::ConnectorError::MissingRequiredField {
-                    field_name: "address.zip",
-                })?,
-            individual_address_city: address
-                .city
-                .clone()
-                .get_required_value("city")
-                .change_context(errors::ConnectorError::MissingRequiredField {
-                    field_name: "address.city",
-                })?,
-            individual_address_state: address
-                .state
-                .clone()
-                .get_required_value("state")
-                .change_context(errors::ConnectorError::MissingRequiredField {
-                    field_name: "address.state",
-                })?,
-            individual_email: customer_email,
-            individual_phone: customer_details
-                .phone
-                .get_required_value("phone")
-                .change_context(errors::ConnectorError::MissingRequiredField {
-                    field_name: "address.phone",
-                })?,
+            individual_address_line1: address.line1,
+            individual_address_line2: address.line2,
+            individual_address_postal_code: address.zip,
+            individual_address_city: address.city,
+            individual_address_state: address.state,
+            individual_email: Some(customer_email),
+            individual_phone: customer_details.phone,
             individual_id_number: individual_details.individual_id_number,
             individual_ssn_last_4: individual_details.individual_ssn_last_4,
         })
@@ -4256,7 +4207,11 @@ impl<F> TryFrom<&types::PayoutsRouterData<F>> for StripeConnectRecipientAccountC
                         external_account_currency: request.destination_currency.to_owned(),
                         external_account_account_holder_name: customer_name,
                         external_account_account_holder_type: individual_details
-                            .external_account_account_holder_type,
+                            .external_account_account_holder_type
+                            .get_required_value("external_account_account_holder_type")
+                            .change_context(errors::ConnectorError::MissingRequiredField {
+                                field_name: "external_account_account_holder_type",
+                            })?,
                         external_account_account_number: bank_details.bank_account_number,
                         external_account_routing_number: bank_details.bank_routing_number,
                     }))
