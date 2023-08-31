@@ -1697,7 +1697,7 @@ pub(super) fn validate_payment_list_request(
 pub(super) fn validate_payment_list_request_for_joins(
     limit: u32,
 ) -> CustomResult<(), errors::ApiErrorResponse> {
-    utils::when(limit > QUERY_LIMIT || limit < 1, || {
+    utils::when(!(1..=QUERY_LIMIT).contains(&limit), || {
         Err(errors::ApiErrorResponse::InvalidRequestData {
             message: format!("limit should be in between 1 and {}", QUERY_LIMIT),
         })
