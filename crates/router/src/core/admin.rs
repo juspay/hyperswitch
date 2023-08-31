@@ -1111,7 +1111,9 @@ pub async fn update_business_profile(
         })?;
 
     if business_profile.merchant_id != merchant_id {
-        Err(errors::ApiErrorResponse::AccessForbidden)?
+        Err(errors::ApiErrorResponse::AccessForbidden {
+            resource: profile_id.to_string(),
+        })?
     }
 
     let webhook_details = request

@@ -832,6 +832,7 @@ pub async fn construct_retrieve_file_router_data<'a>(
         connector_id,
     )
     .await?;
+
     let test_mode: Option<bool> = merchant_connector_account.is_test_mode_on();
     let auth_type: types::ConnectorAuthType = merchant_connector_account
         .get_connector_account_details()
@@ -928,7 +929,9 @@ pub async fn validate_and_get_business_profile(
         .map(|business_profile| {
             // Check if the merchant_id of business profile is same as the current merchant_id
             if business_profile.merchant_id.ne(merchant_id) {
-                Err(errors::ApiErrorResponse::AccessForbidden)
+                Err(errors::ApiErrorResponse::AccessForbidden {
+                    resource: business_profile.profile_id,
+                })
             } else {
                 Ok(business_profile)
             }
