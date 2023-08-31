@@ -1,7 +1,7 @@
 pub mod validator;
 
 use common_utils::ext_traits::AsyncExt;
-use diesel_models::{payment_attempt::PaymentAttempt, payment_intent::PaymentIntent, refund};
+use diesel_models::refund;
 use error_stack::{report, IntoReport, ResultExt};
 use router_env::{instrument, tracing};
 
@@ -1117,7 +1117,7 @@ pub async fn retry_refund_sync_task(
 
 #[instrument(skip_all)]
 pub fn payment_intent_to_auto_refund_struct(
-    payment_attempt: PaymentAttempt,
+    payment_attempt: diesel_models::payment_attempt::PaymentAttempt,
     retry_count: i32,
     max_retries: i32,
 ) -> refund::AutoRefundWorkflow {
@@ -1131,7 +1131,7 @@ pub fn payment_intent_to_auto_refund_struct(
 #[instrument(skip_all)]
 pub async fn add_auto_refund_task_to_process_tracker(
     db: &dyn db::StorageInterface,
-    payment_attempt: PaymentAttempt,
+    payment_attempt: diesel_models::payment_attempt::PaymentAttempt,
     retry_count: i32,
     max_retries: i32,
     runner: &str,
