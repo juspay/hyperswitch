@@ -276,7 +276,7 @@ pub async fn create_business_profile_from_business_labels(
     // find the diff between two vectors
     let business_profiles_to_create = new_business_details
         .into_iter()
-        .filter(|business_details| !old_business_details.contains(&business_details))
+        .filter(|business_details| !old_business_details.contains(business_details))
         .collect::<Vec<_>>();
 
     for business_profile in business_profiles_to_create {
