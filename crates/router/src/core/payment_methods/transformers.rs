@@ -298,6 +298,20 @@ pub async fn mk_add_locker_request_hs<'a>(
     Ok(request)
 }
 
+pub async fn mk_add_locker_request_hs_v2<'a>(
+    locker: &settings::Locker,
+    payload: &StoreLockerReq<'a>,
+) -> CustomResult<services::Request, errors::VaultError> {
+    let body = utils::Encode::<StoreCardReq<'_>>::encode_to_value(&payload)
+        .change_context(errors::VaultError::RequestEncodingFailed)?;
+    let mut url = locker.host.to_owned();
+    url.push_str("/cards/add/v2");
+    let mut request = services::Request::new(services::Method::Post, &url);
+    request.add_header(headers::CONTENT_TYPE, "application/json".into());
+    request.set_body(body.to_string());
+    Ok(request)
+}
+
 pub fn mk_add_card_response_hs(
     card: api::CardDetail,
     card_reference: String,
@@ -444,6 +458,27 @@ pub async fn mk_get_card_request_hs(
     Ok(request)
 }
 
+pub async fn mk_get_card_request_hs_v2(
+    locker: &settings::Locker,
+    customer_id: &str,
+    merchant_id: &str,
+    card_reference: &str,
+) -> CustomResult<services::Request, errors::VaultError> {
+    let merchant_customer_id = customer_id.to_owned();
+    let card_req_body = CardReqBody {
+        merchant_id,
+        merchant_customer_id,
+        card_reference: card_reference.to_owned(),
+    };
+    let body = utils::Encode::<CardReqBody<'_>>::encode_to_value(&card_req_body)
+        .change_context(errors::VaultError::RequestEncodingFailed)?;
+    let mut url = locker.host.to_owned();
+    url.push_str("/cards/retrieve/v2");
+    let mut request = services::Request::new(services::Method::Post, &url);
+    request.add_header(headers::CONTENT_TYPE, "application/json".into());
+    request.set_body(body.to_string());
+    Ok(request)
+}
 pub fn mk_get_card_request<'a>(
     locker: &settings::Locker,
     locker_id: &'a str,
@@ -518,6 +553,28 @@ pub async fn mk_delete_card_request_hs(
         .change_context(errors::VaultError::RequestEncodingFailed)?;
     let mut url = locker.host.to_owned();
     url.push_str("/cards/delete");
+    let mut request = services::Request::new(services::Method::Post, &url);
+    request.add_header(headers::CONTENT_TYPE, "application/json".into());
+    request.set_body(body.to_string());
+    Ok(request)
+}
+
+pub async fn mk_delete_card_request_hs_v2(
+    locker: &settings::Locker,
+    customer_id: &str,
+    merchant_id: &str,
+    card_reference: &str,
+) -> CustomResult<services::Request, errors::VaultError> {
+    let merchant_customer_id = customer_id.to_owned();
+    let card_req_body = CardReqBody {
+        merchant_id,
+        merchant_customer_id,
+        card_reference: card_reference.to_owned(),
+    };
+    let body = utils::Encode::<encryption::JweBody>::encode_to_value(&card_req_body)
+        .change_context(errors::VaultError::RequestEncodingFailed)?;
+    let mut url = locker.host.to_owned();
+    url.push_str("/cards/delete/v2");
     let mut request = services::Request::new(services::Method::Post, &url);
     request.add_header(headers::CONTENT_TYPE, "application/json".into());
     request.set_body(body.to_string());

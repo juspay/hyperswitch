@@ -365,6 +365,51 @@ pub async fn get_payment_method_from_hs_locker<'a>(
 }
 
 #[instrument(skip_all)]
+pub async fn get_payment_method_from_hs_locker_v2<'a>(
+    state: &'a routes::AppState,
+    key_store: &domain::MerchantKeyStore,
+    customer_id: &str,
+    merchant_id: &str,
+    payment_method_reference: &'a str,
+) -> errors::CustomResult<Secret<String>, errors::VaultError> {
+    let locker = &state.conf.locker;
+
+    let payment_method_data = if !locker.mock_locker {
+        let request = payment_methods::mk_get_card_request_hs_v2(
+            locker,
+            customer_id,
+            merchant_id,
+            payment_method_reference,
+        )
+        .await
+        .change_context(errors::VaultError::FetchPaymentMethodFailed)
+        .attach_printable("Making get payment method request failed")?;
+        let response = services::call_connector_api(state, request)
+            .await
+            .change_context(errors::VaultError::FetchPaymentMethodFailed)
+            .attach_printable("Failed while executing call_connector_api for get_card");
+        let get_card_resp: payment_methods::RetrieveCardResp = response
+            .get_response_inner("RetrieveCardResp")
+            .change_context(errors::VaultError::FetchPaymentMethodFailed)?;
+        let retrieve_card_resp = get_card_resp
+            .payload
+            .get_required_value("RetrieveCardRespPayload")
+            .change_context(errors::VaultError::FetchPaymentMethodFailed)?;
+        let enc_card_data = retrieve_card_resp
+            .enc_card_data
+            .get_required_value("enc_card_data")
+            .change_context(errors::VaultError::FetchPaymentMethodFailed)?;
+        decode_and_decrypt_locker_data(key_store, enc_card_data.peek().to_string()).await?
+    } else {
+        mock_get_payment_method(&*state.store, key_store, payment_method_reference)
+            .await?
+            .payment_method
+            .payment_method_data
+    };
+    Ok(payment_method_data)
+}
+
+#[instrument(skip_all)]
 pub async fn call_to_locker_hs<'a>(
     state: &routes::AppState,
     payload: &payment_methods::StoreLockerReq<'a>,
@@ -394,6 +439,34 @@ pub async fn call_to_locker_hs<'a>(
             .parse_struct("StoreCardResp")
             .change_context(errors::VaultError::ResponseDeserializationFailed)?;
         stored_card_resp
+    } else {
+        let card_id = generate_id(consts::ID_LENGTH, "card");
+        mock_call_to_locker_hs(db, &card_id, payload, None, None, Some(customer_id)).await?
+    };
+
+    let stored_card = stored_card_response
+        .payload
+        .get_required_value("StoreCardRespPayload")
+        .change_context(errors::VaultError::SaveCardFailed)?;
+    Ok(stored_card)
+}
+
+#[instrument(skip_all)]
+pub async fn call_to_locker_hs_v2<'a>(
+    state: &routes::AppState,
+    payload: &payment_methods::StoreLockerReq<'a>,
+    customer_id: &str,
+) -> errors::CustomResult<payment_methods::StoreCardRespPayload, errors::VaultError> {
+    let locker = &state.conf.locker;
+    let db = &*state.store;
+    let stored_card_response = if !locker.mock_locker {
+        let request = payment_methods::mk_add_locker_request_hs_v2(locker, payload).await?;
+        let response = services::call_connector_api(state, request)
+            .await
+            .change_context(errors::VaultError::SaveCardFailed)
+            .get_response_inner("StoreCardResp")
+            .change_context(errors::VaultError::FetchCardFailed)?;
+        response
     } else {
         let card_id = generate_id(consts::ID_LENGTH, "card");
         mock_call_to_locker_hs(db, &card_id, payload, None, None, Some(customer_id)).await?
@@ -474,6 +547,47 @@ pub async fn get_card_from_hs_locker<'a>(
 }
 
 #[instrument(skip_all)]
+pub async fn get_card_from_hs_locker_v2<'a>(
+    state: &'a routes::AppState,
+    customer_id: &str,
+    merchant_id: &str,
+    card_reference: &'a str,
+) -> errors::CustomResult<payment_methods::Card, errors::VaultError> {
+    let locker = &state.conf.locker;
+
+    if !locker.mock_locker {
+        let request = payment_methods::mk_get_card_request_hs_v2(
+            locker,
+            customer_id,
+            merchant_id,
+            card_reference,
+        )
+        .await
+        .change_context(errors::VaultError::FetchCardFailed)
+        .attach_printable("Making get card request failed")?;
+        let response = services::call_connector_api(state, request)
+            .await
+            .change_context(errors::VaultError::FetchCardFailed)
+            .attach_printable("Failed while executing call_connector_api for get_card");
+        let get_card_resp: payment_methods::RetrieveCardResp = response
+            .get_response_inner("RetrieveCardResp")
+            .change_context(errors::VaultError::FetchCardFailed)?;
+        let retrieve_card_resp = get_card_resp
+            .payload
+            .get_required_value("RetrieveCardRespPayload")
+            .change_context(errors::VaultError::FetchCardFailed)?;
+        retrieve_card_resp
+            .card
+            .get_required_value("Card")
+            .change_context(errors::VaultError::FetchCardFailed)
+    } else {
+        let (get_card_resp, _) = mock_get_card(&*state.store, card_reference).await?;
+        payment_methods::mk_get_card_response(get_card_resp)
+            .change_context(errors::VaultError::ResponseDeserializationFailed)
+    }
+}
+
+#[instrument(skip_all)]
 pub async fn delete_card_from_hs_locker<'a>(
     state: &'a routes::AppState,
     customer_id: &str,
@@ -511,6 +625,41 @@ pub async fn delete_card_from_hs_locker<'a>(
             .parse_struct("DeleteCardResp")
             .change_context(errors::ApiErrorResponse::InternalServerError)?;
         Ok(delete_card_resp)
+    } else {
+        Ok(mock_delete_card_hs(&*state.store, card_reference)
+            .await
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("card_delete_failure_message")?)
+    }
+}
+
+#[instrument(skip_all)]
+pub async fn delete_card_from_hs_locker_v2<'a>(
+    state: &'a routes::AppState,
+    customer_id: &str,
+    merchant_id: &str,
+    card_reference: &'a str,
+) -> errors::RouterResult<payment_methods::DeleteCardResp> {
+    let locker = &state.conf.locker;
+
+    let request = payment_methods::mk_delete_card_request_hs_v2(
+        locker,
+        customer_id,
+        merchant_id,
+        card_reference,
+    )
+    .await
+    .change_context(errors::ApiErrorResponse::InternalServerError)
+    .attach_printable("Making delete card request failed")?;
+
+    if !locker.mock_locker {
+        let response = services::call_connector_api(state, request)
+            .await
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed while executing call_connector_api for delete card")
+            .get_response_inner("DeleteCardResp")
+            .change_context(errors::ApiErrorResponse::InternalServerError)?;
+        Ok(response)
     } else {
         Ok(mock_delete_card_hs(&*state.store, card_reference)
             .await
