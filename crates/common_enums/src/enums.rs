@@ -1701,3 +1701,28 @@ pub enum FrmSuggestion {
     FrmCancelTransaction,
     FrmManualReview,
 }
+
+#[derive(
+    Clone,
+    Debug,
+    Eq,
+    Default,
+    Hash,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    strum::EnumString,
+    utoipa::ToSchema,
+    Copy,
+)]
+#[router_derive::diesel_enum(storage_type = "pg_enum")]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum ReconStatus {
+    #[default]
+    NotRequested,
+    Requested,
+    Active,
+    Disabled,
+}

@@ -355,7 +355,7 @@ pub struct AuthorizeSessionTokenData {
     pub amount_to_capture: Option<i64>,
     pub currency: storage_enums::Currency,
     pub connector_transaction_id: String,
-    pub amount: i64,
+    pub amount: Option<i64>,
 }
 
 #[derive(Debug, Clone)]
@@ -371,6 +371,8 @@ pub struct ConnectorCustomerData {
 pub struct PaymentMethodTokenizationData {
     pub payment_method_data: payments::PaymentMethodData,
     pub browser_info: Option<BrowserInformation>,
+    pub currency: storage_enums::Currency,
+    pub amount: Option<i64>,
 }
 
 #[derive(Debug, Clone)]
@@ -466,6 +468,7 @@ pub struct PaymentsSessionData {
 pub struct VerifyRequestData {
     pub currency: storage_enums::Currency,
     pub payment_method_data: payments::PaymentMethodData,
+    pub amount: Option<i64>,
     pub confirm: bool,
     pub statement_descriptor_suffix: Option<String>,
     pub mandate_id: Option<api_models::payments::MandateIds>,
@@ -894,7 +897,7 @@ impl From<&&mut PaymentsAuthorizeRouterData> for AuthorizeSessionTokenData {
             amount_to_capture: data.amount_captured,
             currency: data.request.currency,
             connector_transaction_id: data.payment_id.clone(),
-            amount: data.request.amount,
+            amount: Some(data.request.amount),
         }
     }
 }
@@ -908,6 +911,40 @@ impl From<&&mut PaymentsAuthorizeRouterData> for ConnectorCustomerData {
             phone: None,
             name: None,
         }
+    }
+}
+
+impl<F> From<&RouterData<F, PaymentsAuthorizeData, PaymentsResponseData>>
+    for PaymentMethodTokenizationData
+{
+    fn from(data: &RouterData<F, PaymentsAuthorizeData, PaymentsResponseData>) -> Self {
+        Self {
+            payment_method_data: data.request.payment_method_data.clone(),
+            browser_info: None,
+            currency: data.request.currency,
+            amount: Some(data.request.amount),
+        }
+    }
+}
+
+pub trait Tokenizable {
+    fn get_pm_data(&self) -> payments::PaymentMethodData;
+    fn set_session_token(&mut self, token: Option<String>);
+}
+
+impl Tokenizable for VerifyRequestData {
+    fn get_pm_data(&self) -> payments::PaymentMethodData {
+        self.payment_method_data.clone()
+    }
+    fn set_session_token(&mut self, _token: Option<String>) {}
+}
+
+impl Tokenizable for PaymentsAuthorizeData {
+    fn get_pm_data(&self) -> payments::PaymentMethodData {
+        self.payment_method_data.clone()
+    }
+    fn set_session_token(&mut self, token: Option<String>) {
+        self.session_token = token;
     }
 }
 

@@ -273,6 +273,9 @@ pub enum ApiClientError {
     #[error("Server responded with Request Timeout")]
     RequestTimeoutReceived,
 
+    #[error("connection closed before a message could complete")]
+    ConnectionClosed,
+
     #[error("Server responded with Internal Server Error")]
     InternalServerErrorReceived,
     #[error("Server responded with Bad Gateway")]
@@ -566,6 +569,9 @@ impl ApiClientError {
     pub fn is_upstream_timeout(&self) -> bool {
         self == &Self::RequestTimeoutReceived
     }
+    pub fn is_connection_closed(&self) -> bool {
+        self == &Self::ConnectionClosed
+    }
 }
 
 impl ConnectorError {
@@ -604,11 +610,7 @@ pub mod error_stack_parsing {
                         attachments: current_error.attachments,
                     }]
                     .into_iter()
-                    .chain(
-                        Into::<VecLinearErrorStack<'a>>::into(current_error.sources)
-                            .0
-                            .into_iter(),
-                    )
+                    .chain(Into::<VecLinearErrorStack<'a>>::into(current_error.sources).0)
                 })
                 .collect();
             Self(multi_layered_errors)

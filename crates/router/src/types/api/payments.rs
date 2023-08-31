@@ -3,9 +3,9 @@ pub use api_models::payments::{
     CryptoData, CustomerAcceptance, MandateData, MandateTransactionType, MandateType,
     MandateValidationFields, NextActionType, OnlineMandate, PayLaterData, PaymentIdType,
     PaymentListConstraints, PaymentListFilterConstraints, PaymentListFilters, PaymentListResponse,
-    PaymentMethodData, PaymentMethodDataResponse, PaymentOp, PaymentRetrieveBody,
-    PaymentRetrieveBodyWithCredentials, PaymentsApproveRequest, PaymentsCancelRequest,
-    PaymentsCaptureRequest, PaymentsDeclineRequest, PaymentsRedirectRequest,
+    PaymentListResponseV2, PaymentMethodData, PaymentMethodDataResponse, PaymentOp,
+    PaymentRetrieveBody, PaymentRetrieveBodyWithCredentials, PaymentsApproveRequest,
+    PaymentsCancelRequest, PaymentsCaptureRequest, PaymentsDeclineRequest, PaymentsRedirectRequest,
     PaymentsRedirectionResponse, PaymentsRequest, PaymentsResponse, PaymentsResponseForm,
     PaymentsRetrieveRequest, PaymentsSessionRequest, PaymentsSessionResponse, PaymentsStartRequest,
     PgRedirectResponse, PhoneDetails, RedirectionResponse, SessionToken, TimeRange, UrlDetails,
@@ -227,6 +227,7 @@ pub trait PaymentsPreProcessing:
 
 pub trait Payment:
     api_types::ConnectorCommon
+    + api_types::ConnectorValidation
     + PaymentAuthorize
     + PaymentsCompleteAuthorize
     + PaymentSync

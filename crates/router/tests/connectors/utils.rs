@@ -963,6 +963,8 @@ impl Default for TokenType {
         let data = types::PaymentMethodTokenizationData {
             payment_method_data: types::api::PaymentMethodData::Card(CCardType::default().0),
             browser_info: None,
+            amount: Some(100),
+            currency: enums::Currency::USD,
         };
         Self(data)
     }
