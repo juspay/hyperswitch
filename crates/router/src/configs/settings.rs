@@ -95,6 +95,16 @@ pub struct Settings {
     #[cfg(feature = "payouts")]
     pub payouts: Payouts,
     pub multiple_api_version_supported_connectors: MultipleApiVersionSupportedConnectors,
+    #[cfg(all(feature = "olap", feature = "kms"))]
+    pub applepay_merchant_configs: ApplepayMerchantConfigs,
+}
+
+#[derive(Debug, Deserialize, Clone, Default)]
+#[serde(default)]
+pub struct ApplepayMerchantConfigs {
+    pub merchant_cert: String,
+    pub merchant_cert_key: String,
+    pub common_merchant_identifier: String,
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]

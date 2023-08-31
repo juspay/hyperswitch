@@ -15,6 +15,7 @@ use crate::{
     services::{
         self,
         request::{self, Mask},
+        ConnectorValidation,
     },
     types::{
         self,
@@ -121,6 +122,7 @@ impl api::PaymentCapture for Wise {}
 impl api::PreVerify for Wise {}
 impl api::ConnectorAccessToken for Wise {}
 impl api::PaymentToken for Wise {}
+impl ConnectorValidation for Wise {}
 
 impl
     services::ConnectorIntegration<
