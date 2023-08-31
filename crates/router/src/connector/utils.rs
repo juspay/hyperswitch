@@ -1003,7 +1003,7 @@ pub fn to_currency_base_unit(
 pub fn to_currency_higher_unit(
     amount: String,
     currency: diesel_models::enums::Currency,
-) -> Result<i64, error_stack::Report<errors::ConnectorError>> {
+) -> Result<String, error_stack::Report<errors::ConnectorError>> {
     currency
         .to_currency_higher_unit(amount)
         .into_report()

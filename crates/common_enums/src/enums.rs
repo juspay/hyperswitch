@@ -342,7 +342,8 @@ impl Currency {
         Ok(amount)
     }
 
-    pub fn to_currency_higher_unit(&self, amount: String) -> Result<i64, ParseFloatError> {
+    ///Convert the higher decimal amount to its base absolute units
+    pub fn to_currency_higher_unit(&self, amount: String) -> Result<String, ParseFloatError> {
         let amount_f64 = amount.parse::<f64>()?;
         let amount_string = if self.is_zero_decimal_currency() {
             amount_f64
@@ -351,7 +352,7 @@ impl Currency {
         } else {
             amount_f64 * 100.00
         };
-        Ok(amount_string as i64)
+        Ok(amount_string.to_string())
     }
 
     /// Convert the amount to its base denomination based on Currency and check for zero decimal currency and return String
