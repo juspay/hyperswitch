@@ -49,7 +49,9 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for StaxPaymentsRequest {
                     }),
                 })
             }
-            api::PaymentMethodData::BankDebit(_) => {
+            api::PaymentMethodData::BankDebit(
+                api_models::payments::BankDebitData::AchBankDebit { .. },
+            ) => {
                 let pre_auth = !item.request.is_auto_capture()?;
                 Ok(Self {
                     meta: StaxPaymentsRequestMetaData { tax: 0 },
@@ -64,7 +66,21 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for StaxPaymentsRequest {
                     }),
                 })
             }
-            _ => Err(errors::ConnectorError::NotImplemented("Payment methods".to_string()).into()),
+            api::PaymentMethodData::BankDebit(_)
+            | api::PaymentMethodData::Wallet(_)
+            | api::PaymentMethodData::PayLater(_)
+            | api::PaymentMethodData::BankRedirect(_)
+            | api::PaymentMethodData::BankTransfer(_)
+            | api::PaymentMethodData::Crypto(_)
+            | api::PaymentMethodData::MandatePayment
+            | api::PaymentMethodData::Reward
+            | api::PaymentMethodData::Voucher(_)
+            | api::PaymentMethodData::GiftCard(_)
+            | api::PaymentMethodData::CardRedirect(_)
+            | api::PaymentMethodData::Upi(_) => Err(errors::ConnectorError::NotSupported {
+                message: "SELECTED_PAYMENT_METHOD".to_string(),
+                connector: "Stax",
+            })?,
         }
     }
 }
@@ -211,10 +227,10 @@ impl TryFrom<&types::TokenizationRouterData> for StaxTokenRequest {
             | api::PaymentMethodData::Voucher(_)
             | api::PaymentMethodData::GiftCard(_)
             | api::PaymentMethodData::CardRedirect(_)
-            | api::PaymentMethodData::Upi(_) => Err(errors::ConnectorError::NotImplemented(
-                "Payment Method".to_string(),
-            ))
-            .into_report(),
+            | api::PaymentMethodData::Upi(_) => Err(errors::ConnectorError::NotSupported {
+                message: "SELECTED_PAYMENT_METHOD".to_string(),
+                connector: "Stax",
+            })?,
         }
     }
 }
