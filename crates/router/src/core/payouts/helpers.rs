@@ -212,7 +212,9 @@ pub async fn save_payout_data_to_locker(
     // last4 and other details not available here
     let card = api::CardDetailsPaymentMethod {
         scheme: None,
-        last4_digits: None,
+        last4_digits: card_details
+            .as_ref()
+            .map(|c| c.card_number.clone().get_last4()),
         issuer_country: None,
         expiry_month: card_details.as_ref().map(|c| c.card_exp_month.clone()),
         expiry_year: card_details.as_ref().map(|c| c.card_exp_year.clone()),
