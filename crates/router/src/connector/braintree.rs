@@ -212,14 +212,18 @@ impl ConnectorIntegration<api::Session, types::PaymentsSessionData, types::Payme
 
     fn build_request(
         &self,
+        request_builder: Box<dyn services::client::RequestBuilder>,
         req: &types::PaymentsSessionRouterData,
         connectors: &settings::Connectors,
-    ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
+    ) -> CustomResult<
+        Option<(services::Request, Box<dyn services::client::RequestBuilder>)>,
+        errors::ConnectorError,
+    > {
         let connector_api_version = &req.connector_api_version;
         match self.is_braintree_graphql_version(connector_api_version) {
             true => Ok(None),
             false => {
-                let request = Some(
+                let request = Some((
                     services::RequestBuilder::new()
                         .method(services::Method::Post)
                         .url(&types::PaymentsSessionType::get_url(self, req, connectors)?)
@@ -229,7 +233,8 @@ impl ConnectorIntegration<api::Session, types::PaymentsSessionData, types::Payme
                         )?)
                         .body(types::PaymentsSessionType::get_request_body(self, req)?)
                         .build(),
-                );
+                    request_builder,
+                ));
                 Ok(request)
             }
         }
@@ -323,12 +328,16 @@ impl
 
     fn build_request(
         &self,
+        request_builder: Box<dyn services::client::RequestBuilder>,
         req: &types::TokenizationRouterData,
         connectors: &settings::Connectors,
-    ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
+    ) -> CustomResult<
+        Option<(services::Request, Box<dyn services::client::RequestBuilder>)>,
+        errors::ConnectorError,
+    > {
         let connector_api_version = &req.connector_api_version;
         match self.is_braintree_graphql_version(connector_api_version) {
-            true => Ok(Some(
+            true => Ok(Some((
                 services::RequestBuilder::new()
                     .method(services::Method::Post)
                     .url(&types::TokenizationType::get_url(self, req, connectors)?)
@@ -336,7 +345,8 @@ impl
                     .headers(types::TokenizationType::get_headers(self, req, connectors)?)
                     .body(types::TokenizationType::get_request_body(self, req)?)
                     .build(),
-            )),
+                request_builder,
+            ))),
             false => Ok(None),
         }
     }
@@ -443,12 +453,16 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
 
     fn build_request(
         &self,
+        request_builder: Box<dyn services::client::RequestBuilder>,
         req: &types::PaymentsCaptureRouterData,
         connectors: &settings::Connectors,
-    ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
+    ) -> CustomResult<
+        Option<(services::Request, Box<dyn services::client::RequestBuilder>)>,
+        errors::ConnectorError,
+    > {
         let connector_api_version = &req.connector_api_version;
         match self.is_braintree_graphql_version(connector_api_version) {
-            true => Ok(Some(
+            true => Ok(Some((
                 services::RequestBuilder::new()
                     .method(services::Method::Post)
                     .url(&types::PaymentsCaptureType::get_url(self, req, connectors)?)
@@ -458,7 +472,8 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
                     )?)
                     .body(types::PaymentsCaptureType::get_request_body(self, req)?)
                     .build(),
-            )),
+                request_builder,
+            ))),
             false => Err(errors::ConnectorError::NotImplemented(
                 "Capture flow not Implemented".to_string(),
             )
@@ -581,12 +596,16 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
 
     fn build_request(
         &self,
+        request_builder: Box<dyn services::client::RequestBuilder>,
         req: &types::PaymentsSyncRouterData,
         connectors: &settings::Connectors,
-    ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
+    ) -> CustomResult<
+        Option<(services::Request, Box<dyn services::client::RequestBuilder>)>,
+        errors::ConnectorError,
+    > {
         let connector_api_version = &req.connector_api_version;
         match self.is_braintree_graphql_version(connector_api_version) {
-            true => Ok(Some(
+            true => Ok(Some((
                 services::RequestBuilder::new()
                     .method(services::Method::Post)
                     .url(&types::PaymentsSyncType::get_url(self, req, connectors)?)
@@ -594,8 +613,9 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
                     .headers(types::PaymentsSyncType::get_headers(self, req, connectors)?)
                     .body(types::PaymentsSyncType::get_request_body(self, req)?)
                     .build(),
-            )),
-            false => Ok(Some(
+                request_builder,
+            ))),
+            false => Ok(Some((
                 services::RequestBuilder::new()
                     .method(services::Method::Get)
                     .url(&types::PaymentsSyncType::get_url(self, req, connectors)?)
@@ -603,7 +623,8 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
                     .headers(types::PaymentsSyncType::get_headers(self, req, connectors)?)
                     .body(types::PaymentsSyncType::get_request_body(self, req)?)
                     .build(),
-            )),
+                request_builder,
+            ))),
         }
     }
 
@@ -709,11 +730,15 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
 
     fn build_request(
         &self,
+        request_builder: Box<dyn services::client::RequestBuilder>,
         req: &types::PaymentsAuthorizeRouterData,
         connectors: &settings::Connectors,
-    ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
+    ) -> CustomResult<
+        Option<(services::Request, Box<dyn services::client::RequestBuilder>)>,
+        errors::ConnectorError,
+    > {
         self.validate_capture_method(req.request.capture_method)?;
-        Ok(Some(
+        Ok(Some((
             services::RequestBuilder::new()
                 .method(services::Method::Post)
                 .url(&types::PaymentsAuthorizeType::get_url(
@@ -725,7 +750,8 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
                 )?)
                 .body(types::PaymentsAuthorizeType::get_request_body(self, req)?)
                 .build(),
-        ))
+            request_builder,
+        )))
     }
 
     fn get_request_body(
@@ -875,10 +901,14 @@ impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsR
 
     fn build_request(
         &self,
+        request_builder: Box<dyn services::client::RequestBuilder>,
         req: &types::PaymentsCancelRouterData,
         connectors: &settings::Connectors,
-    ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
-        Ok(Some(
+    ) -> CustomResult<
+        Option<(services::Request, Box<dyn services::client::RequestBuilder>)>,
+        errors::ConnectorError,
+    > {
+        Ok(Some((
             services::RequestBuilder::new()
                 .method(services::Method::Post)
                 .url(&types::PaymentsVoidType::get_url(self, req, connectors)?)
@@ -886,7 +916,8 @@ impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsR
                 .headers(types::PaymentsVoidType::get_headers(self, req, connectors)?)
                 .body(types::PaymentsVoidType::get_request_body(self, req)?)
                 .build(),
-        ))
+            request_builder,
+        )))
     }
 
     fn get_request_body(
@@ -1048,9 +1079,13 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
 
     fn build_request(
         &self,
+        request_builder: Box<dyn services::client::RequestBuilder>,
         req: &types::RefundsRouterData<api::Execute>,
         connectors: &settings::Connectors,
-    ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
+    ) -> CustomResult<
+        Option<(services::Request, Box<dyn services::client::RequestBuilder>)>,
+        errors::ConnectorError,
+    > {
         let request = services::RequestBuilder::new()
             .method(services::Method::Post)
             .url(&types::RefundExecuteType::get_url(self, req, connectors)?)
@@ -1060,7 +1095,7 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
             )?)
             .body(types::RefundExecuteType::get_request_body(self, req)?)
             .build();
-        Ok(Some(request))
+        Ok(Some((request, request_builder)))
     }
 
     fn handle_response(
@@ -1165,12 +1200,16 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
 
     fn build_request(
         &self,
+        request_builder: Box<dyn services::client::RequestBuilder>,
         req: &types::RefundSyncRouterData,
         connectors: &settings::Connectors,
-    ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
+    ) -> CustomResult<
+        Option<(services::Request, Box<dyn services::client::RequestBuilder>)>,
+        errors::ConnectorError,
+    > {
         let connector_api_version = &req.connector_api_version;
         match self.is_braintree_graphql_version(connector_api_version) {
-            true => Ok(Some(
+            true => Ok(Some((
                 services::RequestBuilder::new()
                     .method(services::Method::Post)
                     .url(&types::RefundSyncType::get_url(self, req, connectors)?)
@@ -1178,7 +1217,8 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
                     .headers(types::RefundSyncType::get_headers(self, req, connectors)?)
                     .body(types::RefundSyncType::get_request_body(self, req)?)
                     .build(),
-            )),
+                request_builder,
+            ))),
             false => Ok(None),
         }
     }

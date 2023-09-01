@@ -191,13 +191,17 @@ impl
 
     fn build_request(
         &self,
+        request_builder: Box<dyn services::client::RequestBuilder>,
         req: &types::RouterData<
             api::Authorize,
             types::PaymentsAuthorizeData,
             types::PaymentsResponseData,
         >,
         connectors: &settings::Connectors,
-    ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
+    ) -> CustomResult<
+        Option<(services::Request, Box<dyn services::client::RequestBuilder>)>,
+        errors::ConnectorError,
+    > {
         self.validate_capture_method(req.request.capture_method)?;
         let timestamp = date_time::now_unix_timestamp();
         let salt = Alphanumeric.sample_string(&mut rand::thread_rng(), 12);
@@ -226,7 +230,7 @@ impl
             .headers(headers)
             .body(types::PaymentsAuthorizeType::get_request_body(self, req)?)
             .build();
-        Ok(Some(request))
+        Ok(Some((request, request_builder)))
     }
 
     fn handle_response(
@@ -307,9 +311,13 @@ impl
 
     fn build_request(
         &self,
+        request_builder: Box<dyn services::client::RequestBuilder>,
         req: &types::PaymentsCancelRouterData,
         connectors: &settings::Connectors,
-    ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
+    ) -> CustomResult<
+        Option<(services::Request, Box<dyn services::client::RequestBuilder>)>,
+        errors::ConnectorError,
+    > {
         let timestamp = date_time::now_unix_timestamp();
         let salt = Alphanumeric.sample_string(&mut rand::thread_rng(), 12);
 
@@ -331,7 +339,7 @@ impl
             .headers(types::PaymentsVoidType::get_headers(self, req, connectors)?)
             .headers(headers)
             .build();
-        Ok(Some(request))
+        Ok(Some((request, request_builder)))
     }
 
     fn handle_response(
@@ -398,9 +406,13 @@ impl
 
     fn build_request(
         &self,
+        request_builder: Box<dyn services::client::RequestBuilder>,
         req: &types::PaymentsSyncRouterData,
         connectors: &settings::Connectors,
-    ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
+    ) -> CustomResult<
+        Option<(services::Request, Box<dyn services::client::RequestBuilder>)>,
+        errors::ConnectorError,
+    > {
         let timestamp = date_time::now_unix_timestamp();
         let salt = Alphanumeric.sample_string(&mut rand::thread_rng(), 12);
 
@@ -427,7 +439,7 @@ impl
             .headers(types::PaymentsSyncType::get_headers(self, req, connectors)?)
             .headers(headers)
             .build();
-        Ok(Some(request))
+        Ok(Some((request, request_builder)))
     }
 
     fn get_error_response(
@@ -496,9 +508,13 @@ impl
 
     fn build_request(
         &self,
+        request_builder: Box<dyn services::client::RequestBuilder>,
         req: &types::PaymentsCaptureRouterData,
         connectors: &settings::Connectors,
-    ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
+    ) -> CustomResult<
+        Option<(services::Request, Box<dyn services::client::RequestBuilder>)>,
+        errors::ConnectorError,
+    > {
         let timestamp = date_time::now_unix_timestamp();
         let salt = Alphanumeric.sample_string(&mut rand::thread_rng(), 12);
 
@@ -528,7 +544,7 @@ impl
             .headers(headers)
             .body(types::PaymentsCaptureType::get_request_body(self, req)?)
             .build();
-        Ok(Some(request))
+        Ok(Some((request, request_builder)))
     }
 
     fn handle_response(
@@ -629,9 +645,13 @@ impl services::ConnectorIntegration<api::Execute, types::RefundsData, types::Ref
 
     fn build_request(
         &self,
+        request_builder: Box<dyn services::client::RequestBuilder>,
         req: &types::RefundsRouterData<api::Execute>,
         connectors: &settings::Connectors,
-    ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
+    ) -> CustomResult<
+        Option<(services::Request, Box<dyn services::client::RequestBuilder>)>,
+        errors::ConnectorError,
+    > {
         let timestamp = date_time::now_unix_timestamp();
         let salt = Alphanumeric.sample_string(&mut rand::thread_rng(), 12);
 
@@ -654,7 +674,7 @@ impl services::ConnectorIntegration<api::Execute, types::RefundsData, types::Ref
             .headers(headers)
             .body(types::RefundExecuteType::get_request_body(self, req)?)
             .build();
-        Ok(Some(request))
+        Ok(Some((request, request_builder)))
     }
 
     fn handle_response(

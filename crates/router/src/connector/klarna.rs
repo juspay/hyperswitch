@@ -162,10 +162,14 @@ impl
 
     fn build_request(
         &self,
+        request_builder: Box<dyn services::client::RequestBuilder>,
         req: &types::PaymentsSessionRouterData,
         connectors: &settings::Connectors,
-    ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
-        Ok(Some(
+    ) -> CustomResult<
+        Option<(services::Request, Box<dyn services::client::RequestBuilder>)>,
+        errors::ConnectorError,
+    > {
+        Ok(Some((
             services::RequestBuilder::new()
                 .method(services::Method::Post)
                 .url(&types::PaymentsSessionType::get_url(self, req, connectors)?)
@@ -175,7 +179,8 @@ impl
                 )?)
                 .body(types::PaymentsSessionType::get_request_body(self, req)?)
                 .build(),
-        ))
+            request_builder,
+        )))
     }
 
     fn handle_response(
@@ -314,11 +319,15 @@ impl
 
     fn build_request(
         &self,
+        request_builder: Box<dyn services::client::RequestBuilder>,
         req: &types::PaymentsAuthorizeRouterData,
         connectors: &settings::Connectors,
-    ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
+    ) -> CustomResult<
+        Option<(services::Request, Box<dyn services::client::RequestBuilder>)>,
+        errors::ConnectorError,
+    > {
         self.validate_capture_method(req.request.capture_method)?;
-        Ok(Some(
+        Ok(Some((
             services::RequestBuilder::new()
                 .method(services::Method::Post)
                 .url(&types::PaymentsAuthorizeType::get_url(
@@ -330,7 +339,8 @@ impl
                 )?)
                 .body(types::PaymentsAuthorizeType::get_request_body(self, req)?)
                 .build(),
-        ))
+            request_builder,
+        )))
     }
 
     fn handle_response(

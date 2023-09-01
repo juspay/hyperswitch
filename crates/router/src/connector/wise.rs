@@ -239,9 +239,13 @@ impl services::ConnectorIntegration<api::PoCancel, types::PayoutsData, types::Pa
 
     fn build_request(
         &self,
+        request_builder: Box<dyn services::client::RequestBuilder>,
         req: &types::PayoutsRouterData<api::PoCancel>,
         connectors: &settings::Connectors,
-    ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
+    ) -> CustomResult<
+        Option<(services::Request, Box<dyn services::client::RequestBuilder>)>,
+        errors::ConnectorError,
+    > {
         let request = services::RequestBuilder::new()
             .method(services::Method::Put)
             .url(&types::PayoutCancelType::get_url(self, req, connectors)?)
@@ -249,7 +253,7 @@ impl services::ConnectorIntegration<api::PoCancel, types::PayoutsData, types::Pa
             .headers(types::PayoutCancelType::get_headers(self, req, connectors)?)
             .build();
 
-        Ok(Some(request))
+        Ok(Some((request, request_builder)))
     }
 
     #[instrument(skip_all)]
@@ -334,9 +338,13 @@ impl services::ConnectorIntegration<api::PoQuote, types::PayoutsData, types::Pay
 
     fn build_request(
         &self,
+        request_builder: Box<dyn services::client::RequestBuilder>,
         req: &types::PayoutsRouterData<api::PoQuote>,
         connectors: &settings::Connectors,
-    ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
+    ) -> CustomResult<
+        Option<(services::Request, Box<dyn services::client::RequestBuilder>)>,
+        errors::ConnectorError,
+    > {
         let request = services::RequestBuilder::new()
             .method(services::Method::Post)
             .url(&types::PayoutQuoteType::get_url(self, req, connectors)?)
@@ -345,7 +353,7 @@ impl services::ConnectorIntegration<api::PoQuote, types::PayoutsData, types::Pay
             .body(types::PayoutQuoteType::get_request_body(self, req)?)
             .build();
 
-        Ok(Some(request))
+        Ok(Some((request, request_builder)))
     }
 
     #[instrument(skip_all)]
@@ -409,9 +417,13 @@ impl
 
     fn build_request(
         &self,
+        request_builder: Box<dyn services::client::RequestBuilder>,
         req: &types::PayoutsRouterData<api::PoRecipient>,
         connectors: &settings::Connectors,
-    ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
+    ) -> CustomResult<
+        Option<(services::Request, Box<dyn services::client::RequestBuilder>)>,
+        errors::ConnectorError,
+    > {
         let request = services::RequestBuilder::new()
             .method(services::Method::Post)
             .url(&types::PayoutRecipientType::get_url(self, req, connectors)?)
@@ -422,7 +434,7 @@ impl
             .body(types::PayoutRecipientType::get_request_body(self, req)?)
             .build();
 
-        Ok(Some(request))
+        Ok(Some((request, request_builder)))
     }
 
     #[instrument(skip_all)]
@@ -524,9 +536,13 @@ impl services::ConnectorIntegration<api::PoCreate, types::PayoutsData, types::Pa
 
     fn build_request(
         &self,
+        request_builder: Box<dyn services::client::RequestBuilder>,
         req: &types::PayoutsRouterData<api::PoCreate>,
         connectors: &settings::Connectors,
-    ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
+    ) -> CustomResult<
+        Option<(services::Request, Box<dyn services::client::RequestBuilder>)>,
+        errors::ConnectorError,
+    > {
         let request = services::RequestBuilder::new()
             .method(services::Method::Post)
             .url(&types::PayoutCreateType::get_url(self, req, connectors)?)
@@ -535,7 +551,7 @@ impl services::ConnectorIntegration<api::PoCreate, types::PayoutsData, types::Pa
             .body(types::PayoutCreateType::get_request_body(self, req)?)
             .build();
 
-        Ok(Some(request))
+        Ok(Some((request, request_builder)))
     }
 
     #[instrument(skip_all)]
@@ -620,9 +636,13 @@ impl services::ConnectorIntegration<api::PoFulfill, types::PayoutsData, types::P
 
     fn build_request(
         &self,
+        request_builder: Box<dyn services::client::RequestBuilder>,
         req: &types::PayoutsRouterData<api::PoFulfill>,
         connectors: &settings::Connectors,
-    ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
+    ) -> CustomResult<
+        Option<(services::Request, Box<dyn services::client::RequestBuilder>)>,
+        errors::ConnectorError,
+    > {
         let request = services::RequestBuilder::new()
             .method(services::Method::Post)
             .url(&types::PayoutFulfillType::get_url(self, req, connectors)?)
@@ -633,7 +653,7 @@ impl services::ConnectorIntegration<api::PoFulfill, types::PayoutsData, types::P
             .body(types::PayoutFulfillType::get_request_body(self, req)?)
             .build();
 
-        Ok(Some(request))
+        Ok(Some((request, request_builder)))
     }
 
     #[instrument(skip_all)]

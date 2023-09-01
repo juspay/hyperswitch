@@ -172,10 +172,14 @@ impl
 
     fn build_request(
         &self,
+        request_builder: Box<dyn services::client::RequestBuilder>,
         req: &types::PaymentsCompleteAuthorizeRouterData,
         connectors: &settings::Connectors,
-    ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
-        Ok(Some(
+    ) -> CustomResult<
+        Option<(services::Request, Box<dyn services::client::RequestBuilder>)>,
+        errors::ConnectorError,
+    > {
+        Ok(Some((
             services::RequestBuilder::new()
                 .method(services::Method::Post)
                 .url(&types::PaymentsCompleteAuthorizeType::get_url(
@@ -189,7 +193,8 @@ impl
                     self, req,
                 )?)
                 .build(),
-        ))
+            request_builder,
+        )))
     }
 
     fn handle_response(
@@ -253,10 +258,14 @@ impl ConnectorIntegration<api::AccessTokenAuth, types::AccessTokenRequestData, t
 
     fn build_request(
         &self,
+        request_builder: Box<dyn services::client::RequestBuilder>,
         req: &types::RefreshTokenRouterData,
         connectors: &settings::Connectors,
-    ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
-        Ok(Some(
+    ) -> CustomResult<
+        Option<(services::Request, Box<dyn services::client::RequestBuilder>)>,
+        errors::ConnectorError,
+    > {
+        Ok(Some((
             services::RequestBuilder::new()
                 .method(services::Method::Post)
                 .url(&types::RefreshTokenType::get_url(self, req, connectors)?)
@@ -264,7 +273,8 @@ impl ConnectorIntegration<api::AccessTokenAuth, types::AccessTokenRequestData, t
                 .headers(types::RefreshTokenType::get_headers(self, req, connectors)?)
                 .body(types::RefreshTokenType::get_request_body(self, req)?)
                 .build(),
-        ))
+            request_builder,
+        )))
     }
 
     fn get_request_body(
@@ -368,10 +378,14 @@ impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsR
 
     fn build_request(
         &self,
+        request_builder: Box<dyn services::client::RequestBuilder>,
         req: &types::PaymentsCancelRouterData,
         connectors: &settings::Connectors,
-    ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
-        Ok(Some(
+    ) -> CustomResult<
+        Option<(services::Request, Box<dyn services::client::RequestBuilder>)>,
+        errors::ConnectorError,
+    > {
+        Ok(Some((
             services::RequestBuilder::new()
                 .method(services::Method::Post)
                 .url(&types::PaymentsVoidType::get_url(self, req, connectors)?)
@@ -379,7 +393,8 @@ impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsR
                 .headers(types::PaymentsVoidType::get_headers(self, req, connectors)?)
                 .body(types::PaymentsVoidType::get_request_body(self, req)?)
                 .build(),
-        ))
+            request_builder,
+        )))
     }
 
     fn get_request_body(
@@ -454,17 +469,22 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
 
     fn build_request(
         &self,
+        request_builder: Box<dyn services::client::RequestBuilder>,
         req: &types::PaymentsSyncRouterData,
         connectors: &settings::Connectors,
-    ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
-        Ok(Some(
+    ) -> CustomResult<
+        Option<(services::Request, Box<dyn services::client::RequestBuilder>)>,
+        errors::ConnectorError,
+    > {
+        Ok(Some((
             services::RequestBuilder::new()
                 .method(services::Method::Get)
                 .url(&types::PaymentsSyncType::get_url(self, req, connectors)?)
                 .attach_default_headers()
                 .headers(types::PaymentsSyncType::get_headers(self, req, connectors)?)
                 .build(),
-        ))
+            request_builder,
+        )))
     }
 
     fn get_error_response(
@@ -540,10 +560,14 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
 
     fn build_request(
         &self,
+        request_builder: Box<dyn services::client::RequestBuilder>,
         req: &types::PaymentsCaptureRouterData,
         connectors: &settings::Connectors,
-    ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
-        Ok(Some(
+    ) -> CustomResult<
+        Option<(services::Request, Box<dyn services::client::RequestBuilder>)>,
+        errors::ConnectorError,
+    > {
+        Ok(Some((
             services::RequestBuilder::new()
                 .method(services::Method::Post)
                 .url(&types::PaymentsCaptureType::get_url(self, req, connectors)?)
@@ -553,7 +577,8 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
                 )?)
                 .body(types::PaymentsCaptureType::get_request_body(self, req)?)
                 .build(),
-        ))
+            request_builder,
+        )))
     }
 
     fn handle_response(
@@ -629,11 +654,15 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
 
     fn build_request(
         &self,
+        request_builder: Box<dyn services::client::RequestBuilder>,
         req: &types::PaymentsAuthorizeRouterData,
         connectors: &settings::Connectors,
-    ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
+    ) -> CustomResult<
+        Option<(services::Request, Box<dyn services::client::RequestBuilder>)>,
+        errors::ConnectorError,
+    > {
         self.validate_capture_method(req.request.capture_method)?;
-        Ok(Some(
+        Ok(Some((
             services::RequestBuilder::new()
                 .method(services::Method::Post)
                 .url(&types::PaymentsAuthorizeType::get_url(
@@ -645,7 +674,8 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
                 )?)
                 .body(types::PaymentsAuthorizeType::get_request_body(self, req)?)
                 .build(),
-        ))
+            request_builder,
+        )))
     }
 
     fn handle_response(
@@ -720,9 +750,13 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
 
     fn build_request(
         &self,
+        request_builder: Box<dyn services::client::RequestBuilder>,
         req: &types::RefundsRouterData<api::Execute>,
         connectors: &settings::Connectors,
-    ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
+    ) -> CustomResult<
+        Option<(services::Request, Box<dyn services::client::RequestBuilder>)>,
+        errors::ConnectorError,
+    > {
         let request = services::RequestBuilder::new()
             .method(services::Method::Post)
             .url(&types::RefundExecuteType::get_url(self, req, connectors)?)
@@ -732,7 +766,7 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
             )?)
             .body(types::RefundExecuteType::get_request_body(self, req)?)
             .build();
-        Ok(Some(request))
+        Ok(Some((request, request_builder)))
     }
 
     fn handle_response(
@@ -790,10 +824,14 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
 
     fn build_request(
         &self,
+        request_builder: Box<dyn services::client::RequestBuilder>,
         req: &types::RefundSyncRouterData,
         connectors: &settings::Connectors,
-    ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
-        Ok(Some(
+    ) -> CustomResult<
+        Option<(services::Request, Box<dyn services::client::RequestBuilder>)>,
+        errors::ConnectorError,
+    > {
+        Ok(Some((
             services::RequestBuilder::new()
                 .method(services::Method::Get)
                 .url(&types::RefundSyncType::get_url(self, req, connectors)?)
@@ -801,7 +839,8 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
                 .headers(types::RefundSyncType::get_headers(self, req, connectors)?)
                 .body(types::RefundSyncType::get_request_body(self, req)?)
                 .build(),
-        ))
+            request_builder,
+        )))
     }
 
     fn handle_response(

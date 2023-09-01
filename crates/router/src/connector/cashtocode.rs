@@ -211,11 +211,15 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
 
     fn build_request(
         &self,
+        request_builder: Box<dyn services::client::RequestBuilder>,
         req: &types::PaymentsAuthorizeRouterData,
         connectors: &settings::Connectors,
-    ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
+    ) -> CustomResult<
+        Option<(services::Request, Box<dyn services::client::RequestBuilder>)>,
+        errors::ConnectorError,
+    > {
         self.validate_capture_method(req.request.capture_method)?;
-        Ok(Some(
+        Ok(Some((
             services::RequestBuilder::new()
                 .method(services::Method::Post)
                 .url(&types::PaymentsAuthorizeType::get_url(
@@ -227,7 +231,8 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
                 )?)
                 .body(types::PaymentsAuthorizeType::get_request_body(self, req)?)
                 .build(),
-        ))
+            request_builder,
+        )))
     }
 
     fn handle_response(
@@ -287,13 +292,17 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
 {
     fn build_request(
         &self,
+        request_builder: Box<dyn services::client::RequestBuilder>,
         _req: &types::RouterData<
             api::Capture,
             types::PaymentsCaptureData,
             types::PaymentsResponseData,
         >,
         _connectors: &settings::Connectors,
-    ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
+    ) -> CustomResult<
+        Option<(services::Request, Box<dyn services::client::RequestBuilder>)>,
+        errors::ConnectorError,
+    > {
         Err(errors::ConnectorError::FlowNotSupported {
             flow: "Capture".to_string(),
             connector: "Cashtocode".to_string(),
@@ -307,9 +316,13 @@ impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsR
 {
     fn build_request(
         &self,
+        request_builder: Box<dyn services::client::RequestBuilder>,
         _req: &types::RouterData<api::Void, types::PaymentsCancelData, types::PaymentsResponseData>,
         _connectors: &settings::Connectors,
-    ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
+    ) -> CustomResult<
+        Option<(services::Request, Box<dyn services::client::RequestBuilder>)>,
+        errors::ConnectorError,
+    > {
         Err(errors::ConnectorError::FlowNotSupported {
             flow: "Payments Cancel".to_string(),
             connector: "Cashtocode".to_string(),
@@ -419,13 +432,17 @@ impl ConnectorIntegration<api::refunds::Execute, types::RefundsData, types::Refu
 {
     fn build_request(
         &self,
+        request_builder: Box<dyn services::client::RequestBuilder>,
         _req: &types::RouterData<
             api::refunds::Execute,
             types::RefundsData,
             types::RefundsResponseData,
         >,
         _connectors: &settings::Connectors,
-    ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
+    ) -> CustomResult<
+        Option<(services::Request, Box<dyn services::client::RequestBuilder>)>,
+        errors::ConnectorError,
+    > {
         Err(errors::ConnectorError::FlowNotSupported {
             flow: "Refunds".to_string(),
             connector: "Cashtocode".to_string(),

@@ -1,4 +1,4 @@
-mod client;
+pub mod client;
 pub mod request;
 
 use std::{
@@ -152,9 +152,11 @@ pub trait ConnectorIntegration<T, Req, Resp>: ConnectorIntegrationAny<T, Req, Re
 
     fn build_request(
         &self,
+        request_builder: Box<dyn client::RequestBuilder>,
         req: &types::RouterData<T, Req, Resp>,
         _connectors: &Connectors,
-    ) -> CustomResult<Option<Request>, errors::ConnectorError> {
+    ) -> CustomResult<Option<(Request, Box<dyn client::RequestBuilder>)>, errors::ConnectorError>
+    {
         metrics::UNIMPLEMENTED_FLOW.add(
             &metrics::CONTEXT,
             1,
