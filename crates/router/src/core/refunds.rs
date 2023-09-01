@@ -145,24 +145,6 @@ pub async fn auto_refund_core(
             .attach_printable("amount captured is none in a successful payment")?,
     );
 
-    let creds_identifier = req
-        .merchant_connector_details
-        .as_ref()
-        .map(|mcd| mcd.creds_identifier.to_owned());
-
-    req.merchant_connector_details
-        .to_owned()
-        .async_map(|mcd| async {
-            payments::helpers::insert_merchant_connector_creds_to_config(
-                db,
-                merchant_id.as_str(),
-                mcd,
-            )
-            .await
-        })
-        .await
-        .transpose()?;
-
     validate_and_create_refund(
         state,
         &merchant_account,
@@ -171,7 +153,7 @@ pub async fn auto_refund_core(
         &payment_intent,
         amount,
         req,
-        creds_identifier,
+        None,
     )
     .await
     .map(services::ApplicationResponse::Json)
