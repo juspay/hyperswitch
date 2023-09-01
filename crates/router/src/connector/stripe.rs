@@ -1737,9 +1737,7 @@ impl api::IncomingWebhook for Stripe {
                 match details.event_data.event_object.metadata {
                     // if order_id is present
                     Some(meta_data) => api_models::webhooks::ObjectReferenceId::PaymentId(
-                        api_models::payments::PaymentIdType::PaymentAttemptId(
-                            meta_data.metadata_order_id,
-                        ),
+                        api_models::payments::PaymentIdType::PaymentAttemptId(meta_data.order_id),
                     ),
                     // else used connector_transaction_id
                     None => api_models::webhooks::ObjectReferenceId::PaymentId(
@@ -1775,9 +1773,7 @@ impl api::IncomingWebhook for Stripe {
                         match meta_data.is_refund_id {
                             // if the order_id is refund_id
                             Some(true) => api_models::webhooks::ObjectReferenceId::RefundId(
-                                api_models::webhooks::RefundIdType::RefundId(
-                                    meta_data.metadata_order_id,
-                                ),
+                                api_models::webhooks::RefundIdType::RefundId(meta_data.order_id),
                             ),
                             // if the order_id is payment_id
                             // since payment_id was being passed before the deployment of this pr
