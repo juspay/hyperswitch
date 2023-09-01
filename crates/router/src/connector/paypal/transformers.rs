@@ -507,7 +507,7 @@ impl<F, T>
         ) {
             (Some(authorizations), None) => authorizations.first(),
             (None, Some(captures)) => captures.first(),
-            (Some(_authorizations), Some(captures)) => captures.first(),
+            (Some(_), Some(captures)) => captures.first(),
             _ => None,
         }
         .ok_or(errors::ConnectorError::ResponseDeserializationFailed)?;

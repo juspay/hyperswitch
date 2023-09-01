@@ -438,12 +438,12 @@ impl
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         let paypal_meta: PaypalMeta = to_connector_meta(req.request.connector_meta.clone())?;
-        let psync_url = match paypal_meta.psync_flow {
+        let complete_authorize_url = match paypal_meta.psync_flow {
             transformers::PaypalPaymentIntent::Authorize => "authorize".to_string(),
             transformers::PaypalPaymentIntent::Capture => "capture".to_string(),
         };
         Ok(format!(
-            "{}v2/checkout/orders/{}/{psync_url}",
+            "{}v2/checkout/orders/{}/{complete_authorize_url}",
             self.base_url(connectors),
             req.request
                 .connector_transaction_id
