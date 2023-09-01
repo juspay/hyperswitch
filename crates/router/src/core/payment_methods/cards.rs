@@ -1801,7 +1801,7 @@ pub async fn list_customer_payment_method(
 
         let card: Option<api::CardDetailFromLocker> =
             if pm.payment_method == enums::PaymentMethod::Card {
-                let mut card =
+                let mut card_decrypted =
                     decrypt::<serde_json::Value, masking::WithType>(pm.card_details.clone(), key)
                         .await
                         .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -1813,13 +1813,13 @@ pub async fn list_customer_payment_method(
                         .map(api::CardDetailFromLocker::from);
 
                 // If card_details are not present in PMT or decryption failed, fallback to locker call
-                card = if let Some(crd) = card {
+                card_decrypted = if let Some(crd) = card_decrypted {
                     Some(crd)
                 } else {
                     Some(get_lookup_key_from_locker(state, &hyperswitch_token, &pm).await?)
                 };
 
-                card
+                card_decrypted
             } else {
                 None
             };
