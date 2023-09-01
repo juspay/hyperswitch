@@ -2370,6 +2370,11 @@
             "type": "string",
             "description": "The public key id is to invoke third party sdk",
             "nullable": true
+          },
+          "connector_merchant_id": {
+            "type": "string",
+            "description": "The connector merchant id",
+            "nullable": true
           }
         }
       },
@@ -3858,6 +3863,7 @@
           "powertranz",
           "rapyd",
           "shift4",
+          "square",
           "stax",
           "stripe",
           "trustpay",

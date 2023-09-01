@@ -9,7 +9,6 @@ use transformers as zen;
 use uuid::Uuid;
 
 use self::transformers::{ZenPaymentStatus, ZenWebhookTxnType};
-use super::utils::RefundsRequestData;
 use crate::{
     configs::settings,
     consts,
@@ -128,7 +127,15 @@ impl ConnectorCommon for Zen {
     }
 }
 
-impl ConnectorValidation for Zen {}
+impl ConnectorValidation for Zen {
+    fn validate_psync_reference_id(
+        &self,
+        _data: &types::PaymentsSyncRouterData,
+    ) -> CustomResult<(), errors::ConnectorError> {
+        // since we can make psync call with our reference_id, having connector_transaction_id is not an mandatory criteria
+        Ok(())
+    }
+}
 
 impl ConnectorIntegration<api::Session, types::PaymentsSessionData, types::PaymentsResponseData>
     for Zen
@@ -279,15 +286,10 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
         req: &types::PaymentsSyncRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        let payment_id = req
-            .request
-            .connector_transaction_id
-            .get_connector_transaction_id()
-            .change_context(errors::ConnectorError::MissingConnectorTransactionID)?;
-
         Ok(format!(
-            "{}v1/transactions/{payment_id}",
+            "{}v1/transactions/merchant/{}",
             self.base_url(connectors),
+            req.attempt_id,
         ))
     }
 
@@ -469,9 +471,9 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         Ok(format!(
-            "{}v1/transactions/{}",
+            "{}v1/transactions/merchant/{}",
             self.base_url(connectors),
-            req.request.get_connector_refund_id()?
+            req.request.refund_id
         ))
     }
 
@@ -590,7 +592,7 @@ impl api::IncomingWebhook for Zen {
         let mut secret = merchant_webhook_secret.merchant_secret;
         message.append(&mut secret);
         algorithm
-            .verify_signature(&secret, &signature, &message)
+            .verify_signature(&connector_webhook_secrets.secret, &signature, &message)
             .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)
     }
 
@@ -609,7 +611,7 @@ impl api::IncomingWebhook for Zen {
                 ),
             ),
             ZenWebhookTxnType::TrtRefund => api_models::webhooks::ObjectReferenceId::RefundId(
-                api_models::webhooks::RefundIdType::ConnectorRefundId(webhook_body.transaction_id),
+                api_models::webhooks::RefundIdType::RefundId(webhook_body.merchant_transaction_id),
             ),
 
             ZenWebhookTxnType::Unknown => Err(errors::ConnectorError::WebhookReferenceIdNotFound)?,
