@@ -1000,6 +1000,16 @@ pub fn to_currency_base_unit(
         .change_context(errors::ConnectorError::RequestEncodingFailed)
 }
 
+pub fn to_currency_lower_unit(
+    amount: String,
+    currency: diesel_models::enums::Currency,
+) -> Result<String, error_stack::Report<errors::ConnectorError>> {
+    currency
+        .to_currency_lower_unit(amount)
+        .into_report()
+        .change_context(errors::ConnectorError::ResponseHandlingFailed)
+}
+
 pub fn construct_not_implemented_error_report(
     capture_method: enums::CaptureMethod,
     connector_name: &str,

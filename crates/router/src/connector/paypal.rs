@@ -569,9 +569,9 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
         match data.payment_method {
             diesel_models::enums::PaymentMethod::Wallet
             | diesel_models::enums::PaymentMethod::BankRedirect => {
-                let response: paypal::PaypalOrdersResponse = res
+                let response: paypal::PaypalSyncResponse = res
                     .response
-                    .parse_struct("paypal PaymentsOrderResponse")
+                    .parse_struct("paypal SyncResponse")
                     .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
                 types::RouterData::try_from(types::ResponseRouterData {
                     response,
@@ -659,6 +659,7 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
                 .headers(types::PaymentsCaptureType::get_headers(
                     self, req, connectors,
                 )?)
+                .body(types::PaymentsCaptureType::get_request_body(self, req)?)
                 .build(),
         ))
     }

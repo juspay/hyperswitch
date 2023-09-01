@@ -40,6 +40,11 @@ master_enc_key = "73ad7bbbbc640c845a150f67d058b279849370cd2c1f3c67c4dd6c869213e1
 jwt_secret = "secret"
 recon_admin_api_key = "recon_test_admin"
 
+[applepay_merchant_configs]
+merchant_cert_key = "MERCHANT CERTIFICATE KEY"
+merchant_cert = "MERCHANT CERTIFICATE"
+common_merchant_identifier = "COMMON MERCHANT IDENTIFIER"
+
 [locker]
 host = ""
 mock_locker = true
@@ -163,6 +168,7 @@ powertranz.base_url = "https://staging.ptranz.com/api/"
 rapyd.base_url = "https://sandboxapi.rapyd.net"
 shift4.base_url = "https://api.shift4.com/"
 square.base_url = "https://connect.squareupsandbox.com/"
+square.secondary_base_url = "https://pci-connect.squareupsandbox.com/"
 stax.base_url = "https://apiprod.fattlabs.com/"
 stripe.base_url = "https://api.stripe.com/"
 stripe.base_url_file_upload = "https://files.stripe.com/"
@@ -361,6 +367,7 @@ stripe = { long_lived_token = false, payment_method = "wallet", payment_method_t
 checkout = { long_lived_token = false, payment_method = "wallet" }
 stax = { long_lived_token = true, payment_method = "card,bank_debit" }
 mollie = {long_lived_token = false, payment_method = "card"}
+square = {long_lived_token = false, payment_method = "card"}
 braintree = { long_lived_token = false, payment_method = "card" }
 
 [connector_customer]
