@@ -95,7 +95,6 @@ pub struct Settings {
     pub payouts: Payouts,
     pub applepay_decrypt_keys: ApplePayDecryptConifg,
     pub multiple_api_version_supported_connectors: MultipleApiVersionSupportedConnectors,
-    #[cfg(all(feature = "olap", feature = "kms"))]
     pub applepay_merchant_configs: ApplepayMerchantConfigs,
 }
 

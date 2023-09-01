@@ -3071,7 +3071,12 @@ impl ApplePayData {
         let apple_pay_m_id = certificate
             .extensions()
             .iter()
-            .find(|extension| extension.oid.to_string().eq(consts::MERCHANT_ID_FIELD_EXTENSION_ID))
+            .find(|extension| {
+                extension
+                    .oid
+                    .to_string()
+                    .eq(consts::MERCHANT_ID_FIELD_EXTENSION_ID)
+            })
             .map(|ext| {
                 let merchant_id = String::from_utf8_lossy(ext.value)
                     .trim()

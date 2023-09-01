@@ -237,10 +237,16 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for SquarePaymentsRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::PaymentsAuthorizeRouterData) -> Result<Self, Self::Error> {
         let autocomplete = item.request.is_auto_capture()?;
+        let pm_token = item.get_payment_method_token()?;
         match item.request.payment_method_data.clone() {
             api::PaymentMethodData::Card(_) => Ok(Self {
                 idempotency_key: Secret::new(item.attempt_id.clone()),
-                source_id: Secret::new(item.get_payment_method_token()?),
+                source_id: Secret::new(match pm_token {
+                    types::PaymentMethodToken::Token(token) => token,
+                    types::PaymentMethodToken::ApplePayDecrypt(_) => {
+                        Err(errors::ConnectorError::InvalidWalletToken)?
+                    }
+                }),
                 amount_money: SquarePaymentsAmountData {
                     amount: item.request.amount,
                     currency: item.request.currency,
