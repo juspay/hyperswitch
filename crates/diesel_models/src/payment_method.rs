@@ -18,7 +18,6 @@ pub struct PaymentMethod {
     pub scheme: Option<String>,
     pub token: Option<String>,
     pub cardholder_name: Option<Secret<String>>,
-    pub card_details: Option<Encryption>,
     pub issuer_name: Option<String>,
     pub issuer_country: Option<String>,
     #[diesel(deserialize_as = super::OptionalDieselArray<String>)]
@@ -33,6 +32,7 @@ pub struct PaymentMethod {
     pub payment_method_issuer: Option<String>,
     pub payment_method_issuer_code: Option<storage_enums::PaymentMethodIssuerCode>,
     pub metadata: Option<pii::SecretSerdeValue>,
+    pub card_details: Option<Encryption>,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Insertable, Queryable, router_derive::DebugAsDisplay)]
@@ -49,7 +49,6 @@ pub struct PaymentMethodNew {
     pub scheme: Option<String>,
     pub token: Option<String>,
     pub cardholder_name: Option<Secret<String>>,
-    pub card_details: Option<Encryption>,
     pub issuer_name: Option<String>,
     pub issuer_country: Option<String>,
     pub payer_country: Option<Vec<String>>,
@@ -59,6 +58,7 @@ pub struct PaymentMethodNew {
     pub created_at: PrimitiveDateTime,
     pub last_modified: PrimitiveDateTime,
     pub metadata: Option<pii::SecretSerdeValue>,
+    pub card_details: Option<Encryption>,
 }
 
 impl Default for PaymentMethodNew {
