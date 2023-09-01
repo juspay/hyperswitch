@@ -66,6 +66,8 @@ jobs:
           npm install -g 'git+ssh://git@github.com:knutties/newman.git#37708c1fbf6b36240ac796a42dc5a7b435990764'
           POSTMAN_DIR=postman/collection-dir
           POSTMAN_JSON_DIR=postman/collection-json
+          NEWMAN_PATH=$(npm config get prefix)/bin
+          export PATH=${NEWMAN_PATH}:${PATH}
           # generate postman collections for all postman directories
           for connector_dir in ${POSTMAN_DIR}/*
           do
