@@ -2077,44 +2077,6 @@ pub async fn verify_payment_intent_time_and_client_secret(
         .transpose()
 }
 
-fn connector_needs_business_sub_label(connector_name: &str) -> bool {
-    let connectors_list = [api_models::enums::Connector::Cybersource];
-    connectors_list
-        .map(|connector| connector.to_string())
-        .contains(&connector_name.to_string())
-}
-
-/// Create the connector label
-/// {connector_name}_{country}_{business_label}
-pub fn get_connector_label(
-    business_country: Option<api_models::enums::CountryAlpha2>,
-    business_label: Option<&String>,
-    business_sub_label: Option<&String>,
-    connector_name: &str,
-) -> Option<String> {
-    business_country
-        .zip(business_label)
-        .map(|(business_country, business_label)| {
-            let mut connector_label =
-                format!("{connector_name}_{business_country}_{business_label}");
-
-            // Business sub label is currently being used only for cybersource
-            // To ensure backwards compatibality, cybersource mca's created before this change
-            // will have the business_sub_label value as default.
-            //
-            // Even when creating the connector account, if no sub label is provided, default will be used
-            if connector_needs_business_sub_label(connector_name) {
-                if let Some(sub_label) = business_sub_label {
-                    connector_label.push_str(&format!("_{sub_label}"));
-                } else {
-                    connector_label.push_str("_default"); // For backwards compatibality
-                }
-            }
-
-            connector_label
-        })
-}
-
 /// Check whether the business details are configured in the merchant account
 pub fn validate_business_details(
     business_country: Option<api_enums::CountryAlpha2>,

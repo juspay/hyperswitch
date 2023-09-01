@@ -564,7 +564,7 @@ pub async fn create_payment_connector(
         &merchant_account,
     )?;
 
-    let connector_label = helpers::get_connector_label(
+    let connector_label = core_utils::get_connector_label(
         req.business_country,
         req.business_label.as_ref(),
         req.business_sub_label.as_ref(),
