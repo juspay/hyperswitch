@@ -53,19 +53,15 @@ jobs:
           git: https://github.com/SanchithHegde/changelog-gh-usernames
           rev: dab6da3ff99dbbff8650c114984c4d8be5161ac8
 
-      - name: Obtain previous and new tag information
+      - name: Set Git Configuration
         shell: bash
-        # Only consider tags on current branch when setting PREVIOUS_TAG
-        run: |
-          echo "PREVIOUS_TAG=$(git tag --sort='version:refname' --merged | tail --lines 1)" >> $GITHUB_ENV
-          echo "NEW_TAG=$(cog bump --auto --dry-run)" >> $GITHUB_ENV
-
-      - name: Update changelog and create tag
-        shell: bash
-        if: ${{ env.NEW_TAG != env.PREVIOUS_TAG }}
         run: |
           git config --local user.name 'github-actions'
           git config --local user.email '41898282+github-actions[bot]@users.noreply.github.com'
+
+      - name: Update Postman collection files from Postman directories
+        shell: bash
+        run: |
           # maybe we need to move this package.json as we need it in multiple workflows
           npm install -g 'git+ssh://git@github.com:knutties/newman.git#37708c1fbf6b36240ac796a42dc5a7b435990764'
           POSTMAN_DIR=postman/collection-dir
@@ -77,6 +73,18 @@ jobs:
             newman dir-import ${POSTMAN_DIR}/${connector} -o ${POSTMAN_JSON_DIR}/${connector}.postman_collection.json
           done
           (git diff --quiet && git diff --staged --quiet) || (git commit -am 'test(postman): updated postman collection files' && echo "Committed changes") || (echo "Unable to commit following changes:" && git diff)
+
+      - name: Obtain previous and new tag information
+        shell: bash
+        # Only consider tags on current branch when setting PREVIOUS_TAG
+        run: |
+          echo "PREVIOUS_TAG=$(git tag --sort='version:refname' --merged | tail --lines 1)" >> $GITHUB_ENV
+          echo "NEW_TAG=$(cog bump --auto --dry-run)" >> $GITHUB_ENV
+
+      - name: Update changelog and create tag
+        shell: bash
+        if: ${{ env.NEW_TAG != env.PREVIOUS_TAG }}
+        run: |
           cog bump --auto
 
       - name: Push created commit and tag
