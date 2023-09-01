@@ -410,6 +410,13 @@ pub struct PaypalRedirectResponse {
     links: Vec<PaypalLinks>,
 }
 
+#[derive(Debug, Deserialize)]
+#[serde(untagged)]
+pub enum PaypalSyncResponse {
+    PaypalOrdersSyncResponse(PaypalOrdersResponse),
+    PaypalRedirectSyncResponse(PaypalRedirectResponse),
+}
+
 #[derive(Debug, Serialize, Deserialize)]
 pub struct PaypalPaymentsSyncResponse {
     id: String,
@@ -533,6 +540,32 @@ fn get_redirect_url(
         }
     }
     Ok(link)
+}
+
+impl<F, T> TryFrom<types::ResponseRouterData<F, PaypalSyncResponse, T, types::PaymentsResponseData>>
+    for types::RouterData<F, T, types::PaymentsResponseData>
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        item: types::ResponseRouterData<F, PaypalSyncResponse, T, types::PaymentsResponseData>,
+    ) -> Result<Self, Self::Error> {
+        match item.response {
+            PaypalSyncResponse::PaypalOrdersSyncResponse(response) => {
+                Self::try_from(types::ResponseRouterData {
+                    response,
+                    data: item.data,
+                    http_code: item.http_code,
+                })
+            }
+            PaypalSyncResponse::PaypalRedirectSyncResponse(response) => {
+                Self::try_from(types::ResponseRouterData {
+                    response,
+                    data: item.data,
+                    http_code: item.http_code,
+                })
+            }
+        }
+    }
 }
 
 impl<F, T>

@@ -194,6 +194,9 @@ pub enum ApplicationError {
 
     #[error("I/O: {0}")]
     IoError(std::io::Error),
+
+    #[error("Error while constructing api client: {0}")]
+    ApiClientError(ApiClientError),
 }
 
 impl From<MetricsError> for ApplicationError {
@@ -232,7 +235,8 @@ impl ResponseError for ApplicationError {
             Self::MetricsError(_)
             | Self::IoError(_)
             | Self::ConfigurationError(_)
-            | Self::InvalidConfigurationValueError(_) => StatusCode::INTERNAL_SERVER_ERROR,
+            | Self::InvalidConfigurationValueError(_)
+            | Self::ApiClientError(_) => StatusCode::INTERNAL_SERVER_ERROR,
         }
     }
 
@@ -248,7 +252,7 @@ pub fn http_not_implemented() -> actix_web::HttpResponse<BoxBody> {
     .error_response()
 }
 
-#[derive(Debug, thiserror::Error, PartialEq)]
+#[derive(Debug, thiserror::Error, PartialEq, Clone)]
 pub enum ApiClientError {
     #[error("Header map construction failed")]
     HeaderMapConstructionFailed,
@@ -272,6 +276,9 @@ pub enum ApiClientError {
 
     #[error("Server responded with Request Timeout")]
     RequestTimeoutReceived,
+
+    #[error("connection closed before a message could complete")]
+    ConnectionClosed,
 
     #[error("Server responded with Internal Server Error")]
     InternalServerErrorReceived,
@@ -565,6 +572,9 @@ pub enum WebhooksFlowError {
 impl ApiClientError {
     pub fn is_upstream_timeout(&self) -> bool {
         self == &Self::RequestTimeoutReceived
+    }
+    pub fn is_connection_closed(&self) -> bool {
+        self == &Self::ConnectionClosed
     }
 }
 
