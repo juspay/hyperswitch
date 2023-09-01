@@ -1991,8 +1991,9 @@ pub struct PaymentListResponseV2 {
 pub struct PaymentListFilterConstraints {
     /// The identifier for payment
     pub payment_id: Option<String>,
-    /// The limit on the number of objects. The max limit is 20
-    pub limit: Option<u32>,
+    /// The limit on the number of objects. The default limit is 10 and max limit is 20
+    #[serde(default = "default_limit")]
+    pub limit: u32,
     /// The starting point within a list of objects
     pub offset: Option<u32>,
     /// The time range for which objects are needed. TimeRange has two fields start_time and end_time from which objects can be filtered as per required scenarios (created_at, time less than, greater than etc).
