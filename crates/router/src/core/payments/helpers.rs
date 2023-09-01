@@ -1203,7 +1203,7 @@ pub async fn make_pm_data<'a, F: Clone, R>(
                     .attach_printable("Failed to fetch the token from redis")?
                     .ok_or(error_stack::Report::new(
                         errors::ApiErrorResponse::UnprocessableEntity {
-                            message: token + " is invalid or expired",
+                            message: "Token is invalid or expired".to_owned(),
                         },
                     ))?;
 
