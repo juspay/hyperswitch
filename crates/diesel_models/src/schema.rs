@@ -616,7 +616,6 @@ diesel::table! {
         token -> Nullable<Varchar>,
         #[max_length = 255]
         cardholder_name -> Nullable<Varchar>,
-        card_details ->  Nullable<Bytea>,
         #[max_length = 64]
         issuer_name -> Nullable<Varchar>,
         #[max_length = 64]
@@ -636,6 +635,7 @@ diesel::table! {
         payment_method_issuer -> Nullable<Varchar>,
         payment_method_issuer_code -> Nullable<PaymentMethodIssuerCode>,
         metadata -> Nullable<Json>,
+        card_details -> Nullable<Bytea>,
     }
 }
 
