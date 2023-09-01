@@ -103,7 +103,6 @@ impl ProcessTrackerWorkflow for AutoRefundWorkflow {
                 }
             },
         };
-        println!("XXXXXXXX7");
         Ok(())
     }
 
