@@ -1364,7 +1364,7 @@ impl api::IncomingWebhook for Adyen {
     fn get_webhook_source_verification_signature(
         &self,
         request: &api::IncomingWebhookRequestDetails<'_>,
-        _merchant_webhook_secret: &api::WebhookMerchantSecretDetails,
+        _connector_webhook_secrets: &api_models::webhooks::ConnectorWebhookSecrets,
     ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
         let notif_item = get_webhook_object_from_body(request.body)
             .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
@@ -1377,7 +1377,7 @@ impl api::IncomingWebhook for Adyen {
         &self,
         request: &api::IncomingWebhookRequestDetails<'_>,
         _merchant_id: &str,
-        _merchant_webhook_secret: &api::WebhookMerchantSecretDetails,
+        _connector_webhook_secrets: &api_models::webhooks::ConnectorWebhookSecrets,
     ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
         let notif = get_webhook_object_from_body(request.body)
             .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
@@ -1406,7 +1406,7 @@ impl api::IncomingWebhook for Adyen {
         key_store: &domain::MerchantKeyStore,
         object_reference_id: api_models::webhooks::ObjectReferenceId,
     ) -> CustomResult<bool, errors::ConnectorError> {
-        let merchant_webhook_secret = self
+        let connector_webhook_secrets = self
             .get_webhook_source_verification_merchant_secret(
                 db,
                 merchant_account,
@@ -1418,18 +1418,18 @@ impl api::IncomingWebhook for Adyen {
             .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
 
         let signature = self
-            .get_webhook_source_verification_signature(request, &merchant_webhook_secret)
+            .get_webhook_source_verification_signature(request, &connector_webhook_secrets)
             .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
 
         let message = self
             .get_webhook_source_verification_message(
                 request,
                 &merchant_account.merchant_id,
-                &merchant_webhook_secret,
+                &connector_webhook_secrets,
             )
             .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
 
-        let raw_key = hex::decode(merchant_webhook_secret.merchant_secret)
+        let raw_key = hex::decode(connector_webhook_secrets.secret)
             .into_report()
             .change_context(errors::ConnectorError::WebhookSignatureNotFound)?;
 

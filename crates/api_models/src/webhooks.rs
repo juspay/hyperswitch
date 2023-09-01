@@ -117,5 +117,5 @@ pub enum OutgoingWebhookContent {
 
 pub struct ConnectorWebhookSecrets {
     pub secret: Vec<u8>,
-    pub additional_secret: Option<masking::Secret<String>>,
+    pub additional_secret: Option<String>,
 }

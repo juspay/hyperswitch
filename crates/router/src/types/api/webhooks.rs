@@ -23,11 +23,6 @@ pub struct IncomingWebhookRequestDetails<'a> {
     pub query_params: String,
 }
 
-pub struct WebhookMerchantSecretDetails {
-    pub merchant_secret: Vec<u8>,
-    pub additional_secret: Option<String>,
-}
-
 #[async_trait::async_trait]
 pub trait IncomingWebhook: ConnectorCommon + Sync {
     fn get_webhook_body_decoding_algorithm(
@@ -132,7 +127,7 @@ pub trait IncomingWebhook: ConnectorCommon + Sync {
                             .merchant_secret
                             .expose()
                             .into_bytes(),
-                        additional_secret: connector_webhook_details.additional_secret,
+                        additional_secret: connector_webhook_details.additional_secret.map(|secret| secret.expose()),
                     }
                 }
                 None => api_models::webhooks::ConnectorWebhookSecrets {
@@ -163,7 +158,7 @@ pub trait IncomingWebhook: ConnectorCommon + Sync {
     fn get_webhook_source_verification_signature(
         &self,
         _request: &IncomingWebhookRequestDetails<'_>,
-        _merchant_webhook_secret: &WebhookMerchantSecretDetails,
+        _connector_webhook_secrets: &api_models::webhooks::ConnectorWebhookSecrets,
     ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
         Ok(Vec::new())
     }
@@ -172,7 +167,7 @@ pub trait IncomingWebhook: ConnectorCommon + Sync {
         &self,
         _request: &IncomingWebhookRequestDetails<'_>,
         _merchant_id: &str,
-        _merchant_webhook_secret: &WebhookMerchantSecretDetails,
+        _connector_webhook_secrets: &api_models::webhooks::ConnectorWebhookSecrets,
     ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
         Ok(Vec::new())
     }
@@ -190,7 +185,7 @@ pub trait IncomingWebhook: ConnectorCommon + Sync {
             .get_webhook_source_verification_algorithm(request)
             .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
 
-        let webhooks_merchant_secret = self
+        let connector_webhook_secrets = self
             .get_webhook_source_verification_merchant_secret(
                 db,
                 merchant_account,
@@ -202,20 +197,20 @@ pub trait IncomingWebhook: ConnectorCommon + Sync {
             .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
 
         let signature = self
-            .get_webhook_source_verification_signature(request, &webhooks_merchant_secret)
+            .get_webhook_source_verification_signature(request, &connector_webhook_secrets)
             .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
 
         let message = self
             .get_webhook_source_verification_message(
                 request,
                 &merchant_account.merchant_id,
-                &webhooks_merchant_secret,
+                &connector_webhook_secrets,
             )
             .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
 
         algorithm
             .verify_signature(
-                &webhooks_merchant_secret.merchant_secret,
+                &connector_webhook_secrets.secret,
                 &signature,
                 &message,
             )

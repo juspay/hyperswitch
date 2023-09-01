@@ -943,7 +943,7 @@ impl api::IncomingWebhook for Airwallex {
     fn get_webhook_source_verification_signature(
         &self,
         request: &api::IncomingWebhookRequestDetails<'_>,
-        _merchant_webhook_secret: &api::WebhookMerchantSecretDetails,
+        _connector_webhook_secrets: &api_models::webhooks::ConnectorWebhookSecrets,
     ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
         let security_header = request
             .headers
@@ -967,7 +967,7 @@ impl api::IncomingWebhook for Airwallex {
         &self,
         request: &api::IncomingWebhookRequestDetails<'_>,
         _merchant_id: &str,
-        _merchant_webhook_secret: &api::WebhookMerchantSecretDetails,
+        _connector_webhook_secrets: &api_models::webhooks::ConnectorWebhookSecrets,
     ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
         let timestamp = request
             .headers

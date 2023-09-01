@@ -869,7 +869,7 @@ impl api::IncomingWebhook for Nuvei {
     fn get_webhook_source_verification_signature(
         &self,
         request: &api::IncomingWebhookRequestDetails<'_>,
-        _merchant_webhook_secret: &api::WebhookMerchantSecretDetails,
+        _connector_webhook_secrets: &api_models::webhooks::ConnectorWebhookSecrets,
     ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
         let signature = utils::get_header_key_value("advanceResponseChecksum", request.headers)?;
         hex::decode(signature)
@@ -881,12 +881,12 @@ impl api::IncomingWebhook for Nuvei {
         &self,
         request: &api::IncomingWebhookRequestDetails<'_>,
         _merchant_id: &str,
-        merchant_webhook_secret: &api::WebhookMerchantSecretDetails,
+        connector_webhook_secrets: &api_models::webhooks::ConnectorWebhookSecrets,
     ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
         let body = serde_urlencoded::from_str::<nuvei::NuveiWebhookDetails>(&request.query_params)
             .into_report()
             .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
-        let secret_str = std::str::from_utf8(&merchant_webhook_secret.merchant_secret)
+        let secret_str = std::str::from_utf8(&connector_webhook_secrets.secret)
             .into_report()
             .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
         let status = format!("{:?}", body.status).to_uppercase();

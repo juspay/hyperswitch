@@ -323,7 +323,7 @@ impl api::IncomingWebhook for Cashtocode {
     fn get_webhook_source_verification_signature(
         &self,
         request: &api::IncomingWebhookRequestDetails<'_>,
-        _merchant_webhook_secret: &api::WebhookMerchantSecretDetails,
+        _connector_webhook_secrets: &api_models::webhooks::ConnectorWebhookSecrets,
     ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
         let base64_signature = conn_utils::get_header_key_value("authorization", request.headers)?;
         let signature = base64_signature.as_bytes().to_owned();
@@ -339,7 +339,7 @@ impl api::IncomingWebhook for Cashtocode {
         key_store: &domain::MerchantKeyStore,
         object_reference_id: api_models::webhooks::ObjectReferenceId,
     ) -> CustomResult<bool, errors::ConnectorError> {
-        let merchant_webhook_secret = self
+        let connector_webhook_secrets = self
             .get_webhook_source_verification_merchant_secret(
                 db,
                 merchant_account,
@@ -351,10 +351,10 @@ impl api::IncomingWebhook for Cashtocode {
             .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
 
         let signature = self
-            .get_webhook_source_verification_signature(request, &merchant_webhook_secret)
+            .get_webhook_source_verification_signature(request, &connector_webhook_secrets)
             .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
 
-        let secret_auth = String::from_utf8(merchant_webhook_secret.merchant_secret.to_vec())
+        let secret_auth = String::from_utf8(connector_webhook_secrets.secret.to_vec())
             .into_report()
             .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)
             .attach_printable("Could not convert secret to UTF-8")?;
