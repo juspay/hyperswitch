@@ -191,7 +191,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::VerifyRequest> for Paym
                 multiple_capture_data: None,
                 redirect_response: None,
                 frm_message: None,
-                payment_link_object:None,
+                payment_link:None,
             },
             Some(payments::CustomerDetails {
                 customer_id: request.customer_id.clone(),

@@ -59,7 +59,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
         let storage_scheme = merchant_account.storage_scheme;
         let (payment_intent, payment_attempt, connector_response);
 
-        let money @ (amount, currency) = payments_create_request_validation(request)?;
+        let money @ (amount, currency) = payments_create_request_validation(request) ?;
 
         let payment_id = payment_id
             .get_payment_intent_id()
@@ -237,6 +237,12 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
                 .map(ForeignInto::foreign_into)),
         });
 
+        let payment_link = if request.payment_link_object.is_some() && !request.confirm.unwrap_or(false) {
+            Some(format!("{}/{}/{}",state.conf.server.base_url,  payment_intent.merchant_id.clone(), payment_intent.payment_id.clone()))
+            
+            } else {
+                None
+            };
         Ok((
             operation,
             PaymentData {
@@ -271,7 +277,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
                 multiple_capture_data: None,
                 redirect_response: None,
                 frm_message: None,
-                payment_link_object: request.payment_link_object.clone(),
+                payment_link
             },
             Some(customer_details),
         ))

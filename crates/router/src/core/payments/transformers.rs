@@ -192,8 +192,7 @@ where
             payment_data.frm_message,
             payment_data.setup_mandate,
             connector_request_reference_id_config,
-            payment_data.confirm,
-            payment_data.payment_link_object,
+            payment_data.payment_link,
         )
     }
 }
@@ -298,17 +297,17 @@ pub fn payments_to_payments_response<R, Op>(
     frm_message: Option<payments::FrmMessage>,
     mandate_data: Option<api_models::payments::MandateData>,
     connector_request_reference_id_config: &ConnectorRequestReferenceIdConfig,
-    confirm: Option<bool>,
-    payment_link_object: Option<api_models::payments::PaymentLinkObject>,
+    payment_link: Option<String>,
 ) -> RouterResponse<api::PaymentsResponse>
 where
     Op: Debug,
 {
-    let payment_link = if payment_link_object.is_some() && !confirm.unwrap_or(false) {
-        Some(format!("https://google.com/{}", payment_intent.client_secret.clone().unwrap_or_default()))
-    } else {
-        None
-    };
+    // let payment_link = if payment_link_object.is_some() && !confirm.unwrap_or(false) {
+    //     Some(format!("{}/{}/{}",server.base_url,  payment_intent.merchant_id.clone(), payment_intent.payment_id.clone()))
+        
+    // } else {
+    //     None
+    // };
     let currency = payment_attempt
         .currency
         .as_ref()

@@ -1107,7 +1107,7 @@ where
     pub ephemeral_key: Option<ephemeral_key::EphemeralKey>,
     pub redirect_response: Option<api_models::payments::RedirectResponse>,
     pub frm_message: Option<FrmMessage>,
-    pub payment_link_object: Option<api_models::payments::PaymentLinkObject>,
+    pub payment_link: Option<String>,
 }
 
 #[derive(Clone)]

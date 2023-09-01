@@ -356,7 +356,7 @@ async fn get_tracker_for_sync<
             multiple_capture_data: None,
             redirect_response: None,
             frm_message,
-            payment_link_object: None,
+            payment_link: None,
         },
         None,
     ))
