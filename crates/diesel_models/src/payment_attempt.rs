@@ -264,6 +264,21 @@ impl PaymentAttemptUpdate {
             ..source
         }
     }
+
+    pub fn get_updated_status(&self) -> Option<storage_enums::AttemptStatus> {
+        match self {
+            PaymentAttemptUpdate::Update { status, .. } => Some(*status),
+            PaymentAttemptUpdate::ConfirmUpdate { status, .. } => Some(*status),
+            PaymentAttemptUpdate::VoidUpdate { status, .. } => Some(*status),
+            PaymentAttemptUpdate::ResponseUpdate { status, .. } => Some(*status),
+            PaymentAttemptUpdate::UnresolvedResponseUpdate { status, .. } => Some(*status),
+            PaymentAttemptUpdate::StatusUpdate { status } => Some(*status),
+            PaymentAttemptUpdate::ErrorUpdate { status, .. } => Some(*status),
+            PaymentAttemptUpdate::PreprocessingUpdate { status, .. } => Some(*status),
+            _ => None
+        }
+    }
+    
 }
 
 impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {

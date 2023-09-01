@@ -430,6 +430,7 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
             },
         },
     };
+
     payment_data.multiple_capture_data = match capture_update {
         Some((mut multiple_capture_data, capture_updates)) => {
             for (capture, capture_update) in capture_updates {
@@ -450,6 +451,29 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
         None => None,
     };
 
+    let previous_payment_status = payment_data.payment_attempt.status;
+
+    let updated_payment_status = match payment_attempt_update.clone() {
+        Some(payment_attempt_update) => payment_attempt_update.get_updated_status(),
+        None => None,
+    };
+
+    let needs_to_be_refunded = match updated_payment_status {
+        Some(payment_status) =>
+        ( payment_status == api_models::enums::AttemptStatus::Charged
+            || payment_status == api_models::enums::AttemptStatus::PartialCharged )
+        && ( previous_payment_status == api_models::enums::AttemptStatus::AuthenticationFailed
+            || previous_payment_status == api_models::enums::AttemptStatus::RouterDeclined
+            || previous_payment_status == api_models::enums::AttemptStatus::AuthorizationFailed
+            || previous_payment_status == api_models::enums::AttemptStatus::Failure),
+        None => false,
+    };
+
+    if needs_to_be_refunded
+    {
+        // process a refund and update payment_attempt
+    }
+    
     payment_data.payment_attempt = match payment_attempt_update {
         Some(payment_attempt_update) => db
             .update_payment_attempt_with_attempt_id(
@@ -473,12 +497,14 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
             .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?,
         None => payment_data.connector_response,
     };
+
     let amount_captured = get_total_amount_captured(
         router_data.request,
         router_data.amount_captured,
         router_data.status,
         &payment_data,
     );
+
     let payment_intent_update = match &router_data.response {
         Err(_) => storage::PaymentIntentUpdate::PGStatusUpdate {
             status: enums::IntentStatus::foreign_from(payment_data.payment_attempt.status),
