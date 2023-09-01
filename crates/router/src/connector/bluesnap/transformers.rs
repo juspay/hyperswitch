@@ -881,7 +881,7 @@ impl From<ErrorDetails> for utils::ErrorCodeAndMessage {
     fn from(error: ErrorDetails) -> Self {
         Self {
             error_code: error.code.to_string(),
-            error_message: error.error_name.unwrap_or(error.code.to_string()),
+            error_message: error.error_name.unwrap_or(error.code),
         }
     }
 }

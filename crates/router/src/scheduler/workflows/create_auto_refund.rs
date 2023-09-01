@@ -13,7 +13,7 @@ use super::{AutoRefundWorkflow, ProcessTrackerWorkflow};
 use crate::{
     core::{
         errors::ApiErrorResponse,
-        refunds::{add_auto_refund_task_to_process_tracker, refund_create_core},
+        refunds::{add_auto_refund_task_to_process_tracker, auto_refund_core},
         webhooks::create_event_and_trigger_appropriate_outgoing_webhook,
     },
     errors,
@@ -56,12 +56,12 @@ impl ProcessTrackerWorkflow for AutoRefundWorkflow {
             merchant_id: Some(payment_attempt.merchant_id.clone()),
             amount: None,
             reason: Some("Auto Refund".to_string()),
-            refund_type: Some(RefundType::Scheduled),
+            refund_type: Some(RefundType::Instant),
             metadata: None,
             merchant_connector_details: None,
         };
         let refund_flow_result =
-            refund_create_core(state, merchant_account.clone(), key_store, ref_req).await;
+            auto_refund_core(state, merchant_account.clone(), payment_attempt.clone(), key_store, ref_req).await;
         match refund_flow_result {
             Ok(refund_response) => {
                 match refund_response {
@@ -92,7 +92,7 @@ impl ProcessTrackerWorkflow for AutoRefundWorkflow {
                         payment_attempt.clone(),
                         retry_count + 1,
                         max_retries,
-                        "REFUND_WORKFLOW_ROUTER",
+                        "AUTO_REFUND_WORKFLOW",
                     )
                     .await?;
                 }
@@ -103,6 +103,7 @@ impl ProcessTrackerWorkflow for AutoRefundWorkflow {
                 }
             },
         };
+        println!("XXXXXXXX7");
         Ok(())
     }
 

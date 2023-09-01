@@ -1,7 +1,7 @@
 pub mod validator;
 
 use common_utils::ext_traits::AsyncExt;
-use diesel_models::refund;
+use diesel_models::refund::AutoRefundWorkflow;
 use error_stack::{report, IntoReport, ResultExt};
 use router_env::{instrument, tracing};
 
@@ -110,6 +110,59 @@ pub async fn refund_create_core(
         amount,
         req,
         creds_identifier,
+    )
+    .await
+    .map(services::ApplicationResponse::Json)
+}
+
+#[instrument(skip_all)]
+pub async fn auto_refund_core(
+    state: &AppState,
+    merchant_account: domain::MerchantAccount,
+    payment_attempt: storage::PaymentAttempt,
+    key_store: domain::MerchantKeyStore,
+    req: refunds::RefundRequest,
+) -> RouterResponse<refunds::RefundResponse> {
+    let db = &*state.store;
+
+    let (merchant_id, payment_intent, amount);
+
+    merchant_id = &merchant_account.merchant_id;
+
+    payment_intent = db
+        .find_payment_intent_by_payment_id_merchant_id(
+            &req.payment_id,
+            merchant_id,
+            merchant_account.storage_scheme,
+        )
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
+
+    utils::when(
+        payment_attempt.status != enums::AttemptStatus::Charged,
+        || {
+            Err(report!(errors::ApiErrorResponse::PaymentNotSucceeded)
+                .attach_printable("unable to refund for a unsuccessful payment intent"))
+        },
+    )?;
+
+    amount = req.amount.unwrap_or(
+        payment_intent
+            .amount_captured
+            .ok_or(errors::ApiErrorResponse::InternalServerError)
+            .into_report()
+            .attach_printable("amount captured is none in a successful payment")?,
+    );
+
+    validate_and_create_refund(
+        state,
+        &merchant_account,
+        &key_store,
+        &payment_attempt,
+        &payment_intent,
+        amount,
+        req,
+        None,
     )
     .await
     .map(services::ApplicationResponse::Json)
@@ -1120,8 +1173,8 @@ pub fn payment_intent_to_auto_refund_struct(
     payment_attempt: diesel_models::payment_attempt::PaymentAttempt,
     retry_count: i32,
     max_retries: i32,
-) -> refund::AutoRefundWorkflow {
-    refund::AutoRefundWorkflow {
+) -> AutoRefundWorkflow {
+    AutoRefundWorkflow {
         payment_attempt,
         retry_count,
         max_retries,
@@ -1145,6 +1198,7 @@ pub async fn add_auto_refund_task_to_process_tracker(
     .into_report()
     .change_context(errors::ApiErrorResponse::InternalServerError)
     .attach_printable_lazy(|| "unable to parse into json".to_string())?;
+
     let task = "AUTO_REFUND";
     let process_tracker_entry = storage::ProcessTrackerNew {
         id: format!("{}_{}_{}", runner, task, payment_attempt.payment_id.clone()),
@@ -1174,5 +1228,6 @@ pub async fn add_auto_refund_task_to_process_tracker(
                 &payment_attempt.payment_id
             )
         })?;
+
     Ok(response)
 }
