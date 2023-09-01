@@ -611,7 +611,7 @@ pub async fn create_payment_connector(
 
     let frm_configs = get_frm_config_as_secret(req.frm_configs);
 
-    let profile_id = helpers::get_profile_id_from_business_details(
+    let profile_id = core_utils::get_profile_id_from_business_details(
         req.business_country,
         req.business_label.as_ref(),
         &merchant_account,

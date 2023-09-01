@@ -559,7 +559,7 @@ pub async fn create_recipient(
     let customer_details = payout_data.customer_details.to_owned();
     let connector_name = connector_data.connector_name.to_string();
 
-    let profile_id = payment_helpers::get_profile_id_from_business_details(
+    let profile_id = core_utils::get_profile_id_from_business_details(
         payout_data.payout_attempt.business_country,
         payout_data.payout_attempt.business_label.as_ref(),
         merchant_account,

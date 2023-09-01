@@ -797,7 +797,7 @@ where
                 api::GetToken::Connector,
             )?;
 
-            let profile_id = helpers::get_profile_id_from_business_details(
+            let profile_id = super::utils::get_profile_id_from_business_details(
                 payment_data.payment_intent.business_country,
                 payment_data.payment_intent.business_label.as_ref(),
                 merchant_account,
