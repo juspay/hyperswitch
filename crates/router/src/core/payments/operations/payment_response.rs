@@ -16,8 +16,8 @@ use crate::{
     services::RedirectForm,
     types::{
         self, api,
-        storage::{self, enums},
-        transformers::{ForeignFrom, ForeignTryFrom},
+        storage::{self, enums, payment_attempt::PaymentAttemptExt},
+        transformers::ForeignTryFrom,
         CaptureSyncResponse,
     },
     utils,
@@ -481,10 +481,14 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
     );
     let payment_intent_update = match &router_data.response {
         Err(_) => storage::PaymentIntentUpdate::PGStatusUpdate {
-            status: enums::IntentStatus::foreign_from(payment_data.payment_attempt.status),
+            status: payment_data
+                .payment_attempt
+                .get_intent_status(payment_data.payment_intent.amount_captured),
         },
         Ok(_) => storage::PaymentIntentUpdate::ResponseUpdate {
-            status: enums::IntentStatus::foreign_from(payment_data.payment_attempt.status),
+            status: payment_data
+                .payment_attempt
+                .get_intent_status(payment_data.payment_intent.amount_captured),
             return_url: router_data.return_url.clone(),
             amount_captured,
         },

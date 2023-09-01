@@ -1,5 +1,6 @@
 use std::{fmt::Debug, marker::PhantomData, str::FromStr};
 
+use api_models::enums::IntentStatus;
 use common_utils::fp_utils;
 use diesel_models::{ephemeral_key, payment_attempt::PaymentListFilters};
 use error_stack::{IntoReport, ResultExt};
@@ -513,7 +514,18 @@ where
                 });
 
                 let amount_captured = payment_intent.amount_captured.unwrap_or_default();
-                let amount_capturable = Some(payment_attempt.amount - amount_captured);
+                let should_caculate_amount_to_capture = |intent_status| {
+                    matches!(
+                        intent_status,
+                        IntentStatus::PartiallyCaptured | IntentStatus::RequiresCapture
+                    )
+                };
+                let amount_capturable = if should_caculate_amount_to_capture(payment_intent.status)
+                {
+                    Some(payment_attempt.amount - amount_captured)
+                } else {
+                    Some(0)
+                };
                 services::ApplicationResponse::JsonWithHeaders((
                     response
                         .set_payment_id(Some(payment_attempt.payment_id))
