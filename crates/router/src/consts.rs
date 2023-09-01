@@ -42,6 +42,6 @@ pub(crate) const QR_IMAGE_DATA_SOURCE_STRING: &str = "data:image/png;base64";
 
 // OID (Object Identifier) for the merchant ID field extension.
 #[cfg(feature = "kms")]
-pub(crate) const MERCHANT_ID_FIELD_OID: &str = "1.2.840.113635.100.6.32";
+pub(crate) const MERCHANT_ID_FIELD_EXTENSION_ID: &str = "1.2.840.113635.100.6.32";
 
 pub(crate) const APPLE_PAY_MERCHANT_ID: &str = "merchant.com.noon.juspay";
