@@ -508,14 +508,6 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
     )
     .await?;
 
-    crate::core::refunds::add_auto_refund_task_to_process_tracker(
-        db,
-        payment_data.payment_attempt.clone(),
-        0,
-        5,
-        "AUTO_REFUND_WORKFLOW",
-    ).await?;
-
     Ok(payment_data)
 }
 
