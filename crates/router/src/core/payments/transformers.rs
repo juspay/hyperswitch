@@ -514,13 +514,13 @@ where
                 });
 
                 let amount_captured = payment_intent.amount_captured.unwrap_or_default();
-                let should_caculate_amount_to_capture = |intent_status| {
+                let should_calculate_amount_to_capture = |intent_status| {
                     matches!(
                         intent_status,
                         IntentStatus::PartiallyCaptured | IntentStatus::RequiresCapture
                     )
                 };
-                let amount_capturable = if should_caculate_amount_to_capture(payment_intent.status)
+                let amount_capturable = if should_calculate_amount_to_capture(payment_intent.status)
                 {
                     Some(payment_attempt.amount - amount_captured)
                 } else {
