@@ -152,22 +152,145 @@ impl<T> TryFrom<&types::RouterData<T, types::PaymentsAuthorizeData, types::Payme
             payments::PaymentMethodData::BankRedirect(ref redirect) => {
                 Self::try_from((item, redirect))
             }
+            payments::PaymentMethodData::Wallet(ref wallet_data) => Self::try_from(wallet_data),
+            payments::PaymentMethodData::BankTransfer(ref bank_transfer_data) => {
+                Self::try_from(bank_transfer_data.as_ref())
+            }
+            payments::PaymentMethodData::Voucher(ref voucher_data) => Self::try_from(voucher_data),
+            payments::PaymentMethodData::GiftCard(ref giftcard_data) => {
+                Self::try_from(giftcard_data.as_ref())
+            }
             payments::PaymentMethodData::CardRedirect(_)
-            | payments::PaymentMethodData::Wallet(_)
             | payments::PaymentMethodData::PayLater(_)
             | payments::PaymentMethodData::BankDebit(_)
-            | payments::PaymentMethodData::BankTransfer(_)
             | payments::PaymentMethodData::Crypto(_)
             | payments::PaymentMethodData::MandatePayment
             | payments::PaymentMethodData::Reward
-            | payments::PaymentMethodData::Upi(_)
-            | payments::PaymentMethodData::Voucher(_)
-            | payments::PaymentMethodData::GiftCard(_) => {
+            | payments::PaymentMethodData::Upi(_) => Err(errors::ConnectorError::NotImplemented(
+                utils::get_unimplemented_payment_method_error_message("shift4"),
+            )
+            .into()),
+        }
+    }
+}
+
+impl TryFrom<&api_models::payments::WalletData> for Shift4PaymentMethod {
+    type Error = Error;
+    fn try_from(wallet_data: &api_models::payments::WalletData) -> Result<Self, Self::Error> {
+        match wallet_data {
+            payments::WalletData::AliPayRedirect(_)
+            | payments::WalletData::ApplePay(_)
+            | payments::WalletData::WeChatPayRedirect(_) => {
                 Err(errors::ConnectorError::NotImplemented(
-                    utils::get_unimplemented_payment_method_error_message("shift4"),
+                    utils::get_unimplemented_payment_method_error_message("Shift4"),
                 )
                 .into())
             }
+            payments::WalletData::AliPayQr(_)
+            | payments::WalletData::AliPayHkRedirect(_)
+            | payments::WalletData::MomoRedirect(_)
+            | payments::WalletData::KakaoPayRedirect(_)
+            | payments::WalletData::GoPayRedirect(_)
+            | payments::WalletData::GcashRedirect(_)
+            | payments::WalletData::ApplePayRedirect(_)
+            | payments::WalletData::ApplePayThirdPartySdk(_)
+            | payments::WalletData::DanaRedirect {}
+            | payments::WalletData::GooglePay(_)
+            | payments::WalletData::GooglePayRedirect(_)
+            | payments::WalletData::GooglePayThirdPartySdk(_)
+            | payments::WalletData::MbWayRedirect(_)
+            | payments::WalletData::MobilePayRedirect(_)
+            | payments::WalletData::PaypalRedirect(_)
+            | payments::WalletData::PaypalSdk(_)
+            | payments::WalletData::SamsungPay(_)
+            | payments::WalletData::TwintRedirect {}
+            | payments::WalletData::VippsRedirect {}
+            | payments::WalletData::TouchNGoRedirect(_)
+            | payments::WalletData::WeChatPayQr(_)
+            | payments::WalletData::CashappQr(_)
+            | payments::WalletData::SwishQr(_) => Err(errors::ConnectorError::NotSupported {
+                message: utils::SELECTED_PAYMENT_METHOD.to_string(),
+                connector: "Shift4",
+            }
+            .into()),
+        }
+    }
+}
+
+impl TryFrom<&api_models::payments::BankTransferData> for Shift4PaymentMethod {
+    type Error = Error;
+    fn try_from(
+        bank_transfer_data: &api_models::payments::BankTransferData,
+    ) -> Result<Self, Self::Error> {
+        match bank_transfer_data {
+            payments::BankTransferData::MultibancoBankTransfer { .. } => {
+                Err(errors::ConnectorError::NotImplemented(
+                    utils::get_unimplemented_payment_method_error_message("Shift4"),
+                )
+                .into())
+            }
+            payments::BankTransferData::AchBankTransfer { .. }
+            | payments::BankTransferData::SepaBankTransfer { .. }
+            | payments::BankTransferData::BacsBankTransfer { .. }
+            | payments::BankTransferData::PermataBankTransfer { .. }
+            | payments::BankTransferData::BcaBankTransfer { .. }
+            | payments::BankTransferData::BniVaBankTransfer { .. }
+            | payments::BankTransferData::BriVaBankTransfer { .. }
+            | payments::BankTransferData::CimbVaBankTransfer { .. }
+            | payments::BankTransferData::DanamonVaBankTransfer { .. }
+            | payments::BankTransferData::MandiriVaBankTransfer { .. }
+            | payments::BankTransferData::Pix {}
+            | payments::BankTransferData::Pse {} => Err(errors::ConnectorError::NotSupported {
+                message: utils::SELECTED_PAYMENT_METHOD.to_string(),
+                connector: "Shift4",
+            }
+            .into()),
+        }
+    }
+}
+
+impl TryFrom<&api_models::payments::VoucherData> for Shift4PaymentMethod {
+    type Error = Error;
+    fn try_from(voucher_data: &api_models::payments::VoucherData) -> Result<Self, Self::Error> {
+        match voucher_data {
+            payments::VoucherData::Boleto(_) => Err(errors::ConnectorError::NotImplemented(
+                utils::get_unimplemented_payment_method_error_message("Shift4"),
+            )
+            .into()),
+            payments::VoucherData::Efecty
+            | payments::VoucherData::PagoEfectivo
+            | payments::VoucherData::RedCompra
+            | payments::VoucherData::RedPagos
+            | payments::VoucherData::Alfamart(_)
+            | payments::VoucherData::Indomaret(_)
+            | payments::VoucherData::Oxxo
+            | payments::VoucherData::SevenEleven(_)
+            | payments::VoucherData::Lawson(_)
+            | payments::VoucherData::MiniStop(_)
+            | payments::VoucherData::FamilyMart(_)
+            | payments::VoucherData::Seicomart(_)
+            | payments::VoucherData::PayEasy(_) => Err(errors::ConnectorError::NotSupported {
+                message: utils::SELECTED_PAYMENT_METHOD.to_string(),
+                connector: "Shift4",
+            }
+            .into()),
+        }
+    }
+}
+
+impl TryFrom<&api_models::payments::GiftCardData> for Shift4PaymentMethod {
+    type Error = Error;
+    fn try_from(gift_card_data: &api_models::payments::GiftCardData) -> Result<Self, Self::Error> {
+        match gift_card_data {
+            payments::GiftCardData::Givex(_) => Err(errors::ConnectorError::NotSupported {
+                message: utils::SELECTED_PAYMENT_METHOD.to_string(),
+                connector: "Shift4",
+            }
+            .into()),
+            payments::GiftCardData::PaySafeCard {} => Err(errors::ConnectorError::NotImplemented(
+                utils::get_unimplemented_payment_method_error_message("Shift4"),
+            )
+            .into()),
         }
     }
 }
@@ -180,13 +303,11 @@ impl<T>
 {
     type Error = Error;
     fn try_from(
-        item: (
+        (item, card): (
             &types::RouterData<T, types::PaymentsAuthorizeData, types::PaymentsResponseData>,
             &api_models::payments::Card,
         ),
     ) -> Result<Self, Self::Error> {
-        let card = item.1;
-        let item = item.0;
         let card_object = Card {
             number: card.card_number.clone(),
             exp_month: card.card_exp_month.clone(),
@@ -221,13 +342,11 @@ impl<T>
 {
     type Error = Error;
     fn try_from(
-        items: (
+        (item, redirect_data): (
             &types::RouterData<T, types::PaymentsAuthorizeData, types::PaymentsResponseData>,
             &payments::BankRedirectData,
         ),
     ) -> Result<Self, Self::Error> {
-        let redirect_data = items.1;
-        let item = items.0;
         let flow = Flow::try_from(&item.request.router_return_url)?;
         let method_type = PaymentMethodType::try_from(redirect_data)?;
         let billing = Billing::try_from(item)?;
@@ -278,7 +397,30 @@ impl TryFrom<&payments::BankRedirectData> for PaymentMethodType {
             payments::BankRedirectData::Giropay { .. } => Ok(Self::Giropay),
             payments::BankRedirectData::Ideal { .. } => Ok(Self::Ideal),
             payments::BankRedirectData::Sofort { .. } => Ok(Self::Sofort),
-            _ => Err(errors::ConnectorError::NotImplemented("Payment method".to_string()).into()),
+            payments::BankRedirectData::BancontactCard { .. }
+            | payments::BankRedirectData::Blik { .. }
+            | payments::BankRedirectData::Trustly { .. }
+            | payments::BankRedirectData::Przelewy24 { .. } => {
+                Err(errors::ConnectorError::NotImplemented(
+                    utils::get_unimplemented_payment_method_error_message("Shift4"),
+                )
+                .into())
+            }
+            payments::BankRedirectData::Bizum {}
+            | payments::BankRedirectData::Interac { .. }
+            | payments::BankRedirectData::OnlineBankingCzechRepublic { .. }
+            | payments::BankRedirectData::OnlineBankingFinland { .. }
+            | payments::BankRedirectData::OnlineBankingPoland { .. }
+            | payments::BankRedirectData::OnlineBankingSlovakia { .. }
+            | payments::BankRedirectData::OpenBankingUk { .. }
+            | payments::BankRedirectData::OnlineBankingFpx { .. }
+            | payments::BankRedirectData::OnlineBankingThailand { .. } => {
+                Err(errors::ConnectorError::NotSupported {
+                    message: utils::SELECTED_PAYMENT_METHOD.to_string(),
+                    connector: "Shift4",
+                }
+                .into())
+            }
         }
     }
 }
