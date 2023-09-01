@@ -1070,7 +1070,7 @@ impl api::IncomingWebhook for Bluesnap {
                 .into_report()
                 .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
         Ok(api::disputes::DisputePayload {
-            amount: connector_utils::to_currency_higher_unit(
+            amount: connector_utils::to_currency_lower_unit(
                 dispute_details.invoice_charge_amount.abs().to_string(),
                 dispute_details.currency,
             )?,

@@ -343,7 +343,7 @@ impl Currency {
     }
 
     ///Convert the higher decimal amount to its base absolute units
-    pub fn to_currency_higher_unit(&self, amount: String) -> Result<String, ParseFloatError> {
+    pub fn to_currency_lower_unit(&self, amount: String) -> Result<String, ParseFloatError> {
         let amount_f64 = amount.parse::<f64>()?;
         let amount_string = if self.is_zero_decimal_currency() {
             amount_f64
