@@ -418,19 +418,17 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
         types::PaymentsResponseData: Clone,
     {
         match &data.request.sync_type {
-            types::SyncRequestType::MultipleCaptureSync(connector_capture_ids) => {
-                let response: Vec<checkout::ActionResponse> = res
+            types::SyncRequestType::MultipleCaptureSync(_) => {
+                let response: checkout::PaymentsResponseEnum = res
                     .response
-                    .parse_struct("Vec<checkout::ActionResponse>")
+                    .parse_struct("checkout::PaymentsResponseEnum")
                     .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-                types::RouterData::try_from((
-                    types::ResponseRouterData {
-                        response,
-                        data: data.clone(),
-                        http_code: res.status_code,
-                    },
-                    connector_capture_ids.to_owned(),
-                ))
+                dbg!(&response);
+                types::RouterData::try_from(types::ResponseRouterData {
+                    response,
+                    data: data.clone(),
+                    http_code: res.status_code,
+                })
                 .change_context(errors::ConnectorError::ResponseHandlingFailed)
             }
             types::SyncRequestType::SinglePaymentSync => {
@@ -1215,12 +1213,9 @@ impl api::IncomingWebhook for Checkout {
         &self,
         request: &api::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<serde_json::Value, errors::ConnectorError> {
-        let details: checkout::CheckoutWebhookObjectResource = request
-            .body
-            .parse_struct("CheckoutWebhookObjectResource")
-            .change_context(errors::ConnectorError::WebhookResourceObjectNotFound)?;
-
-        Ok(details.data)
+        let payment_response = checkout::PaymentsResponse::try_from(request)?;
+        utils::Encode::<checkout::PaymentsResponse>::encode_to_value(&payment_response)
+            .change_context(errors::ConnectorError::WebhookResourceObjectNotFound)
     }
 
     fn get_dispute_details(

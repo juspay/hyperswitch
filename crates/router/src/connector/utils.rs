@@ -1327,47 +1327,34 @@ mod error_code_error_message_tests {
 pub trait MultipleCaptureSyncResponse {
     fn get_connector_capture_id(&self) -> String;
     fn get_capture_attempt_status(&self) -> storage_enums::AttemptStatus;
+    fn is_capture_response(&self) -> bool;
     fn get_connector_reference_id(&self) -> Option<String> {
         None
     }
 }
 
 pub fn construct_captures_response_hashmap<T>(
-    connector_capture_ids: Vec<String>,
     capture_sync_response_list: Vec<T>,
 ) -> HashMap<String, types::CaptureSyncResponse>
 where
     T: MultipleCaptureSyncResponse,
 {
     let mut hashmap = HashMap::new();
-    // initiatize the hashmap
-    connector_capture_ids
-        .into_iter()
-        .for_each(|connector_capture_id| {
-            hashmap.insert(
-                connector_capture_id.clone(),
-                types::CaptureSyncResponse::Success {
-                    resource_id: ResponseId::ConnectorTransactionId(connector_capture_id),
-                    status: storage_enums::AttemptStatus::Pending,
-                    connector_response_reference_id: None,
-                },
-            );
-        });
-    // update hashmap with actual connector response
     capture_sync_response_list
         .into_iter()
         .for_each(|capture_sync_response| {
             let connector_capture_id = capture_sync_response.get_connector_capture_id();
-            hashmap
-                .entry(connector_capture_id.clone())
-                .and_modify(|old_value| {
-                    *old_value = types::CaptureSyncResponse::Success {
+            if capture_sync_response.is_capture_response() {
+                hashmap.insert(
+                    connector_capture_id.clone(),
+                    types::CaptureSyncResponse::Success {
                         resource_id: ResponseId::ConnectorTransactionId(connector_capture_id),
                         status: capture_sync_response.get_capture_attempt_status(),
                         connector_response_reference_id: capture_sync_response
                             .get_connector_reference_id(),
-                    }
-                });
+                    },
+                );
+            }
         });
     hashmap
 }
