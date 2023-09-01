@@ -166,9 +166,10 @@ impl<T> TryFrom<&types::RouterData<T, types::PaymentsAuthorizeData, types::Payme
             | payments::PaymentMethodData::Crypto(_)
             | payments::PaymentMethodData::MandatePayment
             | payments::PaymentMethodData::Reward
-            | payments::PaymentMethodData::Upi(_) => Err(errors::ConnectorError::NotImplemented(
-                utils::get_unimplemented_payment_method_error_message("shift4"),
-            )
+            | payments::PaymentMethodData::Upi(_) => Err(errors::ConnectorError::NotSupported {
+                message: utils::SELECTED_PAYMENT_METHOD.to_string(),
+                connector: "Shift4",
+            }
             .into()),
         }
     }
@@ -384,7 +385,23 @@ impl<T> TryFrom<&types::RouterData<T, types::CompleteAuthorizeData, types::Payme
                     captured: item.request.is_auto_capture()?,
                 })
             }
-            _ => Err(errors::ConnectorError::NotImplemented("Payment Method".to_string()).into()),
+            Some(payments::PaymentMethodData::Wallet(_))
+            | Some(payments::PaymentMethodData::GiftCard(_))
+            | Some(payments::PaymentMethodData::CardRedirect(_))
+            | Some(payments::PaymentMethodData::PayLater(_))
+            | Some(payments::PaymentMethodData::BankDebit(_))
+            | Some(payments::PaymentMethodData::BankRedirect(_))
+            | Some(payments::PaymentMethodData::BankTransfer(_))
+            | Some(payments::PaymentMethodData::Crypto(_))
+            | Some(payments::PaymentMethodData::MandatePayment)
+            | Some(payments::PaymentMethodData::Voucher(_))
+            | Some(payments::PaymentMethodData::Reward)
+            | Some(payments::PaymentMethodData::Upi(_))
+            | None => Err(errors::ConnectorError::NotSupported {
+                message: "Flow".to_string(),
+                connector: "Shift4",
+            }
+            .into()),
         }
     }
 }
