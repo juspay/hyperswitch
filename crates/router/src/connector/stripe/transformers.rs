@@ -134,8 +134,8 @@ pub struct ConnectorMetaData {
     pub txn_uuid: String,
     // to check whether the order_id is refund_id or payemnt_id
     // before deployment, order id is set to payemnt_id in refunds but now it is set as refund_id
-    #[serde(rename(serialize = "metadata[is_refund_id]"))]
-    pub is_refund_id: Option<bool>,
+    #[serde(rename(serialize = "metadata[is_refund_id_as_reference]"))]
+    pub is_refund_id_as_reference: Option<bool>,
 }
 
 #[derive(Debug, Eq, PartialEq, Serialize)]
@@ -1658,7 +1658,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PaymentIntentRequest {
                 order_id,
                 txn_id,
                 txn_uuid,
-                is_refund_id: None,
+                is_refund_id_as_reference: None,
             },
             return_url: item
                 .request
@@ -2463,7 +2463,7 @@ impl<F> TryFrom<&types::RefundsRouterData<F>> for RefundRequest {
                 order_id: item.request.refund_id.clone(),
                 txn_id,
                 txn_uuid,
-                is_refund_id: Some(true),
+                is_refund_id_as_reference: Some(true),
             },
         })
     }

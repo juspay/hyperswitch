@@ -1770,7 +1770,8 @@ impl api::IncomingWebhook for Stripe {
                 match details.event_data.event_object.metadata {
                     // if meta_data is present
                     Some(meta_data) => {
-                        match meta_data.is_refund_id {
+                        // Issue: 2076
+                        match meta_data.is_refund_id_as_reference {
                             // if the order_id is refund_id
                             Some(true) => api_models::webhooks::ObjectReferenceId::RefundId(
                                 api_models::webhooks::RefundIdType::RefundId(meta_data.order_id),
