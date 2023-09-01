@@ -72,7 +72,7 @@ jobs:
             connector=$(basename ${connector_dir})
             newman dir-import ${POSTMAN_DIR}/${connector} -o ${POSTMAN_JSON_DIR}/${connector}.postman_collection.json
           done
-          (git diff --quiet && git diff --staged --quiet) || (git commit -am 'test(postman): updated postman collection files' && echo "Committed changes") || (echo "Unable to commit following changes:" && git diff)
+          (git diff --quiet && git diff --staged --quiet) || (git commit -am 'test(postman): update postman collection files' && echo "Committed changes") || (echo "Unable to commit the following changes:" && git diff)
 
       - name: Obtain previous and new tag information
         shell: bash
