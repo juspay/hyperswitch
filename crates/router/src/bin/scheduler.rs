@@ -1,10 +1,11 @@
 #![recursion_limit = "256"]
 use std::sync::Arc;
 
+use error_stack::ResultExt;
 use router::{
     configs::settings::{CmdLineConf, Settings},
     core::errors::{self, CustomResult},
-    logger, routes, scheduler,
+    logger, routes, scheduler, services,
 };
 use tokio::sync::{mpsc, oneshot};
 
@@ -19,9 +20,17 @@ async fn main() -> CustomResult<(), errors::ProcessTrackerError> {
     #[allow(clippy::expect_used)]
     let conf = Settings::with_config_path(cmd_line.config_path)
         .expect("Unable to construct application configuration");
+
+    let api_client = Box::new(
+        services::ProxyClient::new(
+            conf.proxy.clone(),
+            services::proxy_bypass_urls(&conf.locker),
+        )
+        .change_context(errors::ProcessTrackerError::ConfigurationError)?,
+    );
     // channel for listening to redis disconnect events
     let (redis_shutdown_signal_tx, redis_shutdown_signal_rx) = oneshot::channel();
-    let state = routes::AppState::new(conf, redis_shutdown_signal_tx).await;
+    let state = routes::AppState::new(conf, redis_shutdown_signal_tx, api_client).await;
     // channel to shutdown scheduler gracefully
     let (tx, rx) = mpsc::channel(1);
     tokio::spawn(router::receiver_for_error(
