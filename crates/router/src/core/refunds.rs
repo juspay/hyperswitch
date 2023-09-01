@@ -116,59 +116,6 @@ pub async fn refund_create_core(
 }
 
 #[instrument(skip_all)]
-pub async fn auto_refund_core(
-    state: &AppState,
-    merchant_account: domain::MerchantAccount,
-    payment_attempt: storage::PaymentAttempt,
-    key_store: domain::MerchantKeyStore,
-    req: refunds::RefundRequest,
-) -> RouterResponse<refunds::RefundResponse> {
-    let db = &*state.store;
-
-    let (merchant_id, payment_intent, amount);
-
-    merchant_id = &merchant_account.merchant_id;
-
-    payment_intent = db
-        .find_payment_intent_by_payment_id_merchant_id(
-            &req.payment_id,
-            merchant_id,
-            merchant_account.storage_scheme,
-        )
-        .await
-        .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
-
-    utils::when(
-        payment_attempt.status != enums::AttemptStatus::Charged,
-        || {
-            Err(report!(errors::ApiErrorResponse::PaymentNotSucceeded)
-                .attach_printable("unable to refund for a unsuccessful payment intent"))
-        },
-    )?;
-
-    amount = req.amount.unwrap_or(
-        payment_intent
-            .amount_captured
-            .ok_or(errors::ApiErrorResponse::InternalServerError)
-            .into_report()
-            .attach_printable("amount captured is none in a successful payment")?,
-    );
-
-    validate_and_create_refund(
-        state,
-        &merchant_account,
-        &key_store,
-        &payment_attempt,
-        &payment_intent,
-        amount,
-        req,
-        None,
-    )
-    .await
-    .map(services::ApplicationResponse::Json)
-}
-
-#[instrument(skip_all)]
 pub async fn trigger_refund_to_gateway(
     state: &AppState,
     refund: &storage::Refund,
