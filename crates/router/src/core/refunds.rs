@@ -137,6 +137,14 @@ pub async fn auto_refund_core(
         .await
         .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
 
+    utils::when(
+        payment_attempt.status != enums::AttemptStatus::Charged,
+        || {
+            Err(report!(errors::ApiErrorResponse::PaymentNotSucceeded)
+                .attach_printable("unable to refund for a unsuccessful payment intent"))
+        },
+    )?;
+
     amount = req.amount.unwrap_or(
         payment_intent
             .amount_captured
