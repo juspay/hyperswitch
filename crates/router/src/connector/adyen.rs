@@ -1408,7 +1408,7 @@ impl api::IncomingWebhook for Adyen {
         let signature = self
             .get_webhook_source_verification_signature(request)
             .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
-        let secret = self
+        let connector_webhook_secrets = self
             .get_webhook_source_verification_merchant_secret(
                 db,
                 merchant_account,
@@ -1422,11 +1422,11 @@ impl api::IncomingWebhook for Adyen {
             .get_webhook_source_verification_message(
                 request,
                 &merchant_account.merchant_id,
-                &secret,
+                &connector_webhook_secrets.secret,
             )
             .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
 
-        let raw_key = hex::decode(secret)
+        let raw_key = hex::decode(connector_webhook_secrets.secret)
             .into_report()
             .change_context(errors::ConnectorError::WebhookSignatureNotFound)?;
 

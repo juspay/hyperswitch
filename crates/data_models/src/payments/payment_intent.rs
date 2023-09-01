@@ -1,11 +1,12 @@
 use common_enums as storage_enums;
-use common_utils::pii;
+use common_utils::{
+    consts::{PAYMENTS_LIST_MAX_LIMIT_V1, PAYMENTS_LIST_MAX_LIMIT_V2},
+    pii,
+};
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
 
 use crate::{errors, MerchantStorageScheme};
-const QUERY_LIMIT: u32 = 20;
-const MAX_LIMIT: u32 = 100;
 #[async_trait::async_trait]
 pub trait PaymentIntentInterface {
     async fn update_payment_intent(
@@ -54,6 +55,14 @@ pub trait PaymentIntentInterface {
         Vec<(PaymentIntent, super::payment_attempt::PaymentAttempt)>,
         errors::StorageError,
     >;
+
+    #[cfg(feature = "olap")]
+    async fn get_filtered_active_attempt_ids_for_total_count(
+        &self,
+        merchant_id: &str,
+        constraints: &PaymentIntentFetchConstraints,
+        storage_scheme: MerchantStorageScheme,
+    ) -> error_stack::Result<Vec<String>, errors::StorageError>;
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
@@ -381,7 +390,7 @@ impl From<api_models::payments::PaymentListConstraints> for PaymentIntentFetchCo
             customer_id: value.customer_id,
             starting_after_id: value.starting_after,
             ending_before_id: value.ending_before,
-            limit: Some(std::cmp::min(value.limit, MAX_LIMIT)),
+            limit: Some(std::cmp::min(value.limit, PAYMENTS_LIST_MAX_LIMIT_V1)),
         }
     }
 }
@@ -420,7 +429,7 @@ impl From<api_models::payments::PaymentListFilterConstraints> for PaymentIntentF
                 customer_id: None,
                 starting_after_id: None,
                 ending_before_id: None,
-                limit: Some(QUERY_LIMIT),
+                limit: Some(std::cmp::min(value.limit, PAYMENTS_LIST_MAX_LIMIT_V2)),
             }
         }
     }

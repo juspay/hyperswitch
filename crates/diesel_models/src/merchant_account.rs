@@ -39,6 +39,7 @@ pub struct MerchantAccount {
     pub organization_id: Option<String>,
     pub is_recon_enabled: bool,
     pub default_profile: Option<String>,
+    pub recon_status: storage_enums::ReconStatus,
 }
 
 #[derive(Clone, Debug, Insertable, router_derive::DebugAsDisplay)]
@@ -67,6 +68,7 @@ pub struct MerchantAccountNew {
     pub organization_id: Option<String>,
     pub is_recon_enabled: bool,
     pub default_profile: Option<String>,
+    pub recon_status: storage_enums::ReconStatus,
 }
 
 #[derive(Clone, Debug, Default, AsChangeset, router_derive::DebugAsDisplay)]
@@ -94,4 +96,5 @@ pub struct MerchantAccountUpdateInternal {
     pub organization_id: Option<String>,
     pub is_recon_enabled: bool,
     pub default_profile: Option<Option<String>>,
+    pub recon_status: storage_enums::ReconStatus,
 }

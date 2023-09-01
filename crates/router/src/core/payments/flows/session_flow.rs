@@ -273,6 +273,7 @@ fn create_apple_pay_session_response(
                         sdk_next_action: { payment_types::SdkNextAction { next_action } },
                         connector_reference_id: None,
                         connector_sdk_public_key: None,
+                        connector_merchant_id: None,
                     },
                 )),
             }),

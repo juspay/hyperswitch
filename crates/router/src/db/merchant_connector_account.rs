@@ -11,7 +11,6 @@ use super::{MockDb, Store};
 use crate::{
     connection,
     core::errors::{self, CustomResult},
-    services::logger,
     types::{
         self,
         domain::{
@@ -80,11 +79,7 @@ impl ConnectorAccessToken for Store {
             .map_err(Into::<errors::StorageError>::into)?
             .set_key_with_expiry(&key, serialized_access_token, access_token.expires)
             .await
-            .map_err(|error| {
-                logger::error!(access_token_kv_error=?error);
-                errors::StorageError::KVError
-            })
-            .into_report()
+            .change_context(errors::StorageError::KVError)
     }
 }
 
@@ -542,8 +537,11 @@ impl MerchantConnectorAccountInterface for MockDb {
     ) -> CustomResult<domain::MerchantConnectorAccount, errors::StorageError> {
         let mut accounts = self.merchant_connector_accounts.lock().await;
         let account = storage::MerchantConnectorAccount {
-            #[allow(clippy::as_conversions)]
-            id: accounts.len() as i32,
+            id: accounts
+                .len()
+                .try_into()
+                .into_report()
+                .change_context(errors::StorageError::MockDbError)?,
             merchant_id: t.merchant_id,
             connector_name: t.connector_name,
             connector_account_details: t.connector_account_details.into(),

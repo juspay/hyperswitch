@@ -1,4 +1,4 @@
-use std::num::TryFromIntError;
+use std::num::{ParseFloatError, TryFromIntError};
 
 use router_derive;
 use serde::{Deserialize, Serialize};
@@ -340,6 +340,19 @@ impl Currency {
             amount_f64 / 100.00
         };
         Ok(amount)
+    }
+
+    ///Convert the higher decimal amount to its base absolute units
+    pub fn to_currency_lower_unit(&self, amount: String) -> Result<String, ParseFloatError> {
+        let amount_f64 = amount.parse::<f64>()?;
+        let amount_string = if self.is_zero_decimal_currency() {
+            amount_f64
+        } else if self.is_three_decimal_currency() {
+            amount_f64 * 1000.00
+        } else {
+            amount_f64 * 100.00
+        };
+        Ok(amount_string.to_string())
     }
 
     /// Convert the amount to its base denomination based on Currency and check for zero decimal currency and return String
@@ -1681,4 +1694,29 @@ pub enum PayoutEntityType {
 pub enum CancelTransaction {
     #[default]
     FrmCancelTransaction,
+}
+
+#[derive(
+    Clone,
+    Debug,
+    Eq,
+    Default,
+    Hash,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    strum::EnumString,
+    utoipa::ToSchema,
+    Copy,
+)]
+#[router_derive::diesel_enum(storage_type = "pg_enum")]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum ReconStatus {
+    #[default]
+    NotRequested,
+    Requested,
+    Active,
+    Disabled,
 }

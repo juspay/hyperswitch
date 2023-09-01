@@ -156,6 +156,11 @@ pub struct ApplepayHeader {
     transaction_id: Secret<String>,
 }
 
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct BluesnapConnectorMetaData {
+    pub merchant_id: String,
+}
+
 impl TryFrom<&types::PaymentsAuthorizeRouterData> for BluesnapPaymentsRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::PaymentsAuthorizeRouterData) -> Result<Self, Self::Error> {
@@ -299,7 +304,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for BluesnapPaymentsRequest {
             | payments::PaymentMethodData::BankTransfer(_)
             | payments::PaymentMethodData::Crypto(_)
             | payments::PaymentMethodData::MandatePayment
-            | payments::PaymentMethodData::Reward(_)
+            | payments::PaymentMethodData::Reward
             | payments::PaymentMethodData::Upi(_)
             | payments::PaymentMethodData::CardRedirect(_)
             | payments::PaymentMethodData::Voucher(_)
@@ -422,6 +427,7 @@ impl TryFrom<types::PaymentsSessionResponseRouterData<BluesnapWalletTokenRespons
                         },
                         connector_reference_id: None,
                         connector_sdk_public_key: None,
+                        connector_merchant_id: None,
                     },
                 )),
             }),
@@ -813,18 +819,75 @@ pub struct BluesnapWebhookBody {
 #[serde(rename_all = "camelCase")]
 pub struct BluesnapWebhookObjectEventType {
     pub transaction_type: BluesnapWebhookEvents,
+    pub cb_status: Option<BluesnapChargebackStatus>,
 }
 
 #[derive(Debug, Deserialize)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum BluesnapChargebackStatus {
+    #[serde(alias = "New")]
+    New,
+    #[serde(alias = "Working")]
+    Working,
+    #[serde(alias = "Closed")]
+    Closed,
+    #[serde(alias = "Completed_Lost")]
+    CompletedLost,
+    #[serde(alias = "Completed_Pending")]
+    CompletedPending,
+    #[serde(alias = "Completed_Won")]
+    CompletedWon,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum BluesnapWebhookEvents {
     Decline,
     CcChargeFailed,
     Charge,
+    Chargeback,
+    ChargebackStatusChanged,
     #[serde(other)]
     Unknown,
 }
+
+impl TryFrom<BluesnapWebhookObjectEventType> for api::IncomingWebhookEvent {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(details: BluesnapWebhookObjectEventType) -> Result<Self, Self::Error> {
+        match details.transaction_type {
+            BluesnapWebhookEvents::Decline | BluesnapWebhookEvents::CcChargeFailed => {
+                Ok(Self::PaymentIntentFailure)
+            }
+            BluesnapWebhookEvents::Charge => Ok(Self::PaymentIntentSuccess),
+            BluesnapWebhookEvents::Chargeback | BluesnapWebhookEvents::ChargebackStatusChanged => {
+                match details
+                    .cb_status
+                    .ok_or(errors::ConnectorError::WebhookEventTypeNotFound)?
+                {
+                    BluesnapChargebackStatus::New | BluesnapChargebackStatus::Working => {
+                        Ok(Self::DisputeOpened)
+                    }
+                    BluesnapChargebackStatus::Closed => Ok(Self::DisputeExpired),
+                    BluesnapChargebackStatus::CompletedLost => Ok(Self::DisputeLost),
+                    BluesnapChargebackStatus::CompletedPending => Ok(Self::DisputeChallenged),
+                    BluesnapChargebackStatus::CompletedWon => Ok(Self::DisputeWon),
+                }
+            }
+            BluesnapWebhookEvents::Unknown => Ok(Self::EventNotSupported),
+        }
+    }
+}
+
 #[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct BluesnapDisputeWebhookBody {
+    pub invoice_charge_amount: f64,
+    pub currency: diesel_models::enums::Currency,
+    pub reversal_reason: Option<String>,
+    pub reversal_ref_num: String,
+    pub cb_status: String,
+}
+#[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct BluesnapWebhookObjectResource {
     pub reference_number: String,
@@ -836,7 +899,7 @@ pub struct BluesnapWebhookObjectResource {
 pub struct ErrorDetails {
     pub code: String,
     pub description: String,
-    pub error_name: String,
+    pub error_name: Option<String>,
 }
 
 #[derive(Default, Debug, Clone, Deserialize)]
@@ -850,7 +913,7 @@ pub struct BluesnapErrorResponse {
 pub struct BluesnapAuthErrorResponse {
     pub error_code: String,
     pub error_description: String,
-    pub error_name: String,
+    pub error_name: Option<String>,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -876,7 +939,7 @@ impl From<ErrorDetails> for utils::ErrorCodeAndMessage {
     fn from(error: ErrorDetails) -> Self {
         Self {
             error_code: error.code.to_string(),
-            error_message: error.error_name,
+            error_message: error.error_name.unwrap_or(error.code.to_string()),
         }
     }
 }
