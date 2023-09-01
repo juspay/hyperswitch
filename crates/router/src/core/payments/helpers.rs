@@ -2369,7 +2369,7 @@ pub async fn insert_merchant_connector_creds_to_config(
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone)]
 pub enum MerchantConnectorAccountType {
     DbVal(domain::MerchantConnectorAccount),
     CacheVal(api_models::admin::MerchantConnectorDetails),
@@ -3027,7 +3027,7 @@ pub struct ApplePayHeader {
 impl ApplePayData {
     pub fn token_json(
         wallet_data: api_models::payments::WalletData,
-    ) -> Result<Self, error_stack::Report<errors::ConnectorError>> {
+    ) -> CustomResult<Self, errors::ConnectorError> {
         let json_wallet_data: Self =
             connector::utils::WalletData::get_wallet_token_as_json(&wallet_data)?;
         Ok(json_wallet_data)

@@ -187,8 +187,11 @@ where
     if let Some(connector_details) = connector {
         payment_data = match connector_details {
             api::ConnectorCallType::Single(connector) => {
-                let merchant_connector_account =
-                    merchant_connector_account.get_required_value("merchant_connector_account")?;
+                let merchant_connector_account = merchant_connector_account.ok_or(
+                    errors::ApiErrorResponse::MissingRequiredField {
+                        field_name: "merchant_connector_account",
+                    },
+                )?;
                 let router_data = call_connector_service(
                     state,
                     &merchant_account,
@@ -653,9 +656,9 @@ where
             .parse_value::<router_types::ApplePayPredecryptData>("ApplePayPredecryptData")
             .change_context(errors::ApiErrorResponse::InternalServerError)?;
 
-        router_data.payment_method_token = Some(
-            router_types::PaymentMethodTokens::ApplePayDecrypt(apple_pay_predecrypt),
-        );
+        router_data.payment_method_token = Some(router_types::PaymentMethodToken::ApplePayDecrypt(
+            Box::new(apple_pay_predecrypt),
+        ));
     }
 
     let pm_token = router_data
@@ -663,7 +666,7 @@ where
         .await?;
 
     if let Some(payment_method_token) = pm_token.clone() {
-        router_data.payment_method_token = Some(router_types::PaymentMethodTokens::Token(
+        router_data.payment_method_token = Some(router_types::PaymentMethodToken::Token(
             payment_method_token,
         ));
     };

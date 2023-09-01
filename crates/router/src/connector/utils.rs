@@ -65,7 +65,7 @@ pub trait RouterData {
     where
         T: serde::de::DeserializeOwned;
     fn is_three_ds(&self) -> bool;
-    fn get_payment_method_token(&self) -> Result<types::PaymentMethodTokens, Error>;
+    fn get_payment_method_token(&self) -> Result<types::PaymentMethodToken, Error>;
     fn get_customer_id(&self) -> Result<String, Error>;
     fn get_connector_customer_id(&self) -> Result<String, Error>;
     fn get_preprocessing_id(&self) -> Result<String, Error>;
@@ -155,7 +155,7 @@ impl<Flow, Request, Response> RouterData for types::RouterData<Flow, Request, Re
             .and_then(|a| a.address.as_ref())
             .ok_or_else(missing_field_err("shipping.address"))
     }
-    fn get_payment_method_token(&self) -> Result<types::PaymentMethodTokens, Error> {
+    fn get_payment_method_token(&self) -> Result<types::PaymentMethodToken, Error> {
         self.payment_method_token
             .clone()
             .ok_or_else(missing_field_err("payment_method_token"))

@@ -182,7 +182,7 @@ async fn create_applepay_session_token(
                             )?;
 
                     let apple_pay_session_request =
-                        get_session_request_for_simplified_apple_pay(session_token_data)?;
+                        get_session_request_for_simplified_apple_pay(session_token_data);
 
                     #[cfg(not(feature = "kms"))]
                     let decrypted_apple_pay_merchant_cert =
@@ -204,7 +204,7 @@ async fn create_applepay_session_token(
                     session_token_data,
                 } => {
                     let apple_pay_session_request =
-                        get_session_request_for_manual_apple_pay(session_token_data.clone())?;
+                        get_session_request_for_manual_apple_pay(session_token_data.clone());
                     (
                         payment_request_data,
                         apple_pay_session_request,
@@ -216,7 +216,7 @@ async fn create_applepay_session_token(
             payment_types::ApplepaySessionTokenData::ApplePay(apple_pay_metadata) => {
                 let apple_pay_session_request = get_session_request_for_manual_apple_pay(
                     apple_pay_metadata.session_token_data.clone(),
-                )?;
+                );
                 (
                     apple_pay_metadata.payment_request_data,
                     apple_pay_session_request,
@@ -288,26 +288,24 @@ async fn create_applepay_session_token(
 
 fn get_session_request_for_simplified_apple_pay(
     session_token_data: payment_types::SessionTokenForSimplifiedApplePay,
-) -> RouterResult<payment_types::ApplepaySessionRequest> {
-    let request = payment_types::ApplepaySessionRequest {
+) -> payment_types::ApplepaySessionRequest {
+    payment_types::ApplepaySessionRequest {
         merchant_identifier: consts::APPLE_PAY_MERCHANT_ID.to_owned(),
         display_name: "Apple pay".to_string(),
         initiative: "web".to_string(),
         initiative_context: session_token_data.initiative_context,
-    };
-    Ok(request)
+    }
 }
 
 fn get_session_request_for_manual_apple_pay(
     session_token_data: payment_types::SessionTokenInfo,
-) -> RouterResult<payment_types::ApplepaySessionRequest> {
-    let request = payment_types::ApplepaySessionRequest {
+) -> payment_types::ApplepaySessionRequest {
+    payment_types::ApplepaySessionRequest {
         merchant_identifier: session_token_data.merchant_identifier.clone(),
         display_name: session_token_data.display_name.clone(),
         initiative: session_token_data.initiative.clone(),
         initiative_context: session_token_data.initiative_context,
-    };
-    Ok(request)
+    }
 }
 
 fn get_apple_pay_amount_info(

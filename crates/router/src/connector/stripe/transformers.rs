@@ -7,7 +7,7 @@ use common_utils::{
     pii::{self, Email},
 };
 use error_stack::{IntoReport, ResultExt};
-use masking::{ExposeInterface, ExposeOptionInterface, Secret};
+use masking::{ExposeInterface, ExposeOptionInterface, PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
 use url::Url;
@@ -1218,7 +1218,7 @@ fn create_stripe_payment_method(
     experience: Option<&enums::PaymentExperience>,
     payment_method_data: &api_models::payments::PaymentMethodData,
     auth_type: enums::AuthenticationType,
-    payment_method_token: Option<types::PaymentMethodTokens>,
+    payment_method_token: Option<types::PaymentMethodToken>,
 ) -> Result<
     (
         StripePaymentMethodData,
@@ -1291,20 +1291,36 @@ fn create_stripe_payment_method(
         payments::PaymentMethodData::Wallet(wallet_data) => match wallet_data {
             payments::WalletData::ApplePay(applepay_data) => {
                 let mut apple_pay_decrypt_data = payment_method_token.and_then(|pmt| match pmt {
-                    types::PaymentMethodTokens::ApplePayDecrypt(decrypt_data) => {
+                    types::PaymentMethodToken::ApplePayDecrypt(decrypt_data) => {
                         let expiry_year_4_digit = format!(
                             "20{}",
-                            decrypt_data.clone().application_expiration_date[0..2].to_owned()
+                            decrypt_data.clone().application_expiration_date.peek()[0..2]
+                                .to_owned()
                         );
+
+                        let eci = decrypt_data
+                            .clone()
+                            .payment_data
+                            .eci_indicator
+                            .map(|eci_indicator| eci_indicator.peek().to_string());
 
                         Some(StripePaymentMethodData::Wallet(
                             StripeWallet::ApplePayPredecryptToken(StripeApplePayPredecrypt {
-                                number: decrypt_data.clone().application_primary_account_number,
+                                number: decrypt_data
+                                    .clone()
+                                    .application_primary_account_number
+                                    .peek()
+                                    .to_string(),
                                 exp_year: expiry_year_4_digit,
-                                exp_month: decrypt_data.clone().application_expiration_date[2..4]
+                                exp_month: decrypt_data.clone().application_expiration_date.peek()
+                                    [2..4]
                                     .to_owned(),
-                                eci: decrypt_data.clone().payment_data.eci_indicator,
-                                cryptogram: decrypt_data.payment_data.online_payment_cryptogram,
+                                eci,
+                                cryptogram: decrypt_data
+                                    .payment_data
+                                    .online_payment_cryptogram
+                                    .peek()
+                                    .to_string(),
                                 tokenization_method: "apple_pay".to_string(),
                             }),
                         ))
@@ -1620,8 +1636,8 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PaymentIntentRequest {
                     .get_required_value("payment_token")
                     .change_context(errors::ConnectorError::RequestEncodingFailed)?;
                 let payment_method_token = match payment_method_token {
-                    types::PaymentMethodTokens::Token(payment_method_token) => payment_method_token,
-                    types::PaymentMethodTokens::ApplePayDecrypt(_) => {
+                    types::PaymentMethodToken::Token(payment_method_token) => payment_method_token,
+                    types::PaymentMethodToken::ApplePayDecrypt(_) => {
                         Err(errors::ConnectorError::InvalidWalletToken)?
                     }
                 };

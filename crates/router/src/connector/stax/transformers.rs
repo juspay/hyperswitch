@@ -42,8 +42,8 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for StaxPaymentsRequest {
                     is_refundable: true,
                     pre_auth,
                     payment_method_id: Secret::new(match pm_token {
-                        types::PaymentMethodTokens::Token(token) => token,
-                        types::PaymentMethodTokens::ApplePayDecrypt(_) => {
+                        types::PaymentMethodToken::Token(token) => token,
+                        types::PaymentMethodToken::ApplePayDecrypt(_) => {
                             Err(errors::ConnectorError::InvalidWalletToken)?
                         }
                     }),
@@ -57,8 +57,8 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for StaxPaymentsRequest {
                     is_refundable: true,
                     pre_auth,
                     payment_method_id: Secret::new(match pm_token {
-                        types::PaymentMethodTokens::Token(token) => token,
-                        types::PaymentMethodTokens::ApplePayDecrypt(_) => {
+                        types::PaymentMethodToken::Token(token) => token,
+                        types::PaymentMethodToken::ApplePayDecrypt(_) => {
                             Err(errors::ConnectorError::InvalidWalletToken)?
                         }
                     }),

@@ -137,8 +137,8 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for MolliePaymentsRequest {
                         billing_address: get_billing_details(item)?,
                         shipping_address: get_shipping_details(item)?,
                         card_token: Some(Secret::new(match pm_token {
-                            types::PaymentMethodTokens::Token(token) => token,
-                            types::PaymentMethodTokens::ApplePayDecrypt(_) => {
+                            types::PaymentMethodToken::Token(token) => token,
+                            types::PaymentMethodToken::ApplePayDecrypt(_) => {
                                 Err(errors::ConnectorError::InvalidWalletToken)?
                             }
                         })),
@@ -478,7 +478,7 @@ impl<F, T>
     ) -> Result<Self, Self::Error> {
         Ok(Self {
             status: storage_enums::AttemptStatus::Pending,
-            payment_method_token: Some(types::PaymentMethodTokens::Token(
+            payment_method_token: Some(types::PaymentMethodToken::Token(
                 item.response.card_token.clone().expose(),
             )),
             response: Ok(types::PaymentsResponseData::TokenizationResponse {
