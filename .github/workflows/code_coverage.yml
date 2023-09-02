@@ -1,48 +1,17 @@
-name: Code Coverage
-
+name: CodeCov
 on:
-  pull_request:
-    types: [opened, synchronize]
   push:
+    branches:
+      - main
+  pull_request:
     branches:
       - main
 
 jobs:
-  code_coverage:
+  codecov:
     runs-on: ubuntu-latest
-    
-    permissions: 
-      pull-requests: write
-
     steps:
-      - name: Set up Rust
-        uses: dtolnay/rust-toolchain@master
-
-      - name: Checkout code
-        uses: actions/checkout@v2
-
-      - name: Install code coverage dependencies
-        run: |
-          rustup component add llvm-tools-preview
-          cargo install cargo-tarpaulin
-
-      - name: Run tests and generate coverage report
-        run: cargo tarpaulin --all --ciserver github-actions --coveralls ${{ github.event.pull_request.head.ref }}
-
-      - name: Upload coverage reports to Codecov
-        uses: codecov/codecov-action@v3
-        env:
-          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
-
-      - name: Publish code coverage comment on PR
-        uses: actions/github-script@v4
+      - uses: actions/checkout@v2
+      - uses: codecov/codecov-action@v2
         with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          script: |
-            const message = `Code Coverage Report:\n${{ steps.code_coverage.outputs.coverage-report }}`;
-            github.issues.createComment({
-              issue_number: context.issue.number,
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              body: message
-            });
+          token: ${{ secrets.CODECOV_TOKEN }}
