@@ -42,8 +42,6 @@ use crate::{
     utils::{add_connector_http_status_code_metrics, Encode, OptionExt, ValueExt},
 };
 
-#[cfg(feature = "olap")]
-const PAYMENTS_LIST_MAX_LIMIT: u32 = 20;
 #[instrument(skip_all, fields(payment_id, merchant_id))]
 pub async fn payments_operation_core<F, Req, Op, FData>(
     state: &AppState,
@@ -1326,9 +1324,9 @@ pub async fn apply_filters_on_payments(
 
     use crate::types::transformers::ForeignFrom;
 
-    let limit = &constraints.limit.unwrap_or(PAYMENTS_LIST_MAX_LIMIT);
+    let limit = &constraints.limit;
 
-    helpers::validate_payment_list_request_for_joins(*limit, PAYMENTS_LIST_MAX_LIMIT)?;
+    helpers::validate_payment_list_request_for_joins(*limit)?;
     let list: Vec<(storage::PaymentIntent, storage::PaymentAttempt)> = db
         .get_filtered_payment_intents_attempt(
             &merchant.merchant_id,

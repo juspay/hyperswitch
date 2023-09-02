@@ -1,6 +1,6 @@
 use actix_web::{web, HttpRequest, HttpResponse};
 use common_utils::{consts::TOKEN_TTL, errors::CustomResult};
-use error_stack::{IntoReport, ResultExt};
+use error_stack::ResultExt;
 use router_env::{instrument, logger, tracing, Flow};
 use time::PrimitiveDateTime;
 
@@ -397,13 +397,9 @@ impl ParentPaymentMethodToken {
                 TOKEN_TTL - time_elapsed.whole_seconds(),
             )
             .await
-            .map_err(|error| {
-                logger::error!(hyperswitch_token_kv_error=?error);
-                errors::StorageError::KVError
-            })
-            .into_report()
+            .change_context(errors::StorageError::KVError)
             .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Failed to add data in redis")?;
+            .attach_printable("Failed to add token in redis")?;
 
         Ok(())
     }
