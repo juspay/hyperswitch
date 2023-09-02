@@ -10,5 +10,4 @@ strip = true
 lto = true
 codegen-units = 1
 
-[dependencies]
-codecov = "0.2"
+
