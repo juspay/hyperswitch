@@ -887,7 +887,7 @@ impl api::IncomingWebhook for Globalpay {
             .switch()?;
         Ok(match details.status {
             response::GlobalpayWebhookStatus::Declined => {
-                api::IncomingWebhookEvent::PaymentActionRequired
+                api::IncomingWebhookEvent::PaymentIntentFailure
             }
             response::GlobalpayWebhookStatus::Captured => {
                 api::IncomingWebhookEvent::PaymentIntentSuccess
