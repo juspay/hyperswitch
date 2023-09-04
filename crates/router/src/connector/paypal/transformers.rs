@@ -207,9 +207,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PaypalPaymentsRequest {
                     let intent = if item.request.is_auto_capture()? {
                         PaypalPaymentIntent::Capture
                     } else {
-                        Err(errors::ConnectorError::NotImplemented(
-                            "Manual capture method for Paypal wallet".to_string(),
-                        ))?
+                        PaypalPaymentIntent::Authorize
                     };
                     let amount = OrderAmount {
                         currency_code: item.request.currency,
@@ -476,7 +474,7 @@ impl<F, T>
             .ok_or(errors::ConnectorError::MissingConnectorTransactionID)?;
 
         let id = get_id_based_on_intent(&item.response.intent, purchase_units)?;
-        let (connector_meta, capture_id) = match item.response.intent.clone() {
+        let (connector_meta, order_id) = match item.response.intent.clone() {
             PaypalPaymentIntent::Capture => (
                 serde_json::json!(PaypalMeta {
                     authorize_id: None,
@@ -509,6 +507,7 @@ impl<F, T>
         ) {
             (Some(authorizations), None) => authorizations.first(),
             (None, Some(captures)) => captures.first(),
+            (Some(_), Some(captures)) => captures.first(),
             _ => None,
         }
         .ok_or(errors::ConnectorError::ResponseDeserializationFailed)?;
@@ -517,7 +516,7 @@ impl<F, T>
         Ok(Self {
             status,
             response: Ok(types::PaymentsResponseData::TransactionResponse {
-                resource_id: capture_id,
+                resource_id: order_id,
                 redirection_data: None,
                 mandate_reference: None,
                 connector_metadata: Some(connector_meta),
