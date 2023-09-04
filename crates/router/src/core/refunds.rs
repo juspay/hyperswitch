@@ -842,7 +842,7 @@ pub async fn sync_refund_with_gateway_workflow(
         },
     )
     .await?;
-    let terminal_status = vec![
+    let terminal_status = [
         enums::RefundStatus::Success,
         enums::RefundStatus::Failure,
         enums::RefundStatus::TransactionFailure,

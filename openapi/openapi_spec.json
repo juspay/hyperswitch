@@ -2370,6 +2370,11 @@
             "type": "string",
             "description": "The public key id is to invoke third party sdk",
             "nullable": true
+          },
+          "connector_merchant_id": {
+            "type": "string",
+            "description": "The connector merchant id",
+            "nullable": true
           }
         }
       },
@@ -3858,6 +3863,7 @@
           "powertranz",
           "rapyd",
           "shift4",
+          "square",
           "stax",
           "stripe",
           "trustpay",
@@ -5006,6 +5012,30 @@
           {
             "type": "string",
             "enum": [
+              "user_card_number"
+            ]
+          },
+          {
+            "type": "string",
+            "enum": [
+              "user_card_expiry_month"
+            ]
+          },
+          {
+            "type": "string",
+            "enum": [
+              "user_card_expiry_year"
+            ]
+          },
+          {
+            "type": "string",
+            "enum": [
+              "user_card_cvc"
+            ]
+          },
+          {
+            "type": "string",
+            "enum": [
               "user_full_name"
             ]
           },
@@ -5019,6 +5049,12 @@
             "type": "string",
             "enum": [
               "user_phone_number"
+            ]
+          },
+          {
+            "type": "string",
+            "enum": [
+              "user_country_code"
             ]
           },
           {
@@ -5042,6 +5078,34 @@
                 }
               }
             }
+          },
+          {
+            "type": "object",
+            "required": [
+              "user_currency"
+            ],
+            "properties": {
+              "user_currency": {
+                "type": "object",
+                "required": [
+                  "options"
+                ],
+                "properties": {
+                  "options": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          {
+            "type": "string",
+            "enum": [
+              "user_billing_name"
+            ]
           },
           {
             "type": "string",
@@ -5074,36 +5138,12 @@
             ]
           },
           {
-            "type": "string",
-            "enum": [
-              "user_address_country"
-            ]
-          },
-          {
-            "type": "string",
-            "enum": [
-              "user_blik_code"
-            ]
-          },
-          {
-            "type": "string",
-            "enum": [
-              "user_billing_name"
-            ]
-          },
-          {
-            "type": "string",
-            "enum": [
-              "user_bank"
-            ]
-          },
-          {
             "type": "object",
             "required": [
-              "user_currency"
+              "user_address_country"
             ],
             "properties": {
-              "user_currency": {
+              "user_address_country": {
                 "type": "object",
                 "required": [
                   "options"
@@ -5118,6 +5158,18 @@
                 }
               }
             }
+          },
+          {
+            "type": "string",
+            "enum": [
+              "user_blik_code"
+            ]
+          },
+          {
+            "type": "string",
+            "enum": [
+              "user_bank"
+            ]
           },
           {
             "type": "string",
@@ -6047,7 +6099,8 @@
           "enable_payment_response_hash",
           "redirect_to_merchant_with_http_post",
           "primary_business_details",
-          "is_recon_enabled"
+          "is_recon_enabled",
+          "recon_status"
         ],
         "properties": {
           "merchant_id": {
@@ -6180,6 +6233,15 @@
           "is_recon_enabled": {
             "type": "boolean",
             "description": "A boolean value to indicate if the merchant has recon service is enabled or not, by default value is false"
+          },
+          "default_profile": {
+            "type": "string",
+            "description": "The default business profile that must be used for creating merchant accounts and payments",
+            "nullable": true,
+            "maxLength": 64
+          },
+          "recon_status": {
+            "$ref": "#/components/schemas/ReconStatus"
           }
         }
       },
@@ -6306,6 +6368,12 @@
             "description": "Will be used to expire client secret after certain amount of time to be supplied in seconds\n(900) for 15 mins",
             "nullable": true,
             "minimum": 0.0
+          },
+          "default_profile": {
+            "type": "string",
+            "description": "The default business profile that must be used for creating merchant accounts and payments\nTo unset this field, pass an empty string",
+            "nullable": true,
+            "maxLength": 64
           }
         }
       },
@@ -6431,6 +6499,11 @@
                 "$ref": "#/components/schemas/MerchantConnectorWebhookDetails"
               }
             ],
+            "nullable": true
+          },
+          "profile_id": {
+            "type": "string",
+            "description": "Identifier for the business profile, if not provided default will be chosen from merchant account",
             "nullable": true
           }
         }
@@ -6638,6 +6711,12 @@
               }
             ],
             "nullable": true
+          },
+          "profile_id": {
+            "type": "string",
+            "description": "The business profile this connector must be created in\ndefault value from merchant account is taken if not passed",
+            "nullable": true,
+            "maxLength": 64
           }
         }
       },
@@ -6741,10 +6820,15 @@
       "MerchantConnectorWebhookDetails": {
         "type": "object",
         "required": [
-          "merchant_secret"
+          "merchant_secret",
+          "additional_secret"
         ],
         "properties": {
           "merchant_secret": {
+            "type": "string",
+            "example": "12345678900987654321"
+          },
+          "additional_secret": {
             "type": "string",
             "example": "12345678900987654321"
           }
@@ -7592,9 +7676,11 @@
           },
           "limit": {
             "type": "integer",
-            "format": "int64",
+            "format": "int32",
             "description": "limit on the number of objects to return",
-            "default": 10
+            "default": 10,
+            "maximum": 100.0,
+            "minimum": 0.0
           },
           "created": {
             "type": "string",
@@ -7825,15 +7911,10 @@
             ]
           },
           {
-            "type": "object",
-            "required": [
+            "type": "string",
+            "enum": [
               "reward"
-            ],
-            "properties": {
-              "reward": {
-                "$ref": "#/components/schemas/RewardData"
-              }
-            }
+            ]
           },
           {
             "type": "object",
@@ -8197,6 +8278,11 @@
           "client_secret": {
             "type": "string",
             "description": "This is a token which expires after 15 minutes, used from the client to authenticate and create sessions from the SDK",
+            "nullable": true
+          },
+          "expand_captures": {
+            "type": "boolean",
+            "description": "If enabled provides list of captures linked to latest attempt",
             "nullable": true
           },
           "expand_attempts": {
@@ -8601,6 +8687,11 @@
               }
             ],
             "nullable": true
+          },
+          "profile_id": {
+            "type": "string",
+            "description": "The business profile to use for this payment, if not passed the default business profile\nassociated with the merchant account will be used.",
+            "nullable": true
           }
         }
       },
@@ -8935,6 +9026,11 @@
               }
             ],
             "nullable": true
+          },
+          "profile_id": {
+            "type": "string",
+            "description": "The business profile to use for this payment, if not passed the default business profile\nassociated with the merchant account will be used.",
+            "nullable": true
           }
         }
       },
@@ -8946,7 +9042,8 @@
           "currency",
           "payment_method",
           "business_country",
-          "business_label"
+          "business_label",
+          "attempt_count"
         ],
         "properties": {
           "payment_id": {
@@ -9311,6 +9408,21 @@
             "description": "reference to the payment at connector side",
             "example": "993672945374576J",
             "nullable": true
+          },
+          "profile_id": {
+            "type": "string",
+            "description": "The business profile that is associated with this payment",
+            "nullable": true
+          },
+          "attempt_count": {
+            "type": "integer",
+            "format": "int32",
+            "description": "total number of attempts associated with this payment"
+          },
+          "merchant_decision": {
+            "type": "string",
+            "description": "Denotes the action(approve or reject) taken by merchant in case of manual review. Manual review can occur when the transaction is marked as risky by the frm_processor, payment processor or when there is underpayment/over payment incase of crypto payment",
+            "nullable": true
           }
         }
       },
@@ -9354,6 +9466,11 @@
           "client_secret": {
             "type": "string",
             "description": "This is a token which expires after 15 minutes, used from the client to authenticate and create sessions from the SDK",
+            "nullable": true
+          },
+          "expand_captures": {
+            "type": "boolean",
+            "description": "If enabled provides list of captures linked to latest attempt",
             "nullable": true
           },
           "expand_attempts": {
@@ -9978,6 +10095,15 @@
             "nullable": true
           }
         }
+      },
+      "ReconStatus": {
+        "type": "string",
+        "enum": [
+          "not_requested",
+          "requested",
+          "active",
+          "disabled"
+        ]
       },
       "RedirectResponse": {
         "type": "object",

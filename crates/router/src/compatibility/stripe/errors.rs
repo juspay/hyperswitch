@@ -223,8 +223,10 @@ pub enum StripeErrorCode {
     WebhookProcessingError,
     #[error(error_type = StripeErrorType::InvalidRequestError, code = "payment_method_unactivated", message = "The operation cannot be performed as the payment method used has not been activated. Activate the payment method in the Dashboard, then try again.")]
     PaymentMethodUnactivated,
-    #[error(error_type = StripeErrorType::HyperswitchError, code = "", message = "{entity} expired or invalid")]
-    HyperswitchUnprocessableEntity { entity: String },
+    #[error(error_type = StripeErrorType::HyperswitchError, code = "", message = "{message}")]
+    HyperswitchUnprocessableEntity { message: String },
+    #[error(error_type = StripeErrorType::InvalidRequestError, code = "", message = "{message}")]
+    CurrencyNotSupported { message: String },
     // [#216]: https://github.com/juspay/hyperswitch/issues/216
     // Implement the remaining stripe error codes
 
@@ -401,8 +403,8 @@ impl From<errors::ApiErrorResponse> for StripeErrorCode {
                     param: field_name.to_string(),
                 }
             }
-            errors::ApiErrorResponse::UnprocessableEntity { entity } => {
-                Self::HyperswitchUnprocessableEntity { entity }
+            errors::ApiErrorResponse::UnprocessableEntity { message } => {
+                Self::HyperswitchUnprocessableEntity { message }
             }
             errors::ApiErrorResponse::MissingRequiredFields { field_names } => {
                 // Instead of creating a new error variant in StripeErrorCode for MissingRequiredFields, converted vec<&str> to String
@@ -553,6 +555,9 @@ impl From<errors::ApiErrorResponse> for StripeErrorCode {
                 Self::MerchantConnectorAccountDisabled
             }
             errors::ApiErrorResponse::NotSupported { .. } => Self::InternalServerError,
+            errors::ApiErrorResponse::CurrencyNotSupported { message } => {
+                Self::CurrencyNotSupported { message }
+            }
             errors::ApiErrorResponse::FileProviderNotSupported { .. } => {
                 Self::FileProviderNotSupported
             }
@@ -628,6 +633,7 @@ impl actix_web::ResponseError for StripeErrorCode {
             | Self::FileNotFound
             | Self::FileNotAvailable
             | Self::FileProviderNotSupported
+            | Self::CurrencyNotSupported { .. }
             | Self::PaymentMethodUnactivated => StatusCode::BAD_REQUEST,
             Self::RefundFailed
             | Self::PayoutFailed

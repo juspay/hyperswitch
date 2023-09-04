@@ -195,7 +195,7 @@ impl TryFrom<(&types::PaymentsAuthorizeRouterData, &Card)> for ZenPaymentsReques
                 return_verify_url: item.request.router_return_url.clone(),
             }));
         Ok(Self::ApiRequest(Box::new(ApiRequest {
-            merchant_transaction_id: item.attempt_id.clone(),
+            merchant_transaction_id: item.connector_request_reference_id.clone(),
             payment_channel: ZenPaymentChannels::PclCard,
             currency: item.request.currency,
             payment_specific_data,
@@ -258,7 +258,7 @@ impl
             )?,
         };
         Ok(Self::ApiRequest(Box::new(ApiRequest {
-            merchant_transaction_id: item.attempt_id.clone(),
+            merchant_transaction_id: item.connector_request_reference_id.clone(),
             payment_channel,
             currency: item.request.currency,
             payment_specific_data,
@@ -319,7 +319,7 @@ impl
             }
         };
         Ok(Self::ApiRequest(Box::new(ApiRequest {
-            merchant_transaction_id: item.attempt_id.clone(),
+            merchant_transaction_id: item.connector_request_reference_id.clone(),
             payment_channel,
             currency: item.request.currency,
             payment_specific_data,
@@ -476,7 +476,7 @@ impl
             .clone()
             .ok_or(errors::ConnectorError::RequestEncodingFailed)?;
         let mut checkout_request = CheckoutRequest {
-            merchant_transaction_id: item.attempt_id.clone(),
+            merchant_transaction_id: item.connector_request_reference_id.clone(),
             specified_payment_channel,
             currency: item.request.currency,
             custom_ipn_url: item.request.get_webhook_url()?,
@@ -655,7 +655,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for ZenPaymentsRequest {
             | api_models::payments::PaymentMethodData::BankDebit(_)
             | api_models::payments::PaymentMethodData::Crypto(_)
             | api_models::payments::PaymentMethodData::MandatePayment
-            | api_models::payments::PaymentMethodData::Reward(_)
+            | api_models::payments::PaymentMethodData::Reward
             | api_models::payments::PaymentMethodData::Upi(_)
             | api_models::payments::PaymentMethodData::CardRedirect(_)
             | api_models::payments::PaymentMethodData::GiftCard(_) => {

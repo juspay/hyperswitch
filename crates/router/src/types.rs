@@ -46,6 +46,10 @@ pub type PaymentsSyncRouterData = RouterData<api::PSync, PaymentsSyncData, Payme
 pub type PaymentsCaptureRouterData =
     RouterData<api::Capture, PaymentsCaptureData, PaymentsResponseData>;
 pub type PaymentsCancelRouterData = RouterData<api::Void, PaymentsCancelData, PaymentsResponseData>;
+pub type PaymentsRejectRouterData =
+    RouterData<api::Reject, PaymentsRejectData, PaymentsResponseData>;
+pub type PaymentsApproveRouterData =
+    RouterData<api::Approve, PaymentsApproveData, PaymentsResponseData>;
 pub type PaymentsSessionRouterData =
     RouterData<api::Session, PaymentsSessionData, PaymentsResponseData>;
 pub type RefundsRouterData<F> = RouterData<F, RefundsData, RefundsResponseData>;
@@ -238,6 +242,10 @@ pub struct RouterData<Flow, Request, Response> {
     pub preprocessing_id: Option<String>,
     /// This is the balance amount for gift cards or voucher
     pub payment_method_balance: Option<PaymentMethodBalance>,
+
+    ///for switching between two different versions of the same connector
+    pub connector_api_version: Option<String>,
+
     /// Contains flow-specific data required to construct a request and send it to the connector.
     pub request: Request,
 
@@ -347,7 +355,7 @@ pub struct AuthorizeSessionTokenData {
     pub amount_to_capture: Option<i64>,
     pub currency: storage_enums::Currency,
     pub connector_transaction_id: String,
-    pub amount: i64,
+    pub amount: Option<i64>,
 }
 
 #[derive(Debug, Clone)]
@@ -363,6 +371,8 @@ pub struct ConnectorCustomerData {
 pub struct PaymentMethodTokenizationData {
     pub payment_method_data: payments::PaymentMethodData,
     pub browser_info: Option<BrowserInformation>,
+    pub currency: storage_enums::Currency,
+    pub amount: Option<i64>,
 }
 
 #[derive(Debug, Clone)]
@@ -432,6 +442,18 @@ pub struct PaymentsCancelData {
     pub connector_meta: Option<serde_json::Value>,
 }
 
+#[derive(Debug, Default, Clone)]
+pub struct PaymentsRejectData {
+    pub amount: Option<i64>,
+    pub currency: Option<storage_enums::Currency>,
+}
+
+#[derive(Debug, Default, Clone)]
+pub struct PaymentsApproveData {
+    pub amount: Option<i64>,
+    pub currency: Option<storage_enums::Currency>,
+}
+
 #[derive(Debug, Clone)]
 pub struct PaymentsSessionData {
     pub amount: i64,
@@ -444,6 +466,7 @@ pub struct PaymentsSessionData {
 pub struct VerifyRequestData {
     pub currency: storage_enums::Currency,
     pub payment_method_data: payments::PaymentMethodData,
+    pub amount: Option<i64>,
     pub confirm: bool,
     pub statement_descriptor_suffix: Option<String>,
     pub mandate_id: Option<api_models::payments::MandateIds>,
@@ -489,6 +512,8 @@ impl Capturable for CompleteAuthorizeData {
 }
 impl Capturable for VerifyRequestData {}
 impl Capturable for PaymentsCancelData {}
+impl Capturable for PaymentsApproveData {}
+impl Capturable for PaymentsRejectData {}
 impl Capturable for PaymentsSessionData {}
 impl Capturable for PaymentsSyncData {}
 
@@ -777,6 +802,9 @@ pub enum ConnectorAuthType {
         api_secret: Secret<String>,
         key2: Secret<String>,
     },
+    CurrencyAuthKey {
+        auth_key_map: HashMap<storage_enums::Currency, pii::SecretSerdeValue>,
+    },
     #[default]
     NoKey,
 }
@@ -867,7 +895,7 @@ impl From<&&mut PaymentsAuthorizeRouterData> for AuthorizeSessionTokenData {
             amount_to_capture: data.amount_captured,
             currency: data.request.currency,
             connector_transaction_id: data.payment_id.clone(),
-            amount: data.request.amount,
+            amount: Some(data.request.amount),
         }
     }
 }
@@ -881,6 +909,40 @@ impl From<&&mut PaymentsAuthorizeRouterData> for ConnectorCustomerData {
             phone: None,
             name: None,
         }
+    }
+}
+
+impl<F> From<&RouterData<F, PaymentsAuthorizeData, PaymentsResponseData>>
+    for PaymentMethodTokenizationData
+{
+    fn from(data: &RouterData<F, PaymentsAuthorizeData, PaymentsResponseData>) -> Self {
+        Self {
+            payment_method_data: data.request.payment_method_data.clone(),
+            browser_info: None,
+            currency: data.request.currency,
+            amount: Some(data.request.amount),
+        }
+    }
+}
+
+pub trait Tokenizable {
+    fn get_pm_data(&self) -> payments::PaymentMethodData;
+    fn set_session_token(&mut self, token: Option<String>);
+}
+
+impl Tokenizable for VerifyRequestData {
+    fn get_pm_data(&self) -> payments::PaymentMethodData {
+        self.payment_method_data.clone()
+    }
+    fn set_session_token(&mut self, _token: Option<String>) {}
+}
+
+impl Tokenizable for PaymentsAuthorizeData {
+    fn get_pm_data(&self) -> payments::PaymentMethodData {
+        self.payment_method_data.clone()
+    }
+    fn set_session_token(&mut self, token: Option<String>) {
+        self.session_token = token;
     }
 }
 
@@ -954,6 +1016,7 @@ impl<F1, F2, T1, T2> From<(&RouterData<F1, T1, PaymentsResponseData>, T2)>
             quote_id: data.quote_id.clone(),
             test_mode: data.test_mode,
             payment_method_balance: data.payment_method_balance.clone(),
+            connector_api_version: data.connector_api_version.clone(),
             connector_http_status_code: data.connector_http_status_code,
         }
     }
@@ -1026,6 +1089,7 @@ impl<F1, F2>
             quote_id: data.quote_id.clone(),
             test_mode: data.test_mode,
             payment_method_balance: None,
+            connector_api_version: None,
             connector_http_status_code: data.connector_http_status_code,
         }
     }

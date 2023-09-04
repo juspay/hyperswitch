@@ -3,7 +3,7 @@ use reqwest::Url;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    connector::utils::CryptoData,
+    connector::utils::{self, CryptoData},
     core::errors,
     services,
     types::{self, api, storage::enums},
@@ -11,7 +11,7 @@ use crate::{
 
 #[derive(Default, Debug, Serialize)]
 pub struct CryptopayPaymentsRequest {
-    price_amount: i64,
+    price_amount: String,
     price_currency: enums::Currency,
     pay_currency: String,
     success_redirect_url: Option<String>,
@@ -25,7 +25,10 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for CryptopayPaymentsRequest {
             api::PaymentMethodData::Crypto(ref cryptodata) => {
                 let pay_currency = cryptodata.get_pay_currency()?;
                 Ok(Self {
-                    price_amount: item.request.amount,
+                    price_amount: utils::to_currency_base_unit(
+                        item.request.amount,
+                        item.request.currency,
+                    )?,
                     price_currency: item.request.currency,
                     pay_currency,
                     success_redirect_url: item.clone().request.router_return_url,

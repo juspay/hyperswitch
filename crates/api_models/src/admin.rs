@@ -9,6 +9,7 @@ use utoipa::ToSchema;
 
 use super::payments::AddressDetails;
 use crate::{
+    enums,
     enums::{self as api_enums},
     payment_methods,
 };
@@ -69,7 +70,7 @@ pub struct MerchantAccountCreate {
 
     /// You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Metadata is useful for storing additional, structured information on an object.
     #[schema(value_type = Option<Object>, example = r#"{ "city": "NY", "unit": "245" }"#)]
-    pub metadata: Option<pii::SecretSerdeValue>,
+    pub metadata: Option<MerchantAccountMetadata>,
 
     /// API key that will be used for server side API access
     #[schema(example = "AH3423bkjbkjdsfbkj")]
@@ -96,6 +97,13 @@ pub struct MerchantAccountCreate {
     pub organization_id: Option<String>,
 }
 
+#[derive(Clone, Debug, Deserialize, Serialize, ToSchema)]
+pub struct MerchantAccountMetadata {
+    pub compatible_connector: Option<api_enums::Connector>,
+
+    #[serde(flatten)]
+    pub data: Option<pii::SecretSerdeValue>,
+}
 #[derive(Clone, Debug, Deserialize, ToSchema)]
 #[serde(deny_unknown_fields)]
 pub struct MerchantAccountUpdate {
@@ -171,6 +179,11 @@ pub struct MerchantAccountUpdate {
     ///Will be used to expire client secret after certain amount of time to be supplied in seconds
     ///(900) for 15 mins
     pub intent_fulfillment_time: Option<u32>,
+
+    /// The default business profile that must be used for creating merchant accounts and payments
+    /// To unset this field, pass an empty string
+    #[schema(max_length = 64)]
+    pub default_profile: Option<String>,
 }
 
 #[derive(Clone, Debug, ToSchema, Serialize)]
@@ -256,6 +269,14 @@ pub struct MerchantAccountResponse {
 
     ///  A boolean value to indicate if the merchant has recon service is enabled or not, by default value is false
     pub is_recon_enabled: bool,
+
+    /// The default business profile that must be used for creating merchant accounts and payments
+    #[schema(max_length = 64)]
+    pub default_profile: Option<String>,
+
+    /// A enum value to indicate the status of recon service. By default it is not_requested.
+    #[schema(value_type = ReconStatus, example = "not_requested")]
+    pub recon_status: enums::ReconStatus,
 }
 
 #[derive(Clone, Debug, Deserialize, ToSchema, Serialize)]
@@ -610,6 +631,9 @@ pub struct MerchantConnectorCreate {
         }
     }))]
     pub connector_webhook_details: Option<MerchantConnectorWebhookDetails>,
+
+    /// Identifier for the business profile, if not provided default will be chosen from merchant account
+    pub profile_id: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
@@ -617,6 +641,8 @@ pub struct MerchantConnectorCreate {
 pub struct MerchantConnectorWebhookDetails {
     #[schema(value_type = String, example = "12345678900987654321")]
     pub merchant_secret: Secret<String>,
+    #[schema(value_type = String, example = "12345678900987654321")]
+    pub additional_secret: Option<Secret<String>>,
 }
 
 /// Response of creating a new Merchant Connector for the merchant account."
@@ -704,6 +730,11 @@ pub struct MerchantConnectorResponse {
         }
     }))]
     pub connector_webhook_details: Option<MerchantConnectorWebhookDetails>,
+
+    /// The business profile this connector must be created in
+    /// default value from merchant account is taken if not passed
+    #[schema(max_length = 64)]
+    pub profile_id: Option<String>,
 }
 
 /// Create a new Merchant Connector for the merchant account. The connector could be a payment processor / facilitator / acquirer or specialized services like Fraud / Accounting etc."
@@ -929,7 +960,7 @@ pub enum PayoutStraightThroughAlgorithm {
     Single(api_enums::PayoutConnectors),
 }
 
-#[derive(Clone, Debug, Deserialize, ToSchema)]
+#[derive(Clone, Debug, Deserialize, ToSchema, Default)]
 #[serde(deny_unknown_fields)]
 pub struct BusinessProfileCreate {
     /// A short name to identify the business profile

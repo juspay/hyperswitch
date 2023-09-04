@@ -9,7 +9,6 @@ use transformers as zen;
 use uuid::Uuid;
 
 use self::transformers::{ZenPaymentStatus, ZenWebhookTxnType};
-use super::utils::RefundsRequestData;
 use crate::{
     configs::settings,
     consts,
@@ -22,7 +21,7 @@ use crate::{
     services::{
         self,
         request::{self, Mask},
-        ConnectorIntegration,
+        ConnectorIntegration, ConnectorValidation,
     },
     types::{
         self,
@@ -128,6 +127,16 @@ impl ConnectorCommon for Zen {
     }
 }
 
+impl ConnectorValidation for Zen {
+    fn validate_psync_reference_id(
+        &self,
+        _data: &types::PaymentsSyncRouterData,
+    ) -> CustomResult<(), errors::ConnectorError> {
+        // since we can make psync call with our reference_id, having connector_transaction_id is not an mandatory criteria
+        Ok(())
+    }
+}
+
 impl ConnectorIntegration<api::Session, types::PaymentsSessionData, types::PaymentsResponseData>
     for Zen
 {
@@ -214,6 +223,7 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         req: &types::PaymentsAuthorizeRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
+        self.validate_capture_method(req.request.capture_method)?;
         Ok(Some(
             services::RequestBuilder::new()
                 .method(services::Method::Post)
@@ -276,15 +286,10 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
         req: &types::PaymentsSyncRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        let payment_id = req
-            .request
-            .connector_transaction_id
-            .get_connector_transaction_id()
-            .change_context(errors::ConnectorError::MissingConnectorTransactionID)?;
-
         Ok(format!(
-            "{}v1/transactions/{payment_id}",
+            "{}v1/transactions/merchant/{}",
             self.base_url(connectors),
+            req.attempt_id,
         ))
     }
 
@@ -466,9 +471,9 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         Ok(format!(
-            "{}v1/transactions/{}",
+            "{}v1/transactions/merchant/{}",
             self.base_url(connectors),
-            req.request.get_connector_refund_id()?
+            req.request.refund_id
         ))
     }
 
@@ -568,7 +573,7 @@ impl api::IncomingWebhook for Zen {
         let algorithm = self.get_webhook_source_verification_algorithm(request)?;
 
         let signature = self.get_webhook_source_verification_signature(request)?;
-        let mut secret = self
+        let mut connector_webhook_secrets = self
             .get_webhook_source_verification_merchant_secret(
                 db,
                 merchant_account,
@@ -580,11 +585,11 @@ impl api::IncomingWebhook for Zen {
         let mut message = self.get_webhook_source_verification_message(
             request,
             &merchant_account.merchant_id,
-            &secret,
+            &connector_webhook_secrets.secret,
         )?;
-        message.append(&mut secret);
+        message.append(&mut connector_webhook_secrets.secret);
         algorithm
-            .verify_signature(&secret, &signature, &message)
+            .verify_signature(&connector_webhook_secrets.secret, &signature, &message)
             .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)
     }
 
@@ -603,7 +608,7 @@ impl api::IncomingWebhook for Zen {
                 ),
             ),
             ZenWebhookTxnType::TrtRefund => api_models::webhooks::ObjectReferenceId::RefundId(
-                api_models::webhooks::RefundIdType::ConnectorRefundId(webhook_body.transaction_id),
+                api_models::webhooks::RefundIdType::RefundId(webhook_body.merchant_transaction_id),
             ),
 
             ZenWebhookTxnType::Unknown => Err(errors::ConnectorError::WebhookReferenceIdNotFound)?,
