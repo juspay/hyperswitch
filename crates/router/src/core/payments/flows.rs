@@ -59,7 +59,7 @@ pub trait Feature<F, T> {
         dyn api::Connector: services::ConnectorIntegration<F, T, types::PaymentsResponseData>;
 
     async fn add_payment_method_token<'a>(
-        &self,
+        &mut self,
         _state: &AppState,
         _connector: &api::ConnectorData,
         _tokenization_action: &payments::TokenizationAction,

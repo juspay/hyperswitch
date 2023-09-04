@@ -566,31 +566,15 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
         data: &types::PaymentsSyncRouterData,
         res: Response,
     ) -> CustomResult<types::PaymentsSyncRouterData, errors::ConnectorError> {
-        match data.payment_method {
-            diesel_models::enums::PaymentMethod::Wallet
-            | diesel_models::enums::PaymentMethod::BankRedirect => {
-                let response: paypal::PaypalOrdersResponse = res
-                    .response
-                    .parse_struct("paypal PaymentsOrderResponse")
-                    .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-                types::RouterData::try_from(types::ResponseRouterData {
-                    response,
-                    data: data.clone(),
-                    http_code: res.status_code,
-                })
-            }
-            _ => {
-                let response: paypal::PaypalPaymentsSyncResponse = res
-                    .response
-                    .parse_struct("paypal PaymentsSyncResponse")
-                    .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-                types::RouterData::try_from(types::ResponseRouterData {
-                    response,
-                    data: data.clone(),
-                    http_code: res.status_code,
-                })
-            }
-        }
+        let response: paypal::PaypalSyncResponse = res
+            .response
+            .parse_struct("paypal SyncResponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        types::RouterData::try_from(types::ResponseRouterData {
+            response,
+            data: data.clone(),
+            http_code: res.status_code,
+        })
     }
 
     fn get_error_response(
@@ -659,6 +643,7 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
                 .headers(types::PaymentsCaptureType::get_headers(
                     self, req, connectors,
                 )?)
+                .body(types::PaymentsCaptureType::get_request_body(self, req)?)
                 .build(),
         ))
     }
@@ -1083,17 +1068,17 @@ impl api::IncomingWebhook for Paypal {
                 paypal::PaypalPaymentsSyncResponse::try_from((*resource, details.event_type))?,
             )
             .into_report()
-            .change_context(errors::ConnectorError::ResponseHandlingFailed)?,
+            .change_context(errors::ConnectorError::WebhookResourceObjectNotFound)?,
             paypal::PaypalResource::PaypalRedirectsWebhooks(resource) => serde_json::to_value(
-                paypal::PaypalRedirectResponse::try_from((*resource, details.event_type))?,
+                paypal::PaypalOrdersResponse::try_from((*resource, details.event_type))?,
             )
             .into_report()
-            .change_context(errors::ConnectorError::ResponseHandlingFailed)?,
+            .change_context(errors::ConnectorError::WebhookResourceObjectNotFound)?,
             paypal::PaypalResource::PaypalRefundWebhooks(resource) => serde_json::to_value(
                 paypal::RefundSyncResponse::try_from((*resource, details.event_type))?,
             )
             .into_report()
-            .change_context(errors::ConnectorError::ResponseHandlingFailed)?,
+            .change_context(errors::ConnectorError::WebhookResourceObjectNotFound)?,
         };
         Ok(sync_payload)
     }

@@ -388,8 +388,8 @@ pub struct PaymentsCollection {
 
 #[derive(Default, Debug, Clone, Serialize, Deserialize)]
 pub struct PurchaseUnitItem {
-    reference_id: String,
-    payments: PaymentsCollection,
+    pub reference_id: String,
+    pub payments: PaymentsCollection,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -412,6 +412,14 @@ pub struct PaypalRedirectResponse {
     intent: PaypalPaymentIntent,
     status: PaypalOrderStatus,
     links: Vec<PaypalLinks>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(untagged)]
+pub enum PaypalSyncResponse {
+    PaypalOrdersSyncResponse(PaypalOrdersResponse),
+    PaypalRedirectSyncResponse(PaypalRedirectResponse),
+    PaypalPaymentsSyncResponse(PaypalPaymentsSyncResponse),
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -537,6 +545,39 @@ fn get_redirect_url(
         }
     }
     Ok(link)
+}
+
+impl<F, T> TryFrom<types::ResponseRouterData<F, PaypalSyncResponse, T, types::PaymentsResponseData>>
+    for types::RouterData<F, T, types::PaymentsResponseData>
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        item: types::ResponseRouterData<F, PaypalSyncResponse, T, types::PaymentsResponseData>,
+    ) -> Result<Self, Self::Error> {
+        match item.response {
+            PaypalSyncResponse::PaypalOrdersSyncResponse(response) => {
+                Self::try_from(types::ResponseRouterData {
+                    response,
+                    data: item.data,
+                    http_code: item.http_code,
+                })
+            }
+            PaypalSyncResponse::PaypalRedirectSyncResponse(response) => {
+                Self::try_from(types::ResponseRouterData {
+                    response,
+                    data: item.data,
+                    http_code: item.http_code,
+                })
+            }
+            PaypalSyncResponse::PaypalPaymentsSyncResponse(response) => {
+                Self::try_from(types::ResponseRouterData {
+                    response,
+                    data: item.data,
+                    http_code: item.http_code,
+                })
+            }
+        }
+    }
 }
 
 impl<F, T>
@@ -929,7 +970,7 @@ pub struct PaypalCardWebhooks {
 
 #[derive(Deserialize, Debug, Serialize)]
 pub struct PaypalRedirectsWebhooks {
-    pub purchase_units: Vec<PaypalWebhooksPurchaseUnits>,
+    pub purchase_units: Vec<PurchaseUnitItem>,
     pub links: Vec<PaypalLinks>,
     pub id: String,
     pub intent: PaypalPaymentIntent,
@@ -1036,9 +1077,9 @@ impl From<PaypalSourceVerificationStatus> for types::VerifyWebhookStatus {
 
 impl TryFrom<(PaypalCardWebhooks, PaypalWebhookEventType)> for PaypalPaymentsSyncResponse {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(items: (PaypalCardWebhooks, PaypalWebhookEventType)) -> Result<Self, Self::Error> {
-        let webhook_event = items.1;
-        let webhook_body = items.0;
+    fn try_from(
+        (webhook_body, webhook_event): (PaypalCardWebhooks, PaypalWebhookEventType),
+    ) -> Result<Self, Self::Error> {
         Ok(Self {
             id: webhook_body.supplementary_data.related_ids.order_id.clone(),
             status: PaypalPaymentStatus::from(webhook_event),
@@ -1048,18 +1089,16 @@ impl TryFrom<(PaypalCardWebhooks, PaypalWebhookEventType)> for PaypalPaymentsSyn
     }
 }
 
-impl TryFrom<(PaypalRedirectsWebhooks, PaypalWebhookEventType)> for PaypalRedirectResponse {
+impl TryFrom<(PaypalRedirectsWebhooks, PaypalWebhookEventType)> for PaypalOrdersResponse {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: (PaypalRedirectsWebhooks, PaypalWebhookEventType),
+        (webhook_body, webhook_event): (PaypalRedirectsWebhooks, PaypalWebhookEventType),
     ) -> Result<Self, Self::Error> {
-        let webhook_event = item.1;
-        let webhook_body = item.0;
         Ok(Self {
             id: webhook_body.id,
             intent: webhook_body.intent,
             status: PaypalOrderStatus::try_from(webhook_event)?,
-            links: webhook_body.links,
+            purchase_units: webhook_body.purchase_units,
         })
     }
 }
@@ -1067,11 +1106,11 @@ impl TryFrom<(PaypalRedirectsWebhooks, PaypalWebhookEventType)> for PaypalRedire
 impl TryFrom<(PaypalRefundWebhooks, PaypalWebhookEventType)> for RefundSyncResponse {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        items: (PaypalRefundWebhooks, PaypalWebhookEventType),
+        (webhook_body, webhook_event): (PaypalRefundWebhooks, PaypalWebhookEventType),
     ) -> Result<Self, Self::Error> {
         Ok(Self {
-            id: items.0.id,
-            status: RefundStatus::try_from(items.1)?,
+            id: webhook_body.id,
+            status: RefundStatus::try_from(webhook_event)?,
         })
     }
 }
