@@ -9,9 +9,8 @@ pub mod types;
 
 use std::{fmt::Debug, marker::PhantomData, ops::Deref, time::Instant};
 
-use api_models::payments::FrmMessage;
 use common_utils::{ext_traits::AsyncExt, pii};
-use diesel_models::ephemeral_key;
+use diesel_models::{ephemeral_key, fraud_check::FraudCheck};
 use error_stack::{IntoReport, ResultExt};
 use futures::future::join_all;
 use masking::Secret;
@@ -19,8 +18,9 @@ use router_env::{instrument, tracing};
 use time;
 
 pub use self::operations::{
-    PaymentCancel, PaymentCapture, PaymentConfirm, PaymentCreate, PaymentMethodValidate,
-    PaymentResponse, PaymentSession, PaymentStatus, PaymentUpdate,
+    PaymentApprove, PaymentCancel, PaymentCapture, PaymentConfirm, PaymentCreate,
+    PaymentMethodValidate, PaymentReject, PaymentResponse, PaymentSession, PaymentStatus,
+    PaymentUpdate,
 };
 use self::{
     flows::{ConstructFlowSpecificData, Feature},
@@ -42,8 +42,6 @@ use crate::{
     utils::{add_connector_http_status_code_metrics, Encode, OptionExt, ValueExt},
 };
 
-#[cfg(feature = "olap")]
-const PAYMENTS_LIST_MAX_LIMIT: u32 = 20;
 #[instrument(skip_all, fields(payment_id, merchant_id))]
 pub async fn payments_operation_core<F, Req, Op, FData>(
     state: &AppState,
@@ -1152,7 +1150,7 @@ where
     pub recurring_mandate_payment_data: Option<RecurringMandatePaymentData>,
     pub ephemeral_key: Option<ephemeral_key::EphemeralKey>,
     pub redirect_response: Option<api_models::payments::RedirectResponse>,
-    pub frm_message: Option<FrmMessage>,
+    pub frm_message: Option<FraudCheck>,
 }
 
 #[derive(Debug, Default, Clone)]
@@ -1245,6 +1243,7 @@ pub fn should_call_connector<Op: Debug, F: Clone>(
             )
         }
         "CompleteAuthorize" => true,
+        "PaymentApprove" => true,
         "PaymentSession" => true,
         _ => false,
     }
@@ -1330,9 +1329,9 @@ pub async fn apply_filters_on_payments(
 
     use crate::types::transformers::ForeignFrom;
 
-    let limit = &constraints.limit.unwrap_or(PAYMENTS_LIST_MAX_LIMIT);
+    let limit = &constraints.limit;
 
-    helpers::validate_payment_list_request_for_joins(*limit, PAYMENTS_LIST_MAX_LIMIT)?;
+    helpers::validate_payment_list_request_for_joins(*limit)?;
     let list: Vec<(storage::PaymentIntent, storage::PaymentAttempt)> = db
         .get_filtered_payment_intents_attempt(
             &merchant.merchant_id,
