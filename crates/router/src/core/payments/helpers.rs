@@ -2233,6 +2233,7 @@ mod tests {
             feature_metadata: None,
             attempt_count: 1,
             profile_id: None,
+            merchant_decision: None,
         };
         let req_cs = Some("1".to_string());
         let merchant_fulfillment_time = Some(900);
@@ -2278,6 +2279,7 @@ mod tests {
             feature_metadata: None,
             attempt_count: 1,
             profile_id: None,
+            merchant_decision: None,
         };
         let req_cs = Some("1".to_string());
         let merchant_fulfillment_time = Some(10);
@@ -2323,6 +2325,7 @@ mod tests {
             feature_metadata: None,
             attempt_count: 1,
             profile_id: None,
+            merchant_decision: None,
         };
         let req_cs = Some("1".to_string());
         let merchant_fulfillment_time = Some(10);

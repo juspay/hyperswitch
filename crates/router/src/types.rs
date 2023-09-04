@@ -46,6 +46,10 @@ pub type PaymentsSyncRouterData = RouterData<api::PSync, PaymentsSyncData, Payme
 pub type PaymentsCaptureRouterData =
     RouterData<api::Capture, PaymentsCaptureData, PaymentsResponseData>;
 pub type PaymentsCancelRouterData = RouterData<api::Void, PaymentsCancelData, PaymentsResponseData>;
+pub type PaymentsRejectRouterData =
+    RouterData<api::Reject, PaymentsRejectData, PaymentsResponseData>;
+pub type PaymentsApproveRouterData =
+    RouterData<api::Approve, PaymentsApproveData, PaymentsResponseData>;
 pub type PaymentsSessionRouterData =
     RouterData<api::Session, PaymentsSessionData, PaymentsResponseData>;
 pub type RefundsRouterData<F> = RouterData<F, RefundsData, RefundsResponseData>;
@@ -438,6 +442,18 @@ pub struct PaymentsCancelData {
     pub connector_meta: Option<serde_json::Value>,
 }
 
+#[derive(Debug, Default, Clone)]
+pub struct PaymentsRejectData {
+    pub amount: Option<i64>,
+    pub currency: Option<storage_enums::Currency>,
+}
+
+#[derive(Debug, Default, Clone)]
+pub struct PaymentsApproveData {
+    pub amount: Option<i64>,
+    pub currency: Option<storage_enums::Currency>,
+}
+
 #[derive(Debug, Clone)]
 pub struct PaymentsSessionData {
     pub amount: i64,
@@ -496,6 +512,8 @@ impl Capturable for CompleteAuthorizeData {
 }
 impl Capturable for VerifyRequestData {}
 impl Capturable for PaymentsCancelData {}
+impl Capturable for PaymentsApproveData {}
+impl Capturable for PaymentsRejectData {}
 impl Capturable for PaymentsSessionData {}
 impl Capturable for PaymentsSyncData {}
 

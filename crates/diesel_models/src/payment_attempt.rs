@@ -153,10 +153,17 @@ pub enum PaymentAttemptUpdate {
         payment_experience: Option<storage_enums::PaymentExperience>,
         business_sub_label: Option<String>,
         straight_through_algorithm: Option<serde_json::Value>,
+        error_code: Option<Option<String>>,
+        error_message: Option<Option<String>>,
     },
     VoidUpdate {
         status: storage_enums::AttemptStatus,
         cancellation_reason: Option<String>,
+    },
+    RejectUpdate {
+        status: storage_enums::AttemptStatus,
+        error_code: Option<Option<String>>,
+        error_message: Option<Option<String>>,
     },
     ResponseUpdate {
         status: storage_enums::AttemptStatus,
@@ -321,6 +328,8 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 payment_experience,
                 business_sub_label,
                 straight_through_algorithm,
+                error_code,
+                error_message,
             } => Self {
                 amount: Some(amount),
                 currency: Some(currency),
@@ -336,6 +345,8 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 payment_experience,
                 business_sub_label,
                 straight_through_algorithm,
+                error_code,
+                error_message,
                 ..Default::default()
             },
             PaymentAttemptUpdate::VoidUpdate {
@@ -344,6 +355,16 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
             } => Self {
                 status: Some(status),
                 cancellation_reason,
+                ..Default::default()
+            },
+            PaymentAttemptUpdate::RejectUpdate {
+                status,
+                error_code,
+                error_message,
+            } => Self {
+                status: Some(status),
+                error_code,
+                error_message,
                 ..Default::default()
             },
             PaymentAttemptUpdate::ResponseUpdate {
