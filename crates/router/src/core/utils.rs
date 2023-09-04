@@ -205,22 +205,23 @@ pub async fn construct_refund_router_data<'a, F>(
     refund: &'a storage::Refund,
     creds_identifier: Option<String>,
 ) -> RouterResult<types::RefundsRouterData<F>> {
-    let profile_id = payment_intent
-        .profile_id
-        .as_ref()
-        .ok_or(errors::ApiErrorResponse::MissingRequiredField {
-            field_name: "business_profile",
-        })
-        .into_report()
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("profile_id is not set in payment_intent")?;
+    let profile_id = get_profile_id_from_business_details(
+        payment_intent.business_country,
+        payment_intent.business_label.as_ref(),
+        merchant_account,
+        payment_intent.profile_id.as_ref(),
+        &*state.store,
+    )
+    .await
+    .change_context(errors::ApiErrorResponse::InternalServerError)
+    .attach_printable("profile_id is not set in payment_intent")?;
 
     let merchant_connector_account = helpers::get_merchant_connector_account(
         state,
         merchant_account.merchant_id.as_str(),
         creds_identifier,
         key_store,
-        profile_id,
+        &profile_id,
         connector_id,
     )
     .await?;
@@ -477,22 +478,23 @@ pub async fn construct_accept_dispute_router_data<'a>(
     key_store: &domain::MerchantKeyStore,
     dispute: &storage::Dispute,
 ) -> RouterResult<types::AcceptDisputeRouterData> {
-    let profile_id = payment_intent
-        .profile_id
-        .as_ref()
-        .ok_or(errors::ApiErrorResponse::MissingRequiredField {
-            field_name: "profile_id",
-        })
-        .into_report()
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("profile_id is not set in payment_intent")?;
+    let profile_id = get_profile_id_from_business_details(
+        payment_intent.business_country,
+        payment_intent.business_label.as_ref(),
+        merchant_account,
+        payment_intent.profile_id.as_ref(),
+        &*state.store,
+    )
+    .await
+    .change_context(errors::ApiErrorResponse::InternalServerError)
+    .attach_printable("profile_id is not set in payment_intent")?;
 
     let merchant_connector_account = helpers::get_merchant_connector_account(
         state,
         merchant_account.merchant_id.as_str(),
         None,
         key_store,
-        profile_id,
+        &profile_id,
         &dispute.connector,
     )
     .await?;
@@ -562,22 +564,23 @@ pub async fn construct_submit_evidence_router_data<'a>(
     submit_evidence_request_data: types::SubmitEvidenceRequestData,
 ) -> RouterResult<types::SubmitEvidenceRouterData> {
     let connector_id = &dispute.connector;
-    let profile_id = payment_intent
-        .profile_id
-        .as_ref()
-        .ok_or(errors::ApiErrorResponse::MissingRequiredField {
-            field_name: "profile_id",
-        })
-        .into_report()
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("profile_id is not set in payment_intent")?;
+    let profile_id = get_profile_id_from_business_details(
+        payment_intent.business_country,
+        payment_intent.business_label.as_ref(),
+        merchant_account,
+        payment_intent.profile_id.as_ref(),
+        &*state.store,
+    )
+    .await
+    .change_context(errors::ApiErrorResponse::InternalServerError)
+    .attach_printable("profile_id is not set in payment_intent")?;
 
     let merchant_connector_account = helpers::get_merchant_connector_account(
         state,
         merchant_account.merchant_id.as_str(),
         None,
         key_store,
-        profile_id,
+        &profile_id,
         connector_id,
     )
     .await?;
@@ -645,22 +648,23 @@ pub async fn construct_upload_file_router_data<'a>(
     connector_id: &str,
     file_key: String,
 ) -> RouterResult<types::UploadFileRouterData> {
-    let profile_id = payment_intent
-        .profile_id
-        .as_ref()
-        .ok_or(errors::ApiErrorResponse::MissingRequiredField {
-            field_name: "profile_id",
-        })
-        .into_report()
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("profile_id is not set in payment_intent")?;
+    let profile_id = get_profile_id_from_business_details(
+        payment_intent.business_country,
+        payment_intent.business_label.as_ref(),
+        merchant_account,
+        payment_intent.profile_id.as_ref(),
+        &*state.store,
+    )
+    .await
+    .change_context(errors::ApiErrorResponse::InternalServerError)
+    .attach_printable("profile_id is not set in payment_intent")?;
 
     let merchant_connector_account = helpers::get_merchant_connector_account(
         state,
         merchant_account.merchant_id.as_str(),
         None,
         key_store,
-        profile_id,
+        &profile_id,
         connector_id,
     )
     .await?;
@@ -731,22 +735,23 @@ pub async fn construct_defend_dispute_router_data<'a>(
 ) -> RouterResult<types::DefendDisputeRouterData> {
     let _db = &*state.store;
     let connector_id = &dispute.connector;
-    let profile_id = payment_intent
-        .profile_id
-        .as_ref()
-        .ok_or(errors::ApiErrorResponse::MissingRequiredField {
-            field_name: "profile_id",
-        })
-        .into_report()
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("profile_id is not set in payment_intent")?;
+    let profile_id = get_profile_id_from_business_details(
+        payment_intent.business_country,
+        payment_intent.business_label.as_ref(),
+        merchant_account,
+        payment_intent.profile_id.as_ref(),
+        &*state.store,
+    )
+    .await
+    .change_context(errors::ApiErrorResponse::InternalServerError)
+    .attach_printable("profile_id is not set in payment_intent")?;
 
     let merchant_connector_account = helpers::get_merchant_connector_account(
         state,
         merchant_account.merchant_id.as_str(),
         None,
         key_store,
-        profile_id,
+        &profile_id,
         connector_id,
     )
     .await?;

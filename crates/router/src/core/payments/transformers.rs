@@ -43,23 +43,23 @@ where
 {
     let (merchant_connector_account, payment_method, router_data);
 
-    let profile_id = payment_data
-        .payment_intent
-        .profile_id
-        .as_ref()
-        .ok_or(errors::ApiErrorResponse::MissingRequiredField {
-            field_name: "business_profile",
-        })
-        .into_report()
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("profile_id is not set in payment_intent")?;
+    let profile_id = core_utils::get_profile_id_from_business_details(
+        payment_data.payment_intent.business_country,
+        payment_data.payment_intent.business_label.as_ref(),
+        merchant_account,
+        payment_data.payment_intent.profile_id.as_ref(),
+        &*state.store,
+    )
+    .await
+    .change_context(errors::ApiErrorResponse::InternalServerError)
+    .attach_printable("profile_id is not set in payment_intent")?;
 
     merchant_connector_account = helpers::get_merchant_connector_account(
         state,
         merchant_account.merchant_id.as_str(),
         payment_data.creds_identifier.to_owned(),
         key_store,
-        profile_id,
+        &profile_id,
         connector_id,
     )
     .await?;
