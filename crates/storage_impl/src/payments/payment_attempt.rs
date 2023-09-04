@@ -256,16 +256,12 @@ impl<T: DatabaseStore> PaymentAttemptInterface for RouterStore<T> {
             .await
             .into_report()
             .change_context(errors::StorageError::DatabaseConnectionError)?;
-        let connector_strings = if let Some(connector_vec) = &connector {
-            Some(
-                connector_vec
-                    .iter()
-                    .map(|c| c.to_string())
-                    .collect::<Vec<String>>(),
-            )
-        } else {
-            None
-        };
+        let connector_strings = connector.as_ref().map(|connector| {
+            connector
+                .iter()
+                .map(|c| c.to_string())
+                .collect::<Vec<String>>()
+        });
         DieselPaymentAttempt::get_total_count_of_attempts(
             &conn,
             merchant_id,
@@ -1112,6 +1108,8 @@ impl DataModelExt for PaymentAttemptUpdate {
                 payment_experience,
                 business_sub_label,
                 straight_through_algorithm,
+                error_code,
+                error_message,
             } => DieselPaymentAttemptUpdate::ConfirmUpdate {
                 amount,
                 currency,
@@ -1126,6 +1124,8 @@ impl DataModelExt for PaymentAttemptUpdate {
                 payment_experience,
                 business_sub_label,
                 straight_through_algorithm,
+                error_code,
+                error_message,
             },
             Self::VoidUpdate {
                 status,
@@ -1214,6 +1214,15 @@ impl DataModelExt for PaymentAttemptUpdate {
                 connector_transaction_id,
                 connector_response_reference_id,
             },
+            Self::RejectUpdate {
+                status,
+                error_code,
+                error_message,
+            } => DieselPaymentAttemptUpdate::RejectUpdate {
+                status,
+                error_code,
+                error_message,
+            },
         }
     }
 
@@ -1274,6 +1283,8 @@ impl DataModelExt for PaymentAttemptUpdate {
                 payment_experience,
                 business_sub_label,
                 straight_through_algorithm,
+                error_code,
+                error_message,
             } => Self::ConfirmUpdate {
                 amount,
                 currency,
@@ -1288,6 +1299,8 @@ impl DataModelExt for PaymentAttemptUpdate {
                 payment_experience,
                 business_sub_label,
                 straight_through_algorithm,
+                error_code,
+                error_message,
             },
             DieselPaymentAttemptUpdate::VoidUpdate {
                 status,
@@ -1375,6 +1388,15 @@ impl DataModelExt for PaymentAttemptUpdate {
                 preprocessing_step_id,
                 connector_transaction_id,
                 connector_response_reference_id,
+            },
+            DieselPaymentAttemptUpdate::RejectUpdate {
+                status,
+                error_code,
+                error_message,
+            } => Self::RejectUpdate {
+                status,
+                error_code,
+                error_message,
             },
         }
     }

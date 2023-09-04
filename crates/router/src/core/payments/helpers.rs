@@ -277,16 +277,53 @@ pub async fn get_token_pm_type_mandate_details(
     Option<String>,
     Option<storage_enums::PaymentMethod>,
     Option<storage_enums::PaymentMethodType>,
-    Option<api::MandateData>,
+    Option<MandateData>,
     Option<payments::RecurringMandatePaymentData>,
     Option<String>,
 )> {
+    let mandate_data = request.mandate_data.clone().map(|d| MandateData {
+        customer_acceptance: d.customer_acceptance.map(|d| {
+            data_models::mandates::CustomerAcceptance {
+                acceptance_type: match d.acceptance_type {
+                    api::AcceptanceType::Online => data_models::mandates::AcceptanceType::Online,
+                    api::AcceptanceType::Offline => data_models::mandates::AcceptanceType::Offline,
+                },
+                accepted_at: d.accepted_at,
+                online: d.online.map(|d| data_models::mandates::OnlineMandate {
+                    ip_address: d.ip_address,
+                    user_agent: d.user_agent,
+                }),
+            }
+        }),
+        mandate_type: d.mandate_type.map(|d| match d {
+            api::MandateType::MultiUse(Some(i)) => {
+                data_models::mandates::MandateDataType::MultiUse(Some(
+                    data_models::mandates::MandateAmountData {
+                        amount: i.amount,
+                        currency: i.currency,
+                        start_date: i.start_date,
+                        end_date: i.end_date,
+                        metadata: i.metadata,
+                    },
+                ))
+            }
+            api::MandateType::SingleUse(i) => data_models::mandates::MandateDataType::SingleUse(
+                data_models::mandates::MandateAmountData {
+                    amount: i.amount,
+                    currency: i.currency,
+                    start_date: i.start_date,
+                    end_date: i.end_date,
+                    metadata: i.metadata,
+                },
+            ),
+            api_models::payments::MandateType::MultiUse(None) => {
+                data_models::mandates::MandateDataType::MultiUse(None)
+            }
+        }),
+    });
     match mandate_type {
         Some(api::MandateTransactionType::NewMandateTransaction) => {
-            let setup_mandate = request
-                .mandate_data
-                .clone()
-                .get_required_value("mandate_data")?;
+            let setup_mandate = mandate_data.clone().get_required_value("mandate_data")?;
             Ok((
                 request.payment_token.to_owned(),
                 request.payment_method,
@@ -317,7 +354,7 @@ pub async fn get_token_pm_type_mandate_details(
             request.payment_token.to_owned(),
             request.payment_method,
             request.payment_method_type,
-            request.mandate_data.clone(),
+            mandate_data,
             None,
             None,
         )),
@@ -1205,7 +1242,9 @@ pub async fn make_pm_data<'a, F: Clone, R>(
                     .change_context(errors::ApiErrorResponse::InternalServerError)
                     .attach_printable("Failed to fetch the token from redis")?
                     .ok_or(error_stack::Report::new(
-                        errors::ApiErrorResponse::UnprocessableEntity { entity: token },
+                        errors::ApiErrorResponse::UnprocessableEntity {
+                            message: "Token is invalid or expired".to_owned(),
+                        },
                     ))?;
 
                 Some(key)
@@ -1644,10 +1683,7 @@ pub fn validate_payment_method_type_against_payment_method(
     }
 }
 
-pub fn check_force_psync_precondition(
-    status: &storage_enums::AttemptStatus,
-    connector_transaction_id: &Option<String>,
-) -> bool {
+pub fn check_force_psync_precondition(status: &storage_enums::AttemptStatus) -> bool {
     !matches!(
         status,
         storage_enums::AttemptStatus::Charged
@@ -1656,7 +1692,7 @@ pub fn check_force_psync_precondition(
             | storage_enums::AttemptStatus::CodInitiated
             | storage_enums::AttemptStatus::Started
             | storage_enums::AttemptStatus::Failure
-    ) && connector_transaction_id.is_some()
+    )
 }
 
 pub fn append_option<T, U, F, V>(func: F, option1: Option<T>, option2: Option<U>) -> Option<V>
@@ -1687,21 +1723,33 @@ pub(super) async fn filter_by_constraints(
 pub(super) fn validate_payment_list_request(
     req: &api::PaymentListConstraints,
 ) -> CustomResult<(), errors::ApiErrorResponse> {
-    utils::when(req.limit > 100 || req.limit < 1, || {
-        Err(errors::ApiErrorResponse::InvalidRequestData {
-            message: "limit should be in between 1 and 100".to_string(),
-        })
-    })?;
+    use common_utils::consts::PAYMENTS_LIST_MAX_LIMIT_V1;
+
+    utils::when(
+        req.limit > PAYMENTS_LIST_MAX_LIMIT_V1 || req.limit < 1,
+        || {
+            Err(errors::ApiErrorResponse::InvalidRequestData {
+                message: format!(
+                    "limit should be in between 1 and {}",
+                    PAYMENTS_LIST_MAX_LIMIT_V1
+                ),
+            })
+        },
+    )?;
     Ok(())
 }
 #[cfg(feature = "olap")]
 pub(super) fn validate_payment_list_request_for_joins(
     limit: u32,
-    max_limit: u32,
 ) -> CustomResult<(), errors::ApiErrorResponse> {
-    utils::when(limit > max_limit || limit < 1, || {
+    use common_utils::consts::PAYMENTS_LIST_MAX_LIMIT_V2;
+
+    utils::when(!(1..=PAYMENTS_LIST_MAX_LIMIT_V2).contains(&limit), || {
         Err(errors::ApiErrorResponse::InvalidRequestData {
-            message: format!("limit should be in between 1 and {}", max_limit),
+            message: format!(
+                "limit should be in between 1 and {}",
+                PAYMENTS_LIST_MAX_LIMIT_V2
+            ),
         })
     })?;
     Ok(())
@@ -2225,6 +2273,7 @@ mod tests {
             feature_metadata: None,
             attempt_count: 1,
             profile_id: None,
+            merchant_decision: None,
         };
         let req_cs = Some("1".to_string());
         let merchant_fulfillment_time = Some(900);
@@ -2270,6 +2319,7 @@ mod tests {
             feature_metadata: None,
             attempt_count: 1,
             profile_id: None,
+            merchant_decision: None,
         };
         let req_cs = Some("1".to_string());
         let merchant_fulfillment_time = Some(10);
@@ -2315,6 +2365,7 @@ mod tests {
             feature_metadata: None,
             attempt_count: 1,
             profile_id: None,
+            merchant_decision: None,
         };
         let req_cs = Some("1".to_string());
         let merchant_fulfillment_time = Some(10);
@@ -2430,7 +2481,7 @@ pub async fn get_merchant_connector_account(
             let decrypted_mca = services::decrypt_jwe(mca_config.config.as_str(), services::KeyIdCheck::SkipKeyIdCheck, private_key, jwe::RSA_OAEP_256)
                                      .await
                                      .change_context(errors::ApiErrorResponse::UnprocessableEntity{
-                                        entity: "merchant_connector_details".to_string()})
+                                        message: "decoding merchant_connector_details failed due to invalid data format!".into()})
                                      .attach_printable(
                                         "Failed to decrypt merchant_connector_details sent in request and then put in cache",
                                     )?;

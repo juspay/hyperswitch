@@ -4,12 +4,12 @@ pub use api_models::payments::{
     MandateType, MandateValidationFields, NextActionType, OnlineMandate, PayLaterData,
     PaymentIdType, PaymentListConstraints, PaymentListFilterConstraints, PaymentListFilters,
     PaymentListResponse, PaymentListResponseV2, PaymentMethodData, PaymentMethodDataResponse,
-    PaymentOp, PaymentRetrieveBody, PaymentRetrieveBodyWithCredentials, PaymentsCancelRequest,
-    PaymentsCaptureRequest, PaymentsRedirectRequest, PaymentsRedirectionResponse, PaymentsRequest,
-    PaymentsResponse, PaymentsResponseForm, PaymentsRetrieveRequest, PaymentsSessionRequest,
-    PaymentsSessionResponse, PaymentsStartRequest, PgRedirectResponse, PhoneDetails,
-    RedirectionResponse, SessionToken, TimeRange, UrlDetails, VerifyRequest, VerifyResponse,
-    WalletData,
+    PaymentOp, PaymentRetrieveBody, PaymentRetrieveBodyWithCredentials, PaymentsApproveRequest,
+    PaymentsCancelRequest, PaymentsCaptureRequest, PaymentsRedirectRequest,
+    PaymentsRedirectionResponse, PaymentsRejectRequest, PaymentsRequest, PaymentsResponse,
+    PaymentsResponseForm, PaymentsRetrieveRequest, PaymentsSessionRequest, PaymentsSessionResponse,
+    PaymentsStartRequest, PgRedirectResponse, PhoneDetails, RedirectionResponse, SessionToken,
+    TimeRange, UrlDetails, VerifyRequest, VerifyResponse, WalletData,
 };
 use error_stack::{IntoReport, ResultExt};
 
@@ -45,6 +45,9 @@ pub struct AuthorizeSessionToken;
 #[derive(Debug, Clone)]
 pub struct CompleteAuthorize;
 
+#[derive(Debug, Clone)]
+pub struct Approve;
+
 // Used in gift cards balance check
 #[derive(Debug, Clone)]
 pub struct Balance;
@@ -59,6 +62,9 @@ pub struct Capture;
 pub struct PSync;
 #[derive(Debug, Clone)]
 pub struct Void;
+
+#[derive(Debug, Clone)]
+pub struct Reject;
 
 #[derive(Debug, Clone)]
 pub struct Session;
@@ -133,6 +139,16 @@ pub trait PaymentVoid:
 {
 }
 
+pub trait PaymentApprove:
+    api::ConnectorIntegration<Approve, types::PaymentsApproveData, types::PaymentsResponseData>
+{
+}
+
+pub trait PaymentReject:
+    api::ConnectorIntegration<Reject, types::PaymentsRejectData, types::PaymentsResponseData>
+{
+}
+
 pub trait PaymentCapture:
     api::ConnectorIntegration<Capture, types::PaymentsCaptureData, types::PaymentsResponseData>
 {
@@ -186,11 +202,14 @@ pub trait PaymentsPreProcessing:
 
 pub trait Payment:
     api_types::ConnectorCommon
+    + api_types::ConnectorValidation
     + PaymentAuthorize
     + PaymentsCompleteAuthorize
     + PaymentSync
     + PaymentCapture
     + PaymentVoid
+    + PaymentApprove
+    + PaymentReject
     + PreVerify
     + PaymentSession
     + PaymentToken

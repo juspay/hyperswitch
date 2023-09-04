@@ -4005,6 +4005,7 @@ dependencies = [
  "futures",
  "hex",
  "http",
+ "hyper",
  "image",
  "infer 0.13.0",
  "josekit",

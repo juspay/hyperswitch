@@ -1,6 +1,6 @@
 use std::marker::PhantomData;
 
-use api_models::enums::CancelTransaction;
+use api_models::enums::FrmSuggestion;
 use async_trait::async_trait;
 use common_utils::ext_traits::AsyncExt;
 use error_stack::ResultExt;
@@ -123,7 +123,7 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
         _storage_scheme: enums::MerchantStorageScheme,
         _updated_customer: Option<storage::CustomerUpdate>,
         _key_store: &domain::MerchantKeyStore,
-        _should_cancel_transaction: Option<CancelTransaction>,
+        _frm_suggestion: Option<FrmSuggestion>,
     ) -> RouterResult<(BoxedOperation<'b, F, api::PaymentsRequest>, PaymentData<F>)>
     where
         F: 'b + Send,
@@ -142,7 +142,7 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRetrieveRequest> fo
         _storage_scheme: enums::MerchantStorageScheme,
         _updated_customer: Option<storage::CustomerUpdate>,
         _key_store: &domain::MerchantKeyStore,
-        _should_cancel_transaction: Option<CancelTransaction>,
+        _frm_suggestion: Option<FrmSuggestion>,
     ) -> RouterResult<(
         BoxedOperation<'b, F, api::PaymentsRetrieveRequest>,
         PaymentData<F>,
@@ -313,25 +313,6 @@ async fn get_tracker_for_sync<
             format!("Error while retrieving frm_response, merchant_id: {}, payment_id: {payment_id_str}", &merchant_account.merchant_id)
         });
 
-    let frm_message = match frm_response.ok() {
-        Some(response) => {
-            if response.frm_status.to_string() == "pending" {
-                None
-            } else {
-                Some(api_models::payments::FrmMessage {
-                    frm_name: response.frm_name,
-                    frm_transaction_id: response.frm_transaction_id,
-                    frm_transaction_type: Some(response.frm_transaction_type.to_string()),
-                    frm_status: Some(response.frm_status.to_string()),
-                    frm_score: response.frm_score,
-                    frm_reason: response.frm_reason,
-                    frm_error: response.frm_error,
-                })
-            }
-        }
-        None => None,
-    };
-
     let contains_encoded_data = connector_response.encoded_data.is_some();
 
     let creds_identifier = request
@@ -377,10 +358,8 @@ async fn get_tracker_for_sync<
             payment_method_data: None,
             force_sync: Some(
                 request.force_sync
-                    && (helpers::check_force_psync_precondition(
-                        &payment_attempt.status,
-                        &payment_attempt.connector_transaction_id,
-                    ) || contains_encoded_data),
+                    && (helpers::check_force_psync_precondition(&payment_attempt.status)
+                        || contains_encoded_data),
             ),
             payment_attempt,
             refunds,
@@ -395,7 +374,7 @@ async fn get_tracker_for_sync<
             ephemeral_key: None,
             multiple_capture_data,
             redirect_response: None,
-            frm_message,
+            frm_message: frm_response.ok(),
         },
         None,
     ))

@@ -197,6 +197,7 @@ pub async fn add_card_to_locker(
                 })
         },
         &metrics::CARD_ADD_TIME,
+        &[],
     )
     .await
 }
@@ -221,6 +222,7 @@ pub async fn get_card_from_locker(
                 })
         },
         &metrics::CARD_GET_TIME,
+        &[],
     )
     .await
 }
@@ -243,6 +245,7 @@ pub async fn delete_card_from_locker(
                 })
         },
         &metrics::CARD_DELETE_TIME,
+        &[],
     )
     .await
 }
@@ -1879,11 +1882,7 @@ pub async fn list_customer_payment_method(
                         consts::TOKEN_TTL - time_elapsed.whole_seconds(),
                     )
                     .await
-                    .map_err(|error| {
-                        logger::error!(connector_payment_method_token_kv_error=?error);
-                        errors::StorageError::KVError
-                    })
-                    .into_report()
+                    .change_context(errors::StorageError::KVError)
                     .change_context(errors::ApiErrorResponse::InternalServerError)
                     .attach_printable("Failed to add data in redis")?;
             }

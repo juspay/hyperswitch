@@ -2370,6 +2370,11 @@
             "type": "string",
             "description": "The public key id is to invoke third party sdk",
             "nullable": true
+          },
+          "connector_merchant_id": {
+            "type": "string",
+            "description": "The connector merchant id",
+            "nullable": true
           }
         }
       },
@@ -3858,6 +3863,7 @@
           "powertranz",
           "rapyd",
           "shift4",
+          "square",
           "stax",
           "stripe",
           "trustpay",
@@ -5006,25 +5012,25 @@
           {
             "type": "string",
             "enum": [
-              "card_number"
+              "user_card_number"
             ]
           },
           {
             "type": "string",
             "enum": [
-              "card_expiry_month"
+              "user_card_expiry_month"
             ]
           },
           {
             "type": "string",
             "enum": [
-              "card_expiry_year"
+              "user_card_expiry_year"
             ]
           },
           {
             "type": "string",
             "enum": [
-              "card_c_v_c"
+              "user_card_cvc"
             ]
           },
           {
@@ -6804,10 +6810,15 @@
       "MerchantConnectorWebhookDetails": {
         "type": "object",
         "required": [
-          "merchant_secret"
+          "merchant_secret",
+          "additional_secret"
         ],
         "properties": {
           "merchant_secret": {
+            "type": "string",
+            "example": "12345678900987654321"
+          },
+          "additional_secret": {
             "type": "string",
             "example": "12345678900987654321"
           }
@@ -7709,7 +7720,7 @@
           "size": {
             "type": "integer",
             "description": "The number of payments included in the list",
-            "minimum": 0
+            "minimum": 0.0
           },
           "data": {
             "type": "array",
@@ -9406,6 +9417,11 @@
             "type": "integer",
             "format": "int32",
             "description": "total number of attempts associated with this payment"
+          },
+          "merchant_decision": {
+            "type": "string",
+            "description": "Denotes the action(approve or reject) taken by merchant in case of manual review. Manual review can occur when the transaction is marked as risky by the frm_processor, payment processor or when there is underpayment/over payment incase of crypto payment",
+            "nullable": true
           }
         }
       },
