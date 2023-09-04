@@ -1180,7 +1180,7 @@ impl TryFrom<&types::VerifyWebhookSourceRequestData> for PaypalSourceVerificatio
                 "paypal-transmission-sig".to_owned(),
             )?,
             auth_algo: get_headers(&req.webhook_headers, "paypal-auth-algo".to_owned())?,
-            webhook_id: String::from_utf8(req.merchant_secret.to_vec())
+            webhook_id: String::from_utf8(req.merchant_secret.secret.to_vec())
                 .into_report()
                 .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)
                 .attach_printable("Could not convert secret to UTF-8")?,

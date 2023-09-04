@@ -70,7 +70,7 @@ pub async fn construct_webhook_router_data<'a>(
     merchant_account: &crate::types::domain::MerchantAccount,
     key_store: &domain::MerchantKeyStore,
     connector_name: &str,
-    merchant_secret: Vec<u8>,
+    merchant_secret: &api_models::webhooks::ConnectorWebhookSecrets,
     object_reference_id: &ObjectReferenceId,
     request_details: &api::IncomingWebhookRequestDetails<'_>,
 ) -> CustomResult<types::VerifyWebhookSourceRouterData, errors::ApiErrorResponse> {
@@ -116,7 +116,7 @@ pub async fn construct_webhook_router_data<'a>(
         request: types::VerifyWebhookSourceRequestData {
             webhook_headers: request_details.headers.clone(),
             webhook_body: request_details.body.to_vec().clone(),
-            merchant_secret,
+            merchant_secret: merchant_secret.clone(),
         },
         response: Err(types::ErrorResponse::default()),
         access_token: None,

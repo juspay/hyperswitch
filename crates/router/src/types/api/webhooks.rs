@@ -182,7 +182,7 @@ pub trait IncomingWebhook: ConnectorCommon + Sync {
         state: &crate::routes::AppState,
         connector_name: &str,
         merchant_account: &domain::MerchantAccount,
-        merchant_secret: Vec<u8>,
+        merchant_secret: &api_models::webhooks::ConnectorWebhookSecrets,
         object_reference_id: &ObjectReferenceId,
         request_details: &IncomingWebhookRequestDetails<'_>,
         key_store: &domain::MerchantKeyStore,
@@ -206,7 +206,7 @@ pub trait IncomingWebhook: ConnectorCommon + Sync {
             merchant_account,
             key_store,
             connector_name,
-            merchant_secret.to_vec(),
+            merchant_secret,
             object_reference_id,
             request_details,
         )

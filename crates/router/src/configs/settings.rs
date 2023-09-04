@@ -647,7 +647,7 @@ pub struct DelayedSessionConfig {
 
 #[derive(Debug, Deserialize, Clone, Default)]
 pub struct WebhookSourceVerificationCall {
-    #[serde(deserialize_with = "delayed_session_deser")]
+    #[serde(deserialize_with = "connector_deser")]
     pub connectors_with_webhook_source_verification_call: HashSet<api_models::enums::Connector>,
 }
 

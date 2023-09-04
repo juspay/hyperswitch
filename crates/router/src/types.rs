@@ -665,7 +665,7 @@ pub enum Redirection {
 pub struct VerifyWebhookSourceRequestData {
     pub webhook_headers: actix_web::http::header::HeaderMap,
     pub webhook_body: Vec<u8>,
-    pub merchant_secret: Vec<u8>,
+    pub merchant_secret: api_models::webhooks::ConnectorWebhookSecrets,
 }
 
 #[derive(Debug, Clone)]

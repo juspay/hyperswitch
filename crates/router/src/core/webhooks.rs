@@ -809,7 +809,6 @@ pub async fn webhooks_core<W: types::OutgoingWebhookType>(
             .attach_printable("Could not find merchant secret for incoming webhook")?;
         let connector_enum = api_models::enums::Connector::from_str(connector_name)
             .into_report()
-            .change_context(errors::ConnectorError::InvalidConnectorName)
             .change_context(errors::ApiErrorResponse::InvalidDataValue {
                 field_name: "connector",
             })
@@ -827,7 +826,7 @@ pub async fn webhooks_core<W: types::OutgoingWebhookType>(
                     state,
                     connector_name,
                     &merchant_account,
-                    merchant_secret.clone(),
+                    &merchant_secret,
                     &object_ref_id,
                     &request_details,
                     &key_store,
