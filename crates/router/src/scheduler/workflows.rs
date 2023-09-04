@@ -10,7 +10,7 @@ use crate::{
 };
 #[cfg(feature = "email")]
 pub mod api_key_expiry;
-
+pub mod create_auto_refund;
 pub mod payment_sync;
 pub mod refund_router;
 pub mod tokenized_data;
@@ -57,7 +57,8 @@ runners! {
     #[cfg(all())] PaymentsSyncWorkflow,
     #[cfg(all())] RefundWorkflowRouter,
     #[cfg(all())] DeleteTokenizeDataWorkflow,
-    #[cfg(feature = "email")] ApiKeyExpiryWorkflow
+    #[cfg(feature = "email")] ApiKeyExpiryWorkflow,
+    #[cfg(all())] AutoRefundWorkflow
 }
 
 pub type WorkflowSelectorFn =

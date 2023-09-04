@@ -205,3 +205,10 @@ pub struct RefundCoreWorkflow {
     pub merchant_id: String,
     pub payment_id: String,
 }
+
+#[derive(Debug, Eq, PartialEq, Deserialize, Serialize)]
+pub struct AutoRefundWorkflow {
+    pub payment_attempt: crate::payment_attempt::PaymentAttempt,
+    pub retry_count: i32,
+    pub max_retries: i32,
+}
