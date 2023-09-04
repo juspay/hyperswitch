@@ -9,7 +9,7 @@ pub mod types;
 
 use std::{fmt::Debug, marker::PhantomData, ops::Deref, time::Instant};
 
-use api_models::payments::FrmMessage;
+use api_models::{enums::AuthenticationType, payments::FrmMessage};
 use common_utils::{ext_traits::AsyncExt, pii};
 use diesel_models::ephemeral_key;
 use error_stack::{IntoReport, ResultExt};
@@ -897,7 +897,8 @@ where
             if connector.connector_name == router_types::Connector::Payme {
                 router_data = router_data.preprocessing_steps(state, connector).await?;
 
-                let is_error_in_response = router_data.response.is_err();
+                let is_error_in_response = router_data.response.is_err()
+                    || matches!(router_data.auth_type, AuthenticationType::ThreeDs);
                 // If is_error_in_response is true, should_continue_payment should be false, we should throw the error
                 (router_data, !is_error_in_response)
             } else {

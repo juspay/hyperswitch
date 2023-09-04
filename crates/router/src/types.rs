@@ -381,6 +381,7 @@ pub struct PaymentsPreProcessingData {
     pub order_details: Option<Vec<api_models::payments::OrderDetailsWithAmount>>,
     pub router_return_url: Option<String>,
     pub webhook_url: Option<String>,
+    pub complete_authorize_url: Option<String>,
 }
 
 #[derive(Debug, Clone)]
