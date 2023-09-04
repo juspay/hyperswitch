@@ -939,6 +939,8 @@ pub enum PaypalWebhookEventType {
     CheckoutOrderCompleted,
     #[serde(rename = "CHECKOUT.ORDER.PROCESSED")]
     CheckoutOrderProcessed,
+    #[serde(other)]
+    Unknown,
 }
 
 #[derive(Deserialize, Debug, Serialize)]
@@ -1006,7 +1008,8 @@ impl From<PaypalWebhookEventType> for api::IncomingWebhookEvent {
             PaypalWebhookEventType::PaymentCaptureDeclined => Self::PaymentIntentFailure,
             PaypalWebhookEventType::PaymentCaptureRefunded => Self::RefundSuccess,
             PaypalWebhookEventType::PaymentAuthorizationCreated
-            | PaypalWebhookEventType::PaymentAuthorizationVoided => Self::EventNotSupported,
+            | PaypalWebhookEventType::PaymentAuthorizationVoided
+            | PaypalWebhookEventType::Unknown => Self::EventNotSupported,
         }
     }
 }
@@ -1081,7 +1084,7 @@ impl TryFrom<(PaypalCardWebhooks, PaypalWebhookEventType)> for PaypalPaymentsSyn
     ) -> Result<Self, Self::Error> {
         Ok(Self {
             id: webhook_body.supplementary_data.related_ids.order_id.clone(),
-            status: PaypalPaymentStatus::from(webhook_event),
+            status: PaypalPaymentStatus::try_from(webhook_event)?,
             amount: webhook_body.amount,
             supplementary_data: webhook_body.supplementary_data,
         })
@@ -1114,18 +1117,20 @@ impl TryFrom<(PaypalRefundWebhooks, PaypalWebhookEventType)> for RefundSyncRespo
     }
 }
 
-impl From<PaypalWebhookEventType> for PaypalPaymentStatus {
-    fn from(event: PaypalWebhookEventType) -> Self {
+impl TryFrom<PaypalWebhookEventType> for PaypalPaymentStatus {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(event: PaypalWebhookEventType) -> Result<Self, Self::Error> {
         match event {
             PaypalWebhookEventType::PaymentCaptureCompleted
-            | PaypalWebhookEventType::CheckoutOrderCompleted => Self::Completed,
-            PaypalWebhookEventType::PaymentAuthorizationVoided => Self::Voided,
-            PaypalWebhookEventType::PaymentCaptureDeclined => Self::Declined,
+            | PaypalWebhookEventType::CheckoutOrderCompleted => Ok(Self::Completed),
+            PaypalWebhookEventType::PaymentAuthorizationVoided => Ok(Self::Voided),
+            PaypalWebhookEventType::PaymentCaptureDeclined => Ok(Self::Declined),
             PaypalWebhookEventType::PaymentCapturePending
             | PaypalWebhookEventType::CheckoutOrderApproved
-            | PaypalWebhookEventType::CheckoutOrderProcessed => Self::Pending,
-            PaypalWebhookEventType::PaymentAuthorizationCreated => Self::Created,
-            PaypalWebhookEventType::PaymentCaptureRefunded => Self::Refunded,
+            | PaypalWebhookEventType::CheckoutOrderProcessed => Ok(Self::Pending),
+            PaypalWebhookEventType::PaymentAuthorizationCreated => Ok(Self::Created),
+            PaypalWebhookEventType::PaymentCaptureRefunded => Ok(Self::Refunded),
+            _ => Err(errors::ConnectorError::WebhookEventTypeNotFound.into()),
         }
     }
 }
