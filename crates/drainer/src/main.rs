@@ -20,7 +20,11 @@ async fn main() -> DrainerResult<()> {
     let shutdown_intervals = conf.drainer.shutdown_interval;
     let loop_interval = conf.drainer.loop_interval;
 
-    let _guard = logger::setup(&conf.log);
+    let _guard = router_env::setup(
+        &conf.log,
+        router_env::service_name!(),
+        [router_env::service_name!()],
+    );
 
     logger::info!("Drainer started [{:?}] [{:?}]", conf.drainer, conf.log);
 

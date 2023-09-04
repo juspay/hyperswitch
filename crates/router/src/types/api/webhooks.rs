@@ -80,7 +80,7 @@ pub trait IncomingWebhook: ConnectorCommon + Sync {
         merchant_account: &domain::MerchantAccount,
         connector_name: &str,
         merchant_connector_account: domain::MerchantConnectorAccount,
-    ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
+    ) -> CustomResult<api_models::webhooks::ConnectorWebhookSecrets, errors::ConnectorError> {
         let merchant_id = merchant_account.merchant_id.as_str();
         let debug_suffix = format!(
             "For merchant_id: {}, and connector_name: {}",
@@ -88,25 +88,38 @@ pub trait IncomingWebhook: ConnectorCommon + Sync {
         );
         let default_secret = "default_secret".to_string();
         let merchant_secret = match merchant_connector_account.connector_webhook_details {
-            Some(merchant_connector_webhook_details) => merchant_connector_webhook_details
-                .parse_value::<MerchantConnectorWebhookDetails>("MerchantConnectorWebhookDetails")
-                .change_context_lazy(|| errors::ConnectorError::WebhookSourceVerificationFailed)
-                .attach_printable_lazy(|| {
-                    format!(
-                        "Deserializing MerchantConnectorWebhookDetails failed {}",
-                        debug_suffix
+            Some(merchant_connector_webhook_details) => {
+                let connector_webhook_details = merchant_connector_webhook_details
+                    .parse_value::<MerchantConnectorWebhookDetails>(
+                        "MerchantConnectorWebhookDetails",
                     )
-                })?
-                .merchant_secret
-                .expose(),
-            None => default_secret,
+                    .change_context_lazy(|| errors::ConnectorError::WebhookSourceVerificationFailed)
+                    .attach_printable_lazy(|| {
+                        format!(
+                            "Deserializing MerchantConnectorWebhookDetails failed {}",
+                            debug_suffix
+                        )
+                    })?;
+                api_models::webhooks::ConnectorWebhookSecrets {
+                    secret: connector_webhook_details
+                        .merchant_secret
+                        .expose()
+                        .into_bytes(),
+                    additional_secret: connector_webhook_details.additional_secret,
+                }
+            }
+
+            None => api_models::webhooks::ConnectorWebhookSecrets {
+                secret: default_secret.into_bytes(),
+                additional_secret: None,
+            },
         };
 
         //need to fetch merchant secret from config table with caching in future for enhanced performance
 
         //If merchant has not set the secret for webhook source verification, "default_secret" is returned.
         //So it will fail during verification step and goes to psync flow.
-        Ok(merchant_secret.into_bytes())
+        Ok(merchant_secret)
     }
 
     fn get_webhook_source_verification_signature(
@@ -140,7 +153,7 @@ pub trait IncomingWebhook: ConnectorCommon + Sync {
         let signature = self
             .get_webhook_source_verification_signature(request)
             .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
-        let secret = self
+        let connector_webhook_secrets = self
             .get_webhook_source_verification_merchant_secret(
                 merchant_account,
                 connector_label,
@@ -153,11 +166,11 @@ pub trait IncomingWebhook: ConnectorCommon + Sync {
             .get_webhook_source_verification_message(
                 request,
                 &merchant_account.merchant_id,
-                &secret,
+                &connector_webhook_secrets.secret,
             )
             .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
         algorithm
-            .verify_signature(&secret, &signature, &message)
+            .verify_signature(&connector_webhook_secrets.secret, &signature, &message)
             .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)
     }
 

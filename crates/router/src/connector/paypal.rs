@@ -436,8 +436,13 @@ impl
         req: &types::PaymentsCompleteAuthorizeRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
+        let paypal_meta: PaypalMeta = to_connector_meta(req.request.connector_meta.clone())?;
+        let complete_authorize_url = match paypal_meta.psync_flow {
+            transformers::PaypalPaymentIntent::Authorize => "authorize".to_string(),
+            transformers::PaypalPaymentIntent::Capture => "capture".to_string(),
+        };
         Ok(format!(
-            "{}v2/checkout/orders/{}/capture",
+            "{}v2/checkout/orders/{}/{complete_authorize_url}",
             self.base_url(connectors),
             req.request
                 .connector_transaction_id
@@ -568,9 +573,9 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
         match data.payment_method {
             diesel_models::enums::PaymentMethod::Wallet
             | diesel_models::enums::PaymentMethod::BankRedirect => {
-                let response: paypal::PaypalOrdersResponse = res
+                let response: paypal::PaypalSyncResponse = res
                     .response
-                    .parse_struct("paypal PaymentsOrderResponse")
+                    .parse_struct("paypal SyncResponse")
                     .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
                 types::RouterData::try_from(types::ResponseRouterData {
                     response,
@@ -658,6 +663,7 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
                 .headers(types::PaymentsCaptureType::get_headers(
                     self, req, connectors,
                 )?)
+                .body(types::PaymentsCaptureType::get_request_body(self, req)?)
                 .build(),
         ))
     }

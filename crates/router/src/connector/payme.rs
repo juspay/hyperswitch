@@ -17,7 +17,7 @@ use crate::{
     types::{
         self,
         api::{self, ConnectorCommon, ConnectorCommonExt},
-        ErrorResponse, Response,
+        domain, ErrorResponse, Response,
     },
     utils::{self, BytesExt},
 };
@@ -720,6 +720,58 @@ impl api::IncomingWebhook for Payme {
         )
         .as_bytes()
         .to_vec())
+    }
+
+    async fn verify_webhook_source(
+        &self,
+        request: &api::IncomingWebhookRequestDetails<'_>,
+        merchant_account: &domain::MerchantAccount,
+        merchant_connector_account: domain::MerchantConnectorAccount,
+        connector_label: &str,
+    ) -> CustomResult<bool, errors::ConnectorError> {
+        let algorithm = self
+            .get_webhook_source_verification_algorithm(request)
+            .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
+
+        let signature = self
+            .get_webhook_source_verification_signature(request)
+            .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
+
+        let connector_webhook_secrets = self
+            .get_webhook_source_verification_merchant_secret(
+                merchant_account,
+                connector_label,
+                merchant_connector_account,
+            )
+            .await
+            .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
+        let mut message = self
+            .get_webhook_source_verification_message(
+                request,
+                &merchant_account.merchant_id,
+                &connector_webhook_secrets.secret,
+            )
+            .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
+        let mut message_to_verify = connector_webhook_secrets
+            .additional_secret
+            .ok_or(errors::ConnectorError::WebhookSourceVerificationFailed)
+            .into_report()
+            .attach_printable("Failed to get additional secrets")?
+            .expose()
+            .as_bytes()
+            .to_vec();
+        message_to_verify.append(&mut message);
+
+        let signature_to_verify = hex::decode(signature)
+            .into_report()
+            .change_context(errors::ConnectorError::WebhookResponseEncodingFailed)?;
+        algorithm
+            .verify_signature(
+                &connector_webhook_secrets.secret,
+                &signature_to_verify,
+                &message_to_verify,
+            )
+            .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)
     }
 
     fn get_webhook_object_reference_id(

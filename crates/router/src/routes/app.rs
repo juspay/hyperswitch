@@ -34,6 +34,7 @@ pub struct AppState {
     pub email_client: Box<dyn EmailClient>,
     #[cfg(feature = "kms")]
     pub kms_secrets: settings::ActiveKmsSecrets,
+    pub api_client: Box<dyn crate::services::ApiClient>,
 }
 
 pub trait AppStateInfo {
@@ -68,6 +69,7 @@ impl AppState {
         conf: settings::Settings,
         storage_impl: StorageImpl,
         shut_down_signal: oneshot::Sender<()>,
+        api_client: Box<dyn crate::services::ApiClient>,
     ) -> Self {
         #[cfg(feature = "kms")]
         let kms_client = kms::get_kms_client(&conf.kms).await;
@@ -101,11 +103,16 @@ impl AppState {
             email_client,
             #[cfg(feature = "kms")]
             kms_secrets,
+            api_client,
         }
     }
 
-    pub async fn new(conf: settings::Settings, shut_down_signal: oneshot::Sender<()>) -> Self {
-        Self::with_storage(conf, StorageImpl::Postgresql, shut_down_signal).await
+    pub async fn new(
+        conf: settings::Settings,
+        shut_down_signal: oneshot::Sender<()>,
+        api_client: Box<dyn crate::services::ApiClient>,
+    ) -> Self {
+        Self::with_storage(conf, StorageImpl::Postgresql, shut_down_signal, api_client).await
     }
 }
 
