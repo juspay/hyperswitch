@@ -26,7 +26,7 @@ pub enum TokenRequest {
 #[serde(rename_all = "lowercase")]
 #[serde(tag = "type", content = "token_data")]
 pub enum PreDecryptedTokenRequest {
-    Applepay(CheckoutApplePayData),
+    Applepay(Box<CheckoutApplePayData>),
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -163,7 +163,7 @@ pub struct WalletSource {
 pub enum PaymentSource {
     Card(CardSource),
     Wallets(WalletSource),
-    ApplePayPredecrypt(ApplePayPredecrypt),
+    ApplePayPredecrypt(Box<ApplePayPredecrypt>),
 }
 
 #[derive(Debug, Serialize)]
@@ -282,7 +282,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PaymentsRequest {
                         .payment_data
                         .eci_indicator
                         .map(|eci_indicator| eci_indicator.peek().to_string());
-                    Ok(PaymentSource::ApplePayPredecrypt(ApplePayPredecrypt {
+                    Ok(PaymentSource::ApplePayPredecrypt(Box::new(ApplePayPredecrypt {
                         token: decrypt_data
                             .application_primary_account_number
                             .peek()
@@ -298,7 +298,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PaymentsRequest {
                             .online_payment_cryptogram
                             .peek()
                             .to_string(),
-                    }))
+                    })))
                 }
                 api_models::payments::WalletData::AliPayQr(_)
                 | api_models::payments::WalletData::AliPayRedirect(_)

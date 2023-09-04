@@ -1151,7 +1151,7 @@ async fn decide_payment_method_tokenize_action(
     }
 }
 
-#[derive(Clone, Eq, PartialEq)]
+#[derive(Clone)]
 pub enum TokenizationAction {
     TokenizeInRouter,
     TokenizeInConnector,

@@ -434,7 +434,7 @@ pub enum StripeWallet {
     WechatpayPayment(WechatpayPayment),
     AlipayPayment(AlipayPayment),
     Cashapp(CashappPayment),
-    ApplePayPredecryptToken(StripeApplePayPredecrypt),
+    ApplePayPredecryptToken(Box<StripeApplePayPredecrypt>),
 }
 
 #[derive(Debug, Eq, PartialEq, Serialize)]
@@ -1305,7 +1305,7 @@ fn create_stripe_payment_method(
                             .map(|eci_indicator| eci_indicator.peek().to_string());
 
                         Some(StripePaymentMethodData::Wallet(
-                            StripeWallet::ApplePayPredecryptToken(StripeApplePayPredecrypt {
+                            StripeWallet::ApplePayPredecryptToken(Box::new(StripeApplePayPredecrypt {
                                 number: decrypt_data
                                     .clone()
                                     .application_primary_account_number
@@ -1322,7 +1322,7 @@ fn create_stripe_payment_method(
                                     .peek()
                                     .to_string(),
                                 tokenization_method: "apple_pay".to_string(),
-                            }),
+                            })),
                         ))
                     }
                     _ => None,
