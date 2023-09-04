@@ -96,19 +96,20 @@ impl Feature<api::CompleteAuthorize, types::CompleteAuthorizeData>
     }
 
     async fn add_payment_method_token<'a>(
-        &self,
+        &mut self,
         state: &AppState,
         connector: &api::ConnectorData,
         _tokenization_action: &payments::TokenizationAction,
     ) -> RouterResult<Option<String>> {
         // TODO: remove this and handle it in core
         if matches!(connector.connector_name, types::Connector::Payme) {
+            let request = self.request.clone();
             payments::tokenization::add_payment_method_token(
                 state,
                 connector,
                 &payments::TokenizationAction::TokenizeInConnector,
                 self,
-                types::PaymentMethodTokenizationData::try_from(self.request.to_owned())?,
+                types::PaymentMethodTokenizationData::try_from(request)?,
             )
             .await
         } else {
@@ -151,6 +152,8 @@ impl TryFrom<types::CompleteAuthorizeData> for types::PaymentMethodTokenizationD
                 .payment_method_data
                 .get_required_value("payment_method_data")?,
             browser_info: data.browser_info,
+            currency: data.currency,
+            amount: Some(data.amount),
         })
     }
 }

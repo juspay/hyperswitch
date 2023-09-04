@@ -508,25 +508,29 @@ impl<F>
                         api_models::payments::ApplepaySessionTokenResponse {
                             session_token_data:
                                 api_models::payments::ApplePaySessionResponse::NoSessionResponse,
-                            payment_request_data: Some(api_models::payments::ApplePayPaymentRequest {
-                                country_code: item.data.get_billing_country()?,
-                                currency_code,
-                                total: api_models::payments::AmountInfo {
-                                    label: "Apple Pay".to_string(),
-                                    total_type: None,
-                                    amount: amount_in_base_unit,
+                            payment_request_data: Some(
+                                api_models::payments::ApplePayPaymentRequest {
+                                    country_code: item.data.get_billing_country()?,
+                                    currency_code,
+                                    total: api_models::payments::AmountInfo {
+                                        label: "Apple Pay".to_string(),
+                                        total_type: None,
+                                        amount: amount_in_base_unit,
+                                    },
+                                    merchant_capabilities: None,
+                                    supported_networks: None,
+                                    merchant_identifier: None,
                                 },
-                                merchant_capabilities: None,
-                                supported_networks: None,
-                                merchant_identifier: None,
-                            }),
+                            ),
                             connector: "payme".to_string(),
                             delayed_session_token: true,
                             sdk_next_action: api_models::payments::SdkNextAction {
                                 next_action: api_models::payments::NextActionCall::Sync,
                             },
                             connector_reference_id: Some(item.response.payme_sale_id.to_owned()),
-                            connector_sdk_public_key: Some(payme_auth_type.payme_public_key.expose()),
+                            connector_sdk_public_key: Some(
+                                payme_auth_type.payme_public_key.expose(),
+                            ),
                             connector_merchant_id: payme_auth_type
                                 .payme_merchant_id
                                 .map(|mid| mid.expose()),
@@ -548,7 +552,6 @@ impl<F>
                     }),
                     ..item.data
                 })
-            }
             }
             AuthenticationType::ThreeDs => Ok(Self {
                 status: enums::AttemptStatus::AuthenticationPending,
@@ -647,8 +650,7 @@ impl TryFrom<&types::PaymentsCompleteAuthorizeRouterData> for Pay3dsRequest {
                         .redirect_response
                         .to_owned()
                         .and_then(|response| {
-                            response
-                                .payload.map(|param_string| param_string.expose())
+                            response.payload.map(|param_string| param_string.expose())
                         })
                         .ok_or(errors::ConnectorError::MissingConnectorRedirectionPayload {
                             field_name: "meta_data",
@@ -662,9 +664,11 @@ impl TryFrom<&types::PaymentsCompleteAuthorizeRouterData> for Pay3dsRequest {
                             },
                         )?;
 
-                    let payme_sale_id = item.request.connector_transaction_id
-                    .clone()
-                    .ok_or(errors::ConnectorError::MissingConnectorTransactionID)?;
+                    let payme_sale_id = item
+                        .request
+                        .connector_transaction_id
+                        .clone()
+                        .ok_or(errors::ConnectorError::MissingConnectorTransactionID)?;
                     let buyer_key = match item.payment_method_token.clone() {
                         Some(key) => key,
                         None => Err(errors::ConnectorError::MissingRequiredField {
