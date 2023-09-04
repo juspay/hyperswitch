@@ -37,8 +37,8 @@ impl PaymentAttemptInterface for MockDb {
         &self,
         _merchant_id: &str,
         _active_attempt_ids: &[String],
-        _connector: Option<Vec<api_models::enums::Connector>>,
-        _payment_methods: Option<Vec<api_models::enums::PaymentMethod>>,
+        _connector: Option<Vec<Connector>>,
+        _payment_methods: Option<Vec<PaymentMethod>>,
         _storage_scheme: enums::MerchantStorageScheme,
     ) -> CustomResult<i64, errors::StorageError> {
         Err(errors::StorageError::MockDbError)?

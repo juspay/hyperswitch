@@ -83,7 +83,7 @@ pub trait PaymentAttemptInterface {
         &self,
         merchant_id: &str,
         active_attempt_ids: &[String],
-        connector: Option<Vec<api_models::enums::Connector>>,
+        connector: Option<Vec<Connector>>,
         payment_methods: Option<Vec<storage_enums::PaymentMethod>>,
         storage_scheme: MerchantStorageScheme,
     ) -> error_stack::Result<i64, errors::StorageError>;
