@@ -412,7 +412,7 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
                 storage_enums::AttemptStatus::Unresolved,
                 (None, None),
             ),
-            None => (
+            _ => (
                 storage_enums::IntentStatus::Processing,
                 storage_enums::AttemptStatus::Pending,
                 (None, None),

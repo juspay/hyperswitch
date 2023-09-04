@@ -425,7 +425,7 @@ where
             .change_context(errors::ApiErrorResponse::InvalidDataValue {
                 field_name: "payment_method_data",
             })?;
-    let merchant_decision = payment_attempt.merchant_decision.to_owned();
+    let merchant_decision = payment_intent.merchant_decision.to_owned();
     let frm_message = fraud_check.map(FrmMessage::foreign_from);
 
     let payment_method_data_response =
@@ -1089,19 +1089,9 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsRejectDa
 
     fn try_from(additional_data: PaymentAdditionalData<'_, F>) -> Result<Self, Self::Error> {
         let payment_data = additional_data.payment_data;
-        let connector = api::ConnectorData::get_connector_by_name(
-            &additional_data.state.conf.connectors,
-            &additional_data.connector_name,
-            api::GetToken::Connector,
-        )?;
         Ok(Self {
             amount: Some(payment_data.amount.into()),
             currency: Some(payment_data.currency),
-            connector_transaction_id: connector
-                .connector
-                .connector_transaction_id(payment_data.payment_attempt.clone())?
-                .ok_or(errors::ApiErrorResponse::ResourceIdNotFound)?,
-            connector_meta: payment_data.payment_attempt.connector_metadata,
         })
     }
 }

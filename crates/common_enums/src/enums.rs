@@ -1678,6 +1678,7 @@ pub enum PayoutEntityType {
 pub enum MerchantDecision {
     Approved,
     Rejected,
+    AutoRefunded,
 }
 
 #[derive(
@@ -1700,6 +1701,7 @@ pub enum FrmSuggestion {
     #[default]
     FrmCancelTransaction,
     FrmManualReview,
+    FrmAutoRefund,
 }
 
 #[derive(

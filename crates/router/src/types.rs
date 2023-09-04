@@ -446,8 +446,6 @@ pub struct PaymentsCancelData {
 pub struct PaymentsRejectData {
     pub amount: Option<i64>,
     pub currency: Option<storage_enums::Currency>,
-    pub connector_transaction_id: String,
-    pub connector_meta: Option<serde_json::Value>,
 }
 
 #[derive(Debug, Default, Clone)]

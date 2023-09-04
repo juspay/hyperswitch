@@ -104,7 +104,6 @@ impl DataModelExt for PaymentAttempt {
             error_reason: self.error_reason,
             multiple_capture_count: self.multiple_capture_count,
             connector_response_reference_id: self.connector_response_reference_id,
-            merchant_decision: None,
         }
     }
 
@@ -152,7 +151,6 @@ impl DataModelExt for PaymentAttempt {
             error_reason: storage_model.error_reason,
             multiple_capture_count: storage_model.multiple_capture_count,
             connector_response_reference_id: storage_model.connector_response_reference_id,
-            merchant_decision: None,
         }
     }
 }

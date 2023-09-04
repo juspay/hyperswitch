@@ -427,7 +427,6 @@ impl PaymentAttemptInterface for MockDb {
             error_reason: payment_attempt.error_reason,
             multiple_capture_count: payment_attempt.multiple_capture_count,
             connector_response_reference_id: None,
-            merchant_decision: None,
         };
         payment_attempts.push(payment_attempt.clone());
         Ok(payment_attempt)
@@ -569,7 +568,6 @@ mod storage {
                         error_reason: payment_attempt.error_reason.clone(),
                         multiple_capture_count: payment_attempt.multiple_capture_count,
                         connector_response_reference_id: None,
-                        merchant_decision: None,
                     };
 
                     let field = format!("pa_{}", created_attempt.attempt_id);

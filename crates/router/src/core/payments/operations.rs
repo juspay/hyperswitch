@@ -355,10 +355,10 @@ where
     #[instrument(skip_all)]
     async fn get_or_create_customer_details<'a>(
         &'a self,
-        db: &dyn StorageInterface,
-        payment_data: &mut PaymentData<F>,
+        _db: &dyn StorageInterface,
+        _payment_data: &mut PaymentData<F>,
         _request: Option<CustomerDetails>,
-        merchant_key_store: &domain::MerchantKeyStore,
+        _merchant_key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<
         (
             BoxedOperation<'a, F, api::PaymentsRejectRequest>,
@@ -366,17 +366,7 @@ where
         ),
         errors::StorageError,
     > {
-        Ok((
-            Box::new(self),
-            helpers::get_customer_from_details(
-                db,
-                payment_data.payment_intent.customer_id.clone(),
-                &merchant_key_store.merchant_id,
-                payment_data,
-                merchant_key_store,
-            )
-            .await?,
-        ))
+        Ok((Box::new(self), None))
     }
 
     #[instrument(skip_all)]

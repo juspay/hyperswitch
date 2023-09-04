@@ -173,8 +173,9 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, PaymentsRejectRequest> for Payme
     where
         F: 'b + Send,
     {
-        let intent_status_update = storage::PaymentIntentUpdate::PGStatusUpdate {
+        let intent_status_update = storage::PaymentIntentUpdate::RejectUpdate {
             status: enums::IntentStatus::Failed,
+            merchant_decision: Some(enums::MerchantDecision::Rejected.to_string()),
         };
         let (error_code, error_message) =
             payment_data
@@ -188,7 +189,6 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, PaymentsRejectRequest> for Payme
                 });
         let attempt_status_update = storage::PaymentAttemptUpdate::RejectUpdate {
             status: enums::AttemptStatus::Failure,
-            merchant_decision: Some(Some(enums::MerchantDecision::Rejected.to_string())),
             error_code,
             error_message,
         };

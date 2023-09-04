@@ -56,9 +56,6 @@ pub struct PaymentAttempt {
     pub multiple_capture_count: Option<i16>,
     // reference to the payment at connector side
     pub connector_response_reference_id: Option<String>,
-    // Denotes the action(approve or reject) taken by merchant in case of manual review.
-    // Manual review can occur when the transaction is marked as risky by the payment processor, frm_processor or when there is underpayment/over payment incase of crypto payment
-    pub merchant_decision: Option<String>,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Queryable, Serialize, Deserialize)]
@@ -163,12 +160,8 @@ pub enum PaymentAttemptUpdate {
         status: storage_enums::AttemptStatus,
         cancellation_reason: Option<String>,
     },
-    ApproveUpdate {
-        merchant_decision: Option<Option<String>>,
-    },
     RejectUpdate {
         status: storage_enums::AttemptStatus,
-        merchant_decision: Option<Option<String>>,
         error_code: Option<Option<String>>,
         error_message: Option<Option<String>>,
     },
@@ -249,7 +242,6 @@ pub struct PaymentAttemptUpdateInternal {
     capture_method: Option<storage_enums::CaptureMethod>,
     connector_response_reference_id: Option<String>,
     multiple_capture_count: Option<i16>,
-    merchant_decision: Option<Option<String>>,
 }
 
 impl PaymentAttemptUpdate {
@@ -365,18 +357,12 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 cancellation_reason,
                 ..Default::default()
             },
-            PaymentAttemptUpdate::ApproveUpdate { merchant_decision } => Self {
-                merchant_decision,
-                ..Default::default()
-            },
             PaymentAttemptUpdate::RejectUpdate {
                 status,
-                merchant_decision,
                 error_code,
                 error_message,
             } => Self {
                 status: Some(status),
-                merchant_decision,
                 error_code,
                 error_message,
                 ..Default::default()

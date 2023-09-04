@@ -1,1 +1,1 @@
-alter table payment_attempt drop column merchant_decision;
+alter table payment_intent drop column merchant_decision;

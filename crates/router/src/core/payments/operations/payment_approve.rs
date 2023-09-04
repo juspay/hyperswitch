@@ -346,13 +346,13 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
     where
         F: 'b + Send,
     {
-        let attempt_status_update = storage::PaymentAttemptUpdate::ApproveUpdate {
-            merchant_decision: Some(Some(storage_enums::MerchantDecision::Approved.to_string())),
+        let intent_status_update = storage::PaymentIntentUpdate::ApproveUpdate {
+            merchant_decision: Some(api_models::enums::MerchantDecision::Approved.to_string()),
         };
-        payment_data.payment_attempt = db
-            .update_payment_attempt_with_attempt_id(
-                payment_data.payment_attempt.clone(),
-                attempt_status_update,
+        payment_data.payment_intent = db
+            .update_payment_intent(
+                payment_data.payment_intent,
+                intent_status_update,
                 storage_scheme,
             )
             .await
