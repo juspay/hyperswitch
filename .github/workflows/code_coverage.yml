@@ -1,29 +1,30 @@
-name: Codecov
+name: CI/CD with Code Coverage
 
 on:
   pull_request:
     branches:
-      - main  # Adjust to your main branch name
+      - main
 
 jobs:
   build:
     runs-on: ubuntu-latest
 
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v2
+      - name: Checkout code
+        uses: actions/checkout@v2
 
-    - name: Set up Rust
-      uses: actions/setup-rust@v1
-      with:
-        rust-version: 1.x  # Specify your desired Rust version
+      - name: Set up Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          override: true
 
-    - name: Build and Test
-      run: |
-        cargo build --verbose
-        cargo test --verbose
+      - name: Build and Test
+        run: |
+          cargo build --verbose
+          cargo test --verbose
 
-    - name: Upload coverage to Codecov
-      uses: codecov/codecov-action@v2
-      with:
-        token: ${{ secrets.CODECOV_TOKEN }}
+      - name: Upload Code Coverage
+        uses: codecov/codecov-action@v2
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
