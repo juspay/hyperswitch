@@ -340,15 +340,16 @@ pub enum CheckoutPaymentStatus {
     Captured,
 }
 
-impl From<CheckoutWebhookEventType> for CheckoutPaymentStatus {
-    fn from(value: CheckoutWebhookEventType) -> Self {
+impl TryFrom<CheckoutWebhookEventType> for CheckoutPaymentStatus {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(value: CheckoutWebhookEventType) -> Result<Self, Self::Error> {
         match value {
-            CheckoutWebhookEventType::PaymentApproved => Self::Authorized,
-            CheckoutWebhookEventType::PaymentCaptured => Self::Captured,
-            CheckoutWebhookEventType::PaymentDeclined => Self::Declined,
+            CheckoutWebhookEventType::PaymentApproved => Ok(Self::Authorized),
+            CheckoutWebhookEventType::PaymentCaptured => Ok(Self::Captured),
+            CheckoutWebhookEventType::PaymentDeclined => Ok(Self::Declined),
             CheckoutWebhookEventType::AuthenticationStarted
-            | CheckoutWebhookEventType::AuthenticationApproved
-            | CheckoutWebhookEventType::PaymentRefunded
+            | CheckoutWebhookEventType::AuthenticationApproved => Ok(Self::Pending),
+            CheckoutWebhookEventType::PaymentRefunded
             | CheckoutWebhookEventType::PaymentRefundDeclined
             | CheckoutWebhookEventType::DisputeReceived
             | CheckoutWebhookEventType::DisputeExpired
@@ -361,7 +362,9 @@ impl From<CheckoutWebhookEventType> for CheckoutPaymentStatus {
             | CheckoutWebhookEventType::DisputeArbitrationWon
             | CheckoutWebhookEventType::DisputeWon
             | CheckoutWebhookEventType::DisputeLost
-            | CheckoutWebhookEventType::Unknown => Self::Pending,
+            | CheckoutWebhookEventType::Unknown => {
+                Err(errors::ConnectorError::WebhookEventTypeNotFound.into())
+            }
         }
     }
 }
@@ -426,19 +429,6 @@ pub struct PaymentsResponse {
     amount: Option<i32>,
     action_id: Option<String>,
     status: CheckoutPaymentStatus,
-    #[serde(rename = "_links")]
-    links: Links,
-    balances: Option<Balances>,
-    reference: Option<String>,
-    response_code: Option<String>,
-    response_summary: Option<String>,
-}
-
-#[derive(Clone, Debug, Default, Eq, PartialEq, Deserialize)]
-pub struct PaymentsWebhookResponse {
-    id: String,
-    amount: Option<i32>,
-    status: Option<CheckoutPaymentStatus>,
     #[serde(rename = "_links")]
     links: Links,
     balances: Option<Balances>,
@@ -1154,7 +1144,7 @@ impl TryFrom<&api::IncomingWebhookRequestDetails<'_>> for PaymentsResponse {
         let psync_struct = Self {
             id: data.payment_id.unwrap_or(data.id),
             amount: Some(data.amount),
-            status: CheckoutPaymentStatus::from(details.transaction_type),
+            status: CheckoutPaymentStatus::try_from(details.transaction_type)?,
             links: details.links,
             balances: data.balances,
             reference: data.reference,

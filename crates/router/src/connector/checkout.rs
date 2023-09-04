@@ -423,7 +423,7 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
                     .response
                     .parse_struct("checkout::PaymentsResponseEnum")
                     .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-                dbg!(&response);
+                router_env::logger::info!(connector_response=?response);
                 types::RouterData::try_from(types::ResponseRouterData {
                     response,
                     data: data.clone(),
@@ -1213,9 +1213,22 @@ impl api::IncomingWebhook for Checkout {
         &self,
         request: &api::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<serde_json::Value, errors::ConnectorError> {
-        let payment_response = checkout::PaymentsResponse::try_from(request)?;
-        utils::Encode::<checkout::PaymentsResponse>::encode_to_value(&payment_response)
-            .change_context(errors::ConnectorError::WebhookResourceObjectNotFound)
+        let event_type_data: checkout::CheckoutWebhookEventTypeBody = request
+            .body
+            .parse_struct("CheckoutWebhookBody")
+            .change_context(errors::ConnectorError::WebhookEventTypeNotFound)?;
+        let resource_object = if checkout::is_chargeback_event(&event_type_data.transaction_type) {
+            let payment_response = checkout::PaymentsResponse::try_from(request)?;
+            utils::Encode::<checkout::PaymentsResponse>::encode_to_value(&payment_response)
+                .change_context(errors::ConnectorError::WebhookResourceObjectNotFound)?
+        } else {
+            let resource_object_data: checkout::CheckoutWebhookObjectResource = request
+                .body
+                .parse_struct("CheckoutWebhookObjectResource")
+                .change_context(errors::ConnectorError::WebhookEventTypeNotFound)?;
+            resource_object_data.data
+        };
+        Ok(resource_object)
     }
 
     fn get_dispute_details(

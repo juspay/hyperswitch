@@ -903,7 +903,7 @@ pub async fn webhooks_core<W: types::OutgoingWebhookType>(
         );
     }
 
-    let response: services::ApplicationResponse<serde_json::Value> = connector
+    let response = connector
         .get_webhook_api_response(&request_details)
         .switch()
         .attach_printable("Could not get incoming webhook api response from connector")?;
