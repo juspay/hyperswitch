@@ -997,9 +997,15 @@ pub async fn create_and_insert_business_profile(
         request,
     ))?;
 
+    let profile_name = business_profile_new.profile_name.clone();
+
     db.insert_business_profile(business_profile_new)
         .await
-        .to_duplicate_response(errors::ApiErrorResponse::InternalServerError)
+        .to_duplicate_response(errors::ApiErrorResponse::GenericDuplicateError {
+            message: format!(
+                "Business Profile with the profile_name {profile_name} already exists"
+            ),
+        })
         .attach_printable("Failed to insert Business profile because of duplication error")
 }
 
@@ -1007,25 +1013,18 @@ pub async fn create_business_profile(
     db: &dyn StorageInterface,
     request: api::BusinessProfileCreate,
     merchant_id: &str,
-    merchant_account: Option<domain::MerchantAccount>,
 ) -> RouterResponse<api_models::admin::BusinessProfileResponse> {
-    let merchant_account = if let Some(merchant_account) = merchant_account {
-        merchant_account
-    } else {
-        let key_store = db
-            .get_merchant_key_store_by_merchant_id(
-                merchant_id,
-                &db.get_master_key().to_vec().into(),
-            )
-            .await
-            .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
+    let key_store = db
+        .get_merchant_key_store_by_merchant_id(merchant_id, &db.get_master_key().to_vec().into())
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
 
-        // Get the merchant account, if few fields are not passed, then they will be inherited from
-        // merchant account
-        db.find_merchant_account_by_merchant_id(merchant_id, &key_store)
-            .await
-            .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?
-    };
+    // Get the merchant account, if few fields are not passed, then they will be inherited from
+    // merchant account
+    let merchant_account = db
+        .find_merchant_account_by_merchant_id(merchant_id, &key_store)
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
 
     if let Some(ref routing_algorithm) = request.routing_algorithm {
         let _: api::RoutingAlgorithm = routing_algorithm
@@ -1038,7 +1037,14 @@ pub async fn create_business_profile(
     }
 
     let business_profile =
-        create_and_insert_business_profile(db, request, merchant_account).await?;
+        create_and_insert_business_profile(db, request, merchant_account.clone()).await?;
+
+    if merchant_account.default_profile.is_some() {
+        let unset_default_profile = domain::MerchantAccountUpdate::UnsetDefaultProfile;
+        db.update_merchant(merchant_account, unset_default_profile, &key_store)
+            .await
+            .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
+    }
 
     Ok(service_api::ApplicationResponse::Json(
         api_models::admin::BusinessProfileResponse::foreign_try_from(business_profile)
