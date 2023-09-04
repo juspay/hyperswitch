@@ -293,49 +293,6 @@ impl From<&SaleQuery> for types::PaymentsResponseData {
     }
 }
 
-impl<F>
-    TryFrom<
-        types::ResponseRouterData<
-            F,
-            MetaDataJWTResponse,
-            types::PaymentsAuthorizeData,
-            types::PaymentsResponseData,
-        >,
-    > for types::RouterData<F, types::PaymentsAuthorizeData, types::PaymentsResponseData>
-{
-    type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(
-        item: types::ResponseRouterData<
-            F,
-            MetaDataJWTResponse,
-            types::PaymentsAuthorizeData,
-            types::PaymentsResponseData,
-        >,
-    ) -> Result<Self, Self::Error> {
-        let redirection_data = item.data.request.complete_authorize_url.clone().map(|url| {
-            let mut form_fields = std::collections::HashMap::<String, String>::new();
-            form_fields.insert("meta_data_jwt".to_string(), item.response.hash);
-            services::RedirectForm::Form {
-                endpoint: url,
-                method: services::Method::Get,
-                form_fields,
-            }
-        });
-        Ok(Self {
-            status: enums::AttemptStatus::AuthenticationPending,
-            response: Ok(types::PaymentsResponseData::TransactionResponse {
-                resource_id: types::ResponseId::NoResponseId,
-                redirection_data,
-                mandate_reference: None,
-                connector_metadata: None,
-                network_txn_id: None,
-                connector_response_reference_id: None,
-            }),
-            ..item.data
-        })
-    }
-}
-
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "lowercase")]
 pub enum SaleType {
@@ -815,11 +772,6 @@ pub struct SaleQuery {
     sale_payme_id: String,
     sale_error_text: Option<String>,
     sale_error_code: Option<String>,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-pub struct MetaDataJWTResponse {
-    hash: String,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
