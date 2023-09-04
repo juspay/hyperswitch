@@ -16,7 +16,6 @@ use crate::{
         errors::{self, CustomResult},
         payments,
     },
-    db::StorageInterface,
     headers,
     services::{
         self,
@@ -563,25 +562,19 @@ impl api::IncomingWebhook for Zen {
 
     async fn verify_webhook_source(
         &self,
-        db: &dyn StorageInterface,
         request: &api::IncomingWebhookRequestDetails<'_>,
         merchant_account: &domain::MerchantAccount,
-        merchant_connector_account: Option<domain::MerchantConnectorAccount>,
+        merchant_connector_account: domain::MerchantConnectorAccount,
         connector_label: &str,
-        key_store: &domain::MerchantKeyStore,
-        object_reference_id: api_models::webhooks::ObjectReferenceId,
     ) -> CustomResult<bool, errors::ConnectorError> {
         let algorithm = self.get_webhook_source_verification_algorithm(request)?;
 
         let signature = self.get_webhook_source_verification_signature(request)?;
         let mut secret = self
             .get_webhook_source_verification_merchant_secret(
-                db,
                 merchant_account,
                 connector_label,
                 merchant_connector_account,
-                key_store,
-                object_reference_id,
             )
             .await?;
         let mut message = self.get_webhook_source_verification_message(

@@ -715,7 +715,7 @@ pub async fn webhooks_core<W: types::OutgoingWebhookType>(
         )],
     );
     let merchant_connector_account = if connector_name_or_id.starts_with("mca_") {
-        let mca = state
+        state
             .store
             .find_by_merchant_connector_account_merchant_id_merchant_connector_id(
                 &merchant_account.merchant_id,
@@ -723,24 +723,26 @@ pub async fn webhooks_core<W: types::OutgoingWebhookType>(
                 &key_store,
             )
             .await
-            .map_err(|err| {
-                err.change_context(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
-                    id: connector_name_or_id.to_string(),
-                })
-                .attach_printable(
-                    "error while fetching merchant_connector_account from connector_id",
-                )
-            })?;
-        Some(mca)
+            .to_not_found_response(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
+                id: connector_name_or_id.to_string(),
+            })
+            .attach_printable("error while fetching merchant_connector_account from connector_id")?
     } else {
-        None
+        state
+            .store
+            .find_merchant_connector_account_by_merchant_id_connector_label(
+                &merchant_account.merchant_id,
+                connector_name_or_id,
+                &key_store,
+            )
+            .await
+            .to_not_found_response(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
+                id: connector_name_or_id.to_string(),
+            })
+            .attach_printable("error while fetching merchant_connector_account from connector_id")?
     };
 
-    let connector_name = if let Some(account) = merchant_connector_account.clone() {
-        account.connector_name
-    } else {
-        connector_name_or_id.to_string()
-    };
+    let connector_name = merchant_connector_account.clone().connector_name;
 
     let connector = api::ConnectorData::get_connector_by_name(
         &state.conf.connectors,
@@ -824,13 +826,10 @@ pub async fn webhooks_core<W: types::OutgoingWebhookType>(
 
         let source_verified = connector
             .verify_webhook_source(
-                &*state.store,
                 &request_details,
                 &merchant_account,
                 merchant_connector_account.clone(),
                 connector_name.as_str(),
-                &key_store,
-                object_ref_id.clone(),
             )
             .await
             .or_else(|error| match error.current_context() {

@@ -14,7 +14,6 @@ use crate::{
     configs::settings,
     consts,
     core::errors::{self, CustomResult},
-    db::StorageInterface,
     headers,
     services::{
         self,
@@ -773,13 +772,10 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
 impl api::IncomingWebhook for Stax {
     async fn verify_webhook_source(
         &self,
-        _db: &dyn StorageInterface,
         _request: &api::IncomingWebhookRequestDetails<'_>,
         _merchant_account: &domain::MerchantAccount,
-        _merchant_connector_account: Option<domain::MerchantConnectorAccount>,
+        _merchant_connector_account: domain::MerchantConnectorAccount,
         _connector_label: &str,
-        _key_store: &domain::MerchantKeyStore,
-        _object_reference_id: api_models::webhooks::ObjectReferenceId,
     ) -> CustomResult<bool, errors::ConnectorError> {
         Ok(false)
     }
