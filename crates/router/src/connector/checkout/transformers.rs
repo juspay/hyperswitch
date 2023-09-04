@@ -282,23 +282,25 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PaymentsRequest {
                         .payment_data
                         .eci_indicator
                         .map(|eci_indicator| eci_indicator.peek().to_string());
-                    Ok(PaymentSource::ApplePayPredecrypt(Box::new(ApplePayPredecrypt {
-                        token: decrypt_data
-                            .application_primary_account_number
-                            .peek()
-                            .to_string(),
-                        decrypt_type: "network_token".to_string(),
-                        token_type: "applepay".to_string(),
-                        expiry_month: decrypt_data.application_expiration_date.peek()[2..4]
-                            .to_owned(),
-                        expiry_year: expiry_year_4_digit,
-                        eci,
-                        cryptogram: decrypt_data
-                            .payment_data
-                            .online_payment_cryptogram
-                            .peek()
-                            .to_string(),
-                    })))
+                    Ok(PaymentSource::ApplePayPredecrypt(Box::new(
+                        ApplePayPredecrypt {
+                            token: decrypt_data
+                                .application_primary_account_number
+                                .peek()
+                                .to_string(),
+                            decrypt_type: "network_token".to_string(),
+                            token_type: "applepay".to_string(),
+                            expiry_month: decrypt_data.application_expiration_date.peek()[2..4]
+                                .to_owned(),
+                            expiry_year: expiry_year_4_digit,
+                            eci,
+                            cryptogram: decrypt_data
+                                .payment_data
+                                .online_payment_cryptogram
+                                .peek()
+                                .to_string(),
+                        },
+                    )))
                 }
                 api_models::payments::WalletData::AliPayQr(_)
                 | api_models::payments::WalletData::AliPayRedirect(_)

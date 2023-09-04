@@ -1305,24 +1305,28 @@ fn create_stripe_payment_method(
                             .map(|eci_indicator| eci_indicator.peek().to_string());
 
                         Some(StripePaymentMethodData::Wallet(
-                            StripeWallet::ApplePayPredecryptToken(Box::new(StripeApplePayPredecrypt {
-                                number: decrypt_data
-                                    .clone()
-                                    .application_primary_account_number
-                                    .peek()
-                                    .to_string(),
-                                exp_year: expiry_year_4_digit,
-                                exp_month: decrypt_data.clone().application_expiration_date.peek()
-                                    [2..4]
-                                    .to_owned(),
-                                eci,
-                                cryptogram: decrypt_data
-                                    .payment_data
-                                    .online_payment_cryptogram
-                                    .peek()
-                                    .to_string(),
-                                tokenization_method: "apple_pay".to_string(),
-                            })),
+                            StripeWallet::ApplePayPredecryptToken(Box::new(
+                                StripeApplePayPredecrypt {
+                                    number: decrypt_data
+                                        .clone()
+                                        .application_primary_account_number
+                                        .peek()
+                                        .to_string(),
+                                    exp_year: expiry_year_4_digit,
+                                    exp_month: decrypt_data
+                                        .clone()
+                                        .application_expiration_date
+                                        .peek()[2..4]
+                                        .to_owned(),
+                                    eci,
+                                    cryptogram: decrypt_data
+                                        .payment_data
+                                        .online_payment_cryptogram
+                                        .peek()
+                                        .to_string(),
+                                    tokenization_method: "apple_pay".to_string(),
+                                },
+                            )),
                         ))
                     }
                     _ => None,
