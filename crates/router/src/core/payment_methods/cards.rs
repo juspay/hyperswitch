@@ -1813,7 +1813,8 @@ pub async fn list_customer_payment_method(
                         .map(api::CardDetailFromLocker::from);
 
                 // If card_details are not present in PMT or decryption failed, fallback to locker call
-                card_decrypted = if let Some(crd) = card_decrypted {
+                card_decrypted = if let Some(mut crd) = card_decrypted {
+                    crd.scheme = pm.scheme.clone();
                     Some(crd)
                 } else {
                     Some(get_lookup_key_from_locker(state, &hyperswitch_token, &pm).await?)

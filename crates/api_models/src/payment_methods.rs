@@ -146,7 +146,6 @@ pub struct PaymentMethodResponse {
 
 #[derive(Clone, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
 pub struct CardDetailsPaymentMethod {
-    pub scheme: Option<String>,
     pub last4_digits: Option<String>,
     pub issuer_country: Option<String>,
     pub expiry_month: Option<masking::Secret<String>>,
@@ -186,7 +185,7 @@ pub struct CardDetailFromLocker {
 impl From<CardDetailsPaymentMethod> for CardDetailFromLocker {
     fn from(item: CardDetailsPaymentMethod) -> Self {
         Self {
-            scheme: item.scheme,
+            scheme: None,
             issuer_country: item.issuer_country,
             last4_digits: item.last4_digits,
             card_number: None,
@@ -203,7 +202,6 @@ impl From<CardDetailsPaymentMethod> for CardDetailFromLocker {
 impl From<CardDetailFromLocker> for CardDetailsPaymentMethod {
     fn from(item: CardDetailFromLocker) -> Self {
         Self {
-            scheme: item.scheme,
             issuer_country: item.issuer_country,
             last4_digits: item.last4_digits,
             expiry_month: item.expiry_month,
