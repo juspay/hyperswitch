@@ -4,7 +4,7 @@ use error_stack::{IntoReport, ResultExt};
 use http::{HeaderValue, Method};
 use masking::PeekInterface;
 use once_cell::sync::OnceCell;
-use reqwest::{multipart::Form, IntoUrl};
+use reqwest::multipart::Form;
 
 use super::request::Maskable;
 use crate::{
@@ -106,7 +106,7 @@ pub(super) fn create_client(
     }
 }
 
-pub(super) fn proxy_bypass_urls(locker: &Locker) -> Vec<String> {
+pub fn proxy_bypass_urls(locker: &Locker) -> Vec<String> {
     let locker_host = locker.host.to_owned();
     let basilisk_host = locker.basilisk_host.to_owned();
     vec![
@@ -140,15 +140,11 @@ pub trait RequestBuilder: Send + Sync {
     >;
 }
 
-pub trait ApiClient
+pub trait ApiClient: dyn_clone::DynClone
 where
-    Self: Sized + Send + Sync,
+    Self: Send + Sync,
 {
-    fn new(
-        proxy_config: Proxy,
-        whitelisted_urls: Vec<String>,
-    ) -> CustomResult<Self, ApiClientError>;
-    fn request<U: IntoUrl>(
+    fn request(
         &self,
         method: Method,
         url: String,
@@ -162,6 +158,8 @@ where
     ) -> CustomResult<Box<dyn RequestBuilder>, ApiClientError>;
 }
 
+dyn_clone::clone_trait_object!(ApiClient);
+
 #[derive(Clone)]
 pub struct ProxyClient {
     proxy_client: reqwest::Client,
@@ -170,6 +168,45 @@ pub struct ProxyClient {
 }
 
 impl ProxyClient {
+    pub fn new(
+        proxy_config: Proxy,
+        whitelisted_urls: Vec<String>,
+    ) -> CustomResult<Self, ApiClientError> {
+        let non_proxy_client = reqwest::Client::builder()
+            .redirect(reqwest::redirect::Policy::none())
+            .build()
+            .into_report()
+            .change_context(ApiClientError::ClientConstructionFailed)?;
+
+        let mut proxy_builder =
+            reqwest::Client::builder().redirect(reqwest::redirect::Policy::none());
+
+        if let Some(url) = proxy_config.https_url.as_ref() {
+            proxy_builder = proxy_builder.proxy(
+                reqwest::Proxy::https(url)
+                    .into_report()
+                    .change_context(ApiClientError::InvalidProxyConfiguration)?,
+            );
+        }
+
+        if let Some(url) = proxy_config.http_url.as_ref() {
+            proxy_builder = proxy_builder.proxy(
+                reqwest::Proxy::http(url)
+                    .into_report()
+                    .change_context(ApiClientError::InvalidProxyConfiguration)?,
+            );
+        }
+
+        let proxy_client = proxy_builder
+            .build()
+            .into_report()
+            .change_context(ApiClientError::InvalidProxyConfiguration)?;
+        Ok(Self {
+            proxy_client,
+            non_proxy_client,
+            whitelisted_urls,
+        })
+    }
     fn get_reqwest_client(
         &self,
         base_url: String,
@@ -262,47 +299,7 @@ impl RequestBuilder for RouterRequestBuilder {
 // TODO: remove this when integrating this trait
 #[allow(dead_code)]
 impl ApiClient for ProxyClient {
-    fn new(
-        proxy_config: Proxy,
-        whitelisted_urls: Vec<String>,
-    ) -> CustomResult<Self, ApiClientError> {
-        let non_proxy_client = reqwest::Client::builder()
-            .redirect(reqwest::redirect::Policy::none())
-            .build()
-            .into_report()
-            .change_context(ApiClientError::ClientConstructionFailed)?;
-
-        let mut proxy_builder =
-            reqwest::Client::builder().redirect(reqwest::redirect::Policy::none());
-
-        if let Some(url) = proxy_config.https_url.as_ref() {
-            proxy_builder = proxy_builder.proxy(
-                reqwest::Proxy::https(url)
-                    .into_report()
-                    .change_context(ApiClientError::InvalidProxyConfiguration)?,
-            );
-        }
-
-        if let Some(url) = proxy_config.http_url.as_ref() {
-            proxy_builder = proxy_builder.proxy(
-                reqwest::Proxy::http(url)
-                    .into_report()
-                    .change_context(ApiClientError::InvalidProxyConfiguration)?,
-            );
-        }
-
-        let proxy_client = proxy_builder
-            .build()
-            .into_report()
-            .change_context(ApiClientError::InvalidProxyConfiguration)?;
-        Ok(Self {
-            proxy_client,
-            non_proxy_client,
-            whitelisted_urls,
-        })
-    }
-
-    fn request<U: IntoUrl>(
+    fn request(
         &self,
         method: Method,
         url: String,
@@ -323,5 +320,33 @@ impl ApiClient for ProxyClient {
         Ok(Box::new(RouterRequestBuilder {
             inner: Some(client_builder.request(method, url)),
         }))
+    }
+}
+
+///
+/// Api client for testing sending request
+///
+#[derive(Clone)]
+pub struct MockApiClient;
+
+impl ApiClient for MockApiClient {
+    fn request(
+        &self,
+        _method: Method,
+        _url: String,
+    ) -> CustomResult<Box<dyn RequestBuilder>, ApiClientError> {
+        // [#2066]: Add Mock implementation for ApiClient
+        Err(ApiClientError::UnexpectedState.into())
+    }
+
+    fn request_with_certificate(
+        &self,
+        _method: Method,
+        _url: String,
+        _certificate: Option<String>,
+        _certificate_key: Option<String>,
+    ) -> CustomResult<Box<dyn RequestBuilder>, ApiClientError> {
+        // [#2066]: Add Mock implementation for ApiClient
+        Err(ApiClientError::UnexpectedState.into())
     }
 }

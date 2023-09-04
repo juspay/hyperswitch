@@ -510,10 +510,10 @@ pub struct UnresolvedResponseReason {
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
 pub enum FieldType {
-    CardNumber,
-    CardExpiryMonth,
-    CardExpiryYear,
-    CardCVC,
+    UserCardNumber,
+    UserCardExpiryMonth,
+    UserCardExpiryYear,
+    UserCardCvc,
     UserFullName,
     UserEmailAddress,
     UserPhoneNumber,
