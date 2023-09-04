@@ -203,7 +203,7 @@ where
                     updated_customer,
                     validate_result.requeue,
                     schedule_time,
-                    merchant_connector_account,
+                    &merchant_connector_account,
                 )
                 .await?;
 
@@ -591,7 +591,7 @@ pub async fn call_connector_service<F, RouterDReq, ApiRequest>(
     updated_customer: Option<storage::CustomerUpdate>,
     requeue: bool,
     schedule_time: Option<time::PrimitiveDateTime>,
-    merchant_connector_account: helpers::MerchantConnectorAccountType,
+    merchant_connector_account: &helpers::MerchantConnectorAccountType,
 ) -> RouterResult<router_types::RouterData<F, RouterDReq, router_types::PaymentsResponseData>>
 where
     F: Send + Clone + Sync,
@@ -615,7 +615,7 @@ where
             merchant_account,
             key_store,
             customer,
-            &merchant_connector_account,
+            merchant_connector_account,
         )
         .await?;
 
