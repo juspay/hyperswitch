@@ -67,9 +67,6 @@ impl PaymentAttemptExt for PaymentAttempt {
 
     fn get_intent_status(&self, amount_captured: Option<i64>) -> enums::IntentStatus {
         let intent_status = enums::IntentStatus::foreign_from(self.status);
-        println!("\n\n\n\n");
-        dbg!(&amount_captured);
-        dbg!(&intent_status);
         if intent_status == enums::IntentStatus::Cancelled && amount_captured > Some(0) {
             enums::IntentStatus::Succeeded
         } else {
