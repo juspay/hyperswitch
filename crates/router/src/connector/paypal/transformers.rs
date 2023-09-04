@@ -1164,12 +1164,9 @@ impl TryFrom<PaypalWebhookEventType> for PaypalOrderStatus {
 impl TryFrom<&types::VerifyWebhookSourceRequestData> for PaypalSourceVerificationRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(req: &types::VerifyWebhookSourceRequestData) -> Result<Self, Self::Error> {
-        let details = std::str::from_utf8(&req.webhook_body)
+        let req_body = serde_json::from_slice(&req.webhook_body)
             .into_report()
             .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
-        let req_body = serde_json::from_str(details)
-            .into_report()
-            .change_context(errors::ConnectorError::WebhookResourceObjectNotFound)?;
         Ok(Self {
             transmission_id: get_headers(
                 &req.webhook_headers,
