@@ -9418,6 +9418,11 @@
             "type": "integer",
             "format": "int32",
             "description": "total number of attempts associated with this payment"
+          },
+          "merchant_decision": {
+            "type": "string",
+            "description": "Denotes the action(approve or reject) taken by merchant in case of manual review. Manual review can occur when the transaction is marked as risky by the frm_processor, payment processor or when there is underpayment/over payment incase of crypto payment",
+            "nullable": true
           }
         }
       },
