@@ -76,6 +76,10 @@
           "amount": 1800,
           "account_name": "transaction_processing"
         }
+      },
+      "routing": {
+        "type": "single",
+        "data": "stripe"
       }
     }
   },

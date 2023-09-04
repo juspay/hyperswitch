@@ -68,6 +68,7 @@ pub trait ConnectorActions: Connector {
             Settings::new().unwrap(),
             StorageImpl::PostgresqlTest,
             tx,
+            Box::new(services::MockApiClient),
         )
         .await;
         integration.execute_pretasks(&mut request, &state).await?;
@@ -91,6 +92,7 @@ pub trait ConnectorActions: Connector {
             Settings::new().unwrap(),
             StorageImpl::PostgresqlTest,
             tx,
+            Box::new(services::MockApiClient),
         )
         .await;
         integration.execute_pretasks(&mut request, &state).await?;
@@ -114,6 +116,7 @@ pub trait ConnectorActions: Connector {
             Settings::new().unwrap(),
             StorageImpl::PostgresqlTest,
             tx,
+            Box::new(services::MockApiClient),
         )
         .await;
         integration.execute_pretasks(&mut request, &state).await?;
@@ -141,6 +144,7 @@ pub trait ConnectorActions: Connector {
             Settings::new().unwrap(),
             StorageImpl::PostgresqlTest,
             tx,
+            Box::new(services::MockApiClient),
         )
         .await;
         integration.execute_pretasks(&mut request, &state).await?;
@@ -551,6 +555,7 @@ pub trait ConnectorActions: Connector {
             Settings::new().unwrap(),
             StorageImpl::PostgresqlTest,
             tx,
+            Box::new(services::MockApiClient),
         )
         .await;
         connector_integration
@@ -589,6 +594,7 @@ pub trait ConnectorActions: Connector {
             Settings::new().unwrap(),
             StorageImpl::PostgresqlTest,
             tx,
+            Box::new(services::MockApiClient),
         )
         .await;
         connector_integration
@@ -628,6 +634,7 @@ pub trait ConnectorActions: Connector {
             Settings::new().unwrap(),
             StorageImpl::PostgresqlTest,
             tx,
+            Box::new(services::MockApiClient),
         )
         .await;
         connector_integration
@@ -667,6 +674,7 @@ pub trait ConnectorActions: Connector {
             Settings::new().unwrap(),
             StorageImpl::PostgresqlTest,
             tx,
+            Box::new(services::MockApiClient),
         )
         .await;
         connector_integration
@@ -750,6 +758,7 @@ pub trait ConnectorActions: Connector {
             Settings::new().unwrap(),
             StorageImpl::PostgresqlTest,
             tx,
+            Box::new(services::MockApiClient),
         )
         .await;
         connector_integration
@@ -777,7 +786,13 @@ async fn call_connector<
 ) -> Result<RouterData<T, Req, Resp>, Report<ConnectorError>> {
     let conf = Settings::new().unwrap();
     let tx: oneshot::Sender<()> = oneshot::channel().0;
-    let state = routes::AppState::with_storage(conf, StorageImpl::PostgresqlTest, tx).await;
+    let state = routes::AppState::with_storage(
+        conf,
+        StorageImpl::PostgresqlTest,
+        tx,
+        Box::new(services::MockApiClient),
+    )
+    .await;
     services::api::execute_connector_processing_step(
         &state,
         integration,
@@ -963,6 +978,8 @@ impl Default for TokenType {
         let data = types::PaymentMethodTokenizationData {
             payment_method_data: types::api::PaymentMethodData::Card(CCardType::default().0),
             browser_info: None,
+            amount: Some(100),
+            currency: enums::Currency::USD,
         };
         Self(data)
     }

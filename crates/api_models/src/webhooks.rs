@@ -114,3 +114,8 @@ pub enum OutgoingWebhookContent {
     #[schema(value_type = DisputeResponse)]
     DisputeDetails(Box<disputes::DisputeResponse>),
 }
+
+pub struct ConnectorWebhookSecrets {
+    pub secret: Vec<u8>,
+    pub additional_secret: Option<masking::Secret<String>>,
+}
