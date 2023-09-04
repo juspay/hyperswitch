@@ -292,7 +292,7 @@ impl TryFrom<&types::ConnectorAuthType> for SquareAuthType {
     }
 }
 // PaymentsResponse
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "UPPERCASE")]
 pub enum SquarePaymentStatus {
     Completed,
@@ -314,7 +314,7 @@ impl From<SquarePaymentStatus> for enums::AttemptStatus {
     }
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub struct SquarePaymentsResponseDetails {
     status: SquarePaymentStatus,
     id: String,
@@ -372,7 +372,7 @@ impl<F> TryFrom<&types::RefundsRouterData<F>> for SquareRefundRequest {
     }
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "UPPERCASE")]
 pub enum RefundStatus {
     Completed,
@@ -391,7 +391,7 @@ impl From<RefundStatus> for enums::RefundStatus {
     }
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub struct SquareRefundResponseDetails {
     status: RefundStatus,
     id: String,
@@ -447,20 +447,10 @@ pub struct SquareErrorResponse {
 }
 
 #[derive(Debug, Deserialize)]
-pub struct SquareWebhookPaymentObject {
-    pub status: SquarePaymentStatus,
-}
-
-#[derive(Debug, Deserialize)]
-pub struct SquareWebhookRefundObject {
-    pub status: RefundStatus,
-}
-
-#[derive(Debug, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum SquareWebhookObject {
-    Payment(SquareWebhookPaymentObject),
-    Refund(SquareWebhookRefundObject),
+    Payment(SquarePaymentsResponseDetails),
+    Refund(SquareRefundResponseDetails),
 }
 
 #[derive(Debug, Deserialize)]

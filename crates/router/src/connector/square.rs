@@ -881,9 +881,23 @@ impl api::IncomingWebhook for Square {
         &self,
         request: &api::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<serde_json::Value, errors::ConnectorError> {
-        let reference_object: serde_json::Value = serde_json::from_slice(request.body)
-            .into_report()
-            .change_context(errors::ConnectorError::WebhookResourceObjectNotFound)?;
+        let details: square::SquareWebhookBody =
+            request
+                .body
+                .parse_struct("SquareWebhookObject")
+                .change_context(errors::ConnectorError::WebhookEventTypeNotFound)?;
+        let reference_object = match details.data.object {
+            square::SquareWebhookObject::Payment(square_payments_response_details) => {
+                serde_json::to_value(square_payments_response_details)
+                    .into_report()
+                    .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?
+            }
+            square::SquareWebhookObject::Refund(square_refund_response_details) => {
+                serde_json::to_value(square_refund_response_details)
+                    .into_report()
+                    .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?
+            }
+        };
         Ok(reference_object)
     }
 }
