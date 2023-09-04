@@ -299,7 +299,6 @@ default_imp_for_connector_redirect_response!(
     connector::Opayo,
     connector::Opennode,
     connector::Payeezy,
-    connector::Payme,
     connector::Payu,
     connector::Powertranz,
     connector::Rapyd,

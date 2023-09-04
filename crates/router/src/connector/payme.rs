@@ -11,7 +11,10 @@ use transformers as payme;
 use crate::{
     configs::settings,
     connector::utils as connector_utils,
-    core::errors::{self, CustomResult},
+    core::{
+        errors::{self, CustomResult},
+        payments,
+    },
     headers,
     services::{self, request, ConnectorIntegration, ConnectorValidation},
     types::{
@@ -306,6 +309,17 @@ impl ConnectorIntegration<api::AccessTokenAuth, types::AccessTokenRequestData, t
 impl ConnectorIntegration<api::Verify, types::VerifyRequestData, types::PaymentsResponseData>
     for Payme
 {
+}
+
+impl services::ConnectorRedirectResponse for Payme {
+    fn get_flow_type(
+        &self,
+        _query_params: &str,
+        _json_payload: Option<serde_json::Value>,
+        _action: services::PaymentAction,
+    ) -> CustomResult<payments::CallConnectorAction, errors::ConnectorError> {
+        Ok(payments::CallConnectorAction::Trigger)
+    }
 }
 
 impl

@@ -49,6 +49,7 @@ pub struct Pay3dsRequest {
     buyer_email: pii::Email,
     buyer_key: String,
     payme_sale_id: String,
+    meta_data_jwt: String,
 }
 
 #[derive(Debug, Serialize)]
@@ -198,7 +199,6 @@ impl From<(&PaymePaySaleResponse, u16)> for types::ErrorResponse {
 impl TryFrom<&PaymePaySaleResponse> for types::PaymentsResponseData {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(value: &PaymePaySaleResponse) -> Result<Self, Self::Error> {
-        println!("sakilmostak_here");
         let redirection_data = value
             .redirect_url
             .clone()
@@ -372,15 +372,10 @@ impl TryFrom<&types::PaymentsPreProcessingRouterData> for GenerateSaleRequest {
             sale_payment_method: SalePaymentMethod::try_from(&pmd)?,
             sale_type,
             transaction_id: item.payment_id.clone(),
-            // sale_return_url: item.request.get_return_url()?,
-            // sale_callback_url: item.request.get_webhook_url()?,
-            // language: LANGUAGE.to_string(),
-            sale_return_url: "https://webhook.site/e505d040-7263-4e7a-9d9d-527adbc01292"
-                .to_string(),
-            sale_callback_url: "https://webhook.site/e505d040-7263-4e7a-9d9d-527adbc01292"
-                .to_string(),
-            services,
+            sale_return_url: item.request.get_return_url()?,
+            sale_callback_url: item.request.get_webhook_url()?,
             language: LANGUAGE.to_string(),
+            services,
         })
     }
 }
@@ -557,31 +552,21 @@ impl<F>
                     ..item.data
                 })
             }
-            AuthenticationType::ThreeDs => {
-                println!(
-                    "complete_url_pay_sale {:?}",
-                    item.data.request.complete_authorize_url
-                );
-                Ok(Self {
-                    // We don't get any status from payme, so defaulting it to pending
-                    status: enums::AttemptStatus::AuthenticationPending,
-                    preprocessing_id: Some(item.response.payme_sale_id.to_owned()),
-                    response: Ok(types::PaymentsResponseData::TransactionResponse {
-                        resource_id: types::ResponseId::ConnectorTransactionId(
-                            item.response.payme_sale_id.to_owned(),
-                        ),
-                        redirection_data: Some(services::RedirectForm::Html {
-                            // trying to pass script
-                            html_data: "<div></div>".to_string(),
-                        }),
-                        mandate_reference: None,
-                        connector_metadata: None,
-                        network_txn_id: None,
-                        connector_response_reference_id: None,
-                    }),
-                    ..item.data
-                })
-            }
+            AuthenticationType::ThreeDs => Ok(Self {
+                status: enums::AttemptStatus::AuthenticationPending,
+                preprocessing_id: Some(item.response.payme_sale_id.to_owned()),
+                response: Ok(types::PaymentsResponseData::TransactionResponse {
+                    resource_id: types::ResponseId::ConnectorTransactionId(
+                        item.response.payme_sale_id.to_owned(),
+                    ),
+                    redirection_data: Some(services::RedirectForm::Payme),
+                    mandate_reference: None,
+                    connector_metadata: None,
+                    network_txn_id: None,
+                    connector_response_reference_id: None,
+                }),
+                ..item.data
+            }),
         }
     }
 }
@@ -640,6 +625,10 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PayRequest {
         }
     }
 }
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PaymePayloadData {
+    meta_data: String,
+}
 
 impl TryFrom<&types::PaymentsCompleteAuthorizeRouterData> for Pay3dsRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
@@ -654,11 +643,30 @@ impl TryFrom<&types::PaymentsCompleteAuthorizeRouterData> for Pay3dsRequest {
                         })?,
                     };
                     let buyer_name = item.get_billing_address()?.get_full_name()?;
-                    let payme_sale_id = item.reference_id.to_owned().ok_or(
-                        errors::ConnectorError::MissingConnectorRelatedTransactionID {
-                            id: "payme_sale_id".to_string(),
-                        },
-                    )?;
+
+                    let payload_data = item
+                        .request
+                        .redirect_response
+                        .to_owned()
+                        .and_then(|response| {
+                            response
+                                .payload.map(|param_string| param_string.expose())
+                        })
+                        .ok_or(errors::ConnectorError::MissingConnectorRedirectionPayload {
+                            field_name: "meta_data",
+                        })?;
+
+                    let jwt_data: PaymePayloadData = serde_json::from_value(payload_data)
+                        .into_report()
+                        .change_context(
+                            errors::ConnectorError::MissingConnectorRedirectionPayload {
+                                field_name: "meta_data_jwt",
+                            },
+                        )?;
+
+                    let payme_sale_id = item.request.connector_transaction_id
+                    .clone()
+                    .ok_or(errors::ConnectorError::MissingConnectorTransactionID)?;
                     let buyer_key = match item.payment_method_token.clone() {
                         Some(key) => key,
                         None => Err(errors::ConnectorError::MissingRequiredField {
@@ -670,6 +678,7 @@ impl TryFrom<&types::PaymentsCompleteAuthorizeRouterData> for Pay3dsRequest {
                         buyer_key,
                         buyer_name,
                         payme_sale_id,
+                        meta_data_jwt: jwt_data.meta_data,
                     })
                 }
                 _ => Err(

@@ -9,7 +9,7 @@ pub mod types;
 
 use std::{fmt::Debug, marker::PhantomData, ops::Deref, time::Instant};
 
-use api_models::{enums::AuthenticationType, payments::FrmMessage};
+use api_models::payments::FrmMessage;
 use common_utils::{ext_traits::AsyncExt, pii};
 use diesel_models::ephemeral_key;
 use error_stack::{IntoReport, ResultExt};
@@ -601,6 +601,7 @@ where
         &connector,
         payment_data,
         router_data,
+        operation,
         should_continue_further,
     )
     .await?;
@@ -848,11 +849,12 @@ where
     }
 }
 
-async fn complete_preprocessing_steps_if_required<F, Req>(
+async fn complete_preprocessing_steps_if_required<F, Req, Q>(
     state: &AppState,
     connector: &api::ConnectorData,
     payment_data: &PaymentData<F>,
     mut router_data: router_types::RouterData<F, Req, router_types::PaymentsResponseData>,
+    operation: &BoxedOperation<'_, F, Q>,
     should_continue_payment: bool,
 ) -> RouterResult<(
     router_types::RouterData<F, Req, router_types::PaymentsResponseData>,
@@ -894,11 +896,12 @@ where
             }
         }
         Some(api_models::payments::PaymentMethodData::Card(_)) => {
-            if connector.connector_name == router_types::Connector::Payme {
+            if connector.connector_name == router_types::Connector::Payme
+                && !matches!(format!("{operation:?}").as_str(), "CompleteAuthorize")
+            {
                 router_data = router_data.preprocessing_steps(state, connector).await?;
 
-                let is_error_in_response = router_data.response.is_err()
-                    || matches!(router_data.auth_type, AuthenticationType::ThreeDs);
+                let is_error_in_response = router_data.response.is_err();
                 // If is_error_in_response is true, should_continue_payment should be false, we should throw the error
                 (router_data, !is_error_in_response)
             } else {
