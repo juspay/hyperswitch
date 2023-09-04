@@ -11,7 +11,6 @@ use super::{MockDb, Store};
 use crate::{
     connection,
     core::errors::{self, CustomResult},
-    services::logger,
     types::{
         self,
         domain::{
@@ -80,11 +79,7 @@ impl ConnectorAccessToken for Store {
             .map_err(Into::<errors::StorageError>::into)?
             .set_key_with_expiry(&key, serialized_access_token, access_token.expires)
             .await
-            .map_err(|error| {
-                logger::error!(access_token_kv_error=?error);
-                errors::StorageError::KVError
-            })
-            .into_report()
+            .change_context(errors::StorageError::KVError)
     }
 }
 
