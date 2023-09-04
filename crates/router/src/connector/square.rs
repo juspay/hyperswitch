@@ -3,11 +3,13 @@ pub mod transformers;
 use std::fmt::Debug;
 
 use api_models::enums;
+use base64::Engine;
+use common_utils::ext_traits::ByteSliceExt;
 use error_stack::{IntoReport, ResultExt};
 use masking::PeekInterface;
 use transformers as square;
 
-use super::utils::RefundsRequestData;
+use super::utils::{self as super_utils, RefundsRequestData};
 use crate::{
     configs::settings,
     consts,
@@ -812,8 +814,9 @@ impl api::IncomingWebhook for Square {
     fn get_webhook_source_verification_algorithm(
         &self,
         _request: &api::IncomingWebhookRequestDetails<'_>,
-    ) -> CustomResult<Box<dyn crypto::VerifySignature + Send>, errors::ConnectorError> {
-        Ok(Box::new(crypto::HmacSha256))
+    ) -> CustomResult<Box<dyn common_utils::crypto::VerifySignature + Send>, errors::ConnectorError>
+    {
+        Ok(Box::new(common_utils::crypto::HmacSha256))
     }
 
     fn get_webhook_source_verification_signature(

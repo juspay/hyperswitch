@@ -9,11 +9,7 @@ use router::{
     core::{errors, errors::ConnectorError, payments, utils as core_utils},
     db::StorageImpl,
     routes, services,
-    types::{
-        self, api,
-        storage::{self, enums},
-        AccessToken, PaymentAddress, RouterData,
-    },
+    types::{self, api, storage::enums, AccessToken, PaymentAddress, RouterData},
 };
 use test_utils::connector_auth::ConnectorAuthType;
 use tokio::sync::oneshot;

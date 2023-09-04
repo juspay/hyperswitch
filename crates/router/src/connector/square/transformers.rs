@@ -480,25 +480,16 @@ impl From<SquareWebhookObject> for api::IncomingWebhookEvent {
     fn from(item: SquareWebhookObject) -> Self {
         match item {
             SquareWebhookObject::Payment(payment_data) => match payment_data.status {
-                SquarePaymentStatus::Completed => {
-                    api::IncomingWebhookEvent::PaymentIntentSuccess
-                }
-                SquarePaymentStatus::Failed => {
-                    api::IncomingWebhookEvent::PaymentIntentFailure
-                }
+                SquarePaymentStatus::Completed => Self::PaymentIntentSuccess,
+                SquarePaymentStatus::Failed => Self::PaymentIntentFailure,
                 SquarePaymentStatus::Approved
                 | SquarePaymentStatus::Canceled
-                | SquarePaymentStatus::Pending
-                | SquarePaymentStatus::Processing => {
-                    api::IncomingWebhookEvent::EventNotSupported
-                }
+                | SquarePaymentStatus::Pending => Self::EventNotSupported,
             },
             SquareWebhookObject::Refund(refund_data) => match refund_data.status {
-                RefundStatus::Completed => api::IncomingWebhookEvent::RefundSuccess,
-                RefundStatus::Failed => api::IncomingWebhookEvent::RefundFailure,
-                RefundStatus::Pending | RefundStatus::Processing => {
-                    api::IncomingWebhookEvent::EventNotSupported
-                }
+                RefundStatus::Completed => Self::RefundSuccess,
+                RefundStatus::Failed | RefundStatus::Rejected => Self::RefundFailure,
+                RefundStatus::Pending => Self::EventNotSupported,
             },
         }
     }
