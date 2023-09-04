@@ -199,14 +199,18 @@ impl From<(&PaymePaySaleResponse, u16)> for types::ErrorResponse {
 impl TryFrom<&PaymePaySaleResponse> for types::PaymentsResponseData {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(value: &PaymePaySaleResponse) -> Result<Self, Self::Error> {
-        let redirection_data = value
-            .redirect_url
-            .clone()
-            .map(|url| services::RedirectForm::Form {
-                endpoint: url.to_string(),
-                method: services::Method::Get,
-                form_fields: HashMap::<String, String>::new(),
-            });
+        let redirection_data = if value.sale_3ds {
+            value
+                .redirect_url
+                .clone()
+                .map(|url| services::RedirectForm::Form {
+                    endpoint: url.to_string(),
+                    method: services::Method::Get,
+                    form_fields: HashMap::<String, String>::new(),
+                })
+        } else {
+            None
+        };
         Ok(Self::TransactionResponse {
             resource_id: types::ResponseId::ConnectorTransactionId(value.payme_sale_id.clone()),
             redirection_data,
