@@ -1,3 +1,4 @@
+use api_models::enums::Connector;
 use common_enums as storage_enums;
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
