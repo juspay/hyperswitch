@@ -4,7 +4,9 @@ use masking::{ExposeInterface, Secret};
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    connector::utils::{missing_field_err, CardData, PaymentsAuthorizeRequestData, RouterData},
+    connector::utils::{
+        self, missing_field_err, CardData, PaymentsAuthorizeRequestData, RouterData,
+    },
     core::errors,
     types::{self, api, storage::enums},
 };
@@ -17,7 +19,7 @@ pub struct StaxPaymentsRequestMetaData {
 #[derive(Debug, Serialize)]
 pub struct StaxPaymentsRequest {
     payment_method_id: Secret<String>,
-    total: i64,
+    total: f64,
     is_refundable: bool,
     pre_auth: bool,
     meta: StaxPaymentsRequestMetaData,
@@ -32,12 +34,14 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for StaxPaymentsRequest {
                 connector: "Stax",
             })?
         }
+        let total = utils::to_currency_base_unit_asf64(item.request.amount, item.request.currency)?;
+
         match item.request.payment_method_data.clone() {
             api::PaymentMethodData::Card(_) => {
                 let pre_auth = !item.request.is_auto_capture()?;
                 Ok(Self {
                     meta: StaxPaymentsRequestMetaData { tax: 0 },
-                    total: item.request.amount,
+                    total,
                     is_refundable: true,
                     pre_auth,
                     payment_method_id: Secret::new(item.get_payment_method_token()?),
@@ -49,7 +53,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for StaxPaymentsRequest {
                 let pre_auth = !item.request.is_auto_capture()?;
                 Ok(Self {
                     meta: StaxPaymentsRequestMetaData { tax: 0 },
-                    total: item.request.amount,
+                    total,
                     is_refundable: true,
                     pre_auth,
                     payment_method_id: Secret::new(item.get_payment_method_token()?),
@@ -322,13 +326,16 @@ impl<F, T>
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct StaxCaptureRequest {
-    total: Option<i64>,
+    total: Option<f64>,
 }
 
 impl TryFrom<&types::PaymentsCaptureRouterData> for StaxCaptureRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::PaymentsCaptureRouterData) -> Result<Self, Self::Error> {
-        let total = item.request.amount_to_capture;
+        let total = utils::to_currency_base_unit_asf64(
+            item.request.amount_to_capture,
+            item.request.currency,
+        )?;
         Ok(Self { total: Some(total) })
     }
 }
@@ -337,14 +344,17 @@ impl TryFrom<&types::PaymentsCaptureRouterData> for StaxCaptureRequest {
 // Type definition for RefundRequest
 #[derive(Debug, Serialize)]
 pub struct StaxRefundRequest {
-    pub total: i64,
+    pub total: f64,
 }
 
 impl<F> TryFrom<&types::RefundsRouterData<F>> for StaxRefundRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::RefundsRouterData<F>) -> Result<Self, Self::Error> {
         Ok(Self {
-            total: item.request.refund_amount,
+            total: utils::to_currency_base_unit_asf64(
+                item.request.refund_amount,
+                item.request.currency,
+            )?,
         })
     }
 }
@@ -354,7 +364,7 @@ pub struct ChildTransactionsInResponse {
     id: String,
     success: bool,
     created_at: String,
-    total: i64,
+    total: f64,
 }
 #[derive(Debug, Deserialize)]
 pub struct RefundResponse {
@@ -374,7 +384,14 @@ impl TryFrom<types::RefundsResponseRouterData<api::Execute, RefundResponse>>
             .response
             .child_transactions
             .iter()
-            .filter(|txn| txn.total == item.data.request.refund_amount)
+            .filter(|txn| {
+                txn.total
+                    == utils::to_currency_base_unit_asf64(
+                        item.data.request.refund_amount,
+                        item.data.request.currency,
+                    )
+                    .unwrap_or(0.0)
+            })
             .collect();
 
         let mut refund_txn = filtered_txn
