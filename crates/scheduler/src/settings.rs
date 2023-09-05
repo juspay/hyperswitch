@@ -1,6 +1,6 @@
 use common_utils::ext_traits::ConfigExt;
-use diesel_models::errors::ApplicationError;
 use serde::Deserialize;
+use storage_impl::errors::ApplicationError;
 
 pub use crate::configs::settings::SchedulerSettings;
 

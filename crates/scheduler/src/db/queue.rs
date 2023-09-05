@@ -184,7 +184,7 @@ impl QueueInterface for MockDb {
         Err(RedisError::StreamAppendFailed)?
     }
 
-    async fn get_key(&self, key: &str) -> CustomResult<Vec<u8>, RedisError> {
-        self.redis.get_key(key).await
+    async fn get_key(&self, _key: &str) -> CustomResult<Vec<u8>, RedisError> {
+        Err(RedisError::RedisConnectionError.into())
     }
 }

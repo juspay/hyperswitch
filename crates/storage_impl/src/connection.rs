@@ -20,7 +20,7 @@ pub async fn pg_connection_read<T: crate::DatabaseStore>(
     store: &T,
 ) -> errors::CustomResult<
     PooledConnection<'_, async_bb8_diesel::ConnectionManager<PgConnection>>,
-    crate::store::errors::StorageError,
+    crate::errors::StorageError,
 > {
     // If only OLAP is enabled get replica pool.
     #[cfg(all(feature = "olap", not(feature = "oltp")))]
@@ -40,14 +40,14 @@ pub async fn pg_connection_read<T: crate::DatabaseStore>(
     pool.get()
         .await
         .into_report()
-        .change_context(crate::store::errors::StorageError::DatabaseConnectionError)
+        .change_context(crate::errors::StorageError::DatabaseConnectionError)
 }
 
 pub async fn pg_connection_write<T: crate::DatabaseStore>(
     store: &T,
 ) -> errors::CustomResult<
     PooledConnection<'_, async_bb8_diesel::ConnectionManager<PgConnection>>,
-    crate::store::errors::StorageError,
+    crate::errors::StorageError,
 > {
     // Since all writes should happen to master DB only choose master DB.
     let pool = store.get_master_pool();
@@ -55,5 +55,5 @@ pub async fn pg_connection_write<T: crate::DatabaseStore>(
     pool.get()
         .await
         .into_report()
-        .change_context(crate::store::errors::StorageError::DatabaseConnectionError)
+        .change_context(crate::errors::StorageError::DatabaseConnectionError)
 }

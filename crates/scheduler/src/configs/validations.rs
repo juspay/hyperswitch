@@ -1,5 +1,5 @@
 use common_utils::ext_traits::ConfigExt;
-use diesel_models::errors::ApplicationError;
+use storage_impl::errors::ApplicationError;
 
 impl super::settings::SchedulerSettings {
     pub fn validate(&self) -> Result<(), ApplicationError> {

@@ -1,9 +1,9 @@
 use common_utils::errors::CustomResult;
 pub use diesel_models as storage;
-use diesel_models::{enums as storage_enums, errors};
+use diesel_models::enums as storage_enums;
 use error_stack::{IntoReport, ResultExt};
 use serde::Serialize;
-use storage_impl::{connection, MockDb};
+use storage_impl::{connection, errors, MockDb};
 use time::PrimitiveDateTime;
 
 use crate::{errors as sch_errors, metrics, scheduler::Store, SchedulerInterface};

@@ -692,7 +692,7 @@ mod merchant_connector_account_cache_tests {
     #[allow(clippy::unwrap_used)]
     #[tokio::test]
     async fn test_connector_label_cache() {
-        let db = MockDb::new(crate::settings::Settings::default().redis).await;
+        let db = MockDb::new().await;
 
         let redis_conn = db.get_redis_conn().unwrap();
         let master_key = db.get_master_key();

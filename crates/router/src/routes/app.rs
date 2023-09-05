@@ -89,7 +89,7 @@ impl AppState {
                     .await
                     .expect("Failed to create store"),
             ),
-            StorageImpl::Mock => Box::new(MockDb::new(conf.redis.clone()).await),
+            StorageImpl::Mock => Box::new(MockDb::new().await),
         };
 
         #[cfg(feature = "kms")]

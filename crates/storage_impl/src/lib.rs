@@ -13,6 +13,7 @@ use redis::{kv_store::RedisConnInterface, RedisStore};
 pub mod config;
 pub mod connection;
 pub mod database;
+pub mod errors;
 pub mod metrics;
 pub mod payments;
 pub mod redis;
@@ -226,7 +227,7 @@ pub struct MockDb {
     pub refunds: Arc<Mutex<Vec<store::Refund>>>,
     pub processes: Arc<Mutex<Vec<store::ProcessTracker>>>,
     pub connector_response: Arc<Mutex<Vec<store::ConnectorResponse>>>,
-    pub redis: Arc<redis_interface::RedisConnectionPool>,
+    // pub redis: Arc<redis_interface::RedisConnectionPool>,
     pub api_keys: Arc<Mutex<Vec<store::ApiKey>>>,
     pub ephemeral_keys: Arc<Mutex<Vec<store::EphemeralKey>>>,
     pub cards_info: Arc<Mutex<Vec<store::CardInfo>>>,
@@ -239,7 +240,7 @@ pub struct MockDb {
 }
 
 impl MockDb {
-    pub async fn new(redis: redis_interface::RedisSettings) -> Self {
+    pub async fn new() -> Self {
         Self {
             addresses: Default::default(),
             configs: Default::default(),
@@ -252,7 +253,7 @@ impl MockDb {
             refunds: Default::default(),
             processes: Default::default(),
             connector_response: Default::default(),
-            redis: Arc::new(crate::connection::redis_connection(&redis).await),
+            // redis: Arc::new(crate::connection::redis_connection(&redis).await),
             api_keys: Default::default(),
             ephemeral_keys: Default::default(),
             cards_info: Default::default(),
@@ -295,7 +296,7 @@ impl RedisConnInterface for MockDb {
     fn get_redis_conn(
         &self,
     ) -> Result<Arc<redis_interface::RedisConnectionPool>, error_stack::Report<RedisError>> {
-        Ok(self.redis.clone())
+        Err(RedisError::RedisConnectionError.into())
     }
 }
 

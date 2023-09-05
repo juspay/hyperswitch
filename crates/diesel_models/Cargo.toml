@@ -12,52 +12,25 @@ default = ["kv_store"]
 email = ["external_services/email", "dep:aws-config"]
 kms = ["external_services/kms", "dep:aws-config"]
 kv_store = []
-olap = []
 s3 = ["dep:aws-sdk-s3", "dep:aws-config"]
 
 [dependencies]
-actix-web = "4.3.1"
 async-bb8-diesel = { git = "https://github.com/oxidecomputer/async-bb8-diesel", rev = "be3d9bce50051d8c0e0c06078e8066cc27db3001" }
-async-trait = "0.1.68"
 aws-config = { version = "0.55.3", optional = true }
 aws-sdk-s3 = { version = "0.28.0", optional = true }
-base64 = "0.21.2"
-bb8 = "0.8"
-bytes = "1.4.0"
-clap = { version = "4.3.2", default-features = false, features = ["std", "derive", "help", "usage"] }
-crc32fast = "1.3.2"
-config = { version = "0.13.3", features = ["toml"] }
-dyn-clone = "1.0.11"
 diesel = { version = "2.1.0", features = ["postgres", "serde_json", "time", "64-column-tables"] }
 error-stack = "0.3.1"
 frunk = "0.4.1"
 frunk_core = "0.4.1"
-futures = "0.3.28"
-hex = "0.4.3"
-http = "0.2.9"
-josekit = "0.8.3"
-maud = { version = "0.25", features = ["actix-web"] }
-mime = "0.3.17"
-moka = { version = "0.11", features = ["future"] }
-num_cpus = "1.15.0"
-once_cell = "1.18.0"
-rand = "0.8.5"
-redis_interface = { version = "0.1.0", path = "../redis_interface" }
-ring = "0.16.20"
 serde = { version = "1.0.163", features = ["derive"] }
 serde_json = "1.0.96"
-serde_path_to_error = "0.1.11"
-serde_urlencoded = "0.7.1"
 strum = { version = "0.24.1", features = ["derive"] }
 thiserror = "1.0.40"
 time = { version = "0.3.21", features = ["serde", "serde-well-known", "std"] }
-tokio = { version = "1.28.2", features = ["macros", "rt-multi-thread"] }
-url = { version = "2.4.0", features = ["serde"] }
 
 # First party crates
 common_enums = { path = "../common_enums" }
 common_utils = { version = "0.1.0", path = "../common_utils" }
-data_models = { version = "0.1.0", path = "../data_models", default-features = false }
 external_services = { version = "0.1.0", path = "../external_services" }
 masking = { version = "0.1.0", path = "../masking" }
 router_derive = { version = "0.1.0", path = "../router_derive" }

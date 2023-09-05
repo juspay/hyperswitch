@@ -1790,50 +1790,24 @@ dependencies = [
 name = "diesel_models"
 version = "0.1.0"
 dependencies = [
- "actix-web",
  "async-bb8-diesel 0.1.0 (git+https://github.com/oxidecomputer/async-bb8-diesel?rev=be3d9bce50051d8c0e0c06078e8066cc27db3001)",
- "async-trait",
  "aws-config",
  "aws-sdk-s3 0.28.0",
- "base64 0.21.2",
- "bb8",
- "bytes",
- "clap",
  "common_enums",
  "common_utils",
- "config",
- "crc32fast",
- "data_models",
  "diesel",
- "dyn-clone",
  "error-stack",
  "external_services",
  "frunk",
  "frunk_core",
- "futures",
- "hex",
- "http",
- "josekit",
  "masking",
- "maud",
- "mime",
- "moka",
- "num_cpus",
- "once_cell",
- "rand 0.8.5",
- "redis_interface",
- "ring",
  "router_derive",
  "router_env",
  "serde",
  "serde_json",
- "serde_path_to_error",
- "serde_urlencoded",
  "strum 0.24.1",
  "thiserror",
  "time 0.3.22",
- "tokio",
- "url",
 ]
 
 [[package]]
@@ -2016,19 +1990,15 @@ checksum = "0206175f82b8d6bf6652ff7d71a1e27fd2e4efde587fd368662814d6ec1d9ce0"
 name = "external_services"
 version = "0.1.0"
 dependencies = [
- "actix-web",
  "async-trait",
  "aws-config",
  "aws-sdk-kms",
  "aws-sdk-sesv2",
- "aws-sdk-sts",
  "aws-smithy-client",
  "base64 0.21.2",
  "common_utils",
  "dyn-clone",
  "error-stack",
- "hyper",
- "hyper-proxy",
  "masking",
  "once_cell",
  "router_env",
@@ -2437,31 +2407,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2c6201b9ff9fd90a5a3bac2e56a830d0caa509576f0e503818ee82c181b3437a"
 
 [[package]]
-name = "headers"
-version = "0.3.8"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f3e372db8e5c0d213e0cd0b9be18be2aca3d44cf2fe30a9d46a65581cd454584"
-dependencies = [
- "base64 0.13.1",
- "bitflags 1.3.2",
- "bytes",
- "headers-core",
- "http",
- "httpdate",
- "mime",
- "sha1",
-]
-
-[[package]]
-name = "headers-core"
-version = "0.2.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e7f66481bfee273957b1f20485a4ff3362987f85b2c236580d81b4eb7a326429"
-dependencies = [
- "http",
-]
-
-[[package]]
 name = "heck"
 version = "0.4.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2598,24 +2543,6 @@ dependencies = [
  "tower-service",
  "tracing",
  "want",
-]
-
-[[package]]
-name = "hyper-proxy"
-version = "0.9.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ca815a891b24fdfb243fa3239c86154392b0953ee584aa1a2a1f66d20cbe75cc"
-dependencies = [
- "bytes",
- "futures",
- "headers",
- "http",
- "hyper",
- "hyper-tls",
- "native-tls",
- "tokio",
- "tokio-native-tls",
- "tower-service",
 ]
 
 [[package]]
@@ -4800,11 +4727,14 @@ checksum = "6e63cff320ae2c57904679ba7cb63280a3dc4613885beafb148ee7bf9aa9042d"
 name = "storage_impl"
 version = "0.1.0"
 dependencies = [
+ "actix-web",
  "api_models",
  "async-bb8-diesel 0.1.0 (git+https://github.com/oxidecomputer/async-bb8-diesel?rev=be3d9bce50051d8c0e0c06078e8066cc27db3001)",
  "async-trait",
  "bb8",
+ "bytes",
  "common_utils",
+ "config",
  "crc32fast",
  "data_models",
  "diesel",
@@ -4813,12 +4743,16 @@ dependencies = [
  "error-stack",
  "external_services",
  "futures",
+ "http",
  "masking",
+ "mime",
  "moka",
  "once_cell",
  "redis_interface",
+ "ring",
  "router_env",
  "serde",
+ "thiserror",
  "tokio",
 ]
 

@@ -26,9 +26,9 @@ use actix_web::{
     dev::{Server, ServerHandle, ServiceFactory, ServiceRequest},
     middleware::ErrorHandlers,
 };
-use diesel_models::errors::ApplicationResult;
 use http::StatusCode;
 use routes::AppState;
+use storage_impl::errors::ApplicationResult;
 use tokio::sync::{mpsc, oneshot};
 
 pub use self::env::logger;

@@ -11,11 +11,13 @@ pub use data_models::errors::StorageError as DataStorageError;
 use diesel_models::errors as storage_errors;
 pub use redis_interface::errors::RedisError;
 use scheduler::errors as sch_errors;
+use storage_impl::errors as storage_impl_errors;
 
 pub use self::{
     api_error_response::ApiErrorResponse,
     sch_errors::*,
     storage_errors::*,
+    storage_impl_errors::*,
     utils::{ConnectorErrorExt, StorageErrorExt},
 };
 use crate::services;

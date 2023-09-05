@@ -108,7 +108,7 @@ mod tests {
     #[allow(clippy::unwrap_used)]
     #[tokio::test]
     async fn test_mockdb_event_interface() {
-        let mockdb = MockDb::new(crate::settings::Settings::default().redis).await;
+        let mockdb = MockDb::new().await;
 
         let event1 = mockdb
             .insert_event(storage::EventNew {
