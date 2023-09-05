@@ -19,8 +19,8 @@ use super::{
     env::logger,
 };
 use crate::{
-    consumer::types::ProcessTrackerBatch, errors, flow::SchedulerFlow, metrics,
-    settings::SchedulerSettings, SchedulerAppState, SchedulerInterface,
+    configs::settings::SchedulerSettings, consumer::types::ProcessTrackerBatch, errors,
+    flow::SchedulerFlow, metrics, SchedulerAppState, SchedulerInterface,
 };
 
 pub async fn divide_and_append_tasks<T>(

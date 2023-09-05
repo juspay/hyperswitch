@@ -18,10 +18,9 @@ use uuid::Uuid;
 use super::env::logger;
 pub use super::workflows::ProcessTrackerWorkflow;
 use crate::{
+    configs::settings::SchedulerSettings,
     db::process_tracker::{ProcessTrackerExt, ProcessTrackerInterface},
-    errors, metrics,
-    settings::SchedulerSettings,
-    utils as pt_utils, SchedulerAppState, SchedulerInterface,
+    errors, metrics, utils as pt_utils, SchedulerAppState, SchedulerInterface,
 };
 
 // Valid consumer business statuses

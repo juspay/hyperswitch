@@ -1791,7 +1791,6 @@ name = "diesel_models"
 version = "0.1.0"
 dependencies = [
  "actix-web",
- "api_models",
  "async-bb8-diesel 0.1.0 (git+https://github.com/oxidecomputer/async-bb8-diesel?rev=be3d9bce50051d8c0e0c06078e8066cc27db3001)",
  "async-trait",
  "aws-config",
@@ -1823,7 +1822,6 @@ dependencies = [
  "once_cell",
  "rand 0.8.5",
  "redis_interface",
- "reqwest",
  "ring",
  "router_derive",
  "router_env",

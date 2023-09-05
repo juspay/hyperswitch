@@ -10,12 +10,12 @@ use tokio::sync::mpsc;
 
 use super::env::logger::error;
 pub use crate::{
+    configs::settings::SchedulerSettings,
     consumer::{self, workflows},
     db::{process_tracker::ProcessTrackerInterface, queue::QueueInterface},
     errors,
     flow::SchedulerFlow,
     producer,
-    settings::SchedulerSettings,
 };
 
 #[cfg(not(feature = "olap"))]
