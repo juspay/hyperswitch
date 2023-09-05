@@ -1,6 +1,6 @@
 mod connection;
-pub mod env;
 pub mod errors;
+pub mod logger;
 pub(crate) mod metrics;
 pub mod services;
 pub mod settings;
@@ -9,7 +9,6 @@ use std::sync::{atomic, Arc};
 
 use common_utils::signals::get_allowed_signals;
 use diesel_models::kv;
-pub use env as logger;
 use error_stack::{IntoReport, ResultExt};
 use tokio::sync::mpsc;
 
