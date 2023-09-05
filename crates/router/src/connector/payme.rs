@@ -789,23 +789,21 @@ impl api::IncomingWebhook for Payme {
         let id = match resource.notify_type {
             transformers::NotifyType::SaleComplete
             | transformers::NotifyType::SaleAuthorized
-            | transformers::NotifyType::SaleFailure => {
-                Ok(api::webhooks::ObjectReferenceId::PaymentId(
+            | transformers::NotifyType::SaleFailure
+            | transformers::NotifyType::SaleChargeback
+            | transformers::NotifyType::SaleChargebackRefund => {
+                api::webhooks::ObjectReferenceId::PaymentId(
                     api_models::payments::PaymentIdType::ConnectorTransactionId(
                         resource.payme_sale_id,
                     ),
-                ))
+                )
             }
-            transformers::NotifyType::Refund => Ok(api::webhooks::ObjectReferenceId::RefundId(
+            transformers::NotifyType::Refund => api::webhooks::ObjectReferenceId::RefundId(
                 api_models::webhooks::RefundIdType::ConnectorRefundId(
                     resource.payme_transaction_id,
                 ),
-            )),
-            transformers::NotifyType::SaleChargeback
-            | transformers::NotifyType::SaleChargebackRefund => {
-                Err(errors::ConnectorError::WebhookEventTypeNotFound)
-            }
-        }?;
+            ),
+        };
         Ok(id)
     }
 
@@ -843,11 +841,34 @@ impl api::IncomingWebhook for Payme {
                     .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)
             }
             transformers::NotifyType::SaleChargeback
-            | transformers::NotifyType::SaleChargebackRefund => {
-                Err(errors::ConnectorError::WebhookEventTypeNotFound).into_report()
-            }
+            | transformers::NotifyType::SaleChargebackRefund => serde_json::to_value(resource)
+                .into_report()
+                .change_context(errors::ConnectorError::WebhookBodyDecodingFailed),
         }?;
 
         Ok(res_json)
+    }
+
+    fn get_dispute_details(
+        &self,
+        request: &api::IncomingWebhookRequestDetails<'_>,
+    ) -> CustomResult<api::disputes::DisputePayload, errors::ConnectorError> {
+        let webhook_object =
+            serde_urlencoded::from_bytes::<payme::WebhookEventDataResource>(request.body)
+                .into_report()
+                .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
+
+        Ok(api::disputes::DisputePayload {
+            amount: webhook_object.price.to_string(), //check
+            currency: webhook_object.currency.to_string(),
+            dispute_stage: api_models::enums::DisputeStage::Dispute,
+            connector_dispute_id: webhook_object.payme_sale_id,
+            connector_reason: None,
+            connector_reason_code: None,
+            challenge_required_by: None,
+            connector_status: webhook_object.sale_status.to_string(),
+            created_at: None,
+            updated_at: None,
+        })
     }
 }
