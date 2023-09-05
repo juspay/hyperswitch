@@ -1,0 +1,1 @@
+alter table payment_intent drop column merchant_decision;

@@ -32,7 +32,7 @@ pub struct TelemetryGuard {
 /// current cargo workspace are automatically considered for verbose logging.
 pub fn setup(
     config: &config::Log,
-    service_name: &'static str,
+    service_name: &str,
     crates_to_filter: impl AsRef<[&'static str]>,
 ) -> TelemetryGuard {
     let mut guards = Vec::new();
@@ -133,7 +133,7 @@ fn get_opentelemetry_exporter(config: &config::LogTelemetry) -> TonicExporterBui
 
 fn setup_tracing_pipeline(
     config: &config::LogTelemetry,
-    service_name: &'static str,
+    service_name: &str,
 ) -> Option<tracing_opentelemetry::OpenTelemetryLayer<tracing_subscriber::Registry, trace::Tracer>>
 {
     global::set_text_map_propagator(TraceContextPropagator::new());
@@ -144,7 +144,7 @@ fn setup_tracing_pipeline(
         ))
         .with_resource(Resource::new(vec![KeyValue::new(
             "service.name",
-            service_name,
+            service_name.to_owned(),
         )]));
     if config.use_xray_generator {
         trace_config = trace_config.with_id_generator(trace::XrayIdGenerator::default());
