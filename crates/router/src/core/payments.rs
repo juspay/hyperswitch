@@ -665,7 +665,7 @@ where
                 customer,
                 call_connector_action,
                 merchant_account,
-                connector_request,
+                connector_request.map(|req| req.0),
             )
             .await
     } else {

@@ -519,7 +519,7 @@ impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsR
 {
     fn build_request(
         &self,
-        request_builder: Box<dyn services::client::RequestBuilder>,
+        _request_builder: Box<dyn services::client::RequestBuilder>,
         _req: &types::RouterData<api::Void, types::PaymentsCancelData, types::PaymentsResponseData>,
         _connectors: &settings::Connectors,
     ) -> CustomResult<

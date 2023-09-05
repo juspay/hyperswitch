@@ -373,7 +373,7 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
 {
     fn build_request(
         &self,
-        request_builder: Box<dyn services::client::RequestBuilder>,
+        _request_builder: Box<dyn services::client::RequestBuilder>,
         _req: &types::PaymentsCaptureRouterData,
         _connectors: &settings::Connectors,
     ) -> CustomResult<
@@ -393,7 +393,7 @@ impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsR
 {
     fn build_request(
         &self,
-        request_builder: Box<dyn services::client::RequestBuilder>,
+        _request_builder: Box<dyn services::client::RequestBuilder>,
         _req: &types::PaymentsCancelRouterData,
         _connectors: &settings::Connectors,
     ) -> CustomResult<
@@ -538,7 +538,7 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
                 .attach_default_headers()
                 .headers(types::RefundSyncType::get_headers(self, req, connectors)?)
                 .build(),
-            request_buidler,
+            request_builder,
         )))
     }
 

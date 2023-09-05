@@ -152,7 +152,7 @@ pub trait ConnectorIntegration<T, Req, Resp>: ConnectorIntegrationAny<T, Req, Re
 
     fn build_request(
         &self,
-        request_builder: Box<dyn client::RequestBuilder>,
+        _request_builder: Box<dyn client::RequestBuilder>,
         req: &types::RouterData<T, Req, Resp>,
         _connectors: &Connectors,
     ) -> CustomResult<Option<(Request, Box<dyn client::RequestBuilder>)>, errors::ConnectorError>
@@ -313,7 +313,14 @@ where
             );
 
             let connector_request = connector_request.or(connector_integration
-                .build_request(req, &state.conf.connectors)
+                .build_request(
+                    state
+                        .api_client
+                        .default()
+                        .change_context(errors::ConnectorError::ConnectorUnexpectedError)?,
+                    req,
+                    &state.conf.connectors,
+                )
                 .map_err(|error| {
                     if matches!(
                         error.current_context(),
@@ -330,7 +337,8 @@ where
                         )
                     }
                     error
-                })?);
+                })?
+                .map(|req| req.0));
 
             match connector_request {
                 Some(request) => {

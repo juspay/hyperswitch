@@ -1,9 +1,10 @@
 use async_trait::async_trait;
+use error_stack::ResultExt;
 
 use super::{ConstructFlowSpecificData, Feature};
 use crate::{
     core::{
-        errors::{ConnectorErrorExt, RouterResult},
+        errors::{self, ConnectorErrorExt, RouterResult},
         payments::{self, access_token, transformers, PaymentData},
     },
     routes::{metrics, AppState},
@@ -91,8 +92,11 @@ impl Feature<api::Void, types::PaymentsCancelData>
         state: &AppState,
         connector: &api::ConnectorData,
         call_connector_action: payments::CallConnectorAction,
-    ) -> RouterResult<(Option<services::Request>, bool)> {
-        let request = match call_connector_action {
+    ) -> RouterResult<(
+        Option<(services::Request, Box<dyn services::client::RequestBuilder>)>,
+        bool,
+    )> {
+        match call_connector_action {
             payments::CallConnectorAction::Trigger => {
                 let connector_integration: services::BoxedConnectorIntegration<
                     '_,
@@ -101,13 +105,21 @@ impl Feature<api::Void, types::PaymentsCancelData>
                     types::PaymentsResponseData,
                 > = connector.connector.get_connector_integration();
 
-                connector_integration
-                    .build_request(self, &state.conf.connectors)
-                    .to_payment_failed_response()?
+                Ok((
+                    connector_integration
+                        .build_request(
+                            state
+                                .api_client
+                                .default()
+                                .change_context(errors::ApiErrorResponse::InternalServerError)?,
+                            self,
+                            &state.conf.connectors,
+                        )
+                        .to_payment_failed_response()?,
+                    true,
+                ))
             }
-            _ => None,
-        };
-
-        Ok((request, true))
+            _ => Ok((None, true)),
+        }
     }
 }

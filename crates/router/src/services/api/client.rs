@@ -156,6 +156,7 @@ where
         certificate: Option<String>,
         certificate_key: Option<String>,
     ) -> CustomResult<Box<dyn RequestBuilder>, ApiClientError>;
+    fn default(&self) -> CustomResult<Box<dyn RequestBuilder>, ApiClientError>;
 }
 
 dyn_clone::clone_trait_object!(ApiClient);
@@ -321,6 +322,10 @@ impl ApiClient for ProxyClient {
             inner: Some(client_builder.request(method, url)),
         }))
     }
+
+    fn default(&self) -> CustomResult<Box<dyn RequestBuilder>, ApiClientError> {
+        self.request_with_certificate(Method::GET, "".to_string(), None, None)
+    }
 }
 
 ///
@@ -346,6 +351,10 @@ impl ApiClient for MockApiClient {
         _certificate: Option<String>,
         _certificate_key: Option<String>,
     ) -> CustomResult<Box<dyn RequestBuilder>, ApiClientError> {
+        // [#2066]: Add Mock implementation for ApiClient
+        Err(ApiClientError::UnexpectedState.into())
+    }
+    fn default(&self) -> CustomResult<Box<dyn RequestBuilder>, ApiClientError> {
         // [#2066]: Add Mock implementation for ApiClient
         Err(ApiClientError::UnexpectedState.into())
     }

@@ -1,5 +1,5 @@
 use async_trait::async_trait;
-use error_stack;
+use error_stack::{self, ResultExt};
 
 use super::{ConstructFlowSpecificData, Feature};
 use crate::{
@@ -161,7 +161,10 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
         state: &AppState,
         connector: &api::ConnectorData,
         call_connector_action: payments::CallConnectorAction,
-    ) -> RouterResult<(Option<services::Request>, bool)> {
+    ) -> RouterResult<(
+        Option<(services::Request, Box<dyn services::client::RequestBuilder>)>,
+        bool,
+    )> {
         match call_connector_action {
             payments::CallConnectorAction::Trigger => {
                 let connector_integration: services::BoxedConnectorIntegration<
@@ -196,7 +199,13 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
 
                     Ok((
                         connector_integration
-                            .build_request(self, &state.conf.connectors)
+                            .build_request(
+                                state.api_client.default().change_context(
+                                    errors::ApiErrorResponse::InternalServerError,
+                                )?,
+                                self,
+                                &state.conf.connectors,
+                            )
                             .to_payment_failed_response()?,
                         true,
                     ))

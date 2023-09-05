@@ -173,18 +173,15 @@ impl ConnectorIntegration<api::AccessTokenAuth, types::AccessTokenRequestData, t
         Option<(services::Request, Box<dyn services::client::RequestBuilder>)>,
         errors::ConnectorError,
     > {
-        let req = Some((
-            services::RequestBuilder::new()
-                .method(services::Method::Post)
-                .attach_default_headers()
-                .headers(types::RefreshTokenType::get_headers(self, req, connectors)?)
-                .url(&types::RefreshTokenType::get_url(self, req, connectors)?)
-                .body(types::RefreshTokenType::get_request_body(self, req)?)
-                .build(),
-            request_builder,
-        ));
+        let req = services::RequestBuilder::new()
+            .method(services::Method::Post)
+            .attach_default_headers()
+            .headers(types::RefreshTokenType::get_headers(self, req, connectors)?)
+            .url(&types::RefreshTokenType::get_url(self, req, connectors)?)
+            .body(types::RefreshTokenType::get_request_body(self, req)?)
+            .build();
         logger::debug!(payu_access_token_request=?req);
-        Ok(req)
+        Ok(Some((req, request_builder)))
     }
     fn handle_response(
         &self,

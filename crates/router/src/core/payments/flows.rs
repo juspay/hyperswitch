@@ -104,7 +104,10 @@ pub trait Feature<F, T> {
         _state: &AppState,
         _connector: &api::ConnectorData,
         _call_connector_action: payments::CallConnectorAction,
-    ) -> RouterResult<(Option<services::Request>, bool)> {
+    ) -> RouterResult<(
+        Option<(services::Request, Box<dyn services::client::RequestBuilder>)>,
+        bool,
+    )> {
         Ok((None, true))
     }
 }

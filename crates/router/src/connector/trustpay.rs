@@ -686,7 +686,7 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
             )?)
             .body(types::RefundExecuteType::get_request_body(self, req)?)
             .build();
-        Ok(Some(request))
+        Ok(Some((request, request_builder)))
     }
 
     fn handle_response(

@@ -394,6 +394,8 @@ pub enum ConnectorError {
         message: String,
         connector: &'static str,
     },
+    #[error("Unexpected connector error")]
+    ConnectorUnexpectedError,
 }
 
 #[derive(Debug, thiserror::Error)]

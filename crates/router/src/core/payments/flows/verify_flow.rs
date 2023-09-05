@@ -121,7 +121,11 @@ impl Feature<api::Verify, types::VerifyRequestData> for types::VerifyRouterData 
         state: &AppState,
         connector: &api::ConnectorData,
         call_connector_action: payments::CallConnectorAction,
-    ) -> RouterResult<(Option<services::Request>, bool)> {
+    ) -> RouterResult<(
+        Option<(services::Request, Box<dyn services::client::RequestBuilder>)>,
+        bool,
+    )> {
+        use error_stack::ResultExt;
         match call_connector_action {
             payments::CallConnectorAction::Trigger => {
                 let connector_integration: services::BoxedConnectorIntegration<
@@ -133,7 +137,14 @@ impl Feature<api::Verify, types::VerifyRequestData> for types::VerifyRouterData 
 
                 Ok((
                     connector_integration
-                        .build_request(self, &state.conf.connectors)
+                        .build_request(
+                            state
+                                .api_client
+                                .default()
+                                .change_context(errors::ApiErrorResponse::InternalServerError)?,
+                            self,
+                            &state.conf.connectors,
+                        )
                         .to_payment_failed_response()?,
                     true,
                 ))
