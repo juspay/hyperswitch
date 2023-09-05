@@ -13,8 +13,6 @@ use crate::{
     services, types, utils,
 };
 
-const APPLEPAY_MERCHANT_VERIFICATION_URL: &str =
-    "https://apple-pay-gateway.apple.com/paymentservices/registerMerchant";
 const APPLEPAY_INTERNAL_MERCHANT_NAME: &str = "Applepay_merchant";
 
 pub async fn verify_merchant_creds_for_applepay(
@@ -32,6 +30,7 @@ pub async fn verify_merchant_creds_for_applepay(
         .common_merchant_identifier;
     let encrypted_cert = &state.conf.applepay_merchant_configs.merchant_cert;
     let encrypted_key = &state.conf.applepay_merchant_configs.merchant_cert_key;
+    let applepay_endpoint = &state.conf.applepay_merchant_configs.applepay_endpoint;
 
     let applepay_internal_merchant_identifier = kms::get_kms_client(kms_config)
         .await
@@ -67,7 +66,7 @@ pub async fn verify_merchant_creds_for_applepay(
 
     let apple_pay_merch_verification_req = services::RequestBuilder::new()
         .method(services::Method::Post)
-        .url(APPLEPAY_MERCHANT_VERIFICATION_URL)
+        .url(applepay_endpoint)
         .attach_default_headers()
         .headers(vec![(
             headers::CONTENT_TYPE.to_string(),

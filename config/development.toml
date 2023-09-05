@@ -44,6 +44,7 @@ recon_admin_api_key = "recon_test_admin"
 merchant_cert_key = "MERCHANT CERTIFICATE KEY"
 merchant_cert = "MERCHANT CERTIFICATE"
 common_merchant_identifier = "COMMON MERCHANT IDENTIFIER"
+applepay_endpoint = "DOMAIN SPECIFIC ENDPOINT"
 
 [locker]
 host = ""
