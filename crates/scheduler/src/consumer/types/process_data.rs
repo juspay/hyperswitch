@@ -1,15 +1,7 @@
 use std::collections::HashMap;
 
-use diesel_models::{enums, process_tracker::ProcessTracker};
+use diesel_models::enums;
 use serde::{Deserialize, Serialize};
-
-#[derive(Debug, Clone)]
-#[allow(dead_code)]
-pub struct ProcessData {
-    db_name: String,
-    cache_name: String,
-    process_tracker: ProcessTracker,
-}
 
 #[derive(Serialize, Deserialize, Clone)]
 pub struct RetryMapping {

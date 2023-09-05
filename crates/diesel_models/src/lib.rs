@@ -34,7 +34,6 @@ pub mod refund;
 pub mod reverse_lookup;
 #[allow(unused_qualifications)]
 pub mod schema;
-pub mod utils;
 
 use diesel_impl::{DieselArray, OptionalDieselArray};
 
