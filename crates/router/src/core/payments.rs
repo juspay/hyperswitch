@@ -9,9 +9,8 @@ pub mod types;
 
 use std::{fmt::Debug, marker::PhantomData, ops::Deref, time::Instant};
 
-use api_models::payments::FrmMessage;
 use common_utils::{ext_traits::AsyncExt, pii};
-use diesel_models::ephemeral_key;
+use diesel_models::{ephemeral_key, fraud_check::FraudCheck};
 use error_stack::{IntoReport, ResultExt};
 use futures::future::join_all;
 #[cfg(feature = "kms")]
@@ -21,8 +20,9 @@ use router_env::{instrument, tracing};
 use time;
 
 pub use self::operations::{
-    PaymentCancel, PaymentCapture, PaymentConfirm, PaymentCreate, PaymentMethodValidate,
-    PaymentResponse, PaymentSession, PaymentStatus, PaymentUpdate,
+    PaymentApprove, PaymentCancel, PaymentCapture, PaymentConfirm, PaymentCreate,
+    PaymentMethodValidate, PaymentReject, PaymentResponse, PaymentSession, PaymentStatus,
+    PaymentUpdate,
 };
 use self::{
     flows::{ConstructFlowSpecificData, Feature},
@@ -1314,7 +1314,7 @@ where
     pub recurring_mandate_payment_data: Option<RecurringMandatePaymentData>,
     pub ephemeral_key: Option<ephemeral_key::EphemeralKey>,
     pub redirect_response: Option<api_models::payments::RedirectResponse>,
-    pub frm_message: Option<FrmMessage>,
+    pub frm_message: Option<FraudCheck>,
 }
 
 #[derive(Debug, Default, Clone)]
@@ -1407,6 +1407,7 @@ pub fn should_call_connector<Op: Debug, F: Clone>(
             )
         }
         "CompleteAuthorize" => true,
+        "PaymentApprove" => true,
         "PaymentSession" => true,
         _ => false,
     }

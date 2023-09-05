@@ -1908,6 +1908,9 @@ pub struct PaymentsResponse {
 
     /// total number of attempts associated with this payment
     pub attempt_count: i16,
+
+    /// Denotes the action(approve or reject) taken by merchant in case of manual review. Manual review can occur when the transaction is marked as risky by the frm_processor, payment processor or when there is underpayment/over payment incase of crypto payment
+    pub merchant_decision: Option<String>,
 }
 
 #[derive(Clone, Debug, serde::Deserialize, ToSchema)]
@@ -2649,6 +2652,20 @@ pub struct PaymentsCancelRequest {
     /// Merchant connector details used to make payments.
     #[schema(value_type = MerchantConnectorDetailsWrap)]
     pub merchant_connector_details: Option<admin::MerchantConnectorDetailsWrap>,
+}
+
+#[derive(Default, Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
+pub struct PaymentsApproveRequest {
+    /// The identifier for the payment
+    #[serde(skip)]
+    pub payment_id: String,
+}
+
+#[derive(Default, Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
+pub struct PaymentsRejectRequest {
+    /// The identifier for the payment
+    #[serde(skip)]
+    pub payment_id: String,
 }
 
 #[derive(Default, Debug, serde::Deserialize, serde::Serialize, ToSchema, Clone)]
