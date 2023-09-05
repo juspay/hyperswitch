@@ -426,14 +426,11 @@ fn validate_certificate_in_mca_metadata(
                         ..
                     } = session_token_data;
 
-                    helpers::create_identity_from_certificate_and_key(
-                        Secret::new(certificate),
-                        Secret::new(certificate_keys),
-                    )
-                    .change_context(errors::ApiErrorResponse::InvalidDataValue {
-                        field_name: "certificate/certificate key",
-                    })
-                    .map(|_identity_result| ())
+                    helpers::create_identity_from_certificate_and_key(certificate, certificate_keys)
+                        .change_context(errors::ApiErrorResponse::InvalidDataValue {
+                            field_name: "certificate/certificate key",
+                        })
+                        .map(|_identity_result| ())
                 })
         })
         .transpose()?;

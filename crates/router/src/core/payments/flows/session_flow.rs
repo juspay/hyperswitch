@@ -2,7 +2,6 @@ use api_models::payments as payment_types;
 use async_trait::async_trait;
 use common_utils::ext_traits::ByteSliceExt;
 use error_stack::{IntoReport, Report, ResultExt};
-use masking::Secret;
 
 use super::{ConstructFlowSpecificData, Feature};
 use crate::{
@@ -135,16 +134,16 @@ fn mk_applepay_session_request(
             "application/json".to_string().into(),
         )])
         .body(Some(applepay_session_request))
-        .add_certificate(Some(Secret::new(
+        .add_certificate(Some(
             applepay_metadata
                 .data
                 .session_token_data
                 .certificate
                 .clone(),
-        )))
-        .add_certificate_key(Some(Secret::new(
+        ))
+        .add_certificate_key(Some(
             applepay_metadata.data.session_token_data.certificate_keys,
-        )))
+        ))
         .build();
     Ok(session_request)
 }

@@ -39,17 +39,21 @@ pub async fn verify_merchant_creds_for_applepay(
         .await
         .change_context(api_error_response::ApiErrorResponse::InternalServerError)?;
 
-    let cert_data = kms::get_kms_client(kms_config)
-        .await
-        .decrypt(encrypted_cert)
-        .await
-        .change_context(api_error_response::ApiErrorResponse::InternalServerError)?;
+    let cert_data = Secret::new(
+        kms::get_kms_client(kms_config)
+            .await
+            .decrypt(encrypted_cert)
+            .await
+            .change_context(api_error_response::ApiErrorResponse::InternalServerError)?,
+    );
 
-    let key_data = kms::get_kms_client(kms_config)
-        .await
-        .decrypt(encrypted_key)
-        .await
-        .change_context(api_error_response::ApiErrorResponse::InternalServerError)?;
+    let key_data = Secret::new(
+        kms::get_kms_client(kms_config)
+            .await
+            .decrypt(encrypted_key)
+            .await
+            .change_context(api_error_response::ApiErrorResponse::InternalServerError)?,
+    );
 
     let request_body = verifications::ApplepayMerchantVerificationConfigs {
         domain_names: body.domain_names.clone(),
@@ -74,8 +78,8 @@ pub async fn verify_merchant_creds_for_applepay(
             "application/json".to_string().into(),
         )])
         .body(Some(applepay_req))
-        .add_certificate(Some(Secret::new(cert_data)))
-        .add_certificate_key(Some(Secret::new(key_data)))
+        .add_certificate(Some(cert_data))
+        .add_certificate_key(Some(key_data))
         .build();
 
     let response = services::call_connector_api(state, apple_pay_merch_verification_req).await;
