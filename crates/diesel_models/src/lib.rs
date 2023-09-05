@@ -32,6 +32,7 @@ pub mod refund;
 pub mod reverse_lookup;
 #[allow(unused_qualifications)]
 pub mod schema;
+pub mod payment_link;
 
 use diesel_impl::{DieselArray, OptionalDieselArray};
 

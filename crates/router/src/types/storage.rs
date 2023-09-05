@@ -26,11 +26,12 @@ pub mod process_tracker;
 mod query;
 pub mod refund;
 pub mod reverse_lookup;
+pub mod payment_link;
 
 pub use self::{
     address::*, api_keys::*, capture::*, cards_info::*, configs::*, connector_response::*,
     customers::*, dispute::*, ephemeral_key::*, events::*, file::*, locker_mock_up::*, mandate::*,
     merchant_account::*, merchant_connector_account::*, merchant_key_store::*, payment_attempt::*,
     payment_intent::*, payment_method::*, payout_attempt::*, payouts::*, process_tracker::*,
-    refund::*, reverse_lookup::*,
+    refund::*, reverse_lookup::*, payment_link::*,
 };

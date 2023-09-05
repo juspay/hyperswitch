@@ -737,6 +737,25 @@ diesel::table! {
     use diesel::sql_types::*;
     use crate::enums::diesel_exports::*;
 
+    payment_link (id) {
+        id -> Int4,
+        #[max_length = 64]
+        payment_id -> Varchar,
+        #[max_length = 64]
+        merchant_id -> Varchar,
+        #[max_length = 255]
+        link_to_pay -> Varchar,
+        amount -> Int8,
+        currency -> Nullable<Currency>,
+        created_at -> Timestamp,
+        last_modified_at -> Timestamp,
+    }
+}
+
+diesel::table! {
+    use diesel::sql_types::*;
+    use crate::enums::diesel_exports::*;
+
     reverse_lookup (lookup_id) {
         #[max_length = 128]
         lookup_id -> Varchar,
@@ -748,6 +767,7 @@ diesel::table! {
         source -> Varchar,
     }
 }
+
 
 diesel::allow_tables_to_appear_in_same_query!(
     address,
@@ -773,5 +793,6 @@ diesel::allow_tables_to_appear_in_same_query!(
     payouts,
     process_tracker,
     refund,
+    payment_link,
     reverse_lookup,
 );
