@@ -90,6 +90,7 @@ pub enum Connector {
     Forte,
     Globalpay,
     Globepay,
+    //Helcim, added as template code for future usage,
     Iatapay,
     Klarna,
     Mollie,
@@ -107,7 +108,7 @@ pub enum Connector {
     Powertranz,
     Rapyd,
     Shift4,
-    // Square, added as template code for future usage,
+    Square,
     Stax,
     Stripe,
     Trustpay,
@@ -204,6 +205,7 @@ pub enum RoutableConnectors {
     Forte,
     Globalpay,
     Globepay,
+    //Helcim, added as template code for future usage,
     Iatapay,
     Klarna,
     Mollie,
@@ -221,7 +223,7 @@ pub enum RoutableConnectors {
     Powertranz,
     Rapyd,
     Shift4,
-    //Square, added as template code for future usage
+    Square,
     Stax,
     Stripe,
     Trustpay,
@@ -508,10 +510,10 @@ pub struct UnresolvedResponseReason {
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
 pub enum FieldType {
-    CardNumber,
-    CardExpiryMonth,
-    CardExpiryYear,
-    CardCVC,
+    UserCardNumber,
+    UserCardExpiryMonth,
+    UserCardExpiryYear,
+    UserCardCvc,
     UserFullName,
     UserEmailAddress,
     UserPhoneNumber,

@@ -1,4 +1,4 @@
-use error_stack::IntoReport;
+use error_stack::{IntoReport, ResultExt};
 
 use super::{MockDb, Store};
 use crate::{
@@ -84,8 +84,11 @@ impl LockerMockUpInterface for MockDb {
         }
 
         let created_locker = storage::LockerMockUp {
-            #[allow(clippy::as_conversions)]
-            id: locked_lockers.len() as i32,
+            id: locked_lockers
+                .len()
+                .try_into()
+                .into_report()
+                .change_context(errors::StorageError::MockDbError)?,
             card_id: new.card_id,
             external_id: new.external_id,
             card_fingerprint: new.card_fingerprint,

@@ -95,6 +95,16 @@ pub struct Settings {
     #[cfg(feature = "payouts")]
     pub payouts: Payouts,
     pub multiple_api_version_supported_connectors: MultipleApiVersionSupportedConnectors,
+    #[cfg(all(feature = "olap", feature = "kms"))]
+    pub applepay_merchant_configs: ApplepayMerchantConfigs,
+}
+
+#[derive(Debug, Deserialize, Clone, Default)]
+#[serde(default)]
+pub struct ApplepayMerchantConfigs {
+    pub merchant_cert: String,
+    pub merchant_cert_key: String,
+    pub common_merchant_identifier: String,
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
@@ -410,11 +420,12 @@ pub struct Jwekey {
     pub tunnel_private_key: String,
 }
 
-#[derive(Debug, Deserialize, Clone, Default)]
+#[derive(Debug, Deserialize, Clone)]
 #[serde(default)]
 pub struct Proxy {
     pub http_url: Option<String>,
     pub https_url: Option<String>,
+    pub idle_pool_connection_timeout: Option<u64>,
 }
 
 #[derive(Debug, Deserialize, Clone)]
@@ -489,6 +500,7 @@ pub struct Connectors {
     pub forte: ConnectorParams,
     pub globalpay: ConnectorParams,
     pub globepay: ConnectorParams,
+    pub helcim: ConnectorParams,
     pub iatapay: ConnectorParams,
     pub klarna: ConnectorParams,
     pub mollie: ConnectorParams,

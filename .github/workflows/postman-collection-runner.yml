@@ -117,7 +117,7 @@ jobs:
 
       - name: Install newman from fork
         run: |
-          npm install -g 'git+ssh://git@github.com:knutties/newman.git#feature/newman-dir'
+          npm ci
 
       - name: Run Tests
         if: ${{ ((github.event_name == 'pull_request') && (github.event.pull_request.head.repo.full_name == github.event.pull_request.base.repo.full_name)) || (github.event_name == 'merge_group')}}
@@ -130,7 +130,7 @@ jobs:
         run: |
           RED='\033[0;31m'
           RESET='\033[0m'
-          NEWMAN_PATH=$(npm config get prefix)/bin
+          NEWMAN_PATH=$(pwd)/node_modules/.bin
           export PATH=${NEWMAN_PATH}:${PATH}
           failed_connectors=()
       

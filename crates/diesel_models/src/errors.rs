@@ -1,8 +1,10 @@
 use std::fmt::Display;
 
+use actix_web::ResponseError;
 use common_utils::errors::ErrorSwitch;
 use config::ConfigError;
 use data_models::errors::StorageError as DataStorageError;
+use http::StatusCode;
 pub use redis_interface::errors::RedisError;
 use router_env::opentelemetry::metrics::MetricsError;
 
@@ -190,6 +192,9 @@ pub enum ApplicationError {
 
     #[error("I/O: {0}")]
     IoError(std::io::Error),
+
+    #[error("Error while constructing api client: {0}")]
+    ApiClientError(ApiClientError),
 }
 
 impl From<MetricsError> for ApplicationError {
@@ -216,7 +221,29 @@ impl From<ConfigError> for ApplicationError {
     }
 }
 
-#[derive(Debug, thiserror::Error)]
+fn error_response<T: Display>(err: &T) -> actix_web::HttpResponse {
+    actix_web::HttpResponse::BadRequest()
+        .content_type(mime::APPLICATION_JSON)
+        .body(format!(r#"{{ "error": {{ "message": "{err}" }} }}"#))
+}
+
+impl ResponseError for ApplicationError {
+    fn status_code(&self) -> StatusCode {
+        match self {
+            Self::MetricsError(_)
+            | Self::IoError(_)
+            | Self::ConfigurationError(_)
+            | Self::InvalidConfigurationValueError(_)
+            | Self::ApiClientError(_) => StatusCode::INTERNAL_SERVER_ERROR,
+        }
+    }
+
+    fn error_response(&self) -> actix_web::HttpResponse {
+        error_response(self)
+    }
+}
+
+#[derive(Debug, thiserror::Error, PartialEq, Clone)]
 pub enum ApiClientError {
     #[error("Header map construction failed")]
     HeaderMapConstructionFailed,
@@ -226,6 +253,10 @@ pub enum ApiClientError {
     ClientConstructionFailed,
     #[error("Certificate decode failed")]
     CertificateDecodeFailed,
+    #[error("Request body serialization failed")]
+    BodySerializationFailed,
+    #[error("Unexpected state reached/Invariants conflicted")]
+    UnexpectedState,
 
     #[error("URL encoding of request payload failed")]
     UrlEncodingFailed,
@@ -237,6 +268,9 @@ pub enum ApiClientError {
     #[error("Server responded with Request Timeout")]
     RequestTimeoutReceived,
 
+    #[error("connection closed before a message could complete")]
+    ConnectionClosed,
+
     #[error("Server responded with Internal Server Error")]
     InternalServerErrorReceived,
     #[error("Server responded with Bad Gateway")]
@@ -247,6 +281,15 @@ pub enum ApiClientError {
     GatewayTimeoutReceived,
     #[error("Server responded with unexpected response")]
     UnexpectedServerResponse,
+}
+
+impl ApiClientError {
+    pub fn is_upstream_timeout(&self) -> bool {
+        self == &Self::RequestTimeoutReceived
+    }
+    pub fn is_connection_closed(&self) -> bool {
+        self == &Self::ConnectionClosed
+    }
 }
 
 #[derive(Debug, thiserror::Error, PartialEq)]

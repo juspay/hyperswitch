@@ -1,6 +1,8 @@
 pub mod custom_serde;
 pub mod db_utils;
 pub mod ext_traits;
+#[cfg(all(feature = "olap", feature = "kms"))]
+pub mod verification;
 
 #[cfg(feature = "kv_store")]
 pub mod storage_partitioning;

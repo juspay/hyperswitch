@@ -63,43 +63,6 @@ pub fn http_not_implemented() -> actix_web::HttpResponse<BoxBody> {
 }
 
 #[derive(Debug, thiserror::Error, PartialEq)]
-pub enum ApiClientError {
-    #[error("Header map construction failed")]
-    HeaderMapConstructionFailed,
-    #[error("Invalid proxy configuration")]
-    InvalidProxyConfiguration,
-    #[error("Client construction failed")]
-    ClientConstructionFailed,
-    #[error("Certificate decode failed")]
-    CertificateDecodeFailed,
-    #[error("Request body serialization failed")]
-    BodySerializationFailed,
-    #[error("Unexpected state reached/Invariants conflicted")]
-    UnexpectedState,
-
-    #[error("URL encoding of request payload failed")]
-    UrlEncodingFailed,
-    #[error("Failed to send request to connector {0}")]
-    RequestNotSent(String),
-    #[error("Failed to decode response")]
-    ResponseDecodingFailed,
-
-    #[error("Server responded with Request Timeout")]
-    RequestTimeoutReceived,
-
-    #[error("Server responded with Internal Server Error")]
-    InternalServerErrorReceived,
-    #[error("Server responded with Bad Gateway")]
-    BadGatewayReceived,
-    #[error("Server responded with Service Unavailable")]
-    ServiceUnavailableReceived,
-    #[error("Server responded with Gateway Timeout")]
-    GatewayTimeoutReceived,
-    #[error("Server responded with unexpected response")]
-    UnexpectedServerResponse,
-}
-
-#[derive(Debug, thiserror::Error, PartialEq)]
 pub enum ConnectorError {
     #[error("Error while obtaining URL for the integration")]
     FailedToObtainIntegrationUrl,
@@ -196,6 +159,11 @@ pub enum ConnectorError {
     InSufficientBalanceInPaymentMethod,
     #[error("Server responded with Request Timeout")]
     RequestTimeoutReceived,
+    #[error("The given currency method is not configured with the given connector")]
+    CurrencyNotSupported {
+        message: String,
+        connector: &'static str,
+    },
 }
 
 #[derive(Debug, thiserror::Error)]
@@ -280,12 +248,6 @@ pub enum WebhooksFlowError {
     MissingRequiredField { field_name: &'static str },
 }
 
-impl ApiClientError {
-    pub fn is_upstream_timeout(&self) -> bool {
-        self == &Self::RequestTimeoutReceived
-    }
-}
-
 impl ConnectorError {
     pub fn is_connector_timeout(&self) -> bool {
         self == &Self::RequestTimeoutReceived
@@ -322,11 +284,7 @@ pub mod error_stack_parsing {
                         attachments: current_error.attachments,
                     }]
                     .into_iter()
-                    .chain(
-                        Into::<VecLinearErrorStack<'a>>::into(current_error.sources)
-                            .0
-                            .into_iter(),
-                    )
+                    .chain(Into::<VecLinearErrorStack<'a>>::into(current_error.sources).0)
                 })
                 .collect();
             Self(multi_layered_errors)

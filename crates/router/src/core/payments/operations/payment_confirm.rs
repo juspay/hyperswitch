@@ -1,6 +1,6 @@
 use std::marker::PhantomData;
 
-use api_models::enums::CancelTransaction;
+use api_models::enums::FrmSuggestion;
 use async_trait::async_trait;
 use common_utils::ext_traits::{AsyncExt, Encode};
 use error_stack::ResultExt;
@@ -75,6 +75,11 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
             "confirm",
         )?;
 
+        helpers::authenticate_client_secret(
+            request.client_secret.as_ref(),
+            &payment_intent,
+            merchant_account.intent_fulfillment_time,
+        )?;
         payment_attempt = db
             .find_payment_attempt_by_payment_id_merchant_id_attempt_id(
                 payment_intent.payment_id.as_str(),
@@ -382,24 +387,35 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
         storage_scheme: storage_enums::MerchantStorageScheme,
         updated_customer: Option<storage::CustomerUpdate>,
         key_store: &domain::MerchantKeyStore,
-        should_cancel_transaction: Option<CancelTransaction>,
+        frm_suggestion: Option<FrmSuggestion>,
     ) -> RouterResult<(BoxedOperation<'b, F, api::PaymentsRequest>, PaymentData<F>)>
     where
         F: 'b + Send,
     {
         let payment_method = payment_data.payment_attempt.payment_method;
         let browser_info = payment_data.payment_attempt.browser_info.clone();
+        let frm_message = payment_data.frm_message.clone();
 
-        let (intent_status, attempt_status) = match should_cancel_transaction {
-            Some(should_cancel) => match should_cancel {
-                CancelTransaction::FrmCancelTransaction => (
-                    storage_enums::IntentStatus::Failed,
-                    storage_enums::AttemptStatus::Failure,
-                ),
-            },
-            None => (
+        let (intent_status, attempt_status, (error_code, error_message)) = match frm_suggestion {
+            Some(FrmSuggestion::FrmCancelTransaction) => (
+                storage_enums::IntentStatus::Failed,
+                storage_enums::AttemptStatus::Failure,
+                frm_message.map_or((None, None), |fraud_check| {
+                    (
+                        Some(Some(fraud_check.frm_status.to_string())),
+                        Some(fraud_check.frm_reason.map(|reason| reason.to_string())),
+                    )
+                }),
+            ),
+            Some(FrmSuggestion::FrmManualReview) => (
+                storage_enums::IntentStatus::RequiresMerchantAction,
+                storage_enums::AttemptStatus::Unresolved,
+                (None, None),
+            ),
+            _ => (
                 storage_enums::IntentStatus::Processing,
                 storage_enums::AttemptStatus::Pending,
+                (None, None),
             ),
         };
 
@@ -443,6 +459,8 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
                     payment_experience,
                     business_sub_label,
                     straight_through_algorithm,
+                    error_code,
+                    error_message,
                 },
                 storage_scheme,
             )

@@ -12,6 +12,7 @@ counter_metric!(AWS_KMS_FAILURES, GLOBAL_METER); // No. of AWS KMS API failures
 counter_metric!(REQUESTS_RECEIVED, GLOBAL_METER);
 counter_metric!(REQUEST_STATUS, GLOBAL_METER);
 histogram_metric!(REQUEST_TIME, GLOBAL_METER);
+histogram_metric!(EXTERNAL_REQUEST_TIME, GLOBAL_METER);
 
 // Operation Level Metrics
 counter_metric!(PAYMENT_OPS_COUNT, GLOBAL_METER);

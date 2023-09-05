@@ -138,8 +138,10 @@ impl ConnectorValidation for Checkout {
     ) -> CustomResult<(), errors::ConnectorError> {
         let capture_method = capture_method.unwrap_or_default();
         match capture_method {
-            enums::CaptureMethod::Automatic | enums::CaptureMethod::Manual => Ok(()),
-            enums::CaptureMethod::ManualMultiple | enums::CaptureMethod::Scheduled => Err(
+            enums::CaptureMethod::Automatic
+            | enums::CaptureMethod::Manual
+            | enums::CaptureMethod::ManualMultiple => Ok(()),
+            enums::CaptureMethod::Scheduled => Err(
                 connector_utils::construct_not_implemented_error_report(capture_method, self.id()),
             ),
         }
@@ -848,7 +850,7 @@ impl api::FileUpload for Checkout {
         match purpose {
             api::FilePurpose::DisputeEvidence => {
                 let supported_file_types =
-                    vec!["image/jpeg", "image/jpg", "image/png", "application/pdf"];
+                    ["image/jpeg", "image/jpg", "image/png", "application/pdf"];
                 // 4 Megabytes (MB)
                 if file_size > 4000000 {
                     Err(errors::ConnectorError::FileValidationFailed {

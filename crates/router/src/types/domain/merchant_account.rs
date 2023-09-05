@@ -43,6 +43,7 @@ pub struct MerchantAccount {
     pub organization_id: Option<String>,
     pub is_recon_enabled: bool,
     pub default_profile: Option<String>,
+    pub recon_status: diesel_models::enums::ReconStatus,
 }
 
 #[allow(clippy::large_enum_variant)]
@@ -72,7 +73,7 @@ pub enum MerchantAccountUpdate {
         storage_scheme: MerchantStorageScheme,
     },
     ReconUpdate {
-        is_recon_enabled: bool,
+        recon_status: diesel_models::enums::ReconStatus,
     },
 }
 
@@ -125,8 +126,8 @@ impl From<MerchantAccountUpdate> for MerchantAccountUpdateInternal {
                 modified_at: Some(date_time::now()),
                 ..Default::default()
             },
-            MerchantAccountUpdate::ReconUpdate { is_recon_enabled } => Self {
-                is_recon_enabled,
+            MerchantAccountUpdate::ReconUpdate { recon_status } => Self {
+                recon_status,
                 ..Default::default()
             },
         }
@@ -166,6 +167,7 @@ impl super::behaviour::Conversion for MerchantAccount {
             organization_id: self.organization_id,
             is_recon_enabled: self.is_recon_enabled,
             default_profile: self.default_profile,
+            recon_status: self.recon_status,
         })
     }
 
@@ -209,6 +211,7 @@ impl super::behaviour::Conversion for MerchantAccount {
                 organization_id: item.organization_id,
                 is_recon_enabled: item.is_recon_enabled,
                 default_profile: item.default_profile,
+                recon_status: item.recon_status,
             })
         }
         .await
@@ -243,6 +246,7 @@ impl super::behaviour::Conversion for MerchantAccount {
             organization_id: self.organization_id,
             is_recon_enabled: self.is_recon_enabled,
             default_profile: self.default_profile,
+            recon_status: self.recon_status,
         })
     }
 }

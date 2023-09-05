@@ -9,7 +9,6 @@ pub mod customers;
 pub mod dispute;
 pub mod encryption;
 pub mod enums;
-pub mod env;
 pub mod ephemeral_key;
 pub mod errors;
 pub mod events;
