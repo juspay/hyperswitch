@@ -10,7 +10,8 @@ use url::Url;
 use crate::{
     connector::utils::{
         self, missing_field_err, AddressDetailsData, CardData, PaymentsAuthorizeRequestData,
-        PaymentsPreProcessingData, PaymentsSyncRequestData, RouterData,
+        PaymentsCompleteAuthorizeRequestData, PaymentsPreProcessingData, PaymentsSyncRequestData,
+        RouterData,
     },
     consts,
     core::errors,
@@ -596,22 +597,10 @@ impl TryFrom<&types::PaymentsCompleteAuthorizeRouterData> for Pay3dsRequest {
     fn try_from(item: &types::PaymentsCompleteAuthorizeRouterData) -> Result<Self, Self::Error> {
         match item.request.payment_method_data.clone() {
             Some(api::PaymentMethodData::Card(_)) => {
-                let buyer_email = match item.request.email.clone() {
-                    Some(email) => email,
-                    None => Err(errors::ConnectorError::MissingRequiredField {
-                        field_name: "email",
-                    })?,
-                };
+                let buyer_email = item.request.get_email()?;
                 let buyer_name = item.get_billing_address()?.get_full_name()?;
 
-                let payload_data = item
-                    .request
-                    .redirect_response
-                    .to_owned()
-                    .and_then(|response| response.payload.map(|param_string| param_string.expose()))
-                    .ok_or(errors::ConnectorError::MissingConnectorRedirectionPayload {
-                        field_name: "meta_data",
-                    })?;
+                let payload_data = item.request.get_redirect_response_payload()?.expose();
 
                 let jwt_data: PaymePayloadData = serde_json::from_value(payload_data)
                     .into_report()
@@ -638,10 +627,21 @@ impl TryFrom<&types::PaymentsCompleteAuthorizeRouterData> for Pay3dsRequest {
                     meta_data_jwt: jwt_data.meta_data,
                 })
             }
-            _ => Err(
-                errors::ConnectorError::NotImplemented("Complete Authorize flow".to_string())
-                    .into(),
-            ),
+            Some(api::PaymentMethodData::CardRedirect(_))
+            | Some(api::PaymentMethodData::Wallet(_))
+            | Some(api::PaymentMethodData::PayLater(_))
+            | Some(api::PaymentMethodData::BankRedirect(_))
+            | Some(api::PaymentMethodData::BankDebit(_))
+            | Some(api::PaymentMethodData::BankTransfer(_))
+            | Some(api::PaymentMethodData::Crypto(_))
+            | Some(api::PaymentMethodData::MandatePayment)
+            | Some(api::PaymentMethodData::Reward)
+            | Some(api::PaymentMethodData::Upi(_))
+            | Some(api::PaymentMethodData::Voucher(_))
+            | Some(api::PaymentMethodData::GiftCard(_))
+            | None => {
+                Err(errors::ConnectorError::NotImplemented("Tokenize Flow".to_string()).into())
+            }
         }
     }
 }
@@ -664,7 +664,20 @@ impl TryFrom<&types::TokenizationRouterData> for CaptureBuyerRequest {
                     seller_payme_id,
                 })
             }
-            _ => Err(errors::ConnectorError::NotImplemented("Tokenize Flow".to_string()).into()),
+            api::PaymentMethodData::Wallet(_)
+            | api::PaymentMethodData::CardRedirect(_)
+            | api::PaymentMethodData::PayLater(_)
+            | api::PaymentMethodData::BankRedirect(_)
+            | api::PaymentMethodData::BankDebit(_)
+            | api::PaymentMethodData::BankTransfer(_)
+            | api::PaymentMethodData::Crypto(_)
+            | api::PaymentMethodData::MandatePayment
+            | api::PaymentMethodData::Reward
+            | api::PaymentMethodData::Upi(_)
+            | api::PaymentMethodData::Voucher(_)
+            | api::PaymentMethodData::GiftCard(_) => {
+                Err(errors::ConnectorError::NotImplemented("Tokenize Flow".to_string()).into())
+            }
         }
     }
 }

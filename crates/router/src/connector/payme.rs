@@ -2,6 +2,7 @@ pub mod transformers;
 
 use std::fmt::Debug;
 
+use api_models::enums::AuthenticationType;
 use common_utils::crypto;
 use diesel_models::enums;
 use error_stack::{IntoReport, ResultExt};
@@ -160,15 +161,18 @@ impl
         req: &types::TokenizationRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
-        Ok(Some(
-            services::RequestBuilder::new()
-                .method(services::Method::Post)
-                .url(&types::TokenizationType::get_url(self, req, connectors)?)
-                .attach_default_headers()
-                .headers(types::TokenizationType::get_headers(self, req, connectors)?)
-                .body(types::TokenizationType::get_request_body(self, req)?)
-                .build(),
-        ))
+        Ok(match req.auth_type {
+            AuthenticationType::ThreeDs => Some(
+                services::RequestBuilder::new()
+                    .method(services::Method::Post)
+                    .url(&types::TokenizationType::get_url(self, req, connectors)?)
+                    .attach_default_headers()
+                    .headers(types::TokenizationType::get_headers(self, req, connectors)?)
+                    .body(types::TokenizationType::get_request_body(self, req)?)
+                    .build(),
+            ),
+            AuthenticationType::NoThreeDs => None,
+        })
     }
 
     fn handle_response(
