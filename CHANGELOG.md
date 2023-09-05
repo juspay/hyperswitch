@@ -4,6 +4,25 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 1.34.1 (2023-09-05)
+
+### Bug Fixes
+
+- Add accounts_cache for release ([#2087](https://github.com/juspay/hyperswitch/pull/2087)) ([`e5d3180`](https://github.com/juspay/hyperswitch/commit/e5d31801ec671191ab0365cf9650fb467f252102))
+
+### Refactors
+
+- **router:** New separate routes for applepay merchant verification ([#2083](https://github.com/juspay/hyperswitch/pull/2083)) ([`dc908f6`](https://github.com/juspay/hyperswitch/commit/dc908f6902d3260b08ebf0019b2466553871de0e))
+
+### Testing
+
+- **postman:** Update postman collection files ([#2070](https://github.com/juspay/hyperswitch/pull/2070)) ([`cfa6ae8`](https://github.com/juspay/hyperswitch/commit/cfa6ae895d72cb6c0e79d1ee6616183f35121be1))
+
+**Full Changelog:** [`v1.34.0...v1.34.1`](https://github.com/juspay/hyperswitch/compare/v1.34.0...v1.34.1)
+
+- - -
+
+
 ## 1.34.0 (2023-09-04)
 
 ### Features

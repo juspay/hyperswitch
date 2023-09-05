@@ -679,6 +679,7 @@ pub enum RedirectForm {
     BlueSnap {
         payment_fields_token: String, // payment-field-token
     },
+    Payme,
 }
 
 impl From<(url::Url, Method)> for RedirectForm {
@@ -1123,6 +1124,33 @@ pub fn build_redirection_form(
                 </script>
                 ")))
                 }}
+        }
+        RedirectForm::Payme => {
+            maud::html! {
+                (maud::DOCTYPE)
+                head {
+                    (PreEscaped(r#"<script src="https://cdn.paymeservice.com/hf/v1/hostedfields.js"></script>"#))
+                }
+                (PreEscaped("<script>
+                    var f = document.createElement('form');
+                    f.action=window.location.pathname.replace(/payments\\/redirect\\/(\\w+)\\/(\\w+)\\/\\w+/, \"payments/$1/$2/redirect/complete/payme\");
+                    f.method='POST';
+                    PayMe.clientData()
+                    .then((data) => {{
+                        var i=document.createElement('input');
+                        i.type='hidden';
+                        i.name='meta_data';
+                        i.value=data.hash;
+                        f.appendChild(i);
+                        document.body.appendChild(f);
+                        f.submit();
+                    }})
+                    .catch((error) => {{
+                        f.submit();
+                    }});
+            </script>
+                ".to_string()))
+            }
         }
     }
 }
