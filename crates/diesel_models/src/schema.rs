@@ -635,7 +635,7 @@ diesel::table! {
         payment_method_issuer -> Nullable<Varchar>,
         payment_method_issuer_code -> Nullable<PaymentMethodIssuerCode>,
         metadata -> Nullable<Json>,
-        card_details -> Nullable<Bytea>,
+        payment_method_data -> Nullable<Bytea>,
     }
 }
 

@@ -71,18 +71,19 @@ where
                 .await?;
                 let is_duplicate = locker_response.1;
 
-                let card_details = locker_response
-                    .0
-                    .card
-                    .as_ref()
-                    .map(|card| CardDetailsPaymentMethod::from(card.clone()));
+                let pm_card_details = locker_response.0.card.as_ref().map(|card| {
+                    api::payment_methods::PaymentMethodsData::Card(CardDetailsPaymentMethod::from(
+                        card.clone(),
+                    ))
+                });
 
-                let card_details_encrypted = payment_methods::cards::create_encrypted_card_details(
-                    state,
-                    merchant_account,
-                    card_details,
-                )
-                .await;
+                let pm_data_encrypted =
+                    payment_methods::cards::create_encrypted_payment_method_data(
+                        state,
+                        merchant_account,
+                        pm_card_details,
+                    )
+                    .await;
 
                 if is_duplicate {
                     let existing_pm = db
@@ -116,7 +117,7 @@ where
                                             &locker_response.0.payment_method_id,
                                             merchant_id,
                                             pm_metadata,
-                                            card_details_encrypted,
+                                            pm_data_encrypted,
                                         )
                                         .await
                                         .change_context(
@@ -145,7 +146,7 @@ where
                         &locker_response.0.payment_method_id,
                         merchant_id,
                         pm_metadata,
-                        card_details_encrypted,
+                        pm_data_encrypted,
                     )
                     .await
                     .change_context(errors::ApiErrorResponse::InternalServerError)

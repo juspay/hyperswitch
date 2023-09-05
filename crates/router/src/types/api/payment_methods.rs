@@ -4,7 +4,7 @@ pub use api_models::payment_methods::{
     CustomerPaymentMethodsListResponse, DeleteTokenizeByDateRequest, DeleteTokenizeByTokenRequest,
     GetTokenizePayloadRequest, GetTokenizePayloadResponse, PaymentMethodCreate,
     PaymentMethodDeleteResponse, PaymentMethodId, PaymentMethodList, PaymentMethodListRequest,
-    PaymentMethodListResponse, PaymentMethodResponse, PaymentMethodUpdate,
+    PaymentMethodListResponse, PaymentMethodResponse, PaymentMethodUpdate, PaymentMethodsData,
     TokenizePayloadEncrypted, TokenizePayloadRequest, TokenizedCardValue1, TokenizedCardValue2,
     TokenizedWalletValue1, TokenizedWalletValue2,
 };
