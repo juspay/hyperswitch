@@ -10,7 +10,7 @@ use diesel_models::{enums, payment_attempt::PaymentAttempt};
 // TODO : Evaluate all the helper functions ()
 use error_stack::{report, IntoReport, ResultExt};
 use josekit::jwe;
-use masking::{ExposeInterface, PeekInterface};
+use masking::{ExposeInterface, PeekInterface, Secret};
 use router_env::{instrument, logger, tracing};
 use time::Duration;
 use uuid::Uuid;
@@ -49,16 +49,16 @@ use crate::{
 };
 
 pub fn create_identity_from_certificate_and_key(
-    encoded_certificate: String,
-    encoded_certificate_key: String,
+    encoded_certificate: Secret<String>,
+    encoded_certificate_key: Secret<String>,
 ) -> Result<reqwest::Identity, error_stack::Report<errors::ApiClientError>> {
     let decoded_certificate = consts::BASE64_ENGINE
-        .decode(encoded_certificate)
+        .decode(encoded_certificate.peek())
         .into_report()
         .change_context(errors::ApiClientError::CertificateDecodeFailed)?;
 
     let decoded_certificate_key = consts::BASE64_ENGINE
-        .decode(encoded_certificate_key)
+        .decode(encoded_certificate_key.peek())
         .into_report()
         .change_context(errors::ApiClientError::CertificateDecodeFailed)?;
 
@@ -1741,7 +1741,7 @@ pub fn make_merchant_url_with_response(
     merchant_account: &domain::MerchantAccount,
     redirection_response: api::PgRedirectResponse,
     request_return_url: Option<&String>,
-    client_secret: Option<&masking::Secret<String>>,
+    client_secret: Option<&Secret<String>>,
     manual_retry_allowed: Option<bool>,
 ) -> RouterResult<String> {
     // take return url if provided in the request else use merchant return url
@@ -2378,7 +2378,7 @@ pub enum MerchantConnectorAccountType {
 }
 
 impl MerchantConnectorAccountType {
-    pub fn get_metadata(&self) -> Option<masking::Secret<serde_json::Value>> {
+    pub fn get_metadata(&self) -> Option<Secret<serde_json::Value>> {
         match self {
             Self::DbVal(val) => val.metadata.to_owned(),
             Self::CacheVal(val) => val.metadata.to_owned(),

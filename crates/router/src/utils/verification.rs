@@ -4,6 +4,7 @@ use api_models::verifications::{self, ApplepayMerchantResponse};
 use error_stack::{Report, ResultExt};
 #[cfg(feature = "kms")]
 use external_services::kms;
+use masking::Secret;
 
 use crate::{
     core::errors::{self, api_error_response},
@@ -73,8 +74,8 @@ pub async fn verify_merchant_creds_for_applepay(
             "application/json".to_string().into(),
         )])
         .body(Some(applepay_req))
-        .add_certificate(Some(cert_data))
-        .add_certificate_key(Some(key_data))
+        .add_certificate(Some(Secret::new(cert_data)))
+        .add_certificate_key(Some(Secret::new(key_data)))
         .build();
 
     let response = services::call_connector_api(state, apple_pay_merch_verification_req).await;

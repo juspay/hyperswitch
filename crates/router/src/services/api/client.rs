@@ -2,7 +2,7 @@ use std::time::Duration;
 
 use error_stack::{IntoReport, ResultExt};
 use http::{HeaderValue, Method};
-use masking::PeekInterface;
+use masking::{PeekInterface, Secret};
 use once_cell::sync::OnceCell;
 use reqwest::multipart::Form;
 
@@ -83,8 +83,8 @@ fn get_base_client(
 pub(super) fn create_client(
     proxy_config: &Proxy,
     should_bypass_proxy: bool,
-    client_certificate: Option<String>,
-    client_certificate_key: Option<String>,
+    client_certificate: Option<Secret<String>>,
+    client_certificate_key: Option<Secret<String>>,
 ) -> CustomResult<reqwest::Client, ApiClientError> {
     match (client_certificate, client_certificate_key) {
         (Some(encoded_certificate), Some(encoded_certificate_key)) => {
@@ -218,8 +218,8 @@ impl ProxyClient {
                 let client_builder =
                     reqwest::Client::builder().redirect(reqwest::redirect::Policy::none());
                 let identity = payments::helpers::create_identity_from_certificate_and_key(
-                    certificate,
-                    certificate_key,
+                    Secret::new(certificate),
+                    Secret::new(certificate_key),
                 )?;
                 Ok(client_builder
                     .identity(identity)

@@ -119,8 +119,8 @@ pub struct Request {
     pub payload: Option<Secret<String>>,
     pub method: Method,
     pub content_type: Option<ContentType>,
-    pub certificate: Option<String>,
-    pub certificate_key: Option<String>,
+    pub certificate: Option<Secret<String>>,
+    pub certificate_key: Option<Secret<String>>,
     pub form_data: Option<reqwest::multipart::Form>,
 }
 
@@ -154,11 +154,11 @@ impl Request {
         self.content_type = Some(content_type);
     }
 
-    pub fn add_certificate(&mut self, certificate: Option<String>) {
+    pub fn add_certificate(&mut self, certificate: Option<Secret<String>>) {
         self.certificate = certificate;
     }
 
-    pub fn add_certificate_key(&mut self, certificate_key: Option<String>) {
+    pub fn add_certificate_key(&mut self, certificate_key: Option<Secret<String>>) {
         self.certificate = certificate_key;
     }
 
@@ -173,8 +173,8 @@ pub struct RequestBuilder {
     pub payload: Option<Secret<String>>,
     pub method: Method,
     pub content_type: Option<ContentType>,
-    pub certificate: Option<String>,
-    pub certificate_key: Option<String>,
+    pub certificate: Option<Secret<String>>,
+    pub certificate_key: Option<Secret<String>>,
     pub form_data: Option<reqwest::multipart::Form>,
 }
 
@@ -233,12 +233,12 @@ impl RequestBuilder {
         self
     }
 
-    pub fn add_certificate(mut self, certificate: Option<String>) -> Self {
+    pub fn add_certificate(mut self, certificate: Option<Secret<String>>) -> Self {
         self.certificate = certificate;
         self
     }
 
-    pub fn add_certificate_key(mut self, certificate_key: Option<String>) -> Self {
+    pub fn add_certificate_key(mut self, certificate_key: Option<Secret<String>>) -> Self {
         self.certificate_key = certificate_key;
         self
     }
