@@ -23,7 +23,7 @@ pub async fn start_producer<T>(
     (tx, mut rx): (mpsc::Sender<()>, mpsc::Receiver<()>),
 ) -> CustomResult<(), errors::ProcessTrackerError>
 where
-    T: SchedulerAppState + Send + Sync + Clone,
+    T: SchedulerAppState,
 {
     use rand::Rng;
     let timeout = rand::thread_rng().gen_range(0..=scheduler_settings.loop_interval);
@@ -85,7 +85,7 @@ pub async fn run_producer_flow<T>(
     settings: &SchedulerSettings,
 ) -> CustomResult<(), errors::ProcessTrackerError>
 where
-    T: SchedulerAppState + Send + Sync + Clone,
+    T: SchedulerAppState,
 {
     lock_acquire_release::<_, _, _>(state.get_db().as_scheduler(), settings, move || async {
         let tasks = fetch_producer_tasks(state.get_db().as_scheduler(), settings).await?;

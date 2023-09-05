@@ -230,7 +230,7 @@ pub enum ApiErrorResponse {
 
 impl PTError for ApiErrorResponse {
     fn to_pt_error(&self) -> ProcessTrackerError {
-        ProcessTrackerError::EClientError
+        ProcessTrackerError::EApiErrorResponse
     }
 }
 

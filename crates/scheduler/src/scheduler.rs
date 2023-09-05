@@ -51,11 +51,11 @@ impl SchedulerInterface for Store {}
 impl SchedulerInterface for MockDb {}
 
 #[async_trait::async_trait]
-pub trait SchedulerAppState: Send + Sync {
+pub trait SchedulerAppState: Send + Sync + Clone {
     fn get_db(&self) -> Box<dyn SchedulerInterface>;
 }
 
-pub async fn start_process_tracker<T: SchedulerAppState + Send + Sync + Clone + 'static>(
+pub async fn start_process_tracker<T: SchedulerAppState + 'static>(
     state: &T,
     scheduler_flow: SchedulerFlow,
     scheduler_settings: Arc<SchedulerSettings>,

@@ -3,6 +3,8 @@ pub use redis_interface::errors::RedisError;
 pub use storage_impl::errors::ApplicationError;
 use storage_impl::errors::StorageError;
 
+use crate::env::logger::{self, error};
+
 #[derive(Debug, thiserror::Error)]
 pub enum ProcessTrackerError {
     #[error("An unexpected flow was specified")]
@@ -81,15 +83,14 @@ impl<T: PTError> From<T> for ProcessTrackerError {
     }
 }
 
-impl<T: PTError> From<error_stack::Report<T>> for ProcessTrackerError {
-    fn from(value: error_stack::Report<T>) -> Self {
-        value.current_context().to_pt_error()
+impl<T: PTError + std::fmt::Debug + std::fmt::Display> From<error_stack::Report<T>>
+    for ProcessTrackerError
+{
+    fn from(error: error_stack::Report<T>) -> Self {
+        logger::error!(error=%error.current_context());
+        error.current_context().to_pt_error()
     }
 }
-
-// fn error(arg: impl PTError) -> ProcessTrackerError {
-//     arg.to_pt_error()
-// }
 
 error_to_process_tracker_error!(
     error_stack::Report<StorageError>,

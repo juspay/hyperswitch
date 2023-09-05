@@ -29,7 +29,7 @@ pub fn valid_business_statuses() -> Vec<&'static str> {
 }
 
 #[instrument(skip_all)]
-pub async fn start_consumer<T: SchedulerAppState + Send + Sync + Clone + 'static>(
+pub async fn start_consumer<T: SchedulerAppState + 'static>(
     state: &T,
     settings: sync::Arc<SchedulerSettings>,
     workflow_selector: impl workflows::ProcessTrackerWorkflows<T> + 'static + Copy + std::fmt::Debug,
@@ -103,7 +103,7 @@ pub async fn start_consumer<T: SchedulerAppState + Send + Sync + Clone + 'static
 }
 
 #[instrument(skip_all)]
-pub async fn consumer_operations<T: SchedulerAppState + Send + Sync + Clone + 'static>(
+pub async fn consumer_operations<T: SchedulerAppState + 'static>(
     state: &T,
     settings: &SchedulerSettings,
     workflow_selector: impl workflows::ProcessTrackerWorkflows<T> + 'static + Copy + std::fmt::Debug,
@@ -198,7 +198,7 @@ pub async fn start_workflow<T>(
     workflow_selector: impl workflows::ProcessTrackerWorkflows<T> + 'static + std::fmt::Debug,
 ) -> Result<(), errors::ProcessTrackerError>
 where
-    T: SchedulerAppState + Send + Sync + Clone,
+    T: SchedulerAppState,
 {
     tracing::Span::current().record("workflow_id", Uuid::new_v4().to_string());
     let res = workflow_selector

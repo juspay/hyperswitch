@@ -7,11 +7,8 @@ use common_utils::errors::CustomResult;
 use diesel_models::enums::{self, ProcessTrackerStatus};
 pub use diesel_models::process_tracker as storage;
 use error_stack::{report, ResultExt};
-#[cfg(not(target_os = "windows"))]
-use futures::StreamExt;
 use redis_interface::{RedisConnectionPool, RedisEntryId};
 use router_env::opentelemetry;
-use tokio::sync::oneshot;
 use uuid::Uuid;
 
 use super::{
@@ -253,7 +250,7 @@ pub async fn consumer_operation_handler<E, T: Send + Sync + 'static>(
 ) where
     // Error handler function
     E: FnOnce(error_stack::Report<errors::ProcessTrackerError>),
-    T: SchedulerAppState + Send + Sync + Clone,
+    T: SchedulerAppState,
 {
     consumer_operation_counter.fetch_add(1, atomic::Ordering::Release);
     let start_time = std_time::Instant::now();
@@ -378,33 +375,6 @@ where
         result
     } else {
         Ok(())
-    }
-}
-
-#[cfg(not(target_os = "windows"))]
-#[allow(dead_code)]
-pub(crate) async fn signal_handler(
-    mut sig: signal_hook_tokio::Signals,
-    sender: oneshot::Sender<()>,
-) {
-    if let Some(signal) = sig.next().await {
-        logger::info!(
-            "Received signal: {:?}",
-            signal_hook::low_level::signal_name(signal)
-        );
-        match signal {
-            signal_hook::consts::SIGTERM | signal_hook::consts::SIGINT => match sender.send(()) {
-                Ok(_) => {
-                    logger::info!("Request for force shutdown received")
-                }
-                Err(_) => {
-                    logger::error!(
-                        "The receiver is closed, a termination call might already be sent"
-                    )
-                }
-            },
-            _ => {}
-        }
     }
 }
 

@@ -125,12 +125,3 @@ pub enum AwsSesError {
     #[error("Failed to Send Email {0:?}")]
     SendingFailure(aws_smithy_client::SdkError<SendEmailError>),
 }
-
-#[allow(missing_docs)]
-#[derive(Debug)]
-pub enum BodyContent {
-    /// When the email content is plain text
-    Simple,
-    /// When the email content is Html
-    Html,
-}
