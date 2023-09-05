@@ -9,6 +9,8 @@ use tokio::sync::oneshot;
 use super::dummy_connector::*;
 #[cfg(feature = "payouts")]
 use super::payouts::*;
+#[cfg(all(feature = "olap", feature = "kms"))]
+use super::verification::apple_pay_merchant_registration;
 #[cfg(feature = "olap")]
 use super::{admin::*, api_keys::*, disputes::*, files::*};
 use super::{cache::*, health::*};
@@ -32,6 +34,7 @@ pub struct AppState {
     pub email_client: Box<dyn EmailClient>,
     #[cfg(feature = "kms")]
     pub kms_secrets: settings::ActiveKmsSecrets,
+    pub api_client: Box<dyn crate::services::ApiClient>,
 }
 
 pub trait AppStateInfo {
@@ -66,6 +69,7 @@ impl AppState {
         conf: settings::Settings,
         storage_impl: StorageImpl,
         shut_down_signal: oneshot::Sender<()>,
+        api_client: Box<dyn crate::services::ApiClient>,
     ) -> Self {
         #[cfg(feature = "kms")]
         let kms_client = kms::get_kms_client(&conf.kms).await;
@@ -99,11 +103,16 @@ impl AppState {
             email_client,
             #[cfg(feature = "kms")]
             kms_secrets,
+            api_client,
         }
     }
 
-    pub async fn new(conf: settings::Settings, shut_down_signal: oneshot::Sender<()>) -> Self {
-        Self::with_storage(conf, StorageImpl::Postgresql, shut_down_signal).await
+    pub async fn new(
+        conf: settings::Settings,
+        shut_down_signal: oneshot::Sender<()>,
+        api_client: Box<dyn crate::services::ApiClient>,
+    ) -> Self {
+        Self::with_storage(conf, StorageImpl::Postgresql, shut_down_signal, api_client).await
     }
 }
 
@@ -551,6 +560,21 @@ impl BusinessProfile {
                     .route(web::get().to(business_profile_retrieve))
                     .route(web::post().to(business_profile_update))
                     .route(web::delete().to(business_profile_delete)),
+            )
+    }
+}
+
+#[cfg(all(feature = "olap", feature = "kms"))]
+pub struct Verify;
+
+#[cfg(all(feature = "olap", feature = "kms"))]
+impl Verify {
+    pub fn server(state: AppState) -> Scope {
+        web::scope("/verify")
+            .app_data(web::Data::new(state))
+            .service(
+                web::resource("/{merchant_id}/apple_pay")
+                    .route(web::post().to(apple_pay_merchant_registration)),
             )
     }
 }

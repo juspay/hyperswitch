@@ -18,3 +18,8 @@ pub const TOKEN_TTL: i64 = 900;
 pub static FRM_CONFIGS_EG: &str = r#"
 [{"gateway":"stripe","payment_methods":[{"payment_method":"card","payment_method_types":[{"payment_method_type":"credit","card_networks":["Visa"],"flow":"pre","action":"cancel_txn"},{"payment_method_type":"debit","card_networks":["Visa"],"flow":"pre"}]}]}]
 "#;
+
+/// Maximum limit for payments list get api
+pub const PAYMENTS_LIST_MAX_LIMIT_V1: u32 = 100;
+/// Maximum limit for payments list post api with filters
+pub const PAYMENTS_LIST_MAX_LIMIT_V2: u32 = 20;

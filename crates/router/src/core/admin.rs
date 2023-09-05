@@ -166,6 +166,7 @@ pub async fn create_merchant_account(
             organization_id: req.organization_id,
             is_recon_enabled: false,
             default_profile: None,
+            recon_status: diesel_models::enums::ReconStatus::NotRequested,
         })
     }
     .await
@@ -1216,6 +1217,10 @@ pub(crate) fn validate_auth_type(
         }
         api_enums::Connector::Shift4 => {
             shift4::transformers::Shift4AuthType::try_from(val)?;
+            Ok(())
+        }
+        api_enums::Connector::Square => {
+            square::transformers::SquareAuthType::try_from(val)?;
             Ok(())
         }
         api_enums::Connector::Stax => {

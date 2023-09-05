@@ -9,9 +9,8 @@ pub mod types;
 
 use std::{fmt::Debug, marker::PhantomData, ops::Deref, time::Instant};
 
-use api_models::payments::FrmMessage;
 use common_utils::{ext_traits::AsyncExt, pii};
-use diesel_models::ephemeral_key;
+use diesel_models::{ephemeral_key, fraud_check::FraudCheck};
 use error_stack::{IntoReport, ResultExt};
 use futures::future::join_all;
 use masking::Secret;
@@ -19,8 +18,9 @@ use router_env::{instrument, tracing};
 use time;
 
 pub use self::operations::{
-    PaymentCancel, PaymentCapture, PaymentConfirm, PaymentCreate, PaymentMethodValidate,
-    PaymentResponse, PaymentSession, PaymentStatus, PaymentUpdate,
+    PaymentApprove, PaymentCancel, PaymentCapture, PaymentConfirm, PaymentCreate,
+    PaymentMethodValidate, PaymentReject, PaymentResponse, PaymentSession, PaymentStatus,
+    PaymentUpdate,
 };
 use self::{
     flows::{ConstructFlowSpecificData, Feature},
@@ -502,6 +502,7 @@ impl PaymentRedirectFlow for PaymentRedirectSync {
             }),
             client_secret: None,
             expand_attempts: None,
+            expand_captures: None,
         };
         payments_core::<api::PSync, api::PaymentsResponse, _, _, _>(
             state,
@@ -1145,7 +1146,7 @@ where
     pub recurring_mandate_payment_data: Option<RecurringMandatePaymentData>,
     pub ephemeral_key: Option<ephemeral_key::EphemeralKey>,
     pub redirect_response: Option<api_models::payments::RedirectResponse>,
-    pub frm_message: Option<FrmMessage>,
+    pub frm_message: Option<FraudCheck>,
 }
 
 #[derive(Debug, Default, Clone)]
@@ -1238,6 +1239,7 @@ pub fn should_call_connector<Op: Debug, F: Clone>(
             )
         }
         "CompleteAuthorize" => true,
+        "PaymentApprove" => true,
         "PaymentSession" => true,
         _ => false,
     }
@@ -1318,11 +1320,14 @@ pub async fn apply_filters_on_payments(
     db: &dyn StorageInterface,
     merchant: domain::MerchantAccount,
     constraints: api::PaymentListFilterConstraints,
-) -> RouterResponse<api::PaymentListResponse> {
+) -> RouterResponse<api::PaymentListResponseV2> {
     use storage_impl::DataModelExt;
 
     use crate::types::transformers::ForeignFrom;
 
+    let limit = &constraints.limit;
+
+    helpers::validate_payment_list_request_for_joins(*limit)?;
     let list: Vec<(storage::PaymentIntent, storage::PaymentAttempt)> = db
         .get_filtered_payment_intents_attempt(
             &merchant.merchant_id,
@@ -1338,9 +1343,30 @@ pub async fn apply_filters_on_payments(
     let data: Vec<api::PaymentsResponse> =
         list.into_iter().map(ForeignFrom::foreign_from).collect();
 
+    let active_attempt_ids = db
+        .get_filtered_active_attempt_ids_for_total_count(
+            &merchant.merchant_id,
+            &constraints.clone().into(),
+            merchant.storage_scheme,
+        )
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::InternalServerError)?;
+
+    let total_count = db
+        .get_total_count_of_filtered_payment_attempts(
+            &merchant.merchant_id,
+            &active_attempt_ids,
+            constraints.connector,
+            constraints.payment_methods,
+            merchant.storage_scheme,
+        )
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)?;
+
     Ok(services::ApplicationResponse::Json(
-        api::PaymentListResponse {
-            size: data.len(),
+        api::PaymentListResponseV2 {
+            count: data.len(),
+            total_count,
             data,
         },
     ))

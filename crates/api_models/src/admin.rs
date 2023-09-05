@@ -9,6 +9,7 @@ use utoipa::ToSchema;
 
 use super::payments::AddressDetails;
 use crate::{
+    enums,
     enums::{self as api_enums},
     payment_methods,
 };
@@ -272,6 +273,10 @@ pub struct MerchantAccountResponse {
     /// The default business profile that must be used for creating merchant accounts and payments
     #[schema(max_length = 64)]
     pub default_profile: Option<String>,
+
+    /// A enum value to indicate the status of recon service. By default it is not_requested.
+    #[schema(value_type = ReconStatus, example = "not_requested")]
+    pub recon_status: enums::ReconStatus,
 }
 
 #[derive(Clone, Debug, Deserialize, ToSchema, Serialize)]
@@ -636,6 +641,8 @@ pub struct MerchantConnectorCreate {
 pub struct MerchantConnectorWebhookDetails {
     #[schema(value_type = String, example = "12345678900987654321")]
     pub merchant_secret: Secret<String>,
+    #[schema(value_type = String, example = "12345678900987654321")]
+    pub additional_secret: Option<Secret<String>>,
 }
 
 /// Response of creating a new Merchant Connector for the merchant account."

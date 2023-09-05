@@ -227,11 +227,11 @@ pub fn create_payment_method_metadata(
     }))
 }
 
-pub async fn add_payment_method_token<F: Clone, T: Clone>(
+pub async fn add_payment_method_token<F: Clone, T: types::Tokenizable + Clone>(
     state: &AppState,
     connector: &api::ConnectorData,
     tokenization_action: &payments::TokenizationAction,
-    router_data: &types::RouterData<F, T, types::PaymentsResponseData>,
+    router_data: &mut types::RouterData<F, T, types::PaymentsResponseData>,
     pm_token_request_data: types::PaymentMethodTokenizationData,
 ) -> RouterResult<Option<String>> {
     match tokenization_action {
@@ -246,7 +246,7 @@ pub async fn add_payment_method_token<F: Clone, T: Clone>(
             let pm_token_response_data: Result<types::PaymentsResponseData, types::ErrorResponse> =
                 Err(types::ErrorResponse::default());
 
-            let pm_token_router_data = payments::helpers::router_data_type_conversion::<
+            let mut pm_token_router_data = payments::helpers::router_data_type_conversion::<
                 _,
                 api::PaymentMethodToken,
                 _,
@@ -258,6 +258,16 @@ pub async fn add_payment_method_token<F: Clone, T: Clone>(
                 pm_token_request_data,
                 pm_token_response_data,
             );
+
+            connector_integration
+                .execute_pretasks(&mut pm_token_router_data, state)
+                .await
+                .to_payment_failed_response()?;
+
+            router_data
+                .request
+                .set_session_token(pm_token_router_data.session_token.clone());
+
             let resp = services::execute_connector_processing_step(
                 state,
                 connector_integration,
