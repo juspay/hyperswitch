@@ -199,17 +199,16 @@ impl From<(&PaymePaySaleResponse, u16)> for types::ErrorResponse {
 impl TryFrom<&PaymePaySaleResponse> for types::PaymentsResponseData {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(value: &PaymePaySaleResponse) -> Result<Self, Self::Error> {
-        let redirection_data = if value.sale_3ds {
-            value
+        let redirection_data = match value.sale_3ds {
+            Some(true) => value
                 .redirect_url
                 .clone()
                 .map(|url| services::RedirectForm::Form {
                     endpoint: url.to_string(),
                     method: services::Method::Get,
                     form_fields: HashMap::<String, String>::new(),
-                })
-        } else {
-            None
+                }),
+            _ => None,
         };
         Ok(Self::TransactionResponse {
             resource_id: types::ResponseId::ConnectorTransactionId(value.payme_sale_id.clone()),
@@ -596,61 +595,53 @@ impl TryFrom<&types::PaymentsCompleteAuthorizeRouterData> for Pay3dsRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::PaymentsCompleteAuthorizeRouterData) -> Result<Self, Self::Error> {
         match item.request.payment_method_data.clone() {
-            Some(pm_data) => match pm_data {
-                api::PaymentMethodData::Card(_) => {
-                    let buyer_email = match item.request.email.clone() {
-                        Some(email) => email,
-                        None => Err(errors::ConnectorError::MissingRequiredField {
-                            field_name: "email",
-                        })?,
-                    };
-                    let buyer_name = item.get_billing_address()?.get_full_name()?;
+            Some(api::PaymentMethodData::Card(_)) => {
+                let buyer_email = match item.request.email.clone() {
+                    Some(email) => email,
+                    None => Err(errors::ConnectorError::MissingRequiredField {
+                        field_name: "email",
+                    })?,
+                };
+                let buyer_name = item.get_billing_address()?.get_full_name()?;
 
-                    let payload_data = item
-                        .request
-                        .redirect_response
-                        .to_owned()
-                        .and_then(|response| {
-                            response.payload.map(|param_string| param_string.expose())
-                        })
-                        .ok_or(errors::ConnectorError::MissingConnectorRedirectionPayload {
-                            field_name: "meta_data",
-                        })?;
+                let payload_data = item
+                    .request
+                    .redirect_response
+                    .to_owned()
+                    .and_then(|response| response.payload.map(|param_string| param_string.expose()))
+                    .ok_or(errors::ConnectorError::MissingConnectorRedirectionPayload {
+                        field_name: "meta_data",
+                    })?;
 
-                    let jwt_data: PaymePayloadData = serde_json::from_value(payload_data)
-                        .into_report()
-                        .change_context(
-                            errors::ConnectorError::MissingConnectorRedirectionPayload {
-                                field_name: "meta_data_jwt",
-                            },
-                        )?;
+                let jwt_data: PaymePayloadData = serde_json::from_value(payload_data)
+                    .into_report()
+                    .change_context(errors::ConnectorError::MissingConnectorRedirectionPayload {
+                        field_name: "meta_data_jwt",
+                    })?;
 
-                    let payme_sale_id = item
-                        .request
-                        .connector_transaction_id
-                        .clone()
-                        .ok_or(errors::ConnectorError::MissingConnectorTransactionID)?;
-                    let buyer_key = match item.payment_method_token.clone() {
-                        Some(key) => key,
-                        None => Err(errors::ConnectorError::MissingRequiredField {
-                            field_name: "buyer_key",
-                        })?,
-                    };
-                    Ok(Self {
-                        buyer_email,
-                        buyer_key,
-                        buyer_name,
-                        payme_sale_id,
-                        meta_data_jwt: jwt_data.meta_data,
-                    })
-                }
-                _ => Err(
-                    errors::ConnectorError::NotImplemented("Payment methods".to_string()).into(),
-                ),
-            },
-            None => {
-                Err(errors::ConnectorError::NotImplemented("Payment methods".to_string()).into())
+                let payme_sale_id = item
+                    .request
+                    .connector_transaction_id
+                    .clone()
+                    .ok_or(errors::ConnectorError::MissingConnectorTransactionID)?;
+                let buyer_key = match item.payment_method_token.clone() {
+                    Some(key) => key,
+                    None => Err(errors::ConnectorError::MissingRequiredField {
+                        field_name: "buyer_key",
+                    })?,
+                };
+                Ok(Self {
+                    buyer_email,
+                    buyer_key,
+                    buyer_name,
+                    payme_sale_id,
+                    meta_data_jwt: jwt_data.meta_data,
+                })
             }
+            _ => Err(
+                errors::ConnectorError::NotImplemented("Complete Authorize flow".to_string())
+                    .into(),
+            ),
         }
     }
 }
@@ -673,7 +664,7 @@ impl TryFrom<&types::TokenizationRouterData> for CaptureBuyerRequest {
                     seller_payme_id,
                 })
             }
-            _ => Err(errors::ConnectorError::NotImplemented("Payment methods".to_string()).into()),
+            _ => Err(errors::ConnectorError::NotImplemented("Tokenize Flow".to_string()).into()),
         }
     }
 }
@@ -782,7 +773,7 @@ pub struct PaymePaySaleResponse {
     buyer_key: Option<Secret<String>>,
     status_error_details: Option<String>,
     status_error_code: Option<u32>,
-    sale_3ds: bool,
+    sale_3ds: Option<bool>,
     redirect_url: Option<Url>,
 }
 
@@ -975,8 +966,6 @@ pub struct WebhookEventDataResource {
     pub notify_type: NotifyType,
     pub payme_sale_id: String,
     pub payme_transaction_id: String,
-    pub sale_3ds: bool,
-    pub redirect_url: Option<Url>,
     pub status_error_details: Option<String>,
     pub status_error_code: Option<u32>,
 }
@@ -999,8 +988,8 @@ impl From<WebhookEventDataResource> for PaymePaySaleResponse {
             payme_sale_id: value.payme_sale_id,
             payme_transaction_id: value.payme_transaction_id,
             buyer_key: value.buyer_key,
-            sale_3ds: value.sale_3ds,
-            redirect_url: value.redirect_url,
+            sale_3ds: None,
+            redirect_url: None,
             status_error_code: value.status_error_code,
             status_error_details: value.status_error_details,
         }
