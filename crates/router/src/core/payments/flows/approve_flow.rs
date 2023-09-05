@@ -4,7 +4,7 @@ use super::{ConstructFlowSpecificData, Feature};
 use crate::{
     core::{
         errors::{api_error_response::NotImplementedMessage, ApiErrorResponse, RouterResult},
-        payments::{self, access_token, transformers, PaymentData},
+        payments::{self, access_token, transformers, PaymentData, helpers},
     },
     routes::AppState,
     services,
@@ -23,6 +23,7 @@ impl
         merchant_account: &domain::MerchantAccount,
         key_store: &domain::MerchantKeyStore,
         customer: &Option<domain::Customer>,
+        merchant_connector_account: &helpers::MerchantConnectorAccountType,
     ) -> RouterResult<types::PaymentsApproveRouterData> {
         transformers::construct_payment_router_data::<api::Approve, types::PaymentsApproveData>(
             state,
@@ -31,6 +32,7 @@ impl
             merchant_account,
             key_store,
             customer,
+            merchant_connector_account,
         )
         .await
     }
