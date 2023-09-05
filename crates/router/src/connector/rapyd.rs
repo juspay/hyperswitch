@@ -3,6 +3,7 @@ use std::fmt::Debug;
 
 use base64::Engine;
 use common_utils::{date_time, ext_traits::StringExt};
+use diesel_models::enums;
 use error_stack::{IntoReport, Report, ResultExt};
 use masking::{ExposeInterface, PeekInterface};
 use rand::distributions::{Alphanumeric, DistString};
@@ -11,7 +12,7 @@ use transformers as rapyd;
 
 use crate::{
     configs::settings,
-    connector::utils as conn_utils,
+    connector::{utils as connector_utils, utils as conn_utils},
     consts,
     core::errors::{self, CustomResult},
     db::StorageInterface,
@@ -19,6 +20,7 @@ use crate::{
     services::{
         self,
         request::{self, Mask},
+        ConnectorValidation,
     },
     types::{
         self,
@@ -102,6 +104,21 @@ impl ConnectorCommon for Rapyd {
     }
 }
 
+impl ConnectorValidation for Rapyd {
+    fn validate_capture_method(
+        &self,
+        capture_method: Option<enums::CaptureMethod>,
+    ) -> CustomResult<(), errors::ConnectorError> {
+        let capture_method = capture_method.unwrap_or_default();
+        match capture_method {
+            enums::CaptureMethod::Automatic | enums::CaptureMethod::Manual => Ok(()),
+            enums::CaptureMethod::ManualMultiple | enums::CaptureMethod::Scheduled => Err(
+                connector_utils::construct_not_supported_error_report(capture_method, self.id()),
+            ),
+        }
+    }
+}
+
 impl api::ConnectorAccessToken for Rapyd {}
 
 impl api::PaymentToken for Rapyd {}
@@ -181,6 +198,7 @@ impl
         >,
         connectors: &settings::Connectors,
     ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
+        self.validate_capture_method(req.request.capture_method)?;
         let timestamp = date_time::now_unix_timestamp();
         let salt = Alphanumeric.sample_string(&mut rand::thread_rng(), 12);
 
@@ -754,7 +772,7 @@ impl api::IncomingWebhook for Rapyd {
         let signature = self
             .get_webhook_source_verification_signature(request)
             .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
-        let secret = self
+        let connector_webhook_secrets = self
             .get_webhook_source_verification_merchant_secret(
                 db,
                 merchant_account,
@@ -768,11 +786,11 @@ impl api::IncomingWebhook for Rapyd {
             .get_webhook_source_verification_message(
                 request,
                 &merchant_account.merchant_id,
-                &secret,
+                &connector_webhook_secrets.secret,
             )
             .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
 
-        let stringify_auth = String::from_utf8(secret.to_vec())
+        let stringify_auth = String::from_utf8(connector_webhook_secrets.secret.to_vec())
             .into_report()
             .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)
             .attach_printable("Could not convert secret to UTF-8")?;

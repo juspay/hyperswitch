@@ -1409,6 +1409,18 @@ fn create_stripe_payment_method(
                 message: connector_util::UNSUPPORTED_PAYMENT_METHOD_ERROR_MESSAGE.to_string(),
                 connector: "stripe",
             }
+        }
+        payments::PaymentMethodData::Crypto(_)
+        | payments::PaymentMethodData::MandatePayment
+        | payments::PaymentMethodData::Reward
+        | payments::PaymentMethodData::Upi(_)
+        | payments::PaymentMethodData::CardRedirect(_)
+        | payments::PaymentMethodData::Voucher(_)
+        | payments::PaymentMethodData::GiftCard(_) => Err(errors::ConnectorError::NotImplemented(
+            connector_util::get_unimplemented_payment_method_error_message("stripe"),
+        )
+        .into()),
+    }
             .into()),
         },
 
@@ -2719,7 +2731,7 @@ impl TryFrom<&types::PaymentsPreProcessingRouterData> for StripeCreditTransferSo
             | Some(payments::PaymentMethodData::BankRedirect(..))
             | Some(payments::PaymentMethodData::PayLater(..))
             | Some(payments::PaymentMethodData::Crypto(..))
-            | Some(payments::PaymentMethodData::Reward(..))
+            | Some(payments::PaymentMethodData::Reward)
             | Some(payments::PaymentMethodData::MandatePayment)
             | Some(payments::PaymentMethodData::Upi(..))
             | Some(payments::PaymentMethodData::GiftCard(..))
@@ -3207,7 +3219,7 @@ impl
             }
             api::PaymentMethodData::MandatePayment
             | api::PaymentMethodData::Crypto(_)
-            | api::PaymentMethodData::Reward(_)
+            | api::PaymentMethodData::Reward
             | api::PaymentMethodData::GiftCard(_)
             | api::PaymentMethodData::Upi(_)
             | api::PaymentMethodData::CardRedirect(_)

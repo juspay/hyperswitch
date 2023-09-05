@@ -1,6 +1,6 @@
 use std::marker::PhantomData;
 
-use api_models::{admin::PaymentMethodsEnabled, enums::CancelTransaction};
+use api_models::{admin::PaymentMethodsEnabled, enums::FrmSuggestion};
 use async_trait::async_trait;
 use common_utils::ext_traits::{AsyncExt, ValueExt};
 use error_stack::ResultExt;
@@ -69,6 +69,11 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsSessionRequest>
             "create a session token for",
         )?;
 
+        helpers::authenticate_client_secret(
+            Some(&request.client_secret),
+            &payment_intent,
+            merchant_account.intent_fulfillment_time,
+        )?;
         let mut payment_attempt = db
             .find_payment_attempt_by_payment_id_merchant_id_attempt_id(
                 payment_intent.payment_id.as_str(),
@@ -199,7 +204,7 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsSessionRequest> for
         storage_scheme: storage_enums::MerchantStorageScheme,
         _updated_customer: Option<storage::CustomerUpdate>,
         _mechant_key_store: &domain::MerchantKeyStore,
-        _should_cancel_transaction: Option<CancelTransaction>,
+        _frm_suggestion: Option<FrmSuggestion>,
     ) -> RouterResult<(
         BoxedOperation<'b, F, api::PaymentsSessionRequest>,
         PaymentData<F>,
@@ -309,7 +314,7 @@ where
         merchant_account: &domain::MerchantAccount,
         state: &AppState,
         request: &api::PaymentsSessionRequest,
-        payment_intent: &storage::payment_intent::PaymentIntent,
+        payment_intent: &storage::PaymentIntent,
         key_store: &domain::MerchantKeyStore,
     ) -> RouterResult<api::ConnectorChoice> {
         let db = &state.store;

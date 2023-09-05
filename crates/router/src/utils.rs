@@ -1,6 +1,8 @@
 pub mod custom_serde;
 pub mod db_utils;
 pub mod ext_traits;
+#[cfg(all(feature = "olap", feature = "kms"))]
+pub mod verification;
 
 #[cfg(feature = "kv_store")]
 pub mod storage_partitioning;
@@ -363,5 +365,47 @@ pub fn handle_json_response_deserialization_failure(
                 reason: Some(response_data),
             })
         }
+    }
+}
+
+pub fn get_http_status_code_type(
+    status_code: u16,
+) -> CustomResult<String, errors::ApiErrorResponse> {
+    let status_code_type = match status_code {
+        100..=199 => "1xx",
+        200..=299 => "2xx",
+        300..=399 => "3xx",
+        400..=499 => "4xx",
+        500..=599 => "5xx",
+        _ => Err(errors::ApiErrorResponse::InternalServerError)
+            .into_report()
+            .attach_printable("Invalid http status code")?,
+    };
+    Ok(status_code_type.to_string())
+}
+
+pub fn add_connector_http_status_code_metrics(option_status_code: Option<u16>) {
+    if let Some(status_code) = option_status_code {
+        let status_code_type = get_http_status_code_type(status_code).ok();
+        match status_code_type.as_deref() {
+            Some("1xx") => {
+                metrics::CONNECTOR_HTTP_STATUS_CODE_1XX_COUNT.add(&metrics::CONTEXT, 1, &[])
+            }
+            Some("2xx") => {
+                metrics::CONNECTOR_HTTP_STATUS_CODE_2XX_COUNT.add(&metrics::CONTEXT, 1, &[])
+            }
+            Some("3xx") => {
+                metrics::CONNECTOR_HTTP_STATUS_CODE_3XX_COUNT.add(&metrics::CONTEXT, 1, &[])
+            }
+            Some("4xx") => {
+                metrics::CONNECTOR_HTTP_STATUS_CODE_4XX_COUNT.add(&metrics::CONTEXT, 1, &[])
+            }
+            Some("5xx") => {
+                metrics::CONNECTOR_HTTP_STATUS_CODE_5XX_COUNT.add(&metrics::CONTEXT, 1, &[])
+            }
+            _ => logger::info!("Skip metrics as invalid http status code received from connector"),
+        };
+    } else {
+        logger::info!("Skip metrics as no http status code received from connector")
     }
 }

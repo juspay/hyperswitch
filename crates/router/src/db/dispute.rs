@@ -1,4 +1,4 @@
-use error_stack::IntoReport;
+use error_stack::{IntoReport, ResultExt};
 
 use super::{MockDb, Store};
 use crate::{
@@ -147,8 +147,11 @@ impl DisputeInterface for MockDb {
         let now = common_utils::date_time::now();
 
         let new_dispute = storage::Dispute {
-            #[allow(clippy::as_conversions)]
-            id: locked_disputes.len() as i32,
+            id: locked_disputes
+                .len()
+                .try_into()
+                .into_report()
+                .change_context(errors::StorageError::MockDbError)?,
             dispute_id: dispute.dispute_id,
             amount: dispute.amount,
             currency: dispute.currency,
@@ -167,6 +170,7 @@ impl DisputeInterface for MockDb {
             created_at: now,
             modified_at: now,
             connector: dispute.connector,
+            profile_id: dispute.profile_id,
             evidence,
         };
 
@@ -399,6 +403,7 @@ mod tests {
                 connector_updated_at: Some(datetime!(2019-01-03 0:00)),
                 connector: "connector".into(),
                 evidence: Some(Secret::from(Value::String("evidence".into()))),
+                profile_id: None,
             }
         }
 

@@ -4,7 +4,7 @@ use masking::{PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    connector::utils,
+    connector::utils::{self},
     consts,
     core::errors,
     types::{self, api, storage::enums},
@@ -21,6 +21,7 @@ pub struct PaymentOptions {
 #[derive(Debug, Deserialize)]
 pub struct BraintreeMeta {
     merchant_account_id: Option<Secret<String>>,
+    merchant_config_currency: Option<types::storage::enums::Currency>,
 }
 
 #[derive(Debug, Serialize, Eq, PartialEq)]
@@ -41,6 +42,10 @@ pub struct BraintreeSessionRequest {
 impl TryFrom<&types::PaymentsSessionRouterData> for BraintreeSessionRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(_item: &types::PaymentsSessionRouterData) -> Result<Self, Self::Error> {
+        let metadata: BraintreeMeta =
+            utils::to_connector_meta_from_secret(_item.connector_meta_data.clone())?;
+
+        utils::validate_currency(_item.request.currency, metadata.merchant_config_currency)?;
         Ok(Self {
             client_token: BraintreeApiVersion {
                 version: "2".to_string(),
@@ -93,12 +98,14 @@ pub struct CardDetails {
 impl TryFrom<&types::PaymentsAuthorizeRouterData> for BraintreePaymentsRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::PaymentsAuthorizeRouterData) -> Result<Self, Self::Error> {
+        let metadata: BraintreeMeta =
+            utils::to_connector_meta_from_secret(item.connector_meta_data.clone())?;
+
+        utils::validate_currency(item.request.currency, metadata.merchant_config_currency)?;
         let submit_for_settlement = matches!(
             item.request.capture_method,
             Some(enums::CaptureMethod::Automatic) | None
         );
-        let metadata: BraintreeMeta =
-            utils::to_connector_meta_from_secret(item.connector_meta_data.clone())?;
         let merchant_account_id = metadata.merchant_account_id;
         let amount = utils::to_currency_base_unit(item.request.amount, item.request.currency)?;
         let device_data = DeviceData {};
@@ -193,7 +200,9 @@ pub enum BraintreePaymentStatus {
 impl From<BraintreePaymentStatus> for enums::AttemptStatus {
     fn from(item: BraintreePaymentStatus) -> Self {
         match item {
-            BraintreePaymentStatus::Succeeded | BraintreePaymentStatus::Settling => Self::Charged,
+            BraintreePaymentStatus::Succeeded
+            | BraintreePaymentStatus::Settling
+            | BraintreePaymentStatus::Settled => Self::Charged,
             BraintreePaymentStatus::AuthorizedExpired => Self::AuthorizationFailed,
             BraintreePaymentStatus::Failed
             | BraintreePaymentStatus::GatewayRejected
@@ -352,9 +361,18 @@ pub struct Amount {
 
 impl<F> TryFrom<&types::RefundsRouterData<F>> for BraintreeRefundRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(_item: &types::RefundsRouterData<F>) -> Result<Self, Self::Error> {
+    fn try_from(item: &types::RefundsRouterData<F>) -> Result<Self, Self::Error> {
+        let metadata: BraintreeMeta =
+            utils::to_connector_meta_from_secret(item.connector_meta_data.clone())?;
+
+        utils::validate_currency(item.request.currency, metadata.merchant_config_currency)?;
+
+        let refund_amount =
+            utils::to_currency_base_unit(item.request.refund_amount, item.request.currency)?;
         Ok(Self {
-            transaction: Amount { amount: None },
+            transaction: Amount {
+                amount: Some(refund_amount),
+            },
         })
     }
 }

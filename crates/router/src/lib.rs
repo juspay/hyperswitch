@@ -106,13 +106,19 @@ pub fn mk_app(
 
     #[cfg(any(feature = "olap", feature = "oltp"))]
     {
+        #[cfg(feature = "olap")]
+        {
+            // This is a more specific route as compared to `MerchantConnectorAccount`
+            // so it is registered before `MerchantConnectorAccount`.
+            server_app = server_app.service(routes::BusinessProfile::server(state.clone()))
+        }
         server_app = server_app
             .service(routes::Payments::server(state.clone()))
             .service(routes::Customers::server(state.clone()))
             .service(routes::Configs::server(state.clone()))
             .service(routes::Refunds::server(state.clone()))
             .service(routes::MerchantConnectorAccount::server(state.clone()))
-            .service(routes::Mandates::server(state.clone()));
+            .service(routes::Mandates::server(state.clone()))
     }
 
     #[cfg(feature = "oltp")]
@@ -129,7 +135,12 @@ pub fn mk_app(
             .service(routes::MerchantAccount::server(state.clone()))
             .service(routes::ApiKeys::server(state.clone()))
             .service(routes::Files::server(state.clone()))
-            .service(routes::Disputes::server(state.clone()));
+            .service(routes::Disputes::server(state.clone()))
+    }
+
+    #[cfg(all(feature = "olap", feature = "kms"))]
+    {
+        server_app = server_app.service(routes::Verify::server(state.clone()));
     }
 
     #[cfg(feature = "payouts")]
@@ -158,7 +169,16 @@ pub async fn start_server(conf: settings::Settings) -> ApplicationResult<Server>
     logger::debug!(startup_config=?conf);
     let server = conf.server.clone();
     let (tx, rx) = oneshot::channel();
-    let state = routes::AppState::new(conf, tx).await;
+    let api_client = Box::new(
+        services::ProxyClient::new(
+            conf.proxy.clone(),
+            services::proxy_bypass_urls(&conf.locker),
+        )
+        .map_err(|error| {
+            errors::ApplicationError::ApiClientError(error.current_context().clone())
+        })?,
+    );
+    let state = routes::AppState::new(conf, tx, api_client).await;
     let request_body_limit = server.request_body_limit;
     let server = actix_web::HttpServer::new(move || mk_app(state.clone(), request_body_limit))
         .bind((server.host.as_str(), server.port))?

@@ -1,24 +1,27 @@
+pub mod payment_approve;
 pub mod payment_cancel;
 pub mod payment_capture;
 pub mod payment_complete_authorize;
 pub mod payment_confirm;
 pub mod payment_create;
 pub mod payment_method_validate;
+pub mod payment_reject;
 pub mod payment_response;
 pub mod payment_session;
 pub mod payment_start;
 pub mod payment_status;
 pub mod payment_update;
 
-use api_models::enums::CancelTransaction;
+use api_models::enums::FrmSuggestion;
 use async_trait::async_trait;
 use error_stack::{report, ResultExt};
 use router_env::{instrument, tracing};
 
 pub use self::{
-    payment_cancel::PaymentCancel, payment_capture::PaymentCapture,
-    payment_confirm::PaymentConfirm, payment_create::PaymentCreate,
-    payment_method_validate::PaymentMethodValidate, payment_response::PaymentResponse,
+    payment_approve::PaymentApprove, payment_cancel::PaymentCancel,
+    payment_capture::PaymentCapture, payment_confirm::PaymentConfirm,
+    payment_create::PaymentCreate, payment_method_validate::PaymentMethodValidate,
+    payment_reject::PaymentReject, payment_response::PaymentResponse,
     payment_session::PaymentSession, payment_start::PaymentStart, payment_status::PaymentStatus,
     payment_update::PaymentUpdate,
 };
@@ -134,7 +137,7 @@ pub trait Domain<F: Clone, R>: Send + Sync {
         merchant_account: &domain::MerchantAccount,
         state: &AppState,
         request: &R,
-        payment_intent: &storage::payment_intent::PaymentIntent,
+        payment_intent: &storage::PaymentIntent,
         mechant_key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<api::ConnectorChoice, errors::ApiErrorResponse>;
 }
@@ -150,7 +153,7 @@ pub trait UpdateTracker<F, D, Req>: Send {
         storage_scheme: enums::MerchantStorageScheme,
         updated_customer: Option<storage::CustomerUpdate>,
         mechant_key_store: &domain::MerchantKeyStore,
-        should_cancel_transaction: Option<CancelTransaction>,
+        frm_suggestion: Option<FrmSuggestion>,
     ) -> RouterResult<(BoxedOperation<'b, F, Req>, D)>
     where
         F: 'b + Send;
@@ -208,7 +211,7 @@ where
         _merchant_account: &domain::MerchantAccount,
         state: &AppState,
         _request: &api::PaymentsRetrieveRequest,
-        _payment_intent: &storage::payment_intent::PaymentIntent,
+        _payment_intent: &storage::PaymentIntent,
         _merchant_key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<api::ConnectorChoice, errors::ApiErrorResponse> {
         helpers::get_connector_default(state, None).await
@@ -278,7 +281,7 @@ where
         _merchant_account: &domain::MerchantAccount,
         state: &AppState,
         _request: &api::PaymentsCaptureRequest,
-        _payment_intent: &storage::payment_intent::PaymentIntent,
+        _payment_intent: &storage::PaymentIntent,
         _merchant_key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<api::ConnectorChoice, errors::ApiErrorResponse> {
         helpers::get_connector_default(state, None).await
@@ -336,7 +339,55 @@ where
         _merchant_account: &domain::MerchantAccount,
         state: &AppState,
         _request: &api::PaymentsCancelRequest,
-        _payment_intent: &storage::payment_intent::PaymentIntent,
+        _payment_intent: &storage::PaymentIntent,
+        _merchant_key_store: &domain::MerchantKeyStore,
+    ) -> CustomResult<api::ConnectorChoice, errors::ApiErrorResponse> {
+        helpers::get_connector_default(state, None).await
+    }
+}
+
+#[async_trait]
+impl<F: Clone + Send, Op: Send + Sync + Operation<F, api::PaymentsRejectRequest>>
+    Domain<F, api::PaymentsRejectRequest> for Op
+where
+    for<'a> &'a Op: Operation<F, api::PaymentsRejectRequest>,
+{
+    #[instrument(skip_all)]
+    async fn get_or_create_customer_details<'a>(
+        &'a self,
+        _db: &dyn StorageInterface,
+        _payment_data: &mut PaymentData<F>,
+        _request: Option<CustomerDetails>,
+        _merchant_key_store: &domain::MerchantKeyStore,
+    ) -> CustomResult<
+        (
+            BoxedOperation<'a, F, api::PaymentsRejectRequest>,
+            Option<domain::Customer>,
+        ),
+        errors::StorageError,
+    > {
+        Ok((Box::new(self), None))
+    }
+
+    #[instrument(skip_all)]
+    async fn make_pm_data<'a>(
+        &'a self,
+        _state: &'a AppState,
+        _payment_data: &mut PaymentData<F>,
+        _storage_scheme: enums::MerchantStorageScheme,
+    ) -> RouterResult<(
+        BoxedOperation<'a, F, api::PaymentsRejectRequest>,
+        Option<api::PaymentMethodData>,
+    )> {
+        Ok((Box::new(self), None))
+    }
+
+    async fn get_connector<'a>(
+        &'a self,
+        _merchant_account: &domain::MerchantAccount,
+        state: &AppState,
+        _request: &api::PaymentsRejectRequest,
+        _payment_intent: &storage::PaymentIntent,
         _merchant_key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<api::ConnectorChoice, errors::ApiErrorResponse> {
         helpers::get_connector_default(state, None).await
