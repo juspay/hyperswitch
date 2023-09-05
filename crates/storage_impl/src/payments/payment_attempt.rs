@@ -374,8 +374,8 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
                         .insert(&conn)
                         .await
                         .map_err(|er| {
-                            let error = format!("{}", er);
-                            er.change_context(errors::StorageError::DatabaseError(error))
+                            let new_err = crate::diesel_error_to_data_error(er.current_context());
+                            er.change_context(new_err)
                         })?;
 
                         let redis_entry = kv::TypedSql {
@@ -1421,8 +1421,8 @@ async fn add_connector_txn_id_to_reverse_lookup<T: DatabaseStore>(
     .insert(&conn)
     .await
     .map_err(|err| {
-        let error = format!("{}", err);
-        err.change_context(errors::StorageError::DatabaseError(error))
+        let new_err = crate::diesel_error_to_data_error(err.current_context());
+        err.change_context(new_err)
     })
 }
 
@@ -1445,7 +1445,7 @@ async fn add_preprocessing_id_to_reverse_lookup<T: DatabaseStore>(
     .insert(&conn)
     .await
     .map_err(|er| {
-        let error = format!("{}", er);
-        er.change_context(errors::StorageError::DatabaseError(error))
+        let new_err = crate::diesel_error_to_data_error(er.current_context());
+        er.change_context(new_err)
     })
 }
