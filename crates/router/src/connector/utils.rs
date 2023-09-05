@@ -74,6 +74,7 @@ pub trait RouterData {
     #[cfg(feature = "payouts")]
     fn get_quote_id(&self) -> Result<String, Error>;
 }
+pub const SELECTED_PAYMENT_METHOD: &str = "Selected payment method";
 
 pub fn get_unimplemented_payment_method_error_message(connector: &str) -> String {
     format!("Selected payment method through {}", connector)
@@ -998,6 +999,16 @@ pub fn to_currency_base_unit(
         .to_currency_base_unit(amount)
         .into_report()
         .change_context(errors::ConnectorError::RequestEncodingFailed)
+}
+
+pub fn to_currency_lower_unit(
+    amount: String,
+    currency: diesel_models::enums::Currency,
+) -> Result<String, error_stack::Report<errors::ConnectorError>> {
+    currency
+        .to_currency_lower_unit(amount)
+        .into_report()
+        .change_context(errors::ConnectorError::ResponseHandlingFailed)
 }
 
 pub fn construct_not_implemented_error_report(
