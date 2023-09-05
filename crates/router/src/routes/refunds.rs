@@ -36,7 +36,14 @@ pub async fn refunds_create(
         state.get_ref(),
         &req,
         json_payload.into_inner(),
-        |state, auth, req| refund_create_core(state, auth.merchant_account, auth.key_store, req),
+        |state, auth, req| {
+            refund_create_core(crate::core::refunds::RefundType::Manual(
+                state,
+                auth.merchant_account,
+                auth.key_store,
+                req,
+            ))
+        },
         &auth::ApiKeyAuth,
     )
     .await
