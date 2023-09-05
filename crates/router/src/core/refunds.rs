@@ -27,163 +27,113 @@ use crate::{
 
 // ********************************************** REFUND EXECUTE **********************************************
 
-#[async_trait::async_trait]
-pub trait RefundCreateOperation {
-    async fn refund_create_core(self) -> RouterResponse<refunds::RefundResponse>;
-}
-
-pub enum RefundType<'a> {
-    Auto(
-        &'a AppState,
-        domain::MerchantAccount,
-        domain::MerchantKeyStore,
-        refunds::RefundRequest,
-        diesel_models::payment_attempt::PaymentAttempt,
-    ),
-    Manual(
-        &'a AppState,
-        domain::MerchantAccount,
-        domain::MerchantKeyStore,
-        refunds::RefundRequest,
-    ),
-}
-
-#[async_trait::async_trait]
-impl RefundCreateOperation for RefundType<'_> {
-    async fn refund_create_core(self) -> RouterResponse<refunds::RefundResponse> {
-        match self {
-            Self::Auto(state, merchant_account, key_store, req, payment_attempt) => {
-                let db = &*state.store;
-
-                let (merchant_id, payment_intent, amount);
-
-                merchant_id = &merchant_account.merchant_id;
-
-                payment_intent = db
-                    .find_payment_intent_by_payment_id_merchant_id(
-                        &req.payment_id,
-                        merchant_id,
-                        merchant_account.storage_scheme,
-                    )
-                    .await
-                    .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
-
-                utils::when(
-                    payment_attempt.status != enums::AttemptStatus::Charged,
-                    || {
-                        Err(report!(errors::ApiErrorResponse::PaymentNotSucceeded)
-                            .attach_printable("unable to refund for a unsuccessful payment intent"))
-                    },
-                )?;
-
-                amount = req.amount.unwrap_or(
-                    payment_intent
-                        .amount_captured
-                        .ok_or(errors::ApiErrorResponse::InternalServerError)
-                        .into_report()
-                        .attach_printable("amount captured is none in a successful payment")?,
-                );
-
-                validate_and_create_refund(
-                    state,
-                    &merchant_account,
-                    &key_store,
-                    &payment_attempt,
-                    &payment_intent,
-                    amount,
-                    req,
-                    None,
-                )
-                .await
-                .map(services::ApplicationResponse::Json)
-            }
-            Self::Manual(state, merchant_account, key_store, req) => {
-                let db = &*state.store;
-                let (merchant_id, payment_intent, payment_attempt, amount);
-
-                merchant_id = &merchant_account.merchant_id;
-
-                payment_intent = db
-                    .find_payment_intent_by_payment_id_merchant_id(
-                        &req.payment_id,
-                        merchant_id,
-                        merchant_account.storage_scheme,
-                    )
-                    .await
-                    .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
-
-                utils::when(
-                    payment_intent.status != enums::IntentStatus::Succeeded,
-                    || {
-                        Err(report!(errors::ApiErrorResponse::PaymentNotSucceeded)
-                            .attach_printable("unable to refund for a unsuccessful payment intent"))
-                    },
-                )?;
-
-                amount = req.amount.unwrap_or(
-                    payment_intent
-                        .amount_captured
-                        .ok_or(errors::ApiErrorResponse::InternalServerError)
-                        .into_report()
-                        .attach_printable("amount captured is none in a successful payment")?,
-                );
-
-                utils::when(amount <= 0, || {
-                    Err(report!(errors::ApiErrorResponse::InvalidDataFormat {
-                        field_name: "amount".to_string(),
-                        expected_format: "positive integer".to_string()
-                    })
-                    .attach_printable("amount less than or equal to zero"))
-                })?;
-
-                payment_attempt = db
-                    .find_payment_attempt_last_successful_attempt_by_payment_id_merchant_id(
-                        &req.payment_id,
-                        merchant_id,
-                        merchant_account.storage_scheme,
-                    )
-                    .await
-                    .to_not_found_response(errors::ApiErrorResponse::SuccessfulPaymentNotFound)?;
-
-                let creds_identifier = req
-                    .merchant_connector_details
-                    .as_ref()
-                    .map(|mcd| mcd.creds_identifier.to_owned());
-                req.merchant_connector_details
-                    .to_owned()
-                    .async_map(|mcd| async {
-                        payments::helpers::insert_merchant_connector_creds_to_config(
-                            db,
-                            merchant_id.as_str(),
-                            mcd,
-                        )
-                        .await
-                    })
-                    .await
-                    .transpose()?;
-
-                validate_and_create_refund(
-                    state,
-                    &merchant_account,
-                    &key_store,
-                    &payment_attempt,
-                    &payment_intent,
-                    amount,
-                    req,
-                    creds_identifier,
-                )
-                .await
-                .map(services::ApplicationResponse::Json)
-            }
-        }
-    }
+pub enum RefundType {
+    Auto(diesel_models::payment_attempt::PaymentAttempt),
+    Manual,
 }
 
 #[instrument(skip_all)]
 pub async fn refund_create_core(
-    operation: impl RefundCreateOperation,
+    state: &AppState,
+    merchant_account: domain::MerchantAccount,
+    key_store: domain::MerchantKeyStore,
+    req: api_models::refunds::RefundRequest,
+    refund_type: RefundType,
 ) -> RouterResponse<refunds::RefundResponse> {
-    operation.refund_create_core().await
+    let db = &*state.store;
+
+    let (merchant_id, payment_intent, amount);
+
+    merchant_id = &merchant_account.merchant_id;
+
+    payment_intent = db
+        .find_payment_intent_by_payment_id_merchant_id(
+            &req.payment_id,
+            merchant_id,
+            merchant_account.storage_scheme,
+        )
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
+
+    amount = req.amount.unwrap_or(
+        payment_intent
+            .amount_captured
+            .ok_or(errors::ApiErrorResponse::InternalServerError)
+            .into_report()
+            .attach_printable("amount captured is none in a successful payment")?,
+    );
+
+    utils::when(amount <= 0, || {
+        Err(report!(errors::ApiErrorResponse::InvalidDataFormat {
+            field_name: "amount".to_string(),
+            expected_format: "positive integer".to_string()
+        })
+        .attach_printable("amount less than or equal to zero"))
+    })?;
+
+    let (payment_attempt, creds_identifier);
+
+    match refund_type {
+        RefundType::Auto(payment_attempt1) => {
+            payment_attempt = payment_attempt1;
+            utils::when(
+                payment_attempt.status != enums::AttemptStatus::Charged,
+                || {
+                    Err(report!(errors::ApiErrorResponse::PaymentNotSucceeded)
+                        .attach_printable("unable to refund for a unsuccessful payment intent"))
+                },
+            )?;
+            creds_identifier = None;
+        }
+
+        RefundType::Manual => {
+            utils::when(
+                payment_intent.status != enums::IntentStatus::Succeeded,
+                || {
+                    Err(report!(errors::ApiErrorResponse::PaymentNotSucceeded)
+                        .attach_printable("unable to refund for a unsuccessful payment intent"))
+                },
+            )?;
+            payment_attempt = db
+                .find_payment_attempt_last_successful_attempt_by_payment_id_merchant_id(
+                    &req.payment_id,
+                    merchant_id,
+                    merchant_account.storage_scheme,
+                )
+                .await
+                .to_not_found_response(errors::ApiErrorResponse::SuccessfulPaymentNotFound)?;
+
+            creds_identifier = req
+                .merchant_connector_details
+                .as_ref()
+                .map(|mcd| mcd.creds_identifier.to_owned());
+            req.merchant_connector_details
+                .to_owned()
+                .async_map(|mcd| async {
+                    payments::helpers::insert_merchant_connector_creds_to_config(
+                        db,
+                        merchant_id.as_str(),
+                        mcd,
+                    )
+                    .await
+                })
+                .await
+                .transpose()?;
+        }
+    };
+
+    validate_and_create_refund(
+        state,
+        &merchant_account,
+        &key_store,
+        &payment_attempt,
+        &payment_intent,
+        amount,
+        req,
+        creds_identifier,
+    )
+    .await
+    .map(services::ApplicationResponse::Json)
 }
 
 #[instrument(skip_all)]
