@@ -597,6 +597,8 @@ diesel::table! {
         attempt_count -> Int2,
         #[max_length = 64]
         profile_id -> Nullable<Varchar>,
+        #[max_length = 64]
+        merchant_decision -> Nullable<Varchar>,
     }
 }
 

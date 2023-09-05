@@ -341,7 +341,7 @@ impl api::IncomingWebhook for Cashtocode {
         let signature = self
             .get_webhook_source_verification_signature(request)
             .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
-        let secret = self
+        let connector_webhook_secrets = self
             .get_webhook_source_verification_merchant_secret(
                 db,
                 merchant_account,
@@ -351,7 +351,7 @@ impl api::IncomingWebhook for Cashtocode {
             )
             .await
             .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
-        let secret_auth = String::from_utf8(secret.to_vec())
+        let secret_auth = String::from_utf8(connector_webhook_secrets.secret.to_vec())
             .into_report()
             .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)
             .attach_printable("Could not convert secret to UTF-8")?;
