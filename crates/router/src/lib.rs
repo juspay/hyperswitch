@@ -13,7 +13,7 @@ pub mod db;
 pub mod env;
 pub(crate) mod macros;
 pub mod routes;
-pub mod scheduler;
+pub mod workflows;
 
 pub mod middleware;
 pub mod openapi;
@@ -28,12 +28,13 @@ use actix_web::{
 };
 use http::StatusCode;
 use routes::AppState;
+use storage_impl::errors::ApplicationResult;
 use tokio::sync::{mpsc, oneshot};
 
 pub use self::env::logger;
 use crate::{
     configs::settings,
-    core::errors::{self, ApplicationResult},
+    core::errors::{self},
 };
 
 #[cfg(feature = "mimalloc")]

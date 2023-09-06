@@ -103,6 +103,7 @@ impl PaymentIntentInterface for MockDb {
             feature_metadata: new.feature_metadata,
             attempt_count: new.attempt_count,
             profile_id: new.profile_id,
+            merchant_decision: new.merchant_decision,
         };
         payment_intents.push(payment_intent.clone());
         Ok(payment_intent)
