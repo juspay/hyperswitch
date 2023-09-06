@@ -168,14 +168,14 @@ pub enum PaymentSource {
 
 #[derive(Debug, Serialize)]
 pub struct ApplePayPredecrypt {
-    token: String,
+    token: Secret<String>,
     #[serde(rename = "type")]
     decrypt_type: String,
     token_type: String,
-    expiry_month: String,
-    expiry_year: String,
-    eci: Option<String>,
-    cryptogram: String,
+    expiry_month: Secret<String>,
+    expiry_year: Secret<String>,
+    eci: Option<Secret<String>>,
+    cryptogram: Secret<String>,
 }
 
 #[derive(Debug, Serialize)]
@@ -274,31 +274,33 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PaymentsRequest {
                         }
                         types::PaymentMethodToken::ApplePayDecrypt(data) => data,
                     };
-                    let expiry_year_4_digit = format!(
-                        "20{}",
-                        decrypt_data.application_expiration_date.peek()[0..2].to_owned()
+                    let expiry_year_4_digit = Secret::new(format!(
+                        "20{:?}",
+                        decrypt_data
+                            .application_expiration_date
+                            .peek()
+                            .get(0..2)
+                            .ok_or(errors::ConnectorError::RequestEncodingFailed)?
+                    ));
+                    let expiry_month = Secret::new(
+                        decrypt_data
+                            .application_expiration_date
+                            .peek()
+                            .get(2..4)
+                            .ok_or(errors::ConnectorError::RequestEncodingFailed)?
+                            .to_owned(),
                     );
-                    let eci = decrypt_data
-                        .payment_data
-                        .eci_indicator
-                        .map(|eci_indicator| eci_indicator.peek().to_string());
                     Ok(PaymentSource::ApplePayPredecrypt(Box::new(
                         ApplePayPredecrypt {
-                            token: decrypt_data
-                                .application_primary_account_number
-                                .peek()
-                                .to_string(),
+                            token: decrypt_data.application_primary_account_number,
                             decrypt_type: "network_token".to_string(),
                             token_type: "applepay".to_string(),
-                            expiry_month: decrypt_data.application_expiration_date.peek()[2..4]
-                                .to_owned(),
+                            expiry_month,
                             expiry_year: expiry_year_4_digit,
-                            eci,
-                            cryptogram: decrypt_data
-                                .payment_data
-                                .online_payment_cryptogram
-                                .peek()
-                                .to_string(),
+                            eci: decrypt_data
+                            .payment_data
+                            .eci_indicator,
+                            cryptogram: decrypt_data.payment_data.online_payment_cryptogram,
                         },
                     )))
                 }

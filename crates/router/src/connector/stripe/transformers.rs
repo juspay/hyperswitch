@@ -440,15 +440,15 @@ pub enum StripeWallet {
 #[derive(Debug, Eq, PartialEq, Serialize)]
 pub struct StripeApplePayPredecrypt {
     #[serde(rename = "card[number]")]
-    number: String,
+    number: Secret<String>,
     #[serde(rename = "card[exp_year]")]
-    exp_year: String,
+    exp_year: Secret<String>,
     #[serde(rename = "card[exp_month]")]
-    exp_month: String,
+    exp_month: Secret<String>,
     #[serde(rename = "card[cryptogram]")]
-    cryptogram: String,
+    cryptogram: Secret<String>,
     #[serde(rename = "card[eci]")]
-    eci: Option<String>,
+    eci: Option<Secret<String>>,
     #[serde(rename = "card[tokenization_method]")]
     tokenization_method: String,
 }
@@ -1290,47 +1290,44 @@ fn create_stripe_payment_method(
         }
         payments::PaymentMethodData::Wallet(wallet_data) => match wallet_data {
             payments::WalletData::ApplePay(applepay_data) => {
-                let mut apple_pay_decrypt_data = payment_method_token.and_then(|pmt| match pmt {
-                    types::PaymentMethodToken::ApplePayDecrypt(decrypt_data) => {
-                        let expiry_year_4_digit = format!(
-                            "20{}",
-                            decrypt_data.clone().application_expiration_date.peek()[0..2]
-                                .to_owned()
+                let mut apple_pay_decrypt_data =
+                    if let Some(types::PaymentMethodToken::ApplePayDecrypt(decrypt_data)) =
+                        payment_method_token
+                    {
+                        let expiry_year_4_digit = Secret::new(format!(
+                            "20{:?}",
+                            decrypt_data
+                                .clone()
+                                .application_expiration_date
+                                .peek()
+                                .get(0..2)
+                                .ok_or(errors::ConnectorError::RequestEncodingFailed)?
+                        ));
+                        let exp_month = Secret::new(
+                            decrypt_data
+                                .clone()
+                                .application_expiration_date
+                                .peek()
+                                .get(2..4)
+                                .ok_or(errors::ConnectorError::RequestEncodingFailed)?
+                                .to_owned(),
                         );
-
-                        let eci = decrypt_data
-                            .clone()
-                            .payment_data
-                            .eci_indicator
-                            .map(|eci_indicator| eci_indicator.peek().to_string());
 
                         Some(StripePaymentMethodData::Wallet(
                             StripeWallet::ApplePayPredecryptToken(Box::new(
                                 StripeApplePayPredecrypt {
-                                    number: decrypt_data
-                                        .clone()
-                                        .application_primary_account_number
-                                        .peek()
-                                        .to_string(),
+                                    number: decrypt_data.clone().application_primary_account_number,
                                     exp_year: expiry_year_4_digit,
-                                    exp_month: decrypt_data
-                                        .clone()
-                                        .application_expiration_date
-                                        .peek()[2..4]
-                                        .to_owned(),
-                                    eci,
-                                    cryptogram: decrypt_data
-                                        .payment_data
-                                        .online_payment_cryptogram
-                                        .peek()
-                                        .to_string(),
+                                    exp_month,
+                                    eci: decrypt_data.payment_data.eci_indicator,
+                                    cryptogram: decrypt_data.payment_data.online_payment_cryptogram,
                                     tokenization_method: "apple_pay".to_string(),
                                 },
                             )),
                         ))
-                    }
-                    _ => None,
-                });
+                    } else {
+                        None
+                    };
 
                 if apple_pay_decrypt_data.is_none() {
                     apple_pay_decrypt_data = Some(StripePaymentMethodData::Wallet(
