@@ -395,18 +395,6 @@ where
                                 router_data.response = Err(error_response);
                                 router_data.connector_http_status_code = Some(504);
                                 Ok(router_data)
-                            } else if error.current_context().is_connection_closed() {
-                                let error_response = ErrorResponse {
-                                    code: consts::CONNECTION_CLOSED_ERROR_CODE.to_string(),
-                                    message: consts::CONNECTION_CLOSED_ERROR_MESSAGE.to_string(),
-                                    reason: Some(
-                                        consts::CONNECTION_CLOSED_ERROR_MESSAGE.to_string(),
-                                    ),
-                                    status_code: 504,
-                                };
-                                router_data.response = Err(error_response);
-                                router_data.connector_http_status_code = Some(504);
-                                Ok(router_data)
                             } else {
                                 Err(error.change_context(
                                     errors::ConnectorError::ProcessingStepFailed(None),
