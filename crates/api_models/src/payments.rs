@@ -14,7 +14,7 @@ use utoipa::ToSchema;
 
 use crate::{
     admin, disputes,
-    enums::{self as api_enums},
+    enums as api_enums,
     ephemeral_key::EphemeralKeyCreateResponse,
     refunds,
 };
