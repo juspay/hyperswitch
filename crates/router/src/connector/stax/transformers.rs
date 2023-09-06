@@ -1,5 +1,5 @@
 use common_utils::pii::Email;
-use error_stack::IntoReport;
+use error_stack::{IntoReport, ResultExt};
 use masking::{ExposeInterface, Secret};
 use serde::{Deserialize, Serialize};
 
@@ -380,18 +380,16 @@ impl TryFrom<types::RefundsResponseRouterData<api::Execute, RefundResponse>>
     fn try_from(
         item: types::RefundsResponseRouterData<api::Execute, RefundResponse>,
     ) -> Result<Self, Self::Error> {
+        let refund_amount = utils::to_currency_base_unit_asf64(
+            item.data.request.refund_amount,
+            item.data.request.currency,
+        )
+        .change_context(errors::ConnectorError::ResponseHandlingFailed)?;
         let filtered_txn: Vec<&ChildTransactionsInResponse> = item
             .response
             .child_transactions
             .iter()
-            .filter(|txn| {
-                txn.total
-                    == utils::to_currency_base_unit_asf64(
-                        item.data.request.refund_amount,
-                        item.data.request.currency,
-                    )
-                    .unwrap_or(0.0)
-            })
+            .filter(|txn| txn.total == refund_amount)
             .collect();
 
         let mut refund_txn = filtered_txn
