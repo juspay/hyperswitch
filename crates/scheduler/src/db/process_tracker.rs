@@ -1,15 +1,15 @@
-use error_stack::IntoReport;
+use common_utils::errors::CustomResult;
+pub use diesel_models as storage;
+use diesel_models::enums as storage_enums;
+use error_stack::{IntoReport, ResultExt};
+use serde::Serialize;
+use storage_impl::{connection, errors, MockDb};
 use time::PrimitiveDateTime;
 
-use super::{MockDb, Store};
-use crate::{
-    connection,
-    core::errors::{self, CustomResult},
-    types::storage::{self, enums},
-};
+use crate::{errors as sch_errors, metrics, scheduler::Store, SchedulerInterface};
 
 #[async_trait::async_trait]
-pub trait ProcessTrackerInterface {
+pub trait ProcessTrackerInterface: Send + Sync + 'static {
     async fn reinitialize_limbo_processes(
         &self,
         ids: Vec<String>,
@@ -47,7 +47,7 @@ pub trait ProcessTrackerInterface {
         &self,
         time_lower_limit: PrimitiveDateTime,
         time_upper_limit: PrimitiveDateTime,
-        status: enums::ProcessTrackerStatus,
+        status: storage_enums::ProcessTrackerStatus,
         limit: Option<i64>,
     ) -> CustomResult<Vec<storage::ProcessTracker>, errors::StorageError>;
 }
@@ -81,7 +81,7 @@ impl ProcessTrackerInterface for Store {
         &self,
         time_lower_limit: PrimitiveDateTime,
         time_upper_limit: PrimitiveDateTime,
-        status: enums::ProcessTrackerStatus,
+        status: storage_enums::ProcessTrackerStatus,
         limit: Option<i64>,
     ) -> CustomResult<Vec<storage::ProcessTracker>, errors::StorageError> {
         let conn = connection::pg_connection_read(self).await?;
@@ -175,7 +175,7 @@ impl ProcessTrackerInterface for MockDb {
         &self,
         _time_lower_limit: PrimitiveDateTime,
         _time_upper_limit: PrimitiveDateTime,
-        _status: enums::ProcessTrackerStatus,
+        _status: storage_enums::ProcessTrackerStatus,
         _limit: Option<i64>,
     ) -> CustomResult<Vec<storage::ProcessTracker>, errors::StorageError> {
         // [#172]: Implement function for `MockDb`
@@ -231,5 +231,127 @@ impl ProcessTrackerInterface for MockDb {
     ) -> CustomResult<usize, errors::StorageError> {
         // [#172]: Implement function for `MockDb`
         Err(errors::StorageError::MockDbError)?
+    }
+}
+
+#[async_trait::async_trait]
+pub trait ProcessTrackerExt {
+    fn is_valid_business_status(&self, valid_statuses: &[&str]) -> bool;
+
+    fn make_process_tracker_new<'a, T>(
+        process_tracker_id: String,
+        task: &'a str,
+        runner: &'a str,
+        tracking_data: T,
+        schedule_time: PrimitiveDateTime,
+    ) -> Result<storage::ProcessTrackerNew, sch_errors::ProcessTrackerError>
+    where
+        T: Serialize;
+
+    async fn reset(
+        self,
+        db: &dyn SchedulerInterface,
+        schedule_time: PrimitiveDateTime,
+    ) -> Result<(), sch_errors::ProcessTrackerError>;
+
+    async fn retry(
+        self,
+        db: &dyn SchedulerInterface,
+        schedule_time: PrimitiveDateTime,
+    ) -> Result<(), sch_errors::ProcessTrackerError>;
+
+    async fn finish_with_status(
+        self,
+        db: &dyn SchedulerInterface,
+        status: String,
+    ) -> Result<(), sch_errors::ProcessTrackerError>;
+}
+
+#[async_trait::async_trait]
+impl ProcessTrackerExt for storage::ProcessTracker {
+    fn is_valid_business_status(&self, valid_statuses: &[&str]) -> bool {
+        valid_statuses.iter().any(|x| x == &self.business_status)
+    }
+
+    fn make_process_tracker_new<'a, T>(
+        process_tracker_id: String,
+        task: &'a str,
+        runner: &'a str,
+        tracking_data: T,
+        schedule_time: PrimitiveDateTime,
+    ) -> Result<storage::ProcessTrackerNew, sch_errors::ProcessTrackerError>
+    where
+        T: Serialize,
+    {
+        let current_time = common_utils::date_time::now();
+        Ok(storage::ProcessTrackerNew {
+            id: process_tracker_id,
+            name: Some(String::from(task)),
+            tag: vec![String::from("SYNC"), String::from("PAYMENT")],
+            runner: Some(String::from(runner)),
+            retry_count: 0,
+            schedule_time: Some(schedule_time),
+            rule: String::new(),
+            tracking_data: serde_json::to_value(tracking_data)
+                .map_err(|_| sch_errors::ProcessTrackerError::SerializationFailed)?,
+            business_status: String::from("Pending"),
+            status: storage_enums::ProcessTrackerStatus::New,
+            event: vec![],
+            created_at: current_time,
+            updated_at: current_time,
+        })
+    }
+
+    async fn reset(
+        self,
+        db: &dyn SchedulerInterface,
+        schedule_time: PrimitiveDateTime,
+    ) -> Result<(), sch_errors::ProcessTrackerError> {
+        db.update_process_tracker(
+            self.clone(),
+            storage::ProcessTrackerUpdate::StatusRetryUpdate {
+                status: storage_enums::ProcessTrackerStatus::New,
+                retry_count: 0,
+                schedule_time,
+            },
+        )
+        .await?;
+        Ok(())
+    }
+
+    async fn retry(
+        self,
+        db: &dyn SchedulerInterface,
+        schedule_time: PrimitiveDateTime,
+    ) -> Result<(), sch_errors::ProcessTrackerError> {
+        metrics::TASK_RETRIED.add(&metrics::CONTEXT, 1, &[]);
+        db.update_process_tracker(
+            self.clone(),
+            storage::ProcessTrackerUpdate::StatusRetryUpdate {
+                status: storage_enums::ProcessTrackerStatus::Pending,
+                retry_count: self.retry_count + 1,
+                schedule_time,
+            },
+        )
+        .await?;
+        Ok(())
+    }
+
+    async fn finish_with_status(
+        self,
+        db: &dyn SchedulerInterface,
+        status: String,
+    ) -> Result<(), sch_errors::ProcessTrackerError> {
+        db.update_process(
+            self,
+            storage::ProcessTrackerUpdate::StatusUpdate {
+                status: storage_enums::ProcessTrackerStatus::Finish,
+                business_status: Some(status),
+            },
+        )
+        .await
+        .attach_printable("Failed while updating status of the process")?;
+        metrics::TASK_FINISHED.add(&metrics::CONTEXT, 1, &[]);
+        Ok(())
     }
 }

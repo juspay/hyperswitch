@@ -1,12 +1,10 @@
+use common_utils::errors::CustomResult;
+use diesel_models::process_tracker as storage;
 use redis_interface::{errors::RedisError, RedisEntryId, SetnxReply};
 use router_env::logger;
-use storage_impl::redis::kv_store::RedisConnInterface;
+use storage_impl::{redis::kv_store::RedisConnInterface, MockDb};
 
-use super::{MockDb, Store};
-use crate::{
-    core::errors::{CustomResult, ProcessTrackerError},
-    types::storage,
-};
+use crate::{errors::ProcessTrackerError, scheduler::Store};
 
 #[async_trait::async_trait]
 pub trait QueueInterface {
@@ -52,7 +50,7 @@ impl QueueInterface for Store {
         group_name: &str,
         consumer_name: &str,
     ) -> CustomResult<Vec<storage::ProcessTracker>, ProcessTrackerError> {
-        crate::scheduler::consumer::fetch_consumer_tasks(
+        crate::consumer::fetch_consumer_tasks(
             self,
             &self
                 .get_redis_conn()
@@ -186,7 +184,7 @@ impl QueueInterface for MockDb {
         Err(RedisError::StreamAppendFailed)?
     }
 
-    async fn get_key(&self, key: &str) -> CustomResult<Vec<u8>, RedisError> {
-        self.redis.get_key(key).await
+    async fn get_key(&self, _key: &str) -> CustomResult<Vec<u8>, RedisError> {
+        Err(RedisError::RedisConnectionError.into())
     }
 }
