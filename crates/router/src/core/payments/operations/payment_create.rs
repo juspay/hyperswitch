@@ -243,6 +243,29 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
             } else {
                 None
             };
+
+        // let payment_link_req = storage::PaymentLinkNew
+        //     .set_payment_id(payment_intent.clone().payment_id)
+        //     .set_merchant_id(payment_intent.clone().merchant_id)
+        //     .set_link_to_pay(payment_link.clone().unwrap())
+        //     .set_amount(payment_intent.clone().amount)
+        //     .set_currency(payment_intent.clone().currency)
+        //     .set_created_at(Some(payment_intent.clone().created_at))
+        //     .set_last_modified_at(Some(payment_intent.clone().modified_at)).to_owned();
+
+            let payment_link_req = storage::PaymentLinkNew {
+                payment_id:payment_intent.clone().payment_id,
+                merchant_id:payment_intent.clone().merchant_id,
+                link_to_pay: payment_link.clone().unwrap(),
+                amount:payment_intent.clone().amount,
+                currency:payment_intent.clone().currency ,
+                created_at:Some(payment_intent.clone().created_at),
+                last_modified_at: Some(payment_intent.clone().modified_at),
+            };
+
+        let payment_link_db = db.insert_payment_link(payment_link_req).await;
+        println!("payment link db object {:?}",payment_link_db);
+
         Ok((
             operation,
             PaymentData {
@@ -573,6 +596,22 @@ impl PaymentCreate {
             ..storage::PaymentAttemptNew::default()
         })
     }
+
+    // #[instrument(skip_all)]
+    // fn make_payment_link(
+    //     payment_intent:storage::PaymentIntentNew,
+    //     payment_link: String
+    // ) -> RouterResult<storage::PaymentLinkNew> {
+    //     Ok(storage::PaymentLinkNew::default() 
+    //         .set_payment_id(payment_intent.payment_id)
+    //         .set_merchant_id(payment_intent.merchant_id)
+    //         .set_link_to_pay(payment_link)
+    //         .set_amount(payment_intent.amount)
+    //         .set_currency(payment_intent.currency)
+    //         .set_created_at(payment_intent.created_at)
+    //         .set_last_modified_at(payment_intent.modified_at)
+    //     )
+    // }
 
     #[instrument(skip_all)]
     fn make_payment_intent(

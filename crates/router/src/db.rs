@@ -25,6 +25,7 @@ pub mod process_tracker;
 pub mod queue;
 pub mod refund;
 pub mod reverse_lookup;
+pub mod payment_link;
 
 use std::sync::Arc;
 
@@ -76,6 +77,7 @@ pub trait StorageInterface:
     + merchant_key_store::MerchantKeyStoreInterface
     + MasterKeyInterface
     + services::RedisConnInterface
+    + payment_link::PaymentLinkInterface
     + 'static
 {
 }

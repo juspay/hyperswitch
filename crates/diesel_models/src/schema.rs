@@ -737,9 +737,8 @@ diesel::table! {
     use diesel::sql_types::*;
     use crate::enums::diesel_exports::*;
 
-    payment_link (id) {
-        id -> Int4,
-        #[max_length = 64]
+    payment_link (payment_id) {
+        #[max_length = 255]
         payment_id -> Varchar,
         #[max_length = 64]
         merchant_id -> Varchar,

@@ -528,3 +528,15 @@ impl Cache {
             .service(web::resource("/invalidate/{key}").route(web::post().to(invalidate)))
     }
 }
+
+
+
+// pub struct PaymentLink;
+
+// impl PaymentLink {
+//     pub fn server(state: AppState) -> Scope {
+//         web::scope("")
+//             .app_data(web::Data::new(state))
+//             .service(web::resource("/payment_id").route(web::get().to(getPaymentLink)))
+//     }
+// }
