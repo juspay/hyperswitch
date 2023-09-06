@@ -356,6 +356,7 @@ fn should_call_refund(refund: &diesel_models::refund::Refund, force_sync: bool) 
         || !matches!(
             refund.refund_status,
             diesel_models::enums::RefundStatus::Failure
+                | diesel_models::enums::RefundStatus::Success
         );
 
     predicate1 && predicate2
