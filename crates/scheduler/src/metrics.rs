@@ -15,5 +15,3 @@ counter_metric!(TASK_CONSUMED, PT_METER); // Tasks consumed by consumer
 counter_metric!(TASK_PROCESSED, PT_METER); // Tasks completed processing
 counter_metric!(TASK_FINISHED, PT_METER); // Tasks finished
 counter_metric!(TASK_RETRIED, PT_METER); // Tasks added for retries
-counter_metric!(TOKENIZED_DATA_COUNT, PT_METER); // Tokenized data added
-counter_metric!(RETRIED_DELETE_DATA_COUNT, PT_METER); // Tokenized data retried

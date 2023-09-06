@@ -1,27 +1,30 @@
 use std::sync::Arc;
 
+use common_utils::errors::CustomResult;
+use diesel_models::enums::ProcessTrackerStatus;
 use error_stack::{report, IntoReport, ResultExt};
 use router_env::{instrument, tracing};
 use time::Duration;
 use tokio::sync::mpsc;
 
-use super::metrics;
+use super::{
+    env::logger::{self, debug, error, warn},
+    metrics,
+};
 use crate::{
-    configs::settings::SchedulerSettings,
-    core::errors::{self, CustomResult},
-    db::StorageInterface,
-    logger::{self, debug, error, warn},
-    routes::AppState,
-    scheduler::{utils::*, SchedulerFlow},
-    types::storage::{self, enums::ProcessTrackerStatus},
+    configs::settings::SchedulerSettings, errors, flow::SchedulerFlow,
+    scheduler::SchedulerInterface, utils::*, SchedulerAppState,
 };
 
 #[instrument(skip_all)]
-pub async fn start_producer(
-    state: &AppState,
+pub async fn start_producer<T>(
+    state: &T,
     scheduler_settings: Arc<SchedulerSettings>,
     (tx, mut rx): (mpsc::Sender<()>, mpsc::Receiver<()>),
-) -> CustomResult<(), errors::ProcessTrackerError> {
+) -> CustomResult<(), errors::ProcessTrackerError>
+where
+    T: SchedulerAppState,
+{
     use rand::Rng;
     let timeout = rand::thread_rng().gen_range(0..=scheduler_settings.loop_interval);
     tokio::time::sleep(std::time::Duration::from_millis(timeout)).await;
@@ -77,17 +80,26 @@ pub async fn start_producer(
 }
 
 #[instrument(skip_all)]
-pub async fn run_producer_flow(
-    state: &AppState,
+pub async fn run_producer_flow<T>(
+    state: &T,
     settings: &SchedulerSettings,
-) -> CustomResult<(), errors::ProcessTrackerError> {
-    lock_acquire_release::<_, _>(state, settings, move || async {
-        let tasks = fetch_producer_tasks(&*state.store, settings).await?;
+) -> CustomResult<(), errors::ProcessTrackerError>
+where
+    T: SchedulerAppState,
+{
+    lock_acquire_release::<_, _, _>(state.get_db().as_scheduler(), settings, move || async {
+        let tasks = fetch_producer_tasks(state.get_db().as_scheduler(), settings).await?;
         debug!("Producer count of tasks {}", tasks.len());
 
         // [#268]: Allow task based segregation of tasks
 
-        divide_and_append_tasks(state, SchedulerFlow::Producer, tasks, settings).await?;
+        divide_and_append_tasks(
+            state.get_db().as_scheduler(),
+            SchedulerFlow::Producer,
+            tasks,
+            settings,
+        )
+        .await?;
 
         Ok(())
     })
@@ -98,7 +110,7 @@ pub async fn run_producer_flow(
 
 #[instrument(skip_all)]
 pub async fn fetch_producer_tasks(
-    db: &dyn StorageInterface,
+    db: &dyn SchedulerInterface,
     conf: &SchedulerSettings,
 ) -> CustomResult<Vec<storage::ProcessTracker>, errors::ProcessTrackerError> {
     let upper = conf.producer.upper_fetch_limit;
