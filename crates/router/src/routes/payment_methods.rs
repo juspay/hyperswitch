@@ -40,7 +40,7 @@ pub async fn create_payment_method_api(
         &req,
         json_payload.into_inner(),
         |state, auth, req| async move {
-            cards::add_payment_method(state, req, &auth.merchant_account).await
+            cards::add_payment_method(state, req, &auth.merchant_account, &auth.key_store).await
         },
         &auth::ApiKeyAuth,
     )
@@ -289,6 +289,7 @@ pub async fn payment_method_update_api(
                 auth.merchant_account,
                 payload,
                 &payment_method_id,
+                auth.key_store,
             )
         },
         &auth::ApiKeyAuth,
