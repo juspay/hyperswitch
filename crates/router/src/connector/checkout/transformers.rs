@@ -297,9 +297,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PaymentsRequest {
                             token_type: "applepay".to_string(),
                             expiry_month,
                             expiry_year: expiry_year_4_digit,
-                            eci: decrypt_data
-                            .payment_data
-                            .eci_indicator,
+                            eci: decrypt_data.payment_data.eci_indicator,
                             cryptogram: decrypt_data.payment_data.online_payment_cryptogram,
                         },
                     )))
