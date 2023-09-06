@@ -27,6 +27,7 @@ pub async fn save_payment_method<F: Clone, FData>(
     maybe_customer: &Option<domain::Customer>,
     merchant_account: &domain::MerchantAccount,
     payment_method_type: Option<storage_enums::PaymentMethodType>,
+    key_store: &domain::MerchantKeyStore,
 ) -> RouterResult<Option<String>>
 where
     FData: mandate::MandateBehaviour,
@@ -79,8 +80,7 @@ where
 
                 let pm_data_encrypted =
                     payment_methods::cards::create_encrypted_payment_method_data(
-                        state,
-                        merchant_account,
+                        key_store,
                         pm_card_details,
                     )
                     .await;

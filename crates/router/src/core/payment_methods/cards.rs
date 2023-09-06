@@ -88,6 +88,7 @@ pub async fn add_payment_method(
     state: &routes::AppState,
     req: api::PaymentMethodCreate,
     merchant_account: &domain::MerchantAccount,
+    key_store: &domain::MerchantKeyStore,
 ) -> errors::RouterResponse<api::PaymentMethodResponse> {
     req.validate()?;
     let merchant_id = &merchant_account.merchant_id;
@@ -132,7 +133,7 @@ pub async fn add_payment_method(
             .map(|card| PaymentMethodsData::Card(CardDetailsPaymentMethod::from(card.clone())));
 
         let pm_data_encrypted =
-            create_encrypted_payment_method_data(state, merchant_account, pm_card_details).await;
+            create_encrypted_payment_method_data(key_store, pm_card_details).await;
 
         create_payment_method(
             &*state.store,
@@ -157,6 +158,7 @@ pub async fn update_customer_payment_method(
     merchant_account: domain::MerchantAccount,
     req: api::PaymentMethodUpdate,
     payment_method_id: &str,
+    key_store: domain::MerchantKeyStore,
 ) -> errors::RouterResponse<api::PaymentMethodResponse> {
     let db = &*state.store;
     let pm = db
@@ -188,7 +190,7 @@ pub async fn update_customer_payment_method(
             .as_ref()
             .map(|card_network| card_network.to_string()),
     };
-    add_payment_method(state, new_pm, &merchant_account).await
+    add_payment_method(state, new_pm, &merchant_account, &key_store).await
 }
 
 // Wrapper function to switch lockers
@@ -1802,36 +1804,11 @@ pub async fn list_customer_payment_method(
         let parent_payment_method_token = generate_id(consts::ID_LENGTH, "token");
         let hyperswitch_token = generate_id(consts::ID_LENGTH, "token");
 
-        let card: Option<api::CardDetailFromLocker> =
-            if pm.payment_method == enums::PaymentMethod::Card {
-                let mut card_decrypted = decrypt::<serde_json::Value, masking::WithType>(
-                    pm.payment_method_data.clone(),
-                    key,
-                )
-                .await
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("unable to decrypt card details")
-                .ok()
-                .flatten()
-                .map(|x| x.into_inner().expose())
-                .and_then(|v| serde_json::from_value::<PaymentMethodsData>(v).ok())
-                .and_then(|pmd| match pmd {
-                    PaymentMethodsData::Card(crd) => Some(api::CardDetailFromLocker::from(crd)),
-                    _ => None,
-                });
-
-                // If card_details are not present in PMT or decryption failed, fallback to locker call
-                card_decrypted = if let Some(mut crd) = card_decrypted {
-                    crd.scheme = pm.scheme.clone();
-                    Some(crd)
-                } else {
-                    Some(get_lookup_key_from_locker(state, &hyperswitch_token, &pm).await?)
-                };
-
-                card_decrypted
-            } else {
-                None
-            };
+        let card = if pm.payment_method == enums::PaymentMethod::Card {
+            get_card_details(&pm, key, state, &hyperswitch_token).await?
+        } else {
+            None
+        };
 
         #[cfg(feature = "payouts")]
         let pmd = if pm.payment_method == enums::PaymentMethod::BankTransfer {
@@ -1916,6 +1893,34 @@ pub async fn list_customer_payment_method(
     };
 
     Ok(services::ApplicationResponse::Json(response))
+}
+
+async fn get_card_details(
+    pm: &payment_method::PaymentMethod,
+    key: &[u8],
+    state: &routes::AppState,
+    hyperswitch_token: &str,
+) -> errors::RouterResult<Option<api::CardDetailFromLocker>> {
+    let mut card_decrypted =
+        decrypt::<serde_json::Value, masking::WithType>(pm.payment_method_data.clone(), key)
+            .await
+            .change_context(errors::StorageError::DecryptionError)
+            .attach_printable("unable to decrypt card details")
+            .ok()
+            .flatten()
+            .map(|x| x.into_inner().expose())
+            .and_then(|v| serde_json::from_value::<PaymentMethodsData>(v).ok())
+            .map(|pmd| match pmd {
+                PaymentMethodsData::Card(crd) => api::CardDetailFromLocker::from(crd),
+            });
+
+    card_decrypted = if let Some(mut crd) = card_decrypted {
+        crd.scheme = pm.scheme.clone();
+        Some(crd)
+    } else {
+        Some(get_lookup_key_from_locker(state, hyperswitch_token, pm).await?)
+    };
+    Ok(card_decrypted)
 }
 
 pub async fn get_lookup_key_from_locker(
@@ -2239,40 +2244,31 @@ pub async fn delete_payment_method(
 }
 
 pub async fn create_encrypted_payment_method_data(
-    state: &routes::AppState,
-    merchant_account: &domain::MerchantAccount,
+    key_store: &domain::MerchantKeyStore,
     pm_data: Option<PaymentMethodsData>,
 ) -> Option<Encryption> {
-    let db = &*state.store;
-    let key_store = db
-        .get_merchant_key_store_by_merchant_id(
-            &merchant_account.merchant_id,
-            &db.get_master_key().to_vec().into(),
-        )
-        .await
-        .ok();
-    let key = key_store.as_ref().map(|k| k.key.get_inner().peek());
+    let key = key_store.key.get_inner().peek();
 
-    let pm_data_encrypted: Option<Encryption> = if let Some(k) = key {
-        pm_data
-            .as_ref()
-            .map(utils::Encode::<PaymentMethodsData>::encode_to_value)
-            .transpose()
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Unable to convert payment method data to a value")
-            .ok()
-            .flatten()
-            .map(masking::Secret::<_, masking::WithType>::new)
-            .async_lift(|inner| encrypt_optional(inner, k))
-            .await
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Unable to encrypt payment method data")
-            .ok()
-            .flatten()
-            .map(|details| details.into())
-    } else {
-        None
-    };
+    let pm_data_encrypted: Option<Encryption> = pm_data
+        .as_ref()
+        .map(utils::Encode::<PaymentMethodsData>::encode_to_value)
+        .transpose()
+        .change_context(errors::StorageError::SerializationFailed)
+        .attach_printable("Unable to convert payment method data to a value")
+        .unwrap_or_else(|err| {
+            logger::error!(err=?err);
+            None
+        })
+        .map(masking::Secret::<_, masking::WithType>::new)
+        .async_lift(|inner| encrypt_optional(inner, key))
+        .await
+        .change_context(errors::StorageError::EncryptionError)
+        .attach_printable("Unable to encrypt payment method data")
+        .unwrap_or_else(|err| {
+            logger::error!(err=?err);
+            None
+        })
+        .map(|details| details.into());
 
     pm_data_encrypted
 }

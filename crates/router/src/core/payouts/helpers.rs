@@ -225,7 +225,7 @@ pub async fn save_payout_data_to_locker(
     );
 
     let card_details_encrypted =
-        cards::create_encrypted_payment_method_data(state, merchant_account, Some(pm_data)).await;
+        cards::create_encrypted_payment_method_data(key_store, Some(pm_data)).await;
 
     // Insert in payment_method table
     let payment_method = api::PaymentMethodCreate {
