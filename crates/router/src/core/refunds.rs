@@ -35,11 +35,11 @@ pub enum RefundType {
 
 impl RefundType {
     pub async fn refund_create_core(
+        self,
         state: &AppState,
         merchant_account: domain::MerchantAccount,
         key_store: domain::MerchantKeyStore,
         req: api_models::refunds::RefundRequest,
-        refund_type: Self,
     ) -> RouterResponse<refunds::RefundResponse> {
         let db = &*state.store;
         let merchant_id = &merchant_account.merchant_id;
@@ -51,13 +51,30 @@ impl RefundType {
             )
             .await
             .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
-        let amount = req.amount.unwrap_or(
-            payment_intent
-                .amount_captured
-                .ok_or(errors::ApiErrorResponse::InternalServerError)
-                .into_report()
-                .attach_printable("amount captured is none in a successful payment")?,
-        );
+        let (payment_attempt, creds_identifier) = Self::get_payment_attempt_and_creds_identifier(
+            &self,
+            state,
+            &merchant_account,
+            &payment_intent,
+            &req,
+        )
+        .await?;
+        let amount = match self {
+            Self::Auto(..) => req.amount.unwrap_or(
+                payment_attempt
+                    .amount_to_capture
+                    .ok_or(errors::ApiErrorResponse::InternalServerError)
+                    .into_report()
+                    .attach_printable("amount captured is none in a charged payment attempt")?,
+            ),
+            Self::Manual => req.amount.unwrap_or(
+                payment_intent
+                    .amount_captured
+                    .ok_or(errors::ApiErrorResponse::InternalServerError)
+                    .into_report()
+                    .attach_printable("amount captured is none in a successful payment")?,
+            ),
+        };
         utils::when(amount <= 0, || {
             Err(report!(errors::ApiErrorResponse::InvalidDataFormat {
                 field_name: "amount".to_string(),
@@ -65,14 +82,6 @@ impl RefundType {
             })
             .attach_printable("amount less than or equal to zero"))
         })?;
-        let (payment_attempt, creds_identifier) = Self::get_payment_attempt_and_creds_identifier(
-            refund_type,
-            state,
-            &merchant_account,
-            &payment_intent,
-            &req,
-        )
-        .await?;
         validate_and_create_refund(
             state,
             &merchant_account,
@@ -88,7 +97,7 @@ impl RefundType {
     }
 
     pub async fn get_payment_attempt_and_creds_identifier(
-        self,
+        &self,
         state: &AppState,
         merchant_account: &domain::MerchantAccount,
         payment_intent: &data_models::payments::payment_intent::PaymentIntent,
@@ -106,7 +115,7 @@ impl RefundType {
                             .attach_printable("unable to refund for a unsuccessful payment intent"))
                     },
                 )?;
-                Ok((payment_attempt, None))
+                Ok((payment_attempt.clone(), None))
             }
             Self::Manual => {
                 let db = &*state.store;

@@ -47,11 +47,11 @@ pub async fn refund_create(
         create_refund_req,
         |state, auth, req| {
             refunds::RefundType::refund_create_core(
+                refunds::RefundType::Manual,
                 state,
                 auth.merchant_account,
                 auth.key_store,
                 req,
-                refunds::RefundType::Manual,
             )
         },
         &auth::ApiKeyAuth,
