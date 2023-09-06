@@ -19,6 +19,7 @@ pub mod payments;
 pub mod payouts;
 pub mod refunds;
 pub mod webhooks;
+pub mod payment_link;
 
 #[cfg(feature = "dummy_connector")]
 pub use self::app::DummyConnector;
@@ -27,7 +28,7 @@ pub use self::app::Payouts;
 pub use self::app::{
     ApiKeys, AppState, Cache, Cards, Configs, Customers, Disputes, EphemeralKey, Files, Health,
     Mandates, MerchantAccount, MerchantConnectorAccount, PaymentMethods, Payments, Refunds,
-    Webhooks,
+    Webhooks, PaymentLink
 };
 #[cfg(feature = "stripe")]
 pub use super::compatibility::stripe::StripeApis;

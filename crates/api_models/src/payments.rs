@@ -2768,3 +2768,21 @@ mod tests {
 pub struct PaymentLinkObject {
     pub create_payment_link: bool,
 }
+
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
+pub struct PaymentLinkRequest {
+    pub payment_id: Option<String>,
+}
+
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
+pub struct PaymentLinkResponse {
+    pub payment_id: String,
+    pub merchant_id: String,
+    pub link_to_pay: String,
+    pub amount : i64,
+    pub currency: Option<api_enums::Currency>,
+    #[serde(with = "common_utils::custom_serde::iso8601")]
+    pub created_at: PrimitiveDateTime,
+    #[serde(with = "common_utils::custom_serde::iso8601")]
+    pub last_modified_at: PrimitiveDateTime,
+}

@@ -531,12 +531,13 @@ impl Cache {
 
 
 
-// pub struct PaymentLink;
+pub struct PaymentLink;
 
-// impl PaymentLink {
-//     pub fn server(state: AppState) -> Scope {
-//         web::scope("")
-//             .app_data(web::Data::new(state))
-//             .service(web::resource("/payment_id").route(web::get().to(getPaymentLink)))
-//     }
-// }
+impl PaymentLink {
+    pub fn server(state: AppState) -> Scope {
+        web::scope("")
+            .app_data(web::Data::new(state))
+            .service(web::resource("/payment_link")
+                .route(web::get().to(super::payment_link::get_payment_link)))
+    }
+}

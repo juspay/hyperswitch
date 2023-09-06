@@ -19,7 +19,7 @@ use time;
 
 pub use self::operations::{
     PaymentCancel, PaymentCapture, PaymentConfirm, PaymentCreate, PaymentMethodValidate,
-    PaymentResponse, PaymentSession, PaymentStatus, PaymentUpdate,
+    PaymentResponse, PaymentSession, PaymentStatus, PaymentUpdate
 };
 use self::{
     flows::{ConstructFlowSpecificData, Feature},
@@ -1695,4 +1695,30 @@ pub fn should_add_task_to_process_tracker<F: Clone>(payment_data: &PaymentData<F
             Some("stripe")
         )
     )
+}
+
+pub async fn retrieve_payment_link(
+    state: &AppState,
+    merchant_account: domain::MerchantAccount,
+    key_store: domain::MerchantKeyStore,
+    payment_id: String
+) -> RouterResponse<api_models::payments::PaymentLinkResponse> {
+    let db = &*state.store;
+    print!("{:?} payment_id", payment_id);
+    let db_fetch= db.find_payment_link_by_payment_id(
+        &payment_id
+    ).await.ok().unwrap();
+    println!(" payment retrieve response {:?}", db_fetch);
+    let response = api_models::payments::PaymentLinkResponse {
+        payment_id: db_fetch.payment_id,
+        merchant_id: db_fetch.merchant_id,
+        link_to_pay: db_fetch.link_to_pay,
+        amount: db_fetch.amount,
+        currency: db_fetch.currency,
+        created_at:db_fetch.created_at,
+        last_modified_at: db_fetch.last_modified_at
+    };
+
+    Ok(services::ApplicationResponse::Json(response))
+
 }

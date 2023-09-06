@@ -10,6 +10,11 @@ use crate::{
 
 #[async_trait::async_trait]
 pub trait PaymentLinkInterface {
+    async fn find_payment_link_by_payment_id(
+        &self,
+        payment_id: &str,
+    ) -> CustomResult<storage::PaymentLink, errors::StorageError>;
+
     async fn insert_payment_link(
         &self,
         _payment_link: storage::PaymentLinkNew
@@ -18,6 +23,17 @@ pub trait PaymentLinkInterface {
 
 #[async_trait::async_trait]
 impl PaymentLinkInterface for Store {
+    async fn find_payment_link_by_payment_id(
+        &self,
+        payment_id: &str,
+    )-> CustomResult<storage::PaymentLink, errors::StorageError> {
+        let conn = connection::pg_connection_read(self).await?;
+        storage::PaymentLink::find_by_payment_id(&conn, payment_id)
+            .await
+            .map_err(Into::into)
+            .into_report()
+    }
+
     async fn insert_payment_link(
         &self,
         payment_link_object: storage::PaymentLinkNew,
@@ -36,4 +52,13 @@ impl PaymentLinkInterface for MockDb {
         // TODO: Implement function for `MockDb`
         Err(errors::StorageError::MockDbError)?
     }
+
+    async fn find_payment_link_by_payment_id(
+        &self,
+        payment_id: &str,
+    )-> CustomResult<storage::PaymentLink, errors::StorageError> {
+        // TODO: Implement function for `MockDb`x
+        Err(errors::StorageError::MockDbError)?
+    }
+
 }
