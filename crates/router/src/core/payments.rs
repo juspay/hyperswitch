@@ -29,7 +29,10 @@ use self::{
 use super::errors::StorageErrorExt;
 use crate::{
     configs::settings::PaymentMethodTypeTokenFilter,
-    core::errors::{self, CustomResult, RouterResponse, RouterResult},
+    core::{
+        errors::{self, CustomResult, RouterResponse, RouterResult},
+        utils,
+    },
     db::StorageInterface,
     logger,
     routes::{metrics, payment_methods::ParentPaymentMethodToken, AppState},
@@ -795,17 +798,28 @@ where
                 api::GetToken::Connector,
             )?;
 
-            let profile_id = super::utils::get_profile_id_from_business_details(
+            let connector_label = super::utils::get_connector_label(
                 payment_data.payment_intent.business_country,
                 payment_data.payment_intent.business_label.as_ref(),
-                merchant_account,
-                payment_data.payment_intent.profile_id.as_ref(),
-                &*state.store,
-            )
-            .await?;
+                payment_data.payment_attempt.business_sub_label.as_ref(),
+                &connector_name,
+            );
 
-            // Create the connector label using {profile_id}_{connector_name}
-            let connector_label = format!("{profile_id}_{}", connector.connector_name);
+            let connector_label = if let Some(connector_label) = connector_label {
+                connector_label
+            } else {
+                let profile_id = utils::get_profile_id_from_business_details(
+                    payment_data.payment_intent.business_country,
+                    payment_data.payment_intent.business_label.as_ref(),
+                    merchant_account,
+                    payment_data.payment_intent.profile_id.as_ref(),
+                    &*state.store,
+                )
+                .await
+                .attach_printable("Could not find profile id from business details")?;
+
+                format!("{connector_name}_{profile_id}")
+            };
 
             let (should_call_connector, existing_connector_customer_id) =
                 customers::should_call_connector_create_customer(
