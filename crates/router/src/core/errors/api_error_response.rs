@@ -1,6 +1,7 @@
 #![allow(dead_code, unused_variables)]
 
 use http::StatusCode;
+use scheduler::errors::{PTError, ProcessTrackerError};
 
 #[derive(Clone, Debug, serde::Serialize)]
 #[serde(rename_all = "snake_case")]
@@ -225,6 +226,12 @@ pub enum ApiErrorResponse {
     WebhookUnprocessableEntity,
     #[error(error_type = ErrorType::InvalidRequestError, code = "IR_19", message = "{message}")]
     CurrencyNotSupported { message: String },
+}
+
+impl PTError for ApiErrorResponse {
+    fn to_pt_error(&self) -> ProcessTrackerError {
+        ProcessTrackerError::EApiErrorResponse
+    }
 }
 
 #[derive(Clone)]
