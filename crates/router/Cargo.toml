@@ -15,10 +15,10 @@ kms = ["external_services/kms", "dep:aws-config"]
 email = ["external_services/email", "dep:aws-config"]
 basilisk = ["kms"]
 stripe = ["dep:serde_qs"]
-release = ["kms", "stripe", "basilisk", "s3", "email"]
-olap = ["data_models/olap", "storage_impl/olap"]
+release = ["kms", "stripe", "basilisk", "s3", "email","accounts_cache"]
+olap = ["data_models/olap", "storage_impl/olap", "scheduler/olap"]
 oltp = ["data_models/oltp", "storage_impl/oltp"]
-kv_store = []
+kv_store = ["scheduler/kv_store"]
 accounts_cache = []
 openapi = ["olap", "oltp", "payouts"]
 vergen = ["router_env/vergen"]
@@ -51,6 +51,7 @@ error-stack = "0.3.1"
 futures = "0.3.28"
 hex = "0.4.3"
 http = "0.2.9"
+hyper = "0.14.27"
 image = "0.23.14"
 infer = "0.13.0"
 josekit = "0.8.3"
@@ -94,6 +95,7 @@ redis_interface = { version = "0.1.0", path = "../redis_interface" }
 router_derive = { version = "0.1.0", path = "../router_derive" }
 router_env = { version = "0.1.0", path = "../router_env", features = ["log_extra_implicit_fields", "log_custom_entries_to_extra"] }
 diesel_models = { version = "0.1.0", path = "../diesel_models", features = ["kv_store"] }
+scheduler = { version = "0.1.0", path = "../scheduler", default-features = false}
 data_models = { version = "0.1.0", path = "../data_models", default-features = false }
 storage_impl = { version = "0.1.0", path = "../storage_impl", default-features = false }
 

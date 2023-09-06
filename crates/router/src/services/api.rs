@@ -3,6 +3,7 @@ pub mod request;
 
 use std::{
     collections::HashMap,
+    error::Error,
     fmt::Debug,
     future::Future,
     str,
@@ -11,6 +12,7 @@ use std::{
 
 use actix_web::{body, HttpRequest, HttpResponse, Responder, ResponseError};
 use api_models::enums::CaptureMethod;
+pub use client::{proxy_bypass_urls, ApiClient, MockApiClient, ProxyClient};
 use common_utils::errors::ReportSwitchExt;
 use error_stack::{report, IntoReport, Report, ResultExt};
 use masking::{ExposeOptionInterface, PeekInterface};
@@ -28,7 +30,11 @@ use crate::{
         payments,
     },
     logger,
-    routes::{app::AppStateInfo, metrics, AppState},
+    routes::{
+        app::AppStateInfo,
+        metrics::{self, request as metrics_request},
+        AppState,
+    },
     services::authentication as auth,
     types::{
         self,
@@ -69,6 +75,17 @@ pub trait ConnectorValidation: ConnectorCommon {
                 .into())
             }
         }
+    }
+
+    fn validate_psync_reference_id(
+        &self,
+        data: &types::PaymentsSyncRouterData,
+    ) -> CustomResult<(), errors::ConnectorError> {
+        data.request
+            .connector_transaction_id
+            .get_connector_transaction_id()
+            .change_context(errors::ConnectorError::MissingConnectorTransactionID)
+            .map(|_| ())
     }
 }
 
@@ -369,8 +386,27 @@ where
                         }
                         Err(error) => {
                             if error.current_context().is_upstream_timeout() {
-                                Err(error
-                                    .change_context(errors::ConnectorError::RequestTimeoutReceived))
+                                let error_response = ErrorResponse {
+                                    code: consts::REQUEST_TIMEOUT_ERROR_CODE.to_string(),
+                                    message: consts::REQUEST_TIMEOUT_ERROR_MESSAGE.to_string(),
+                                    reason: Some(consts::REQUEST_TIMEOUT_ERROR_MESSAGE.to_string()),
+                                    status_code: 504,
+                                };
+                                router_data.response = Err(error_response);
+                                router_data.connector_http_status_code = Some(504);
+                                Ok(router_data)
+                            } else if error.current_context().is_connection_closed() {
+                                let error_response = ErrorResponse {
+                                    code: consts::CONNECTION_CLOSED_ERROR_CODE.to_string(),
+                                    message: consts::CONNECTION_CLOSED_ERROR_MESSAGE.to_string(),
+                                    reason: Some(
+                                        consts::CONNECTION_CLOSED_ERROR_MESSAGE.to_string(),
+                                    ),
+                                    status_code: 504,
+                                };
+                                router_data.response = Err(error_response);
+                                router_data.connector_http_status_code = Some(504);
+                                Ok(router_data)
                             } else {
                                 Err(error.change_context(
                                     errors::ConnectorError::ProcessingStepFailed(None),
@@ -407,12 +443,18 @@ pub async fn send_request(
     option_timeout_secs: Option<u64>,
 ) -> CustomResult<reqwest::Response, errors::ApiClientError> {
     logger::debug!(method=?request.method, headers=?request.headers, payload=?request.payload, ?request);
-    let url = &request.url;
+
+    let url = reqwest::Url::parse(&request.url)
+        .into_report()
+        .change_context(errors::ApiClientError::UrlEncodingFailed)?;
+
     #[cfg(feature = "dummy_connector")]
-    let should_bypass_proxy = url.starts_with(&state.conf.connectors.dummyconnector.base_url)
-        || client::proxy_bypass_urls(&state.conf.locker).contains(url);
+    let should_bypass_proxy = url
+        .as_str()
+        .starts_with(&state.conf.connectors.dummyconnector.base_url)
+        || proxy_bypass_urls(&state.conf.locker).contains(&url.to_string());
     #[cfg(not(feature = "dummy_connector"))]
-    let should_bypass_proxy = client::proxy_bypass_urls(&state.conf.locker).contains(url);
+    let should_bypass_proxy = proxy_bypass_urls(&state.conf.locker).contains(&url.to_string());
     let client = client::create_client(
         &state.conf.proxy,
         should_bypass_proxy,
@@ -420,66 +462,98 @@ pub async fn send_request(
         request.certificate_key,
     )?;
     let headers = request.headers.construct_header_map()?;
-    match request.method {
-        Method::Get => client.get(url),
-        Method::Post => {
-            let client = client.post(url);
-            match request.content_type {
-                Some(ContentType::Json) => client.json(&request.payload),
 
-                Some(ContentType::FormData) => client.multipart(
-                    request
-                        .form_data
-                        .unwrap_or_else(reqwest::multipart::Form::new),
-                ),
+    let metrics_tag = router_env::opentelemetry::KeyValue {
+        key: consts::METRICS_HOST_TAG_NAME.into(),
+        value: url.host_str().unwrap_or_default().to_string().into(),
+    };
 
-                // Currently this is not used remove this if not required
-                // If using this then handle the serde_part
-                Some(ContentType::FormUrlEncoded) => {
-                    let payload = match request.payload.clone() {
-                        Some(req) => serde_json::from_str(req.peek())
+    let send_request = async {
+        match request.method {
+            Method::Get => client.get(url),
+            Method::Post => {
+                let client = client.post(url);
+                match request.content_type {
+                    Some(ContentType::Json) => client.json(&request.payload),
+
+                    Some(ContentType::FormData) => client.multipart(
+                        request
+                            .form_data
+                            .unwrap_or_else(reqwest::multipart::Form::new),
+                    ),
+
+                    // Currently this is not used remove this if not required
+                    // If using this then handle the serde_part
+                    Some(ContentType::FormUrlEncoded) => {
+                        let payload = match request.payload.clone() {
+                            Some(req) => serde_json::from_str(req.peek())
+                                .into_report()
+                                .change_context(errors::ApiClientError::UrlEncodingFailed)?,
+                            _ => json!(r#""#),
+                        };
+                        let url_encoded_payload = serde_urlencoded::to_string(&payload)
                             .into_report()
-                            .change_context(errors::ApiClientError::UrlEncodingFailed)?,
-                        _ => json!(r#""#),
-                    };
-                    let url_encoded_payload = serde_urlencoded::to_string(&payload)
-                        .into_report()
-                        .change_context(errors::ApiClientError::UrlEncodingFailed)
-                        .attach_printable_lazy(|| {
-                            format!(
-                                "Unable to do url encoding on request: {:?}",
-                                &request.payload
-                            )
-                        })?;
+                            .change_context(errors::ApiClientError::UrlEncodingFailed)
+                            .attach_printable_lazy(|| {
+                                format!(
+                                    "Unable to do url encoding on request: {:?}",
+                                    &request.payload
+                                )
+                            })?;
 
-                    logger::debug!(?url_encoded_payload);
-                    client.body(url_encoded_payload)
+                        logger::debug!(?url_encoded_payload);
+                        client.body(url_encoded_payload)
+                    }
+                    // If payload needs processing the body cannot have default
+                    None => client.body(request.payload.expose_option().unwrap_or_default()),
                 }
-                // If payload needs processing the body cannot have default
-                None => client.body(request.payload.expose_option().unwrap_or_default()),
+            }
+
+            Method::Put => client
+                .put(url)
+                .body(request.payload.expose_option().unwrap_or_default()), // If payload needs processing the body cannot have default
+            Method::Delete => client.delete(url),
+        }
+        .add_headers(headers)
+        .timeout(Duration::from_secs(
+            option_timeout_secs.unwrap_or(crate::consts::REQUEST_TIME_OUT),
+        ))
+        .send()
+        .await
+        .map_err(|error| match error {
+            error if error.is_timeout() => {
+                metrics::REQUEST_BUILD_FAILURE.add(&metrics::CONTEXT, 1, &[]);
+                errors::ApiClientError::RequestTimeoutReceived
+            }
+            error if is_connection_closed(&error) => {
+                metrics::REQUEST_BUILD_FAILURE.add(&metrics::CONTEXT, 1, &[]);
+                errors::ApiClientError::ConnectionClosed
+            }
+            _ => errors::ApiClientError::RequestNotSent(error.to_string()),
+        })
+        .into_report()
+        .attach_printable("Unable to send request to connector")
+    };
+
+    metrics_request::record_operation_time(
+        send_request,
+        &metrics::EXTERNAL_REQUEST_TIME,
+        &[metrics_tag],
+    )
+    .await
+}
+
+fn is_connection_closed(error: &reqwest::Error) -> bool {
+    let mut source = error.source();
+    while let Some(err) = source {
+        if let Some(hyper_err) = err.downcast_ref::<hyper::Error>() {
+            if hyper_err.is_incomplete_message() {
+                return true;
             }
         }
-
-        Method::Put => client
-            .put(url)
-            .body(request.payload.expose_option().unwrap_or_default()), // If payload needs processing the body cannot have default
-        Method::Delete => client.delete(url),
+        source = err.source();
     }
-    .add_headers(headers)
-    .timeout(Duration::from_secs(
-        option_timeout_secs.unwrap_or(crate::consts::REQUEST_TIME_OUT),
-    ))
-    .send()
-    .await
-    .map_err(|error| match error {
-        error if error.is_timeout() => {
-            metrics::REQUEST_BUILD_FAILURE.add(&metrics::CONTEXT, 1, &[]);
-            errors::ApiClientError::RequestTimeoutReceived
-        }
-        _ => errors::ApiClientError::RequestNotSent(error.to_string()),
-    })
-    .into_report()
-    .attach_printable("Unable to send request to connector")
+    false
 }
 
 #[instrument(skip_all)]
@@ -605,6 +679,7 @@ pub enum RedirectForm {
     BlueSnap {
         payment_fields_token: String, // payment-field-token
     },
+    Payme,
 }
 
 impl From<(url::Url, Method)> for RedirectForm {
@@ -1049,6 +1124,33 @@ pub fn build_redirection_form(
                 </script>
                 ")))
                 }}
+        }
+        RedirectForm::Payme => {
+            maud::html! {
+                (maud::DOCTYPE)
+                head {
+                    (PreEscaped(r#"<script src="https://cdn.paymeservice.com/hf/v1/hostedfields.js"></script>"#))
+                }
+                (PreEscaped("<script>
+                    var f = document.createElement('form');
+                    f.action=window.location.pathname.replace(/payments\\/redirect\\/(\\w+)\\/(\\w+)\\/\\w+/, \"payments/$1/$2/redirect/complete/payme\");
+                    f.method='POST';
+                    PayMe.clientData()
+                    .then((data) => {{
+                        var i=document.createElement('input');
+                        i.type='hidden';
+                        i.name='meta_data';
+                        i.value=data.hash;
+                        f.appendChild(i);
+                        document.body.appendChild(f);
+                        f.submit();
+                    }})
+                    .catch((error) => {{
+                        f.submit();
+                    }});
+            </script>
+                ".to_string()))
+            }
         }
     }
 }

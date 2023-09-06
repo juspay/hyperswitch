@@ -1,6 +1,6 @@
 use std::sync::atomic;
 
-use router::{configs::settings::Settings, routes};
+use router::{configs::settings::Settings, routes, services};
 
 mod utils;
 
@@ -10,7 +10,8 @@ async fn get_redis_conn_failure() {
     // Arrange
     utils::setup().await;
     let (tx, _) = tokio::sync::oneshot::channel();
-    let state = routes::AppState::new(Settings::default(), tx).await;
+    let state =
+        routes::AppState::new(Settings::default(), tx, Box::new(services::MockApiClient)).await;
 
     let _ = state.store.get_redis_conn().map(|conn| {
         conn.is_redis_available
@@ -29,7 +30,8 @@ async fn get_redis_conn_success() {
     // Arrange
     utils::setup().await;
     let (tx, _) = tokio::sync::oneshot::channel();
-    let state = routes::AppState::new(Settings::default(), tx).await;
+    let state =
+        routes::AppState::new(Settings::default(), tx, Box::new(services::MockApiClient)).await;
 
     // Act
     let result = state.store.get_redis_conn();

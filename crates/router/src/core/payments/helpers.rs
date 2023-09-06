@@ -29,7 +29,6 @@ use crate::{
     },
     db::StorageInterface,
     routes::{metrics, payment_methods, AppState},
-    scheduler::metrics as scheduler_metrics,
     services,
     types::{
         api::{self, admin, enums as api_enums, CustomerAcceptanceExt, MandateValidationFieldsExt},
@@ -785,14 +784,14 @@ where
         match schedule_time {
             Some(stime) => {
                 if !requeue {
-                    scheduler_metrics::TASKS_ADDED_COUNT.add(&metrics::CONTEXT, 1, &[]); // Metrics
+                    // scheduler_metrics::TASKS_ADDED_COUNT.add(&metrics::CONTEXT, 1, &[]); // Metrics
                     super::add_process_sync_task(&*state.store, payment_attempt, stime)
                         .await
                         .into_report()
                         .change_context(errors::ApiErrorResponse::InternalServerError)
                         .attach_printable("Failed while adding task to process tracker")
                 } else {
-                    scheduler_metrics::TASKS_RESET_COUNT.add(&metrics::CONTEXT, 1, &[]); // Metrics
+                    // scheduler_metrics::TASKS_RESET_COUNT.add(&metrics::CONTEXT, 1, &[]); // Metrics
                     super::reset_process_sync_task(&*state.store, payment_attempt, stime)
                         .await
                         .into_report()
@@ -1202,7 +1201,9 @@ pub async fn make_pm_data<'a, F: Clone, R>(
                     .change_context(errors::ApiErrorResponse::InternalServerError)
                     .attach_printable("Failed to fetch the token from redis")?
                     .ok_or(error_stack::Report::new(
-                        errors::ApiErrorResponse::UnprocessableEntity { entity: token },
+                        errors::ApiErrorResponse::UnprocessableEntity {
+                            message: "Token is invalid or expired".to_owned(),
+                        },
                     ))?;
 
                 Some(key)
@@ -1641,10 +1642,7 @@ pub fn validate_payment_method_type_against_payment_method(
     }
 }
 
-pub fn check_force_psync_precondition(
-    status: &storage_enums::AttemptStatus,
-    connector_transaction_id: &Option<String>,
-) -> bool {
+pub fn check_force_psync_precondition(status: &storage_enums::AttemptStatus) -> bool {
     !matches!(
         status,
         storage_enums::AttemptStatus::Charged
@@ -1653,7 +1651,7 @@ pub fn check_force_psync_precondition(
             | storage_enums::AttemptStatus::CodInitiated
             | storage_enums::AttemptStatus::Started
             | storage_enums::AttemptStatus::Failure
-    ) && connector_transaction_id.is_some()
+    )
 }
 
 pub fn append_option<T, U, F, V>(func: F, option1: Option<T>, option2: Option<U>) -> Option<V>
@@ -1684,21 +1682,33 @@ pub(super) async fn filter_by_constraints(
 pub(super) fn validate_payment_list_request(
     req: &api::PaymentListConstraints,
 ) -> CustomResult<(), errors::ApiErrorResponse> {
-    utils::when(req.limit > 100 || req.limit < 1, || {
-        Err(errors::ApiErrorResponse::InvalidRequestData {
-            message: "limit should be in between 1 and 100".to_string(),
-        })
-    })?;
+    use common_utils::consts::PAYMENTS_LIST_MAX_LIMIT_V1;
+
+    utils::when(
+        req.limit > PAYMENTS_LIST_MAX_LIMIT_V1 || req.limit < 1,
+        || {
+            Err(errors::ApiErrorResponse::InvalidRequestData {
+                message: format!(
+                    "limit should be in between 1 and {}",
+                    PAYMENTS_LIST_MAX_LIMIT_V1
+                ),
+            })
+        },
+    )?;
     Ok(())
 }
 #[cfg(feature = "olap")]
 pub(super) fn validate_payment_list_request_for_joins(
     limit: u32,
-    max_limit: u32,
 ) -> CustomResult<(), errors::ApiErrorResponse> {
-    utils::when(limit > max_limit || limit < 1, || {
+    use common_utils::consts::PAYMENTS_LIST_MAX_LIMIT_V2;
+
+    utils::when(!(1..=PAYMENTS_LIST_MAX_LIMIT_V2).contains(&limit), || {
         Err(errors::ApiErrorResponse::InvalidRequestData {
-            message: format!("limit should be in between 1 and {}", max_limit),
+            message: format!(
+                "limit should be in between 1 and {}",
+                PAYMENTS_LIST_MAX_LIMIT_V2
+            ),
         })
     })?;
     Ok(())
@@ -2222,6 +2232,7 @@ mod tests {
             feature_metadata: None,
             attempt_count: 1,
             profile_id: None,
+            merchant_decision: None,
         };
         let req_cs = Some("1".to_string());
         let merchant_fulfillment_time = Some(900);
@@ -2267,6 +2278,7 @@ mod tests {
             feature_metadata: None,
             attempt_count: 1,
             profile_id: None,
+            merchant_decision: None,
         };
         let req_cs = Some("1".to_string());
         let merchant_fulfillment_time = Some(10);
@@ -2312,6 +2324,7 @@ mod tests {
             feature_metadata: None,
             attempt_count: 1,
             profile_id: None,
+            merchant_decision: None,
         };
         let req_cs = Some("1".to_string());
         let merchant_fulfillment_time = Some(10);
@@ -2427,7 +2440,7 @@ pub async fn get_merchant_connector_account(
             let decrypted_mca = services::decrypt_jwe(mca_config.config.as_str(), services::KeyIdCheck::SkipKeyIdCheck, private_key, jwe::RSA_OAEP_256)
                                      .await
                                      .change_context(errors::ApiErrorResponse::UnprocessableEntity{
-                                        entity: "merchant_connector_details".to_string()})
+                                        message: "decoding merchant_connector_details failed due to invalid data format!".into()})
                                      .attach_printable(
                                         "Failed to decrypt merchant_connector_details sent in request and then put in cache",
                                     )?;

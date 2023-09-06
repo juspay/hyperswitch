@@ -9,18 +9,19 @@ pub mod types;
 
 use std::{fmt::Debug, marker::PhantomData, ops::Deref, time::Instant};
 
-use api_models::payments::FrmMessage;
 use common_utils::{ext_traits::AsyncExt, pii};
-use diesel_models::ephemeral_key;
+use diesel_models::{ephemeral_key, fraud_check::FraudCheck};
 use error_stack::{IntoReport, ResultExt};
 use futures::future::join_all;
 use masking::Secret;
 use router_env::{instrument, tracing};
+use scheduler::{db::process_tracker::ProcessTrackerExt, errors as sch_errors, utils as pt_utils};
 use time;
 
 pub use self::operations::{
-    PaymentCancel, PaymentCapture, PaymentConfirm, PaymentCreate, PaymentMethodValidate,
-    PaymentResponse, PaymentSession, PaymentStatus, PaymentUpdate,
+    PaymentApprove, PaymentCancel, PaymentCapture, PaymentConfirm, PaymentCreate,
+    PaymentMethodValidate, PaymentReject, PaymentResponse, PaymentSession, PaymentStatus,
+    PaymentUpdate,
 };
 use self::{
     flows::{ConstructFlowSpecificData, Feature},
@@ -33,17 +34,15 @@ use crate::{
     db::StorageInterface,
     logger,
     routes::{metrics, payment_methods::ParentPaymentMethodToken, AppState},
-    scheduler::{utils as pt_utils, workflows::payment_sync},
     services::{self, api::Authenticate},
     types::{
         self as router_types, api, domain,
-        storage::{self, enums as storage_enums, ProcessTrackerExt},
+        storage::{self, enums as storage_enums},
     },
     utils::{add_connector_http_status_code_metrics, Encode, OptionExt, ValueExt},
+    workflows::payment_sync,
 };
 
-#[cfg(feature = "olap")]
-const PAYMENTS_LIST_MAX_LIMIT: u32 = 20;
 #[instrument(skip_all, fields(payment_id, merchant_id))]
 pub async fn payments_operation_core<F, Req, Op, FData>(
     state: &AppState,
@@ -504,6 +503,7 @@ impl PaymentRedirectFlow for PaymentRedirectSync {
             }),
             client_secret: None,
             expand_attempts: None,
+            expand_captures: None,
         };
         payments_core::<api::PSync, api::PaymentsResponse, _, _, _>(
             state,
@@ -600,6 +600,7 @@ where
         &connector,
         payment_data,
         router_data,
+        operation,
         should_continue_further,
     )
     .await?;
@@ -847,11 +848,12 @@ where
     }
 }
 
-async fn complete_preprocessing_steps_if_required<F, Req>(
+async fn complete_preprocessing_steps_if_required<F, Req, Q>(
     state: &AppState,
     connector: &api::ConnectorData,
     payment_data: &PaymentData<F>,
     mut router_data: router_types::RouterData<F, Req, router_types::PaymentsResponseData>,
+    operation: &BoxedOperation<'_, F, Q>,
     should_continue_payment: bool,
 ) -> RouterResult<(
     router_types::RouterData<F, Req, router_types::PaymentsResponseData>,
@@ -893,7 +895,9 @@ where
             }
         }
         Some(api_models::payments::PaymentMethodData::Card(_)) => {
-            if connector.connector_name == router_types::Connector::Payme {
+            if connector.connector_name == router_types::Connector::Payme
+                && !matches!(format!("{operation:?}").as_str(), "CompleteAuthorize")
+            {
                 router_data = router_data.preprocessing_steps(state, connector).await?;
 
                 let is_error_in_response = router_data.response.is_err();
@@ -1147,7 +1151,7 @@ where
     pub recurring_mandate_payment_data: Option<RecurringMandatePaymentData>,
     pub ephemeral_key: Option<ephemeral_key::EphemeralKey>,
     pub redirect_response: Option<api_models::payments::RedirectResponse>,
-    pub frm_message: Option<FrmMessage>,
+    pub frm_message: Option<FraudCheck>,
 }
 
 #[derive(Debug, Default, Clone)]
@@ -1240,6 +1244,7 @@ pub fn should_call_connector<Op: Debug, F: Clone>(
             )
         }
         "CompleteAuthorize" => true,
+        "PaymentApprove" => true,
         "PaymentSession" => true,
         _ => false,
     }
@@ -1325,9 +1330,9 @@ pub async fn apply_filters_on_payments(
 
     use crate::types::transformers::ForeignFrom;
 
-    let limit = &constraints.limit.unwrap_or(PAYMENTS_LIST_MAX_LIMIT);
+    let limit = &constraints.limit;
 
-    helpers::validate_payment_list_request_for_joins(*limit, PAYMENTS_LIST_MAX_LIMIT)?;
+    helpers::validate_payment_list_request_for_joins(*limit)?;
     let list: Vec<(storage::PaymentIntent, storage::PaymentAttempt)> = db
         .get_filtered_payment_intents_attempt(
             &merchant.merchant_id,
@@ -1408,7 +1413,7 @@ pub async fn add_process_sync_task(
     db: &dyn StorageInterface,
     payment_attempt: &storage::PaymentAttempt,
     schedule_time: time::PrimitiveDateTime,
-) -> Result<(), errors::ProcessTrackerError> {
+) -> Result<(), sch_errors::ProcessTrackerError> {
     let tracking_data = api::PaymentsRetrieveRequest {
         force_sync: true,
         merchant_id: Some(payment_attempt.merchant_id.clone()),
@@ -1452,7 +1457,9 @@ pub async fn reset_process_sync_task(
         .find_process_by_id(&process_tracker_id)
         .await?
         .ok_or(errors::ProcessTrackerError::ProcessFetchingFailed)?;
-    psync_process.reset(db, schedule_time).await?;
+    psync_process
+        .reset(db.as_scheduler(), schedule_time)
+        .await?;
     Ok(())
 }
 

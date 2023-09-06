@@ -1,6 +1,7 @@
 #![allow(dead_code, unused_variables)]
 
 use http::StatusCode;
+use scheduler::errors::{PTError, ProcessTrackerError};
 
 #[derive(Clone, Debug, serde::Serialize)]
 #[serde(rename_all = "snake_case")]
@@ -92,8 +93,8 @@ pub enum ApiErrorResponse {
     AccessForbidden,
     #[error(error_type = ErrorType::InvalidRequestError, code = "IR_23", message = "{message}")]
     FileProviderNotSupported { message: String },
-    #[error(error_type = ErrorType::InvalidRequestError, code = "IR_23", message = "{entity} expired or invalid")]
-    UnprocessableEntity { entity: String },
+    #[error(error_type = ErrorType::InvalidRequestError, code = "IR_23", message = "{message}")]
+    UnprocessableEntity { message: String },
     #[error(error_type = ErrorType::ConnectorError, code = "CE_00", message = "{code}: {message}", ignore = "status_code")]
     ExternalConnectorError {
         code: String,
@@ -225,6 +226,12 @@ pub enum ApiErrorResponse {
     WebhookUnprocessableEntity,
     #[error(error_type = ErrorType::InvalidRequestError, code = "IR_19", message = "{message}")]
     CurrencyNotSupported { message: String },
+}
+
+impl PTError for ApiErrorResponse {
+    fn to_pt_error(&self) -> ProcessTrackerError {
+        ProcessTrackerError::EApiErrorResponse
+    }
 }
 
 #[derive(Clone)]
