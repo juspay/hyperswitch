@@ -102,24 +102,24 @@ pub struct GenerateSaleRequest {
     seller_payme_id: Secret<String>,
     sale_callback_url: String,
     sale_payment_method: SalePaymentMethod,
-    services: Option<ThreeDS>,
+    services: Option<ThreeDs>,
     language: String,
 }
 
 #[derive(Debug, Serialize)]
-pub struct ThreeDS {
-    name: ThreeDSType,
-    settings: ThreeDSSettings,
+pub struct ThreeDs {
+    name: ThreeDsType,
+    settings: ThreeDsSettings,
 }
 
 #[derive(Debug, Serialize)]
-pub enum ThreeDSType {
+pub enum ThreeDsType {
     #[serde(rename = "3D Secure")]
-    ThreeDS,
+    ThreeDs,
 }
 
 #[derive(Debug, Serialize)]
-pub struct ThreeDSSettings {
+pub struct ThreeDsSettings {
     active: bool,
 }
 
@@ -939,12 +939,12 @@ impl<F, T>
     }
 }
 
-fn get_services(item: &types::PaymentsPreProcessingRouterData) -> Option<ThreeDS> {
+fn get_services(item: &types::PaymentsPreProcessingRouterData) -> Option<ThreeDs> {
     match item.auth_type {
         api_models::enums::AuthenticationType::ThreeDs => {
-            let settings = ThreeDSSettings { active: true };
-            Some(ThreeDS {
-                name: ThreeDSType::ThreeDS,
+            let settings = ThreeDsSettings { active: true };
+            Some(ThreeDs {
+                name: ThreeDsType::ThreeDs,
                 settings,
             })
         }
