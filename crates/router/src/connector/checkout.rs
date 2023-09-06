@@ -1217,16 +1217,20 @@ impl api::IncomingWebhook for Checkout {
             .body
             .parse_struct("CheckoutWebhookBody")
             .change_context(errors::ConnectorError::WebhookEventTypeNotFound)?;
-        let resource_object = if checkout::is_chargeback_event(&event_type_data.transaction_type) {
-            let payment_response = checkout::PaymentsResponse::try_from(request)?;
-            utils::Encode::<checkout::PaymentsResponse>::encode_to_value(&payment_response)
-                .change_context(errors::ConnectorError::WebhookResourceObjectNotFound)?
-        } else {
+        let resource_object = if checkout::is_chargeback_event(&event_type_data.transaction_type)
+            && checkout::is_refund_event(&event_type_data.transaction_type)
+        {
+            // if other event, just return the json data.
             let resource_object_data: checkout::CheckoutWebhookObjectResource = request
                 .body
                 .parse_struct("CheckoutWebhookObjectResource")
                 .change_context(errors::ConnectorError::WebhookEventTypeNotFound)?;
             resource_object_data.data
+        } else {
+            // if payment_event, construct PaymentResponse and then serialize it to json and return.
+            let payment_response = checkout::PaymentsResponse::try_from(request)?;
+            utils::Encode::<checkout::PaymentsResponse>::encode_to_value(&payment_response)
+                .change_context(errors::ConnectorError::WebhookResourceObjectNotFound)?
         };
         Ok(resource_object)
     }
