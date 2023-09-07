@@ -44,10 +44,18 @@ where
                 .unwrap_or(false);
 
             let connector_token = if token_store {
-                let token = resp
+                let tokens = resp
                     .payment_method_token
                     .to_owned()
                     .get_required_value("payment_token")?;
+                let token = match tokens {
+                    types::PaymentMethodToken::Token(connector_token) => connector_token,
+                    types::PaymentMethodToken::ApplePayDecrypt(_) => {
+                        Err(errors::ApiErrorResponse::NotSupported {
+                            message: "Apple Pay Decrypt token is not supported".to_string(),
+                        })?
+                    }
+                };
                 Some((connector, token))
             } else {
                 None
@@ -235,7 +243,8 @@ pub async fn add_payment_method_token<F: Clone, T: types::Tokenizable + Clone>(
     pm_token_request_data: types::PaymentMethodTokenizationData,
 ) -> RouterResult<Option<String>> {
     match tokenization_action {
-        payments::TokenizationAction::TokenizeInConnector => {
+        payments::TokenizationAction::TokenizeInConnector
+        | payments::TokenizationAction::TokenizeInConnectorAndApplepayPreDecrypt => {
             let connector_integration: services::BoxedConnectorIntegration<
                 '_,
                 api::PaymentMethodToken,
