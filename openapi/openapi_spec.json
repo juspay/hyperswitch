@@ -10750,10 +10750,10 @@
         ],
         "properties": {
           "certificate": {
-            "$ref": "#/components/schemas/Secret"
+            "type": "string"
           },
           "certificate_keys": {
-            "$ref": "#/components/schemas/Secret"
+            "type": "string"
           },
           "merchant_identifier": {
             "type": "string"
