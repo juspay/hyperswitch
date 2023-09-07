@@ -70,3 +70,28 @@ pub struct BusinessProfileUpdateInternal {
     pub payout_routing_algorithm: Option<serde_json::Value>,
     pub is_recon_enabled: Option<bool>,
 }
+
+impl BusinessProfileUpdateInternal {
+    pub fn apply_changeset(self, source: BusinessProfile) -> BusinessProfile {
+        BusinessProfile {
+            profile_name: self.profile_name.unwrap_or(source.profile_name),
+            modified_at: self.modified_at.unwrap_or(source.modified_at),
+            return_url: self.return_url,
+            enable_payment_response_hash: self
+                .enable_payment_response_hash
+                .unwrap_or(source.enable_payment_response_hash),
+            payment_response_hash_key: self.payment_response_hash_key,
+            redirect_to_merchant_with_http_post: self
+                .redirect_to_merchant_with_http_post
+                .unwrap_or(source.redirect_to_merchant_with_http_post),
+            webhook_details: self.webhook_details,
+            metadata: self.metadata,
+            routing_algorithm: self.routing_algorithm,
+            intent_fulfillment_time: self.intent_fulfillment_time,
+            frm_routing_algorithm: self.frm_routing_algorithm,
+            payout_routing_algorithm: self.payout_routing_algorithm,
+            is_recon_enabled: self.is_recon_enabled.unwrap_or(source.is_recon_enabled),
+            ..source
+        }
+    }
+}
