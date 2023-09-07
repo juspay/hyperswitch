@@ -15,6 +15,7 @@ pub use common_utils::{
     fp_utils::when,
     validation::validate_email,
 };
+use data_models::payments::payment_intent::PaymentIntent;
 use error_stack::{IntoReport, ResultExt};
 use image::Luma;
 use nanoid::nanoid;
@@ -23,17 +24,14 @@ use serde::de::DeserializeOwned;
 use serde_json::Value;
 use uuid::Uuid;
 
-pub use self::{
-    ext_traits::{OptionExt, ValidateCall},
-    storage::*,
-};
+pub use self::ext_traits::{OptionExt, ValidateCall};
 use crate::{
     consts,
     core::errors::{self, CustomResult, RouterResult, StorageErrorExt},
     db::StorageInterface,
     logger,
     routes::metrics,
-    types::{self, domain, storage},
+    types::{self, domain},
 };
 
 pub mod error_parser {
