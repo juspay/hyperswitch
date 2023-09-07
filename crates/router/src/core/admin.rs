@@ -1291,7 +1291,7 @@ async fn validate_dummy_connector_enabled(
             | api_enums::Connector::DummyConnector6
             | api_enums::Connector::DummyConnector7 => {
                 return Err(errors::ApiErrorResponse::InvalidRequestData {
-                    message: format!("{} is not enabled", connector_name.to_string()),
+                    message: format!("{} is not enabled", connector_name),
                 });
             }
             _ => {}
