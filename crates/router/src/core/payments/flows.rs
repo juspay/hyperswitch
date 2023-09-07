@@ -34,6 +34,7 @@ pub trait ConstructFlowSpecificData<F, Req, Res> {
     ) -> RouterResult<types::RouterData<F, Req, Res>>;
 }
 
+#[allow(clippy::too_many_arguments)]
 #[async_trait]
 pub trait Feature<F, T> {
     async fn decide_flows<'a>(
@@ -44,6 +45,7 @@ pub trait Feature<F, T> {
         call_connector_action: payments::CallConnectorAction,
         merchant_account: &domain::MerchantAccount,
         connector_request: Option<services::Request>,
+        key_store: &domain::MerchantKeyStore,
     ) -> RouterResult<Self>
     where
         Self: Sized,

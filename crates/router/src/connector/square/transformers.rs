@@ -298,7 +298,7 @@ impl TryFrom<&types::ConnectorAuthType> for SquareAuthType {
     }
 }
 // PaymentsResponse
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "UPPERCASE")]
 pub enum SquarePaymentStatus {
     Completed,
@@ -320,7 +320,7 @@ impl From<SquarePaymentStatus> for enums::AttemptStatus {
     }
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub struct SquarePaymentsResponseDetails {
     status: SquarePaymentStatus,
     id: String,
@@ -378,7 +378,7 @@ impl<F> TryFrom<&types::RefundsRouterData<F>> for SquareRefundRequest {
     }
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "UPPERCASE")]
 pub enum RefundStatus {
     Completed,
@@ -397,7 +397,7 @@ impl From<RefundStatus> for enums::RefundStatus {
     }
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub struct SquareRefundResponseDetails {
     status: RefundStatus,
     id: String,
@@ -450,4 +450,44 @@ pub struct SquareErrorDetails {
 #[derive(Clone, Default, Debug, Serialize, Deserialize, PartialEq)]
 pub struct SquareErrorResponse {
     pub errors: Vec<SquareErrorDetails>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum SquareWebhookObject {
+    Payment(SquarePaymentsResponseDetails),
+    Refund(SquareRefundResponseDetails),
+}
+
+#[derive(Debug, Deserialize)]
+pub struct SquareWebhookData {
+    pub id: String,
+    pub object: SquareWebhookObject,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct SquareWebhookBody {
+    #[serde(rename = "type")]
+    pub webhook_type: String,
+    pub data: SquareWebhookData,
+}
+
+impl From<SquareWebhookObject> for api::IncomingWebhookEvent {
+    fn from(item: SquareWebhookObject) -> Self {
+        match item {
+            SquareWebhookObject::Payment(payment_data) => match payment_data.status {
+                SquarePaymentStatus::Completed => Self::PaymentIntentSuccess,
+                SquarePaymentStatus::Failed => Self::PaymentIntentFailure,
+                SquarePaymentStatus::Pending => Self::PaymentIntentProcessing,
+                SquarePaymentStatus::Approved | SquarePaymentStatus::Canceled => {
+                    Self::EventNotSupported
+                }
+            },
+            SquareWebhookObject::Refund(refund_data) => match refund_data.status {
+                RefundStatus::Completed => Self::RefundSuccess,
+                RefundStatus::Failed | RefundStatus::Rejected => Self::RefundFailure,
+                RefundStatus::Pending => Self::EventNotSupported,
+            },
+        }
+    }
 }
