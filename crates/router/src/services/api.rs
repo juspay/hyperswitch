@@ -1,4 +1,4 @@
-mod client;
+pub mod client;
 pub mod request;
 
 use std::{
@@ -428,7 +428,7 @@ pub async fn call_connector_api(
 ) -> CustomResult<Result<types::Response, types::Response>, errors::ApiClientError> {
     let current_time = Instant::now();
 
-    let response = send_request(state, request, None).await;
+    let response = state.api_client.send_request(state, request, None).await;
 
     let elapsed_time = current_time.elapsed();
     logger::info!(request_time=?elapsed_time);

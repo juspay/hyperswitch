@@ -643,8 +643,10 @@ pub async fn trigger_webhook_to_merchant<W: types::OutgoingWebhookType>(
         .body(Some(transformed_outgoing_webhook_string))
         .build();
 
-    let response =
-        services::api::send_request(state, request, Some(OUTGOING_WEBHOOK_TIMEOUT_SECS)).await;
+    let response = state
+        .api_client
+        .send_request(state, request, Some(OUTGOING_WEBHOOK_TIMEOUT_SECS))
+        .await;
 
     metrics::WEBHOOK_OUTGOING_COUNT.add(
         &metrics::CONTEXT,
