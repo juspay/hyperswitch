@@ -1,13 +1,11 @@
 use std::collections::HashMap;
 
+use common_utils::{errors::CustomResult, ext_traits::OptionExt};
+use diesel_models::process_tracker::ProcessTracker;
 use error_stack::{IntoReport, ResultExt};
 use time::PrimitiveDateTime;
 
-use crate::{
-    core::errors::{self, CustomResult},
-    types::storage::process_tracker::ProcessTracker,
-    utils::OptionExt,
-};
+use crate::errors;
 
 #[derive(Debug, Clone)]
 pub struct ProcessTrackerBatch {
