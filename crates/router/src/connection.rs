@@ -1,6 +1,7 @@
 use bb8::PooledConnection;
 use diesel::PgConnection;
 use error_stack::{IntoReport, ResultExt};
+use storage_impl::errors as storage_errors;
 
 use crate::errors;
 
@@ -25,7 +26,7 @@ pub async fn pg_connection_read<T: storage_impl::DatabaseStore>(
     store: &T,
 ) -> errors::CustomResult<
     PooledConnection<'_, async_bb8_diesel::ConnectionManager<PgConnection>>,
-    errors::StorageError,
+    storage_errors::StorageError,
 > {
     // If only OLAP is enabled get replica pool.
     #[cfg(all(feature = "olap", not(feature = "oltp")))]
@@ -45,14 +46,14 @@ pub async fn pg_connection_read<T: storage_impl::DatabaseStore>(
     pool.get()
         .await
         .into_report()
-        .change_context(errors::StorageError::DatabaseConnectionError)
+        .change_context(storage_errors::StorageError::DatabaseConnectionError)
 }
 
 pub async fn pg_connection_write<T: storage_impl::DatabaseStore>(
     store: &T,
 ) -> errors::CustomResult<
     PooledConnection<'_, async_bb8_diesel::ConnectionManager<PgConnection>>,
-    errors::StorageError,
+    storage_errors::StorageError,
 > {
     // Since all writes should happen to master DB only choose master DB.
     let pool = store.get_master_pool();
@@ -60,5 +61,5 @@ pub async fn pg_connection_write<T: storage_impl::DatabaseStore>(
     pool.get()
         .await
         .into_report()
-        .change_context(errors::StorageError::DatabaseConnectionError)
+        .change_context(storage_errors::StorageError::DatabaseConnectionError)
 }
