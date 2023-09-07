@@ -4,6 +4,29 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 1.36.0 (2023-09-07)
+
+### Features
+
+- **apple_pay:** Add support for pre decrypted apple pay token ([#2056](https://github.com/juspay/hyperswitch/pull/2056)) ([`75ee632`](https://github.com/juspay/hyperswitch/commit/75ee6327820fe31ff2c379250eae3e7974e6ae6c))
+
+### Refactors
+
+- **connector:**
+  - [Payme] Rename types to follow naming conventions ([#2096](https://github.com/juspay/hyperswitch/pull/2096)) ([`98d7005`](https://github.com/juspay/hyperswitch/commit/98d70054e25ad8b2473110f7cde803f119b69d37))
+  - [Payme] Response Handling for Preprocessing ([#2097](https://github.com/juspay/hyperswitch/pull/2097)) ([`bdf4832`](https://github.com/juspay/hyperswitch/commit/bdf48320f9d4f1dc8c13f42f6e1e06d1056acf33))
+- **router:** Changed auth of verify_apple_pay from mid to jwt ([#2094](https://github.com/juspay/hyperswitch/pull/2094)) ([`8246f4e`](https://github.com/juspay/hyperswitch/commit/8246f4e9c336152ca79e916375cd11618af4d90a))
+
+### Miscellaneous Tasks
+
+- **deps:** Bump webpki from 0.22.0 to 0.22.1 ([#2104](https://github.com/juspay/hyperswitch/pull/2104)) ([`81c6480`](https://github.com/juspay/hyperswitch/commit/81c6480bdf2ab65b433ff2e89fcc299198019307))
+- Address Rust 1.72 clippy lints ([#2099](https://github.com/juspay/hyperswitch/pull/2099)) ([`cbbebe2`](https://github.com/juspay/hyperswitch/commit/cbbebe2408093d84a51b3916ea5a43d79404b4e9))
+
+**Full Changelog:** [`v1.35.0...v1.36.0`](https://github.com/juspay/hyperswitch/compare/v1.35.0...v1.36.0)
+
+- - -
+
+
 ## 1.35.0 (2023-09-06)
 
 ### Features
