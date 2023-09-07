@@ -2377,8 +2377,8 @@ pub struct PaymentRequestMetadata {
     pub label: String,
 }
 
-#[schema(value_type = String)]
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
+#[schema(value_type = String)]
 pub struct SessionTokenInfo {
     pub certificate: Secret<String>,
     pub certificate_keys: Secret<String>,
