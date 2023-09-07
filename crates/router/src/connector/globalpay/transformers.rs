@@ -274,6 +274,35 @@ impl<F, T>
     }
 }
 
+impl
+    TryFrom<(
+        types::PaymentsSyncResponseRouterData<GlobalpayPaymentsResponse>,
+        bool,
+    )> for types::PaymentsSyncRouterData
+{
+    type Error = Error;
+
+    fn try_from(
+        (value, is_multiple_capture_sync): (
+            types::PaymentsSyncResponseRouterData<GlobalpayPaymentsResponse>,
+            bool,
+        ),
+    ) -> Result<Self, Self::Error> {
+        if is_multiple_capture_sync {
+            let capture_sync_response_list =
+                utils::construct_captures_response_hashmap(vec![value.response]);
+            Ok(Self {
+                response: Ok(types::PaymentsResponseData::MultipleCaptureResponse {
+                    capture_sync_response_list,
+                }),
+                ..value.data
+            })
+        } else {
+            Self::try_from(value)
+        }
+    }
+}
+
 impl<F, T>
     TryFrom<types::ResponseRouterData<F, GlobalpayRefreshTokenResponse, T, types::AccessToken>>
     for types::RouterData<F, T, types::AccessToken>
@@ -456,5 +485,19 @@ impl TryFrom<&api_models::payments::BankRedirectData> for PaymentMethodData {
             ))
             .into_report(),
         }
+    }
+}
+
+impl utils::MultipleCaptureSyncResponse for GlobalpayPaymentsResponse {
+    fn get_connector_capture_id(&self) -> String {
+        self.id.clone()
+    }
+
+    fn get_capture_attempt_status(&self) -> diesel_models::enums::AttemptStatus {
+        enums::AttemptStatus::from(self.status)
+    }
+
+    fn is_capture_response(&self) -> bool {
+        true
     }
 }

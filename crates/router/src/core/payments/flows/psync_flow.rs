@@ -63,12 +63,9 @@ impl Feature<api::PSync, types::PaymentsSyncData>
             .get_multiple_capture_sync_method()
             .to_payment_failed_response();
 
-        match (
-            self.request.capture_sync_type.clone(),
-            capture_sync_method_result,
-        ) {
+        match (self.request.sync_type.clone(), capture_sync_method_result) {
             (
-                types::CaptureSyncType::MultipleCaptureSync(pending_connector_capture_id_list),
+                types::SyncRequestType::MultipleCaptureSync(pending_connector_capture_id_list),
                 Ok(services::CaptureSyncMethod::Individual),
             ) => {
                 let resp = self
@@ -81,7 +78,7 @@ impl Feature<api::PSync, types::PaymentsSyncData>
                     .await?;
                 Ok(resp)
             }
-            (types::CaptureSyncType::MultipleCaptureSync(_), Err(err)) => Err(err),
+            (types::SyncRequestType::MultipleCaptureSync(_), Err(err)) => Err(err),
             _ => {
                 // for bulk sync of captures, above logic needs to be handled at connector end
                 let resp = services::execute_connector_processing_step(
@@ -154,7 +151,7 @@ impl types::RouterData<api::PSync, types::PaymentsSyncData, types::PaymentsRespo
             types::PaymentsResponseData,
         >,
     ) -> RouterResult<Self> {
-        let mut capture_sync_response_list = HashMap::new();
+        let mut capture_sync_response_map = HashMap::new();
         for connector_capture_id in pending_connector_capture_id_list {
             self.request.connector_transaction_id =
                 types::ResponseId::ConnectorTransactionId(connector_capture_id.clone());
@@ -167,29 +164,27 @@ impl types::RouterData<api::PSync, types::PaymentsSyncData, types::PaymentsRespo
             )
             .await
             .to_payment_failed_response()?;
-            let capture_sync_response = match resp.response {
-                Err(err) => types::CaptureSyncResponse::Error {
-                    code: err.code,
-                    message: err.message,
-                    reason: err.reason,
-                    status_code: err.status_code,
+            match resp.response {
+                Err(err) => {
+                    capture_sync_response_map.insert(connector_capture_id, types::CaptureSyncResponse::Error {
+                        code: err.code,
+                        message: err.message,
+                        reason: err.reason,
+                        status_code: err.status_code,
+                    });
                 },
-                Ok(types::PaymentsResponseData::TransactionResponse {
-                    resource_id,
-                    connector_response_reference_id,
-                    ..
-                }) => types::CaptureSyncResponse::Success {
-                    resource_id,
-                    status: resp.status,
-                    connector_response_reference_id,
-                },
-                // this error is never meant to occur. response type will always be PaymentsResponseData::TransactionResponse
-                _ => Err(ApiErrorResponse::PreconditionFailed { message: "Response type must be PaymentsResponseData::TransactionResponse for payment sync".into() })?,
+                Ok(types::PaymentsResponseData::MultipleCaptureResponse { capture_sync_response_list })=> {
+                    capture_sync_response_map.extend(capture_sync_response_list.into_iter());
+                }
+                _ => Err(ApiErrorResponse::PreconditionFailed { message: "Response type must be PaymentsResponseData::MultipleCaptureResponse for payment sync".into() })?,
             };
-            capture_sync_response_list.insert(connector_capture_id.clone(), capture_sync_response);
+            if let payments::CallConnectorAction::HandleResponse(_) = call_connector_action {
+                // if webhook consume flow, call execute_connector_processing_step() only once
+                break;
+            }
         }
         self.response = Ok(types::PaymentsResponseData::MultipleCaptureResponse {
-            capture_sync_response_list,
+            capture_sync_response_list: capture_sync_response_map,
         });
         Ok(self)
     }

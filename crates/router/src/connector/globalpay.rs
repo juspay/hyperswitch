@@ -483,11 +483,18 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
             .response
             .parse_struct("globalpay PaymentsResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-        types::RouterData::try_from(types::ResponseRouterData {
-            response,
-            data: data.clone(),
-            http_code: res.status_code,
-        })
+        let is_multiple_capture_sync = match data.request.sync_type {
+            types::SyncRequestType::MultipleCaptureSync(_) => true,
+            types::SyncRequestType::SinglePaymentSync => false,
+        };
+        types::RouterData::try_from((
+            types::ResponseRouterData {
+                response,
+                data: data.clone(),
+                http_code: res.status_code,
+            },
+            is_multiple_capture_sync,
+        ))
         .change_context(errors::ConnectorError::ResponseHandlingFailed)
     }
     fn get_multiple_capture_sync_method(

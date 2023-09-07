@@ -81,8 +81,10 @@ impl ConnectorValidation for Adyen {
     ) -> CustomResult<(), errors::ConnectorError> {
         let capture_method = capture_method.unwrap_or_default();
         match capture_method {
-            enums::CaptureMethod::Automatic | enums::CaptureMethod::Manual => Ok(()),
-            enums::CaptureMethod::ManualMultiple | enums::CaptureMethod::Scheduled => Err(
+            enums::CaptureMethod::Automatic
+            | enums::CaptureMethod::Manual
+            | enums::CaptureMethod::ManualMultiple => Ok(()),
+            enums::CaptureMethod::Scheduled => Err(
                 connector_utils::construct_not_implemented_error_report(capture_method, self.id()),
             ),
         }
@@ -205,6 +207,7 @@ impl
                 data: data.clone(),
                 http_code: res.status_code,
             },
+            None,
             false,
         ))
         .change_context(errors::ConnectorError::ResponseHandlingFailed)
@@ -469,15 +472,18 @@ impl
             .response
             .parse_struct("AdyenPaymentResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-        let is_manual_capture =
-            data.request.capture_method == Some(storage_enums::CaptureMethod::Manual);
+        let is_multiple_capture_sync = match data.request.sync_type {
+            types::SyncRequestType::MultipleCaptureSync(_) => true,
+            types::SyncRequestType::SinglePaymentSync => false,
+        };
         types::RouterData::try_from((
             types::ResponseRouterData {
                 response,
                 data: data.clone(),
                 http_code: res.status_code,
             },
-            is_manual_capture,
+            data.request.capture_method,
+            is_multiple_capture_sync,
         ))
         .change_context(errors::ConnectorError::ResponseHandlingFailed)
     }
@@ -496,6 +502,12 @@ impl
             message: response.message,
             reason: None,
         })
+    }
+
+    fn get_multiple_capture_sync_method(
+        &self,
+    ) -> CustomResult<services::CaptureSyncMethod, errors::ConnectorError> {
+        Ok(services::CaptureSyncMethod::Individual)
     }
 }
 
@@ -625,15 +637,14 @@ impl
             .response
             .parse_struct("AdyenPaymentResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-        let is_manual_capture =
-            data.request.capture_method == Some(diesel_models::enums::CaptureMethod::Manual);
         types::RouterData::try_from((
             types::ResponseRouterData {
                 response,
                 data: data.clone(),
                 http_code: res.status_code,
             },
-            is_manual_capture,
+            data.request.capture_method,
+            false,
         ))
         .change_context(errors::ConnectorError::ResponseHandlingFailed)
     }
@@ -1442,6 +1453,15 @@ impl api::IncomingWebhook for Adyen {
     ) -> CustomResult<api_models::webhooks::ObjectReferenceId, errors::ConnectorError> {
         let notif = get_webhook_object_from_body(request.body)
             .change_context(errors::ConnectorError::WebhookReferenceIdNotFound)?;
+        if adyen::is_capture_event(&notif.event_code) {
+            return Ok(api_models::webhooks::ObjectReferenceId::PaymentId(
+                api_models::payments::PaymentIdType::ConnectorTransactionId(
+                    notif
+                        .original_reference
+                        .ok_or(errors::ConnectorError::WebhookReferenceIdNotFound)?,
+                ),
+            ));
+        }
         if adyen::is_transaction_event(&notif.event_code) {
             return Ok(api_models::webhooks::ObjectReferenceId::PaymentId(
                 api_models::payments::PaymentIdType::PaymentAttemptId(notif.merchant_reference),
