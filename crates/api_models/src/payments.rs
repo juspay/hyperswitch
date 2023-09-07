@@ -13,10 +13,7 @@ use url::Url;
 use utoipa::ToSchema;
 
 use crate::{
-    admin, disputes,
-    enums as api_enums,
-    ephemeral_key::EphemeralKeyCreateResponse,
-    refunds,
+    admin, disputes, enums as api_enums, ephemeral_key::EphemeralKeyCreateResponse, refunds,
 };
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
