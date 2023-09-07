@@ -766,7 +766,7 @@ impl api::IncomingWebhook for Payme {
             .expose()
             .as_bytes()
             .to_vec();
-        
+
         message_to_verify.append(&mut message);
 
         let signature_to_verify = hex::decode(signature)

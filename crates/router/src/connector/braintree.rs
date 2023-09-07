@@ -7,7 +7,7 @@ use base64::Engine;
 use common_utils::{crypto, ext_traits::XmlExt};
 use diesel_models::enums;
 use error_stack::{IntoReport, Report, ResultExt};
-use masking::{PeekInterface, ExposeInterface};
+use masking::{ExposeInterface, PeekInterface};
 use ring::hmac;
 use sha1::{Digest, Sha1};
 
