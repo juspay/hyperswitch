@@ -9,18 +9,21 @@ pub mod types;
 
 use std::{fmt::Debug, marker::PhantomData, ops::Deref, time::Instant};
 
-use api_models::payments::FrmMessage;
 use common_utils::{ext_traits::AsyncExt, pii};
-use diesel_models::ephemeral_key;
+use diesel_models::{ephemeral_key, fraud_check::FraudCheck};
 use error_stack::{IntoReport, ResultExt};
 use futures::future::join_all;
+#[cfg(feature = "kms")]
+use helpers::ApplePayData;
 use masking::Secret;
 use router_env::{instrument, tracing};
+use scheduler::{db::process_tracker::ProcessTrackerExt, errors as sch_errors, utils as pt_utils};
 use time;
 
 pub use self::operations::{
-    PaymentCancel, PaymentCapture, PaymentConfirm, PaymentCreate, PaymentMethodValidate,
-    PaymentResponse, PaymentSession, PaymentStatus, PaymentUpdate,
+    PaymentApprove, PaymentCancel, PaymentCapture, PaymentConfirm, PaymentCreate,
+    PaymentMethodValidate, PaymentReject, PaymentResponse, PaymentSession, PaymentStatus,
+    PaymentUpdate,
 };
 use self::{
     flows::{ConstructFlowSpecificData, Feature},
@@ -33,13 +36,13 @@ use crate::{
     db::StorageInterface,
     logger,
     routes::{metrics, payment_methods::ParentPaymentMethodToken, AppState},
-    scheduler::{utils as pt_utils, workflows::payment_sync},
     services::{self, api::Authenticate},
     types::{
         self as router_types, api, domain,
-        storage::{self, enums as storage_enums, ProcessTrackerExt},
+        storage::{self, enums as storage_enums},
     },
     utils::{add_connector_http_status_code_metrics, Encode, OptionExt, ValueExt},
+    workflows::payment_sync,
 };
 
 #[instrument(skip_all, fields(payment_id, merchant_id))]
@@ -132,9 +135,13 @@ where
         _ => None,
     };
 
-    let (mut payment_data, tokenization_action) =
-        get_connector_tokenization_action(state, &operation, payment_data, &validate_result)
-            .await?;
+    payment_data = tokenize_in_router_when_confirm_false(
+        state,
+        &operation,
+        &mut payment_data,
+        &validate_result,
+    )
+    .await?;
 
     let updated_customer = call_create_connector_customer_if_required(
         state,
@@ -159,9 +166,8 @@ where
                     &mut payment_data,
                     &customer,
                     call_connector_action,
-                    tokenization_action,
                     updated_customer,
-                    validate_result.requeue,
+                    &validate_result,
                     schedule_time,
                 )
                 .await?;
@@ -546,9 +552,8 @@ pub async fn call_connector_service<F, RouterDReq, ApiRequest>(
     payment_data: &mut PaymentData<F>,
     customer: &Option<domain::Customer>,
     call_connector_action: CallConnectorAction,
-    tokenization_action: TokenizationAction,
     updated_customer: Option<storage::CustomerUpdate>,
-    requeue: bool,
+    validate_result: &operations::ValidateResult<'_>,
     schedule_time: Option<time::PrimitiveDateTime>,
 ) -> RouterResult<router_types::RouterData<F, RouterDReq, router_types::PaymentsResponseData>>
 where
@@ -566,6 +571,33 @@ where
 {
     let stime_connector = Instant::now();
 
+    let pm_data = payment_data.clone();
+
+    let connector_name = pm_data
+        .payment_attempt
+        .connector
+        .as_ref()
+        .get_required_value("connector")?;
+
+    let merchant_connector_account = construct_connector_label_and_get_mca(
+        state,
+        merchant_account,
+        payment_data,
+        connector_name,
+        key_store,
+    )
+    .await?;
+
+    let (mut payment_data, tokenization_action) =
+        get_connector_tokenization_action_when_confirm_true(
+            state,
+            operation,
+            payment_data,
+            validate_result,
+            &merchant_connector_account,
+        )
+        .await?;
+
     let mut router_data = payment_data
         .construct_router_data(
             state,
@@ -573,6 +605,7 @@ where
             merchant_account,
             key_store,
             customer,
+            &merchant_connector_account,
         )
         .await?;
 
@@ -586,19 +619,52 @@ where
         &call_connector_action,
     );
 
+    // Tokenization Action will be DecryptApplePayToken, only when payment method type is Apple Pay
+    // and the connector supports Apple Pay predecrypt
+    #[cfg(feature = "kms")]
+    if matches!(
+        tokenization_action,
+        TokenizationAction::DecryptApplePayToken
+            | TokenizationAction::TokenizeInConnectorAndApplepayPreDecrypt
+    ) {
+        let apple_pay_data = match payment_data.payment_method_data.clone() {
+            Some(api_models::payments::PaymentMethodData::Wallet(
+                api_models::payments::WalletData::ApplePay(wallet_data),
+            )) => Some(
+                ApplePayData::token_json(api_models::payments::WalletData::ApplePay(wallet_data))
+                    .change_context(errors::ApiErrorResponse::InternalServerError)?
+                    .decrypt(state)
+                    .await
+                    .change_context(errors::ApiErrorResponse::InternalServerError)?,
+            ),
+            _ => None,
+        };
+
+        let apple_pay_predecrypt = apple_pay_data
+            .parse_value::<router_types::ApplePayPredecryptData>("ApplePayPredecryptData")
+            .change_context(errors::ApiErrorResponse::InternalServerError)?;
+
+        router_data.payment_method_token = Some(router_types::PaymentMethodToken::ApplePayDecrypt(
+            Box::new(apple_pay_predecrypt),
+        ));
+    }
+
     let pm_token = router_data
         .add_payment_method_token(state, &connector, &tokenization_action)
         .await?;
 
-    if let Some(payment_method_token) = pm_token {
-        router_data.payment_method_token = Some(payment_method_token);
+    if let Some(payment_method_token) = pm_token.clone() {
+        router_data.payment_method_token = Some(router_types::PaymentMethodToken::Token(
+            payment_method_token,
+        ));
     };
 
     (router_data, should_continue_further) = complete_preprocessing_steps_if_required(
         state,
         &connector,
-        payment_data,
+        &payment_data,
         router_data,
+        operation,
         should_continue_further,
     )
     .await?;
@@ -622,13 +688,13 @@ where
         (None, false)
     };
 
-    if should_add_task_to_process_tracker(payment_data) {
+    if should_add_task_to_process_tracker(&payment_data) {
         operation
             .to_domain()?
             .add_task_to_process_tracker(
                 state,
                 &payment_data.payment_attempt,
-                requeue,
+                validate_result.requeue,
                 schedule_time,
             )
             .await
@@ -639,7 +705,7 @@ where
     // Update the payment trackers just before calling the connector
     // Since the request is already built in the previous step,
     // there should be no error in request construction from hyperswitch end
-    (_, *payment_data) = operation
+    (_, payment_data) = operation
         .to_update_tracker()?
         .update_trackers(
             &*state.store,
@@ -666,6 +732,7 @@ where
                 call_connector_action,
                 merchant_account,
                 connector_request,
+                key_store,
             )
             .await
     } else {
@@ -708,8 +775,25 @@ where
 
     for session_connector_data in connectors.iter() {
         let connector_id = session_connector_data.connector.connector.id();
+
+        let merchant_connector_account = construct_connector_label_and_get_mca(
+            state,
+            merchant_account,
+            &mut payment_data,
+            &session_connector_data.connector.connector_name.to_string(),
+            key_store,
+        )
+        .await?;
+
         let router_data = payment_data
-            .construct_router_data(state, connector_id, merchant_account, key_store, customer)
+            .construct_router_data(
+                state,
+                connector_id,
+                merchant_account,
+                key_store,
+                customer,
+                &merchant_connector_account,
+            )
             .await?;
 
         let res = router_data.decide_flows(
@@ -719,6 +803,7 @@ where
             CallConnectorAction::Trigger,
             merchant_account,
             None,
+            key_store,
         );
 
         join_handlers.push(res);
@@ -789,6 +874,15 @@ where
 
     match connector_name {
         Some(connector_name) => {
+            let merchant_connector_account = construct_connector_label_and_get_mca(
+                state,
+                merchant_account,
+                payment_data,
+                &connector_name,
+                key_store,
+            )
+            .await?;
+
             let connector = api::ConnectorData::get_connector_by_name(
                 &state.conf.connectors,
                 &connector_name,
@@ -819,6 +913,7 @@ where
                         merchant_account,
                         key_store,
                         customer,
+                        &merchant_connector_account,
                     )
                     .await?;
 
@@ -846,11 +941,12 @@ where
     }
 }
 
-async fn complete_preprocessing_steps_if_required<F, Req>(
+async fn complete_preprocessing_steps_if_required<F, Req, Q>(
     state: &AppState,
     connector: &api::ConnectorData,
     payment_data: &PaymentData<F>,
     mut router_data: router_types::RouterData<F, Req, router_types::PaymentsResponseData>,
+    operation: &BoxedOperation<'_, F, Q>,
     should_continue_payment: bool,
 ) -> RouterResult<(
     router_types::RouterData<F, Req, router_types::PaymentsResponseData>,
@@ -892,7 +988,9 @@ where
             }
         }
         Some(api_models::payments::PaymentMethodData::Card(_)) => {
-            if connector.connector_name == router_types::Connector::Payme {
+            if connector.connector_name == router_types::Connector::Payme
+                && !matches!(format!("{operation:?}").as_str(), "CompleteAuthorize")
+            {
                 router_data = router_data.preprocessing_steps(state, connector).await?;
 
                 let is_error_in_response = router_data.response.is_err();
@@ -910,6 +1008,35 @@ where
 
 pub fn is_preprocessing_required_for_wallets(connector_name: String) -> bool {
     connector_name == *"trustpay" || connector_name == *"payme"
+}
+
+pub async fn construct_connector_label_and_get_mca<'a, F>(
+    state: &'a AppState,
+    merchant_account: &domain::MerchantAccount,
+    payment_data: &mut PaymentData<F>,
+    connector_id: &str,
+    key_store: &domain::MerchantKeyStore,
+) -> RouterResult<helpers::MerchantConnectorAccountType>
+where
+    F: Clone,
+{
+    let connector_label = helpers::get_connector_label(
+        payment_data.payment_intent.business_country,
+        &payment_data.payment_intent.business_label,
+        payment_data.payment_attempt.business_sub_label.as_ref(),
+        connector_id,
+    );
+
+    let merchant_connector_account = helpers::get_merchant_connector_account(
+        state,
+        merchant_account.merchant_id.as_str(),
+        &connector_label,
+        payment_data.creds_identifier.to_owned(),
+        key_store,
+    )
+    .await?;
+
+    Ok(merchant_connector_account)
 }
 
 fn is_payment_method_tokenization_enabled_for_connector(
@@ -934,6 +1061,47 @@ fn is_payment_method_tokenization_enabled_for_connector(
         .unwrap_or(false))
 }
 
+fn is_apple_pay_predecrypt(
+    payment_method_type: &Option<api_models::enums::PaymentMethodType>,
+    merchant_connector_account: &Option<helpers::MerchantConnectorAccountType>,
+) -> RouterResult<bool> {
+    Ok(payment_method_type
+        .map(|pmt| match pmt {
+            api_models::enums::PaymentMethodType::ApplePay => {
+                check_apple_pay_metadata(merchant_connector_account)
+            }
+            _ => Ok(false),
+        })
+        .transpose()?
+        .unwrap_or(false))
+}
+
+fn check_apple_pay_metadata(
+    merchant_connector_account: &Option<helpers::MerchantConnectorAccountType>,
+) -> RouterResult<bool> {
+    let apple_pay_predecrypt = merchant_connector_account
+        .clone()
+        .and_then(|mca| {
+            let metadata = mca.get_metadata();
+            metadata.and_then(|apple_pay_metadata| {
+                let parsed_metadata: Result<api_models::payments::ApplepaySessionTokenData, _> =
+                    apple_pay_metadata.parse_value("ApplepaySessionTokenData");
+
+                parsed_metadata.ok().map(|metadata| match metadata.data {
+                    api_models::payments::ApplepaySessionTokenMetadata::ApplePayCombined(
+                        apple_pay_combined,
+                    ) => match apple_pay_combined {
+                        api_models::payments::ApplePayCombinedMetadata::Simplified { .. } => true,
+                        api_models::payments::ApplePayCombinedMetadata::Manual { .. } => false,
+                    },
+                    api_models::payments::ApplepaySessionTokenMetadata::ApplePay(_) => false,
+                })
+            })
+        })
+        .unwrap_or(false);
+    Ok(apple_pay_predecrypt)
+}
+
 fn is_payment_method_type_allowed_for_connector(
     current_pm_type: &Option<storage::enums::PaymentMethodType>,
     pm_type_filter: Option<PaymentMethodTypeTokenFilter>,
@@ -954,11 +1122,16 @@ async fn decide_payment_method_tokenize_action(
     payment_method: &storage::enums::PaymentMethod,
     pm_parent_token: Option<&String>,
     is_connector_tokenization_enabled: bool,
+    is_apple_pay_predecrypt_supported: bool,
 ) -> RouterResult<TokenizationAction> {
     match pm_parent_token {
         None => {
-            if is_connector_tokenization_enabled {
+            if is_connector_tokenization_enabled && is_apple_pay_predecrypt_supported {
+                Ok(TokenizationAction::TokenizeInConnectorAndApplepayPreDecrypt)
+            } else if is_connector_tokenization_enabled {
                 Ok(TokenizationAction::TokenizeInConnectorAndRouter)
+            } else if is_apple_pay_predecrypt_supported {
+                Ok(TokenizationAction::DecryptApplePayToken)
             } else {
                 Ok(TokenizationAction::TokenizeInRouter)
             }
@@ -986,8 +1159,12 @@ async fn decide_payment_method_tokenize_action(
             match connector_token_option {
                 Some(connector_token) => Ok(TokenizationAction::ConnectorToken(connector_token)),
                 None => {
-                    if is_connector_tokenization_enabled {
-                        Ok(TokenizationAction::TokenizeInConnector)
+                    if is_connector_tokenization_enabled && is_apple_pay_predecrypt_supported {
+                        Ok(TokenizationAction::TokenizeInConnectorAndApplepayPreDecrypt)
+                    } else if is_connector_tokenization_enabled {
+                        Ok(TokenizationAction::TokenizeInConnectorAndRouter)
+                    } else if is_apple_pay_predecrypt_supported {
+                        Ok(TokenizationAction::DecryptApplePayToken)
                     } else {
                         Ok(TokenizationAction::TokenizeInRouter)
                     }
@@ -1004,14 +1181,17 @@ pub enum TokenizationAction {
     TokenizeInConnectorAndRouter,
     ConnectorToken(String),
     SkipConnectorTokenization,
+    DecryptApplePayToken,
+    TokenizeInConnectorAndApplepayPreDecrypt,
 }
 
 #[allow(clippy::too_many_arguments)]
-pub async fn get_connector_tokenization_action<F, Req>(
+pub async fn get_connector_tokenization_action_when_confirm_true<F, Req>(
     state: &AppState,
     operation: &BoxedOperation<'_, F, Req>,
-    mut payment_data: PaymentData<F>,
+    payment_data: &mut PaymentData<F>,
     validate_result: &operations::ValidateResult<'_>,
+    merchant_connector_account: &helpers::MerchantConnectorAccountType,
 ) -> RouterResult<(PaymentData<F>, TokenizationAction)>
 where
     F: Send + Clone,
@@ -1029,13 +1209,17 @@ where
         .unwrap_or(false);
 
     let payment_data_and_tokenization_action = match connector {
-        Some(_) if is_mandate => (payment_data, TokenizationAction::SkipConnectorTokenization),
+        Some(_) if is_mandate => (
+            payment_data.to_owned(),
+            TokenizationAction::SkipConnectorTokenization,
+        ),
         Some(connector) if is_operation_confirm(&operation) => {
             let payment_method = &payment_data
                 .payment_attempt
                 .payment_method
                 .get_required_value("payment_method")?;
             let payment_method_type = &payment_data.payment_attempt.payment_method_type;
+
             let is_connector_tokenization_enabled =
                 is_payment_method_tokenization_enabled_for_connector(
                     state,
@@ -1044,12 +1228,18 @@ where
                     payment_method_type,
                 )?;
 
+            let is_apple_pay_predecrypt = is_apple_pay_predecrypt(
+                payment_method_type,
+                &Some(merchant_connector_account.clone()),
+            )?;
+
             let payment_method_action = decide_payment_method_tokenize_action(
                 state,
                 &connector,
                 payment_method,
                 payment_data.token.as_ref(),
                 is_connector_tokenization_enabled,
+                is_apple_pay_predecrypt,
             )
             .await?;
 
@@ -1057,7 +1247,7 @@ where
                 TokenizationAction::TokenizeInRouter => {
                     let (_operation, payment_method_data) = operation
                         .to_domain()?
-                        .make_pm_data(state, &mut payment_data, validate_result.storage_scheme)
+                        .make_pm_data(state, payment_data, validate_result.storage_scheme)
                         .await?;
                     payment_data.payment_method_data = payment_method_data;
                     TokenizationAction::SkipConnectorTokenization
@@ -1067,7 +1257,7 @@ where
                 TokenizationAction::TokenizeInConnectorAndRouter => {
                     let (_operation, payment_method_data) = operation
                         .to_domain()?
-                        .make_pm_data(state, &mut payment_data, validate_result.storage_scheme)
+                        .make_pm_data(state, payment_data, validate_result.storage_scheme)
                         .await?;
 
                     payment_data.payment_method_data = payment_method_data;
@@ -1080,20 +1270,45 @@ where
                 TokenizationAction::SkipConnectorTokenization => {
                     TokenizationAction::SkipConnectorTokenization
                 }
+                TokenizationAction::DecryptApplePayToken => {
+                    TokenizationAction::DecryptApplePayToken
+                }
+                TokenizationAction::TokenizeInConnectorAndApplepayPreDecrypt => {
+                    TokenizationAction::TokenizeInConnectorAndApplepayPreDecrypt
+                }
             };
-            (payment_data, connector_tokenization_action)
+            (payment_data.to_owned(), connector_tokenization_action)
         }
-        _ => {
-            let (_operation, payment_method_data) = operation
-                .to_domain()?
-                .make_pm_data(state, &mut payment_data, validate_result.storage_scheme)
-                .await?;
-            payment_data.payment_method_data = payment_method_data;
-            (payment_data, TokenizationAction::SkipConnectorTokenization)
-        }
+        _ => (
+            payment_data.to_owned(),
+            TokenizationAction::SkipConnectorTokenization,
+        ),
     };
 
     Ok(payment_data_and_tokenization_action)
+}
+
+pub async fn tokenize_in_router_when_confirm_false<F, Req>(
+    state: &AppState,
+    operation: &BoxedOperation<'_, F, Req>,
+    payment_data: &mut PaymentData<F>,
+    validate_result: &operations::ValidateResult<'_>,
+) -> RouterResult<PaymentData<F>>
+where
+    F: Send + Clone,
+{
+    // On confirm is false and only router related
+    let payment_data = if !is_operation_confirm(operation) {
+        let (_operation, payment_method_data) = operation
+            .to_domain()?
+            .make_pm_data(state, payment_data, validate_result.storage_scheme)
+            .await?;
+        payment_data.payment_method_data = payment_method_data;
+        payment_data
+    } else {
+        payment_data
+    };
+    Ok(payment_data.to_owned())
 }
 
 #[derive(Clone)]
@@ -1146,7 +1361,7 @@ where
     pub recurring_mandate_payment_data: Option<RecurringMandatePaymentData>,
     pub ephemeral_key: Option<ephemeral_key::EphemeralKey>,
     pub redirect_response: Option<api_models::payments::RedirectResponse>,
-    pub frm_message: Option<FrmMessage>,
+    pub frm_message: Option<FraudCheck>,
 }
 
 #[derive(Debug, Default, Clone)]
@@ -1239,6 +1454,7 @@ pub fn should_call_connector<Op: Debug, F: Clone>(
             )
         }
         "CompleteAuthorize" => true,
+        "PaymentApprove" => true,
         "PaymentSession" => true,
         _ => false,
     }
@@ -1407,7 +1623,7 @@ pub async fn add_process_sync_task(
     db: &dyn StorageInterface,
     payment_attempt: &storage::PaymentAttempt,
     schedule_time: time::PrimitiveDateTime,
-) -> Result<(), errors::ProcessTrackerError> {
+) -> Result<(), sch_errors::ProcessTrackerError> {
     let tracking_data = api::PaymentsRetrieveRequest {
         force_sync: true,
         merchant_id: Some(payment_attempt.merchant_id.clone()),
@@ -1451,7 +1667,9 @@ pub async fn reset_process_sync_task(
         .find_process_by_id(&process_tracker_id)
         .await?
         .ok_or(errors::ProcessTrackerError::ProcessFetchingFailed)?;
-    psync_process.reset(db, schedule_time).await?;
+    psync_process
+        .reset(db.as_scheduler(), schedule_time)
+        .await?;
     Ok(())
 }
 

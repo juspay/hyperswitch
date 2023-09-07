@@ -2,6 +2,7 @@ pub mod transformers;
 
 use std::fmt::Debug;
 
+use api_models::enums::AuthenticationType;
 use common_utils::crypto;
 use diesel_models::enums;
 use error_stack::{IntoReport, ResultExt};
@@ -11,7 +12,10 @@ use transformers as payme;
 use crate::{
     configs::settings,
     connector::utils as connector_utils,
-    core::errors::{self, CustomResult},
+    core::{
+        errors::{self, CustomResult},
+        payments,
+    },
     db, headers,
     services::{self, request, ConnectorIntegration, ConnectorValidation},
     types::{
@@ -27,6 +31,7 @@ pub struct Payme;
 
 impl api::Payment for Payme {}
 impl api::PaymentSession for Payme {}
+impl api::PaymentsCompleteAuthorize for Payme {}
 impl api::ConnectorAccessToken for Payme {}
 impl api::PreVerify for Payme {}
 impl api::PaymentAuthorize for Payme {}
@@ -37,15 +42,6 @@ impl api::Refund for Payme {}
 impl api::RefundExecute for Payme {}
 impl api::RefundSync for Payme {}
 impl api::PaymentToken for Payme {}
-
-impl
-    ConnectorIntegration<
-        api::PaymentMethodToken,
-        types::PaymentMethodTokenizationData,
-        types::PaymentsResponseData,
-    > for Payme
-{
-}
 
 impl<Flow, Request, Response> ConnectorCommonExt<Flow, Request, Response> for Payme
 where
@@ -113,6 +109,105 @@ impl ConnectorValidation for Payme {
                 connector_utils::construct_not_supported_error_report(capture_method, self.id()),
             ),
         }
+    }
+}
+
+impl
+    ConnectorIntegration<
+        api::PaymentMethodToken,
+        types::PaymentMethodTokenizationData,
+        types::PaymentsResponseData,
+    > for Payme
+{
+    fn get_headers(
+        &self,
+        req: &types::TokenizationRouterData,
+        connectors: &settings::Connectors,
+    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
+        self.build_headers(req, connectors)
+    }
+
+    fn get_content_type(&self) -> &'static str {
+        self.common_get_content_type()
+    }
+
+    fn get_url(
+        &self,
+        _req: &types::TokenizationRouterData,
+        connectors: &settings::Connectors,
+    ) -> CustomResult<String, errors::ConnectorError> {
+        Ok(format!(
+            "{}api/capture-buyer-token",
+            self.base_url(connectors)
+        ))
+    }
+
+    fn get_request_body(
+        &self,
+        req: &types::TokenizationRouterData,
+    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
+        let req_obj = payme::CaptureBuyerRequest::try_from(req)?;
+
+        let payme_req = types::RequestBody::log_and_get_request_body(
+            &req_obj,
+            utils::Encode::<payme::CaptureBuyerRequest>::encode_to_string_of_json,
+        )
+        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        Ok(Some(payme_req))
+    }
+
+    fn build_request(
+        &self,
+        req: &types::TokenizationRouterData,
+        connectors: &settings::Connectors,
+    ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
+        Ok(match req.auth_type {
+            AuthenticationType::ThreeDs => Some(
+                services::RequestBuilder::new()
+                    .method(services::Method::Post)
+                    .url(&types::TokenizationType::get_url(self, req, connectors)?)
+                    .attach_default_headers()
+                    .headers(types::TokenizationType::get_headers(self, req, connectors)?)
+                    .body(types::TokenizationType::get_request_body(self, req)?)
+                    .build(),
+            ),
+            AuthenticationType::NoThreeDs => None,
+        })
+    }
+
+    fn handle_response(
+        &self,
+        data: &types::TokenizationRouterData,
+        res: Response,
+    ) -> CustomResult<types::TokenizationRouterData, errors::ConnectorError>
+    where
+        types::PaymentsResponseData: Clone,
+    {
+        let response: payme::CaptureBuyerResponse = res
+            .response
+            .parse_struct("Payme CaptureBuyerResponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+
+        types::RouterData::try_from(types::ResponseRouterData {
+            response,
+            data: data.clone(),
+            http_code: res.status_code,
+        })
+    }
+
+    fn get_error_response(
+        &self,
+        res: Response,
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        self.build_error_response(res)
+    }
+
+    fn get_5xx_error_response(
+        &self,
+        res: Response,
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        // we are always getting 500 in error scenarios
+        self.build_error_response(res)
     }
 }
 
@@ -225,6 +320,114 @@ impl ConnectorIntegration<api::AccessTokenAuth, types::AccessTokenRequestData, t
 
 impl ConnectorIntegration<api::Verify, types::VerifyRequestData, types::PaymentsResponseData>
     for Payme
+{
+}
+
+impl services::ConnectorRedirectResponse for Payme {
+    fn get_flow_type(
+        &self,
+        _query_params: &str,
+        _json_payload: Option<serde_json::Value>,
+        _action: services::PaymentAction,
+    ) -> CustomResult<payments::CallConnectorAction, errors::ConnectorError> {
+        Ok(payments::CallConnectorAction::Trigger)
+    }
+}
+
+impl
+    ConnectorIntegration<
+        api::CompleteAuthorize,
+        types::CompleteAuthorizeData,
+        types::PaymentsResponseData,
+    > for Payme
+{
+    fn get_headers(
+        &self,
+        req: &types::PaymentsCompleteAuthorizeRouterData,
+        connectors: &settings::Connectors,
+    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
+        self.build_headers(req, connectors)
+    }
+    fn get_content_type(&self) -> &'static str {
+        self.common_get_content_type()
+    }
+    fn get_url(
+        &self,
+        _req: &types::PaymentsCompleteAuthorizeRouterData,
+        connectors: &settings::Connectors,
+    ) -> CustomResult<String, errors::ConnectorError> {
+        Ok(format!("{}api/pay-sale", self.base_url(connectors)))
+    }
+    fn get_request_body(
+        &self,
+        req: &types::PaymentsCompleteAuthorizeRouterData,
+    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
+        let req_obj = payme::Pay3dsRequest::try_from(req)?;
+        let payme_req = types::RequestBody::log_and_get_request_body(
+            &req_obj,
+            utils::Encode::<payme::PayRequest>::encode_to_string_of_json,
+        )
+        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        Ok(Some(payme_req))
+    }
+    fn build_request(
+        &self,
+        req: &types::PaymentsCompleteAuthorizeRouterData,
+        connectors: &settings::Connectors,
+    ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
+        Ok(Some(
+            services::RequestBuilder::new()
+                .method(services::Method::Post)
+                .url(&types::PaymentsCompleteAuthorizeType::get_url(
+                    self, req, connectors,
+                )?)
+                .attach_default_headers()
+                .headers(types::PaymentsCompleteAuthorizeType::get_headers(
+                    self, req, connectors,
+                )?)
+                .body(types::PaymentsCompleteAuthorizeType::get_request_body(
+                    self, req,
+                )?)
+                .build(),
+        ))
+    }
+    fn handle_response(
+        &self,
+        data: &types::PaymentsCompleteAuthorizeRouterData,
+        res: Response,
+    ) -> CustomResult<types::PaymentsCompleteAuthorizeRouterData, errors::ConnectorError> {
+        let response: payme::PaymePaySaleResponse = res
+            .response
+            .parse_struct("Payme PaymePaySaleResponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        types::RouterData::try_from(types::ResponseRouterData {
+            response,
+            data: data.clone(),
+            http_code: res.status_code,
+        })
+    }
+
+    fn get_error_response(
+        &self,
+        res: Response,
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        self.build_error_response(res)
+    }
+
+    fn get_5xx_error_response(
+        &self,
+        res: Response,
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        self.build_error_response(res)
+    }
+}
+
+impl
+    ConnectorIntegration<
+        api::InitPayment,
+        types::PaymentsAuthorizeData,
+        types::PaymentsResponseData,
+    > for Payme
 {
 }
 

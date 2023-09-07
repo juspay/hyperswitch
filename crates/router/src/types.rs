@@ -26,8 +26,12 @@ pub use crate::core::payments::{CustomerDetails, PaymentAddress};
 #[cfg(feature = "payouts")]
 use crate::core::utils::IRRELEVANT_CONNECTOR_REQUEST_REFERENCE_ID_IN_DISPUTE_FLOW;
 use crate::{
-    core::{errors, payments::RecurringMandatePaymentData},
+    core::{
+        errors::{self, RouterResult},
+        payments::RecurringMandatePaymentData,
+    },
     services,
+    utils::OptionExt,
 };
 
 pub type PaymentsAuthorizeRouterData =
@@ -46,6 +50,10 @@ pub type PaymentsSyncRouterData = RouterData<api::PSync, PaymentsSyncData, Payme
 pub type PaymentsCaptureRouterData =
     RouterData<api::Capture, PaymentsCaptureData, PaymentsResponseData>;
 pub type PaymentsCancelRouterData = RouterData<api::Void, PaymentsCancelData, PaymentsResponseData>;
+pub type PaymentsRejectRouterData =
+    RouterData<api::Reject, PaymentsRejectData, PaymentsResponseData>;
+pub type PaymentsApproveRouterData =
+    RouterData<api::Approve, PaymentsApproveData, PaymentsResponseData>;
 pub type PaymentsSessionRouterData =
     RouterData<api::Session, PaymentsSessionData, PaymentsResponseData>;
 pub type RefundsRouterData<F> = RouterData<F, RefundsData, RefundsResponseData>;
@@ -233,7 +241,7 @@ pub struct RouterData<Flow, Request, Response> {
     pub access_token: Option<AccessToken>,
     pub session_token: Option<String>,
     pub reference_id: Option<String>,
-    pub payment_method_token: Option<String>,
+    pub payment_method_token: Option<PaymentMethodToken>,
     pub recurring_mandate_payment_data: Option<RecurringMandatePaymentData>,
     pub preprocessing_id: Option<String>,
     /// This is the balance amount for gift cards or voucher
@@ -264,6 +272,31 @@ pub struct RouterData<Flow, Request, Response> {
 
     pub test_mode: Option<bool>,
     pub connector_http_status_code: Option<u16>,
+}
+
+#[derive(Debug, Clone, serde::Deserialize)]
+pub enum PaymentMethodToken {
+    Token(String),
+    ApplePayDecrypt(Box<ApplePayPredecryptData>),
+}
+
+#[derive(Debug, Clone, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ApplePayPredecryptData {
+    pub application_primary_account_number: Secret<String>,
+    pub application_expiration_date: Secret<String>,
+    pub currency_code: Secret<String>,
+    pub transaction_amount: Secret<i64>,
+    pub device_manufacturer_identifier: Secret<String>,
+    pub payment_data_type: Secret<String>,
+    pub payment_data: ApplePayCryptogramData,
+}
+
+#[derive(Debug, Clone, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ApplePayCryptogramData {
+    pub online_payment_cryptogram: Secret<String>,
+    pub eci_indicator: Option<Secret<String>>,
 }
 
 #[derive(Debug, Clone)]
@@ -383,6 +416,7 @@ pub struct PaymentsPreProcessingData {
     pub order_details: Option<Vec<api_models::payments::OrderDetailsWithAmount>>,
     pub router_return_url: Option<String>,
     pub webhook_url: Option<String>,
+    pub complete_authorize_url: Option<String>,
 }
 
 #[derive(Debug, Clone)]
@@ -436,6 +470,18 @@ pub struct PaymentsCancelData {
     pub connector_transaction_id: String,
     pub cancellation_reason: Option<String>,
     pub connector_meta: Option<serde_json::Value>,
+}
+
+#[derive(Debug, Default, Clone)]
+pub struct PaymentsRejectData {
+    pub amount: Option<i64>,
+    pub currency: Option<storage_enums::Currency>,
+}
+
+#[derive(Debug, Default, Clone)]
+pub struct PaymentsApproveData {
+    pub amount: Option<i64>,
+    pub currency: Option<storage_enums::Currency>,
 }
 
 #[derive(Debug, Clone)]
@@ -496,6 +542,8 @@ impl Capturable for CompleteAuthorizeData {
 }
 impl Capturable for VerifyRequestData {}
 impl Capturable for PaymentsCancelData {}
+impl Capturable for PaymentsApproveData {}
+impl Capturable for PaymentsRejectData {}
 impl Capturable for PaymentsSessionData {}
 impl Capturable for PaymentsSyncData {}
 
@@ -908,24 +956,33 @@ impl<F> From<&RouterData<F, PaymentsAuthorizeData, PaymentsResponseData>>
 }
 
 pub trait Tokenizable {
-    fn get_pm_data(&self) -> payments::PaymentMethodData;
+    fn get_pm_data(&self) -> RouterResult<payments::PaymentMethodData>;
     fn set_session_token(&mut self, token: Option<String>);
 }
 
 impl Tokenizable for VerifyRequestData {
-    fn get_pm_data(&self) -> payments::PaymentMethodData {
-        self.payment_method_data.clone()
+    fn get_pm_data(&self) -> RouterResult<payments::PaymentMethodData> {
+        Ok(self.payment_method_data.clone())
     }
     fn set_session_token(&mut self, _token: Option<String>) {}
 }
 
 impl Tokenizable for PaymentsAuthorizeData {
-    fn get_pm_data(&self) -> payments::PaymentMethodData {
-        self.payment_method_data.clone()
+    fn get_pm_data(&self) -> RouterResult<payments::PaymentMethodData> {
+        Ok(self.payment_method_data.clone())
     }
     fn set_session_token(&mut self, token: Option<String>) {
         self.session_token = token;
     }
+}
+
+impl Tokenizable for CompleteAuthorizeData {
+    fn get_pm_data(&self) -> RouterResult<payments::PaymentMethodData> {
+        self.payment_method_data
+            .clone()
+            .get_required_value("payment_method_data")
+    }
+    fn set_session_token(&mut self, _token: Option<String>) {}
 }
 
 impl From<&VerifyRouterData> for PaymentsAuthorizeData {

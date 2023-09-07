@@ -44,6 +44,7 @@ recon_admin_api_key = "recon_test_admin"
 merchant_cert_key = "MERCHANT CERTIFICATE KEY"
 merchant_cert = "MERCHANT CERTIFICATE"
 common_merchant_identifier = "COMMON MERCHANT IDENTIFIER"
+applepay_endpoint = "DOMAIN SPECIFIC ENDPOINT"
 
 [locker]
 host = ""
@@ -369,6 +370,7 @@ stax = { long_lived_token = true, payment_method = "card,bank_debit" }
 mollie = {long_lived_token = false, payment_method = "card"}
 square = {long_lived_token = false, payment_method = "card"}
 braintree = { long_lived_token = false, payment_method = "card" }
+payme = {long_lived_token = false, payment_method = "card"}
 
 [connector_customer]
 connector_list = "bluesnap,stax,stripe"
@@ -412,3 +414,9 @@ payout_eligibility = true
 
 [multiple_api_version_supported_connectors]
 supported_connectors = "braintree"
+
+[applepay_decrypt_keys]
+apple_pay_ppc = "APPLE_PAY_PAYMENT_PROCESSING_CERTIFICATE"
+apple_pay_ppc_key = "APPLE_PAY_PAYMENT_PROCESSING_CERTIFICATE_KEY"
+apple_pay_merchant_cert = "APPLE_PAY_MERCHNAT_CERTIFICATE"
+apple_pay_merchant_cert_key = "APPLE_PAY_MERCHNAT_CERTIFICATE_KEY"

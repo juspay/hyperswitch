@@ -395,18 +395,6 @@ where
                                 router_data.response = Err(error_response);
                                 router_data.connector_http_status_code = Some(504);
                                 Ok(router_data)
-                            } else if error.current_context().is_connection_closed() {
-                                let error_response = ErrorResponse {
-                                    code: consts::CONNECTION_CLOSED_ERROR_CODE.to_string(),
-                                    message: consts::CONNECTION_CLOSED_ERROR_MESSAGE.to_string(),
-                                    reason: Some(
-                                        consts::CONNECTION_CLOSED_ERROR_MESSAGE.to_string(),
-                                    ),
-                                    status_code: 504,
-                                };
-                                router_data.response = Err(error_response);
-                                router_data.connector_http_status_code = Some(504);
-                                Ok(router_data)
                             } else {
                                 Err(error.change_context(
                                     errors::ConnectorError::ProcessingStepFailed(None),
@@ -679,6 +667,7 @@ pub enum RedirectForm {
     BlueSnap {
         payment_fields_token: String, // payment-field-token
     },
+    Payme,
 }
 
 impl From<(url::Url, Method)> for RedirectForm {
@@ -1123,6 +1112,33 @@ pub fn build_redirection_form(
                 </script>
                 ")))
                 }}
+        }
+        RedirectForm::Payme => {
+            maud::html! {
+                (maud::DOCTYPE)
+                head {
+                    (PreEscaped(r#"<script src="https://cdn.paymeservice.com/hf/v1/hostedfields.js"></script>"#))
+                }
+                (PreEscaped("<script>
+                    var f = document.createElement('form');
+                    f.action=window.location.pathname.replace(/payments\\/redirect\\/(\\w+)\\/(\\w+)\\/\\w+/, \"payments/$1/$2/redirect/complete/payme\");
+                    f.method='POST';
+                    PayMe.clientData()
+                    .then((data) => {{
+                        var i=document.createElement('input');
+                        i.type='hidden';
+                        i.name='meta_data';
+                        i.value=data.hash;
+                        f.appendChild(i);
+                        document.body.appendChild(f);
+                        f.submit();
+                    }})
+                    .catch((error) => {{
+                        f.submit();
+                    }});
+            </script>
+                ".to_string()))
+            }
         }
     }
 }
