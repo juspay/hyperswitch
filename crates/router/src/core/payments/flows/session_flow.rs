@@ -154,8 +154,8 @@ async fn create_applepay_session_token(
             apple_pay_session_request,
             apple_pay_merchant_cert,
             apple_pay_merchant_cert_key,
-        ) = match apple_pay_metadata {
-            payment_types::ApplepaySessionTokenData::ApplePayCombined(
+        ) = match apple_pay_metadata.data {
+            payment_types::ApplepaySessionTokenMetadata::ApplePayCombined(
                 apple_pay_combined_metadata,
             ) => match apple_pay_combined_metadata {
                 payment_types::ApplePayCombinedMetadata::Simplified {
@@ -201,7 +201,7 @@ async fn create_applepay_session_token(
                         .common_merchant_identifier;
 
                     let apple_pay_session_request = get_session_request_for_simplified_apple_pay(
-                        decrypted_merchant_identifier.to_owned(),
+                        decrypted_merchant_identifier.to_string(),
                         session_token_data,
                     );
 
@@ -234,7 +234,7 @@ async fn create_applepay_session_token(
                     )
                 }
             },
-            payment_types::ApplepaySessionTokenData::ApplePay(apple_pay_metadata) => {
+            payment_types::ApplepaySessionTokenMetadata::ApplePay(apple_pay_metadata) => {
                 let apple_pay_session_request = get_session_request_for_manual_apple_pay(
                     apple_pay_metadata.session_token_data.clone(),
                 );

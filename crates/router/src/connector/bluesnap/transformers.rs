@@ -348,11 +348,11 @@ impl TryFrom<&types::PaymentsSessionRouterData> for BluesnapCreateWalletToken {
                 "ApplepaySessionTokenData",
             )
             .change_context(errors::ConnectorError::ParsingFailed)?;
-        let session_token_data = match applepay_metadata {
-            payments::ApplepaySessionTokenData::ApplePay(apple_pay_data) => {
+        let session_token_data = match applepay_metadata.data {
+            payments::ApplepaySessionTokenMetadata::ApplePay(apple_pay_data) => {
                 Ok(apple_pay_data.session_token_data)
             }
-            payments::ApplepaySessionTokenData::ApplePayCombined(_apple_pay_combined_data) => {
+            payments::ApplepaySessionTokenMetadata::ApplePayCombined(_apple_pay_combined_data) => {
                 Err(errors::ConnectorError::FlowNotSupported {
                     flow: "apple pay combined".to_string(),
                     connector: "bluesnap".to_string(),
@@ -394,14 +394,14 @@ impl TryFrom<types::PaymentsSessionResponseRouterData<BluesnapWalletTokenRespons
             )
             .change_context(errors::ConnectorError::ParsingFailed)?;
 
-        let (payment_request_data, session_token_data) = match applepay_metadata {
-            payments::ApplepaySessionTokenData::ApplePayCombined(_apple_pay_combined) => {
+        let (payment_request_data, session_token_data) = match applepay_metadata.data {
+            payments::ApplepaySessionTokenMetadata::ApplePayCombined(_apple_pay_combined) => {
                 Err(errors::ConnectorError::FlowNotSupported {
                     flow: "apple pay combined".to_string(),
                     connector: "bluesnap".to_string(),
                 })
             }
-            payments::ApplepaySessionTokenData::ApplePay(apple_pay) => {
+            payments::ApplepaySessionTokenMetadata::ApplePay(apple_pay) => {
                 Ok((apple_pay.payment_request_data, apple_pay.session_token_data))
             }
         }?;

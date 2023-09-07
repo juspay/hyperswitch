@@ -1087,14 +1087,14 @@ fn check_apple_pay_metadata(
                 let parsed_metadata: Result<api_models::payments::ApplepaySessionTokenData, _> =
                     apple_pay_metadata.parse_value("ApplepaySessionTokenData");
 
-                parsed_metadata.ok().map(|metadata| match metadata {
-                    api_models::payments::ApplepaySessionTokenData::ApplePayCombined(
+                parsed_metadata.ok().map(|metadata| match metadata.data {
+                    api_models::payments::ApplepaySessionTokenMetadata::ApplePayCombined(
                         apple_pay_combined,
                     ) => match apple_pay_combined {
                         api_models::payments::ApplePayCombinedMetadata::Simplified { .. } => true,
                         api_models::payments::ApplePayCombinedMetadata::Manual { .. } => false,
                     },
-                    api_models::payments::ApplepaySessionTokenData::ApplePay(_) => false,
+                    api_models::payments::ApplepaySessionTokenMetadata::ApplePay(_) => false,
                 })
             })
         })
