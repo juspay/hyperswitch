@@ -127,23 +127,25 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for MolliePaymentsRequest {
             currency: item.request.currency,
             value: utils::to_currency_base_unit(item.request.amount, item.request.currency)?,
         };
-        let pm_token = item.get_payment_method_token()?;
         let description = item.get_description()?;
         let redirect_url = item.request.get_return_url()?;
         let payment_method_data = match item.request.capture_method.unwrap_or_default() {
             enums::CaptureMethod::Automatic => match &item.request.payment_method_data {
-                api_models::payments::PaymentMethodData::Card(_) => Ok(
-                    PaymentMethodData::CreditCard(Box::new(CreditCardMethodData {
-                        billing_address: get_billing_details(item)?,
-                        shipping_address: get_shipping_details(item)?,
-                        card_token: Some(Secret::new(match pm_token {
-                            types::PaymentMethodToken::Token(token) => token,
-                            types::PaymentMethodToken::ApplePayDecrypt(_) => {
-                                Err(errors::ConnectorError::InvalidWalletToken)?
-                            }
-                        })),
-                    })),
-                ),
+                api_models::payments::PaymentMethodData::Card(_) => {
+                    let pm_token = item.get_payment_method_token()?;
+                    Ok(PaymentMethodData::CreditCard(Box::new(
+                        CreditCardMethodData {
+                            billing_address: get_billing_details(item)?,
+                            shipping_address: get_shipping_details(item)?,
+                            card_token: Some(Secret::new(match pm_token {
+                                types::PaymentMethodToken::Token(token) => token,
+                                types::PaymentMethodToken::ApplePayDecrypt(_) => {
+                                    Err(errors::ConnectorError::InvalidWalletToken)?
+                                }
+                            })),
+                        },
+                    )))
+                }
                 api_models::payments::PaymentMethodData::BankRedirect(ref redirect_data) => {
                     PaymentMethodData::try_from(redirect_data)
                 }

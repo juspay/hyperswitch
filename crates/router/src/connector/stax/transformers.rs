@@ -34,11 +34,11 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for StaxPaymentsRequest {
                 connector: "Stax",
             })?
         }
-        let pm_token = item.get_payment_method_token()?;
         let total = utils::to_currency_base_unit_asf64(item.request.amount, item.request.currency)?;
 
         match item.request.payment_method_data.clone() {
             api::PaymentMethodData::Card(_) => {
+                let pm_token = item.get_payment_method_token()?;
                 let pre_auth = !item.request.is_auto_capture()?;
                 Ok(Self {
                     meta: StaxPaymentsRequestMetaData { tax: 0 },
@@ -56,6 +56,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for StaxPaymentsRequest {
             api::PaymentMethodData::BankDebit(
                 api_models::payments::BankDebitData::AchBankDebit { .. },
             ) => {
+                let pm_token = item.get_payment_method_token()?;
                 let pre_auth = !item.request.is_auto_capture()?;
                 Ok(Self {
                     meta: StaxPaymentsRequestMetaData { tax: 0 },

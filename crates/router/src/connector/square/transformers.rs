@@ -237,26 +237,28 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for SquarePaymentsRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::PaymentsAuthorizeRouterData) -> Result<Self, Self::Error> {
         let autocomplete = item.request.is_auto_capture()?;
-        let pm_token = item.get_payment_method_token()?;
         match item.request.payment_method_data.clone() {
-            api::PaymentMethodData::Card(_) => Ok(Self {
-                idempotency_key: Secret::new(item.attempt_id.clone()),
-                source_id: Secret::new(match pm_token {
-                    types::PaymentMethodToken::Token(token) => token,
-                    types::PaymentMethodToken::ApplePayDecrypt(_) => {
-                        Err(errors::ConnectorError::InvalidWalletToken)?
-                    }
-                }),
-                amount_money: SquarePaymentsAmountData {
-                    amount: item.request.amount,
-                    currency: item.request.currency,
-                },
-                autocomplete,
-                external_details: SquarePaymentsRequestExternalDetails {
-                    source: "Hyperswitch".to_string(),
-                    source_type: "Card".to_string(),
-                },
-            }),
+            api::PaymentMethodData::Card(_) => {
+                let pm_token = item.get_payment_method_token()?;
+                Ok(Self {
+                    idempotency_key: Secret::new(item.attempt_id.clone()),
+                    source_id: Secret::new(match pm_token {
+                        types::PaymentMethodToken::Token(token) => token,
+                        types::PaymentMethodToken::ApplePayDecrypt(_) => {
+                            Err(errors::ConnectorError::InvalidWalletToken)?
+                        }
+                    }),
+                    amount_money: SquarePaymentsAmountData {
+                        amount: item.request.amount,
+                        currency: item.request.currency,
+                    },
+                    autocomplete,
+                    external_details: SquarePaymentsRequestExternalDetails {
+                        source: "Hyperswitch".to_string(),
+                        source_type: "Card".to_string(),
+                    },
+                })
+            }
             api::PaymentMethodData::BankDebit(_)
             | api::PaymentMethodData::GiftCard(_)
             | api::PaymentMethodData::PayLater(_)
