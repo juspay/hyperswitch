@@ -7,7 +7,7 @@ use base64::Engine;
 use common_utils::{crypto, ext_traits::XmlExt};
 use diesel_models::enums;
 use error_stack::{IntoReport, Report, ResultExt};
-use masking::PeekInterface;
+use masking::{PeekInterface, ExposeInterface};
 use ring::hmac;
 use sha1::{Digest, Sha1};
 
@@ -1265,7 +1265,7 @@ impl api::IncomingWebhook for Braintree {
             .clone()
             .ok_or(errors::ConnectorError::WebhookVerificationSecretNotFound)?;
 
-        let signature = get_matching_webhook_signature(signature_pairs, merchant_secret)
+        let signature = get_matching_webhook_signature(signature_pairs, merchant_secret.expose())
             .ok_or(errors::ConnectorError::WebhookSourceVerificationFailed)?;
         Ok(signature.as_bytes().to_vec())
     }

@@ -1013,10 +1013,6 @@ impl types::transformers::ForeignFrom<&str> for api_models::webhooks::IncomingWe
 }
 
 #[derive(Debug, Deserialize, Serialize)]
-pub struct TestResponse {
-    pub timestamp: Option<String>,
-}
-#[derive(Debug, Deserialize, Serialize)]
 pub struct BraintreeDisputeData {
     pub amount_disputed: i64,
     pub amount_won: Option<String>,
@@ -1025,7 +1021,7 @@ pub struct BraintreeDisputeData {
     pub currency_iso_code: String,
     #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
     pub created_at: Option<PrimitiveDateTime>,
-    pub evidence: DisputeEvidence,
+    pub evidence: Option<DisputeEvidence>,
     pub id: String,
     pub kind: String, // xml parse only string to fields
     pub status: String,

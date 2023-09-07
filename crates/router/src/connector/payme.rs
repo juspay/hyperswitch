@@ -763,8 +763,10 @@ impl api::IncomingWebhook for Payme {
             .ok_or(errors::ConnectorError::WebhookSourceVerificationFailed)
             .into_report()
             .attach_printable("Failed to get additional secrets")?
+            .expose()
             .as_bytes()
             .to_vec();
+        
         message_to_verify.append(&mut message);
 
         let signature_to_verify = hex::decode(signature)
