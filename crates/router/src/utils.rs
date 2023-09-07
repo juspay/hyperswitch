@@ -25,7 +25,7 @@ use uuid::Uuid;
 
 pub use self::{
     ext_traits::{OptionExt, ValidateCall},
-    storage::*,
+    storage::PaymentIntent,
 };
 use crate::{
     consts,
