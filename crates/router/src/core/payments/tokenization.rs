@@ -13,7 +13,7 @@ use crate::{
     services,
     types::{
         self,
-        api::{self, PaymentMethodCreateExt},
+        api::{self, CardDetailsPaymentMethod, PaymentMethodCreateExt},
         domain,
         storage::enums as storage_enums,
     },
@@ -27,6 +27,7 @@ pub async fn save_payment_method<F: Clone, FData>(
     maybe_customer: &Option<domain::Customer>,
     merchant_account: &domain::MerchantAccount,
     payment_method_type: Option<storage_enums::PaymentMethodType>,
+    key_store: &domain::MerchantKeyStore,
 ) -> RouterResult<Option<String>>
 where
     FData: mandate::MandateBehaviour,
@@ -71,6 +72,19 @@ where
                 .await?;
                 let is_duplicate = locker_response.1;
 
+                let pm_card_details = locker_response.0.card.as_ref().map(|card| {
+                    api::payment_methods::PaymentMethodsData::Card(CardDetailsPaymentMethod::from(
+                        card.clone(),
+                    ))
+                });
+
+                let pm_data_encrypted =
+                    payment_methods::cards::create_encrypted_payment_method_data(
+                        key_store,
+                        pm_card_details,
+                    )
+                    .await;
+
                 if is_duplicate {
                     let existing_pm = db
                         .find_payment_method(&locker_response.0.payment_method_id)
@@ -103,6 +117,7 @@ where
                                             &locker_response.0.payment_method_id,
                                             merchant_id,
                                             pm_metadata,
+                                            pm_data_encrypted,
                                         )
                                         .await
                                         .change_context(
@@ -131,6 +146,7 @@ where
                         &locker_response.0.payment_method_id,
                         merchant_id,
                         pm_metadata,
+                        pm_data_encrypted,
                     )
                     .await
                     .change_context(errors::ApiErrorResponse::InternalServerError)
