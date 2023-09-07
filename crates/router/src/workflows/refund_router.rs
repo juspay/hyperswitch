@@ -1,10 +1,13 @@
-use super::{ProcessTrackerWorkflow, RefundWorkflowRouter};
+use scheduler::consumer::workflows::ProcessTrackerWorkflow;
+
 use crate::{
     core::refunds as refund_flow, errors, logger::error, routes::AppState, types::storage,
 };
 
+pub struct RefundWorkflowRouter;
+
 #[async_trait::async_trait]
-impl ProcessTrackerWorkflow for RefundWorkflowRouter {
+impl ProcessTrackerWorkflow<AppState> for RefundWorkflowRouter {
     async fn execute_workflow<'a>(
         &'a self,
         state: &'a AppState,

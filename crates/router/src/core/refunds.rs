@@ -3,6 +3,7 @@ pub mod validator;
 use common_utils::ext_traits::AsyncExt;
 use error_stack::{report, IntoReport, ResultExt};
 use router_env::{instrument, tracing};
+use scheduler::{consumer::types::process_data, utils as process_tracker_utils};
 
 use crate::{
     consts,
@@ -13,7 +14,6 @@ use crate::{
     },
     db, logger,
     routes::{metrics, AppState},
-    scheduler::{process_data, utils as process_tracker_utils, workflows::payment_sync},
     services,
     types::{
         self,
@@ -23,6 +23,7 @@ use crate::{
         transformers::{ForeignFrom, ForeignInto},
     },
     utils::{self, OptionExt},
+    workflows::payment_sync,
 };
 
 // ********************************************** REFUND EXECUTE **********************************************
@@ -355,6 +356,7 @@ fn should_call_refund(refund: &diesel_models::refund::Refund, force_sync: bool) 
         || !matches!(
             refund.refund_status,
             diesel_models::enums::RefundStatus::Failure
+                | diesel_models::enums::RefundStatus::Success
         );
 
     predicate1 && predicate2
@@ -852,7 +854,7 @@ pub async fn sync_refund_with_gateway_workflow(
             let id = refund_tracker.id.clone();
             refund_tracker
                 .clone()
-                .finish_with_status(&*state.store, format!("COMPLETED_BY_PT_{id}"))
+                .finish_with_status(state.store.as_scheduler(), format!("COMPLETED_BY_PT_{id}"))
                 .await?
         }
         _ => {
@@ -967,7 +969,7 @@ pub async fn trigger_refund_execute_workflow(
             let id = refund_tracker.id.clone();
             refund_tracker
                 .clone()
-                .finish_with_status(db, format!("COMPLETED_BY_PT_{id}"))
+                .finish_with_status(db.as_scheduler(), format!("COMPLETED_BY_PT_{id}"))
                 .await?;
         }
     };
@@ -1106,9 +1108,9 @@ pub async fn retry_refund_sync_task(
         get_refund_sync_process_schedule_time(db, &connector, &merchant_id, pt.retry_count).await?;
 
     match schedule_time {
-        Some(s_time) => pt.retry(db, s_time).await,
+        Some(s_time) => pt.retry(db.as_scheduler(), s_time).await,
         None => {
-            pt.finish_with_status(db, "RETRIES_EXCEEDED".to_string())
+            pt.finish_with_status(db.as_scheduler(), "RETRIES_EXCEEDED".to_string())
                 .await
         }
     }

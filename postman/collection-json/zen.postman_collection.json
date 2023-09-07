@@ -1,11 +1,34 @@
 {
-  "info": {
-    "_postman_id": "9d9a383e-649b-4a59-b843-ca8fe3416457",
-    "name": "zen",
-    "description": "## Get started\n\nJuspay Router provides a collection of APIs that enable you to process and manage payments. Our APIs accept and return JSON in the HTTP body, and return standard HTTP response codes.  \nYou can consume the APIs directly using your favorite HTTP/REST library.  \nWe have a testing environment referred to \"sandbox\", which you can setup to test API calls without affecting production data.\n\n### Base URLs\n\nUse the following base URLs when making requests to the APIs:\n\n| Environment | Base URL |\n| --- | --- |\n| Sandbox | [https://sandbox.hyperswitch.io](https://sandbox.hyperswitch.io) |\n| Production | [https://router.juspay.io](https://router.juspay.io) |\n\n# Authentication\n\nWhen you sign up for an account, you are given a secret key (also referred as api-key). You may authenticate all API requests with Juspay server by providing the appropriate key in the request Authorization header.  \nNever share your secret api keys. Keep them guarded and secure.\n\nContact Support:  \nName: Juspay Support  \nEmail: [support@juspay.in](mailto:support@juspay.in)",
-    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
-    "_exporter_id": "25737662"
-  },
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "exec": [
+          ""
+        ],
+        "type": "text/javascript"
+      }
+    },
+    {
+      "listen": "test",
+      "script": {
+        "exec": [
+          "// Set response object as internal variable",
+          "let jsonData = {};",
+          "try {jsonData = pm.response.json();}catch(e){}",
+          "",
+          "// pm.collectionVariables - Set payment_id as variable for jsonData.payment_id",
+          "if (jsonData?.payment_id) {",
+          "   pm.collectionVariables.set(\"payment_id\", jsonData.payment_id);",
+          "   console.log(\"[LOG]::payment_id - \" + jsonData.payment_id);",
+          "}",
+          "",
+          "console.log(\"[LOG]::x-request-id - \" + pm.response.headers.get('x-request-id'));"
+        ],
+        "type": "text/javascript"
+      }
+    }
+  ],
   "item": [
     {
       "name": "Health check",
@@ -152,12 +175,12 @@
                 ],
                 "body": {
                   "mode": "raw",
-                  "raw": "{\n  \"merchant_id\": \"postman_merchant_GHAction_{{$guid}}\",\n  \"locker_id\": \"m0010\",\n  \"merchant_name\": \"NewAge Retailer\",\n    \"primary_business_details\": [\n        {\n            \"country\": \"US\",\n            \"business\": \"default\"\n        }\n    ],\n  \"merchant_details\": {\n    \"primary_contact_person\": \"John Test\",\n    \"primary_email\": \"JohnTest@test.com\",\n    \"primary_phone\": \"sunt laborum\",\n    \"secondary_contact_person\": \"John Test2\",\n    \"secondary_email\": \"JohnTest2@test.com\",\n    \"secondary_phone\": \"cillum do dolor id\",\n    \"website\": \"www.example.com\",\n    \"about_business\": \"Online Retail with a wide selection of organic products for North America\",\n    \"address\": {\n      \"line1\": \"1467\",\n      \"line2\": \"Harrison Street\",\n      \"line3\": \"Harrison Street\",\n      \"city\": \"San Fransico\",\n      \"state\": \"California\",\n      \"zip\": \"94122\",\n      \"country\": \"US\"\n    }\n  },\n  \"return_url\": \"https://duck.com\",\n  \"webhook_details\": {\n    \"webhook_version\": \"1.0.1\",\n    \"webhook_username\": \"ekart_retail\",\n    \"webhook_password\": \"password_ekart@123\",\n    \"payment_created_enabled\": true,\n    \"payment_succeeded_enabled\": true,\n    \"payment_failed_enabled\": true\n  },\n  \"routing_algorithm\": {\n    \"type\": \"single\",\n    \"data\": \"zen\"\n  },\n  \"sub_merchants_enabled\": false,\n  \"metadata\": {\n    \"city\": \"NY\",\n    \"unit\": \"245\"\n  }\n}",
                   "options": {
                     "raw": {
                       "language": "json"
                     }
-                  }
+                  },
+                  "raw": "{\"merchant_id\":\"postman_merchant_GHAction_{{$guid}}\",\"locker_id\":\"m0010\",\"merchant_name\":\"NewAge Retailer\",\"primary_business_details\":[{\"country\":\"US\",\"business\":\"default\"}],\"merchant_details\":{\"primary_contact_person\":\"John Test\",\"primary_email\":\"JohnTest@test.com\",\"primary_phone\":\"sunt laborum\",\"secondary_contact_person\":\"John Test2\",\"secondary_email\":\"JohnTest2@test.com\",\"secondary_phone\":\"cillum do dolor id\",\"website\":\"www.example.com\",\"about_business\":\"Online Retail with a wide selection of organic products for North America\",\"address\":{\"line1\":\"1467\",\"line2\":\"Harrison Street\",\"line3\":\"Harrison Street\",\"city\":\"San Fransico\",\"state\":\"California\",\"zip\":\"94122\",\"country\":\"US\"}},\"return_url\":\"https://duck.com\",\"webhook_details\":{\"webhook_version\":\"1.0.1\",\"webhook_username\":\"ekart_retail\",\"webhook_password\":\"password_ekart@123\",\"payment_created_enabled\":true,\"payment_succeeded_enabled\":true,\"payment_failed_enabled\":true},\"sub_merchants_enabled\":false,\"metadata\":{\"city\":\"NY\",\"unit\":\"245\"}}"
                 },
                 "url": {
                   "raw": "{{baseUrl}}/accounts",
@@ -245,7 +268,7 @@
                 ],
                 "body": {
                   "mode": "raw",
-                  "raw": "{\n  \"name\": \"API Key 1\",\n  \"description\": null,\n  \"expiration\": \"2023-09-23T01:02:03.000Z\"\n}"
+                  "raw": "{\"name\":\"API Key 1\",\"description\":null,\"expiration\":\"2023-09-23T01:02:03.000Z\"}"
                 },
                 "url": {
                   "raw": "{{baseUrl}}/api_keys/:merchant_id",
@@ -302,7 +325,9 @@
                 {
                   "listen": "prerequest",
                   "script": {
-                    "exec": [],
+                    "exec": [
+                      ""
+                    ],
                     "type": "text/javascript"
                   }
                 }
@@ -341,12 +366,12 @@
                 ],
                 "body": {
                   "mode": "raw",
-                  "raw": "{\n    \"connector_type\": \"fiz_operations\",\n    \"connector_name\": \"zen\",\n    \"connector_account_details\": {\n        \"auth_type\": \"HeaderKey\",\n        \"api_key\": \"{{connector_api_key}}\"\n    },\n    \"test_mode\": false,\n    \"disabled\": false,\n    \"business_country\": \"US\",\n    \"business_label\": \"default\",\n    \"payment_methods_enabled\": [\n        {\n            \"payment_method\": \"card\",\n            \"payment_method_types\": [\n                {\n                    \"payment_method_type\": \"credit\",\n                    \"minimum_amount\": 1,\n                    \"maximum_amount\": 68607706,\n                    \"recurring_enabled\": true,\n                    \"installment_payment_enabled\": true\n                },\n                {\n                    \"payment_method_type\": \"debit\",\n                    \"minimum_amount\": 1,\n                    \"maximum_amount\": 68607706,\n                    \"recurring_enabled\": true,\n                    \"installment_payment_enabled\": true\n                }\n            ]\n        }\n    ]\n}",
                   "options": {
                     "raw": {
                       "language": "json"
                     }
-                  }
+                  },
+                  "raw": "{\"connector_type\":\"fiz_operations\",\"connector_name\":\"zen\",\"connector_account_details\":{\"auth_type\":\"HeaderKey\",\"api_key\":\"{{connector_api_key}}\"},\"test_mode\":false,\"disabled\":false,\"business_country\":\"US\",\"business_label\":\"default\",\"payment_methods_enabled\":[{\"payment_method\":\"card\",\"payment_method_types\":[{\"payment_method_type\":\"credit\",\"minimum_amount\":1,\"maximum_amount\":68607706,\"recurring_enabled\":true,\"installment_payment_enabled\":true},{\"payment_method_type\":\"debit\",\"minimum_amount\":1,\"maximum_amount\":68607706,\"recurring_enabled\":true,\"installment_payment_enabled\":true}]}]}"
                 },
                 "url": {
                   "raw": "{{baseUrl}}/account/:account_id/connectors",
@@ -440,12 +465,12 @@
                 ],
                 "body": {
                   "mode": "raw",
-                  "raw": "{\n  \"amount\": 6540,\n  \"currency\": \"PLN\",\n  \"confirm\": true,\n  \"capture_method\": \"automatic\",\n  \"capture_on\": \"2022-09-10T10:11:12Z\",\n  \"customer_id\": \"StripeCustomer\",\n  \"email\": \"abcdef123@gmail.com\",\n  \"name\": \"John Doe\",\n  \"phone\": \"999999999\",\n  \"phone_country_code\": \"+65\",\n  \"description\": \"Its my first payment request\",\n  \"authentication_type\": \"no_three_ds\",\n  \"return_url\": \"https://duck.com\",\n  \"setup_future_usage\": \"off_session\",\n  \"order_details\":[ {\n      \"amount\": 6540,\n      \"product_name\": \"test\",\n      \"quantity\": 1\n    }],\n  \"billing\": {\n    \"address\": {\n      \"line1\": \"1467\",\n      \"line2\": \"Harrison Street\",\n      \"line3\": \"Harrison Street\",\n      \"city\": \"San Fransico\",\n      \"state\": \"California\",\n      \"zip\": \"94122\",\n      \"country\": \"US\"\n    }\n  },\n  \"browser_info\": {\n    \"user_agent\": \"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/70.0.3538.110 Safari/537.36\",\n    \"accept_header\": \"text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8\",\n    \"language\": \"nl-NL\",\n    \"color_depth\": 24,\n    \"screen_height\": 723,\n    \"screen_width\": 1536,\n    \"time_zone\": 0,\n    \"java_enabled\": true,\n    \"java_script_enabled\": true,\n    \"ip_address\": \"127.0.0.1\"\n  },\n  \"shipping\": {\n    \"address\": {\n      \"line1\": \"1467\",\n      \"line2\": \"Harrison Street\",\n      \"line3\": \"Harrison Street\",\n      \"city\": \"San Fransico\",\n      \"state\": \"California\",\n      \"zip\": \"94122\",\n      \"country\": \"US\",\n      \"first_name\": \"John\",\n      \"last_name\": \"Doe\"\n    }\n  },\n  \"statement_descriptor_name\": \"joseph\",\n  \"statement_descriptor_suffix\": \"JS\",\n  \"metadata\": {\n    \"udf1\": \"value1\",\n    \"new_customer\": \"true\",\n    \"login_date\": \"2019-09-10T10:11:12Z\",\n    \"order_details\": {\n      \"amount\": 6540,\n      \"product_name\": \"test\",\n      \"quantity\": 1\n    }\n  },\n  \"payment_method\": \"card\",\n  \"payment_method_data\": {\n    \"card\": {\n      \"card_number\": \"4242424242424242\",\n      \"card_exp_month\": \"10\",\n      \"card_exp_year\": \"25\",\n      \"card_holder_name\": \"CL-BRW1\",\n      \"card_cvc\": \"123\"\n    }\n  }\n}",
                   "options": {
                     "raw": {
                       "language": "json"
                     }
-                  }
+                  },
+                  "raw": "{\"amount\":6540,\"currency\":\"PLN\",\"confirm\":true,\"capture_method\":\"automatic\",\"capture_on\":\"2022-09-10T10:11:12Z\",\"customer_id\":\"StripeCustomer\",\"email\":\"abcdef123@gmail.com\",\"name\":\"John Doe\",\"phone\":\"999999999\",\"phone_country_code\":\"+65\",\"description\":\"Its my first payment request\",\"authentication_type\":\"no_three_ds\",\"return_url\":\"https://duck.com\",\"setup_future_usage\":\"off_session\",\"order_details\":[{\"amount\":6540,\"product_name\":\"test\",\"quantity\":1}],\"billing\":{\"address\":{\"line1\":\"1467\",\"line2\":\"Harrison Street\",\"line3\":\"Harrison Street\",\"city\":\"San Fransico\",\"state\":\"California\",\"zip\":\"94122\",\"country\":\"US\"}},\"browser_info\":{\"user_agent\":\"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/70.0.3538.110 Safari/537.36\",\"accept_header\":\"text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8\",\"language\":\"nl-NL\",\"color_depth\":24,\"screen_height\":723,\"screen_width\":1536,\"time_zone\":0,\"java_enabled\":true,\"java_script_enabled\":true,\"ip_address\":\"127.0.0.1\"},\"shipping\":{\"address\":{\"line1\":\"1467\",\"line2\":\"Harrison Street\",\"line3\":\"Harrison Street\",\"city\":\"San Fransico\",\"state\":\"California\",\"zip\":\"94122\",\"country\":\"US\",\"first_name\":\"John\",\"last_name\":\"Doe\"}},\"statement_descriptor_name\":\"joseph\",\"statement_descriptor_suffix\":\"JS\",\"metadata\":{\"udf1\":\"value1\",\"new_customer\":\"true\",\"login_date\":\"2019-09-10T10:11:12Z\",\"order_details\":{\"amount\":6540,\"product_name\":\"test\",\"quantity\":1}},\"payment_method\":\"card\",\"payment_method_data\":{\"card\":{\"card_number\":\"4242424242424242\",\"card_exp_month\":\"10\",\"card_exp_year\":\"25\",\"card_holder_name\":\"CL-BRW1\",\"card_cvc\":\"123\"}}}"
                 },
                 "url": {
                   "raw": "{{baseUrl}}/payments",
@@ -629,12 +654,12 @@
                     ],
                     "body": {
                       "mode": "raw",
-                      "raw": "{\n  \"amount\": 6540,\n  \"currency\": \"PLN\",\n  \"confirm\": true,\n  \"capture_method\": \"automatic\",\n  \"capture_on\": \"2022-09-10T10:11:12Z\",\n  \"customer_id\": \"StripeCustomer\",\n  \"email\": \"abcdef123@gmail.com\",\n  \"name\": \"John Doe\",\n  \"phone\": \"999999999\",\n  \"phone_country_code\": \"+65\",\n  \"description\": \"Its my first payment request\",\n  \"authentication_type\": \"no_three_ds\",\n  \"return_url\": \"https://duck.com\",\n  \"setup_future_usage\": \"off_session\",\n  \"billing\": {\n    \"address\": {\n      \"line1\": \"1467\",\n      \"line2\": \"Harrison Street\",\n      \"line3\": \"Harrison Street\",\n      \"city\": \"San Fransico\",\n      \"state\": \"California\",\n      \"zip\": \"94122\",\n      \"country\": \"US\"\n    }\n  },\n  \"browser_info\": {\n    \"user_agent\": \"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/70.0.3538.110 Safari/537.36\",\n    \"accept_header\": \"text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8\",\n    \"language\": \"nl-NL\",\n    \"color_depth\": 24,\n    \"screen_height\": 723,\n    \"screen_width\": 1536,\n    \"time_zone\": 0,\n    \"java_enabled\": true,\n    \"java_script_enabled\": true,\n    \"ip_address\": \"127.0.0.1\"\n  },\n  \"shipping\": {\n    \"address\": {\n      \"line1\": \"1467\",\n      \"line2\": \"Harrison Street\",\n      \"line3\": \"Harrison Street\",\n      \"city\": \"San Fransico\",\n      \"state\": \"California\",\n      \"zip\": \"94122\",\n      \"country\": \"US\",\n      \"first_name\": \"John\",\n      \"last_name\": \"Doe\"\n    }\n  },\n  \"statement_descriptor_name\": \"joseph\",\n  \"statement_descriptor_suffix\": \"JS\",\n  \"metadata\": {\n    \"udf1\": \"value1\",\n    \"new_customer\": \"true\",\n    \"login_date\": \"2019-09-10T10:11:12Z\",\n    \"order_details\": {\n      \"amount\": 6540,\n      \"product_name\": \"test\",\n      \"quantity\": 1\n    }\n  },\n  \"order_details\":[ {\n      \"amount\": 6540,\n      \"product_name\": \"test\",\n      \"quantity\": 1\n    }],\n  \"payment_method\": \"card\",\n  \"payment_method_data\": {\n    \"card\": {\n      \"card_number\": \"4242424242424242\",\n      \"card_exp_month\": \"10\",\n      \"card_exp_year\": \"25\",\n      \"card_holder_name\": \"CL-BRW1\",\n      \"card_cvc\": \"123\"\n    }\n  }\n}",
                       "options": {
                         "raw": {
                           "language": "json"
                         }
-                      }
+                      },
+                      "raw": "{\"amount\":6540,\"currency\":\"PLN\",\"confirm\":true,\"capture_method\":\"automatic\",\"capture_on\":\"2022-09-10T10:11:12Z\",\"customer_id\":\"StripeCustomer\",\"email\":\"abcdef123@gmail.com\",\"name\":\"John Doe\",\"phone\":\"999999999\",\"phone_country_code\":\"+65\",\"description\":\"Its my first payment request\",\"authentication_type\":\"no_three_ds\",\"return_url\":\"https://duck.com\",\"setup_future_usage\":\"off_session\",\"billing\":{\"address\":{\"line1\":\"1467\",\"line2\":\"Harrison Street\",\"line3\":\"Harrison Street\",\"city\":\"San Fransico\",\"state\":\"California\",\"zip\":\"94122\",\"country\":\"US\"}},\"browser_info\":{\"user_agent\":\"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/70.0.3538.110 Safari/537.36\",\"accept_header\":\"text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8\",\"language\":\"nl-NL\",\"color_depth\":24,\"screen_height\":723,\"screen_width\":1536,\"time_zone\":0,\"java_enabled\":true,\"java_script_enabled\":true,\"ip_address\":\"127.0.0.1\"},\"shipping\":{\"address\":{\"line1\":\"1467\",\"line2\":\"Harrison Street\",\"line3\":\"Harrison Street\",\"city\":\"San Fransico\",\"state\":\"California\",\"zip\":\"94122\",\"country\":\"US\",\"first_name\":\"John\",\"last_name\":\"Doe\"}},\"statement_descriptor_name\":\"joseph\",\"statement_descriptor_suffix\":\"JS\",\"metadata\":{\"udf1\":\"value1\",\"new_customer\":\"true\",\"login_date\":\"2019-09-10T10:11:12Z\",\"order_details\":{\"amount\":6540,\"product_name\":\"test\",\"quantity\":1}},\"order_details\":[{\"amount\":6540,\"product_name\":\"test\",\"quantity\":1}],\"payment_method\":\"card\",\"payment_method_data\":{\"card\":{\"card_number\":\"4242424242424242\",\"card_exp_month\":\"10\",\"card_exp_year\":\"25\",\"card_holder_name\":\"CL-BRW1\",\"card_cvc\":\"123\"}}}"
                     },
                     "url": {
                       "raw": "{{baseUrl}}/payments",
@@ -829,12 +854,12 @@
                     ],
                     "body": {
                       "mode": "raw",
-                      "raw": "{\n  \"amount\": 6540,\n  \"currency\": \"PLN\",\n  \"confirm\": false,\n  \"capture_method\": \"automatic\",\n  \"capture_on\": \"2022-09-10T10:11:12Z\",\n  \"customer_id\": \"StripeCustomer\",\n  \"email\": \"abcdef123@gmail.com\",\n  \"name\": \"John Doe\",\n  \"phone\": \"999999999\",\n  \"phone_country_code\": \"+65\",\n  \"description\": \"Its my first payment request\",\n  \"authentication_type\": \"no_three_ds\",\n  \"return_url\": \"https://duck.com\",\n  \"setup_future_usage\": \"off_session\",\n  \"billing\": {\n    \"address\": {\n      \"line1\": \"1467\",\n      \"line2\": \"Harrison Street\",\n      \"line3\": \"Harrison Street\",\n      \"city\": \"San Fransico\",\n      \"state\": \"California\",\n      \"zip\": \"94122\",\n      \"country\": \"US\"\n    }\n  },\n  \"browser_info\": {\n    \"user_agent\": \"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/70.0.3538.110 Safari/537.36\",\n    \"accept_header\": \"text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8\",\n    \"language\": \"nl-NL\",\n    \"color_depth\": 24,\n    \"screen_height\": 723,\n    \"screen_width\": 1536,\n    \"time_zone\": 0,\n    \"java_enabled\": true,\n    \"java_script_enabled\": true,\n    \"ip_address\": \"127.0.0.1\"\n  },\n  \"shipping\": {\n    \"address\": {\n      \"line1\": \"1467\",\n      \"line2\": \"Harrison Street\",\n      \"line3\": \"Harrison Street\",\n      \"city\": \"San Fransico\",\n      \"state\": \"California\",\n      \"zip\": \"94122\",\n      \"country\": \"US\",\n      \"first_name\": \"John\",\n      \"last_name\": \"Doe\"\n    }\n  },\n  \"statement_descriptor_name\": \"joseph\",\n  \"statement_descriptor_suffix\": \"JS\",\n  \"metadata\": {\n    \"udf1\": \"value1\",\n    \"new_customer\": \"true\",\n    \"login_date\": \"2019-09-10T10:11:12Z\",\n    \"order_details\": {\n      \"amount\": 6540,\n      \"product_name\": \"test\",\n      \"quantity\": 1\n    }\n  },\n  \"payment_method\": \"card\",\n  \"payment_method_data\": {\n    \"card\": {\n      \"card_number\": \"4242424242424242\",\n      \"card_exp_month\": \"10\",\n      \"card_exp_year\": \"25\",\n      \"card_holder_name\": \"CL-BRW1\",\n      \"card_cvc\": \"123\"\n    }\n  }\n}",
                       "options": {
                         "raw": {
                           "language": "json"
                         }
-                      }
+                      },
+                      "raw": "{\"amount\":6540,\"currency\":\"PLN\",\"confirm\":false,\"capture_method\":\"automatic\",\"capture_on\":\"2022-09-10T10:11:12Z\",\"customer_id\":\"StripeCustomer\",\"email\":\"abcdef123@gmail.com\",\"name\":\"John Doe\",\"phone\":\"999999999\",\"phone_country_code\":\"+65\",\"description\":\"Its my first payment request\",\"authentication_type\":\"no_three_ds\",\"return_url\":\"https://duck.com\",\"setup_future_usage\":\"off_session\",\"billing\":{\"address\":{\"line1\":\"1467\",\"line2\":\"Harrison Street\",\"line3\":\"Harrison Street\",\"city\":\"San Fransico\",\"state\":\"California\",\"zip\":\"94122\",\"country\":\"US\"}},\"browser_info\":{\"user_agent\":\"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/70.0.3538.110 Safari/537.36\",\"accept_header\":\"text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8\",\"language\":\"nl-NL\",\"color_depth\":24,\"screen_height\":723,\"screen_width\":1536,\"time_zone\":0,\"java_enabled\":true,\"java_script_enabled\":true,\"ip_address\":\"127.0.0.1\"},\"shipping\":{\"address\":{\"line1\":\"1467\",\"line2\":\"Harrison Street\",\"line3\":\"Harrison Street\",\"city\":\"San Fransico\",\"state\":\"California\",\"zip\":\"94122\",\"country\":\"US\",\"first_name\":\"John\",\"last_name\":\"Doe\"}},\"statement_descriptor_name\":\"joseph\",\"statement_descriptor_suffix\":\"JS\",\"metadata\":{\"udf1\":\"value1\",\"new_customer\":\"true\",\"login_date\":\"2019-09-10T10:11:12Z\",\"order_details\":{\"amount\":6540,\"product_name\":\"test\",\"quantity\":1}},\"payment_method\":\"card\",\"payment_method_data\":{\"card\":{\"card_number\":\"4242424242424242\",\"card_exp_month\":\"10\",\"card_exp_year\":\"25\",\"card_holder_name\":\"CL-BRW1\",\"card_cvc\":\"123\"}}}"
                     },
                     "url": {
                       "raw": "{{baseUrl}}/payments",
@@ -927,12 +952,12 @@
                     ],
                     "body": {
                       "mode": "raw",
-                      "raw": "{\n    \"browser_info\": {\n        \"user_agent\": \"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/70.0.3538.110 Safari/537.36\",\n        \"accept_header\": \"text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8\",\n        \"language\": \"nl-NL\",\n        \"color_depth\": 24,\n        \"screen_height\": 723,\n        \"screen_width\": 1536,\n        \"time_zone\": 0,\n        \"java_enabled\": true,\n        \"java_script_enabled\": true,\n        \"ip_address\": \"127.0.0.1\"\n    },\n \"order_details\":[ {\n      \"amount\": 6540,\n      \"product_name\": \"test\",\n      \"quantity\": 1\n    }]\n}",
                       "options": {
                         "raw": {
                           "language": "json"
                         }
-                      }
+                      },
+                      "raw": "{\"browser_info\":{\"user_agent\":\"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/70.0.3538.110 Safari/537.36\",\"accept_header\":\"text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8\",\"language\":\"nl-NL\",\"color_depth\":24,\"screen_height\":723,\"screen_width\":1536,\"time_zone\":0,\"java_enabled\":true,\"java_script_enabled\":true,\"ip_address\":\"127.0.0.1\"},\"order_details\":[{\"amount\":6540,\"product_name\":\"test\",\"quantity\":1}]}"
                     },
                     "url": {
                       "raw": "{{baseUrl}}/payments/:id/confirm",
@@ -1133,12 +1158,12 @@
                     ],
                     "body": {
                       "mode": "raw",
-                      "raw": "{\n  \"amount\": 6540,\n  \"currency\": \"PLN\",\n  \"confirm\": false,\n  \"capture_method\": \"automatic\",\n  \"capture_on\": \"2022-09-10T10:11:12Z\",\n  \"customer_id\": \"StripeCustomer\",\n  \"email\": \"abcdef123@gmail.com\",\n  \"name\": \"John Doe\",\n  \"phone\": \"999999999\",\n  \"phone_country_code\": \"+65\",\n  \"description\": \"Its my first payment request\",\n  \"authentication_type\": \"no_three_ds\",\n  \"return_url\": \"https://duck.com\",\n  \"setup_future_usage\": \"off_session\",\n  \"billing\": {\n    \"address\": {\n      \"line1\": \"1467\",\n      \"line2\": \"Harrison Street\",\n      \"line3\": \"Harrison Street\",\n      \"city\": \"San Fransico\",\n      \"state\": \"California\",\n      \"zip\": \"94122\",\n      \"country\": \"US\"\n    }\n  },\n  \"browser_info\": {\n    \"user_agent\": \"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/70.0.3538.110 Safari/537.36\",\n    \"accept_header\": \"text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8\",\n    \"language\": \"nl-NL\",\n    \"color_depth\": 24,\n    \"screen_height\": 723,\n    \"screen_width\": 1536,\n    \"time_zone\": 0,\n    \"java_enabled\": true,\n    \"java_script_enabled\": true,\n    \"ip_address\": \"127.0.0.1\"\n  },\n  \"shipping\": {\n    \"address\": {\n      \"line1\": \"1467\",\n      \"line2\": \"Harrison Street\",\n      \"line3\": \"Harrison Street\",\n      \"city\": \"San Fransico\",\n      \"state\": \"California\",\n      \"zip\": \"94122\",\n      \"country\": \"US\",\n      \"first_name\": \"John\",\n      \"last_name\": \"Doe\"\n    }\n  },\n  \"statement_descriptor_name\": \"joseph\",\n  \"statement_descriptor_suffix\": \"JS\",\n  \"metadata\": {\n    \"udf1\": \"value1\",\n    \"new_customer\": \"true\",\n    \"login_date\": \"2019-09-10T10:11:12Z\",\n    \"order_details\": {\n      \"amount\": 6540,\n      \"product_name\": \"test\",\n      \"quantity\": 1\n    }\n  }\n}",
                       "options": {
                         "raw": {
                           "language": "json"
                         }
-                      }
+                      },
+                      "raw": "{\"amount\":6540,\"currency\":\"PLN\",\"confirm\":false,\"capture_method\":\"automatic\",\"capture_on\":\"2022-09-10T10:11:12Z\",\"customer_id\":\"StripeCustomer\",\"email\":\"abcdef123@gmail.com\",\"name\":\"John Doe\",\"phone\":\"999999999\",\"phone_country_code\":\"+65\",\"description\":\"Its my first payment request\",\"authentication_type\":\"no_three_ds\",\"return_url\":\"https://duck.com\",\"setup_future_usage\":\"off_session\",\"billing\":{\"address\":{\"line1\":\"1467\",\"line2\":\"Harrison Street\",\"line3\":\"Harrison Street\",\"city\":\"San Fransico\",\"state\":\"California\",\"zip\":\"94122\",\"country\":\"US\"}},\"browser_info\":{\"user_agent\":\"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/70.0.3538.110 Safari/537.36\",\"accept_header\":\"text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8\",\"language\":\"nl-NL\",\"color_depth\":24,\"screen_height\":723,\"screen_width\":1536,\"time_zone\":0,\"java_enabled\":true,\"java_script_enabled\":true,\"ip_address\":\"127.0.0.1\"},\"shipping\":{\"address\":{\"line1\":\"1467\",\"line2\":\"Harrison Street\",\"line3\":\"Harrison Street\",\"city\":\"San Fransico\",\"state\":\"California\",\"zip\":\"94122\",\"country\":\"US\",\"first_name\":\"John\",\"last_name\":\"Doe\"}},\"statement_descriptor_name\":\"joseph\",\"statement_descriptor_suffix\":\"JS\",\"metadata\":{\"udf1\":\"value1\",\"new_customer\":\"true\",\"login_date\":\"2019-09-10T10:11:12Z\",\"order_details\":{\"amount\":6540,\"product_name\":\"test\",\"quantity\":1}}}"
                     },
                     "url": {
                       "raw": "{{baseUrl}}/payments",
@@ -1231,12 +1256,12 @@
                     ],
                     "body": {
                       "mode": "raw",
-                      "raw": "{\n    \"browser_info\": {\n        \"user_agent\": \"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/70.0.3538.110 Safari/537.36\",\n        \"accept_header\": \"text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8\",\n        \"language\": \"nl-NL\",\n        \"color_depth\": 24,\n        \"screen_height\": 723,\n        \"screen_width\": 1536,\n        \"time_zone\": 0,\n        \"java_enabled\": true,\n        \"java_script_enabled\": true,\n        \"ip_address\": \"127.0.0.1\"\n    },\n    \"order_details\":[ {\n      \"amount\": 6540,\n      \"product_name\": \"test\",\n      \"quantity\": 1\n    }],\n    \"payment_method\": \"card\",\n    \"payment_method_data\": {\n        \"card\": {\n            \"card_number\": \"4242424242424242\",\n            \"card_exp_month\": \"10\",\n            \"card_exp_year\": \"25\",\n            \"card_holder_name\": \"CL-BRW1\",\n            \"card_cvc\": \"123\"\n        }\n    }\n}",
                       "options": {
                         "raw": {
                           "language": "json"
                         }
-                      }
+                      },
+                      "raw": "{\"browser_info\":{\"user_agent\":\"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/70.0.3538.110 Safari/537.36\",\"accept_header\":\"text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8\",\"language\":\"nl-NL\",\"color_depth\":24,\"screen_height\":723,\"screen_width\":1536,\"time_zone\":0,\"java_enabled\":true,\"java_script_enabled\":true,\"ip_address\":\"127.0.0.1\"},\"order_details\":[{\"amount\":6540,\"product_name\":\"test\",\"quantity\":1}],\"payment_method\":\"card\",\"payment_method_data\":{\"card\":{\"card_number\":\"4242424242424242\",\"card_exp_month\":\"10\",\"card_exp_year\":\"25\",\"card_holder_name\":\"CL-BRW1\",\"card_cvc\":\"123\"}}}"
                     },
                     "url": {
                       "raw": "{{baseUrl}}/payments/:id/confirm",
@@ -1442,12 +1467,12 @@
                     ],
                     "body": {
                       "mode": "raw",
-                      "raw": "{\n  \"amount\": 6540,\n  \"currency\": \"PLN\",\n  \"confirm\": true,\n  \"capture_method\": \"automatic\",\n  \"capture_on\": \"2022-09-10T10:11:12Z\",\n  \"customer_id\": \"StripeCustomer\",\n  \"email\": \"abcdef123@gmail.com\",\n  \"name\": \"John Doe\",\n  \"phone\": \"999999999\",\n  \"phone_country_code\": \"+65\",\n  \"description\": \"Its my first payment request\",\n  \"authentication_type\": \"no_three_ds\",\n  \"return_url\": \"https://duck.com\",\n  \"setup_future_usage\": \"off_session\",\n  \"order_details\":[ {\n      \"amount\": 6540,\n      \"product_name\": \"test\",\n      \"quantity\": 1\n    }],\n  \"billing\": {\n    \"address\": {\n      \"line1\": \"1467\",\n      \"line2\": \"Harrison Street\",\n      \"line3\": \"Harrison Street\",\n      \"city\": \"San Fransico\",\n      \"state\": \"California\",\n      \"zip\": \"94122\",\n      \"country\": \"US\"\n    }\n  },\n  \"browser_info\": {\n    \"user_agent\": \"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/70.0.3538.110 Safari/537.36\",\n    \"accept_header\": \"text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8\",\n    \"language\": \"nl-NL\",\n    \"color_depth\": 24,\n    \"screen_height\": 723,\n    \"screen_width\": 1536,\n    \"time_zone\": 0,\n    \"java_enabled\": true,\n    \"java_script_enabled\": true,\n    \"ip_address\": \"127.0.0.1\"\n  },\n  \"shipping\": {\n    \"address\": {\n      \"line1\": \"1467\",\n      \"line2\": \"Harrison Street\",\n      \"line3\": \"Harrison Street\",\n      \"city\": \"San Fransico\",\n      \"state\": \"California\",\n      \"zip\": \"94122\",\n      \"country\": \"US\",\n      \"first_name\": \"John\",\n      \"last_name\": \"Doe\"\n    }\n  },\n  \"statement_descriptor_name\": \"joseph\",\n  \"statement_descriptor_suffix\": \"JS\",\n  \"metadata\": {\n    \"udf1\": \"value1\",\n    \"new_customer\": \"true\",\n    \"login_date\": \"2019-09-10T10:11:12Z\",\n    \"order_details\": {\n      \"amount\": 6540,\n      \"product_name\": \"test\",\n      \"quantity\": 1\n    }\n  },\n  \"payment_method\": \"card\",\n  \"payment_method_data\": {\n    \"card\": {\n      \"card_number\": \"4242424242424242\",\n      \"card_exp_month\": \"10\",\n      \"card_exp_year\": \"25\",\n      \"card_holder_name\": \"CL-BRW1\",\n      \"card_cvc\": \"123\"\n    }\n  }\n}",
                       "options": {
                         "raw": {
                           "language": "json"
                         }
-                      }
+                      },
+                      "raw": "{\"amount\":6540,\"currency\":\"PLN\",\"confirm\":true,\"capture_method\":\"automatic\",\"capture_on\":\"2022-09-10T10:11:12Z\",\"customer_id\":\"StripeCustomer\",\"email\":\"abcdef123@gmail.com\",\"name\":\"John Doe\",\"phone\":\"999999999\",\"phone_country_code\":\"+65\",\"description\":\"Its my first payment request\",\"authentication_type\":\"no_three_ds\",\"return_url\":\"https://duck.com\",\"setup_future_usage\":\"off_session\",\"order_details\":[{\"amount\":6540,\"product_name\":\"test\",\"quantity\":1}],\"billing\":{\"address\":{\"line1\":\"1467\",\"line2\":\"Harrison Street\",\"line3\":\"Harrison Street\",\"city\":\"San Fransico\",\"state\":\"California\",\"zip\":\"94122\",\"country\":\"US\"}},\"browser_info\":{\"user_agent\":\"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/70.0.3538.110 Safari/537.36\",\"accept_header\":\"text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8\",\"language\":\"nl-NL\",\"color_depth\":24,\"screen_height\":723,\"screen_width\":1536,\"time_zone\":0,\"java_enabled\":true,\"java_script_enabled\":true,\"ip_address\":\"127.0.0.1\"},\"shipping\":{\"address\":{\"line1\":\"1467\",\"line2\":\"Harrison Street\",\"line3\":\"Harrison Street\",\"city\":\"San Fransico\",\"state\":\"California\",\"zip\":\"94122\",\"country\":\"US\",\"first_name\":\"John\",\"last_name\":\"Doe\"}},\"statement_descriptor_name\":\"joseph\",\"statement_descriptor_suffix\":\"JS\",\"metadata\":{\"udf1\":\"value1\",\"new_customer\":\"true\",\"login_date\":\"2019-09-10T10:11:12Z\",\"order_details\":{\"amount\":6540,\"product_name\":\"test\",\"quantity\":1}},\"payment_method\":\"card\",\"payment_method_data\":{\"card\":{\"card_number\":\"4242424242424242\",\"card_exp_month\":\"10\",\"card_exp_year\":\"25\",\"card_holder_name\":\"CL-BRW1\",\"card_cvc\":\"123\"}}}"
                     },
                     "url": {
                       "raw": "{{baseUrl}}/payments",
@@ -1642,12 +1667,12 @@
                     ],
                     "body": {
                       "mode": "raw",
-                      "raw": "{\n  \"amount\": 6540,\n  \"currency\": \"PLN\",\n  \"confirm\": false,\n  \"capture_method\": \"automatic\",\n  \"capture_on\": \"2022-09-10T10:11:12Z\",\n  \"customer_id\": \"StripeCustomer\",\n  \"email\": \"abcdef123@gmail.com\",\n  \"name\": \"John Doe\",\n  \"phone\": \"999999999\",\n  \"phone_country_code\": \"+65\",\n  \"description\": \"Its my first payment request\",\n  \"authentication_type\": \"no_three_ds\",\n  \"return_url\": \"https://duck.com\",\n  \"setup_future_usage\": \"off_session\",\n  \"billing\": {\n    \"address\": {\n      \"line1\": \"1467\",\n      \"line2\": \"Harrison Street\",\n      \"line3\": \"Harrison Street\",\n      \"city\": \"San Fransico\",\n      \"state\": \"California\",\n      \"zip\": \"94122\",\n      \"country\": \"US\"\n    }\n  },\n  \"browser_info\": {\n    \"user_agent\": \"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/70.0.3538.110 Safari/537.36\",\n    \"accept_header\": \"text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8\",\n    \"language\": \"nl-NL\",\n    \"color_depth\": 24,\n    \"screen_height\": 723,\n    \"screen_width\": 1536,\n    \"time_zone\": 0,\n    \"java_enabled\": true,\n    \"java_script_enabled\": true,\n    \"ip_address\": \"127.0.0.1\"\n  },\n  \"shipping\": {\n    \"address\": {\n      \"line1\": \"1467\",\n      \"line2\": \"Harrison Street\",\n      \"line3\": \"Harrison Street\",\n      \"city\": \"San Fransico\",\n      \"state\": \"California\",\n      \"zip\": \"94122\",\n      \"country\": \"US\",\n      \"first_name\": \"John\",\n      \"last_name\": \"Doe\"\n    }\n  },\n  \"statement_descriptor_name\": \"joseph\",\n  \"statement_descriptor_suffix\": \"JS\",\n  \"metadata\": {\n    \"udf1\": \"value1\",\n    \"new_customer\": \"true\",\n    \"login_date\": \"2019-09-10T10:11:12Z\",\n    \"order_details\": {\n      \"amount\": 6540,\n      \"product_name\": \"test\",\n      \"quantity\": 1\n    }\n  },\n  \"payment_method\": \"card\",\n  \"payment_method_data\": {\n    \"card\": {\n      \"card_number\": \"4242424242424242\",\n      \"card_exp_month\": \"10\",\n      \"card_exp_year\": \"25\",\n      \"card_holder_name\": \"CL-BRW1\",\n      \"card_cvc\": \"123\"\n    }\n  }\n}",
                       "options": {
                         "raw": {
                           "language": "json"
                         }
-                      }
+                      },
+                      "raw": "{\"amount\":6540,\"currency\":\"PLN\",\"confirm\":false,\"capture_method\":\"automatic\",\"capture_on\":\"2022-09-10T10:11:12Z\",\"customer_id\":\"StripeCustomer\",\"email\":\"abcdef123@gmail.com\",\"name\":\"John Doe\",\"phone\":\"999999999\",\"phone_country_code\":\"+65\",\"description\":\"Its my first payment request\",\"authentication_type\":\"no_three_ds\",\"return_url\":\"https://duck.com\",\"setup_future_usage\":\"off_session\",\"billing\":{\"address\":{\"line1\":\"1467\",\"line2\":\"Harrison Street\",\"line3\":\"Harrison Street\",\"city\":\"San Fransico\",\"state\":\"California\",\"zip\":\"94122\",\"country\":\"US\"}},\"browser_info\":{\"user_agent\":\"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/70.0.3538.110 Safari/537.36\",\"accept_header\":\"text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8\",\"language\":\"nl-NL\",\"color_depth\":24,\"screen_height\":723,\"screen_width\":1536,\"time_zone\":0,\"java_enabled\":true,\"java_script_enabled\":true,\"ip_address\":\"127.0.0.1\"},\"shipping\":{\"address\":{\"line1\":\"1467\",\"line2\":\"Harrison Street\",\"line3\":\"Harrison Street\",\"city\":\"San Fransico\",\"state\":\"California\",\"zip\":\"94122\",\"country\":\"US\",\"first_name\":\"John\",\"last_name\":\"Doe\"}},\"statement_descriptor_name\":\"joseph\",\"statement_descriptor_suffix\":\"JS\",\"metadata\":{\"udf1\":\"value1\",\"new_customer\":\"true\",\"login_date\":\"2019-09-10T10:11:12Z\",\"order_details\":{\"amount\":6540,\"product_name\":\"test\",\"quantity\":1}},\"payment_method\":\"card\",\"payment_method_data\":{\"card\":{\"card_number\":\"4242424242424242\",\"card_exp_month\":\"10\",\"card_exp_year\":\"25\",\"card_holder_name\":\"CL-BRW1\",\"card_cvc\":\"123\"}}}"
                     },
                     "url": {
                       "raw": "{{baseUrl}}/payments",
@@ -1745,12 +1770,12 @@
                     ],
                     "body": {
                       "mode": "raw",
-                      "raw": "{\n    \"browser_info\": {\n        \"user_agent\": \"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/70.0.3538.110 Safari/537.36\",\n        \"accept_header\": \"text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8\",\n        \"language\": \"nl-NL\",\n        \"color_depth\": 24,\n        \"screen_height\": 723,\n        \"screen_width\": 1536,\n        \"time_zone\": 0,\n        \"java_enabled\": true,\n        \"java_script_enabled\": true,\n        \"ip_address\": \"127.0.0.1\"\n    },\n    \"order_details\":[ {\n      \"amount\": 6540,\n      \"product_name\": \"test\",\n      \"quantity\": 1\n    }]\n}",
                       "options": {
                         "raw": {
                           "language": "json"
                         }
-                      }
+                      },
+                      "raw": "{\"browser_info\":{\"user_agent\":\"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/70.0.3538.110 Safari/537.36\",\"accept_header\":\"text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8\",\"language\":\"nl-NL\",\"color_depth\":24,\"screen_height\":723,\"screen_width\":1536,\"time_zone\":0,\"java_enabled\":true,\"java_script_enabled\":true,\"ip_address\":\"127.0.0.1\"},\"order_details\":[{\"amount\":6540,\"product_name\":\"test\",\"quantity\":1}]}"
                     },
                     "url": {
                       "raw": "{{baseUrl}}/payments/:id/confirm",
@@ -1961,12 +1986,12 @@
                     ],
                     "body": {
                       "mode": "raw",
-                      "raw": "{\n    \"amount\": 6540,\n    \"currency\": \"USD\",\n    \"confirm\": true,\n    \"capture_method\": \"automatic\",\n    \"capture_on\": \"2022-09-10T10:11:12Z\",\n    \"amount_to_capture\": 6540,\n    \"customer_id\": \"StripeCustomer\",\n    \"email\": \"guest@example.com\",\n    \"name\": \"John Doe\",\n    \"phone\": \"999999999\",\n    \"phone_country_code\": \"+65\",\n    \"description\": \"Its my first payment request\",\n    \"authentication_type\": \"no_three_ds\",\n    \"return_url\": \"https://duck.com\",\n    \"payment_method\": \"card\",\n    \"payment_method_data\": {\n        \"card\": {\n            \"card_number\": \"123456\",\n            \"card_exp_month\": \"10\",\n            \"card_exp_year\": \"25\",\n            \"card_holder_name\": \"joseph Doe\",\n            \"card_cvc\": \"123\"\n        }\n    },\n     \"billing\": {\n        \"address\": {\n            \"line1\": \"1467\",\n            \"line2\": \"Harrison Street\",\n            \"line3\": \"Harrison Street\",\n            \"city\": \"San Fransico\",\n            \"state\": \"California\",\n            \"zip\": \"94122\",\n            \"country\": \"united states\"\n        }\n    },\n    \"shipping\": {\n        \"address\": {\n            \"line1\": \"1467\",\n            \"line2\": \"Harrison Street\",\n            \"line3\": \"Harrison Street\",\n            \"city\": \"San Fransico\",\n            \"state\": \"California\",\n            \"zip\": \"94122\",\n            \"country\": \"united states\"\n        }\n    },\n    \"statement_descriptor_name\": \"joseph\",\n    \"statement_descriptor_suffix\": \"JS\",\n    \"metadata\": {\n        \"udf1\": \"value1\",\n        \"new_customer\": \"true\",\n        \"login_date\": \"2019-09-10T10:11:12Z\"\n    }\n}",
                       "options": {
                         "raw": {
                           "language": "json"
                         }
-                      }
+                      },
+                      "raw": "{\"amount\":6540,\"currency\":\"USD\",\"confirm\":true,\"capture_method\":\"automatic\",\"capture_on\":\"2022-09-10T10:11:12Z\",\"amount_to_capture\":6540,\"customer_id\":\"StripeCustomer\",\"email\":\"guest@example.com\",\"name\":\"John Doe\",\"phone\":\"999999999\",\"phone_country_code\":\"+65\",\"description\":\"Its my first payment request\",\"authentication_type\":\"no_three_ds\",\"return_url\":\"https://duck.com\",\"payment_method\":\"card\",\"payment_method_data\":{\"card\":{\"card_number\":\"123456\",\"card_exp_month\":\"10\",\"card_exp_year\":\"25\",\"card_holder_name\":\"joseph Doe\",\"card_cvc\":\"123\"}},\"billing\":{\"address\":{\"line1\":\"1467\",\"line2\":\"Harrison Street\",\"line3\":\"Harrison Street\",\"city\":\"San Fransico\",\"state\":\"California\",\"zip\":\"94122\",\"country\":\"united states\"}},\"shipping\":{\"address\":{\"line1\":\"1467\",\"line2\":\"Harrison Street\",\"line3\":\"Harrison Street\",\"city\":\"San Fransico\",\"state\":\"California\",\"zip\":\"94122\",\"country\":\"united states\"}},\"statement_descriptor_name\":\"joseph\",\"statement_descriptor_suffix\":\"JS\",\"metadata\":{\"udf1\":\"value1\",\"new_customer\":\"true\",\"login_date\":\"2019-09-10T10:11:12Z\"}}"
                     },
                     "url": {
                       "raw": "{{baseUrl}}/payments",
@@ -2063,12 +2088,12 @@
                     ],
                     "body": {
                       "mode": "raw",
-                      "raw": "{\n    \"amount\": 6540,\n    \"currency\": \"USD\",\n    \"confirm\": true,\n    \"capture_method\": \"automatic\",\n    \"capture_on\": \"2022-09-10T10:11:12Z\",\n    \"amount_to_capture\": 6540,\n    \"customer_id\": \"StripeCustomer\",\n    \"email\": \"guest@example.com\",\n    \"name\": \"John Doe\",\n    \"phone\": \"999999999\",\n    \"phone_country_code\": \"+65\",\n    \"description\": \"Its my first payment request\",\n    \"authentication_type\": \"no_three_ds\",\n    \"return_url\": \"https://duck.com\",\n    \"payment_method\": \"card\",\n    \"payment_method_data\": {\n        \"card\": {\n            \"card_number\": \"4242424242424242\",\n            \"card_exp_month\": \"01\",\n            \"card_exp_year\": \"2023\",\n            \"card_holder_name\": \"joseph Doe\",\n            \"card_cvc\": \"123\"\n        }\n    },\n    \"billing\": {\n        \"address\": {\n            \"line1\": \"1467\",\n            \"line2\": \"Harrison Street\",\n            \"line3\": \"Harrison Street\",\n            \"city\": \"San Fransico\",\n            \"state\": \"California\",\n            \"zip\": \"94122\",\n            \"country\": \"US\",\n            \"first_name\": \"PiX\"\n        }\n    },\n    \"shipping\": {\n        \"address\": {\n            \"line1\": \"1467\",\n            \"line2\": \"Harrison Street\",\n            \"line3\": \"Harrison Street\",\n            \"city\": \"San Fransico\",\n            \"state\": \"California\",\n            \"zip\": \"94122\",\n            \"country\": \"US\",\n            \"first_name\": \"PiX\"\n        }\n    },\n    \"statement_descriptor_name\": \"joseph\",\n    \"statement_descriptor_suffix\": \"JS\",\n    \"metadata\": {\n        \"udf1\": \"value1\",\n        \"new_customer\": \"true\",\n        \"login_date\": \"2019-09-10T10:11:12Z\"\n    }\n}",
                       "options": {
                         "raw": {
                           "language": "json"
                         }
-                      }
+                      },
+                      "raw": "{\"amount\":6540,\"currency\":\"USD\",\"confirm\":true,\"capture_method\":\"automatic\",\"capture_on\":\"2022-09-10T10:11:12Z\",\"amount_to_capture\":6540,\"customer_id\":\"StripeCustomer\",\"email\":\"guest@example.com\",\"name\":\"John Doe\",\"phone\":\"999999999\",\"phone_country_code\":\"+65\",\"description\":\"Its my first payment request\",\"authentication_type\":\"no_three_ds\",\"return_url\":\"https://duck.com\",\"payment_method\":\"card\",\"payment_method_data\":{\"card\":{\"card_number\":\"4242424242424242\",\"card_exp_month\":\"01\",\"card_exp_year\":\"2023\",\"card_holder_name\":\"joseph Doe\",\"card_cvc\":\"123\"}},\"billing\":{\"address\":{\"line1\":\"1467\",\"line2\":\"Harrison Street\",\"line3\":\"Harrison Street\",\"city\":\"San Fransico\",\"state\":\"California\",\"zip\":\"94122\",\"country\":\"US\",\"first_name\":\"PiX\"}},\"shipping\":{\"address\":{\"line1\":\"1467\",\"line2\":\"Harrison Street\",\"line3\":\"Harrison Street\",\"city\":\"San Fransico\",\"state\":\"California\",\"zip\":\"94122\",\"country\":\"US\",\"first_name\":\"PiX\"}},\"statement_descriptor_name\":\"joseph\",\"statement_descriptor_suffix\":\"JS\",\"metadata\":{\"udf1\":\"value1\",\"new_customer\":\"true\",\"login_date\":\"2019-09-10T10:11:12Z\"}}"
                     },
                     "url": {
                       "raw": "{{baseUrl}}/payments",
@@ -2163,12 +2188,12 @@
                     ],
                     "body": {
                       "mode": "raw",
-                      "raw": "{\n    \"amount\": 6540,\n    \"currency\": \"USD\",\n    \"confirm\": true,\n    \"capture_method\": \"automatic\",\n    \"capture_on\": \"2022-09-10T10:11:12Z\",\n    \"amount_to_capture\": 6540,\n    \"customer_id\": \"StripeCustomer\",\n    \"email\": \"guest@example.com\",\n    \"name\": \"John Doe\",\n    \"phone\": \"999999999\",\n    \"phone_country_code\": \"+65\",\n    \"description\": \"Its my first payment request\",\n    \"authentication_type\": \"no_three_ds\",\n    \"return_url\": \"https://duck.com\",\n    \"payment_method\": \"card\",\n    \"payment_method_data\": {\n        \"card\": {\n            \"card_number\": \"4242424242424242\",\n            \"card_exp_month\": \"10\",\n            \"card_exp_year\": \"2022\",\n            \"card_holder_name\": \"joseph Doe\",\n            \"card_cvc\": \"123\"\n        }\n    },\n     \"billing\": {\n        \"address\": {\n            \"line1\": \"1467\",\n            \"line2\": \"Harrison Street\",\n            \"line3\": \"Harrison Street\",\n            \"city\": \"San Fransico\",\n            \"state\": \"California\",\n            \"zip\": \"94122\",\n            \"country\": \"US\",\n            \"first_name\": \"PiX\"\n        }\n    },\n    \"shipping\": {\n        \"address\": {\n            \"line1\": \"1467\",\n            \"line2\": \"Harrison Street\",\n            \"line3\": \"Harrison Street\",\n            \"city\": \"San Fransico\",\n            \"state\": \"California\",\n            \"zip\": \"94122\",\n            \"country\": \"US\",\n            \"first_name\": \"PiX\"\n        }\n    },\n    \"statement_descriptor_name\": \"joseph\",\n    \"statement_descriptor_suffix\": \"JS\",\n    \"metadata\": {\n        \"udf1\": \"value1\",\n        \"new_customer\": \"true\",\n        \"login_date\": \"2019-09-10T10:11:12Z\"\n    }\n}",
                       "options": {
                         "raw": {
                           "language": "json"
                         }
-                      }
+                      },
+                      "raw": "{\"amount\":6540,\"currency\":\"USD\",\"confirm\":true,\"capture_method\":\"automatic\",\"capture_on\":\"2022-09-10T10:11:12Z\",\"amount_to_capture\":6540,\"customer_id\":\"StripeCustomer\",\"email\":\"guest@example.com\",\"name\":\"John Doe\",\"phone\":\"999999999\",\"phone_country_code\":\"+65\",\"description\":\"Its my first payment request\",\"authentication_type\":\"no_three_ds\",\"return_url\":\"https://duck.com\",\"payment_method\":\"card\",\"payment_method_data\":{\"card\":{\"card_number\":\"4242424242424242\",\"card_exp_month\":\"10\",\"card_exp_year\":\"2022\",\"card_holder_name\":\"joseph Doe\",\"card_cvc\":\"123\"}},\"billing\":{\"address\":{\"line1\":\"1467\",\"line2\":\"Harrison Street\",\"line3\":\"Harrison Street\",\"city\":\"San Fransico\",\"state\":\"California\",\"zip\":\"94122\",\"country\":\"US\",\"first_name\":\"PiX\"}},\"shipping\":{\"address\":{\"line1\":\"1467\",\"line2\":\"Harrison Street\",\"line3\":\"Harrison Street\",\"city\":\"San Fransico\",\"state\":\"California\",\"zip\":\"94122\",\"country\":\"US\",\"first_name\":\"PiX\"}},\"statement_descriptor_name\":\"joseph\",\"statement_descriptor_suffix\":\"JS\",\"metadata\":{\"udf1\":\"value1\",\"new_customer\":\"true\",\"login_date\":\"2019-09-10T10:11:12Z\"}}"
                     },
                     "url": {
                       "raw": "{{baseUrl}}/payments",
@@ -2264,12 +2289,12 @@
                     ],
                     "body": {
                       "mode": "raw",
-                      "raw": "{\n    \"amount\": 6540,\n    \"currency\": \"USD\",\n    \"confirm\": true,\n    \"capture_method\": \"automatic\",\n    \"capture_on\": \"2022-09-10T10:11:12Z\",\n    \"amount_to_capture\": 6540,\n    \"customer_id\": \"StripeCustomer\",\n    \"email\": \"guest@example.com\",\n    \"name\": \"John Doe\",\n    \"phone\": \"999999999\",\n    \"phone_country_code\": \"+65\",\n    \"description\": \"Its my first payment request\",\n    \"authentication_type\": \"no_three_ds\",\n    \"return_url\": \"https://duck.com\",\n    \"payment_method\": \"card\",\n    \"payment_method_data\": {\n        \"card\": {\n            \"card_number\": \"4242424242424242\",\n            \"card_exp_month\": \"10\",\n            \"card_exp_year\": \"25\",\n            \"card_holder_name\": \"joseph Doe\",\n            \"card_cvc\": \"abc\"\n        }\n    },\n      \"billing\": {\n        \"address\": {\n            \"line1\": \"1467\",\n            \"line2\": \"Harrison Street\",\n            \"line3\": \"Harrison Street\",\n            \"city\": \"San Fransico\",\n            \"state\": \"California\",\n            \"zip\": \"94122\",\n            \"country\": \"US\",\n            \"first_name\": \"PiX\"\n        }\n    },\n    \"shipping\": {\n        \"address\": {\n            \"line1\": \"1467\",\n            \"line2\": \"Harrison Street\",\n            \"line3\": \"Harrison Street\",\n            \"city\": \"San Fransico\",\n            \"state\": \"California\",\n            \"zip\": \"94122\",\n            \"country\": \"US\",\n            \"first_name\": \"PiX\"\n        }\n    },\n    \"statement_descriptor_name\": \"joseph\",\n    \"statement_descriptor_suffix\": \"JS\",\n    \"metadata\": {\n        \"udf1\": \"value1\",\n        \"new_customer\": \"true\",\n        \"login_date\": \"2019-09-10T10:11:12Z\"\n    }\n}",
                       "options": {
                         "raw": {
                           "language": "json"
                         }
-                      }
+                      },
+                      "raw": "{\"amount\":6540,\"currency\":\"USD\",\"confirm\":true,\"capture_method\":\"automatic\",\"capture_on\":\"2022-09-10T10:11:12Z\",\"amount_to_capture\":6540,\"customer_id\":\"StripeCustomer\",\"email\":\"guest@example.com\",\"name\":\"John Doe\",\"phone\":\"999999999\",\"phone_country_code\":\"+65\",\"description\":\"Its my first payment request\",\"authentication_type\":\"no_three_ds\",\"return_url\":\"https://duck.com\",\"payment_method\":\"card\",\"payment_method_data\":{\"card\":{\"card_number\":\"4242424242424242\",\"card_exp_month\":\"10\",\"card_exp_year\":\"25\",\"card_holder_name\":\"joseph Doe\",\"card_cvc\":\"abc\"}},\"billing\":{\"address\":{\"line1\":\"1467\",\"line2\":\"Harrison Street\",\"line3\":\"Harrison Street\",\"city\":\"San Fransico\",\"state\":\"California\",\"zip\":\"94122\",\"country\":\"US\",\"first_name\":\"PiX\"}},\"shipping\":{\"address\":{\"line1\":\"1467\",\"line2\":\"Harrison Street\",\"line3\":\"Harrison Street\",\"city\":\"San Fransico\",\"state\":\"California\",\"zip\":\"94122\",\"country\":\"US\",\"first_name\":\"PiX\"}},\"statement_descriptor_name\":\"joseph\",\"statement_descriptor_suffix\":\"JS\",\"metadata\":{\"udf1\":\"value1\",\"new_customer\":\"true\",\"login_date\":\"2019-09-10T10:11:12Z\"}}"
                     },
                     "url": {
                       "raw": "{{baseUrl}}/payments",
@@ -2365,12 +2390,12 @@
                     ],
                     "body": {
                       "mode": "raw",
-                      "raw": "{\n    \"amount\": 6540,\n    \"currency\": \"PLN\",\n    \"confirm\": false,\n    \"capture_method\": \"automatic\",\n    \"capture_on\": \"2022-09-10T10:11:12Z\",\n    \"customer_id\": \"StripeCustomer\",\n    \"email\": \"abcdef123@gmail.com\",\n    \"name\": \"John Doe\",\n    \"phone\": \"999999999\",\n    \"phone_country_code\": \"+65\",\n    \"description\": \"Its my first payment request\",\n    \"authentication_type\": \"no_three_ds\",\n    \"return_url\": \"https://duck.com\",\n    \"setup_future_usage\": \"off_session\",\n    \"billing\": {\n        \"address\": {\n            \"line1\": \"1467\",\n            \"line2\": \"Harrison Street\",\n            \"line3\": \"Harrison Street\",\n            \"city\": \"San Fransico\",\n            \"state\": \"California\",\n            \"zip\": \"94122\",\n            \"country\": \"US\"\n        }\n    },\n    \"browser_info\": {\n        \"user_agent\": \"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/70.0.3538.110 Safari/537.36\",\n        \"accept_header\": \"text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8\",\n        \"language\": \"nl-NL\",\n        \"color_depth\": 24,\n        \"screen_height\": 723,\n        \"screen_width\": 1536,\n        \"time_zone\": 0,\n        \"java_enabled\": true,\n        \"java_script_enabled\": true,\n        \"ip_address\": \"127.0.0.1\"\n    },\n    \"shipping\": {\n        \"address\": {\n            \"line1\": \"1467\",\n            \"line2\": \"Harrison Street\",\n            \"line3\": \"Harrison Street\",\n            \"city\": \"San Fransico\",\n            \"state\": \"California\",\n            \"zip\": \"94122\",\n            \"country\": \"US\",\n            \"first_name\": \"John\",\n            \"last_name\": \"Doe\"\n        }\n    },\n    \"statement_descriptor_name\": \"joseph\",\n    \"statement_descriptor_suffix\": \"JS\",\n    \"metadata\": {\n        \"udf1\": \"value1\",\n        \"new_customer\": \"true\",\n        \"login_date\": \"2019-09-10T10:11:12Z\",\n        \"order_details\": {\n            \"amount\": 6540,\n            \"product_name\": \"test\",\n            \"quantity\": 1\n        }\n    }\n}",
                       "options": {
                         "raw": {
                           "language": "json"
                         }
-                      }
+                      },
+                      "raw": "{\"amount\":6540,\"currency\":\"PLN\",\"confirm\":false,\"capture_method\":\"automatic\",\"capture_on\":\"2022-09-10T10:11:12Z\",\"customer_id\":\"StripeCustomer\",\"email\":\"abcdef123@gmail.com\",\"name\":\"John Doe\",\"phone\":\"999999999\",\"phone_country_code\":\"+65\",\"description\":\"Its my first payment request\",\"authentication_type\":\"no_three_ds\",\"return_url\":\"https://duck.com\",\"setup_future_usage\":\"off_session\",\"billing\":{\"address\":{\"line1\":\"1467\",\"line2\":\"Harrison Street\",\"line3\":\"Harrison Street\",\"city\":\"San Fransico\",\"state\":\"California\",\"zip\":\"94122\",\"country\":\"US\"}},\"browser_info\":{\"user_agent\":\"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/70.0.3538.110 Safari/537.36\",\"accept_header\":\"text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8\",\"language\":\"nl-NL\",\"color_depth\":24,\"screen_height\":723,\"screen_width\":1536,\"time_zone\":0,\"java_enabled\":true,\"java_script_enabled\":true,\"ip_address\":\"127.0.0.1\"},\"shipping\":{\"address\":{\"line1\":\"1467\",\"line2\":\"Harrison Street\",\"line3\":\"Harrison Street\",\"city\":\"San Fransico\",\"state\":\"California\",\"zip\":\"94122\",\"country\":\"US\",\"first_name\":\"John\",\"last_name\":\"Doe\"}},\"statement_descriptor_name\":\"joseph\",\"statement_descriptor_suffix\":\"JS\",\"metadata\":{\"udf1\":\"value1\",\"new_customer\":\"true\",\"login_date\":\"2019-09-10T10:11:12Z\",\"order_details\":{\"amount\":6540,\"product_name\":\"test\",\"quantity\":1}}}"
                     },
                     "url": {
                       "raw": "{{baseUrl}}/payments",
@@ -2469,12 +2494,12 @@
                     ],
                     "body": {
                       "mode": "raw",
-                      "raw": "{\n    \"browser_info\": {\n        \"user_agent\": \"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/70.0.3538.110 Safari/537.36\",\n        \"accept_header\": \"text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8\",\n        \"language\": \"nl-NL\",\n        \"color_depth\": 24,\n        \"screen_height\": 723,\n        \"screen_width\": 1536,\n        \"time_zone\": 0,\n        \"java_enabled\": true,\n        \"java_script_enabled\": true,\n        \"ip_address\": \"127.0.0.1\"\n    }\n}",
                       "options": {
                         "raw": {
                           "language": "json"
                         }
-                      }
+                      },
+                      "raw": "{\"browser_info\":{\"user_agent\":\"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/70.0.3538.110 Safari/537.36\",\"accept_header\":\"text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8\",\"language\":\"nl-NL\",\"color_depth\":24,\"screen_height\":723,\"screen_width\":1536,\"time_zone\":0,\"java_enabled\":true,\"java_script_enabled\":true,\"ip_address\":\"127.0.0.1\"}}"
                     },
                     "url": {
                       "raw": "{{baseUrl}}/payments/:id/confirm",
@@ -2525,36 +2550,13 @@
       }
     ]
   },
-  "event": [
-    {
-      "listen": "prerequest",
-      "script": {
-        "type": "text/javascript",
-        "exec": [
-          ""
-        ]
-      }
-    },
-    {
-      "listen": "test",
-      "script": {
-        "type": "text/javascript",
-        "exec": [
-          "// Set response object as internal variable",
-          "let jsonData = {};",
-          "try {jsonData = pm.response.json();}catch(e){}",
-          "",
-          "// pm.collectionVariables - Set payment_id as variable for jsonData.payment_id",
-          "if (jsonData?.payment_id) {",
-          "   pm.collectionVariables.set(\"payment_id\", jsonData.payment_id);",
-          "   console.log(\"[LOG]::payment_id - \" + jsonData.payment_id);",
-          "}",
-          "",
-          "console.log(\"[LOG]::x-request-id - \" + pm.response.headers.get('x-request-id'));"
-        ]
-      }
-    }
-  ],
+  "info": {
+    "_postman_id": "9d9a383e-649b-4a59-b843-ca8fe3416457",
+    "name": "zen",
+    "description": "## Get started\n\nJuspay Router provides a collection of APIs that enable you to process and manage payments. Our APIs accept and return JSON in the HTTP body, and return standard HTTP response codes.  \nYou can consume the APIs directly using your favorite HTTP/REST library.  \nWe have a testing environment referred to \"sandbox\", which you can setup to test API calls without affecting production data.\n\n### Base URLs\n\nUse the following base URLs when making requests to the APIs:\n\n| Environment | Base URL |\n| --- | --- |\n| Sandbox | [https://sandbox.hyperswitch.io](https://sandbox.hyperswitch.io) |\n| Production | [https://router.juspay.io](https://router.juspay.io) |\n\n# Authentication\n\nWhen you sign up for an account, you are given a secret key (also referred as api-key). You may authenticate all API requests with Juspay server by providing the appropriate key in the request Authorization header.  \nNever share your secret api keys. Keep them guarded and secure.\n\nContact Support:  \nName: Juspay Support  \nEmail: [support@juspay.in](mailto:support@juspay.in)",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "_exporter_id": "25737662"
+  },
   "variable": [
     {
       "key": "baseUrl",
