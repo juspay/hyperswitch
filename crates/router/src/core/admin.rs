@@ -17,7 +17,7 @@ use crate::{
         utils as core_utils,
     },
     db::StorageInterface,
-    routes::metrics,
+    routes::{metrics, AppState},
     services::{self, api as service_api},
     types::{
         self, api,
@@ -439,12 +439,19 @@ fn validate_certificate_in_mca_metadata(
 }
 
 pub async fn create_payment_connector(
-    store: &dyn StorageInterface,
+    state: &AppState,
     req: api::MerchantConnectorCreate,
     merchant_id: &String,
 ) -> RouterResponse<api_models::admin::MerchantConnectorResponse> {
-    let key_store = store
-        .get_merchant_key_store_by_merchant_id(merchant_id, &store.get_master_key().to_vec().into())
+    if let Err(error) = validate_dummy_connector_enabled(state, &req.connector_name).await {
+        return Err(error.into());
+    }
+    let key_store = state
+        .store
+        .get_merchant_key_store_by_merchant_id(
+            merchant_id,
+            &state.store.get_master_key().to_vec().into(),
+        )
         .await
         .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
 
@@ -453,7 +460,8 @@ pub async fn create_payment_connector(
         .map(validate_certificate_in_mca_metadata)
         .transpose()?;
 
-    let merchant_account = store
+    let merchant_account = state
+        .store
         .find_merchant_account_by_merchant_id(merchant_id, &key_store)
         .await
         .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
@@ -512,9 +520,12 @@ pub async fn create_payment_connector(
     let frm_configs = get_frm_config_as_secret(req.frm_configs);
 
     // Validate whether profile_id passed in request is valid and is linked to the merchant
-    let business_profile_from_request =
-        core_utils::validate_and_get_business_profile(store, req.profile_id.as_ref(), merchant_id)
-            .await?;
+    let business_profile_from_request = core_utils::validate_and_get_business_profile(
+        &*state.store,
+        req.profile_id.as_ref(),
+        merchant_id,
+    )
+    .await?;
 
     let profile_id = business_profile_from_request
         .map(|business_profile| business_profile.profile_id)
@@ -563,7 +574,8 @@ pub async fn create_payment_connector(
         profile_id,
     };
 
-    let mca = store
+    let mca = state
+        .store
         .insert_merchant_connector_account(merchant_connector_account, &key_store)
         .await
         .to_duplicate_response(
@@ -1260,4 +1272,28 @@ pub(crate) fn validate_auth_type(
                 .attach_printable(format!("invalid connector name: {connector_name}")))
         }
     }
+}
+
+async fn validate_dummy_connector_enabled(
+    state: &AppState,
+    connector_name: &api_enums::Connector,
+) -> Result<(), errors::ApiErrorResponse> {
+    #[cfg(feature = "dummy_connector")]
+    if !state.conf.dummy_connector.is_enabled {
+        match connector_name {
+            api_enums::Connector::DummyConnector1
+            | api_enums::Connector::DummyConnector2
+            | api_enums::Connector::DummyConnector3
+            | api_enums::Connector::DummyConnector4
+            | api_enums::Connector::DummyConnector5
+            | api_enums::Connector::DummyConnector6
+            | api_enums::Connector::DummyConnector7 => {
+                return Err(errors::ApiErrorResponse::InvalidRequestData {
+                    message: format!("{} is not enabled", connector_name.to_string()),
+                });
+            }
+            _ => {}
+        }
+    }
+    Ok(())
 }

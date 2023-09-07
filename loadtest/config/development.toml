@@ -186,6 +186,7 @@ mollie = {long_lived_token = false, payment_method = "card"}
 braintree = { long_lived_token = false, payment_method = "card" }
 
 [dummy_connector]
+is_enabled = true
 payment_ttl = 172800
 payment_duration = 1000
 payment_tolerance = 100
