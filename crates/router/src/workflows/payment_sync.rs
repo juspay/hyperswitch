@@ -1,29 +1,33 @@
-use common_utils::ext_traits::StringExt;
+use common_utils::ext_traits::{OptionExt, StringExt, ValueExt};
 use error_stack::ResultExt;
 use router_env::logger;
+use scheduler::{
+    consumer::{self, types::process_data, workflows::ProcessTrackerWorkflow},
+    db::process_tracker::ProcessTrackerExt,
+    errors as sch_errors, utils, SchedulerAppState,
+};
 
-use super::{PaymentsSyncWorkflow, ProcessTrackerWorkflow};
 use crate::{
     core::payments::{self as payment_flows, operations},
     db::StorageInterface,
     errors,
     routes::AppState,
-    scheduler::{consumer, process_data, utils},
     services,
     types::{
         api,
-        storage::{self, enums, ProcessTrackerExt},
+        storage::{self, enums},
     },
-    utils::{OptionExt, ValueExt},
 };
 
+pub struct PaymentsSyncWorkflow;
+
 #[async_trait::async_trait]
-impl ProcessTrackerWorkflow for PaymentsSyncWorkflow {
+impl ProcessTrackerWorkflow<AppState> for PaymentsSyncWorkflow {
     async fn execute_workflow<'a>(
         &'a self,
         state: &'a AppState,
         process: storage::ProcessTracker,
-    ) -> Result<(), errors::ProcessTrackerError> {
+    ) -> Result<(), sch_errors::ProcessTrackerError> {
         let db: &dyn StorageInterface = &*state.store;
         let tracking_data: api::PaymentsRetrieveRequest = process
             .tracking_data
@@ -75,14 +79,17 @@ impl ProcessTrackerWorkflow for PaymentsSyncWorkflow {
             status if terminal_status.contains(status) => {
                 let id = process.id.clone();
                 process
-                    .finish_with_status(db, format!("COMPLETED_BY_PT_{id}"))
+                    .finish_with_status(
+                        state.get_db().as_scheduler(),
+                        format!("COMPLETED_BY_PT_{id}"),
+                    )
                     .await?
             }
             _ => {
                 let connector = payment_data
                     .payment_attempt
                     .connector
-                    .ok_or(errors::ProcessTrackerError::MissingRequiredField)?;
+                    .ok_or(sch_errors::ProcessTrackerError::MissingRequiredField)?;
 
                 retry_sync_task(
                     db,
@@ -100,9 +107,9 @@ impl ProcessTrackerWorkflow for PaymentsSyncWorkflow {
         &'a self,
         state: &'a AppState,
         process: storage::ProcessTracker,
-        error: errors::ProcessTrackerError,
-    ) -> errors::CustomResult<(), errors::ProcessTrackerError> {
-        consumer::consumer_error_handler(state, process, error).await
+        error: sch_errors::ProcessTrackerError,
+    ) -> errors::CustomResult<(), sch_errors::ProcessTrackerError> {
+        consumer::consumer_error_handler(state.store.as_scheduler(), process, error).await
     }
 }
 
@@ -141,14 +148,14 @@ pub async fn retry_sync_task(
     connector: String,
     merchant_id: String,
     pt: storage::ProcessTracker,
-) -> Result<(), errors::ProcessTrackerError> {
+) -> Result<(), sch_errors::ProcessTrackerError> {
     let schedule_time =
         get_sync_process_schedule_time(db, &connector, &merchant_id, pt.retry_count).await?;
 
     match schedule_time {
-        Some(s_time) => pt.retry(db, s_time).await,
+        Some(s_time) => pt.retry(db.as_scheduler(), s_time).await,
         None => {
-            pt.finish_with_status(db, "RETRIES_EXCEEDED".to_string())
+            pt.finish_with_status(db.as_scheduler(), "RETRIES_EXCEEDED".to_string())
                 .await
         }
     }
