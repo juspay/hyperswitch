@@ -85,6 +85,62 @@ pub trait ConnectorCommon {
     }
 }
 
+#[derive(Clone, Eq, PartialEq)]
+pub enum CurrencyUnit {
+    Base,
+    Minor,
+}
+
+pub trait ConnectorCurrencyCommon {
+    fn get_currency_unit(&self) -> CurrencyUnit;
+
+    fn get_amount_as_string(
+        &self,
+        amount: i64,
+        currency: diesel_models::enums::Currency,
+    ) -> Result<String, error_stack::Report<errors::ConnectorError>> {
+        let amount = match self.get_currency_unit() {
+            CurrencyUnit::Minor => amount.to_string(),
+            CurrencyUnit::Base => self.to_currency_base_unit(amount, currency)?,
+        };
+        Ok(amount)
+    }
+
+    fn get_amount_as_f64(
+        &self,
+        amount: i64,
+        currency: diesel_models::enums::Currency,
+    ) -> Result<f64, error_stack::Report<errors::ConnectorError>> {
+        let amount = match self.get_currency_unit() {
+            CurrencyUnit::Minor => amount as f64,
+            CurrencyUnit::Base => self.to_currency_base_unit_asf64(amount, currency)?,
+        };
+        Ok(amount)
+    }
+
+    fn to_currency_base_unit_asf64(
+        &self,
+        amount: i64,
+        currency: diesel_models::enums::Currency,
+    ) -> Result<f64, error_stack::Report<errors::ConnectorError>> {
+        currency
+            .to_currency_base_unit_asf64(amount)
+            .into_report()
+            .change_context(errors::ConnectorError::RequestEncodingFailed)
+    }
+
+    fn to_currency_base_unit(
+        &self,
+        amount: i64,
+        currency: diesel_models::enums::Currency,
+    ) -> Result<String, error_stack::Report<errors::ConnectorError>> {
+        currency
+            .to_currency_base_unit(amount)
+            .into_report()
+            .change_context(errors::ConnectorError::RequestEncodingFailed)
+    }
+}
+
 /// Extended trait for connector common to allow functions with generic type
 pub trait ConnectorCommonExt<Flow, Req, Resp>:
     ConnectorCommon + ConnectorIntegration<Flow, Req, Resp>

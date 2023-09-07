@@ -6,7 +6,12 @@ use crate::{
     connector::utils::{self, PaymentsAuthorizeRequestData, RefundsRequestData, RouterData},
     consts,
     core::errors,
-    types::{self, api, storage::enums},
+    types::{
+        self,
+        api::{self, ConnectorCurrencyCommon},
+        storage::enums,
+        PaymentsAuthorizeData, PaymentsCaptureData, RefundsData,
+    },
 };
 
 pub const TOKENIZE_CREDIT_CARD: &str = "mutation  tokenizeCreditCard($input: TokenizeCreditCardInput!) { tokenizeCreditCard(input: $input) { clientMutationId paymentMethod { id } } }";
@@ -47,6 +52,12 @@ pub struct TransactionBody {
     merchant_account_id: Secret<String>,
 }
 
+impl ConnectorCurrencyCommon for PaymentsAuthorizeData {
+    fn get_currency_unit(&self) -> api::CurrencyUnit {
+        api::CurrencyUnit::Base
+    }
+}
+
 impl TryFrom<&types::PaymentsAuthorizeRouterData> for BraintreePaymentsRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::PaymentsAuthorizeRouterData) -> Result<Self, Self::Error> {
@@ -66,7 +77,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for BraintreePaymentsRequest {
                         input: PaymentInput {
                             payment_method_id: item.get_payment_method_token()?,
                             transaction: TransactionBody {
-                                amount: utils::to_currency_base_unit(
+                                amount: item.request.get_amount_as_string(
                                     item.request.amount,
                                     item.request.currency,
                                 )?,
@@ -362,6 +373,12 @@ pub struct BraintreeRefundRequest {
     variables: BraintreeRefundVariables,
 }
 
+impl ConnectorCurrencyCommon for RefundsData {
+    fn get_currency_unit(&self) -> api::CurrencyUnit {
+        api::CurrencyUnit::Base
+    }
+}
+
 impl<F> TryFrom<&types::RefundsRouterData<F>> for BraintreeRefundRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::RefundsRouterData<F>) -> Result<Self, Self::Error> {
@@ -374,10 +391,9 @@ impl<F> TryFrom<&types::RefundsRouterData<F>> for BraintreeRefundRequest {
             input: BraintreeRefundInput {
                 transaction_id: item.request.connector_transaction_id.clone(),
                 refund: RefundInputData {
-                    amount: utils::to_currency_base_unit(
-                        item.request.refund_amount,
-                        item.request.currency,
-                    )?,
+                    amount: item
+                        .request
+                        .get_amount_as_string(item.request.refund_amount, item.request.currency)?,
                     merchant_account_id: metadata.merchant_account_id.ok_or(
                         errors::ConnectorError::MissingRequiredField {
                             field_name: "merchant_account_id",
@@ -713,6 +729,12 @@ pub struct BraintreeCaptureRequest {
     variables: VariableCaptureInput,
 }
 
+impl ConnectorCurrencyCommon for PaymentsCaptureData {
+    fn get_currency_unit(&self) -> api::CurrencyUnit {
+        api::CurrencyUnit::Base
+    }
+}
+
 impl TryFrom<&types::PaymentsCaptureRouterData> for BraintreeCaptureRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::PaymentsCaptureRouterData) -> Result<Self, Self::Error> {
@@ -721,7 +743,7 @@ impl TryFrom<&types::PaymentsCaptureRouterData> for BraintreeCaptureRequest {
             input: CaptureInputData {
                 transaction_id: item.request.connector_transaction_id.clone(),
                 transaction: CaptureTransactionBody {
-                    amount: utils::to_currency_base_unit(
+                    amount: item.request.get_amount_as_string(
                         item.request.amount_to_capture,
                         item.request.currency,
                     )?,
