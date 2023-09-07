@@ -9,7 +9,7 @@ pub type PgPool = bb8::Pool<async_bb8_diesel::ConnectionManager<PgConnection>>;
 
 pub type PgPooledConn = async_bb8_diesel::Connection<PgConnection>;
 
-///
+/// Creates a Redis connection pool for the specified Redis settings
 /// # Panics
 ///
 /// Panics if failed to create a redis pool
