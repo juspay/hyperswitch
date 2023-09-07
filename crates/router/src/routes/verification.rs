@@ -14,10 +14,8 @@ pub async fn apple_pay_merchant_registration(
     state: web::Data<AppState>,
     req: HttpRequest,
     json_payload: web::Json<verifications::ApplepayMerchantVerificationRequest>,
-    path: web::Path<String>,
 ) -> impl Responder {
     let flow = Flow::Verification;
-    let merchant_id = path.into_inner();
     api::server_wrap(
         flow,
         state.get_ref(),
@@ -26,7 +24,7 @@ pub async fn apple_pay_merchant_registration(
         |state, _, body| {
             verification::verify_merchant_creds_for_applepay(state, &req, body, &state.conf.kms)
         },
-        &auth::MerchantIdAuth(merchant_id.clone()),
+        auth::auth_type(&auth::ApiKeyAuth, &auth::JWTAuth, req.headers()),
     )
     .await
 }

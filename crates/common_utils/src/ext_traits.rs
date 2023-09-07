@@ -11,6 +11,7 @@ use serde::{Deserialize, Serialize};
 use crate::{
     crypto,
     errors::{self, CustomResult},
+    fp_utils::when,
 };
 
 ///
@@ -487,5 +488,107 @@ impl XmlExt for &str {
         T: serde::de::DeserializeOwned,
     {
         de::from_str(self)
+    }
+}
+
+/// Extension trait for Option to validate missing fields
+pub trait OptionExt<T> {
+    /// check if the current option is Some
+    fn check_value_present(
+        &self,
+        field_name: &'static str,
+    ) -> CustomResult<(), errors::ValidationError>;
+
+    /// Throw missing required field error when the value is None
+    fn get_required_value(
+        self,
+        field_name: &'static str,
+    ) -> CustomResult<T, errors::ValidationError>;
+
+    /// Try parsing the option as Enum
+    fn parse_enum<E>(self, enum_name: &'static str) -> CustomResult<E, errors::ParsingError>
+    where
+        T: AsRef<str>,
+        E: std::str::FromStr,
+        // Requirement for converting the `Err` variant of `FromStr` to `Report<Err>`
+        <E as std::str::FromStr>::Err: std::error::Error + Send + Sync + 'static;
+
+    /// Try parsing the option as Type
+    fn parse_value<U>(self, type_name: &'static str) -> CustomResult<U, errors::ParsingError>
+    where
+        T: ValueExt,
+        U: serde::de::DeserializeOwned;
+
+    /// update option value
+    fn update_value(&mut self, value: Option<T>);
+}
+
+impl<T> OptionExt<T> for Option<T>
+where
+    T: std::fmt::Debug,
+{
+    #[track_caller]
+    fn check_value_present(
+        &self,
+        field_name: &'static str,
+    ) -> CustomResult<(), errors::ValidationError> {
+        when(self.is_none(), || {
+            Err(errors::ValidationError::MissingRequiredField {
+                field_name: field_name.to_string(),
+            })
+            .into_report()
+            .attach_printable(format!("Missing required field {field_name} in {self:?}"))
+        })
+    }
+
+    // This will allow the error message that was generated in this function to point to the call site
+    #[track_caller]
+    fn get_required_value(
+        self,
+        field_name: &'static str,
+    ) -> CustomResult<T, errors::ValidationError> {
+        match self {
+            Some(v) => Ok(v),
+            None => Err(errors::ValidationError::MissingRequiredField {
+                field_name: field_name.to_string(),
+            })
+            .into_report()
+            .attach_printable(format!("Missing required field {field_name} in {self:?}")),
+        }
+    }
+
+    #[track_caller]
+    fn parse_enum<E>(self, enum_name: &'static str) -> CustomResult<E, errors::ParsingError>
+    where
+        T: AsRef<str>,
+        E: std::str::FromStr,
+        <E as std::str::FromStr>::Err: std::error::Error + Send + Sync + 'static,
+    {
+        let value = self
+            .get_required_value(enum_name)
+            .change_context(errors::ParsingError::UnknownError)?;
+
+        E::from_str(value.as_ref())
+            .into_report()
+            .change_context(errors::ParsingError::UnknownError)
+            .attach_printable_lazy(|| format!("Invalid {{ {enum_name}: {value:?} }} "))
+    }
+
+    #[track_caller]
+    fn parse_value<U>(self, type_name: &'static str) -> CustomResult<U, errors::ParsingError>
+    where
+        T: ValueExt,
+        U: serde::de::DeserializeOwned,
+    {
+        let value = self
+            .get_required_value(type_name)
+            .change_context(errors::ParsingError::UnknownError)?;
+        value.parse_value(type_name)
+    }
+
+    fn update_value(&mut self, value: Self) {
+        if let Some(a) = value {
+            *self = Some(a)
+        }
     }
 }
