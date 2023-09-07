@@ -59,11 +59,39 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
         let storage_scheme = merchant_account.storage_scheme;
         let (payment_intent, payment_attempt, connector_response);
 
-        let money @ (amount, currency) = payments_create_request_validation(request) ?;
+        let money @ (amount, currency) = payments_create_request_validation(request)?;
 
         let payment_id = payment_id
             .get_payment_intent_id()
             .change_context(errors::ApiErrorResponse::PaymentNotFound)?;
+
+        let (payment_link, payment_link_id) =
+            if request.payment_link_object.is_some() && !request.confirm.unwrap_or(false) {
+                let created_at @ last_modified_at = Some(common_utils::date_time::now());
+                let payment_link_id = utils::generate_id(consts::ID_LENGTH, "pl");
+                let payment_link = format!(
+                    "{}/{}/{}",
+                    state.conf.server.base_url,
+                    merchant_id.clone(),
+                    payment_id.clone()
+                );
+                let payment_link_req = storage::PaymentLinkNew {
+                    payment_link_id: payment_link_id.clone(),
+                    payment_id: payment_id.clone(),
+                    merchant_id: merchant_id.clone(),
+                    link_to_pay: payment_link.clone(),
+                    amount: amount.into(),
+                    currency: request.currency,
+                    created_at,
+                    last_modified_at,
+                };
+                let payment_link_db = db.insert_payment_link(payment_link_req).await;
+                println!("payment link db object {:?}", payment_link_db);
+
+                (Some(payment_link), Some(payment_link_id))
+            } else {
+                (None, None)
+            };
 
         let (
             token,
@@ -143,6 +171,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
                     shipping_address.clone().map(|x| x.address_id),
                     billing_address.clone().map(|x| x.address_id),
                     payment_attempt.attempt_id.to_owned(),
+                    payment_link_id,
                 )?,
                 storage_scheme,
             )
@@ -237,35 +266,6 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
                 .map(ForeignInto::foreign_into)),
         });
 
-        let payment_link = if request.payment_link_object.is_some() && !request.confirm.unwrap_or(false) {
-            Some(format!("{}/{}/{}",state.conf.server.base_url,  payment_intent.merchant_id.clone(), payment_intent.payment_id.clone()))
-            
-            } else {
-                None
-            };
-
-        // let payment_link_req = storage::PaymentLinkNew
-        //     .set_payment_id(payment_intent.clone().payment_id)
-        //     .set_merchant_id(payment_intent.clone().merchant_id)
-        //     .set_link_to_pay(payment_link.clone().unwrap())
-        //     .set_amount(payment_intent.clone().amount)
-        //     .set_currency(payment_intent.clone().currency)
-        //     .set_created_at(Some(payment_intent.clone().created_at))
-        //     .set_last_modified_at(Some(payment_intent.clone().modified_at)).to_owned();
-
-            let payment_link_req = storage::PaymentLinkNew {
-                payment_id:payment_intent.clone().payment_id,
-                merchant_id:payment_intent.clone().merchant_id,
-                link_to_pay: payment_link.clone().unwrap(),
-                amount:payment_intent.clone().amount,
-                currency:payment_intent.clone().currency ,
-                created_at:Some(payment_intent.clone().created_at),
-                last_modified_at: Some(payment_intent.clone().modified_at),
-            };
-
-        let payment_link_db = db.insert_payment_link(payment_link_req).await;
-        println!("payment link db object {:?}",payment_link_db);
-
         Ok((
             operation,
             PaymentData {
@@ -300,7 +300,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
                 multiple_capture_data: None,
                 redirect_response: None,
                 frm_message: None,
-                payment_link
+                payment_link,
             },
             Some(customer_details),
         ))
@@ -597,22 +597,7 @@ impl PaymentCreate {
         })
     }
 
-    // #[instrument(skip_all)]
-    // fn make_payment_link(
-    //     payment_intent:storage::PaymentIntentNew,
-    //     payment_link: String
-    // ) -> RouterResult<storage::PaymentLinkNew> {
-    //     Ok(storage::PaymentLinkNew::default() 
-    //         .set_payment_id(payment_intent.payment_id)
-    //         .set_merchant_id(payment_intent.merchant_id)
-    //         .set_link_to_pay(payment_link)
-    //         .set_amount(payment_intent.amount)
-    //         .set_currency(payment_intent.currency)
-    //         .set_created_at(payment_intent.created_at)
-    //         .set_last_modified_at(payment_intent.modified_at)
-    //     )
-    // }
-
+    #[allow(clippy::too_many_arguments)]
     #[instrument(skip_all)]
     fn make_payment_intent(
         payment_id: &str,
@@ -622,6 +607,7 @@ impl PaymentCreate {
         shipping_address_id: Option<String>,
         billing_address_id: Option<String>,
         active_attempt_id: String,
+        payment_link_id: Option<String>,
     ) -> RouterResult<storage::PaymentIntentNew> {
         let created_at @ modified_at @ last_synced = Some(common_utils::date_time::now());
         let status =
@@ -704,6 +690,7 @@ impl PaymentCreate {
             connector_metadata,
             feature_metadata,
             attempt_count: 1,
+            payment_link_id,
         })
     }
 

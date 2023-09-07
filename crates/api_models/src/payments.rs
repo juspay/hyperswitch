@@ -292,7 +292,7 @@ pub struct PaymentsRequest {
     /// additional data that might be required by hyperswitch
     pub feature_metadata: Option<FeatureMetadata>,
     /// payment link object for required for generating payment_link
-    pub payment_link_object : Option<PaymentLinkObject>,
+    pub payment_link_object: Option<PaymentLinkObject>,
 }
 
 #[derive(
@@ -1861,7 +1861,7 @@ pub struct PaymentsResponse {
     #[schema(value_type = Option<String>, example = "993672945374576J")]
     pub reference_id: Option<String>,
 
-    pub payment_link : Option<String>,
+    pub payment_link_response: Option<PaymentLinkResponse>,
 }
 
 #[derive(Clone, Debug, serde::Deserialize, ToSchema)]
@@ -2763,23 +2763,30 @@ mod tests {
     }
 }
 
-
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize, PartialEq, ToSchema)]
 pub struct PaymentLinkObject {
     pub create_payment_link: bool,
 }
 
-#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
-pub struct PaymentLinkRequest {
-    pub payment_id: Option<String>,
+#[derive(Default, Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
+pub struct RetrievePaymentLinkRequest {
+    pub payment_link_id: String,
+    pub client_secret: Option<String>,
+}
+
+#[derive(Clone, Debug, serde::Serialize, PartialEq, serde::Deserialize)]
+pub struct PaymentLinkResponse {
+    pub payment_link: Option<String>,
+    pub payment_link_id: Option<String>,
 }
 
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
-pub struct PaymentLinkResponse {
+pub struct RetrievePaymentLinkResponse {
+    pub payment_link_id: String,
     pub payment_id: String,
     pub merchant_id: String,
     pub link_to_pay: String,
-    pub amount : i64,
+    pub amount: i64,
     pub currency: Option<api_enums::Currency>,
     #[serde(with = "common_utils::custom_serde::iso8601")]
     pub created_at: PrimitiveDateTime,

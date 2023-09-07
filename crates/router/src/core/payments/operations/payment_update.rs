@@ -341,7 +341,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
                 multiple_capture_data: None,
                 redirect_response: None,
                 frm_message: None,
-                payment_link:None,
+                payment_link: None,
             },
             Some(customer_details),
         ))

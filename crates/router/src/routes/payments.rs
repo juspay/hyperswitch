@@ -859,7 +859,6 @@ where
     }
 }
 
-
 // pub async fn get_payment_link(
 //     state: web::Data<app::AppState>,
 //     req: actix_web::HttpRequest,

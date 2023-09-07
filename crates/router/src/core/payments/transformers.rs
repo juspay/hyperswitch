@@ -302,12 +302,15 @@ pub fn payments_to_payments_response<R, Op>(
 where
     Op: Debug,
 {
-    // let payment_link = if payment_link_object.is_some() && !confirm.unwrap_or(false) {
-    //     Some(format!("{}/{}/{}",server.base_url,  payment_intent.merchant_id.clone(), payment_intent.payment_id.clone()))
-        
-    // } else {
-    //     None
-    // };
+    let payment_link_response = if let Some(pl) = payment_link {
+        Some(api_models::payments::PaymentLinkResponse {
+            payment_link: Some(pl),
+            payment_link_id: payment_intent.payment_link_id.clone(),
+        })
+    } else {
+        None
+    };
+
     let currency = payment_attempt
         .currency
         .as_ref()
@@ -538,7 +541,7 @@ where
                         .set_feature_metadata(payment_intent.feature_metadata)
                         .set_connector_metadata(payment_intent.connector_metadata)
                         .set_reference_id(payment_attempt.connector_response_reference_id)
-                        .set_payment_link(payment_link)
+                        .set_payment_link_response(payment_link_response)
                         .to_owned(),
                 )
             }
@@ -593,7 +596,7 @@ where
             connector_metadata: payment_intent.connector_metadata,
             allowed_payment_method_types: payment_intent.allowed_payment_method_types,
             reference_id: payment_attempt.connector_response_reference_id,
-            payment_link,
+            payment_link_response,
             ..Default::default()
         }),
     });

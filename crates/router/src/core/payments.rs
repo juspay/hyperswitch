@@ -19,7 +19,7 @@ use time;
 
 pub use self::operations::{
     PaymentCancel, PaymentCapture, PaymentConfirm, PaymentCreate, PaymentMethodValidate,
-    PaymentResponse, PaymentSession, PaymentStatus, PaymentUpdate
+    PaymentResponse, PaymentSession, PaymentStatus, PaymentUpdate,
 };
 use self::{
     flows::{ConstructFlowSpecificData, Feature},
@@ -1700,25 +1700,24 @@ pub fn should_add_task_to_process_tracker<F: Clone>(payment_data: &PaymentData<F
 pub async fn retrieve_payment_link(
     state: &AppState,
     merchant_account: domain::MerchantAccount,
-    key_store: domain::MerchantKeyStore,
-    payment_id: String
-) -> RouterResponse<api_models::payments::PaymentLinkResponse> {
+    payment_link_id: String,
+) -> RouterResponse<api_models::payments::RetrievePaymentLinkResponse> {
     let db = &*state.store;
-    print!("{:?} payment_id", payment_id);
-    let db_fetch= db.find_payment_link_by_payment_id(
-        &payment_id
-    ).await.ok().unwrap();
-    println!(" payment retrieve response {:?}", db_fetch);
-    let response = api_models::payments::PaymentLinkResponse {
-        payment_id: db_fetch.payment_id,
-        merchant_id: db_fetch.merchant_id,
-        link_to_pay: db_fetch.link_to_pay,
-        amount: db_fetch.amount,
-        currency: db_fetch.currency,
-        created_at:db_fetch.created_at,
-        last_modified_at: db_fetch.last_modified_at
+    let payment_link_object = db
+        .find_payment_link_by_payment_link_id(&payment_link_id, &merchant_account.merchant_id)
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::PaymentLinkNotFound)?;
+
+    let response = api_models::payments::RetrievePaymentLinkResponse {
+        payment_link_id: payment_link_object.payment_link_id,
+        payment_id: payment_link_object.payment_id,
+        merchant_id: payment_link_object.merchant_id,
+        link_to_pay: payment_link_object.link_to_pay,
+        amount: payment_link_object.amount,
+        currency: payment_link_object.currency,
+        created_at: payment_link_object.created_at,
+        last_modified_at: payment_link_object.last_modified_at,
     };
 
     Ok(services::ApplicationResponse::Json(response))
-
 }

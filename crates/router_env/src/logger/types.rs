@@ -191,8 +191,8 @@ pub enum Flow {
     RetrieveDisputeEvidence,
     /// Invalidate cache flow
     CacheInvalidate,
-
-    PaymentLinkRetrive
+    /// Payment Link Retrieve flow
+    PaymentLinkRetrive,
 }
 
 ///

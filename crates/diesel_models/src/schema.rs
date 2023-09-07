@@ -553,6 +553,7 @@ diesel::table! {
         connector_metadata -> Nullable<Json>,
         feature_metadata -> Nullable<Json>,
         attempt_count -> Int2,
+        payment_link_id -> Nullable<Varchar>,
     }
 }
 
@@ -737,7 +738,9 @@ diesel::table! {
     use diesel::sql_types::*;
     use crate::enums::diesel_exports::*;
 
-    payment_link (payment_id) {
+    payment_link (payment_link_id) {
+        #[max_length = 255]
+        payment_link_id -> Varchar,
         #[max_length = 255]
         payment_id -> Varchar,
         #[max_length = 64]
@@ -766,7 +769,6 @@ diesel::table! {
         source -> Varchar,
     }
 }
-
 
 diesel::allow_tables_to_appear_in_same_query!(
     address,

@@ -250,6 +250,9 @@ impl ErrorSwitch<api_models::errors::types::ApiErrorResponse> for ApiErrorRespon
             Self::WebhookUnprocessableEntity => {
                 AER::Unprocessable(ApiError::new("WE", 5, "There was an issue processing the webhook body", None))
             }
+            Self::PaymentLinkNotFound => {
+                AER::NotFound(ApiError::new("HE", 2, "Payment Link does not exist in our records", None))
+            }
         }
     }
 }

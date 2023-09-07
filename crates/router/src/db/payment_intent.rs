@@ -116,6 +116,7 @@ mod storage {
                         connector_metadata: new.connector_metadata.clone(),
                         feature_metadata: new.feature_metadata.clone(),
                         attempt_count: new.attempt_count,
+                        payment_link_id: new.payment_link_id.clone(),
                     };
 
                     match self
@@ -466,6 +467,7 @@ impl PaymentIntentInterface for MockDb {
             connector_metadata: new.connector_metadata,
             feature_metadata: new.feature_metadata,
             attempt_count: new.attempt_count,
+            payment_link_id: new.payment_link_id,
         };
         payment_intents.push(payment_intent.clone());
         Ok(payment_intent)

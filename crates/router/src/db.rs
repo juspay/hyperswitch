@@ -18,6 +18,7 @@ pub mod merchant_connector_account;
 pub mod merchant_key_store;
 pub mod payment_attempt;
 pub mod payment_intent;
+pub mod payment_link;
 pub mod payment_method;
 pub mod payout_attempt;
 pub mod payouts;
@@ -25,7 +26,6 @@ pub mod process_tracker;
 pub mod queue;
 pub mod refund;
 pub mod reverse_lookup;
-pub mod payment_link;
 
 use std::sync::Arc;
 

@@ -7,7 +7,8 @@ use crate::{
     // errors,
     payment_link::{PaymentLink, PaymentLinkNew},
     schema::payment_link::dsl,
-    PgPooledConn, StorageResult,
+    PgPooledConn,
+    StorageResult,
 };
 
 impl PaymentLinkNew {
@@ -18,14 +19,16 @@ impl PaymentLinkNew {
 }
 
 impl PaymentLink {
-    pub async fn find_by_payment_id(
+    pub async fn find_by_link_payment_id(
         conn: &PgPooledConn,
-        payment_id: &str,
+        payment_link_id: &str,
+        merchant_id: &str,
     ) -> StorageResult<Self> {
         generics::generic_find_one::<<Self as HasTable>::Table, _, _>(
             conn,
-            dsl::payment_id
-                .eq(payment_id.to_owned())
+            dsl::payment_link_id
+                .eq(payment_link_id.to_owned())
+                .and(dsl::merchant_id.eq(merchant_id.to_owned())),
         )
         .await
     }
