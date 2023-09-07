@@ -577,6 +577,7 @@ impl PaymentCreate {
                 .mandate_data
                 .as_ref()
                 .and_then(|inner| inner.mandate_type.clone().map(ForeignInto::foreign_into)),
+            amount_capturable: amount.into(),
             ..storage::PaymentAttemptNew::default()
         })
     }

@@ -59,6 +59,36 @@ pub enum AttemptStatus {
     DeviceDataCollectionPending,
 }
 
+impl AttemptStatus {
+    pub fn is_terminal_status(self) -> bool {
+        match self {
+            Self::RouterDeclined
+            | Self::Charged
+            | Self::AutoRefunded
+            | Self::Voided
+            | Self::VoidFailed
+            | Self::CaptureFailed
+            | Self::Failure => true,
+            Self::Started
+            | Self::AuthenticationFailed
+            | Self::AuthenticationPending
+            | Self::AuthenticationSuccessful
+            | Self::Authorized
+            | Self::AuthorizationFailed
+            | Self::Authorizing
+            | Self::CodInitiated
+            | Self::VoidInitiated
+            | Self::CaptureInitiated
+            | Self::PartialCharged
+            | Self::Unresolved
+            | Self::Pending
+            | Self::PaymentMethodAwaited
+            | Self::ConfirmationAwaited
+            | Self::DeviceDataCollectionPending => false,
+        }
+    }
+}
+
 #[derive(
     Clone,
     Copy,

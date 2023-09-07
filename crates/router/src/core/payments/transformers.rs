@@ -1,6 +1,6 @@
 use std::{fmt::Debug, marker::PhantomData, str::FromStr};
 
-use api_models::{enums::IntentStatus, payments::FrmMessage};
+use api_models::payments::FrmMessage;
 use common_utils::fp_utils;
 use diesel_models::{ephemeral_key, payment_attempt::PaymentListFilters};
 use error_stack::{IntoReport, ResultExt};
@@ -526,27 +526,13 @@ where
                         connector_name,
                     )
                 });
-
-                let amount_captured = payment_intent.amount_captured.unwrap_or_default();
-                let should_calculate_amount_to_capture = |intent_status| {
-                    matches!(
-                        intent_status,
-                        IntentStatus::PartiallyCaptured | IntentStatus::RequiresCapture
-                    )
-                };
-                let amount_capturable = if should_calculate_amount_to_capture(payment_intent.status)
-                {
-                    Some(payment_attempt.amount - amount_captured)
-                } else {
-                    Some(0)
-                };
                 services::ApplicationResponse::JsonWithHeaders((
                     response
                         .set_payment_id(Some(payment_attempt.payment_id))
                         .set_merchant_id(Some(payment_attempt.merchant_id))
                         .set_status(payment_intent.status)
                         .set_amount(payment_attempt.amount)
-                        .set_amount_capturable(amount_capturable)
+                        .set_amount_capturable(Some(payment_attempt.amount_capturable))
                         .set_amount_received(payment_intent.amount_captured)
                         .set_connector(routed_through)
                         .set_client_secret(payment_intent.client_secret.map(masking::Secret::new))

@@ -127,6 +127,7 @@ pub struct PaymentAttempt {
     pub multiple_capture_count: Option<i16>,
     // reference to the payment at connector side
     pub connector_response_reference_id: Option<String>,
+    pub amount_capturable: i64,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
