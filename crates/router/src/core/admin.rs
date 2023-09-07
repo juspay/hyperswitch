@@ -443,6 +443,7 @@ pub async fn create_payment_connector(
     req: api::MerchantConnectorCreate,
     merchant_id: &String,
 ) -> RouterResponse<api_models::admin::MerchantConnectorResponse> {
+    #[cfg(feature = "dummy_connector")]
     if let Err(error) = validate_dummy_connector_enabled(state, &req.connector_name).await {
         return Err(error.into());
     }
@@ -1274,6 +1275,7 @@ pub(crate) fn validate_auth_type(
     }
 }
 
+#[cfg(feature = "dummy_connector")]
 async fn validate_dummy_connector_enabled(
     state: &AppState,
     connector_name: &api_enums::Connector,
