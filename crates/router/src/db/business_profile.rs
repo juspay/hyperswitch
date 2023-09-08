@@ -179,7 +179,6 @@ impl BusinessProfileInterface for MockDb {
                 errors::StorageError::ValueNotFound(
                     "No business profile found for profile_id = {profile_id} and merchant_id = {merchant_id}".to_string(),
                 )
-                .into(),
             )?;
         business_profiles.remove(index);
         Ok(true)

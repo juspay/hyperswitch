@@ -73,7 +73,7 @@ pub struct BusinessProfileUpdateInternal {
 
 impl From<BusinessProfileNew> for BusinessProfile {
     fn from(new: BusinessProfileNew) -> Self {
-        BusinessProfile {
+        Self {
             profile_id: new.profile_id,
             merchant_id: new.merchant_id,
             profile_name: new.profile_name,
