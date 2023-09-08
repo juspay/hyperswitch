@@ -9,6 +9,6 @@ impl RedisConnInterface for MockDb {
     fn get_redis_conn(
         &self,
     ) -> Result<Arc<redis_interface::RedisConnectionPool>, error_stack::Report<RedisError>> {
-        Err(RedisError::RedisConnectionError.into())
+        self.redis.get_redis_conn()
     }
 }

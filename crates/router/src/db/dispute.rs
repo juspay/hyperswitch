@@ -371,6 +371,7 @@ mod tests {
             enums::{DisputeStage, DisputeStatus},
         };
         use masking::Secret;
+        use redis_interface::RedisSettings;
         use serde_json::Value;
         use time::macros::datetime;
 
@@ -409,7 +410,7 @@ mod tests {
 
         #[tokio::test]
         async fn test_insert_dispute() {
-            let mockdb = MockDb::new().await;
+            let mockdb = MockDb::new(&RedisSettings::default()).await.unwrap();
 
             let created_dispute = mockdb
                 .insert_dispute(create_dispute_new(DisputeNewIds {

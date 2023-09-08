@@ -1,8 +1,15 @@
 use std::sync::Arc;
 
-use data_models::payments::{payment_attempt::PaymentAttempt, payment_intent::PaymentIntent};
+use data_models::{
+    errors::StorageError,
+    payments::{payment_attempt::PaymentAttempt, payment_intent::PaymentIntent},
+};
 use diesel_models::{self as store};
+use error_stack::ResultExt;
 use futures::lock::Mutex;
+use redis_interface::RedisSettings;
+
+use crate::redis::RedisStore;
 
 pub mod payment_attempt;
 pub mod payment_intent;
@@ -21,7 +28,7 @@ pub struct MockDb {
     pub refunds: Arc<Mutex<Vec<store::Refund>>>,
     pub processes: Arc<Mutex<Vec<store::ProcessTracker>>>,
     pub connector_response: Arc<Mutex<Vec<store::ConnectorResponse>>>,
-    // pub redis: Arc<redis_interface::RedisConnectionPool>,
+    pub redis: Arc<RedisStore>,
     pub api_keys: Arc<Mutex<Vec<store::ApiKey>>>,
     pub ephemeral_keys: Arc<Mutex<Vec<store::EphemeralKey>>>,
     pub cards_info: Arc<Mutex<Vec<store::CardInfo>>>,
@@ -34,8 +41,8 @@ pub struct MockDb {
 }
 
 impl MockDb {
-    pub async fn new() -> Self {
-        Self {
+    pub async fn new(redis: &RedisSettings) -> error_stack::Result<Self, StorageError> {
+        Ok(Self {
             addresses: Default::default(),
             configs: Default::default(),
             merchant_accounts: Default::default(),
@@ -47,7 +54,11 @@ impl MockDb {
             refunds: Default::default(),
             processes: Default::default(),
             connector_response: Default::default(),
-            // redis: Arc::new(crate::connection::redis_connection(&redis).await),
+            redis: Arc::new(
+                RedisStore::new(redis)
+                    .await
+                    .change_context(StorageError::InitializationError)?,
+            ),
             api_keys: Default::default(),
             ephemeral_keys: Default::default(),
             cards_info: Default::default(),
@@ -57,6 +68,6 @@ impl MockDb {
             mandates: Default::default(),
             captures: Default::default(),
             merchant_key_store: Default::default(),
-        }
+        })
     }
 }
