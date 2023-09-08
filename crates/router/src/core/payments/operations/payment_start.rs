@@ -1,6 +1,6 @@
 use std::marker::PhantomData;
 
-use api_models::enums::CancelTransaction;
+use api_models::enums::FrmSuggestion;
 use async_trait::async_trait;
 use error_stack::ResultExt;
 use router_derive::PaymentOperation;
@@ -177,7 +177,7 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsStartRequest> for P
         _storage_scheme: storage_enums::MerchantStorageScheme,
         _updated_customer: Option<storage::CustomerUpdate>,
         _mechant_key_store: &domain::MerchantKeyStore,
-        _should_cancel_transaction: Option<CancelTransaction>,
+        _frm_suggestion: Option<FrmSuggestion>,
     ) -> RouterResult<(
         BoxedOperation<'b, F, api::PaymentsStartRequest>,
         PaymentData<F>,

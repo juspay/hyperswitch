@@ -1,11 +1,24 @@
 {
-  "info": {
-    "_postman_id": "60a5122e-9d2d-43de-8d97-d0cc0e688456",
-    "name": "powertranz",
-    "description": "## Get started\n\nJuspay Router provides a collection of APIs that enable you to process and manage payments. Our APIs accept and return JSON in the HTTP body, and return standard HTTP response codes.  \nYou can consume the APIs directly using your favorite HTTP/REST library.  \nWe have a testing environment referred to \"sandbox\", which you can setup to test API calls without affecting production data.\n\n### Base URLs\n\nUse the following base URLs when making requests to the APIs:\n\n| Environment | Base URL |\n| --- | --- |\n| Sandbox | [https://sandbox.hyperswitch.io](https://sandbox.hyperswitch.io) |\n| Production | [https://router.juspay.io](https://router.juspay.io) |\n\n# Authentication\n\nWhen you sign up for an account, you are given a secret key (also referred as api-key). You may authenticate all API requests with Juspay server by providing the appropriate key in the request Authorization header.  \nNever share your secret api keys. Keep them guarded and secure.\n\nContact Support:  \nName: Juspay Support  \nEmail: [support@juspay.in](mailto:support@juspay.in)",
-    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
-    "_exporter_id": "25737662"
-  },
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "exec": [
+          ""
+        ],
+        "type": "text/javascript"
+      }
+    },
+    {
+      "listen": "test",
+      "script": {
+        "exec": [
+          ""
+        ],
+        "type": "text/javascript"
+      }
+    }
+  ],
   "item": [
     {
       "name": "Health check",
@@ -140,12 +153,12 @@
                 ],
                 "body": {
                   "mode": "raw",
-                  "raw": "{\n  \"merchant_id\": \"merchant_{{$timestamp}}\",\n  \"locker_id\": \"m0010\",\n  \"merchant_name\": \"NewAge Retailer\",\n  \"merchant_details\": {\n    \"primary_contact_person\": \"John Test\",\n    \"primary_email\": \"JohnTest@test.com\",\n    \"primary_phone\": \"sunt laborum\",\n    \"secondary_contact_person\": \"John Test2\",\n    \"secondary_email\": \"JohnTest2@test.com\",\n    \"secondary_phone\": \"cillum do dolor id\",\n    \"website\": \"www.example.com\",\n    \"about_business\": \"Online Retail with a wide selection of organic products for North America\",\n    \"address\": {\n      \"line1\": \"1467\",\n      \"line2\": \"Harrison Street\",\n      \"line3\": \"Harrison Street\",\n      \"city\": \"San Fransico\",\n      \"state\": \"California\",\n      \"zip\": \"94122\",\n      \"country\": \"US\"\n    }\n  },\n  \"return_url\": \"https://duck.com\",\n  \"webhook_details\": {\n    \"webhook_version\": \"1.0.1\",\n    \"webhook_username\": \"ekart_retail\",\n    \"webhook_password\": \"password_ekart@123\",\n    \"payment_created_enabled\": true,\n    \"payment_succeeded_enabled\": true,\n    \"payment_failed_enabled\": true\n  },\n  \"routing_algorithm\": {\n    \"type\": \"single\",\n    \"data\": \"powertranz\"\n  },\n  \"primary_business_details\": [\n        {\n            \"country\": \"US\",\n            \"business\": \"default\"\n        }\n    ],\n  \"sub_merchants_enabled\": false,\n  \"metadata\": {\n    \"city\": \"NY\",\n    \"unit\": \"245\"\n  }\n}",
                   "options": {
                     "raw": {
                       "language": "json"
                     }
-                  }
+                  },
+                  "raw": "{\"merchant_id\":\"merchant_{{$timestamp}}\",\"locker_id\":\"m0010\",\"merchant_name\":\"NewAge Retailer\",\"merchant_details\":{\"primary_contact_person\":\"John Test\",\"primary_email\":\"JohnTest@test.com\",\"primary_phone\":\"sunt laborum\",\"secondary_contact_person\":\"John Test2\",\"secondary_email\":\"JohnTest2@test.com\",\"secondary_phone\":\"cillum do dolor id\",\"website\":\"www.example.com\",\"about_business\":\"Online Retail with a wide selection of organic products for North America\",\"address\":{\"line1\":\"1467\",\"line2\":\"Harrison Street\",\"line3\":\"Harrison Street\",\"city\":\"San Fransico\",\"state\":\"California\",\"zip\":\"94122\",\"country\":\"US\"}},\"return_url\":\"https://duck.com\",\"webhook_details\":{\"webhook_version\":\"1.0.1\",\"webhook_username\":\"ekart_retail\",\"webhook_password\":\"password_ekart@123\",\"payment_created_enabled\":true,\"payment_succeeded_enabled\":true,\"payment_failed_enabled\":true},\"primary_business_details\":[{\"country\":\"US\",\"business\":\"default\"}],\"sub_merchants_enabled\":false,\"metadata\":{\"city\":\"NY\",\"unit\":\"245\"}}"
                 },
                 "url": {
                   "raw": "{{baseUrl}}/accounts",
@@ -233,7 +246,7 @@
                 ],
                 "body": {
                   "mode": "raw",
-                  "raw": "{\n  \"name\": \"API Key 1\",\n  \"description\": null,\n  \"expiration\": \"2023-09-23T01:02:03.000Z\"\n}"
+                  "raw": "{\"name\":\"API Key 1\",\"description\":null,\"expiration\":\"2023-09-23T01:02:03.000Z\"}"
                 },
                 "url": {
                   "raw": "{{baseUrl}}/api_keys/:merchant_id",
@@ -322,12 +335,12 @@
                 ],
                 "body": {
                   "mode": "raw",
-                  "raw": "{\n    \"connector_type\": \"fiz_operations\",\n    \"connector_name\": \"powertranz\",\n    \"business_country\":\"US\",\n    \"business_label\":\"default\",\n    \"connector_account_details\": {\n        \"auth_type\": \"BodyKey\",\n        \"key1\": \"{{connector_key1}}\",\n        \"api_key\": \"{{connector_api_key}}\"\n    },\n    \"test_mode\": true,\n    \"disabled\": false,\n    \"payment_methods_enabled\": [\n        {\n            \"payment_method\": \"card\",\n            \"payment_method_types\": [\n                {\n                    \"payment_method_type\": \"credit\",\n                    \"card_networks\": [\n                        \"Visa\",\n                        \"Mastercard\"\n                    ],\n                    \"minimum_amount\": 1,\n                    \"maximum_amount\": 68607706,\n                    \"recurring_enabled\": true,\n                    \"installment_payment_enabled\": true\n                },\n                {\n                    \"payment_method_type\": \"debit\",\n                    \"card_networks\": [\n                        \"Visa\",\n                        \"Mastercard\"\n                    ],\n                    \"minimum_amount\": 1,\n                    \"maximum_amount\": 68607706,\n                    \"recurring_enabled\": true,\n                    \"installment_payment_enabled\": true\n                }\n            ]\n        }\n    ],\n    \"metadata\": {}\n}",
                   "options": {
                     "raw": {
                       "language": "json"
                     }
-                  }
+                  },
+                  "raw": "{\"connector_type\":\"fiz_operations\",\"connector_name\":\"powertranz\",\"business_country\":\"US\",\"business_label\":\"default\",\"connector_account_details\":{\"auth_type\":\"BodyKey\",\"key1\":\"{{connector_key1}}\",\"api_key\":\"{{connector_api_key}}\"},\"test_mode\":true,\"disabled\":false,\"payment_methods_enabled\":[{\"payment_method\":\"card\",\"payment_method_types\":[{\"payment_method_type\":\"credit\",\"card_networks\":[\"Visa\",\"Mastercard\"],\"minimum_amount\":1,\"maximum_amount\":68607706,\"recurring_enabled\":true,\"installment_payment_enabled\":true},{\"payment_method_type\":\"debit\",\"card_networks\":[\"Visa\",\"Mastercard\"],\"minimum_amount\":1,\"maximum_amount\":68607706,\"recurring_enabled\":true,\"installment_payment_enabled\":true}]}],\"metadata\":{}}"
                 },
                 "url": {
                   "raw": "{{baseUrl}}/account/:account_id/connectors",
@@ -437,12 +450,12 @@
                 ],
                 "body": {
                   "mode": "raw",
-                  "raw": "{\n    \"amount\": 1000,\n    \"currency\": \"USD\",\n    \"confirm\": true,\n    \"capture_method\": \"automatic\",\n    \"capture_on\": \"2022-09-10T10:11:12Z\",\n    \"amount_to_capture\": 100,\n    \"customer_id\": \"StripeCustomer\",\n    \"email\": \"guest@example.com\",\n    \"name\": \"John Doe\",\n    \"phone\": \"999999999\",\n    \"phone_country_code\": \"+1\",\n    \"description\": \"Its my first payment request\",\n    \"authentication_type\": \"no_three_ds\",\n    \"return_url\": \"https://duck.com\",\n    \"payment_method\": \"card\",\n    \"payment_method_type\": \"credit\",\n    \"payment_method_data\": {\n        \"card\": {\n            \"card_number\": \"4012000000020006\",\n            \"card_exp_month\": \"10\",\n            \"card_exp_year\": \"25\",\n            \"card_holder_name\": \"joseph Doe\",\n            \"card_cvc\": \"123\"\n        }\n    },\n    \"statement_descriptor_name\": \"joseph\",\n    \"statement_descriptor_suffix\": \"JS\",\n    \"metadata\": {\n        \"order_details\": {\n            \"product_name\": \"iphone 13\",\n            \"quantity\": 1\n        }\n    },\n    \"order_details\": [\n        {\n            \"product_name\": \"Apple iphone 15\",\n            \"quantity\": 1,\n            \"amount\": 1000,\n            \"account_name\": \"transaction_processing\"\n        }\n    ],\n    \"browser_info\": {\n        \"user_agent\": \"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/111.0.0.0 Safari/537.36\",\n        \"accept_header\": \"text\\\\/html,application\\\\/xhtml+xml,application\\\\/xml;q=0.9,image\\\\/webp,image\\\\/apng,*\\\\/*;q=0.8\",\n        \"language\": \"en-GB\",\n        \"color_depth\": 24,\n        \"screen_height\": 1440,\n        \"screen_width\": 2560,\n        \"time_zone\": -330,\n        \"java_enabled\": true,\n        \"java_script_enabled\": true\n    }\n}",
                   "options": {
                     "raw": {
                       "language": "json"
                     }
-                  }
+                  },
+                  "raw": "{\"amount\":1000,\"currency\":\"USD\",\"confirm\":true,\"capture_method\":\"automatic\",\"capture_on\":\"2022-09-10T10:11:12Z\",\"amount_to_capture\":100,\"customer_id\":\"StripeCustomer\",\"email\":\"guest@example.com\",\"name\":\"John Doe\",\"phone\":\"999999999\",\"phone_country_code\":\"+1\",\"description\":\"Its my first payment request\",\"authentication_type\":\"no_three_ds\",\"return_url\":\"https://duck.com\",\"payment_method\":\"card\",\"payment_method_type\":\"credit\",\"payment_method_data\":{\"card\":{\"card_number\":\"4012000000020006\",\"card_exp_month\":\"10\",\"card_exp_year\":\"25\",\"card_holder_name\":\"joseph Doe\",\"card_cvc\":\"123\"}},\"statement_descriptor_name\":\"joseph\",\"statement_descriptor_suffix\":\"JS\",\"metadata\":{\"order_details\":{\"product_name\":\"iphone 13\",\"quantity\":1}},\"order_details\":[{\"product_name\":\"Apple iphone 15\",\"quantity\":1,\"amount\":1000,\"account_name\":\"transaction_processing\"}],\"browser_info\":{\"user_agent\":\"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/111.0.0.0 Safari/537.36\",\"accept_header\":\"text\\\\/html,application\\\\/xhtml+xml,application\\\\/xml;q=0.9,image\\\\/webp,image\\\\/apng,*\\\\/*;q=0.8\",\"language\":\"en-GB\",\"color_depth\":24,\"screen_height\":1440,\"screen_width\":2560,\"time_zone\":-330,\"java_enabled\":true,\"java_script_enabled\":true}}"
                 },
                 "url": {
                   "raw": "{{baseUrl}}/payments",
@@ -754,12 +767,12 @@
                     ],
                     "body": {
                       "mode": "raw",
-                      "raw": "{\n    \"amount\": 1000,\n    \"currency\": \"USD\",\n    \"confirm\": true,\n    \"capture_method\": \"automatic\",\n    \"capture_on\": \"2022-09-10T10:11:12Z\",\n    \"amount_to_capture\": 1000,\n    \"customer_id\": \"StripeCustomer\",\n    \"email\": \"guest@example.com\",\n    \"name\": \"John Doe\",\n    \"phone\": \"999999999\",\n    \"phone_country_code\": \"+1\",\n    \"description\": \"Its my first payment request\",\n    \"authentication_type\": \"no_three_ds\",\n    \"return_url\": \"https://duck.com\",\n    \"payment_method\": \"card\",\n    \"payment_method_type\":\"credit\",\n    \"payment_method_data\": {\n        \"card\": {\n            \"card_number\": \"4012000000020071\",\n            \"card_exp_month\": \"10\",\n            \"card_exp_year\": \"25\",\n            \"card_holder_name\": \"joseph Doe\",\n            \"card_cvc\": \"123\"\n        }\n    },\n    \"billing\": {\n        \"address\": {\n            \"line1\": \"1467\",\n            \"line2\": \"Harrison Street\",\n            \"line3\": \"Harrison Street\",\n            \"city\": \"San Fransico\",\n            \"state\": \"California\",\n            \"zip\": \"94122\",\n            \"country\": \"US\",\n            \"first_name\": \"PiX\",\n            \"last_name\":\"PiX\"\n        }\n    },\n     \"shipping\": {\n        \"address\": {\n            \"line1\": \"1467\",\n            \"line2\": \"Harrison Street\",\n            \"line3\": \"Harrison Street\",\n            \"city\": \"San Fransico\",\n            \"state\": \"California\",\n            \"zip\": \"94122\",\n            \"country\": \"US\",\n            \"first_name\": \"PiX\",\n            \"last_name\":\"PiX\"\n        }\n    },\n   \n     \"order_details\": [\n        {\n            \"product_name\": \"Apple iphone 15\",\n            \"quantity\": 1,\n            \"amount\": 1000,\n            \"account_name\": \"transaction_processing\"\n        }\n    ],\n    \"statement_descriptor_name\": \"joseph\",\n    \"statement_descriptor_suffix\": \"JS\",\n    \"metadata\": {\n        \"order_details\": {\n            \"product_name\": \"iphone 13\",\n            \"quantity\": 1\n        }\n    },\n    \"browser_info\": {\n        \"user_agent\": \"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/111.0.0.0 Safari/537.36\",\n        \"accept_header\": \"text\\\\/html,application\\\\/xhtml+xml,application\\\\/xml;q=0.9,image\\\\/webp,image\\\\/apng,*\\\\/*;q=0.8\",\n        \"language\": \"en-GB\",\n        \"color_depth\": 24,\n        \"screen_height\": 1440,\n        \"screen_width\": 2560,\n        \"time_zone\": -330,\n        \"java_enabled\": true,\n        \"java_script_enabled\": true\n    }\n}",
                       "options": {
                         "raw": {
                           "language": "json"
                         }
-                      }
+                      },
+                      "raw": "{\"amount\":1000,\"currency\":\"USD\",\"confirm\":true,\"capture_method\":\"automatic\",\"capture_on\":\"2022-09-10T10:11:12Z\",\"amount_to_capture\":1000,\"customer_id\":\"StripeCustomer\",\"email\":\"guest@example.com\",\"name\":\"John Doe\",\"phone\":\"999999999\",\"phone_country_code\":\"+1\",\"description\":\"Its my first payment request\",\"authentication_type\":\"no_three_ds\",\"return_url\":\"https://duck.com\",\"payment_method\":\"card\",\"payment_method_type\":\"credit\",\"payment_method_data\":{\"card\":{\"card_number\":\"4012000000020071\",\"card_exp_month\":\"10\",\"card_exp_year\":\"25\",\"card_holder_name\":\"joseph Doe\",\"card_cvc\":\"123\"}},\"billing\":{\"address\":{\"line1\":\"1467\",\"line2\":\"Harrison Street\",\"line3\":\"Harrison Street\",\"city\":\"San Fransico\",\"state\":\"California\",\"zip\":\"94122\",\"country\":\"US\",\"first_name\":\"PiX\",\"last_name\":\"PiX\"}},\"shipping\":{\"address\":{\"line1\":\"1467\",\"line2\":\"Harrison Street\",\"line3\":\"Harrison Street\",\"city\":\"San Fransico\",\"state\":\"California\",\"zip\":\"94122\",\"country\":\"US\",\"first_name\":\"PiX\",\"last_name\":\"PiX\"}},\"order_details\":[{\"product_name\":\"Apple iphone 15\",\"quantity\":1,\"amount\":1000,\"account_name\":\"transaction_processing\"}],\"statement_descriptor_name\":\"joseph\",\"statement_descriptor_suffix\":\"JS\",\"metadata\":{\"order_details\":{\"product_name\":\"iphone 13\",\"quantity\":1}},\"browser_info\":{\"user_agent\":\"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/111.0.0.0 Safari/537.36\",\"accept_header\":\"text\\\\/html,application\\\\/xhtml+xml,application\\\\/xml;q=0.9,image\\\\/webp,image\\\\/apng,*\\\\/*;q=0.8\",\"language\":\"en-GB\",\"color_depth\":24,\"screen_height\":1440,\"screen_width\":2560,\"time_zone\":-330,\"java_enabled\":true,\"java_script_enabled\":true}}"
                     },
                     "url": {
                       "raw": "{{baseUrl}}/payments",
@@ -956,12 +969,12 @@
                     ],
                     "body": {
                       "mode": "raw",
-                      "raw": "{\n    \"amount\": 1000,\n    \"currency\": \"USD\",\n    \"confirm\": true,\n    \"capture_method\": \"automatic\",\n    \"capture_on\": \"2022-09-10T10:11:12Z\",\n    \"amount_to_capture\": 1000,\n    \"customer_id\": \"StripeCustomer\",\n    \"email\": \"guest@example.com\",\n    \"name\": \"John Doe\",\n    \"phone\": \"999999999\",\n    \"phone_country_code\": \"+1\",\n    \"description\": \"Its my first payment request\",\n    \"authentication_type\": \"no_three_ds\",\n    \"return_url\": \"https://duck.com\",\n    \"payment_method\": \"card\",\n    \"payment_method_type\":\"credit\",\n    \"payment_method_data\": {\n        \"card\": {\n            \"card_number\": \"4012000000020071\",\n            \"card_exp_month\": \"10\",\n            \"card_exp_year\": \"25\",\n            \"card_holder_name\": \"joseph Doe\",\n            \"card_cvc\": \"123\"\n        }\n    },\n    \"billing\": {\n        \"address\": {\n            \"line1\": \"1467\",\n            \"line2\": \"Harrison Street\",\n            \"line3\": \"Harrison Street\",\n            \"city\": \"San Fransico\",\n            \"state\": \"California\",\n            \"zip\": \"94122\",\n            \"country\": \"US\",\n            \"first_name\": \"PiX\",\n            \"last_name\":\"PiX\"\n        }\n    },\n     \"shipping\": {\n        \"address\": {\n            \"line1\": \"1467\",\n            \"line2\": \"Harrison Street\",\n            \"line3\": \"Harrison Street\",\n            \"city\": \"San Fransico\",\n            \"state\": \"California\",\n            \"zip\": \"94122\",\n            \"country\": \"US\",\n            \"first_name\": \"PiX\",\n            \"last_name\":\"PiX\"\n        }\n    },\n   \n     \"order_details\": [\n        {\n            \"product_name\": \"Apple iphone 15\",\n            \"quantity\": 1,\n            \"amount\": 1000,\n            \"account_name\": \"transaction_processing\"\n        }\n    ],\n    \"statement_descriptor_name\": \"joseph\",\n    \"statement_descriptor_suffix\": \"JS\",\n    \"metadata\": {\n        \"order_details\": {\n            \"product_name\": \"iphone 13\",\n            \"quantity\": 1\n        }\n    },\n    \"browser_info\": {\n        \"user_agent\": \"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/111.0.0.0 Safari/537.36\",\n        \"accept_header\": \"text\\\\/html,application\\\\/xhtml+xml,application\\\\/xml;q=0.9,image\\\\/webp,image\\\\/apng,*\\\\/*;q=0.8\",\n        \"language\": \"en-GB\",\n        \"color_depth\": 24,\n        \"screen_height\": 1440,\n        \"screen_width\": 2560,\n        \"time_zone\": -330,\n        \"java_enabled\": true,\n        \"java_script_enabled\": true\n    }\n}",
                       "options": {
                         "raw": {
                           "language": "json"
                         }
-                      }
+                      },
+                      "raw": "{\"amount\":1000,\"currency\":\"USD\",\"confirm\":true,\"capture_method\":\"automatic\",\"capture_on\":\"2022-09-10T10:11:12Z\",\"amount_to_capture\":1000,\"customer_id\":\"StripeCustomer\",\"email\":\"guest@example.com\",\"name\":\"John Doe\",\"phone\":\"999999999\",\"phone_country_code\":\"+1\",\"description\":\"Its my first payment request\",\"authentication_type\":\"no_three_ds\",\"return_url\":\"https://duck.com\",\"payment_method\":\"card\",\"payment_method_type\":\"credit\",\"payment_method_data\":{\"card\":{\"card_number\":\"4012000000020071\",\"card_exp_month\":\"10\",\"card_exp_year\":\"25\",\"card_holder_name\":\"joseph Doe\",\"card_cvc\":\"123\"}},\"billing\":{\"address\":{\"line1\":\"1467\",\"line2\":\"Harrison Street\",\"line3\":\"Harrison Street\",\"city\":\"San Fransico\",\"state\":\"California\",\"zip\":\"94122\",\"country\":\"US\",\"first_name\":\"PiX\",\"last_name\":\"PiX\"}},\"shipping\":{\"address\":{\"line1\":\"1467\",\"line2\":\"Harrison Street\",\"line3\":\"Harrison Street\",\"city\":\"San Fransico\",\"state\":\"California\",\"zip\":\"94122\",\"country\":\"US\",\"first_name\":\"PiX\",\"last_name\":\"PiX\"}},\"order_details\":[{\"product_name\":\"Apple iphone 15\",\"quantity\":1,\"amount\":1000,\"account_name\":\"transaction_processing\"}],\"statement_descriptor_name\":\"joseph\",\"statement_descriptor_suffix\":\"JS\",\"metadata\":{\"order_details\":{\"product_name\":\"iphone 13\",\"quantity\":1}},\"browser_info\":{\"user_agent\":\"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/111.0.0.0 Safari/537.36\",\"accept_header\":\"text\\\\/html,application\\\\/xhtml+xml,application\\\\/xml;q=0.9,image\\\\/webp,image\\\\/apng,*\\\\/*;q=0.8\",\"language\":\"en-GB\",\"color_depth\":24,\"screen_height\":1440,\"screen_width\":2560,\"time_zone\":-330,\"java_enabled\":true,\"java_script_enabled\":true}}"
                     },
                     "url": {
                       "raw": "{{baseUrl}}/payments",
@@ -1256,12 +1269,12 @@
                     ],
                     "body": {
                       "mode": "raw",
-                      "raw": " {}",
                       "options": {
                         "raw": {
                           "language": "json"
                         }
-                      }
+                      },
+                      "raw": "{}"
                     },
                     "url": {
                       "raw": "{{baseUrl}}/payments/:id/confirm",
@@ -1562,12 +1575,12 @@
                     ],
                     "body": {
                       "mode": "raw",
-                      "raw": "{\"payment_method\": \"card\",\n    \"payment_method_data\": {\n        \"card\": {\n            \"card_number\": \"4111111111111111\",\n            \"card_exp_month\": \"10\",\n            \"card_exp_year\": \"25\",\n            \"card_holder_name\": \"joseph Doe\",\n            \"card_cvc\": \"123\"\n        }\n    }\n}",
                       "options": {
                         "raw": {
                           "language": "json"
                         }
-                      }
+                      },
+                      "raw": "{\"payment_method\":\"card\",\"payment_method_data\":{\"card\":{\"card_number\":\"4111111111111111\",\"card_exp_month\":\"10\",\"card_exp_year\":\"25\",\"card_holder_name\":\"joseph Doe\",\"card_cvc\":\"123\"}}}"
                     },
                     "url": {
                       "raw": "{{baseUrl}}/payments/:id/confirm",
@@ -2017,7 +2030,7 @@
                   "response": []
                 },
                 {
-                  "name": "Payments - Retrieve",
+                  "name": "Payments - Retrieve-copy",
                   "event": [
                     {
                       "listen": "test",
@@ -2384,12 +2397,12 @@
                     ],
                     "body": {
                       "mode": "raw",
-                      "raw": "{\n  \"cancellation_reason\": \"user_cancel\"\n}",
                       "options": {
                         "raw": {
                           "language": "json"
                         }
-                      }
+                      },
+                      "raw": "{\"cancellation_reason\":\"user_cancel\"}"
                     },
                     "url": {
                       "raw": "{{baseUrl}}/payments/:id/cancel",
@@ -2414,7 +2427,7 @@
                   "response": []
                 },
                 {
-                  "name": "Payments - Retrieve",
+                  "name": "Payments - Retrieve-copy",
                   "event": [
                     {
                       "listen": "test",
@@ -2591,12 +2604,12 @@
                     ],
                     "body": {
                       "mode": "raw",
-                      "raw": "{\n    \"amount\": 6540,\n    \"currency\": \"USD\",\n    \"confirm\": false,\n    \"capture_method\": \"automatic\",\n    \"capture_on\": \"2022-09-10T10:11:12Z\",\n    \"amount_to_capture\": 6540,\n    \"customer_id\": \"StripeCustomer\",\n    \"email\": \"guest@example.com\",\n    \"name\": \"John Doe\",\n    \"phone\": \"999999999\",\n    \"phone_country_code\": \"+65\",\n    \"description\": \"Its my first payment request\",\n    \"authentication_type\": \"three_ds\",\n    \"return_url\": \"https://duck.com\",\n    \"payment_method\": \"card\",\n    \"payment_method_type\":\"credit\",\n    \"payment_method_data\": {\n        \"card\": {\n            \"card_number\": \"4012000000020071\",\n            \"card_exp_month\": \"10\",\n            \"card_exp_year\": \"25\",\n            \"card_holder_name\": \"joseph Doe\",\n            \"card_cvc\": \"123\"\n        }\n    },\n      \"billing\": {\n        \"address\": {\n            \"line1\": \"1467\",\n            \"line2\": \"Harrison Street\",\n            \"line3\": \"Harrison Street\",\n            \"city\": \"San Fransico\",\n            \"state\": \"California\",\n            \"zip\": \"94122\",\n            \"country\": \"US\",\n            \"first_name\": \"PiX\"\n        }\n    },\n    \"shipping\": {\n        \"address\": {\n            \"line1\": \"1467\",\n            \"line2\": \"Harrison Street\",\n            \"line3\": \"Harrison Street\",\n            \"city\": \"San Fransico\",\n            \"zip\": \"94122\",\n            \"country\": \"US\",\n            \"first_name\": \"PiX\"\n        }\n    },\n    \"statement_descriptor_name\": \"joseph\",\n    \"statement_descriptor_suffix\": \"JS\",\n    \"metadata\": {\n        \"udf1\": \"value1\",\n        \"new_customer\": \"true\",\n        \"login_date\": \"2019-09-10T10:11:12Z\"\n    }\n}",
                       "options": {
                         "raw": {
                           "language": "json"
                         }
-                      }
+                      },
+                      "raw": "{\"amount\":6540,\"currency\":\"USD\",\"confirm\":false,\"capture_method\":\"automatic\",\"capture_on\":\"2022-09-10T10:11:12Z\",\"amount_to_capture\":6540,\"customer_id\":\"StripeCustomer\",\"email\":\"guest@example.com\",\"name\":\"John Doe\",\"phone\":\"999999999\",\"phone_country_code\":\"+65\",\"description\":\"Its my first payment request\",\"authentication_type\":\"three_ds\",\"return_url\":\"https://duck.com\",\"payment_method\":\"card\",\"payment_method_type\":\"credit\",\"payment_method_data\":{\"card\":{\"card_number\":\"4012000000020071\",\"card_exp_month\":\"10\",\"card_exp_year\":\"25\",\"card_holder_name\":\"joseph Doe\",\"card_cvc\":\"123\"}},\"billing\":{\"address\":{\"line1\":\"1467\",\"line2\":\"Harrison Street\",\"line3\":\"Harrison Street\",\"city\":\"San Fransico\",\"state\":\"California\",\"zip\":\"94122\",\"country\":\"US\",\"first_name\":\"PiX\"}},\"shipping\":{\"address\":{\"line1\":\"1467\",\"line2\":\"Harrison Street\",\"line3\":\"Harrison Street\",\"city\":\"San Fransico\",\"zip\":\"94122\",\"country\":\"US\",\"first_name\":\"PiX\"}},\"statement_descriptor_name\":\"joseph\",\"statement_descriptor_suffix\":\"JS\",\"metadata\":{\"udf1\":\"value1\",\"new_customer\":\"true\",\"login_date\":\"2019-09-10T10:11:12Z\"}}"
                     },
                     "url": {
                       "raw": "{{baseUrl}}/payments",
@@ -2694,12 +2707,12 @@
                     ],
                     "body": {
                       "mode": "raw",
-                      "raw": " { \"browser_info\": {\n        \"user_agent\": \"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/111.0.0.0 Safari/537.36\",\n        \"accept_header\": \"text\\\\/html,application\\\\/xhtml+xml,application\\\\/xml;q=0.9,image\\\\/webp,image\\\\/apng,*\\\\/*;q=0.8\",\n        \"language\": \"en-GB\",\n        \"color_depth\": 24,\n        \"screen_height\": 1440,\n        \"screen_width\": 2560,\n        \"time_zone\": -330,\n        \"java_enabled\": true,\n        \"java_script_enabled\": true\n    }}",
                       "options": {
                         "raw": {
                           "language": "json"
                         }
-                      }
+                      },
+                      "raw": "{\"browser_info\":{\"user_agent\":\"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/111.0.0.0 Safari/537.36\",\"accept_header\":\"text\\\\/html,application\\\\/xhtml+xml,application\\\\/xml;q=0.9,image\\\\/webp,image\\\\/apng,*\\\\/*;q=0.8\",\"language\":\"en-GB\",\"color_depth\":24,\"screen_height\":1440,\"screen_width\":2560,\"time_zone\":-330,\"java_enabled\":true,\"java_script_enabled\":true}}"
                     },
                     "url": {
                       "raw": "{{baseUrl}}/payments/:id/confirm",
@@ -3449,12 +3462,12 @@
                     ],
                     "body": {
                       "mode": "raw",
-                      "raw": "{\n    \"payment_id\": \"{{payment_id}}\",\n    \"amount\": 100,\n    \"reason\": \"Customer returned product\",\n    \"refund_type\": \"instant\",\n    \"metadata\": {\n        \"udf1\": \"value1\",\n        \"new_customer\": \"true\",\n        \"login_date\": \"2019-09-10T10:11:12Z\"\n    }\n}",
                       "options": {
                         "raw": {
                           "language": "json"
                         }
-                      }
+                      },
+                      "raw": "{\"payment_id\":\"{{payment_id}}\",\"amount\":100,\"reason\":\"Customer returned product\",\"refund_type\":\"instant\",\"metadata\":{\"udf1\":\"value1\",\"new_customer\":\"true\",\"login_date\":\"2019-09-10T10:11:12Z\"}}"
                     },
                     "url": {
                       "raw": "{{baseUrl}}/refunds",
@@ -3545,7 +3558,7 @@
                   "response": []
                 },
                 {
-                  "name": "Refunds - Create",
+                  "name": "Refunds - Create-copy",
                   "event": [
                     {
                       "listen": "test",
@@ -3604,12 +3617,12 @@
                     ],
                     "body": {
                       "mode": "raw",
-                      "raw": "{\n    \"payment_id\": \"{{payment_id}}\",\n    \"amount\": 500,\n    \"reason\": \"Customer returned product\",\n    \"refund_type\": \"instant\",\n    \"metadata\": {\n        \"udf1\": \"value1\",\n        \"new_customer\": \"true\",\n        \"login_date\": \"2019-09-10T10:11:12Z\"\n    }\n}",
                       "options": {
                         "raw": {
                           "language": "json"
                         }
-                      }
+                      },
+                      "raw": "{\"payment_id\":\"{{payment_id}}\",\"amount\":500,\"reason\":\"Customer returned product\",\"refund_type\":\"instant\",\"metadata\":{\"udf1\":\"value1\",\"new_customer\":\"true\",\"login_date\":\"2019-09-10T10:11:12Z\"}}"
                     },
                     "url": {
                       "raw": "{{baseUrl}}/refunds",
@@ -3625,7 +3638,7 @@
                   "response": []
                 },
                 {
-                  "name": "Refunds - Retrieve",
+                  "name": "Refunds - Retrieve-copy",
                   "event": [
                     {
                       "listen": "test",
@@ -3700,7 +3713,7 @@
                   "response": []
                 },
                 {
-                  "name": "Payments - Retrieve",
+                  "name": "Payments - Retrieve-copy",
                   "event": [
                     {
                       "listen": "test",
@@ -4000,12 +4013,12 @@
                     ],
                     "body": {
                       "mode": "raw",
-                      "raw": "{\n    \"amount\": 2222,\n    \"currency\": \"USD\",\n    \"confirm\": true,\n    \"capture_method\": \"automatic\",\n    \"capture_on\": \"2022-09-10T10:11:12Z\",\n    \"amount_to_capture\": 2222,\n    \"customer_id\": \"StripeCustomer\",\n    \"email\": \"guest@example.com\",\n    \"name\": \"John Doe\",\n    \"phone\": \"999999999\",\n    \"phone_country_code\": \"+65\",\n    \"description\": \"Its my first payment request\",\n    \"authentication_type\": \"no_three_ds\",\n    \"return_url\": \"https://duck.com\",\n    \"payment_method\": \"card\",\n    \"payment_method_data\": {\n        \"card\": {\n            \"card_number\": \"4111111111111111\",\n            \"card_exp_month\": \"01\",\n            \"card_exp_year\": \"2023\",\n            \"card_holder_name\": \"joseph Doe\",\n            \"card_cvc\": \"123\"\n        }\n    },\n    \"billing\": {\n        \"address\": {\n            \"line1\": \"1467\",\n            \"line2\": \"Harrison Street\",\n            \"line3\": \"Harrison Street\",\n            \"city\": \"San Fransico\",\n            \"state\": \"California\",\n            \"zip\": \"94122\",\n            \"country\": \"US\",\n            \"first_name\": \"PiX\"\n        }\n    },\n    \"shipping\": {\n        \"address\": {\n            \"line1\": \"1467\",\n            \"line2\": \"Harrison Street\",\n            \"line3\": \"Harrison Street\",\n            \"city\": \"San Fransico\",\n            \"state\": \"California\",\n            \"zip\": \"94122\",\n            \"country\": \"US\",\n            \"first_name\": \"PiX\"\n        }\n    },\n    \"statement_descriptor_name\": \"joseph\",\n    \"statement_descriptor_suffix\": \"JS\",\n    \"metadata\": {\n        \"udf1\": \"value1\",\n        \"new_customer\": \"true\",\n        \"login_date\": \"2019-09-10T10:11:12Z\"\n    }\n}",
                       "options": {
                         "raw": {
                           "language": "json"
                         }
-                      }
+                      },
+                      "raw": "{\"amount\":2222,\"currency\":\"USD\",\"confirm\":true,\"capture_method\":\"automatic\",\"capture_on\":\"2022-09-10T10:11:12Z\",\"amount_to_capture\":2222,\"customer_id\":\"StripeCustomer\",\"email\":\"guest@example.com\",\"name\":\"John Doe\",\"phone\":\"999999999\",\"phone_country_code\":\"+65\",\"description\":\"Its my first payment request\",\"authentication_type\":\"no_three_ds\",\"return_url\":\"https://duck.com\",\"payment_method\":\"card\",\"payment_method_data\":{\"card\":{\"card_number\":\"4111111111111111\",\"card_exp_month\":\"01\",\"card_exp_year\":\"2023\",\"card_holder_name\":\"joseph Doe\",\"card_cvc\":\"123\"}},\"billing\":{\"address\":{\"line1\":\"1467\",\"line2\":\"Harrison Street\",\"line3\":\"Harrison Street\",\"city\":\"San Fransico\",\"state\":\"California\",\"zip\":\"94122\",\"country\":\"US\",\"first_name\":\"PiX\"}},\"shipping\":{\"address\":{\"line1\":\"1467\",\"line2\":\"Harrison Street\",\"line3\":\"Harrison Street\",\"city\":\"San Fransico\",\"state\":\"California\",\"zip\":\"94122\",\"country\":\"US\",\"first_name\":\"PiX\"}},\"statement_descriptor_name\":\"joseph\",\"statement_descriptor_suffix\":\"JS\",\"metadata\":{\"udf1\":\"value1\",\"new_customer\":\"true\",\"login_date\":\"2019-09-10T10:11:12Z\"}}"
                     },
                     "url": {
                       "raw": "{{baseUrl}}/payments",
@@ -4410,12 +4423,12 @@
                     ],
                     "body": {
                       "mode": "raw",
-                      "raw": " {}",
                       "options": {
                         "raw": {
                           "language": "json"
                         }
-                      }
+                      },
+                      "raw": "{}"
                     },
                     "url": {
                       "raw": "{{baseUrl}}/payments/:id/confirm",
@@ -4769,7 +4782,7 @@
                   "response": []
                 },
                 {
-                  "name": "Payments - Retrieve",
+                  "name": "Payments - Retrieve-copy",
                   "event": [
                     {
                       "listen": "test",
@@ -5154,12 +5167,12 @@
                     ],
                     "body": {
                       "mode": "raw",
-                      "raw": "{\n  \"amount_to_capture\": 7000,\n  \"statement_descriptor_name\": \"Joseph\",\n  \"statement_descriptor_suffix\": \"JS\"\n}",
                       "options": {
                         "raw": {
                           "language": "json"
                         }
-                      }
+                      },
+                      "raw": "{\"amount_to_capture\":7000,\"statement_descriptor_name\":\"Joseph\",\"statement_descriptor_suffix\":\"JS\"}"
                     },
                     "url": {
                       "raw": "{{baseUrl}}/payments/:id/capture",
@@ -5184,7 +5197,7 @@
                   "response": []
                 },
                 {
-                  "name": "Payments - Retrieve",
+                  "name": "Payments - Retrieve-copy",
                   "event": [
                     {
                       "listen": "test",
@@ -5285,7 +5298,7 @@
               ]
             },
             {
-              "name": "Scenario5-Void the success/failure payment",
+              "name": "Scenario5-Void the success_slash_failure payment",
               "item": [
                 {
                   "name": "Payments - Create",
@@ -5562,12 +5575,12 @@
                     ],
                     "body": {
                       "mode": "raw",
-                      "raw": "{\n  \"cancellation_reason\": \"user_cancel\"\n}",
                       "options": {
                         "raw": {
                           "language": "json"
                         }
-                      }
+                      },
+                      "raw": "{\"cancellation_reason\":\"user_cancel\"}"
                     },
                     "url": {
                       "raw": "{{baseUrl}}/payments/:id/cancel",
@@ -6091,7 +6104,7 @@
                   "response": []
                 },
                 {
-                  "name": "Payments - Retrieve",
+                  "name": "Payments - Retrieve-copy",
                   "event": [
                     {
                       "listen": "test",
@@ -6248,12 +6261,12 @@
                     ],
                     "body": {
                       "mode": "raw",
-                      "raw": "{\n    \"payment_id\": \"{{payment_id}}\",\n    \"amount\": 540,\n    \"reason\": \"Customer returned product\",\n    \"refund_type\": \"instant\",\n    \"metadata\": {\n        \"udf1\": \"value1\",\n        \"new_customer\": \"true\",\n        \"login_date\": \"2019-09-10T10:11:12Z\"\n    }\n}",
                       "options": {
                         "raw": {
                           "language": "json"
                         }
-                      }
+                      },
+                      "raw": "{\"payment_id\":\"{{payment_id}}\",\"amount\":540,\"reason\":\"Customer returned product\",\"refund_type\":\"instant\",\"metadata\":{\"udf1\":\"value1\",\"new_customer\":\"true\",\"login_date\":\"2019-09-10T10:11:12Z\"}}"
                     },
                     "url": {
                       "raw": "{{baseUrl}}/refunds",
@@ -6295,26 +6308,13 @@
       }
     ]
   },
-  "event": [
-    {
-      "listen": "prerequest",
-      "script": {
-        "type": "text/javascript",
-        "exec": [
-          ""
-        ]
-      }
-    },
-    {
-      "listen": "test",
-      "script": {
-        "type": "text/javascript",
-        "exec": [
-          ""
-        ]
-      }
-    }
-  ],
+  "info": {
+    "_postman_id": "60a5122e-9d2d-43de-8d97-d0cc0e688456",
+    "name": "powertranz",
+    "description": "## Get started\n\nJuspay Router provides a collection of APIs that enable you to process and manage payments. Our APIs accept and return JSON in the HTTP body, and return standard HTTP response codes.  \nYou can consume the APIs directly using your favorite HTTP/REST library.  \nWe have a testing environment referred to \"sandbox\", which you can setup to test API calls without affecting production data.\n\n### Base URLs\n\nUse the following base URLs when making requests to the APIs:\n\n| Environment | Base URL |\n| --- | --- |\n| Sandbox | [https://sandbox.hyperswitch.io](https://sandbox.hyperswitch.io) |\n| Production | [https://router.juspay.io](https://router.juspay.io) |\n\n# Authentication\n\nWhen you sign up for an account, you are given a secret key (also referred as api-key). You may authenticate all API requests with Juspay server by providing the appropriate key in the request Authorization header.  \nNever share your secret api keys. Keep them guarded and secure.\n\nContact Support:  \nName: Juspay Support  \nEmail: [support@juspay.in](mailto:support@juspay.in)",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "_exporter_id": "25737662"
+  },
   "variable": [
     {
       "key": "baseUrl",

@@ -21,9 +21,9 @@ pub use self::{api::*, encryption::*};
 use crate::{configs::settings, consts, core::errors};
 
 #[cfg(not(feature = "olap"))]
-type StoreType = storage_impl::database::store::Store;
+pub type StoreType = storage_impl::database::store::Store;
 #[cfg(feature = "olap")]
-type StoreType = storage_impl::database::store::ReplicaStore;
+pub type StoreType = storage_impl::database::store::ReplicaStore;
 
 #[cfg(not(feature = "kv_store"))]
 pub type Store = RouterStore<StoreType>;

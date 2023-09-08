@@ -193,6 +193,7 @@ powertranz.base_url = "https://staging.ptranz.com/api/"
 rapyd.base_url = "https://sandboxapi.rapyd.net"
 shift4.base_url = "https://api.shift4.com/"
 square.base_url = "https://connect.squareupsandbox.com/"
+square.secondary_base_url = "https://pci-connect.squareupsandbox.com/"
 stax.base_url = "https://apiprod.fattlabs.com/"
 stripe.base_url = "https://api.stripe.com/"
 stripe.base_url_file_upload = "https://files.stripe.com/"
@@ -306,6 +307,7 @@ stripe = { long_lived_token = false, payment_method = "wallet", payment_method_t
 checkout = { long_lived_token = false, payment_method = "wallet" }
 mollie = {long_lived_token = false, payment_method = "card"}
 stax = { long_lived_token = true, payment_method = "card,bank_debit" }
+square = {long_lived_token = false, payment_method = "card"}
 braintree = { long_lived_token = false, payment_method = "card" }
 
 [dummy_connector]
@@ -401,3 +403,9 @@ adyen.banks = "bangkok_bank,krungsri_bank,krung_thai_bank,the_siam_commercial_ba
 
 [multiple_api_version_supported_connectors]
 supported_connectors = "braintree"
+
+[applepay_decrypt_keys]
+apple_pay_ppc = "APPLE_PAY_PAYMENT_PROCESSING_CERTIFICATE"              #Payment Processing Certificate provided by Apple Pay (https://developer.apple.com/) Certificates, Identifiers & Profiles > Apple Pay Payment Processing Certificate
+apple_pay_ppc_key = "APPLE_PAY_PAYMENT_PROCESSING_CERTIFICATE_KEY"      #Private key generate by Elliptic-curve prime256v1 curve
+apple_pay_merchant_cert = "APPLE_PAY_MERCHNAT_CERTIFICATE"              #Merchant Certificate provided by Apple Pay (https://developer.apple.com/) Certificates, Identifiers & Profiles > Apple Pay Merchant Identity Certificate
+apple_pay_merchant_cert_key = "APPLE_PAY_MERCHNAT_CERTIFICATE_KEY"      #Private key generate by RSA:2048 algorithm

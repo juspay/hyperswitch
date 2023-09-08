@@ -348,11 +348,22 @@ impl TryFrom<&types::PaymentsSessionRouterData> for BluesnapCreateWalletToken {
                 "ApplepaySessionTokenData",
             )
             .change_context(errors::ConnectorError::ParsingFailed)?;
+        let session_token_data = match applepay_metadata.data {
+            payments::ApplepaySessionTokenMetadata::ApplePay(apple_pay_data) => {
+                Ok(apple_pay_data.session_token_data)
+            }
+            payments::ApplepaySessionTokenMetadata::ApplePayCombined(_apple_pay_combined_data) => {
+                Err(errors::ConnectorError::FlowNotSupported {
+                    flow: "apple pay combined".to_string(),
+                    connector: "bluesnap".to_string(),
+                })
+            }
+        }?;
         Ok(Self {
             wallet_type: "APPLE_PAY".to_string(),
             validation_url: consts::APPLEPAY_VALIDATION_URL.to_string().into(),
-            domain_name: applepay_metadata.data.session_token_data.initiative_context,
-            display_name: Some(applepay_metadata.data.session_token_data.display_name),
+            domain_name: session_token_data.initiative_context,
+            display_name: Some(session_token_data.display_name),
         })
     }
 }
@@ -383,6 +394,18 @@ impl TryFrom<types::PaymentsSessionResponseRouterData<BluesnapWalletTokenRespons
             )
             .change_context(errors::ConnectorError::ParsingFailed)?;
 
+        let (payment_request_data, session_token_data) = match applepay_metadata.data {
+            payments::ApplepaySessionTokenMetadata::ApplePayCombined(_apple_pay_combined) => {
+                Err(errors::ConnectorError::FlowNotSupported {
+                    flow: "apple pay combined".to_string(),
+                    connector: "bluesnap".to_string(),
+                })
+            }
+            payments::ApplepaySessionTokenMetadata::ApplePay(apple_pay) => {
+                Ok((apple_pay.payment_request_data, apple_pay.session_token_data))
+            }
+        }?;
+
         Ok(Self {
             response: Ok(types::PaymentsResponseData::SessionResponse {
                 session_token: types::api::SessionToken::ApplePay(Box::new(
@@ -395,28 +418,13 @@ impl TryFrom<types::PaymentsSessionResponseRouterData<BluesnapWalletTokenRespons
                             country_code: item.data.get_billing_country()?,
                             currency_code: item.data.request.currency,
                             total: api_models::payments::AmountInfo {
-                                label: applepay_metadata.data.payment_request_data.label,
+                                label: payment_request_data.label,
                                 total_type: Some("final".to_string()),
                                 amount: item.data.request.amount.to_string(),
                             },
-                            merchant_capabilities: Some(
-                                applepay_metadata
-                                    .data
-                                    .payment_request_data
-                                    .merchant_capabilities,
-                            ),
-                            supported_networks: Some(
-                                applepay_metadata
-                                    .data
-                                    .payment_request_data
-                                    .supported_networks,
-                            ),
-                            merchant_identifier: Some(
-                                applepay_metadata
-                                    .data
-                                    .session_token_data
-                                    .merchant_identifier,
-                            ),
+                            merchant_capabilities: Some(payment_request_data.merchant_capabilities),
+                            supported_networks: Some(payment_request_data.supported_networks),
+                            merchant_identifier: Some(session_token_data.merchant_identifier),
                         }),
                         connector: "bluesnap".to_string(),
                         delayed_session_token: false,
@@ -427,6 +435,7 @@ impl TryFrom<types::PaymentsSessionResponseRouterData<BluesnapWalletTokenRespons
                         },
                         connector_reference_id: None,
                         connector_sdk_public_key: None,
+                        connector_merchant_id: None,
                     },
                 )),
             }),
@@ -818,18 +827,75 @@ pub struct BluesnapWebhookBody {
 #[serde(rename_all = "camelCase")]
 pub struct BluesnapWebhookObjectEventType {
     pub transaction_type: BluesnapWebhookEvents,
+    pub cb_status: Option<BluesnapChargebackStatus>,
 }
 
 #[derive(Debug, Deserialize)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum BluesnapChargebackStatus {
+    #[serde(alias = "New")]
+    New,
+    #[serde(alias = "Working")]
+    Working,
+    #[serde(alias = "Closed")]
+    Closed,
+    #[serde(alias = "Completed_Lost")]
+    CompletedLost,
+    #[serde(alias = "Completed_Pending")]
+    CompletedPending,
+    #[serde(alias = "Completed_Won")]
+    CompletedWon,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum BluesnapWebhookEvents {
     Decline,
     CcChargeFailed,
     Charge,
+    Chargeback,
+    ChargebackStatusChanged,
     #[serde(other)]
     Unknown,
 }
+
+impl TryFrom<BluesnapWebhookObjectEventType> for api::IncomingWebhookEvent {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(details: BluesnapWebhookObjectEventType) -> Result<Self, Self::Error> {
+        match details.transaction_type {
+            BluesnapWebhookEvents::Decline | BluesnapWebhookEvents::CcChargeFailed => {
+                Ok(Self::PaymentIntentFailure)
+            }
+            BluesnapWebhookEvents::Charge => Ok(Self::PaymentIntentSuccess),
+            BluesnapWebhookEvents::Chargeback | BluesnapWebhookEvents::ChargebackStatusChanged => {
+                match details
+                    .cb_status
+                    .ok_or(errors::ConnectorError::WebhookEventTypeNotFound)?
+                {
+                    BluesnapChargebackStatus::New | BluesnapChargebackStatus::Working => {
+                        Ok(Self::DisputeOpened)
+                    }
+                    BluesnapChargebackStatus::Closed => Ok(Self::DisputeExpired),
+                    BluesnapChargebackStatus::CompletedLost => Ok(Self::DisputeLost),
+                    BluesnapChargebackStatus::CompletedPending => Ok(Self::DisputeChallenged),
+                    BluesnapChargebackStatus::CompletedWon => Ok(Self::DisputeWon),
+                }
+            }
+            BluesnapWebhookEvents::Unknown => Ok(Self::EventNotSupported),
+        }
+    }
+}
+
 #[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct BluesnapDisputeWebhookBody {
+    pub invoice_charge_amount: f64,
+    pub currency: diesel_models::enums::Currency,
+    pub reversal_reason: Option<String>,
+    pub reversal_ref_num: String,
+    pub cb_status: String,
+}
+#[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct BluesnapWebhookObjectResource {
     pub reference_number: String,
@@ -841,7 +907,7 @@ pub struct BluesnapWebhookObjectResource {
 pub struct ErrorDetails {
     pub code: String,
     pub description: String,
-    pub error_name: String,
+    pub error_name: Option<String>,
 }
 
 #[derive(Default, Debug, Clone, Deserialize)]
@@ -855,7 +921,7 @@ pub struct BluesnapErrorResponse {
 pub struct BluesnapAuthErrorResponse {
     pub error_code: String,
     pub error_description: String,
-    pub error_name: String,
+    pub error_name: Option<String>,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -881,7 +947,7 @@ impl From<ErrorDetails> for utils::ErrorCodeAndMessage {
     fn from(error: ErrorDetails) -> Self {
         Self {
             error_code: error.code.to_string(),
-            error_message: error.error_name,
+            error_message: error.error_name.unwrap_or(error.code),
         }
     }
 }
