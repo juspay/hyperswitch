@@ -1,6 +1,9 @@
 use std::collections::HashMap;
 
-use api_models::{enums::AuthenticationType, payments::PaymentMethodData};
+use api_models::{
+    enums::{AuthenticationType, PaymentMethod},
+    payments::PaymentMethodData,
+};
 use common_utils::pii;
 use error_stack::{IntoReport, ResultExt};
 use masking::{ExposeInterface, Secret};
@@ -102,24 +105,24 @@ pub struct GenerateSaleRequest {
     seller_payme_id: Secret<String>,
     sale_callback_url: String,
     sale_payment_method: SalePaymentMethod,
-    services: Option<ThreeDS>,
+    services: Option<ThreeDs>,
     language: String,
 }
 
 #[derive(Debug, Serialize)]
-pub struct ThreeDS {
-    name: ThreeDSType,
-    settings: ThreeDSSettings,
+pub struct ThreeDs {
+    name: ThreeDsType,
+    settings: ThreeDsSettings,
 }
 
 #[derive(Debug, Serialize)]
-pub enum ThreeDSType {
+pub enum ThreeDsType {
     #[serde(rename = "3D Secure")]
-    ThreeDS,
+    ThreeDs,
 }
 
 #[derive(Debug, Serialize)]
-pub struct ThreeDSSettings {
+pub struct ThreeDsSettings {
     active: bool,
 }
 
@@ -454,8 +457,49 @@ impl<F>
             types::PaymentsResponseData,
         >,
     ) -> Result<Self, Self::Error> {
-        match item.data.auth_type {
-            AuthenticationType::NoThreeDs => {
+        match item.data.payment_method {
+            PaymentMethod::Card => {
+                match item.data.auth_type {
+                    AuthenticationType::NoThreeDs => {
+                        Ok(Self {
+                            // We don't get any status from payme, so defaulting it to pending
+                            // then move to authorize flow
+                            status: enums::AttemptStatus::Pending,
+                            preprocessing_id: Some(item.response.payme_sale_id.to_owned()),
+                            response: Ok(types::PaymentsResponseData::PreProcessingResponse {
+                                pre_processing_id:
+                                    types::PreprocessingResponseId::ConnectorTransactionId(
+                                        item.response.payme_sale_id,
+                                    ),
+                                connector_metadata: None,
+                                session_token: None,
+                                connector_response_reference_id: None,
+                            }),
+                            ..item.data
+                        })
+                    }
+                    AuthenticationType::ThreeDs => Ok(Self {
+                        // We don't go to authorize flow in 3ds,
+                        // Response is send directly after preprocessing flow
+                        // redirection data is send to run script along
+                        // status is made authentication_pending to show redirection
+                        status: enums::AttemptStatus::AuthenticationPending,
+                        preprocessing_id: Some(item.response.payme_sale_id.to_owned()),
+                        response: Ok(types::PaymentsResponseData::TransactionResponse {
+                            resource_id: types::ResponseId::ConnectorTransactionId(
+                                item.response.payme_sale_id.to_owned(),
+                            ),
+                            redirection_data: Some(services::RedirectForm::Payme),
+                            mandate_reference: None,
+                            connector_metadata: None,
+                            network_txn_id: None,
+                            connector_response_reference_id: None,
+                        }),
+                        ..item.data
+                    }),
+                }
+            }
+            _ => {
                 let currency_code = item.data.request.get_currency()?;
                 let amount = item.data.request.get_amount()?;
                 let amount_in_base_unit = utils::to_currency_base_unit(amount, currency_code)?;
@@ -514,21 +558,6 @@ impl<F>
                     ..item.data
                 })
             }
-            AuthenticationType::ThreeDs => Ok(Self {
-                status: enums::AttemptStatus::AuthenticationPending,
-                preprocessing_id: Some(item.response.payme_sale_id.to_owned()),
-                response: Ok(types::PaymentsResponseData::TransactionResponse {
-                    resource_id: types::ResponseId::ConnectorTransactionId(
-                        item.response.payme_sale_id.to_owned(),
-                    ),
-                    redirection_data: Some(services::RedirectForm::Payme),
-                    mandate_reference: None,
-                    connector_metadata: None,
-                    network_txn_id: None,
-                    connector_response_reference_id: None,
-                }),
-                ..item.data
-            }),
         }
     }
 }
@@ -588,7 +617,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PayRequest {
     }
 }
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct PaymePayloadData {
+pub struct PaymeRedirectResponseData {
     meta_data: String,
 }
 
@@ -602,7 +631,7 @@ impl TryFrom<&types::PaymentsCompleteAuthorizeRouterData> for Pay3dsRequest {
 
                 let payload_data = item.request.get_redirect_response_payload()?.expose();
 
-                let jwt_data: PaymePayloadData = serde_json::from_value(payload_data)
+                let jwt_data: PaymeRedirectResponseData = serde_json::from_value(payload_data)
                     .into_report()
                     .change_context(errors::ConnectorError::MissingConnectorRedirectionPayload {
                         field_name: "meta_data_jwt",
@@ -613,11 +642,12 @@ impl TryFrom<&types::PaymentsCompleteAuthorizeRouterData> for Pay3dsRequest {
                     .connector_transaction_id
                     .clone()
                     .ok_or(errors::ConnectorError::MissingConnectorTransactionID)?;
-                let buyer_key = match item.payment_method_token.clone() {
-                    Some(key) => key,
-                    None => Err(errors::ConnectorError::MissingRequiredField {
-                        field_name: "buyer_key",
-                    })?,
+                let pm_token = item.get_payment_method_token()?;
+                let buyer_key = match pm_token {
+                    types::PaymentMethodToken::Token(token) => token,
+                    types::PaymentMethodToken::ApplePayDecrypt(_) => {
+                        Err(errors::ConnectorError::InvalidWalletToken)?
+                    }
                 };
                 Ok(Self {
                     buyer_email,
@@ -804,7 +834,9 @@ impl<F, T>
         item: types::ResponseRouterData<F, CaptureBuyerResponse, T, types::PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
-            payment_method_token: Some(item.response.buyer_key.clone()),
+            payment_method_token: Some(types::PaymentMethodToken::Token(
+                item.response.buyer_key.clone(),
+            )),
             response: Ok(types::PaymentsResponseData::TokenizationResponse {
                 token: item.response.buyer_key,
             }),
@@ -939,12 +971,12 @@ impl<F, T>
     }
 }
 
-fn get_services(item: &types::PaymentsPreProcessingRouterData) -> Option<ThreeDS> {
+fn get_services(item: &types::PaymentsPreProcessingRouterData) -> Option<ThreeDs> {
     match item.auth_type {
         api_models::enums::AuthenticationType::ThreeDs => {
-            let settings = ThreeDSSettings { active: true };
-            Some(ThreeDS {
-                name: ThreeDSType::ThreeDS,
+            let settings = ThreeDsSettings { active: true };
+            Some(ThreeDs {
+                name: ThreeDsType::ThreeDs,
                 settings,
             })
         }
