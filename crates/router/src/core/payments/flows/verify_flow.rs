@@ -5,7 +5,9 @@ use crate::{
     core::{
         errors::{self, ConnectorErrorExt, RouterResult},
         mandate,
-        payments::{self, access_token, customers, tokenization, transformers, PaymentData},
+        payments::{
+            self, access_token, customers, helpers, tokenization, transformers, PaymentData,
+        },
     },
     routes::AppState,
     services,
@@ -23,6 +25,7 @@ impl ConstructFlowSpecificData<api::Verify, types::VerifyRequestData, types::Pay
         merchant_account: &domain::MerchantAccount,
         key_store: &domain::MerchantKeyStore,
         customer: &Option<domain::Customer>,
+        merchant_connector_account: &helpers::MerchantConnectorAccountType,
     ) -> RouterResult<types::VerifyRouterData> {
         transformers::construct_payment_router_data::<api::Verify, types::VerifyRequestData>(
             state,
@@ -31,6 +34,7 @@ impl ConstructFlowSpecificData<api::Verify, types::VerifyRequestData, types::Pay
             merchant_account,
             key_store,
             customer,
+            merchant_connector_account,
         )
         .await
     }
@@ -46,6 +50,7 @@ impl Feature<api::Verify, types::VerifyRequestData> for types::VerifyRouterData 
         call_connector_action: payments::CallConnectorAction,
         merchant_account: &domain::MerchantAccount,
         connector_request: Option<services::Request>,
+        key_store: &domain::MerchantKeyStore,
     ) -> RouterResult<Self> {
         let connector_integration: services::BoxedConnectorIntegration<
             '_,
@@ -70,6 +75,7 @@ impl Feature<api::Verify, types::VerifyRequestData> for types::VerifyRouterData 
             maybe_customer,
             merchant_account,
             self.request.payment_method_type,
+            key_store,
         )
         .await?;
 
@@ -156,6 +162,7 @@ impl TryFrom<types::VerifyRequestData> for types::ConnectorCustomerData {
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 impl types::VerifyRouterData {
     pub async fn decide_flow<'a, 'b>(
         &'b self,
@@ -165,6 +172,7 @@ impl types::VerifyRouterData {
         confirm: Option<bool>,
         call_connector_action: payments::CallConnectorAction,
         merchant_account: &domain::MerchantAccount,
+        key_store: &domain::MerchantKeyStore,
     ) -> RouterResult<Self> {
         match confirm {
             Some(true) => {
@@ -192,6 +200,7 @@ impl types::VerifyRouterData {
                     maybe_customer,
                     merchant_account,
                     payment_method_type,
+                    key_store,
                 )
                 .await?;
 

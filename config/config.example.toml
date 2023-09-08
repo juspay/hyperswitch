@@ -406,3 +406,9 @@ adyen.banks = "bangkok_bank,krungsri_bank,krung_thai_bank,the_siam_commercial_ba
 
 [multiple_api_version_supported_connectors]
 supported_connectors = "braintree"
+
+[applepay_decrypt_keys]
+apple_pay_ppc = "APPLE_PAY_PAYMENT_PROCESSING_CERTIFICATE"              #Payment Processing Certificate provided by Apple Pay (https://developer.apple.com/) Certificates, Identifiers & Profiles > Apple Pay Payment Processing Certificate
+apple_pay_ppc_key = "APPLE_PAY_PAYMENT_PROCESSING_CERTIFICATE_KEY"      #Private key generate by Elliptic-curve prime256v1 curve
+apple_pay_merchant_cert = "APPLE_PAY_MERCHNAT_CERTIFICATE"              #Merchant Certificate provided by Apple Pay (https://developer.apple.com/) Certificates, Identifiers & Profiles > Apple Pay Merchant Identity Certificate
+apple_pay_merchant_cert_key = "APPLE_PAY_MERCHNAT_CERTIFICATE_KEY"      #Private key generate by RSA:2048 algorithm
