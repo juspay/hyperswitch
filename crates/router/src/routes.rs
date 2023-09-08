@@ -13,7 +13,7 @@ pub mod files;
 pub mod health;
 pub mod mandates;
 pub mod metrics;
-pub mod payment_link;
+pub mod Payment_link;
 pub mod payment_methods;
 pub mod payments;
 #[cfg(feature = "payouts")]
