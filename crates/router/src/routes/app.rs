@@ -17,7 +17,7 @@ use super::verification::apple_pay_merchant_registration;
 use super::{admin::*, api_keys::*, disputes::*, files::*};
 use super::{cache::*, health::*};
 #[cfg(any(feature = "olap", feature = "oltp"))]
-use super::{configs::*, customers::*, mandates::*, payments::*, refunds::*};
+use super::{configs::*, customers::*, mandates::*, payment_link::*, payments::*, refunds::*};
 #[cfg(feature = "oltp")]
 use super::{ephemeral_key::*, payment_methods::*, webhooks::*};
 use crate::{
@@ -557,7 +557,7 @@ impl PaymentLink {
     pub fn server(state: AppState) -> Scope {
         web::scope("/payment_link")
             .app_data(web::Data::new(state))
-            .service(web::resource("").route(web::get().to(super::payment_link::get_payment_link)))
+            .service(web::resource("").route(web::get().to(get_payment_link)))
     }
 }
 

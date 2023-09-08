@@ -70,7 +70,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
                 let created_at @ last_modified_at = Some(common_utils::date_time::now());
                 let payment_link_id = utils::generate_id(consts::ID_LENGTH, "pl");
                 let payment_link = format!(
-                    "{}/{}/{}",
+                    "{}/payment_link/{}/{}",
                     state.conf.server.base_url,
                     merchant_id.clone(),
                     payment_id.clone()
