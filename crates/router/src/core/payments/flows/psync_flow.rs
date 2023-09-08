@@ -124,6 +124,9 @@ impl Feature<api::PSync, types::PaymentsSyncData>
                     .validate_psync_reference_id(self)
                     .is_err()
                 {
+                    logger::warn!(
+                        "validate_psync_reference_id failed, hence skipping call to connector"
+                    );
                     return Ok((None, false));
                 }
                 let connector_integration: services::BoxedConnectorIntegration<
