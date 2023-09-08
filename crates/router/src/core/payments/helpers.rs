@@ -9,19 +9,31 @@ use data_models::payments::payment_intent::PaymentIntent;
 use diesel_models::{enums, payment_attempt::PaymentAttempt};
 // TODO : Evaluate all the helper functions ()
 use error_stack::{report, IntoReport, ResultExt};
+#[cfg(feature = "kms")]
+use external_services::kms;
 use josekit::jwe;
 use masking::{ExposeInterface, PeekInterface};
+#[cfg(feature = "kms")]
+use openssl::derive::Deriver;
+#[cfg(feature = "kms")]
+use openssl::pkey::PKey;
+#[cfg(feature = "kms")]
+use openssl::symm::{decrypt_aead, Cipher};
 use router_env::{instrument, logger, tracing};
 use time::Duration;
 use uuid::Uuid;
+#[cfg(feature = "kms")]
+use x509_parser::parse_x509_certificate;
 
 use super::{
     operations::{BoxedOperation, Operation, PaymentResponse},
     CustomerDetails, PaymentData,
 };
+#[cfg(feature = "kms")]
+use crate::connector;
 use crate::{
     configs::settings::{ConnectorRequestReferenceIdConfig, Server},
-    consts,
+    consts::{self, BASE64_ENGINE},
     core::{
         errors::{self, CustomResult, RouterResult, StorageErrorExt},
         payment_methods::{cards, vault},
@@ -29,7 +41,6 @@ use crate::{
     },
     db::StorageInterface,
     routes::{metrics, payment_methods, AppState},
-    scheduler::metrics as scheduler_metrics,
     services,
     types::{
         api::{self, admin, enums as api_enums, CustomerAcceptanceExt, MandateValidationFieldsExt},
@@ -52,12 +63,12 @@ pub fn create_identity_from_certificate_and_key(
     encoded_certificate: String,
     encoded_certificate_key: String,
 ) -> Result<reqwest::Identity, error_stack::Report<errors::ApiClientError>> {
-    let decoded_certificate = consts::BASE64_ENGINE
+    let decoded_certificate = BASE64_ENGINE
         .decode(encoded_certificate)
         .into_report()
         .change_context(errors::ApiClientError::CertificateDecodeFailed)?;
 
-    let decoded_certificate_key = consts::BASE64_ENGINE
+    let decoded_certificate_key = BASE64_ENGINE
         .decode(encoded_certificate_key)
         .into_report()
         .change_context(errors::ApiClientError::CertificateDecodeFailed)?;
@@ -785,14 +796,14 @@ where
         match schedule_time {
             Some(stime) => {
                 if !requeue {
-                    scheduler_metrics::TASKS_ADDED_COUNT.add(&metrics::CONTEXT, 1, &[]); // Metrics
+                    // scheduler_metrics::TASKS_ADDED_COUNT.add(&metrics::CONTEXT, 1, &[]); // Metrics
                     super::add_process_sync_task(&*state.store, payment_attempt, stime)
                         .await
                         .into_report()
                         .change_context(errors::ApiErrorResponse::InternalServerError)
                         .attach_printable("Failed while adding task to process tracker")
                 } else {
-                    scheduler_metrics::TASKS_RESET_COUNT.add(&metrics::CONTEXT, 1, &[]); // Metrics
+                    // scheduler_metrics::TASKS_RESET_COUNT.add(&metrics::CONTEXT, 1, &[]); // Metrics
                     super::reset_process_sync_task(&*state.store, payment_attempt, stime)
                         .await
                         .into_report()
@@ -1176,35 +1187,42 @@ pub async fn make_pm_data<'a, F: Clone, R>(
     let request = &payment_data.payment_method_data;
     let token = payment_data.token.clone();
 
-    let hyperswitch_token = if let Some(token) = token {
-        let redis_conn = state
-            .store
-            .get_redis_conn()
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Failed to get redis connection")?;
+    let hyperswitch_token = match payment_data.mandate_id {
+        Some(_) => token,
+        None => {
+            if let Some(token) = token {
+                let redis_conn = state
+                    .store
+                    .get_redis_conn()
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Failed to get redis connection")?;
 
-        let key = format!(
-            "pm_token_{}_{}_hyperswitch",
-            token,
-            payment_data
-                .payment_attempt
-                .payment_method
-                .to_owned()
-                .get_required_value("payment_method")?,
-        );
+                let key = format!(
+                    "pm_token_{}_{}_hyperswitch",
+                    token,
+                    payment_data
+                        .payment_attempt
+                        .payment_method
+                        .to_owned()
+                        .get_required_value("payment_method")?,
+                );
 
-        let key = redis_conn
-            .get_key::<Option<String>>(&key)
-            .await
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Failed to fetch the token from redis")?
-            .ok_or(error_stack::Report::new(
-                errors::ApiErrorResponse::UnprocessableEntity { entity: token },
-            ))?;
+                let key = redis_conn
+                    .get_key::<Option<String>>(&key)
+                    .await
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Failed to fetch the token from redis")?
+                    .ok_or(error_stack::Report::new(
+                        errors::ApiErrorResponse::UnprocessableEntity {
+                            message: "Token is invalid or expired".to_owned(),
+                        },
+                    ))?;
 
-        Some(key)
-    } else {
-        None
+                Some(key)
+            } else {
+                None
+            }
+        }
     };
 
     let card_cvc = payment_data.card_cvc.clone();
@@ -1296,7 +1314,7 @@ pub async fn make_pm_data<'a, F: Clone, R>(
         (pm @ Some(api::PaymentMethodData::BankDebit(_)), _) => Ok(pm.to_owned()),
         (pm @ Some(api::PaymentMethodData::Upi(_)), _) => Ok(pm.to_owned()),
         (pm @ Some(api::PaymentMethodData::Voucher(_)), _) => Ok(pm.to_owned()),
-        (pm @ Some(api::PaymentMethodData::Reward(_)), _) => Ok(pm.to_owned()),
+        (pm @ Some(api::PaymentMethodData::Reward), _) => Ok(pm.to_owned()),
         (pm @ Some(api::PaymentMethodData::CardRedirect(_)), _) => Ok(pm.to_owned()),
         (pm @ Some(api::PaymentMethodData::GiftCard(_)), _) => Ok(pm.to_owned()),
         (pm_opt @ Some(pm @ api::PaymentMethodData::BankTransfer(_)), _) => {
@@ -1636,10 +1654,7 @@ pub fn validate_payment_method_type_against_payment_method(
     }
 }
 
-pub fn check_force_psync_precondition(
-    status: &storage_enums::AttemptStatus,
-    connector_transaction_id: &Option<String>,
-) -> bool {
+pub fn check_force_psync_precondition(status: &storage_enums::AttemptStatus) -> bool {
     !matches!(
         status,
         storage_enums::AttemptStatus::Charged
@@ -1648,7 +1663,7 @@ pub fn check_force_psync_precondition(
             | storage_enums::AttemptStatus::CodInitiated
             | storage_enums::AttemptStatus::Started
             | storage_enums::AttemptStatus::Failure
-    ) && connector_transaction_id.is_some()
+    )
 }
 
 pub fn append_option<T, U, F, V>(func: F, option1: Option<T>, option2: Option<U>) -> Option<V>
@@ -1679,9 +1694,33 @@ pub(super) async fn filter_by_constraints(
 pub(super) fn validate_payment_list_request(
     req: &api::PaymentListConstraints,
 ) -> CustomResult<(), errors::ApiErrorResponse> {
-    utils::when(req.limit > 100 || req.limit < 1, || {
+    use common_utils::consts::PAYMENTS_LIST_MAX_LIMIT_V1;
+
+    utils::when(
+        req.limit > PAYMENTS_LIST_MAX_LIMIT_V1 || req.limit < 1,
+        || {
+            Err(errors::ApiErrorResponse::InvalidRequestData {
+                message: format!(
+                    "limit should be in between 1 and {}",
+                    PAYMENTS_LIST_MAX_LIMIT_V1
+                ),
+            })
+        },
+    )?;
+    Ok(())
+}
+#[cfg(feature = "olap")]
+pub(super) fn validate_payment_list_request_for_joins(
+    limit: u32,
+) -> CustomResult<(), errors::ApiErrorResponse> {
+    use common_utils::consts::PAYMENTS_LIST_MAX_LIMIT_V2;
+
+    utils::when(!(1..=PAYMENTS_LIST_MAX_LIMIT_V2).contains(&limit), || {
         Err(errors::ApiErrorResponse::InvalidRequestData {
-            message: "limit should be in between 1 and 100".to_string(),
+            message: format!(
+                "limit should be in between 1 and {}",
+                PAYMENTS_LIST_MAX_LIMIT_V2
+            ),
         })
     })?;
     Ok(())
@@ -2205,6 +2244,7 @@ mod tests {
             feature_metadata: None,
             attempt_count: 1,
             profile_id: None,
+            merchant_decision: None,
         };
         let req_cs = Some("1".to_string());
         let merchant_fulfillment_time = Some(900);
@@ -2250,6 +2290,7 @@ mod tests {
             feature_metadata: None,
             attempt_count: 1,
             profile_id: None,
+            merchant_decision: None,
         };
         let req_cs = Some("1".to_string());
         let merchant_fulfillment_time = Some(10);
@@ -2295,6 +2336,7 @@ mod tests {
             feature_metadata: None,
             attempt_count: 1,
             profile_id: None,
+            merchant_decision: None,
         };
         let req_cs = Some("1".to_string());
         let merchant_fulfillment_time = Some(10);
@@ -2353,6 +2395,7 @@ impl MerchantConnectorAccountType {
             Self::CacheVal(val) => val.metadata.to_owned(),
         }
     }
+
     pub fn get_connector_account_details(&self) -> serde_json::Value {
         match self {
             Self::DbVal(val) => val.connector_account_details.peek().to_owned(),
@@ -2410,7 +2453,7 @@ pub async fn get_merchant_connector_account(
             let decrypted_mca = services::decrypt_jwe(mca_config.config.as_str(), services::KeyIdCheck::SkipKeyIdCheck, private_key, jwe::RSA_OAEP_256)
                                      .await
                                      .change_context(errors::ApiErrorResponse::UnprocessableEntity{
-                                        entity: "merchant_connector_details".to_string()})
+                                        message: "decoding merchant_connector_details failed due to invalid data format!".into()})
                                      .attach_printable(
                                         "Failed to decrypt merchant_connector_details sent in request and then put in cache",
                                     )?;
@@ -2943,7 +2986,7 @@ pub async fn get_additional_payment_data(
         api_models::payments::PaymentMethodData::MandatePayment => {
             api_models::payments::AdditionalPaymentData::MandatePayment {}
         }
-        api_models::payments::PaymentMethodData::Reward(_) => {
+        api_models::payments::PaymentMethodData::Reward => {
             api_models::payments::AdditionalPaymentData::Reward {}
         }
         api_models::payments::PaymentMethodData::Upi(_) => {
@@ -2975,4 +3018,181 @@ pub fn validate_customer_access(
         }
     }
     Ok(())
+}
+
+#[derive(Debug, serde::Serialize, serde::Deserialize)]
+pub struct ApplePayData {
+    version: masking::Secret<String>,
+    data: masking::Secret<String>,
+    signature: masking::Secret<String>,
+    header: ApplePayHeader,
+}
+
+#[derive(Debug, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ApplePayHeader {
+    ephemeral_public_key: masking::Secret<String>,
+    public_key_hash: masking::Secret<String>,
+    transaction_id: masking::Secret<String>,
+}
+
+#[cfg(feature = "kms")]
+impl ApplePayData {
+    pub fn token_json(
+        wallet_data: api_models::payments::WalletData,
+    ) -> CustomResult<Self, errors::ConnectorError> {
+        let json_wallet_data: Self =
+            connector::utils::WalletData::get_wallet_token_as_json(&wallet_data)?;
+        Ok(json_wallet_data)
+    }
+
+    pub async fn decrypt(
+        &self,
+        state: &AppState,
+    ) -> CustomResult<serde_json::Value, errors::ApplePayDecryptionError> {
+        let merchant_id = self.merchant_id(state).await?;
+        let shared_secret = self.shared_secret(state).await?;
+        let symmetric_key = self.symmetric_key(&merchant_id, &shared_secret)?;
+        let decrypted = self.decrypt_ciphertext(&symmetric_key)?;
+        let parsed_decrypted: serde_json::Value = serde_json::from_str(&decrypted)
+            .into_report()
+            .change_context(errors::ApplePayDecryptionError::DecryptionFailed)?;
+        Ok(parsed_decrypted)
+    }
+
+    pub async fn merchant_id(
+        &self,
+        state: &AppState,
+    ) -> CustomResult<String, errors::ApplePayDecryptionError> {
+        let cert_data = kms::get_kms_client(&state.conf.kms)
+            .await
+            .decrypt(&state.conf.applepay_decrypt_keys.apple_pay_ppc)
+            .await
+            .change_context(errors::ApplePayDecryptionError::DecryptionFailed)?;
+
+        let base64_decode_cert_data = BASE64_ENGINE
+            .decode(cert_data)
+            .into_report()
+            .change_context(errors::ApplePayDecryptionError::Base64DecodingFailed)?;
+
+        // Parsing the certificate using x509-parser
+        let (_, certificate) = parse_x509_certificate(&base64_decode_cert_data)
+            .into_report()
+            .change_context(errors::ApplePayDecryptionError::CertificateParsingFailed)
+            .attach_printable("Error parsing apple pay PPC")?;
+
+        // Finding the merchant ID extension
+        let apple_pay_m_id = certificate
+            .extensions()
+            .iter()
+            .find(|extension| {
+                extension
+                    .oid
+                    .to_string()
+                    .eq(consts::MERCHANT_ID_FIELD_EXTENSION_ID)
+            })
+            .map(|ext| {
+                let merchant_id = String::from_utf8_lossy(ext.value)
+                    .trim()
+                    .trim_start_matches('@')
+                    .to_string();
+
+                merchant_id
+            })
+            .ok_or(errors::ApplePayDecryptionError::MissingMerchantId)
+            .into_report()
+            .attach_printable("Unable to find merchant ID extension in the certificate")?;
+
+        Ok(apple_pay_m_id)
+    }
+
+    pub async fn shared_secret(
+        &self,
+        state: &AppState,
+    ) -> CustomResult<Vec<u8>, errors::ApplePayDecryptionError> {
+        let public_ec_bytes = BASE64_ENGINE
+            .decode(self.header.ephemeral_public_key.peek().as_bytes())
+            .into_report()
+            .change_context(errors::ApplePayDecryptionError::Base64DecodingFailed)?;
+
+        let public_key = PKey::public_key_from_der(&public_ec_bytes)
+            .into_report()
+            .change_context(errors::ApplePayDecryptionError::KeyDeserializationFailed)
+            .attach_printable("Failed to deserialize the public key")?;
+
+        let decrypted_apple_pay_ppc_key = kms::get_kms_client(&state.conf.kms)
+            .await
+            .decrypt(&state.conf.applepay_decrypt_keys.apple_pay_ppc_key)
+            .await
+            .change_context(errors::ApplePayDecryptionError::DecryptionFailed)?;
+
+        // Create PKey objects from EcKey
+        let private_key = PKey::private_key_from_pem(decrypted_apple_pay_ppc_key.as_bytes())
+            .into_report()
+            .change_context(errors::ApplePayDecryptionError::KeyDeserializationFailed)
+            .attach_printable("Failed to deserialize the private key")?;
+
+        // Create the Deriver object and set the peer public key
+        let mut deriver = Deriver::new(&private_key)
+            .into_report()
+            .change_context(errors::ApplePayDecryptionError::DerivingSharedSecretKeyFailed)
+            .attach_printable("Failed to create a deriver for the private key")?;
+
+        deriver
+            .set_peer(&public_key)
+            .into_report()
+            .change_context(errors::ApplePayDecryptionError::DerivingSharedSecretKeyFailed)
+            .attach_printable("Failed to set the peer key for the secret derivation")?;
+
+        // Compute the shared secret
+        let shared_secret = deriver
+            .derive_to_vec()
+            .into_report()
+            .change_context(errors::ApplePayDecryptionError::DerivingSharedSecretKeyFailed)
+            .attach_printable("Final key derivation failed")?;
+        Ok(shared_secret)
+    }
+
+    pub fn symmetric_key(
+        &self,
+        merchant_id: &str,
+        shared_secret: &[u8],
+    ) -> CustomResult<Vec<u8>, errors::ApplePayDecryptionError> {
+        let kdf_algorithm = b"\x0did-aes256-GCM";
+        let kdf_party_v = hex::decode(merchant_id)
+            .into_report()
+            .change_context(errors::ApplePayDecryptionError::Base64DecodingFailed)?;
+        let kdf_party_u = b"Apple";
+        let kdf_info = [&kdf_algorithm[..], kdf_party_u, &kdf_party_v[..]].concat();
+
+        let mut hash = openssl::sha::Sha256::new();
+        hash.update(b"\x00\x00\x00");
+        hash.update(b"\x01");
+        hash.update(shared_secret);
+        hash.update(&kdf_info[..]);
+        let symmetric_key = hash.finish();
+        Ok(symmetric_key.to_vec())
+    }
+
+    pub fn decrypt_ciphertext(
+        &self,
+        symmetric_key: &[u8],
+    ) -> CustomResult<String, errors::ApplePayDecryptionError> {
+        let data = BASE64_ENGINE
+            .decode(self.data.peek().as_bytes())
+            .into_report()
+            .change_context(errors::ApplePayDecryptionError::Base64DecodingFailed)?;
+        let iv = [0u8; 16]; //Initialization vector IV is typically used in AES-GCM (Galois/Counter Mode) encryption for randomizing the encryption process.
+        let ciphertext = &data[..data.len() - 16];
+        let tag = &data[data.len() - 16..];
+        let cipher = Cipher::aes_256_gcm();
+        let decrypted_data = decrypt_aead(cipher, symmetric_key, Some(&iv), &[], ciphertext, tag)
+            .into_report()
+            .change_context(errors::ApplePayDecryptionError::DecryptionFailed)?;
+        let decrypted = String::from_utf8(decrypted_data)
+            .into_report()
+            .change_context(errors::ApplePayDecryptionError::DecryptionFailed)?;
+
+        Ok(decrypted)
+    }
 }

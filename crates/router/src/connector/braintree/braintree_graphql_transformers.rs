@@ -64,7 +64,12 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for BraintreePaymentsRequest {
                     query,
                     variables: VariablePaymentInput {
                         input: PaymentInput {
-                            payment_method_id: item.get_payment_method_token()?,
+                            payment_method_id: match item.get_payment_method_token()? {
+                                types::PaymentMethodToken::Token(token) => token,
+                                types::PaymentMethodToken::ApplePayDecrypt(_) => {
+                                    Err(errors::ConnectorError::InvalidWalletToken)?
+                                }
+                            },
                             transaction: TransactionBody {
                                 amount: utils::to_currency_base_unit(
                                     item.request.amount,
@@ -88,7 +93,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for BraintreePaymentsRequest {
             | api_models::payments::PaymentMethodData::BankTransfer(_)
             | api_models::payments::PaymentMethodData::Crypto(_)
             | api_models::payments::PaymentMethodData::MandatePayment
-            | api_models::payments::PaymentMethodData::Reward(_)
+            | api_models::payments::PaymentMethodData::Reward
             | api_models::payments::PaymentMethodData::Upi(_)
             | api_models::payments::PaymentMethodData::Voucher(_)
             | api_models::payments::PaymentMethodData::GiftCard(_) => {
@@ -149,9 +154,7 @@ impl<F, T>
                 Ok(Self {
                     status: enums::AttemptStatus::from(transaction_data.status.clone()),
                     response: Ok(types::PaymentsResponseData::TransactionResponse {
-                        resource_id: types::ResponseId::ConnectorTransactionId(
-                            transaction_data.id.clone(),
-                        ),
+                        resource_id: types::ResponseId::ConnectorTransactionId(transaction_data.id),
                         redirection_data: None,
                         mandate_reference: None,
                         connector_metadata: None,
@@ -307,9 +310,7 @@ impl<F, T>
                 Ok(Self {
                     status: enums::AttemptStatus::from(transaction_data.status.clone()),
                     response: Ok(types::PaymentsResponseData::TransactionResponse {
-                        resource_id: types::ResponseId::ConnectorTransactionId(
-                            transaction_data.id.clone(),
-                        ),
+                        resource_id: types::ResponseId::ConnectorTransactionId(transaction_data.id),
                         redirection_data: None,
                         mandate_reference: None,
                         connector_metadata: None,
@@ -462,7 +463,7 @@ impl TryFrom<types::RefundsResponseRouterData<api::Execute, BraintreeRefundRespo
 
                     Ok(types::RefundsResponseData {
                         connector_refund_id: refund_data.id.clone(),
-                        refund_status: enums::RefundStatus::from(refund_data.status.clone()),
+                        refund_status: enums::RefundStatus::from(refund_data.status),
                     })
                 }
             },
@@ -616,7 +617,7 @@ impl TryFrom<&types::TokenizationRouterData> for BraintreeTokenRequest {
             | api_models::payments::PaymentMethodData::BankTransfer(_)
             | api_models::payments::PaymentMethodData::Crypto(_)
             | api_models::payments::PaymentMethodData::MandatePayment
-            | api_models::payments::PaymentMethodData::Reward(_)
+            | api_models::payments::PaymentMethodData::Reward
             | api_models::payments::PaymentMethodData::Upi(_)
             | api_models::payments::PaymentMethodData::Voucher(_)
             | api_models::payments::PaymentMethodData::GiftCard(_) => {
@@ -779,9 +780,7 @@ impl TryFrom<types::PaymentsCaptureResponseRouterData<BraintreeCaptureResponse>>
                 Ok(Self {
                     status: enums::AttemptStatus::from(transaction_data.status.clone()),
                     response: Ok(types::PaymentsResponseData::TransactionResponse {
-                        resource_id: types::ResponseId::ConnectorTransactionId(
-                            transaction_data.id.clone(),
-                        ),
+                        resource_id: types::ResponseId::ConnectorTransactionId(transaction_data.id),
                         redirection_data: None,
                         mandate_reference: None,
                         connector_metadata: None,
@@ -874,13 +873,11 @@ impl<F, T>
             BraintreeCancelResponse::CancelResponse(void_response) => {
                 let void_data = void_response.data.reverse_transaction.reversal;
 
-                let transaction_id = void_data.id.clone();
+                let transaction_id = void_data.id;
                 Ok(Self {
-                    status: enums::AttemptStatus::from(void_data.status.clone()),
+                    status: enums::AttemptStatus::from(void_data.status),
                     response: Ok(types::PaymentsResponseData::TransactionResponse {
-                        resource_id: types::ResponseId::ConnectorTransactionId(
-                            transaction_id.to_string(),
-                        ),
+                        resource_id: types::ResponseId::ConnectorTransactionId(transaction_id),
                         redirection_data: None,
                         mandate_reference: None,
                         connector_metadata: None,

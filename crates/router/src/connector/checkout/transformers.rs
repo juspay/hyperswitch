@@ -1,4 +1,4 @@
-use common_utils::errors::CustomResult;
+use common_utils::{errors::CustomResult, ext_traits::ByteSliceExt};
 use error_stack::{IntoReport, ResultExt};
 use masking::{ExposeInterface, Secret};
 use serde::{Deserialize, Serialize};
@@ -6,7 +6,7 @@ use time::PrimitiveDateTime;
 use url::Url;
 
 use crate::{
-    connector::utils::{self, RouterData, WalletData},
+    connector::utils::{self, PaymentsCaptureRequestData, RouterData, WalletData},
     consts,
     core::errors,
     services,
@@ -19,6 +19,13 @@ use crate::{
 pub enum TokenRequest {
     Googlepay(CheckoutGooglePayData),
     Applepay(CheckoutApplePayData),
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "lowercase")]
+#[serde(tag = "type", content = "token_data")]
+pub enum PreDecryptedTokenRequest {
+    Applepay(Box<CheckoutApplePayData>),
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -97,7 +104,7 @@ impl TryFrom<&types::TokenizationRouterData> for TokenRequest {
             | api_models::payments::PaymentMethodData::BankTransfer(_)
             | api_models::payments::PaymentMethodData::Crypto(_)
             | api_models::payments::PaymentMethodData::MandatePayment
-            | api_models::payments::PaymentMethodData::Reward(_)
+            | api_models::payments::PaymentMethodData::Reward
             | api_models::payments::PaymentMethodData::Upi(_)
             | api_models::payments::PaymentMethodData::Voucher(_)
             | api_models::payments::PaymentMethodData::CardRedirect(_)
@@ -155,6 +162,19 @@ pub struct WalletSource {
 pub enum PaymentSource {
     Card(CardSource),
     Wallets(WalletSource),
+    ApplePayPredecrypt(Box<ApplePayPredecrypt>),
+}
+
+#[derive(Debug, Serialize)]
+pub struct ApplePayPredecrypt {
+    token: Secret<String>,
+    #[serde(rename = "type")]
+    decrypt_type: String,
+    token_type: String,
+    expiry_month: Secret<String>,
+    expiry_year: Secret<String>,
+    eci: Option<Secret<String>>,
+    cryptogram: Secret<String>,
 }
 
 #[derive(Debug, Serialize)]
@@ -234,7 +254,12 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PaymentsRequest {
                 | api_models::payments::WalletData::ApplePay(_) => {
                     Ok(PaymentSource::Wallets(WalletSource {
                         source_type: CheckoutSourceTypes::Token,
-                        token: item.get_payment_method_token()?,
+                        token: match item.get_payment_method_token()? {
+                            types::PaymentMethodToken::Token(token) => token,
+                            types::PaymentMethodToken::ApplePayDecrypt(_) => {
+                                Err(errors::ConnectorError::InvalidWalletToken)?
+                            }
+                        },
                     }))
                 }
                 api_models::payments::WalletData::AliPayQr(_)
@@ -273,7 +298,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PaymentsRequest {
             | api_models::payments::PaymentMethodData::BankTransfer(_)
             | api_models::payments::PaymentMethodData::Crypto(_)
             | api_models::payments::PaymentMethodData::MandatePayment
-            | api_models::payments::PaymentMethodData::Reward(_)
+            | api_models::payments::PaymentMethodData::Reward
             | api_models::payments::PaymentMethodData::Upi(_)
             | api_models::payments::PaymentMethodData::Voucher(_)
             | api_models::payments::PaymentMethodData::CardRedirect(_)
@@ -329,7 +354,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PaymentsRequest {
     }
 }
 
-#[derive(Default, Clone, Debug, Eq, PartialEq, Deserialize)]
+#[derive(Default, Clone, Debug, Eq, PartialEq, Deserialize, Serialize)]
 pub enum CheckoutPaymentStatus {
     Authorized,
     #[default]
@@ -338,6 +363,35 @@ pub enum CheckoutPaymentStatus {
     CardVerified,
     Declined,
     Captured,
+}
+
+impl TryFrom<CheckoutWebhookEventType> for CheckoutPaymentStatus {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(value: CheckoutWebhookEventType) -> Result<Self, Self::Error> {
+        match value {
+            CheckoutWebhookEventType::PaymentApproved => Ok(Self::Authorized),
+            CheckoutWebhookEventType::PaymentCaptured => Ok(Self::Captured),
+            CheckoutWebhookEventType::PaymentDeclined => Ok(Self::Declined),
+            CheckoutWebhookEventType::AuthenticationStarted
+            | CheckoutWebhookEventType::AuthenticationApproved => Ok(Self::Pending),
+            CheckoutWebhookEventType::PaymentRefunded
+            | CheckoutWebhookEventType::PaymentRefundDeclined
+            | CheckoutWebhookEventType::DisputeReceived
+            | CheckoutWebhookEventType::DisputeExpired
+            | CheckoutWebhookEventType::DisputeAccepted
+            | CheckoutWebhookEventType::DisputeCanceled
+            | CheckoutWebhookEventType::DisputeEvidenceSubmitted
+            | CheckoutWebhookEventType::DisputeEvidenceAcknowledgedByScheme
+            | CheckoutWebhookEventType::DisputeEvidenceRequired
+            | CheckoutWebhookEventType::DisputeArbitrationLost
+            | CheckoutWebhookEventType::DisputeArbitrationWon
+            | CheckoutWebhookEventType::DisputeWon
+            | CheckoutWebhookEventType::DisputeLost
+            | CheckoutWebhookEventType::Unknown => {
+                Err(errors::ConnectorError::WebhookEventTypeNotFound.into())
+            }
+        }
+    }
 }
 
 impl ForeignFrom<(CheckoutPaymentStatus, Option<enums::CaptureMethod>)> for enums::AttemptStatus {
@@ -384,20 +438,21 @@ impl ForeignFrom<(CheckoutPaymentStatus, Option<Balances>)> for enums::AttemptSt
     }
 }
 
-#[derive(Clone, Debug, Eq, PartialEq, Deserialize)]
+#[derive(Clone, Debug, Eq, PartialEq, Deserialize, Serialize)]
 pub struct Href {
     #[serde(rename = "href")]
     redirection_url: Url,
 }
 
-#[derive(Clone, Debug, Default, Eq, PartialEq, Deserialize)]
+#[derive(Clone, Debug, Default, Eq, PartialEq, Deserialize, Serialize)]
 pub struct Links {
     redirect: Option<Href>,
 }
-#[derive(Clone, Debug, Default, Eq, PartialEq, Deserialize)]
+#[derive(Clone, Debug, Default, Eq, PartialEq, Deserialize, Serialize)]
 pub struct PaymentsResponse {
     id: String,
     amount: Option<i32>,
+    action_id: Option<String>,
     status: CheckoutPaymentStatus,
     #[serde(rename = "_links")]
     links: Links,
@@ -407,7 +462,14 @@ pub struct PaymentsResponse {
     response_summary: Option<String>,
 }
 
-#[derive(Clone, Debug, Default, Eq, PartialEq, Deserialize)]
+#[derive(Debug, Deserialize)]
+#[serde(untagged)]
+pub enum PaymentsResponseEnum {
+    ActionResponse(Vec<ActionResponse>),
+    PaymentResponse(Box<PaymentsResponse>),
+}
+
+#[derive(Clone, Debug, Default, Eq, PartialEq, Deserialize, Serialize)]
 pub struct Balances {
     available_to_capture: i32,
 }
@@ -508,6 +570,33 @@ impl TryFrom<types::PaymentsSyncResponseRouterData<PaymentsResponse>>
     }
 }
 
+impl TryFrom<types::PaymentsSyncResponseRouterData<PaymentsResponseEnum>>
+    for types::PaymentsSyncRouterData
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+
+    fn try_from(
+        item: types::PaymentsSyncResponseRouterData<PaymentsResponseEnum>,
+    ) -> Result<Self, Self::Error> {
+        let capture_sync_response_list = match item.response {
+            PaymentsResponseEnum::PaymentResponse(payments_response) => {
+                // for webhook consumption flow
+                utils::construct_captures_response_hashmap(vec![payments_response])
+            }
+            PaymentsResponseEnum::ActionResponse(action_list) => {
+                // for captures sync
+                utils::construct_captures_response_hashmap(action_list)
+            }
+        };
+        Ok(Self {
+            response: Ok(types::PaymentsResponseData::MultipleCaptureResponse {
+                capture_sync_response_list,
+            }),
+            ..item.data
+        })
+    }
+}
+
 #[derive(Clone, Default, Debug, Eq, PartialEq, Serialize)]
 pub struct PaymentVoidRequest {
     reference: String,
@@ -573,6 +662,7 @@ pub struct PaymentCaptureRequest {
     pub amount: Option<i64>,
     pub capture_type: Option<CaptureType>,
     pub processing_channel_id: Secret<String>,
+    pub reference: Option<String>,
 }
 
 impl TryFrom<&types::PaymentsCaptureRouterData> for PaymentCaptureRequest {
@@ -581,10 +671,21 @@ impl TryFrom<&types::PaymentsCaptureRouterData> for PaymentCaptureRequest {
         let connector_auth = &item.connector_auth_type;
         let auth_type: CheckoutAuthType = connector_auth.try_into()?;
         let processing_channel_id = auth_type.processing_channel_id;
+        let capture_type = if item.request.is_multiple_capture() {
+            CaptureType::NonFinal
+        } else {
+            CaptureType::Final
+        };
+        let reference = item
+            .request
+            .multiple_capture_data
+            .as_ref()
+            .map(|multiple_capture_data| multiple_capture_data.capture_reference.clone());
         Ok(Self {
             amount: Some(item.request.amount_to_capture),
-            capture_type: Some(CaptureType::Final),
+            capture_type: Some(capture_type),
             processing_channel_id,
+            reference, // hyperswitch's reference for this capture
         })
     }
 }
@@ -592,6 +693,7 @@ impl TryFrom<&types::PaymentsCaptureRouterData> for PaymentCaptureRequest {
 #[derive(Debug, Deserialize)]
 pub struct PaymentCaptureResponse {
     pub action_id: String,
+    pub reference: Option<String>,
 }
 
 impl TryFrom<types::PaymentsCaptureResponseRouterData<PaymentCaptureResponse>>
@@ -609,16 +711,23 @@ impl TryFrom<types::PaymentsCaptureResponseRouterData<PaymentCaptureResponse>>
         } else {
             (enums::AttemptStatus::Pending, None)
         };
+
+        // if multiple capture request, return capture action_id so that it will be updated in the captures table.
+        // else return previous connector_transaction_id.
+        let resource_id = if item.data.request.is_multiple_capture() {
+            item.response.action_id
+        } else {
+            item.data.request.connector_transaction_id.to_owned()
+        };
+
         Ok(Self {
             response: Ok(types::PaymentsResponseData::TransactionResponse {
-                resource_id: types::ResponseId::ConnectorTransactionId(
-                    item.data.request.connector_transaction_id.to_owned(),
-                ),
+                resource_id: types::ResponseId::ConnectorTransactionId(resource_id),
                 redirection_data: None,
                 mandate_reference: None,
                 connector_metadata: None,
                 network_txn_id: None,
-                connector_response_reference_id: None,
+                connector_response_reference_id: item.response.reference,
             }),
             status,
             amount_captured,
@@ -710,7 +819,7 @@ pub struct ErrorResponse {
     pub error_codes: Option<Vec<String>>,
 }
 
-#[derive(Deserialize, Debug)]
+#[derive(Deserialize, Debug, PartialEq)]
 pub enum ActionType {
     Authorization,
     Void,
@@ -740,6 +849,46 @@ impl From<&ActionResponse> for enums::RefundStatus {
             Some(false) => Self::Failure,
             None => Self::Pending,
         }
+    }
+}
+
+impl utils::MultipleCaptureSyncResponse for ActionResponse {
+    fn get_connector_capture_id(&self) -> String {
+        self.action_id.clone()
+    }
+
+    fn get_capture_attempt_status(&self) -> enums::AttemptStatus {
+        match self.approved {
+            Some(true) => enums::AttemptStatus::Charged,
+            Some(false) => enums::AttemptStatus::Failure,
+            None => enums::AttemptStatus::Pending,
+        }
+    }
+
+    fn get_connector_reference_id(&self) -> Option<String> {
+        self.reference.clone()
+    }
+
+    fn is_capture_response(&self) -> bool {
+        self.action_type == ActionType::Capture
+    }
+}
+
+impl utils::MultipleCaptureSyncResponse for Box<PaymentsResponse> {
+    fn get_connector_capture_id(&self) -> String {
+        self.action_id.clone().unwrap_or("".into())
+    }
+
+    fn get_capture_attempt_status(&self) -> enums::AttemptStatus {
+        enums::AttemptStatus::foreign_from((self.status.clone(), self.balances.clone()))
+    }
+
+    fn get_connector_reference_id(&self) -> Option<String> {
+        self.reference.clone()
+    }
+
+    fn is_capture_response(&self) -> bool {
+        self.status == CheckoutPaymentStatus::Captured
     }
 }
 
@@ -797,7 +946,6 @@ impl From<CheckoutRedirectResponseStatus> for enums::AttemptStatus {
     fn from(item: CheckoutRedirectResponseStatus) -> Self {
         match item {
             CheckoutRedirectResponseStatus::Success => Self::AuthenticationSuccessful,
-
             CheckoutRedirectResponseStatus::Failure => Self::Failure,
         }
     }
@@ -863,7 +1011,11 @@ pub struct CheckoutWebhookData {
     pub id: String,
     pub payment_id: Option<String>,
     pub action_id: Option<String>,
+    pub reference: Option<String>,
     pub amount: i32,
+    pub balances: Option<Balances>,
+    pub response_code: Option<String>,
+    pub response_summary: Option<String>,
     pub currency: String,
 }
 
@@ -872,6 +1024,8 @@ pub struct CheckoutWebhookBody {
     #[serde(rename = "type")]
     pub transaction_type: CheckoutWebhookEventType,
     pub data: CheckoutWebhookData,
+    #[serde(rename = "_links")]
+    pub links: Links,
 }
 
 #[derive(Debug, Deserialize)]
@@ -1001,6 +1155,31 @@ pub struct Evidence {
     pub refund_or_cancellation_policy_file: Option<String>,
     pub recurring_transaction_agreement_file: Option<String>,
     pub additional_evidence_file: Option<String>,
+}
+
+impl TryFrom<&api::IncomingWebhookRequestDetails<'_>> for PaymentsResponse {
+    type Error = error_stack::Report<errors::ConnectorError>;
+
+    fn try_from(request: &api::IncomingWebhookRequestDetails<'_>) -> Result<Self, Self::Error> {
+        let details: CheckoutWebhookBody = request
+            .body
+            .parse_struct("CheckoutWebhookBody")
+            .change_context(errors::ConnectorError::WebhookReferenceIdNotFound)?;
+        let data = details.data;
+        let psync_struct = Self {
+            id: data.payment_id.unwrap_or(data.id),
+            amount: Some(data.amount),
+            status: CheckoutPaymentStatus::try_from(details.transaction_type)?,
+            links: details.links,
+            balances: data.balances,
+            reference: data.reference,
+            response_code: data.response_code,
+            response_summary: data.response_summary,
+            action_id: data.action_id,
+        };
+
+        Ok(psync_struct)
+    }
 }
 
 impl TryFrom<&types::SubmitEvidenceRouterData> for Evidence {

@@ -7,9 +7,9 @@ use api_models::{
     admin::{self, PaymentMethodsEnabled},
     enums::{self as api_enums},
     payment_methods::{
-        CardNetworkTypes, PaymentExperienceTypes, RequestPaymentMethodTypes, RequiredFieldInfo,
-        ResponsePaymentMethodIntermediate, ResponsePaymentMethodTypes,
-        ResponsePaymentMethodsEnabled,
+        CardDetailsPaymentMethod, CardNetworkTypes, PaymentExperienceTypes, PaymentMethodsData,
+        RequestPaymentMethodTypes, RequiredFieldInfo, ResponsePaymentMethodIntermediate,
+        ResponsePaymentMethodTypes, ResponsePaymentMethodsEnabled,
     },
     payments::BankCodeResponse,
 };
@@ -23,8 +23,6 @@ use error_stack::{report, IntoReport, ResultExt};
 use masking::Secret;
 use router_env::{instrument, tracing};
 
-#[cfg(feature = "basilisk")]
-use crate::scheduler::metrics as scheduler_metrics;
 use crate::{
     configs::settings,
     core::{
@@ -45,7 +43,10 @@ use crate::{
     services,
     types::{
         api::{self, PaymentMethodCreateExt},
-        domain::{self, types::decrypt},
+        domain::{
+            self,
+            types::{decrypt, encrypt_optional, AsyncLift},
+        },
         storage::{self, enums},
         transformers::{ForeignFrom, ForeignInto},
     },
@@ -60,6 +61,7 @@ pub async fn create_payment_method(
     payment_method_id: &str,
     merchant_id: &str,
     pm_metadata: Option<serde_json::Value>,
+    payment_method_data: Option<Encryption>,
 ) -> errors::CustomResult<storage::PaymentMethod, errors::StorageError> {
     let response = db
         .insert_payment_method(storage::PaymentMethodNew {
@@ -71,6 +73,7 @@ pub async fn create_payment_method(
             payment_method_issuer: req.payment_method_issuer.clone(),
             scheme: req.card_network.clone(),
             metadata: pm_metadata.map(masking::Secret::new),
+            payment_method_data,
             ..storage::PaymentMethodNew::default()
         })
         .await?;
@@ -83,6 +86,7 @@ pub async fn add_payment_method(
     state: &routes::AppState,
     req: api::PaymentMethodCreate,
     merchant_account: &domain::MerchantAccount,
+    key_store: &domain::MerchantKeyStore,
 ) -> errors::RouterResponse<api::PaymentMethodResponse> {
     req.validate()?;
     let merchant_id = &merchant_account.merchant_id;
@@ -120,6 +124,15 @@ pub async fn add_payment_method(
     let (resp, is_duplicate) = response?;
     if !is_duplicate {
         let pm_metadata = resp.metadata.as_ref().map(|data| data.peek());
+
+        let pm_card_details = resp
+            .card
+            .as_ref()
+            .map(|card| PaymentMethodsData::Card(CardDetailsPaymentMethod::from(card.clone())));
+
+        let pm_data_encrypted =
+            create_encrypted_payment_method_data(key_store, pm_card_details).await;
+
         create_payment_method(
             &*state.store,
             &req,
@@ -127,6 +140,7 @@ pub async fn add_payment_method(
             &resp.payment_method_id,
             &resp.merchant_id,
             pm_metadata.cloned(),
+            pm_data_encrypted,
         )
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -142,6 +156,7 @@ pub async fn update_customer_payment_method(
     merchant_account: domain::MerchantAccount,
     req: api::PaymentMethodUpdate,
     payment_method_id: &str,
+    key_store: domain::MerchantKeyStore,
 ) -> errors::RouterResponse<api::PaymentMethodResponse> {
     let db = &*state.store;
     let pm = db
@@ -173,7 +188,7 @@ pub async fn update_customer_payment_method(
             .as_ref()
             .map(|card_network| card_network.to_string()),
     };
-    add_payment_method(state, new_pm, &merchant_account).await
+    add_payment_method(state, new_pm, &merchant_account, &key_store).await
 }
 
 // Wrapper function to switch lockers
@@ -197,6 +212,7 @@ pub async fn add_card_to_locker(
                 })
         },
         &metrics::CARD_ADD_TIME,
+        &[],
     )
     .await
 }
@@ -221,6 +237,7 @@ pub async fn get_card_from_locker(
                 })
         },
         &metrics::CARD_GET_TIME,
+        &[],
     )
     .await
 }
@@ -243,6 +260,7 @@ pub async fn delete_card_from_locker(
                 })
         },
         &metrics::CARD_DELETE_TIME,
+        &[],
     )
     .await
 }
@@ -754,7 +772,7 @@ pub fn get_banks(
 
 fn get_val(str: String, val: &serde_json::Value) -> Option<String> {
     str.split('.')
-        .fold(Some(val), |acc, x| acc.and_then(|v| v.get(x)))
+        .try_fold(val, |acc, x| acc.get(x))
         .and_then(|v| v.as_str())
         .map(|s| s.to_string())
 }
@@ -1750,6 +1768,8 @@ pub async fn list_customer_payment_method(
     .await
     .to_not_found_response(errors::ApiErrorResponse::CustomerNotFound)?;
 
+    let key = key_store.key.get_inner().peek();
+
     let is_requires_cvv = db
         .find_config_by_key(format!("{}_requires_cvv", merchant_account.merchant_id).as_str())
         .await;
@@ -1781,11 +1801,13 @@ pub async fn list_customer_payment_method(
     for pm in resp.into_iter() {
         let parent_payment_method_token = generate_id(consts::ID_LENGTH, "token");
         let hyperswitch_token = generate_id(consts::ID_LENGTH, "token");
+
         let card = if pm.payment_method == enums::PaymentMethod::Card {
-            Some(get_lookup_key_from_locker(state, &hyperswitch_token, &pm).await?)
+            get_card_details(&pm, key, state, &hyperswitch_token).await?
         } else {
             None
         };
+
         #[cfg(feature = "payouts")]
         let pmd = if pm.payment_method == enums::PaymentMethod::BankTransfer {
             Some(
@@ -1857,11 +1879,7 @@ pub async fn list_customer_payment_method(
                         consts::TOKEN_TTL - time_elapsed.whole_seconds(),
                     )
                     .await
-                    .map_err(|error| {
-                        logger::error!(connector_payment_method_token_kv_error=?error);
-                        errors::StorageError::KVError
-                    })
-                    .into_report()
+                    .change_context(errors::StorageError::KVError)
                     .change_context(errors::ApiErrorResponse::InternalServerError)
                     .attach_printable("Failed to add data in redis")?;
             }
@@ -1873,6 +1891,34 @@ pub async fn list_customer_payment_method(
     };
 
     Ok(services::ApplicationResponse::Json(response))
+}
+
+async fn get_card_details(
+    pm: &payment_method::PaymentMethod,
+    key: &[u8],
+    state: &routes::AppState,
+    hyperswitch_token: &str,
+) -> errors::RouterResult<Option<api::CardDetailFromLocker>> {
+    let mut card_decrypted =
+        decrypt::<serde_json::Value, masking::WithType>(pm.payment_method_data.clone(), key)
+            .await
+            .change_context(errors::StorageError::DecryptionError)
+            .attach_printable("unable to decrypt card details")
+            .ok()
+            .flatten()
+            .map(|x| x.into_inner().expose())
+            .and_then(|v| serde_json::from_value::<PaymentMethodsData>(v).ok())
+            .map(|pmd| match pmd {
+                PaymentMethodsData::Card(crd) => api::CardDetailFromLocker::from(crd),
+            });
+
+    card_decrypted = if let Some(mut crd) = card_decrypted {
+        crd.scheme = pm.scheme.clone();
+        Some(crd)
+    } else {
+        Some(get_lookup_key_from_locker(state, hyperswitch_token, pm).await?)
+    };
+    Ok(card_decrypted)
 }
 
 pub async fn get_lookup_key_from_locker(
@@ -2102,7 +2148,7 @@ impl BasiliskCardSupport {
             enums::PaymentMethod::Card,
         )
         .await?;
-        scheduler_metrics::TOKENIZED_DATA_COUNT.add(&metrics::CONTEXT, 1, &[]);
+        metrics::TOKENIZED_DATA_COUNT.add(&metrics::CONTEXT, 1, &[]);
         Ok(card)
     }
 }
@@ -2193,4 +2239,34 @@ pub async fn delete_payment_method(
             deleted: true,
         },
     ))
+}
+
+pub async fn create_encrypted_payment_method_data(
+    key_store: &domain::MerchantKeyStore,
+    pm_data: Option<PaymentMethodsData>,
+) -> Option<Encryption> {
+    let key = key_store.key.get_inner().peek();
+
+    let pm_data_encrypted: Option<Encryption> = pm_data
+        .as_ref()
+        .map(utils::Encode::<PaymentMethodsData>::encode_to_value)
+        .transpose()
+        .change_context(errors::StorageError::SerializationFailed)
+        .attach_printable("Unable to convert payment method data to a value")
+        .unwrap_or_else(|err| {
+            logger::error!(err=?err);
+            None
+        })
+        .map(masking::Secret::<_, masking::WithType>::new)
+        .async_lift(|inner| encrypt_optional(inner, key))
+        .await
+        .change_context(errors::StorageError::EncryptionError)
+        .attach_printable("Unable to encrypt payment method data")
+        .unwrap_or_else(|err| {
+            logger::error!(err=?err);
+            None
+        })
+        .map(|details| details.into());
+
+    pm_data_encrypted
 }

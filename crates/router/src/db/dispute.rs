@@ -1,4 +1,4 @@
-use error_stack::IntoReport;
+use error_stack::{IntoReport, ResultExt};
 
 use super::{MockDb, Store};
 use crate::{
@@ -147,8 +147,11 @@ impl DisputeInterface for MockDb {
         let now = common_utils::date_time::now();
 
         let new_dispute = storage::Dispute {
-            #[allow(clippy::as_conversions)]
-            id: locked_disputes.len() as i32,
+            id: locked_disputes
+                .len()
+                .try_into()
+                .into_report()
+                .change_context(errors::StorageError::MockDbError)?,
             dispute_id: dispute.dispute_id,
             amount: dispute.amount,
             currency: dispute.currency,
@@ -406,7 +409,7 @@ mod tests {
 
         #[tokio::test]
         async fn test_insert_dispute() {
-            let mockdb = MockDb::new(&Default::default()).await;
+            let mockdb = MockDb::new().await;
 
             let created_dispute = mockdb
                 .insert_dispute(create_dispute_new(DisputeNewIds {
@@ -434,7 +437,7 @@ mod tests {
 
         #[tokio::test]
         async fn test_find_by_merchant_id_payment_id_connector_dispute_id() {
-            let mockdb = MockDb::new(&Default::default()).await;
+            let mockdb = MockDb::new().await;
 
             let created_dispute = mockdb
                 .insert_dispute(create_dispute_new(DisputeNewIds {
@@ -474,7 +477,7 @@ mod tests {
 
         #[tokio::test]
         async fn test_find_dispute_by_merchant_id_dispute_id() {
-            let mockdb = MockDb::new(&Default::default()).await;
+            let mockdb = MockDb::new().await;
 
             let created_dispute = mockdb
                 .insert_dispute(create_dispute_new(DisputeNewIds {
@@ -508,7 +511,7 @@ mod tests {
 
         #[tokio::test]
         async fn test_find_disputes_by_merchant_id() {
-            let mockdb = MockDb::new(&Default::default()).await;
+            let mockdb = MockDb::new().await;
 
             let created_dispute = mockdb
                 .insert_dispute(create_dispute_new(DisputeNewIds {
@@ -558,7 +561,7 @@ mod tests {
 
         #[tokio::test]
         async fn test_find_disputes_by_merchant_id_payment_id() {
-            let mockdb = MockDb::new(&Default::default()).await;
+            let mockdb = MockDb::new().await;
 
             let created_dispute = mockdb
                 .insert_dispute(create_dispute_new(DisputeNewIds {
@@ -611,7 +614,7 @@ mod tests {
 
             #[tokio::test]
             async fn test_update_dispute_update() {
-                let mockdb = MockDb::new(&Default::default()).await;
+                let mockdb = MockDb::new().await;
 
                 let created_dispute = mockdb
                     .insert_dispute(create_dispute_new(DisputeNewIds {
@@ -688,7 +691,7 @@ mod tests {
 
             #[tokio::test]
             async fn test_update_dispute_update_status() {
-                let mockdb = MockDb::new(&Default::default()).await;
+                let mockdb = MockDb::new().await;
 
                 let created_dispute = mockdb
                     .insert_dispute(create_dispute_new(DisputeNewIds {
@@ -760,7 +763,7 @@ mod tests {
 
             #[tokio::test]
             async fn test_update_dispute_update_evidence() {
-                let mockdb = MockDb::new(&Default::default()).await;
+                let mockdb = MockDb::new().await;
 
                 let created_dispute = mockdb
                     .insert_dispute(create_dispute_new(DisputeNewIds {

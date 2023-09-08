@@ -2,6 +2,7 @@
 use std::collections::HashSet;
 
 use diesel_models::{errors::DatabaseError, refund::RefundUpdateInternal};
+use error_stack::{IntoReport, ResultExt};
 
 use super::MockDb;
 use crate::{
@@ -735,8 +736,11 @@ impl RefundInterface for MockDb {
         let current_time = common_utils::date_time::now();
 
         let refund = storage_types::Refund {
-            #[allow(clippy::as_conversions)]
-            id: refunds.len() as i32,
+            id: refunds
+                .len()
+                .try_into()
+                .into_report()
+                .change_context(errors::StorageError::MockDbError)?,
             internal_reference_id: new.internal_reference_id,
             refund_id: new.refund_id,
             payment_id: new.payment_id,

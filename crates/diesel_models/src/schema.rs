@@ -432,6 +432,7 @@ diesel::table! {
         is_recon_enabled -> Bool,
         #[max_length = 64]
         default_profile -> Nullable<Varchar>,
+        recon_status -> ReconStatus,
     }
 }
 
@@ -594,6 +595,8 @@ diesel::table! {
         attempt_count -> Int2,
         #[max_length = 64]
         profile_id -> Nullable<Varchar>,
+        #[max_length = 64]
+        merchant_decision -> Nullable<Varchar>,
     }
 }
 
@@ -635,6 +638,7 @@ diesel::table! {
         payment_method_issuer -> Nullable<Varchar>,
         payment_method_issuer_code -> Nullable<PaymentMethodIssuerCode>,
         metadata -> Nullable<Json>,
+        payment_method_data -> Nullable<Bytea>,
     }
 }
 

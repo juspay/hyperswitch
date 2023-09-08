@@ -3,7 +3,7 @@ use reqwest::Url;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    connector::utils::CryptoData,
+    connector::utils::{self, CryptoData},
     core::errors,
     services,
     types::{self, api, storage::enums},
@@ -11,11 +11,12 @@ use crate::{
 
 #[derive(Default, Debug, Serialize)]
 pub struct CryptopayPaymentsRequest {
-    price_amount: i64,
+    price_amount: String,
     price_currency: enums::Currency,
     pay_currency: String,
     success_redirect_url: Option<String>,
     unsuccess_redirect_url: Option<String>,
+    custom_id: String,
 }
 
 impl TryFrom<&types::PaymentsAuthorizeRouterData> for CryptopayPaymentsRequest {
@@ -25,11 +26,15 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for CryptopayPaymentsRequest {
             api::PaymentMethodData::Crypto(ref cryptodata) => {
                 let pay_currency = cryptodata.get_pay_currency()?;
                 Ok(Self {
-                    price_amount: item.request.amount,
+                    price_amount: utils::to_currency_base_unit(
+                        item.request.amount,
+                        item.request.currency,
+                    )?,
                     price_currency: item.request.currency,
                     pay_currency,
                     success_redirect_url: item.clone().request.router_return_url,
                     unsuccess_redirect_url: item.clone().request.router_return_url,
+                    custom_id: item.connector_request_reference_id.clone(),
                 })
             }
             _ => Err(errors::ConnectorError::NotImplemented(
@@ -109,12 +114,18 @@ impl<F, T>
         Ok(Self {
             status: enums::AttemptStatus::from(item.response.data.status),
             response: Ok(types::PaymentsResponseData::TransactionResponse {
-                resource_id: types::ResponseId::ConnectorTransactionId(item.response.data.id),
+                resource_id: types::ResponseId::ConnectorTransactionId(
+                    item.response.data.id.clone(),
+                ),
                 redirection_data,
                 mandate_reference: None,
                 connector_metadata: None,
                 network_txn_id: None,
-                connector_response_reference_id: None,
+                connector_response_reference_id: item
+                    .response
+                    .data
+                    .custom_id
+                    .or(Some(item.response.data.id)),
             }),
             ..item.data
         })
@@ -136,6 +147,7 @@ pub struct CryptopayErrorResponse {
 #[derive(Debug, Default, Serialize, Deserialize)]
 pub struct CryptopayPaymentResponseData {
     pub id: String,
+    pub custom_id: Option<String>,
     pub customer_id: Option<String>,
     pub status: CryptopayPaymentStatus,
     pub status_context: Option<String>,

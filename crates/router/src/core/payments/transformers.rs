@@ -1,5 +1,6 @@
 use std::{fmt::Debug, marker::PhantomData, str::FromStr};
 
+use api_models::payments::FrmMessage;
 use common_utils::fp_utils;
 use diesel_models::{ephemeral_key, payment_attempt::PaymentListFilters};
 use error_stack::{IntoReport, ResultExt};
@@ -8,7 +9,7 @@ use router_env::{instrument, tracing};
 use super::{flows::Feature, PaymentAddress, PaymentData};
 use crate::{
     configs::settings::{ConnectorRequestReferenceIdConfig, Server},
-    connector::{Nexinets, Paypal},
+    connector::Nexinets,
     core::{
         errors::{self, RouterResponse, RouterResult},
         payments::{self, helpers},
@@ -31,8 +32,9 @@ pub async fn construct_payment_router_data<'a, F, T>(
     payment_data: PaymentData<F>,
     connector_id: &str,
     merchant_account: &domain::MerchantAccount,
-    key_store: &domain::MerchantKeyStore,
+    _key_store: &domain::MerchantKeyStore,
     customer: &Option<domain::Customer>,
+    merchant_connector_account: &helpers::MerchantConnectorAccountType,
 ) -> RouterResult<types::RouterData<F, T, types::PaymentsResponseData>>
 where
     T: TryFrom<PaymentAdditionalData<'a, F>>,
@@ -41,22 +43,7 @@ where
     error_stack::Report<errors::ApiErrorResponse>:
         From<<T as TryFrom<PaymentAdditionalData<'a, F>>>::Error>,
 {
-    let (merchant_connector_account, payment_method, router_data);
-    let connector_label = helpers::get_connector_label(
-        payment_data.payment_intent.business_country,
-        &payment_data.payment_intent.business_label,
-        payment_data.payment_attempt.business_sub_label.as_ref(),
-        connector_id,
-    );
-
-    merchant_connector_account = helpers::get_merchant_connector_account(
-        state,
-        merchant_account.merchant_id.as_str(),
-        &connector_label,
-        payment_data.creds_identifier.to_owned(),
-        key_store,
-    )
-    .await?;
+    let (payment_method, router_data);
 
     fp_utils::when(merchant_connector_account.is_disabled(), || {
         Err(errors::ApiErrorResponse::MerchantConnectorAccountDisabled)
@@ -76,19 +63,24 @@ where
         .or(payment_data.payment_attempt.payment_method)
         .get_required_value("payment_method_type")?;
 
-    // [#44]: why should response be filled during request
-    let response = payment_data
+    let resource_id = match payment_data
         .payment_attempt
         .connector_transaction_id
-        .as_ref()
-        .map(|id| types::PaymentsResponseData::TransactionResponse {
-            resource_id: types::ResponseId::ConnectorTransactionId(id.to_string()),
-            redirection_data: None,
-            mandate_reference: None,
-            connector_metadata: None,
-            network_txn_id: None,
-            connector_response_reference_id: None,
-        });
+        .clone()
+    {
+        Some(id) => types::ResponseId::ConnectorTransactionId(id),
+        None => types::ResponseId::NoResponseId,
+    };
+
+    // [#44]: why should response be filled during request
+    let response = Ok(types::PaymentsResponseData::TransactionResponse {
+        resource_id,
+        redirection_data: None,
+        mandate_reference: None,
+        connector_metadata: None,
+        network_txn_id: None,
+        connector_response_reference_id: None,
+    });
 
     let additional_data = PaymentAdditionalData {
         router_base_url: state.conf.server.base_url.clone(),
@@ -142,12 +134,12 @@ where
             .unwrap_or_default(),
         connector_meta_data: merchant_connector_account.get_metadata(),
         request: T::try_from(additional_data)?,
-        response: response.map_or_else(|| Err(types::ErrorResponse::default()), Ok),
+        response,
         amount_captured: payment_data.payment_intent.amount_captured,
         access_token: None,
         session_token: None,
         reference_id: None,
-        payment_method_token: payment_data.pm_token,
+        payment_method_token: payment_data.pm_token.map(types::PaymentMethodToken::Token),
         connector_customer: payment_data.connector_customer_id,
         recurring_mandate_payment_data: payment_data.recurring_mandate_payment_data,
         connector_request_reference_id: core_utils::get_connector_request_reference_id(
@@ -203,6 +195,21 @@ where
         connector_request_reference_id_config: &ConnectorRequestReferenceIdConfig,
         connector_http_status_code: Option<u16>,
     ) -> RouterResponse<Self> {
+        let captures = payment_data
+            .multiple_capture_data
+            .and_then(|multiple_capture_data| {
+                multiple_capture_data
+                    .expand_captures
+                    .and_then(|should_expand| {
+                        should_expand.then_some(
+                            multiple_capture_data
+                                .get_all_captures()
+                                .into_iter()
+                                .cloned()
+                                .collect(),
+                        )
+                    })
+            });
         payments_to_payments_response(
             req,
             payment_data.payment_attempt,
@@ -210,15 +217,7 @@ where
             payment_data.refunds,
             payment_data.disputes,
             payment_data.attempts,
-            payment_data
-                .multiple_capture_data
-                .map(|multiple_capture_data| {
-                    multiple_capture_data
-                        .get_all_captures()
-                        .into_iter()
-                        .cloned()
-                        .collect()
-                }),
+            captures,
             payment_data.payment_method_data,
             customer,
             auth_flow,
@@ -344,7 +343,7 @@ pub fn payments_to_payments_response<R, Op>(
     operation: &Op,
     ephemeral_key_option: Option<ephemeral_key::EphemeralKey>,
     session_tokens: Vec<api::SessionToken>,
-    frm_message: Option<payments::FrmMessage>,
+    fraud_check: Option<payments::FraudCheck>,
     mandate_data: Option<api_models::payments::MandateData>,
     connector_request_reference_id_config: &ConnectorRequestReferenceIdConfig,
     connector_http_status_code: Option<u16>,
@@ -412,6 +411,8 @@ where
             .change_context(errors::ApiErrorResponse::InvalidDataValue {
                 field_name: "payment_method_data",
             })?;
+    let merchant_decision = payment_intent.merchant_decision.to_owned();
+    let frm_message = fraud_check.map(FrmMessage::foreign_from);
 
     let payment_method_data_response =
         additional_payment_method_data.map(api::PaymentMethodDataResponse::from);
@@ -590,6 +591,7 @@ where
                         )
                         .set_ephemeral_key(ephemeral_key_option.map(ForeignFrom::foreign_from))
                         .set_frm_message(frm_message)
+                        .set_merchant_decision(merchant_decision)
                         .set_manual_retry_allowed(helpers::is_manual_retry_allowed(
                             &payment_intent.status,
                             &payment_attempt.status,
@@ -601,6 +603,7 @@ where
                         .set_connector_metadata(payment_intent.connector_metadata)
                         .set_reference_id(payment_attempt.connector_response_reference_id)
                         .set_profile_id(payment_intent.profile_id)
+                        .set_attempt_count(payment_intent.attempt_count)
                         .to_owned(),
                     headers,
                 ))
@@ -658,6 +661,7 @@ where
                 connector_metadata: payment_intent.connector_metadata,
                 allowed_payment_method_types: payment_intent.allowed_payment_method_types,
                 reference_id: payment_attempt.connector_response_reference_id,
+                attempt_count: payment_intent.attempt_count,
                 ..Default::default()
             },
             headers,
@@ -761,6 +765,7 @@ impl ForeignFrom<(storage::PaymentIntent, storage::PaymentAttempt)> for api::Pay
             capture_method: pa.capture_method,
             authentication_type: pa.authentication_type,
             connector_transaction_id: pa.connector_transaction_id,
+            attempt_count: pi.attempt_count,
             ..Default::default()
         }
     }
@@ -973,31 +978,13 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsSyncData
             encoded_data: payment_data.connector_response.encoded_data,
             capture_method: payment_data.payment_attempt.capture_method,
             connector_meta: payment_data.payment_attempt.connector_metadata,
-            capture_sync_type: match payment_data.multiple_capture_data {
-                Some(multiple_capture_data) => types::CaptureSyncType::MultipleCaptureSync(
+            sync_type: match payment_data.multiple_capture_data {
+                Some(multiple_capture_data) => types::SyncRequestType::MultipleCaptureSync(
                     multiple_capture_data.get_pending_connector_capture_ids(),
                 ),
-                None => types::CaptureSyncType::SingleCaptureSync,
+                None => types::SyncRequestType::SinglePaymentSync,
             },
         })
-    }
-}
-
-impl api::ConnectorTransactionId for Paypal {
-    fn connector_transaction_id(
-        &self,
-        payment_attempt: storage::PaymentAttempt,
-    ) -> Result<Option<String>, errors::ApiErrorResponse> {
-        let payment_method = payment_attempt.payment_method;
-        let metadata = Self::connector_transaction_id(
-            self,
-            payment_method,
-            &payment_attempt.connector_metadata,
-        );
-        match metadata {
-            Ok(data) => Ok(data),
-            _ => Err(errors::ApiErrorResponse::ResourceIdNotFound),
-        }
     }
 }
 
@@ -1071,6 +1058,30 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsCancelDa
     }
 }
 
+impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsApproveData {
+    type Error = error_stack::Report<errors::ApiErrorResponse>;
+
+    fn try_from(additional_data: PaymentAdditionalData<'_, F>) -> Result<Self, Self::Error> {
+        let payment_data = additional_data.payment_data;
+        Ok(Self {
+            amount: Some(payment_data.amount.into()),
+            currency: Some(payment_data.currency),
+        })
+    }
+}
+
+impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsRejectData {
+    type Error = error_stack::Report<errors::ApiErrorResponse>;
+
+    fn try_from(additional_data: PaymentAdditionalData<'_, F>) -> Result<Self, Self::Error> {
+        let payment_data = additional_data.payment_data;
+        Ok(Self {
+            amount: Some(payment_data.amount.into()),
+            currency: Some(payment_data.currency),
+        })
+    }
+}
+
 impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsSessionData {
     type Error = error_stack::Report<errors::ApiErrorResponse>;
 
@@ -1132,6 +1143,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::VerifyRequestDat
         Ok(Self {
             currency: payment_data.currency,
             confirm: true,
+            amount: Some(payment_data.amount.into()),
             payment_method_data: payment_data
                 .payment_method_data
                 .get_required_value("payment_method_data")?,
@@ -1268,6 +1280,11 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsPreProce
             connector_name,
             payment_data.creds_identifier.as_deref(),
         ));
+        let complete_authorize_url = Some(helpers::create_complete_authorize_url(
+            router_base_url,
+            attempt,
+            connector_name,
+        ));
 
         Ok(Self {
             payment_method_data,
@@ -1280,6 +1297,21 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsPreProce
             order_details,
             router_return_url,
             webhook_url,
+            complete_authorize_url,
         })
+    }
+}
+
+impl ForeignFrom<payments::FraudCheck> for FrmMessage {
+    fn foreign_from(fraud_check: payments::FraudCheck) -> Self {
+        Self {
+            frm_name: fraud_check.frm_name,
+            frm_transaction_id: fraud_check.frm_transaction_id,
+            frm_transaction_type: Some(fraud_check.frm_transaction_type.to_string()),
+            frm_status: Some(fraud_check.frm_status.to_string()),
+            frm_score: fraud_check.frm_score,
+            frm_reason: fraud_check.frm_reason,
+            frm_error: fraud_check.frm_error,
+        }
     }
 }

@@ -1,4 +1,4 @@
-use error_stack::IntoReport;
+use error_stack::{IntoReport, ResultExt};
 
 use super::{MockDb, Store};
 use crate::{
@@ -221,8 +221,11 @@ impl MandateInterface for MockDb {
     ) -> CustomResult<storage::Mandate, errors::StorageError> {
         let mut mandates = self.mandates.lock().await;
         let mandate = storage::Mandate {
-            #[allow(clippy::as_conversions)]
-            id: mandates.len() as i32,
+            id: mandates
+                .len()
+                .try_into()
+                .into_report()
+                .change_context(errors::StorageError::MockDbError)?,
             mandate_id: mandate_new.mandate_id.clone(),
             customer_id: mandate_new.customer_id,
             merchant_id: mandate_new.merchant_id,

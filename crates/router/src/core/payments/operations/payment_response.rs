@@ -2,6 +2,7 @@ use std::collections::HashMap;
 
 use async_trait::async_trait;
 use error_stack::ResultExt;
+use futures::FutureExt;
 use router_derive;
 
 use super::{Operation, PostUpdateTracker};
@@ -26,7 +27,7 @@ use crate::{
 #[derive(Debug, Clone, Copy, router_derive::PaymentOperation)]
 #[operation(
     ops = "post_tracker",
-    flow = "syncdata,authorizedata,canceldata,capturedata,completeauthorizedata,verifydata,sessiondata"
+    flow = "syncdata,authorizedata,canceldata,capturedata,completeauthorizedata,approvedata,rejectdata,verifydata,sessiondata"
 )]
 pub struct PaymentResponse;
 
@@ -148,6 +149,62 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsCancelData> f
         payment_id: &api::PaymentIdType,
         mut payment_data: PaymentData<F>,
         router_data: types::RouterData<F, types::PaymentsCancelData, types::PaymentsResponseData>,
+
+        storage_scheme: enums::MerchantStorageScheme,
+    ) -> RouterResult<PaymentData<F>>
+    where
+        F: 'b + Send,
+    {
+        payment_data = payment_response_update_tracker(
+            db,
+            payment_id,
+            payment_data,
+            router_data,
+            storage_scheme,
+        )
+        .await?;
+
+        Ok(payment_data)
+    }
+}
+
+#[async_trait]
+impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsApproveData>
+    for PaymentResponse
+{
+    async fn update_tracker<'b>(
+        &'b self,
+        db: &dyn StorageInterface,
+        payment_id: &api::PaymentIdType,
+        mut payment_data: PaymentData<F>,
+        router_data: types::RouterData<F, types::PaymentsApproveData, types::PaymentsResponseData>,
+
+        storage_scheme: enums::MerchantStorageScheme,
+    ) -> RouterResult<PaymentData<F>>
+    where
+        F: 'b + Send,
+    {
+        payment_data = payment_response_update_tracker(
+            db,
+            payment_id,
+            payment_data,
+            router_data,
+            storage_scheme,
+        )
+        .await?;
+
+        Ok(payment_data)
+    }
+}
+
+#[async_trait]
+impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsRejectData> for PaymentResponse {
+    async fn update_tracker<'b>(
+        &'b self,
+        db: &dyn StorageInterface,
+        payment_id: &api::PaymentIdType,
+        mut payment_data: PaymentData<F>,
+        router_data: types::RouterData<F, types::PaymentsRejectData, types::PaymentsResponseData>,
 
         storage_scheme: enums::MerchantStorageScheme,
     ) -> RouterResult<PaymentData<F>>
@@ -450,29 +507,44 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
         None => None,
     };
 
-    payment_data.payment_attempt = match payment_attempt_update {
-        Some(payment_attempt_update) => db
-            .update_payment_attempt_with_attempt_id(
-                payment_data.payment_attempt,
-                payment_attempt_update,
-                storage_scheme,
-            )
-            .await
-            .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?,
-        None => payment_data.payment_attempt,
-    };
+    // Stage 1
 
-    payment_data.connector_response = match connector_response_update {
-        Some(connector_response_update) => db
-            .update_connector_response(
-                payment_data.connector_response,
-                connector_response_update,
-                storage_scheme,
-            )
-            .await
-            .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?,
-        None => payment_data.connector_response,
-    };
+    let payment_attempt = payment_data.payment_attempt.clone();
+    let connector_response = payment_data.connector_response.clone();
+
+    let payment_attempt_fut = Box::pin(async move {
+        Ok::<_, error_stack::Report<errors::ApiErrorResponse>>(match payment_attempt_update {
+            Some(payment_attempt_update) => db
+                .update_payment_attempt_with_attempt_id(
+                    payment_attempt,
+                    payment_attempt_update,
+                    storage_scheme,
+                )
+                .await
+                .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?,
+            None => payment_attempt,
+        })
+    });
+
+    let connector_response_fut = Box::pin(async move {
+        Ok::<_, error_stack::Report<errors::ApiErrorResponse>>(match connector_response_update {
+            Some(connector_response_update) => db
+                .update_connector_response(
+                    connector_response,
+                    connector_response_update,
+                    storage_scheme,
+                )
+                .await
+                .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?,
+            None => connector_response,
+        })
+    });
+
+    let (payment_attempt, connector_response) =
+        futures::try_join!(payment_attempt_fut, connector_response_fut)?;
+    payment_data.payment_attempt = payment_attempt;
+    payment_data.connector_response = connector_response;
+
     let amount_captured = get_total_amount_captured(
         router_data.request,
         router_data.amount_captured,
@@ -490,23 +562,24 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
         },
     };
 
-    payment_data.payment_intent = db
+    let payment_intent_fut = db
         .update_payment_intent(
-            payment_data.payment_intent,
+            payment_data.payment_intent.clone(),
             payment_intent_update,
             storage_scheme,
         )
-        .await
-        .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
+        .map(|x| x.to_not_found_response(errors::ApiErrorResponse::PaymentNotFound));
 
     // When connector requires redirection for mandate creation it can update the connector mandate_id during Psync
-    mandate::update_connector_mandate_id(
+    let mandate_update_fut = mandate::update_connector_mandate_id(
         db,
         router_data.merchant_id,
         payment_data.mandate_id.clone(),
         router_data.response.clone(),
-    )
-    .await?;
+    );
+
+    let (payment_intent, _) = futures::try_join!(payment_intent_fut, mandate_update_fut)?;
+    payment_data.payment_intent = payment_intent;
 
     Ok(payment_data)
 }

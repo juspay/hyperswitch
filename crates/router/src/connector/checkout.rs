@@ -138,8 +138,10 @@ impl ConnectorValidation for Checkout {
     ) -> CustomResult<(), errors::ConnectorError> {
         let capture_method = capture_method.unwrap_or_default();
         match capture_method {
-            enums::CaptureMethod::Automatic | enums::CaptureMethod::Manual => Ok(()),
-            enums::CaptureMethod::ManualMultiple | enums::CaptureMethod::Scheduled => Err(
+            enums::CaptureMethod::Automatic
+            | enums::CaptureMethod::Manual
+            | enums::CaptureMethod::ManualMultiple => Ok(()),
+            enums::CaptureMethod::Scheduled => Err(
                 connector_utils::construct_not_implemented_error_report(capture_method, self.id()),
             ),
         }
@@ -373,14 +375,19 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
         req: &types::PaymentsSyncRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
+        let suffix = match req.request.sync_type {
+            types::SyncRequestType::MultipleCaptureSync(_) => "/actions",
+            types::SyncRequestType::SinglePaymentSync => "",
+        };
         Ok(format!(
-            "{}{}{}",
+            "{}{}{}{}",
             self.base_url(connectors),
             "payments/",
             req.request
                 .connector_transaction_id
                 .get_connector_transaction_id()
-                .change_context(errors::ConnectorError::MissingConnectorTransactionID)?
+                .change_context(errors::ConnectorError::MissingConnectorTransactionID)?,
+            suffix
         ))
     }
 
@@ -410,17 +417,40 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
         types::PaymentsSyncData: Clone,
         types::PaymentsResponseData: Clone,
     {
-        let response: checkout::PaymentsResponse = res
-            .response
-            .parse_struct("PaymentsResponse")
-            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-        router_env::logger::info!(connector_response=?response);
-        types::RouterData::try_from(types::ResponseRouterData {
-            response,
-            data: data.clone(),
-            http_code: res.status_code,
-        })
-        .change_context(errors::ConnectorError::ResponseHandlingFailed)
+        match &data.request.sync_type {
+            types::SyncRequestType::MultipleCaptureSync(_) => {
+                let response: checkout::PaymentsResponseEnum = res
+                    .response
+                    .parse_struct("checkout::PaymentsResponseEnum")
+                    .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+                router_env::logger::info!(connector_response=?response);
+                types::RouterData::try_from(types::ResponseRouterData {
+                    response,
+                    data: data.clone(),
+                    http_code: res.status_code,
+                })
+                .change_context(errors::ConnectorError::ResponseHandlingFailed)
+            }
+            types::SyncRequestType::SinglePaymentSync => {
+                let response: checkout::PaymentsResponse = res
+                    .response
+                    .parse_struct("PaymentsResponse")
+                    .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+                router_env::logger::info!(connector_response=?response);
+                types::RouterData::try_from(types::ResponseRouterData {
+                    response,
+                    data: data.clone(),
+                    http_code: res.status_code,
+                })
+                .change_context(errors::ConnectorError::ResponseHandlingFailed)
+            }
+        }
+    }
+
+    fn get_multiple_capture_sync_method(
+        &self,
+    ) -> CustomResult<services::CaptureSyncMethod, errors::ConnectorError> {
+        Ok(services::CaptureSyncMethod::Bulk)
     }
 
     fn get_error_response(
@@ -848,7 +878,7 @@ impl api::FileUpload for Checkout {
         match purpose {
             api::FilePurpose::DisputeEvidence => {
                 let supported_file_types =
-                    vec!["image/jpeg", "image/jpg", "image/png", "application/pdf"];
+                    ["image/jpeg", "image/jpg", "image/png", "application/pdf"];
                 // 4 Megabytes (MB)
                 if file_size > 4000000 {
                     Err(errors::ConnectorError::FileValidationFailed {
@@ -1183,12 +1213,26 @@ impl api::IncomingWebhook for Checkout {
         &self,
         request: &api::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<serde_json::Value, errors::ConnectorError> {
-        let details: checkout::CheckoutWebhookObjectResource = request
+        let event_type_data: checkout::CheckoutWebhookEventTypeBody = request
             .body
-            .parse_struct("CheckoutWebhookObjectResource")
-            .change_context(errors::ConnectorError::WebhookResourceObjectNotFound)?;
-
-        Ok(details.data)
+            .parse_struct("CheckoutWebhookBody")
+            .change_context(errors::ConnectorError::WebhookEventTypeNotFound)?;
+        let resource_object = if checkout::is_chargeback_event(&event_type_data.transaction_type)
+            && checkout::is_refund_event(&event_type_data.transaction_type)
+        {
+            // if other event, just return the json data.
+            let resource_object_data: checkout::CheckoutWebhookObjectResource = request
+                .body
+                .parse_struct("CheckoutWebhookObjectResource")
+                .change_context(errors::ConnectorError::WebhookEventTypeNotFound)?;
+            resource_object_data.data
+        } else {
+            // if payment_event, construct PaymentResponse and then serialize it to json and return.
+            let payment_response = checkout::PaymentsResponse::try_from(request)?;
+            utils::Encode::<checkout::PaymentsResponse>::encode_to_value(&payment_response)
+                .change_context(errors::ConnectorError::WebhookResourceObjectNotFound)?
+        };
+        Ok(resource_object)
     }
 
     fn get_dispute_details(
