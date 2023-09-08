@@ -201,7 +201,7 @@ async fn create_applepay_session_token(
                         .common_merchant_identifier;
 
                     let apple_pay_session_request = get_session_request_for_simplified_apple_pay(
-                        decrypted_merchant_identifier,
+                        decrypted_merchant_identifier.to_string(),
                         session_token_data,
                     );
 
