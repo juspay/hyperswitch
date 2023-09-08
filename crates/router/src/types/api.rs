@@ -112,8 +112,11 @@ pub trait ConnectorCurrencyCommon {
         currency: diesel_models::enums::Currency,
     ) -> Result<f64, error_stack::Report<errors::ConnectorError>> {
         let amount = match self.get_currency_unit() {
-            CurrencyUnit::Minor => amount as f64,
             CurrencyUnit::Base => self.to_currency_base_unit_asf64(amount, currency)?,
+            CurrencyUnit::Minor => u32::try_from(amount)
+                .into_report()
+                .change_context(errors::ConnectorError::RequestEncodingFailed)?
+                .into(),
         };
         Ok(amount)
     }
