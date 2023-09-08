@@ -51,7 +51,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
         let db = &*state.store;
         let merchant_id = &merchant_account.merchant_id;
         let storage_scheme = merchant_account.storage_scheme;
-        let (currency, amount, connector_response);
+        let (currency, amount);
 
         let payment_id = payment_id
             .get_payment_intent_id()
@@ -215,9 +215,29 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
                 .or_else(|| customer_details.customer_id.clone()),
         )?;
 
-        connector_response = attempt_type
-            .get_connector_response(&payment_attempt, db, storage_scheme)
-            .await?;
+        let creds_identifier = request
+            .merchant_connector_details
+            .as_ref()
+            .map(|mcd| mcd.creds_identifier.to_owned());
+
+        let config_update_fut = request
+            .merchant_connector_details
+            .to_owned()
+            .async_map(|mcd| async {
+                helpers::insert_merchant_connector_creds_to_config(
+                    db,
+                    merchant_account.merchant_id.as_str(),
+                    mcd,
+                )
+                .await
+            })
+            .map(|x| x.transpose());
+
+        let connector_response_fut =
+            attempt_type.get_connector_response(&payment_attempt, db, storage_scheme);
+
+        let (connector_response, _) =
+            futures::try_join!(connector_response_fut, config_update_fut)?;
 
         payment_intent.shipping_address_id = shipping_address.clone().map(|i| i.address_id);
         payment_intent.billing_address_id = billing_address.clone().map(|i| i.address_id);
@@ -249,24 +269,6 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
             .business_sub_label
             .clone()
             .or(payment_attempt.business_sub_label);
-
-        let creds_identifier = request
-            .merchant_connector_details
-            .as_ref()
-            .map(|mcd| mcd.creds_identifier.to_owned());
-        request
-            .merchant_connector_details
-            .to_owned()
-            .async_map(|mcd| async {
-                helpers::insert_merchant_connector_creds_to_config(
-                    db,
-                    merchant_account.merchant_id.as_str(),
-                    mcd,
-                )
-                .await
-            })
-            .await
-            .transpose()?;
 
         // The operation merges mandate data from both request and payment_attempt
         let setup_mandate = setup_mandate.map(|mandate_data| api_models::payments::MandateData {
