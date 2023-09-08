@@ -71,6 +71,29 @@ pub struct BusinessProfileUpdateInternal {
     pub is_recon_enabled: Option<bool>,
 }
 
+impl From<BusinessProfileNew> for BusinessProfile {
+    fn from(new: BusinessProfileNew) -> Self {
+        BusinessProfile {
+            profile_id: new.profile_id,
+            merchant_id: new.merchant_id,
+            profile_name: new.profile_name,
+            created_at: new.created_at,
+            modified_at: new.modified_at,
+            return_url: new.return_url,
+            enable_payment_response_hash: new.enable_payment_response_hash,
+            payment_response_hash_key: new.payment_response_hash_key,
+            redirect_to_merchant_with_http_post: new.redirect_to_merchant_with_http_post,
+            webhook_details: new.webhook_details,
+            metadata: new.metadata,
+            routing_algorithm: new.routing_algorithm,
+            intent_fulfillment_time: new.intent_fulfillment_time,
+            frm_routing_algorithm: new.frm_routing_algorithm,
+            payout_routing_algorithm: new.payout_routing_algorithm,
+            is_recon_enabled: new.is_recon_enabled,
+        }
+    }
+}
+
 impl BusinessProfileUpdateInternal {
     pub fn apply_changeset(self, source: BusinessProfile) -> BusinessProfile {
         BusinessProfile {

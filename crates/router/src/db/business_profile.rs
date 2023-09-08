@@ -116,30 +116,11 @@ impl BusinessProfileInterface for MockDb {
         &self,
         business_profile: business_profile::BusinessProfileNew,
     ) -> CustomResult<business_profile::BusinessProfile, errors::StorageError> {
-        let mut business_profiles = self.business_profiles.lock().await;
-
-        let business_profile_insert = business_profile::BusinessProfile {
-            profile_id: business_profile.profile_id,
-            merchant_id: business_profile.merchant_id,
-            profile_name: business_profile.profile_name,
-            created_at: business_profile.created_at,
-            modified_at: business_profile.modified_at,
-            return_url: business_profile.return_url,
-            enable_payment_response_hash: business_profile.enable_payment_response_hash,
-            payment_response_hash_key: business_profile.payment_response_hash_key,
-            redirect_to_merchant_with_http_post: business_profile
-                .redirect_to_merchant_with_http_post,
-            webhook_details: business_profile.webhook_details,
-            metadata: business_profile.metadata,
-            routing_algorithm: business_profile.routing_algorithm,
-            intent_fulfillment_time: business_profile.intent_fulfillment_time,
-            frm_routing_algorithm: business_profile.frm_routing_algorithm,
-            payout_routing_algorithm: business_profile.payout_routing_algorithm,
-            is_recon_enabled: business_profile.is_recon_enabled,
-        };
-
-        business_profiles.push(business_profile_insert.clone());
-
+        let business_profile_insert = business_profile::BusinessProfile::from(business_profile);
+        self.business_profiles
+            .lock()
+            .await
+            .push(business_profile_insert.clone());
         Ok(business_profile_insert)
     }
 
