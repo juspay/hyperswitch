@@ -677,6 +677,7 @@ impl PaymentCreate {
             attempt_count: 1,
             profile_id,
             merchant_decision: None,
+            payment_confirm_source: None,
         })
     }
 

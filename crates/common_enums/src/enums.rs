@@ -1676,16 +1676,21 @@ pub enum PayoutEntityType {
 }
 
 #[derive(
-    Default,
-    Debug,
-    serde::Serialize,
     Clone,
     Copy,
+    Debug,
+    Default,
+    Eq,
     PartialEq,
-    ToSchema,
     serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
     strum::EnumString,
+    ToSchema,
+    Hash,
 )]
+#[router_derive::diesel_enum(storage_type = "pg_enum")]
+#[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
 pub enum PaymentSource {
     #[default]

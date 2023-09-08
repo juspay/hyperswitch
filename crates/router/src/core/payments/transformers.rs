@@ -417,7 +417,7 @@ where
     let payment_method_data_response =
         additional_payment_method_data.map(api::PaymentMethodDataResponse::from);
 
-    let headers = connector_http_status_code
+    let mut headers = connector_http_status_code
         .map(|status_code| {
             vec![(
                 "connector_http_status_code".to_string(),
@@ -425,6 +425,12 @@ where
             )]
         })
         .unwrap_or(vec![]);
+    if let Some(payment_confirm_source) = payment_intent.payment_confirm_source {
+        headers.push((
+            "payment_confirm_source".to_string(),
+            payment_confirm_source.to_string(),
+        ))
+    }
 
     let output = Ok(match payment_request {
         Some(_request) => {

@@ -543,6 +543,7 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
                     statement_descriptor_suffix,
                     order_details,
                     metadata,
+                    payment_confirm_source: None,
                 },
                 storage_scheme,
             )

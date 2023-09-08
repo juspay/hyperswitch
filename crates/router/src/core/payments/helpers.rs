@@ -2245,6 +2245,7 @@ mod tests {
             attempt_count: 1,
             profile_id: None,
             merchant_decision: None,
+            payment_confirm_source: None,
         };
         let req_cs = Some("1".to_string());
         let merchant_fulfillment_time = Some(900);
@@ -2291,6 +2292,7 @@ mod tests {
             attempt_count: 1,
             profile_id: None,
             merchant_decision: None,
+            payment_confirm_source: None,
         };
         let req_cs = Some("1".to_string());
         let merchant_fulfillment_time = Some(10);
@@ -2337,6 +2339,7 @@ mod tests {
             attempt_count: 1,
             profile_id: None,
             merchant_decision: None,
+            payment_confirm_source: None,
         };
         let req_cs = Some("1".to_string());
         let merchant_fulfillment_time = Some(10);
