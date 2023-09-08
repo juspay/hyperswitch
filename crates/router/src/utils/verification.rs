@@ -118,7 +118,7 @@ async fn check_existence_and_add_domain_to_db(
         .store
         .find_business_profile_by_profile_id(&business_profile_id)
         .await?;
-    let business_profile1 = business_profile.clone();
+    let business_profile_to_update = business_profile.clone();
     let mut already_verified_domains = business_profile
         .applepay_verified_domains
         .unwrap_or_default();
@@ -151,7 +151,7 @@ async fn check_existence_and_add_domain_to_db(
 
     state
         .store
-        .update_business_profile_by_profile_id(business_profile1, update_business_profile)
+        .update_business_profile_by_profile_id(business_profile_to_update, update_business_profile)
         .await
 }
 fn log_applepay_verification_response_if_error(
