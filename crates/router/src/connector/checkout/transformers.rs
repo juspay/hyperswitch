@@ -1,6 +1,6 @@
 use common_utils::{errors::CustomResult, ext_traits::ByteSliceExt};
 use error_stack::{IntoReport, ResultExt};
-use masking::{ExposeInterface, PeekInterface, Secret};
+use masking::{ExposeInterface, Secret};
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
 use url::Url;
@@ -11,7 +11,6 @@ use crate::{
     core::errors,
     services,
     types::{self, api, storage::enums, transformers::ForeignFrom},
-    utils::OptionExt,
 };
 
 #[derive(Debug, Serialize)]
@@ -251,7 +250,8 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PaymentsRequest {
                 Ok(a)
             }
             api::PaymentMethodData::Wallet(wallet_data) => match wallet_data {
-                api_models::payments::WalletData::GooglePay(_) => {
+                api_models::payments::WalletData::GooglePay(_)
+                | api_models::payments::WalletData::ApplePay(_) => {
                     Ok(PaymentSource::Wallets(WalletSource {
                         source_type: CheckoutSourceTypes::Token,
                         token: match item.get_payment_method_token()? {
@@ -261,46 +261,6 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PaymentsRequest {
                             }
                         },
                     }))
-                }
-                api_models::payments::WalletData::ApplePay(_) => {
-                    let payment_method_token = item
-                        .payment_method_token
-                        .to_owned()
-                        .get_required_value("payment_token")
-                        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-                    let decrypt_data = match payment_method_token {
-                        types::PaymentMethodToken::Token(_) => {
-                            Err(errors::ConnectorError::InvalidWalletToken)?
-                        }
-                        types::PaymentMethodToken::ApplePayDecrypt(data) => data,
-                    };
-                    let expiry_year_4_digit = Secret::new(format!(
-                        "20{:?}",
-                        decrypt_data
-                            .application_expiration_date
-                            .peek()
-                            .get(0..2)
-                            .ok_or(errors::ConnectorError::RequestEncodingFailed)?
-                    ));
-                    let expiry_month = Secret::new(
-                        decrypt_data
-                            .application_expiration_date
-                            .peek()
-                            .get(2..4)
-                            .ok_or(errors::ConnectorError::RequestEncodingFailed)?
-                            .to_owned(),
-                    );
-                    Ok(PaymentSource::ApplePayPredecrypt(Box::new(
-                        ApplePayPredecrypt {
-                            token: decrypt_data.application_primary_account_number,
-                            decrypt_type: "network_token".to_string(),
-                            token_type: "applepay".to_string(),
-                            expiry_month,
-                            expiry_year: expiry_year_4_digit,
-                            eci: decrypt_data.payment_data.eci_indicator,
-                            cryptogram: decrypt_data.payment_data.online_payment_cryptogram,
-                        },
-                    )))
                 }
                 api_models::payments::WalletData::AliPayQr(_)
                 | api_models::payments::WalletData::AliPayRedirect(_)
