@@ -8,6 +8,7 @@ CREATE TABLE payment_link (
     currency "Currency",
     created_at TIMESTAMP NOT NULL,
     last_modified_at TIMESTAMP NOT NULL
+    PRIMARY KEY (payment_link_id)
 );
 
 CREATE INDEX payment_link_index ON payment_link (payment_link_id);
