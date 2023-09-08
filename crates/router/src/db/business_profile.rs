@@ -128,21 +128,18 @@ impl BusinessProfileInterface for MockDb {
         &self,
         profile_id: &str,
     ) -> CustomResult<business_profile::BusinessProfile, errors::StorageError> {
-        match self
-            .business_profiles
+        self.business_profiles
             .lock()
             .await
             .iter()
             .find(|business_profile| business_profile.profile_id == profile_id)
-        {
-            Some(business_profile) => Ok(business_profile.clone()),
-            None => {
-                return Err(errors::StorageError::ValueNotFound(
+            .ok_or(
+                errors::StorageError::ValueNotFound(
                     "No business profile found for profile_id = {profile_id}".to_string(),
                 )
-                .into())
-            }
-        }
+                .into(),
+            )
+            .cloned()
     }
 
     async fn update_business_profile_by_profile_id(
@@ -150,8 +147,7 @@ impl BusinessProfileInterface for MockDb {
         current_state: business_profile::BusinessProfile,
         business_profile_update: business_profile::BusinessProfileUpdateInternal,
     ) -> CustomResult<business_profile::BusinessProfile, errors::StorageError> {
-        match self
-            .business_profiles
+        self.business_profiles
             .lock()
             .await
             .iter_mut()
@@ -161,15 +157,13 @@ impl BusinessProfileInterface for MockDb {
                     business_profile_update.apply_changeset(current_state);
                 *bp = business_profile_updated.clone();
                 business_profile_updated
-            }) {
-            Some(business_profile) => Ok(business_profile),
-            None => {
-                return Err(errors::StorageError::ValueNotFound(
+            })
+            .ok_or(
+                errors::StorageError::ValueNotFound(
                     "No business profile found for profile_id = {profile_id}".to_string(),
                 )
-                .into())
-            }
-        }
+                .into(),
+            )
     }
 
     async fn delete_business_profile_by_profile_id_merchant_id(
@@ -178,20 +172,17 @@ impl BusinessProfileInterface for MockDb {
         merchant_id: &str,
     ) -> CustomResult<bool, errors::StorageError> {
         let mut business_profiles = self.business_profiles.lock().await;
-
-        match business_profiles
+        let index = business_profiles
             .iter()
             .position(|bp| bp.profile_id == profile_id && bp.merchant_id == merchant_id)
-        {
-            Some(index) => {
-                _ = business_profiles.remove(index);
-                Ok(true)
-            }
-            None => Err(errors::StorageError::ValueNotFound(
-                "No business profile found for profile_id = {profile_id} and merchant_id = {merchant_id}".to_string(),
-            )
-            .into()),
-        }
+            .ok_or::<errors::StorageError>(
+                errors::StorageError::ValueNotFound(
+                    "No business profile found for profile_id = {profile_id} and merchant_id = {merchant_id}".to_string(),
+                )
+                .into(),
+            )?;
+        business_profiles.remove(index);
+        Ok(true)
     }
 
     async fn list_business_profile_by_merchant_id(
