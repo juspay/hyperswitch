@@ -9,7 +9,7 @@ use crate::{
         payments::{self, access_token, helpers, transformers, PaymentData},
     },
     routes::AppState,
-    services,
+    services::{self, logger},
     types::{self, api, domain},
 };
 
