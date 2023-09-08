@@ -157,7 +157,7 @@ impl BusinessProfileInterface for MockDb {
             Some(business_profile) => Ok(business_profile.clone()),
             None => {
                 return Err(errors::StorageError::ValueNotFound(
-                    "business profile not found".to_string(),
+                    "No business profile found for profile_id = {profile_id}".to_string(),
                 )
                 .into())
             }
@@ -184,7 +184,7 @@ impl BusinessProfileInterface for MockDb {
             Some(business_profile) => Ok(business_profile),
             None => {
                 return Err(errors::StorageError::ValueNotFound(
-                    "cannot find business profile to update".to_string(),
+                    "No business profile found for profile_id = {profile_id}".to_string(),
                 )
                 .into())
             }
@@ -207,7 +207,7 @@ impl BusinessProfileInterface for MockDb {
                 Ok(true)
             }
             None => Err(errors::StorageError::ValueNotFound(
-                "cannot find business profile to delete".to_string(),
+                "No business profile found for profile_id = {profile_id} and merchant_id = {merchant_id}".to_string(),
             )
             .into()),
         }
