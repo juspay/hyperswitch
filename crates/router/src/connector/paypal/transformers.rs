@@ -340,7 +340,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PaypalPaymentsRequest {
                 )
                 .into())
             }
-            api_models::payments::PaymentMethodData::Reward(_)
+            api_models::payments::PaymentMethodData::Reward
             | api_models::payments::PaymentMethodData::Crypto(_)
             | api_models::payments::PaymentMethodData::Upi(_) => {
                 Err(errors::ConnectorError::NotSupported {
