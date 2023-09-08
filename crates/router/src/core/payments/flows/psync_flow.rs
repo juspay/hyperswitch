@@ -66,12 +66,9 @@ impl Feature<api::PSync, types::PaymentsSyncData>
             .get_multiple_capture_sync_method()
             .to_payment_failed_response();
 
-        match (
-            self.request.capture_sync_type.clone(),
-            capture_sync_method_result,
-        ) {
+        match (self.request.sync_type.clone(), capture_sync_method_result) {
             (
-                types::CaptureSyncType::MultipleCaptureSync(pending_connector_capture_id_list),
+                types::SyncRequestType::MultipleCaptureSync(pending_connector_capture_id_list),
                 Ok(services::CaptureSyncMethod::Individual),
             ) => {
                 let resp = self
@@ -84,7 +81,7 @@ impl Feature<api::PSync, types::PaymentsSyncData>
                     .await?;
                 Ok(resp)
             }
-            (types::CaptureSyncType::MultipleCaptureSync(_), Err(err)) => Err(err),
+            (types::SyncRequestType::MultipleCaptureSync(_), Err(err)) => Err(err),
             _ => {
                 // for bulk sync of captures, above logic needs to be handled at connector end
                 let resp = services::execute_connector_processing_step(
