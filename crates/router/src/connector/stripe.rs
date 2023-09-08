@@ -1732,8 +1732,7 @@ impl api::IncomingWebhook for Stripe {
             .change_context(errors::ConnectorError::WebhookReferenceIdNotFound)?;
 
         Ok(match details.event_data.event_object.object {
-            stripe::WebhookEventObjectType::PaymentIntent
-            | stripe::WebhookEventObjectType::Charge => {
+            stripe::WebhookEventObjectType::PaymentIntent => {
                 match details.event_data.event_object.metadata {
                     // if order_id is present
                     Some(meta_data) => api_models::webhooks::ObjectReferenceId::PaymentId(
@@ -1747,7 +1746,24 @@ impl api::IncomingWebhook for Stripe {
                     ),
                 }
             }
-
+            stripe::WebhookEventObjectType::Charge => {
+                match details.event_data.event_object.metadata {
+                    // if order_id is present
+                    Some(meta_data) => api_models::webhooks::ObjectReferenceId::PaymentId(
+                        api_models::payments::PaymentIdType::PaymentAttemptId(meta_data.order_id),
+                    ),
+                    // else used connector_transaction_id
+                    None => api_models::webhooks::ObjectReferenceId::PaymentId(
+                        api_models::payments::PaymentIdType::ConnectorTransactionId(
+                            details
+                                .event_data
+                                .event_object
+                                .payment_intent
+                                .ok_or(errors::ConnectorError::WebhookReferenceIdNotFound)?,
+                        ),
+                    ),
+                }
+            }
             stripe::WebhookEventObjectType::Dispute => {
                 api_models::webhooks::ObjectReferenceId::PaymentId(
                     api_models::payments::PaymentIdType::ConnectorTransactionId(
@@ -1773,7 +1789,7 @@ impl api::IncomingWebhook for Stripe {
                         // Issue: 2076
                         match meta_data.is_refund_id_as_reference {
                             // if the order_id is refund_id
-                            Some(true) => api_models::webhooks::ObjectReferenceId::RefundId(
+                            Some(_) => api_models::webhooks::ObjectReferenceId::RefundId(
                                 api_models::webhooks::RefundIdType::RefundId(meta_data.order_id),
                             ),
                             // if the order_id is payment_id
