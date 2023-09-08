@@ -12,7 +12,7 @@ pub async fn get_payment_link(
     req: actix_web::HttpRequest,
     query_payload: web::Query<api_models::payments::RetrievePaymentLinkRequest>,
 ) -> impl Responder {
-    let flow = Flow::PaymentLinkRetrive;
+    let flow = Flow::PaymentLinkRetrieve;
 
     let payload = query_payload.into_inner();
 

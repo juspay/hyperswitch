@@ -859,30 +859,3 @@ where
         }
     }
 }
-
-// pub async fn get_payment_link(
-//     state: web::Data<app::AppState>,
-//     req: actix_web::HttpRequest,
-//     query_payload: web::Query<api_models::payments::PaymentLinkRequest>,
-// ) -> impl Responder {
-//     let flow = Flow::PaymentLinkRetrive;
-
-//     let payload = query_payload.into_inner();
-
-//     api::server_wrap(
-//         flow,
-//         state.get_ref(),
-//         &req,
-//         payload.clone(),
-//         |state, auth, req| {
-//             payments::retrieve_payment_link(
-//                 state,
-//                 auth.merchant_account,
-//                 auth.key_store,
-//                 payload.payment_id.clone(),
-//             )
-//         },
-//         &auth::ApiKeyAuth,
-//     )
-//     .await
-// }

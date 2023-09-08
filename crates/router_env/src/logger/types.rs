@@ -196,7 +196,7 @@ pub enum Flow {
     /// Invalidate cache flow
     CacheInvalidate,
     /// Payment Link Retrieve flow
-    PaymentLinkRetrive,
+    PaymentLinkRetrieve,
     /// Create a business profile
     BusinessProfileCreate,
     /// Update a business profile
