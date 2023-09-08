@@ -1,0 +1,77 @@
+{
+  "method": "POST",
+  "header": [
+    {
+      "key": "Content-Type",
+      "value": "application/json"
+    },
+    {
+      "key": "Accept",
+      "value": "application/json"
+    }
+  ],
+  "body": {
+    "mode": "raw",
+    "options": {
+      "raw": {
+        "language": "json"
+      }
+    },
+    "raw_json_formatted": {
+      "amount": 65457,
+      "currency": "USD",
+      "confirm": false,
+      "capture_method": "automatic",
+      "customer_id": "SaveCard",
+      "capture_on": "2022-09-10T10:11:12Z",
+      "authentication_type": "three_ds",
+      "amount_to_capture": 6540,
+      "email": "guest@example.com",
+      "name": "John Doe",
+      "phone": "999999999",
+      "phone_country_code": "+65",
+      "description": "Its my first payment request",
+      "return_url": "https://duck.com",
+      "statement_descriptor_name": "Juspay",
+      "statement_descriptor_suffix": "Router",
+      "billing": {
+        "address": {
+          "line1": "Juspay Router",
+          "line2": "Koramangala",
+          "line3": "Stallion",
+          "city": "Bangalore",
+          "state": "Karnataka",
+          "zip": "560095",
+          "country": "IN"
+        }
+      },
+      "shipping": {
+        "address": {
+          "line1": "Juspay Router",
+          "line2": "Koramangala",
+          "line3": "Stallion",
+          "city": "Bangalore",
+          "state": "Karnataka",
+          "zip": "560095",
+          "country": "IN"
+        }
+      },
+      "metadata": {
+        "order_details": {
+          "product_name": "Apple iphone 15",
+          "quantity": 1
+        }
+      }
+    }
+  },
+  "url": {
+    "raw": "{{baseUrl}}/payments",
+    "host": [
+      "{{baseUrl}}"
+    ],
+    "path": [
+      "payments"
+    ]
+  },
+  "description": "To process a payment you will have to create a payment, attach a payment method and confirm. Depending on the user journey you wish to achieve, you may opt to all the steps in a single request or in a sequence of API request using following APIs: (i) Payments - Update, (ii) Payments - Confirm, and (iii) Payments - Capture"
+}

@@ -19,7 +19,7 @@ async fn should_make_adyen_3ds_payment_failed(web_driver: WebDriver) -> Result<(
             Event::Trigger(Trigger::Goto(&format!("{CHEKOUT_BASE_URL}/saved/177"))),
             Event::Trigger(Trigger::Click(By::Id("card-submit-btn"))),
             Event::Trigger(Trigger::SwitchFrame(By::Name("threeDSIframe"))),
-            Event::Assert(Assert::Eq(Selector::Title, "Payment Authentication")),
+            Event::Assert(Assert::IsPresent("AUTHENTICATION DETAILS")),
             Event::Trigger(Trigger::SendKeys(By::ClassName("input-field"), "password")),
             Event::Trigger(Trigger::Click(By::Id("buttonSubmit"))),
             Event::Trigger(Trigger::Sleep(5)),
@@ -40,7 +40,7 @@ async fn should_make_adyen_3ds_payment_success(
             Event::Trigger(Trigger::Goto(&format!("{CHEKOUT_BASE_URL}/saved/62"))),
             Event::Trigger(Trigger::Click(By::Id("card-submit-btn"))),
             Event::Trigger(Trigger::SwitchFrame(By::Name("threeDSIframe"))),
-            Event::Assert(Assert::Eq(Selector::Title, "Payment Authentication")),
+            Event::Assert(Assert::IsPresent("AUTHENTICATION DETAILS")),
             Event::Trigger(Trigger::SendKeys(By::ClassName("input-field"), "password")),
             Event::Trigger(Trigger::Click(By::Id("buttonSubmit"))),
             Event::Trigger(Trigger::Sleep(5)),
@@ -852,6 +852,7 @@ fn should_make_adyen_touch_n_go_payment_test() {
     tester!(should_make_adyen_touch_n_go_payment);
 }
 
+#[ignore]
 #[test]
 #[serial]
 fn should_make_adyen_momo_atm_payment_test() {

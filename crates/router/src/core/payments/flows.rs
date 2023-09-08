@@ -1,8 +1,10 @@
+pub mod approve_flow;
 pub mod authorize_flow;
 pub mod cancel_flow;
 pub mod capture_flow;
 pub mod complete_authorize_flow;
 pub mod psync_flow;
+pub mod reject_flow;
 pub mod session_flow;
 pub mod verify_flow;
 
@@ -12,7 +14,7 @@ use crate::{
     connector,
     core::{
         errors::{ConnectorError, CustomResult, RouterResult},
-        payments,
+        payments::{self, helpers},
     },
     routes::AppState,
     services,
@@ -28,9 +30,11 @@ pub trait ConstructFlowSpecificData<F, Req, Res> {
         merchant_account: &domain::MerchantAccount,
         key_store: &domain::MerchantKeyStore,
         customer: &Option<domain::Customer>,
+        merchant_connector_account: &helpers::MerchantConnectorAccountType,
     ) -> RouterResult<types::RouterData<F, Req, Res>>;
 }
 
+#[allow(clippy::too_many_arguments)]
 #[async_trait]
 pub trait Feature<F, T> {
     async fn decide_flows<'a>(
@@ -41,6 +45,7 @@ pub trait Feature<F, T> {
         call_connector_action: payments::CallConnectorAction,
         merchant_account: &domain::MerchantAccount,
         connector_request: Option<services::Request>,
+        key_store: &domain::MerchantKeyStore,
     ) -> RouterResult<Self>
     where
         Self: Sized,
@@ -59,7 +64,7 @@ pub trait Feature<F, T> {
         dyn api::Connector: services::ConnectorIntegration<F, T, types::PaymentsResponseData>;
 
     async fn add_payment_method_token<'a>(
-        &self,
+        &mut self,
         _state: &AppState,
         _connector: &api::ConnectorData,
         _tokenization_action: &payments::TokenizationAction,
@@ -151,6 +156,7 @@ default_imp_for_complete_authorize!(
     connector::Fiserv,
     connector::Forte,
     connector::Globepay,
+    connector::Helcim,
     connector::Iatapay,
     connector::Klarna,
     connector::Multisafepay,
@@ -160,7 +166,6 @@ default_imp_for_complete_authorize!(
     connector::Opayo,
     connector::Opennode,
     connector::Payeezy,
-    connector::Payme,
     connector::Payu,
     connector::Rapyd,
     connector::Square,
@@ -220,6 +225,7 @@ default_imp_for_create_customer!(
     connector::Forte,
     connector::Globalpay,
     connector::Globepay,
+    connector::Helcim,
     connector::Iatapay,
     connector::Klarna,
     connector::Mollie,
@@ -289,6 +295,7 @@ default_imp_for_connector_redirect_response!(
     connector::Fiserv,
     connector::Forte,
     connector::Globepay,
+    connector::Helcim,
     connector::Iatapay,
     connector::Klarna,
     connector::Multisafepay,
@@ -297,7 +304,6 @@ default_imp_for_connector_redirect_response!(
     connector::Opayo,
     connector::Opennode,
     connector::Payeezy,
-    connector::Payme,
     connector::Payu,
     connector::Powertranz,
     connector::Rapyd,
@@ -341,6 +347,7 @@ default_imp_for_connector_request_id!(
     connector::Forte,
     connector::Globalpay,
     connector::Globepay,
+    connector::Helcim,
     connector::Iatapay,
     connector::Klarna,
     connector::Mollie,
@@ -352,6 +359,7 @@ default_imp_for_connector_request_id!(
     connector::Opennode,
     connector::Payeezy,
     connector::Payme,
+    connector::Paypal,
     connector::Payu,
     connector::Powertranz,
     connector::Rapyd,
@@ -416,6 +424,7 @@ default_imp_for_accept_dispute!(
     connector::Forte,
     connector::Globalpay,
     connector::Globepay,
+    connector::Helcim,
     connector::Iatapay,
     connector::Klarna,
     connector::Mollie,
@@ -512,6 +521,7 @@ default_imp_for_file_upload!(
     connector::Forte,
     connector::Globalpay,
     connector::Globepay,
+    connector::Helcim,
     connector::Iatapay,
     connector::Klarna,
     connector::Mollie,
@@ -585,6 +595,7 @@ default_imp_for_submit_evidence!(
     connector::Forte,
     connector::Globalpay,
     connector::Globepay,
+    connector::Helcim,
     connector::Iatapay,
     connector::Klarna,
     connector::Mollie,
@@ -658,6 +669,7 @@ default_imp_for_defend_dispute!(
     connector::Globepay,
     connector::Forte,
     connector::Globalpay,
+    connector::Helcim,
     connector::Iatapay,
     connector::Klarna,
     connector::Mollie,
@@ -734,6 +746,7 @@ default_imp_for_pre_processing_steps!(
     connector::Forte,
     connector::Globalpay,
     connector::Globepay,
+    connector::Helcim,
     connector::Klarna,
     connector::Mollie,
     connector::Multisafepay,
@@ -788,6 +801,7 @@ default_imp_for_payouts!(
     connector::Forte,
     connector::Globalpay,
     connector::Globepay,
+    connector::Helcim,
     connector::Iatapay,
     connector::Klarna,
     connector::Mollie,
@@ -862,6 +876,7 @@ default_imp_for_payouts_create!(
     connector::Forte,
     connector::Globalpay,
     connector::Globepay,
+    connector::Helcim,
     connector::Iatapay,
     connector::Klarna,
     connector::Mollie,
@@ -939,6 +954,7 @@ default_imp_for_payouts_eligibility!(
     connector::Forte,
     connector::Globalpay,
     connector::Globepay,
+    connector::Helcim,
     connector::Iatapay,
     connector::Klarna,
     connector::Mollie,
@@ -1013,6 +1029,7 @@ default_imp_for_payouts_fulfill!(
     connector::Forte,
     connector::Globalpay,
     connector::Globepay,
+    connector::Helcim,
     connector::Iatapay,
     connector::Klarna,
     connector::Mollie,
@@ -1087,6 +1104,7 @@ default_imp_for_payouts_cancel!(
     connector::Forte,
     connector::Globalpay,
     connector::Globepay,
+    connector::Helcim,
     connector::Iatapay,
     connector::Klarna,
     connector::Mollie,
@@ -1162,6 +1180,7 @@ default_imp_for_payouts_quote!(
     connector::Forte,
     connector::Globalpay,
     connector::Globepay,
+    connector::Helcim,
     connector::Iatapay,
     connector::Klarna,
     connector::Mollie,
@@ -1237,6 +1256,7 @@ default_imp_for_payouts_recipient!(
     connector::Forte,
     connector::Globalpay,
     connector::Globepay,
+    connector::Helcim,
     connector::Iatapay,
     connector::Klarna,
     connector::Mollie,
@@ -1259,6 +1279,158 @@ default_imp_for_payouts_recipient!(
     connector::Shift4,
     connector::Trustpay,
     connector::Tsys,
+    connector::Worldline,
+    connector::Worldpay,
+    connector::Zen
+);
+
+macro_rules! default_imp_for_approve {
+    ($($path:ident::$connector:ident),*) => {
+        $(
+            impl api::PaymentApprove for $path::$connector {}
+            impl
+            services::ConnectorIntegration<
+            api::Approve,
+            types::PaymentsApproveData,
+            types::PaymentsResponseData,
+        > for $path::$connector
+        {}
+    )*
+    };
+}
+
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8> api::PaymentApprove for connector::DummyConnector<T> {}
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8>
+    services::ConnectorIntegration<
+        api::Approve,
+        types::PaymentsApproveData,
+        types::PaymentsResponseData,
+    > for connector::DummyConnector<T>
+{
+}
+
+default_imp_for_approve!(
+    connector::Aci,
+    connector::Adyen,
+    connector::Airwallex,
+    connector::Authorizedotnet,
+    connector::Bambora,
+    connector::Bitpay,
+    connector::Bluesnap,
+    connector::Boku,
+    connector::Braintree,
+    connector::Cashtocode,
+    connector::Checkout,
+    connector::Cryptopay,
+    connector::Cybersource,
+    connector::Coinbase,
+    connector::Dlocal,
+    connector::Fiserv,
+    connector::Forte,
+    connector::Globalpay,
+    connector::Globepay,
+    connector::Helcim,
+    connector::Iatapay,
+    connector::Klarna,
+    connector::Mollie,
+    connector::Multisafepay,
+    connector::Nexinets,
+    connector::Nmi,
+    connector::Noon,
+    connector::Nuvei,
+    connector::Opayo,
+    connector::Opennode,
+    connector::Payeezy,
+    connector::Payme,
+    connector::Paypal,
+    connector::Payu,
+    connector::Powertranz,
+    connector::Rapyd,
+    connector::Square,
+    connector::Stax,
+    connector::Stripe,
+    connector::Shift4,
+    connector::Trustpay,
+    connector::Tsys,
+    connector::Wise,
+    connector::Worldline,
+    connector::Worldpay,
+    connector::Zen
+);
+
+macro_rules! default_imp_for_reject {
+    ($($path:ident::$connector:ident),*) => {
+        $(
+            impl api::PaymentReject for $path::$connector {}
+            impl
+            services::ConnectorIntegration<
+            api::Reject,
+            types::PaymentsRejectData,
+            types::PaymentsResponseData,
+        > for $path::$connector
+        {}
+    )*
+    };
+}
+
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8> api::PaymentReject for connector::DummyConnector<T> {}
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8>
+    services::ConnectorIntegration<
+        api::Reject,
+        types::PaymentsRejectData,
+        types::PaymentsResponseData,
+    > for connector::DummyConnector<T>
+{
+}
+
+default_imp_for_reject!(
+    connector::Aci,
+    connector::Adyen,
+    connector::Airwallex,
+    connector::Authorizedotnet,
+    connector::Bambora,
+    connector::Bitpay,
+    connector::Bluesnap,
+    connector::Boku,
+    connector::Braintree,
+    connector::Cashtocode,
+    connector::Checkout,
+    connector::Cryptopay,
+    connector::Cybersource,
+    connector::Coinbase,
+    connector::Dlocal,
+    connector::Fiserv,
+    connector::Forte,
+    connector::Globalpay,
+    connector::Globepay,
+    connector::Helcim,
+    connector::Iatapay,
+    connector::Klarna,
+    connector::Mollie,
+    connector::Multisafepay,
+    connector::Nexinets,
+    connector::Nmi,
+    connector::Noon,
+    connector::Nuvei,
+    connector::Opayo,
+    connector::Opennode,
+    connector::Payeezy,
+    connector::Payme,
+    connector::Paypal,
+    connector::Payu,
+    connector::Powertranz,
+    connector::Rapyd,
+    connector::Square,
+    connector::Stax,
+    connector::Stripe,
+    connector::Shift4,
+    connector::Trustpay,
+    connector::Tsys,
+    connector::Wise,
     connector::Worldline,
     connector::Worldpay,
     connector::Zen

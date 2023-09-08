@@ -13,6 +13,8 @@ pub mod files;
 pub mod mandates;
 pub mod payment_methods;
 pub mod payments;
+#[cfg(feature = "payouts")]
 pub mod payouts;
 pub mod refunds;
+pub mod verifications;
 pub mod webhooks;

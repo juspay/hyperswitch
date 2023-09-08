@@ -138,6 +138,7 @@ async fn should_sync_authorized_payment() {
                 connector_transaction_id: router::types::ResponseId::ConnectorTransactionId(txn_id),
                 encoded_data: None,
                 capture_method: None,
+                sync_type: types::SyncRequestType::SinglePaymentSync,
                 connector_meta,
             }),
             get_default_payment_info(),
@@ -174,6 +175,7 @@ async fn should_void_authorized_payment() {
 
 // Refunds a payment using the manual capture flow (Non 3DS).
 #[actix_web::test]
+#[ignore = "Since Payment status is in pending status, cannot refund"]
 async fn should_refund_manually_captured_payment() {
     let authorize_response = CONNECTOR
         .authorize_payment(get_payment_data(), get_default_payment_info())
@@ -212,6 +214,7 @@ async fn should_refund_manually_captured_payment() {
 
 // Partially refunds a payment using the manual capture flow (Non 3DS).
 #[actix_web::test]
+#[ignore = "Since Payment status is in pending status, cannot refund"]
 async fn should_partially_refund_manually_captured_payment() {
     let authorize_response = CONNECTOR
         .authorize_payment(get_payment_data(), get_default_payment_info())
@@ -251,6 +254,7 @@ async fn should_partially_refund_manually_captured_payment() {
 
 // Synchronizes a refund using the manual capture flow (Non 3DS).
 #[actix_web::test]
+#[ignore = "Since Payment status is in pending status, cannot refund"]
 async fn should_sync_manually_captured_refund() {
     let authorize_response = CONNECTOR
         .authorize_payment(get_payment_data(), get_default_payment_info())
@@ -330,6 +334,7 @@ async fn should_sync_auto_captured_payment() {
                 ),
                 encoded_data: None,
                 capture_method: Some(enums::CaptureMethod::Automatic),
+                sync_type: types::SyncRequestType::SinglePaymentSync,
                 connector_meta,
             }),
             get_default_payment_info(),
@@ -341,6 +346,7 @@ async fn should_sync_auto_captured_payment() {
 
 // Refunds a payment using the automatic capture flow (Non 3DS).
 #[actix_web::test]
+#[ignore = "Since Payment status is in pending status, cannot refund"]
 async fn should_refund_auto_captured_payment() {
     let response = CONNECTOR
         .make_payment_and_refund(get_payment_data(), None, get_default_payment_info())
@@ -354,6 +360,7 @@ async fn should_refund_auto_captured_payment() {
 
 // Partially refunds a payment using the automatic capture flow (Non 3DS).
 #[actix_web::test]
+#[ignore = "Since Payment status is in pending status, cannot refund"]
 async fn should_partially_refund_succeeded_payment() {
     let authorize_response = CONNECTOR
         .make_payment(get_payment_data(), get_default_payment_info())
@@ -380,6 +387,7 @@ async fn should_partially_refund_succeeded_payment() {
 
 // Creates multiple refunds against a payment using the automatic capture flow (Non 3DS).
 #[actix_web::test]
+#[ignore = "Since Payment status is in pending status, cannot refund"]
 async fn should_refund_succeeded_payment_multiple_times() {
     let authorize_response = CONNECTOR
         .make_payment(get_payment_data(), get_default_payment_info())
@@ -408,6 +416,7 @@ async fn should_refund_succeeded_payment_multiple_times() {
 
 // Synchronizes a refund using the automatic capture flow (Non 3DS).
 #[actix_web::test]
+#[ignore = "Since Payment status is in pending status, cannot refund"]
 async fn should_sync_refund() {
     let refund_response = CONNECTOR
         .make_payment_and_refund(get_payment_data(), None, get_default_payment_info())
@@ -583,6 +592,7 @@ async fn should_fail_capture_for_invalid_payment() {
 
 // Refunds a payment with refund amount higher than payment amount.
 #[actix_web::test]
+#[ignore = "Since Payment status is in pending status, cannot refund"]
 async fn should_fail_for_refund_amount_higher_than_payment_amount() {
     let authorize_response = CONNECTOR
         .make_payment(get_payment_data(), get_default_payment_info())

@@ -96,7 +96,7 @@ diesel::table! {
         amount -> Int8,
         currency -> Nullable<Currency>,
         #[max_length = 255]
-        connector -> Nullable<Varchar>,
+        connector -> Varchar,
         #[max_length = 255]
         error_message -> Nullable<Varchar>,
         #[max_length = 255]
@@ -109,8 +109,10 @@ diesel::table! {
         #[max_length = 64]
         authorized_attempt_id -> Varchar,
         #[max_length = 128]
-        connector_transaction_id -> Nullable<Varchar>,
+        connector_capture_id -> Nullable<Varchar>,
         capture_sequence -> Int2,
+        #[max_length = 128]
+        connector_response_reference_id -> Nullable<Varchar>,
     }
 }
 
@@ -233,6 +235,8 @@ diesel::table! {
         #[max_length = 255]
         connector -> Varchar,
         evidence -> Jsonb,
+        #[max_length = 64]
+        profile_id -> Nullable<Varchar>,
     }
 }
 
@@ -426,6 +430,9 @@ diesel::table! {
         #[max_length = 32]
         organization_id -> Nullable<Varchar>,
         is_recon_enabled -> Bool,
+        #[max_length = 64]
+        default_profile -> Nullable<Varchar>,
+        recon_status -> ReconStatus,
     }
 }
 
@@ -459,6 +466,8 @@ diesel::table! {
         modified_at -> Timestamp,
         connector_webhook_details -> Nullable<Jsonb>,
         frm_config -> Nullable<Array<Nullable<Jsonb>>>,
+        #[max_length = 64]
+        profile_id -> Nullable<Varchar>,
     }
 }
 
@@ -584,6 +593,10 @@ diesel::table! {
         connector_metadata -> Nullable<Json>,
         feature_metadata -> Nullable<Json>,
         attempt_count -> Int2,
+        #[max_length = 64]
+        profile_id -> Nullable<Varchar>,
+        #[max_length = 64]
+        merchant_decision -> Nullable<Varchar>,
     }
 }
 
@@ -625,6 +638,7 @@ diesel::table! {
         payment_method_issuer -> Nullable<Varchar>,
         payment_method_issuer_code -> Nullable<PaymentMethodIssuerCode>,
         metadata -> Nullable<Json>,
+        payment_method_data -> Nullable<Bytea>,
     }
 }
 
@@ -659,6 +673,8 @@ diesel::table! {
         business_label -> Nullable<Varchar>,
         created_at -> Timestamp,
         last_modified_at -> Timestamp,
+        #[max_length = 64]
+        profile_id -> Nullable<Varchar>,
     }
 }
 
@@ -762,6 +778,8 @@ diesel::table! {
         #[max_length = 255]
         refund_reason -> Nullable<Varchar>,
         refund_error_code -> Nullable<Text>,
+        #[max_length = 64]
+        profile_id -> Nullable<Varchar>,
     }
 }
 
