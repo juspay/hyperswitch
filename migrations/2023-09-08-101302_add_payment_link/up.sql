@@ -7,7 +7,7 @@ CREATE TABLE payment_link (
     amount INT8 NOT NULL,
     currency "Currency",
     created_at TIMESTAMP NOT NULL,
-    last_modified_at TIMESTAMP NOT NULL
+    last_modified_at TIMESTAMP NOT NULL,
     PRIMARY KEY (payment_link_id)
 );
 
