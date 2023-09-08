@@ -597,6 +597,8 @@ diesel::table! {
         profile_id -> Nullable<Varchar>,
         #[max_length = 64]
         merchant_decision -> Nullable<Varchar>,
+        #[max_length = 64]
+        payment_link_id -> Nullable<Varchar>
     }
 }
 
@@ -799,6 +801,26 @@ diesel::table! {
     }
 }
 
+diesel::table! {
+    use diesel::sql_types::*;
+    use crate::enums::diesel_exports::*;
+
+    payment_link (payment_link_id) {
+        #[max_length = 64]
+        payment_link_id -> Varchar,
+        #[max_length = 64]
+        payment_id -> Varchar,
+        #[max_length = 255]
+        link_to_pay -> Varchar,
+        #[max_length = 64]
+        merchant_id -> Varchar,
+        amount -> Int8,
+        currency -> Nullable<Currency>,
+        created_at -> Timestamp,
+        last_modified_at -> Timestamp
+    }
+}
+
 diesel::allow_tables_to_appear_in_same_query!(
     address,
     api_keys,
@@ -825,4 +847,5 @@ diesel::allow_tables_to_appear_in_same_query!(
     process_tracker,
     refund,
     reverse_lookup,
+    payment_link
 );

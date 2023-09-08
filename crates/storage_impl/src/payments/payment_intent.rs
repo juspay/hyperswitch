@@ -831,7 +831,7 @@ impl DataModelExt for PaymentIntentNew {
             attempt_count: self.attempt_count,
             profile_id: self.profile_id,
             merchant_decision: self.merchant_decision,
-            payment_link_id: self.payment_link_id
+            payment_link_id: self.payment_link_id,
         }
     }
 

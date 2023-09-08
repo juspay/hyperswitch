@@ -31,8 +31,8 @@ pub use self::app::Payouts;
 pub use self::app::Verify;
 pub use self::app::{
     ApiKeys, AppState, BusinessProfile, Cache, Cards, Configs, Customers, Disputes, EphemeralKey,
-    Files, Health, Mandates, MerchantAccount, MerchantConnectorAccount, PaymentMethods, Payments,
-    Refunds, Webhooks, PaymentLink
+    Files, Health, Mandates, MerchantAccount, MerchantConnectorAccount, PaymentLink,
+    PaymentMethods, Payments, Refunds, Webhooks,
 };
 #[cfg(feature = "stripe")]
 pub use super::compatibility::stripe::StripeApis;
