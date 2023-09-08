@@ -25,6 +25,11 @@ pub trait ConfigInterface {
         key: &str,
     ) -> CustomResult<storage::Config, errors::StorageError>;
 
+    async fn find_config_by_key_from_db(
+        &self,
+        key: &str,
+    ) -> CustomResult<storage::Config, errors::StorageError>;
+
     async fn update_config_by_key(
         &self,
         key: &str,
@@ -56,13 +61,29 @@ impl ConfigInterface for Store {
         .await
     }
 
+    async fn find_config_by_key_from_db(
+        &self,
+        key: &str,
+    ) -> CustomResult<storage::Config, errors::StorageError> {
+        let conn = connection::pg_connection_write(self).await?;
+        storage::Config::find_by_key(&conn, key)
+            .await
+            .map_err(Into::into)
+            .into_report()
+    }
+
     //check in cache, then redis then finally DB, and on the way back populate redis and cache
     async fn find_config_by_key(
         &self,
         key: &str,
     ) -> CustomResult<storage::Config, errors::StorageError> {
-        cache::get_or_populate_in_memory(self, key, || self.find_config_by_key(key), &CONFIG_CACHE)
-            .await
+        cache::get_or_populate_in_memory(
+            self,
+            key,
+            || self.find_config_by_key_from_db(key),
+            &CONFIG_CACHE,
+        )
+        .await
     }
 
     async fn delete_config_by_key(&self, key: &str) -> CustomResult<bool, errors::StorageError> {
@@ -143,6 +164,18 @@ impl ConfigInterface for MockDb {
             });
 
         result
+    }
+
+    async fn find_config_by_key_from_db(
+        &self,
+        key: &str,
+    ) -> CustomResult<storage::Config, errors::StorageError> {
+        let configs = self.configs.lock().await;
+        let config = configs.iter().find(|c| c.key == key).cloned();
+
+        config.ok_or_else(|| {
+            errors::StorageError::ValueNotFound("cannot find config".to_string()).into()
+        })
     }
 
     async fn find_config_by_key(
