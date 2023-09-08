@@ -11,7 +11,7 @@ use actix_web::{
     test::{call_and_read_body_json, TestRequest},
 };
 use derive_deref::Deref;
-use router::{configs::settings::Settings, routes::AppState};
+use router::{configs::settings::Settings, routes::AppState, services};
 use serde::{de::DeserializeOwned, Deserialize};
 use serde_json::{json, Value};
 use tokio::sync::{oneshot, OnceCell};
@@ -48,7 +48,13 @@ pub async fn mk_service(
         conf.connectors.stripe.base_url = url;
     }
     let tx: oneshot::Sender<()> = oneshot::channel().0;
-    let app_state = AppState::with_storage(conf, router::db::StorageImpl::Mock, tx).await;
+    let app_state = AppState::with_storage(
+        conf,
+        router::db::StorageImpl::Mock,
+        tx,
+        Box::new(services::MockApiClient),
+    )
+    .await;
     actix_web::test::init_service(router::mk_app(app_state, request_body_limit)).await
 }
 

@@ -395,5 +395,5 @@ pub enum FraudCheckLastStep {
     Processing,
     CheckoutOrSale,
     TransactionOrRecordRefund,
-    Fullfillment,
+    Fulfillment,
 }

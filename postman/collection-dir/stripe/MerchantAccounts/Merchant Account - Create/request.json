@@ -69,7 +69,6 @@
         "payment_succeeded_enabled": true,
         "payment_failed_enabled": true
       },
-      
       "sub_merchants_enabled": false,
       "metadata": {
         "city": "NY",
