@@ -1,3 +1,4 @@
+pub mod Payment_link;
 pub mod admin;
 pub mod api_keys;
 pub mod app;
@@ -13,7 +14,6 @@ pub mod files;
 pub mod health;
 pub mod mandates;
 pub mod metrics;
-pub mod Payment_link;
 pub mod payment_methods;
 pub mod payments;
 #[cfg(feature = "payouts")]
