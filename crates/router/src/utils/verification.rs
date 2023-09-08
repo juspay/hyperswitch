@@ -107,6 +107,8 @@ pub async fn verify_merchant_creds_for_applepay(
         }
     })
 }
+
+// Checks whether or not the domain verified is already present in db if not adds it
 async fn check_existence_and_add_domain_to_db(
     state: &AppState,
     business_profile_id: String,
