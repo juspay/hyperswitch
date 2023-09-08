@@ -255,7 +255,7 @@ impl
             | api_models::payments::VoucherData::Seicomart { .. }
             | api_models::payments::VoucherData::PayEasy { .. } => {
                 Err(errors::ConnectorError::NotSupported {
-                    message: utils::UNSUPPORTED_PAYMENT_METHOD_ERROR_MESSAGE.to_string(),
+                    message: utils::SELECTED_PAYMENT_METHOD.to_string(),
                     connector: "Zen",
                 })?
             }
@@ -321,7 +321,7 @@ impl
             | api_models::payments::BankTransferData::DanamonVaBankTransfer { .. }
             | api_models::payments::BankTransferData::MandiriVaBankTransfer { .. } => {
                 Err(errors::ConnectorError::NotSupported {
-                    message: utils::UNSUPPORTED_PAYMENT_METHOD_ERROR_MESSAGE.to_string(),
+                    message: utils::SELECTED_PAYMENT_METHOD.to_string(),
                     connector: "Zen",
                 })?
             }
@@ -479,7 +479,7 @@ impl
             | api_models::payments::WalletData::SwishQr(_)
             | api_models::payments::WalletData::WeChatPayQr(_) => {
                 Err(errors::ConnectorError::NotSupported {
-                    message: utils::UNSUPPORTED_PAYMENT_METHOD_ERROR_MESSAGE.to_string(),
+                    message: utils::SELECTED_PAYMENT_METHOD.to_string(),
                     connector: "Zen",
                 })?
             }
@@ -683,7 +683,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for ZenPaymentsRequest {
             | api_models::payments::PaymentMethodData::Reward
             | api_models::payments::PaymentMethodData::Upi(_) => {
                 Err(errors::ConnectorError::NotSupported {
-                    message: utils::UNSUPPORTED_PAYMENT_METHOD_ERROR_MESSAGE.to_string(),
+                    message: utils::SELECTED_PAYMENT_METHOD.to_string(),
                     connector: "Zen",
                 })?
             }
@@ -718,7 +718,7 @@ impl TryFrom<&api_models::payments::BankRedirectData> for ZenPaymentsRequest {
             | api_models::payments::BankRedirectData::OnlineBankingFpx { .. }
             | api_models::payments::BankRedirectData::OnlineBankingThailand { .. } => {
                 Err(errors::ConnectorError::NotSupported {
-                    message: utils::UNSUPPORTED_PAYMENT_METHOD_ERROR_MESSAGE.to_string(),
+                    message: utils::SELECTED_PAYMENT_METHOD.to_string(),
                     connector: "Zen",
                 }
                 .into())
@@ -740,7 +740,7 @@ impl TryFrom<&api_models::payments::PayLaterData> for ZenPaymentsRequest {
             | api_models::payments::PayLaterData::AlmaRedirect {}
             | api_models::payments::PayLaterData::AtomeRedirect {} => {
                 Err(errors::ConnectorError::NotSupported {
-                    message: utils::UNSUPPORTED_PAYMENT_METHOD_ERROR_MESSAGE.to_string(),
+                    message: utils::SELECTED_PAYMENT_METHOD.to_string(),
                     connector: "Zen",
                 }
                 .into())
@@ -758,7 +758,7 @@ impl TryFrom<&api_models::payments::BankDebitData> for ZenPaymentsRequest {
             | api_models::payments::BankDebitData::BecsBankDebit { .. }
             | api_models::payments::BankDebitData::BacsBankDebit { .. } => {
                 Err(errors::ConnectorError::NotSupported {
-                    message: utils::UNSUPPORTED_PAYMENT_METHOD_ERROR_MESSAGE.to_string(),
+                    message: utils::SELECTED_PAYMENT_METHOD.to_string(),
                     connector: "Zen",
                 }
                 .into())
@@ -775,7 +775,7 @@ impl TryFrom<&api_models::payments::CardRedirectData> for ZenPaymentsRequest {
             | api_models::payments::CardRedirectData::Benefit {}
             | api_models::payments::CardRedirectData::MomoAtm {} => {
                 Err(errors::ConnectorError::NotSupported {
-                    message: utils::UNSUPPORTED_PAYMENT_METHOD_ERROR_MESSAGE.to_string(),
+                    message: utils::SELECTED_PAYMENT_METHOD.to_string(),
                     connector: "Zen",
                 }
                 .into())
@@ -796,7 +796,7 @@ impl TryFrom<&api_models::payments::GiftCardData> for ZenPaymentsRequest {
             }
             api_models::payments::GiftCardData::Givex(_) => {
                 Err(errors::ConnectorError::NotSupported {
-                    message: utils::UNSUPPORTED_PAYMENT_METHOD_ERROR_MESSAGE.to_string(),
+                    message: utils::SELECTED_PAYMENT_METHOD.to_string(),
                     connector: "Zen",
                 }
                 .into())
