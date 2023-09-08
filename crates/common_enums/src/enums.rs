@@ -1676,6 +1676,26 @@ pub enum PayoutEntityType {
 }
 
 #[derive(
+    Default,
+    Debug,
+    serde::Serialize,
+    Clone,
+    Copy,
+    PartialEq,
+    ToSchema,
+    serde::Deserialize,
+    strum::EnumString,
+)]
+#[strum(serialize_all = "snake_case")]
+pub enum PaymentSource {
+    #[default]
+    MerchantServer,
+    Postman,
+    Dashboard,
+    Sdk,
+}
+
+#[derive(
     Clone,
     Copy,
     Debug,

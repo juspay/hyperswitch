@@ -1,5 +1,11 @@
+// use actix_web::HttpMessage;
+use actix_web::http::header::HeaderMap;
 use api_models::enums as api_enums;
-use common_utils::{crypto::Encryptable, ext_traits::ValueExt, pii};
+use common_utils::{
+    crypto::Encryptable,
+    ext_traits::{StringExt, ValueExt},
+    pii,
+};
 use diesel_models::enums as storage_enums;
 use error_stack::ResultExt;
 use masking::{ExposeInterface, PeekInterface};
@@ -7,6 +13,7 @@ use masking::{ExposeInterface, PeekInterface};
 use super::domain;
 use crate::{
     core::errors,
+    services::authentication::get_header_value_by_key,
     types::{api as api_types, storage},
 };
 
@@ -681,6 +688,45 @@ impl ForeignFrom<api_models::enums::PayoutType> for api_enums::PaymentMethod {
             api_models::enums::PayoutType::Bank => Self::BankTransfer,
             api_models::enums::PayoutType::Card => Self::Card,
         }
+    }
+}
+
+// impl<T> ForeignTryFrom<&T> for api_models::payments::HeaderPayload
+// where T: HttpMessage
+// {
+//     type Error = error_stack::Report<errors::ApiErrorResponse>;
+//     fn foreign_try_from(message: &T) -> Result<Self, Self::Error> {
+//         let payment_confirm_source: Option<api_enums::PaymentSource> =
+//             get_header_value_by_key("payment_confirm_source", message.headers())?
+//                 .map(|source| source.parse_enum("PaymentSource"))
+//                 .transpose()?;
+//         Ok(Self {
+//             payment_confirm_source,
+//         })
+//     }
+// }
+
+impl ForeignTryFrom<&HeaderMap> for api_models::payments::HeaderPayload {
+    type Error = error_stack::Report<errors::ApiErrorResponse>;
+    fn foreign_try_from(headers: &HeaderMap) -> Result<Self, Self::Error> {
+        let payment_confirm_source: Option<api_enums::PaymentSource> =
+            get_header_value_by_key("payment_confirm_source".into(), headers)?
+                .map(|source| {
+                    source
+                        .to_owned()
+                        .parse_enum("PaymentSource")
+                        .change_context(errors::ApiErrorResponse::InvalidRequestData {
+                            message: "Invalid data recieved in payment_confirm_source header"
+                                .into(),
+                        })
+                        .attach_printable(
+                            "Failed while paring PaymentConfirmSource header value to enum",
+                        )
+                })
+                .transpose()?;
+        Ok(Self {
+            payment_confirm_source,
+        })
     }
 }
 

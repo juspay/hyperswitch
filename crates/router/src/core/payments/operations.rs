@@ -154,6 +154,7 @@ pub trait UpdateTracker<F, D, Req>: Send {
         updated_customer: Option<storage::CustomerUpdate>,
         mechant_key_store: &domain::MerchantKeyStore,
         frm_suggestion: Option<FrmSuggestion>,
+        header_payload: api::HeaderPayload,
     ) -> RouterResult<(BoxedOperation<'b, F, Req>, D)>
     where
         F: 'b + Send;

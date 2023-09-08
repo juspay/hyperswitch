@@ -388,10 +388,12 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
         updated_customer: Option<storage::CustomerUpdate>,
         key_store: &domain::MerchantKeyStore,
         frm_suggestion: Option<FrmSuggestion>,
+        header_payload: api::HeaderPayload,
     ) -> RouterResult<(BoxedOperation<'b, F, api::PaymentsRequest>, PaymentData<F>)>
     where
         F: 'b + Send,
     {
+        dbg!(header_payload);
         let payment_method = payment_data.payment_attempt.payment_method;
         let browser_info = payment_data.payment_attempt.browser_info.clone();
         let frm_message = payment_data.frm_message.clone();

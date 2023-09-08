@@ -9,6 +9,7 @@ pub mod types;
 
 use std::{fmt::Debug, marker::PhantomData, ops::Deref, time::Instant};
 
+use api_models::payments::HeaderPayload;
 use common_utils::{ext_traits::AsyncExt, pii};
 use diesel_models::{ephemeral_key, fraud_check::FraudCheck};
 use error_stack::{IntoReport, ResultExt};
@@ -45,6 +46,7 @@ use crate::{
     workflows::payment_sync,
 };
 
+#[allow(clippy::too_many_arguments)]
 #[instrument(skip_all, fields(payment_id, merchant_id))]
 pub async fn payments_operation_core<F, Req, Op, FData>(
     state: &AppState,
@@ -54,6 +56,7 @@ pub async fn payments_operation_core<F, Req, Op, FData>(
     req: Req,
     call_connector_action: CallConnectorAction,
     auth_flow: services::AuthFlow,
+    header_payload: HeaderPayload,
 ) -> RouterResult<(PaymentData<F>, Req, Option<domain::Customer>, Option<u16>)>
 where
     F: Send + Clone + Sync,
@@ -169,6 +172,7 @@ where
                     updated_customer,
                     &validate_result,
                     schedule_time,
+                    header_payload,
                 )
                 .await?;
 
@@ -227,6 +231,7 @@ where
                 updated_customer,
                 &key_store,
                 None,
+                header_payload,
             )
             .await?;
     }
@@ -243,6 +248,7 @@ pub async fn payments_core<F, Res, Req, Op, FData>(
     req: Req,
     auth_flow: services::AuthFlow,
     call_connector_action: CallConnectorAction,
+    header_payload: HeaderPayload,
 ) -> RouterResponse<Res>
 where
     F: Send + Clone + Sync,
@@ -269,6 +275,7 @@ where
         req,
         call_connector_action,
         auth_flow,
+        header_payload,
     )
     .await?;
 
@@ -424,6 +431,7 @@ impl PaymentRedirectFlow for PaymentRedirectCompleteAuthorize {
             payment_confirm_req,
             services::api::AuthFlow::Merchant,
             connector_action,
+            HeaderPayload::default(),
         )
         .await
     }
@@ -518,6 +526,7 @@ impl PaymentRedirectFlow for PaymentRedirectSync {
             payment_sync_req,
             services::api::AuthFlow::Merchant,
             connector_action,
+            HeaderPayload::default(),
         )
         .await
     }
@@ -555,6 +564,7 @@ pub async fn call_connector_service<F, RouterDReq, ApiRequest>(
     updated_customer: Option<storage::CustomerUpdate>,
     validate_result: &operations::ValidateResult<'_>,
     schedule_time: Option<time::PrimitiveDateTime>,
+    header_payload: HeaderPayload,
 ) -> RouterResult<router_types::RouterData<F, RouterDReq, router_types::PaymentsResponseData>>
 where
     F: Send + Clone + Sync,
@@ -715,6 +725,7 @@ where
             updated_customer,
             key_store,
             None,
+            header_payload,
         )
         .await?;
 
