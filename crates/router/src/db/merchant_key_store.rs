@@ -1,8 +1,8 @@
 use error_stack::{IntoReport, ResultExt};
 use masking::Secret;
-
 #[cfg(feature = "accounts_cache")]
-use crate::cache::ACCOUNTS_CACHE;
+use storage_impl::redis::cache::ACCOUNTS_CACHE;
+
 use crate::{
     connection,
     core::errors::{self, CustomResult},
@@ -155,7 +155,7 @@ mod tests {
     #[allow(clippy::unwrap_used)]
     #[tokio::test]
     async fn test_mock_db_merchant_key_store_interface() {
-        let mock_db = MockDb::new(&Default::default()).await;
+        let mock_db = MockDb::new().await;
         let master_key = mock_db.get_master_key();
         let merchant_id = "merchant1";
 

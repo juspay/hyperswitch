@@ -1,6 +1,6 @@
 use std::marker::PhantomData;
 
-use api_models::enums::CancelTransaction;
+use api_models::enums::FrmSuggestion;
 use async_trait::async_trait;
 use common_utils::ext_traits::{AsyncExt, Encode, ValueExt};
 use diesel_models::ephemeral_key;
@@ -14,7 +14,7 @@ use crate::{
     core::{
         errors::{self, CustomResult, RouterResult, StorageErrorExt},
         payments::{self, helpers, operations, CustomerDetails, PaymentAddress, PaymentData},
-        utils as core_utils,
+        utils::{self as core_utils},
     },
     db::StorageInterface,
     routes::AppState,
@@ -92,6 +92,17 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
             } else {
                 (None, None)
             };
+        // Validate whether profile_id passed in request is valid and is linked to the merchant
+        let business_profile_from_request = core_utils::validate_and_get_business_profile(
+            db,
+            request.profile_id.as_ref(),
+            merchant_id,
+        )
+        .await?;
+
+        let profile_id = business_profile_from_request
+            .map(|business_profile| business_profile.profile_id)
+            .or(merchant_account.default_profile.clone());
 
         let (
             token,
@@ -172,6 +183,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
                     billing_address.clone().map(|x| x.address_id),
                     payment_attempt.attempt_id.to_owned(),
                     payment_link_id,
+                    profile_id,
                 )?,
                 storage_scheme,
             )
@@ -363,7 +375,7 @@ impl<F: Clone + Send> Domain<F, api::PaymentsRequest> for PaymentCreate {
         _merchant_account: &domain::MerchantAccount,
         state: &AppState,
         request: &api::PaymentsRequest,
-        _payment_intent: &storage::payment_intent::PaymentIntent,
+        _payment_intent: &storage::PaymentIntent,
         _merchant_key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<api::ConnectorChoice, errors::ApiErrorResponse> {
         helpers::get_connector_default(state, request.routing.clone()).await
@@ -381,7 +393,7 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
         storage_scheme: enums::MerchantStorageScheme,
         _updated_customer: Option<storage::CustomerUpdate>,
         _merchant_key_store: &domain::MerchantKeyStore,
-        _should_cancel_transaction: Option<CancelTransaction>,
+        _frm_suggestion: Option<FrmSuggestion>,
     ) -> RouterResult<(BoxedOperation<'b, F, api::PaymentsRequest>, PaymentData<F>)>
     where
         F: 'b + Send,
@@ -599,6 +611,7 @@ impl PaymentCreate {
 
     #[allow(clippy::too_many_arguments)]
     #[instrument(skip_all)]
+    #[allow(clippy::too_many_arguments)]
     fn make_payment_intent(
         payment_id: &str,
         merchant_account: &types::domain::MerchantAccount,
@@ -608,6 +621,7 @@ impl PaymentCreate {
         billing_address_id: Option<String>,
         active_attempt_id: String,
         payment_link_id: Option<String>,
+        profile_id: Option<String>,
     ) -> RouterResult<storage::PaymentIntentNew> {
         let created_at @ modified_at @ last_synced = Some(common_utils::date_time::now());
         let status =
@@ -691,6 +705,8 @@ impl PaymentCreate {
             feature_metadata,
             attempt_count: 1,
             payment_link_id,
+            profile_id,
+            merchant_decision: None,
         })
     }
 

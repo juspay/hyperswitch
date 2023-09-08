@@ -3,12 +3,16 @@ use actix_web::{web, Scope};
 use external_services::email::{AwsSes, EmailClient};
 #[cfg(feature = "kms")]
 use external_services::kms::{self, decrypt::KmsDecrypt};
+use scheduler::SchedulerInterface;
+use storage_impl::MockDb;
 use tokio::sync::oneshot;
 
 #[cfg(feature = "dummy_connector")]
 use super::dummy_connector::*;
 #[cfg(feature = "payouts")]
 use super::payouts::*;
+#[cfg(all(feature = "olap", feature = "kms"))]
+use super::verification::apple_pay_merchant_registration;
 #[cfg(feature = "olap")]
 use super::{admin::*, api_keys::*, disputes::*, files::*};
 use super::{cache::*, health::*};
@@ -18,9 +22,9 @@ use super::{configs::*, customers::*, mandates::*, payments::*, refunds::*};
 use super::{ephemeral_key::*, payment_methods::*, webhooks::*};
 use crate::{
     configs::settings,
-    db::{MockDb, StorageImpl, StorageInterface},
+    db::{StorageImpl, StorageInterface},
     routes::cards_info::card_iin_info,
-    services::Store,
+    services::get_store,
 };
 
 #[derive(Clone)]
@@ -32,6 +36,13 @@ pub struct AppState {
     pub email_client: Box<dyn EmailClient>,
     #[cfg(feature = "kms")]
     pub kms_secrets: settings::ActiveKmsSecrets,
+    pub api_client: Box<dyn crate::services::ApiClient>,
+}
+
+impl scheduler::SchedulerAppState for AppState {
+    fn get_db(&self) -> Box<dyn SchedulerInterface> {
+        self.store.get_scheduler_db()
+    }
 }
 
 pub trait AppStateInfo {
@@ -59,19 +70,26 @@ impl AppStateInfo for AppState {
 }
 
 impl AppState {
+    /// # Panics
+    ///
+    /// Panics if Store can't be created or JWE decryption fails
     pub async fn with_storage(
         conf: settings::Settings,
         storage_impl: StorageImpl,
         shut_down_signal: oneshot::Sender<()>,
+        api_client: Box<dyn crate::services::ApiClient>,
     ) -> Self {
         #[cfg(feature = "kms")]
         let kms_client = kms::get_kms_client(&conf.kms).await;
         let testable = storage_impl == StorageImpl::PostgresqlTest;
         let store: Box<dyn StorageInterface> = match storage_impl {
-            StorageImpl::Postgresql | StorageImpl::PostgresqlTest => {
-                Box::new(Store::new(&conf, testable, shut_down_signal).await)
-            }
-            StorageImpl::Mock => Box::new(MockDb::new(&conf).await),
+            StorageImpl::Postgresql | StorageImpl::PostgresqlTest => Box::new(
+                #[allow(clippy::expect_used)]
+                get_store(&conf, shut_down_signal, testable)
+                    .await
+                    .expect("Failed to create store"),
+            ),
+            StorageImpl::Mock => Box::new(MockDb::new().await),
         };
 
         #[cfg(feature = "kms")]
@@ -84,7 +102,6 @@ impl AppState {
         .expect("Failed while performing KMS decryption");
 
         #[cfg(feature = "email")]
-        #[allow(clippy::expect_used)]
         let email_client = Box::new(AwsSes::new(&conf.email).await);
         Self {
             flow_name: String::from("default"),
@@ -94,11 +111,16 @@ impl AppState {
             email_client,
             #[cfg(feature = "kms")]
             kms_secrets,
+            api_client,
         }
     }
 
-    pub async fn new(conf: settings::Settings, shut_down_signal: oneshot::Sender<()>) -> Self {
-        Self::with_storage(conf, StorageImpl::Postgresql, shut_down_signal).await
+    pub async fn new(
+        conf: settings::Settings,
+        shut_down_signal: oneshot::Sender<()>,
+        api_client: Box<dyn crate::services::ApiClient>,
+    ) -> Self {
+        Self::with_storage(conf, StorageImpl::Postgresql, shut_down_signal, api_client).await
     }
 }
 
@@ -536,5 +558,41 @@ impl PaymentLink {
         web::scope("/payment_link")
             .app_data(web::Data::new(state))
             .service(web::resource("").route(web::get().to(super::payment_link::get_payment_link)))
+    }
+}
+
+pub struct BusinessProfile;
+
+#[cfg(feature = "olap")]
+impl BusinessProfile {
+    pub fn server(state: AppState) -> Scope {
+        web::scope("/account/{account_id}/business_profile")
+            .app_data(web::Data::new(state))
+            .service(
+                web::resource("")
+                    .route(web::post().to(business_profile_create))
+                    .route(web::get().to(business_profiles_list)),
+            )
+            .service(
+                web::resource("/{profile_id}")
+                    .route(web::get().to(business_profile_retrieve))
+                    .route(web::post().to(business_profile_update))
+                    .route(web::delete().to(business_profile_delete)),
+            )
+    }
+}
+
+#[cfg(all(feature = "olap", feature = "kms"))]
+pub struct Verify;
+
+#[cfg(all(feature = "olap", feature = "kms"))]
+impl Verify {
+    pub fn server(state: AppState) -> Scope {
+        web::scope("/verify")
+            .app_data(web::Data::new(state))
+            .service(
+                web::resource("/{merchant_id}/apple_pay")
+                    .route(web::post().to(apple_pay_merchant_registration)),
+            )
     }
 }

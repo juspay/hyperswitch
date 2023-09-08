@@ -5,30 +5,42 @@ use common_utils::{
     ext_traits::{AsyncExt, ByteSliceExt, ValueExt},
     fp_utils, generate_id, pii,
 };
-use diesel_models::{enums, payment_intent};
+use data_models::payments::payment_intent::PaymentIntent;
+use diesel_models::{enums, payment_attempt::PaymentAttempt};
 // TODO : Evaluate all the helper functions ()
 use error_stack::{report, IntoReport, ResultExt};
+#[cfg(feature = "kms")]
+use external_services::kms;
 use josekit::jwe;
 use masking::{ExposeInterface, PeekInterface};
+#[cfg(feature = "kms")]
+use openssl::derive::Deriver;
+#[cfg(feature = "kms")]
+use openssl::pkey::PKey;
+#[cfg(feature = "kms")]
+use openssl::symm::{decrypt_aead, Cipher};
 use router_env::{instrument, logger, tracing};
 use time::Duration;
 use uuid::Uuid;
+#[cfg(feature = "kms")]
+use x509_parser::parse_x509_certificate;
 
 use super::{
     operations::{BoxedOperation, Operation, PaymentResponse},
     CustomerDetails, PaymentData,
 };
+#[cfg(feature = "kms")]
+use crate::connector;
 use crate::{
     configs::settings::{ConnectorRequestReferenceIdConfig, Server},
-    consts,
+    consts::{self, BASE64_ENGINE},
     core::{
         errors::{self, CustomResult, RouterResult, StorageErrorExt},
         payment_methods::{cards, vault},
         payments,
     },
     db::StorageInterface,
-    routes::{metrics, AppState},
-    scheduler::metrics as scheduler_metrics,
+    routes::{metrics, payment_methods, AppState},
     services,
     types::{
         api::{self, admin, enums as api_enums, CustomerAcceptanceExt, MandateValidationFieldsExt},
@@ -51,12 +63,12 @@ pub fn create_identity_from_certificate_and_key(
     encoded_certificate: String,
     encoded_certificate_key: String,
 ) -> Result<reqwest::Identity, error_stack::Report<errors::ApiClientError>> {
-    let decoded_certificate = consts::BASE64_ENGINE
+    let decoded_certificate = BASE64_ENGINE
         .decode(encoded_certificate)
         .into_report()
         .change_context(errors::ApiClientError::CertificateDecodeFailed)?;
 
-    let decoded_certificate_key = consts::BASE64_ENGINE
+    let decoded_certificate_key = BASE64_ENGINE
         .decode(encoded_certificate_key)
         .into_report()
         .change_context(errors::ApiClientError::CertificateDecodeFailed)?;
@@ -76,7 +88,7 @@ pub fn create_identity_from_certificate_and_key(
 
 pub fn filter_mca_based_on_business_details(
     merchant_connector_accounts: Vec<domain::MerchantConnectorAccount>,
-    payment_intent: Option<&diesel_models::payment_intent::PaymentIntent>,
+    payment_intent: Option<&PaymentIntent>,
 ) -> Vec<domain::MerchantConnectorAccount> {
     if let Some(payment_intent) = payment_intent {
         merchant_connector_accounts
@@ -631,8 +643,8 @@ pub fn validate_customer_id_mandatory_cases(
 
 pub fn create_startpay_url(
     server: &Server,
-    payment_attempt: &storage::PaymentAttempt,
-    payment_intent: &storage::PaymentIntent,
+    payment_attempt: &PaymentAttempt,
+    payment_intent: &PaymentIntent,
 ) -> String {
     format!(
         "{}/payments/redirect/{}/{}/{}",
@@ -645,7 +657,7 @@ pub fn create_startpay_url(
 
 pub fn create_redirect_url(
     router_base_url: &String,
-    payment_attempt: &storage::PaymentAttempt,
+    payment_attempt: &PaymentAttempt,
     connector_name: &String,
     creds_identifier: Option<&str>,
 ) -> String {
@@ -668,7 +680,7 @@ pub fn create_webhook_url(
 }
 pub fn create_complete_authorize_url(
     router_base_url: &String,
-    payment_attempt: &storage::PaymentAttempt,
+    payment_attempt: &PaymentAttempt,
     connector_name: &String,
 ) -> String {
     format!(
@@ -773,7 +785,7 @@ pub fn payment_intent_status_fsm(
 pub async fn add_domain_task_to_pt<Op>(
     operation: &Op,
     state: &AppState,
-    payment_attempt: &storage::PaymentAttempt,
+    payment_attempt: &PaymentAttempt,
     requeue: bool,
     schedule_time: Option<time::PrimitiveDateTime>,
 ) -> CustomResult<(), errors::ApiErrorResponse>
@@ -784,14 +796,14 @@ where
         match schedule_time {
             Some(stime) => {
                 if !requeue {
-                    scheduler_metrics::TASKS_ADDED_COUNT.add(&metrics::CONTEXT, 1, &[]); // Metrics
+                    // scheduler_metrics::TASKS_ADDED_COUNT.add(&metrics::CONTEXT, 1, &[]); // Metrics
                     super::add_process_sync_task(&*state.store, payment_attempt, stime)
                         .await
                         .into_report()
                         .change_context(errors::ApiErrorResponse::InternalServerError)
                         .attach_printable("Failed while adding task to process tracker")
                 } else {
-                    scheduler_metrics::TASKS_RESET_COUNT.add(&metrics::CONTEXT, 1, &[]); // Metrics
+                    // scheduler_metrics::TASKS_RESET_COUNT.add(&metrics::CONTEXT, 1, &[]); // Metrics
                     super::reset_process_sync_task(&*state.store, payment_attempt, stime)
                         .await
                         .into_report()
@@ -1174,32 +1186,43 @@ pub async fn make_pm_data<'a, F: Clone, R>(
 ) -> RouterResult<(BoxedOperation<'a, F, R>, Option<api::PaymentMethodData>)> {
     let request = &payment_data.payment_method_data;
     let token = payment_data.token.clone();
-    let hyperswitch_token = if let Some(token) = token {
-        let redis_conn = state
-            .store
-            .get_redis_conn()
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Failed to get redis connection")?;
 
-        let key = format!(
-            "pm_token_{}_{}_hyperswitch",
-            token,
-            payment_data
-                .payment_attempt
-                .payment_method
-                .to_owned()
-                .get_required_value("payment_method")?,
-        );
+    let hyperswitch_token = match payment_data.mandate_id {
+        Some(_) => token,
+        None => {
+            if let Some(token) = token {
+                let redis_conn = state
+                    .store
+                    .get_redis_conn()
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Failed to get redis connection")?;
 
-        let hyperswitch_token_option = redis_conn
-            .get_key::<Option<String>>(&key)
-            .await
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Failed to fetch the token from redis")?;
+                let key = format!(
+                    "pm_token_{}_{}_hyperswitch",
+                    token,
+                    payment_data
+                        .payment_attempt
+                        .payment_method
+                        .to_owned()
+                        .get_required_value("payment_method")?,
+                );
 
-        hyperswitch_token_option.or(Some(token))
-    } else {
-        None
+                let key = redis_conn
+                    .get_key::<Option<String>>(&key)
+                    .await
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Failed to fetch the token from redis")?
+                    .ok_or(error_stack::Report::new(
+                        errors::ApiErrorResponse::UnprocessableEntity {
+                            message: "Token is invalid or expired".to_owned(),
+                        },
+                    ))?;
+
+                Some(key)
+            } else {
+                None
+            }
+        }
     };
 
     let card_cvc = payment_data.card_cvc.clone();
@@ -1273,15 +1296,17 @@ pub async fn make_pm_data<'a, F: Clone, R>(
             })
         }
         (pm_opt @ Some(pm @ api::PaymentMethodData::Card(_)), _) => {
-            let token = vault::Vault::store_payment_method_data_in_locker(
+            let parent_payment_method_token = store_in_vault_and_generate_ppmt(
                 state,
-                None,
                 pm,
-                payment_data.payment_intent.customer_id.to_owned(),
+                &payment_data.payment_intent,
+                &payment_data.payment_attempt,
                 enums::PaymentMethod::Card,
             )
             .await?;
-            payment_data.token = Some(token);
+
+            payment_data.token = Some(parent_payment_method_token);
+
             Ok(pm_opt.to_owned())
         }
         (pm @ Some(api::PaymentMethodData::PayLater(_)), _) => Ok(pm.to_owned()),
@@ -1289,49 +1314,82 @@ pub async fn make_pm_data<'a, F: Clone, R>(
         (pm @ Some(api::PaymentMethodData::BankDebit(_)), _) => Ok(pm.to_owned()),
         (pm @ Some(api::PaymentMethodData::Upi(_)), _) => Ok(pm.to_owned()),
         (pm @ Some(api::PaymentMethodData::Voucher(_)), _) => Ok(pm.to_owned()),
-        (pm @ Some(api::PaymentMethodData::Reward(_)), _) => Ok(pm.to_owned()),
+        (pm @ Some(api::PaymentMethodData::Reward), _) => Ok(pm.to_owned()),
         (pm @ Some(api::PaymentMethodData::CardRedirect(_)), _) => Ok(pm.to_owned()),
         (pm @ Some(api::PaymentMethodData::GiftCard(_)), _) => Ok(pm.to_owned()),
         (pm_opt @ Some(pm @ api::PaymentMethodData::BankTransfer(_)), _) => {
-            let token = vault::Vault::store_payment_method_data_in_locker(
+            let parent_payment_method_token = store_in_vault_and_generate_ppmt(
                 state,
-                None,
                 pm,
-                payment_data.payment_intent.customer_id.to_owned(),
+                &payment_data.payment_intent,
+                &payment_data.payment_attempt,
                 enums::PaymentMethod::BankTransfer,
             )
             .await?;
-            payment_data.token = Some(token);
+
+            payment_data.token = Some(parent_payment_method_token);
+
             Ok(pm_opt.to_owned())
         }
         (pm_opt @ Some(pm @ api::PaymentMethodData::Wallet(_)), _) => {
-            let token = vault::Vault::store_payment_method_data_in_locker(
+            let parent_payment_method_token = store_in_vault_and_generate_ppmt(
                 state,
-                None,
                 pm,
-                payment_data.payment_intent.customer_id.to_owned(),
+                &payment_data.payment_intent,
+                &payment_data.payment_attempt,
                 enums::PaymentMethod::Wallet,
             )
             .await?;
-            payment_data.token = Some(token);
+
+            payment_data.token = Some(parent_payment_method_token);
             Ok(pm_opt.to_owned())
         }
         (pm_opt @ Some(pm @ api::PaymentMethodData::BankRedirect(_)), _) => {
-            let token = vault::Vault::store_payment_method_data_in_locker(
+            let parent_payment_method_token = store_in_vault_and_generate_ppmt(
                 state,
-                None,
                 pm,
-                payment_data.payment_intent.customer_id.to_owned(),
+                &payment_data.payment_intent,
+                &payment_data.payment_attempt,
                 enums::PaymentMethod::BankRedirect,
             )
             .await?;
-            payment_data.token = Some(token);
+            payment_data.token = Some(parent_payment_method_token);
             Ok(pm_opt.to_owned())
         }
         _ => Ok(None),
     }?;
 
     Ok((operation, payment_method))
+}
+
+pub async fn store_in_vault_and_generate_ppmt(
+    state: &AppState,
+    payment_method_data: &api_models::payments::PaymentMethodData,
+    payment_intent: &PaymentIntent,
+    payment_attempt: &PaymentAttempt,
+    payment_method: enums::PaymentMethod,
+) -> RouterResult<String> {
+    let router_token = vault::Vault::store_payment_method_data_in_locker(
+        state,
+        None,
+        payment_method_data,
+        payment_intent.customer_id.to_owned(),
+        payment_method,
+    )
+    .await?;
+    let parent_payment_method_token = generate_id(consts::ID_LENGTH, "token");
+    let key_for_hyperswitch_token = payment_attempt.payment_method.map(|payment_method| {
+        payment_methods::ParentPaymentMethodToken::create_key_for_token((
+            &parent_payment_method_token,
+            payment_method,
+        ))
+    });
+    if let Some(key_for_hyperswitch_token) = key_for_hyperswitch_token {
+        key_for_hyperswitch_token
+            .insert(Some(payment_intent.created_at), router_token, state)
+            .await?;
+    };
+    Ok(parent_payment_method_token)
 }
 
 #[instrument(skip_all)]
@@ -1596,20 +1654,16 @@ pub fn validate_payment_method_type_against_payment_method(
     }
 }
 
-pub fn check_force_psync_precondition(
-    status: &storage_enums::AttemptStatus,
-    connector_transaction_id: &Option<String>,
-) -> bool {
+pub fn check_force_psync_precondition(status: &storage_enums::AttemptStatus) -> bool {
     !matches!(
         status,
         storage_enums::AttemptStatus::Charged
             | storage_enums::AttemptStatus::AutoRefunded
             | storage_enums::AttemptStatus::Voided
             | storage_enums::AttemptStatus::CodInitiated
-            | storage_enums::AttemptStatus::Authorized
             | storage_enums::AttemptStatus::Started
             | storage_enums::AttemptStatus::Failure
-    ) && connector_transaction_id.is_some()
+    )
 }
 
 pub fn append_option<T, U, F, V>(func: F, option1: Option<T>, option2: Option<U>) -> Option<V>
@@ -1625,9 +1679,13 @@ pub(super) async fn filter_by_constraints(
     constraints: &api::PaymentListConstraints,
     merchant_id: &str,
     storage_scheme: storage_enums::MerchantStorageScheme,
-) -> CustomResult<Vec<storage::PaymentIntent>, errors::StorageError> {
+) -> CustomResult<Vec<PaymentIntent>, errors::DataStorageError> {
     let result = db
-        .filter_payment_intent_by_constraints(merchant_id, constraints, storage_scheme)
+        .filter_payment_intent_by_constraints(
+            merchant_id,
+            &constraints.clone().into(),
+            storage_scheme,
+        )
         .await?;
     Ok(result)
 }
@@ -1636,9 +1694,33 @@ pub(super) async fn filter_by_constraints(
 pub(super) fn validate_payment_list_request(
     req: &api::PaymentListConstraints,
 ) -> CustomResult<(), errors::ApiErrorResponse> {
-    utils::when(req.limit > 100 || req.limit < 1, || {
+    use common_utils::consts::PAYMENTS_LIST_MAX_LIMIT_V1;
+
+    utils::when(
+        req.limit > PAYMENTS_LIST_MAX_LIMIT_V1 || req.limit < 1,
+        || {
+            Err(errors::ApiErrorResponse::InvalidRequestData {
+                message: format!(
+                    "limit should be in between 1 and {}",
+                    PAYMENTS_LIST_MAX_LIMIT_V1
+                ),
+            })
+        },
+    )?;
+    Ok(())
+}
+#[cfg(feature = "olap")]
+pub(super) fn validate_payment_list_request_for_joins(
+    limit: u32,
+) -> CustomResult<(), errors::ApiErrorResponse> {
+    use common_utils::consts::PAYMENTS_LIST_MAX_LIMIT_V2;
+
+    utils::when(!(1..=PAYMENTS_LIST_MAX_LIMIT_V2).contains(&limit), || {
         Err(errors::ApiErrorResponse::InvalidRequestData {
-            message: "limit should be in between 1 and 100".to_string(),
+            message: format!(
+                "limit should be in between 1 and {}",
+                PAYMENTS_LIST_MAX_LIMIT_V2
+            ),
         })
     })?;
     Ok(())
@@ -1923,9 +2005,9 @@ pub fn generate_mandate(
 }
 
 // A function to manually authenticate the client secret with intent fulfillment time
-pub(crate) fn authenticate_client_secret(
+pub fn authenticate_client_secret(
     request_client_secret: Option<&String>,
-    payment_intent: &payment_intent::PaymentIntent,
+    payment_intent: &PaymentIntent,
     merchant_intent_fulfillment_time: Option<i64>,
 ) -> Result<(), errors::ApiErrorResponse> {
     match (request_client_secret, &payment_intent.client_secret) {
@@ -1995,7 +2077,7 @@ pub async fn verify_payment_intent_time_and_client_secret(
     db: &dyn StorageInterface,
     merchant_account: &domain::MerchantAccount,
     client_secret: Option<String>,
-) -> error_stack::Result<Option<storage::PaymentIntent>, errors::ApiErrorResponse> {
+) -> error_stack::Result<Option<PaymentIntent>, errors::ApiErrorResponse> {
     client_secret
         .async_map(|cs| async move {
             let payment_id = get_payment_id_from_client_secret(&cs)?;
@@ -2125,11 +2207,12 @@ pub(crate) fn get_payment_id_from_client_secret(cs: &str) -> RouterResult<String
 
 #[cfg(test)]
 mod tests {
+
     use super::*;
 
     #[test]
     fn test_authenticate_client_secret_fulfillment_time_not_expired() {
-        let payment_intent = payment_intent::PaymentIntent {
+        let payment_intent = PaymentIntent {
             id: 21,
             payment_id: "23".to_string(),
             merchant_id: "22".to_string(),
@@ -2161,6 +2244,8 @@ mod tests {
             feature_metadata: None,
             attempt_count: 1,
             payment_link_id: None,
+            profile_id: None,
+            merchant_decision: None,
         };
         let req_cs = Some("1".to_string());
         let merchant_fulfillment_time = Some(900);
@@ -2174,7 +2259,7 @@ mod tests {
 
     #[test]
     fn test_authenticate_client_secret_fulfillment_time_expired() {
-        let payment_intent = payment_intent::PaymentIntent {
+        let payment_intent = PaymentIntent {
             id: 21,
             payment_id: "23".to_string(),
             merchant_id: "22".to_string(),
@@ -2206,6 +2291,8 @@ mod tests {
             feature_metadata: None,
             attempt_count: 1,
             payment_link_id: None,
+            profile_id: None,
+            merchant_decision: None,
         };
         let req_cs = Some("1".to_string());
         let merchant_fulfillment_time = Some(10);
@@ -2219,7 +2306,7 @@ mod tests {
 
     #[test]
     fn test_authenticate_client_secret_expired() {
-        let payment_intent = payment_intent::PaymentIntent {
+        let payment_intent = PaymentIntent {
             id: 21,
             payment_id: "23".to_string(),
             merchant_id: "22".to_string(),
@@ -2251,6 +2338,8 @@ mod tests {
             feature_metadata: None,
             attempt_count: 1,
             payment_link_id: None,
+            profile_id: None,
+            merchant_decision: None,
         };
         let req_cs = Some("1".to_string());
         let merchant_fulfillment_time = Some(10);
@@ -2309,6 +2398,7 @@ impl MerchantConnectorAccountType {
             Self::CacheVal(val) => val.metadata.to_owned(),
         }
     }
+
     pub fn get_connector_account_details(&self) -> serde_json::Value {
         match self {
             Self::DbVal(val) => val.connector_account_details.peek().to_owned(),
@@ -2365,7 +2455,8 @@ pub async fn get_merchant_connector_account(
 
             let decrypted_mca = services::decrypt_jwe(mca_config.config.as_str(), services::KeyIdCheck::SkipKeyIdCheck, private_key, jwe::RSA_OAEP_256)
                                      .await
-                                     .change_context(errors::ApiErrorResponse::InternalServerError)
+                                     .change_context(errors::ApiErrorResponse::UnprocessableEntity{
+                                        message: "decoding merchant_connector_details failed due to invalid data format!".into()})
                                      .attach_printable(
                                         "Failed to decrypt merchant_connector_details sent in request and then put in cache",
                                     )?;
@@ -2425,7 +2516,7 @@ pub fn router_data_type_conversion<F1, F2, Req1, Req2, Res1, Res2>(
         attempt_id: router_data.attempt_id,
         access_token: router_data.access_token,
         session_token: router_data.session_token,
-        reference_id: None,
+        reference_id: router_data.reference_id,
         payment_method_token: router_data.payment_method_token,
         customer_id: router_data.customer_id,
         connector_customer: router_data.connector_customer,
@@ -2438,12 +2529,14 @@ pub fn router_data_type_conversion<F1, F2, Req1, Req2, Res1, Res2>(
         #[cfg(feature = "payouts")]
         quote_id: None,
         test_mode: router_data.test_mode,
+        connector_api_version: router_data.connector_api_version,
+        connector_http_status_code: router_data.connector_http_status_code,
     }
 }
 
 pub fn get_attempt_type(
-    payment_intent: &storage::PaymentIntent,
-    payment_attempt: &storage::PaymentAttempt,
+    payment_intent: &PaymentIntent,
+    payment_attempt: &PaymentAttempt,
     request: &api::PaymentsRequest,
     action: &str,
 ) -> RouterResult<AttemptType> {
@@ -2453,6 +2546,14 @@ pub fn get_attempt_type(
                 request.retry_action,
                 Some(api_models::enums::RetryAction::ManualRetry)
             ) {
+                metrics::MANUAL_RETRY_REQUEST_COUNT.add(
+                    &metrics::CONTEXT,
+                    1,
+                    &[metrics::request::add_attributes(
+                        "merchant_id",
+                        payment_attempt.merchant_id.clone(),
+                    )],
+                );
                 match payment_attempt.status {
                     enums::AttemptStatus::Started
                     | enums::AttemptStatus::AuthenticationPending
@@ -2471,6 +2572,14 @@ pub fn get_attempt_type(
                     | enums::AttemptStatus::AutoRefunded
                     | enums::AttemptStatus::PaymentMethodAwaited
                     | enums::AttemptStatus::DeviceDataCollectionPending => {
+                        metrics::MANUAL_RETRY_VALIDATION_FAILED.add(
+                            &metrics::CONTEXT,
+                            1,
+                            &[metrics::request::add_attributes(
+                                "merchant_id",
+                                payment_attempt.merchant_id.clone(),
+                            )],
+                        );
                         Err(errors::ApiErrorResponse::InternalServerError)
                             .into_report()
                             .attach_printable("Payment Attempt unexpected state")
@@ -2478,15 +2587,35 @@ pub fn get_attempt_type(
 
                     storage_enums::AttemptStatus::VoidFailed
                     | storage_enums::AttemptStatus::RouterDeclined
-                    | storage_enums::AttemptStatus::CaptureFailed =>  Err(report!(errors::ApiErrorResponse::PreconditionFailed {
-                        message:
-                            format!("You cannot {action} this payment because it has status {}, and the previous attempt has the status {}", payment_intent.status, payment_attempt.status)
-                        }
-                    )),
+                    | storage_enums::AttemptStatus::CaptureFailed => {
+                        metrics::MANUAL_RETRY_VALIDATION_FAILED.add(
+                            &metrics::CONTEXT,
+                            1,
+                            &[metrics::request::add_attributes(
+                                "merchant_id",
+                                payment_attempt.merchant_id.clone(),
+                            )],
+                        );
+                        Err(report!(errors::ApiErrorResponse::PreconditionFailed {
+                            message:
+                                format!("You cannot {action} this payment because it has status {}, and the previous attempt has the status {}", payment_intent.status, payment_attempt.status)
+                            }
+                        ))
+                    }
 
                     storage_enums::AttemptStatus::AuthenticationFailed
                     | storage_enums::AttemptStatus::AuthorizationFailed
-                    | storage_enums::AttemptStatus::Failure => Ok(AttemptType::New),
+                    | storage_enums::AttemptStatus::Failure => {
+                        metrics::MANUAL_RETRY_COUNT.add(
+                            &metrics::CONTEXT,
+                            1,
+                            &[metrics::request::add_attributes(
+                                "merchant_id",
+                                payment_attempt.merchant_id.clone(),
+                            )],
+                        );
+                        Ok(AttemptType::New)
+                    }
                 }
             } else {
                 Err(report!(errors::ApiErrorResponse::PreconditionFailed {
@@ -2529,7 +2658,7 @@ impl AttemptType {
     #[inline(always)]
     fn make_new_payment_attempt(
         payment_method_data: &Option<api_models::payments::PaymentMethodData>,
-        old_payment_attempt: storage::PaymentAttempt,
+        old_payment_attempt: PaymentAttempt,
         new_attempt_count: i16,
     ) -> storage::PaymentAttemptNew {
         let created_at @ modified_at @ last_synced = Some(common_utils::date_time::now());
@@ -2596,11 +2725,11 @@ impl AttemptType {
     pub async fn modify_payment_intent_and_payment_attempt(
         &self,
         request: &api::PaymentsRequest,
-        fetched_payment_intent: storage::PaymentIntent,
-        fetched_payment_attempt: storage::PaymentAttempt,
+        fetched_payment_intent: PaymentIntent,
+        fetched_payment_attempt: PaymentAttempt,
         db: &dyn StorageInterface,
         storage_scheme: storage::enums::MerchantStorageScheme,
-    ) -> RouterResult<(storage::PaymentIntent, storage::PaymentAttempt)> {
+    ) -> RouterResult<(PaymentIntent, PaymentAttempt)> {
         match self {
             Self::SameOld => Ok((fetched_payment_intent, fetched_payment_attempt)),
             Self::New => {
@@ -2635,6 +2764,12 @@ impl AttemptType {
                     .await
                     .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
 
+                logger::info!(
+                    "manual_retry payment for {} with attempt_id {}",
+                    updated_payment_intent.payment_id,
+                    new_payment_attempt.attempt_id
+                );
+
                 Ok((updated_payment_intent, new_payment_attempt))
             }
         }
@@ -2642,7 +2777,7 @@ impl AttemptType {
 
     pub async fn get_connector_response(
         &self,
-        payment_attempt: &storage::PaymentAttempt,
+        payment_attempt: &PaymentAttempt,
         db: &dyn StorageInterface,
         storage_scheme: storage::enums::MerchantStorageScheme,
     ) -> RouterResult<storage::ConnectorResponse> {
@@ -2854,7 +2989,7 @@ pub async fn get_additional_payment_data(
         api_models::payments::PaymentMethodData::MandatePayment => {
             api_models::payments::AdditionalPaymentData::MandatePayment {}
         }
-        api_models::payments::PaymentMethodData::Reward(_) => {
+        api_models::payments::PaymentMethodData::Reward => {
             api_models::payments::AdditionalPaymentData::Reward {}
         }
         api_models::payments::PaymentMethodData::Upi(_) => {
@@ -2873,7 +3008,7 @@ pub async fn get_additional_payment_data(
 }
 
 pub fn validate_customer_access(
-    payment_intent: &storage::PaymentIntent,
+    payment_intent: &PaymentIntent,
     auth_flow: services::AuthFlow,
     request: &api::PaymentsRequest,
 ) -> Result<(), errors::ApiErrorResponse> {
@@ -2886,4 +3021,181 @@ pub fn validate_customer_access(
         }
     }
     Ok(())
+}
+
+#[derive(Debug, serde::Serialize, serde::Deserialize)]
+pub struct ApplePayData {
+    version: masking::Secret<String>,
+    data: masking::Secret<String>,
+    signature: masking::Secret<String>,
+    header: ApplePayHeader,
+}
+
+#[derive(Debug, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ApplePayHeader {
+    ephemeral_public_key: masking::Secret<String>,
+    public_key_hash: masking::Secret<String>,
+    transaction_id: masking::Secret<String>,
+}
+
+#[cfg(feature = "kms")]
+impl ApplePayData {
+    pub fn token_json(
+        wallet_data: api_models::payments::WalletData,
+    ) -> CustomResult<Self, errors::ConnectorError> {
+        let json_wallet_data: Self =
+            connector::utils::WalletData::get_wallet_token_as_json(&wallet_data)?;
+        Ok(json_wallet_data)
+    }
+
+    pub async fn decrypt(
+        &self,
+        state: &AppState,
+    ) -> CustomResult<serde_json::Value, errors::ApplePayDecryptionError> {
+        let merchant_id = self.merchant_id(state).await?;
+        let shared_secret = self.shared_secret(state).await?;
+        let symmetric_key = self.symmetric_key(&merchant_id, &shared_secret)?;
+        let decrypted = self.decrypt_ciphertext(&symmetric_key)?;
+        let parsed_decrypted: serde_json::Value = serde_json::from_str(&decrypted)
+            .into_report()
+            .change_context(errors::ApplePayDecryptionError::DecryptionFailed)?;
+        Ok(parsed_decrypted)
+    }
+
+    pub async fn merchant_id(
+        &self,
+        state: &AppState,
+    ) -> CustomResult<String, errors::ApplePayDecryptionError> {
+        let cert_data = kms::get_kms_client(&state.conf.kms)
+            .await
+            .decrypt(&state.conf.applepay_decrypt_keys.apple_pay_ppc)
+            .await
+            .change_context(errors::ApplePayDecryptionError::DecryptionFailed)?;
+
+        let base64_decode_cert_data = BASE64_ENGINE
+            .decode(cert_data)
+            .into_report()
+            .change_context(errors::ApplePayDecryptionError::Base64DecodingFailed)?;
+
+        // Parsing the certificate using x509-parser
+        let (_, certificate) = parse_x509_certificate(&base64_decode_cert_data)
+            .into_report()
+            .change_context(errors::ApplePayDecryptionError::CertificateParsingFailed)
+            .attach_printable("Error parsing apple pay PPC")?;
+
+        // Finding the merchant ID extension
+        let apple_pay_m_id = certificate
+            .extensions()
+            .iter()
+            .find(|extension| {
+                extension
+                    .oid
+                    .to_string()
+                    .eq(consts::MERCHANT_ID_FIELD_EXTENSION_ID)
+            })
+            .map(|ext| {
+                let merchant_id = String::from_utf8_lossy(ext.value)
+                    .trim()
+                    .trim_start_matches('@')
+                    .to_string();
+
+                merchant_id
+            })
+            .ok_or(errors::ApplePayDecryptionError::MissingMerchantId)
+            .into_report()
+            .attach_printable("Unable to find merchant ID extension in the certificate")?;
+
+        Ok(apple_pay_m_id)
+    }
+
+    pub async fn shared_secret(
+        &self,
+        state: &AppState,
+    ) -> CustomResult<Vec<u8>, errors::ApplePayDecryptionError> {
+        let public_ec_bytes = BASE64_ENGINE
+            .decode(self.header.ephemeral_public_key.peek().as_bytes())
+            .into_report()
+            .change_context(errors::ApplePayDecryptionError::Base64DecodingFailed)?;
+
+        let public_key = PKey::public_key_from_der(&public_ec_bytes)
+            .into_report()
+            .change_context(errors::ApplePayDecryptionError::KeyDeserializationFailed)
+            .attach_printable("Failed to deserialize the public key")?;
+
+        let decrypted_apple_pay_ppc_key = kms::get_kms_client(&state.conf.kms)
+            .await
+            .decrypt(&state.conf.applepay_decrypt_keys.apple_pay_ppc_key)
+            .await
+            .change_context(errors::ApplePayDecryptionError::DecryptionFailed)?;
+
+        // Create PKey objects from EcKey
+        let private_key = PKey::private_key_from_pem(decrypted_apple_pay_ppc_key.as_bytes())
+            .into_report()
+            .change_context(errors::ApplePayDecryptionError::KeyDeserializationFailed)
+            .attach_printable("Failed to deserialize the private key")?;
+
+        // Create the Deriver object and set the peer public key
+        let mut deriver = Deriver::new(&private_key)
+            .into_report()
+            .change_context(errors::ApplePayDecryptionError::DerivingSharedSecretKeyFailed)
+            .attach_printable("Failed to create a deriver for the private key")?;
+
+        deriver
+            .set_peer(&public_key)
+            .into_report()
+            .change_context(errors::ApplePayDecryptionError::DerivingSharedSecretKeyFailed)
+            .attach_printable("Failed to set the peer key for the secret derivation")?;
+
+        // Compute the shared secret
+        let shared_secret = deriver
+            .derive_to_vec()
+            .into_report()
+            .change_context(errors::ApplePayDecryptionError::DerivingSharedSecretKeyFailed)
+            .attach_printable("Final key derivation failed")?;
+        Ok(shared_secret)
+    }
+
+    pub fn symmetric_key(
+        &self,
+        merchant_id: &str,
+        shared_secret: &[u8],
+    ) -> CustomResult<Vec<u8>, errors::ApplePayDecryptionError> {
+        let kdf_algorithm = b"\x0did-aes256-GCM";
+        let kdf_party_v = hex::decode(merchant_id)
+            .into_report()
+            .change_context(errors::ApplePayDecryptionError::Base64DecodingFailed)?;
+        let kdf_party_u = b"Apple";
+        let kdf_info = [&kdf_algorithm[..], kdf_party_u, &kdf_party_v[..]].concat();
+
+        let mut hash = openssl::sha::Sha256::new();
+        hash.update(b"\x00\x00\x00");
+        hash.update(b"\x01");
+        hash.update(shared_secret);
+        hash.update(&kdf_info[..]);
+        let symmetric_key = hash.finish();
+        Ok(symmetric_key.to_vec())
+    }
+
+    pub fn decrypt_ciphertext(
+        &self,
+        symmetric_key: &[u8],
+    ) -> CustomResult<String, errors::ApplePayDecryptionError> {
+        let data = BASE64_ENGINE
+            .decode(self.data.peek().as_bytes())
+            .into_report()
+            .change_context(errors::ApplePayDecryptionError::Base64DecodingFailed)?;
+        let iv = [0u8; 16]; //Initialization vector IV is typically used in AES-GCM (Galois/Counter Mode) encryption for randomizing the encryption process.
+        let ciphertext = &data[..data.len() - 16];
+        let tag = &data[data.len() - 16..];
+        let cipher = Cipher::aes_256_gcm();
+        let decrypted_data = decrypt_aead(cipher, symmetric_key, Some(&iv), &[], ciphertext, tag)
+            .into_report()
+            .change_context(errors::ApplePayDecryptionError::DecryptionFailed)?;
+        let decrypted = String::from_utf8(decrypted_data)
+            .into_report()
+            .change_context(errors::ApplePayDecryptionError::DecryptionFailed)?;
+
+        Ok(decrypted)
+    }
 }

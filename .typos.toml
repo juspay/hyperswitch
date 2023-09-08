@@ -22,6 +22,8 @@ bottm = "bottm" # name of a css class for nexinets ui test
 klick = "klick" # Swedish word for clicks
 optin = "optin" # Boku preflow name
 optin_id = "optin_id" # Boku's id for optin flow
+deriver = "deriver"
+Deriver = "Deriver"
 
 [default.extend-words]
 aci = "aci"                   # Name of a connector
@@ -31,6 +33,7 @@ substituters = "substituters" # Present in `flake.nix`
 unsuccess = "unsuccess"       # Used in cryptopay request
 ba = "ba" # ignore minor commit conversions
 ede = "ede" # ignore minor commit conversions
+daa = "daa" # Commit id
 
 [files]
 extend-exclude = [

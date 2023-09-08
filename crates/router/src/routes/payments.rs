@@ -198,6 +198,7 @@ pub async fn payments_retrieve(
         force_sync: json_payload.force_sync.unwrap_or(false),
         client_secret: json_payload.client_secret.clone(),
         expand_attempts: json_payload.expand_attempts,
+        expand_captures: json_payload.expand_captures,
         ..Default::default()
     };
     let (auth_type, auth_flow) =

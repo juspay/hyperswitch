@@ -7,7 +7,7 @@ use common_utils::{
     pii::{self, Email},
 };
 use error_stack::{IntoReport, ResultExt};
-use masking::{ExposeInterface, ExposeOptionInterface, Secret};
+use masking::{ExposeInterface, ExposeOptionInterface, PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
 use url::Url;
@@ -434,6 +434,23 @@ pub enum StripeWallet {
     WechatpayPayment(WechatpayPayment),
     AlipayPayment(AlipayPayment),
     Cashapp(CashappPayment),
+    ApplePayPredecryptToken(Box<StripeApplePayPredecrypt>),
+}
+
+#[derive(Debug, Eq, PartialEq, Serialize)]
+pub struct StripeApplePayPredecrypt {
+    #[serde(rename = "card[number]")]
+    number: Secret<String>,
+    #[serde(rename = "card[exp_year]")]
+    exp_year: Secret<String>,
+    #[serde(rename = "card[exp_month]")]
+    exp_month: Secret<String>,
+    #[serde(rename = "card[cryptogram]")]
+    cryptogram: Secret<String>,
+    #[serde(rename = "card[eci]")]
+    eci: Option<Secret<String>>,
+    #[serde(rename = "card[tokenization_method]")]
+    tokenization_method: String,
 }
 
 #[derive(Debug, Eq, PartialEq, Serialize)]
@@ -813,7 +830,6 @@ impl TryFrom<&api_models::enums::BankNames> for StripeBankNames {
             _ => Err(errors::ConnectorError::NotSupported {
                 message: api_enums::PaymentMethod::BankRedirect.to_string(),
                 connector: "Stripe",
-                payment_experience: api_enums::PaymentExperience::RedirectToUrl.to_string(),
             })?,
         })
     }
@@ -939,7 +955,6 @@ fn infer_stripe_pay_later_type(
         Err(errors::ConnectorError::NotSupported {
             message: pm_type.to_string(),
             connector: "stripe",
-            payment_experience: experience.to_string(),
         })
     }
 }
@@ -1203,6 +1218,7 @@ fn create_stripe_payment_method(
     experience: Option<&enums::PaymentExperience>,
     payment_method_data: &api_models::payments::PaymentMethodData,
     auth_type: enums::AuthenticationType,
+    payment_method_token: Option<types::PaymentMethodToken>,
 ) -> Result<
     (
         StripePaymentMethodData,
@@ -1273,18 +1289,71 @@ fn create_stripe_payment_method(
             ))
         }
         payments::PaymentMethodData::Wallet(wallet_data) => match wallet_data {
-            payments::WalletData::ApplePay(applepay_data) => Ok((
-                StripePaymentMethodData::Wallet(StripeWallet::ApplepayToken(StripeApplePay {
-                    pk_token: applepay_data
-                        .get_applepay_decoded_payment_data()
-                        .change_context(errors::ConnectorError::RequestEncodingFailed)?,
-                    pk_token_instrument_name: applepay_data.payment_method.pm_type.to_owned(),
-                    pk_token_payment_network: applepay_data.payment_method.network.to_owned(),
-                    pk_token_transaction_id: applepay_data.transaction_identifier.to_owned(),
-                })),
-                None,
-                StripeBillingAddress::default(),
-            )),
+            payments::WalletData::ApplePay(applepay_data) => {
+                let mut apple_pay_decrypt_data =
+                    if let Some(types::PaymentMethodToken::ApplePayDecrypt(decrypt_data)) =
+                        payment_method_token
+                    {
+                        let expiry_year_4_digit = Secret::new(format!(
+                            "20{:?}",
+                            decrypt_data
+                                .clone()
+                                .application_expiration_date
+                                .peek()
+                                .get(0..2)
+                                .ok_or(errors::ConnectorError::RequestEncodingFailed)?
+                        ));
+                        let exp_month = Secret::new(
+                            decrypt_data
+                                .clone()
+                                .application_expiration_date
+                                .peek()
+                                .get(2..4)
+                                .ok_or(errors::ConnectorError::RequestEncodingFailed)?
+                                .to_owned(),
+                        );
+
+                        Some(StripePaymentMethodData::Wallet(
+                            StripeWallet::ApplePayPredecryptToken(Box::new(
+                                StripeApplePayPredecrypt {
+                                    number: decrypt_data.clone().application_primary_account_number,
+                                    exp_year: expiry_year_4_digit,
+                                    exp_month,
+                                    eci: decrypt_data.payment_data.eci_indicator,
+                                    cryptogram: decrypt_data.payment_data.online_payment_cryptogram,
+                                    tokenization_method: "apple_pay".to_string(),
+                                },
+                            )),
+                        ))
+                    } else {
+                        None
+                    };
+
+                if apple_pay_decrypt_data.is_none() {
+                    apple_pay_decrypt_data = Some(StripePaymentMethodData::Wallet(
+                        StripeWallet::ApplepayToken(StripeApplePay {
+                            pk_token: applepay_data
+                                .get_applepay_decoded_payment_data()
+                                .change_context(errors::ConnectorError::RequestEncodingFailed)?,
+                            pk_token_instrument_name: applepay_data
+                                .payment_method
+                                .pm_type
+                                .to_owned(),
+                            pk_token_payment_network: applepay_data
+                                .payment_method
+                                .network
+                                .to_owned(),
+                            pk_token_transaction_id: applepay_data
+                                .transaction_identifier
+                                .to_owned(),
+                        }),
+                    ));
+                };
+                let pmd = apple_pay_decrypt_data
+                    .ok_or(errors::ConnectorError::MissingApplePayTokenData)?;
+                Ok((pmd, None, StripeBillingAddress::default()))
+            }
+
             payments::WalletData::WeChatPayQr(_) => Ok((
                 StripePaymentMethodData::Wallet(StripeWallet::WechatpayPayment(WechatpayPayment {
                     client: WechatClient::Web,
@@ -1436,7 +1505,7 @@ fn create_stripe_payment_method(
         }
         payments::PaymentMethodData::Crypto(_)
         | payments::PaymentMethodData::MandatePayment
-        | payments::PaymentMethodData::Reward(_)
+        | payments::PaymentMethodData::Reward
         | payments::PaymentMethodData::Upi(_)
         | payments::PaymentMethodData::CardRedirect(_)
         | payments::PaymentMethodData::Voucher(_)
@@ -1541,6 +1610,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PaymentIntentRequest {
                             item.request.payment_experience.as_ref(),
                             &item.request.payment_method_data,
                             item.auth_type,
+                            item.payment_method_token.clone(),
                         )?;
 
                     validate_shipping_address_against_payment_method(
@@ -1560,17 +1630,25 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PaymentIntentRequest {
         };
 
         payment_data = match item.request.payment_method_data {
-            payments::PaymentMethodData::Wallet(payments::WalletData::ApplePay(_)) => Some(
-                StripePaymentMethodData::Wallet(StripeWallet::ApplepayPayment(ApplepayPayment {
-                    token: Secret::new(
-                        item.payment_method_token
-                            .to_owned()
-                            .get_required_value("payment_token")
-                            .change_context(errors::ConnectorError::RequestEncodingFailed)?,
-                    ),
-                    payment_method_types: StripePaymentMethodType::Card,
-                })),
-            ),
+            payments::PaymentMethodData::Wallet(payments::WalletData::ApplePay(_)) => {
+                let payment_method_token = item
+                    .payment_method_token
+                    .to_owned()
+                    .get_required_value("payment_token")
+                    .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+                let payment_method_token = match payment_method_token {
+                    types::PaymentMethodToken::Token(payment_method_token) => payment_method_token,
+                    types::PaymentMethodToken::ApplePayDecrypt(_) => {
+                        Err(errors::ConnectorError::InvalidWalletToken)?
+                    }
+                };
+                Some(StripePaymentMethodData::Wallet(
+                    StripeWallet::ApplepayPayment(ApplepayPayment {
+                        token: Secret::new(payment_method_token),
+                        payment_method_types: StripePaymentMethodType::Card,
+                    }),
+                ))
+            }
             _ => payment_data,
         };
 
@@ -1739,6 +1817,7 @@ impl TryFrom<&types::TokenizationRouterData> for TokenRequest {
             None,
             &item.request.payment_method_data,
             item.auth_type,
+            item.payment_method_token.clone(),
         )?;
         Ok(Self {
             token_data: payment_data.0,
@@ -2724,7 +2803,7 @@ impl TryFrom<&types::PaymentsPreProcessingRouterData> for StripeCreditTransferSo
             | Some(payments::PaymentMethodData::BankRedirect(..))
             | Some(payments::PaymentMethodData::PayLater(..))
             | Some(payments::PaymentMethodData::Crypto(..))
-            | Some(payments::PaymentMethodData::Reward(..))
+            | Some(payments::PaymentMethodData::Reward)
             | Some(payments::PaymentMethodData::MandatePayment)
             | Some(payments::PaymentMethodData::Upi(..))
             | Some(payments::PaymentMethodData::GiftCard(..))
@@ -3212,14 +3291,13 @@ impl
             }
             api::PaymentMethodData::MandatePayment
             | api::PaymentMethodData::Crypto(_)
-            | api::PaymentMethodData::Reward(_)
+            | api::PaymentMethodData::Reward
             | api::PaymentMethodData::GiftCard(_)
             | api::PaymentMethodData::Upi(_)
             | api::PaymentMethodData::CardRedirect(_)
             | api::PaymentMethodData::Voucher(_) => Err(errors::ConnectorError::NotSupported {
                 message: format!("{pm_type:?}"),
                 connector: "Stripe",
-                payment_experience: api_models::enums::PaymentExperience::RedirectToUrl.to_string(),
             })?,
         }
     }

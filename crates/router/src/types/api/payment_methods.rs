@@ -1,11 +1,12 @@
 use api_models::enums as api_enums;
 pub use api_models::payment_methods::{
-    CardDetail, CardDetailFromLocker, CustomerPaymentMethod, CustomerPaymentMethodsListResponse,
-    DeleteTokenizeByDateRequest, DeleteTokenizeByTokenRequest, GetTokenizePayloadRequest,
-    GetTokenizePayloadResponse, PaymentMethodCreate, PaymentMethodDeleteResponse, PaymentMethodId,
-    PaymentMethodList, PaymentMethodListRequest, PaymentMethodListResponse, PaymentMethodResponse,
-    PaymentMethodUpdate, TokenizePayloadEncrypted, TokenizePayloadRequest, TokenizedCardValue1,
-    TokenizedCardValue2, TokenizedWalletValue1, TokenizedWalletValue2,
+    CardDetail, CardDetailFromLocker, CardDetailsPaymentMethod, CustomerPaymentMethod,
+    CustomerPaymentMethodsListResponse, DeleteTokenizeByDateRequest, DeleteTokenizeByTokenRequest,
+    GetTokenizePayloadRequest, GetTokenizePayloadResponse, PaymentMethodCreate,
+    PaymentMethodDeleteResponse, PaymentMethodId, PaymentMethodList, PaymentMethodListRequest,
+    PaymentMethodListResponse, PaymentMethodResponse, PaymentMethodUpdate, PaymentMethodsData,
+    TokenizePayloadEncrypted, TokenizePayloadRequest, TokenizedCardValue1, TokenizedCardValue2,
+    TokenizedWalletValue1, TokenizedWalletValue2,
 };
 use error_stack::report;
 

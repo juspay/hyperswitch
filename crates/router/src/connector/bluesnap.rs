@@ -7,6 +7,7 @@ use common_utils::{
     crypto,
     ext_traits::{StringExt, ValueExt},
 };
+use diesel_models::enums;
 use error_stack::{IntoReport, ResultExt};
 use masking::PeekInterface;
 use transformers as bluesnap;
@@ -22,18 +23,15 @@ use crate::{
         errors::{self, CustomResult},
         payments,
     },
-    db::StorageInterface,
     headers, logger,
     services::{
         self,
         request::{self, Mask},
-        ConnectorIntegration,
+        ConnectorIntegration, ConnectorValidation,
     },
     types::{
         self,
         api::{self, ConnectorCommon, ConnectorCommonExt},
-        domain,
-        storage::enums,
         ErrorResponse, Response,
     },
     utils::{self, BytesExt},
@@ -127,7 +125,7 @@ impl ConnectorCommon for Bluesnap {
             bluesnap::BluesnapErrors::Auth(error_res) => ErrorResponse {
                 status_code: res.status_code,
                 code: error_res.error_code.clone(),
-                message: error_res.error_name.clone(),
+                message: error_res.error_name.clone().unwrap_or(error_res.error_code),
                 reason: Some(error_res.error_description),
             },
             bluesnap::BluesnapErrors::General(error_response) => ErrorResponse {
@@ -138,6 +136,41 @@ impl ConnectorCommon for Bluesnap {
             },
         };
         Ok(response_error_message)
+    }
+}
+
+impl ConnectorValidation for Bluesnap {
+    fn validate_capture_method(
+        &self,
+        capture_method: Option<enums::CaptureMethod>,
+    ) -> CustomResult<(), errors::ConnectorError> {
+        let capture_method = capture_method.unwrap_or_default();
+        match capture_method {
+            enums::CaptureMethod::Automatic | enums::CaptureMethod::Manual => Ok(()),
+            enums::CaptureMethod::ManualMultiple | enums::CaptureMethod::Scheduled => Err(
+                connector_utils::construct_not_supported_error_report(capture_method, self.id()),
+            ),
+        }
+    }
+
+    fn validate_psync_reference_id(
+        &self,
+        data: &types::PaymentsSyncRouterData,
+    ) -> CustomResult<(), errors::ConnectorError> {
+        // if connector_transaction_id is present, psync can be made
+        if data
+            .request
+            .connector_transaction_id
+            .get_connector_transaction_id()
+            .is_ok()
+        {
+            return Ok(());
+        }
+        // if merchant_id is present, psync can be made along with attempt_id
+        let meta_data: CustomResult<bluesnap::BluesnapConnectorMetaData, errors::ConnectorError> =
+            connector_utils::to_connector_meta_from_secret(data.connector_meta_data.clone());
+
+        meta_data.map(|_| ())
     }
 }
 
@@ -366,17 +399,22 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
         req: &types::PaymentsSyncRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        let connector_payment_id = req
-            .request
-            .connector_transaction_id
-            .get_connector_transaction_id()
-            .change_context(errors::ConnectorError::MissingConnectorTransactionID)?;
-        Ok(format!(
-            "{}{}{}",
-            self.base_url(connectors),
-            "services/2/transactions/",
-            connector_payment_id
-        ))
+        let meta_data: CustomResult<bluesnap::BluesnapConnectorMetaData, errors::ConnectorError> =
+            connector_utils::to_connector_meta_from_secret(req.connector_meta_data.clone());
+
+        match meta_data {
+            // if merchant_id is present, psync can be made using merchant_transaction_id
+            Ok(data) => get_url_with_merchant_transaction_id(
+                self.base_url(connectors).to_string(),
+                data.merchant_id,
+                req.attempt_id.to_owned(),
+            ),
+            // otherwise psync is made using connector_transaction_id
+            Err(_) => get_psync_url_with_connector_transaction_id(
+                &req.request.connector_transaction_id,
+                self.base_url(connectors).to_string(),
+            ),
+        }
     }
 
     fn build_request(
@@ -645,6 +683,7 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         req: &types::PaymentsAuthorizeRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
+        self.validate_capture_method(req.request.capture_method)?;
         Ok(Some(
             services::RequestBuilder::new()
                 .method(services::Method::Post)
@@ -905,12 +944,22 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
         req: &types::RefundSyncRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Ok(format!(
-            "{}{}{}",
-            self.base_url(connectors),
-            "services/2/transactions/",
-            req.request.get_connector_refund_id()?
-        ))
+        let meta_data: CustomResult<bluesnap::BluesnapConnectorMetaData, errors::ConnectorError> =
+            connector_utils::to_connector_meta_from_secret(req.connector_meta_data.clone());
+
+        match meta_data {
+            // if merchant_id is present, rsync can be made using merchant_transaction_id
+            Ok(data) => get_url_with_merchant_transaction_id(
+                self.base_url(connectors).to_string(),
+                data.merchant_id,
+                req.attempt_id.to_owned(),
+            ),
+            // otherwise rsync is made using connector_transaction_id
+            Err(_) => get_rsync_url_with_connector_transaction_id(
+                req,
+                self.base_url(connectors).to_string(),
+            ),
+        }
     }
 
     fn build_request(
@@ -960,19 +1009,17 @@ impl api::IncomingWebhook for Bluesnap {
         &self,
         _request: &api::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<Box<dyn crypto::VerifySignature + Send>, errors::ConnectorError> {
-        Ok(Box::new(crypto::Md5))
+        Ok(Box::new(crypto::HmacSha256))
     }
 
     fn get_webhook_source_verification_signature(
         &self,
         request: &api::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
-        let webhook_body: bluesnap::BluesnapWebhookBody =
-            serde_urlencoded::from_bytes(request.body)
-                .into_report()
-                .change_context(errors::ConnectorError::WebhookSignatureNotFound)?;
-        let signature = webhook_body.auth_key;
-        hex::decode(signature)
+        let security_header =
+            connector_utils::get_header_key_value("bls-signature", request.headers)?;
+
+        hex::decode(security_header)
             .into_report()
             .change_context(errors::ConnectorError::WebhookSignatureNotFound)
     }
@@ -982,45 +1029,10 @@ impl api::IncomingWebhook for Bluesnap {
         _merchant_id: &str,
         _secret: &[u8],
     ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
-        let webhook_body: bluesnap::BluesnapWebhookBody =
-            serde_urlencoded::from_bytes(request.body)
-                .into_report()
-                .change_context(errors::ConnectorError::WebhookSignatureNotFound)?;
-        let msg = webhook_body.reference_number + webhook_body.contract_id.as_str();
-        Ok(msg.into_bytes())
-    }
+        let timestamp =
+            connector_utils::get_header_key_value("bls-ipn-timestamp", request.headers)?;
 
-    async fn verify_webhook_source(
-        &self,
-        db: &dyn StorageInterface,
-        request: &api::IncomingWebhookRequestDetails<'_>,
-        merchant_id: &str,
-        connector_label: &str,
-        key_store: &domain::MerchantKeyStore,
-    ) -> CustomResult<bool, errors::ConnectorError> {
-        let algorithm = self
-            .get_webhook_source_verification_algorithm(request)
-            .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
-
-        let signature = self
-            .get_webhook_source_verification_signature(request)
-            .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
-        let mut secret = self
-            .get_webhook_source_verification_merchant_secret(
-                db,
-                merchant_id,
-                connector_label,
-                key_store,
-            )
-            .await
-            .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
-        let mut message = self
-            .get_webhook_source_verification_message(request, merchant_id, &secret)
-            .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
-        message.append(&mut secret);
-        algorithm
-            .verify_signature(&secret, &signature, &message)
-            .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)
+        Ok(format!("{}{}", timestamp, String::from_utf8_lossy(request.body)).into_bytes())
     }
 
     fn get_webhook_object_reference_id(
@@ -1030,10 +1042,10 @@ impl api::IncomingWebhook for Bluesnap {
         let webhook_body: bluesnap::BluesnapWebhookBody =
             serde_urlencoded::from_bytes(request.body)
                 .into_report()
-                .change_context(errors::ConnectorError::WebhookSignatureNotFound)?;
+                .change_context(errors::ConnectorError::WebhookReferenceIdNotFound)?;
         Ok(api_models::webhooks::ObjectReferenceId::PaymentId(
-            api_models::payments::PaymentIdType::ConnectorTransactionId(
-                webhook_body.reference_number,
+            api_models::payments::PaymentIdType::PaymentAttemptId(
+                webhook_body.merchant_transaction_id,
             ),
         ))
     }
@@ -1046,18 +1058,31 @@ impl api::IncomingWebhook for Bluesnap {
             serde_urlencoded::from_bytes(request.body)
                 .into_report()
                 .change_context(errors::ConnectorError::WebhookEventTypeNotFound)?;
+        api::IncomingWebhookEvent::try_from(details)
+    }
 
-        Ok(match details.transaction_type {
-            bluesnap::BluesnapWebhookEvents::Decline
-            | bluesnap::BluesnapWebhookEvents::CcChargeFailed => {
-                api::IncomingWebhookEvent::PaymentIntentFailure
-            }
-            bluesnap::BluesnapWebhookEvents::Charge => {
-                api::IncomingWebhookEvent::PaymentIntentSuccess
-            }
-            bluesnap::BluesnapWebhookEvents::Unknown => {
-                api::IncomingWebhookEvent::EventNotSupported
-            }
+    fn get_dispute_details(
+        &self,
+        request: &api::IncomingWebhookRequestDetails<'_>,
+    ) -> CustomResult<api::disputes::DisputePayload, errors::ConnectorError> {
+        let dispute_details: bluesnap::BluesnapDisputeWebhookBody =
+            serde_urlencoded::from_bytes(request.body)
+                .into_report()
+                .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
+        Ok(api::disputes::DisputePayload {
+            amount: connector_utils::to_currency_lower_unit(
+                dispute_details.invoice_charge_amount.abs().to_string(),
+                dispute_details.currency,
+            )?,
+            currency: dispute_details.currency.to_string(),
+            dispute_stage: api_models::enums::DisputeStage::Dispute,
+            connector_dispute_id: dispute_details.reversal_ref_num,
+            connector_reason: dispute_details.reversal_reason,
+            connector_reason_code: None,
+            challenge_required_by: None,
+            connector_status: dispute_details.cb_status,
+            created_at: None,
+            updated_at: None,
         })
     }
 
@@ -1069,8 +1094,44 @@ impl api::IncomingWebhook for Bluesnap {
             serde_urlencoded::from_bytes(request.body)
                 .into_report()
                 .change_context(errors::ConnectorError::WebhookResourceObjectNotFound)?;
+
+        let (card_transaction_type, processing_status) = match details.transaction_type {
+            bluesnap::BluesnapWebhookEvents::Decline
+            | bluesnap::BluesnapWebhookEvents::CcChargeFailed => Ok((
+                bluesnap::BluesnapTxnType::Capture,
+                bluesnap::BluesnapProcessingStatus::Fail,
+            )),
+            bluesnap::BluesnapWebhookEvents::Charge => Ok((
+                bluesnap::BluesnapTxnType::Capture,
+                bluesnap::BluesnapProcessingStatus::Success,
+            )),
+            bluesnap::BluesnapWebhookEvents::Chargeback
+            | bluesnap::BluesnapWebhookEvents::ChargebackStatusChanged => {
+                // returning the complete incoming webhook body, It won't be consumed in dispute flow, so currently does not hold any significance
+                let res_json =
+                    utils::Encode::<bluesnap::BluesnapWebhookObjectResource>::encode_to_value(
+                        &details,
+                    )
+                    .change_context(errors::ConnectorError::WebhookResourceObjectNotFound)?;
+                return Ok(res_json);
+            }
+            bluesnap::BluesnapWebhookEvents::Unknown => {
+                Err(errors::ConnectorError::WebhookResourceObjectNotFound)
+            }
+        }?;
+
+        let psync_struct = bluesnap::BluesnapPaymentsResponse {
+            processing_info: bluesnap::ProcessingInfoResponse {
+                processing_status,
+                authorization_code: None,
+                network_transaction_id: None,
+            },
+            transaction_id: details.reference_number,
+            card_transaction_type,
+        };
+
         let res_json =
-            utils::Encode::<transformers::BluesnapWebhookObjectResource>::encode_to_value(&details)
+            utils::Encode::<transformers::BluesnapPaymentsResponse>::encode_to_value(&psync_struct)
                 .change_context(errors::ConnectorError::WebhookResourceObjectNotFound)?;
 
         Ok(res_json)
@@ -1237,4 +1298,40 @@ impl ConnectorErrorTypeMapping for Bluesnap {
             _ => ConnectorErrorType::UnknownError,
         }
     }
+}
+
+fn get_url_with_merchant_transaction_id(
+    base_url: String,
+    merchant_id: String,
+    merchant_transaction_id: String,
+) -> CustomResult<String, errors::ConnectorError> {
+    Ok(format!(
+        "{}{}{},{}",
+        base_url, "services/2/transactions/", merchant_transaction_id, merchant_id
+    ))
+}
+
+fn get_psync_url_with_connector_transaction_id(
+    connector_transaction_id: &types::ResponseId,
+    base_url: String,
+) -> CustomResult<String, errors::ConnectorError> {
+    let connector_transaction_id = connector_transaction_id
+        .get_connector_transaction_id()
+        .change_context(errors::ConnectorError::MissingConnectorTransactionID)?;
+    Ok(format!(
+        "{}{}{}",
+        base_url, "services/2/transactions/", connector_transaction_id
+    ))
+}
+
+fn get_rsync_url_with_connector_transaction_id(
+    req: &types::RefundSyncRouterData,
+    base_url: String,
+) -> CustomResult<String, errors::ConnectorError> {
+    Ok(format!(
+        "{}{}{}",
+        base_url,
+        "services/2/transactions/",
+        req.request.get_connector_refund_id()?
+    ))
 }

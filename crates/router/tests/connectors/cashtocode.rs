@@ -41,8 +41,8 @@ impl CashtocodeTest {
         payment_method_data: types::api::PaymentMethodData,
     ) -> Option<types::PaymentsAuthorizeData> {
         Some(types::PaymentsAuthorizeData {
-            amount: 3500,
-            currency: enums::Currency::USD,
+            amount: 1000,
+            currency: enums::Currency::EUR,
             payment_method_data,
             confirm: true,
             statement_descriptor_suffix: None,
@@ -61,7 +61,7 @@ impl CashtocodeTest {
             session_token: None,
             enrolled_for_3ds: false,
             related_transaction_id: None,
-            router_return_url: Some(String::from("http://localhost:8080")),
+            router_return_url: Some(String::from("https://google.com")),
             webhook_url: None,
             complete_authorize_url: None,
             customer_id: Some("John Doe".to_owned()),
@@ -86,16 +86,14 @@ impl CashtocodeTest {
     }
 }
 
-//fetch payurl for payment's create
+//fetch payurl for payment create
 #[actix_web::test]
 async fn should_fetch_pay_url_classic() {
     let authorize_response = CONNECTOR
         .make_payment(
             CashtocodeTest::get_payment_authorize_data(
                 Some(enums::PaymentMethodType::ClassicReward),
-                api_models::payments::PaymentMethodData::Reward(api_models::payments::RewardData {
-                    merchant_id: "1bc20b0a".to_owned(),
-                }),
+                api_models::payments::PaymentMethodData::Reward,
             ),
             CashtocodeTest::get_payment_info(),
         )
@@ -113,9 +111,7 @@ async fn should_fetch_pay_url_evoucher() {
         .make_payment(
             CashtocodeTest::get_payment_authorize_data(
                 Some(enums::PaymentMethodType::Evoucher),
-                api_models::payments::PaymentMethodData::Reward(api_models::payments::RewardData {
-                    merchant_id: "befb46ee".to_owned(),
-                }),
+                api_models::payments::PaymentMethodData::Reward,
             ),
             CashtocodeTest::get_payment_info(),
         )
