@@ -150,6 +150,7 @@ async fn should_sync_authorized_payment() {
                 ),
                 encoded_data: None,
                 capture_method: None,
+                sync_type: types::SyncRequestType::SinglePaymentSync,
                 connector_meta: None,
                 mandate_id: None,
             }),

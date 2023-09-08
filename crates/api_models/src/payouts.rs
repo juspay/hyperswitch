@@ -1,21 +1,14 @@
-#[cfg(feature = "payouts")]
 use cards::CardNumber;
-#[cfg(feature = "payouts")]
 use common_utils::{
     crypto,
     pii::{self, Email},
 };
-#[cfg(feature = "payouts")]
 use masking::Secret;
-#[cfg(feature = "payouts")]
 use serde::{Deserialize, Serialize};
-#[cfg(feature = "payouts")]
 use utoipa::ToSchema;
 
-#[cfg(feature = "payouts")]
 use crate::{admin, enums as api_enums, payments};
 
-#[cfg(feature = "payouts")]
 #[derive(Debug, Deserialize, Serialize, Clone, ToSchema)]
 pub enum PayoutRequest {
     PayoutActionRequest(PayoutActionRequest),
@@ -23,7 +16,6 @@ pub enum PayoutRequest {
     PayoutRetrieveRequest(PayoutRetrieveRequest),
 }
 
-#[cfg(feature = "payouts")]
 #[derive(Default, Debug, Deserialize, Serialize, Clone, ToSchema)]
 #[serde(deny_unknown_fields)]
 pub struct PayoutCreateRequest {
@@ -156,7 +148,6 @@ pub struct PayoutCreateRequest {
     pub payout_token: Option<String>,
 }
 
-#[cfg(feature = "payouts")]
 #[derive(Debug, Clone, Deserialize, Serialize, ToSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum PayoutMethodData {
@@ -164,14 +155,12 @@ pub enum PayoutMethodData {
     Bank(Bank),
 }
 
-#[cfg(feature = "payouts")]
 impl Default for PayoutMethodData {
     fn default() -> Self {
         Self::Card(Card::default())
     }
 }
 
-#[cfg(feature = "payouts")]
 #[derive(Default, Eq, PartialEq, Clone, Debug, Deserialize, Serialize, ToSchema)]
 pub struct Card {
     /// The card number
@@ -191,7 +180,6 @@ pub struct Card {
     pub card_holder_name: Secret<String>,
 }
 
-#[cfg(feature = "payouts")]
 #[derive(Eq, PartialEq, Clone, Debug, Deserialize, Serialize, ToSchema)]
 #[serde(untagged)]
 pub enum Bank {
@@ -200,7 +188,6 @@ pub enum Bank {
     Sepa(SepaBankTransfer),
 }
 
-#[cfg(feature = "payouts")]
 #[derive(Default, Eq, PartialEq, Clone, Debug, Deserialize, Serialize, ToSchema)]
 pub struct AchBankTransfer {
     /// Bank name
@@ -224,7 +211,6 @@ pub struct AchBankTransfer {
     pub bank_routing_number: Secret<String>,
 }
 
-#[cfg(feature = "payouts")]
 #[derive(Default, Eq, PartialEq, Clone, Debug, Deserialize, Serialize, ToSchema)]
 pub struct BacsBankTransfer {
     /// Bank name
@@ -248,7 +234,6 @@ pub struct BacsBankTransfer {
     pub bank_sort_code: Secret<String>,
 }
 
-#[cfg(feature = "payouts")]
 #[derive(Default, Eq, PartialEq, Clone, Debug, Deserialize, Serialize, ToSchema)]
 // The SEPA (Single Euro Payments Area) is a pan-European network that allows you to send and receive payments in euros between two cross-border bank accounts in the eurozone.
 pub struct SepaBankTransfer {
@@ -273,7 +258,6 @@ pub struct SepaBankTransfer {
     pub bic: Option<Secret<String>>,
 }
 
-#[cfg(feature = "payouts")]
 #[derive(Debug, ToSchema, Clone, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct PayoutCreateResponse {
@@ -394,13 +378,11 @@ pub struct PayoutCreateResponse {
     pub error_code: Option<String>,
 }
 
-#[cfg(feature = "payouts")]
 #[derive(Default, Debug, Clone, Deserialize, ToSchema)]
 pub struct PayoutRetrieveBody {
     pub force_sync: Option<bool>,
 }
 
-#[cfg(feature = "payouts")]
 #[derive(Default, Debug, Serialize, ToSchema, Clone, Deserialize)]
 pub struct PayoutRetrieveRequest {
     /// Unique identifier for the payout. This ensures idempotency for multiple payouts
@@ -419,7 +401,6 @@ pub struct PayoutRetrieveRequest {
     pub force_sync: Option<bool>,
 }
 
-#[cfg(feature = "payouts")]
 #[derive(Default, Debug, Serialize, ToSchema, Clone, Deserialize)]
 pub struct PayoutActionRequest {
     /// Unique identifier for the payout. This ensures idempotency for multiple payouts

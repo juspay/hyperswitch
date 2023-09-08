@@ -39,3 +39,9 @@ pub(crate) const APPLEPAY_VALIDATION_URL: &str =
 // Qr Image data source starts with this string
 // The base64 image data will be appended to it to image data source
 pub(crate) const QR_IMAGE_DATA_SOURCE_STRING: &str = "data:image/png;base64";
+
+// OID (Object Identifier) for the merchant ID field extension.
+#[cfg(feature = "kms")]
+pub(crate) const MERCHANT_ID_FIELD_EXTENSION_ID: &str = "1.2.840.113635.100.6.32";
+
+pub(crate) const METRICS_HOST_TAG_NAME: &str = "host";

@@ -11,7 +11,6 @@ use super::{MockDb, Store};
 use crate::{
     connection,
     core::errors::{self, CustomResult},
-    services::logger,
     types::{
         self,
         domain::{
@@ -80,11 +79,7 @@ impl ConnectorAccessToken for Store {
             .map_err(Into::<errors::StorageError>::into)?
             .set_key_with_expiry(&key, serialized_access_token, access_token.expires)
             .await
-            .map_err(|error| {
-                logger::error!(access_token_kv_error=?error);
-                errors::StorageError::KVError
-            })
-            .into_report()
+            .change_context(errors::StorageError::KVError)
     }
 }
 
@@ -542,8 +537,11 @@ impl MerchantConnectorAccountInterface for MockDb {
     ) -> CustomResult<domain::MerchantConnectorAccount, errors::StorageError> {
         let mut accounts = self.merchant_connector_accounts.lock().await;
         let account = storage::MerchantConnectorAccount {
-            #[allow(clippy::as_conversions)]
-            id: accounts.len() as i32,
+            id: accounts
+                .len()
+                .try_into()
+                .into_report()
+                .change_context(errors::StorageError::MockDbError)?,
             merchant_id: t.merchant_id,
             connector_name: t.connector_name,
             connector_account_details: t.connector_account_details.into(),
@@ -562,6 +560,7 @@ impl MerchantConnectorAccountInterface for MockDb {
             created_at: common_utils::date_time::now(),
             modified_at: common_utils::date_time::now(),
             connector_webhook_details: t.connector_webhook_details,
+            profile_id: t.profile_id,
         };
         accounts.push(account.clone());
         account
@@ -693,7 +692,7 @@ mod merchant_connector_account_cache_tests {
     #[allow(clippy::unwrap_used)]
     #[tokio::test]
     async fn test_connector_label_cache() {
-        let db = MockDb::new(&Default::default()).await;
+        let db = MockDb::new().await;
 
         let redis_conn = db.get_redis_conn().unwrap();
         let master_key = db.get_master_key();
@@ -751,6 +750,7 @@ mod merchant_connector_account_cache_tests {
             created_at: date_time::now(),
             modified_at: date_time::now(),
             connector_webhook_details: None,
+            profile_id: None,
         };
 
         db.insert_merchant_connector_account(mca, &merchant_key)

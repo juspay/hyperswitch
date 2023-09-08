@@ -131,13 +131,21 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for MolliePaymentsRequest {
         let redirect_url = item.request.get_return_url()?;
         let payment_method_data = match item.request.capture_method.unwrap_or_default() {
             enums::CaptureMethod::Automatic => match &item.request.payment_method_data {
-                api_models::payments::PaymentMethodData::Card(_) => Ok(
-                    PaymentMethodData::CreditCard(Box::new(CreditCardMethodData {
-                        billing_address: get_billing_details(item)?,
-                        shipping_address: get_shipping_details(item)?,
-                        card_token: Some(Secret::new(item.get_payment_method_token()?)),
-                    })),
-                ),
+                api_models::payments::PaymentMethodData::Card(_) => {
+                    let pm_token = item.get_payment_method_token()?;
+                    Ok(PaymentMethodData::CreditCard(Box::new(
+                        CreditCardMethodData {
+                            billing_address: get_billing_details(item)?,
+                            shipping_address: get_shipping_details(item)?,
+                            card_token: Some(Secret::new(match pm_token {
+                                types::PaymentMethodToken::Token(token) => token,
+                                types::PaymentMethodToken::ApplePayDecrypt(_) => {
+                                    Err(errors::ConnectorError::InvalidWalletToken)?
+                                }
+                            })),
+                        },
+                    )))
+                }
                 api_models::payments::PaymentMethodData::BankRedirect(ref redirect_data) => {
                     PaymentMethodData::try_from(redirect_data)
                 }
@@ -472,7 +480,9 @@ impl<F, T>
     ) -> Result<Self, Self::Error> {
         Ok(Self {
             status: storage_enums::AttemptStatus::Pending,
-            payment_method_token: Some(item.response.card_token.clone().expose()),
+            payment_method_token: Some(types::PaymentMethodToken::Token(
+                item.response.card_token.clone().expose(),
+            )),
             response: Ok(types::PaymentsResponseData::TokenizationResponse {
                 token: item.response.card_token.expose(),
             }),

@@ -122,6 +122,10 @@ pub enum Flow {
     PaymentsCapture,
     /// Payments cancel flow.
     PaymentsCancel,
+    /// Payments approve flow.
+    PaymentsApprove,
+    /// Payments reject flow.
+    PaymentsReject,
     /// Payments Session Token flow
     PaymentsSessionToken,
     /// Payments start flow.
@@ -191,6 +195,18 @@ pub enum Flow {
     RetrieveDisputeEvidence,
     /// Invalidate cache flow
     CacheInvalidate,
+    /// Create a business profile
+    BusinessProfileCreate,
+    /// Update a business profile
+    BusinessProfileUpdate,
+    /// Retrieve a business profile
+    BusinessProfileRetrieve,
+    /// Delete a business profile
+    BusinessProfileDelete,
+    /// List all the business profiles for a merchant
+    BusinessProfileList,
+    /// Different verification flows
+    Verification,
 }
 
 ///

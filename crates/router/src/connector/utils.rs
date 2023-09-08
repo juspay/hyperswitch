@@ -10,6 +10,7 @@ use common_utils::{
     errors::ReportSwitchExt,
     pii::{self, Email, IpAddress},
 };
+use diesel_models::enums;
 use error_stack::{report, IntoReport, ResultExt};
 use masking::{ExposeInterface, Secret};
 use once_cell::sync::Lazy;
@@ -20,7 +21,10 @@ use crate::{
     consts,
     core::errors::{self, CustomResult},
     pii::PeekInterface,
-    types::{self, api, transformers::ForeignTryFrom, PaymentsCancelData, ResponseId},
+    types::{
+        self, api, storage::enums as storage_enums, transformers::ForeignTryFrom,
+        PaymentsCancelData, ResponseId,
+    },
     utils::{OptionExt, ValueExt},
 };
 
@@ -64,7 +68,7 @@ pub trait RouterData {
     where
         T: serde::de::DeserializeOwned;
     fn is_three_ds(&self) -> bool;
-    fn get_payment_method_token(&self) -> Result<String, Error>;
+    fn get_payment_method_token(&self) -> Result<types::PaymentMethodToken, Error>;
     fn get_customer_id(&self) -> Result<String, Error>;
     fn get_connector_customer_id(&self) -> Result<String, Error>;
     fn get_preprocessing_id(&self) -> Result<String, Error>;
@@ -73,6 +77,7 @@ pub trait RouterData {
     #[cfg(feature = "payouts")]
     fn get_quote_id(&self) -> Result<String, Error>;
 }
+pub const SELECTED_PAYMENT_METHOD: &str = "Selected payment method";
 
 pub fn get_unimplemented_payment_method_error_message(connector: &str) -> String {
     format!("Selected payment method through {}", connector)
@@ -156,7 +161,7 @@ impl<Flow, Request, Response> RouterData for types::RouterData<Flow, Request, Re
             .and_then(|a| a.address.as_ref())
             .ok_or_else(missing_field_err("shipping.address"))
     }
-    fn get_payment_method_token(&self) -> Result<String, Error> {
+    fn get_payment_method_token(&self) -> Result<types::PaymentMethodToken, Error> {
         self.payment_method_token
             .clone()
             .ok_or_else(missing_field_err("payment_method_token"))
@@ -237,6 +242,16 @@ impl PaymentsPreProcessingData for types::PaymentsPreProcessingData {
         self.router_return_url
             .clone()
             .ok_or_else(missing_field_err("return_url"))
+    }
+}
+
+pub trait PaymentsCaptureRequestData {
+    fn is_multiple_capture(&self) -> bool;
+}
+
+impl PaymentsCaptureRequestData for types::PaymentsCaptureData {
+    fn is_multiple_capture(&self) -> bool {
+        self.multiple_capture_data.is_some()
     }
 }
 
@@ -781,16 +796,16 @@ impl AddressDetailsData for api::AddressDetails {
             .ok_or_else(missing_field_err("address.city"))
     }
 
-    fn get_line2(&self) -> Result<&Secret<String>, Error> {
-        self.line2
-            .as_ref()
-            .ok_or_else(missing_field_err("address.line2"))
-    }
-
     fn get_state(&self) -> Result<&Secret<String>, Error> {
         self.state
             .as_ref()
             .ok_or_else(missing_field_err("address.state"))
+    }
+
+    fn get_line2(&self) -> Result<&Secret<String>, Error> {
+        self.line2
+            .as_ref()
+            .ok_or_else(missing_field_err("address.line2"))
     }
 
     fn get_zip(&self) -> Result<&Secret<String>, Error> {
@@ -926,6 +941,23 @@ where
     json.parse_value(std::any::type_name::<T>()).switch()
 }
 
+pub fn to_connector_meta_from_secret_with_required_field<T>(
+    connector_meta: Option<Secret<serde_json::Value>>,
+    error_message: &'static str,
+) -> Result<T, Error>
+where
+    T: serde::de::DeserializeOwned,
+{
+    let connector_error = errors::ConnectorError::MissingRequiredField {
+        field_name: error_message,
+    };
+    let parsed_meta = to_connector_meta_from_secret(connector_meta).ok();
+    match parsed_meta {
+        Some(meta) => Ok(meta),
+        _ => Err(connector_error.into()),
+    }
+}
+
 pub fn to_connector_meta_from_secret<T>(
     connector_meta: Option<Secret<serde_json::Value>>,
 ) -> Result<T, Error>
@@ -972,6 +1004,35 @@ pub fn to_currency_base_unit(
         .to_currency_base_unit(amount)
         .into_report()
         .change_context(errors::ConnectorError::RequestEncodingFailed)
+}
+
+pub fn to_currency_lower_unit(
+    amount: String,
+    currency: diesel_models::enums::Currency,
+) -> Result<String, error_stack::Report<errors::ConnectorError>> {
+    currency
+        .to_currency_lower_unit(amount)
+        .into_report()
+        .change_context(errors::ConnectorError::ResponseHandlingFailed)
+}
+
+pub fn construct_not_implemented_error_report(
+    capture_method: enums::CaptureMethod,
+    connector_name: &str,
+) -> error_stack::Report<errors::ConnectorError> {
+    errors::ConnectorError::NotImplemented(format!("{} for {}", capture_method, connector_name))
+        .into()
+}
+
+pub fn construct_not_supported_error_report(
+    capture_method: enums::CaptureMethod,
+    connector_name: &'static str,
+) -> error_stack::Report<errors::ConnectorError> {
+    errors::ConnectorError::NotSupported {
+        message: capture_method.to_string(),
+        connector: connector_name,
+    }
+    .into()
 }
 
 pub fn to_currency_base_unit_with_zero_decimal_check(
@@ -1274,4 +1335,57 @@ mod error_code_error_message_tests {
         );
         assert_eq!(error_code_error_message_none, None);
     }
+}
+
+pub trait MultipleCaptureSyncResponse {
+    fn get_connector_capture_id(&self) -> String;
+    fn get_capture_attempt_status(&self) -> storage_enums::AttemptStatus;
+    fn is_capture_response(&self) -> bool;
+    fn get_connector_reference_id(&self) -> Option<String> {
+        None
+    }
+}
+
+pub fn construct_captures_response_hashmap<T>(
+    capture_sync_response_list: Vec<T>,
+) -> HashMap<String, types::CaptureSyncResponse>
+where
+    T: MultipleCaptureSyncResponse,
+{
+    let mut hashmap = HashMap::new();
+    capture_sync_response_list
+        .into_iter()
+        .for_each(|capture_sync_response| {
+            let connector_capture_id = capture_sync_response.get_connector_capture_id();
+            if capture_sync_response.is_capture_response() {
+                hashmap.insert(
+                    connector_capture_id.clone(),
+                    types::CaptureSyncResponse::Success {
+                        resource_id: ResponseId::ConnectorTransactionId(connector_capture_id),
+                        status: capture_sync_response.get_capture_attempt_status(),
+                        connector_response_reference_id: capture_sync_response
+                            .get_connector_reference_id(),
+                    },
+                );
+            }
+        });
+    hashmap
+}
+
+pub fn validate_currency(
+    request_currency: types::storage::enums::Currency,
+    merchant_config_currency: Option<types::storage::enums::Currency>,
+) -> Result<(), errors::ConnectorError> {
+    let merchant_config_currency =
+        merchant_config_currency.ok_or(errors::ConnectorError::NoConnectorMetaData)?;
+    if request_currency != merchant_config_currency {
+        Err(errors::ConnectorError::NotSupported {
+            message: format!(
+                "currency {} is not supported for this merchant account",
+                request_currency
+            ),
+            connector: "Braintree",
+        })?
+    }
+    Ok(())
 }
