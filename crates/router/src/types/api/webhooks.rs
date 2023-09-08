@@ -130,7 +130,6 @@ pub trait IncomingWebhook: ConnectorCommon + Sync {
                             .into_bytes(),
                         additional_secret: connector_webhook_details
                             .additional_secret
-                            .map(|secret| secret),
                     }
                 }
                 None => api_models::webhooks::ConnectorWebhookSecrets {
