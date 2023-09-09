@@ -241,7 +241,7 @@ pub struct RouterData<Flow, Request, Response> {
     pub access_token: Option<AccessToken>,
     pub session_token: Option<String>,
     pub reference_id: Option<String>,
-    pub payment_method_token: Option<String>,
+    pub payment_method_token: Option<PaymentMethodToken>,
     pub recurring_mandate_payment_data: Option<RecurringMandatePaymentData>,
     pub preprocessing_id: Option<String>,
     /// This is the balance amount for gift cards or voucher
@@ -272,6 +272,31 @@ pub struct RouterData<Flow, Request, Response> {
 
     pub test_mode: Option<bool>,
     pub connector_http_status_code: Option<u16>,
+}
+
+#[derive(Debug, Clone, serde::Deserialize)]
+pub enum PaymentMethodToken {
+    Token(String),
+    ApplePayDecrypt(Box<ApplePayPredecryptData>),
+}
+
+#[derive(Debug, Clone, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ApplePayPredecryptData {
+    pub application_primary_account_number: Secret<String>,
+    pub application_expiration_date: Secret<String>,
+    pub currency_code: Secret<String>,
+    pub transaction_amount: Secret<i64>,
+    pub device_manufacturer_identifier: Secret<String>,
+    pub payment_data_type: Secret<String>,
+    pub payment_data: ApplePayCryptogramData,
+}
+
+#[derive(Debug, Clone, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ApplePayCryptogramData {
+    pub online_payment_cryptogram: Secret<String>,
+    pub eci_indicator: Option<Secret<String>>,
 }
 
 #[derive(Debug, Clone)]
@@ -427,15 +452,15 @@ pub struct PaymentsSyncData {
     pub encoded_data: Option<String>,
     pub capture_method: Option<storage_enums::CaptureMethod>,
     pub connector_meta: Option<serde_json::Value>,
-    pub capture_sync_type: CaptureSyncType,
+    pub sync_type: SyncRequestType,
     pub mandate_id: Option<api_models::payments::MandateIds>,
 }
 
 #[derive(Debug, Default, Clone)]
-pub enum CaptureSyncType {
+pub enum SyncRequestType {
     MultipleCaptureSync(Vec<String>),
     #[default]
-    SingleCaptureSync,
+    SinglePaymentSync,
 }
 
 #[derive(Debug, Default, Clone)]
