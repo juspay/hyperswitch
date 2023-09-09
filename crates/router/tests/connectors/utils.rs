@@ -497,7 +497,9 @@ pub trait ConnectorActions: Connector {
             access_token: info.clone().and_then(|a| a.access_token),
             session_token: None,
             reference_id: None,
-            payment_method_token: info.clone().and_then(|a| a.payment_method_token),
+            payment_method_token: info
+                .clone()
+                .and_then(|a| a.payment_method_token.map(types::PaymentMethodToken::Token)),
             connector_customer: info.clone().and_then(|a| a.connector_customer),
             recurring_mandate_payment_data: None,
 
@@ -936,7 +938,7 @@ impl Default for PaymentSyncType {
             ),
             encoded_data: None,
             capture_method: None,
-            capture_sync_type: types::CaptureSyncType::SingleCaptureSync,
+            sync_type: types::SyncRequestType::SinglePaymentSync,
             connector_meta: None,
         };
         Self(data)

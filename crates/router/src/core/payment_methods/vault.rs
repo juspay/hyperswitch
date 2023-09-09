@@ -6,6 +6,8 @@ use error_stack::{IntoReport, ResultExt};
 use josekit::jwe;
 use masking::PeekInterface;
 use router_env::{instrument, tracing};
+#[cfg(feature = "basilisk")]
+use scheduler::{types::process_data, utils as process_tracker_utils};
 
 #[cfg(feature = "basilisk")]
 use crate::routes::metrics;
@@ -24,11 +26,8 @@ use crate::{
 #[cfg(feature = "basilisk")]
 use crate::{core::payment_methods::transformers as payment_methods, services, utils::BytesExt};
 #[cfg(feature = "basilisk")]
-use crate::{
-    db,
-    scheduler::{metrics as scheduler_metrics, process_data, utils as process_tracker_utils},
-    types::storage::ProcessTrackerExt,
-};
+use crate::{db, types::storage::ProcessTrackerExt};
+
 #[cfg(feature = "basilisk")]
 const VAULT_SERVICE_NAME: &str = "CARD";
 #[cfg(feature = "basilisk")]
@@ -843,7 +842,7 @@ impl Vault {
 
         let lookup_key = create_tokenize(state, value1, Some(value2), lookup_key).await?;
         add_delete_tokenized_data_task(&*state.store, &lookup_key, pm).await?;
-        scheduler_metrics::TOKENIZED_DATA_COUNT.add(&metrics::CONTEXT, 1, &[]);
+        metrics::TOKENIZED_DATA_COUNT.add(&metrics::CONTEXT, 1, &[]);
         Ok(lookup_key)
     }
 
@@ -1223,20 +1222,20 @@ pub async fn start_tokenize_data_workflow(
                 let id = tokenize_tracker.id.clone();
                 tokenize_tracker
                     .clone()
-                    .finish_with_status(db, format!("COMPLETED_BY_PT_{id}"))
+                    .finish_with_status(db.as_scheduler(), format!("COMPLETED_BY_PT_{id}"))
                     .await?;
             } else {
                 logger::error!("Error: Deleting Card From Locker : {:?}", resp);
                 retry_delete_tokenize(db, &delete_tokenize_data.pm, tokenize_tracker.to_owned())
                     .await?;
-                scheduler_metrics::RETRIED_DELETE_DATA_COUNT.add(&metrics::CONTEXT, 1, &[]);
+                metrics::RETRIED_DELETE_DATA_COUNT.add(&metrics::CONTEXT, 1, &[]);
             }
         }
         Err(err) => {
             logger::error!("Err: Deleting Card From Locker : {:?}", err);
             retry_delete_tokenize(db, &delete_tokenize_data.pm, tokenize_tracker.to_owned())
                 .await?;
-            scheduler_metrics::RETRIED_DELETE_DATA_COUNT.add(&metrics::CONTEXT, 1, &[]);
+            metrics::RETRIED_DELETE_DATA_COUNT.add(&metrics::CONTEXT, 1, &[]);
         }
     }
     Ok(())
@@ -1275,9 +1274,9 @@ pub async fn retry_delete_tokenize(
     let schedule_time = get_delete_tokenize_schedule_time(db, pm, pt.retry_count).await;
 
     match schedule_time {
-        Some(s_time) => pt.retry(db, s_time).await,
+        Some(s_time) => pt.retry(db.as_scheduler(), s_time).await,
         None => {
-            pt.finish_with_status(db, "RETRIES_EXCEEDED".to_string())
+            pt.finish_with_status(db.as_scheduler(), "RETRIES_EXCEEDED".to_string())
                 .await
         }
     }

@@ -23,7 +23,10 @@ use serde::de::DeserializeOwned;
 use serde_json::Value;
 use uuid::Uuid;
 
-pub use self::ext_traits::{OptionExt, ValidateCall};
+pub use self::{
+    ext_traits::{OptionExt, ValidateCall},
+    storage::PaymentIntent,
+};
 use crate::{
     consts,
     core::errors::{self, CustomResult, RouterResult, StorageErrorExt},
@@ -188,7 +191,7 @@ pub async fn find_payment_intent_from_payment_id_type(
     db: &dyn StorageInterface,
     payment_id_type: payments::PaymentIdType,
     merchant_account: &domain::MerchantAccount,
-) -> CustomResult<storage::PaymentIntent, errors::ApiErrorResponse> {
+) -> CustomResult<PaymentIntent, errors::ApiErrorResponse> {
     match payment_id_type {
         payments::PaymentIdType::PaymentIntentId(payment_id) => db
             .find_payment_intent_by_payment_id_merchant_id(
@@ -243,7 +246,7 @@ pub async fn find_payment_intent_from_refund_id_type(
     refund_id_type: webhooks::RefundIdType,
     merchant_account: &domain::MerchantAccount,
     connector_name: &str,
-) -> CustomResult<storage::PaymentIntent, errors::ApiErrorResponse> {
+) -> CustomResult<PaymentIntent, errors::ApiErrorResponse> {
     let refund = match refund_id_type {
         webhooks::RefundIdType::RefundId(id) => db
             .find_refund_by_merchant_id_refund_id(

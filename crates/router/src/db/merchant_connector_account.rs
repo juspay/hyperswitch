@@ -780,7 +780,7 @@ mod merchant_connector_account_cache_tests {
     #[allow(clippy::unwrap_used)]
     #[tokio::test]
     async fn test_connector_profile_id_cache() {
-        let db = MockDb::new(&Default::default()).await;
+        let db = MockDb::new().await;
 
         let redis_conn = db.get_redis_conn().unwrap();
         let master_key = db.get_master_key();

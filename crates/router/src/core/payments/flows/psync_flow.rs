@@ -6,7 +6,7 @@ use super::{ConstructFlowSpecificData, Feature};
 use crate::{
     core::{
         errors::{ApiErrorResponse, ConnectorErrorExt, RouterResult},
-        payments::{self, access_token, transformers, PaymentData},
+        payments::{self, access_token, helpers, transformers, PaymentData},
     },
     routes::AppState,
     services,
@@ -24,6 +24,7 @@ impl ConstructFlowSpecificData<api::PSync, types::PaymentsSyncData, types::Payme
         merchant_account: &domain::MerchantAccount,
         key_store: &domain::MerchantKeyStore,
         customer: &Option<domain::Customer>,
+        merchant_connector_account: &helpers::MerchantConnectorAccountType,
     ) -> RouterResult<
         types::RouterData<api::PSync, types::PaymentsSyncData, types::PaymentsResponseData>,
     > {
@@ -34,6 +35,7 @@ impl ConstructFlowSpecificData<api::PSync, types::PaymentsSyncData, types::Payme
             merchant_account,
             key_store,
             customer,
+            merchant_connector_account,
         )
         .await
     }
@@ -51,6 +53,7 @@ impl Feature<api::PSync, types::PaymentsSyncData>
         call_connector_action: payments::CallConnectorAction,
         _merchant_account: &domain::MerchantAccount,
         connector_request: Option<services::Request>,
+        _key_store: &domain::MerchantKeyStore,
     ) -> RouterResult<Self> {
         let connector_integration: services::BoxedConnectorIntegration<
             '_,
@@ -63,12 +66,9 @@ impl Feature<api::PSync, types::PaymentsSyncData>
             .get_multiple_capture_sync_method()
             .to_payment_failed_response();
 
-        match (
-            self.request.capture_sync_type.clone(),
-            capture_sync_method_result,
-        ) {
+        match (self.request.sync_type.clone(), capture_sync_method_result) {
             (
-                types::CaptureSyncType::MultipleCaptureSync(pending_connector_capture_id_list),
+                types::SyncRequestType::MultipleCaptureSync(pending_connector_capture_id_list),
                 Ok(services::CaptureSyncMethod::Individual),
             ) => {
                 let resp = self
@@ -81,7 +81,7 @@ impl Feature<api::PSync, types::PaymentsSyncData>
                     .await?;
                 Ok(resp)
             }
-            (types::CaptureSyncType::MultipleCaptureSync(_), Err(err)) => Err(err),
+            (types::SyncRequestType::MultipleCaptureSync(_), Err(err)) => Err(err),
             _ => {
                 // for bulk sync of captures, above logic needs to be handled at connector end
                 let resp = services::execute_connector_processing_step(
