@@ -134,9 +134,10 @@ impl BusinessProfileInterface for MockDb {
             .iter()
             .find(|business_profile| business_profile.profile_id == profile_id)
             .ok_or(
-                errors::StorageError::ValueNotFound(
-                    "No business profile found for profile_id = {profile_id}".to_string(),
-                )
+                errors::StorageError::ValueNotFound(format!(
+                    "No business profile found for profile_id = {}",
+                    profile_id
+                ))
                 .into(),
             )
             .cloned()
@@ -154,14 +155,15 @@ impl BusinessProfileInterface for MockDb {
             .find(|bp| bp.profile_id == current_state.profile_id)
             .map(|bp| {
                 let business_profile_updated =
-                    business_profile_update.apply_changeset(current_state);
+                    business_profile_update.apply_changeset(current_state.clone());
                 *bp = business_profile_updated.clone();
                 business_profile_updated
             })
             .ok_or(
-                errors::StorageError::ValueNotFound(
-                    "No business profile found for profile_id = {profile_id}".to_string(),
-                )
+                errors::StorageError::ValueNotFound(format!(
+                    "No business profile found for profile_id = {}",
+                    current_state.profile_id
+                ))
                 .into(),
             )
     }
@@ -175,11 +177,10 @@ impl BusinessProfileInterface for MockDb {
         let index = business_profiles
             .iter()
             .position(|bp| bp.profile_id == profile_id && bp.merchant_id == merchant_id)
-            .ok_or::<errors::StorageError>(
-                errors::StorageError::ValueNotFound(
-                    "No business profile found for profile_id = {profile_id} and merchant_id = {merchant_id}".to_string(),
-                )
-            )?;
+            .ok_or::<errors::StorageError>(errors::StorageError::ValueNotFound(format!(
+                "No business profile found for profile_id = {} and merchant_id = {}",
+                profile_id, merchant_id
+            )))?;
         business_profiles.remove(index);
         Ok(true)
     }
