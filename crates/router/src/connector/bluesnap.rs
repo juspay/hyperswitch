@@ -651,12 +651,17 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         match req.is_three_ds() && !req.request.is_wallet() {
-            true => Ok(format!(
-                "{}{}{}",
-                self.base_url(connectors),
-                "services/2/payment-fields-tokens?shopperId=",
-                req.get_connector_customer_id()?
-            )),
+            // true => Ok(format!(
+            //     "{}{}{}",
+            //     self.base_url(connectors),
+            //     "services/2/payment-fields-tokens?shopperId=",
+            //     req.get_connector_customer_id()?
+            // )),
+            true => Err(errors::ConnectorError::NotSupported {
+                message: "3DS flow".to_string(),
+                connector: "bluesnap",
+            })
+            .into_report(),
             _ => Ok(format!(
                 "{}{}",
                 self.base_url(connectors),
@@ -704,6 +709,7 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         data: &types::PaymentsAuthorizeRouterData,
         res: Response,
     ) -> CustomResult<types::PaymentsAuthorizeRouterData, errors::ConnectorError> {
+        /*
         match (data.is_three_ds() && !data.request.is_wallet(), res.headers) {
             (true, Some(headers)) => {
                 let location = connector_utils::get_http_header("Location", &headers)?;
@@ -739,7 +745,17 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
                     http_code: res.status_code,
                 })
             }
-        }
+        } */
+        let response: bluesnap::BluesnapPaymentsResponse = res
+            .response
+            .parse_struct("BluesnapPaymentsResponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        router_env::logger::info!(connector_response=?response);
+        types::RouterData::try_from(types::ResponseRouterData {
+            response,
+            data: data.clone(),
+            http_code: res.status_code,
+        })
     }
 
     fn get_error_response(
