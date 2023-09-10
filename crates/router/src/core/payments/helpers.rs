@@ -2772,7 +2772,7 @@ impl AttemptType {
         }
     }
 
-    pub async fn get_connector_response(
+    pub async fn get_or_insert_connector_response(
         &self,
         payment_attempt: &PaymentAttempt,
         db: &dyn StorageInterface,
@@ -2793,6 +2793,30 @@ impl AttemptType {
                     &payment_attempt.payment_id,
                     &payment_attempt.merchant_id,
                     &payment_attempt.attempt_id,
+                    storage_scheme,
+                )
+                .await
+                .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound),
+        }
+    }
+
+    pub async fn get_connector_response(
+        &self,
+        db: &dyn StorageInterface,
+        payment_id: &str,
+        merchant_id: &str,
+        attempt_id: &str,
+        storage_scheme: storage_enums::MerchantStorageScheme,
+    ) -> RouterResult<storage::ConnectorResponse> {
+        match self {
+            Self::New => Err(errors::ApiErrorResponse::InternalServerError)
+                .into_report()
+                .attach_printable("Precondition failed, the attempt type should not be `New`"),
+            Self::SameOld => db
+                .find_connector_response_by_payment_id_merchant_id_attempt_id(
+                    payment_id,
+                    merchant_id,
+                    attempt_id,
                     storage_scheme,
                 )
                 .await
