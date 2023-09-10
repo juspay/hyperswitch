@@ -669,6 +669,9 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         &self,
         req: &types::PaymentsAuthorizeRouterData,
     ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
+        if req.is_three_ds() && !req.request.is_wallet() {
+            return Ok(None);
+        }
         let connector_req = bluesnap::BluesnapPaymentsRequest::try_from(req)?;
         let bluesnap_req = types::RequestBody::log_and_get_request_body(
             &connector_req,
