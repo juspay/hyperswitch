@@ -8,8 +8,5 @@ package.license = "Apache-2.0"
 [profile.release]
 strip = true
 lto = true
-codegen-units = 1
-
-[dependencies]
-wiremock = "2.38.1"  
+codegen-units = 1  
 
