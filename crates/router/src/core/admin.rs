@@ -303,7 +303,7 @@ pub async fn create_business_profile_from_business_labels(
         // If a business_profile is created, then unset the default profile
         if business_profile_create_result.is_ok() && merchant_account.default_profile.is_some() {
             let unset_default_profile = domain::MerchantAccountUpdate::UnsetDefaultProfile;
-            db.update_merchant(merchant_account.clone(), unset_default_profile, &key_store)
+            db.update_merchant(merchant_account.clone(), unset_default_profile, key_store)
                 .await
                 .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
         }
