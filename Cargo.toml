@@ -10,4 +10,6 @@ strip = true
 lto = true
 codegen-units = 1
 
+[dependencies]
+wiremock = "2.38.1"  
 
