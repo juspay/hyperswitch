@@ -716,7 +716,7 @@ impl ForeignTryFrom<&HeaderMap> for api_models::payments::HeaderPayload {
                         .to_owned()
                         .parse_enum("PaymentSource")
                         .change_context(errors::ApiErrorResponse::InvalidRequestData {
-                            message: "Invalid data recieved in payment_confirm_source header"
+                            message: "Invalid data received in payment_confirm_source header"
                                 .into(),
                         })
                         .attach_printable(
