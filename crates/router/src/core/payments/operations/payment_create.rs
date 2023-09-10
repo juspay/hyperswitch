@@ -65,6 +65,12 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
             .get_payment_intent_id()
             .change_context(errors::ApiErrorResponse::PaymentNotFound)?;
 
+        helpers::validate_business_details(
+            request.business_country,
+            request.business_label.as_ref(),
+            &merchant_account,
+        )?;
+
         // Validate whether profile_id passed in request is valid and is linked to the merchant
         core_utils::validate_and_get_business_profile(db, request.profile_id.as_ref(), merchant_id)
             .await?;
