@@ -1800,7 +1800,7 @@ pub fn make_merchant_url_with_response(
 }
 
 pub async fn make_ephemeral_key(
-    state: &AppState,
+    state: AppState,
     customer_id: String,
     merchant_id: String,
 ) -> errors::RouterResponse<ephemeral_key::EphemeralKey> {
@@ -1822,10 +1822,11 @@ pub async fn make_ephemeral_key(
 }
 
 pub async fn delete_ephemeral_key(
-    store: &dyn StorageInterface,
+    state: AppState,
     ek_id: String,
 ) -> errors::RouterResponse<ephemeral_key::EphemeralKey> {
-    let ek = store
+    let db = state.store.as_ref();
+    let ek = db
         .delete_ephemeral_key(&ek_id)
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)

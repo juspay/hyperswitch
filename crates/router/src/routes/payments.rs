@@ -808,7 +808,7 @@ pub async fn get_filters_for_payments(
 
 async fn authorize_verify_select<Op>(
     operation: Op,
-    state: &app::AppState,
+    state: app::AppState,
     merchant_account: domain::MerchantAccount,
     key_store: domain::MerchantKeyStore,
     req: api_models::payments::PaymentsRequest,

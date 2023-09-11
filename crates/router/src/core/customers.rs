@@ -309,13 +309,14 @@ pub async fn delete_customer(
     Ok(services::ApplicationResponse::Json(response))
 }
 
-#[instrument(skip(db))]
+#[instrument(skip(state))]
 pub async fn update_customer(
-    db: &dyn StorageInterface,
+    state: AppState,
     merchant_account: domain::MerchantAccount,
     update_customer: customers::CustomerRequest,
     key_store: domain::MerchantKeyStore,
 ) -> RouterResponse<customers::CustomerResponse> {
+    let db = state.store.as_ref();
     //Add this in update call if customer can be updated anywhere else
     db.find_customer_by_customer_id_merchant_id(
         &update_customer.customer_id,
