@@ -4,6 +4,16 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 1.34.0+hotfix.1 (2023-09-11)
+
+### Bug Fixes
+
+- **core:** [Bluesnap] Add secondary url in build_redirection_form ([#2122](https://github.com/juspay/hyperswitch/pull/2122)) ([`6079af7`](https://github.com/juspay/hyperswitch/commit/6079af7565fed8684a4cbb037815e592ac391f90))
+
+**Full Changelog:** [`v1.34.0...v1.34.0+hotfix.1`](https://github.com/juspay/hyperswitch/compare/v1.34.0...v1.34.0+hotfix.1)
+
+- - -
+
 ## 1.34.0 (2023-09-04)
 
 ### Features
