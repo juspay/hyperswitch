@@ -38,25 +38,37 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for StaxPaymentsRequest {
 
         match item.request.payment_method_data.clone() {
             api::PaymentMethodData::Card(_) => {
+                let pm_token = item.get_payment_method_token()?;
                 let pre_auth = !item.request.is_auto_capture()?;
                 Ok(Self {
                     meta: StaxPaymentsRequestMetaData { tax: 0 },
                     total,
                     is_refundable: true,
                     pre_auth,
-                    payment_method_id: Secret::new(item.get_payment_method_token()?),
+                    payment_method_id: Secret::new(match pm_token {
+                        types::PaymentMethodToken::Token(token) => token,
+                        types::PaymentMethodToken::ApplePayDecrypt(_) => {
+                            Err(errors::ConnectorError::InvalidWalletToken)?
+                        }
+                    }),
                 })
             }
             api::PaymentMethodData::BankDebit(
                 api_models::payments::BankDebitData::AchBankDebit { .. },
             ) => {
+                let pm_token = item.get_payment_method_token()?;
                 let pre_auth = !item.request.is_auto_capture()?;
                 Ok(Self {
                     meta: StaxPaymentsRequestMetaData { tax: 0 },
                     total,
                     is_refundable: true,
                     pre_auth,
-                    payment_method_id: Secret::new(item.get_payment_method_token()?),
+                    payment_method_id: Secret::new(match pm_token {
+                        types::PaymentMethodToken::Token(token) => token,
+                        types::PaymentMethodToken::ApplePayDecrypt(_) => {
+                            Err(errors::ConnectorError::InvalidWalletToken)?
+                        }
+                    }),
                 })
             }
             api::PaymentMethodData::BankDebit(_)

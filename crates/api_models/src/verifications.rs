@@ -13,6 +13,7 @@ pub struct ApplepayMerchantVerificationConfigs {
 #[serde(rename_all = "camelCase")]
 pub struct ApplepayMerchantVerificationRequest {
     pub domain_names: Vec<String>,
+    pub business_profile_id: String,
 }
 
 /// Response to be sent for the verify/applepay api

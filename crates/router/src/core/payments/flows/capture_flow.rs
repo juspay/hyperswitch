@@ -4,7 +4,7 @@ use super::ConstructFlowSpecificData;
 use crate::{
     core::{
         errors::{ConnectorErrorExt, RouterResult},
-        payments::{self, access_token, transformers, Feature, PaymentData},
+        payments::{self, access_token, helpers, transformers, Feature, PaymentData},
     },
     routes::AppState,
     services,
@@ -23,6 +23,7 @@ impl
         merchant_account: &domain::MerchantAccount,
         key_store: &domain::MerchantKeyStore,
         customer: &Option<domain::Customer>,
+        merchant_connector_account: &helpers::MerchantConnectorAccountType,
     ) -> RouterResult<types::PaymentsCaptureRouterData> {
         transformers::construct_payment_router_data::<api::Capture, types::PaymentsCaptureData>(
             state,
@@ -31,6 +32,7 @@ impl
             merchant_account,
             key_store,
             customer,
+            merchant_connector_account,
         )
         .await
     }
