@@ -691,21 +691,6 @@ impl ForeignFrom<api_models::enums::PayoutType> for api_enums::PaymentMethod {
     }
 }
 
-// impl<T> ForeignTryFrom<&T> for api_models::payments::HeaderPayload
-// where T: HttpMessage
-// {
-//     type Error = error_stack::Report<errors::ApiErrorResponse>;
-//     fn foreign_try_from(message: &T) -> Result<Self, Self::Error> {
-//         let payment_confirm_source: Option<api_enums::PaymentSource> =
-//             get_header_value_by_key("payment_confirm_source", message.headers())?
-//                 .map(|source| source.parse_enum("PaymentSource"))
-//                 .transpose()?;
-//         Ok(Self {
-//             payment_confirm_source,
-//         })
-//     }
-// }
-
 impl ForeignTryFrom<&HeaderMap> for api_models::payments::HeaderPayload {
     type Error = error_stack::Report<errors::ApiErrorResponse>;
     fn foreign_try_from(headers: &HeaderMap) -> Result<Self, Self::Error> {
