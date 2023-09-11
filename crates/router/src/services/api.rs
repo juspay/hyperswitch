@@ -23,7 +23,7 @@ use serde_json::json;
 use self::request::{ContentType, HeaderExt, RequestBuilderExt};
 pub use self::request::{Method, Request, RequestBuilder};
 use crate::{
-    configs::settings::Connectors,
+    configs::settings::{Connectors, Settings},
     consts,
     core::{
         errors::{self, CustomResult},
@@ -813,14 +813,18 @@ where
                 ),
             }
         }
-        Ok(ApplicationResponse::Form(redirection_data)) => build_redirection_form(
-            &redirection_data.redirect_form,
-            redirection_data.payment_method_data,
-            redirection_data.amount,
-            redirection_data.currency,
-        )
-        .respond_to(request)
-        .map_into_boxed_body(),
+        Ok(ApplicationResponse::Form(redirection_data)) => {
+            let config = state.conf();
+            build_redirection_form(
+                &redirection_data.redirect_form,
+                redirection_data.payment_method_data,
+                redirection_data.amount,
+                redirection_data.currency,
+                config,
+            )
+            .respond_to(request)
+            .map_into_boxed_body()
+        }
         Ok(ApplicationResponse::JsonWithHeaders((response, headers))) => {
             match serde_json::to_string(&response) {
                 Ok(res) => http_response_json_with_headers(res, headers),
@@ -991,6 +995,7 @@ pub fn build_redirection_form(
     payment_method_data: Option<api_models::payments::PaymentMethodData>,
     amount: String,
     currency: String,
+    config: Settings,
 ) -> maud::Markup {
     use maud::PreEscaped;
 
@@ -1073,12 +1078,14 @@ pub fn build_redirection_form(
             } else {
                 "".to_string()
             };
+
+            let bluesnap_url = config.connectors.bluesnap.secondary_base_url;
             maud::html! {
             (maud::DOCTYPE)
             html {
                 head {
                     meta name="viewport" content="width=device-width, initial-scale=1";
-                    (PreEscaped(r#"<script src="https://sandpay.bluesnap.com/web-sdk/5/bluesnap.js"></script>"#))
+                    (PreEscaped(format!("<script src=\"{bluesnap_url}web-sdk/5/bluesnap.js\"></script>")))
                 }
                     body style="background-color: #ffffff; padding: 20px; font-family: Arial, Helvetica, Sans-Serif;" {
 
