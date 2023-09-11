@@ -1145,7 +1145,7 @@ pub fn build_redirection_form(
             </script>
                 ".to_string()))
             }
-        },
+        }
         RedirectForm::Braintree {
             client_token,
             card_token,

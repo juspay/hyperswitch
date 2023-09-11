@@ -1314,7 +1314,7 @@ impl
         match self.is_braintree_graphql_version(connector_api_version) {
             true => {
                 let connector_request =
-                    braintree_graphql_transformers::CardPaymentRequest::try_from(req)?;
+                    braintree_graphql_transformers::BraintreePaymentsRequest::try_from(req)?;
                 let braintree_payment_request = types::RequestBody::log_and_get_request_body(
                     &connector_request,
                     utils::Encode::<braintree_graphql_transformers::BraintreePaymentsRequest>::encode_to_string_of_json,
@@ -1355,33 +1355,35 @@ impl
     ) -> CustomResult<types::PaymentsCompleteAuthorizeRouterData, errors::ConnectorError> {
         let connector_api_version = &data.connector_api_version;
         match self.is_braintree_graphql_version(connector_api_version) {
-            true => match connector_utils::PaymentsCompleteAuthorizeRequestData::is_auto_capture(
-                &data.request,
-            )? {
-                true => {
-                    let response: braintree_graphql_transformers::BraintreePaymentsResponse = res
+            true => {
+                match connector_utils::PaymentsCompleteAuthorizeRequestData::is_auto_capture(
+                    &data.request,
+                )? {
+                    true => {
+                        let response: braintree_graphql_transformers::BraintreeCompleteChargeResponse = res
                         .response
                         .parse_struct("Braintree PaymentsResponse")
                         .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-                    router_env::logger::info!(connector_response=?response);
-                    types::RouterData::try_from(types::ResponseRouterData {
-                        response,
-                        data: data.clone(),
-                        http_code: res.status_code,
-                    })
-                }
-                false => {
-                    let response: braintree_graphql_transformers::BraintreeAuthResponse = res
+                        router_env::logger::info!(connector_response=?response);
+                        types::RouterData::try_from(types::ResponseRouterData {
+                            response,
+                            data: data.clone(),
+                            http_code: res.status_code,
+                        })
+                    }
+                    false => {
+                        let response: braintree_graphql_transformers::BraintreeCompleteAuthResponse = res
                         .response
                         .parse_struct("Braintree AuthResponse")
                         .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-                    types::RouterData::try_from(types::ResponseRouterData {
-                        response,
-                        data: data.clone(),
-                        http_code: res.status_code,
-                    })
+                        types::RouterData::try_from(types::ResponseRouterData {
+                            response,
+                            data: data.clone(),
+                            http_code: res.status_code,
+                        })
+                    }
                 }
-            },
+            }
             false => Err(errors::ConnectorError::NotImplemented(
                 "handle_response method".to_string(),
             ))?,
