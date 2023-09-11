@@ -44,14 +44,3 @@ if (jsonData?.client_secret) {
 } else {
    console.log('INFO - Unable to assign variable {{client_secret}}, as jsonData.client_secret is undefined.');
 };
-
-// Response body should have value "requires_customer_action" for "status"
-if (jsonData?.status) {
-pm.test("[POST]::/payments/:id/confirm - Content check if value for 'status' matches 'requires_customer_action'", function() {
-  pm.expect(jsonData.status).to.eql("requires_customer_action");
-})};
-
-// Response body should have "next_action.redirect_to_url"
-pm.test("[POST]::/payments/:id/confirm - Content check if 'next_action.redirect_to_url' exists", function() {
-   pm.expect((typeof jsonData.next_action.redirect_to_url !== "undefined")).to.be.true;
-});

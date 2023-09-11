@@ -9,7 +9,7 @@ pm.test("[POST]::/payments/session_tokens - Content-Type is application/json", f
 });
 
 const responseJson = pm.response.json();
-
+console.log(responseJson)
 // Verify if the wallet_name in the response matches 'apple_pay'
 pm.test("[POST]::/payments/session_tokens - Verify wallet_name is 'apple_pay'", function() {
     pm.expect(responseJson.session_token[0].wallet_name).to.eql("apple_pay");

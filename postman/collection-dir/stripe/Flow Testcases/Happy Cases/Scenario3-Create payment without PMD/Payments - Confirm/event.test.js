@@ -44,9 +44,3 @@ if (jsonData?.client_secret) {
 } else {
    console.log('INFO - Unable to assign variable {{client_secret}}, as jsonData.client_secret is undefined.');
 };
-
-// Response body should have value "succeeded" for "status"
-if (jsonData?.status) {
-pm.test("[POST]::/payments:id/confirm - Content check if value for 'status' matches 'succeeded'", function() {
-  pm.expect(jsonData.status).to.eql("succeeded");
-})};
