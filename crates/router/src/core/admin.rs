@@ -1166,6 +1166,7 @@ pub async fn update_business_profile(
         frm_routing_algorithm: request.frm_routing_algorithm,
         payout_routing_algorithm: request.payout_routing_algorithm,
         is_recon_enabled: None,
+        applepay_verified_domains: request.applepay_verified_domains,
     };
 
     let updated_business_profile = db
