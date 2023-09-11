@@ -1085,7 +1085,7 @@ pub fn build_redirection_form(
             html {
                 head {
                     meta name="viewport" content="width=device-width, initial-scale=1";
-                    (PreEscaped(format!("<script src=\"{bluesnap_url}\"></script>")))
+                    (PreEscaped(format!("<script src=\"{bluesnap_url}web-sdk/5/bluesnap.js\"></script>")))
                 }
                     body style="background-color: #ffffff; padding: 20px; font-family: Arial, Helvetica, Sans-Serif;" {
 
