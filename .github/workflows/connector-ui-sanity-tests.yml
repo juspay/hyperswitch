@@ -74,11 +74,11 @@ jobs:
           
 
     steps:
-      - name: Ignore Tests incase of pull request
-        if: github.event_name == 'merge_group'
+      - name: Ignore Tests incase of merge group or pull request from external repository
+        if: (github.event_name == 'merge_group') || (github.event.pull_request.head.repo.full_name != github.event.pull_request.base.repo.full_name)
         shell: bash
         run: |
-          echo "Skipped tests as the event is merge_group" 
+          echo "Skipped tests as the event is merge_group or pull_request from external repository" 
           exit 0
 
       - name: Checkout repository
