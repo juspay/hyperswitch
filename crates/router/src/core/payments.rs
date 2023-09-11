@@ -749,7 +749,6 @@ where
                 call_connector_action,
                 merchant_account,
                 connector_request,
-                key_store,
             )
             .await
     } else {
@@ -820,7 +819,6 @@ where
             CallConnectorAction::Trigger,
             merchant_account,
             None,
-            key_store,
         );
 
         join_handlers.push(res);

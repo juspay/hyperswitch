@@ -144,20 +144,6 @@ pub struct PaymentMethodResponse {
     pub created: Option<time::PrimitiveDateTime>,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
-pub enum PaymentMethodsData {
-    Card(CardDetailsPaymentMethod),
-}
-#[derive(Clone, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
-pub struct CardDetailsPaymentMethod {
-    pub last4_digits: Option<String>,
-    pub issuer_country: Option<String>,
-    pub expiry_month: Option<masking::Secret<String>>,
-    pub expiry_year: Option<masking::Secret<String>>,
-    pub nick_name: Option<masking::Secret<String>>,
-    pub card_holder_name: Option<masking::Secret<String>>,
-}
-
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
 pub struct CardDetailFromLocker {
     pub scheme: Option<String>,
@@ -184,36 +170,6 @@ pub struct CardDetailFromLocker {
 
     #[schema(value_type=Option<String>)]
     pub nick_name: Option<masking::Secret<String>>,
-}
-
-impl From<CardDetailsPaymentMethod> for CardDetailFromLocker {
-    fn from(item: CardDetailsPaymentMethod) -> Self {
-        Self {
-            scheme: None,
-            issuer_country: item.issuer_country,
-            last4_digits: item.last4_digits,
-            card_number: None,
-            expiry_month: item.expiry_month,
-            expiry_year: item.expiry_year,
-            card_token: None,
-            card_holder_name: item.card_holder_name,
-            card_fingerprint: None,
-            nick_name: item.nick_name,
-        }
-    }
-}
-
-impl From<CardDetailFromLocker> for CardDetailsPaymentMethod {
-    fn from(item: CardDetailFromLocker) -> Self {
-        Self {
-            issuer_country: item.issuer_country,
-            last4_digits: item.last4_digits,
-            expiry_month: item.expiry_month,
-            expiry_year: item.expiry_year,
-            nick_name: item.nick_name,
-            card_holder_name: item.card_holder_name,
-        }
-    }
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema, PartialEq, Eq)]
