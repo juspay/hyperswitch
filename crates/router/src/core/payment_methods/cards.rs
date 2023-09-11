@@ -153,7 +153,7 @@ pub async fn update_customer_payment_method(
         .to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)?;
     if pm.payment_method == enums::PaymentMethod::Card {
         delete_card_from_locker(
-            state,
+            &state,
             &pm.customer_id,
             &pm.merchant_id,
             &pm.payment_method_id,
@@ -228,7 +228,7 @@ pub async fn get_card_from_locker(
 }
 
 pub async fn delete_card_from_locker(
-    state: routes::AppState,
+    state: &routes::AppState,
     customer_id: &str,
     merchant_id: &str,
     card_reference: &str,
@@ -236,7 +236,7 @@ pub async fn delete_card_from_locker(
     metrics::DELETE_FROM_LOCKER.add(&metrics::CONTEXT, 1, &[]);
 
     request::record_operation_time(
-        async {
+        async move {
             delete_card_from_hs_locker(state, customer_id, merchant_id, card_reference)
                 .await
                 .map_err(|error| {
@@ -475,7 +475,7 @@ pub async fn get_card_from_hs_locker<'a>(
 
 #[instrument(skip_all)]
 pub async fn delete_card_from_hs_locker<'a>(
-    state: routes::AppState,
+    state: &routes::AppState,
     customer_id: &str,
     merchant_id: &str,
     card_reference: &'a str,
@@ -498,7 +498,7 @@ pub async fn delete_card_from_hs_locker<'a>(
     .attach_printable("Making delete card request failed")?;
 
     if !locker.mock_locker {
-        let response = services::call_connector_api(state, request)
+        let response = services::call_connector_api(&state, request)
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed while executing call_connector_api for delete card");
@@ -1142,7 +1142,7 @@ pub async fn list_payment_methods(
     for key in banks_consolidated_hm.iter() {
         let payment_method_type = *key.0;
         let connectors = key.1.clone();
-        let bank_names = get_banks(state, payment_method_type, connectors)?;
+        let bank_names = get_banks(&state, payment_method_type, connectors)?;
         bank_redirect_payment_method_types.push({
             ResponsePaymentMethodTypes {
                 payment_method_type,

@@ -248,14 +248,14 @@ pub async fn trigger_refund_to_gateway(
 // ********************************************** REFUND SYNC **********************************************
 
 pub async fn refund_response_wrapper<'a, F, Fut, T, Req>(
-    state: &'a AppState,
+    state: AppState,
     merchant_account: domain::MerchantAccount,
     key_store: domain::MerchantKeyStore,
     request: Req,
     f: F,
 ) -> RouterResponse<refunds::RefundResponse>
 where
-    F: Fn(&'a AppState, domain::MerchantAccount, domain::MerchantKeyStore, Req) -> Fut,
+    F: Fn(AppState, domain::MerchantAccount, domain::MerchantKeyStore, Req) -> Fut,
     Fut: futures::Future<Output = RouterResult<T>>,
     T: ForeignInto<refunds::RefundResponse>,
 {
@@ -268,7 +268,7 @@ where
 
 #[instrument(skip_all)]
 pub async fn refund_retrieve_core(
-    state: &AppState,
+    state: AppState,
     merchant_account: domain::MerchantAccount,
     key_store: domain::MerchantKeyStore,
     request: refunds::RefundsRetrieveRequest,
@@ -328,7 +328,7 @@ pub async fn refund_retrieve_core(
 
     response = if should_call_refund(&refund, request.force_sync.unwrap_or(false)) {
         sync_refund_with_gateway(
-            state,
+            &state,
             &merchant_account,
             &key_store,
             &payment_attempt,
@@ -835,7 +835,7 @@ pub async fn sync_refund_with_gateway_workflow(
         .await?;
 
     let response = refund_retrieve_core(
-        state,
+        state.clone(),
         merchant_account,
         key_store,
         refunds::RefundsRetrieveRequest {

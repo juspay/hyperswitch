@@ -166,11 +166,11 @@ where
         option_timeout_secs: Option<u64>,
     ) -> CustomResult<reqwest::Response, ApiClientError>;
 
-    fn add_request_id(&mut self, request_id: Option<String>) {}
+    fn add_request_id(&mut self, _request_id: Option<String>) {}
     fn get_request_id(&self) -> Option<String> {
         None
     }
-    fn add_merchant_id(&mut self, merchant_id: Option<String>) {}
+    fn add_merchant_id(&mut self, _merchant_id: Option<String>) {}
     fn get_merchant_id(&self) -> Option<String> {
         None
     }

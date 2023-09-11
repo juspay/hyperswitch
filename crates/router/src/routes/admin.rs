@@ -137,7 +137,6 @@ pub async fn delete_merchant_account(
 ) -> HttpResponse {
     let flow = Flow::MerchantsAccountDelete;
     let mid = mid.into_inner();
-    let state = state.get_ref();
 
     let payload = web::Json(admin::MerchantId { merchant_id: mid }).into_inner();
     api::server_wrap(

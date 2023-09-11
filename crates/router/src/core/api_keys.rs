@@ -130,13 +130,13 @@ impl PlaintextApiKey {
 
 #[instrument(skip_all)]
 pub async fn create_api_key(
-    state: &AppState,
-    api_key_config: &settings::ApiKeys,
+    state: AppState,
     #[cfg(feature = "kms")] kms_client: &kms::KmsClient,
     api_key: api::CreateApiKeyRequest,
     merchant_id: String,
 ) -> RouterResponse<api::CreateApiKeyResponse> {
-    let store = &*state.store;
+    let api_key_config = &state.conf.api_keys;
+    let store = state.store.as_ref();
     // We are not fetching merchant account as the merchant key store is needed to search for a
     // merchant account.
     // Instead, we're only fetching merchant key store, as it is sufficient to identify
@@ -293,12 +293,12 @@ pub async fn retrieve_api_key(
 
 #[instrument(skip_all)]
 pub async fn update_api_key(
-    state: &AppState,
+    state: AppState,
     merchant_id: &str,
     key_id: &str,
     api_key: api::UpdateApiKeyRequest,
 ) -> RouterResponse<api::RetrieveApiKeyResponse> {
-    let store = &*state.store;
+    let store = state.store.as_ref();
 
     let api_key = store
         .update_api_key(
@@ -429,11 +429,11 @@ pub async fn update_api_key_expiry_task(
 
 #[instrument(skip_all)]
 pub async fn revoke_api_key(
-    state: &AppState,
+    state: AppState,
     merchant_id: &str,
     key_id: &str,
 ) -> RouterResponse<api::RevokeApiKeyResponse> {
-    let store = &*state.store;
+    let store = state.store.as_ref();
     let revoked = store
         .revoke_api_key(merchant_id, key_id)
         .await

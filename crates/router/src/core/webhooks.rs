@@ -197,7 +197,7 @@ pub async fn refunds_incoming_webhook_flow<W: types::OutgoingWebhookType>(
             })?
     } else {
         refunds::refund_retrieve_core(
-            &state,
+            state.clone(),
             merchant_account.clone(),
             key_store,
             api_models::refunds::RefundsRetrieveRequest {

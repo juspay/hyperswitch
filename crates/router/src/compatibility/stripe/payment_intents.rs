@@ -449,7 +449,7 @@ pub async fn payment_intent_list(
         state,
         &req,
         payload,
-        |state, auth, req| payments::list_payments(&*state.store, auth.merchant_account, req),
+        |state, auth, req| payments::list_payments(state, auth.merchant_account, req),
         &auth::ApiKeyAuth,
     ))
     .await

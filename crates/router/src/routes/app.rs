@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use actix_web::{web, Scope};
 #[cfg(feature = "email")]
 use external_services::email::{AwsSes, EmailClient};
@@ -29,16 +31,16 @@ use crate::{
 pub struct AppState {
     pub flow_name: String,
     pub store: Box<dyn StorageInterface>,
-    pub conf: settings::Settings,
+    pub conf: Arc<settings::Settings>,
     #[cfg(feature = "email")]
     pub email_client: Box<dyn EmailClient>,
     #[cfg(feature = "kms")]
-    pub kms_secrets: settings::ActiveKmsSecrets,
+    pub kms_secrets: Arc<settings::ActiveKmsSecrets>,
     pub api_client: Box<dyn crate::services::ApiClient>,
 }
 
 pub trait AppStateInfo: Clone + AsRef<Self> {
-    fn conf(&self) -> settings::Settings;
+    fn conf(&self) -> Arc<settings::Settings>;
     fn flow_name(&self) -> String;
     fn store(&self) -> Box<dyn StorageInterface>;
     #[cfg(feature = "email")]
@@ -48,7 +50,7 @@ pub trait AppStateInfo: Clone + AsRef<Self> {
 }
 
 impl AppStateInfo for AppState {
-    fn conf(&self) -> settings::Settings {
+    fn conf(&self) -> Arc<settings::Settings> {
         self.conf.to_owned()
     }
     fn flow_name(&self) -> String {
@@ -108,11 +110,11 @@ impl AppState {
         .expect("Failed while performing KMS decryption");
 
         #[cfg(feature = "email")]
-        let email_client = Box::new(AwsSes::new(&conf.email).await);
+        let email_client = Box::new(Arc::new(AwsSes::new(&conf.email).await));
         Self {
             flow_name: String::from("default"),
             store,
-            conf,
+            conf: Arc::new(conf),
             #[cfg(feature = "email")]
             email_client,
             #[cfg(feature = "kms")]
