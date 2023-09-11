@@ -307,10 +307,8 @@ impl ErrorSwitch<api_models::errors::types::ApiErrorResponse> for CustomersError
 impl ErrorSwitch<CustomersErrorResponse> for StorageError {
     fn switch(&self) -> CustomersErrorResponse {
         use CustomersErrorResponse as CER;
-        if self.is_db_not_found() {
-            return CER::CustomerNotFound;
-        }
         match self {
+            err if err.is_db_not_found() => CER::CustomerNotFound,
             Self::CustomerRedacted => CER::CustomerRedacted,
             _ => CER::InternalServerError,
         }
