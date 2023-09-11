@@ -6,7 +6,9 @@ use crate::{
     core::{
         errors::{self, ConnectorErrorExt, RouterResult},
         mandate,
-        payments::{self, access_token, customers, tokenization, transformers, PaymentData},
+        payments::{
+            self, access_token, customers, helpers, tokenization, transformers, PaymentData,
+        },
     },
     logger,
     routes::{metrics, AppState},
@@ -29,6 +31,7 @@ impl
         merchant_account: &domain::MerchantAccount,
         key_store: &domain::MerchantKeyStore,
         customer: &Option<domain::Customer>,
+        merchant_connector_account: &helpers::MerchantConnectorAccountType,
     ) -> RouterResult<
         types::RouterData<
             api::Authorize,
@@ -43,6 +46,7 @@ impl
             merchant_account,
             key_store,
             customer,
+            merchant_connector_account,
         )
         .await
     }
@@ -57,6 +61,7 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
         call_connector_action: payments::CallConnectorAction,
         merchant_account: &domain::MerchantAccount,
         connector_request: Option<services::Request>,
+        key_store: &domain::MerchantKeyStore,
     ) -> RouterResult<Self> {
         let connector_integration: services::BoxedConnectorIntegration<
             '_,
@@ -87,6 +92,7 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
                 maybe_customer,
                 merchant_account,
                 self.request.payment_method_type,
+                key_store,
             )
             .await;
 

@@ -91,7 +91,12 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for BraintreePaymentsRequest {
                         query,
                         variables: VariablePaymentInput {
                             input: PaymentInput {
-                                payment_method_id: item.get_payment_method_token()?,
+                                payment_method_id: match item.get_payment_method_token()? {
+                                types::PaymentMethodToken::Token(token) => token,
+                                types::PaymentMethodToken::ApplePayDecrypt(_) => {
+                                    Err(errors::ConnectorError::InvalidWalletToken)?
+                                }
+                            },
                                 transaction: TransactionBody {
                                     amount: utils::to_currency_base_unit(
                                         item.request.amount,

@@ -1,11 +1,34 @@
 {
-  "info": {
-    "_postman_id": "4de44872-bdff-465f-a958-52988651e0b8",
-    "name": "nmi",
-    "description": "## Get started\n\nJuspay Router provides a collection of APIs that enable you to process and manage payments. Our APIs accept and return JSON in the HTTP body, and return standard HTTP response codes.  \nYou can consume the APIs directly using your favorite HTTP/REST library.  \nWe have a testing environment referred to \"sandbox\", which you can setup to test API calls without affecting production data.\n\n### Base URLs\n\nUse the following base URLs when making requests to the APIs:\n\n| Environment | Base URL |\n| --- | --- |\n| Sandbox | [https://sandbox.hyperswitch.io](https://sandbox.hyperswitch.io) |\n| Production | [https://router.juspay.io](https://router.juspay.io) |\n\n# Authentication\n\nWhen you sign up for an account, you are given a secret key (also referred as api-key). You may authenticate all API requests with Juspay server by providing the appropriate key in the request Authorization header.  \nNever share your secret api keys. Keep them guarded and secure.\n\nContact Support:  \nName: Juspay Support  \nEmail: [support@juspay.in](mailto:support@juspay.in)",
-    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
-    "_exporter_id": "25737662"
-  },
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "exec": [
+          ""
+        ],
+        "type": "text/javascript"
+      }
+    },
+    {
+      "listen": "test",
+      "script": {
+        "exec": [
+          "// Set response object as internal variable",
+          "let jsonData = {};",
+          "try {jsonData = pm.response.json();}catch(e){}",
+          "",
+          "// pm.collectionVariables - Set payment_id as variable for jsonData.payment_id",
+          "if (jsonData?.payment_id) {",
+          "   pm.collectionVariables.set(\"payment_id\", jsonData.payment_id);",
+          "   console.log(\"[LOG]::payment_id - \" + jsonData.payment_id);",
+          "}",
+          "",
+          "console.log(\"[LOG]::x-request-id - \" + pm.response.headers.get('x-request-id'));"
+        ],
+        "type": "text/javascript"
+      }
+    }
+  ],
   "item": [
     {
       "name": "Health check",
@@ -108,7 +131,9 @@
                 {
                   "listen": "prerequest",
                   "script": {
-                    "exec": [],
+                    "exec": [
+                      ""
+                    ],
                     "type": "text/javascript"
                   }
                 }
@@ -147,12 +172,12 @@
                 ],
                 "body": {
                   "mode": "raw",
-                  "raw": "{\n  \"merchant_id\": \"postman_merchant_GHAction_{{$guid}}\",\n  \"locker_id\": \"m0010\",\n  \"merchant_name\": \"NewAge Retailer\",\n    \"primary_business_details\": [\n        {\n            \"country\": \"US\",\n            \"business\": \"default\"\n        }\n    ],\n  \"merchant_details\": {\n    \"primary_contact_person\": \"John Test\",\n    \"primary_email\": \"JohnTest@test.com\",\n    \"primary_phone\": \"sunt laborum\",\n    \"secondary_contact_person\": \"John Test2\",\n    \"secondary_email\": \"JohnTest2@test.com\",\n    \"secondary_phone\": \"cillum do dolor id\",\n    \"website\": \"www.example.com\",\n    \"about_business\": \"Online Retail with a wide selection of organic products for North America\",\n    \"address\": {\n      \"line1\": \"1467\",\n      \"line2\": \"Harrison Street\",\n      \"line3\": \"Harrison Street\",\n      \"city\": \"San Fransico\",\n      \"state\": \"California\",\n      \"zip\": \"94122\",\n      \"country\": \"US\"\n    }\n  },\n  \"return_url\": \"https://duck.com\",\n  \"webhook_details\": {\n    \"webhook_version\": \"1.0.1\",\n    \"webhook_username\": \"ekart_retail\",\n    \"webhook_password\": \"password_ekart@123\",\n    \"payment_created_enabled\": true,\n    \"payment_succeeded_enabled\": true,\n    \"payment_failed_enabled\": true\n  },\n  \"routing_algorithm\": {\n    \"type\": \"single\",\n    \"data\": \"nmi\"\n  },\n  \"sub_merchants_enabled\": false,\n  \"metadata\": {\n    \"city\": \"NY\",\n    \"unit\": \"245\"\n  }\n}",
                   "options": {
                     "raw": {
                       "language": "json"
                     }
-                  }
+                  },
+                  "raw": "{\"merchant_id\":\"postman_merchant_GHAction_{{$guid}}\",\"locker_id\":\"m0010\",\"merchant_name\":\"NewAge Retailer\",\"primary_business_details\":[{\"country\":\"US\",\"business\":\"default\"}],\"merchant_details\":{\"primary_contact_person\":\"John Test\",\"primary_email\":\"JohnTest@test.com\",\"primary_phone\":\"sunt laborum\",\"secondary_contact_person\":\"John Test2\",\"secondary_email\":\"JohnTest2@test.com\",\"secondary_phone\":\"cillum do dolor id\",\"website\":\"www.example.com\",\"about_business\":\"Online Retail with a wide selection of organic products for North America\",\"address\":{\"line1\":\"1467\",\"line2\":\"Harrison Street\",\"line3\":\"Harrison Street\",\"city\":\"San Fransico\",\"state\":\"California\",\"zip\":\"94122\",\"country\":\"US\"}},\"return_url\":\"https://duck.com\",\"webhook_details\":{\"webhook_version\":\"1.0.1\",\"webhook_username\":\"ekart_retail\",\"webhook_password\":\"password_ekart@123\",\"payment_created_enabled\":true,\"payment_succeeded_enabled\":true,\"payment_failed_enabled\":true},\"sub_merchants_enabled\":false,\"metadata\":{\"city\":\"NY\",\"unit\":\"245\"}}"
                 },
                 "url": {
                   "raw": "{{baseUrl}}/accounts",
@@ -240,7 +265,7 @@
                 ],
                 "body": {
                   "mode": "raw",
-                  "raw": "{\n  \"name\": \"API Key 1\",\n  \"description\": null,\n  \"expiration\": \"2023-09-23T01:02:03.000Z\"\n}"
+                  "raw": "{\"name\":\"API Key 1\",\"description\":null,\"expiration\":\"2023-09-23T01:02:03.000Z\"}"
                 },
                 "url": {
                   "raw": "{{baseUrl}}/api_keys/:merchant_id",
@@ -297,7 +322,9 @@
                 {
                   "listen": "prerequest",
                   "script": {
-                    "exec": [],
+                    "exec": [
+                      ""
+                    ],
                     "type": "text/javascript"
                   }
                 }
@@ -336,12 +363,12 @@
                 ],
                 "body": {
                   "mode": "raw",
-                  "raw": "{\n    \"connector_type\": \"fiz_operations\",\n    \"connector_name\": \"nmi\",\n    \"connector_account_details\": {\n        \"auth_type\": \"HeaderKey\",\n        \"api_key\": \"{{connector_api_key}}\"\n    },\n    \"test_mode\": false,\n    \"disabled\": false,\n    \"business_country\": \"US\",\n    \"business_label\": \"default\",\n    \"payment_methods_enabled\": [\n        {\n            \"payment_method\": \"card\",\n            \"payment_method_types\": [\n                {\n                    \"payment_method_type\": \"credit\",\n                    \"minimum_amount\": 1,\n                    \"maximum_amount\": 68607706,\n                    \"recurring_enabled\": true,\n                    \"installment_payment_enabled\": true\n                }\n            ]\n        },\n        {\n            \"payment_method\": \"card\",\n            \"payment_method_types\": [\n                {\n                    \"payment_method_type\": \"debit\",\n                    \"minimum_amount\": 1,\n                    \"maximum_amount\": 68607706,\n                    \"recurring_enabled\": true,\n                    \"installment_payment_enabled\": true\n                }\n            ]\n        },\n        {\n            \"payment_method\": \"wallet\",\n            \"payment_method_types\": [\n                {\n                    \"payment_method_type\": \"apple_pay\",\n                    \"payment_experience\": \"invoke_sdk_client\",\n                    \"minimum_amount\": 1,\n                    \"maximum_amount\": 68607706,\n                    \"recurring_enabled\": true,\n                    \"installment_payment_enabled\": true\n                }\n            ]\n        },\n        {\n            \"payment_method\": \"wallet\",\n            \"payment_method_types\": [\n                {\n                    \"payment_method_type\": \"google_pay\",\n                    \"payment_experience\": \"invoke_sdk_client\",\n                    \"minimum_amount\": 1,\n                    \"maximum_amount\": 68607706,\n                    \"recurring_enabled\": true,\n                    \"installment_payment_enabled\": true\n                }\n            ]\n        }\n    ]\n}",
                   "options": {
                     "raw": {
                       "language": "json"
                     }
-                  }
+                  },
+                  "raw": "{\"connector_type\":\"fiz_operations\",\"connector_name\":\"nmi\",\"connector_account_details\":{\"auth_type\":\"HeaderKey\",\"api_key\":\"{{connector_api_key}}\"},\"test_mode\":false,\"disabled\":false,\"business_country\":\"US\",\"business_label\":\"default\",\"payment_methods_enabled\":[{\"payment_method\":\"card\",\"payment_method_types\":[{\"payment_method_type\":\"credit\",\"minimum_amount\":1,\"maximum_amount\":68607706,\"recurring_enabled\":true,\"installment_payment_enabled\":true}]},{\"payment_method\":\"card\",\"payment_method_types\":[{\"payment_method_type\":\"debit\",\"minimum_amount\":1,\"maximum_amount\":68607706,\"recurring_enabled\":true,\"installment_payment_enabled\":true}]},{\"payment_method\":\"wallet\",\"payment_method_types\":[{\"payment_method_type\":\"apple_pay\",\"payment_experience\":\"invoke_sdk_client\",\"minimum_amount\":1,\"maximum_amount\":68607706,\"recurring_enabled\":true,\"installment_payment_enabled\":true}]},{\"payment_method\":\"wallet\",\"payment_method_types\":[{\"payment_method_type\":\"google_pay\",\"payment_experience\":\"invoke_sdk_client\",\"minimum_amount\":1,\"maximum_amount\":68607706,\"recurring_enabled\":true,\"installment_payment_enabled\":true}]}]}"
                 },
                 "url": {
                   "raw": "{{baseUrl}}/account/:account_id/connectors",
@@ -1068,12 +1095,12 @@
                     ],
                     "body": {
                       "mode": "raw",
-                      "raw": " {}",
                       "options": {
                         "raw": {
                           "language": "json"
                         }
-                      }
+                      },
+                      "raw": "{}"
                     },
                     "url": {
                       "raw": "{{baseUrl}}/payments/:id/confirm",
@@ -1374,12 +1401,12 @@
                     ],
                     "body": {
                       "mode": "raw",
-                      "raw": "{\"payment_method\": \"card\",\n    \"payment_method_data\": {\n        \"card\": {\n            \"card_number\": \"4111111111111111\",\n            \"card_exp_month\": \"10\",\n            \"card_exp_year\": \"25\",\n            \"card_holder_name\": \"joseph Doe\",\n            \"card_cvc\": \"123\"\n        }\n    }\n}",
                       "options": {
                         "raw": {
                           "language": "json"
                         }
-                      }
+                      },
+                      "raw": "{\"payment_method\":\"card\",\"payment_method_data\":{\"card\":{\"card_number\":\"4111111111111111\",\"card_exp_month\":\"10\",\"card_exp_year\":\"25\",\"card_holder_name\":\"joseph Doe\",\"card_cvc\":\"123\"}}}"
                     },
                     "url": {
                       "raw": "{{baseUrl}}/payments/:id/confirm",
@@ -1829,7 +1856,7 @@
                   "response": []
                 },
                 {
-                  "name": "Payments - Retrieve",
+                  "name": "Payments - Retrieve-copy",
                   "event": [
                     {
                       "listen": "test",
@@ -2196,12 +2223,12 @@
                     ],
                     "body": {
                       "mode": "raw",
-                      "raw": "{\n  \"cancellation_reason\": \"user_cancel\"\n}",
                       "options": {
                         "raw": {
                           "language": "json"
                         }
-                      }
+                      },
+                      "raw": "{\"cancellation_reason\":\"user_cancel\"}"
                     },
                     "url": {
                       "raw": "{{baseUrl}}/payments/:id/cancel",
@@ -2226,7 +2253,7 @@
                   "response": []
                 },
                 {
-                  "name": "Payments - Retrieve",
+                  "name": "Payments - Retrieve-copy",
                   "event": [
                     {
                       "listen": "test",
@@ -2952,12 +2979,12 @@
                     ],
                     "body": {
                       "mode": "raw",
-                      "raw": "{\n    \"payment_id\": \"{{payment_id}}\",\n    \"amount\": 100,\n    \"reason\": \"Customer returned product\",\n    \"refund_type\": \"instant\",\n    \"metadata\": {\n        \"udf1\": \"value1\",\n        \"new_customer\": \"true\",\n        \"login_date\": \"2019-09-10T10:11:12Z\"\n    }\n}",
                       "options": {
                         "raw": {
                           "language": "json"
                         }
-                      }
+                      },
+                      "raw": "{\"payment_id\":\"{{payment_id}}\",\"amount\":100,\"reason\":\"Customer returned product\",\"refund_type\":\"instant\",\"metadata\":{\"udf1\":\"value1\",\"new_customer\":\"true\",\"login_date\":\"2019-09-10T10:11:12Z\"}}"
                     },
                     "url": {
                       "raw": "{{baseUrl}}/refunds",
@@ -3048,7 +3075,7 @@
                   "response": []
                 },
                 {
-                  "name": "Refunds - Create",
+                  "name": "Refunds - Create-copy",
                   "event": [
                     {
                       "listen": "test",
@@ -3107,12 +3134,12 @@
                     ],
                     "body": {
                       "mode": "raw",
-                      "raw": "{\n    \"payment_id\": \"{{payment_id}}\",\n    \"amount\": 10,\n    \"reason\": \"Customer returned product\",\n    \"refund_type\": \"instant\",\n    \"metadata\": {\n        \"udf1\": \"value1\",\n        \"new_customer\": \"true\",\n        \"login_date\": \"2019-09-10T10:11:12Z\"\n    }\n}",
                       "options": {
                         "raw": {
                           "language": "json"
                         }
-                      }
+                      },
+                      "raw": "{\"payment_id\":\"{{payment_id}}\",\"amount\":10,\"reason\":\"Customer returned product\",\"refund_type\":\"instant\",\"metadata\":{\"udf1\":\"value1\",\"new_customer\":\"true\",\"login_date\":\"2019-09-10T10:11:12Z\"}}"
                     },
                     "url": {
                       "raw": "{{baseUrl}}/refunds",
@@ -3128,7 +3155,7 @@
                   "response": []
                 },
                 {
-                  "name": "Refunds - Retrieve",
+                  "name": "Refunds - Retrieve-copy",
                   "event": [
                     {
                       "listen": "test",
@@ -3203,7 +3230,7 @@
                   "response": []
                 },
                 {
-                  "name": "Payments - Retrieve",
+                  "name": "Payments - Retrieve-copy",
                   "event": [
                     {
                       "listen": "test",
@@ -3503,12 +3530,12 @@
                     ],
                     "body": {
                       "mode": "raw",
-                      "raw": "{\n    \"amount\": 2222,\n    \"currency\": \"USD\",\n    \"confirm\": true,\n    \"capture_method\": \"automatic\",\n    \"capture_on\": \"2022-09-10T10:11:12Z\",\n    \"amount_to_capture\": 2222,\n    \"customer_id\": \"StripeCustomer\",\n    \"email\": \"guest@example.com\",\n    \"name\": \"John Doe\",\n    \"phone\": \"999999999\",\n    \"phone_country_code\": \"+65\",\n    \"description\": \"Its my first payment request\",\n    \"authentication_type\": \"no_three_ds\",\n    \"return_url\": \"https://duck.com\",\n    \"payment_method\": \"card\",\n    \"payment_method_data\": {\n        \"card\": {\n            \"card_number\": \"4111111111111111\",\n            \"card_exp_month\": \"01\",\n            \"card_exp_year\": \"2023\",\n            \"card_holder_name\": \"joseph Doe\",\n            \"card_cvc\": \"123\"\n        }\n    },\n    \"billing\": {\n        \"address\": {\n            \"line1\": \"1467\",\n            \"line2\": \"Harrison Street\",\n            \"line3\": \"Harrison Street\",\n            \"city\": \"San Fransico\",\n            \"state\": \"California\",\n            \"zip\": \"94122\",\n            \"country\": \"US\",\n            \"first_name\": \"PiX\"\n        }\n    },\n    \"shipping\": {\n        \"address\": {\n            \"line1\": \"1467\",\n            \"line2\": \"Harrison Street\",\n            \"line3\": \"Harrison Street\",\n            \"city\": \"San Fransico\",\n            \"state\": \"California\",\n            \"zip\": \"94122\",\n            \"country\": \"US\",\n            \"first_name\": \"PiX\"\n        }\n    },\n    \"statement_descriptor_name\": \"joseph\",\n    \"statement_descriptor_suffix\": \"JS\",\n    \"metadata\": {\n        \"udf1\": \"value1\",\n        \"new_customer\": \"true\",\n        \"login_date\": \"2019-09-10T10:11:12Z\"\n    }\n}",
                       "options": {
                         "raw": {
                           "language": "json"
                         }
-                      }
+                      },
+                      "raw": "{\"amount\":2222,\"currency\":\"USD\",\"confirm\":true,\"capture_method\":\"automatic\",\"capture_on\":\"2022-09-10T10:11:12Z\",\"amount_to_capture\":2222,\"customer_id\":\"StripeCustomer\",\"email\":\"guest@example.com\",\"name\":\"John Doe\",\"phone\":\"999999999\",\"phone_country_code\":\"+65\",\"description\":\"Its my first payment request\",\"authentication_type\":\"no_three_ds\",\"return_url\":\"https://duck.com\",\"payment_method\":\"card\",\"payment_method_data\":{\"card\":{\"card_number\":\"4111111111111111\",\"card_exp_month\":\"01\",\"card_exp_year\":\"2023\",\"card_holder_name\":\"joseph Doe\",\"card_cvc\":\"123\"}},\"billing\":{\"address\":{\"line1\":\"1467\",\"line2\":\"Harrison Street\",\"line3\":\"Harrison Street\",\"city\":\"San Fransico\",\"state\":\"California\",\"zip\":\"94122\",\"country\":\"US\",\"first_name\":\"PiX\"}},\"shipping\":{\"address\":{\"line1\":\"1467\",\"line2\":\"Harrison Street\",\"line3\":\"Harrison Street\",\"city\":\"San Fransico\",\"state\":\"California\",\"zip\":\"94122\",\"country\":\"US\",\"first_name\":\"PiX\"}},\"statement_descriptor_name\":\"joseph\",\"statement_descriptor_suffix\":\"JS\",\"metadata\":{\"udf1\":\"value1\",\"new_customer\":\"true\",\"login_date\":\"2019-09-10T10:11:12Z\"}}"
                     },
                     "url": {
                       "raw": "{{baseUrl}}/payments",
@@ -3913,12 +3940,12 @@
                     ],
                     "body": {
                       "mode": "raw",
-                      "raw": " {}",
                       "options": {
                         "raw": {
                           "language": "json"
                         }
-                      }
+                      },
+                      "raw": "{}"
                     },
                     "url": {
                       "raw": "{{baseUrl}}/payments/:id/confirm",
@@ -4262,7 +4289,7 @@
                   "response": []
                 },
                 {
-                  "name": "Payments - Retrieve",
+                  "name": "Payments - Retrieve-copy",
                   "event": [
                     {
                       "listen": "test",
@@ -4647,12 +4674,12 @@
                     ],
                     "body": {
                       "mode": "raw",
-                      "raw": "{\n  \"amount_to_capture\": 7000,\n  \"statement_descriptor_name\": \"Joseph\",\n  \"statement_descriptor_suffix\": \"JS\"\n}",
                       "options": {
                         "raw": {
                           "language": "json"
                         }
-                      }
+                      },
+                      "raw": "{\"amount_to_capture\":7000,\"statement_descriptor_name\":\"Joseph\",\"statement_descriptor_suffix\":\"JS\"}"
                     },
                     "url": {
                       "raw": "{{baseUrl}}/payments/:id/capture",
@@ -4677,7 +4704,7 @@
                   "response": []
                 },
                 {
-                  "name": "Payments - Retrieve",
+                  "name": "Payments - Retrieve-copy",
                   "event": [
                     {
                       "listen": "test",
@@ -4778,7 +4805,7 @@
               ]
             },
             {
-              "name": "Scenario5-Void the success/failure payment",
+              "name": "Scenario5-Void the success_slash_failure payment",
               "item": [
                 {
                   "name": "Payments - Create",
@@ -5055,12 +5082,12 @@
                     ],
                     "body": {
                       "mode": "raw",
-                      "raw": "{\n  \"cancellation_reason\": \"user_cancel\"\n}",
                       "options": {
                         "raw": {
                           "language": "json"
                         }
-                      }
+                      },
+                      "raw": "{\"cancellation_reason\":\"user_cancel\"}"
                     },
                     "url": {
                       "raw": "{{baseUrl}}/payments/:id/cancel",
@@ -5584,7 +5611,7 @@
                   "response": []
                 },
                 {
-                  "name": "Payments - Retrieve",
+                  "name": "Payments - Retrieve-copy",
                   "event": [
                     {
                       "listen": "test",
@@ -5741,12 +5768,12 @@
                     ],
                     "body": {
                       "mode": "raw",
-                      "raw": "{\n    \"payment_id\": \"{{payment_id}}\",\n    \"amount\": 540,\n    \"reason\": \"Customer returned product\",\n    \"refund_type\": \"instant\",\n    \"metadata\": {\n        \"udf1\": \"value1\",\n        \"new_customer\": \"true\",\n        \"login_date\": \"2019-09-10T10:11:12Z\"\n    }\n}",
                       "options": {
                         "raw": {
                           "language": "json"
                         }
-                      }
+                      },
+                      "raw": "{\"payment_id\":\"{{payment_id}}\",\"amount\":540,\"reason\":\"Customer returned product\",\"refund_type\":\"instant\",\"metadata\":{\"udf1\":\"value1\",\"new_customer\":\"true\",\"login_date\":\"2019-09-10T10:11:12Z\"}}"
                     },
                     "url": {
                       "raw": "{{baseUrl}}/refunds",
@@ -5788,36 +5815,13 @@
       }
     ]
   },
-  "event": [
-    {
-      "listen": "prerequest",
-      "script": {
-        "type": "text/javascript",
-        "exec": [
-          ""
-        ]
-      }
-    },
-    {
-      "listen": "test",
-      "script": {
-        "type": "text/javascript",
-        "exec": [
-          "// Set response object as internal variable",
-          "let jsonData = {};",
-          "try {jsonData = pm.response.json();}catch(e){}",
-          "",
-          "// pm.collectionVariables - Set payment_id as variable for jsonData.payment_id",
-          "if (jsonData?.payment_id) {",
-          "   pm.collectionVariables.set(\"payment_id\", jsonData.payment_id);",
-          "   console.log(\"[LOG]::payment_id - \" + jsonData.payment_id);",
-          "}",
-          "",
-          "console.log(\"[LOG]::x-request-id - \" + pm.response.headers.get('x-request-id'));"
-        ]
-      }
-    }
-  ],
+  "info": {
+    "_postman_id": "4de44872-bdff-465f-a958-52988651e0b8",
+    "name": "nmi",
+    "description": "## Get started\n\nJuspay Router provides a collection of APIs that enable you to process and manage payments. Our APIs accept and return JSON in the HTTP body, and return standard HTTP response codes.  \nYou can consume the APIs directly using your favorite HTTP/REST library.  \nWe have a testing environment referred to \"sandbox\", which you can setup to test API calls without affecting production data.\n\n### Base URLs\n\nUse the following base URLs when making requests to the APIs:\n\n| Environment | Base URL |\n| --- | --- |\n| Sandbox | [https://sandbox.hyperswitch.io](https://sandbox.hyperswitch.io) |\n| Production | [https://router.juspay.io](https://router.juspay.io) |\n\n# Authentication\n\nWhen you sign up for an account, you are given a secret key (also referred as api-key). You may authenticate all API requests with Juspay server by providing the appropriate key in the request Authorization header.  \nNever share your secret api keys. Keep them guarded and secure.\n\nContact Support:  \nName: Juspay Support  \nEmail: [support@juspay.in](mailto:support@juspay.in)",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "_exporter_id": "25737662"
+  },
   "variable": [
     {
       "key": "baseUrl",

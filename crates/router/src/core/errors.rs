@@ -119,6 +119,8 @@ pub enum ConnectorError {
     MissingConnectorTransactionID,
     #[error("Missing connector refund ID")]
     MissingConnectorRefundID,
+    #[error("Missing apple pay tokenization data")]
+    MissingApplePayTokenData,
     #[error("Webhooks not implemented for this connector")]
     WebhooksNotImplemented,
     #[error("Failed to decode webhook event body")]
@@ -248,6 +250,22 @@ pub enum WebhooksFlowError {
     OutgoingWebhookEncodingFailed,
     #[error("Missing required field: {field_name}")]
     MissingRequiredField { field_name: &'static str },
+}
+
+#[derive(Debug, thiserror::Error)]
+pub enum ApplePayDecryptionError {
+    #[error("Failed to base64 decode input data")]
+    Base64DecodingFailed,
+    #[error("Failed to decrypt input data")]
+    DecryptionFailed,
+    #[error("Certificate parsing failed")]
+    CertificateParsingFailed,
+    #[error("Certificate parsing failed")]
+    MissingMerchantId,
+    #[error("Key Deserialization failure")]
+    KeyDeserializationFailed,
+    #[error("Failed to Derive a shared secret key")]
+    DerivingSharedSecretKeyFailed,
 }
 
 impl ConnectorError {
