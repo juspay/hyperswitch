@@ -68,7 +68,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
         helpers::validate_business_details(
             request.business_country,
             request.business_label.as_ref(),
-            &merchant_account,
+            merchant_account,
         )?;
 
         // Validate whether profile_id passed in request is valid and is linked to the merchant
