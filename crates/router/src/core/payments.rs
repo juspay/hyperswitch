@@ -588,15 +588,15 @@ where
     )
     .await?;
 
-    let (mut payment_data, tokenization_action) =
-        get_connector_tokenization_action_when_confirm_true(
-            state,
-            operation,
-            payment_data,
-            validate_result,
-            &merchant_connector_account,
-        )
-        .await?;
+    let (pd, tokenization_action) = get_connector_tokenization_action_when_confirm_true(
+        state,
+        operation,
+        payment_data,
+        validate_result,
+        &merchant_connector_account,
+    )
+    .await?;
+    *payment_data = pd;
 
     let mut router_data = payment_data
         .construct_router_data(
@@ -662,7 +662,7 @@ where
     (router_data, should_continue_further) = complete_preprocessing_steps_if_required(
         state,
         &connector,
-        &payment_data,
+        payment_data,
         router_data,
         operation,
         should_continue_further,
@@ -688,7 +688,7 @@ where
         (None, false)
     };
 
-    if should_add_task_to_process_tracker(&payment_data) {
+    if should_add_task_to_process_tracker(payment_data) {
         operation
             .to_domain()?
             .add_task_to_process_tracker(
@@ -705,7 +705,7 @@ where
     // Update the payment trackers just before calling the connector
     // Since the request is already built in the previous step,
     // there should be no error in request construction from hyperswitch end
-    (_, payment_data) = operation
+    (_, *payment_data) = operation
         .to_update_tracker()?
         .update_trackers(
             &*state.store,
