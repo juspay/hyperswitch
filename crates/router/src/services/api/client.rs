@@ -165,6 +165,11 @@ where
         request: Request,
         option_timeout_secs: Option<u64>,
     ) -> CustomResult<reqwest::Response, ApiClientError>;
+
+    fn add_request_id(&mut self, request_id: Option<String>) {}
+    fn get_request_id(&self) -> Option<String> {
+        None
+    }
 }
 
 dyn_clone::clone_trait_object!(ApiClient);
@@ -174,6 +179,7 @@ pub struct ProxyClient {
     proxy_client: reqwest::Client,
     non_proxy_client: reqwest::Client,
     whitelisted_urls: Vec<String>,
+    
 }
 
 impl ProxyClient {
@@ -214,8 +220,10 @@ impl ProxyClient {
             proxy_client,
             non_proxy_client,
             whitelisted_urls,
+            request_id: None,
         })
     }
+
     pub fn get_reqwest_client(
         &self,
         base_url: String,
@@ -339,6 +347,14 @@ impl ApiClient for ProxyClient {
     ) -> CustomResult<reqwest::Response, ApiClientError> {
         crate::services::send_request(state, request, option_timeout_secs).await
     }
+
+    fn add_request_id(&mut self, _request_id: Option<String>) {
+        
+    }
+
+    fn get_request_id(&self) -> Option<String> {
+        None
+    }
 }
 
 ///
@@ -377,5 +393,14 @@ impl ApiClient for MockApiClient {
     ) -> CustomResult<reqwest::Response, ApiClientError> {
         // [#2066]: Add Mock implementation for ApiClient
         Err(ApiClientError::UnexpectedState.into())
+    }
+
+    fn add_request_id(&mut self, _request_id: Option<String>) {
+        // [#2066]: Add Mock implementation for ApiClient
+    }
+
+    fn get_request_id(&self) -> Option<String> {
+        // [#2066]: Add Mock implementation for ApiClient
+        None
     }
 }
