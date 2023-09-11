@@ -444,9 +444,7 @@ pub async fn create_payment_connector(
     merchant_id: &String,
 ) -> RouterResponse<api_models::admin::MerchantConnectorResponse> {
     #[cfg(feature = "dummy_connector")]
-    if let Err(error) = validate_dummy_connector_enabled(state, &req.connector_name).await {
-        return Err(error.into());
-    }
+    validate_dummy_connector_enabled(state, &req.connector_name).await?;
     let key_store = state
         .store
         .get_merchant_key_store_by_merchant_id(
@@ -1280,22 +1278,22 @@ async fn validate_dummy_connector_enabled(
     state: &AppState,
     connector_name: &api_enums::Connector,
 ) -> Result<(), errors::ApiErrorResponse> {
-    #[cfg(feature = "dummy_connector")]
-    if !state.conf.dummy_connector.is_enabled {
-        match connector_name {
+    if !state.conf.dummy_connector.is_enabled
+        && matches!(
+            connector_name,
             api_enums::Connector::DummyConnector1
-            | api_enums::Connector::DummyConnector2
-            | api_enums::Connector::DummyConnector3
-            | api_enums::Connector::DummyConnector4
-            | api_enums::Connector::DummyConnector5
-            | api_enums::Connector::DummyConnector6
-            | api_enums::Connector::DummyConnector7 => {
-                return Err(errors::ApiErrorResponse::InvalidRequestData {
-                    message: format!("{} is not enabled", connector_name),
-                });
-            }
-            _ => {}
-        }
+                | api_enums::Connector::DummyConnector2
+                | api_enums::Connector::DummyConnector3
+                | api_enums::Connector::DummyConnector4
+                | api_enums::Connector::DummyConnector5
+                | api_enums::Connector::DummyConnector6
+                | api_enums::Connector::DummyConnector7
+        )
+    {
+        Err(errors::ApiErrorResponse::InvalidRequestData {
+            message: "Invalid connector name".to_string(),
+        })
+    } else {
+        Ok(())
     }
-    Ok(())
 }
