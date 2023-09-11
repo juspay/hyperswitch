@@ -1,6 +1,7 @@
 pub mod types;
 pub mod utils;
 
+use api_models::payments::HeaderPayload;
 use common_utils::errors::ReportSwitchExt;
 use error_stack::{report, IntoReport, ResultExt};
 use masking::ExposeInterface;
@@ -62,6 +63,7 @@ pub async fn payments_incoming_webhook_flow<W: types::OutgoingWebhookType>(
                 },
                 services::AuthFlow::Merchant,
                 consume_or_trigger_flow,
+                HeaderPayload::default(),
             )
             .await;
 
@@ -438,6 +440,7 @@ async fn bank_transfer_webhook_flow<W: types::OutgoingWebhookType>(
             request,
             services::api::AuthFlow::Merchant,
             payments::CallConnectorAction::Trigger,
+            HeaderPayload::default(),
         )
         .await
     } else {

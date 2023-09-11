@@ -598,6 +598,7 @@ diesel::table! {
         profile_id -> Nullable<Varchar>,
         #[max_length = 64]
         merchant_decision -> Nullable<Varchar>,
+        payment_confirm_source -> Nullable<PaymentSource>,
     }
 }
 

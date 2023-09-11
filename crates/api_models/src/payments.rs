@@ -124,7 +124,7 @@ pub struct PaymentsRequest {
     pub currency: Option<api_enums::Currency>,
 
     /// This is the instruction for capture/ debit the money from the users' card. On the other hand authorization refers to blocking the amount on the users' payment method.
-    #[schema(value_type = Option<CaptureMethod>, example = "PaymentProcessor")]
+    #[schema(value_type = Option<CaptureMethod>, example = "automatic")]
     pub capture_method: Option<api_enums::CaptureMethod>,
 
     /// The Amount to be captured/ debited from the users payment method. It shall be in lowest denomination of the currency. (i.e) in cents for USD denomination, in paisa for INR denomination etc.,
@@ -298,6 +298,11 @@ pub struct PaymentsRequest {
     /// The business profile to use for this payment, if not passed the default business profile
     /// associated with the merchant account will be used.
     pub profile_id: Option<String>,
+}
+
+#[derive(Default, Debug, Clone, Copy)]
+pub struct HeaderPayload {
+    pub payment_confirm_source: Option<api_enums::PaymentSource>,
 }
 
 #[derive(
@@ -1775,7 +1780,7 @@ pub struct PaymentsResponse {
     pub capture_on: Option<PrimitiveDateTime>,
 
     /// This is the instruction for capture/ debit the money from the users' card. On the other hand authorization refers to blocking the amount on the users' payment method.
-    #[schema(value_type = Option<CaptureMethod>, example = "PaymentProcessor")]
+    #[schema(value_type = Option<CaptureMethod>, example = "automatic")]
     pub capture_method: Option<api_enums::CaptureMethod>,
 
     /// The payment method that is to be used
