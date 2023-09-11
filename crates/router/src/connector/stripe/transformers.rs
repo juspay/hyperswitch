@@ -1306,7 +1306,7 @@ fn create_stripe_payment_method(
                         payment_method_token
                     {
                         let expiry_year_4_digit = Secret::new(format!(
-                            "20{:?}",
+                            "20{}",
                             decrypt_data
                                 .clone()
                                 .application_expiration_date

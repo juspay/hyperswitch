@@ -106,7 +106,7 @@ where
     let connector_api_version = if supported_connector.contains(&connector_enum) {
         state
             .store
-            .find_config_by_key_cached(&format!("connector_api_version_{connector_id}"))
+            .find_config_by_key(&format!("connector_api_version_{connector_id}"))
             .await
             .map(|value| value.config)
             .ok()
@@ -417,7 +417,7 @@ where
     let payment_method_data_response =
         additional_payment_method_data.map(api::PaymentMethodDataResponse::from);
 
-    let headers = connector_http_status_code
+    let mut headers = connector_http_status_code
         .map(|status_code| {
             vec![(
                 "connector_http_status_code".to_string(),
@@ -425,6 +425,12 @@ where
             )]
         })
         .unwrap_or(vec![]);
+    if let Some(payment_confirm_source) = payment_intent.payment_confirm_source {
+        headers.push((
+            "payment_confirm_source".to_string(),
+            payment_confirm_source.to_string(),
+        ))
+    }
 
     let output = Ok(match payment_request {
         Some(_request) => {
@@ -504,10 +510,10 @@ where
                 let mut response: api::PaymentsResponse = Default::default();
                 let routed_through = payment_attempt.connector.clone();
 
-                let connector_label = routed_through.as_ref().map(|connector_name| {
-                    helpers::get_connector_label(
+                let connector_label = routed_through.as_ref().and_then(|connector_name| {
+                    core_utils::get_connector_label(
                         payment_intent.business_country,
-                        &payment_intent.business_label,
+                        payment_intent.business_label.as_ref(),
                         payment_attempt.business_sub_label.as_ref(),
                         connector_name,
                     )
