@@ -503,8 +503,8 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
 
         let return_url = payment_data.payment_intent.return_url.clone();
         let setup_future_usage = payment_data.payment_intent.setup_future_usage;
-        let business_label = Some(payment_data.payment_intent.business_label.clone());
-        let business_country = Some(payment_data.payment_intent.business_country);
+        let business_label = payment_data.payment_intent.business_label.clone();
+        let business_country = payment_data.payment_intent.business_country;
         let description = payment_data.payment_intent.description.clone();
         let statement_descriptor_name = payment_data
             .payment_intent
@@ -640,13 +640,10 @@ impl PaymentUpdate {
             .clone()
             .map(|i| payment_intent.return_url.replace(i.to_string()));
 
-        payment_intent.business_country = request
-            .business_country
-            .unwrap_or(payment_intent.business_country);
-        payment_intent.business_label = request
-            .business_label
-            .clone()
-            .unwrap_or(payment_intent.business_label.clone());
+        payment_intent.business_country = request.business_country;
+
+        payment_intent.business_label = request.business_label.clone();
+
         request
             .description
             .clone()

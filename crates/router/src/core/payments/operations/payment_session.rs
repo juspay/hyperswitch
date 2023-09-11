@@ -330,7 +330,7 @@ where
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Database error when querying for merchant connector accounts")?;
 
-        let filtered_connector_accounts = helpers::filter_mca_based_on_business_details(
+        let filtered_connector_accounts = helpers::filter_mca_based_on_business_profile(
             all_connector_accounts,
             Some(payment_intent),
         );
