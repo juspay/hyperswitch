@@ -29,7 +29,7 @@ pub async fn lookup_webhook_event(
         Ok(merchant_webhook_config) => merchant_webhook_config.contains(event),
         Err(..) => {
             //if failed to fetch from redis. fetch from db and populate redis
-            db.find_config_by_key_cached(&redis_key)
+            db.find_config_by_key(&redis_key)
                 .await
                 .map(|config| {
                     if let Ok(set) =

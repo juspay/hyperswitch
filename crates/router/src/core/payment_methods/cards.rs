@@ -48,7 +48,7 @@ use crate::{
             types::{decrypt, encrypt_optional, AsyncLift},
         },
         storage::{self, enums},
-        transformers::{ForeignFrom, ForeignInto},
+        transformers::ForeignFrom,
     },
     utils::{self, ConnectorResponseExt, OptionExt},
 };
@@ -856,7 +856,7 @@ pub async fn list_payment_methods(
 
     // filter out connectors based on the business country
     let filtered_mcas =
-        helpers::filter_mca_based_on_business_details(all_mcas, payment_intent.as_ref());
+        helpers::filter_mca_based_on_business_profile(all_mcas, payment_intent.as_ref());
 
     logger::debug!(mca_before_filtering=?filtered_mcas);
 
@@ -1249,9 +1249,31 @@ pub async fn list_payment_methods(
             redirect_url: merchant_account.return_url,
             merchant_name: merchant_account.merchant_name,
             payment_methods: payment_method_responses,
-            mandate_payment: payment_attempt
-                .and_then(|inner| inner.mandate_details)
-                .map(ForeignInto::foreign_into),
+            mandate_payment: payment_attempt.and_then(|inner| inner.mandate_details).map(
+                |d| match d {
+                    data_models::mandates::MandateDataType::SingleUse(i) => {
+                        api::MandateType::SingleUse(api::MandateAmountData {
+                            amount: i.amount,
+                            currency: i.currency,
+                            start_date: i.start_date,
+                            end_date: i.end_date,
+                            metadata: i.metadata,
+                        })
+                    }
+                    data_models::mandates::MandateDataType::MultiUse(Some(i)) => {
+                        api::MandateType::MultiUse(Some(api::MandateAmountData {
+                            amount: i.amount,
+                            currency: i.currency,
+                            start_date: i.start_date,
+                            end_date: i.end_date,
+                            metadata: i.metadata,
+                        }))
+                    }
+                    data_models::mandates::MandateDataType::MultiUse(None) => {
+                        api::MandateType::MultiUse(None)
+                    }
+                },
+            ),
         },
     ))
 }
