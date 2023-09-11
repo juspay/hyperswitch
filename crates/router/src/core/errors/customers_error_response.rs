@@ -1,12 +1,5 @@
 use http::StatusCode;
 
-#[derive(Debug, Clone, serde::Serialize)]
-pub enum CustomersErrorType {
-    ObjectNotFound,
-    InvalidRequestError,
-    InternalServerError,
-}
-
 #[derive(Debug, thiserror::Error)]
 pub enum CustomersErrorResponse {
     #[error("Customer has already been redacted")]
