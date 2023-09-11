@@ -66,13 +66,11 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for BraintreePaymentsRequest {
         match item.request.payment_method_data.clone() {
             api::PaymentMethodData::Card(_) => {
                 if item.is_three_ds() {
-                    Ok(BraintreePaymentsRequest::CardThreeDs(
-                        BraintreeClientTokenRequest::try_from(metadata)?,
-                    ))
+                    Ok(Self::CardThreeDs(BraintreeClientTokenRequest::try_from(
+                        metadata,
+                    )?))
                 } else {
-                    Ok(BraintreePaymentsRequest::Card(
-                        CardPaymentRequest::try_from((item, metadata))?,
-                    ))
+                    Ok(Self::Card(CardPaymentRequest::try_from((item, metadata))?))
                 }
             }
             api_models::payments::PaymentMethodData::CardRedirect(_)
@@ -100,9 +98,9 @@ impl TryFrom<&types::PaymentsCompleteAuthorizeRouterData> for BraintreePaymentsR
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::PaymentsCompleteAuthorizeRouterData) -> Result<Self, Self::Error> {
         match item.request.payment_method_data.clone() {
-            Some(api::PaymentMethodData::Card(_)) => Ok(BraintreePaymentsRequest::Card(
-                CardPaymentRequest::try_from(item)?,
-            )),
+            Some(api::PaymentMethodData::Card(_)) => {
+                Ok(Self::Card(CardPaymentRequest::try_from(item)?))
+            }
             Some(api_models::payments::PaymentMethodData::CardRedirect(_))
             | Some(api_models::payments::PaymentMethodData::Wallet(_))
             | Some(api_models::payments::PaymentMethodData::PayLater(_))
@@ -1216,7 +1214,7 @@ pub struct BraintreeRedirectionResponse {
 impl TryFrom<BraintreeMeta> for BraintreeClientTokenRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(metadata: BraintreeMeta) -> Result<Self, Self::Error> {
-        Ok(BraintreeClientTokenRequest {
+        Ok(Self {
             query: CLIENT_TOKEN_MUTATION.to_owned(),
             variables: VariableClientTokenInput {
                 input: InputClientTokenData {
@@ -1244,7 +1242,7 @@ impl TryFrom<(&types::PaymentsAuthorizeRouterData, BraintreeMeta)> for CardPayme
             true => CHARGE_CREDIT_CARD_MUTATION.to_string(),
             false => AUTHORIZE_CREDIT_CARD_MUTATION.to_string(),
         };
-        Ok(CardPaymentRequest {
+        Ok(Self {
             query,
             variables: VariablePaymentInput {
                 input: PaymentInput {
@@ -1300,7 +1298,7 @@ impl TryFrom<&types::PaymentsCompleteAuthorizeRouterData> for CardPaymentRequest
                 true => CHARGE_CREDIT_CARD_MUTATION.to_string(),
                 false => AUTHORIZE_CREDIT_CARD_MUTATION.to_string(),
             };
-        Ok(CardPaymentRequest {
+        Ok(Self {
             query,
             variables: VariablePaymentInput {
                 input: PaymentInput {
