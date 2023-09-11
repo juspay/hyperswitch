@@ -19,10 +19,8 @@ impl<T> StorageErrorExt<T, errors::CustomersErrorResponse>
         not_found_response: errors::CustomersErrorResponse,
     ) -> error_stack::Result<T, errors::CustomersErrorResponse> {
         self.map_err(|err| {
-            if err.current_context().is_db_not_found() {
-                return err.change_context(not_found_response);
-            };
             match err.current_context() {
+                error if error.is_db_not_found() => err.change_context(not_found_response),
                 errors::StorageError::CustomerRedacted => {
                     err.change_context(errors::CustomersErrorResponse::CustomerRedacted)
                 }
