@@ -220,7 +220,6 @@ impl ProxyClient {
             proxy_client,
             non_proxy_client,
             whitelisted_urls,
-            request_id: None,
         })
     }
 

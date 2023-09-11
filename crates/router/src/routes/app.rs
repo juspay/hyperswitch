@@ -37,12 +37,13 @@ pub struct AppState {
     pub api_client: Box<dyn crate::services::ApiClient>,
 }
 
-pub trait AppStateInfo {
+pub trait AppStateInfo: Clone + AsRef<Self> {
     fn conf(&self) -> settings::Settings;
     fn flow_name(&self) -> String;
     fn store(&self) -> Box<dyn StorageInterface>;
     #[cfg(feature = "email")]
     fn email_client(&self) -> Box<dyn EmailClient>;
+    fn add_request_id(&mut self, request_id: Option<String>);
 }
 
 impl AppStateInfo for AppState {
@@ -58,6 +59,15 @@ impl AppStateInfo for AppState {
     #[cfg(feature = "email")]
     fn email_client(&self) -> Box<dyn EmailClient> {
         self.email_client.to_owned()
+    }
+    fn add_request_id(&mut self, request_id: Option<String>) {
+        self.api_client.add_request_id(request_id);
+    }
+}
+
+impl AsRef<Self> for AppState {
+    fn as_ref(&self) -> &Self {
+        self
     }
 }
 

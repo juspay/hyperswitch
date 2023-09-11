@@ -10,16 +10,6 @@ use std::{
     time::{Duration, Instant},
 };
 
-use actix_web::{body, HttpRequest, HttpResponse, Responder, ResponseError};
-use api_models::enums::CaptureMethod;
-pub use client::{proxy_bypass_urls, ApiClient, MockApiClient, ProxyClient};
-use common_utils::errors::ReportSwitchExt;
-use error_stack::{report, IntoReport, Report, ResultExt};
-use masking::{ExposeOptionInterface, PeekInterface};
-use router_env::{instrument, tracing, Tag};
-use serde::Serialize;
-use serde_json::json;
-
 use self::request::{ContentType, HeaderExt, RequestBuilderExt};
 pub use self::request::{Method, Request, RequestBuilder};
 use crate::{
@@ -42,6 +32,16 @@ use crate::{
         ErrorResponse,
     },
 };
+use actix_web::{body, FromRequest, HttpRequest, HttpResponse, Responder, ResponseError};
+use api_models::enums::CaptureMethod;
+pub use client::{proxy_bypass_urls, ApiClient, MockApiClient, ProxyClient};
+use common_utils::errors::ReportSwitchExt;
+use error_stack::{report, IntoReport, Report, ResultExt};
+use masking::{ExposeOptionInterface, PeekInterface};
+use router_env::tracing_actix_web::RequestId;
+use router_env::{instrument, tracing, Tag};
+use serde::Serialize;
+use serde_json::json;
 
 pub type BoxedConnectorIntegration<'a, T, Req, Resp> =
     Box<&'a (dyn ConnectorIntegration<T, Req, Resp> + Send + Sync)>;
@@ -721,7 +721,7 @@ where
     Fut: Future<Output = CustomResult<ApplicationResponse<Q>, E>>,
     Q: Serialize + Debug + 'a,
     T: Debug,
-    A: AppStateInfo,
+    A: AppStateInfo + Clone,
     U: auth::AuthInfo,
     CustomResult<ApplicationResponse<Q>, E>: ReportSwitchExt<ApplicationResponse<Q>, OErr>,
     CustomResult<U, errors::ApiErrorResponse>: ReportSwitchExt<U, OErr>,
@@ -733,8 +733,15 @@ where
         .switch()?;
     let merchant_id = auth_out.get_merchant_id().unwrap_or("").to_string();
     tracing::Span::current().record("merchant_id", &merchant_id);
+    let request_id = RequestId::extract(request)
+        .await
+        .ok()
+        .map(|id| id.as_hyphenated().to_string());
 
-    let output = func(state, auth_out, payload).await.switch();
+    let mut statex = state.clone();
+    statex.add_request_id(request_id);
+
+    let output = func(&statex.clone(), auth_out, payload).await.switch();
 
     let status_code = match output.as_ref() {
         Ok(res) => metrics::request::track_response_status_code(res),
