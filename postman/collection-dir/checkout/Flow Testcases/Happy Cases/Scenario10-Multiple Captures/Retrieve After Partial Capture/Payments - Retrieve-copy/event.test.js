@@ -1,6 +1,6 @@
 // Validate status 2xx 
-pm.test("[GET]::/payments/:id - Status code is 5xx", function () {
-    pm.response.to.be.error;
+pm.test("[GET]::/payments/:id - Status code is 2xx", function () {
+    pm.response.to.be.success;
 });
 
 // Validate if response header has matching content-type
@@ -25,10 +25,3 @@ if (jsonData?.payment_id) {
 } else {
     console.log('INFO - Unable to assign variable {{payment_id}}, as jsonData.payment_id is undefined.');
 };
-
-// Response body should have value "connector error" for "error type"
-if (jsonData?.error?.type) {
-pm.test("[POST]::/payments/:id/confirm - Content check if value for 'error.type' matches 'invalid_request'", function() {
-  pm.expect(jsonData.error.type).to.eql("invalid_request");
-})};
-
