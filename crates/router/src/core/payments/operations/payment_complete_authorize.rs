@@ -109,13 +109,24 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Co
 
         let token = token.or_else(|| payment_attempt.payment_token.clone());
 
-        helpers::validate_pm_or_token_given(
-            &request.payment_method,
-            &request.payment_method_data,
-            &request.payment_method_type,
-            &mandate_type,
-            &token,
-        )?;
+        if let Some(payment_method) = payment_method {
+            let should_validate_pm_or_token_given =
+                //this validation shouldn't happen if data was not stored in vault
+                !helpers::should_store_payment_method_data_in_vault(
+                    &state.conf.temp_locker_disable_config,
+                    payment_attempt.connector.clone(),
+                    payment_method,
+                );
+            if should_validate_pm_or_token_given {
+                helpers::validate_pm_or_token_given(
+                    &request.payment_method,
+                    &request.payment_method_data,
+                    &request.payment_method_type,
+                    &mandate_type,
+                    &token,
+                )?;
+            }
+        }
 
         payment_attempt.payment_method = payment_method.or(payment_attempt.payment_method);
         payment_attempt.browser_info = browser_info;

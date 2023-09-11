@@ -310,6 +310,10 @@ stax = { long_lived_token = true, payment_method = "card,bank_debit" }
 square = {long_lived_token = false, payment_method = "card"}
 braintree = { long_lived_token = false, payment_method = "card" }
 
+[temp_locker_disable_config]
+trustpay = {payment_method = "card,bank_redirect,wallet"}
+stripe = {payment_method = "card,bank_redirect,pay_later,wallet,bank_debit"}
+
 [dummy_connector]
 payment_ttl = 172800             # Time to live for dummy connector payment in redis
 payment_duration = 1000          # Fake delay duration for dummy connector payment
