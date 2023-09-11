@@ -9,7 +9,6 @@ use crate::{
         errors::{self, RouterResponse, StorageErrorExt},
         payment_methods::cards,
     },
-    db::StorageInterface,
     pii::PeekInterface,
     routes::{metrics, AppState},
     services,
@@ -209,7 +208,7 @@ pub async fn delete_customer(
             for pm in customer_payment_methods.into_iter() {
                 if pm.payment_method == enums::PaymentMethod::Card {
                     cards::delete_card_from_locker(
-                        state,
+                        state.clone(),
                         &req.customer_id,
                         &merchant_account.merchant_id,
                         &pm.payment_method_id,

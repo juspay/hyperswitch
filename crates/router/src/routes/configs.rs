@@ -22,7 +22,7 @@ pub async fn config_key_create(
         state,
         &req,
         payload,
-        |state, _, data| configs::set_config(&*state.store, data),
+        |state, _, data| configs::set_config(state, data),
         &auth::AdminApiAuth,
     )
     .await
@@ -42,7 +42,7 @@ pub async fn config_key_retrieve(
         state,
         &req,
         &key,
-        |state, _, key| configs::read_config(&*state.store, key),
+        |state, _, key| configs::read_config(state, key),
         &auth::AdminApiAuth,
     )
     .await
@@ -65,7 +65,7 @@ pub async fn config_key_update(
         state,
         &req,
         &payload,
-        |state, _, payload| configs::update_config(&*state.store, payload),
+        |state, _, payload| configs::update_config(state, payload),
         &auth::AdminApiAuth,
     )
     .await

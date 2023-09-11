@@ -101,7 +101,7 @@ pub async fn refund_create_core(
         .transpose()?;
 
     validate_and_create_refund(
-        state,
+        &state,
         &merchant_account,
         &key_store,
         &payment_attempt,
@@ -248,7 +248,7 @@ pub async fn trigger_refund_to_gateway(
 // ********************************************** REFUND SYNC **********************************************
 
 pub async fn refund_response_wrapper<'a, F, Fut, T, Req>(
-    state: AppState,
+    state: &'a AppState,
     merchant_account: domain::MerchantAccount,
     key_store: domain::MerchantKeyStore,
     request: Req,

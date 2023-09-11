@@ -45,7 +45,7 @@ pub async fn payments_incoming_webhook_flow<W: types::OutgoingWebhookType>(
     let payments_response = match webhook_details.object_reference_id {
         api_models::webhooks::ObjectReferenceId::PaymentId(id) => {
             let response = payments::payments_core::<api::PSync, api::PaymentsResponse, _, _, _>(
-                &state,
+                state.clone(),
                 merchant_account.clone(),
                 key_store,
                 payments::operations::PaymentStatus,
@@ -431,7 +431,7 @@ async fn bank_transfer_webhook_flow<W: types::OutgoingWebhookType>(
             ..Default::default()
         };
         payments::payments_core::<api::Authorize, api::PaymentsResponse, _, _, _>(
-            &state,
+            state.clone(),
             merchant_account.to_owned(),
             key_store,
             payments::PaymentConfirm,

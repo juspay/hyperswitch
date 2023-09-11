@@ -35,7 +35,7 @@ pub async fn merchant_account_create(
         state,
         &req,
         json_payload.into_inner(),
-        |state, _, req| create_merchant_account(&*state.store, req),
+        |state, _, req| create_merchant_account(state, req),
         &auth::AdminApiAuth,
     )
     .await
@@ -71,7 +71,7 @@ pub async fn retrieve_merchant_account(
         state,
         &req,
         payload,
-        |state, _, req| get_merchant_account(&*state.store, req),
+        |state, _, req| get_merchant_account(state, req),
         &auth::AdminApiAuth,
     )
     .await
@@ -107,7 +107,7 @@ pub async fn update_merchant_account(
         state,
         &req,
         json_payload.into_inner(),
-        |state, _, req| merchant_account_update(&*state.store, &merchant_id, req),
+        |state, _, req| merchant_account_update(state, &merchant_id, req),
         &auth::AdminApiAuth,
     )
     .await
@@ -145,7 +145,7 @@ pub async fn delete_merchant_account(
         state,
         &req,
         payload,
-        |state, _, req| merchant_account_delete(&*state.store, req.merchant_id),
+        |state, _, req| merchant_account_delete(state, req.merchant_id),
         &auth::AdminApiAuth,
     )
     .await
@@ -180,7 +180,7 @@ pub async fn payment_connector_create(
         state,
         &req,
         json_payload.into_inner(),
-        |state, _, req| create_payment_connector(&*state.store, req, &merchant_id),
+        |state, _, req| create_payment_connector(state, req, &merchant_id),
         &auth::AdminApiAuth,
     )
     .await
@@ -225,7 +225,7 @@ pub async fn payment_connector_retrieve(
         &req,
         payload,
         |state, _, req| {
-            retrieve_payment_connector(&*state.store, req.merchant_id, req.merchant_connector_id)
+            retrieve_payment_connector(state, req.merchant_id, req.merchant_connector_id)
         },
         &auth::AdminApiAuth,
     )
@@ -264,7 +264,7 @@ pub async fn payment_connector_list(
         state,
         &req,
         merchant_id,
-        |state, _, merchant_id| list_payment_connectors(&*state.store, merchant_id),
+        |state, _, merchant_id| list_payment_connectors(state, merchant_id),
         &auth::AdminApiAuth,
     )
     .await
@@ -306,7 +306,7 @@ pub async fn payment_connector_update(
         &req,
         json_payload.into_inner(),
         |state, _, req| {
-            update_payment_connector(&*state.store, &merchant_id, &merchant_connector_id, req)
+            update_payment_connector(state, &merchant_id, &merchant_connector_id, req)
         },
         &auth::AdminApiAuth,
     )
@@ -352,7 +352,7 @@ pub async fn payment_connector_delete(
         &req,
         payload,
         |state, _, req| {
-            delete_payment_connector(&*state.store, req.merchant_id, req.merchant_connector_id)
+            delete_payment_connector(state, req.merchant_id, req.merchant_connector_id)
         },
         &auth::AdminApiAuth,
     )
@@ -379,7 +379,7 @@ pub async fn merchant_account_toggle_kv(
         &req,
         (merchant_id, payload),
         |state, _, (merchant_id, payload)| {
-            kv_for_merchant(&*state.store, merchant_id, payload.kv_enabled)
+            kv_for_merchant(state, merchant_id, payload.kv_enabled)
         },
         &auth::AdminApiAuth,
     )
@@ -402,7 +402,7 @@ pub async fn business_profile_create(
         state,
         &req,
         payload,
-        |state, _, req| create_business_profile(&*state.store, req, &merchant_id, None),
+        |state, _, req| create_business_profile(state, req, &merchant_id, None),
         &auth::AdminApiAuth,
     )
     .await
@@ -422,7 +422,7 @@ pub async fn business_profile_retrieve(
         state,
         &req,
         profile_id,
-        |state, _, profile_id| retrieve_business_profile(&*state.store, profile_id),
+        |state, _, profile_id| retrieve_business_profile(state, profile_id),
         &auth::AdminApiAuth,
     )
     .await
@@ -443,7 +443,7 @@ pub async fn business_profile_update(
         state,
         &req,
         json_payload.into_inner(),
-        |state, _, req| update_business_profile(&*state.store, &profile_id, &merchant_id, req),
+        |state, _, req| update_business_profile(state, &profile_id, &merchant_id, req),
         &auth::AdminApiAuth,
     )
     .await
@@ -463,7 +463,7 @@ pub async fn business_profile_delete(
         state,
         &req,
         profile_id,
-        |state, _, profile_id| delete_business_profile(&*state.store, profile_id, &merchant_id),
+        |state, _, profile_id| delete_business_profile(state, profile_id, &merchant_id),
         &auth::AdminApiAuth,
     )
     .await
@@ -483,7 +483,7 @@ pub async fn business_profiles_list(
         state,
         &req,
         merchant_id,
-        |state, _, merchant_id| list_business_profile(&*state.store, merchant_id),
+        |state, _, merchant_id| list_business_profile(state, merchant_id),
         &auth::AdminApiAuth,
     )
     .await
@@ -506,7 +506,7 @@ pub async fn merchant_account_kv_status(
         state,
         &req,
         merchant_id,
-        |state, _, req| check_merchant_account_kv_status(&*state.store, req),
+        |state, _, req| check_merchant_account_kv_status(state, req),
         &auth::AdminApiAuth,
     )
     .await

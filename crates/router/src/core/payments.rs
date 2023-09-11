@@ -256,7 +256,7 @@ where
     PaymentResponse: Operation<F, FData>,
 {
     let (payment_data, req, customer, connector_http_status_code) = payments_operation_core(
-        state,
+        &state,
         merchant_account,
         key_store,
         operation.clone(),
@@ -297,7 +297,7 @@ pub struct PaymentsRedirectResponseData {
 pub trait PaymentRedirectFlow: Sync {
     async fn call_payment_flow(
         &self,
-        state: AppState,
+        state: &AppState,
         merchant_account: domain::MerchantAccount,
         merchant_key_store: domain::MerchantKeyStore,
         req: PaymentsRedirectResponseData,
@@ -363,7 +363,7 @@ pub trait PaymentRedirectFlow: Sync {
 
         let response = self
             .call_payment_flow(
-                state,
+                &state,
                 merchant_account.clone(),
                 key_store,
                 req.clone(),
@@ -393,7 +393,7 @@ pub struct PaymentRedirectCompleteAuthorize;
 impl PaymentRedirectFlow for PaymentRedirectCompleteAuthorize {
     async fn call_payment_flow(
         &self,
-        state: AppState,
+        state: &AppState,
         merchant_account: domain::MerchantAccount,
         merchant_key_store: domain::MerchantKeyStore,
         req: PaymentsRedirectResponseData,
@@ -411,7 +411,7 @@ impl PaymentRedirectFlow for PaymentRedirectCompleteAuthorize {
             ..Default::default()
         };
         payments_core::<api::CompleteAuthorize, api::PaymentsResponse, _, _, _>(
-            state,
+            state.clone(),
             merchant_account,
             merchant_key_store,
             payment_complete_authorize::CompleteAuthorize,
@@ -482,7 +482,7 @@ pub struct PaymentRedirectSync;
 impl PaymentRedirectFlow for PaymentRedirectSync {
     async fn call_payment_flow(
         &self,
-        state: AppState,
+        state: &AppState,
         merchant_account: domain::MerchantAccount,
         merchant_key_store: domain::MerchantKeyStore,
         req: PaymentsRedirectResponseData,
@@ -505,7 +505,7 @@ impl PaymentRedirectFlow for PaymentRedirectSync {
             expand_captures: None,
         };
         payments_core::<api::PSync, api::PaymentsResponse, _, _, _>(
-            state,
+            state.clone(),
             merchant_account,
             merchant_key_store,
             PaymentStatus,

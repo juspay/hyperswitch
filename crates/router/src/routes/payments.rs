@@ -212,9 +212,9 @@ pub async fn payments_retrieve(
         state,
         &req,
         payload,
-        |x, auth, req| {
+        |state, auth, req| {
             payments::payments_core::<api_types::PSync, payment_types::PaymentsResponse, _, _, _>(
-                x,
+                state,
                 auth.merchant_account,
                 auth.key_store,
                 payments::PaymentStatus,

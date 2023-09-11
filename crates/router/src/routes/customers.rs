@@ -36,7 +36,7 @@ pub async fn customers_create(
         &req,
         json_payload.into_inner(),
         |state, auth, req| {
-            create_customer(&*state.store, auth.merchant_account, auth.key_store, req)
+            create_customer(state, auth.merchant_account, auth.key_store, req)
         },
         &auth::ApiKeyAuth,
     )
@@ -82,7 +82,7 @@ pub async fn customers_retrieve(
         &req,
         payload,
         |state, auth, req| {
-            retrieve_customer(&*state.store, auth.merchant_account, auth.key_store, req)
+            retrieve_customer(state, auth.merchant_account, auth.key_store, req)
         },
         &*auth,
     )
@@ -121,7 +121,7 @@ pub async fn customers_update(
         &req,
         json_payload.into_inner(),
         |state, auth, req| {
-            update_customer(&*state.store, auth.merchant_account, req, auth.key_store)
+            update_customer(state, auth.merchant_account, req, auth.key_store)
         },
         &auth::ApiKeyAuth,
     )

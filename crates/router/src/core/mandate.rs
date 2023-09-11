@@ -99,7 +99,7 @@ pub async fn update_connector_mandate_id(
 
 #[instrument(skip(state))]
 pub async fn get_customer_mandates(
-    state: &AppState,
+    state: AppState,
     merchant_account: domain::MerchantAccount,
     req: customers::CustomerId,
 ) -> RouterResponse<Vec<mandates::MandateResponse>> {
@@ -120,7 +120,7 @@ pub async fn get_customer_mandates(
     } else {
         let mut response_vec = Vec::with_capacity(mandates.len());
         for mandate in mandates {
-            response_vec.push(mandates::MandateResponse::from_db_mandate(state, mandate).await?);
+            response_vec.push(mandates::MandateResponse::from_db_mandate(&state, mandate).await?);
         }
         Ok(services::ApplicationResponse::Json(response_vec))
     }
@@ -289,7 +289,7 @@ pub async fn retrieve_mandates_list(
     let mandates_list = future::try_join_all(
         mandates
             .into_iter()
-            .map(|mandate| mandates::MandateResponse::from_db_mandate(state, mandate)),
+            .map(|mandate| mandates::MandateResponse::from_db_mandate(&state, mandate)),
     )
     .await?;
     Ok(services::ApplicationResponse::Json(mandates_list))

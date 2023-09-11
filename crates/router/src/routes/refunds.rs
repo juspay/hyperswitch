@@ -81,7 +81,7 @@ pub async fn refunds_retrieve(
         refund_request,
         |state, auth, refund_request| {
             refund_response_wrapper(
-                state,
+                &state,
                 auth.merchant_account,
                 auth.key_store,
                 refund_request,
@@ -122,7 +122,7 @@ pub async fn refunds_retrieve_with_body(
         json_payload.into_inner(),
         |state, auth, req| {
             refund_response_wrapper(
-                state,
+                &state,
                 auth.merchant_account,
                 auth.key_store,
                 req,
