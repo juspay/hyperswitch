@@ -104,6 +104,7 @@ pub struct PaymentIntent {
     // Denotes the action(approve or reject) taken by merchant in case of manual review.
     // Manual review can occur when the transaction is marked as risky by the frm_processor, payment processor or when there is underpayment/over payment incase of crypto payment
     pub merchant_decision: Option<String>,
+    pub payment_confirm_source: Option<storage_enums::PaymentSource>,
 }
 
 #[derive(Clone, Debug, Default, Eq, PartialEq, Serialize, Deserialize)]
@@ -142,6 +143,7 @@ pub struct PaymentIntentNew {
     pub attempt_count: i16,
     pub profile_id: Option<String>,
     pub merchant_decision: Option<String>,
+    pub payment_confirm_source: Option<storage_enums::PaymentSource>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -185,6 +187,7 @@ pub enum PaymentIntentUpdate {
         statement_descriptor_suffix: Option<String>,
         order_details: Option<Vec<pii::SecretSerdeValue>>,
         metadata: Option<pii::SecretSerdeValue>,
+        payment_confirm_source: Option<storage_enums::PaymentSource>,
     },
     PaymentAttemptAndAttemptCountUpdate {
         active_attempt_id: String,
@@ -229,6 +232,7 @@ pub struct PaymentIntentUpdateInternal {
     // Denotes the action(approve or reject) taken by merchant in case of manual review.
     // Manual review can occur when the transaction is marked as risky by the frm_processor, payment processor or when there is underpayment/over payment incase of crypto payment
     pub merchant_decision: Option<String>,
+    pub payment_confirm_source: Option<storage_enums::PaymentSource>,
 }
 
 impl PaymentIntentUpdate {
@@ -278,6 +282,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 statement_descriptor_suffix,
                 order_details,
                 metadata,
+                payment_confirm_source,
             } => Self {
                 amount: Some(amount),
                 currency: Some(currency),
@@ -295,6 +300,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 statement_descriptor_suffix,
                 order_details,
                 metadata,
+                payment_confirm_source,
                 ..Default::default()
             },
             PaymentIntentUpdate::MetadataUpdate { metadata } => Self {

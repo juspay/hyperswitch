@@ -667,14 +667,26 @@ mod merchant_connector_account_cache_tests {
     use api_models::enums::CountryAlpha2;
     use common_utils::date_time;
     use diesel_models::enums::ConnectorType;
-    use storage_impl::redis::cache::{CacheKind, ACCOUNTS_CACHE};
+    use error_stack::ResultExt;
+    use masking::PeekInterface;
+    use storage_impl::redis::{
+        cache::{CacheKind, ACCOUNTS_CACHE},
+        kv_store::RedisConnInterface,
+        pub_sub::PubSubInterface,
+    };
     use time::macros::datetime;
 
     use crate::{
         core::errors,
-        db::{cache, MockDb},
+        db::{
+            cache, merchant_connector_account::MerchantConnectorAccountInterface,
+            merchant_key_store::MerchantKeyStoreInterface, MasterKeyInterface, MockDb,
+        },
         services,
-        types::{domain, storage},
+        types::{
+            domain::{self, behaviour::Conversion},
+            storage,
+        },
     };
 
     #[allow(clippy::unwrap_used)]
@@ -699,7 +711,7 @@ mod merchant_connector_account_cache_tests {
         db.insert_merchant_key_store(
             domain::MerchantKeyStore {
                 merchant_id: merchant_id.into(),
-                key: domain_types::encrypt(
+                key: domain::types::encrypt(
                     services::generate_aes256_key().unwrap().to_vec().into(),
                     master_key,
                 )
@@ -721,7 +733,7 @@ mod merchant_connector_account_cache_tests {
             id: Some(1),
             merchant_id: merchant_id.to_string(),
             connector_name: "stripe".to_string(),
-            connector_account_details: domain_types::encrypt(
+            connector_account_details: domain::types::encrypt(
                 serde_json::Value::default().into(),
                 merchant_key.key.get_inner().peek(),
             )
@@ -748,14 +760,15 @@ mod merchant_connector_account_cache_tests {
             .await
             .unwrap();
         let find_call = || async {
-            db.find_merchant_connector_account_by_merchant_id_connector_label(
-                merchant_id,
-                connector_label,
-                &merchant_key,
+            Conversion::convert(
+                db.find_merchant_connector_account_by_merchant_id_connector_label(
+                    merchant_id,
+                    connector_label,
+                    &merchant_key,
+                )
+                .await
+                .unwrap(),
             )
-            .await
-            .unwrap()
-            .convert()
             .await
             .change_context(errors::StorageError::DecryptionError)
         };

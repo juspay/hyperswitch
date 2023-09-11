@@ -52,7 +52,7 @@ use crate::{
             types::{self, AsyncLift},
         },
         storage::{self, enums as storage_enums, ephemeral_key, CustomerUpdate::Update},
-        transformers::ForeignTryFrom,
+        transformers::{ForeignFrom, ForeignTryFrom},
         ErrorResponse, RouterData,
     },
     utils::{
@@ -292,46 +292,7 @@ pub async fn get_token_pm_type_mandate_details(
     Option<payments::RecurringMandatePaymentData>,
     Option<String>,
 )> {
-    let mandate_data = request.mandate_data.clone().map(|d| MandateData {
-        customer_acceptance: d.customer_acceptance.map(|d| {
-            data_models::mandates::CustomerAcceptance {
-                acceptance_type: match d.acceptance_type {
-                    api::AcceptanceType::Online => data_models::mandates::AcceptanceType::Online,
-                    api::AcceptanceType::Offline => data_models::mandates::AcceptanceType::Offline,
-                },
-                accepted_at: d.accepted_at,
-                online: d.online.map(|d| data_models::mandates::OnlineMandate {
-                    ip_address: d.ip_address,
-                    user_agent: d.user_agent,
-                }),
-            }
-        }),
-        mandate_type: d.mandate_type.map(|d| match d {
-            api::MandateType::MultiUse(Some(i)) => {
-                data_models::mandates::MandateDataType::MultiUse(Some(
-                    data_models::mandates::MandateAmountData {
-                        amount: i.amount,
-                        currency: i.currency,
-                        start_date: i.start_date,
-                        end_date: i.end_date,
-                        metadata: i.metadata,
-                    },
-                ))
-            }
-            api::MandateType::SingleUse(i) => data_models::mandates::MandateDataType::SingleUse(
-                data_models::mandates::MandateAmountData {
-                    amount: i.amount,
-                    currency: i.currency,
-                    start_date: i.start_date,
-                    end_date: i.end_date,
-                    metadata: i.metadata,
-                },
-            ),
-            api_models::payments::MandateType::MultiUse(None) => {
-                data_models::mandates::MandateDataType::MultiUse(None)
-            }
-        }),
-    });
+    let mandate_data = request.mandate_data.clone().map(MandateData::foreign_from);
     match mandate_type {
         Some(api::MandateTransactionType::NewMandateTransaction) => {
             let setup_mandate = mandate_data.clone().get_required_value("mandate_data")?;
@@ -705,7 +666,7 @@ pub fn create_redirect_url(
     format!(
         "{}/payments/{}/{}/redirect/response/{}",
         router_base_url, payment_attempt.payment_id, payment_attempt.merchant_id, connector_name,
-    ) + creds_identifier_path
+    ) + creds_identifier_path.as_ref()
 }
 
 pub fn create_webhook_url(
@@ -2285,6 +2246,7 @@ mod tests {
             attempt_count: 1,
             profile_id: None,
             merchant_decision: None,
+            payment_confirm_source: None,
         };
         let req_cs = Some("1".to_string());
         let merchant_fulfillment_time = Some(900);
@@ -2331,6 +2293,7 @@ mod tests {
             attempt_count: 1,
             profile_id: None,
             merchant_decision: None,
+            payment_confirm_source: None,
         };
         let req_cs = Some("1".to_string());
         let merchant_fulfillment_time = Some(10);
@@ -2377,6 +2340,7 @@ mod tests {
             attempt_count: 1,
             profile_id: None,
             merchant_decision: None,
+            payment_confirm_source: None,
         };
         let req_cs = Some("1".to_string());
         let merchant_fulfillment_time = Some(10);
@@ -2812,7 +2776,7 @@ impl AttemptType {
         }
     }
 
-    pub async fn get_connector_response(
+    pub async fn get_or_insert_connector_response(
         &self,
         payment_attempt: &PaymentAttempt,
         db: &dyn StorageInterface,
@@ -2833,6 +2797,30 @@ impl AttemptType {
                     &payment_attempt.payment_id,
                     &payment_attempt.merchant_id,
                     &payment_attempt.attempt_id,
+                    storage_scheme,
+                )
+                .await
+                .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound),
+        }
+    }
+
+    pub async fn get_connector_response(
+        &self,
+        db: &dyn StorageInterface,
+        payment_id: &str,
+        merchant_id: &str,
+        attempt_id: &str,
+        storage_scheme: storage_enums::MerchantStorageScheme,
+    ) -> RouterResult<storage::ConnectorResponse> {
+        match self {
+            Self::New => Err(errors::ApiErrorResponse::InternalServerError)
+                .into_report()
+                .attach_printable("Precondition failed, the attempt type should not be `New`"),
+            Self::SameOld => db
+                .find_connector_response_by_payment_id_merchant_id_attempt_id(
+                    payment_id,
+                    merchant_id,
+                    attempt_id,
                     storage_scheme,
                 )
                 .await

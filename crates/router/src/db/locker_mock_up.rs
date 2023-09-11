@@ -130,7 +130,10 @@ impl LockerMockUpInterface for MockDb {
 mod tests {
     #[allow(clippy::unwrap_used)]
     mod mockdb_locker_mock_up_interface {
-        use crate::{db::MockDb, types::storage};
+        use crate::{
+            db::{locker_mock_up::LockerMockUpInterface, MockDb},
+            types::storage,
+        };
 
         pub struct LockerMockUpIds {
             card_id: String,
@@ -160,6 +163,7 @@ mod tests {
 
         #[tokio::test]
         async fn find_locker_by_card_id() {
+            #[allow(clippy::expect_used)]
             let mockdb = MockDb::new(&redis_interface::RedisSettings::default())
                 .await
                 .expect("Failed to create Mock store");
@@ -190,6 +194,7 @@ mod tests {
 
         #[tokio::test]
         async fn insert_locker_mock_up() {
+            #[allow(clippy::expect_used)]
             let mockdb = MockDb::new(&redis_interface::RedisSettings::default())
                 .await
                 .expect("Failed to create Mock store");
@@ -219,6 +224,7 @@ mod tests {
 
         #[tokio::test]
         async fn delete_locker_mock_up() {
+            #[allow(clippy::expect_used)]
             let mockdb = MockDb::new(&redis_interface::RedisSettings::default())
                 .await
                 .expect("Failed to create Mock store");

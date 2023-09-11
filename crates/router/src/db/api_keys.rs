@@ -375,17 +375,22 @@ impl ApiKeyInterface for MockDb {
 
 #[cfg(test)]
 mod tests {
-    use storage_impl::redis::cache::{CacheKind, ACCOUNTS_CACHE};
+    use storage_impl::redis::{
+        cache::{CacheKind, ACCOUNTS_CACHE},
+        kv_store::RedisConnInterface,
+        pub_sub::PubSubInterface,
+    };
     use time::macros::datetime;
 
     use crate::{
-        db::{cache, MockDb},
+        db::{api_keys::ApiKeyInterface, cache, MockDb},
         types::storage,
     };
 
     #[allow(clippy::unwrap_used)]
     #[tokio::test]
     async fn test_mockdb_api_key_interface() {
+        #[allow(clippy::expect_used)]
         let mockdb = MockDb::new(&redis_interface::RedisSettings::default())
             .await
             .expect("Failed to create Mock store");
