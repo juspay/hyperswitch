@@ -33,7 +33,10 @@ use self::{
 use super::errors::StorageErrorExt;
 use crate::{
     configs::settings::PaymentMethodTypeTokenFilter,
-    core::errors::{self, CustomResult, RouterResponse, RouterResult},
+    core::{
+        errors::{self, CustomResult, RouterResponse, RouterResult},
+        utils,
+    },
     db::StorageInterface,
     logger,
     routes::{metrics, payment_methods::ParentPaymentMethodToken, AppState},
@@ -589,7 +592,7 @@ where
         .as_ref()
         .get_required_value("connector")?;
 
-    let merchant_connector_account = construct_connector_label_and_get_mca(
+    let merchant_connector_account = construct_profile_id_and_get_mca(
         state,
         merchant_account,
         payment_data,
@@ -787,7 +790,7 @@ where
     for session_connector_data in connectors.iter() {
         let connector_id = session_connector_data.connector.connector.id();
 
-        let merchant_connector_account = construct_connector_label_and_get_mca(
+        let merchant_connector_account = construct_profile_id_and_get_mca(
             state,
             merchant_account,
             &mut payment_data,
@@ -885,7 +888,7 @@ where
 
     match connector_name {
         Some(connector_name) => {
-            let merchant_connector_account = construct_connector_label_and_get_mca(
+            let merchant_connector_account = construct_profile_id_and_get_mca(
                 state,
                 merchant_account,
                 payment_data,
@@ -900,12 +903,28 @@ where
                 api::GetToken::Connector,
             )?;
 
-            let connector_label = helpers::get_connector_label(
+            let connector_label = super::utils::get_connector_label(
                 payment_data.payment_intent.business_country,
-                &payment_data.payment_intent.business_label,
+                payment_data.payment_intent.business_label.as_ref(),
                 payment_data.payment_attempt.business_sub_label.as_ref(),
                 &connector_name,
             );
+
+            let connector_label = if let Some(connector_label) = connector_label {
+                connector_label
+            } else {
+                let profile_id = utils::get_profile_id_from_business_details(
+                    payment_data.payment_intent.business_country,
+                    payment_data.payment_intent.business_label.as_ref(),
+                    merchant_account,
+                    payment_data.payment_intent.profile_id.as_ref(),
+                    &*state.store,
+                )
+                .await
+                .attach_printable("Could not find profile id from business details")?;
+
+                format!("{connector_name}_{profile_id}")
+            };
 
             let (should_call_connector, existing_connector_customer_id) =
                 customers::should_call_connector_create_customer(
@@ -1021,7 +1040,7 @@ pub fn is_preprocessing_required_for_wallets(connector_name: String) -> bool {
     connector_name == *"trustpay" || connector_name == *"payme"
 }
 
-pub async fn construct_connector_label_and_get_mca<'a, F>(
+pub async fn construct_profile_id_and_get_mca<'a, F>(
     state: &'a AppState,
     merchant_account: &domain::MerchantAccount,
     payment_data: &mut PaymentData<F>,
@@ -1031,19 +1050,24 @@ pub async fn construct_connector_label_and_get_mca<'a, F>(
 where
     F: Clone,
 {
-    let connector_label = helpers::get_connector_label(
+    let profile_id = utils::get_profile_id_from_business_details(
         payment_data.payment_intent.business_country,
-        &payment_data.payment_intent.business_label,
-        payment_data.payment_attempt.business_sub_label.as_ref(),
-        connector_id,
-    );
+        payment_data.payment_intent.business_label.as_ref(),
+        merchant_account,
+        payment_data.payment_intent.profile_id.as_ref(),
+        &*state.store,
+    )
+    .await
+    .change_context(errors::ApiErrorResponse::InternalServerError)
+    .attach_printable("profile_id is not set in payment_intent")?;
 
     let merchant_connector_account = helpers::get_merchant_connector_account(
         state,
         merchant_account.merchant_id.as_str(),
-        &connector_label,
         payment_data.creds_identifier.to_owned(),
         key_store,
+        &profile_id,
+        connector_id,
     )
     .await?;
 

@@ -47,6 +47,21 @@ impl BusinessProfile {
         .await
     }
 
+    #[instrument(skip(conn))]
+    pub async fn find_by_profile_name_merchant_id(
+        conn: &PgPooledConn,
+        profile_name: &str,
+        merchant_id: &str,
+    ) -> StorageResult<Self> {
+        generics::generic_find_one::<<Self as HasTable>::Table, _, _>(
+            conn,
+            dsl::profile_name
+                .eq(profile_name.to_owned())
+                .and(dsl::merchant_id.eq(merchant_id.to_owned())),
+        )
+        .await
+    }
+
     pub async fn list_business_profile_by_merchant_id(
         conn: &PgPooledConn,
         merchant_id: &str,
