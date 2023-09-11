@@ -705,7 +705,7 @@ pub fn create_redirect_url(
     format!(
         "{}/payments/{}/{}/redirect/response/{}",
         router_base_url, payment_attempt.payment_id, payment_attempt.merchant_id, connector_name,
-    ) + &creds_identifier_path
+    ) + creds_identifier_path
 }
 
 pub fn create_webhook_url(

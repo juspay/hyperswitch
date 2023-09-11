@@ -667,32 +667,23 @@ mod merchant_connector_account_cache_tests {
     use api_models::enums::CountryAlpha2;
     use common_utils::date_time;
     use diesel_models::enums::ConnectorType;
-    use error_stack::ResultExt;
-    use masking::PeekInterface;
-    use storage_impl::redis::{
-        cache::{CacheKind, ACCOUNTS_CACHE},
-        kv_store::RedisConnInterface,
-        pub_sub::PubSubInterface,
-    };
+    use storage_impl::redis::cache::{CacheKind, ACCOUNTS_CACHE};
     use time::macros::datetime;
 
     use crate::{
         core::errors,
-        db::{
-            cache, merchant_connector_account::MerchantConnectorAccountInterface,
-            merchant_key_store::MerchantKeyStoreInterface, MasterKeyInterface, MockDb,
-        },
+        db::{cache, MockDb},
         services,
-        types::{
-            domain::{self, behaviour::Conversion, types as domain_types},
-            storage,
-        },
+        types::{domain, storage},
     };
 
     #[allow(clippy::unwrap_used)]
     #[tokio::test]
     async fn test_connector_label_cache() {
-        let db = MockDb::new().await;
+        #[allow(clippy::expect_used)]
+        let db = MockDb::new(&redis_interface::RedisSettings::default())
+            .await
+            .expect("Failed to create Mock store");
 
         let redis_conn = db.get_redis_conn().unwrap();
         let master_key = db.get_master_key();

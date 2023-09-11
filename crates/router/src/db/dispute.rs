@@ -438,7 +438,9 @@ mod tests {
 
         #[tokio::test]
         async fn test_find_by_merchant_id_payment_id_connector_dispute_id() {
-            let mockdb = MockDb::new().await;
+            let mockdb = MockDb::new(&redis_interface::RedisSettings::default())
+                .await
+                .expect("Failed to create Mock store");
 
             let created_dispute = mockdb
                 .insert_dispute(create_dispute_new(DisputeNewIds {
@@ -478,7 +480,9 @@ mod tests {
 
         #[tokio::test]
         async fn test_find_dispute_by_merchant_id_dispute_id() {
-            let mockdb = MockDb::new().await;
+            let mockdb = MockDb::new(&redis_interface::RedisSettings::default())
+                .await
+                .expect("Failed to create Mock store");
 
             let created_dispute = mockdb
                 .insert_dispute(create_dispute_new(DisputeNewIds {
@@ -512,7 +516,9 @@ mod tests {
 
         #[tokio::test]
         async fn test_find_disputes_by_merchant_id() {
-            let mockdb = MockDb::new().await;
+            let mockdb = MockDb::new(&redis_interface::RedisSettings::default())
+                .await
+                .expect("Failed to create Mock store");
 
             let created_dispute = mockdb
                 .insert_dispute(create_dispute_new(DisputeNewIds {
@@ -562,7 +568,9 @@ mod tests {
 
         #[tokio::test]
         async fn test_find_disputes_by_merchant_id_payment_id() {
-            let mockdb = MockDb::new().await;
+            let mockdb = MockDb::new(&redis_interface::RedisSettings::default())
+                .await
+                .expect("Failed to create Mock store");
 
             let created_dispute = mockdb
                 .insert_dispute(create_dispute_new(DisputeNewIds {
@@ -606,16 +614,15 @@ mod tests {
             use time::macros::datetime;
 
             use crate::db::{
-                dispute::{
-                    tests::mockdb_dispute_interface::{create_dispute_new, DisputeNewIds},
-                    DisputeInterface,
-                },
+                dispute::tests::mockdb_dispute_interface::{create_dispute_new, DisputeNewIds},
                 MockDb,
             };
 
             #[tokio::test]
             async fn test_update_dispute_update() {
-                let mockdb = MockDb::new().await;
+                let mockdb = MockDb::new(&redis_interface::RedisSettings::default())
+                    .await
+                    .expect("Failed to create Mock store");
 
                 let created_dispute = mockdb
                     .insert_dispute(create_dispute_new(DisputeNewIds {
@@ -692,7 +699,9 @@ mod tests {
 
             #[tokio::test]
             async fn test_update_dispute_update_status() {
-                let mockdb = MockDb::new().await;
+                let mockdb = MockDb::new(&redis_interface::RedisSettings::default())
+                    .await
+                    .expect("Failed to create Mock store");
 
                 let created_dispute = mockdb
                     .insert_dispute(create_dispute_new(DisputeNewIds {
@@ -764,7 +773,9 @@ mod tests {
 
             #[tokio::test]
             async fn test_update_dispute_update_evidence() {
-                let mockdb = MockDb::new().await;
+                let mockdb = MockDb::new(&redis_interface::RedisSettings::default())
+                    .await
+                    .expect("Failed to create Mock store");
 
                 let created_dispute = mockdb
                     .insert_dispute(create_dispute_new(DisputeNewIds {

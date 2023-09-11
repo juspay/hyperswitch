@@ -100,15 +100,14 @@ impl EventInterface for MockDb {
 mod tests {
     use diesel_models::enums;
 
-    use crate::{
-        db::{events::EventInterface, MockDb},
-        types::storage,
-    };
+    use crate::{db::MockDb, types::storage};
 
     #[allow(clippy::unwrap_used)]
     #[tokio::test]
     async fn test_mockdb_event_interface() {
-        let mockdb = MockDb::new().await;
+        let mockdb = MockDb::new(&redis_interface::RedisSettings::default())
+            .await
+            .expect("Failed to create Mock store");
 
         let event1 = mockdb
             .insert_event(storage::EventNew {
