@@ -19,7 +19,6 @@ use super::env::logger;
 pub use super::workflows::ProcessTrackerWorkflow;
 use crate::{
     configs::settings::SchedulerSettings,
-    core::errors::{self, CustomResult},
     db::process_tracker::{ProcessTrackerExt, ProcessTrackerInterface},
     errors, metrics, utils as pt_utils, SchedulerAppState, SchedulerInterface,
 };
