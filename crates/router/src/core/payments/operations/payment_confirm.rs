@@ -447,6 +447,7 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
         updated_customer: Option<storage::CustomerUpdate>,
         key_store: &domain::MerchantKeyStore,
         frm_suggestion: Option<FrmSuggestion>,
+        header_payload: api::HeaderPayload,
     ) -> RouterResult<(BoxedOperation<'b, F, api::PaymentsRequest>, PaymentData<F>)>
     where
         F: 'b + Send,
@@ -565,6 +566,7 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
                     statement_descriptor_suffix,
                     order_details,
                     metadata,
+                    payment_confirm_source: header_payload.payment_confirm_source,
                 },
                 storage_scheme,
             )
