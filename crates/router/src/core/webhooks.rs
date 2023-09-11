@@ -701,7 +701,7 @@ pub async fn trigger_webhook_to_merchant<W: types::OutgoingWebhookType>(
 
 #[instrument(skip_all)]
 pub async fn webhooks_core<W: types::OutgoingWebhookType>(
-    state: &AppState,
+    state: AppState,
     req: &actix_web::HttpRequest,
     merchant_account: domain::MerchantAccount,
     key_store: domain::MerchantKeyStore,

@@ -18,7 +18,7 @@ pub async fn ephemeral_key_create(
     let payload = json_payload.into_inner();
     api::server_wrap(
         flow,
-        state.get_ref(),
+        state,
         &req,
         payload,
         |state, auth, req| {
@@ -39,7 +39,7 @@ pub async fn ephemeral_key_delete(
     let payload = path.into_inner();
     api::server_wrap(
         flow,
-        state.get_ref(),
+        state,
         &req,
         payload,
         |state, _, req| helpers::delete_ephemeral_key(&*state.store, req),

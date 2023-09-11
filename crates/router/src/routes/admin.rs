@@ -32,7 +32,7 @@ pub async fn merchant_account_create(
     let flow = Flow::MerchantsAccountCreate;
     api::server_wrap(
         flow,
-        state.get_ref(),
+        state,
         &req,
         json_payload.into_inner(),
         |state, _, req| create_merchant_account(&*state.store, req),
@@ -68,7 +68,7 @@ pub async fn retrieve_merchant_account(
 
     api::server_wrap(
         flow,
-        state.get_ref(),
+        state,
         &req,
         payload,
         |state, _, req| get_merchant_account(&*state.store, req),
@@ -104,7 +104,7 @@ pub async fn update_merchant_account(
     let merchant_id = mid.into_inner();
     api::server_wrap(
         flow,
-        state.get_ref(),
+        state,
         &req,
         json_payload.into_inner(),
         |state, _, req| merchant_account_update(&*state.store, &merchant_id, req),
@@ -177,7 +177,7 @@ pub async fn payment_connector_create(
     let merchant_id = path.into_inner();
     api::server_wrap(
         flow,
-        state.get_ref(),
+        state,
         &req,
         json_payload.into_inner(),
         |state, _, req| create_payment_connector(&*state.store, req, &merchant_id),
@@ -221,7 +221,7 @@ pub async fn payment_connector_retrieve(
 
     api::server_wrap(
         flow,
-        state.get_ref(),
+        state,
         &req,
         payload,
         |state, _, req| {
@@ -261,7 +261,7 @@ pub async fn payment_connector_list(
 
     api::server_wrap(
         flow,
-        state.get_ref(),
+        state,
         &req,
         merchant_id,
         |state, _, merchant_id| list_payment_connectors(&*state.store, merchant_id),
@@ -302,7 +302,7 @@ pub async fn payment_connector_update(
 
     api::server_wrap(
         flow,
-        state.get_ref(),
+        state,
         &req,
         json_payload.into_inner(),
         |state, _, req| {
@@ -348,7 +348,7 @@ pub async fn payment_connector_delete(
     .into_inner();
     api::server_wrap(
         flow,
-        state.get_ref(),
+        state,
         &req,
         payload,
         |state, _, req| {
@@ -375,7 +375,7 @@ pub async fn merchant_account_toggle_kv(
 
     api::server_wrap(
         flow,
-        state.get_ref(),
+        state,
         &req,
         (merchant_id, payload),
         |state, _, (merchant_id, payload)| {
@@ -399,7 +399,7 @@ pub async fn business_profile_create(
 
     api::server_wrap(
         flow,
-        state.get_ref(),
+        state,
         &req,
         payload,
         |state, _, req| create_business_profile(&*state.store, req, &merchant_id, None),
@@ -419,7 +419,7 @@ pub async fn business_profile_retrieve(
 
     api::server_wrap(
         flow,
-        state.get_ref(),
+        state,
         &req,
         profile_id,
         |state, _, profile_id| retrieve_business_profile(&*state.store, profile_id),
@@ -440,7 +440,7 @@ pub async fn business_profile_update(
 
     api::server_wrap(
         flow,
-        state.get_ref(),
+        state,
         &req,
         json_payload.into_inner(),
         |state, _, req| update_business_profile(&*state.store, &profile_id, &merchant_id, req),
@@ -460,7 +460,7 @@ pub async fn business_profile_delete(
 
     api::server_wrap(
         flow,
-        state.get_ref(),
+        state,
         &req,
         profile_id,
         |state, _, profile_id| delete_business_profile(&*state.store, profile_id, &merchant_id),
@@ -480,7 +480,7 @@ pub async fn business_profiles_list(
 
     api::server_wrap(
         flow,
-        state.get_ref(),
+        state,
         &req,
         merchant_id,
         |state, _, merchant_id| list_business_profile(&*state.store, merchant_id),
@@ -503,7 +503,7 @@ pub async fn merchant_account_kv_status(
 
     api::server_wrap(
         flow,
-        state.get_ref(),
+        state,
         &req,
         merchant_id,
         |state, _, req| check_merchant_account_kv_status(&*state.store, req),

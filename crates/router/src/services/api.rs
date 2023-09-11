@@ -32,7 +32,7 @@ use crate::{
         ErrorResponse,
     },
 };
-use actix_web::{body, FromRequest, HttpRequest, HttpResponse, Responder, ResponseError};
+use actix_web::{body, web, FromRequest, HttpRequest, HttpResponse, Responder, ResponseError};
 use api_models::enums::CaptureMethod;
 pub use client::{proxy_bypass_urls, ApiClient, MockApiClient, ProxyClient};
 use common_utils::errors::ReportSwitchExt;
@@ -709,14 +709,14 @@ pub enum AuthFlow {
 #[instrument(skip(request, payload, state, func, api_auth), fields(merchant_id))]
 pub async fn server_wrap_util<'a, 'b, A, U, T, Q, F, Fut, E, OErr>(
     flow: &'a impl router_env::types::FlowMetric,
-    state: &'b A,
+    state: web::Data<A>,
     request: &'a HttpRequest,
     payload: T,
     func: F,
     api_auth: &dyn auth::AuthenticateAndFetch<U, A>,
 ) -> CustomResult<ApplicationResponse<Q>, OErr>
 where
-    F: Fn(&'b A, U, T) -> Fut,
+    F: Fn(A, U, T) -> Fut,
     'b: 'a,
     Fut: Future<Output = CustomResult<ApplicationResponse<Q>, E>>,
     Q: Serialize + Debug + 'a,
@@ -727,21 +727,23 @@ where
     CustomResult<U, errors::ApiErrorResponse>: ReportSwitchExt<U, OErr>,
     OErr: ResponseError + Sync + Send + 'static,
 {
-    let auth_out = api_auth
-        .authenticate_and_fetch(request.headers(), state)
-        .await
-        .switch()?;
-    let merchant_id = auth_out.get_merchant_id().unwrap_or("").to_string();
-    tracing::Span::current().record("merchant_id", &merchant_id);
     let request_id = RequestId::extract(request)
         .await
         .ok()
         .map(|id| id.as_hyphenated().to_string());
 
-    let mut statex = state.clone();
+    let mut statex = state.get_ref().clone();
+
     statex.add_request_id(request_id);
 
-    let output = func(&statex.clone(), auth_out, payload).await.switch();
+    let auth_out = api_auth
+        .authenticate_and_fetch(request.headers(), &statex)
+        .await
+        .switch()?;
+    let merchant_id = auth_out.get_merchant_id().unwrap_or("").to_string();
+    tracing::Span::current().record("merchant_id", &merchant_id);
+
+    let output = func(statex, auth_out, payload).await.switch();
 
     let status_code = match output.as_ref() {
         Ok(res) => metrics::request::track_response_status_code(res),
@@ -757,16 +759,16 @@ where
     skip(request, state, func, api_auth, payload),
     fields(request_method, request_url_path)
 )]
-pub async fn server_wrap<'a, 'b, A, T, U, Q, F, Fut, E>(
+pub async fn server_wrap<'a, A, T, U, Q, F, Fut, E>(
     flow: impl router_env::types::FlowMetric,
-    state: &'b A,
+    state: web::Data<A>,
     request: &'a HttpRequest,
     payload: T,
     func: F,
     api_auth: &dyn auth::AuthenticateAndFetch<U, A>,
 ) -> HttpResponse
 where
-    F: Fn(&'b A, U, T) -> Fut,
+    F: Fn(A, U, T) -> Fut,
     Fut: Future<Output = CustomResult<ApplicationResponse<Q>, E>>,
     Q: Serialize + Debug + 'a,
     T: Debug,

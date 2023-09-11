@@ -20,7 +20,7 @@ pub async fn apple_pay_merchant_registration(
     let merchant_id = path.into_inner();
     api::server_wrap(
         flow,
-        state.get_ref(),
+        state,
         &req,
         json_payload,
         |state, _, body| {

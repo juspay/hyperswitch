@@ -32,7 +32,7 @@ pub async fn customers_create(
     let flow = Flow::CustomersCreate;
     api::server_wrap(
         flow,
-        state.get_ref(),
+        state,
         &req,
         json_payload.into_inner(),
         |state, auth, req| {
@@ -78,7 +78,7 @@ pub async fn customers_retrieve(
 
     api::server_wrap(
         flow,
-        state.get_ref(),
+        state,
         &req,
         payload,
         |state, auth, req| {
@@ -117,7 +117,7 @@ pub async fn customers_update(
     json_payload.customer_id = customer_id;
     api::server_wrap(
         flow,
-        state.get_ref(),
+        state,
         &req,
         json_payload.into_inner(),
         |state, auth, req| {
@@ -156,7 +156,7 @@ pub async fn customers_delete(
     .into_inner();
     api::server_wrap(
         flow,
-        state.get_ref(),
+        state,
         &req,
         payload,
         |state, auth, req| delete_customer(state, auth.merchant_account, req, auth.key_store),
@@ -178,7 +178,7 @@ pub async fn get_customer_mandates(
 
     api::server_wrap(
         flow,
-        state.get_ref(),
+        state,
         &req,
         customer_id,
         |state, auth, req| {

@@ -230,7 +230,7 @@ where
 
 #[allow(clippy::too_many_arguments)]
 pub async fn payments_core<F, Res, Req, Op, FData>(
-    state: &AppState,
+    state: AppState,
     merchant_account: domain::MerchantAccount,
     key_store: domain::MerchantKeyStore,
     operation: Op,
@@ -393,7 +393,7 @@ pub struct PaymentRedirectCompleteAuthorize;
 impl PaymentRedirectFlow for PaymentRedirectCompleteAuthorize {
     async fn call_payment_flow(
         &self,
-        state: &AppState,
+        state: AppState,
         merchant_account: domain::MerchantAccount,
         merchant_key_store: domain::MerchantKeyStore,
         req: PaymentsRedirectResponseData,
@@ -482,7 +482,7 @@ pub struct PaymentRedirectSync;
 impl PaymentRedirectFlow for PaymentRedirectSync {
     async fn call_payment_flow(
         &self,
-        state: &AppState,
+        state: AppState,
         merchant_account: domain::MerchantAccount,
         merchant_key_store: domain::MerchantKeyStore,
         req: PaymentsRedirectResponseData,
@@ -1251,12 +1251,12 @@ pub fn is_operation_confirm<Op: Debug>(operation: &Op) -> bool {
 
 #[cfg(feature = "olap")]
 pub async fn list_payments(
-    db: &dyn StorageInterface,
+    state: AppState,
     merchant: domain::MerchantAccount,
     constraints: api::PaymentListConstraints,
 ) -> RouterResponse<api::PaymentListResponse> {
     use crate::types::transformers::ForeignFrom;
-
+    let db = state.store.as_ref();
     helpers::validate_payment_list_request(&constraints)?;
     let merchant_id = &merchant.merchant_id;
     let payment_intents =
@@ -1317,12 +1317,12 @@ pub async fn list_payments(
 }
 #[cfg(feature = "olap")]
 pub async fn apply_filters_on_payments(
-    db: &dyn StorageInterface,
+    state: AppState,
     merchant: domain::MerchantAccount,
     constraints: api::PaymentListFilterConstraints,
 ) -> RouterResponse<api::PaymentListResponseV2> {
     use storage_impl::DataModelExt;
-
+    let db = state.store.as_ref();
     use crate::types::transformers::ForeignFrom;
 
     let limit = &constraints.limit;
@@ -1374,12 +1374,12 @@ pub async fn apply_filters_on_payments(
 
 #[cfg(feature = "olap")]
 pub async fn get_filters_for_payments(
-    db: &dyn StorageInterface,
+    state: AppState,
     merchant: domain::MerchantAccount,
     time_range: api::TimeRange,
 ) -> RouterResponse<api::PaymentListFilters> {
     use crate::types::transformers::ForeignFrom;
-
+    let db = state.store.as_ref();
     let pi = db
         .filter_payment_intents_by_time_range_constraints(
             &merchant.merchant_id,

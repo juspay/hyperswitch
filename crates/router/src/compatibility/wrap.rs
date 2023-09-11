@@ -1,6 +1,6 @@
 use std::{future::Future, time::Instant};
 
-use actix_web::{HttpRequest, HttpResponse, Responder};
+use actix_web::{web, HttpRequest, HttpResponse, Responder};
 use common_utils::errors::ErrorSwitch;
 use router_env::{instrument, tracing, Tag};
 use serde::Serialize;
@@ -14,14 +14,14 @@ use crate::{
 #[instrument(skip(request, payload, state, func, api_authentication))]
 pub async fn compatibility_api_wrap<'a, 'b, A, U, T, Q, F, Fut, S, E>(
     flow: impl router_env::types::FlowMetric,
-    state: &'b A,
+    state: web::Data<A>,
     request: &'a HttpRequest,
     payload: T,
     func: F,
     api_authentication: &dyn auth::AuthenticateAndFetch<U, A>,
 ) -> HttpResponse
 where
-    F: Fn(&'b A, U, T) -> Fut,
+    F: Fn(A, U, T) -> Fut,
     Fut: Future<Output = RouterResult<api::ApplicationResponse<Q>>>,
     Q: Serialize + std::fmt::Debug + 'a,
     S: TryFrom<Q> + Serialize,

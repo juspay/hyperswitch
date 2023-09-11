@@ -92,7 +92,7 @@ pub async fn get_connector_data(
 #[cfg(feature = "payouts")]
 #[instrument(skip_all)]
 pub async fn payouts_create_core(
-    state: &AppState,
+    state: AppState,
     merchant_account: domain::MerchantAccount,
     key_store: domain::MerchantKeyStore,
     req: payouts::PayoutCreateRequest,
@@ -139,7 +139,7 @@ where
 
 #[cfg(feature = "payouts")]
 pub async fn payouts_update_core(
-    state: &AppState,
+    state: AppState,
     merchant_account: domain::MerchantAccount,
     key_store: domain::MerchantKeyStore,
     req: payouts::PayoutCreateRequest,
@@ -249,7 +249,7 @@ pub async fn payouts_update_core(
 #[cfg(feature = "payouts")]
 #[instrument(skip_all)]
 pub async fn payouts_retrieve_core(
-    state: &AppState,
+    state: AppState,
     merchant_account: domain::MerchantAccount,
     key_store: domain::MerchantKeyStore,
     req: payouts::PayoutRetrieveRequest,
@@ -274,7 +274,7 @@ pub async fn payouts_retrieve_core(
 #[cfg(feature = "payouts")]
 #[instrument(skip_all)]
 pub async fn payouts_cancel_core(
-    state: &AppState,
+    state: AppState,
     merchant_account: domain::MerchantAccount,
     key_store: domain::MerchantKeyStore,
     req: payouts::PayoutActionRequest,
@@ -356,7 +356,7 @@ pub async fn payouts_cancel_core(
 #[cfg(feature = "payouts")]
 #[instrument(skip_all)]
 pub async fn payouts_fulfill_core(
-    state: &AppState,
+    state: AppState,
     merchant_account: domain::MerchantAccount,
     key_store: domain::MerchantKeyStore,
     req: payouts::PayoutActionRequest,
