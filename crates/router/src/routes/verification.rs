@@ -31,7 +31,7 @@ pub async fn apple_pay_merchant_registration(
 }
 
 #[instrument(skip_all, fields(flow = ?Flow::Verification))]
-pub async fn derive_apple_pay_verified_domains(
+pub async fn retrieve_apple_pay_verified_domains(
     state: web::Data<AppState>,
     req: HttpRequest,
     params: web::Query<verifications::ApplepayGetVerifiedDomainsParam>,

@@ -12,7 +12,7 @@ use super::dummy_connector::*;
 #[cfg(feature = "payouts")]
 use super::payouts::*;
 #[cfg(all(feature = "olap", feature = "kms"))]
-use super::verification::{apple_pay_merchant_registration, derive_apple_pay_verified_domains};
+use super::verification::{apple_pay_merchant_registration, retrieve_apple_pay_verified_domains};
 #[cfg(feature = "olap")]
 use super::{admin::*, api_keys::*, disputes::*, files::*};
 use super::{cache::*, health::*};
@@ -591,7 +591,7 @@ impl Verify {
             )
             .service(
                 web::resource("/applepay_verified_domains")
-                    .route(web::get().to(derive_apple_pay_verified_domains)),
+                    .route(web::get().to(retrieve_apple_pay_verified_domains)),
             )
     }
 }
