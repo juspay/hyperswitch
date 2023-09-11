@@ -96,6 +96,7 @@ impl From<BusinessProfileNew> for BusinessProfile {
             frm_routing_algorithm: new.frm_routing_algorithm,
             payout_routing_algorithm: new.payout_routing_algorithm,
             is_recon_enabled: new.is_recon_enabled,
+            applepay_verified_domains: new.applepay_verified_domains,
         }
     }
 }
