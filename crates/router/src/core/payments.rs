@@ -297,7 +297,7 @@ pub struct PaymentsRedirectResponseData {
 pub trait PaymentRedirectFlow: Sync {
     async fn call_payment_flow(
         &self,
-        state: &AppState,
+        state: AppState,
         merchant_account: domain::MerchantAccount,
         merchant_key_store: domain::MerchantKeyStore,
         req: PaymentsRedirectResponseData,
@@ -317,7 +317,7 @@ pub trait PaymentRedirectFlow: Sync {
     #[allow(clippy::too_many_arguments)]
     async fn handle_payments_redirect_response(
         &self,
-        state: &AppState,
+        state: AppState,
         merchant_account: domain::MerchantAccount,
         key_store: domain::MerchantKeyStore,
         req: PaymentsRedirectResponseData,

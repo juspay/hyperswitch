@@ -42,7 +42,7 @@ pub async fn ephemeral_key_delete(
         state,
         &req,
         payload,
-        |state, _, req| helpers::delete_ephemeral_key(&*state.store, req),
+        |state, _, req| helpers::delete_ephemeral_key(state, req),
         &auth::ApiKeyAuth,
     )
     .await

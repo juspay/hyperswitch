@@ -122,7 +122,7 @@ pub async fn customer_update(
         &req,
         cust_update_req,
         |state, auth, req| {
-            customers::update_customer(&*state.store, auth.merchant_account, req, auth.key_store)
+            customers::update_customer(state, auth.merchant_account, req, auth.key_store)
         },
         &auth::ApiKeyAuth,
     ))

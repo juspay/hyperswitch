@@ -25,26 +25,28 @@ use crate::{
 
 #[instrument(skip(state))]
 pub async fn get_mandate(
-    state: &AppState,
+    state: AppState,
     merchant_account: domain::MerchantAccount,
     req: mandates::MandateId,
 ) -> RouterResponse<mandates::MandateResponse> {
     let mandate = state
         .store
+        .as_ref()
         .find_mandate_by_merchant_id_mandate_id(&merchant_account.merchant_id, &req.mandate_id)
         .await
         .to_not_found_response(errors::ApiErrorResponse::MandateNotFound)?;
     Ok(services::ApplicationResponse::Json(
-        mandates::MandateResponse::from_db_mandate(state, mandate).await?,
+        mandates::MandateResponse::from_db_mandate(&state, mandate).await?,
     ))
 }
 
-#[instrument(skip(db))]
+#[instrument(skip(state))]
 pub async fn revoke_mandate(
-    db: &dyn StorageInterface,
+    state: AppState,
     merchant_account: domain::MerchantAccount,
     req: mandates::MandateId,
 ) -> RouterResponse<mandates::MandateRevokedResponse> {
+    let db = state.store.as_ref();
     let mandate = db
         .update_mandate_by_merchant_id_mandate_id(
             &merchant_account.merchant_id,
@@ -273,12 +275,13 @@ where
 
 #[instrument(skip(state))]
 pub async fn retrieve_mandates_list(
-    state: &AppState,
+    state: AppState,
     merchant_account: domain::MerchantAccount,
     constraints: api_models::mandates::MandateListConstraints,
 ) -> RouterResponse<Vec<api_models::mandates::MandateResponse>> {
     let mandates = state
         .store
+        .as_ref()
         .find_mandates_by_merchant_id(&merchant_account.merchant_id, constraints)
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
