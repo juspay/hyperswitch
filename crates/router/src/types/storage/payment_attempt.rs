@@ -1,16 +1,10 @@
-pub use diesel_models::payment_attempt::{
-    PaymentAttempt, PaymentAttemptNew, PaymentAttemptUpdate, PaymentAttemptUpdateInternal,
+pub use data_models::payments::payment_attempt::{
+    PaymentAttempt, PaymentAttemptNew, PaymentAttemptUpdate,
 };
 use diesel_models::{capture::CaptureNew, enums};
 use error_stack::ResultExt;
 
 use crate::{core::errors, errors::RouterResult, utils::OptionExt};
-
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-pub struct RoutingData {
-    pub routed_through: Option<String>,
-    pub algorithm: Option<api_models::admin::StraightThroughAlgorithm>,
-}
 
 pub trait PaymentAttemptExt {
     fn make_new_capture(

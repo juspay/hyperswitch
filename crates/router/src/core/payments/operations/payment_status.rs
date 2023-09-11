@@ -2,7 +2,7 @@ use std::marker::PhantomData;
 
 use api_models::enums::FrmSuggestion;
 use async_trait::async_trait;
-use common_utils::{errors::ReportSwitchExt, ext_traits::AsyncExt};
+use common_utils::ext_traits::AsyncExt;
 use error_stack::ResultExt;
 use router_derive::PaymentOperation;
 use router_env::{instrument, tracing};
@@ -432,8 +432,7 @@ pub async fn get_payment_intent_payment_attempt(
                         pi.active_attempt_id.as_str(),
                         storage_scheme,
                     )
-                    .await
-                    .switch()?;
+                    .await?;
             }
             api_models::payments::PaymentIdType::ConnectorTransactionId(ref id) => {
                 pa = db
@@ -442,8 +441,7 @@ pub async fn get_payment_intent_payment_attempt(
                         id,
                         storage_scheme,
                     )
-                    .await
-                    .switch()?;
+                    .await?;
                 pi = db
                     .find_payment_intent_by_payment_id_merchant_id(
                         pa.payment_id.as_str(),
@@ -455,8 +453,7 @@ pub async fn get_payment_intent_payment_attempt(
             api_models::payments::PaymentIdType::PaymentAttemptId(ref id) => {
                 pa = db
                     .find_payment_attempt_by_attempt_id_merchant_id(id, merchant_id, storage_scheme)
-                    .await
-                    .switch()?;
+                    .await?;
                 pi = db
                     .find_payment_intent_by_payment_id_merchant_id(
                         pa.payment_id.as_str(),
@@ -472,8 +469,7 @@ pub async fn get_payment_intent_payment_attempt(
                         merchant_id,
                         storage_scheme,
                     )
-                    .await
-                    .switch()?;
+                    .await?;
 
                 pi = db
                     .find_payment_intent_by_payment_id_merchant_id(

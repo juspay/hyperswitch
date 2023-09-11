@@ -772,7 +772,7 @@ mod merchant_connector_account_cache_tests {
         },
         services,
         types::{
-            domain::{self, behaviour::Conversion, types as domain_types},
+            domain::{self, behaviour::Conversion},
             storage,
         },
     };
@@ -780,7 +780,10 @@ mod merchant_connector_account_cache_tests {
     #[allow(clippy::unwrap_used)]
     #[tokio::test]
     async fn test_connector_profile_id_cache() {
-        let db = MockDb::new().await;
+        #[allow(clippy::expect_used)]
+        let db = MockDb::new(&redis_interface::RedisSettings::default())
+            .await
+            .expect("Failed to create Mock store");
 
         let redis_conn = db.get_redis_conn().unwrap();
         let master_key = db.get_master_key();
@@ -797,7 +800,7 @@ mod merchant_connector_account_cache_tests {
         db.insert_merchant_key_store(
             domain::MerchantKeyStore {
                 merchant_id: merchant_id.into(),
-                key: domain_types::encrypt(
+                key: domain::types::encrypt(
                     services::generate_aes256_key().unwrap().to_vec().into(),
                     master_key,
                 )
@@ -819,7 +822,7 @@ mod merchant_connector_account_cache_tests {
             id: Some(1),
             merchant_id: merchant_id.to_string(),
             connector_name: "stripe".to_string(),
-            connector_account_details: domain_types::encrypt(
+            connector_account_details: domain::types::encrypt(
                 serde_json::Value::default().into(),
                 merchant_key.key.get_inner().peek(),
             )
@@ -847,14 +850,15 @@ mod merchant_connector_account_cache_tests {
             .unwrap();
 
         let find_call = || async {
-            db.find_merchant_connector_account_by_profile_id_connector_name(
-                profile_id,
-                &mca.connector_name,
-                &merchant_key,
+            Conversion::convert(
+                db.find_merchant_connector_account_by_profile_id_connector_name(
+                    profile_id,
+                    &mca.connector_name,
+                    &merchant_key,
+                )
+                .await
+                .unwrap(),
             )
-            .await
-            .unwrap()
-            .convert()
             .await
             .change_context(errors::StorageError::DecryptionError)
         };
