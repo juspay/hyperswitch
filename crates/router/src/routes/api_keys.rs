@@ -38,7 +38,7 @@ pub async fn api_key_create(
 
     api::server_wrap(
         flow,
-        state.get_ref(),
+        state,
         &req,
         payload,
         |state, _, payload| async {
@@ -86,7 +86,7 @@ pub async fn api_key_retrieve(
 
     api::server_wrap(
         flow,
-        state.get_ref(),
+        state,
         &req,
         (&merchant_id, &key_id),
         |state, _, (merchant_id, key_id)| {
@@ -129,7 +129,7 @@ pub async fn api_key_update(
 
     api::server_wrap(
         flow,
-        state.get_ref(),
+        state,
         &req,
         (&merchant_id, &key_id, payload),
         |state, _, (merchant_id, key_id, payload)| {
@@ -170,7 +170,7 @@ pub async fn api_key_revoke(
 
     api::server_wrap(
         flow,
-        state.get_ref(),
+        state,
         &req,
         (&merchant_id, &key_id),
         |state, _, (merchant_id, key_id)| api_keys::revoke_api_key(state, merchant_id, key_id),
@@ -212,7 +212,7 @@ pub async fn api_key_list(
 
     api::server_wrap(
         flow,
-        state.get_ref(),
+        state,
         &req,
         (limit, offset, merchant_id),
         |state, _, (limit, offset, merchant_id)| async move {

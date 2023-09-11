@@ -96,7 +96,7 @@ pub async fn payments_create(
 
     api::server_wrap(
         flow,
-        state.get_ref(),
+        state,
         &req,
         payload,
         |state, auth, req| {
@@ -146,7 +146,7 @@ pub async fn payments_start(
         attempt_id: attempt_id.clone(),
     };
     api::server_wrap(flow,
-        state.get_ref(),
+        state,
         &req,
         payload,
         |state,auth, req| {
@@ -209,12 +209,12 @@ pub async fn payments_retrieve(
 
     api::server_wrap(
         flow,
-        state.get_ref(),
+        state,
         &req,
         payload,
-        |state, auth, req| {
+        |x, auth, req| {
             payments::payments_core::<api_types::PSync, payment_types::PaymentsResponse, _, _, _>(
-                state,
+                x,
                 auth.merchant_account,
                 auth.key_store,
                 payments::PaymentStatus,
@@ -266,7 +266,7 @@ pub async fn payments_retrieve_with_gateway_creds(
     let flow = Flow::PaymentsRetrieve;
     api::server_wrap(
         flow,
-        state.get_ref(),
+        state,
         &req,
         payload,
         |state, auth, req| {
@@ -329,7 +329,7 @@ pub async fn payments_update(
 
     api::server_wrap(
         flow,
-        state.get_ref(),
+        state,
         &req,
         payload,
         |state, auth, req| {
@@ -395,7 +395,7 @@ pub async fn payments_confirm(
 
     api::server_wrap(
         flow,
-        state.get_ref(),
+        state,
         &req,
         payload,
         |state, auth, req| {
@@ -447,7 +447,7 @@ pub async fn payments_capture(
 
     api::server_wrap(
         flow,
-        state.get_ref(),
+        state,
         &req,
         capture_payload,
         |state, auth, payload| {
@@ -492,7 +492,7 @@ pub async fn payments_connector_session(
 
     api::server_wrap(
         flow,
-        state.get_ref(),
+        state,
         &req,
         sessions_payload,
         |state, auth, payload| {
@@ -557,7 +557,7 @@ pub async fn payments_redirect_response(
     };
     api::server_wrap(
         flow,
-        state.get_ref(),
+        state,
         &req,
         payload,
         |state, auth, req| {
@@ -612,7 +612,7 @@ pub async fn payments_redirect_response_with_creds_identifier(
     let flow = Flow::PaymentsRedirect;
     api::server_wrap(
         flow,
-        state.get_ref(),
+        state,
         &req,
         payload,
         |state, auth, req| {
@@ -650,7 +650,7 @@ pub async fn payments_complete_authorize(
     };
     api::server_wrap(
         flow,
-        state.get_ref(),
+        state,
         &req,
         payload,
         |state, auth, req| {
@@ -698,7 +698,7 @@ pub async fn payments_cancel(
     payload.payment_id = payment_id;
     api::server_wrap(
         flow,
-        state.get_ref(),
+        state,
         &req,
         payload,
         |state, auth, req| {
@@ -753,10 +753,10 @@ pub async fn payments_list(
     let payload = payload.into_inner();
     api::server_wrap(
         flow,
-        state.get_ref(),
+        state,
         &req,
         payload,
-        |state, auth, req| payments::list_payments(&*state.store, auth.merchant_account, req),
+        |state, auth, req| payments::list_payments(state, auth.merchant_account, req),
         &auth::ApiKeyAuth,
     )
     .await
@@ -773,11 +773,11 @@ pub async fn payments_list_by_filter(
     let payload = payload.into_inner();
     api::server_wrap(
         flow,
-        state.get_ref(),
+        state,
         &req,
         payload,
         |state, auth, req| {
-            payments::apply_filters_on_payments(&*state.store, auth.merchant_account, req)
+            payments::apply_filters_on_payments(state, auth.merchant_account, req)
         },
         &auth::ApiKeyAuth,
     )
@@ -795,11 +795,11 @@ pub async fn get_filters_for_payments(
     let payload = payload.into_inner();
     api::server_wrap(
         flow,
-        state.get_ref(),
+        state,
         &req,
         payload,
         |state, auth, req| {
-            payments::get_filters_for_payments(&*state.store, auth.merchant_account, req)
+            payments::get_filters_for_payments(state, auth.merchant_account, req)
         },
         &auth::ApiKeyAuth,
     )

@@ -29,7 +29,7 @@ use crate::{
 
 #[instrument(skip_all)]
 pub async fn refund_create_core(
-    state: &AppState,
+    state: AppState,
     merchant_account: domain::MerchantAccount,
     key_store: domain::MerchantKeyStore,
     req: refunds::RefundRequest,
@@ -248,7 +248,7 @@ pub async fn trigger_refund_to_gateway(
 // ********************************************** REFUND SYNC **********************************************
 
 pub async fn refund_response_wrapper<'a, F, Fut, T, Req>(
-    state: &'a AppState,
+    state: AppState,
     merchant_account: domain::MerchantAccount,
     key_store: domain::MerchantKeyStore,
     request: Req,
@@ -463,11 +463,12 @@ pub async fn sync_refund_with_gateway(
 // ********************************************** REFUND UPDATE **********************************************
 
 pub async fn refund_update_core(
-    db: &dyn db::StorageInterface,
+    state: AppState,
     merchant_account: domain::MerchantAccount,
     refund_id: &str,
     req: refunds::RefundUpdateRequest,
 ) -> RouterResponse<refunds::RefundResponse> {
+    let db = state.store.as_ref();
     let refund = db
         .find_refund_by_merchant_id_refund_id(
             &merchant_account.merchant_id,
@@ -642,10 +643,11 @@ pub async fn validate_and_create_refund(
 #[instrument(skip_all)]
 #[cfg(feature = "olap")]
 pub async fn refund_list(
-    db: &dyn db::StorageInterface,
+    state: AppState,
     merchant_account: domain::MerchantAccount,
     req: api_models::refunds::RefundListRequest,
 ) -> RouterResponse<api_models::refunds::RefundListResponse> {
+    let db = state.store;
     let limit = validator::validate_refund_list(req.limit)?;
     let offset = req.offset.unwrap_or_default();
 
@@ -686,10 +688,11 @@ pub async fn refund_list(
 #[instrument(skip_all)]
 #[cfg(feature = "olap")]
 pub async fn refund_filter_list(
-    db: &dyn db::StorageInterface,
+    state: AppState,
     merchant_account: domain::MerchantAccount,
     req: api_models::refunds::TimeRange,
 ) -> RouterResponse<api_models::refunds::RefundListMetaData> {
+    let db = state.store;
     let filter_list = db
         .filter_refund_by_meta_constraints(
             &merchant_account.merchant_id,

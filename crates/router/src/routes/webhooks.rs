@@ -19,12 +19,12 @@ pub async fn receive_incoming_webhook<W: types::OutgoingWebhookType>(
 
     api::server_wrap(
         flow,
-        state.get_ref(),
+        state,
         &req,
         body,
-        |state, auth, body| {
+        |statex, auth, body| {
             webhooks::webhooks_core::<W>(
-                state,
+                statex,
                 &req,
                 auth.merchant_account,
                 auth.key_store,

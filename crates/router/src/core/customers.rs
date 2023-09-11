@@ -26,13 +26,14 @@ use crate::{
 
 pub const REDACTED: &str = "Redacted";
 
-#[instrument(skip(db))]
+#[instrument(skip(state))]
 pub async fn create_customer(
-    db: &dyn StorageInterface,
+    state: AppState,
     merchant_account: domain::MerchantAccount,
     key_store: domain::MerchantKeyStore,
     mut customer_data: customers::CustomerRequest,
 ) -> RouterResponse<customers::CustomerResponse> {
+    let db = state.store.as_ref();
     let customer_id = &customer_data.customer_id;
     let merchant_id = &merchant_account.merchant_id;
     customer_data.merchant_id = merchant_id.to_owned();
@@ -149,13 +150,14 @@ pub async fn create_customer(
     Ok(services::ApplicationResponse::Json(customer_response))
 }
 
-#[instrument(skip(db))]
+#[instrument(skip(state))]
 pub async fn retrieve_customer(
-    db: &dyn StorageInterface,
+    state: AppState,
     merchant_account: domain::MerchantAccount,
     key_store: domain::MerchantKeyStore,
     req: customers::CustomerId,
 ) -> RouterResponse<customers::CustomerResponse> {
+    let db = state.store.as_ref();
     let response = db
         .find_customer_by_customer_id_merchant_id(
             &req.customer_id,
@@ -170,7 +172,7 @@ pub async fn retrieve_customer(
 
 #[instrument(skip_all)]
 pub async fn delete_customer(
-    state: &AppState,
+    state: AppState,
     merchant_account: domain::MerchantAccount,
     req: customers::CustomerId,
     key_store: domain::MerchantKeyStore,
