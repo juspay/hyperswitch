@@ -410,7 +410,10 @@ mod tests {
 
         #[tokio::test]
         async fn test_insert_dispute() {
-            let mockdb = MockDb::new(&RedisSettings::default()).await.unwrap();
+            #[allow(clippy::expect_used)]
+            let mockdb = MockDb::new(&RedisSettings::default())
+                .await
+                .expect("Failed to create a mock DB");
 
             let created_dispute = mockdb
                 .insert_dispute(create_dispute_new(DisputeNewIds {
