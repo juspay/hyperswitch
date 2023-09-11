@@ -23,3 +23,17 @@ pub struct ApplepayMerchantResponse {
     pub status_message: String,
     pub status_code: String,
 }
+
+/// QueryParams to be send by the merchant for fetching the verified domains
+#[derive(Debug, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ApplepayGetVerifiedDomainsParam {
+    pub business_profile_id: String,
+}
+/// Response to be sent for derivation of the already verified domains
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ApplepayVerifiedDomainsResponse {
+    pub status_code: String,
+    pub verified_domains: Vec<String>,
+}

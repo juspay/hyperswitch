@@ -141,7 +141,7 @@ pub fn mk_app(
 
     #[cfg(all(feature = "olap", feature = "kms"))]
     {
-        server_app = server_app.service(routes::Verify::server(state.clone()));
+        server_app = server_app.service(routes::Verify::server(state.clone()))
     }
 
     #[cfg(feature = "payouts")]
