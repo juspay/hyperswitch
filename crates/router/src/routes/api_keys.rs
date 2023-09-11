@@ -90,7 +90,7 @@ pub async fn api_key_retrieve(
         &req,
         (&merchant_id, &key_id),
         |state, _, (merchant_id, key_id)| {
-            api_keys::retrieve_api_key(&*state.store, merchant_id, key_id)
+            api_keys::retrieve_api_key(state, merchant_id, key_id)
         },
         &auth::AdminApiAuth,
     )
@@ -216,7 +216,7 @@ pub async fn api_key_list(
         &req,
         (limit, offset, merchant_id),
         |state, _, (limit, offset, merchant_id)| async move {
-            api_keys::list_api_keys(&*state.store, merchant_id, limit, offset).await
+            api_keys::list_api_keys(state, merchant_id, limit, offset).await
         },
         &auth::AdminApiAuth,
     )

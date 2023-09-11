@@ -13,7 +13,6 @@ use crate::{
     configs::settings,
     consts,
     core::errors::{self, RouterResponse, StorageErrorExt},
-    db::StorageInterface,
     routes::{metrics, AppState},
     services::ApplicationResponse,
     types::{api, storage, transformers::ForeignInto},
@@ -277,10 +276,11 @@ pub async fn add_api_key_expiry_task(
 
 #[instrument(skip_all)]
 pub async fn retrieve_api_key(
-    store: &dyn StorageInterface,
+    state: AppState,
     merchant_id: &str,
     key_id: &str,
 ) -> RouterResponse<api::RetrieveApiKeyResponse> {
+    let store = state.store.as_ref();
     let api_key = store
         .find_api_key_by_merchant_id_key_id_optional(merchant_id, key_id)
         .await
@@ -498,11 +498,12 @@ pub async fn revoke_api_key_expiry_task(
 
 #[instrument(skip_all)]
 pub async fn list_api_keys(
-    store: &dyn StorageInterface,
+    state: AppState,
     merchant_id: String,
     limit: Option<i64>,
     offset: Option<i64>,
 ) -> RouterResponse<Vec<api::RetrieveApiKeyResponse>> {
+    let store = state.store.as_ref();
     let api_keys = store
         .list_api_keys_by_merchant_id(&merchant_id, limit, offset)
         .await
