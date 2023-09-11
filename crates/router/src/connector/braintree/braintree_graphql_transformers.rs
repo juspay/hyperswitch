@@ -448,53 +448,6 @@ impl<F>
     TryFrom<
         types::ResponseRouterData<
             F,
-            BraintreeAuthResponse,
-            types::CompleteAuthorizeData,
-            types::PaymentsResponseData,
-        >,
-    > for types::RouterData<F, types::CompleteAuthorizeData, types::PaymentsResponseData>
-{
-    type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(
-        item: types::ResponseRouterData<
-            F,
-            BraintreeAuthResponse,
-            types::CompleteAuthorizeData,
-            types::PaymentsResponseData,
-        >,
-    ) -> Result<Self, Self::Error> {
-        match item.response {
-            BraintreeAuthResponse::ErrorResponse(error_response) => Ok(Self {
-                response: build_error_response(&error_response.errors, item.http_code),
-                ..item.data
-            }),
-            BraintreeAuthResponse::AuthResponse(auth_response) => {
-                let transaction_data = auth_response.data.authorize_credit_card.transaction;
-
-                Ok(Self {
-                    status: enums::AttemptStatus::from(transaction_data.status.clone()),
-                    response: Ok(types::PaymentsResponseData::TransactionResponse {
-                        resource_id: types::ResponseId::ConnectorTransactionId(transaction_data.id),
-                        redirection_data: None,
-                        mandate_reference: None,
-                        connector_metadata: None,
-                        network_txn_id: None,
-                        connector_response_reference_id: None,
-                    }),
-                    ..item.data
-                })
-            }
-            BraintreeAuthResponse::ClientTokenResponse(_) => Err(
-                errors::ConnectorError::NotImplemented("given payment method".to_owned()),
-            )?,
-        }
-    }
-}
-
-impl<F>
-    TryFrom<
-        types::ResponseRouterData<
-            F,
             BraintreeCompleteAuthResponse,
             types::CompleteAuthorizeData,
             types::PaymentsResponseData,
