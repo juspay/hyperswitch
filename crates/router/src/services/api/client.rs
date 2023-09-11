@@ -170,6 +170,10 @@ where
     fn get_request_id(&self) -> Option<String> {
         None
     }
+    fn add_merchant_id(&mut self, merchant_id: Option<String>) {}
+    fn get_merchant_id(&self) -> Option<String> {
+        None
+    }
 }
 
 dyn_clone::clone_trait_object!(ApiClient);
@@ -354,6 +358,14 @@ impl ApiClient for ProxyClient {
     fn get_request_id(&self) -> Option<String> {
         None
     }
+
+    fn add_merchant_id(&mut self, _merchant_id: Option<String>) {
+        
+    }
+
+    fn get_merchant_id(&self) -> Option<String> {
+        None
+    }
 }
 
 ///
@@ -400,6 +412,13 @@ impl ApiClient for MockApiClient {
 
     fn get_request_id(&self) -> Option<String> {
         // [#2066]: Add Mock implementation for ApiClient
+        None
+    }
+
+    fn add_merchant_id(&mut self, _merchant_id: Option<String>) {
+    }
+
+    fn get_merchant_id(&self) -> Option<String> {
         None
     }
 }
