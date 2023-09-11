@@ -9,7 +9,7 @@ use crate::{
         payments::{self, access_token, transformers, PaymentData},
     },
     routes::AppState,
-    services,
+    services::{self, logger},
     types::{self, api, domain},
 };
 
@@ -113,16 +113,19 @@ impl Feature<api::PSync, types::PaymentsSyncData>
         connector: &api::ConnectorData,
         call_connector_action: payments::CallConnectorAction,
     ) -> RouterResult<(Option<services::Request>, bool)> {
-        if connector
-            .connector
-            .validate_psync_reference_id(self)
-            .is_err()
-        {
-            return Ok((None, false));
-        }
-
         let request = match call_connector_action {
             payments::CallConnectorAction::Trigger => {
+                //validate_psync_reference_id if call_connector_action is trigger
+                if connector
+                    .connector
+                    .validate_psync_reference_id(self)
+                    .is_err()
+                {
+                    logger::warn!(
+                        "validate_psync_reference_id failed, hence skipping call to connector"
+                    );
+                    return Ok((None, false));
+                }
                 let connector_integration: services::BoxedConnectorIntegration<
                     '_,
                     api::PSync,
