@@ -510,10 +510,10 @@ where
                 let mut response: api::PaymentsResponse = Default::default();
                 let routed_through = payment_attempt.connector.clone();
 
-                let connector_label = routed_through.as_ref().map(|connector_name| {
-                    helpers::get_connector_label(
+                let connector_label = routed_through.as_ref().and_then(|connector_name| {
+                    core_utils::get_connector_label(
                         payment_intent.business_country,
-                        &payment_intent.business_label,
+                        payment_intent.business_label.as_ref(),
                         payment_attempt.business_sub_label.as_ref(),
                         connector_name,
                     )
