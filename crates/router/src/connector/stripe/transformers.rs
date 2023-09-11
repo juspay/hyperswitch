@@ -7,7 +7,7 @@ use common_utils::{
     pii::{self, Email},
 };
 use error_stack::{IntoReport, ResultExt};
-use masking::{ExposeInterface, ExposeOptionInterface, Secret};
+use masking::{ExposeInterface, ExposeOptionInterface, PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
 use url::Url;
@@ -96,12 +96,8 @@ pub struct PaymentIntentRequest {
     pub currency: String,
     pub statement_descriptor_suffix: Option<String>,
     pub statement_descriptor: Option<String>,
-    #[serde(rename = "metadata[order_id]")]
-    pub metadata_order_id: String,
-    #[serde(rename = "metadata[txn_id]")]
-    pub metadata_txn_id: String,
-    #[serde(rename = "metadata[txn_uuid]")]
-    pub metadata_txn_uuid: String,
+    #[serde(flatten)]
+    pub meta_data: StripeMetadata,
     pub return_url: String,
     pub confirm: bool,
     pub mandate: Option<Secret<String>>,
@@ -122,6 +118,21 @@ pub struct PaymentIntentRequest {
     pub off_session: Option<bool>,
     #[serde(rename = "payment_method_types[0]")]
     pub payment_method_types: Option<StripePaymentMethodType>,
+}
+
+// Field rename is required only in case of serialization as it is passed in the request to the connector.
+// Deserialization is happening only in case of webhooks, where fields name should be used as defined in the struct.
+// Whenever adding new fields, Please ensure it doesn't break the webhook flow
+#[derive(Clone, Debug, Default, Eq, PartialEq, Serialize, Deserialize)]
+pub struct StripeMetadata {
+    // merchant_reference_id
+    #[serde(rename(serialize = "metadata[order_id]"))]
+    pub order_id: String,
+    // to check whether the order_id is refund_id or payemnt_id
+    // before deployment, order id is set to payemnt_id in refunds but now it is set as refund_id
+    // it is set as string instead of bool because stripe pass it as string even if we set it as bool
+    #[serde(rename(serialize = "metadata[is_refund_id_as_reference]"))]
+    pub is_refund_id_as_reference: Option<String>,
 }
 
 #[derive(Debug, Eq, PartialEq, Serialize)]
@@ -434,6 +445,23 @@ pub enum StripeWallet {
     WechatpayPayment(WechatpayPayment),
     AlipayPayment(AlipayPayment),
     Cashapp(CashappPayment),
+    ApplePayPredecryptToken(Box<StripeApplePayPredecrypt>),
+}
+
+#[derive(Debug, Eq, PartialEq, Serialize)]
+pub struct StripeApplePayPredecrypt {
+    #[serde(rename = "card[number]")]
+    number: Secret<String>,
+    #[serde(rename = "card[exp_year]")]
+    exp_year: Secret<String>,
+    #[serde(rename = "card[exp_month]")]
+    exp_month: Secret<String>,
+    #[serde(rename = "card[cryptogram]")]
+    cryptogram: Secret<String>,
+    #[serde(rename = "card[eci]")]
+    eci: Option<Secret<String>>,
+    #[serde(rename = "card[tokenization_method]")]
+    tokenization_method: String,
 }
 
 #[derive(Debug, Eq, PartialEq, Serialize)]
@@ -1201,6 +1229,7 @@ fn create_stripe_payment_method(
     experience: Option<&enums::PaymentExperience>,
     payment_method_data: &api_models::payments::PaymentMethodData,
     auth_type: enums::AuthenticationType,
+    payment_method_token: Option<types::PaymentMethodToken>,
 ) -> Result<
     (
         StripePaymentMethodData,
@@ -1271,18 +1300,71 @@ fn create_stripe_payment_method(
             ))
         }
         payments::PaymentMethodData::Wallet(wallet_data) => match wallet_data {
-            payments::WalletData::ApplePay(applepay_data) => Ok((
-                StripePaymentMethodData::Wallet(StripeWallet::ApplepayToken(StripeApplePay {
-                    pk_token: applepay_data
-                        .get_applepay_decoded_payment_data()
-                        .change_context(errors::ConnectorError::RequestEncodingFailed)?,
-                    pk_token_instrument_name: applepay_data.payment_method.pm_type.to_owned(),
-                    pk_token_payment_network: applepay_data.payment_method.network.to_owned(),
-                    pk_token_transaction_id: applepay_data.transaction_identifier.to_owned(),
-                })),
-                None,
-                StripeBillingAddress::default(),
-            )),
+            payments::WalletData::ApplePay(applepay_data) => {
+                let mut apple_pay_decrypt_data =
+                    if let Some(types::PaymentMethodToken::ApplePayDecrypt(decrypt_data)) =
+                        payment_method_token
+                    {
+                        let expiry_year_4_digit = Secret::new(format!(
+                            "20{}",
+                            decrypt_data
+                                .clone()
+                                .application_expiration_date
+                                .peek()
+                                .get(0..2)
+                                .ok_or(errors::ConnectorError::RequestEncodingFailed)?
+                        ));
+                        let exp_month = Secret::new(
+                            decrypt_data
+                                .clone()
+                                .application_expiration_date
+                                .peek()
+                                .get(2..4)
+                                .ok_or(errors::ConnectorError::RequestEncodingFailed)?
+                                .to_owned(),
+                        );
+
+                        Some(StripePaymentMethodData::Wallet(
+                            StripeWallet::ApplePayPredecryptToken(Box::new(
+                                StripeApplePayPredecrypt {
+                                    number: decrypt_data.clone().application_primary_account_number,
+                                    exp_year: expiry_year_4_digit,
+                                    exp_month,
+                                    eci: decrypt_data.payment_data.eci_indicator,
+                                    cryptogram: decrypt_data.payment_data.online_payment_cryptogram,
+                                    tokenization_method: "apple_pay".to_string(),
+                                },
+                            )),
+                        ))
+                    } else {
+                        None
+                    };
+
+                if apple_pay_decrypt_data.is_none() {
+                    apple_pay_decrypt_data = Some(StripePaymentMethodData::Wallet(
+                        StripeWallet::ApplepayToken(StripeApplePay {
+                            pk_token: applepay_data
+                                .get_applepay_decoded_payment_data()
+                                .change_context(errors::ConnectorError::RequestEncodingFailed)?,
+                            pk_token_instrument_name: applepay_data
+                                .payment_method
+                                .pm_type
+                                .to_owned(),
+                            pk_token_payment_network: applepay_data
+                                .payment_method
+                                .network
+                                .to_owned(),
+                            pk_token_transaction_id: applepay_data
+                                .transaction_identifier
+                                .to_owned(),
+                        }),
+                    ));
+                };
+                let pmd = apple_pay_decrypt_data
+                    .ok_or(errors::ConnectorError::MissingApplePayTokenData)?;
+                Ok((pmd, None, StripeBillingAddress::default()))
+            }
+
             payments::WalletData::WeChatPayQr(_) => Ok((
                 StripePaymentMethodData::Wallet(StripeWallet::WechatpayPayment(WechatpayPayment {
                     client: WechatClient::Web,
@@ -1466,9 +1548,7 @@ impl TryFrom<&payments::GooglePayWalletData> for StripePaymentMethodData {
 impl TryFrom<&types::PaymentsAuthorizeRouterData> for PaymentIntentRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::PaymentsAuthorizeRouterData) -> Result<Self, Self::Error> {
-        let metadata_order_id = item.connector_request_reference_id.clone();
-        let metadata_txn_id = format!("{}_{}_{}", item.merchant_id, item.payment_id, "1");
-        let metadata_txn_uuid = Uuid::new_v4().to_string(); //Fetch autogenerated txn_uuid from Database.
+        let order_id = item.connector_request_reference_id.clone();
 
         let shipping_address = match item.address.shipping.clone() {
             Some(mut shipping) => StripeShippingAddress {
@@ -1539,6 +1619,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PaymentIntentRequest {
                             item.request.payment_experience.as_ref(),
                             &item.request.payment_method_data,
                             item.auth_type,
+                            item.payment_method_token.clone(),
                         )?;
 
                     validate_shipping_address_against_payment_method(
@@ -1558,17 +1639,25 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PaymentIntentRequest {
         };
 
         payment_data = match item.request.payment_method_data {
-            payments::PaymentMethodData::Wallet(payments::WalletData::ApplePay(_)) => Some(
-                StripePaymentMethodData::Wallet(StripeWallet::ApplepayPayment(ApplepayPayment {
-                    token: Secret::new(
-                        item.payment_method_token
-                            .to_owned()
-                            .get_required_value("payment_token")
-                            .change_context(errors::ConnectorError::RequestEncodingFailed)?,
-                    ),
-                    payment_method_types: StripePaymentMethodType::Card,
-                })),
-            ),
+            payments::PaymentMethodData::Wallet(payments::WalletData::ApplePay(_)) => {
+                let payment_method_token = item
+                    .payment_method_token
+                    .to_owned()
+                    .get_required_value("payment_token")
+                    .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+                let payment_method_token = match payment_method_token {
+                    types::PaymentMethodToken::Token(payment_method_token) => payment_method_token,
+                    types::PaymentMethodToken::ApplePayDecrypt(_) => {
+                        Err(errors::ConnectorError::InvalidWalletToken)?
+                    }
+                };
+                Some(StripePaymentMethodData::Wallet(
+                    StripeWallet::ApplepayPayment(ApplepayPayment {
+                        token: Secret::new(payment_method_token),
+                        payment_method_types: StripePaymentMethodType::Card,
+                    }),
+                ))
+            }
             _ => payment_data,
         };
 
@@ -1640,9 +1729,10 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PaymentIntentRequest {
             currency: item.request.currency.to_string(), //we need to copy the value and not transfer ownership
             statement_descriptor_suffix: item.request.statement_descriptor_suffix.clone(),
             statement_descriptor: item.request.statement_descriptor.clone(),
-            metadata_order_id,
-            metadata_txn_id,
-            metadata_txn_uuid,
+            meta_data: StripeMetadata {
+                order_id,
+                is_refund_id_as_reference: None,
+            },
             return_url: item
                 .request
                 .router_return_url
@@ -1737,6 +1827,7 @@ impl TryFrom<&types::TokenizationRouterData> for TokenRequest {
             None,
             &item.request.payment_method_data,
             item.auth_type,
+            item.payment_method_token.clone(),
         )?;
         Ok(Self {
             token_data: payment_data.0,
@@ -1755,13 +1846,6 @@ impl TryFrom<&types::ConnectorCustomerRouterData> for CustomerRequest {
             source: item.request.preprocessing_id.to_owned(),
         })
     }
-}
-
-#[derive(Clone, Debug, Default, Eq, PartialEq, Deserialize, Serialize)]
-pub struct StripeMetadata {
-    pub order_id: String,
-    pub txn_id: String,
-    pub txn_uuid: String,
 }
 
 #[derive(Clone, Default, Debug, Eq, PartialEq, Deserialize, Serialize)]
@@ -2424,31 +2508,26 @@ pub struct BacsFinancialDetails {
 // REFUND :
 // Type definition for Stripe RefundRequest
 
-#[derive(Default, Debug, Serialize)]
+#[derive(Debug, Serialize)]
 pub struct RefundRequest {
     pub amount: Option<i64>, //amount in cents, hence passed as integer
     pub payment_intent: String,
-    #[serde(rename = "metadata[order_id]")]
-    pub metadata_order_id: String,
-    #[serde(rename = "metadata[txn_id]")]
-    pub metadata_txn_id: String,
-    #[serde(rename = "metadata[txn_uuid]")]
-    pub metadata_txn_uuid: String,
+    #[serde(flatten)]
+    pub meta_data: StripeMetadata,
 }
 
 impl<F> TryFrom<&types::RefundsRouterData<F>> for RefundRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::RefundsRouterData<F>) -> Result<Self, Self::Error> {
         let amount = item.request.refund_amount;
-        let metadata_txn_id = "Fetch txn_id from DB".to_string();
-        let metadata_txn_uuid = "Fetch txn_id from DB".to_string();
         let payment_intent = item.request.connector_transaction_id.clone();
         Ok(Self {
             amount: Some(amount),
             payment_intent,
-            metadata_order_id: item.payment_id.clone(),
-            metadata_txn_id,
-            metadata_txn_uuid,
+            meta_data: StripeMetadata {
+                order_id: item.request.refund_id.clone(),
+                is_refund_id_as_reference: Some("true".to_string()),
+            },
         })
     }
 }
@@ -2956,6 +3035,7 @@ pub struct WebhookEventObjectData {
     pub created: PrimitiveDateTime,
     pub evidence_details: Option<EvidenceDetails>,
     pub status: Option<WebhookEventStatus>,
+    pub metadata: Option<StripeMetadata>,
 }
 
 #[derive(Debug, Deserialize, strum::Display)]

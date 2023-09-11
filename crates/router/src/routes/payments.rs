@@ -1,6 +1,7 @@
 pub mod helpers;
 
 use actix_web::{web, Responder};
+use api_models::payments::HeaderPayload;
 use error_stack::report;
 use router_env::{instrument, tracing, Flow};
 
@@ -20,6 +21,7 @@ use crate::{
     types::{
         api::{self as api_types, enums as api_enums, payments as payment_types},
         domain,
+        transformers::ForeignTryFrom,
     },
 };
 
@@ -105,6 +107,7 @@ pub async fn payments_create(
                 state,
                 auth.merchant_account,
                 auth.key_store,
+                payment_types::HeaderPayload::default(),
                 req,
                 api::AuthFlow::Merchant,
             )
@@ -158,6 +161,7 @@ pub async fn payments_start(
                 req,
                 api::AuthFlow::Client,
                 payments::CallConnectorAction::Trigger,
+                HeaderPayload::default(),
             )
         },
         &auth::MerchantIdAuth(merchant_id),
@@ -221,6 +225,7 @@ pub async fn payments_retrieve(
                 req,
                 auth_flow,
                 payments::CallConnectorAction::Trigger,
+                HeaderPayload::default(),
             )
         },
         &*auth_type,
@@ -278,6 +283,7 @@ pub async fn payments_retrieve_with_gateway_creds(
                 req,
                 api::AuthFlow::Merchant,
                 payments::CallConnectorAction::Trigger,
+                HeaderPayload::default(),
             )
         },
         &*auth_type,
@@ -338,6 +344,7 @@ pub async fn payments_update(
                 state,
                 auth.merchant_account,
                 auth.key_store,
+                payment_types::HeaderPayload::default(),
                 req,
                 auth_flow,
             )
@@ -387,12 +394,18 @@ pub async fn payments_confirm(
     let payment_id = path.into_inner();
     payload.payment_id = Some(payment_types::PaymentIdType::PaymentIntentId(payment_id));
     payload.confirm = Some(true);
+    let header_payload = match payment_types::HeaderPayload::foreign_try_from(req.headers()) {
+        Ok(headers) => headers,
+        Err(err) => {
+            return api::log_and_return_error_response(err);
+        }
+    };
+
     let (auth_type, auth_flow) =
         match auth::check_client_secret_and_get_auth(req.headers(), &payload) {
             Ok(auth) => auth,
             Err(e) => return api::log_and_return_error_response(e),
         };
-
     api::server_wrap(
         flow,
         state.get_ref(),
@@ -404,6 +417,7 @@ pub async fn payments_confirm(
                 state,
                 auth.merchant_account,
                 auth.key_store,
+                header_payload,
                 req,
                 auth_flow,
             )
@@ -459,6 +473,7 @@ pub async fn payments_capture(
                 payload,
                 api::AuthFlow::Merchant,
                 payments::CallConnectorAction::Trigger,
+                HeaderPayload::default(),
             )
         },
         &auth::ApiKeyAuth,
@@ -510,6 +525,7 @@ pub async fn payments_connector_session(
                 payload,
                 api::AuthFlow::Client,
                 payments::CallConnectorAction::Trigger,
+                HeaderPayload::default(),
             )
         },
         &auth::PublishableKeyAuth,
@@ -710,6 +726,7 @@ pub async fn payments_cancel(
                 req,
                 api::AuthFlow::Merchant,
                 payments::CallConnectorAction::Trigger,
+                HeaderPayload::default(),
             )
         },
         &auth::ApiKeyAuth,
@@ -811,6 +828,7 @@ async fn authorize_verify_select<Op>(
     state: &app::AppState,
     merchant_account: domain::MerchantAccount,
     key_store: domain::MerchantKeyStore,
+    header_payload: HeaderPayload,
     req: api_models::payments::PaymentsRequest,
     auth_flow: api::AuthFlow,
 ) -> app::core::errors::RouterResponse<api_models::payments::PaymentsResponse>
@@ -842,6 +860,7 @@ where
             req,
             auth_flow,
             payments::CallConnectorAction::Trigger,
+            header_payload,
         )
         .await,
 
@@ -854,6 +873,7 @@ where
                 req,
                 auth_flow,
                 payments::CallConnectorAction::Trigger,
+                header_payload,
             )
             .await
         }

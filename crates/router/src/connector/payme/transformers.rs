@@ -642,11 +642,12 @@ impl TryFrom<&types::PaymentsCompleteAuthorizeRouterData> for Pay3dsRequest {
                     .connector_transaction_id
                     .clone()
                     .ok_or(errors::ConnectorError::MissingConnectorTransactionID)?;
-                let buyer_key = match item.payment_method_token.clone() {
-                    Some(key) => key,
-                    None => Err(errors::ConnectorError::MissingRequiredField {
-                        field_name: "buyer_key",
-                    })?,
+                let pm_token = item.get_payment_method_token()?;
+                let buyer_key = match pm_token {
+                    types::PaymentMethodToken::Token(token) => token,
+                    types::PaymentMethodToken::ApplePayDecrypt(_) => {
+                        Err(errors::ConnectorError::InvalidWalletToken)?
+                    }
                 };
                 Ok(Self {
                     buyer_email,
@@ -833,7 +834,9 @@ impl<F, T>
         item: types::ResponseRouterData<F, CaptureBuyerResponse, T, types::PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
-            payment_method_token: Some(item.response.buyer_key.clone()),
+            payment_method_token: Some(types::PaymentMethodToken::Token(
+                item.response.buyer_key.clone(),
+            )),
             response: Ok(types::PaymentsResponseData::TokenizationResponse {
                 token: item.response.buyer_key,
             }),

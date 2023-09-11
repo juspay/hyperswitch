@@ -856,7 +856,7 @@ pub async fn list_payment_methods(
 
     // filter out connectors based on the business country
     let filtered_mcas =
-        helpers::filter_mca_based_on_business_details(all_mcas, payment_intent.as_ref());
+        helpers::filter_mca_based_on_business_profile(all_mcas, payment_intent.as_ref());
 
     logger::debug!(mca_before_filtering=?filtered_mcas);
 
