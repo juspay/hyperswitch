@@ -15,6 +15,7 @@ pub use common_utils::{
     fp_utils::when,
     validation::validate_email,
 };
+use data_models::payments::payment_intent::PaymentIntent;
 use error_stack::{IntoReport, ResultExt};
 use image::Luma;
 use nanoid::nanoid;
@@ -23,17 +24,14 @@ use serde::de::DeserializeOwned;
 use serde_json::Value;
 use uuid::Uuid;
 
-pub use self::{
-    ext_traits::{OptionExt, ValidateCall},
-    storage::PaymentIntent,
-};
+pub use self::ext_traits::{OptionExt, ValidateCall};
 use crate::{
     consts,
     core::errors::{self, CustomResult, RouterResult, StorageErrorExt},
     db::StorageInterface,
     logger,
     routes::metrics,
-    types::{self, domain, storage},
+    types::{self, domain},
 };
 
 pub mod error_parser {
@@ -283,37 +281,14 @@ pub async fn find_payment_intent_from_refund_id_type(
     .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)
 }
 
-pub async fn get_connector_label_using_object_reference_id(
+pub async fn get_profile_id_using_object_reference_id(
     db: &dyn StorageInterface,
     object_reference_id: webhooks::ObjectReferenceId,
     merchant_account: &domain::MerchantAccount,
     connector_name: &str,
 ) -> CustomResult<String, errors::ApiErrorResponse> {
-    let mut primary_business_details = merchant_account
-        .primary_business_details
-        .clone()
-        .parse_value::<Vec<api_models::admin::PrimaryBusinessDetails>>("PrimaryBusinessDetails")
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("failed to parse primary business details")?;
-    //check if there is only one primary business details and get those details
-    let (option_business_country, option_business_label) = match primary_business_details.pop() {
-        Some(business_details) => {
-            if primary_business_details.is_empty() {
-                (
-                    Some(business_details.country),
-                    Some(business_details.business),
-                )
-            } else {
-                (None, None)
-            }
-        }
-        None => (None, None),
-    };
-    match (option_business_country, option_business_label) {
-        (Some(business_country), Some(business_label)) => Ok(format!(
-            "{connector_name}_{}_{}",
-            business_country, business_label
-        )),
+    match merchant_account.default_profile.as_ref() {
+        Some(profile_id) => Ok(profile_id.clone()),
         _ => {
             let payment_intent = match object_reference_id {
                 webhooks::ObjectReferenceId::PaymentId(payment_id_type) => {
@@ -330,10 +305,15 @@ pub async fn get_connector_label_using_object_reference_id(
                     .await?
                 }
             };
-            Ok(format!(
-                "{connector_name}_{}_{}",
-                payment_intent.business_country, payment_intent.business_label
-            ))
+            let profile_id = payment_intent
+                .profile_id
+                .ok_or(errors::ApiErrorResponse::MissingRequiredField {
+                    field_name: "business_profile",
+                })
+                .into_report()
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("profile_id is not set in payment_intent")?;
+            Ok(profile_id)
         }
     }
 }

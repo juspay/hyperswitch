@@ -89,7 +89,12 @@ impl AppState {
                     .await
                     .expect("Failed to create store"),
             ),
-            StorageImpl::Mock => Box::new(MockDb::new().await),
+            #[allow(clippy::expect_used)]
+            StorageImpl::Mock => Box::new(
+                MockDb::new(&conf.redis)
+                    .await
+                    .expect("Failed to create mock store"),
+            ),
         };
 
         #[cfg(feature = "kms")]

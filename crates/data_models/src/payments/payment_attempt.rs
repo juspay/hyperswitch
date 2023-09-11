@@ -1,3 +1,4 @@
+use api_models::enums::Connector;
 use common_enums as storage_enums;
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
@@ -77,6 +78,15 @@ pub trait PaymentAttemptInterface {
         merchant_id: &str,
         storage_scheme: MerchantStorageScheme,
     ) -> error_stack::Result<PaymentListFilters, errors::StorageError>;
+
+    async fn get_total_count_of_filtered_payment_attempts(
+        &self,
+        merchant_id: &str,
+        active_attempt_ids: &[String],
+        connector: Option<Vec<Connector>>,
+        payment_methods: Option<Vec<storage_enums::PaymentMethod>>,
+        storage_scheme: MerchantStorageScheme,
+    ) -> error_stack::Result<i64, errors::StorageError>;
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
@@ -129,7 +139,7 @@ pub struct PaymentAttempt {
     pub connector_response_reference_id: Option<String>,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct PaymentListFilters {
     pub connector: Vec<String>,
     pub currency: Vec<storage_enums::Currency>,
@@ -222,6 +232,13 @@ pub enum PaymentAttemptUpdate {
         payment_experience: Option<storage_enums::PaymentExperience>,
         business_sub_label: Option<String>,
         straight_through_algorithm: Option<serde_json::Value>,
+        error_code: Option<Option<String>>,
+        error_message: Option<Option<String>>,
+    },
+    RejectUpdate {
+        status: storage_enums::AttemptStatus,
+        error_code: Option<Option<String>>,
+        error_message: Option<Option<String>>,
     },
     VoidUpdate {
         status: storage_enums::AttemptStatus,
@@ -261,9 +278,8 @@ pub enum PaymentAttemptUpdate {
         error_message: Option<Option<String>>,
         error_reason: Option<Option<String>>,
     },
-    MultipleCaptureUpdate {
-        status: Option<storage_enums::AttemptStatus>,
-        multiple_capture_count: Option<i16>,
+    MultipleCaptureCountUpdate {
+        multiple_capture_count: i16,
     },
     PreprocessingUpdate {
         status: storage_enums::AttemptStatus,
