@@ -19,6 +19,7 @@ use super::env::logger;
 pub use super::workflows::ProcessTrackerWorkflow;
 use crate::{
     configs::settings::SchedulerSettings,
+    core::errors::{self, CustomResult},
     db::process_tracker::{ProcessTrackerExt, ProcessTrackerInterface},
     errors, metrics, utils as pt_utils, SchedulerAppState, SchedulerInterface,
 };
@@ -37,10 +38,13 @@ pub async fn start_consumer<T: SchedulerAppState + 'static>(
 ) -> CustomResult<(), errors::ProcessTrackerError> {
     use std::time::Duration;
 
-    use rand::Rng;
+    use rand::distributions::{Distribution, Uniform};
 
-    let timeout = rand::thread_rng().gen_range(0..=settings.loop_interval);
-    tokio::time::sleep(Duration::from_millis(timeout)).await;
+    let mut rng = rand::thread_rng();
+    let timeout = Uniform::try_from(0..=settings.loop_interval)
+        .into_report()
+        .change_context(errors::ProcessTrackerError::InvalidInput)?;
+    tokio::time::sleep(Duration::from_millis(timeout.sample(&mut rng))).await;
 
     let mut interval = tokio::time::interval(Duration::from_millis(settings.loop_interval));
 

@@ -53,6 +53,8 @@ pub enum ProcessTrackerError {
     EValidationError(error_stack::Report<ValidationError>),
     #[error("Type Conversion error")]
     TypeConversionError,
+    #[error("An Invalid Input was specified")]
+    InvalidInput,
 }
 
 #[macro_export]
