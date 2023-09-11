@@ -238,6 +238,7 @@ pub struct MockDb {
     pub captures: Arc<Mutex<Vec<crate::store::capture::Capture>>>,
     pub merchant_key_store: Arc<Mutex<Vec<crate::store::merchant_key_store::MerchantKeyStore>>>,
     pub business_profiles: Arc<Mutex<Vec<crate::store::business_profile::BusinessProfile>>>,
+    pub reverse_lookups: Arc<Mutex<Vec<store::ReverseLookup>>>,
 }
 
 impl MockDb {
@@ -265,6 +266,7 @@ impl MockDb {
             captures: Default::default(),
             merchant_key_store: Default::default(),
             business_profiles: Default::default(),
+            reverse_lookups: Default::default(),
         }
     }
 }
