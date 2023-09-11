@@ -111,8 +111,8 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Co
 
         if let Some(payment_method) = payment_method {
             let should_validate_pm_or_token_given =
-                //this validation shouldn't happen if data was not stored in vault
-                !helpers::should_store_payment_method_data_in_vault(
+                //this validation should happen if data was stored in the vault
+                helpers::should_store_payment_method_data_in_vault(
                     &state.conf.temp_locker_disable_config,
                     payment_attempt.connector.clone(),
                     payment_method,
