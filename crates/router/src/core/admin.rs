@@ -1389,7 +1389,7 @@ pub(crate) fn validate_auth_type(
 }
 
 #[cfg(feature = "dummy_connector")]
-async fn validate_dummy_connector_enabled(
+pub async fn validate_dummy_connector_enabled(
     state: &AppState,
     connector_name: &api_enums::Connector,
 ) -> Result<(), errors::ApiErrorResponse> {
