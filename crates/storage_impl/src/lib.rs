@@ -237,6 +237,7 @@ pub struct MockDb {
     pub mandates: Arc<Mutex<Vec<store::Mandate>>>,
     pub captures: Arc<Mutex<Vec<crate::store::capture::Capture>>>,
     pub merchant_key_store: Arc<Mutex<Vec<crate::store::merchant_key_store::MerchantKeyStore>>>,
+    pub business_profiles: Arc<Mutex<Vec<crate::store::business_profile::BusinessProfile>>>,
 }
 
 impl MockDb {
@@ -263,6 +264,7 @@ impl MockDb {
             mandates: Default::default(),
             captures: Default::default(),
             merchant_key_store: Default::default(),
+            business_profiles: Default::default(),
         }
     }
 }
