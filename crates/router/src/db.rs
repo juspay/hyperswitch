@@ -17,14 +17,15 @@ pub mod mandate;
 pub mod merchant_account;
 pub mod merchant_connector_account;
 pub mod merchant_key_store;
-pub mod payment_attempt;
 pub mod payment_method;
 pub mod payout_attempt;
 pub mod payouts;
 pub mod refund;
 pub mod reverse_lookup;
 
-use data_models::payments::payment_intent::PaymentIntentInterface;
+use data_models::payments::{
+    payment_attempt::PaymentAttemptInterface, payment_intent::PaymentIntentInterface,
+};
 use masking::PeekInterface;
 use storage_impl::{redis::kv_store::RedisConnInterface, MockDb};
 
@@ -58,7 +59,7 @@ pub trait StorageInterface:
     + merchant_account::MerchantAccountInterface
     + merchant_connector_account::ConnectorAccessToken
     + merchant_connector_account::MerchantConnectorAccountInterface
-    + payment_attempt::PaymentAttemptInterface
+    + PaymentAttemptInterface
     + PaymentIntentInterface
     + payment_method::PaymentMethodInterface
     + scheduler::SchedulerInterface

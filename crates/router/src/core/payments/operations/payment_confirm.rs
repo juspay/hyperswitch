@@ -13,7 +13,6 @@ use crate::{
     core::{
         errors::{self, CustomResult, RouterResult, StorageErrorExt},
         payments::{self, helpers, operations, CustomerDetails, PaymentAddress, PaymentData},
-        utils as core_utils,
     },
     db::StorageInterface,
     routes::AppState,
@@ -23,7 +22,6 @@ use crate::{
         api::{self, PaymentIdTypeExt},
         domain,
         storage::{self, enums as storage_enums},
-        transformers::ForeignInto,
     },
     utils::{self, OptionExt},
 };
@@ -315,14 +313,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
             .or(payment_attempt.business_sub_label);
 
         // The operation merges mandate data from both request and payment_attempt
-        let setup_mandate = setup_mandate.map(|mandate_data| api_models::payments::MandateData {
-            customer_acceptance: mandate_data.customer_acceptance,
-            mandate_type: payment_attempt
-                .mandate_details
-                .clone()
-                .map(ForeignInto::foreign_into)
-                .or(mandate_data.mandate_type),
-        });
+        let setup_mandate = setup_mandate.map(Into::into);
 
         Ok((
             Box::new(self),
@@ -627,7 +618,8 @@ impl<F: Send + Clone> ValidateRequest<F, api::PaymentsRequest> for PaymentConfir
 
         let mandate_type =
             helpers::validate_mandate(request, payments::is_operation_confirm(self))?;
-        let payment_id = core_utils::get_or_generate_id("payment_id", &given_payment_id, "pay")?;
+        let payment_id =
+            crate::core::utils::get_or_generate_id("payment_id", &given_payment_id, "pay")?;
 
         Ok((
             Box::new(self),

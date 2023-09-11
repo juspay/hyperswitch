@@ -390,7 +390,10 @@ mod tests {
     #[allow(clippy::unwrap_used)]
     #[tokio::test]
     async fn test_mockdb_api_key_interface() {
-        let mockdb = MockDb::new().await;
+        #[allow(clippy::expect_used)]
+        let mockdb = MockDb::new(&redis_interface::RedisSettings::default())
+            .await
+            .expect("Failed to create Mock store");
 
         let key1 = mockdb
             .insert_api_key(storage::ApiKeyNew {
@@ -473,7 +476,10 @@ mod tests {
     #[allow(clippy::unwrap_used)]
     #[tokio::test]
     async fn test_api_keys_cache() {
-        let db = MockDb::new().await;
+        #[allow(clippy::expect_used)]
+        let db = MockDb::new(&redis_interface::RedisSettings::default())
+            .await
+            .expect("Failed to create Mock store");
 
         let redis_conn = db.get_redis_conn().unwrap();
         redis_conn
