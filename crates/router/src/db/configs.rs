@@ -146,8 +146,7 @@ impl ConfigInterface for MockDb {
         &self,
         key: &str,
         config_update: storage::ConfigUpdate,
-    ) -> CustomResult<storage::Config, errors::StorageError>
-    {
+    ) -> CustomResult<storage::Config, errors::StorageError> {
         self.update_config_by_key(key, config_update).await
     }
 
@@ -211,5 +210,4 @@ impl ConfigInterface for MockDb {
     ) -> CustomResult<storage::Config, errors::StorageError> {
         self.find_config_by_key(key).await
     }
-
 }
