@@ -1,4 +1,24 @@
 {
+  "auth": {
+    "type": "apikey",
+    "apikey": [
+      {
+        "key": "value",
+        "value": "{{publishable_key}}",
+        "type": "string"
+      },
+      {
+        "key": "key",
+        "value": "api-key",
+        "type": "string"
+      },
+      {
+        "key": "in",
+        "value": "header",
+        "type": "string"
+      }
+    ]
+  },
   "method": "POST",
   "header": [
     {
@@ -18,14 +38,8 @@
       }
     },
     "raw_json_formatted": {
-      "payment_method": "wallet",
-      "payment_method_type": "paypal",
-      "payment_method_data": {
-        "wallet": {
-          "paypal_redirect": {}
-        }
-      }
-    }
+    "client_secret": "{{client_secret}}"
+  }
   },
   "url": {
     "raw": "{{baseUrl}}/payments/:id/confirm",
