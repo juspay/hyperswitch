@@ -13,7 +13,6 @@ use crate::{
     core::{
         errors::{self, CustomResult, RouterResult, StorageErrorExt},
         payments::{self, helpers, operations, CustomerDetails, PaymentAddress, PaymentData},
-        utils as core_utils,
     },
     db::StorageInterface,
     routes::AppState,
@@ -23,7 +22,6 @@ use crate::{
         api::{self, PaymentIdTypeExt},
         domain,
         storage::{self, enums as storage_enums},
-        transformers::ForeignInto,
     },
     utils::{self, OptionExt},
 };
@@ -33,7 +31,6 @@ use crate::{
 pub struct PaymentConfirm;
 #[async_trait]
 impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for PaymentConfirm {
-    #[instrument(skip_all)]
     async fn get_trackers<'a>(
         &'a self,
         state: &'a AppState,
@@ -130,31 +127,95 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
             key_store,
         );
 
-        let (mut payment_attempt, shipping_address, billing_address) = futures::try_join!(
-            payment_attempt_fut,
-            shipping_address_fut,
-            billing_address_fut
-        )?;
+        let config_update_fut = request
+            .merchant_connector_details
+            .to_owned()
+            .async_map(|mcd| async {
+                helpers::insert_merchant_connector_creds_to_config(
+                    db,
+                    merchant_account.merchant_id.as_str(),
+                    mcd,
+                )
+                .await
+            })
+            .map(|x| x.transpose());
+
+        let (mut payment_attempt, shipping_address, billing_address, connector_response) =
+            match payment_intent.status {
+                api_models::enums::IntentStatus::RequiresCustomerAction
+                | api_models::enums::IntentStatus::RequiresMerchantAction
+                | api_models::enums::IntentStatus::RequiresPaymentMethod
+                | api_models::enums::IntentStatus::RequiresConfirmation => {
+                    let attempt_type = helpers::AttemptType::SameOld;
+
+                    let connector_response_fut = attempt_type.get_connector_response(
+                        db,
+                        &payment_intent.payment_id,
+                        &payment_intent.merchant_id,
+                        &payment_intent.active_attempt_id,
+                        storage_scheme,
+                    );
+
+                    let (payment_attempt, shipping_address, billing_address, connector_response, _) =
+                        futures::try_join!(
+                            payment_attempt_fut,
+                            shipping_address_fut,
+                            billing_address_fut,
+                            connector_response_fut,
+                            config_update_fut
+                        )?;
+
+                    (
+                        payment_attempt,
+                        shipping_address,
+                        billing_address,
+                        connector_response,
+                    )
+                }
+                _ => {
+                    let (mut payment_attempt, shipping_address, billing_address, _) = futures::try_join!(
+                        payment_attempt_fut,
+                        shipping_address_fut,
+                        billing_address_fut,
+                        config_update_fut
+                    )?;
+
+                    let attempt_type = helpers::get_attempt_type(
+                        &payment_intent,
+                        &payment_attempt,
+                        request,
+                        "confirm",
+                    )?;
+
+                    (payment_intent, payment_attempt) = attempt_type
+                        .modify_payment_intent_and_payment_attempt(
+                            // 3
+                            request,
+                            payment_intent,
+                            payment_attempt,
+                            db,
+                            storage_scheme,
+                        )
+                        .await?;
+
+                    let connector_response = attempt_type
+                        .get_or_insert_connector_response(&payment_attempt, db, storage_scheme)
+                        .await?;
+
+                    (
+                        payment_attempt,
+                        shipping_address,
+                        billing_address,
+                        connector_response,
+                    )
+                }
+            };
 
         payment_intent.order_details = request
             .get_order_details_as_value()
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to convert order details to value")?
             .or(payment_intent.order_details);
-
-        let attempt_type =
-            helpers::get_attempt_type(&payment_intent, &payment_attempt, request, "confirm")?;
-
-        (payment_intent, payment_attempt) = attempt_type
-            .modify_payment_intent_and_payment_attempt(
-                // 3
-                request,
-                payment_intent,
-                payment_attempt,
-                db,
-                storage_scheme,
-            )
-            .await?;
 
         payment_intent.setup_future_usage = request
             .setup_future_usage
@@ -220,25 +281,6 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
             .as_ref()
             .map(|mcd| mcd.creds_identifier.to_owned());
 
-        let config_update_fut = request
-            .merchant_connector_details
-            .to_owned()
-            .async_map(|mcd| async {
-                helpers::insert_merchant_connector_creds_to_config(
-                    db,
-                    merchant_account.merchant_id.as_str(),
-                    mcd,
-                )
-                .await
-            })
-            .map(|x| x.transpose());
-
-        let connector_response_fut =
-            attempt_type.get_connector_response(&payment_attempt, db, storage_scheme);
-
-        let (connector_response, _) =
-            futures::try_join!(connector_response_fut, config_update_fut)?;
-
         payment_intent.shipping_address_id = shipping_address.clone().map(|i| i.address_id);
         payment_intent.billing_address_id = billing_address.clone().map(|i| i.address_id);
         payment_intent.return_url = request
@@ -271,14 +313,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
             .or(payment_attempt.business_sub_label);
 
         // The operation merges mandate data from both request and payment_attempt
-        let setup_mandate = setup_mandate.map(|mandate_data| api_models::payments::MandateData {
-            customer_acceptance: mandate_data.customer_acceptance,
-            mandate_type: payment_attempt
-                .mandate_details
-                .clone()
-                .map(ForeignInto::foreign_into)
-                .or(mandate_data.mandate_type),
-        });
+        let setup_mandate = setup_mandate.map(Into::into);
 
         Ok((
             Box::new(self),
@@ -403,6 +438,7 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
         updated_customer: Option<storage::CustomerUpdate>,
         key_store: &domain::MerchantKeyStore,
         frm_suggestion: Option<FrmSuggestion>,
+        header_payload: api::HeaderPayload,
     ) -> RouterResult<(BoxedOperation<'b, F, api::PaymentsRequest>, PaymentData<F>)>
     where
         F: 'b + Send,
@@ -466,8 +502,8 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
         let customer_id = customer.clone().map(|c| c.customer_id);
         let return_url = payment_data.payment_intent.return_url.take();
         let setup_future_usage = payment_data.payment_intent.setup_future_usage;
-        let business_label = Some(payment_data.payment_intent.business_label.clone());
-        let business_country = Some(payment_data.payment_intent.business_country);
+        let business_label = payment_data.payment_intent.business_label.clone();
+        let business_country = payment_data.payment_intent.business_country;
         let description = payment_data.payment_intent.description.take();
         let statement_descriptor_name =
             payment_data.payment_intent.statement_descriptor_name.take();
@@ -521,6 +557,7 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
                     statement_descriptor_suffix,
                     order_details,
                     metadata,
+                    payment_confirm_source: header_payload.payment_confirm_source,
                 },
                 storage_scheme,
             )
@@ -581,7 +618,8 @@ impl<F: Send + Clone> ValidateRequest<F, api::PaymentsRequest> for PaymentConfir
 
         let mandate_type =
             helpers::validate_mandate(request, payments::is_operation_confirm(self))?;
-        let payment_id = core_utils::get_or_generate_id("payment_id", &given_payment_id, "pay")?;
+        let payment_id =
+            crate::core::utils::get_or_generate_id("payment_id", &given_payment_id, "pay")?;
 
         Ok((
             Box::new(self),
