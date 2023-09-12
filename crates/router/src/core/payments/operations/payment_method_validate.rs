@@ -171,7 +171,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::VerifyRequest> for Paym
                 email: None,
                 mandate_id: None,
                 mandate_connector: None,
-                setup_mandate: request.mandate_data.clone(),
+                setup_mandate: request.mandate_data.clone().map(Into::into),
                 token: request.payment_token.clone(),
                 connector_response,
                 payment_method_data: request.payment_method_data.clone(),
@@ -216,6 +216,7 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::VerifyRequest> for PaymentM
         _updated_customer: Option<storage::CustomerUpdate>,
         _mechant_key_store: &domain::MerchantKeyStore,
         _frm_suggestion: Option<FrmSuggestion>,
+        _header_payload: api::HeaderPayload,
     ) -> RouterResult<(BoxedOperation<'b, F, api::VerifyRequest>, PaymentData<F>)>
     where
         F: 'b + Send,

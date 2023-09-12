@@ -1,5 +1,5 @@
 use actix_web::http::header::HeaderMap;
-use api_models::{payment_methods::PaymentMethodListRequest, payments::PaymentsRequest};
+use api_models::{payment_methods::PaymentMethodListRequest, payments};
 use async_trait::async_trait;
 use common_utils::date_time;
 use error_stack::{report, IntoReport, ResultExt};
@@ -354,7 +354,7 @@ pub trait ClientSecretFetch {
     fn get_client_secret(&self) -> Option<&String>;
 }
 
-impl ClientSecretFetch for PaymentsRequest {
+impl ClientSecretFetch for payments::PaymentsRequest {
     fn get_client_secret(&self) -> Option<&String> {
         self.client_secret.as_ref()
     }
@@ -504,13 +504,23 @@ where
 }
 
 pub fn get_api_key(headers: &HeaderMap) -> RouterResult<&str> {
+    get_header_value_by_key("api-key".into(), headers)?.get_required_value("api_key")
+}
+
+pub fn get_header_value_by_key(key: String, headers: &HeaderMap) -> RouterResult<Option<&str>> {
     headers
-        .get("api-key")
-        .get_required_value("api-key")?
-        .to_str()
-        .into_report()
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Failed to convert API key to string")
+        .get(&key)
+        .map(|source_str| {
+            source_str
+                .to_str()
+                .into_report()
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable(format!(
+                    "Failed to convert header value to string for header key: {}",
+                    key
+                ))
+        })
+        .transpose()
 }
 
 pub fn get_jwt(headers: &HeaderMap) -> RouterResult<&str> {

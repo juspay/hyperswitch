@@ -21,7 +21,6 @@ use crate::{
         api::{self, PaymentIdTypeExt},
         domain,
         storage::{self, enums as storage_enums},
-        transformers::ForeignInto,
     },
     utils::OptionExt,
 };
@@ -304,13 +303,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
             .transpose()?;
 
         // The operation merges mandate data from both request and payment_attempt
-        let setup_mandate = setup_mandate.map(|mandate_data| api_models::payments::MandateData {
-            customer_acceptance: mandate_data.customer_acceptance,
-            mandate_type: mandate_data.mandate_type.or(payment_attempt
-                .mandate_details
-                .clone()
-                .map(ForeignInto::foreign_into)),
-        });
+        let setup_mandate = setup_mandate.map(Into::into);
 
         Ok((
             next_operation,
@@ -428,6 +421,7 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
         _updated_customer: Option<storage::CustomerUpdate>,
         _key_store: &domain::MerchantKeyStore,
         _frm_suggestion: Option<FrmSuggestion>,
+        _header_payload: api::HeaderPayload,
     ) -> RouterResult<(BoxedOperation<'b, F, api::PaymentsRequest>, PaymentData<F>)>
     where
         F: 'b + Send,
@@ -510,8 +504,8 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
 
         let return_url = payment_data.payment_intent.return_url.clone();
         let setup_future_usage = payment_data.payment_intent.setup_future_usage;
-        let business_label = Some(payment_data.payment_intent.business_label.clone());
-        let business_country = Some(payment_data.payment_intent.business_country);
+        let business_label = payment_data.payment_intent.business_label.clone();
+        let business_country = payment_data.payment_intent.business_country;
         let description = payment_data.payment_intent.description.clone();
         let statement_descriptor_name = payment_data
             .payment_intent
@@ -543,6 +537,7 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
                     statement_descriptor_suffix,
                     order_details,
                     metadata,
+                    payment_confirm_source: None,
                 },
                 storage_scheme,
             )
@@ -646,13 +641,10 @@ impl PaymentUpdate {
             .clone()
             .map(|i| payment_intent.return_url.replace(i.to_string()));
 
-        payment_intent.business_country = request
-            .business_country
-            .unwrap_or(payment_intent.business_country);
-        payment_intent.business_label = request
-            .business_label
-            .clone()
-            .unwrap_or(payment_intent.business_label.clone());
+        payment_intent.business_country = request.business_country;
+
+        payment_intent.business_label = request.business_label.clone();
+
         request
             .description
             .clone()

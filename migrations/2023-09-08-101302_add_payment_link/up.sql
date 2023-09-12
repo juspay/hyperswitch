@@ -1,6 +1,6 @@
 -- Your SQL goes here
 CREATE TABLE payment_link (
-    payment_link_id VARCHAR(64) NOT NULL,
+    payment_link_id VARCHAR(255) NOT NULL,
     payment_id VARCHAR(64) NOT NULL,
     link_to_pay VARCHAR(255) NOT NULL,
     merchant_id VARCHAR(64) NOT NULL,

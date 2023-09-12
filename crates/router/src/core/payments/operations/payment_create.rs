@@ -3,6 +3,7 @@ use std::marker::PhantomData;
 use api_models::enums::FrmSuggestion;
 use async_trait::async_trait;
 use common_utils::ext_traits::{AsyncExt, Encode, ValueExt};
+use data_models::mandates::MandateData;
 use diesel_models::ephemeral_key;
 use error_stack::{self, ResultExt};
 use router_derive::PaymentOperation;
@@ -27,7 +28,6 @@ use crate::{
             self,
             enums::{self, IntentStatus},
         },
-        transformers::ForeignInto,
     },
     utils::{self, OptionExt},
 };
@@ -68,7 +68,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
         let (payment_link, payment_link_id) =
             if request.payment_link_object.is_some() && !request.confirm.unwrap_or(false) {
                 let created_at @ last_modified_at = Some(common_utils::date_time::now());
-                let payment_link_id = utils::generate_id(consts::ID_LENGTH, "pl");
+                let payment_link_id = utils::generate_id(consts::ID_LENGTH, "plink");
                 let payment_link = format!(
                     "{}/payment_link/{}/{}",
                     state.conf.server.base_url,
@@ -92,17 +92,17 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
             } else {
                 (None, None)
             };
+        
         // Validate whether profile_id passed in request is valid and is linked to the merchant
-        let business_profile_from_request = core_utils::validate_and_get_business_profile(
-            db,
-            request.profile_id.as_ref(),
-            merchant_id,
-        )
-        .await?;
+        helpers::validate_business_details(
+            request.business_country,
+            request.business_label.as_ref(),
+            merchant_account,
+        )?;
 
-        let profile_id = business_profile_from_request
-            .map(|business_profile| business_profile.profile_id)
-            .or(merchant_account.default_profile.clone());
+        // Validate whether profile_id passed in request is valid and is linked to the merchant
+        core_utils::validate_and_get_business_profile(db, request.profile_id.as_ref(), merchant_id)
+            .await?;
 
         let (
             token,
@@ -171,6 +171,8 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
             .to_duplicate_response(errors::ApiErrorResponse::DuplicatePayment {
                 payment_id: payment_id.clone(),
             })?;
+        
+        println!("payment link id {:?}", payment_link_id);
 
         payment_intent = db
             .insert_payment_intent(
@@ -180,11 +182,12 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
                     money,
                     request,
                     shipping_address.clone().map(|x| x.address_id),
+                    payment_link_id,
                     billing_address.clone().map(|x| x.address_id),
                     payment_attempt.attempt_id.to_owned(),
-                    payment_link_id,
-                    profile_id,
-                )?,
+                    state,
+                )
+                .await?,
                 storage_scheme,
             )
             .await
@@ -273,13 +276,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
             .transpose()?;
 
         // The operation merges mandate data from both request and payment_attempt
-        let setup_mandate = setup_mandate.map(|mandate_data| api_models::payments::MandateData {
-            customer_acceptance: mandate_data.customer_acceptance,
-            mandate_type: mandate_data.mandate_type.or(payment_attempt
-                .mandate_details
-                .clone()
-                .map(ForeignInto::foreign_into)),
-        });
+        let setup_mandate: Option<MandateData> = setup_mandate.map(Into::into);
 
         println!("bhola {:?}", payment_intent);
         
@@ -400,6 +397,7 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
         _updated_customer: Option<storage::CustomerUpdate>,
         _merchant_key_store: &domain::MerchantKeyStore,
         _frm_suggestion: Option<FrmSuggestion>,
+        _header_payload: api::HeaderPayload,
     ) -> RouterResult<(BoxedOperation<'b, F, api::PaymentsRequest>, PaymentData<F>)>
     where
         F: 'b + Send,
@@ -615,23 +613,23 @@ impl PaymentCreate {
             mandate_details: request
                 .mandate_data
                 .as_ref()
-                .and_then(|inner| inner.mandate_type.clone().map(ForeignInto::foreign_into)),
+                .and_then(|inner| inner.mandate_type.clone().map(Into::into)),
             ..storage::PaymentAttemptNew::default()
         })
     }
 
     #[instrument(skip_all)]
     #[allow(clippy::too_many_arguments)]
-    fn make_payment_intent(
+    async fn make_payment_intent(
         payment_id: &str,
         merchant_account: &types::domain::MerchantAccount,
         money: (api::Amount, enums::Currency),
         request: &api::PaymentsRequest,
         shipping_address_id: Option<String>,
+        payment_link_id_sahkal: Option<String>,
         billing_address_id: Option<String>,
         active_attempt_id: String,
-        payment_link_id: Option<String>,
-        profile_id: Option<String>,
+        state: &AppState,
     ) -> RouterResult<storage::PaymentIntentNew> {
         let created_at @ modified_at @ last_synced = Some(common_utils::date_time::now());
         let status =
@@ -645,29 +643,15 @@ impl PaymentCreate {
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to convert order details to value")?;
 
-        let (business_country, business_label) =
-            match (request.business_country, request.business_label.as_ref()) {
-                (Some(business_country), Some(business_label)) => {
-                    helpers::validate_business_details(
-                        business_country,
-                        business_label,
-                        merchant_account,
-                    )?;
-
-                    Ok((business_country, business_label.clone()))
-                }
-                (None, Some(_)) => Err(errors::ApiErrorResponse::MissingRequiredField {
-                    field_name: "business_country",
-                }),
-                (Some(_), None) => Err(errors::ApiErrorResponse::MissingRequiredField {
-                    field_name: "business_label",
-                }),
-                (None, None) => Ok(helpers::get_business_details(
-                    request.business_country,
-                    request.business_label.as_ref(),
-                    merchant_account,
-                )?),
-            }?;
+        // If profile id is not passed, get it from the business_country and business_label
+        let profile_id = core_utils::get_profile_id_from_business_details(
+            request.business_country,
+            request.business_label.as_ref(),
+            merchant_account,
+            request.profile_id.as_ref(),
+            &*state.store,
+        )
+        .await?;
 
         let allowed_payment_method_types = request
             .get_allowed_payment_method_types_as_value()
@@ -684,7 +668,7 @@ impl PaymentCreate {
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Error converting feature_metadata to Value")?;
 
-        println!("sahkal profile_id{:?} sahkal payment_link_id{:?}",profile_id,payment_link_id);
+        // println!("sahkal profile_id{:?} sahkal payment_link_id{:?}",profile_id,payment_link_id);
 
         Ok(storage::PaymentIntentNew {
             payment_id: payment_id.to_string(),
@@ -705,8 +689,8 @@ impl PaymentCreate {
             statement_descriptor_name: request.statement_descriptor_name.clone(),
             statement_descriptor_suffix: request.statement_descriptor_suffix.clone(),
             metadata: request.metadata.clone(),
-            business_country,
-            business_label,
+            business_country: request.business_country,
+            business_label: request.business_label.clone(),
             active_attempt_id,
             order_details,
             amount_captured: None,
@@ -716,9 +700,10 @@ impl PaymentCreate {
             connector_metadata,
             feature_metadata,
             attempt_count: 1,
-            payment_link_id,
-            profile_id,
+            profile_id: None,
             merchant_decision: None,
+            payment_link_id: payment_link_id_sahkal,
+            payment_confirm_source: None,
         })
     }
 

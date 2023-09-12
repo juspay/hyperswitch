@@ -6383,9 +6383,7 @@
         "required": [
           "connector_type",
           "connector_name",
-          "connector_label",
-          "business_country",
-          "business_label"
+          "connector_label"
         ],
         "properties": {
           "connector_type": {
@@ -6482,10 +6480,16 @@
             "nullable": true
           },
           "business_country": {
-            "$ref": "#/components/schemas/CountryAlpha2"
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CountryAlpha2"
+              }
+            ],
+            "nullable": true
           },
           "business_label": {
-            "type": "string"
+            "type": "string",
+            "nullable": true
           },
           "business_sub_label": {
             "type": "string",
@@ -6590,10 +6594,7 @@
         "required": [
           "connector_type",
           "connector_name",
-          "connector_label",
-          "merchant_connector_id",
-          "business_country",
-          "business_label"
+          "merchant_connector_id"
         ],
         "properties": {
           "connector_type": {
@@ -6606,7 +6607,8 @@
           },
           "connector_label": {
             "type": "string",
-            "example": "stripe_US_travel"
+            "example": "stripe_US_travel",
+            "nullable": true
           },
           "merchant_connector_id": {
             "type": "string",
@@ -6682,12 +6684,18 @@
             "nullable": true
           },
           "business_country": {
-            "$ref": "#/components/schemas/CountryAlpha2"
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CountryAlpha2"
+              }
+            ],
+            "nullable": true
           },
           "business_label": {
             "type": "string",
             "description": "Business Type of the merchant",
-            "example": "travel"
+            "example": "travel",
+            "nullable": true
           },
           "business_sub_label": {
             "type": "string",
@@ -9041,8 +9049,6 @@
           "amount",
           "currency",
           "payment_method",
-          "business_country",
-          "business_label",
           "attempt_count"
         ],
         "properties": {
@@ -9336,11 +9342,17 @@
             "nullable": true
           },
           "business_country": {
-            "$ref": "#/components/schemas/CountryAlpha2"
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CountryAlpha2"
+              }
+            ],
+            "nullable": true
           },
           "business_label": {
             "type": "string",
-            "description": "The business label of merchant for this payment"
+            "description": "The business label of merchant for this payment",
+            "nullable": true
           },
           "business_sub_label": {
             "type": "string",

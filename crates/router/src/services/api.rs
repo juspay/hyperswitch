@@ -679,6 +679,12 @@ pub enum RedirectForm {
         payment_fields_token: String, // payment-field-token
     },
     Payme,
+    Braintree {
+        client_token: String,
+        card_token: String,
+        bin: String,
+        amount: i64,
+    },
 }
 
 impl From<(url::Url, Method)> for RedirectForm {
@@ -1158,6 +1164,92 @@ pub fn build_redirection_form(
                 ".to_string()))
             }
         }
+        RedirectForm::Braintree {
+            client_token,
+            card_token,
+            bin,
+            amount,
+        } => {
+            maud::html! {
+            (maud::DOCTYPE)
+            html {
+                head {
+                    meta name="viewport" content="width=device-width, initial-scale=1";
+                    (PreEscaped(r#"<script src="https://js.braintreegateway.com/web/3.97.1/js/three-d-secure.js"></script>"#))
+                    (PreEscaped(r#"<script src="https://js.braintreegateway.com/web/3.97.1/js/hosted-fields.js"></script>"#))
+
+                }
+                    body style="background-color: #ffffff; padding: 20px; font-family: Arial, Helvetica, Sans-Serif;" {
+
+                        div id="loader1" class="lottie" style="height: 150px; display: block; position: relative; margin-top: 150px; margin-left: auto; margin-right: auto;" { "" }
+
+                        (PreEscaped(r#"<script src="https://cdnjs.cloudflare.com/ajax/libs/bodymovin/5.7.4/lottie.min.js"></script>"#))
+
+                        (PreEscaped(r#"
+                            <script>
+                            var anime = bodymovin.loadAnimation({
+                                container: document.getElementById('loader1'),
+                                renderer: 'svg',
+                                loop: true,
+                                autoplay: true,
+                                name: 'hyperswitch loader',
+                                animationData: {"v":"4.8.0","meta":{"g":"LottieFiles AE 3.1.1","a":"","k":"","d":"","tc":""},"fr":29.9700012207031,"ip":0,"op":31.0000012626559,"w":400,"h":250,"nm":"loader_shape","ddd":0,"assets":[],"layers":[{"ddd":0,"ind":1,"ty":4,"nm":"circle 2","sr":1,"ks":{"o":{"a":0,"k":100,"ix":11},"r":{"a":0,"k":0,"ix":10},"p":{"a":0,"k":[278.25,202.671,0],"ix":2},"a":{"a":0,"k":[23.72,23.72,0],"ix":1},"s":{"a":0,"k":[100,100,100],"ix":6}},"ao":0,"shapes":[{"ty":"gr","it":[{"ind":0,"ty":"sh","ix":1,"ks":{"a":0,"k":{"i":[[12.935,0],[0,-12.936],[-12.935,0],[0,12.935]],"o":[[-12.952,0],[0,12.935],[12.935,0],[0,-12.936]],"v":[[0,-23.471],[-23.47,0.001],[0,23.471],[23.47,0.001]],"c":true},"ix":2},"nm":"Path 1","mn":"ADBE Vector Shape - Group","hd":false},{"ty":"fl","c":{"a":0,"k":[0,0.427451010311,0.976470648074,1],"ix":4},"o":{"a":1,"k":[{"i":{"x":[0.667],"y":[1]},"o":{"x":[0.333],"y":[0]},"t":10,"s":[10]},{"i":{"x":[0.667],"y":[1]},"o":{"x":[0.333],"y":[0]},"t":19.99,"s":[100]},{"t":29.9800012211104,"s":[10]}],"ix":5},"r":1,"bm":0,"nm":"Fill 1","mn":"ADBE Vector Graphic - Fill","hd":false},{"ty":"tr","p":{"a":0,"k":[23.72,23.721],"ix":2},"a":{"a":0,"k":[0,0],"ix":1},"s":{"a":0,"k":[100,100],"ix":3},"r":{"a":0,"k":0,"ix":6},"o":{"a":0,"k":100,"ix":7},"sk":{"a":0,"k":0,"ix":4},"sa":{"a":0,"k":0,"ix":5},"nm":"Transform"}],"nm":"Group 1","np":2,"cix":2,"bm":0,"ix":1,"mn":"ADBE Vector Group","hd":false}],"ip":0,"op":48.0000019550801,"st":0,"bm":0},{"ddd":0,"ind":2,"ty":4,"nm":"square 2","sr":1,"ks":{"o":{"a":0,"k":100,"ix":11},"r":{"a":0,"k":0,"ix":10},"p":{"a":0,"k":[196.25,201.271,0],"ix":2},"a":{"a":0,"k":[22.028,22.03,0],"ix":1},"s":{"a":0,"k":[100,100,100],"ix":6}},"ao":0,"shapes":[{"ty":"gr","it":[{"ind":0,"ty":"sh","ix":1,"ks":{"a":0,"k":{"i":[[1.914,0],[0,0],[0,-1.914],[0,0],[-1.914,0],[0,0],[0,1.914],[0,0]],"o":[[0,0],[-1.914,0],[0,0],[0,1.914],[0,0],[1.914,0],[0,0],[0,-1.914]],"v":[[18.313,-21.779],[-18.312,-21.779],[-21.779,-18.313],[-21.779,18.314],[-18.312,21.779],[18.313,21.779],[21.779,18.314],[21.779,-18.313]],"c":true},"ix":2},"nm":"Path 1","mn":"ADBE Vector Shape - Group","hd":false},{"ty":"fl","c":{"a":0,"k":[0,0.427451010311,0.976470648074,1],"ix":4},"o":{"a":1,"k":[{"i":{"x":[0.667],"y":[1]},"o":{"x":[0.333],"y":[0]},"t":5,"s":[10]},{"i":{"x":[0.667],"y":[1]},"o":{"x":[0.333],"y":[0]},"t":14.99,"s":[100]},{"t":24.9800010174563,"s":[10]}],"ix":5},"r":1,"bm":0,"nm":"Fill 1","mn":"ADBE Vector Graphic - Fill","hd":false},{"ty":"tr","p":{"a":0,"k":[22.028,22.029],"ix":2},"a":{"a":0,"k":[0,0],"ix":1},"s":{"a":0,"k":[100,100],"ix":3},"r":{"a":0,"k":0,"ix":6},"o":{"a":0,"k":100,"ix":7},"sk":{"a":0,"k":0,"ix":4},"sa":{"a":0,"k":0,"ix":5},"nm":"Transform"}],"nm":"Group 1","np":2,"cix":2,"bm":0,"ix":1,"mn":"ADBE Vector Group","hd":false}],"ip":0,"op":47.0000019143492,"st":0,"bm":0},{"ddd":0,"ind":3,"ty":4,"nm":"Triangle 2","sr":1,"ks":{"o":{"a":0,"k":100,"ix":11},"r":{"a":0,"k":0,"ix":10},"p":{"a":0,"k":[116.25,200.703,0],"ix":2},"a":{"a":0,"k":[27.11,21.243,0],"ix":1},"s":{"a":0,"k":[100,100,100],"ix":6}},"ao":0,"shapes":[{"ty":"gr","it":[{"ind":0,"ty":"sh","ix":1,"ks":{"a":0,"k":{"i":[[0,0],[0.558,-0.879],[0,0],[-1.133,0],[0,0],[0.609,0.947],[0,0]],"o":[[-0.558,-0.879],[0,0],[-0.609,0.947],[0,0],[1.133,0],[0,0],[0,0]],"v":[[1.209,-20.114],[-1.192,-20.114],[-26.251,18.795],[-25.051,20.993],[25.051,20.993],[26.251,18.795],[1.192,-20.114]],"c":true},"ix":2},"nm":"Path 1","mn":"ADBE Vector Shape - Group","hd":false},{"ty":"fl","c":{"a":0,"k":[0,0.427451010311,0.976470648074,1],"ix":4},"o":{"a":1,"k":[{"i":{"x":[0.667],"y":[1]},"o":{"x":[0.333],"y":[0]},"t":0,"s":[10]},{"i":{"x":[0.667],"y":[1]},"o":{"x":[0.333],"y":[0]},"t":9.99,"s":[100]},{"t":19.9800008138021,"s":[10]}],"ix":5},"r":1,"bm":0,"nm":"Fill 1","mn":"ADBE Vector Graphic - Fill","hd":false},{"ty":"tr","p":{"a":0,"k":[27.11,21.243],"ix":2},"a":{"a":0,"k":[0,0],"ix":1},"s":{"a":0,"k":[100,100],"ix":3},"r":{"a":0,"k":0,"ix":6},"o":{"a":0,"k":100,"ix":7},"sk":{"a":0,"k":0,"ix":4},"sa":{"a":0,"k":0,"ix":5},"nm":"Transform"}],"nm":"Group 1","np":2,"cix":2,"bm":0,"ix":1,"mn":"ADBE Vector Group","hd":false}],"ip":0,"op":48.0000019550801,"st":0,"bm":0}],"markers":[]}
+                            })
+                            </script>
+                            "#))
+
+
+                        h3 style="text-align: center;" { "Please wait while we process your payment..." }
+                    }
+
+                    (PreEscaped(format!("<script>
+                                var my3DSContainer;
+                                var clientToken = \"{client_token}\";
+                                braintree.threeDSecure.create({{
+                                        authorization: clientToken,
+                                        version: 2
+                                    }}, function(err, threeDs) {{
+                                        threeDs.verifyCard({{
+                                            amount: \"{amount}\",
+                                            nonce: \"{card_token}\",
+                                            bin: \"{bin}\",
+                                            addFrame: function(err, iframe) {{
+                                                my3DSContainer = document.createElement('div');
+                                                my3DSContainer.appendChild(iframe);
+                                                document.body.appendChild(my3DSContainer);
+                                            }},
+                                            removeFrame: function() {{
+                                                if(my3DSContainer && my3DSContainer.parentNode) {{
+                                                    my3DSContainer.parentNode.removeChild(my3DSContainer);
+                                                }}
+                                            }},
+                                            onLookupComplete: function(data, next) {{
+                                                console.log(\"onLookup Complete\", data);
+                                                    next();
+                                                }}
+                                            }},
+                                            function(err, payload) {{
+                                                if(err) {{
+                                                    console.error(err);
+                                                }} else {{
+                                                    console.log(payload);
+                                                    var f = document.createElement('form');
+                                                    f.action=window.location.pathname.replace(/payments\\/redirect\\/(\\w+)\\/(\\w+)\\/\\w+/, \"payments/$1/$2/redirect/complete/braintree\");
+                                                    var i = document.createElement('input');
+                                                    i.type = 'hidden';
+                                                    f.method='POST';
+                                                    i.name = 'authentication_response';
+                                                    i.value = JSON.stringify(payload);
+                                                    f.appendChild(i); 
+                                                    f.body = JSON.stringify(payload);
+                                                    document.body.appendChild(f); 
+                                                    f.submit();
+                                                    }}
+                                                }});
+                                        }}); </script>"
+                                    )))
+                }}
+        }
     }
 }
 
@@ -1566,135 +1658,135 @@ pub fn build_payment_link_html(
       </svg>
     </div>
   </body>"##))
-    (PreEscaped(format!(r##"
+    (PreEscaped(r##"
                 <script>
-                    window.__PAYMENT_DETAILS_STR = `{{"client_secret": "pay_zpnxSIFpqrIRa8y0PTkA_secret_c9C3MKMst7zjxYsj0jwc", "return_url":"http://localhost:5500/public/index.html","merchant_logo":"https://upload.wikimedia.org/wikipedia/commons/8/83/Steam_icon_logo.svg","merchant":"Steam","amount":{} ,"currency":{},"purchased_item":"F1 '23","payment_id":"pay_42dfeb3a0ee"}}`;
+                    window.__PAYMENT_DETAILS_STR = `{"client_secret": "pay_oFI2LhSGiMumQSf8EfjO_secret_gKc3rh1BuNXgIrP8ud8A", "return_url":"http://localhost:5500/public/index.html","merchant_logo":"https://upload.wikimedia.org/wikipedia/commons/8/83/Steam_icon_logo.svg","merchant":"Steam","amount":"6423.00" ,"currency":"USD","purchased_item":"F1 '23","payment_id":"pay_oFI2LhSGiMumQSf8EfjO"}`;
                     const hyper = Hyper("pk_snd_bc58f95dab324ac196c7d2c15a09fbe2");
                     var widgets = null;
-                    window.__PAYMENT_DETAILS = {{}};
-                    try {{
+                    window.__PAYMENT_DETAILS = {};
+                    try {
                         window.__PAYMENT_DETAILS = JSON.parse(window.__PAYMENT_DETAILS_STR);
-                      }} catch (error) {{
+                      } catch (error) {
                         console.error("Failed to parse payment details");
-                      }}
-                    async function initialize() {{
+                      }
+                    async function initialize() {
                         var paymentDetails = window.__PAYMENT_DETAILS;
                         var client_secret = paymentDetails.client_secret;
-                        const appearance = {{
+                        const appearance = {
                             theme: "default",
-                         }};
-                        widgets = hyper.widgets({{
+                         };
+                        widgets = hyper.widgets({
                           appearance,
                           clientSecret: client_secret,
-                        }});
+                        });
                       
-                        const unifiedCheckoutOptions = {{
+                        const unifiedCheckoutOptions = {
                           layout: "tabs",
-                          wallets: {{
+                          wallets: {
                             walletReturnUrl: paymentDetails.return_url,
-                          }},
-                        }};
+                          },
+                        };
                         const unifiedCheckout = widgets.create("payment", unifiedCheckoutOptions);
                         unifiedCheckout.mount("#unified-checkout");
-                    }}
+                    }
                     initialize();
-                    async function handleSubmit(e) {{
+                    async function handleSubmit(e) {
                         setLoading(true);
                         var paymentDetails = window.__PAYMENT_DETAILS;
-                        const {{ error, data, status }} = await hyper.confirmPayment({{
+                        const { error, data, status } = await hyper.confirmPayment({
                           widgets,
-                          confirmParams: {{
+                          confirmParams: {
                             // Make sure to change this to your payment completion page
                             return_url: paymentDetails.return_url,
-                          }},
-                        }});
+                          },
+                        });
                         // This point will only be reached if there is an immediate error occurring while confirming the payment. Otherwise, your customer will be redirected to your `return_url`.
                         // For some payment flows such as Sofort, iDEAL, your customer will be redirected to an intermediate page to complete authorization of the payment, and then redirected to the `return_url`.
                       
-                        if (error) {{
-                          if (error.type === "validation_error") {{
+                        if (error) {
+                          if (error.type === "validation_error") {
                             showMessage(error.message);
-                          }} else {{
+                          } else {
                             showMessage("An unexpected error occurred.");
-                          }}
-                        }} else {{
-                          const {{ paymentIntent }} = await hyper.retrievePaymentIntent(paymentDetails.client_secret);
-                          if (paymentIntent && paymentIntent.status) {{
+                          }
+                        } else {
+                          const { paymentIntent } = await hyper.retrievePaymentIntent(paymentDetails.client_secret);
+                          if (paymentIntent && paymentIntent.status) {
                             hide("#hyper-checkout-sdk");
                             hide("#hyper-checkout-details");
                             show("#hyper-checkout-status");
                             show("#hyper-footer");
                             showStatus(paymentIntent);
-                          }}
-                        }}
+                          }
+                        }
                       
                         setLoading(false);
-                      }}
+                      }
 
-                    async function checkStatus() {{
+                    async function checkStatus() {
                     const clientSecret = new URLSearchParams(window.location.search).get(
                         "payment_intent_client_secret"
                     );
-                    const res = {{
+                    const res = {
                         showSdk: true,
-                    }};
+                    };
                     
-                    if (!clientSecret) {{
+                    if (!clientSecret) {
                         return res;
-                    }}
+                    }
                     
-                    const {{ paymentIntent }} = await hyper.retrievePaymentIntent(clientSecret);
+                    const { paymentIntent } = await hyper.retrievePaymentIntent(clientSecret);
                     
-                    if (!paymentIntent || !paymentIntent.status) {{
+                    if (!paymentIntent || !paymentIntent.status) {
                         return res;
-                    }}
+                    }
                     
                     showStatus(paymentIntent);
                     res.showSdk = false;
                     
                     return res;
-                    }}
+                    }
 
-                    function setPageLoading(showLoader) {{
-                    if (showLoader) {{
+                    function setPageLoading(showLoader) {
+                    if (showLoader) {
                         show(".page-spinner");
-                    }} else {{
+                    } else {
                         hide(".page-spinner");
-                    }}
-                    }}
+                    }
+                    }
                     
-                    function setLoading(showLoader) {{
-                    if (showLoader) {{
+                    function setLoading(showLoader) {
+                    if (showLoader) {
                         show(".spinner");
                         hide("#button-text");
-                    }} else {{
+                    } else {
                         hide(".spinner");
                         show("#button-text");
-                    }}
-                    }}
+                    }
+                    }
                     
-                    function show(id) {{
+                    function show(id) {
                     removeClass(id, "hidden");
-                    }}
-                    function hide(id) {{
+                    }
+                    function hide(id) {
                     addClass(id, "hidden");
-                    }}
+                    }
 
-                    function showMessage(msg) {{
+                    function showMessage(msg) {
                         show("#payment-message");
                         addText("#payment-message", msg);
-                      }}
-                      function showStatus(paymentDetails) {{
+                      }
+                      function showStatus(paymentDetails) {
                         const status = paymentDetails.status;
-                        let statusDetails = {{
+                        let statusDetails = {
                           imageSource: "",
                           message: "",
                           status: status,
                           amountText: "",
                           items: [],
-                        }};
+                        };
                       
-                        switch (status) {{
+                        switch (status) {
                           case "succeeded":
                             statusDetails.imageSource = "http://www.clipartbest.com/cliparts/4ib/oRa/4iboRa7RT.png";
                             statusDetails.message = "Payment successful";
@@ -1758,41 +1850,41 @@ pub fn build_payment_link_html(
                             statusDetails.message = "Something went wrong";
                             statusDetails.status = "Something went wrong";
                             // Error details
-                            if (typeof paymentDetails.error === "object") {{
+                            if (typeof paymentDetails.error === "object") {
                               var errorCodeNode = createItem("ERROR CODE", paymentDetails.error.code);
                               var errorMessageNode = createItem("ERROR MESSAGE", paymentDetails.error.message);
                               // @ts-ignore
                               statusDetails.items.push(errorMessageNode, errorCodeNode);
-                            }}
+                            }
                             break;
-                        }}
+                        }
                       
                         // Append status
                         var statusTextNode = document.getElementById("status-text");
-                        if (statusTextNode !== null) {{
+                        if (statusTextNode !== null) {
                           statusTextNode.innerText = statusDetails.message;
-                        }}
+                        }
                       
                         // Append image
                         var statusImageNode = document.getElementById("status-img");
-                        if (statusImageNode !== null) {{
+                        if (statusImageNode !== null) {
                           statusImageNode.src = statusDetails.imageSource;
-                        }}
+                        }
                       
                         // Append status details
                         var statusDateNode = document.getElementById("status-date");
-                        if (statusDateNode !== null) {{
+                        if (statusDateNode !== null) {
                           statusDateNode.innerText = statusDetails.amountText;
-                        }}
+                        }
                       
                         // Append items
                         var statusItemNode = document.getElementById("hyper-checkout-status-items");
-                        if (statusItemNode !== null) {{
+                        if (statusItemNode !== null) {
                           statusDetails.items.map((item) => statusItemNode?.append(item));
-                        }}
-                      }}
+                        }
+                      }
                       
-                      function createItem(heading, value) {{
+                      function createItem(heading, value) {
                         var itemNode = document.createElement("div");
                         itemNode.className = "hyper-checkout-item";
                         var headerNode = document.createElement("div");
@@ -1804,24 +1896,24 @@ pub fn build_payment_link_html(
                         itemNode.append(headerNode);
                         itemNode.append(valueNode);
                         return itemNode;
-                      }}
+                      }
                       
-                      function addText(id, msg) {{
+                      function addText(id, msg) {
                         var element = document.querySelector(id);
                         element.innerText = msg;
-                      }}
+                      }
                       
-                      function addClass(id, className) {{
+                      function addClass(id, className) {
                         var element = document.querySelector(id);
                         element.classList.add(className);
-                      }}
+                      }
                       
-                      function removeClass(id, className) {{
+                      function removeClass(id, className) {
                         var element = document.querySelector(id);
                         element.classList.remove(className);
-                      }}
+                      }
                       
-                      function renderPaymentDetails() {{
+                      function renderPaymentDetails() {
                         var paymentDetails = window.__PAYMENT_DETAILS;
                       
                         // Payment details header
@@ -1836,15 +1928,15 @@ pub fn build_payment_link_html(
                       
                         // Append to PaymentDetails node
                         var paymentDetailsNode = document.getElementById("hyper-checkout-details");
-                        if (paymentDetailsNode !== null) {{
+                        if (paymentDetailsNode !== null) {
                           paymentDetailsNode.append(paymentDetailsHeaderNode);
                           paymentDetailsNode.append(purchasedItemNode);
                           paymentDetailsNode.append(paymentIdNode);
                           paymentDetailsNode.append(orderAmountNode);
-                        }}
-                      }}
+                        }
+                      }
                       
-                      function renderSDKHeader() {{
+                      function renderSDKHeader() {
                         var paymentDetails = window.__PAYMENT_DETAILS;
                       
                         // SDK header's logo
@@ -1869,34 +1961,34 @@ pub fn build_payment_link_html(
                       
                         // Append to SDK header's node
                         var sdkHeaderNode = document.getElementById("hyper-checkout-sdk-header");
-                        if (sdkHeaderNode !== null) {{
+                        if (sdkHeaderNode !== null) {
                           sdkHeaderNode.append(sdkHeaderLogoNode);
                           sdkHeaderNode.append(sdkHeaderItemNode);
-                        }}
-                      }}
+                        }
+                      }
                       
-                      function showSDK(e) {{
+                      function showSDK(e) {
                         setPageLoading(true);
-                        checkStatus().then((res) => {{
-                          if (res.showSdk) {{
+                        checkStatus().then((res) => {
+                          if (res.showSdk) {
                             renderPaymentDetails();
                             renderSDKHeader();
                             show("#hyper-checkout-sdk");
                             show("#hyper-checkout-details")
-                          }} else {{
+                          } else {
                             show("#hyper-checkout-status");
                             show("#hyper-footer");
-                          }}
-                        }}).catch((err) => {{
+                          }
+                        }).catch((err) => {
                       
-                        }}).finally(() => {{
+                        }).finally(() => {
                           setPageLoading(false);
-                        }})
-                      }}
+                        })
+                      }
                       
                       
                 </script>
-                "##, payment_link_data.amount, payment_link_data.currency)))
+                "##))
     }
         
 }

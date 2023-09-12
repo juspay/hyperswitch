@@ -14,7 +14,6 @@ use crate::{
     errors::{self, DatabaseError},
     payment_attempt::{
         PaymentAttempt, PaymentAttemptNew, PaymentAttemptUpdate, PaymentAttemptUpdateInternal,
-        PaymentListFilters,
     },
     payment_intent::PaymentIntent,
     query::generics::db_metrics,
@@ -212,15 +211,20 @@ impl PaymentAttempt {
         conn: &PgPooledConn,
         pi: &[PaymentIntent],
         merchant_id: &str,
-    ) -> StorageResult<PaymentListFilters> {
-        let active_attempt_ids: Vec<String> = pi
+    ) -> StorageResult<(
+        Vec<String>,
+        Vec<enums::Currency>,
+        Vec<IntentStatus>,
+        Vec<enums::PaymentMethod>,
+    )> {
+        let active_attempts: Vec<String> = pi
             .iter()
             .map(|payment_intent| payment_intent.clone().active_attempt_id)
             .collect();
 
         let filter = <Self as HasTable>::table()
             .filter(dsl::merchant_id.eq(merchant_id.to_owned()))
-            .filter(dsl::attempt_id.eq_any(active_attempt_ids));
+            .filter(dsl::attempt_id.eq_any(active_attempts));
 
         let intent_status: Vec<IntentStatus> = pi
             .iter()
@@ -268,14 +272,12 @@ impl PaymentAttempt {
             .flatten()
             .collect::<Vec<enums::PaymentMethod>>();
 
-        let filters = PaymentListFilters {
-            connector: filter_connector,
-            currency: filter_currency,
-            status: intent_status,
-            payment_method: filter_payment_method,
-        };
-
-        Ok(filters)
+        Ok((
+            filter_connector,
+            filter_currency,
+            intent_status,
+            filter_payment_method,
+        ))
     }
     pub async fn get_total_count_of_attempts(
         conn: &PgPooledConn,

@@ -45,12 +45,12 @@ pub async fn initiate_payment_link (
 ) -> impl Responder {
     let flow = Flow::PaymentLinkInitiate;
     let (merchant_id, payment_id) = path.into_inner();
+    println!("payment_id sahkal {}", payment_id.clone());
 
     let payload = web::Json(api_models::payments::PaymentLinkInitiateRequest {
         payment_id,
         merchant_id : merchant_id.clone() ,
     }).into_inner();
-
     api::server_wrap(
         flow,
         state.get_ref(),
@@ -61,7 +61,7 @@ pub async fn initiate_payment_link (
                 state,
                 auth.merchant_account,
                 payload.merchant_id.clone(),
-                payload.payment_id.clone(),
+                "pay_F3D2Hh2yjb7hEl6riM3Q".to_string(),
             )
         },
         &auth::MerchantIdAuth(merchant_id),

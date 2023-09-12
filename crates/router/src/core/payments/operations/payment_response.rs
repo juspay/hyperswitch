@@ -2,6 +2,7 @@ use std::collections::HashMap;
 
 use async_trait::async_trait;
 use error_stack::ResultExt;
+use futures::FutureExt;
 use router_derive;
 
 use super::{Operation, PostUpdateTracker};
@@ -16,8 +17,8 @@ use crate::{
     services::RedirectForm,
     types::{
         self, api,
-        storage::{self, enums},
-        transformers::{ForeignFrom, ForeignTryFrom},
+        storage::{self, enums, payment_attempt::PaymentAttemptExt},
+        transformers::ForeignTryFrom,
         CaptureSyncResponse,
     },
     utils,
@@ -304,19 +305,27 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                     )];
                     (Some((multiple_capture_data, capture_update_list)), None)
                 }
-                None => (
-                    None,
-                    Some(storage::PaymentAttemptUpdate::ErrorUpdate {
-                        connector: None,
-                        status: match err.status_code {
-                            500..=511 => storage::enums::AttemptStatus::Pending,
-                            _ => storage::enums::AttemptStatus::Failure,
-                        },
-                        error_message: Some(Some(err.message)),
-                        error_code: Some(Some(err.code)),
-                        error_reason: Some(err.reason),
-                    }),
-                ),
+                None => {
+                    let status = match err.status_code {
+                        500..=511 => storage::enums::AttemptStatus::Pending,
+                        _ => storage::enums::AttemptStatus::Failure,
+                    };
+                    (
+                        None,
+                        Some(storage::PaymentAttemptUpdate::ErrorUpdate {
+                            connector: None,
+                            status,
+                            error_message: Some(Some(err.message)),
+                            error_code: Some(Some(err.code)),
+                            error_reason: Some(err.reason),
+                            amount_capturable: if status.is_terminal_status() {
+                                Some(0)
+                            } else {
+                                None
+                            },
+                        }),
+                    )
+                }
             };
             (
                 capture_update,
@@ -421,6 +430,11 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                                 error_message: error_status.clone(),
                                 error_reason: error_status,
                                 connector_response_reference_id,
+                                amount_capturable: if router_data.status.is_terminal_status() {
+                                    Some(0)
+                                } else {
+                                    None
+                                },
                             }),
                         ),
                     };
@@ -498,37 +512,54 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
 
             let authorized_amount = payment_data.payment_attempt.amount;
 
-            payment_attempt_update = Some(storage::PaymentAttemptUpdate::StatusUpdate {
+            payment_attempt_update = Some(storage::PaymentAttemptUpdate::AmountToCaptureUpdate {
                 status: multiple_capture_data.get_attempt_status(authorized_amount),
+                amount_capturable: payment_data.payment_attempt.amount
+                    - multiple_capture_data.get_total_blocked_amount(),
             });
             Some(multiple_capture_data)
         }
         None => None,
     };
 
-    payment_data.payment_attempt = match payment_attempt_update {
-        Some(payment_attempt_update) => db
-            .update_payment_attempt_with_attempt_id(
-                payment_data.payment_attempt,
-                payment_attempt_update,
-                storage_scheme,
-            )
-            .await
-            .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?,
-        None => payment_data.payment_attempt,
-    };
+    // Stage 1
 
-    payment_data.connector_response = match connector_response_update {
-        Some(connector_response_update) => db
-            .update_connector_response(
-                payment_data.connector_response,
-                connector_response_update,
-                storage_scheme,
-            )
-            .await
-            .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?,
-        None => payment_data.connector_response,
-    };
+    let payment_attempt = payment_data.payment_attempt.clone();
+    let connector_response = payment_data.connector_response.clone();
+
+    let payment_attempt_fut = Box::pin(async move {
+        Ok::<_, error_stack::Report<errors::ApiErrorResponse>>(match payment_attempt_update {
+            Some(payment_attempt_update) => db
+                .update_payment_attempt_with_attempt_id(
+                    payment_attempt,
+                    payment_attempt_update,
+                    storage_scheme,
+                )
+                .await
+                .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?,
+            None => payment_attempt,
+        })
+    });
+
+    let connector_response_fut = Box::pin(async move {
+        Ok::<_, error_stack::Report<errors::ApiErrorResponse>>(match connector_response_update {
+            Some(connector_response_update) => db
+                .update_connector_response(
+                    connector_response,
+                    connector_response_update,
+                    storage_scheme,
+                )
+                .await
+                .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?,
+            None => connector_response,
+        })
+    });
+
+    let (payment_attempt, connector_response) =
+        futures::try_join!(payment_attempt_fut, connector_response_fut)?;
+    payment_data.payment_attempt = payment_attempt;
+    payment_data.connector_response = connector_response;
+
     let amount_captured = get_total_amount_captured(
         router_data.request,
         router_data.amount_captured,
@@ -537,32 +568,37 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
     );
     let payment_intent_update = match &router_data.response {
         Err(_) => storage::PaymentIntentUpdate::PGStatusUpdate {
-            status: enums::IntentStatus::foreign_from(payment_data.payment_attempt.status),
+            status: payment_data
+                .payment_attempt
+                .get_intent_status(payment_data.payment_intent.amount_captured),
         },
         Ok(_) => storage::PaymentIntentUpdate::ResponseUpdate {
-            status: enums::IntentStatus::foreign_from(payment_data.payment_attempt.status),
+            status: payment_data
+                .payment_attempt
+                .get_intent_status(payment_data.payment_intent.amount_captured),
             return_url: router_data.return_url.clone(),
             amount_captured,
         },
     };
 
-    payment_data.payment_intent = db
+    let payment_intent_fut = db
         .update_payment_intent(
-            payment_data.payment_intent,
+            payment_data.payment_intent.clone(),
             payment_intent_update,
             storage_scheme,
         )
-        .await
-        .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
+        .map(|x| x.to_not_found_response(errors::ApiErrorResponse::PaymentNotFound));
 
     // When connector requires redirection for mandate creation it can update the connector mandate_id during Psync
-    mandate::update_connector_mandate_id(
+    let mandate_update_fut = mandate::update_connector_mandate_id(
         db,
         router_data.merchant_id,
         payment_data.mandate_id.clone(),
         router_data.response.clone(),
-    )
-    .await?;
+    );
+
+    let (payment_intent, _) = futures::try_join!(payment_intent_fut, mandate_update_fut)?;
+    payment_data.payment_intent = payment_intent;
 
     Ok(payment_data)
 }
