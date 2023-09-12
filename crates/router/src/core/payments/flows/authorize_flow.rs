@@ -6,7 +6,9 @@ use crate::{
     core::{
         errors::{self, ConnectorErrorExt, RouterResult},
         mandate,
-        payments::{self, access_token, customers, tokenization, transformers, PaymentData},
+        payments::{
+            self, access_token, customers, helpers, tokenization, transformers, PaymentData,
+        },
     },
     logger,
     routes::{metrics, AppState},
@@ -29,6 +31,7 @@ impl
         merchant_account: &domain::MerchantAccount,
         key_store: &domain::MerchantKeyStore,
         customer: &Option<domain::Customer>,
+        merchant_connector_account: &helpers::MerchantConnectorAccountType,
     ) -> RouterResult<
         types::RouterData<
             api::Authorize,
@@ -43,6 +46,7 @@ impl
             merchant_account,
             key_store,
             customer,
+            merchant_connector_account,
         )
         .await
     }
@@ -244,7 +248,7 @@ impl mandate::MandateBehaviour for types::PaymentsAuthorizeData {
     fn get_setup_future_usage(&self) -> Option<diesel_models::enums::FutureUsage> {
         self.setup_future_usage
     }
-    fn get_setup_mandate_details(&self) -> Option<&api_models::payments::MandateData> {
+    fn get_setup_mandate_details(&self) -> Option<&data_models::mandates::MandateData> {
         self.setup_mandate_details.as_ref()
     }
 

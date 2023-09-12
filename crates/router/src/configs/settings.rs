@@ -94,8 +94,8 @@ pub struct Settings {
     pub connector_request_reference_id_config: ConnectorRequestReferenceIdConfig,
     #[cfg(feature = "payouts")]
     pub payouts: Payouts,
+    pub applepay_decrypt_keys: ApplePayDecryptConifg,
     pub multiple_api_version_supported_connectors: MultipleApiVersionSupportedConnectors,
-    #[cfg(all(feature = "olap", feature = "kms"))]
     pub applepay_merchant_configs: ApplepayMerchantConfigs,
 }
 
@@ -486,7 +486,7 @@ pub struct Connectors {
     pub authorizedotnet: ConnectorParams,
     pub bambora: ConnectorParams,
     pub bitpay: ConnectorParams,
-    pub bluesnap: ConnectorParams,
+    pub bluesnap: ConnectorParamsWithSecondaryBaseUrl,
     pub boku: ConnectorParams,
     pub braintree: ConnectorParams,
     pub cashtocode: ConnectorParams,
@@ -551,7 +551,6 @@ pub struct ConnectorParamsWithFileUploadUrl {
     pub base_url_file_upload: String,
 }
 
-#[cfg(feature = "payouts")]
 #[derive(Debug, Deserialize, Clone, Default, router_derive::ConfigValidate)]
 #[serde(default)]
 pub struct ConnectorParamsWithSecondaryBaseUrl {
@@ -614,8 +613,16 @@ pub struct FileUploadConfig {
 
 #[derive(Debug, Deserialize, Clone, Default)]
 pub struct DelayedSessionConfig {
-    #[serde(deserialize_with = "delayed_session_deser")]
+    #[serde(deserialize_with = "deser_to_get_connectors")]
     pub connectors_with_delayed_session_response: HashSet<api_models::enums::Connector>,
+}
+
+#[derive(Debug, Deserialize, Clone, Default)]
+pub struct ApplePayDecryptConifg {
+    pub apple_pay_ppc: String,
+    pub apple_pay_ppc_key: String,
+    pub apple_pay_merchant_cert: String,
+    pub apple_pay_merchant_cert_key: String,
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
@@ -623,7 +630,7 @@ pub struct ConnectorRequestReferenceIdConfig {
     pub merchant_ids_send_payment_id_as_connector_request_id: HashSet<String>,
 }
 
-fn delayed_session_deser<'a, D>(
+fn deser_to_get_connectors<'a, D>(
     deserializer: D,
 ) -> Result<HashSet<api_models::enums::Connector>, D::Error>
 where

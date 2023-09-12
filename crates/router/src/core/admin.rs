@@ -2,7 +2,7 @@ use api_models::{admin as admin_types, enums as api_enums};
 use common_utils::{
     crypto::{generate_cryptographically_secure_random_string, OptionalSecretValue},
     date_time,
-    ext_traits::{ConfigExt, Encode, ValueExt},
+    ext_traits::{AsyncExt, ConfigExt, Encode, ValueExt},
 };
 use data_models::MerchantStorageScheme;
 use error_stack::{report, FutureExt, ResultExt};
@@ -54,7 +54,7 @@ pub async fn create_merchant_account(
 
     let primary_business_details =
         utils::Encode::<Vec<admin_types::PrimaryBusinessDetails>>::encode_to_value(
-            &req.primary_business_details.unwrap_or_default(),
+            &req.primary_business_details.clone().unwrap_or_default(),
         )
         .change_context(errors::ApiErrorResponse::InvalidDataValue {
             field_name: "primary_business_details",
@@ -173,15 +173,46 @@ pub async fn create_merchant_account(
     .change_context(errors::ApiErrorResponse::InternalServerError)?;
 
     // Create a default business profile
-    let business_profile = create_and_insert_business_profile(
-        db,
-        api_models::admin::BusinessProfileCreate::default(),
-        merchant_account.clone(),
-    )
-    .await?;
+    // If business_labels are passed, then use it as the profile_name
+    // else use `default` as the profile_name
+    if let Some(business_details) = req.primary_business_details.as_ref() {
+        for business_profile in business_details {
+            let profile_name =
+                format!("{}_{}", business_profile.country, business_profile.business);
 
-    // Update merchant account with the business profile id
-    merchant_account.default_profile = Some(business_profile.profile_id);
+            let business_profile_create_request = api_models::admin::BusinessProfileCreate {
+                profile_name: Some(profile_name),
+                ..Default::default()
+            };
+
+            let _ = create_and_insert_business_profile(
+                db,
+                business_profile_create_request,
+                merchant_account.clone(),
+            )
+            .await
+            .map_err(|business_profile_insert_error| {
+                crate::logger::warn!(
+                    "Business profile already exists {business_profile_insert_error:?}"
+                );
+            })
+            .map(|business_profile| {
+                if business_details.len() == 1 && merchant_account.default_profile.is_none() {
+                    merchant_account.default_profile = Some(business_profile.profile_id);
+                }
+            });
+        }
+    } else {
+        let business_profile = create_and_insert_business_profile(
+            db,
+            api_models::admin::BusinessProfileCreate::default(),
+            merchant_account.clone(),
+        )
+        .await?;
+
+        // Update merchant account with the business profile id
+        merchant_account.default_profile = Some(business_profile.profile_id);
+    };
 
     let merchant_account = db
         .insert_merchant(merchant_account, &key_store)
@@ -218,6 +249,67 @@ pub async fn get_merchant_account(
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to construct response")?,
     ))
+}
+
+/// For backwards compatibility, whenever new business labels are passed in
+/// primary_business_details, create a business profile
+pub async fn create_business_profile_from_business_labels(
+    db: &dyn StorageInterface,
+    key_store: &domain::MerchantKeyStore,
+    merchant_id: &str,
+    new_business_details: Vec<admin_types::PrimaryBusinessDetails>,
+) -> RouterResult<()> {
+    let merchant_account = db
+        .find_merchant_account_by_merchant_id(merchant_id, key_store)
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
+
+    let old_business_details = merchant_account
+        .primary_business_details
+        .clone()
+        .parse_value::<Vec<admin_types::PrimaryBusinessDetails>>("PrimaryBusinessDetails")
+        .change_context(errors::ApiErrorResponse::InvalidDataValue {
+            field_name: "routing_algorithm",
+        })
+        .attach_printable("Invalid routing algorithm given")?;
+
+    // find the diff between two vectors
+    let business_profiles_to_create = new_business_details
+        .into_iter()
+        .filter(|business_details| !old_business_details.contains(business_details))
+        .collect::<Vec<_>>();
+
+    for business_profile in business_profiles_to_create {
+        let profile_name = format!("{}_{}", business_profile.country, business_profile.business);
+
+        let business_profile_create_request = admin_types::BusinessProfileCreate {
+            profile_name: Some(profile_name),
+            ..Default::default()
+        };
+
+        let business_profile_create_result = create_and_insert_business_profile(
+            db,
+            business_profile_create_request,
+            merchant_account.clone(),
+        )
+        .await
+        .map_err(|business_profile_insert_error| {
+            // If there is any duplicate error, we need not take any action
+            crate::logger::warn!(
+                "Business profile already exists {business_profile_insert_error:?}"
+            );
+        });
+
+        // If a business_profile is created, then unset the default profile
+        if business_profile_create_result.is_ok() && merchant_account.default_profile.is_some() {
+            let unset_default_profile = domain::MerchantAccountUpdate::UnsetDefaultProfile;
+            db.update_merchant(merchant_account.clone(), unset_default_profile, key_store)
+                .await
+                .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
+        }
+    }
+
+    Ok(())
 }
 pub async fn merchant_account_update(
     db: &dyn StorageInterface,
@@ -266,6 +358,20 @@ pub async fn merchant_account_update(
             })
         })
         .transpose()?;
+
+    // In order to support backwards compatibility, if a business_labels are passed in the update
+    // call, then create new business_profiles with the profile_name as business_label
+    req.primary_business_details
+        .async_map(|primary_business_details| async {
+            let _ = create_business_profile_from_business_labels(
+                db,
+                &key_store,
+                merchant_id,
+                primary_business_details,
+            )
+            .await;
+        })
+        .await;
 
     let key = key_store.key.get_inner().peek();
 
@@ -341,6 +447,8 @@ pub async fn merchant_account_update(
         .update_specific_fields_in_merchant(merchant_id, updated_merchant_account, &key_store)
         .await
         .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
+
+    // If there are any new business labels generated, create business profile
 
     Ok(service_api::ApplicationResponse::Json(
         response
@@ -460,13 +568,13 @@ pub async fn create_payment_connector(
 
     helpers::validate_business_details(
         req.business_country,
-        &req.business_label,
+        req.business_label.as_ref(),
         &merchant_account,
     )?;
 
-    let connector_label = helpers::get_connector_label(
+    let connector_label = core_utils::get_connector_label(
         req.business_country,
-        &req.business_label,
+        req.business_label.as_ref(),
         req.business_sub_label.as_ref(),
         &req.connector_name.to_string(),
     );
@@ -511,14 +619,14 @@ pub async fn create_payment_connector(
 
     let frm_configs = get_frm_config_as_secret(req.frm_configs);
 
-    // Validate whether profile_id passed in request is valid and is linked to the merchant
-    let business_profile_from_request =
-        core_utils::validate_and_get_business_profile(store, req.profile_id.as_ref(), merchant_id)
-            .await?;
-
-    let profile_id = business_profile_from_request
-        .map(|business_profile| business_profile.profile_id)
-        .or(merchant_account.default_profile.clone());
+    let profile_id = core_utils::get_profile_id_from_business_details(
+        req.business_country,
+        req.business_label.as_ref(),
+        &merchant_account,
+        req.profile_id.as_ref(),
+        store,
+    )
+    .await?;
 
     let merchant_connector_account = domain::MerchantConnectorAccount {
         merchant_id: merchant_id.to_string(),
@@ -560,7 +668,7 @@ pub async fn create_payment_connector(
             }
             None => None,
         },
-        profile_id,
+        profile_id: Some(profile_id.clone()),
     };
 
     let mca = store
@@ -568,7 +676,8 @@ pub async fn create_payment_connector(
         .await
         .to_duplicate_response(
             errors::ApiErrorResponse::DuplicateMerchantConnectorAccount {
-                connector_label: connector_label.clone(),
+                profile_id,
+                connector_name: req.connector_name.to_string(),
             },
         )?;
 
@@ -896,9 +1005,15 @@ pub async fn create_and_insert_business_profile(
         request,
     ))?;
 
+    let profile_name = business_profile_new.profile_name.clone();
+
     db.insert_business_profile(business_profile_new)
         .await
-        .to_duplicate_response(errors::ApiErrorResponse::InternalServerError)
+        .to_duplicate_response(errors::ApiErrorResponse::GenericDuplicateError {
+            message: format!(
+                "Business Profile with the profile_name {profile_name} already exists"
+            ),
+        })
         .attach_printable("Failed to insert Business profile because of duplication error")
 }
 
@@ -906,25 +1021,18 @@ pub async fn create_business_profile(
     db: &dyn StorageInterface,
     request: api::BusinessProfileCreate,
     merchant_id: &str,
-    merchant_account: Option<domain::MerchantAccount>,
 ) -> RouterResponse<api_models::admin::BusinessProfileResponse> {
-    let merchant_account = if let Some(merchant_account) = merchant_account {
-        merchant_account
-    } else {
-        let key_store = db
-            .get_merchant_key_store_by_merchant_id(
-                merchant_id,
-                &db.get_master_key().to_vec().into(),
-            )
-            .await
-            .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
+    let key_store = db
+        .get_merchant_key_store_by_merchant_id(merchant_id, &db.get_master_key().to_vec().into())
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
 
-        // Get the merchant account, if few fields are not passed, then they will be inherited from
-        // merchant account
-        db.find_merchant_account_by_merchant_id(merchant_id, &key_store)
-            .await
-            .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?
-    };
+    // Get the merchant account, if few fields are not passed, then they will be inherited from
+    // merchant account
+    let merchant_account = db
+        .find_merchant_account_by_merchant_id(merchant_id, &key_store)
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
 
     if let Some(ref routing_algorithm) = request.routing_algorithm {
         let _: api::RoutingAlgorithm = routing_algorithm
@@ -937,7 +1045,14 @@ pub async fn create_business_profile(
     }
 
     let business_profile =
-        create_and_insert_business_profile(db, request, merchant_account).await?;
+        create_and_insert_business_profile(db, request, merchant_account.clone()).await?;
+
+    if merchant_account.default_profile.is_some() {
+        let unset_default_profile = domain::MerchantAccountUpdate::UnsetDefaultProfile;
+        db.update_merchant(merchant_account, unset_default_profile, &key_store)
+            .await
+            .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
+    }
 
     Ok(service_api::ApplicationResponse::Json(
         api_models::admin::BusinessProfileResponse::foreign_try_from(business_profile)
@@ -1010,7 +1125,9 @@ pub async fn update_business_profile(
         })?;
 
     if business_profile.merchant_id != merchant_id {
-        Err(errors::ApiErrorResponse::AccessForbidden)?
+        Err(errors::ApiErrorResponse::AccessForbidden {
+            resource: profile_id.to_string(),
+        })?
     }
 
     let webhook_details = request
@@ -1049,6 +1166,7 @@ pub async fn update_business_profile(
         frm_routing_algorithm: request.frm_routing_algorithm,
         payout_routing_algorithm: request.payout_routing_algorithm,
         is_recon_enabled: None,
+        applepay_verified_domains: request.applepay_verified_domains,
     };
 
     let updated_business_profile = db
