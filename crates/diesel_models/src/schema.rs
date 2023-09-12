@@ -545,6 +545,7 @@ diesel::table! {
         multiple_capture_count -> Nullable<Int2>,
         #[max_length = 128]
         connector_response_reference_id -> Nullable<Varchar>,
+        amount_capturable -> Int8,
     }
 }
 

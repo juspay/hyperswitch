@@ -43,7 +43,7 @@
       "payment_method": "card",
       "payment_method_data": {
         "card": {
-          "card_number": "4200000000000067",
+          "card_number": "5200000000000015",
           "card_exp_month": "03",
           "card_exp_year": "2030",
           "card_holder_name": "",

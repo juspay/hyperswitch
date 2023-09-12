@@ -1921,7 +1921,7 @@ async fn get_card_details(
     state: &routes::AppState,
     hyperswitch_token: &str,
 ) -> errors::RouterResult<Option<api::CardDetailFromLocker>> {
-    let mut card_decrypted =
+    let mut _card_decrypted =
         decrypt::<serde_json::Value, masking::WithType>(pm.payment_method_data.clone(), key)
             .await
             .change_context(errors::StorageError::DecryptionError)
@@ -1934,13 +1934,9 @@ async fn get_card_details(
                 PaymentMethodsData::Card(crd) => api::CardDetailFromLocker::from(crd),
             });
 
-    card_decrypted = if let Some(mut crd) = card_decrypted {
-        crd.scheme = pm.scheme.clone();
-        Some(crd)
-    } else {
-        Some(get_lookup_key_from_locker(state, hyperswitch_token, pm).await?)
-    };
-    Ok(card_decrypted)
+    Ok(Some(
+        get_lookup_key_from_locker(state, hyperswitch_token, pm).await?,
+    ))
 }
 
 pub async fn get_lookup_key_from_locker(

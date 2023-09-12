@@ -2,19 +2,41 @@ use actix_web::web;
 #[cfg(all(feature = "olap", feature = "kms"))]
 use api_models::verifications::{self, ApplepayMerchantResponse};
 use common_utils::errors::CustomResult;
-use diesel_models::business_profile::{BusinessProfile, BusinessProfileUpdateInternal};
+use diesel_models::business_profile;
 use error_stack::{Report, ResultExt};
 #[cfg(feature = "kms")]
 use external_services::kms;
 
 use crate::{
     core::errors::{self, api_error_response},
+    db::StorageInterface,
     headers, logger,
     routes::AppState,
     services, types, utils,
 };
 
 const APPLEPAY_INTERNAL_MERCHANT_NAME: &str = "Applepay_merchant";
+
+pub async fn get_verified_apple_domains_with_business_profile_id(
+    db: &dyn StorageInterface,
+    profile_id: String,
+) -> CustomResult<
+    services::ApplicationResponse<api_models::verifications::ApplepayVerifiedDomainsResponse>,
+    api_error_response::ApiErrorResponse,
+> {
+    let verified_domains = db
+        .find_business_profile_by_profile_id(&profile_id)
+        .await
+        .change_context(api_error_response::ApiErrorResponse::ResourceIdNotFound)?
+        .applepay_verified_domains
+        .unwrap_or_default();
+    Ok(services::api::ApplicationResponse::Json(
+        api_models::verifications::ApplepayVerifiedDomainsResponse {
+            status_code: 200,
+            verified_domains,
+        },
+    ))
+}
 
 pub async fn verify_merchant_creds_for_applepay(
     state: &AppState,
@@ -94,14 +116,14 @@ pub async fn verify_merchant_creds_for_applepay(
             .await
             .change_context(api_error_response::ApiErrorResponse::InternalServerError)?;
             services::api::ApplicationResponse::Json(ApplepayMerchantResponse {
-                status_code: "200".to_string(),
+                status_code: 200,
                 status_message: "Applepay verification Completed".to_string(),
             })
         }
         Err(error) => {
             logger::error!(?error);
             services::api::ApplicationResponse::Json(ApplepayMerchantResponse {
-                status_code: "200".to_string(),
+                status_code: 200,
                 status_message: "Applepay verification Failed".to_string(),
             })
         }
@@ -113,7 +135,7 @@ async fn check_existence_and_add_domain_to_db(
     state: &AppState,
     business_profile_id: String,
     domain_from_req: Vec<String>,
-) -> CustomResult<BusinessProfile, errors::StorageError> {
+) -> CustomResult<business_profile::BusinessProfile, errors::StorageError> {
     let business_profile = state
         .store
         .find_business_profile_by_profile_id(&business_profile_id)
@@ -130,7 +152,7 @@ async fn check_existence_and_add_domain_to_db(
 
     already_verified_domains.append(&mut new_verified_domains);
 
-    let update_business_profile = BusinessProfileUpdateInternal {
+    let update_business_profile = business_profile::BusinessProfileUpdateInternal {
         applepay_verified_domains: Some(already_verified_domains),
         profile_name: Some(business_profile.profile_name),
         modified_at: Some(business_profile.modified_at),
@@ -154,6 +176,7 @@ async fn check_existence_and_add_domain_to_db(
         .update_business_profile_by_profile_id(business_profile_to_update, update_business_profile)
         .await
 }
+
 fn log_applepay_verification_response_if_error(
     response: &Result<Result<types::Response, types::Response>, Report<errors::ApiClientError>>,
 ) {
