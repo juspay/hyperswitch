@@ -5,8 +5,11 @@ use common_utils::{
     ext_traits::{AsyncExt, ByteSliceExt, ValueExt},
     fp_utils, generate_id, pii,
 };
-use data_models::payments::payment_intent::PaymentIntent;
-use diesel_models::{enums, payment_attempt::PaymentAttempt};
+use data_models::{
+    mandates::MandateData,
+    payments::{payment_attempt::PaymentAttempt, payment_intent::PaymentIntent},
+};
+use diesel_models::enums;
 // TODO : Evaluate all the helper functions ()
 use error_stack::{report, IntoReport, ResultExt};
 #[cfg(feature = "kms")]
@@ -43,13 +46,13 @@ use crate::{
     routes::{metrics, payment_methods, AppState},
     services,
     types::{
-        api::{self, admin, enums as api_enums, CustomerAcceptanceExt, MandateValidationFieldsExt},
+        api::{self, admin, enums as api_enums, MandateValidationFieldsExt},
         domain::{
             self,
             types::{self, AsyncLift},
         },
         storage::{self, enums as storage_enums, ephemeral_key, CustomerUpdate::Update},
-        transformers::ForeignTryFrom,
+        transformers::{ForeignFrom, ForeignTryFrom},
         ErrorResponse, RouterData,
     },
     utils::{
@@ -282,16 +285,14 @@ pub async fn get_token_pm_type_mandate_details(
     Option<String>,
     Option<storage_enums::PaymentMethod>,
     Option<storage_enums::PaymentMethodType>,
-    Option<api::MandateData>,
+    Option<MandateData>,
     Option<payments::RecurringMandatePaymentData>,
     Option<String>,
 )> {
+    let mandate_data = request.mandate_data.clone().map(MandateData::foreign_from);
     match mandate_type {
         Some(api::MandateTransactionType::NewMandateTransaction) => {
-            let setup_mandate = request
-                .mandate_data
-                .clone()
-                .get_required_value("mandate_data")?;
+            let setup_mandate = mandate_data.clone().get_required_value("mandate_data")?;
             Ok((
                 request.payment_token.to_owned(),
                 request.payment_method,
@@ -322,7 +323,7 @@ pub async fn get_token_pm_type_mandate_details(
             request.payment_token.to_owned(),
             request.payment_method,
             request.payment_method_type,
-            request.mandate_data.clone(),
+            mandate_data,
             None,
             None,
         )),
@@ -662,7 +663,7 @@ pub fn create_redirect_url(
     format!(
         "{}/payments/{}/{}/redirect/response/{}",
         router_base_url, payment_attempt.payment_id, payment_attempt.merchant_id, connector_name,
-    ) + &creds_identifier_path
+    ) + creds_identifier_path.as_ref()
 }
 
 pub fn create_webhook_url(
@@ -1935,7 +1936,7 @@ pub fn check_if_operation_confirm<Op: std::fmt::Debug>(operations: Op) -> bool {
 pub fn generate_mandate(
     merchant_id: String,
     connector: String,
-    setup_mandate_details: Option<api::MandateData>,
+    setup_mandate_details: Option<MandateData>,
     customer: &Option<domain::Customer>,
     payment_method_id: String,
     connector_mandate_id: Option<pii::SecretSerdeValue>,
@@ -1976,13 +1977,13 @@ pub fn generate_mandate(
 
             Ok(Some(
                 match data.mandate_type.get_required_value("mandate_type")? {
-                    api::MandateType::SingleUse(data) => new_mandate
+                    data_models::mandates::MandateDataType::SingleUse(data) => new_mandate
                         .set_mandate_amount(Some(data.amount))
                         .set_mandate_currency(Some(data.currency))
                         .set_mandate_type(storage_enums::MandateType::SingleUse)
                         .to_owned(),
 
-                    api::MandateType::MultiUse(op_data) => match op_data {
+                    data_models::mandates::MandateDataType::MultiUse(op_data) => match op_data {
                         Some(data) => new_mandate
                             .set_mandate_amount(Some(data.amount))
                             .set_mandate_currency(Some(data.currency))
@@ -2695,6 +2696,7 @@ impl AttemptType {
             error_reason: None,
             multiple_capture_count: None,
             connector_response_reference_id: None,
+            amount_capturable: old_payment_attempt.amount,
         }
     }
 

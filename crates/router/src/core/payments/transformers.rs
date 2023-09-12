@@ -2,7 +2,8 @@ use std::{fmt::Debug, marker::PhantomData, str::FromStr};
 
 use api_models::payments::FrmMessage;
 use common_utils::fp_utils;
-use diesel_models::{ephemeral_key, payment_attempt::PaymentListFilters};
+use data_models::mandates::MandateData;
+use diesel_models::ephemeral_key;
 use error_stack::{IntoReport, ResultExt};
 use router_env::{instrument, tracing};
 
@@ -344,7 +345,7 @@ pub fn payments_to_payments_response<R, Op>(
     ephemeral_key_option: Option<ephemeral_key::EphemeralKey>,
     session_tokens: Vec<api::SessionToken>,
     fraud_check: Option<payments::FraudCheck>,
-    mandate_data: Option<api_models::payments::MandateData>,
+    mandate_data: Option<MandateData>,
     connector_request_reference_id_config: &ConnectorRequestReferenceIdConfig,
     connector_http_status_code: Option<u16>,
 ) -> RouterResponse<api::PaymentsResponse>
@@ -518,16 +519,13 @@ where
                         connector_name,
                     )
                 });
-
-                let amount_captured = payment_intent.amount_captured.unwrap_or_default();
-                let amount_capturable = Some(payment_attempt.amount - amount_captured);
                 services::ApplicationResponse::JsonWithHeaders((
                     response
                         .set_payment_id(Some(payment_attempt.payment_id))
                         .set_merchant_id(Some(payment_attempt.merchant_id))
                         .set_status(payment_intent.status)
                         .set_amount(payment_attempt.amount)
-                        .set_amount_capturable(amount_capturable)
+                        .set_amount_capturable(Some(payment_attempt.amount_capturable))
                         .set_amount_received(payment_intent.amount_captured)
                         .set_connector(routed_through)
                         .set_client_secret(payment_intent.client_secret.map(masking::Secret::new))
@@ -551,7 +549,50 @@ where
                         )
                         .set_mandate_id(mandate_id)
                         .set_mandate_data(
-                            mandate_data.map(api::MandateData::from),
+                            mandate_data.map(|d| api::MandateData {
+                                customer_acceptance: d.customer_acceptance.map(|d| {
+                                    api::CustomerAcceptance {
+                                        acceptance_type: match d.acceptance_type {
+                                            data_models::mandates::AcceptanceType::Online => {
+                                                api::AcceptanceType::Online
+                                            }
+                                            data_models::mandates::AcceptanceType::Offline => {
+                                                api::AcceptanceType::Offline
+                                            }
+                                        },
+                                        accepted_at: d.accepted_at,
+                                        online: d.online.map(|d| api::OnlineMandate {
+                                            ip_address: d.ip_address,
+                                            user_agent: d.user_agent,
+                                        }),
+                                    }
+                                }),
+                                mandate_type: d.mandate_type.map(|d| match d {
+                                    data_models::mandates::MandateDataType::MultiUse(Some(i)) => {
+                                        api::MandateType::MultiUse(Some(api::MandateAmountData {
+                                            amount: i.amount,
+                                            currency: i.currency,
+                                            start_date: i.start_date,
+                                            end_date: i.end_date,
+                                            metadata: i.metadata,
+                                        }))
+                                    }
+                                    data_models::mandates::MandateDataType::SingleUse(i) => {
+                                        api::MandateType::SingleUse(
+                                            api::payments::MandateAmountData {
+                                                amount: i.amount,
+                                                currency: i.currency,
+                                                start_date: i.start_date,
+                                                end_date: i.end_date,
+                                                metadata: i.metadata,
+                                            },
+                                        )
+                                    }
+                                    data_models::mandates::MandateDataType::MultiUse(None) => {
+                                        api::MandateType::MultiUse(None)
+                                    }
+                                }),
+                            }),
                             auth_flow == services::AuthFlow::Merchant,
                         )
                         .set_description(payment_intent.description)
@@ -773,17 +814,6 @@ impl ForeignFrom<(storage::PaymentIntent, storage::PaymentAttempt)> for api::Pay
             connector_transaction_id: pa.connector_transaction_id,
             attempt_count: pi.attempt_count,
             ..Default::default()
-        }
-    }
-}
-
-impl ForeignFrom<PaymentListFilters> for api_models::payments::PaymentListFilters {
-    fn foreign_from(item: PaymentListFilters) -> Self {
-        Self {
-            connector: item.connector,
-            currency: item.currency,
-            status: item.status,
-            payment_method: item.payment_method,
         }
     }
 }
