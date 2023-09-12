@@ -18,6 +18,14 @@ use crate::{
     },
 };
 
+mod webhook_headers {
+    pub const PAYPAL_TRANSMISSION_ID: &str = "paypal-transmission-id";
+    pub const PAYPAL_TRANSMISSION_TIME: &str = "paypal-transmission-time";
+    pub const PAYPAL_TRANSMISSION_SIG: &str = "paypal-transmission-sig";
+    pub const PAYPAL_CERT_URL: &str = "paypal-cert-url";
+    pub const PAYPAL_AUTH_ALGO: &str = "paypal-auth-algo";
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, Eq, PartialEq)]
 #[serde(rename_all = "UPPERCASE")]
 pub enum PaypalPaymentIntent {
@@ -1112,7 +1120,8 @@ impl TryFrom<(PaypalRefundWebhooks, PaypalWebhookEventType)> for RefundSyncRespo
     ) -> Result<Self, Self::Error> {
         Ok(Self {
             id: webhook_body.id,
-            status: RefundStatus::try_from(webhook_event)?,
+            status: RefundStatus::try_from(webhook_event)
+                .attach_printable("Could not find suitable webhook event")?,
         })
     }
 }
@@ -1140,7 +1149,17 @@ impl TryFrom<PaypalWebhookEventType> for RefundStatus {
     fn try_from(event: PaypalWebhookEventType) -> Result<Self, Self::Error> {
         match event {
             PaypalWebhookEventType::PaymentCaptureRefunded => Ok(Self::Completed),
-            _ => Err(errors::ConnectorError::WebhookEventTypeNotFound.into()),
+            PaypalWebhookEventType::PaymentAuthorizationCreated
+            | PaypalWebhookEventType::PaymentAuthorizationVoided
+            | PaypalWebhookEventType::PaymentCaptureDeclined
+            | PaypalWebhookEventType::PaymentCaptureCompleted
+            | PaypalWebhookEventType::PaymentCapturePending
+            | PaypalWebhookEventType::CheckoutOrderApproved
+            | PaypalWebhookEventType::CheckoutOrderCompleted
+            | PaypalWebhookEventType::CheckoutOrderProcessed
+            | PaypalWebhookEventType::Unknown => {
+                Err(errors::ConnectorError::WebhookEventTypeNotFound.into())
+            }
         }
     }
 }
@@ -1153,10 +1172,14 @@ impl TryFrom<PaypalWebhookEventType> for PaypalOrderStatus {
             | PaypalWebhookEventType::CheckoutOrderCompleted => Ok(Self::Completed),
             PaypalWebhookEventType::PaymentAuthorizationVoided => Ok(Self::Voided),
             PaypalWebhookEventType::PaymentCapturePending
-            | PaypalWebhookEventType::CheckoutOrderApproved
             | PaypalWebhookEventType::CheckoutOrderProcessed => Ok(Self::Pending),
             PaypalWebhookEventType::PaymentAuthorizationCreated => Ok(Self::Created),
-            _ => Err(errors::ConnectorError::WebhookEventTypeNotFound.into()),
+            PaypalWebhookEventType::CheckoutOrderApproved
+            | PaypalWebhookEventType::PaymentCaptureDeclined
+            | PaypalWebhookEventType::PaymentCaptureRefunded
+            | PaypalWebhookEventType::Unknown => {
+                Err(errors::ConnectorError::WebhookEventTypeNotFound.into())
+            }
         }
     }
 }
@@ -1170,21 +1193,22 @@ impl TryFrom<&types::VerifyWebhookSourceRequestData> for PaypalSourceVerificatio
         Ok(Self {
             transmission_id: get_headers(
                 &req.webhook_headers,
-                "paypal-transmission-id".to_owned(),
-            )?,
+                webhook_headers::PAYPAL_TRANSMISSION_ID,
+            )
+            .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?,
             transmission_time: get_headers(
                 &req.webhook_headers,
-                "paypal-transmission-time".to_owned(),
+                webhook_headers::PAYPAL_TRANSMISSION_TIME,
             )?,
-            cert_url: get_headers(&req.webhook_headers, "paypal-cert-url".to_owned())?,
+            cert_url: get_headers(&req.webhook_headers, webhook_headers::PAYPAL_CERT_URL)?,
             transmission_sig: get_headers(
                 &req.webhook_headers,
-                "paypal-transmission-sig".to_owned(),
+                webhook_headers::PAYPAL_TRANSMISSION_SIG,
             )?,
-            auth_algo: get_headers(&req.webhook_headers, "paypal-auth-algo".to_owned())?,
+            auth_algo: get_headers(&req.webhook_headers, webhook_headers::PAYPAL_AUTH_ALGO)?,
             webhook_id: String::from_utf8(req.merchant_secret.secret.to_vec())
                 .into_report()
-                .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)
+                .change_context(errors::ConnectorError::WebhookVerificationSecretNotFound)
                 .attach_printable("Could not convert secret to UTF-8")?,
             webhook_event: req_body,
         })
@@ -1193,14 +1217,14 @@ impl TryFrom<&types::VerifyWebhookSourceRequestData> for PaypalSourceVerificatio
 
 fn get_headers(
     header: &actix_web::http::header::HeaderMap,
-    key: String,
+    key: &'static str,
 ) -> CustomResult<String, errors::ConnectorError> {
     let header_value = header
-        .get(key)
-        .ok_or(errors::ConnectorError::WebhookSourceVerificationFailed)?
-        .to_str()
+        .get(key.clone())
+        .map(|value| value.to_str())
+        .ok_or_else(|| errors::ConnectorError::MissingRequiredField { field_name: key })?
         .into_report()
-        .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?
+        .change_context(errors::ConnectorError::InvalidDataFormat { field_name: key })?
         .to_owned();
     Ok(header_value)
 }
