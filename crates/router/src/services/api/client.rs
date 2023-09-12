@@ -174,6 +174,7 @@ where
     fn get_merchant_id(&self) -> Option<String> {
         None
     }
+    fn add_flow_name(&mut self, _flow_name: String) {}
 }
 
 dyn_clone::clone_trait_object!(ApiClient);
@@ -183,7 +184,6 @@ pub struct ProxyClient {
     proxy_client: reqwest::Client,
     non_proxy_client: reqwest::Client,
     whitelisted_urls: Vec<String>,
-    
 }
 
 impl ProxyClient {
@@ -352,7 +352,7 @@ impl ApiClient for ProxyClient {
     }
 
     fn add_request_id(&mut self, _request_id: Option<String>) {
-        
+
     }
 
     fn get_request_id(&self) -> Option<String> {
@@ -365,6 +365,10 @@ impl ApiClient for ProxyClient {
 
     fn get_merchant_id(&self) -> Option<String> {
         None
+    }
+
+    fn add_flow_name(&mut self, _flow_name: String) {
+        
     }
 }
 
@@ -420,5 +424,8 @@ impl ApiClient for MockApiClient {
 
     fn get_merchant_id(&self) -> Option<String> {
         None
+    }
+
+    fn add_flow_name(&mut self, _flow_name: String) {
     }
 }
