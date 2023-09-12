@@ -1,6 +1,6 @@
 use std::marker::PhantomData;
 
-use api_models::{admin::PaymentMethodsEnabled, enums::CancelTransaction};
+use api_models::{admin::PaymentMethodsEnabled, enums::FrmSuggestion};
 use async_trait::async_trait;
 use common_utils::ext_traits::{AsyncExt, ValueExt};
 use error_stack::ResultExt;
@@ -204,7 +204,8 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsSessionRequest> for
         storage_scheme: storage_enums::MerchantStorageScheme,
         _updated_customer: Option<storage::CustomerUpdate>,
         _mechant_key_store: &domain::MerchantKeyStore,
-        _should_cancel_transaction: Option<CancelTransaction>,
+        _frm_suggestion: Option<FrmSuggestion>,
+        _header_payload: api::HeaderPayload,
     ) -> RouterResult<(
         BoxedOperation<'b, F, api::PaymentsSessionRequest>,
         PaymentData<F>,
@@ -329,7 +330,7 @@ where
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Database error when querying for merchant connector accounts")?;
 
-        let filtered_connector_accounts = helpers::filter_mca_based_on_business_details(
+        let filtered_connector_accounts = helpers::filter_mca_based_on_business_profile(
             all_connector_accounts,
             Some(payment_intent),
         );

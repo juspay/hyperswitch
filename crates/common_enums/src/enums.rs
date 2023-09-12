@@ -59,6 +59,36 @@ pub enum AttemptStatus {
     DeviceDataCollectionPending,
 }
 
+impl AttemptStatus {
+    pub fn is_terminal_status(self) -> bool {
+        match self {
+            Self::RouterDeclined
+            | Self::Charged
+            | Self::AutoRefunded
+            | Self::Voided
+            | Self::VoidFailed
+            | Self::CaptureFailed
+            | Self::Failure => true,
+            Self::Started
+            | Self::AuthenticationFailed
+            | Self::AuthenticationPending
+            | Self::AuthenticationSuccessful
+            | Self::Authorized
+            | Self::AuthorizationFailed
+            | Self::Authorizing
+            | Self::CodInitiated
+            | Self::VoidInitiated
+            | Self::CaptureInitiated
+            | Self::PartialCharged
+            | Self::Unresolved
+            | Self::Pending
+            | Self::PaymentMethodAwaited
+            | Self::ConfirmationAwaited
+            | Self::DeviceDataCollectionPending => false,
+        }
+    }
+}
+
 #[derive(
     Clone,
     Copy,
@@ -1678,6 +1708,50 @@ pub enum PayoutEntityType {
 #[derive(
     Clone,
     Copy,
+    Debug,
+    Default,
+    Eq,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    strum::EnumString,
+    ToSchema,
+    Hash,
+)]
+#[router_derive::diesel_enum(storage_type = "pg_enum")]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum PaymentSource {
+    #[default]
+    MerchantServer,
+    Postman,
+    Dashboard,
+    Sdk,
+}
+
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    PartialEq,
+    serde::Serialize,
+    serde::Deserialize,
+    strum::Display,
+    strum::EnumString,
+)]
+#[router_derive::diesel_enum(storage_type = "text")]
+#[strum(serialize_all = "snake_case")]
+pub enum MerchantDecision {
+    Approved,
+    Rejected,
+    AutoRefunded,
+}
+
+#[derive(
+    Clone,
+    Copy,
     Default,
     Debug,
     Eq,
@@ -1691,9 +1765,11 @@ pub enum PayoutEntityType {
 )]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
-pub enum CancelTransaction {
+pub enum FrmSuggestion {
     #[default]
     FrmCancelTransaction,
+    FrmManualReview,
+    FrmAutoRefund,
 }
 
 #[derive(

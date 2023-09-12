@@ -21,7 +21,10 @@ use crate::{
     consts,
     core::errors::{self, CustomResult},
     pii::PeekInterface,
-    types::{self, api, transformers::ForeignTryFrom, PaymentsCancelData, ResponseId},
+    types::{
+        self, api, storage::enums as storage_enums, transformers::ForeignTryFrom,
+        PaymentsCancelData, ResponseId,
+    },
     utils::{OptionExt, ValueExt},
 };
 
@@ -65,7 +68,7 @@ pub trait RouterData {
     where
         T: serde::de::DeserializeOwned;
     fn is_three_ds(&self) -> bool;
-    fn get_payment_method_token(&self) -> Result<String, Error>;
+    fn get_payment_method_token(&self) -> Result<types::PaymentMethodToken, Error>;
     fn get_customer_id(&self) -> Result<String, Error>;
     fn get_connector_customer_id(&self) -> Result<String, Error>;
     fn get_preprocessing_id(&self) -> Result<String, Error>;
@@ -77,7 +80,7 @@ pub trait RouterData {
 pub const SELECTED_PAYMENT_METHOD: &str = "Selected payment method";
 
 pub fn get_unimplemented_payment_method_error_message(connector: &str) -> String {
-    format!("Selected payment method through {}", connector)
+    format!("{} through {}", SELECTED_PAYMENT_METHOD, connector)
 }
 
 impl<Flow, Request, Response> RouterData for types::RouterData<Flow, Request, Response> {
@@ -156,7 +159,7 @@ impl<Flow, Request, Response> RouterData for types::RouterData<Flow, Request, Re
             .and_then(|a| a.address.as_ref())
             .ok_or_else(missing_field_err("shipping.address"))
     }
-    fn get_payment_method_token(&self) -> Result<String, Error> {
+    fn get_payment_method_token(&self) -> Result<types::PaymentMethodToken, Error> {
         self.payment_method_token
             .clone()
             .ok_or_else(missing_field_err("payment_method_token"))
@@ -791,16 +794,16 @@ impl AddressDetailsData for api::AddressDetails {
             .ok_or_else(missing_field_err("address.city"))
     }
 
-    fn get_line2(&self) -> Result<&Secret<String>, Error> {
-        self.line2
-            .as_ref()
-            .ok_or_else(missing_field_err("address.line2"))
-    }
-
     fn get_state(&self) -> Result<&Secret<String>, Error> {
         self.state
             .as_ref()
             .ok_or_else(missing_field_err("address.state"))
+    }
+
+    fn get_line2(&self) -> Result<&Secret<String>, Error> {
+        self.line2
+            .as_ref()
+            .ok_or_else(missing_field_err("address.line2"))
     }
 
     fn get_zip(&self) -> Result<&Secret<String>, Error> {
@@ -1330,6 +1333,41 @@ mod error_code_error_message_tests {
         );
         assert_eq!(error_code_error_message_none, None);
     }
+}
+
+pub trait MultipleCaptureSyncResponse {
+    fn get_connector_capture_id(&self) -> String;
+    fn get_capture_attempt_status(&self) -> storage_enums::AttemptStatus;
+    fn is_capture_response(&self) -> bool;
+    fn get_connector_reference_id(&self) -> Option<String> {
+        None
+    }
+}
+
+pub fn construct_captures_response_hashmap<T>(
+    capture_sync_response_list: Vec<T>,
+) -> HashMap<String, types::CaptureSyncResponse>
+where
+    T: MultipleCaptureSyncResponse,
+{
+    let mut hashmap = HashMap::new();
+    capture_sync_response_list
+        .into_iter()
+        .for_each(|capture_sync_response| {
+            let connector_capture_id = capture_sync_response.get_connector_capture_id();
+            if capture_sync_response.is_capture_response() {
+                hashmap.insert(
+                    connector_capture_id.clone(),
+                    types::CaptureSyncResponse::Success {
+                        resource_id: ResponseId::ConnectorTransactionId(connector_capture_id),
+                        status: capture_sync_response.get_capture_attempt_status(),
+                        connector_response_reference_id: capture_sync_response
+                            .get_connector_reference_id(),
+                    },
+                );
+            }
+        });
+    hashmap
 }
 
 pub fn validate_currency(

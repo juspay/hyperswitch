@@ -39,6 +39,7 @@ pub async fn files_create_core(
         file_upload_provider: None,
         available: false,
         connector_label: None,
+        profile_id: None,
     };
     let file_metadata_object = state
         .store
@@ -47,7 +48,7 @@ pub async fn files_create_core(
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Unable to insert file_metadata")?;
     let (provider_file_id, file_upload_provider, connector_label) =
-        helpers::upload_and_get_provider_provider_file_id_connector_label(
+        helpers::upload_and_get_provider_provider_file_id_profile_id(
             state,
             &merchant_account,
             &key_store,

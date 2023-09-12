@@ -149,13 +149,16 @@ mod tests {
     use crate::{
         db::{merchant_key_store::MerchantKeyStoreInterface, MasterKeyInterface, MockDb},
         services,
-        types::domain::{self, types as domain_types},
+        types::domain::{self},
     };
 
     #[allow(clippy::unwrap_used)]
     #[tokio::test]
     async fn test_mock_db_merchant_key_store_interface() {
-        let mock_db = MockDb::new(&Default::default()).await;
+        #[allow(clippy::expect_used)]
+        let mock_db = MockDb::new(&redis_interface::RedisSettings::default())
+            .await
+            .expect("Failed to create mock DB");
         let master_key = mock_db.get_master_key();
         let merchant_id = "merchant1";
 
@@ -163,7 +166,7 @@ mod tests {
             .insert_merchant_key_store(
                 domain::MerchantKeyStore {
                     merchant_id: merchant_id.into(),
-                    key: domain_types::encrypt(
+                    key: domain::types::encrypt(
                         services::generate_aes256_key().unwrap().to_vec().into(),
                         master_key,
                     )
@@ -188,7 +191,7 @@ mod tests {
             .insert_merchant_key_store(
                 domain::MerchantKeyStore {
                     merchant_id: merchant_id.into(),
-                    key: domain_types::encrypt(
+                    key: domain::types::encrypt(
                         services::generate_aes256_key().unwrap().to_vec().into(),
                         master_key,
                     )

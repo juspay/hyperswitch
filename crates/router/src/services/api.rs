@@ -23,7 +23,7 @@ use serde_json::json;
 use self::request::{ContentType, HeaderExt, RequestBuilderExt};
 pub use self::request::{Method, Request, RequestBuilder};
 use crate::{
-    configs::settings::Connectors,
+    configs::settings::{Connectors, Settings},
     consts,
     core::{
         errors::{self, CustomResult},
@@ -395,18 +395,6 @@ where
                                 router_data.response = Err(error_response);
                                 router_data.connector_http_status_code = Some(504);
                                 Ok(router_data)
-                            } else if error.current_context().is_connection_closed() {
-                                let error_response = ErrorResponse {
-                                    code: consts::CONNECTION_CLOSED_ERROR_CODE.to_string(),
-                                    message: consts::CONNECTION_CLOSED_ERROR_MESSAGE.to_string(),
-                                    reason: Some(
-                                        consts::CONNECTION_CLOSED_ERROR_MESSAGE.to_string(),
-                                    ),
-                                    status_code: 504,
-                                };
-                                router_data.response = Err(error_response);
-                                router_data.connector_http_status_code = Some(504);
-                                Ok(router_data)
                             } else {
                                 Err(error.change_context(
                                     errors::ConnectorError::ProcessingStepFailed(None),
@@ -679,6 +667,7 @@ pub enum RedirectForm {
     BlueSnap {
         payment_fields_token: String, // payment-field-token
     },
+    Payme,
 }
 
 impl From<(url::Url, Method)> for RedirectForm {
@@ -813,14 +802,18 @@ where
                 ),
             }
         }
-        Ok(ApplicationResponse::Form(redirection_data)) => build_redirection_form(
-            &redirection_data.redirect_form,
-            redirection_data.payment_method_data,
-            redirection_data.amount,
-            redirection_data.currency,
-        )
-        .respond_to(request)
-        .map_into_boxed_body(),
+        Ok(ApplicationResponse::Form(redirection_data)) => {
+            let config = state.conf();
+            build_redirection_form(
+                &redirection_data.redirect_form,
+                redirection_data.payment_method_data,
+                redirection_data.amount,
+                redirection_data.currency,
+                config,
+            )
+            .respond_to(request)
+            .map_into_boxed_body()
+        }
         Ok(ApplicationResponse::JsonWithHeaders((response, headers))) => {
             match serde_json::to_string(&response) {
                 Ok(res) => http_response_json_with_headers(res, headers),
@@ -991,6 +984,7 @@ pub fn build_redirection_form(
     payment_method_data: Option<api_models::payments::PaymentMethodData>,
     amount: String,
     currency: String,
+    config: Settings,
 ) -> maud::Markup {
     use maud::PreEscaped;
 
@@ -1073,12 +1067,14 @@ pub fn build_redirection_form(
             } else {
                 "".to_string()
             };
+
+            let bluesnap_url = config.connectors.bluesnap.secondary_base_url;
             maud::html! {
             (maud::DOCTYPE)
             html {
                 head {
                     meta name="viewport" content="width=device-width, initial-scale=1";
-                    (PreEscaped(r#"<script src="https://sandpay.bluesnap.com/web-sdk/5/bluesnap.js"></script>"#))
+                    (PreEscaped(format!("<script src=\"{bluesnap_url}web-sdk/5/bluesnap.js\"></script>")))
                 }
                     body style="background-color: #ffffff; padding: 20px; font-family: Arial, Helvetica, Sans-Serif;" {
 
@@ -1123,6 +1119,33 @@ pub fn build_redirection_form(
                 </script>
                 ")))
                 }}
+        }
+        RedirectForm::Payme => {
+            maud::html! {
+                (maud::DOCTYPE)
+                head {
+                    (PreEscaped(r#"<script src="https://cdn.paymeservice.com/hf/v1/hostedfields.js"></script>"#))
+                }
+                (PreEscaped("<script>
+                    var f = document.createElement('form');
+                    f.action=window.location.pathname.replace(/payments\\/redirect\\/(\\w+)\\/(\\w+)\\/\\w+/, \"payments/$1/$2/redirect/complete/payme\");
+                    f.method='POST';
+                    PayMe.clientData()
+                    .then((data) => {{
+                        var i=document.createElement('input');
+                        i.type='hidden';
+                        i.name='meta_data';
+                        i.value=data.hash;
+                        f.appendChild(i);
+                        document.body.appendChild(f);
+                        f.submit();
+                    }})
+                    .catch((error) => {{
+                        f.submit();
+                    }});
+            </script>
+                ".to_string()))
+            }
         }
     }
 }

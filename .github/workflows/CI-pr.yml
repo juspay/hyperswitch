@@ -92,6 +92,7 @@ jobs:
         uses: baptiste0928/cargo-install@v2.1.0
         with:
           crate: cargo-hack
+          version: 0.6.5
 
       - name: Deny warnings
         shell: bash

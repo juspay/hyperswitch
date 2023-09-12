@@ -625,7 +625,7 @@ async fn should_fail_for_refund_amount_higher_than_payment_amount() {
         .unwrap();
     assert_eq!(
         response.response.unwrap_err().reason,
-        Some(r#"{"total":["The total may not be greater than 100."]}"#.to_string()),
+        Some(r#"{"total":["The total may not be greater than 1."]}"#.to_string()),
     );
 }
 

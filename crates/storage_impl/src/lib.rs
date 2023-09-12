@@ -1,18 +1,24 @@
 use std::sync::Arc;
 
 use data_models::errors::{StorageError, StorageResult};
+use diesel_models::{self as store};
 use error_stack::ResultExt;
 use masking::StrongSecret;
 use redis::{kv_store::RedisConnInterface, RedisStore};
 pub mod config;
+pub mod connection;
 pub mod database;
+pub mod errors;
+mod lookup;
 pub mod metrics;
+pub mod mock_db;
 pub mod payments;
 pub mod redis;
 pub mod refund;
 mod utils;
 
 use database::store::PgPool;
+pub use mock_db::MockDb;
 use redis_interface::errors::RedisError;
 
 pub use crate::database::store::DatabaseStore;
@@ -160,6 +166,7 @@ impl<T: DatabaseStore> RedisConnInterface for KVRouterStore<T> {
         self.router_store.get_redis_conn()
     }
 }
+
 impl<T: DatabaseStore> KVRouterStore<T> {
     pub fn from_store(
         store: RouterStore<T>,

@@ -1,6 +1,7 @@
 pub mod types;
 pub mod utils;
 
+use api_models::payments::HeaderPayload;
 use common_utils::errors::ReportSwitchExt;
 use error_stack::{report, IntoReport, ResultExt};
 use masking::ExposeInterface;
@@ -62,6 +63,7 @@ pub async fn payments_incoming_webhook_flow<W: types::OutgoingWebhookType>(
                 },
                 services::AuthFlow::Merchant,
                 consume_or_trigger_flow,
+                HeaderPayload::default(),
             )
             .await;
 
@@ -237,7 +239,8 @@ pub async fn get_payment_attempt_from_object_reference_id(
     state: &AppState,
     object_reference_id: api_models::webhooks::ObjectReferenceId,
     merchant_account: &domain::MerchantAccount,
-) -> CustomResult<diesel_models::payment_attempt::PaymentAttempt, errors::ApiErrorResponse> {
+) -> CustomResult<data_models::payments::payment_attempt::PaymentAttempt, errors::ApiErrorResponse>
+{
     let db = &*state.store;
     match object_reference_id {
         api::ObjectReferenceId::PaymentId(api::PaymentIdType::ConnectorTransactionId(ref id)) => db
@@ -275,7 +278,7 @@ pub async fn get_or_update_dispute_object(
     option_dispute: Option<diesel_models::dispute::Dispute>,
     dispute_details: api::disputes::DisputePayload,
     merchant_id: &str,
-    payment_attempt: &diesel_models::payment_attempt::PaymentAttempt,
+    payment_attempt: &data_models::payments::payment_attempt::PaymentAttempt,
     event_type: api_models::webhooks::IncomingWebhookEvent,
     connector_name: &str,
 ) -> CustomResult<diesel_models::dispute::Dispute, errors::ApiErrorResponse> {
@@ -436,6 +439,7 @@ async fn bank_transfer_webhook_flow<W: types::OutgoingWebhookType>(
             request,
             services::api::AuthFlow::Merchant,
             payments::CallConnectorAction::Trigger,
+            HeaderPayload::default(),
         )
         .await
     } else {
@@ -714,6 +718,7 @@ pub async fn webhooks_core<W: types::OutgoingWebhookType>(
     );
     let mut request_details = api::IncomingWebhookRequestDetails {
         method: req.method().clone(),
+        uri: req.uri().clone(),
         headers: req.headers(),
         query_params: req.query_string().to_string(),
         body: &body,
@@ -961,29 +966,27 @@ async fn fetch_mca_and_connector(
             .switch()
             .attach_printable("Could not find object reference id in incoming webhook body")?;
 
-        let connector_label = helper_utils::get_connector_label_using_object_reference_id(
+        let profile_id = helper_utils::get_profile_id_using_object_reference_id(
             &*state.store,
-            object_ref_id.clone(),
+            object_ref_id,
             merchant_account,
             connector_name_or_id,
         )
         .await
-        .change_context(errors::ApiErrorResponse::WebhookResourceNotFound)
-        .attach_printable("Error while fetching connector_label")?;
+        .ok()
+        .unwrap_or_default();
 
         let mca = db
-            .find_merchant_connector_account_by_merchant_id_connector_label(
-                &merchant_account.merchant_id,
-                &connector_label.clone(),
+            .find_merchant_connector_account_by_profile_id_connector_name(
+                &profile_id,
+                connector_name_or_id,
                 key_store,
             )
             .await
             .to_not_found_response(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
-                id: connector_label.clone(),
+                id: profile_id.clone(),
             })
-            .attach_printable(
-                "error while fetching merchant_connector_account from connector_id",
-            )?;
+            .attach_printable("error while fetching merchant_connector_account from profile_id")?;
 
         Ok((mca, connector))
     }

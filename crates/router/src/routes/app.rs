@@ -3,6 +3,8 @@ use actix_web::{web, Scope};
 use external_services::email::{AwsSes, EmailClient};
 #[cfg(feature = "kms")]
 use external_services::kms::{self, decrypt::KmsDecrypt};
+use scheduler::SchedulerInterface;
+use storage_impl::MockDb;
 use tokio::sync::oneshot;
 
 #[cfg(feature = "dummy_connector")]
@@ -20,7 +22,7 @@ use super::{configs::*, customers::*, mandates::*, payments::*, refunds::*};
 use super::{ephemeral_key::*, payment_methods::*, webhooks::*};
 use crate::{
     configs::settings,
-    db::{MockDb, StorageImpl, StorageInterface},
+    db::{StorageImpl, StorageInterface},
     routes::cards_info::card_iin_info,
     services::get_store,
 };
@@ -35,6 +37,12 @@ pub struct AppState {
     #[cfg(feature = "kms")]
     pub kms_secrets: settings::ActiveKmsSecrets,
     pub api_client: Box<dyn crate::services::ApiClient>,
+}
+
+impl scheduler::SchedulerAppState for AppState {
+    fn get_db(&self) -> Box<dyn SchedulerInterface> {
+        self.store.get_scheduler_db()
+    }
 }
 
 pub trait AppStateInfo {
@@ -81,7 +89,12 @@ impl AppState {
                     .await
                     .expect("Failed to create store"),
             ),
-            StorageImpl::Mock => Box::new(MockDb::new(&conf).await),
+            #[allow(clippy::expect_used)]
+            StorageImpl::Mock => Box::new(
+                MockDb::new(&conf.redis)
+                    .await
+                    .expect("Failed to create mock store"),
+            ),
         };
 
         #[cfg(feature = "kms")]
