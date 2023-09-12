@@ -100,7 +100,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Co
             .find_payment_attempt_by_payment_id_merchant_id_attempt_id(
                 &payment_intent.payment_id,
                 merchant_id,
-                &payment_intent.active_attempt_id,
+                &payment_intent.active_attempt.attempt_id,
                 storage_scheme,
             )
             .await

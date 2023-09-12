@@ -3,6 +3,7 @@ use std::marker::PhantomData;
 use api_models::enums::FrmSuggestion;
 use async_trait::async_trait;
 use common_utils::{date_time, errors::CustomResult, ext_traits::AsyncExt};
+use data_models::payments::payment_attempt::PaymentAttempt;
 use error_stack::ResultExt;
 use router_derive::PaymentOperation;
 use router_env::{instrument, tracing};
@@ -116,7 +117,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::VerifyRequest> for Paym
                     &payment_id,
                     merchant_id,
                     request,
-                    payment_attempt.attempt_id.to_owned(),
+                    payment_attempt.clone(),
                 ),
                 storage_scheme,
             )
@@ -343,7 +344,7 @@ impl PaymentMethodValidate {
         payment_id: &str,
         merchant_id: &str,
         request: &api::VerifyRequest,
-        active_attempt_id: String,
+        active_attempt: PaymentAttempt,
     ) -> storage::PaymentIntentNew {
         let created_at @ modified_at @ last_synced = Some(date_time::now());
         let status = helpers::payment_intent_status_fsm(&request.payment_method_data, Some(true));
@@ -363,9 +364,27 @@ impl PaymentMethodValidate {
             client_secret: Some(client_secret),
             setup_future_usage: request.setup_future_usage,
             off_session: request.off_session,
-            active_attempt_id,
+            active_attempt,
             attempt_count: 1,
-            ..Default::default()
+            amount_captured: Default::default(),
+            customer_id: Default::default(),
+            description: Default::default(),
+            return_url: Default::default(),
+            metadata: Default::default(),
+            shipping_address_id: Default::default(),
+            billing_address_id: Default::default(),
+            statement_descriptor_name: Default::default(),
+            statement_descriptor_suffix: Default::default(),
+            business_country: Default::default(),
+            business_label: Default::default(),
+            order_details: Default::default(),
+            allowed_payment_method_types: Default::default(),
+            connector_metadata: Default::default(),
+            feature_metadata: Default::default(),
+            profile_id: Default::default(),
+            merchant_decision: Default::default(),
+            payment_confirm_source: Default::default(),
+
         }
     }
 }

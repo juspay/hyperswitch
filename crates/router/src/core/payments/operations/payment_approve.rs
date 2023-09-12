@@ -97,7 +97,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
                 field_name: "browser_info",
             })?;
 
-        let attempt_id = payment_intent.active_attempt_id.clone();
+        let attempt_id = payment_intent.active_attempt.attempt_id.clone();
         payment_attempt = db
             .find_payment_attempt_by_payment_id_merchant_id_attempt_id(
                 &payment_intent.payment_id,

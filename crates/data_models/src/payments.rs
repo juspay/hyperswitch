@@ -7,6 +7,7 @@ pub mod payment_intent;
 
 use common_enums as storage_enums;
 
+use self::payment_attempt::PaymentAttempt;
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub struct PaymentIntent {
@@ -35,7 +36,7 @@ pub struct PaymentIntent {
     pub setup_future_usage: Option<storage_enums::FutureUsage>,
     pub off_session: Option<bool>,
     pub client_secret: Option<String>,
-    pub active_attempt_id: String,
+    pub active_attempt: PaymentAttempt,
     pub business_country: Option<storage_enums::CountryAlpha2>,
     pub business_label: Option<String>,
     pub order_details: Option<Vec<pii::SecretSerdeValue>>,

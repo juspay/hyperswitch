@@ -81,7 +81,7 @@ impl<T: DatabaseStore> PaymentIntentInterface for KVRouterStore<T> {
                     client_secret: new.client_secret.clone(),
                     business_country: new.business_country,
                     business_label: new.business_label.clone(),
-                    active_attempt_id: new.active_attempt_id.to_owned(),
+                    active_attempt: new.active_attempt.clone(),
                     order_details: new.order_details.clone(),
                     allowed_payment_method_types: new.allowed_payment_method_types.clone(),
                     connector_metadata: new.connector_metadata.clone(),
@@ -690,7 +690,7 @@ impl DataModelExt for PaymentIntentNew {
             setup_future_usage: self.setup_future_usage,
             off_session: self.off_session,
             client_secret: self.client_secret,
-            active_attempt_id: self.active_attempt_id,
+            active_attempt_id: self.active_attempt.attempt_id,
             business_country: self.business_country,
             business_label: self.business_label,
             order_details: self.order_details,
@@ -705,40 +705,41 @@ impl DataModelExt for PaymentIntentNew {
     }
 
     fn from_storage_model(storage_model: Self::StorageModel) -> Self {
-        Self {
-            payment_id: storage_model.payment_id,
-            merchant_id: storage_model.merchant_id,
-            status: storage_model.status,
-            amount: storage_model.amount,
-            currency: storage_model.currency,
-            amount_captured: storage_model.amount_captured,
-            customer_id: storage_model.customer_id,
-            description: storage_model.description,
-            return_url: storage_model.return_url,
-            metadata: storage_model.metadata,
-            connector_id: storage_model.connector_id,
-            shipping_address_id: storage_model.shipping_address_id,
-            billing_address_id: storage_model.billing_address_id,
-            statement_descriptor_name: storage_model.statement_descriptor_name,
-            statement_descriptor_suffix: storage_model.statement_descriptor_suffix,
-            created_at: storage_model.created_at,
-            modified_at: storage_model.modified_at,
-            last_synced: storage_model.last_synced,
-            setup_future_usage: storage_model.setup_future_usage,
-            off_session: storage_model.off_session,
-            client_secret: storage_model.client_secret,
-            active_attempt_id: storage_model.active_attempt_id,
-            business_country: storage_model.business_country,
-            business_label: storage_model.business_label,
-            order_details: storage_model.order_details,
-            allowed_payment_method_types: storage_model.allowed_payment_method_types,
-            connector_metadata: storage_model.connector_metadata,
-            feature_metadata: storage_model.feature_metadata,
-            attempt_count: storage_model.attempt_count,
-            profile_id: storage_model.profile_id,
-            merchant_decision: storage_model.merchant_decision,
-            payment_confirm_source: storage_model.payment_confirm_source,
-        }
+        todo!("Implement reverse conversion")
+        // Self {
+        //     payment_id: storage_model.payment_id,
+        //     merchant_id: storage_model.merchant_id,
+        //     status: storage_model.status,
+        //     amount: storage_model.amount,
+        //     currency: storage_model.currency,
+        //     amount_captured: storage_model.amount_captured,
+        //     customer_id: storage_model.customer_id,
+        //     description: storage_model.description,
+        //     return_url: storage_model.return_url,
+        //     metadata: storage_model.metadata,
+        //     connector_id: storage_model.connector_id,
+        //     shipping_address_id: storage_model.shipping_address_id,
+        //     billing_address_id: storage_model.billing_address_id,
+        //     statement_descriptor_name: storage_model.statement_descriptor_name,
+        //     statement_descriptor_suffix: storage_model.statement_descriptor_suffix,
+        //     created_at: storage_model.created_at,
+        //     modified_at: storage_model.modified_at,
+        //     last_synced: storage_model.last_synced,
+        //     setup_future_usage: storage_model.setup_future_usage,
+        //     off_session: storage_model.off_session,
+        //     client_secret: storage_model.client_secret,
+        //     active_attempt: None,
+        //     business_country: storage_model.business_country,
+        //     business_label: storage_model.business_label,
+        //     order_details: storage_model.order_details,
+        //     allowed_payment_method_types: storage_model.allowed_payment_method_types,
+        //     connector_metadata: storage_model.connector_metadata,
+        //     feature_metadata: storage_model.feature_metadata,
+        //     attempt_count: storage_model.attempt_count,
+        //     profile_id: storage_model.profile_id,
+        //     merchant_decision: storage_model.merchant_decision,
+        //     payment_confirm_source: storage_model.payment_confirm_source,
+        // }
     }
 }
 
@@ -769,7 +770,7 @@ impl DataModelExt for PaymentIntent {
             setup_future_usage: self.setup_future_usage,
             off_session: self.off_session,
             client_secret: self.client_secret,
-            active_attempt_id: self.active_attempt_id,
+            active_attempt_id: self.active_attempt.attempt_id,
             business_country: self.business_country,
             business_label: self.business_label,
             order_details: self.order_details,
@@ -784,41 +785,42 @@ impl DataModelExt for PaymentIntent {
     }
 
     fn from_storage_model(storage_model: Self::StorageModel) -> Self {
-        Self {
-            id: storage_model.id,
-            payment_id: storage_model.payment_id,
-            merchant_id: storage_model.merchant_id,
-            status: storage_model.status,
-            amount: storage_model.amount,
-            currency: storage_model.currency,
-            amount_captured: storage_model.amount_captured,
-            customer_id: storage_model.customer_id,
-            description: storage_model.description,
-            return_url: storage_model.return_url,
-            metadata: storage_model.metadata,
-            connector_id: storage_model.connector_id,
-            shipping_address_id: storage_model.shipping_address_id,
-            billing_address_id: storage_model.billing_address_id,
-            statement_descriptor_name: storage_model.statement_descriptor_name,
-            statement_descriptor_suffix: storage_model.statement_descriptor_suffix,
-            created_at: storage_model.created_at,
-            modified_at: storage_model.modified_at,
-            last_synced: storage_model.last_synced,
-            setup_future_usage: storage_model.setup_future_usage,
-            off_session: storage_model.off_session,
-            client_secret: storage_model.client_secret,
-            active_attempt_id: storage_model.active_attempt_id,
-            business_country: storage_model.business_country,
-            business_label: storage_model.business_label,
-            order_details: storage_model.order_details,
-            allowed_payment_method_types: storage_model.allowed_payment_method_types,
-            connector_metadata: storage_model.connector_metadata,
-            feature_metadata: storage_model.feature_metadata,
-            attempt_count: storage_model.attempt_count,
-            profile_id: storage_model.profile_id,
-            merchant_decision: storage_model.merchant_decision,
-            payment_confirm_source: storage_model.payment_confirm_source,
-        }
+        todo!("Implement reverse transfer")
+        // Self {
+        //     id: storage_model.id,
+        //     payment_id: storage_model.payment_id,
+        //     merchant_id: storage_model.merchant_id,
+        //     status: storage_model.status,
+        //     amount: storage_model.amount,
+        //     currency: storage_model.currency,
+        //     amount_captured: storage_model.amount_captured,
+        //     customer_id: storage_model.customer_id,
+        //     description: storage_model.description,
+        //     return_url: storage_model.return_url,
+        //     metadata: storage_model.metadata,
+        //     connector_id: storage_model.connector_id,
+        //     shipping_address_id: storage_model.shipping_address_id,
+        //     billing_address_id: storage_model.billing_address_id,
+        //     statement_descriptor_name: storage_model.statement_descriptor_name,
+        //     statement_descriptor_suffix: storage_model.statement_descriptor_suffix,
+        //     created_at: storage_model.created_at,
+        //     modified_at: storage_model.modified_at,
+        //     last_synced: storage_model.last_synced,
+        //     setup_future_usage: storage_model.setup_future_usage,
+        //     off_session: storage_model.off_session,
+        //     client_secret: storage_model.client_secret,
+        //     active_attempt: None,
+        //     business_country: storage_model.business_country,
+        //     business_label: storage_model.business_label,
+        //     order_details: storage_model.order_details,
+        //     allowed_payment_method_types: storage_model.allowed_payment_method_types,
+        //     connector_metadata: storage_model.connector_metadata,
+        //     feature_metadata: storage_model.feature_metadata,
+        //     attempt_count: storage_model.attempt_count,
+        //     profile_id: storage_model.profile_id,
+        //     merchant_decision: storage_model.merchant_decision,
+        //     payment_confirm_source: storage_model.payment_confirm_source,
+        // }
     }
 }
 
@@ -898,19 +900,19 @@ impl DataModelExt for PaymentIntentUpdate {
                 payment_confirm_source,
             },
             Self::PaymentAttemptAndAttemptCountUpdate {
-                active_attempt_id,
+                active_attempt,
                 attempt_count,
             } => DieselPaymentIntentUpdate::PaymentAttemptAndAttemptCountUpdate {
-                active_attempt_id,
+                active_attempt: active_attempt.to_storage_model(),
                 attempt_count,
             },
             Self::StatusAndAttemptUpdate {
                 status,
-                active_attempt_id,
+                active_attempt,
                 attempt_count,
             } => DieselPaymentIntentUpdate::StatusAndAttemptUpdate {
                 status,
-                active_attempt_id,
+                active_attempt_id: active_attempt.attempt_id,
                 attempt_count,
             },
             Self::ApproveUpdate { merchant_decision } => {
@@ -927,103 +929,6 @@ impl DataModelExt for PaymentIntentUpdate {
     }
 
     fn from_storage_model(storage_model: Self::StorageModel) -> Self {
-        match storage_model {
-            DieselPaymentIntentUpdate::ResponseUpdate {
-                status,
-                amount_captured,
-                return_url,
-            } => Self::ResponseUpdate {
-                status,
-                amount_captured,
-                return_url,
-            },
-            DieselPaymentIntentUpdate::MetadataUpdate { metadata } => {
-                Self::MetadataUpdate { metadata }
-            }
-            DieselPaymentIntentUpdate::ReturnUrlUpdate {
-                return_url,
-                status,
-                customer_id,
-                shipping_address_id,
-                billing_address_id,
-            } => Self::ReturnUrlUpdate {
-                return_url,
-                status,
-                customer_id,
-                shipping_address_id,
-                billing_address_id,
-            },
-            DieselPaymentIntentUpdate::MerchantStatusUpdate {
-                status,
-                shipping_address_id,
-                billing_address_id,
-            } => Self::MerchantStatusUpdate {
-                status,
-                shipping_address_id,
-                billing_address_id,
-            },
-            DieselPaymentIntentUpdate::PGStatusUpdate { status } => Self::PGStatusUpdate { status },
-            DieselPaymentIntentUpdate::Update {
-                amount,
-                currency,
-                setup_future_usage,
-                status,
-                customer_id,
-                shipping_address_id,
-                billing_address_id,
-                return_url,
-                business_country,
-                business_label,
-                description,
-                statement_descriptor_name,
-                statement_descriptor_suffix,
-                order_details,
-                metadata,
-                payment_confirm_source,
-            } => Self::Update {
-                amount,
-                currency,
-                setup_future_usage,
-                status,
-                customer_id,
-                shipping_address_id,
-                billing_address_id,
-                return_url,
-                business_country,
-                business_label,
-                description,
-                statement_descriptor_name,
-                statement_descriptor_suffix,
-                order_details,
-                metadata,
-                payment_confirm_source,
-            },
-            DieselPaymentIntentUpdate::PaymentAttemptAndAttemptCountUpdate {
-                active_attempt_id,
-                attempt_count,
-            } => Self::PaymentAttemptAndAttemptCountUpdate {
-                active_attempt_id,
-                attempt_count,
-            },
-            DieselPaymentIntentUpdate::StatusAndAttemptUpdate {
-                status,
-                active_attempt_id,
-                attempt_count,
-            } => Self::StatusAndAttemptUpdate {
-                status,
-                active_attempt_id,
-                attempt_count,
-            },
-            DieselPaymentIntentUpdate::ApproveUpdate { merchant_decision } => {
-                Self::ApproveUpdate { merchant_decision }
-            }
-            DieselPaymentIntentUpdate::RejectUpdate {
-                status,
-                merchant_decision,
-            } => Self::RejectUpdate {
-                status,
-                merchant_decision,
-            },
-        }
+        todo!("Reverse map should no longer be needed")
     }
 }

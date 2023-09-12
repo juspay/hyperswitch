@@ -836,7 +836,7 @@ pub async fn list_payment_methods(
             db.find_payment_attempt_by_payment_id_merchant_id_attempt_id(
                 &pi.payment_id,
                 &pi.merchant_id,
-                &pi.active_attempt_id,
+                &pi.active_attempt.attempt_id,
                 merchant_account.storage_scheme,
             )
             .await

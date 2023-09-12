@@ -8,7 +8,7 @@ use time::PrimitiveDateTime;
 
 use crate::{errors, MerchantStorageScheme};
 
-use super::PaymentIntent;
+use super::{PaymentIntent, payment_attempt::PaymentAttempt};
 #[async_trait::async_trait]
 pub trait PaymentIntentInterface {
     async fn update_payment_intent(
@@ -67,7 +67,7 @@ pub trait PaymentIntentInterface {
     ) -> error_stack::Result<Vec<String>, errors::StorageError>;
 }
 
-#[derive(Clone, Debug, Default, Eq, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub struct PaymentIntentNew {
     pub payment_id: String,
     pub merchant_id: String,
@@ -93,7 +93,7 @@ pub struct PaymentIntentNew {
     pub setup_future_usage: Option<storage_enums::FutureUsage>,
     pub off_session: Option<bool>,
     pub client_secret: Option<String>,
-    pub active_attempt_id: String,
+    pub active_attempt: PaymentAttempt,
     pub business_country: Option<storage_enums::CountryAlpha2>,
     pub business_label: Option<String>,
     pub order_details: Option<Vec<pii::SecretSerdeValue>>,
@@ -150,12 +150,12 @@ pub enum PaymentIntentUpdate {
         payment_confirm_source: Option<storage_enums::PaymentSource>,
     },
     PaymentAttemptAndAttemptCountUpdate {
-        active_attempt_id: String,
+        active_attempt: PaymentAttempt,
         attempt_count: i16,
     },
     StatusAndAttemptUpdate {
         status: storage_enums::IntentStatus,
-        active_attempt_id: String,
+        active_attempt: PaymentAttempt,
         attempt_count: i16,
     },
     ApproveUpdate {
@@ -181,7 +181,7 @@ pub struct PaymentIntentUpdateInternal {
     pub billing_address_id: Option<String>,
     pub shipping_address_id: Option<String>,
     pub modified_at: Option<PrimitiveDateTime>,
-    pub active_attempt_id: Option<String>,
+    pub active_attempt: Option<PaymentAttempt>,
     pub business_country: Option<storage_enums::CountryAlpha2>,
     pub business_label: Option<String>,
     pub description: Option<String>,
@@ -317,20 +317,20 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 ..Default::default()
             },
             PaymentIntentUpdate::PaymentAttemptAndAttemptCountUpdate {
-                active_attempt_id,
+                active_attempt,
                 attempt_count,
             } => Self {
-                active_attempt_id: Some(active_attempt_id),
+                active_attempt: Some(active_attempt),
                 attempt_count: Some(attempt_count),
                 ..Default::default()
             },
             PaymentIntentUpdate::StatusAndAttemptUpdate {
                 status,
-                active_attempt_id,
+                active_attempt,
                 attempt_count,
             } => Self {
                 status: Some(status),
-                active_attempt_id: Some(active_attempt_id),
+                active_attempt: Some(active_attempt),
                 attempt_count: Some(attempt_count),
                 ..Default::default()
             },
