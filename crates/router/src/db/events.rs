@@ -108,7 +108,10 @@ mod tests {
     #[allow(clippy::unwrap_used)]
     #[tokio::test]
     async fn test_mockdb_event_interface() {
-        let mockdb = MockDb::new().await;
+        #[allow(clippy::expect_used)]
+        let mockdb = MockDb::new(&redis_interface::RedisSettings::default())
+            .await
+            .expect("Failed to create Mock store");
 
         let event1 = mockdb
             .insert_event(storage::EventNew {
