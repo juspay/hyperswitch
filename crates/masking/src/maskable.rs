@@ -1,3 +1,7 @@
+//!
+//! This module contains Masking objects and traits
+//!
+
 use crate::{ExposeInterface, Secret};
 
 ///
@@ -56,15 +60,15 @@ impl<T: Eq + PartialEq + Clone> Maskable<T> {
     }
 }
 
-/// Trait for providing a method to custom types for creating Maskable
+/// Trait for providing a method on custom types for constructing `Maskable`
 
 pub trait Mask {
-    /// A custom type which implements Eq, Clone and PartialEq
+    /// The type returned by the `into_masked()` method. Must implement `PartialEq`, `Eq` and `Clone`
 
     type Output: Eq + Clone + PartialEq;
 
     ///
-    /// Create a new Masked data where data is of type Output
+    /// Construct a `Maskable` instance that wraps `Self::Output` by consuming `self`
     ///
     fn into_masked(self) -> Maskable<Self::Output>;
 }
