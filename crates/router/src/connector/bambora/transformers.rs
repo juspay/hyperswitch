@@ -1,7 +1,7 @@
 use base64::Engine;
 use common_utils::ext_traits::ValueExt;
 use error_stack::{IntoReport, ResultExt};
-use masking::Secret;
+use masking::{PeekInterface, Secret};
 use serde::{Deserialize, Deserializer, Serialize};
 
 use crate::{
@@ -149,17 +149,17 @@ impl TryFrom<&types::PaymentsCancelRouterData> for BamboraPaymentsRequest {
 }
 
 pub struct BamboraAuthType {
-    pub(super) api_key: String,
+    pub(super) api_key: Secret<String>,
 }
 
 impl TryFrom<&types::ConnectorAuthType> for BamboraAuthType {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(auth_type: &types::ConnectorAuthType) -> Result<Self, Self::Error> {
         if let types::ConnectorAuthType::BodyKey { api_key, key1 } = auth_type {
-            let auth_key = format!("{key1}:{api_key}");
+            let auth_key = format!("{}:{}", key1.peek(), api_key.peek());
             let auth_header = format!("Passcode {}", consts::BASE64_ENGINE.encode(auth_key));
             Ok(Self {
-                api_key: auth_header,
+                api_key: Secret::new(auth_header),
             })
         } else {
             Err(errors::ConnectorError::FailedToObtainAuthType)?

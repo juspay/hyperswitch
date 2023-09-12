@@ -1,8 +1,9 @@
-mod transformers;
-
+pub mod transformers;
 use std::fmt::Debug;
 
 use error_stack::{IntoReport, ResultExt};
+#[cfg(feature = "payouts")]
+use masking::PeekInterface;
 #[cfg(feature = "payouts")]
 use router_env::{instrument, tracing};
 
@@ -10,8 +11,12 @@ use self::transformers as wise;
 use crate::{
     configs::settings,
     core::errors::{self, CustomResult},
-    headers, services,
-    services::request,
+    headers,
+    services::{
+        self,
+        request::{self, Mask},
+        ConnectorValidation,
+    },
     types::{
         self,
         api::{self, ConnectorCommon, ConnectorCommonExt},
@@ -42,7 +47,10 @@ where
         )];
         let auth = wise::WiseAuthType::try_from(&req.connector_auth_type)
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
-        let mut api_key = vec![(headers::AUTHORIZATION.to_string(), auth.api_key.into())];
+        let mut api_key = vec![(
+            headers::AUTHORIZATION.to_string(),
+            auth.api_key.into_masked(),
+        )];
         header.append(&mut api_key);
         Ok(header)
     }
@@ -61,7 +69,7 @@ impl ConnectorCommon for Wise {
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
         Ok(vec![(
             headers::AUTHORIZATION.to_string(),
-            auth.api_key.into(),
+            auth.api_key.into_masked(),
         )])
     }
 
@@ -114,6 +122,7 @@ impl api::PaymentCapture for Wise {}
 impl api::PreVerify for Wise {}
 impl api::ConnectorAccessToken for Wise {}
 impl api::PaymentToken for Wise {}
+impl ConnectorValidation for Wise {}
 
 impl
     services::ConnectorIntegration<
@@ -297,7 +306,8 @@ impl services::ConnectorIntegration<api::PoQuote, types::PayoutsData, types::Pay
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
         Ok(format!(
             "{}v3/profiles/{}/quotes",
-            connectors.wise.base_url, auth.profile_id
+            connectors.wise.base_url,
+            auth.profile_id.peek()
         ))
     }
 
@@ -581,7 +591,9 @@ impl services::ConnectorIntegration<api::PoFulfill, types::PayoutsData, types::P
         )?;
         Ok(format!(
             "{}v3/profiles/{}/transfers/{}/payments",
-            connectors.wise.base_url, auth.profile_id, transfer_id
+            connectors.wise.base_url,
+            auth.profile_id.peek(),
+            transfer_id
         ))
     }
 

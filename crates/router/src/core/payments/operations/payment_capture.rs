@@ -1,7 +1,9 @@
 use std::marker::PhantomData;
 
+use api_models::enums::FrmSuggestion;
 use async_trait::async_trait;
 use common_utils::ext_traits::AsyncExt;
+use diesel_models::connector_response::ConnectorResponse;
 use error_stack::ResultExt;
 use router_env::{instrument, tracing};
 
@@ -9,7 +11,7 @@ use super::{BoxedOperation, Domain, GetTracker, Operation, UpdateTracker, Valida
 use crate::{
     core::{
         errors::{self, RouterResult, StorageErrorExt},
-        payments::{self, helpers, operations},
+        payments::{self, helpers, operations, types::MultipleCaptureData},
     },
     db::StorageInterface,
     routes::AppState,
@@ -17,7 +19,7 @@ use crate::{
     types::{
         api::{self, PaymentIdTypeExt},
         domain,
-        storage::{self, enums},
+        storage::{self, enums, payment_attempt::PaymentAttemptExt, ConnectorResponseExt},
     },
     utils::OptionExt,
 };
@@ -83,19 +85,81 @@ impl<F: Send + Clone> GetTracker<F, payments::PaymentData<F>, api::PaymentsCaptu
 
         helpers::validate_capture_method(capture_method)?;
 
+        let (multiple_capture_data, connector_response) = if capture_method
+            == enums::CaptureMethod::ManualMultiple
+        {
+            let amount_to_capture = request
+                .amount_to_capture
+                .get_required_value("amount_to_capture")?;
+            let previous_captures = db
+                .find_all_captures_by_merchant_id_payment_id_authorized_attempt_id(
+                    &payment_attempt.merchant_id,
+                    &payment_attempt.payment_id,
+                    &payment_attempt.attempt_id,
+                    storage_scheme,
+                )
+                .await
+                .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
+            let previously_blocked_amount =
+                previous_captures.iter().fold(0, |accumulator, capture| {
+                    accumulator
+                        + match capture.status {
+                            enums::CaptureStatus::Charged | enums::CaptureStatus::Pending => {
+                                capture.amount
+                            }
+                            enums::CaptureStatus::Started | enums::CaptureStatus::Failed => 0,
+                        }
+                });
+            helpers::validate_amount_to_capture(
+                payment_attempt.amount - previously_blocked_amount,
+                Some(amount_to_capture),
+            )?;
+
+            let capture = db
+                .insert_capture(
+                    payment_attempt
+                        .make_new_capture(amount_to_capture, enums::CaptureStatus::Started)?,
+                    storage_scheme,
+                )
+                .await
+                .to_not_found_response(errors::ApiErrorResponse::DuplicatePayment {
+                    payment_id: payment_id.clone(),
+                })?;
+            let new_connector_response = db
+                .insert_connector_response(
+                    ConnectorResponse::make_new_connector_response(
+                        capture.payment_id.clone(),
+                        capture.merchant_id.clone(),
+                        capture.capture_id.clone(),
+                        Some(capture.connector.clone()),
+                    ),
+                    storage_scheme,
+                )
+                .await
+                .to_not_found_response(errors::ApiErrorResponse::DuplicatePayment { payment_id })?;
+            (
+                Some(MultipleCaptureData::new_for_create(
+                    previous_captures,
+                    capture,
+                )),
+                new_connector_response,
+            )
+        } else {
+            let connector_response = db
+                .find_connector_response_by_payment_id_merchant_id_attempt_id(
+                    &payment_attempt.payment_id,
+                    &payment_attempt.merchant_id,
+                    &payment_attempt.attempt_id,
+                    storage_scheme,
+                )
+                .await
+                .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
+            (None, connector_response)
+        };
+
         currency = payment_attempt.currency.get_required_value("currency")?;
 
         amount = payment_attempt.amount.into();
-
-        let connector_response = db
-            .find_connector_response_by_payment_id_merchant_id_attempt_id(
-                &payment_attempt.payment_id,
-                &payment_attempt.merchant_id,
-                &payment_attempt.attempt_id,
-                storage_scheme,
-            )
-            .await
-            .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
 
         let shipping_address = helpers::get_address_for_payment_request(
             db,
@@ -166,7 +230,9 @@ impl<F: Send + Clone> GetTracker<F, payments::PaymentData<F>, api::PaymentsCaptu
                 connector_customer_id: None,
                 recurring_mandate_payment_data: None,
                 ephemeral_key: None,
+                multiple_capture_data,
                 redirect_response: None,
+                frm_message: None,
             },
             None,
         ))
@@ -180,12 +246,14 @@ impl<F: Clone> UpdateTracker<F, payments::PaymentData<F>, api::PaymentsCaptureRe
     #[instrument(skip_all)]
     async fn update_trackers<'b>(
         &'b self,
-        _db: &dyn StorageInterface,
-        payment_data: payments::PaymentData<F>,
+        db: &dyn StorageInterface,
+        mut payment_data: payments::PaymentData<F>,
         _customer: Option<domain::Customer>,
-        _storage_scheme: enums::MerchantStorageScheme,
+        storage_scheme: enums::MerchantStorageScheme,
         _updated_customer: Option<storage::CustomerUpdate>,
         _mechant_key_store: &domain::MerchantKeyStore,
+        _frm_suggestion: Option<FrmSuggestion>,
+        _header_payload: api::HeaderPayload,
     ) -> RouterResult<(
         BoxedOperation<'b, F, api::PaymentsCaptureRequest>,
         payments::PaymentData<F>,
@@ -193,6 +261,19 @@ impl<F: Clone> UpdateTracker<F, payments::PaymentData<F>, api::PaymentsCaptureRe
     where
         F: 'b + Send,
     {
+        payment_data.payment_attempt = match &payment_data.multiple_capture_data {
+            Some(multiple_capture_data) => db
+                .update_payment_attempt_with_attempt_id(
+                    payment_data.payment_attempt,
+                    storage::PaymentAttemptUpdate::MultipleCaptureCountUpdate {
+                        multiple_capture_count: multiple_capture_data.get_captures_count()?,
+                    },
+                    storage_scheme,
+                )
+                .await
+                .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?,
+            None => payment_data.payment_attempt,
+        };
         Ok((Box::new(self), payment_data))
     }
 }

@@ -1,12 +1,15 @@
 use diesel_models::configs::ConfigUpdateInternal;
-use error_stack::IntoReport;
+use error_stack::{IntoReport, ResultExt};
+use storage_impl::redis::{
+    cache::{CacheKind, CONFIG_CACHE},
+    kv_store::RedisConnInterface,
+    pub_sub::PubSubInterface,
+};
 
 use super::{cache, MockDb, Store};
 use crate::{
-    cache::{CacheKind, CONFIG_CACHE},
     connection, consts,
     core::errors::{self, CustomResult},
-    services::PubSubInterface,
     types::storage,
 };
 
@@ -22,18 +25,12 @@ pub trait ConfigInterface {
         key: &str,
     ) -> CustomResult<storage::Config, errors::StorageError>;
 
-    async fn find_config_by_key_cached(
+    async fn find_config_by_key_from_db(
         &self,
         key: &str,
     ) -> CustomResult<storage::Config, errors::StorageError>;
 
     async fn update_config_by_key(
-        &self,
-        key: &str,
-        config_update: storage::ConfigUpdate,
-    ) -> CustomResult<storage::Config, errors::StorageError>;
-
-    async fn update_config_cached(
         &self,
         key: &str,
         config_update: storage::ConfigUpdate,
@@ -52,32 +49,8 @@ impl ConfigInterface for Store {
         config.insert(&conn).await.map_err(Into::into).into_report()
     }
 
-    //fetch directly from DB
-    async fn find_config_by_key(
-        &self,
-        key: &str,
-    ) -> CustomResult<storage::Config, errors::StorageError> {
-        let conn = connection::pg_connection_write(self).await?;
-        storage::Config::find_by_key(&conn, key)
-            .await
-            .map_err(Into::into)
-            .into_report()
-    }
-
-    async fn update_config_by_key(
-        &self,
-        key: &str,
-        config_update: storage::ConfigUpdate,
-    ) -> CustomResult<storage::Config, errors::StorageError> {
-        let conn = connection::pg_connection_write(self).await?;
-        storage::Config::update_by_key(&conn, key, config_update)
-            .await
-            .map_err(Into::into)
-            .into_report()
-    }
-
     //update in DB and remove in redis and cache
-    async fn update_config_cached(
+    async fn update_config_by_key(
         &self,
         key: &str,
         config_update: storage::ConfigUpdate,
@@ -88,13 +61,29 @@ impl ConfigInterface for Store {
         .await
     }
 
-    //check in cache, then redis then finally DB, and on the way back populate redis and cache
-    async fn find_config_by_key_cached(
+    async fn find_config_by_key_from_db(
         &self,
         key: &str,
     ) -> CustomResult<storage::Config, errors::StorageError> {
-        cache::get_or_populate_in_memory(self, key, || self.find_config_by_key(key), &CONFIG_CACHE)
+        let conn = connection::pg_connection_write(self).await?;
+        storage::Config::find_by_key(&conn, key)
             .await
+            .map_err(Into::into)
+            .into_report()
+    }
+
+    //check in cache, then redis then finally DB, and on the way back populate redis and cache
+    async fn find_config_by_key(
+        &self,
+        key: &str,
+    ) -> CustomResult<storage::Config, errors::StorageError> {
+        cache::get_or_populate_in_memory(
+            self,
+            key,
+            || self.find_config_by_key_from_db(key),
+            &CONFIG_CACHE,
+        )
+        .await
     }
 
     async fn delete_config_by_key(&self, key: &str) -> CustomResult<bool, errors::StorageError> {
@@ -104,7 +93,7 @@ impl ConfigInterface for Store {
             .map_err(Into::into)
             .into_report()?;
 
-        self.redis_conn()
+        self.get_redis_conn()
             .map_err(Into::<errors::StorageError>::into)?
             .publish(consts::PUB_SUB_CHANNEL, CacheKind::Config(key.into()))
             .await
@@ -123,8 +112,11 @@ impl ConfigInterface for MockDb {
         let mut configs = self.configs.lock().await;
 
         let config_new = storage::Config {
-            #[allow(clippy::as_conversions)]
-            id: configs.len() as i32,
+            id: configs
+                .len()
+                .try_into()
+                .into_report()
+                .change_context(errors::StorageError::MockDbError)?,
             key: config.key,
             config: config.config,
         };
@@ -132,43 +124,7 @@ impl ConfigInterface for MockDb {
         Ok(config_new)
     }
 
-    async fn find_config_by_key(
-        &self,
-        key: &str,
-    ) -> CustomResult<storage::Config, errors::StorageError> {
-        let configs = self.configs.lock().await;
-        let config = configs.iter().find(|c| c.key == key).cloned();
-
-        config.ok_or_else(|| {
-            errors::StorageError::ValueNotFound("cannot find config".to_string()).into()
-        })
-    }
-
     async fn update_config_by_key(
-        &self,
-        key: &str,
-        config_update: storage::ConfigUpdate,
-    ) -> CustomResult<storage::Config, errors::StorageError> {
-        let result = self
-            .configs
-            .lock()
-            .await
-            .iter_mut()
-            .find(|c| c.key == key)
-            .ok_or_else(|| {
-                errors::StorageError::ValueNotFound("cannot find config to update".to_string())
-                    .into()
-            })
-            .map(|c| {
-                let config_updated =
-                    ConfigUpdateInternal::from(config_update).create_config(c.clone());
-                *c = config_updated.clone();
-                config_updated
-            });
-
-        result
-    }
-    async fn update_config_cached(
         &self,
         key: &str,
         config_update: storage::ConfigUpdate,
@@ -210,7 +166,19 @@ impl ConfigInterface for MockDb {
         result
     }
 
-    async fn find_config_by_key_cached(
+    async fn find_config_by_key_from_db(
+        &self,
+        key: &str,
+    ) -> CustomResult<storage::Config, errors::StorageError> {
+        let configs = self.configs.lock().await;
+        let config = configs.iter().find(|c| c.key == key).cloned();
+
+        config.ok_or_else(|| {
+            errors::StorageError::ValueNotFound("cannot find config".to_string()).into()
+        })
+    }
+
+    async fn find_config_by_key(
         &self,
         key: &str,
     ) -> CustomResult<storage::Config, errors::StorageError> {

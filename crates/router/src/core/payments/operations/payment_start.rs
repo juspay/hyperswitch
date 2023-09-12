@@ -1,5 +1,6 @@
 use std::marker::PhantomData;
 
+use api_models::enums::FrmSuggestion;
 use async_trait::async_trait;
 use error_stack::ResultExt;
 use router_derive::PaymentOperation;
@@ -66,6 +67,11 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsStartRequest> f
             "update",
         )?;
 
+        helpers::authenticate_client_secret(
+            payment_intent.client_secret.as_ref(),
+            &payment_intent,
+            merchant_account.intent_fulfillment_time,
+        )?;
         payment_attempt = db
             .find_payment_attempt_by_payment_id_merchant_id_attempt_id(
                 payment_intent.payment_id.as_str(),
@@ -151,7 +157,9 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsStartRequest> f
                 connector_customer_id: None,
                 recurring_mandate_payment_data: None,
                 ephemeral_key: None,
+                multiple_capture_data: None,
                 redirect_response: None,
+                frm_message: None,
             },
             Some(customer_details),
         ))
@@ -169,6 +177,8 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsStartRequest> for P
         _storage_scheme: storage_enums::MerchantStorageScheme,
         _updated_customer: Option<storage::CustomerUpdate>,
         _mechant_key_store: &domain::MerchantKeyStore,
+        _frm_suggestion: Option<FrmSuggestion>,
+        _header_payload: api::HeaderPayload,
     ) -> RouterResult<(
         BoxedOperation<'b, F, api::PaymentsStartRequest>,
         PaymentData<F>,
@@ -271,7 +281,7 @@ where
         _merchant_account: &domain::MerchantAccount,
         state: &AppState,
         _request: &api::PaymentsStartRequest,
-        _payment_intent: &storage::payment_intent::PaymentIntent,
+        _payment_intent: &storage::PaymentIntent,
         _mechant_key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<api::ConnectorChoice, errors::ApiErrorResponse> {
         helpers::get_connector_default(state, None).await

@@ -1,9 +1,9 @@
 use common_utils::ext_traits::AsyncExt;
 use error_stack::{IntoReport, ResultExt};
+#[cfg(feature = "accounts_cache")]
+use storage_impl::redis::cache::{CacheKind, ACCOUNTS_CACHE};
 
 use super::{MasterKeyInterface, MockDb, Store};
-#[cfg(feature = "accounts_cache")]
-use crate::cache::{self, ACCOUNTS_CACHE};
 use crate::{
     connection,
     core::errors::{self, CustomResult},
@@ -147,7 +147,7 @@ impl MerchantAccountInterface for Store {
         {
             super::cache::publish_and_redact(
                 self,
-                cache::CacheKind::Accounts((&_merchant_id).into()),
+                CacheKind::Accounts((&_merchant_id).into()),
                 update_func,
             )
             .await
@@ -187,7 +187,7 @@ impl MerchantAccountInterface for Store {
         {
             super::cache::publish_and_redact(
                 self,
-                cache::CacheKind::Accounts(merchant_id.into()),
+                CacheKind::Accounts(merchant_id.into()),
                 update_func,
             )
             .await
@@ -240,7 +240,7 @@ impl MerchantAccountInterface for Store {
         {
             super::cache::publish_and_redact(
                 self,
-                cache::CacheKind::Accounts(merchant_id.into()),
+                CacheKind::Accounts(merchant_id.into()),
                 delete_func,
             )
             .await
@@ -253,10 +253,17 @@ impl MerchantAccountInterface for MockDb {
     #[allow(clippy::panic)]
     async fn insert_merchant(
         &self,
-        merchant_account: domain::MerchantAccount,
+        mut merchant_account: domain::MerchantAccount,
         merchant_key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<domain::MerchantAccount, errors::StorageError> {
         let mut accounts = self.merchant_accounts.lock().await;
+        merchant_account.id.get_or_insert(
+            accounts
+                .len()
+                .try_into()
+                .into_report()
+                .change_context(errors::StorageError::MockDbError)?,
+        );
         let account = Conversion::convert(merchant_account)
             .await
             .change_context(errors::StorageError::EncryptionError)?;

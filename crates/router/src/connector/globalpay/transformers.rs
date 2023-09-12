@@ -1,6 +1,6 @@
 use common_utils::crypto::{self, GenerateDigest};
 use error_stack::{IntoReport, ResultExt};
-use masking::Secret;
+use masking::{PeekInterface, Secret};
 use rand::distributions::DistString;
 use serde::{Deserialize, Serialize};
 use url::Url;
@@ -8,7 +8,7 @@ use url::Url;
 use super::{
     requests::{
         self, ApmProvider, GlobalpayPaymentsRequest, GlobalpayRefreshTokenRequest, Initiator,
-        PaymentMethodData, StoredCredential,
+        PaymentMethodData, Sequence, StoredCredential,
     },
     response::{GlobalpayPaymentStatus, GlobalpayPaymentsResponse, GlobalpayRefreshTokenResponse},
 };
@@ -91,6 +91,13 @@ impl TryFrom<&types::PaymentsCaptureRouterData> for requests::GlobalpayCaptureRe
     fn try_from(value: &types::PaymentsCaptureRouterData) -> Result<Self, Self::Error> {
         Ok(Self {
             amount: Some(value.request.amount_to_capture.to_string()),
+            capture_sequence: value.request.multiple_capture_data.clone().map(|mcd| {
+                if mcd.capture_sequence == 1 {
+                    Sequence::First
+                } else {
+                    Sequence::Subsequent
+                }
+            }),
         })
     }
 }
@@ -106,7 +113,7 @@ impl TryFrom<&types::PaymentsCancelRouterData> for requests::GlobalpayCancelRequ
 
 pub struct GlobalpayAuthType {
     pub app_id: Secret<String>,
-    pub key: String,
+    pub key: Secret<String>,
 }
 
 impl TryFrom<&types::ConnectorAuthType> for GlobalpayAuthType {
@@ -114,8 +121,8 @@ impl TryFrom<&types::ConnectorAuthType> for GlobalpayAuthType {
     fn try_from(auth_type: &types::ConnectorAuthType) -> Result<Self, Self::Error> {
         match auth_type {
             types::ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self {
-                app_id: Secret::new(key1.to_owned()),
-                key: api_key.to_string(),
+                app_id: key1.to_owned(),
+                key: api_key.to_owned(),
             }),
             _ => Err(errors::ConnectorError::FailedToObtainAuthType.into()),
         }
@@ -142,7 +149,7 @@ impl TryFrom<&types::RefreshTokenRouterData> for GlobalpayRefreshTokenRequest {
             .attach_printable("Could not convert connector_auth to globalpay_auth")?;
 
         let nonce = rand::distributions::Alphanumeric.sample_string(&mut rand::thread_rng(), 12);
-        let nonce_with_api_key = format!("{}{}", nonce, globalpay_auth.key);
+        let nonce_with_api_key = format!("{}{}", nonce, globalpay_auth.key.peek());
         let secret_vec = crypto::Sha512
             .generate_digest(nonce_with_api_key.as_bytes())
             .change_context(errors::ConnectorError::RequestEncodingFailed)
@@ -187,6 +194,7 @@ impl From<Option<enums::CaptureMethod>> for requests::CaptureMode {
     fn from(capture_method: Option<enums::CaptureMethod>) -> Self {
         match capture_method {
             Some(enums::CaptureMethod::Manual) => Self::Later,
+            Some(enums::CaptureMethod::ManualMultiple) => Self::Multiple,
             _ => Self::Auto,
         }
     }

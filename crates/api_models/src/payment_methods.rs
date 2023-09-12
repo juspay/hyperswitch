@@ -1,4 +1,4 @@
-use std::collections::HashSet;
+use std::collections::HashMap;
 
 use cards::CardNumber;
 use common_utils::{crypto::OptionalEncryptableName, pii};
@@ -144,6 +144,20 @@ pub struct PaymentMethodResponse {
     pub created: Option<time::PrimitiveDateTime>,
 }
 
+#[derive(Clone, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
+pub enum PaymentMethodsData {
+    Card(CardDetailsPaymentMethod),
+}
+#[derive(Clone, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
+pub struct CardDetailsPaymentMethod {
+    pub last4_digits: Option<String>,
+    pub issuer_country: Option<String>,
+    pub expiry_month: Option<masking::Secret<String>>,
+    pub expiry_year: Option<masking::Secret<String>>,
+    pub nick_name: Option<masking::Secret<String>>,
+    pub card_holder_name: Option<masking::Secret<String>>,
+}
+
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
 pub struct CardDetailFromLocker {
     pub scheme: Option<String>,
@@ -170,6 +184,36 @@ pub struct CardDetailFromLocker {
 
     #[schema(value_type=Option<String>)]
     pub nick_name: Option<masking::Secret<String>>,
+}
+
+impl From<CardDetailsPaymentMethod> for CardDetailFromLocker {
+    fn from(item: CardDetailsPaymentMethod) -> Self {
+        Self {
+            scheme: None,
+            issuer_country: item.issuer_country,
+            last4_digits: item.last4_digits,
+            card_number: None,
+            expiry_month: item.expiry_month,
+            expiry_year: item.expiry_year,
+            card_token: None,
+            card_holder_name: item.card_holder_name,
+            card_fingerprint: None,
+            nick_name: item.nick_name,
+        }
+    }
+}
+
+impl From<CardDetailFromLocker> for CardDetailsPaymentMethod {
+    fn from(item: CardDetailFromLocker) -> Self {
+        Self {
+            issuer_country: item.issuer_country,
+            last4_digits: item.last4_digits,
+            expiry_month: item.expiry_month,
+            expiry_year: item.expiry_year,
+            nick_name: item.nick_name,
+            card_holder_name: item.card_holder_name,
+        }
+    }
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema, PartialEq, Eq)]
@@ -220,7 +264,7 @@ pub struct ResponsePaymentMethodTypes {
     pub bank_transfers: Option<BankTransferTypes>,
 
     /// Required fields for the payment_method_type.
-    pub required_fields: Option<HashSet<RequiredFieldInfo>>,
+    pub required_fields: Option<HashMap<String, RequiredFieldInfo>>,
 }
 
 /// Required fields info used while listing the payment_method_data
@@ -235,6 +279,8 @@ pub struct RequiredFieldInfo {
     /// Possible field type of required field
     #[schema(value_type = FieldType)]
     pub field_type: api_enums::FieldType,
+
+    pub value: Option<String>,
 }
 
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize, ToSchema)]
@@ -575,6 +621,10 @@ pub struct CustomerPaymentMethod {
     #[cfg(feature = "payouts")]
     #[schema(value_type = Option<Bank>)]
     pub bank_transfer: Option<payouts::Bank>,
+
+    /// Whether this payment method requires CVV to be collected
+    #[schema(example = true)]
+    pub requires_cvv: bool,
 }
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct PaymentMethodId {
@@ -661,5 +711,15 @@ pub struct TokenizedBankTransferValue1 {
 
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
 pub struct TokenizedBankTransferValue2 {
+    pub customer_id: Option<String>,
+}
+
+#[derive(Debug, serde::Serialize, serde::Deserialize)]
+pub struct TokenizedBankRedirectValue1 {
+    pub data: payments::BankRedirectData,
+}
+
+#[derive(Debug, serde::Serialize, serde::Deserialize)]
+pub struct TokenizedBankRedirectValue2 {
     pub customer_id: Option<String>,
 }

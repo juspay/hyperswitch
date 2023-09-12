@@ -1,4 +1,4 @@
-mod transformers;
+pub mod transformers;
 
 use std::fmt::Debug;
 
@@ -6,6 +6,7 @@ use common_utils::{
     crypto::{self, SignMessage},
     date_time,
 };
+use diesel_models::enums;
 use error_stack::{IntoReport, ResultExt};
 use hex::encode;
 use masking::PeekInterface;
@@ -13,12 +14,13 @@ use transformers as dlocal;
 
 use crate::{
     configs::settings,
+    connector::utils as connector_utils,
     core::errors::{self, CustomResult},
     headers, logger,
     services::{
         self,
         request::{self, Mask},
-        ConnectorIntegration,
+        ConnectorIntegration, ConnectorValidation,
     },
     types::{
         self,
@@ -67,7 +69,7 @@ where
         let auth = dlocal::DlocalAuthType::try_from(&req.connector_auth_type)?;
         let sign_req: String = format!(
             "{}{}{}",
-            auth.x_login,
+            auth.x_login.peek(),
             date,
             types::RequestBody::get_inner_value(dlocal_req)
                 .peek()
@@ -75,7 +77,7 @@ where
         );
         let authz = crypto::HmacSha256::sign_message(
             &crypto::HmacSha256,
-            auth.secret.as_bytes(),
+            auth.secret.peek().as_bytes(),
             sign_req.as_bytes(),
         )
         .change_context(errors::ConnectorError::RequestEncodingFailed)
@@ -130,6 +132,21 @@ impl ConnectorCommon for Dlocal {
             message: response.message,
             reason: response.param,
         })
+    }
+}
+
+impl ConnectorValidation for Dlocal {
+    fn validate_capture_method(
+        &self,
+        capture_method: Option<enums::CaptureMethod>,
+    ) -> CustomResult<(), errors::ConnectorError> {
+        let capture_method = capture_method.unwrap_or_default();
+        match capture_method {
+            enums::CaptureMethod::Automatic | enums::CaptureMethod::Manual => Ok(()),
+            enums::CaptureMethod::ManualMultiple | enums::CaptureMethod::Scheduled => Err(
+                connector_utils::construct_not_supported_error_report(capture_method, self.id()),
+            ),
+        }
     }
 }
 
@@ -200,6 +217,7 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         req: &types::PaymentsAuthorizeRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
+        self.validate_capture_method(req.request.capture_method)?;
         Ok(Some(
             services::RequestBuilder::new()
                 .method(services::Method::Post)

@@ -2,15 +2,17 @@
 pub mod diesel_exports {
     pub use super::{
         DbAttemptStatus as AttemptStatus, DbAuthenticationType as AuthenticationType,
-        DbCaptureMethod as CaptureMethod, DbConnectorType as ConnectorType,
-        DbCountryAlpha2 as CountryAlpha2, DbCurrency as Currency, DbDisputeStage as DisputeStage,
-        DbDisputeStatus as DisputeStatus, DbEventClass as EventClass,
-        DbEventObjectType as EventObjectType, DbEventType as EventType,
+        DbCaptureMethod as CaptureMethod, DbCaptureStatus as CaptureStatus,
+        DbConnectorType as ConnectorType, DbCountryAlpha2 as CountryAlpha2, DbCurrency as Currency,
+        DbDisputeStage as DisputeStage, DbDisputeStatus as DisputeStatus,
+        DbEventClass as EventClass, DbEventObjectType as EventObjectType, DbEventType as EventType,
+        DbFraudCheckStatus as FraudCheckStatus, DbFraudCheckType as FraudCheckType,
         DbFutureUsage as FutureUsage, DbIntentStatus as IntentStatus,
         DbMandateStatus as MandateStatus, DbMandateType as MandateType,
         DbMerchantStorageScheme as MerchantStorageScheme,
-        DbPaymentMethodIssuerCode as PaymentMethodIssuerCode, DbPayoutStatus as PayoutStatus,
-        DbPayoutType as PayoutType, DbProcessTrackerStatus as ProcessTrackerStatus,
+        DbPaymentMethodIssuerCode as PaymentMethodIssuerCode, DbPaymentSource as PaymentSource,
+        DbPayoutStatus as PayoutStatus, DbPayoutType as PayoutType,
+        DbProcessTrackerStatus as ProcessTrackerStatus, DbReconStatus as ReconStatus,
         DbRefundStatus as RefundStatus, DbRefundType as RefundType,
     };
 }
@@ -306,4 +308,93 @@ pub enum BankNames {
     RhbBank,
     StandardCharteredBank,
     UobBank,
+    BangkokBank,
+    KrungsriBank,
+    KrungThaiBank,
+    TheSiamCommercialBank,
+    KasikornBank,
+    OpenBankSuccess,
+    OpenBankFailure,
+    OpenBankCancelled,
+    Aib,
+    BankOfScotland,
+    DanskeBank,
+    FirstDirect,
+    FirstTrust,
+    Halifax,
+    Lloyds,
+    Monzo,
+    NatWest,
+    NationwideBank,
+    RoyalBankOfScotland,
+    Starling,
+    TsbBank,
+    TescoBank,
+    UlsterBank,
+}
+
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    PartialEq,
+    serde::Serialize,
+    serde::Deserialize,
+    strum::Display,
+    strum::EnumString,
+)]
+#[router_derive::diesel_enum(storage_type = "pg_enum")]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum FraudCheckType {
+    PreFrm,
+    PostFrm,
+}
+
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Default,
+    Eq,
+    PartialEq,
+    serde::Serialize,
+    serde::Deserialize,
+    strum::Display,
+    strum::EnumString,
+    frunk::LabelledGeneric,
+)]
+#[router_derive::diesel_enum(storage_type = "pg_enum")]
+#[strum(serialize_all = "snake_case")]
+pub enum FraudCheckStatus {
+    Fraud,
+    ManualReview,
+    #[default]
+    Pending,
+    Legit,
+    TransactionFailure,
+}
+
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Default,
+    Eq,
+    PartialEq,
+    serde::Serialize,
+    serde::Deserialize,
+    strum::Display,
+    strum::EnumString,
+    frunk::LabelledGeneric,
+)]
+#[router_derive::diesel_enum(storage_type = "text")]
+#[strum(serialize_all = "snake_case")]
+pub enum FraudCheckLastStep {
+    #[default]
+    Processing,
+    CheckoutOrSale,
+    TransactionOrRecordRefund,
+    Fulfillment,
 }

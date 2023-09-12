@@ -1,6 +1,5 @@
 use common_utils::ext_traits::ConfigExt;
-
-use crate::core::errors::ApplicationError;
+use storage_impl::errors::ApplicationError;
 
 impl super::settings::Secrets {
     pub fn validate(&self) -> Result<(), ApplicationError> {
@@ -99,23 +98,11 @@ impl super::settings::Database {
             ))
         })?;
 
-        #[cfg(not(feature = "kms"))]
-        {
-            when(self.password.is_default_or_empty(), || {
-                Err(ApplicationError::InvalidConfigurationValueError(
-                    "database user password must not be empty".into(),
-                ))
-            })
-        }
-
-        #[cfg(feature = "kms")]
-        {
-            when(self.kms_encrypted_password.is_default_or_empty(), || {
-                Err(ApplicationError::InvalidConfigurationValueError(
-                    "database KMS encrypted password must not be empty".into(),
-                ))
-            })
-        }
+        when(self.password.is_default_or_empty(), || {
+            Err(ApplicationError::InvalidConfigurationValueError(
+                "database user password must not be empty".into(),
+            ))
+        })
     }
 }
 
@@ -124,100 +111,6 @@ impl super::settings::SupportedConnectors {
         common_utils::fp_utils::when(self.wallets.is_empty(), || {
             Err(ApplicationError::InvalidConfigurationValueError(
                 "list of connectors supporting wallets must not be empty".into(),
-            ))
-        })
-    }
-}
-
-impl super::settings::Connectors {
-    pub fn validate(&self) -> Result<(), ApplicationError> {
-        self.aci.validate()?;
-        self.adyen.validate()?;
-        self.applepay.validate()?;
-        self.authorizedotnet.validate()?;
-        self.braintree.validate()?;
-        self.checkout.validate()?;
-        self.cybersource.validate()?;
-        self.globalpay.validate()?;
-        self.klarna.validate()?;
-        self.shift4.validate()?;
-        self.stripe.validate()?;
-        self.worldpay.validate()?;
-
-        self.supported.validate()?;
-
-        Ok(())
-    }
-}
-
-impl super::settings::ConnectorParams {
-    pub fn validate(&self) -> Result<(), ApplicationError> {
-        common_utils::fp_utils::when(self.base_url.is_default_or_empty(), || {
-            Err(ApplicationError::InvalidConfigurationValueError(
-                "connector base URL must not be empty".into(),
-            ))
-        })
-    }
-}
-
-impl super::settings::ConnectorParamsWithFileUploadUrl {
-    pub fn validate(&self) -> Result<(), ApplicationError> {
-        common_utils::fp_utils::when(self.base_url.is_default_or_empty(), || {
-            Err(ApplicationError::InvalidConfigurationValueError(
-                "connector base URL must not be empty".into(),
-            ))
-        })?;
-        common_utils::fp_utils::when(self.base_url_file_upload.is_default_or_empty(), || {
-            Err(ApplicationError::InvalidConfigurationValueError(
-                "connector file upload base URL must not be empty".into(),
-            ))
-        })
-    }
-}
-
-#[cfg(feature = "payouts")]
-impl super::settings::ConnectorParamsWithSecondaryBaseUrl {
-    pub fn validate(&self) -> Result<(), ApplicationError> {
-        common_utils::fp_utils::when(self.base_url.is_default_or_empty(), || {
-            Err(ApplicationError::InvalidConfigurationValueError(
-                "connector base URL must not be empty".into(),
-            ))
-        })?;
-        common_utils::fp_utils::when(self.secondary_base_url.is_default_or_empty(), || {
-            Err(ApplicationError::InvalidConfigurationValueError(
-                "connector secondary base URL must not be empty".into(),
-            ))
-        })
-    }
-}
-
-impl super::settings::SchedulerSettings {
-    pub fn validate(&self) -> Result<(), ApplicationError> {
-        use common_utils::fp_utils::when;
-
-        when(self.stream.is_default_or_empty(), || {
-            Err(ApplicationError::InvalidConfigurationValueError(
-                "scheduler stream must not be empty".into(),
-            ))
-        })?;
-
-        when(self.consumer.consumer_group.is_default_or_empty(), || {
-            Err(ApplicationError::InvalidConfigurationValueError(
-                "scheduler consumer group must not be empty".into(),
-            ))
-        })?;
-
-        self.producer.validate()?;
-
-        Ok(())
-    }
-}
-
-impl super::settings::ProducerSettings {
-    pub fn validate(&self) -> Result<(), ApplicationError> {
-        common_utils::fp_utils::when(self.lock_key.is_default_or_empty(), || {
-            Err(ApplicationError::InvalidConfigurationValueError(
-                "producer lock key must not be empty".into(),
             ))
         })
     }

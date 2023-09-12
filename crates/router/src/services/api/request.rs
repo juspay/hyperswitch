@@ -56,13 +56,22 @@ impl<T: Eq + PartialEq + Clone> Maskable<T> {
     }
 }
 
-pub trait Mask: Eq + Clone + PartialEq {
-    fn into_masked(self) -> Maskable<Self>;
+pub trait Mask {
+    type Output: Eq + Clone + PartialEq;
+    fn into_masked(self) -> Maskable<Self::Output>;
 }
 
-impl<T: std::fmt::Debug + Clone + Eq + PartialEq> Mask for T {
-    fn into_masked(self) -> Maskable<Self> {
+impl Mask for String {
+    type Output = Self;
+    fn into_masked(self) -> Maskable<Self::Output> {
         Maskable::new_masked(self.into())
+    }
+}
+
+impl Mask for Secret<String> {
+    type Output = String;
+    fn into_masked(self) -> Maskable<Self::Output> {
+        Maskable::new_masked(self)
     }
 }
 
@@ -266,8 +275,8 @@ impl HeaderExt for Headers {
     ) -> CustomResult<reqwest::header::HeaderMap, errors::ApiClientError> {
         use reqwest::header::{HeaderMap, HeaderName, HeaderValue};
 
-        self.into_iter().fold(
-            Ok(HeaderMap::new()),
+        self.into_iter().try_fold(
+            HeaderMap::new(),
             |mut header_map, (header_name, header_value)| {
                 let header_name = HeaderName::from_str(&header_name)
                     .into_report()
@@ -276,10 +285,8 @@ impl HeaderExt for Headers {
                 let header_value = HeaderValue::from_str(&header_value)
                     .into_report()
                     .change_context(errors::ApiClientError::HeaderMapConstructionFailed)?;
-                if let Ok(map) = header_map.as_mut() {
-                    map.append(header_name, header_value);
-                }
-                header_map
+                header_map.append(header_name, header_value);
+                Ok(header_map)
             },
         )
     }

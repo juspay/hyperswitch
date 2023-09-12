@@ -1,6 +1,5 @@
 use crate::{core::errors, routes::metrics};
 
-#[cfg(feature = "kv_store")]
 /// Generates hscan field pattern. Suppose the field is pa_1234_ref_1211 it will generate
 /// pa_1234_ref_*
 pub fn generate_hscan_pattern_for_refund(sk: &str) -> String {
@@ -11,26 +10,15 @@ pub fn generate_hscan_pattern_for_refund(sk: &str) -> String {
         .join("_")
 }
 
-#[cfg(feature = "kv_store")]
-/// Generates hscan field pattern. Suppose the field is pa_1234 it will generate
-/// pa_*
-pub fn generate_hscan_pattern_for_attempt(sk: &str) -> String {
-    sk.split('_')
-        .take(1)
-        .chain(["*"])
-        .collect::<Vec<&str>>()
-        .join("_")
-}
-
 // The first argument should be a future while the second argument should be a closure that returns a future for a database call
 pub async fn try_redis_get_else_try_database_get<F, RFut, DFut, T>(
     redis_fut: RFut,
     database_call_closure: F,
-) -> errors::CustomResult<T, errors::StorageError>
+) -> error_stack::Result<T, errors::StorageError>
 where
     F: FnOnce() -> DFut,
-    RFut: futures::Future<Output = errors::CustomResult<T, redis_interface::errors::RedisError>>,
-    DFut: futures::Future<Output = errors::CustomResult<T, errors::StorageError>>,
+    RFut: futures::Future<Output = error_stack::Result<T, redis_interface::errors::RedisError>>,
+    DFut: futures::Future<Output = error_stack::Result<T, errors::StorageError>>,
 {
     let redis_output = redis_fut.await;
     match redis_output {

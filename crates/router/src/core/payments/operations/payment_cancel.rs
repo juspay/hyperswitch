@@ -1,5 +1,6 @@
 use std::marker::PhantomData;
 
+use api_models::enums::FrmSuggestion;
 use async_trait::async_trait;
 use common_utils::ext_traits::AsyncExt;
 use error_stack::ResultExt;
@@ -161,7 +162,9 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsCancelRequest> 
                 connector_customer_id: None,
                 recurring_mandate_payment_data: None,
                 ephemeral_key: None,
+                multiple_capture_data: None,
                 redirect_response: None,
+                frm_message: None,
             },
             None,
         ))
@@ -179,6 +182,8 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsCancelRequest> for 
         storage_scheme: enums::MerchantStorageScheme,
         _updated_customer: Option<storage::CustomerUpdate>,
         _mechant_key_store: &domain::MerchantKeyStore,
+        _frm_suggestion: Option<FrmSuggestion>,
+        _header_payload: api::HeaderPayload,
     ) -> RouterResult<(
         BoxedOperation<'b, F, api::PaymentsCancelRequest>,
         PaymentData<F>,

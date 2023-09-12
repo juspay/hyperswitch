@@ -3,6 +3,7 @@ mod transformers;
 use std::fmt::Debug;
 
 use base64::Engine;
+use diesel_models::enums;
 use error_stack::{IntoReport, ResultExt};
 use masking::ExposeInterface;
 use rand::distributions::DistString;
@@ -11,13 +12,14 @@ use transformers as payeezy;
 
 use crate::{
     configs::settings,
+    connector::utils as connector_utils,
     consts,
     core::errors::{self, CustomResult},
     headers,
     services::{
         self,
         request::{self, Mask},
-        ConnectorIntegration,
+        ConnectorIntegration, ConnectorValidation,
     },
     types::{
         self,
@@ -51,12 +53,16 @@ where
             .as_millis()
             .to_string();
         let nonce = rand::distributions::Alphanumeric.sample_string(&mut rand::thread_rng(), 19);
-        let signature_string = format!(
-            "{}{}{}{}{}",
-            auth.api_key, nonce, timestamp, auth.merchant_token, request_payload
+        let signature_string = auth.api_key.clone().zip(auth.merchant_token.clone()).map(
+            |(api_key, merchant_token)| {
+                format!(
+                    "{}{}{}{}{}",
+                    api_key, nonce, timestamp, merchant_token, request_payload
+                )
+            },
         );
-        let key = hmac::Key::new(hmac::HMAC_SHA256, auth.api_secret.as_bytes());
-        let tag = hmac::sign(&key, signature_string.as_bytes());
+        let key = hmac::Key::new(hmac::HMAC_SHA256, auth.api_secret.expose().as_bytes());
+        let tag = hmac::sign(&key, signature_string.expose().as_bytes());
         let hmac_sign = hex::encode(tag);
         let signature_value = consts::BASE64_ENGINE_URL_SAFE.encode(hmac_sign);
         Ok(vec![
@@ -114,6 +120,21 @@ impl ConnectorCommon for Payeezy {
             message: error_messages.join(", "),
             reason: None,
         })
+    }
+}
+
+impl ConnectorValidation for Payeezy {
+    fn validate_capture_method(
+        &self,
+        capture_method: Option<enums::CaptureMethod>,
+    ) -> CustomResult<(), errors::ConnectorError> {
+        let capture_method = capture_method.unwrap_or_default();
+        match capture_method {
+            enums::CaptureMethod::Automatic | enums::CaptureMethod::Manual => Ok(()),
+            enums::CaptureMethod::ManualMultiple | enums::CaptureMethod::Scheduled => Err(
+                connector_utils::construct_not_implemented_error_report(capture_method, self.id()),
+            ),
+        }
     }
 }
 
@@ -231,17 +252,7 @@ impl api::PaymentSync for Payeezy {}
 impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsResponseData>
     for Payeezy
 {
-    fn build_request(
-        &self,
-        _req: &types::PaymentsSyncRouterData,
-        _connectors: &settings::Connectors,
-    ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
-        Err(errors::ConnectorError::FlowNotSupported {
-            flow: "Psync".to_owned(),
-            connector: "payeezy".to_owned(),
-        }
-        .into())
-    }
+    // default implementation of build_request method will be executed
 }
 
 impl api::PaymentCapture for Payeezy {}
@@ -379,6 +390,7 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         req: &types::PaymentsAuthorizeRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
+        self.validate_capture_method(req.request.capture_method)?;
         Ok(Some(
             services::RequestBuilder::new()
                 .method(services::Method::Post)
@@ -505,17 +517,7 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
 }
 
 impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponseData> for Payeezy {
-    fn build_request(
-        &self,
-        _req: &types::RefundSyncRouterData,
-        _connectors: &settings::Connectors,
-    ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
-        Err(errors::ConnectorError::FlowNotSupported {
-            flow: "Rsync".to_owned(),
-            connector: "payeezy".to_owned(),
-        }
-        .into())
-    }
+    // default implementation of build_request method will be executed
 }
 
 #[async_trait::async_trait]

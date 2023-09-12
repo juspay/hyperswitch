@@ -49,17 +49,26 @@ pub struct StripeCard {
     pub cvc: pii::Secret<String>,
 }
 
+// ApplePay wallet param is not available in stripe Docs
+#[derive(Serialize, PartialEq, Eq, Deserialize, Clone)]
+#[serde(rename_all = "snake_case")]
+pub enum StripeWallet {
+    ApplePay(payments::ApplePayWalletData),
+}
+
 #[derive(Default, Serialize, PartialEq, Eq, Deserialize, Clone)]
 #[serde(rename_all = "snake_case")]
 pub enum StripePaymentMethodType {
     #[default]
     Card,
+    Wallet,
 }
 
 impl From<StripePaymentMethodType> for api_enums::PaymentMethod {
     fn from(item: StripePaymentMethodType) -> Self {
         match item {
             StripePaymentMethodType::Card => Self::Card,
+            StripePaymentMethodType::Wallet => Self::Wallet,
         }
     }
 }
@@ -77,6 +86,7 @@ pub struct StripePaymentMethodData {
 #[serde(rename_all = "snake_case")]
 pub enum StripePaymentMethodDetails {
     Card(StripeCard),
+    Wallet(StripeWallet),
 }
 
 impl From<StripeCard> for payments::Card {
@@ -96,10 +106,22 @@ impl From<StripeCard> for payments::Card {
         }
     }
 }
+
+impl From<StripeWallet> for payments::WalletData {
+    fn from(wallet: StripeWallet) -> Self {
+        match wallet {
+            StripeWallet::ApplePay(data) => Self::ApplePay(data),
+        }
+    }
+}
+
 impl From<StripePaymentMethodDetails> for payments::PaymentMethodData {
     fn from(item: StripePaymentMethodDetails) -> Self {
         match item {
             StripePaymentMethodDetails::Card(card) => Self::Card(payments::Card::from(card)),
+            StripePaymentMethodDetails::Wallet(wallet) => {
+                Self::Wallet(payments::WalletData::from(wallet))
+            }
         }
     }
 }
@@ -125,7 +147,7 @@ impl From<Shipping> for payments::Address {
     }
 }
 
-#[derive(Default, PartialEq, Eq, Deserialize, Clone)]
+#[derive(Default, Deserialize, Clone)]
 pub struct StripeSetupIntentRequest {
     pub confirm: Option<bool>,
     pub customer: Option<String>,
@@ -148,6 +170,7 @@ pub struct StripeSetupIntentRequest {
     pub receipt_ipaddress: Option<String>,
     pub user_agent: Option<String>,
     pub mandate_data: Option<payment_intent::MandateData>,
+    pub connector_metadata: Option<payments::ConnectorMetadata>,
 }
 
 impl TryFrom<StripeSetupIntentRequest> for payments::PaymentsRequest {
@@ -256,7 +279,7 @@ impl TryFrom<StripeSetupIntentRequest> for payments::PaymentsRequest {
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("convert to browser info failed")?,
             ),
-
+            connector_metadata: item.connector_metadata,
             ..Default::default()
         });
         request
@@ -285,7 +308,8 @@ impl From<api_enums::IntentStatus> for StripeSetupStatus {
             api_enums::IntentStatus::RequiresMerchantAction => Self::RequiresAction,
             api_enums::IntentStatus::RequiresPaymentMethod => Self::RequiresPaymentMethod,
             api_enums::IntentStatus::RequiresConfirmation => Self::RequiresConfirmation,
-            api_enums::IntentStatus::RequiresCapture => {
+            api_enums::IntentStatus::RequiresCapture
+            | api_enums::IntentStatus::PartiallyCaptured => {
                 logger::error!("Invalid status change");
                 Self::Canceled
             }
@@ -347,6 +371,14 @@ pub enum StripeNextAction {
     },
     QrCodeInformation {
         image_data_url: url::Url,
+        display_to_timestamp: Option<i64>,
+    },
+    DisplayVoucherInformation {
+        voucher_details: payments::VoucherNextStepData,
+    },
+    WaitScreenInformation {
+        display_from_timestamp: i128,
+        display_to_timestamp: Option<i128>,
     },
 }
 
@@ -371,9 +403,23 @@ pub(crate) fn into_stripe_next_action(
         payments::NextActionData::ThirdPartySdkSessionToken { session_token } => {
             StripeNextAction::ThirdPartySdkSessionToken { session_token }
         }
-        payments::NextActionData::QrCodeInformation { image_data_url } => {
-            StripeNextAction::QrCodeInformation { image_data_url }
+        payments::NextActionData::QrCodeInformation {
+            image_data_url,
+            display_to_timestamp,
+        } => StripeNextAction::QrCodeInformation {
+            image_data_url,
+            display_to_timestamp,
+        },
+        payments::NextActionData::DisplayVoucherInformation { voucher_details } => {
+            StripeNextAction::DisplayVoucherInformation { voucher_details }
         }
+        payments::NextActionData::WaitScreenInformation {
+            display_from_timestamp,
+            display_to_timestamp,
+        } => StripeNextAction::WaitScreenInformation {
+            display_from_timestamp,
+            display_to_timestamp,
+        },
     })
 }
 
@@ -465,7 +511,7 @@ pub struct StripePaymentListConstraints {
     pub starting_after: Option<String>,
     pub ending_before: Option<String>,
     #[serde(default = "default_limit")]
-    pub limit: i64,
+    pub limit: u32,
     pub created: Option<i64>,
     #[serde(rename = "created[lt]")]
     pub created_lt: Option<i64>,
@@ -477,7 +523,7 @@ pub struct StripePaymentListConstraints {
     pub created_gte: Option<i64>,
 }
 
-fn default_limit() -> i64 {
+fn default_limit() -> u32 {
     10
 }
 

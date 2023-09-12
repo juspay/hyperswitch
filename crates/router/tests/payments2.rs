@@ -35,7 +35,13 @@ async fn payments_create_core() {
     use router::configs::settings::Settings;
     let conf = Settings::new().expect("invalid settings");
     let tx: oneshot::Sender<()> = oneshot::channel().0;
-    let state = routes::AppState::with_storage(conf, StorageImpl::PostgresqlTest, tx).await;
+    let state = routes::AppState::with_storage(
+        conf,
+        StorageImpl::PostgresqlTest,
+        tx,
+        Box::new(services::MockApiClient),
+    )
+    .await;
 
     let key_store = state
         .store
@@ -112,7 +118,8 @@ async fn payments_create_core() {
         mandate_id: None,
         ..Default::default()
     };
-    let expected_response = services::ApplicationResponse::Json(expected_response);
+    let expected_response =
+        services::ApplicationResponse::JsonWithHeaders((expected_response, vec![]));
     let actual_response =
         router::core::payments::payments_core::<api::Authorize, api::PaymentsResponse, _, _, _>(
             &state,
@@ -122,6 +129,7 @@ async fn payments_create_core() {
             req,
             services::AuthFlow::Merchant,
             payments::CallConnectorAction::Trigger,
+            api::HeaderPayload::default(),
         )
         .await
         .unwrap();
@@ -202,7 +210,13 @@ async fn payments_create_core_adyen_no_redirect() {
     use router::configs::settings::Settings;
     let conf = Settings::new().expect("invalid settings");
     let tx: oneshot::Sender<()> = oneshot::channel().0;
-    let state = routes::AppState::with_storage(conf, StorageImpl::PostgresqlTest, tx).await;
+    let state = routes::AppState::with_storage(
+        conf,
+        StorageImpl::PostgresqlTest,
+        tx,
+        Box::new(services::MockApiClient),
+    )
+    .await;
 
     let customer_id = format!("cust_{}", Uuid::new_v4());
     let merchant_id = "arunraj".to_string();
@@ -260,21 +274,24 @@ async fn payments_create_core_adyen_no_redirect() {
         ..Default::default()
     };
 
-    let expected_response = services::ApplicationResponse::Json(api::PaymentsResponse {
-        payment_id: Some(payment_id.clone()),
-        status: api_enums::IntentStatus::Processing,
-        amount: 6540,
-        amount_capturable: None,
-        amount_received: None,
-        client_secret: None,
-        created: None,
-        currency: "USD".to_string(),
-        customer_id: None,
-        description: Some("Its my first payment request".to_string()),
-        refunds: None,
-        mandate_id: None,
-        ..Default::default()
-    });
+    let expected_response = services::ApplicationResponse::JsonWithHeaders((
+        api::PaymentsResponse {
+            payment_id: Some(payment_id.clone()),
+            status: api_enums::IntentStatus::Processing,
+            amount: 6540,
+            amount_capturable: None,
+            amount_received: None,
+            client_secret: None,
+            created: None,
+            currency: "USD".to_string(),
+            customer_id: None,
+            description: Some("Its my first payment request".to_string()),
+            refunds: None,
+            mandate_id: None,
+            ..Default::default()
+        },
+        vec![],
+    ));
     let actual_response =
         router::core::payments::payments_core::<api::Authorize, api::PaymentsResponse, _, _, _>(
             &state,
@@ -284,6 +301,7 @@ async fn payments_create_core_adyen_no_redirect() {
             req,
             services::AuthFlow::Merchant,
             payments::CallConnectorAction::Trigger,
+            api::HeaderPayload::default(),
         )
         .await
         .unwrap();

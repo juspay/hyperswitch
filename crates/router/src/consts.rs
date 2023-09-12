@@ -11,6 +11,8 @@ pub(crate) const ALPHABETS: [char; 62] = [
 ];
 /// API client request timeout (in seconds)
 pub const REQUEST_TIME_OUT: u64 = 30;
+pub const REQUEST_TIMEOUT_ERROR_CODE: &str = "TIMEOUT";
+pub const REQUEST_TIMEOUT_ERROR_MESSAGE: &str = "Connector did not respond in specified time";
 
 ///Payment intent fulfillment default timeout (in seconds)
 pub const DEFAULT_FULFILLMENT_TIME: i64 = 15 * 60;
@@ -18,6 +20,7 @@ pub const DEFAULT_FULFILLMENT_TIME: i64 = 15 * 60;
 // String literals
 pub(crate) const NO_ERROR_MESSAGE: &str = "No error message";
 pub(crate) const NO_ERROR_CODE: &str = "No error code";
+pub(crate) const UNSUPPORTED_ERROR_MESSAGE: &str = "Unsupported response type";
 pub(crate) const CONNECTOR_UNAUTHORIZED_ERROR: &str = "Authentication Error from the connector";
 
 // General purpose base64 engines
@@ -36,3 +39,9 @@ pub(crate) const APPLEPAY_VALIDATION_URL: &str =
 // Qr Image data source starts with this string
 // The base64 image data will be appended to it to image data source
 pub(crate) const QR_IMAGE_DATA_SOURCE_STRING: &str = "data:image/png;base64";
+
+// OID (Object Identifier) for the merchant ID field extension.
+#[cfg(feature = "kms")]
+pub(crate) const MERCHANT_ID_FIELD_EXTENSION_ID: &str = "1.2.840.113635.100.6.32";
+
+pub(crate) const METRICS_HOST_TAG_NAME: &str = "host";

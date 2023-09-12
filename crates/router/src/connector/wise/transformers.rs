@@ -2,7 +2,6 @@
 use api_models::payouts::PayoutMethodData;
 #[cfg(feature = "payouts")]
 use common_utils::pii::Email;
-#[cfg(feature = "payouts")]
 use masking::Secret;
 use serde::Deserialize;
 #[cfg(feature = "payouts")]
@@ -22,9 +21,9 @@ use crate::{
 use crate::{core::errors, types};
 
 pub struct WiseAuthType {
-    pub(super) api_key: String,
+    pub(super) api_key: Secret<String>,
     #[allow(dead_code)]
-    pub(super) profile_id: String,
+    pub(super) profile_id: Secret<String>,
 }
 
 impl TryFrom<&types::ConnectorAuthType> for WiseAuthType {
@@ -32,8 +31,8 @@ impl TryFrom<&types::ConnectorAuthType> for WiseAuthType {
     fn try_from(auth_type: &types::ConnectorAuthType) -> Result<Self, Self::Error> {
         match auth_type {
             types::ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self {
-                api_key: api_key.to_string(),
-                profile_id: key1.to_string(),
+                api_key: api_key.to_owned(),
+                profile_id: key1.to_owned(),
             }),
             _ => Err(errors::ConnectorError::FailedToObtainAuthType)?,
         }
@@ -69,7 +68,7 @@ pub struct WiseRecipientCreateRequest {
     currency: String,
     #[serde(rename = "type")]
     recipient_type: RecipientType,
-    profile: String,
+    profile: Secret<String>,
     account_holder_name: Secret<String>,
     details: WiseBankDetails,
 }
@@ -348,7 +347,6 @@ fn get_payout_bank_details(
         _ => Err(errors::ConnectorError::NotSupported {
             message: "Card payout creation is not supported".to_string(),
             connector: "Wise",
-            payment_experience: "".to_string(),
         }),
     }
 }
@@ -376,7 +374,6 @@ impl<F> TryFrom<&types::PayoutsRouterData<F>> for WiseRecipientCreateRequest {
             storage_enums::PayoutType::Card => Err(errors::ConnectorError::NotSupported {
                 message: "Card payout creation is not supported".to_string(),
                 connector: "Wise",
-                payment_experience: "".to_string(),
             })?,
             storage_enums::PayoutType::Bank => {
                 let account_holder_name = customer_details
@@ -438,7 +435,6 @@ impl<F> TryFrom<&types::PayoutsRouterData<F>> for WisePayoutQuoteRequest {
             storage_enums::PayoutType::Card => Err(errors::ConnectorError::NotSupported {
                 message: "Card payout fulfillment is not supported".to_string(),
                 connector: "Wise",
-                payment_experience: "".to_string(),
             })?,
         }
     }
@@ -496,7 +492,6 @@ impl<F> TryFrom<&types::PayoutsRouterData<F>> for WisePayoutCreateRequest {
             storage_enums::PayoutType::Card => Err(errors::ConnectorError::NotSupported {
                 message: "Card payout fulfillment is not supported".to_string(),
                 connector: "Wise",
-                payment_experience: "".to_string(),
             })?,
         }
     }
@@ -541,7 +536,6 @@ impl<F> TryFrom<&types::PayoutsRouterData<F>> for WisePayoutFulfillRequest {
             storage_enums::PayoutType::Card => Err(errors::ConnectorError::NotSupported {
                 message: "Card payout fulfillment is not supported".to_string(),
                 connector: "Wise",
-                payment_experience: "".to_string(),
             })?,
         }
     }
@@ -608,7 +602,6 @@ impl TryFrom<PayoutMethodData> for RecipientType {
             _ => Err(errors::ConnectorError::NotSupported {
                 message: "Requested payout_method_type is not supported".to_string(),
                 connector: "Wise",
-                payment_experience: "".to_string(),
             }
             .into()),
         }

@@ -130,11 +130,14 @@ pub struct RefundResponse {
 pub struct RefundListRequest {
     /// The identifier for the payment
     pub payment_id: Option<String>,
+    /// The identifier for the refund
+    pub refund_id: Option<String>,
     /// Limit on the number of objects to return
     pub limit: Option<i64>,
     /// The starting point within a list of objects
     pub offset: Option<i64>,
     /// The time range for which objects are needed. TimeRange has two fields start_time and end_time from which objects can be filtered as per required scenarios (created_at, time less than, greater than etc).
+    #[serde(flatten)]
     pub time_range: Option<TimeRange>,
     /// The list of connectors to filter refunds list
     pub connector: Option<Vec<String>>,
@@ -159,7 +162,9 @@ pub struct TimeRange {
 #[derive(Debug, Clone, Eq, PartialEq, Deserialize, Serialize, ToSchema)]
 pub struct RefundListResponse {
     /// The number of refunds included in the list
-    pub size: usize,
+    pub count: usize,
+    /// The total number of refunds in the list
+    pub total_count: i64,
     /// The List of refund response object
     pub data: Vec<RefundResponse>,
 }

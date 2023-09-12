@@ -54,6 +54,9 @@ impl ErrorSwitch<api_models::errors::types::ApiErrorResponse> for ApiErrorRespon
             Self::ClientSecretInvalid => {
                 AER::BadRequest(ApiError::new("IR", 9, "The client_secret provided does not match the client_secret associated with the Payment", None))
             }
+            Self::CurrencyNotSupported { message } => {
+                AER::BadRequest(ApiError::new("IR", 9, message, None))
+            }
             Self::MandateActive => {
                 AER::BadRequest(ApiError::new("IR", 10, "Customer has active mandate/subsciption", None))
             }
@@ -86,11 +89,13 @@ impl ErrorSwitch<api_models::errors::types::ApiErrorResponse> for ApiErrorRespon
             Self::MissingRequiredFields { field_names } => AER::BadRequest(
                 ApiError::new("IR", 21, "Missing required params".to_string(), Some(Extra {data: Some(serde_json::json!(field_names)), ..Default::default() })),
             ),
-            Self::AccessForbidden => AER::ForbiddenCommonResource(ApiError::new("IR", 22, "Access forbidden. Not authorized to access this resource", None)),
+            Self::AccessForbidden {resource} => {
+                AER::ForbiddenCommonResource(ApiError::new("IR", 22, format!("Access forbidden. Not authorized to access this resource {resource}"), None))
+            },
             Self::FileProviderNotSupported { message } => {
                 AER::BadRequest(ApiError::new("IR", 23, message.to_string(), None))
             },
-            Self::UnprocessableEntity {entity} => AER::Unprocessable(ApiError::new("IR", 23, format!("{entity} expired or invalid"), None)),
+            Self::UnprocessableEntity {message} => AER::Unprocessable(ApiError::new("IR", 23, message.to_string(), None)),
             Self::ExternalConnectorError {
                 code,
                 message,
@@ -125,8 +130,8 @@ impl ErrorSwitch<api_models::errors::types::ApiErrorResponse> for ApiErrorRespon
             Self::DuplicateRefundRequest => AER::BadRequest(ApiError::new("HE", 1, "Duplicate refund request. Refund already attempted with the refund ID", None)),
             Self::DuplicateMandate => AER::BadRequest(ApiError::new("HE", 1, "Duplicate mandate request. Mandate already attempted with the Mandate ID", None)),
             Self::DuplicateMerchantAccount => AER::BadRequest(ApiError::new("HE", 1, "The merchant account with the specified details already exists in our records", None)),
-            Self::DuplicateMerchantConnectorAccount { connector_label } => {
-                AER::BadRequest(ApiError::new("HE", 1, format!("The merchant connector account with the specified connector_label '{connector_label}' already exists in our records"), None))
+            Self::DuplicateMerchantConnectorAccount { profile_id, connector_name } => {
+                AER::BadRequest(ApiError::new("HE", 1, format!("The merchant connector account with the specified profile_id '{profile_id}' and connector_name '{connector_name}' already exists in our records"), None))
             }
             Self::DuplicatePaymentMethod => AER::BadRequest(ApiError::new("HE", 1, "The payment method with the specified details already exists in our records", None)),
             Self::DuplicatePayment { payment_id } => {
@@ -134,6 +139,9 @@ impl ErrorSwitch<api_models::errors::types::ApiErrorResponse> for ApiErrorRespon
             }
             Self::DuplicatePayout { payout_id } => {
                 AER::BadRequest(ApiError::new("HE", 1, format!("The payout with the specified payout_id '{payout_id}' already exists in our records"), None))
+            }
+            Self::GenericDuplicateError { message } => {
+                AER::BadRequest(ApiError::new("HE", 1, message, None))
             }
             Self::RefundNotFound => {
                 AER::NotFound(ApiError::new("HE", 2, "Refund does not exist in our records.", None))
@@ -143,6 +151,9 @@ impl ErrorSwitch<api_models::errors::types::ApiErrorResponse> for ApiErrorRespon
             }
             Self::ConfigNotFound => {
                 AER::NotFound(ApiError::new("HE", 2, "Config key does not exist in our records.", None))
+            },
+            Self::DuplicateConfig => {
+                AER::BadRequest(ApiError::new("HE", 1, "The config with the specified key already exists in our records", None))
             }
             Self::PaymentNotFound => {
                 AER::NotFound(ApiError::new("HE", 2, "Payment does not exist in our records", None))
@@ -201,6 +212,9 @@ impl ErrorSwitch<api_models::errors::types::ApiErrorResponse> for ApiErrorRespon
             }
             Self::DisputeNotFound { .. } => {
                 AER::NotFound(ApiError::new("HE", 2, "Dispute does not exist in our records", None))
+            },
+            Self::BusinessProfileNotFound { id } => {
+                AER::NotFound(ApiError::new("HE", 2, format!("Business profile with the given id {id} does not exist"), None))
             }
             Self::FileNotFound => {
                 AER::NotFound(ApiError::new("HE", 2, "File does not exist in our records", None))

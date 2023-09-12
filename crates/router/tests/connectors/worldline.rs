@@ -26,10 +26,11 @@ impl utils::Connector for WorldlineTest {
     }
 
     fn get_auth_token(&self) -> types::ConnectorAuthType {
-        types::ConnectorAuthType::from(
+        utils::to_connector_auth_type(
             ConnectorAuthentication::new()
                 .worldline
-                .expect("Missing connector authentication configuration"),
+                .expect("Missing connector authentication configuration")
+                .into(),
         )
     }
 
@@ -151,7 +152,6 @@ async fn should_throw_not_implemented_for_unsupported_issuer() {
         errors::ConnectorError::NotSupported {
             message: "Maestro".to_string(),
             connector: "worldline",
-            payment_experience: "RedirectToUrl".to_string(),
         }
     )
 }

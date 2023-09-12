@@ -1,6 +1,7 @@
 #![allow(dead_code, unused_variables)]
 
 use http::StatusCode;
+use scheduler::errors::{PTError, ProcessTrackerError};
 
 #[derive(Clone, Debug, serde::Serialize)]
 #[serde(rename_all = "snake_case")]
@@ -88,12 +89,12 @@ pub enum ApiErrorResponse {
     FlowNotSupported { flow: String, connector: String },
     #[error(error_type = ErrorType::InvalidRequestError, code = "IR_21", message = "Missing required params")]
     MissingRequiredFields { field_names: Vec<&'static str> },
-    #[error(error_type = ErrorType::InvalidRequestError, code = "IR_22", message = "Access forbidden. Not authorized to access this resource")]
-    AccessForbidden,
+    #[error(error_type = ErrorType::InvalidRequestError, code = "IR_22", message = "Access forbidden. Not authorized to access this resource {resource}")]
+    AccessForbidden { resource: String },
     #[error(error_type = ErrorType::InvalidRequestError, code = "IR_23", message = "{message}")]
     FileProviderNotSupported { message: String },
-    #[error(error_type = ErrorType::InvalidRequestError, code = "IR_23", message = "{entity} expired or invalid")]
-    UnprocessableEntity { entity: String },
+    #[error(error_type = ErrorType::InvalidRequestError, code = "IR_23", message = "{message}")]
+    UnprocessableEntity { message: String },
     #[error(error_type = ErrorType::ConnectorError, code = "CE_00", message = "{code}: {message}", ignore = "status_code")]
     ExternalConnectorError {
         code: String,
@@ -129,14 +130,19 @@ pub enum ApiErrorResponse {
     DuplicateMandate,
     #[error(error_type = ErrorType::DuplicateRequest, code = "HE_01", message = "The merchant account with the specified details already exists in our records")]
     DuplicateMerchantAccount,
-    #[error(error_type = ErrorType::DuplicateRequest, code = "HE_01", message = "The merchant connector account with the specified connector_label '{connector_label}' already exists in our records")]
-    DuplicateMerchantConnectorAccount { connector_label: String },
+    #[error(error_type = ErrorType::DuplicateRequest, code = "HE_01", message = "The merchant connector account with the specified profile_id '{profile_id}' and connector_name '{connector_name}' already exists in our records")]
+    DuplicateMerchantConnectorAccount {
+        profile_id: String,
+        connector_name: String,
+    },
     #[error(error_type = ErrorType::DuplicateRequest, code = "HE_01", message = "The payment method with the specified details already exists in our records")]
     DuplicatePaymentMethod,
     #[error(error_type = ErrorType::DuplicateRequest, code = "HE_01", message = "The payment with the specified payment_id '{payment_id}' already exists in our records")]
     DuplicatePayment { payment_id: String },
     #[error(error_type = ErrorType::DuplicateRequest, code = "HE_01", message = "The payout with the specified payout_id '{payout_id}' already exists in our records")]
     DuplicatePayout { payout_id: String },
+    #[error(error_type = ErrorType::DuplicateRequest, code = "HE_01", message = "The config with the specified key already exists in our records")]
+    DuplicateConfig,
     #[error(error_type = ErrorType::ObjectNotFound, code = "HE_02", message = "Refund does not exist in our records")]
     RefundNotFound,
     #[error(error_type = ErrorType::ObjectNotFound, code = "HE_02", message = "Customer does not exist in our records")]
@@ -151,6 +157,8 @@ pub enum ApiErrorResponse {
     MerchantAccountNotFound,
     #[error(error_type = ErrorType::ObjectNotFound, code = "HE_02", message = "Merchant connector account with id '{id}' does not exist in our records")]
     MerchantConnectorAccountNotFound { id: String },
+    #[error(error_type = ErrorType::ObjectNotFound, code = "HE_02", message = "Business profile with the given id  '{id}' does not exist in our records")]
+    BusinessProfileNotFound { id: String },
     #[error(error_type = ErrorType::ObjectNotFound, code = "HE_02", message = "Resource ID does not exist in our records")]
     ResourceIdNotFound,
     #[error(error_type = ErrorType::ObjectNotFound, code = "HE_02", message = "Mandate does not exist in our records")]
@@ -205,6 +213,8 @@ pub enum ApiErrorResponse {
     MissingFileContentType,
     #[error(error_type = ErrorType::InvalidRequestError, code = "HE_05", message = "{message}")]
     GenericNotFoundError { message: String },
+    #[error(error_type = ErrorType::InvalidRequestError, code = "HE_01", message = "{message}")]
+    GenericDuplicateError { message: String },
     #[error(error_type = ErrorType::InvalidRequestError, code = "WE_01", message = "Failed to authenticate the webhook")]
     WebhookAuthenticationFailed,
     #[error(error_type = ErrorType::ObjectNotFound, code = "WE_04", message = "Webhook resource not found")]
@@ -217,6 +227,14 @@ pub enum ApiErrorResponse {
     IncorrectPaymentMethodConfiguration,
     #[error(error_type = ErrorType::InvalidRequestError, code = "WE_05", message = "Unable to process the webhook body")]
     WebhookUnprocessableEntity,
+    #[error(error_type = ErrorType::InvalidRequestError, code = "IR_19", message = "{message}")]
+    CurrencyNotSupported { message: String },
+}
+
+impl PTError for ApiErrorResponse {
+    fn to_pt_error(&self) -> ProcessTrackerError {
+        ProcessTrackerError::EApiErrorResponse
+    }
 }
 
 #[derive(Clone)]

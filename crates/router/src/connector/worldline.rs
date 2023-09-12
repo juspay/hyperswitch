@@ -1,4 +1,4 @@
-mod transformers;
+pub mod transformers;
 
 use std::fmt::Debug;
 
@@ -6,6 +6,7 @@ use base64::Engine;
 use common_utils::ext_traits::ByteSliceExt;
 use diesel_models::enums;
 use error_stack::{IntoReport, ResultExt};
+use masking::{ExposeInterface, PeekInterface};
 use ring::hmac;
 use time::{format_description, OffsetDateTime};
 use transformers as worldline;
@@ -13,14 +14,14 @@ use transformers as worldline;
 use super::utils::RefundsRequestData;
 use crate::{
     configs::settings::Connectors,
-    connector::utils as conn_utils,
+    connector::{utils as connector_utils, utils as conn_utils},
     consts,
     core::errors::{self, CustomResult},
     headers, logger,
     services::{
         self,
         request::{self, Mask},
-        ConnectorIntegration,
+        ConnectorIntegration, ConnectorValidation,
     },
     types::{
         self,
@@ -36,7 +37,7 @@ pub struct Worldline;
 impl Worldline {
     pub fn generate_authorization_token(
         &self,
-        auth: worldline::AuthType,
+        auth: worldline::WorldlineAuthType,
         http_method: &services::Method,
         content_type: &str,
         date: &str,
@@ -49,15 +50,15 @@ impl Worldline {
             date.trim(),
             endpoint.trim()
         );
-        let worldline::AuthType {
+        let worldline::WorldlineAuthType {
             api_key,
             api_secret,
             ..
         } = auth;
-        let key = hmac::Key::new(hmac::HMAC_SHA256, api_secret.as_bytes());
+        let key = hmac::Key::new(hmac::HMAC_SHA256, api_secret.expose().as_bytes());
         let signed_data = consts::BASE64_ENGINE.encode(hmac::sign(&key, signature_data.as_bytes()));
 
-        Ok(format!("GCS v1HMAC:{api_key}:{signed_data}"))
+        Ok(format!("GCS v1HMAC:{}:{signed_data}", api_key.peek()))
     }
 
     pub fn get_current_date_time() -> CustomResult<String, errors::ConnectorError> {
@@ -86,7 +87,7 @@ where
         let url = Self::get_url(self, req, connectors)?;
         let endpoint = url.replace(base_url, "");
         let http_method = Self::get_http_method(self);
-        let auth = worldline::AuthType::try_from(&req.connector_auth_type)?;
+        let auth = worldline::WorldlineAuthType::try_from(&req.connector_auth_type)?;
         let date = Self::get_current_date_time()?;
         let content_type = Self::get_content_type(self);
         let signed_data: String =
@@ -137,6 +138,21 @@ impl ConnectorCommon for Worldline {
     }
 }
 
+impl ConnectorValidation for Worldline {
+    fn validate_capture_method(
+        &self,
+        capture_method: Option<enums::CaptureMethod>,
+    ) -> CustomResult<(), errors::ConnectorError> {
+        let capture_method = capture_method.unwrap_or_default();
+        match capture_method {
+            enums::CaptureMethod::Automatic | enums::CaptureMethod::Manual => Ok(()),
+            enums::CaptureMethod::ManualMultiple | enums::CaptureMethod::Scheduled => Err(
+                connector_utils::construct_not_implemented_error_report(capture_method, self.id()),
+            ),
+        }
+    }
+}
+
 impl api::ConnectorAccessToken for Worldline {}
 
 impl ConnectorIntegration<api::AccessTokenAuth, types::AccessTokenRequestData, types::AccessToken>
@@ -183,8 +199,9 @@ impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsR
         connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         let base_url = self.base_url(connectors);
-        let auth: worldline::AuthType = worldline::AuthType::try_from(&req.connector_auth_type)?;
-        let merchant_account_id = auth.merchant_account_id;
+        let auth: worldline::WorldlineAuthType =
+            worldline::WorldlineAuthType::try_from(&req.connector_auth_type)?;
+        let merchant_account_id = auth.merchant_account_id.expose();
         let payment_id: &str = req.request.connector_transaction_id.as_ref();
         Ok(format!(
             "{base_url}v1/{merchant_account_id}/payments/{payment_id}/cancel"
@@ -263,8 +280,8 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
             .get_connector_transaction_id()
             .change_context(errors::ConnectorError::MissingConnectorTransactionID)?;
         let base_url = self.base_url(connectors);
-        let auth = worldline::AuthType::try_from(&req.connector_auth_type)?;
-        let merchant_account_id = auth.merchant_account_id;
+        let auth = worldline::WorldlineAuthType::try_from(&req.connector_auth_type)?;
+        let merchant_account_id = auth.merchant_account_id.expose();
         Ok(format!(
             "{base_url}v1/{merchant_account_id}/payments/{payment_id}"
         ))
@@ -339,8 +356,8 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
     ) -> CustomResult<String, errors::ConnectorError> {
         let payment_id = req.request.connector_transaction_id.clone();
         let base_url = self.base_url(connectors);
-        let auth = worldline::AuthType::try_from(&req.connector_auth_type)?;
-        let merchant_account_id = auth.merchant_account_id;
+        let auth = worldline::WorldlineAuthType::try_from(&req.connector_auth_type)?;
+        let merchant_account_id = auth.merchant_account_id.expose();
         Ok(format!(
             "{base_url}v1/{merchant_account_id}/payments/{payment_id}/approve"
         ))
@@ -456,8 +473,8 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         let base_url = self.base_url(connectors);
-        let auth = worldline::AuthType::try_from(&req.connector_auth_type)?;
-        let merchant_account_id = auth.merchant_account_id;
+        let auth = worldline::WorldlineAuthType::try_from(&req.connector_auth_type)?;
+        let merchant_account_id = auth.merchant_account_id.expose();
         Ok(format!("{base_url}v1/{merchant_account_id}/payments"))
     }
 
@@ -483,6 +500,7 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         >,
         connectors: &Connectors,
     ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
+        self.validate_capture_method(req.request.capture_method)?;
         Ok(Some(
             services::RequestBuilder::new()
                 .method(types::PaymentsAuthorizeType::get_http_method(self))
@@ -547,8 +565,8 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
     ) -> CustomResult<String, errors::ConnectorError> {
         let payment_id = req.request.connector_transaction_id.clone();
         let base_url = self.base_url(connectors);
-        let auth = worldline::AuthType::try_from(&req.connector_auth_type)?;
-        let merchant_account_id = auth.merchant_account_id;
+        let auth = worldline::WorldlineAuthType::try_from(&req.connector_auth_type)?;
+        let merchant_account_id = auth.merchant_account_id.expose();
         Ok(format!(
             "{base_url}v1/{merchant_account_id}/payments/{payment_id}/refund"
         ))
@@ -637,8 +655,9 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
     ) -> CustomResult<String, errors::ConnectorError> {
         let refund_id = req.request.get_connector_refund_id()?;
         let base_url = self.base_url(connectors);
-        let auth: worldline::AuthType = worldline::AuthType::try_from(&req.connector_auth_type)?;
-        let merchant_account_id = auth.merchant_account_id;
+        let auth: worldline::WorldlineAuthType =
+            worldline::WorldlineAuthType::try_from(&req.connector_auth_type)?;
+        let merchant_account_id = auth.merchant_account_id.expose();
         Ok(format!(
             "{base_url}v1/{merchant_account_id}/refunds/{refund_id}/"
         ))

@@ -1,10 +1,11 @@
-mod transformers;
+pub mod transformers;
 
 use std::fmt::Debug;
 
 use base64::Engine;
+use diesel_models::enums;
 use error_stack::{IntoReport, ResultExt};
-use masking::PeekInterface;
+use masking::{ExposeInterface, PeekInterface};
 use ring::hmac;
 use time::OffsetDateTime;
 use transformers as fiserv;
@@ -12,6 +13,7 @@ use uuid::Uuid;
 
 use crate::{
     configs::settings,
+    connector::utils as connector_utils,
     consts,
     core::errors::{self, CustomResult},
     headers, logger,
@@ -19,6 +21,7 @@ use crate::{
         self,
         api::ConnectorIntegration,
         request::{self, Mask},
+        ConnectorValidation,
     },
     types::{
         self,
@@ -43,9 +46,9 @@ impl Fiserv {
             api_secret,
             ..
         } = auth;
-        let raw_signature = format!("{api_key}{request_id}{timestamp}{payload}");
+        let raw_signature = format!("{}{request_id}{timestamp}{payload}", api_key.peek());
 
-        let key = hmac::Key::new(hmac::HMAC_SHA256, api_secret.as_bytes());
+        let key = hmac::Key::new(hmac::HMAC_SHA256, api_secret.expose().as_bytes());
         let signature_value =
             consts::BASE64_ENGINE.encode(hmac::sign(&key, raw_signature.as_bytes()).as_ref());
         Ok(signature_value)
@@ -152,6 +155,21 @@ impl ConnectorCommon for Fiserv {
                 reason: None,
                 status_code: res.status_code,
             }))
+    }
+}
+
+impl ConnectorValidation for Fiserv {
+    fn validate_capture_method(
+        &self,
+        capture_method: Option<enums::CaptureMethod>,
+    ) -> CustomResult<(), errors::ConnectorError> {
+        let capture_method = capture_method.unwrap_or_default();
+        match capture_method {
+            enums::CaptureMethod::Automatic | enums::CaptureMethod::Manual => Ok(()),
+            enums::CaptureMethod::ManualMultiple | enums::CaptureMethod::Scheduled => Err(
+                connector_utils::construct_not_implemented_error_report(capture_method, self.id()),
+            ),
+        }
     }
 }
 
@@ -497,6 +515,7 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         req: &types::PaymentsAuthorizeRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
+        self.validate_capture_method(req.request.capture_method)?;
         let request = Some(
             services::RequestBuilder::new()
                 .method(services::Method::Post)

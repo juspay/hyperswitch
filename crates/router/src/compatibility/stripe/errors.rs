@@ -79,6 +79,9 @@ pub enum StripeErrorCode {
     #[error(error_type = StripeErrorType::InvalidRequestError, code = "resource_missing", message = "No such config")]
     ConfigNotFound,
 
+    #[error(error_type = StripeErrorType::InvalidRequestError, code = "duplicate_resource", message = "Duplicate config")]
+    DuplicateConfig,
+
     #[error(error_type = StripeErrorType::InvalidRequestError, code = "resource_missing", message = "No such payment")]
     PaymentNotFound,
 
@@ -87,6 +90,9 @@ pub enum StripeErrorCode {
 
     #[error(error_type = StripeErrorType::InvalidRequestError, code = "resource_missing", message = "{message}")]
     GenericNotFoundError { message: String },
+
+    #[error(error_type = StripeErrorType::InvalidRequestError, code = "duplicate_resource", message = "{message}")]
+    GenericDuplicateError { message: String },
 
     #[error(error_type = StripeErrorType::InvalidRequestError, code = "resource_missing", message = "No such merchant account")]
     MerchantAccountNotFound,
@@ -118,8 +124,11 @@ pub enum StripeErrorCode {
     #[error(error_type = StripeErrorType::InvalidRequestError, code = "token_already_used", message = "duplicate merchant account")]
     DuplicateMerchantAccount,
 
-    #[error(error_type = StripeErrorType::InvalidRequestError, code = "token_already_used", message = "The merchant connector account with the specified connector_label '{connector_label}' already exists in our records")]
-    DuplicateMerchantConnectorAccount { connector_label: String },
+    #[error(error_type = StripeErrorType::InvalidRequestError, code = "token_already_used", message = "The merchant connector account with the specified profile_id '{profile_id}' and connector_name '{connector_name}' already exists in our records")]
+    DuplicateMerchantConnectorAccount {
+        profile_id: String,
+        connector_name: String,
+    },
 
     #[error(error_type = StripeErrorType::InvalidRequestError, code = "token_already_used", message = "duplicate payment method")]
     DuplicatePaymentMethod,
@@ -217,8 +226,10 @@ pub enum StripeErrorCode {
     WebhookProcessingError,
     #[error(error_type = StripeErrorType::InvalidRequestError, code = "payment_method_unactivated", message = "The operation cannot be performed as the payment method used has not been activated. Activate the payment method in the Dashboard, then try again.")]
     PaymentMethodUnactivated,
-    #[error(error_type = StripeErrorType::HyperswitchError, code = "", message = "{entity} expired or invalid")]
-    HyperswitchUnprocessableEntity { entity: String },
+    #[error(error_type = StripeErrorType::HyperswitchError, code = "", message = "{message}")]
+    HyperswitchUnprocessableEntity { message: String },
+    #[error(error_type = StripeErrorType::InvalidRequestError, code = "", message = "{message}")]
+    CurrencyNotSupported { message: String },
     // [#216]: https://github.com/juspay/hyperswitch/issues/216
     // Implement the remaining stripe error codes
 
@@ -383,7 +394,7 @@ impl From<errors::ApiErrorResponse> for StripeErrorCode {
             errors::ApiErrorResponse::Unauthorized
             | errors::ApiErrorResponse::InvalidJwtToken
             | errors::ApiErrorResponse::GenericUnauthorized { .. }
-            | errors::ApiErrorResponse::AccessForbidden
+            | errors::ApiErrorResponse::AccessForbidden { .. }
             | errors::ApiErrorResponse::InvalidEphemeralKey => Self::Unauthorized,
             errors::ApiErrorResponse::InvalidRequestUrl
             | errors::ApiErrorResponse::InvalidHttpMethod
@@ -395,8 +406,8 @@ impl From<errors::ApiErrorResponse> for StripeErrorCode {
                     param: field_name.to_string(),
                 }
             }
-            errors::ApiErrorResponse::UnprocessableEntity { entity } => {
-                Self::HyperswitchUnprocessableEntity { entity }
+            errors::ApiErrorResponse::UnprocessableEntity { message } => {
+                Self::HyperswitchUnprocessableEntity { message }
             }
             errors::ApiErrorResponse::MissingRequiredFields { field_names } => {
                 // Instead of creating a new error variant in StripeErrorCode for MissingRequiredFields, converted vec<&str> to String
@@ -407,6 +418,9 @@ impl From<errors::ApiErrorResponse> for StripeErrorCode {
             }
             errors::ApiErrorResponse::GenericNotFoundError { message } => {
                 Self::GenericNotFoundError { message }
+            }
+            errors::ApiErrorResponse::GenericDuplicateError { message } => {
+                Self::GenericDuplicateError { message }
             }
             // parameter unknown, invalid request error // actually if we type wrong values in address we get this error. Stripe throws parameter unknown. I don't know if stripe is validating email and stuff
             errors::ApiErrorResponse::InvalidDataFormat {
@@ -460,6 +474,7 @@ impl From<errors::ApiErrorResponse> for StripeErrorCode {
             errors::ApiErrorResponse::MandateActive => Self::MandateActive, //not a stripe code
             errors::ApiErrorResponse::CustomerRedacted => Self::CustomerRedacted, //not a stripe code
             errors::ApiErrorResponse::ConfigNotFound => Self::ConfigNotFound, // not a stripe code
+            errors::ApiErrorResponse::DuplicateConfig => Self::DuplicateConfig, // not a stripe code
             errors::ApiErrorResponse::DuplicateRefundRequest => Self::DuplicateRefundRequest,
             errors::ApiErrorResponse::DuplicatePayout { payout_id } => {
                 Self::DuplicatePayout { payout_id }
@@ -483,9 +498,13 @@ impl From<errors::ApiErrorResponse> for StripeErrorCode {
             }
             errors::ApiErrorResponse::ReturnUrlUnavailable => Self::ReturnUrlUnavailable,
             errors::ApiErrorResponse::DuplicateMerchantAccount => Self::DuplicateMerchantAccount,
-            errors::ApiErrorResponse::DuplicateMerchantConnectorAccount { connector_label } => {
-                Self::DuplicateMerchantConnectorAccount { connector_label }
-            }
+            errors::ApiErrorResponse::DuplicateMerchantConnectorAccount {
+                profile_id,
+                connector_name,
+            } => Self::DuplicateMerchantConnectorAccount {
+                profile_id,
+                connector_name,
+            },
             errors::ApiErrorResponse::DuplicatePaymentMethod => Self::DuplicatePaymentMethod,
             errors::ApiErrorResponse::ClientSecretInvalid => Self::PaymentIntentInvalidParameter {
                 param: "client_secret".to_owned(),
@@ -525,6 +544,10 @@ impl From<errors::ApiErrorResponse> for StripeErrorCode {
                 object: "dispute".to_owned(),
                 id: dispute_id,
             },
+            errors::ApiErrorResponse::BusinessProfileNotFound { id } => Self::ResourceMissing {
+                object: "business_profile".to_owned(),
+                id,
+            },
             errors::ApiErrorResponse::DisputeStatusValidationFailed { reason } => {
                 Self::InternalServerError
             }
@@ -539,6 +562,9 @@ impl From<errors::ApiErrorResponse> for StripeErrorCode {
                 Self::MerchantConnectorAccountDisabled
             }
             errors::ApiErrorResponse::NotSupported { .. } => Self::InternalServerError,
+            errors::ApiErrorResponse::CurrencyNotSupported { message } => {
+                Self::CurrencyNotSupported { message }
+            }
             errors::ApiErrorResponse::FileProviderNotSupported { .. } => {
                 Self::FileProviderNotSupported
             }
@@ -575,6 +601,7 @@ impl actix_web::ResponseError for StripeErrorCode {
             | Self::RefundNotFound
             | Self::CustomerNotFound
             | Self::ConfigNotFound
+            | Self::DuplicateConfig
             | Self::ClientSecretNotFound
             | Self::PaymentNotFound
             | Self::PaymentMethodNotFound
@@ -602,6 +629,7 @@ impl actix_web::ResponseError for StripeErrorCode {
             | Self::PaymentIntentMandateInvalid { .. }
             | Self::PaymentIntentUnexpectedState { .. }
             | Self::DuplicatePayment { .. }
+            | Self::GenericDuplicateError { .. }
             | Self::IncorrectConnectorNameGiven
             | Self::ResourceMissing { .. }
             | Self::FileValidationFailed
@@ -612,6 +640,7 @@ impl actix_web::ResponseError for StripeErrorCode {
             | Self::FileNotFound
             | Self::FileNotAvailable
             | Self::FileProviderNotSupported
+            | Self::CurrencyNotSupported { .. }
             | Self::PaymentMethodUnactivated => StatusCode::BAD_REQUEST,
             Self::RefundFailed
             | Self::PayoutFailed

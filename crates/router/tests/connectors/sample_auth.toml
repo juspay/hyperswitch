@@ -164,3 +164,14 @@ key1 = "PowerTranz-PowerTranzId"
 
 [stax]
 api_key="API Key"
+
+[boku]
+api_key="API Key"
+key1 = "transaction key"
+
+[square]
+api_key="API Key"
+key1 = "transaction key"
+
+[helcim]
+api_key="API Key"

@@ -1,15 +1,18 @@
-mod transformers;
+pub mod transformers;
 
 use std::fmt::Debug;
 
 use base64::Engine;
 use common_utils::{crypto, ext_traits::ByteSliceExt};
+use diesel_models::enums;
 use error_stack::{IntoReport, ResultExt};
+use masking::PeekInterface;
 use transformers as noon;
 
 use super::utils::PaymentsSyncRequestData;
 use crate::{
     configs::settings,
+    connector::utils as connector_utils,
     consts,
     core::{
         errors::{self, CustomResult},
@@ -19,7 +22,7 @@ use crate::{
     services::{
         self,
         request::{self, Mask},
-        ConnectorIntegration,
+        ConnectorIntegration, ConnectorValidation,
     },
     types::{
         self,
@@ -95,13 +98,19 @@ impl ConnectorCommon for Noon {
     ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
         let auth = noon::NoonAuthType::try_from(auth_type)?;
 
-        let encoded_api_key = consts::BASE64_ENGINE.encode(format!(
-            "{}.{}:{}",
-            auth.business_identifier, auth.application_identifier, auth.api_key
-        ));
+        let encoded_api_key = auth
+            .business_identifier
+            .zip(auth.application_identifier)
+            .zip(auth.api_key)
+            .map(|((business_identifier, application_identifier), api_key)| {
+                consts::BASE64_ENGINE.encode(format!(
+                    "{}.{}:{}",
+                    business_identifier, application_identifier, api_key
+                ))
+            });
         Ok(vec![(
             headers::AUTHORIZATION.to_string(),
-            format!("Key_Test {encoded_api_key}").into_masked(),
+            format!("Key_Test {}", encoded_api_key.peek()).into_masked(),
         )])
     }
 
@@ -120,6 +129,21 @@ impl ConnectorCommon for Noon {
             message: response.message,
             reason: Some(response.class_description),
         })
+    }
+}
+
+impl ConnectorValidation for Noon {
+    fn validate_capture_method(
+        &self,
+        capture_method: Option<enums::CaptureMethod>,
+    ) -> CustomResult<(), errors::ConnectorError> {
+        let capture_method = capture_method.unwrap_or_default();
+        match capture_method {
+            enums::CaptureMethod::Automatic | enums::CaptureMethod::Manual => Ok(()),
+            enums::CaptureMethod::ManualMultiple | enums::CaptureMethod::Scheduled => Err(
+                connector_utils::construct_not_implemented_error_report(capture_method, self.id()),
+            ),
+        }
     }
 }
 
@@ -180,6 +204,7 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         req: &types::PaymentsAuthorizeRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
+        self.validate_capture_method(req.request.capture_method)?;
         Ok(Some(
             services::RequestBuilder::new()
                 .method(services::Method::Post)

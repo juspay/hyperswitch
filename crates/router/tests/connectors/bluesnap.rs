@@ -25,10 +25,11 @@ impl utils::Connector for BluesnapTest {
     }
 
     fn get_auth_token(&self) -> ConnectorAuthType {
-        types::ConnectorAuthType::from(
+        utils::to_connector_auth_type(
             connector_auth::ConnectorAuthentication::new()
                 .bluesnap
-                .expect("Missing connector authentication configuration"),
+                .expect("Missing connector authentication configuration")
+                .into(),
         )
     }
 
@@ -410,7 +411,7 @@ async fn should_fail_payment_for_incorrect_cvc() {
         .unwrap();
     assert_eq!(
         response.response.unwrap_err().message,
-        "Order creation failure due to problematic input.".to_string(),
+        "VALIDATION_GENERAL_FAILURE".to_string(),
     );
 }
 
@@ -436,7 +437,7 @@ async fn should_fail_payment_for_invalid_exp_month() {
         .unwrap();
     assert_eq!(
         response.response.unwrap_err().message,
-        "Order creation failure due to problematic input.".to_string(),
+        "VALIDATION_GENERAL_FAILURE".to_string(),
     );
 }
 
@@ -462,7 +463,7 @@ async fn should_fail_payment_for_incorrect_expiry_year() {
         .unwrap();
     assert_eq!(
         response.response.unwrap_err().message,
-        "Order creation failure due to problematic input.".to_string(),
+        "VALIDATION_GENERAL_FAILURE".to_string(),
     );
 }
 
@@ -484,7 +485,7 @@ async fn should_fail_void_payment_for_auto_capture() {
         .unwrap();
     assert_eq!(
         void_response.response.unwrap_err().message,
-        "Transaction AUTH_REVERSAL failed. Transaction has already been captured."
+        "TRANSACTION_ALREADY_CAPTURED"
     );
 }
 
@@ -523,7 +524,7 @@ async fn should_fail_for_refund_amount_higher_than_payment_amount() {
         .unwrap();
     assert_eq!(
         response.response.unwrap_err().message,
-        "Refund amount cannot be more than the refundable order amount.",
+        "REFUND_MAX_AMOUNT_FAILURE",
     );
 }
 

@@ -1,21 +1,26 @@
-mod transformers;
+pub mod transformers;
 
 use std::fmt::Debug;
 
 use base64::Engine;
+use diesel_models::enums;
 use error_stack::{IntoReport, ResultExt};
+use masking::PeekInterface;
 use transformers as forte;
 
 use crate::{
     configs::settings,
-    connector::utils::{PaymentsSyncRequestData, RefundsRequestData},
+    connector::{
+        utils as connector_utils,
+        utils::{PaymentsSyncRequestData, RefundsRequestData},
+    },
     consts,
     core::errors::{self, CustomResult},
     headers,
     services::{
         self,
         request::{self, Mask},
-        ConnectorIntegration,
+        ConnectorIntegration, ConnectorValidation,
     },
     types::{
         self,
@@ -90,7 +95,11 @@ impl ConnectorCommon for Forte {
         let auth: forte::ForteAuthType = auth_type
             .try_into()
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
-        let raw_basic_token = format!("{}:{}", auth.api_access_id, auth.api_secret_key);
+        let raw_basic_token = format!(
+            "{}:{}",
+            auth.api_access_id.peek(),
+            auth.api_secret_key.peek()
+        );
         let basic_token = format!("Basic {}", consts::BASE64_ENGINE.encode(raw_basic_token));
         Ok(vec![
             (
@@ -122,6 +131,21 @@ impl ConnectorCommon for Forte {
             message,
             reason: None,
         })
+    }
+}
+
+impl ConnectorValidation for Forte {
+    fn validate_capture_method(
+        &self,
+        capture_method: Option<enums::CaptureMethod>,
+    ) -> CustomResult<(), errors::ConnectorError> {
+        let capture_method = capture_method.unwrap_or_default();
+        match capture_method {
+            enums::CaptureMethod::Automatic | enums::CaptureMethod::Manual => Ok(()),
+            enums::CaptureMethod::ManualMultiple | enums::CaptureMethod::Scheduled => Err(
+                connector_utils::construct_not_supported_error_report(capture_method, self.id()),
+            ),
+        }
     }
 }
 
@@ -164,8 +188,8 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         Ok(format!(
             "{}/organizations/{}/locations/{}/transactions",
             self.base_url(connectors),
-            auth.organization_id,
-            auth.location_id
+            auth.organization_id.peek(),
+            auth.location_id.peek()
         ))
     }
 
@@ -187,6 +211,7 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         req: &types::PaymentsAuthorizeRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
+        self.validate_capture_method(req.request.capture_method)?;
         Ok(Some(
             services::RequestBuilder::new()
                 .method(services::Method::Post)
@@ -252,8 +277,8 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
         Ok(format!(
             "{}/organizations/{}/locations/{}/transactions/{}",
             self.base_url(connectors),
-            auth.organization_id,
-            auth.location_id,
+            auth.organization_id.peek(),
+            auth.location_id.peek(),
             txn_id
         ))
     }
@@ -320,8 +345,8 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
         Ok(format!(
             "{}/organizations/{}/locations/{}/transactions",
             self.base_url(connectors),
-            auth.organization_id,
-            auth.location_id
+            auth.organization_id.peek(),
+            auth.location_id.peek()
         ))
     }
 
@@ -403,8 +428,8 @@ impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsR
         Ok(format!(
             "{}/organizations/{}/locations/{}/transactions/{}",
             self.base_url(connectors),
-            auth.organization_id,
-            auth.location_id,
+            auth.organization_id.peek(),
+            auth.location_id.peek(),
             req.request.connector_transaction_id
         ))
     }
@@ -483,8 +508,8 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
         Ok(format!(
             "{}/organizations/{}/locations/{}/transactions",
             self.base_url(connectors),
-            auth.organization_id,
-            auth.location_id
+            auth.organization_id.peek(),
+            auth.location_id.peek()
         ))
     }
 
@@ -564,8 +589,8 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
         Ok(format!(
             "{}/organizations/{}/locations/{}/transactions/{}",
             self.base_url(connectors),
-            auth.organization_id,
-            auth.location_id,
+            auth.organization_id.peek(),
+            auth.location_id.peek(),
             req.request.get_connector_refund_id()?
         ))
     }

@@ -1,10 +1,11 @@
-mod transformers;
+pub mod transformers;
 
 use std::fmt::Debug;
 
 use base64::Engine;
+use diesel_models::enums;
 use error_stack::{IntoReport, ResultExt};
-use masking::PeekInterface;
+use masking::{ExposeInterface, PeekInterface};
 use ring::{digest, hmac};
 use time::OffsetDateTime;
 use transformers as cybersource;
@@ -12,14 +13,14 @@ use url::Url;
 
 use crate::{
     configs::settings,
-    connector::utils::RefundsRequestData,
+    connector::{utils as connector_utils, utils::RefundsRequestData},
     consts,
     core::errors::{self, CustomResult},
     headers,
     services::{
         self,
         request::{self, Mask},
-        ConnectorIntegration,
+        ConnectorIntegration, ConnectorValidation,
     },
     types::{
         self,
@@ -60,17 +61,19 @@ impl Cybersource {
             format!("(request-target): get {resource}\n")
         };
         let signature_string = format!(
-            "host: {host}\ndate: {date}\n{request_target}v-c-merchant-id: {merchant_account}"
+            "host: {host}\ndate: {date}\n{request_target}v-c-merchant-id: {}",
+            merchant_account.peek()
         );
         let key_value = consts::BASE64_ENGINE
-            .decode(api_secret)
+            .decode(api_secret.expose())
             .into_report()
             .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         let key = hmac::Key::new(hmac::HMAC_SHA256, &key_value);
         let signature_value =
             consts::BASE64_ENGINE.encode(hmac::sign(&key, signature_string.as_bytes()).as_ref());
         let signature_header = format!(
-            r#"keyid="{api_key}", algorithm="HmacSHA256", headers="{headers}", signature="{signature_value}""#
+            r#"keyid="{}", algorithm="HmacSHA256", headers="{headers}", signature="{signature_value}""#,
+            api_key.peek()
         );
 
         Ok(signature_header)
@@ -133,6 +136,21 @@ impl ConnectorCommon for Cybersource {
     }
 }
 
+impl ConnectorValidation for Cybersource {
+    fn validate_capture_method(
+        &self,
+        capture_method: Option<enums::CaptureMethod>,
+    ) -> CustomResult<(), errors::ConnectorError> {
+        let capture_method = capture_method.unwrap_or_default();
+        match capture_method {
+            enums::CaptureMethod::Automatic | enums::CaptureMethod::Manual => Ok(()),
+            enums::CaptureMethod::ManualMultiple | enums::CaptureMethod::Scheduled => Err(
+                connector_utils::construct_not_implemented_error_report(capture_method, self.id()),
+            ),
+        }
+    }
+}
+
 impl<Flow, Request, Response> ConnectorCommonExt<Flow, Request, Response> for Cybersource
 where
     Self: ConnectorIntegration<Flow, Request, Response>,
@@ -162,7 +180,7 @@ where
         let sha256 = self.generate_digest(
             cybersource_req
                 .map_or("{}".to_string(), |s| {
-                    types::RequestBody::get_inner_value(s).peek().to_owned()
+                    types::RequestBody::get_inner_value(s).expose()
                 })
                 .as_bytes(),
         );
@@ -460,6 +478,7 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         req: &types::PaymentsAuthorizeRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
+        self.validate_capture_method(req.request.capture_method)?;
         let request = services::RequestBuilder::new()
             .method(services::Method::Post)
             .url(&types::PaymentsAuthorizeType::get_url(

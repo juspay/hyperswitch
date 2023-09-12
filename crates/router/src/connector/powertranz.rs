@@ -1,14 +1,17 @@
-mod transformers;
+pub mod transformers;
 
 use std::fmt::Debug;
 
 use api_models::enums::AuthenticationType;
 use common_utils::ext_traits::ValueExt;
+use diesel_models::enums;
 use error_stack::{IntoReport, ResultExt};
 use masking::ExposeInterface;
 use transformers as powertranz;
 
-use super::utils::{PaymentsAuthorizeRequestData, PaymentsCompleteAuthorizeRequestData};
+use super::utils::{
+    self as connector_utils, PaymentsAuthorizeRequestData, PaymentsCompleteAuthorizeRequestData,
+};
 use crate::{
     configs::settings,
     consts,
@@ -17,7 +20,7 @@ use crate::{
     services::{
         self,
         request::{self, Mask},
-        ConnectorIntegration,
+        ConnectorIntegration, ConnectorValidation,
     },
     types::{
         self,
@@ -110,27 +113,29 @@ impl ConnectorCommon for Powertranz {
         &self,
         res: Response,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        let response: powertranz::PowertranzErrorResponse = res
-            .response
-            .parse_struct("PowertranzErrorResponse")
-            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-        let first_error = response.errors.first();
-        let code = first_error.map(|error| error.code.clone());
-        let message = first_error.map(|error| error.message.clone());
-
+        // For error scenerios connector respond with 200 http status code and error response object in response
+        // For http status code other than 200 they send empty response back
         Ok(ErrorResponse {
             status_code: res.status_code,
-            code: code.unwrap_or_else(|| consts::NO_ERROR_CODE.to_string()),
-            message: message.unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
-            reason: Some(
-                response
-                    .errors
-                    .iter()
-                    .map(|error| format!("{} : {}", error.code, error.message))
-                    .collect::<Vec<_>>()
-                    .join(", "),
-            ),
+            code: consts::NO_ERROR_CODE.to_string(),
+            message: consts::NO_ERROR_MESSAGE.to_string(),
+            reason: None,
         })
+    }
+}
+
+impl ConnectorValidation for Powertranz {
+    fn validate_capture_method(
+        &self,
+        capture_method: Option<enums::CaptureMethod>,
+    ) -> CustomResult<(), errors::ConnectorError> {
+        let capture_method = capture_method.unwrap_or_default();
+        match capture_method {
+            enums::CaptureMethod::Automatic | enums::CaptureMethod::Manual => Ok(()),
+            enums::CaptureMethod::ManualMultiple | enums::CaptureMethod::Scheduled => Err(
+                connector_utils::construct_not_supported_error_report(capture_method, self.id()),
+            ),
+        }
     }
 }
 
@@ -199,6 +204,7 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         req: &types::PaymentsAuthorizeRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
+        self.validate_capture_method(req.request.capture_method)?;
         Ok(Some(
             services::RequestBuilder::new()
                 .method(services::Method::Post)

@@ -6,17 +6,11 @@ use futures::TryStreamExt;
 use crate::{
     core::{
         errors::{self, StorageErrorExt},
-        files,
-        payments::{self, helpers as payments_helpers},
-        utils,
+        files, payments, utils,
     },
     routes::AppState,
     services,
-    types::{
-        self, api,
-        domain::{self},
-        transformers::ForeignTryFrom,
-    },
+    types::{self, api, domain, transformers::ForeignTryFrom},
 };
 
 pub async fn read_string(field: &mut Field) -> Option<String> {
@@ -266,7 +260,7 @@ pub async fn retrieve_file_and_provider_file_id_from_file_id(
 }
 
 //Upload file to connector if it supports / store it in S3 and return file_upload_provider, provider_file_id accordingly
-pub async fn upload_and_get_provider_provider_file_id_connector_label(
+pub async fn upload_and_get_provider_provider_file_id_profile_id(
     state: &AppState,
     merchant_account: &domain::MerchantAccount,
     key_store: &domain::MerchantKeyStore,
@@ -315,12 +309,7 @@ pub async fn upload_and_get_provider_provider_file_id_connector_label(
                     )
                     .await
                     .change_context(errors::ApiErrorResponse::PaymentNotFound)?;
-                let connector_label = payments_helpers::get_connector_label(
-                    payment_intent.business_country,
-                    &payment_intent.business_label,
-                    payment_attempt.business_sub_label.as_ref(),
-                    &dispute.connector,
-                );
+
                 let connector_integration: services::BoxedConnectorIntegration<
                     '_,
                     api::Upload,
@@ -336,7 +325,6 @@ pub async fn upload_and_get_provider_provider_file_id_connector_label(
                     create_file_request,
                     &dispute.connector,
                     file_key,
-                    connector_label.clone(),
                 )
                 .await
                 .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -365,7 +353,7 @@ pub async fn upload_and_get_provider_provider_file_id_connector_label(
                     api_models::enums::FileUploadProvider::foreign_try_from(
                         &connector_data.connector_name,
                     )?,
-                    Some(connector_label),
+                    payment_intent.profile_id,
                 ))
             } else {
                 upload_file(

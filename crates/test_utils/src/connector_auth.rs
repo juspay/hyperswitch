@@ -1,7 +1,6 @@
 use std::{collections::HashMap, env};
 
-use masking::{PeekInterface, Secret};
-use router::types::ConnectorAuthType;
+use masking::Secret;
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -20,6 +19,7 @@ pub struct ConnectorAuthentication {
     pub bambora: Option<BodyKey>,
     pub bitpay: Option<HeaderKey>,
     pub bluesnap: Option<BodyKey>,
+    pub boku: Option<BodyKey>,
     pub cashtocode: Option<BodyKey>,
     pub checkout: Option<SignatureKey>,
     pub coinbase: Option<HeaderKey>,
@@ -32,6 +32,7 @@ pub struct ConnectorAuthentication {
     pub forte: Option<MultiAuthKey>,
     pub globalpay: Option<BodyKey>,
     pub globepay: Option<BodyKey>,
+    pub helcim: Option<HeaderKey>,
     pub iatapay: Option<SignatureKey>,
     pub mollie: Option<BodyKey>,
     pub multisafepay: Option<HeaderKey>,
@@ -48,6 +49,7 @@ pub struct ConnectorAuthentication {
     pub powertranz: Option<BodyKey>,
     pub rapyd: Option<BodyKey>,
     pub shift4: Option<HeaderKey>,
+    pub square: Option<BodyKey>,
     pub stax: Option<HeaderKey>,
     pub stripe: Option<HeaderKey>,
     pub stripe_au: Option<HeaderKey>,
@@ -69,6 +71,9 @@ impl Default for ConnectorAuthentication {
 
 #[allow(dead_code)]
 impl ConnectorAuthentication {
+    /// # Panics
+    ///
+    /// Will panic if `CONNECTOR_AUTH_FILE_PATH` env is not set
     #[allow(clippy::expect_used)]
     pub fn new() -> Self {
         // Do `export CONNECTOR_AUTH_FILE_PATH="/hyperswitch/crates/router/tests/connectors/sample_auth.toml"`
@@ -98,6 +103,9 @@ impl ConnectorAuthenticationMap {
         &self.0
     }
 
+    /// # Panics
+    ///
+    /// Will panic if `CONNECTOR_AUTH_FILE_PATH` env  is not set
     #[allow(clippy::expect_used)]
     pub fn new() -> Self {
         // Do `export CONNECTOR_AUTH_FILE_PATH="/hyperswitch/crates/router/tests/connectors/sample_auth.toml"`
@@ -148,25 +156,43 @@ impl ConnectorAuthenticationMap {
                             table.get("key2"),
                         ) {
                             (Some(api_key), None, None, None) => ConnectorAuthType::HeaderKey {
-                                api_key: api_key.as_str().unwrap_or_default().to_string(),
+                                api_key: Secret::new(
+                                    api_key.as_str().unwrap_or_default().to_string(),
+                                ),
                             },
                             (Some(api_key), Some(key1), None, None) => ConnectorAuthType::BodyKey {
-                                api_key: api_key.as_str().unwrap_or_default().to_string(),
-                                key1: key1.as_str().unwrap_or_default().to_string(),
+                                api_key: Secret::new(
+                                    api_key.as_str().unwrap_or_default().to_string(),
+                                ),
+                                key1: Secret::new(key1.as_str().unwrap_or_default().to_string()),
                             },
                             (Some(api_key), Some(key1), Some(api_secret), None) => {
                                 ConnectorAuthType::SignatureKey {
-                                    api_key: api_key.as_str().unwrap_or_default().to_string(),
-                                    key1: key1.as_str().unwrap_or_default().to_string(),
-                                    api_secret: api_secret.as_str().unwrap_or_default().to_string(),
+                                    api_key: Secret::new(
+                                        api_key.as_str().unwrap_or_default().to_string(),
+                                    ),
+                                    key1: Secret::new(
+                                        key1.as_str().unwrap_or_default().to_string(),
+                                    ),
+                                    api_secret: Secret::new(
+                                        api_secret.as_str().unwrap_or_default().to_string(),
+                                    ),
                                 }
                             }
                             (Some(api_key), Some(key1), Some(api_secret), Some(key2)) => {
                                 ConnectorAuthType::MultiAuthKey {
-                                    api_key: api_key.as_str().unwrap_or_default().to_string(),
-                                    key1: key1.as_str().unwrap_or_default().to_string(),
-                                    api_secret: api_secret.as_str().unwrap_or_default().to_string(),
-                                    key2: key2.as_str().unwrap_or_default().to_string(),
+                                    api_key: Secret::new(
+                                        api_key.as_str().unwrap_or_default().to_string(),
+                                    ),
+                                    key1: Secret::new(
+                                        key1.as_str().unwrap_or_default().to_string(),
+                                    ),
+                                    api_secret: Secret::new(
+                                        api_secret.as_str().unwrap_or_default().to_string(),
+                                    ),
+                                    key2: Secret::new(
+                                        key2.as_str().unwrap_or_default().to_string(),
+                                    ),
                                 }
                             }
                             _ => ConnectorAuthType::NoKey,
@@ -190,7 +216,7 @@ pub struct HeaderKey {
 impl From<HeaderKey> for ConnectorAuthType {
     fn from(key: HeaderKey) -> Self {
         Self::HeaderKey {
-            api_key: key.api_key.peek().to_string(),
+            api_key: key.api_key,
         }
     }
 }
@@ -204,8 +230,8 @@ pub struct BodyKey {
 impl From<BodyKey> for ConnectorAuthType {
     fn from(key: BodyKey) -> Self {
         Self::BodyKey {
-            api_key: key.api_key.peek().to_string(),
-            key1: key.key1.peek().to_string(),
+            api_key: key.api_key,
+            key1: key.key1,
         }
     }
 }
@@ -220,9 +246,9 @@ pub struct SignatureKey {
 impl From<SignatureKey> for ConnectorAuthType {
     fn from(key: SignatureKey) -> Self {
         Self::SignatureKey {
-            api_key: key.api_key.peek().to_string(),
-            key1: key.key1.peek().to_string(),
-            api_secret: key.api_secret.peek().to_string(),
+            api_key: key.api_key,
+            key1: key.key1,
+            api_secret: key.api_secret,
         }
     }
 }
@@ -238,10 +264,10 @@ pub struct MultiAuthKey {
 impl From<MultiAuthKey> for ConnectorAuthType {
     fn from(key: MultiAuthKey) -> Self {
         Self::MultiAuthKey {
-            api_key: key.api_key.peek().to_string(),
-            key1: key.key1.peek().to_string(),
-            api_secret: key.api_secret.peek().to_string(),
-            key2: key.key2.peek().to_string(),
+            api_key: key.api_key,
+            key1: key.key1,
+            api_secret: key.api_secret,
+            key2: key.key2,
         }
     }
 }
@@ -250,6 +276,9 @@ impl From<MultiAuthKey> for ConnectorAuthType {
 pub struct AutomationConfigs {
     pub hs_base_url: Option<String>,
     pub hs_api_key: Option<String>,
+    pub hs_api_keys: Option<String>,
+    pub hs_webhook_url: Option<String>,
+    pub hs_test_env: Option<String>,
     pub hs_test_browser: Option<String>,
     pub chrome_profile_path: Option<String>,
     pub firefox_profile_path: Option<String>,
@@ -269,4 +298,29 @@ pub struct AutomationConfigs {
     pub airwallex_merchant_name: Option<String>,
     pub adyen_bancontact_username: Option<String>,
     pub adyen_bancontact_pass: Option<String>,
+}
+
+#[derive(Default, Debug, Clone, serde::Deserialize)]
+#[serde(tag = "auth_type")]
+pub enum ConnectorAuthType {
+    HeaderKey {
+        api_key: Secret<String>,
+    },
+    BodyKey {
+        api_key: Secret<String>,
+        key1: Secret<String>,
+    },
+    SignatureKey {
+        api_key: Secret<String>,
+        key1: Secret<String>,
+        api_secret: Secret<String>,
+    },
+    MultiAuthKey {
+        api_key: Secret<String>,
+        key1: Secret<String>,
+        api_secret: Secret<String>,
+        key2: Secret<String>,
+    },
+    #[default]
+    NoKey,
 }

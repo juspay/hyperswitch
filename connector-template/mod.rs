@@ -1,4 +1,4 @@
-mod transformers;
+pub mod transformers;
 
 use std::fmt::Debug;
 use error_stack::{ResultExt, IntoReport};
@@ -10,7 +10,7 @@ use crate::{
     core::{
         errors::{self, CustomResult},
     },
-    headers, services::{self, ConnectorIntegration, request::{self, Mask}},
+    headers, services::{self, ConnectorIntegration, ConnectorValidation, request::{self, Mask}},
     types::{
         self,
         api::{self, ConnectorCommon, ConnectorCommonExt},
@@ -102,6 +102,11 @@ impl ConnectorCommon for {{project-name | downcase | pascal_case}} {
     }
 }
 
+impl ConnectorValidation for {{project-name | downcase | pascal_case}} 
+{
+    //TODO: implement functions when support enabled
+}
+
 impl
     ConnectorIntegration<
         api::Session,
@@ -156,6 +161,7 @@ impl
         req: &types::PaymentsAuthorizeRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
+        self.validate_capture_method(req.request.capture_method)?;
         Ok(Some(
             services::RequestBuilder::new()
                 .method(services::Method::Post)

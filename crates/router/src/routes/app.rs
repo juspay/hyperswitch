@@ -1,12 +1,18 @@
 use actix_web::{web, Scope};
 #[cfg(feature = "email")]
 use external_services::email::{AwsSes, EmailClient};
+#[cfg(feature = "kms")]
+use external_services::kms::{self, decrypt::KmsDecrypt};
+use scheduler::SchedulerInterface;
+use storage_impl::MockDb;
 use tokio::sync::oneshot;
 
 #[cfg(feature = "dummy_connector")]
 use super::dummy_connector::*;
 #[cfg(feature = "payouts")]
 use super::payouts::*;
+#[cfg(all(feature = "olap", feature = "kms"))]
+use super::verification::apple_pay_merchant_registration;
 #[cfg(feature = "olap")]
 use super::{admin::*, api_keys::*, disputes::*, files::*};
 use super::{cache::*, health::*};
@@ -14,13 +20,11 @@ use super::{cache::*, health::*};
 use super::{configs::*, customers::*, mandates::*, payments::*, refunds::*};
 #[cfg(feature = "oltp")]
 use super::{ephemeral_key::*, payment_methods::*, webhooks::*};
-#[cfg(feature = "kms")]
-use crate::configs::kms;
 use crate::{
     configs::settings,
-    db::{MockDb, StorageImpl, StorageInterface},
+    db::{StorageImpl, StorageInterface},
     routes::cards_info::card_iin_info,
-    services::Store,
+    services::get_store,
 };
 
 #[derive(Clone)]
@@ -32,6 +36,13 @@ pub struct AppState {
     pub email_client: Box<dyn EmailClient>,
     #[cfg(feature = "kms")]
     pub kms_secrets: settings::ActiveKmsSecrets,
+    pub api_client: Box<dyn crate::services::ApiClient>,
+}
+
+impl scheduler::SchedulerAppState for AppState {
+    fn get_db(&self) -> Box<dyn SchedulerInterface> {
+        self.store.get_scheduler_db()
+    }
 }
 
 pub trait AppStateInfo {
@@ -59,32 +70,43 @@ impl AppStateInfo for AppState {
 }
 
 impl AppState {
+    /// # Panics
+    ///
+    /// Panics if Store can't be created or JWE decryption fails
     pub async fn with_storage(
         conf: settings::Settings,
         storage_impl: StorageImpl,
         shut_down_signal: oneshot::Sender<()>,
+        api_client: Box<dyn crate::services::ApiClient>,
     ) -> Self {
+        #[cfg(feature = "kms")]
+        let kms_client = kms::get_kms_client(&conf.kms).await;
         let testable = storage_impl == StorageImpl::PostgresqlTest;
         let store: Box<dyn StorageInterface> = match storage_impl {
-            StorageImpl::Postgresql | StorageImpl::PostgresqlTest => {
-                Box::new(Store::new(&conf, testable, shut_down_signal).await)
-            }
-            StorageImpl::Mock => Box::new(MockDb::new(&conf).await),
+            StorageImpl::Postgresql | StorageImpl::PostgresqlTest => Box::new(
+                #[allow(clippy::expect_used)]
+                get_store(&conf, shut_down_signal, testable)
+                    .await
+                    .expect("Failed to create store"),
+            ),
+            #[allow(clippy::expect_used)]
+            StorageImpl::Mock => Box::new(
+                MockDb::new(&conf.redis)
+                    .await
+                    .expect("Failed to create mock store"),
+            ),
         };
 
         #[cfg(feature = "kms")]
         #[allow(clippy::expect_used)]
-        let kms_secrets = kms::KmsDecrypt::decrypt_inner(
-            settings::ActiveKmsSecrets {
-                jwekey: conf.jwekey.clone().into(),
-            },
-            &conf.kms,
-        )
+        let kms_secrets = settings::ActiveKmsSecrets {
+            jwekey: conf.jwekey.clone().into(),
+        }
+        .decrypt_inner(kms_client)
         .await
         .expect("Failed while performing KMS decryption");
 
         #[cfg(feature = "email")]
-        #[allow(clippy::expect_used)]
         let email_client = Box::new(AwsSes::new(&conf.email).await);
         Self {
             flow_name: String::from("default"),
@@ -94,11 +116,16 @@ impl AppState {
             email_client,
             #[cfg(feature = "kms")]
             kms_secrets,
+            api_client,
         }
     }
 
-    pub async fn new(conf: settings::Settings, shut_down_signal: oneshot::Sender<()>) -> Self {
-        Self::with_storage(conf, StorageImpl::Postgresql, shut_down_signal).await
+    pub async fn new(
+        conf: settings::Settings,
+        shut_down_signal: oneshot::Sender<()>,
+        api_client: Box<dyn crate::services::ApiClient>,
+    ) -> Self {
+        Self::with_storage(conf, StorageImpl::Postgresql, shut_down_signal, api_client).await
     }
 }
 
@@ -118,12 +145,13 @@ pub struct DummyConnector;
 #[cfg(feature = "dummy_connector")]
 impl DummyConnector {
     pub fn server(state: AppState) -> Scope {
-        let mut route = web::scope("/dummy-connector").app_data(web::Data::new(state));
+        let mut routes_with_restricted_access = web::scope("");
         #[cfg(not(feature = "external_access_dc"))]
         {
-            route = route.guard(actix_web::guard::Host("localhost"));
+            routes_with_restricted_access =
+                routes_with_restricted_access.guard(actix_web::guard::Host("localhost"));
         }
-        route = route
+        routes_with_restricted_access = routes_with_restricted_access
             .service(web::resource("/payment").route(web::post().to(dummy_connector_payment)))
             .service(
                 web::resource("/payments/{payment_id}")
@@ -136,7 +164,17 @@ impl DummyConnector {
                 web::resource("/refunds/{refund_id}")
                     .route(web::get().to(dummy_connector_refund_data)),
             );
-        route
+        web::scope("/dummy-connector")
+            .app_data(web::Data::new(state))
+            .service(
+                web::resource("/authorize/{attempt_id}")
+                    .route(web::get().to(dummy_connector_authorize_payment)),
+            )
+            .service(
+                web::resource("/complete/{attempt_id}")
+                    .route(web::get().to(dummy_connector_complete_payment)),
+            )
+            .service(routes_with_restricted_access)
     }
 }
 
@@ -150,7 +188,11 @@ impl Payments {
         #[cfg(feature = "olap")]
         {
             route = route
-                .service(web::resource("/list").route(web::get().to(payments_list)))
+                .service(
+                    web::resource("/list")
+                        .route(web::get().to(payments_list))
+                        .route(web::post().to(payments_list_by_filter)),
+                )
                 .service(web::resource("/filter").route(web::post().to(get_filters_for_payments)))
         }
         #[cfg(feature = "oltp")]
@@ -410,7 +452,7 @@ impl Webhooks {
         web::scope("/webhooks")
             .app_data(web::Data::new(config))
             .service(
-                web::resource("/{merchant_id}/{connector_label}")
+                web::resource("/{merchant_id}/{connector_name}")
                     .route(
                         web::post().to(receive_incoming_webhook::<webhook_type::OutgoingWebhook>),
                     )
@@ -511,5 +553,41 @@ impl Cache {
         web::scope("/cache")
             .app_data(web::Data::new(state))
             .service(web::resource("/invalidate/{key}").route(web::post().to(invalidate)))
+    }
+}
+
+pub struct BusinessProfile;
+
+#[cfg(feature = "olap")]
+impl BusinessProfile {
+    pub fn server(state: AppState) -> Scope {
+        web::scope("/account/{account_id}/business_profile")
+            .app_data(web::Data::new(state))
+            .service(
+                web::resource("")
+                    .route(web::post().to(business_profile_create))
+                    .route(web::get().to(business_profiles_list)),
+            )
+            .service(
+                web::resource("/{profile_id}")
+                    .route(web::get().to(business_profile_retrieve))
+                    .route(web::post().to(business_profile_update))
+                    .route(web::delete().to(business_profile_delete)),
+            )
+    }
+}
+
+#[cfg(all(feature = "olap", feature = "kms"))]
+pub struct Verify;
+
+#[cfg(all(feature = "olap", feature = "kms"))]
+impl Verify {
+    pub fn server(state: AppState) -> Scope {
+        web::scope("/verify")
+            .app_data(web::Data::new(state))
+            .service(
+                web::resource("/{merchant_id}/apple_pay")
+                    .route(web::post().to(apple_pay_merchant_registration)),
+            )
     }
 }

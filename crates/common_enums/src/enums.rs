@@ -1,3 +1,5 @@
+use std::num::{ParseFloatError, TryFromIntError};
+
 use router_derive;
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
@@ -5,11 +7,12 @@ use utoipa::ToSchema;
 pub mod diesel_exports {
     pub use super::{
         DbAttemptStatus as AttemptStatus, DbAuthenticationType as AuthenticationType,
-        DbCaptureMethod as CaptureMethod, DbConnectorType as ConnectorType,
-        DbCountryAlpha2 as CountryAlpha2, DbCurrency as Currency, DbDisputeStage as DisputeStage,
-        DbDisputeStatus as DisputeStatus, DbEventType as EventType, DbFutureUsage as FutureUsage,
-        DbIntentStatus as IntentStatus, DbMandateStatus as MandateStatus,
-        DbPaymentMethodIssuerCode as PaymentMethodIssuerCode, DbRefundStatus as RefundStatus,
+        DbCaptureMethod as CaptureMethod, DbCaptureStatus as CaptureStatus,
+        DbConnectorType as ConnectorType, DbCountryAlpha2 as CountryAlpha2, DbCurrency as Currency,
+        DbDisputeStage as DisputeStage, DbDisputeStatus as DisputeStatus, DbEventType as EventType,
+        DbFutureUsage as FutureUsage, DbIntentStatus as IntentStatus,
+        DbMandateStatus as MandateStatus, DbPaymentMethodIssuerCode as PaymentMethodIssuerCode,
+        DbRefundStatus as RefundStatus,
     };
 }
 
@@ -89,6 +92,35 @@ pub enum AuthenticationType {
     Debug,
     Default,
     Eq,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    strum::EnumString,
+    ToSchema,
+    Hash,
+)]
+#[router_derive::diesel_enum(storage_type = "pg_enum")]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum CaptureStatus {
+    // Capture request initiated
+    #[default]
+    Started,
+    // Capture request was successful
+    Charged,
+    // Capture is pending at connector side
+    Pending,
+    // Capture request failed
+    Failed,
+}
+
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Default,
+    Eq,
     Hash,
     PartialEq,
     serde::Deserialize,
@@ -144,6 +176,8 @@ pub enum ConnectorType {
     BankingEntities,
     /// All types of non-banking financial institutions including Insurance, Credit / Lending etc
     NonBankingFinance,
+    /// Acquirers, Gateways etc
+    PayoutProcessor,
 }
 
 #[allow(clippy::upper_case_acronyms)]
@@ -176,6 +210,7 @@ pub enum Currency {
     BBD,
     BDT,
     BHD,
+    BIF,
     BMD,
     BND,
     BOB,
@@ -185,11 +220,13 @@ pub enum Currency {
     BZD,
     CAD,
     CHF,
+    CLP,
     CNY,
     COP,
     CRC,
     CUP,
     CZK,
+    DJF,
     DKK,
     DOP,
     DZD,
@@ -201,6 +238,7 @@ pub enum Currency {
     GHS,
     GIP,
     GMD,
+    GNF,
     GTQ,
     GYD,
     HKD,
@@ -217,6 +255,7 @@ pub enum Currency {
     KES,
     KGS,
     KHR,
+    KMF,
     KRW,
     KWD,
     KYD,
@@ -228,6 +267,7 @@ pub enum Currency {
     LSL,
     MAD,
     MDL,
+    MGA,
     MKD,
     MMK,
     MNT,
@@ -249,9 +289,11 @@ pub enum Currency {
     PHP,
     PKR,
     PLN,
+    PYG,
     QAR,
     RON,
     RUB,
+    RWF,
     SAR,
     SCR,
     SEK,
@@ -266,16 +308,68 @@ pub enum Currency {
     TTD,
     TWD,
     TZS,
+    UGX,
     #[default]
     USD,
     UYU,
     UZS,
     VND,
+    VUV,
+    XAF,
+    XOF,
+    XPF,
     YER,
     ZAR,
 }
 
 impl Currency {
+    /// Convert the amount to its base denomination based on Currency and return String
+    pub fn to_currency_base_unit(&self, amount: i64) -> Result<String, TryFromIntError> {
+        let amount_f64 = self.to_currency_base_unit_asf64(amount)?;
+        Ok(format!("{amount_f64:.2}"))
+    }
+
+    /// Convert the amount to its base denomination based on Currency and return f64
+    pub fn to_currency_base_unit_asf64(&self, amount: i64) -> Result<f64, TryFromIntError> {
+        let amount_f64: f64 = u32::try_from(amount)?.into();
+        let amount = if self.is_zero_decimal_currency() {
+            amount_f64
+        } else if self.is_three_decimal_currency() {
+            amount_f64 / 1000.00
+        } else {
+            amount_f64 / 100.00
+        };
+        Ok(amount)
+    }
+
+    ///Convert the higher decimal amount to its base absolute units
+    pub fn to_currency_lower_unit(&self, amount: String) -> Result<String, ParseFloatError> {
+        let amount_f64 = amount.parse::<f64>()?;
+        let amount_string = if self.is_zero_decimal_currency() {
+            amount_f64
+        } else if self.is_three_decimal_currency() {
+            amount_f64 * 1000.00
+        } else {
+            amount_f64 * 100.00
+        };
+        Ok(amount_string.to_string())
+    }
+
+    /// Convert the amount to its base denomination based on Currency and check for zero decimal currency and return String
+    /// Paypal Connector accepts Zero and Two decimal currency but not three decimal and it should be updated as required for 3 decimal currencies.
+    /// Paypal Ref - https://developer.paypal.com/docs/reports/reference/paypal-supported-currencies/
+    pub fn to_currency_base_unit_with_zero_decimal_check(
+        &self,
+        amount: i64,
+    ) -> Result<String, TryFromIntError> {
+        let amount_f64 = self.to_currency_base_unit_asf64(amount)?;
+        if self.is_zero_decimal_currency() {
+            Ok(amount_f64.to_string())
+        } else {
+            Ok(format!("{amount_f64:.2}"))
+        }
+    }
+
     pub fn iso_4217(&self) -> &'static str {
         match *self {
             Self::AED => "784",
@@ -289,6 +383,7 @@ impl Currency {
             Self::BBD => "052",
             Self::BDT => "050",
             Self::BHD => "048",
+            Self::BIF => "108",
             Self::BMD => "060",
             Self::BND => "096",
             Self::BOB => "068",
@@ -298,10 +393,12 @@ impl Currency {
             Self::BZD => "084",
             Self::CAD => "124",
             Self::CHF => "756",
+            Self::CLP => "152",
             Self::COP => "170",
             Self::CRC => "188",
             Self::CUP => "192",
             Self::CZK => "203",
+            Self::DJF => "262",
             Self::DKK => "208",
             Self::DOP => "214",
             Self::DZD => "012",
@@ -313,6 +410,7 @@ impl Currency {
             Self::GHS => "936",
             Self::GIP => "292",
             Self::GMD => "270",
+            Self::GNF => "324",
             Self::GTQ => "320",
             Self::GYD => "328",
             Self::HKD => "344",
@@ -329,6 +427,7 @@ impl Currency {
             Self::KES => "404",
             Self::KGS => "417",
             Self::KHR => "116",
+            Self::KMF => "174",
             Self::KRW => "410",
             Self::KWD => "414",
             Self::KYD => "136",
@@ -340,6 +439,7 @@ impl Currency {
             Self::LSL => "426",
             Self::MAD => "504",
             Self::MDL => "498",
+            Self::MGA => "969",
             Self::MKD => "807",
             Self::MMK => "104",
             Self::MNT => "496",
@@ -361,10 +461,12 @@ impl Currency {
             Self::PHP => "608",
             Self::PKR => "586",
             Self::PLN => "985",
+            Self::PYG => "600",
             Self::QAR => "634",
             Self::RON => "946",
             Self::CNY => "156",
             Self::RUB => "643",
+            Self::RWF => "646",
             Self::SAR => "682",
             Self::SCR => "690",
             Self::SEK => "752",
@@ -379,12 +481,264 @@ impl Currency {
             Self::TTD => "780",
             Self::TWD => "901",
             Self::TZS => "834",
+            Self::UGX => "800",
             Self::USD => "840",
             Self::UYU => "858",
             Self::UZS => "860",
             Self::VND => "704",
+            Self::VUV => "548",
+            Self::XAF => "950",
+            Self::XOF => "952",
+            Self::XPF => "953",
             Self::YER => "886",
             Self::ZAR => "710",
+        }
+    }
+
+    pub fn is_zero_decimal_currency(self) -> bool {
+        match self {
+            Self::BIF
+            | Self::CLP
+            | Self::DJF
+            | Self::GNF
+            | Self::JPY
+            | Self::KMF
+            | Self::KRW
+            | Self::MGA
+            | Self::PYG
+            | Self::RWF
+            | Self::UGX
+            | Self::VND
+            | Self::VUV
+            | Self::XAF
+            | Self::XOF
+            | Self::XPF => true,
+            Self::AED
+            | Self::ALL
+            | Self::AMD
+            | Self::ANG
+            | Self::ARS
+            | Self::AUD
+            | Self::AWG
+            | Self::AZN
+            | Self::BBD
+            | Self::BDT
+            | Self::BHD
+            | Self::BMD
+            | Self::BND
+            | Self::BOB
+            | Self::BRL
+            | Self::BSD
+            | Self::BWP
+            | Self::BZD
+            | Self::CAD
+            | Self::CHF
+            | Self::CNY
+            | Self::COP
+            | Self::CRC
+            | Self::CUP
+            | Self::CZK
+            | Self::DKK
+            | Self::DOP
+            | Self::DZD
+            | Self::EGP
+            | Self::ETB
+            | Self::EUR
+            | Self::FJD
+            | Self::GBP
+            | Self::GHS
+            | Self::GIP
+            | Self::GMD
+            | Self::GTQ
+            | Self::GYD
+            | Self::HKD
+            | Self::HNL
+            | Self::HRK
+            | Self::HTG
+            | Self::HUF
+            | Self::IDR
+            | Self::ILS
+            | Self::INR
+            | Self::JMD
+            | Self::JOD
+            | Self::KES
+            | Self::KGS
+            | Self::KHR
+            | Self::KWD
+            | Self::KYD
+            | Self::KZT
+            | Self::LAK
+            | Self::LBP
+            | Self::LKR
+            | Self::LRD
+            | Self::LSL
+            | Self::MAD
+            | Self::MDL
+            | Self::MKD
+            | Self::MMK
+            | Self::MNT
+            | Self::MOP
+            | Self::MUR
+            | Self::MVR
+            | Self::MWK
+            | Self::MXN
+            | Self::MYR
+            | Self::NAD
+            | Self::NGN
+            | Self::NIO
+            | Self::NOK
+            | Self::NPR
+            | Self::NZD
+            | Self::OMR
+            | Self::PEN
+            | Self::PGK
+            | Self::PHP
+            | Self::PKR
+            | Self::PLN
+            | Self::QAR
+            | Self::RON
+            | Self::RUB
+            | Self::SAR
+            | Self::SCR
+            | Self::SEK
+            | Self::SGD
+            | Self::SLL
+            | Self::SOS
+            | Self::SSP
+            | Self::SVC
+            | Self::SZL
+            | Self::THB
+            | Self::TRY
+            | Self::TTD
+            | Self::TWD
+            | Self::TZS
+            | Self::USD
+            | Self::UYU
+            | Self::UZS
+            | Self::YER
+            | Self::ZAR => false,
+        }
+    }
+
+    pub fn is_three_decimal_currency(self) -> bool {
+        match self {
+            Self::BHD | Self::JOD | Self::KWD | Self::OMR => true,
+            Self::AED
+            | Self::ALL
+            | Self::AMD
+            | Self::ANG
+            | Self::ARS
+            | Self::AUD
+            | Self::AWG
+            | Self::AZN
+            | Self::BBD
+            | Self::BDT
+            | Self::BIF
+            | Self::BMD
+            | Self::BND
+            | Self::BOB
+            | Self::BRL
+            | Self::BSD
+            | Self::BWP
+            | Self::BZD
+            | Self::CAD
+            | Self::CHF
+            | Self::CLP
+            | Self::CNY
+            | Self::COP
+            | Self::CRC
+            | Self::CUP
+            | Self::CZK
+            | Self::DJF
+            | Self::DKK
+            | Self::DOP
+            | Self::DZD
+            | Self::EGP
+            | Self::ETB
+            | Self::EUR
+            | Self::FJD
+            | Self::GBP
+            | Self::GHS
+            | Self::GIP
+            | Self::GMD
+            | Self::GNF
+            | Self::GTQ
+            | Self::GYD
+            | Self::HKD
+            | Self::HNL
+            | Self::HRK
+            | Self::HTG
+            | Self::HUF
+            | Self::IDR
+            | Self::ILS
+            | Self::INR
+            | Self::JMD
+            | Self::JPY
+            | Self::KES
+            | Self::KGS
+            | Self::KHR
+            | Self::KMF
+            | Self::KRW
+            | Self::KYD
+            | Self::KZT
+            | Self::LAK
+            | Self::LBP
+            | Self::LKR
+            | Self::LRD
+            | Self::LSL
+            | Self::MAD
+            | Self::MDL
+            | Self::MGA
+            | Self::MKD
+            | Self::MMK
+            | Self::MNT
+            | Self::MOP
+            | Self::MUR
+            | Self::MVR
+            | Self::MWK
+            | Self::MXN
+            | Self::MYR
+            | Self::NAD
+            | Self::NGN
+            | Self::NIO
+            | Self::NOK
+            | Self::NPR
+            | Self::NZD
+            | Self::PEN
+            | Self::PGK
+            | Self::PHP
+            | Self::PKR
+            | Self::PLN
+            | Self::PYG
+            | Self::QAR
+            | Self::RON
+            | Self::RUB
+            | Self::RWF
+            | Self::SAR
+            | Self::SCR
+            | Self::SEK
+            | Self::SGD
+            | Self::SLL
+            | Self::SOS
+            | Self::SSP
+            | Self::SVC
+            | Self::SZL
+            | Self::THB
+            | Self::TRY
+            | Self::TTD
+            | Self::TWD
+            | Self::TZS
+            | Self::UGX
+            | Self::USD
+            | Self::UYU
+            | Self::UZS
+            | Self::VND
+            | Self::VUV
+            | Self::XAF
+            | Self::XPF
+            | Self::XOF
+            | Self::YER
+            | Self::ZAR => false,
         }
     }
 }
@@ -399,6 +753,7 @@ impl Currency {
     serde::Serialize,
     strum::Display,
     strum::EnumString,
+    ToSchema,
 )]
 #[router_derive::diesel_enum(storage_type = "pg_enum")]
 #[serde(rename_all = "snake_case")]
@@ -447,6 +802,7 @@ pub enum IntentStatus {
     #[default]
     RequiresConfirmation,
     RequiresCapture,
+    PartiallyCaptured,
 }
 
 #[derive(
@@ -455,10 +811,13 @@ pub enum IntentStatus {
     Debug,
     Default,
     Eq,
+    Hash,
     PartialEq,
     serde::Deserialize,
     serde::Serialize,
     strum::Display,
+    strum::EnumVariantNames,
+    strum::EnumIter,
     strum::EnumString,
     ToSchema,
 )]
@@ -531,6 +890,8 @@ pub enum PaymentExperience {
     LinkWallet,
     /// Contains the data for invoking the sdk client for completing the payment.
     InvokePaymentApp,
+    /// Contains the data for displaying wait screen
+    DisplayWaitScreen,
 }
 
 #[derive(
@@ -555,53 +916,86 @@ pub enum PaymentMethodType {
     Ach,
     Affirm,
     AfterpayClearpay,
+    Alfamart,
     AliPay,
     AliPayHk,
     Alma,
     ApplePay,
+    Atome,
     Bacs,
     BancontactCard,
     Becs,
-    Blik,
+    Benefit,
     Bizum,
+    Blik,
+    Boleto,
+    BcaBankTransfer,
+    BniVa,
+    BriVa,
+    CimbVa,
     #[serde(rename = "classic")]
     ClassicReward,
     Credit,
     CryptoCurrency,
+    Cashapp,
     Dana,
+    DanamonVa,
     Debit,
+    Efecty,
     Eps,
     Evoucher,
     Giropay,
+    Givex,
     GooglePay,
     GoPay,
     Gcash,
     Ideal,
     Interac,
+    Indomaret,
     Klarna,
     KakaoPay,
+    MandiriVa,
+    Knet,
     MbWay,
     MobilePay,
     Momo,
+    MomoAtm,
     Multibanco,
+    OnlineBankingThailand,
     OnlineBankingCzechRepublic,
     OnlineBankingFinland,
     OnlineBankingFpx,
     OnlineBankingPoland,
     OnlineBankingSlovakia,
+    Oxxo,
+    PagoEfectivo,
+    PermataBankTransfer,
+    OpenBankingUk,
     PayBright,
     Paypal,
+    Pix,
+    PaySafeCard,
     Przelewy24,
+    Pse,
+    RedCompra,
+    RedPagos,
     SamsungPay,
     Sepa,
     Sofort,
     Swish,
+    TouchNGo,
     Trustly,
     Twint,
     UpiCollect,
     Vipps,
     Walley,
     WeChatPay,
+    SevenEleven,
+    Lawson,
+    MiniStop,
+    FamilyMart,
+    Seicomart,
+    PayEasy,
 }
 
 #[derive(
@@ -626,6 +1020,7 @@ pub enum PaymentMethodType {
 pub enum PaymentMethod {
     #[default]
     Card,
+    CardRedirect,
     PayLater,
     Wallet,
     BankRedirect,
@@ -634,6 +1029,8 @@ pub enum PaymentMethod {
     BankDebit,
     Reward,
     Upi,
+    Voucher,
+    GiftCard,
 }
 
 #[derive(
@@ -1276,4 +1673,96 @@ pub enum PayoutEntityType {
     #[serde(rename = "lowercase")]
     Business,
     Personal,
+}
+
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Default,
+    Eq,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    strum::EnumString,
+    ToSchema,
+    Hash,
+)]
+#[router_derive::diesel_enum(storage_type = "pg_enum")]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum PaymentSource {
+    #[default]
+    MerchantServer,
+    Postman,
+    Dashboard,
+    Sdk,
+}
+
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    PartialEq,
+    serde::Serialize,
+    serde::Deserialize,
+    strum::Display,
+    strum::EnumString,
+)]
+#[router_derive::diesel_enum(storage_type = "text")]
+#[strum(serialize_all = "snake_case")]
+pub enum MerchantDecision {
+    Approved,
+    Rejected,
+    AutoRefunded,
+}
+
+#[derive(
+    Clone,
+    Copy,
+    Default,
+    Debug,
+    Eq,
+    Hash,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    strum::EnumString,
+    ToSchema,
+)]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum FrmSuggestion {
+    #[default]
+    FrmCancelTransaction,
+    FrmManualReview,
+    FrmAutoRefund,
+}
+
+#[derive(
+    Clone,
+    Debug,
+    Eq,
+    Default,
+    Hash,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    strum::EnumString,
+    utoipa::ToSchema,
+    Copy,
+)]
+#[router_derive::diesel_enum(storage_type = "pg_enum")]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum ReconStatus {
+    #[default]
+    NotRequested,
+    Requested,
+    Active,
+    Disabled,
 }

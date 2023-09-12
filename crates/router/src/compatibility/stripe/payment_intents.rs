@@ -35,7 +35,7 @@ pub async fn payment_intents_create(
 
     let flow = Flow::PaymentsCreate;
 
-    wrap::compatibility_api_wrap::<
+    Box::pin(wrap::compatibility_api_wrap::<
         _,
         _,
         _,
@@ -58,10 +58,11 @@ pub async fn payment_intents_create(
                 req,
                 api::AuthFlow::Merchant,
                 payments::CallConnectorAction::Trigger,
+                api_types::HeaderPayload::default(),
             )
         },
         &auth::ApiKeyAuth,
-    )
+    ))
     .await
 }
 
@@ -81,6 +82,7 @@ pub async fn payment_intents_retrieve(
         merchant_connector_details: None,
         client_secret: query_payload.client_secret.clone(),
         expand_attempts: None,
+        expand_captures: None,
     };
 
     let (auth_type, auth_flow) =
@@ -91,7 +93,7 @@ pub async fn payment_intents_retrieve(
 
     let flow = Flow::PaymentsRetrieve;
 
-    wrap::compatibility_api_wrap::<
+    Box::pin(wrap::compatibility_api_wrap::<
         _,
         _,
         _,
@@ -114,10 +116,11 @@ pub async fn payment_intents_retrieve(
                 payload,
                 auth_flow,
                 payments::CallConnectorAction::Trigger,
+                api_types::HeaderPayload::default(),
             )
         },
         &*auth_type,
-    )
+    ))
     .await
 }
 
@@ -152,7 +155,7 @@ pub async fn payment_intents_retrieve_with_gateway_creds(
 
     let flow = Flow::PaymentsRetrieve;
 
-    wrap::compatibility_api_wrap::<
+    Box::pin(wrap::compatibility_api_wrap::<
         _,
         _,
         _,
@@ -175,10 +178,11 @@ pub async fn payment_intents_retrieve_with_gateway_creds(
                 req,
                 api::AuthFlow::Merchant,
                 payments::CallConnectorAction::Trigger,
+                api_types::HeaderPayload::default(),
             )
         },
         &*auth_type,
-    )
+    ))
     .await
 }
 
@@ -214,7 +218,7 @@ pub async fn payment_intents_update(
 
     let flow = Flow::PaymentsUpdate;
 
-    wrap::compatibility_api_wrap::<
+    Box::pin(wrap::compatibility_api_wrap::<
         _,
         _,
         _,
@@ -237,10 +241,11 @@ pub async fn payment_intents_update(
                 req,
                 auth_flow,
                 payments::CallConnectorAction::Trigger,
+                api_types::HeaderPayload::default(),
             )
         },
         &*auth_type,
-    )
+    ))
     .await
 }
 
@@ -278,7 +283,7 @@ pub async fn payment_intents_confirm(
 
     let flow = Flow::PaymentsConfirm;
 
-    wrap::compatibility_api_wrap::<
+    Box::pin(wrap::compatibility_api_wrap::<
         _,
         _,
         _,
@@ -301,10 +306,11 @@ pub async fn payment_intents_confirm(
                 req,
                 auth_flow,
                 payments::CallConnectorAction::Trigger,
+                api_types::HeaderPayload::default(),
             )
         },
         &*auth_type,
-    )
+    ))
     .await
 }
 
@@ -332,7 +338,7 @@ pub async fn payment_intents_capture(
 
     let flow = Flow::PaymentsCapture;
 
-    wrap::compatibility_api_wrap::<
+    Box::pin(wrap::compatibility_api_wrap::<
         _,
         _,
         _,
@@ -355,10 +361,11 @@ pub async fn payment_intents_capture(
                 payload,
                 api::AuthFlow::Merchant,
                 payments::CallConnectorAction::Trigger,
+                api_types::HeaderPayload::default(),
             )
         },
         &auth::ApiKeyAuth,
-    )
+    ))
     .await
 }
 
@@ -390,7 +397,7 @@ pub async fn payment_intents_cancel(
 
     let flow = Flow::PaymentsCancel;
 
-    wrap::compatibility_api_wrap::<
+    Box::pin(wrap::compatibility_api_wrap::<
         _,
         _,
         _,
@@ -413,10 +420,11 @@ pub async fn payment_intents_cancel(
                 req,
                 auth_flow,
                 payments::CallConnectorAction::Trigger,
+                api_types::HeaderPayload::default(),
             )
         },
         &*auth_type,
-    )
+    ))
     .await
 }
 
@@ -434,7 +442,7 @@ pub async fn payment_intent_list(
 
     let flow = Flow::PaymentsList;
 
-    wrap::compatibility_api_wrap::<
+    Box::pin(wrap::compatibility_api_wrap::<
         _,
         _,
         _,
@@ -450,6 +458,6 @@ pub async fn payment_intent_list(
         payload,
         |state, auth, req| payments::list_payments(&*state.store, auth.merchant_account, req),
         &auth::ApiKeyAuth,
-    )
+    ))
     .await
 }

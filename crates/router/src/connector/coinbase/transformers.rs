@@ -41,7 +41,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for CoinbasePaymentsRequest {
 
 // Auth Struct
 pub struct CoinbaseAuthType {
-    pub(super) api_key: String,
+    pub(super) api_key: Secret<String>,
 }
 
 impl TryFrom<&types::ConnectorAuthType> for CoinbaseAuthType {
@@ -49,7 +49,7 @@ impl TryFrom<&types::ConnectorAuthType> for CoinbaseAuthType {
     fn try_from(_auth_type: &types::ConnectorAuthType) -> Result<Self, Self::Error> {
         if let types::ConnectorAuthType::HeaderKey { api_key } = _auth_type {
             Ok(Self {
-                api_key: api_key.to_string(),
+                api_key: api_key.to_owned(),
             })
         } else {
             Err(errors::ConnectorError::FailedToObtainAuthType.into())
@@ -260,7 +260,10 @@ fn get_crypto_specific_payment_data(
         billing_address.and_then(|add| add.get_first_name().ok().map(|name| name.to_owned()));
     let description = item.get_description().ok();
     let connector_meta: CoinbaseConnectorMeta =
-        utils::to_connector_meta_from_secret(item.connector_meta_data.clone())?;
+        utils::to_connector_meta_from_secret_with_required_field(
+            item.connector_meta_data.clone(),
+            "Pricing Type Not present in connector meta data",
+        )?;
     let pricing_type = connector_meta.pricing_type;
     let local_price = get_local_price(item);
     let redirect_url = item.request.get_return_url()?;

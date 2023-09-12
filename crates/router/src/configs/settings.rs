@@ -13,12 +13,17 @@ use external_services::email::EmailSettings;
 use external_services::kms;
 use redis_interface::RedisSettings;
 pub use router_env::config::{Log, LogConsole, LogFile, LogTelemetry};
+use scheduler::SchedulerSettings;
 use serde::{de::Error, Deserialize, Deserializer};
 
 use crate::{
     core::errors::{ApplicationError, ApplicationResult},
     env::{self, logger, Env},
 };
+#[cfg(feature = "kms")]
+pub type Password = kms::KmsValue;
+#[cfg(not(feature = "kms"))]
+pub type Password = masking::Secret<String>;
 
 #[derive(clap::Parser, Default)]
 #[cfg_attr(feature = "vergen", command(version = router_env::version!()))]
@@ -89,6 +94,24 @@ pub struct Settings {
     pub connector_request_reference_id_config: ConnectorRequestReferenceIdConfig,
     #[cfg(feature = "payouts")]
     pub payouts: Payouts,
+    pub applepay_decrypt_keys: ApplePayDecryptConifg,
+    pub multiple_api_version_supported_connectors: MultipleApiVersionSupportedConnectors,
+    pub applepay_merchant_configs: ApplepayMerchantConfigs,
+}
+
+#[derive(Debug, Deserialize, Clone, Default)]
+#[serde(default)]
+pub struct ApplepayMerchantConfigs {
+    pub merchant_cert: String,
+    pub merchant_cert_key: String,
+    pub common_merchant_identifier: String,
+    pub applepay_endpoint: String,
+}
+
+#[derive(Debug, Deserialize, Clone, Default)]
+pub struct MultipleApiVersionSupportedConnectors {
+    #[serde(deserialize_with = "connector_deser")]
+    pub supported_connectors: HashSet<api_models::enums::Connector>,
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
@@ -141,11 +164,18 @@ pub struct DummyConnector {
     pub payment_tolerance: u64,
     pub payment_retrieve_duration: u64,
     pub payment_retrieve_tolerance: u64,
+    pub payment_complete_duration: i64,
+    pub payment_complete_tolerance: i64,
     pub refund_ttl: i64,
     pub refund_duration: u64,
     pub refund_tolerance: u64,
     pub refund_retrieve_duration: u64,
     pub refund_retrieve_tolerance: u64,
+    pub authorize_ttl: i64,
+    pub assets_base_url: String,
+    pub default_return_url: String,
+    pub slack_invite_url: String,
+    pub discord_invite_url: String,
 }
 
 #[derive(Debug, Deserialize, Clone)]
@@ -275,7 +305,14 @@ pub struct PaymentMethodType(pub HashMap<enums::PaymentMethodType, ConnectorFiel
 
 #[derive(Debug, Deserialize, Clone)]
 pub struct ConnectorFields {
-    pub fields: HashMap<enums::Connector, Vec<RequiredFieldInfo>>,
+    pub fields: HashMap<enums::Connector, RequiredFieldFinal>,
+}
+
+#[derive(Debug, Deserialize, Clone)]
+pub struct RequiredFieldFinal {
+    pub mandate: HashMap<String, RequiredFieldInfo>,
+    pub non_mandate: HashMap<String, RequiredFieldInfo>,
+    pub common: HashMap<String, RequiredFieldInfo>,
 }
 
 fn string_set_deser<'a, D>(
@@ -330,7 +367,7 @@ where
         .collect())
 }
 
-#[derive(Debug, Deserialize, Clone)]
+#[derive(Debug, Default, Deserialize, Clone)]
 #[serde(default)]
 pub struct Secrets {
     #[cfg(not(feature = "kms"))]
@@ -339,13 +376,13 @@ pub struct Secrets {
     pub admin_api_key: String,
     #[cfg(not(feature = "kms"))]
     pub recon_admin_api_key: String,
-    pub master_enc_key: String,
+    pub master_enc_key: Password,
     #[cfg(feature = "kms")]
-    pub kms_encrypted_jwt_secret: String,
+    pub kms_encrypted_jwt_secret: kms::KmsValue,
     #[cfg(feature = "kms")]
-    pub kms_encrypted_admin_api_key: String,
+    pub kms_encrypted_admin_api_key: kms::KmsValue,
     #[cfg(feature = "kms")]
-    pub kms_encrypted_recon_admin_api_key: String,
+    pub kms_encrypted_recon_admin_api_key: kms::KmsValue,
 }
 
 #[derive(Debug, Deserialize, Clone)]
@@ -384,11 +421,12 @@ pub struct Jwekey {
     pub tunnel_private_key: String,
 }
 
-#[derive(Debug, Deserialize, Clone, Default)]
+#[derive(Debug, Deserialize, Clone)]
 #[serde(default)]
 pub struct Proxy {
     pub http_url: Option<String>,
     pub https_url: Option<String>,
+    pub idle_pool_connection_timeout: Option<u64>,
 }
 
 #[derive(Debug, Deserialize, Clone)]
@@ -406,15 +444,27 @@ pub struct Server {
 #[serde(default)]
 pub struct Database {
     pub username: String,
-    #[cfg(not(feature = "kms"))]
-    pub password: String,
+    pub password: Password,
     pub host: String,
     pub port: u16,
     pub dbname: String,
     pub pool_size: u32,
     pub connection_timeout: u64,
-    #[cfg(feature = "kms")]
-    pub kms_encrypted_password: String,
+}
+
+#[cfg(not(feature = "kms"))]
+impl Into<storage_impl::config::Database> for Database {
+    fn into(self) -> storage_impl::config::Database {
+        storage_impl::config::Database {
+            username: self.username,
+            password: self.password,
+            host: self.host,
+            port: self.port,
+            dbname: self.dbname,
+            pool_size: self.pool_size,
+            connection_timeout: self.connection_timeout,
+        }
+    }
 }
 
 #[derive(Debug, Deserialize, Clone)]
@@ -423,7 +473,7 @@ pub struct SupportedConnectors {
     pub wallets: Vec<String>,
 }
 
-#[derive(Debug, Deserialize, Clone, Default)]
+#[derive(Debug, Deserialize, Clone, Default, router_derive::ConfigValidate)]
 #[serde(default)]
 pub struct Connectors {
     pub aci: ConnectorParams,
@@ -437,6 +487,7 @@ pub struct Connectors {
     pub bambora: ConnectorParams,
     pub bitpay: ConnectorParams,
     pub bluesnap: ConnectorParams,
+    pub boku: ConnectorParams,
     pub braintree: ConnectorParams,
     pub cashtocode: ConnectorParams,
     pub checkout: ConnectorParams,
@@ -450,6 +501,7 @@ pub struct Connectors {
     pub forte: ConnectorParams,
     pub globalpay: ConnectorParams,
     pub globepay: ConnectorParams,
+    pub helcim: ConnectorParams,
     pub iatapay: ConnectorParams,
     pub klarna: ConnectorParams,
     pub mollie: ConnectorParams,
@@ -467,6 +519,7 @@ pub struct Connectors {
     pub powertranz: ConnectorParams,
     pub rapyd: ConnectorParams,
     pub shift4: ConnectorParams,
+    pub square: ConnectorParams,
     pub stax: ConnectorParams,
     pub stripe: ConnectorParamsWithFileUploadUrl,
     pub trustpay: ConnectorParamsWithMoreUrls,
@@ -475,26 +528,23 @@ pub struct Connectors {
     pub worldline: ConnectorParams,
     pub worldpay: ConnectorParams,
     pub zen: ConnectorParams,
-
-    // Keep this field separate from the remaining fields
-    pub supported: SupportedConnectors,
 }
 
-#[derive(Debug, Deserialize, Clone, Default)]
+#[derive(Debug, Deserialize, Clone, Default, router_derive::ConfigValidate)]
 #[serde(default)]
 pub struct ConnectorParams {
     pub base_url: String,
     pub secondary_base_url: Option<String>,
 }
 
-#[derive(Debug, Deserialize, Clone, Default)]
+#[derive(Debug, Deserialize, Clone, Default, router_derive::ConfigValidate)]
 #[serde(default)]
 pub struct ConnectorParamsWithMoreUrls {
     pub base_url: String,
     pub base_url_bank_redirects: String,
 }
 
-#[derive(Debug, Deserialize, Clone, Default)]
+#[derive(Debug, Deserialize, Clone, Default, router_derive::ConfigValidate)]
 #[serde(default)]
 pub struct ConnectorParamsWithFileUploadUrl {
     pub base_url: String,
@@ -502,39 +552,11 @@ pub struct ConnectorParamsWithFileUploadUrl {
 }
 
 #[cfg(feature = "payouts")]
-#[derive(Debug, Deserialize, Clone, Default)]
+#[derive(Debug, Deserialize, Clone, Default, router_derive::ConfigValidate)]
 #[serde(default)]
 pub struct ConnectorParamsWithSecondaryBaseUrl {
     pub base_url: String,
     pub secondary_base_url: String,
-}
-
-#[derive(Debug, Clone, Deserialize)]
-#[serde(default)]
-pub struct SchedulerSettings {
-    pub stream: String,
-    pub producer: ProducerSettings,
-    pub consumer: ConsumerSettings,
-    pub loop_interval: u64,
-    pub graceful_shutdown_interval: u64,
-}
-
-#[derive(Debug, Clone, Deserialize)]
-#[serde(default)]
-pub struct ProducerSettings {
-    pub upper_fetch_limit: i64,
-    pub lower_fetch_limit: i64,
-
-    pub lock_key: String,
-    pub lock_ttl: i64,
-    pub batch_size: usize,
-}
-
-#[derive(Debug, Clone, Deserialize)]
-#[serde(default)]
-pub struct ConsumerSettings {
-    pub disabled: bool,
-    pub consumer_group: String,
 }
 
 #[cfg(feature = "kv_store")]
@@ -552,6 +574,14 @@ pub struct DrainerSettings {
 #[serde(default)]
 pub struct WebhooksSettings {
     pub outgoing_enabled: bool,
+    pub ignore_error: WebhookIgnoreErrorSettings,
+}
+
+#[derive(Debug, Clone, Deserialize, Default)]
+#[serde(default)]
+pub struct WebhookIgnoreErrorSettings {
+    pub event_type: Option<bool>,
+    pub payment_not_found: Option<bool>,
 }
 
 #[derive(Debug, Deserialize, Clone)]
@@ -560,7 +590,7 @@ pub struct ApiKeys {
     /// Base64-encoded (KMS encrypted) ciphertext of the key used for calculating hashes of API
     /// keys
     #[cfg(feature = "kms")]
-    pub kms_encrypted_hash_key: String,
+    pub kms_encrypted_hash_key: kms::KmsValue,
 
     /// Hex-encoded 32-byte long (64 characters long when hex-encoded) key used for calculating
     /// hashes of API keys
@@ -584,8 +614,16 @@ pub struct FileUploadConfig {
 
 #[derive(Debug, Deserialize, Clone, Default)]
 pub struct DelayedSessionConfig {
-    #[serde(deserialize_with = "delayed_session_deser")]
+    #[serde(deserialize_with = "deser_to_get_connectors")]
     pub connectors_with_delayed_session_response: HashSet<api_models::enums::Connector>,
+}
+
+#[derive(Debug, Deserialize, Clone, Default)]
+pub struct ApplePayDecryptConifg {
+    pub apple_pay_ppc: String,
+    pub apple_pay_ppc_key: String,
+    pub apple_pay_merchant_cert: String,
+    pub apple_pay_merchant_cert_key: String,
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
@@ -593,7 +631,7 @@ pub struct ConnectorRequestReferenceIdConfig {
     pub merchant_ids_send_payment_id_as_connector_request_id: HashSet<String>,
 }
 
-fn delayed_session_deser<'a, D>(
+fn deser_to_get_connectors<'a, D>(
     deserializer: D,
 ) -> Result<HashSet<api_models::enums::Connector>, D::Error>
 where
@@ -674,7 +712,7 @@ impl Settings {
         }
         self.secrets.validate()?;
         self.locker.validate()?;
-        self.connectors.validate()?;
+        self.connectors.validate("connectors")?;
 
         self.scheduler
             .as_ref()

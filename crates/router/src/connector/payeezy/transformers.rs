@@ -40,7 +40,6 @@ impl TryFrom<utils::CardIssuer> for PayeezyCardType {
             _ => Err(errors::ConnectorError::NotSupported {
                 message: issuer.to_string(),
                 connector: "Payeezy",
-                payment_experience: api::enums::PaymentExperience::RedirectToUrl.to_string(),
             }
             .into()),
         }
@@ -201,9 +200,9 @@ fn get_payment_method_data(
 
 // Auth Struct
 pub struct PayeezyAuthType {
-    pub(super) api_key: String,
-    pub(super) api_secret: String,
-    pub(super) merchant_token: String,
+    pub(super) api_key: Secret<String>,
+    pub(super) api_secret: Secret<String>,
+    pub(super) merchant_token: Secret<String>,
 }
 
 impl TryFrom<&types::ConnectorAuthType> for PayeezyAuthType {
@@ -216,9 +215,9 @@ impl TryFrom<&types::ConnectorAuthType> for PayeezyAuthType {
         } = item
         {
             Ok(Self {
-                api_key: api_key.to_string(),
-                api_secret: api_secret.to_string(),
-                merchant_token: key1.to_string(),
+                api_key: api_key.to_owned(),
+                api_secret: api_secret.to_owned(),
+                merchant_token: key1.to_owned(),
             })
         } else {
             Err(errors::ConnectorError::FailedToObtainAuthType.into())

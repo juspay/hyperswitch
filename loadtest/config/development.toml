@@ -66,7 +66,9 @@ authorizedotnet.base_url = "https://apitest.authorize.net/xml/v1/request.api"
 bambora.base_url = "https://api.na.bambora.com"
 bitpay.base_url = "https://test.bitpay.com"
 bluesnap.base_url = "https://sandbox.bluesnap.com/"
+boku.base_url = "https://country-api4-stage.boku.com"
 braintree.base_url = "https://api.sandbox.braintreegateway.com/"
+braintree.secondary_base_url = "https://payments.sandbox.braintree-api.com/graphql"
 cashtocode.base_url = "https://cluster05.api-test.cashtocode.com"
 checkout.base_url = "https://api.sandbox.checkout.com/"
 coinbase.base_url = "https://api.commerce.coinbase.com"
@@ -78,6 +80,7 @@ fiserv.base_url = "https://cert.api.fiservapps.com/"
 forte.base_url = "https://sandbox.forte.net/api/v3"
 globalpay.base_url = "https://apis.sandbox.globalpay.com/ucp/"
 globepay.base_url = "https://pay.globepay.co/"
+helcim.base_url = "https://api.helcim.com/"
 iatapay.base_url = "https://sandbox.iata-pay.iata.org/api/v1"
 klarna.base_url = "https://api-na.playground.klarna.com/"
 mollie.base_url = "https://api.mollie.com/v2/"
@@ -91,11 +94,13 @@ opayo.base_url = "https://pi-test.sagepay.com/"
 opennode.base_url = "https://dev-api.opennode.com"
 payeezy.base_url = "https://api-cert.payeezy.com/"
 payme.base_url = "https://sandbox.payme.io/"
-paypal.base_url = "https://www.sandbox.paypal.com/"
+paypal.base_url = "https://api-m.sandbox.paypal.com/"
 payu.base_url = "https://secure.snd.payu.com/"
 powertranz.base_url = "https://staging.ptranz.com/api/"
 rapyd.base_url = "https://sandboxapi.rapyd.net"
 shift4.base_url = "https://api.shift4.com/"
+square.base_url = "https://connect.squareupsandbox.com/"
+square.secondary_base_url = "https://pci-connect.squareupsandbox.com/"
 stax.base_url = "https://apiprod.fattlabs.com/"
 stripe.base_url = "https://api.stripe.com/"
 stripe.base_url_file_upload = "https://files.stripe.com/"
@@ -106,10 +111,14 @@ tsys.base_url = "https://stagegw.transnox.com/"
 wise.base_url = "https://api.sandbox.transferwise.tech/"
 trustpay.base_url_bank_redirects = "https://aapi.trustpay.eu/"
 zen.base_url = "https://api.zen-test.com/"
+zen.secondary_base_url = "https://secure.zen-test.com/"
+
+[pm_filters.default]
+apple_pay = { country = "AU,CN,HK,JP,MO,MY,NZ,SG,TW,AM,AT,AZ,BY,BE,BG,HR,CY,CZ,DK,EE,FO,FI,FR,GE,DE,GR,GL,GG,HU,IS,IE,IM,IT,KZ,JE,LV,LI,LT,LU,MT,MD,MC,ME,NL,NO,PL,PT,RO,SM,RS,SK,SI,ES,SE,CH,UA,GB,AR,CO,CR,BR,MX,PE,BH,IL,JO,KW,PS,QA,SA,AE,CA,UM,US", currency = "AED,AUD,CHF,CAD,EUR,GBP,HKD,SGD,USD" }
 
 [connectors.supported]
 wallets = ["klarna", "braintree", "applepay"]
-rewards = ["cashtocode",]
+rewards = ["cashtocode", "zen"]
 cards = [
     "aci",
     "adyen",
@@ -118,6 +127,7 @@ cards = [
     "bambora",
     "bitpay",
     "bluesnap",
+    "boku",
     "braintree",
     "checkout",
     "coinbase",
@@ -129,6 +139,7 @@ cards = [
     "forte",
     "globalpay",
     "globepay",
+    "helcim",
     "iatapay",
     "mollie",
     "multisafepay",
@@ -144,6 +155,7 @@ cards = [
     "payu",
     "powertranz",
     "shift4",
+    "square",
     "stax",
     "stripe",
     "trustpay",
@@ -154,11 +166,24 @@ cards = [
     "zen",
 ]
 
+[pm_filters.zen]
+credit = { not_available_flows = { capture_method = "manual" } }
+debit = { not_available_flows = { capture_method = "manual" } }
+boleto = { country = "BR", currency = "BRL" }
+efecty = { country = "CO", currency = "COP" }
+multibanco = { country = "PT", currency = "EUR" }
+pago_efectivo = { country = "PE", currency = "PEN" }
+pse = { country = "CO", currency = "COP" }
+pix = { country = "BR", currency = "BRL" }
+red_compra = { country = "CL", currency = "CLP" }
+red_pagos = { country = "UY", currency = "UYU" }
+
 #tokenization configuration which describe token lifetime and payment method for specific connector
 [tokenization]
 stripe = { long_lived_token = false, payment_method = "wallet", payment_method_type = { type = "disable_only", list = "google_pay" } }
 checkout = { long_lived_token = false, payment_method = "wallet" }
 mollie = {long_lived_token = false, payment_method = "card"}
+braintree = { long_lived_token = false, payment_method = "card" }
 
 [dummy_connector]
 payment_ttl = 172800
@@ -166,11 +191,21 @@ payment_duration = 1000
 payment_tolerance = 100
 payment_retrieve_duration = 500
 payment_retrieve_tolerance = 100
+payment_complete_duration = 500
+payment_complete_tolerance = 100
 refund_ttl = 172800
 refund_duration = 1000
 refund_tolerance = 100
 refund_retrieve_duration = 500
 refund_retrieve_tolerance = 100
+authorize_ttl = 36000
+assets_base_url = "https://app.hyperswitch.io/assets/TestProcessor/"
+default_return_url = "https://app.hyperswitch.io/"
+slack_invite_url = "https://join.slack.com/t/hyperswitch-io/shared_invite/zt-1k6cz4lee-SAJzhz6bjmpp4jZCDOtOIg"
+discord_invite_url = "https://discord.gg/wJZ7DVW8mm"
 
 [payouts]
 payout_eligibility = true
+
+[multiple_api_version_supported_connectors]
+supported_connectors = "braintree"

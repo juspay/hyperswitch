@@ -1,14 +1,17 @@
-mod transformers;
+pub mod transformers;
 
 use std::fmt::Debug;
 
 use common_utils::ext_traits::{ByteSliceExt, ValueExt};
+use diesel_models::enums;
 use error_stack::{IntoReport, ResultExt};
+use masking::PeekInterface;
 use transformers as airwallex;
 
 use super::utils::{AccessTokenRequestInfo, RefundsRequestData};
 use crate::{
     configs::settings,
+    connector::utils as connector_utils,
     core::{
         errors::{self, CustomResult},
         payments,
@@ -17,7 +20,7 @@ use crate::{
     services::{
         self,
         request::{self, Mask},
-        ConnectorIntegration,
+        ConnectorIntegration, ConnectorValidation,
     },
     types::{
         self,
@@ -50,7 +53,7 @@ where
 
         let auth_header = (
             headers::AUTHORIZATION.to_string(),
-            format!("Bearer {}", access_token.token).into_masked(),
+            format!("Bearer {}", access_token.token.peek()).into_masked(),
         );
 
         headers.push(auth_header);
@@ -87,6 +90,21 @@ impl ConnectorCommon for Airwallex {
             message: response.message,
             reason: response.source,
         })
+    }
+}
+
+impl ConnectorValidation for Airwallex {
+    fn validate_capture_method(
+        &self,
+        capture_method: Option<enums::CaptureMethod>,
+    ) -> CustomResult<(), errors::ConnectorError> {
+        let capture_method = capture_method.unwrap_or_default();
+        match capture_method {
+            enums::CaptureMethod::Automatic | enums::CaptureMethod::Manual => Ok(()),
+            enums::CaptureMethod::ManualMultiple | enums::CaptureMethod::Scheduled => Err(
+                connector_utils::construct_not_supported_error_report(capture_method, self.id()),
+            ),
+        }
     }
 }
 
@@ -241,6 +259,7 @@ impl
         req: &types::PaymentsInitRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
+        self.validate_capture_method(req.request.capture_method)?;
         Ok(Some(
             services::RequestBuilder::new()
                 .method(services::Method::Post)
@@ -458,11 +477,11 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
         res: Response,
     ) -> CustomResult<types::PaymentsSyncRouterData, errors::ConnectorError> {
         logger::debug!(payment_sync_response=?res);
-        let response: airwallex::AirwallexPaymentsResponse = res
+        let response: airwallex::AirwallexPaymentsSyncResponse = res
             .response
-            .parse_struct("airwallex PaymentsResponse")
+            .parse_struct("airwallex AirwallexPaymentsSyncResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-        types::RouterData::try_from(types::ResponseRouterData {
+        types::PaymentsSyncRouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,

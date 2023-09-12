@@ -1,13 +1,14 @@
-mod transformers;
+pub mod transformers;
 
 use std::{collections::HashMap, fmt::Debug, ops::Deref};
 
 use diesel_models::enums;
 use error_stack::{IntoReport, ResultExt};
+use masking::PeekInterface;
 use router_env::{instrument, tracing};
 
 use self::transformers as stripe;
-use super::utils::RefundsRequestData;
+use super::utils::{self as connector_utils, RefundsRequestData};
 use crate::{
     configs::settings,
     consts,
@@ -19,6 +20,7 @@ use crate::{
     services::{
         self,
         request::{self, Mask},
+        ConnectorValidation,
     },
     types::{
         self,
@@ -53,8 +55,23 @@ impl ConnectorCommon for Stripe {
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
         Ok(vec![(
             headers::AUTHORIZATION.to_string(),
-            format!("Bearer {}", auth.api_key).into_masked(),
+            format!("Bearer {}", auth.api_key.peek()).into_masked(),
         )])
+    }
+}
+
+impl ConnectorValidation for Stripe {
+    fn validate_capture_method(
+        &self,
+        capture_method: Option<enums::CaptureMethod>,
+    ) -> CustomResult<(), errors::ConnectorError> {
+        let capture_method = capture_method.unwrap_or_default();
+        match capture_method {
+            enums::CaptureMethod::Automatic | enums::CaptureMethod::Manual => Ok(()),
+            enums::CaptureMethod::ManualMultiple | enums::CaptureMethod::Scheduled => Err(
+                connector_utils::construct_not_supported_error_report(capture_method, self.id()),
+            ),
+        }
     }
 }
 
@@ -193,12 +210,13 @@ impl
             code: response
                 .error
                 .code
+                .clone()
                 .unwrap_or_else(|| consts::NO_ERROR_CODE.to_string()),
             message: response
                 .error
-                .message
+                .code
                 .unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
-            reason: None,
+            reason: response.error.message,
         })
     }
 }
@@ -310,12 +328,13 @@ impl
             code: response
                 .error
                 .code
+                .clone()
                 .unwrap_or_else(|| consts::NO_ERROR_CODE.to_string()),
             message: response
                 .error
-                .message
+                .code
                 .unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
-            reason: None,
+            reason: response.error.message,
         })
     }
 }
@@ -423,12 +442,13 @@ impl
             code: response
                 .error
                 .code
+                .clone()
                 .unwrap_or_else(|| consts::NO_ERROR_CODE.to_string()),
             message: response
                 .error
-                .message
+                .code
                 .unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
-            reason: None,
+            reason: response.error.message,
         })
     }
 }
@@ -544,12 +564,13 @@ impl
             code: response
                 .error
                 .code
+                .clone()
                 .unwrap_or_else(|| consts::NO_ERROR_CODE.to_string()),
             message: response
                 .error
-                .message
+                .code
                 .unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
-            reason: None,
+            reason: response.error.message,
         })
     }
 }
@@ -675,12 +696,13 @@ impl
             code: response
                 .error
                 .code
+                .clone()
                 .unwrap_or_else(|| consts::NO_ERROR_CODE.to_string()),
             message: response
                 .error
-                .message
+                .code
                 .unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
-            reason: None,
+            reason: response.error.message,
         })
     }
 }
@@ -765,6 +787,7 @@ impl
         req: &types::PaymentsAuthorizeRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
+        self.validate_capture_method(req.request.capture_method)?;
         Ok(Some(
             services::RequestBuilder::new()
                 .method(services::Method::Post)
@@ -820,12 +843,13 @@ impl
             code: response
                 .error
                 .code
+                .clone()
                 .unwrap_or_else(|| consts::NO_ERROR_CODE.to_string()),
             message: response
                 .error
-                .message
+                .code
                 .unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
-            reason: None,
+            reason: response.error.message,
         })
     }
 }
@@ -930,12 +954,13 @@ impl
             code: response
                 .error
                 .code
+                .clone()
                 .unwrap_or_else(|| consts::NO_ERROR_CODE.to_string()),
             message: response
                 .error
-                .message
+                .code
                 .unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
-            reason: None,
+            reason: response.error.message,
         })
     }
 }
@@ -1059,12 +1084,13 @@ impl
             code: response
                 .error
                 .code
+                .clone()
                 .unwrap_or_else(|| consts::NO_ERROR_CODE.to_string()),
             message: response
                 .error
-                .message
+                .code
                 .unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
-            reason: None,
+            reason: response.error.message,
         })
     }
 }
@@ -1167,12 +1193,13 @@ impl services::ConnectorIntegration<api::Execute, types::RefundsData, types::Ref
             code: response
                 .error
                 .code
+                .clone()
                 .unwrap_or_else(|| consts::NO_ERROR_CODE.to_string()),
             message: response
                 .error
-                .message
+                .code
                 .unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
-            reason: None,
+            reason: response.error.message,
         })
     }
 }
@@ -1261,12 +1288,13 @@ impl services::ConnectorIntegration<api::RSync, types::RefundsData, types::Refun
             code: response
                 .error
                 .code
+                .clone()
                 .unwrap_or_else(|| consts::NO_ERROR_CODE.to_string()),
             message: response
                 .error
-                .message
+                .code
                 .unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
-            reason: None,
+            reason: response.error.message,
         })
     }
 }
@@ -1283,7 +1311,7 @@ impl api::FileUpload for Stripe {
     ) -> CustomResult<(), errors::ConnectorError> {
         match purpose {
             api::FilePurpose::DisputeEvidence => {
-                let supported_file_types = vec!["image/jpeg", "image/png", "application/pdf"];
+                let supported_file_types = ["image/jpeg", "image/png", "application/pdf"];
                 // 5 Megabytes (MB)
                 if file_size > 5000000 {
                     Err(errors::ConnectorError::FileValidationFailed {
@@ -1396,12 +1424,13 @@ impl
             code: response
                 .error
                 .code
+                .clone()
                 .unwrap_or_else(|| consts::NO_ERROR_CODE.to_string()),
             message: response
                 .error
-                .message
+                .code
                 .unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
-            reason: None,
+            reason: response.error.message,
         })
     }
 }
@@ -1489,12 +1518,13 @@ impl
             code: response
                 .error
                 .code
+                .clone()
                 .unwrap_or_else(|| consts::NO_ERROR_CODE.to_string()),
             message: response
                 .error
-                .message
+                .code
                 .unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
-            reason: None,
+            reason: response.error.message,
         })
     }
 }
@@ -1605,12 +1635,13 @@ impl
             code: response
                 .error
                 .code
+                .clone()
                 .unwrap_or_else(|| consts::NO_ERROR_CODE.to_string()),
             message: response
                 .error
-                .message
+                .code
                 .unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
-            reason: None,
+            reason: response.error.message,
         })
     }
 }
@@ -1702,14 +1733,38 @@ impl api::IncomingWebhook for Stripe {
 
         Ok(match details.event_data.event_object.object {
             stripe::WebhookEventObjectType::PaymentIntent => {
-                api_models::webhooks::ObjectReferenceId::PaymentId(
-                    api_models::payments::PaymentIdType::ConnectorTransactionId(
-                        details.event_data.event_object.id,
+                match details.event_data.event_object.metadata {
+                    // if order_id is present
+                    Some(meta_data) => api_models::webhooks::ObjectReferenceId::PaymentId(
+                        api_models::payments::PaymentIdType::PaymentAttemptId(meta_data.order_id),
                     ),
-                )
+                    // else used connector_transaction_id
+                    None => api_models::webhooks::ObjectReferenceId::PaymentId(
+                        api_models::payments::PaymentIdType::ConnectorTransactionId(
+                            details.event_data.event_object.id,
+                        ),
+                    ),
+                }
             }
-
-            stripe::WebhookEventObjectType::Charge | stripe::WebhookEventObjectType::Dispute => {
+            stripe::WebhookEventObjectType::Charge => {
+                match details.event_data.event_object.metadata {
+                    // if order_id is present
+                    Some(meta_data) => api_models::webhooks::ObjectReferenceId::PaymentId(
+                        api_models::payments::PaymentIdType::PaymentAttemptId(meta_data.order_id),
+                    ),
+                    // else used connector_transaction_id
+                    None => api_models::webhooks::ObjectReferenceId::PaymentId(
+                        api_models::payments::PaymentIdType::ConnectorTransactionId(
+                            details
+                                .event_data
+                                .event_object
+                                .payment_intent
+                                .ok_or(errors::ConnectorError::WebhookReferenceIdNotFound)?,
+                        ),
+                    ),
+                }
+            }
+            stripe::WebhookEventObjectType::Dispute => {
                 api_models::webhooks::ObjectReferenceId::PaymentId(
                     api_models::payments::PaymentIdType::ConnectorTransactionId(
                         details
@@ -1728,11 +1783,31 @@ impl api::IncomingWebhook for Stripe {
                 )
             }
             stripe::WebhookEventObjectType::Refund => {
-                api_models::webhooks::ObjectReferenceId::RefundId(
-                    api_models::webhooks::RefundIdType::ConnectorRefundId(
-                        details.event_data.event_object.id,
+                match details.event_data.event_object.metadata {
+                    // if meta_data is present
+                    Some(meta_data) => {
+                        // Issue: 2076
+                        match meta_data.is_refund_id_as_reference {
+                            // if the order_id is refund_id
+                            Some(_) => api_models::webhooks::ObjectReferenceId::RefundId(
+                                api_models::webhooks::RefundIdType::RefundId(meta_data.order_id),
+                            ),
+                            // if the order_id is payment_id
+                            // since payment_id was being passed before the deployment of this pr
+                            _ => api_models::webhooks::ObjectReferenceId::RefundId(
+                                api_models::webhooks::RefundIdType::ConnectorRefundId(
+                                    details.event_data.event_object.id,
+                                ),
+                            ),
+                        }
+                    }
+                    // else use connector_transaction_id
+                    None => api_models::webhooks::ObjectReferenceId::RefundId(
+                        api_models::webhooks::RefundIdType::ConnectorRefundId(
+                            details.event_data.event_object.id,
+                        ),
                     ),
-                )
+                }
             }
         })
     }

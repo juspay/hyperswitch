@@ -131,13 +131,21 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for MolliePaymentsRequest {
         let redirect_url = item.request.get_return_url()?;
         let payment_method_data = match item.request.capture_method.unwrap_or_default() {
             enums::CaptureMethod::Automatic => match &item.request.payment_method_data {
-                api_models::payments::PaymentMethodData::Card(_) => Ok(
-                    PaymentMethodData::CreditCard(Box::new(CreditCardMethodData {
-                        billing_address: get_billing_details(item)?,
-                        shipping_address: get_shipping_details(item)?,
-                        card_token: Some(Secret::new(item.get_payment_method_token()?)),
-                    })),
-                ),
+                api_models::payments::PaymentMethodData::Card(_) => {
+                    let pm_token = item.get_payment_method_token()?;
+                    Ok(PaymentMethodData::CreditCard(Box::new(
+                        CreditCardMethodData {
+                            billing_address: get_billing_details(item)?,
+                            shipping_address: get_shipping_details(item)?,
+                            card_token: Some(Secret::new(match pm_token {
+                                types::PaymentMethodToken::Token(token) => token,
+                                types::PaymentMethodToken::ApplePayDecrypt(_) => {
+                                    Err(errors::ConnectorError::InvalidWalletToken)?
+                                }
+                            })),
+                        },
+                    )))
+                }
                 api_models::payments::PaymentMethodData::BankRedirect(ref redirect_data) => {
                     PaymentMethodData::try_from(redirect_data)
                 }
@@ -253,7 +261,9 @@ impl TryFrom<&types::TokenizationRouterData> for MollieCardTokenRequest {
                         .ok_or(errors::ConnectorError::MissingRequiredField {
                             field_name: "test_mode",
                         })?;
-                let profile_token = auth.key1;
+                let profile_token = auth
+                    .profile_token
+                    .ok_or(errors::ConnectorError::FailedToObtainAuthType)?;
                 Ok(Self {
                     card_holder,
                     card_number,
@@ -434,19 +444,22 @@ pub struct BankDetails {
 
 pub struct MollieAuthType {
     pub(super) api_key: Secret<String>,
-    pub(super) key1: Secret<String>,
+    pub(super) profile_token: Option<Secret<String>>,
 }
 
 impl TryFrom<&types::ConnectorAuthType> for MollieAuthType {
     type Error = Error;
     fn try_from(auth_type: &types::ConnectorAuthType) -> Result<Self, Self::Error> {
-        if let types::ConnectorAuthType::BodyKey { api_key, key1 } = auth_type {
-            Ok(Self {
-                api_key: Secret::new(api_key.to_owned()),
-                key1: Secret::new(key1.to_owned()),
-            })
-        } else {
-            Err(errors::ConnectorError::FailedToObtainAuthType.into())
+        match auth_type {
+            types::ConnectorAuthType::HeaderKey { api_key } => Ok(Self {
+                api_key: api_key.to_owned(),
+                profile_token: None,
+            }),
+            types::ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self {
+                api_key: api_key.to_owned(),
+                profile_token: Some(key1.to_owned()),
+            }),
+            _ => Err(errors::ConnectorError::FailedToObtainAuthType)?,
         }
     }
 }
@@ -467,7 +480,9 @@ impl<F, T>
     ) -> Result<Self, Self::Error> {
         Ok(Self {
             status: storage_enums::AttemptStatus::Pending,
-            payment_method_token: Some(item.response.card_token.clone().expose()),
+            payment_method_token: Some(types::PaymentMethodToken::Token(
+                item.response.card_token.clone().expose(),
+            )),
             response: Ok(types::PaymentsResponseData::TokenizationResponse {
                 token: item.response.card_token.expose(),
             }),

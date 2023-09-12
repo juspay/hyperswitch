@@ -1,14 +1,14 @@
-mod transformers;
+pub mod transformers;
 
 use std::fmt::Debug;
 
 use common_utils::{crypto, ext_traits::ByteSliceExt};
 use error_stack::{IntoReport, ResultExt};
+use masking::PeekInterface;
 use transformers as zen;
 use uuid::Uuid;
 
 use self::transformers::{ZenPaymentStatus, ZenWebhookTxnType};
-use super::utils::RefundsRequestData;
 use crate::{
     configs::settings,
     consts,
@@ -21,7 +21,7 @@ use crate::{
     services::{
         self,
         request::{self, Mask},
-        ConnectorIntegration,
+        ConnectorIntegration, ConnectorValidation,
     },
     types::{
         self,
@@ -94,7 +94,7 @@ impl ConnectorCommon for Zen {
         let auth = zen::ZenAuthType::try_from(auth_type)?;
         Ok(vec![(
             headers::AUTHORIZATION.to_string(),
-            format!("Bearer {}", auth.api_key).into_masked(),
+            format!("Bearer {}", auth.api_key.peek()).into_masked(),
         )])
     }
 
@@ -124,6 +124,16 @@ impl ConnectorCommon for Zen {
             ),
             reason: None,
         })
+    }
+}
+
+impl ConnectorValidation for Zen {
+    fn validate_psync_reference_id(
+        &self,
+        _data: &types::PaymentsSyncRouterData,
+    ) -> CustomResult<(), errors::ConnectorError> {
+        // since we can make psync call with our reference_id, having connector_transaction_id is not an mandatory criteria
+        Ok(())
     }
 }
 
@@ -213,6 +223,7 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         req: &types::PaymentsAuthorizeRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
+        self.validate_capture_method(req.request.capture_method)?;
         Ok(Some(
             services::RequestBuilder::new()
                 .method(services::Method::Post)
@@ -275,15 +286,10 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
         req: &types::PaymentsSyncRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        let payment_id = req
-            .request
-            .connector_transaction_id
-            .get_connector_transaction_id()
-            .change_context(errors::ConnectorError::MissingConnectorTransactionID)?;
-
         Ok(format!(
-            "{}v1/transactions/{payment_id}",
+            "{}v1/transactions/merchant/{}",
             self.base_url(connectors),
+            req.attempt_id,
         ))
     }
 
@@ -465,9 +471,9 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         Ok(format!(
-            "{}v1/transactions/{}",
+            "{}v1/transactions/merchant/{}",
             self.base_url(connectors),
-            req.request.get_connector_refund_id()?
+            req.request.refund_id
         ))
     }
 
@@ -545,10 +551,13 @@ impl api::IncomingWebhook for Zen {
             .body
             .parse_struct("ZenWebhookBody")
             .change_context(errors::ConnectorError::WebhookSignatureNotFound)?;
-        let msg = webhook_body.merchant_transaction_id
-            + &webhook_body.currency
-            + &webhook_body.amount
-            + &webhook_body.status.to_string().to_uppercase();
+        let msg = format!(
+            "{}{}{}{}",
+            webhook_body.merchant_transaction_id,
+            webhook_body.currency,
+            webhook_body.amount,
+            webhook_body.status.to_string().to_uppercase()
+        );
         Ok(msg.into_bytes())
     }
 
@@ -556,26 +565,31 @@ impl api::IncomingWebhook for Zen {
         &self,
         db: &dyn StorageInterface,
         request: &api::IncomingWebhookRequestDetails<'_>,
-        merchant_id: &str,
+        merchant_account: &domain::MerchantAccount,
         connector_label: &str,
         key_store: &domain::MerchantKeyStore,
+        object_reference_id: api_models::webhooks::ObjectReferenceId,
     ) -> CustomResult<bool, errors::ConnectorError> {
         let algorithm = self.get_webhook_source_verification_algorithm(request)?;
 
         let signature = self.get_webhook_source_verification_signature(request)?;
-        let mut secret = self
+        let mut connector_webhook_secrets = self
             .get_webhook_source_verification_merchant_secret(
                 db,
-                merchant_id,
+                merchant_account,
                 connector_label,
                 key_store,
+                object_reference_id,
             )
             .await?;
-        let mut message =
-            self.get_webhook_source_verification_message(request, merchant_id, &secret)?;
-        message.append(&mut secret);
+        let mut message = self.get_webhook_source_verification_message(
+            request,
+            &merchant_account.merchant_id,
+            &connector_webhook_secrets.secret,
+        )?;
+        message.append(&mut connector_webhook_secrets.secret);
         algorithm
-            .verify_signature(&secret, &signature, &message)
+            .verify_signature(&connector_webhook_secrets.secret, &signature, &message)
             .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)
     }
 
@@ -594,7 +608,7 @@ impl api::IncomingWebhook for Zen {
                 ),
             ),
             ZenWebhookTxnType::TrtRefund => api_models::webhooks::ObjectReferenceId::RefundId(
-                api_models::webhooks::RefundIdType::ConnectorRefundId(webhook_body.transaction_id),
+                api_models::webhooks::RefundIdType::RefundId(webhook_body.merchant_transaction_id),
             ),
 
             ZenWebhookTxnType::Unknown => Err(errors::ConnectorError::WebhookReferenceIdNotFound)?,

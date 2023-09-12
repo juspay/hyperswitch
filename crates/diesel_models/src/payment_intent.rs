@@ -34,14 +34,19 @@ pub struct PaymentIntent {
     pub off_session: Option<bool>,
     pub client_secret: Option<String>,
     pub active_attempt_id: String,
-    pub business_country: storage_enums::CountryAlpha2,
-    pub business_label: String,
+    pub business_country: Option<storage_enums::CountryAlpha2>,
+    pub business_label: Option<String>,
     #[diesel(deserialize_as = super::OptionalDieselArray<pii::SecretSerdeValue>)]
     pub order_details: Option<Vec<pii::SecretSerdeValue>>,
     pub allowed_payment_method_types: Option<serde_json::Value>,
     pub connector_metadata: Option<serde_json::Value>,
     pub feature_metadata: Option<serde_json::Value>,
     pub attempt_count: i16,
+    pub profile_id: Option<String>,
+    // Denotes the action(approve or reject) taken by merchant in case of manual review.
+    // Manual review can occur when the transaction is marked as risky by the frm_processor, payment processor or when there is underpayment/over payment incase of crypto payment
+    pub merchant_decision: Option<String>,
+    pub payment_confirm_source: Option<storage_enums::PaymentSource>,
 }
 
 #[derive(
@@ -82,14 +87,17 @@ pub struct PaymentIntentNew {
     pub off_session: Option<bool>,
     pub client_secret: Option<String>,
     pub active_attempt_id: String,
-    pub business_country: storage_enums::CountryAlpha2,
-    pub business_label: String,
+    pub business_country: Option<storage_enums::CountryAlpha2>,
+    pub business_label: Option<String>,
     #[diesel(deserialize_as = super::OptionalDieselArray<pii::SecretSerdeValue>)]
     pub order_details: Option<Vec<pii::SecretSerdeValue>>,
     pub allowed_payment_method_types: Option<serde_json::Value>,
     pub connector_metadata: Option<serde_json::Value>,
     pub feature_metadata: Option<serde_json::Value>,
     pub attempt_count: i16,
+    pub profile_id: Option<String>,
+    pub merchant_decision: Option<String>,
+    pub payment_confirm_source: Option<storage_enums::PaymentSource>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -133,6 +141,7 @@ pub enum PaymentIntentUpdate {
         statement_descriptor_suffix: Option<String>,
         order_details: Option<Vec<pii::SecretSerdeValue>>,
         metadata: Option<pii::SecretSerdeValue>,
+        payment_confirm_source: Option<storage_enums::PaymentSource>,
     },
     PaymentAttemptAndAttemptCountUpdate {
         active_attempt_id: String,
@@ -142,6 +151,13 @@ pub enum PaymentIntentUpdate {
         status: storage_enums::IntentStatus,
         active_attempt_id: String,
         attempt_count: i16,
+    },
+    ApproveUpdate {
+        merchant_decision: Option<String>,
+    },
+    RejectUpdate {
+        status: storage_enums::IntentStatus,
+        merchant_decision: Option<String>,
     },
 }
 
@@ -158,7 +174,6 @@ pub struct PaymentIntentUpdateInternal {
     pub setup_future_usage: Option<storage_enums::FutureUsage>,
     pub off_session: Option<bool>,
     pub metadata: Option<pii::SecretSerdeValue>,
-    pub client_secret: Option<Option<String>>,
     pub billing_address_id: Option<String>,
     pub shipping_address_id: Option<String>,
     pub modified_at: Option<PrimitiveDateTime>,
@@ -171,6 +186,9 @@ pub struct PaymentIntentUpdateInternal {
     #[diesel(deserialize_as = super::OptionalDieselArray<pii::SecretSerdeValue>)]
     pub order_details: Option<Vec<pii::SecretSerdeValue>>,
     pub attempt_count: Option<i16>,
+    pub profile_id: Option<String>,
+    merchant_decision: Option<String>,
+    payment_confirm_source: Option<storage_enums::PaymentSource>,
 }
 
 impl PaymentIntentUpdate {
@@ -188,9 +206,6 @@ impl PaymentIntentUpdate {
                 .or(source.setup_future_usage),
             off_session: internal_update.off_session.or(source.off_session),
             metadata: internal_update.metadata.or(source.metadata),
-            client_secret: internal_update
-                .client_secret
-                .unwrap_or(source.client_secret),
             billing_address_id: internal_update
                 .billing_address_id
                 .or(source.billing_address_id),
@@ -223,13 +238,13 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 statement_descriptor_suffix,
                 order_details,
                 metadata,
+                payment_confirm_source,
             } => Self {
                 amount: Some(amount),
                 currency: Some(currency),
                 status: Some(status),
                 setup_future_usage,
                 customer_id,
-                client_secret: make_client_secret_null_based_on_status(status),
                 shipping_address_id,
                 billing_address_id,
                 modified_at: Some(common_utils::date_time::now()),
@@ -241,6 +256,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 statement_descriptor_suffix,
                 order_details,
                 metadata,
+                payment_confirm_source,
                 ..Default::default()
             },
             PaymentIntentUpdate::MetadataUpdate { metadata } => Self {
@@ -257,7 +273,6 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
             } => Self {
                 return_url,
                 status,
-                client_secret: status.and_then(make_client_secret_null_based_on_status),
                 customer_id,
                 shipping_address_id,
                 billing_address_id,
@@ -267,7 +282,6 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
             PaymentIntentUpdate::PGStatusUpdate { status } => Self {
                 status: Some(status),
                 modified_at: Some(common_utils::date_time::now()),
-                client_secret: make_client_secret_null_based_on_status(status),
                 ..Default::default()
             },
             PaymentIntentUpdate::MerchantStatusUpdate {
@@ -276,7 +290,6 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 billing_address_id,
             } => Self {
                 status: Some(status),
-                client_secret: make_client_secret_null_based_on_status(status),
                 shipping_address_id,
                 billing_address_id,
                 modified_at: Some(common_utils::date_time::now()),
@@ -296,7 +309,6 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 amount_captured,
                 // customer_id,
                 return_url,
-                client_secret: make_client_secret_null_based_on_status(status),
                 modified_at: Some(common_utils::date_time::now()),
                 ..Default::default()
             },
@@ -318,22 +330,18 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 attempt_count: Some(attempt_count),
                 ..Default::default()
             },
+            PaymentIntentUpdate::ApproveUpdate { merchant_decision } => Self {
+                merchant_decision,
+                ..Default::default()
+            },
+            PaymentIntentUpdate::RejectUpdate {
+                status,
+                merchant_decision,
+            } => Self {
+                status: Some(status),
+                merchant_decision,
+                ..Default::default()
+            },
         }
-    }
-}
-
-fn make_client_secret_null_based_on_status(
-    status: storage_enums::IntentStatus,
-) -> Option<Option<String>> {
-    match status {
-        storage_enums::IntentStatus::Cancelled => Some(None),
-        storage_enums::IntentStatus::Succeeded
-        | storage_enums::IntentStatus::Processing
-        | storage_enums::IntentStatus::RequiresCustomerAction
-        | storage_enums::IntentStatus::RequiresMerchantAction
-        | storage_enums::IntentStatus::RequiresPaymentMethod
-        | storage_enums::IntentStatus::RequiresConfirmation
-        | storage_enums::IntentStatus::RequiresCapture
-        | storage_enums::IntentStatus::Failed => None,
     }
 }

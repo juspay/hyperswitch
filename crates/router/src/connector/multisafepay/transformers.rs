@@ -232,7 +232,6 @@ impl TryFrom<utils::CardIssuer> for Gateway {
             _ => Err(errors::ConnectorError::NotSupported {
                 message: issuer.to_string(),
                 connector: "Multisafe pay",
-                payment_experience: api::enums::PaymentExperience::RedirectToUrl.to_string(),
             }
             .into()),
         }
@@ -416,7 +415,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for MultisafepayPaymentsReques
 
 // Auth Struct
 pub struct MultisafepayAuthType {
-    pub(super) api_key: String,
+    pub(super) api_key: Secret<String>,
 }
 
 impl TryFrom<&types::ConnectorAuthType> for MultisafepayAuthType {
@@ -424,7 +423,7 @@ impl TryFrom<&types::ConnectorAuthType> for MultisafepayAuthType {
     fn try_from(auth_type: &types::ConnectorAuthType) -> Result<Self, Self::Error> {
         if let types::ConnectorAuthType::HeaderKey { api_key } = auth_type {
             Ok(Self {
-                api_key: api_key.to_string(),
+                api_key: api_key.to_owned(),
             })
         } else {
             Err(errors::ConnectorError::FailedToObtainAuthType.into())

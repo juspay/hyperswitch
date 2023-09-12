@@ -236,7 +236,6 @@ impl TryFrom<utils::CardIssuer> for Gateway {
             _ => Err(errors::ConnectorError::NotSupported {
                 message: issuer.to_string(),
                 connector: "worldline",
-                payment_experience: api_enums::PaymentExperience::RedirectToUrl.to_string(),
             }
             .into()),
         }
@@ -409,13 +408,13 @@ impl From<payments::AddressDetails> for Shipping {
     }
 }
 
-pub struct AuthType {
-    pub api_key: String,
-    pub api_secret: String,
-    pub merchant_account_id: String,
+pub struct WorldlineAuthType {
+    pub api_key: Secret<String>,
+    pub api_secret: Secret<String>,
+    pub merchant_account_id: Secret<String>,
 }
 
-impl TryFrom<&types::ConnectorAuthType> for AuthType {
+impl TryFrom<&types::ConnectorAuthType> for WorldlineAuthType {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(auth_type: &types::ConnectorAuthType) -> Result<Self, Self::Error> {
         if let types::ConnectorAuthType::SignatureKey {
@@ -425,9 +424,9 @@ impl TryFrom<&types::ConnectorAuthType> for AuthType {
         } = auth_type
         {
             Ok(Self {
-                api_key: api_key.to_string(),
-                api_secret: api_secret.to_string(),
-                merchant_account_id: key1.to_string(),
+                api_key: api_key.to_owned(),
+                api_secret: api_secret.to_owned(),
+                merchant_account_id: key1.to_owned(),
             })
         } else {
             Err(errors::ConnectorError::FailedToObtainAuthType)?

@@ -68,17 +68,24 @@ jobs:
           save-if: ${{ github.event_name == 'push' }}
 
       - name: Install cargo-hack
-        uses: baptiste0928/cargo-install@v2.0.0
+        uses: baptiste0928/cargo-install@v2.1.0
         with:
           crate: cargo-hack
+          version: 0.6.5
 
       - name: Deny warnings
         shell: bash
         run: sed -i 's/rustflags = \[/rustflags = \[\n    "-Dwarnings",/' .cargo/config.toml
 
       - name: Cargo hack
+        if: ${{ github.event_name == 'push' }}
         shell: bash
         run: cargo hack check --each-feature --no-dev-deps
+      
+      - name: Cargo build release
+        if: ${{ github.event_name == 'merge_group' }}
+        shell: bash
+        run: cargo check --features "release"
 
   # cargo-deny:
   #   name: Run cargo-deny
@@ -125,16 +132,16 @@ jobs:
       - name: Install Rust
         uses: dtolnay/rust-toolchain@master
         with:
-          toolchain: stable
+          toolchain: stable 2 weeks ago
           components: clippy
 
       - name: Install cargo-hack
-        uses: baptiste0928/cargo-install@v2.0.0
+        uses: baptiste0928/cargo-install@v2.1.0
         with:
           crate: cargo-hack
 
       # - name: Install cargo-nextest
-      #   uses: baptiste0928/cargo-install@v2.0.0
+      #   uses: baptiste0928/cargo-install@v2.1.0
       #   with:
       #     crate: cargo-nextest
 
@@ -157,8 +164,14 @@ jobs:
         run: cargo clippy --all-features --all-targets
 
       - name: Cargo hack
+        if: ${{ github.event_name == 'push' }}
         shell: bash
         run: cargo hack check --each-feature --no-dev-deps
+
+      - name: Cargo build release
+        if: ${{ github.event_name == 'merge_group' }}
+        shell: bash
+        run: cargo check --features "release"
 
   typos:
     name: Spell check
