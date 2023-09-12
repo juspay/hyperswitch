@@ -705,7 +705,7 @@ pub async fn webhooks_core<W: types::OutgoingWebhookType>(
     req: &actix_web::HttpRequest,
     merchant_account: domain::MerchantAccount,
     key_store: domain::MerchantKeyStore,
-    connector_name_or_id: &str,
+    connector_name_or_mca_id: &str,
     body: actix_web::web::Bytes,
 ) -> RouterResponse<serde_json::Value> {
     metrics::WEBHOOK_INCOMING_COUNT.add(
@@ -727,7 +727,7 @@ pub async fn webhooks_core<W: types::OutgoingWebhookType>(
     let (merchant_connector_account, connector) = fetch_mca_and_connector(
         state,
         &merchant_account,
-        connector_name_or_id,
+        connector_name_or_mca_id,
         &key_store,
         &request_details,
     )
