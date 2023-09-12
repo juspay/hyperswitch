@@ -4,6 +4,16 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 1.34.0+hotfix.3 (2023-09-12)
+
+### Bug Fixes
+
+- **router:** Move connector customer create flow to call_connector_service ([#2141](https://github.com/juspay/hyperswitch/pull/2141)) ([`0088c8f`](https://github.com/juspay/hyperswitch/commit/0088c8f7e9a2cebbb705da4967044c997941cd59))
+
+**Full Changelog:** [`v1.34.0+hotfix.2...v1.34.0+hotfix.3`](https://github.com/juspay/hyperswitch/compare/v1.34.0+hotfix.2...v1.34.0+hotfix.3)
+
+- - -
+
 ## 1.34.0+hotfix.2 (2023-09-12)
 
 ### Features
