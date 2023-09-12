@@ -730,9 +730,17 @@ pub async fn webhooks_core<W: types::OutgoingWebhookType>(
     .attach_printable("Failed construction of ConnectorData")?;
 
     let connector = connector.connector;
+    let authority = req
+        .headers()
+        .get(actix_web::http::header::HOST)
+        .map(|header_value| header_value.to_str().unwrap())
+        .unwrap()
+        .to_string();
+
     let mut request_details = api::IncomingWebhookRequestDetails {
         method: req.method().clone(),
         uri: req.uri().clone(),
+        authority,
         headers: req.headers(),
         query_params: req.query_string().to_string(),
         body: &body,
