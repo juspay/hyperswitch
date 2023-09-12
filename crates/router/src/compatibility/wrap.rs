@@ -110,14 +110,18 @@ where
                 ),
             }
         }
-        Ok(api::ApplicationResponse::Form(redirection_data)) => api::build_redirection_form(
-            &redirection_data.redirect_form,
-            redirection_data.payment_method_data,
-            redirection_data.amount,
-            redirection_data.currency,
-        )
-        .respond_to(request)
-        .map_into_boxed_body(),
+        Ok(api::ApplicationResponse::Form(redirection_data)) => {
+            let config = state.conf();
+            api::build_redirection_form(
+                &redirection_data.redirect_form,
+                redirection_data.payment_method_data,
+                redirection_data.amount,
+                redirection_data.currency,
+                config,
+            )
+            .respond_to(request)
+            .map_into_boxed_body()
+        }
         Err(error) => api::log_and_return_error_response(error),
     };
 

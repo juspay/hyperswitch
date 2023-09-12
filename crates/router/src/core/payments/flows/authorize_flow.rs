@@ -6,7 +6,9 @@ use crate::{
     core::{
         errors::{self, ConnectorErrorExt, RouterResult},
         mandate,
-        payments::{self, access_token, customers, tokenization, transformers, PaymentData},
+        payments::{
+            self, access_token, customers, helpers, tokenization, transformers, PaymentData,
+        },
     },
     logger,
     routes::{metrics, AppState},
@@ -29,6 +31,7 @@ impl
         merchant_account: &domain::MerchantAccount,
         key_store: &domain::MerchantKeyStore,
         customer: &Option<domain::Customer>,
+        merchant_connector_account: &helpers::MerchantConnectorAccountType,
     ) -> RouterResult<
         types::RouterData<
             api::Authorize,
@@ -43,6 +46,7 @@ impl
             merchant_account,
             key_store,
             customer,
+            merchant_connector_account,
         )
         .await
     }
@@ -57,6 +61,7 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
         call_connector_action: payments::CallConnectorAction,
         merchant_account: &domain::MerchantAccount,
         connector_request: Option<services::Request>,
+        key_store: &domain::MerchantKeyStore,
     ) -> RouterResult<Self> {
         let connector_integration: services::BoxedConnectorIntegration<
             '_,
@@ -87,6 +92,7 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
                 maybe_customer,
                 merchant_account,
                 self.request.payment_method_type,
+                key_store,
             )
             .await;
 
@@ -242,7 +248,7 @@ impl mandate::MandateBehaviour for types::PaymentsAuthorizeData {
     fn get_setup_future_usage(&self) -> Option<diesel_models::enums::FutureUsage> {
         self.setup_future_usage
     }
-    fn get_setup_mandate_details(&self) -> Option<&api_models::payments::MandateData> {
+    fn get_setup_mandate_details(&self) -> Option<&data_models::mandates::MandateData> {
         self.setup_mandate_details.as_ref()
     }
 
@@ -368,6 +374,7 @@ impl TryFrom<types::PaymentsAuthorizeData> for types::PaymentsPreProcessingData 
             order_details: data.order_details,
             router_return_url: data.router_return_url,
             webhook_url: data.webhook_url,
+            complete_authorize_url: data.complete_authorize_url,
         })
     }
 }

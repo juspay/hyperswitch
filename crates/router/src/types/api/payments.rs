@@ -1,19 +1,17 @@
 pub use api_models::payments::{
     AcceptanceType, Address, AddressDetails, Amount, AuthenticationForStartResponse, Card,
-    CryptoData, CustomerAcceptance, MandateData, MandateTransactionType, MandateType,
-    MandateValidationFields, NextActionType, OnlineMandate, PayLaterData, PaymentIdType,
-    PaymentListConstraints, PaymentListFilterConstraints, PaymentListFilters, PaymentListResponse,
-    PaymentListResponseV2, PaymentMethodData, PaymentMethodDataResponse, PaymentOp,
-    PaymentRetrieveBody, PaymentRetrieveBodyWithCredentials, PaymentsApproveRequest,
-    PaymentsCancelRequest, PaymentsCaptureRequest, PaymentsRedirectRequest,
+    CryptoData, CustomerAcceptance, HeaderPayload, MandateAmountData, MandateData,
+    MandateTransactionType, MandateType, MandateValidationFields, NextActionType, OnlineMandate,
+    PayLaterData, PaymentIdType, PaymentListConstraints, PaymentListFilterConstraints,
+    PaymentListFilters, PaymentListResponse, PaymentListResponseV2, PaymentMethodData,
+    PaymentMethodDataResponse, PaymentOp, PaymentRetrieveBody, PaymentRetrieveBodyWithCredentials,
+    PaymentsApproveRequest, PaymentsCancelRequest, PaymentsCaptureRequest, PaymentsRedirectRequest,
     PaymentsRedirectionResponse, PaymentsRejectRequest, PaymentsRequest, PaymentsResponse,
     PaymentsResponseForm, PaymentsRetrieveRequest, PaymentsSessionRequest, PaymentsSessionResponse,
     PaymentsStartRequest, PgRedirectResponse, PhoneDetails, RedirectionResponse, SessionToken,
     TimeRange, UrlDetails, VerifyRequest, VerifyResponse, WalletData,
 };
 use error_stack::{IntoReport, ResultExt};
-use masking::PeekInterface;
-use time::PrimitiveDateTime;
 
 use crate::{
     core::errors,
@@ -32,29 +30,6 @@ impl PaymentsRequestExt for PaymentsRequest {
             (_, Some(_)) => Some(MandateTransactionType::RecurringMandateTransaction),
             (Some(_), _) => Some(MandateTransactionType::NewMandateTransaction),
         }
-    }
-}
-
-pub(crate) trait CustomerAcceptanceExt {
-    fn get_ip_address(&self) -> Option<String>;
-    fn get_user_agent(&self) -> Option<String>;
-    fn get_accepted_at(&self) -> PrimitiveDateTime;
-}
-
-impl CustomerAcceptanceExt for CustomerAcceptance {
-    fn get_ip_address(&self) -> Option<String> {
-        self.online
-            .as_ref()
-            .and_then(|data| data.ip_address.as_ref().map(|ip| ip.peek().to_owned()))
-    }
-
-    fn get_user_agent(&self) -> Option<String> {
-        self.online.as_ref().map(|data| data.user_agent.clone())
-    }
-
-    fn get_accepted_at(&self) -> PrimitiveDateTime {
-        self.accepted_at
-            .unwrap_or_else(common_utils::date_time::now)
     }
 }
 

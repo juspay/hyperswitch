@@ -14,7 +14,7 @@ use crate::{
     connector,
     core::{
         errors::{ConnectorError, CustomResult, RouterResult},
-        payments,
+        payments::{self, helpers},
     },
     routes::AppState,
     services,
@@ -30,9 +30,11 @@ pub trait ConstructFlowSpecificData<F, Req, Res> {
         merchant_account: &domain::MerchantAccount,
         key_store: &domain::MerchantKeyStore,
         customer: &Option<domain::Customer>,
+        merchant_connector_account: &helpers::MerchantConnectorAccountType,
     ) -> RouterResult<types::RouterData<F, Req, Res>>;
 }
 
+#[allow(clippy::too_many_arguments)]
 #[async_trait]
 pub trait Feature<F, T> {
     async fn decide_flows<'a>(
@@ -43,6 +45,7 @@ pub trait Feature<F, T> {
         call_connector_action: payments::CallConnectorAction,
         merchant_account: &domain::MerchantAccount,
         connector_request: Option<services::Request>,
+        key_store: &domain::MerchantKeyStore,
     ) -> RouterResult<Self>
     where
         Self: Sized,
@@ -142,7 +145,6 @@ default_imp_for_complete_authorize!(
     connector::Aci,
     connector::Adyen,
     connector::Bitpay,
-    connector::Braintree,
     connector::Boku,
     connector::Cashtocode,
     connector::Checkout,
@@ -163,7 +165,6 @@ default_imp_for_complete_authorize!(
     connector::Opayo,
     connector::Opennode,
     connector::Payeezy,
-    connector::Payme,
     connector::Payu,
     connector::Rapyd,
     connector::Square,
@@ -284,7 +285,6 @@ default_imp_for_connector_redirect_response!(
     connector::Adyen,
     connector::Bitpay,
     connector::Boku,
-    connector::Braintree,
     connector::Cashtocode,
     connector::Coinbase,
     connector::Cryptopay,
@@ -302,7 +302,6 @@ default_imp_for_connector_redirect_response!(
     connector::Opayo,
     connector::Opennode,
     connector::Payeezy,
-    connector::Payme,
     connector::Payu,
     connector::Powertranz,
     connector::Rapyd,

@@ -159,6 +159,7 @@ authorizedotnet.base_url = "https://apitest.authorize.net/xml/v1/request.api"
 bambora.base_url = "https://api.na.bambora.com"
 bitpay.base_url = "https://test.bitpay.com"
 bluesnap.base_url = "https://sandbox.bluesnap.com/"
+bluesnap.secondary_base_url = "https://sandpay.bluesnap.com/"
 boku.base_url = "https://$-api4-stage.boku.com"
 braintree.base_url = "https://api.sandbox.braintreegateway.com/"
 braintree.secondary_base_url = "https://payments.sandbox.braintree-api.com/graphql"
@@ -310,7 +311,12 @@ stax = { long_lived_token = true, payment_method = "card,bank_debit" }
 square = {long_lived_token = false, payment_method = "card"}
 braintree = { long_lived_token = false, payment_method = "card" }
 
+[temp_locker_disable_config]
+trustpay = {payment_method = "card,bank_redirect,wallet"}
+stripe = {payment_method = "card,bank_redirect,pay_later,wallet,bank_debit"}
+
 [dummy_connector]
+enabled = true                # Whether dummy connector is enabled or not
 payment_ttl = 172800             # Time to live for dummy connector payment in redis
 payment_duration = 1000          # Fake delay duration for dummy connector payment
 payment_tolerance = 100          # Fake delay tolerance for dummy connector payment
@@ -403,3 +409,9 @@ adyen.banks = "bangkok_bank,krungsri_bank,krung_thai_bank,the_siam_commercial_ba
 
 [multiple_api_version_supported_connectors]
 supported_connectors = "braintree"
+
+[applepay_decrypt_keys]
+apple_pay_ppc = "APPLE_PAY_PAYMENT_PROCESSING_CERTIFICATE"              #Payment Processing Certificate provided by Apple Pay (https://developer.apple.com/) Certificates, Identifiers & Profiles > Apple Pay Payment Processing Certificate
+apple_pay_ppc_key = "APPLE_PAY_PAYMENT_PROCESSING_CERTIFICATE_KEY"      #Private key generate by Elliptic-curve prime256v1 curve
+apple_pay_merchant_cert = "APPLE_PAY_MERCHNAT_CERTIFICATE"              #Merchant Certificate provided by Apple Pay (https://developer.apple.com/) Certificates, Identifiers & Profiles > Apple Pay Merchant Identity Certificate
+apple_pay_merchant_cert_key = "APPLE_PAY_MERCHNAT_CERTIFICATE_KEY"      #Private key generate by RSA:2048 algorithm

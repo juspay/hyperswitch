@@ -62,6 +62,7 @@ pub async fn setup_intents_create(
                 req,
                 api::AuthFlow::Merchant,
                 payments::CallConnectorAction::Trigger,
+                api_types::HeaderPayload::default(),
             )
         },
         &auth::ApiKeyAuth,
@@ -119,6 +120,7 @@ pub async fn setup_intents_retrieve(
                 payload,
                 auth_flow,
                 payments::CallConnectorAction::Trigger,
+                api_types::HeaderPayload::default(),
             )
         },
         &*auth_type,
@@ -182,6 +184,7 @@ pub async fn setup_intents_update(
                 req,
                 auth_flow,
                 payments::CallConnectorAction::Trigger,
+                api_types::HeaderPayload::default(),
             )
         },
         &*auth_type,
@@ -246,6 +249,7 @@ pub async fn setup_intents_confirm(
                 req,
                 auth_flow,
                 payments::CallConnectorAction::Trigger,
+                api_types::HeaderPayload::default(),
             )
         },
         &*auth_type,

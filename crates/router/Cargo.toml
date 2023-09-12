@@ -16,9 +16,9 @@ email = ["external_services/email", "dep:aws-config"]
 basilisk = ["kms"]
 stripe = ["dep:serde_qs"]
 release = ["kms", "stripe", "basilisk", "s3", "email","accounts_cache"]
-olap = ["data_models/olap", "storage_impl/olap"]
+olap = ["data_models/olap", "storage_impl/olap", "scheduler/olap"]
 oltp = ["data_models/oltp", "storage_impl/oltp"]
-kv_store = []
+kv_store = ["scheduler/kv_store"]
 accounts_cache = []
 openapi = ["olap", "oltp", "payouts"]
 vergen = ["router_env/vergen"]
@@ -84,6 +84,8 @@ url = { version = "2.4.0", features = ["serde"] }
 utoipa = { version = "3.3.0", features = ["preserve_order", "time"] }
 utoipa-swagger-ui = { version = "3.1.3", features = ["actix-web"] }
 uuid = { version = "1.3.3", features = ["serde", "v4"] }
+openssl = "0.10.55"
+x509-parser = "0.15.0"
 
 # First party crates
 api_models = { version = "0.1.0", path = "../api_models", features = ["errors"] }
@@ -95,6 +97,7 @@ redis_interface = { version = "0.1.0", path = "../redis_interface" }
 router_derive = { version = "0.1.0", path = "../router_derive" }
 router_env = { version = "0.1.0", path = "../router_env", features = ["log_extra_implicit_fields", "log_custom_entries_to_extra"] }
 diesel_models = { version = "0.1.0", path = "../diesel_models", features = ["kv_store"] }
+scheduler = { version = "0.1.0", path = "../scheduler", default-features = false}
 data_models = { version = "0.1.0", path = "../data_models", default-features = false }
 storage_impl = { version = "0.1.0", path = "../storage_impl", default-features = false }
 

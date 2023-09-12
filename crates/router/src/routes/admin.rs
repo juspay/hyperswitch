@@ -395,7 +395,11 @@ pub async fn business_profile_create(
         state,
         &req,
         payload,
+<<<<<<< HEAD
         |state, _, req| create_business_profile(state, req, &merchant_id, None),
+=======
+        |state, _, req| create_business_profile(&*state.store, req, &merchant_id),
+>>>>>>> a3dd8b7d1e4fb7bc7a6ab6e3903cb990c9f2171b
         &auth::AdminApiAuth,
     )
     .await

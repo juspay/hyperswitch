@@ -13,7 +13,7 @@ use crate::{
     services,
     types::{
         self,
-        api::{self, PaymentMethodCreateExt},
+        api::{self, CardDetailsPaymentMethod, PaymentMethodCreateExt},
         domain,
         storage::enums as storage_enums,
     },
@@ -27,6 +27,7 @@ pub async fn save_payment_method<F: Clone, FData>(
     maybe_customer: &Option<domain::Customer>,
     merchant_account: &domain::MerchantAccount,
     payment_method_type: Option<storage_enums::PaymentMethodType>,
+    key_store: &domain::MerchantKeyStore,
 ) -> RouterResult<Option<String>>
 where
     FData: mandate::MandateBehaviour,
@@ -43,10 +44,18 @@ where
                 .unwrap_or(false);
 
             let connector_token = if token_store {
-                let token = resp
+                let tokens = resp
                     .payment_method_token
                     .to_owned()
                     .get_required_value("payment_token")?;
+                let token = match tokens {
+                    types::PaymentMethodToken::Token(connector_token) => connector_token,
+                    types::PaymentMethodToken::ApplePayDecrypt(_) => {
+                        Err(errors::ApiErrorResponse::NotSupported {
+                            message: "Apple Pay Decrypt token is not supported".to_string(),
+                        })?
+                    }
+                };
                 Some((connector, token))
             } else {
                 None
@@ -70,6 +79,19 @@ where
                 )
                 .await?;
                 let is_duplicate = locker_response.1;
+
+                let pm_card_details = locker_response.0.card.as_ref().map(|card| {
+                    api::payment_methods::PaymentMethodsData::Card(CardDetailsPaymentMethod::from(
+                        card.clone(),
+                    ))
+                });
+
+                let pm_data_encrypted =
+                    payment_methods::cards::create_encrypted_payment_method_data(
+                        key_store,
+                        pm_card_details,
+                    )
+                    .await;
 
                 if is_duplicate {
                     let existing_pm = db
@@ -103,6 +125,7 @@ where
                                             &locker_response.0.payment_method_id,
                                             merchant_id,
                                             pm_metadata,
+                                            pm_data_encrypted,
                                         )
                                         .await
                                         .change_context(
@@ -131,6 +154,7 @@ where
                         &locker_response.0.payment_method_id,
                         merchant_id,
                         pm_metadata,
+                        pm_data_encrypted,
                     )
                     .await
                     .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -219,7 +243,8 @@ pub async fn add_payment_method_token<F: Clone, T: types::Tokenizable + Clone>(
     pm_token_request_data: types::PaymentMethodTokenizationData,
 ) -> RouterResult<Option<String>> {
     match tokenization_action {
-        payments::TokenizationAction::TokenizeInConnector => {
+        payments::TokenizationAction::TokenizeInConnector
+        | payments::TokenizationAction::TokenizeInConnectorAndApplepayPreDecrypt => {
             let connector_integration: services::BoxedConnectorIntegration<
                 '_,
                 api::PaymentMethodToken,

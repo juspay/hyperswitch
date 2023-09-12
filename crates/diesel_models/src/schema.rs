@@ -78,6 +78,7 @@ diesel::table! {
         frm_routing_algorithm -> Nullable<Jsonb>,
         payout_routing_algorithm -> Nullable<Jsonb>,
         is_recon_enabled -> Bool,
+        applepay_verified_domains -> Nullable<Array<Nullable<Text>>>,
     }
 }
 
@@ -282,6 +283,8 @@ diesel::table! {
         created_at -> Timestamp,
         #[max_length = 255]
         connector_label -> Nullable<Varchar>,
+        #[max_length = 64]
+        profile_id -> Nullable<Varchar>,
     }
 }
 
@@ -455,10 +458,10 @@ diesel::table! {
         connector_type -> ConnectorType,
         metadata -> Nullable<Jsonb>,
         #[max_length = 255]
-        connector_label -> Varchar,
-        business_country -> CountryAlpha2,
+        connector_label -> Nullable<Varchar>,
+        business_country -> Nullable<CountryAlpha2>,
         #[max_length = 255]
-        business_label -> Varchar,
+        business_label -> Nullable<Varchar>,
         #[max_length = 64]
         business_sub_label -> Nullable<Varchar>,
         frm_configs -> Nullable<Jsonb>,
@@ -542,6 +545,7 @@ diesel::table! {
         multiple_capture_count -> Nullable<Int2>,
         #[max_length = 128]
         connector_response_reference_id -> Nullable<Varchar>,
+        amount_capturable -> Int8,
     }
 }
 
@@ -585,9 +589,9 @@ diesel::table! {
         client_secret -> Nullable<Varchar>,
         #[max_length = 64]
         active_attempt_id -> Varchar,
-        business_country -> CountryAlpha2,
+        business_country -> Nullable<CountryAlpha2>,
         #[max_length = 64]
-        business_label -> Varchar,
+        business_label -> Nullable<Varchar>,
         order_details -> Nullable<Array<Nullable<Jsonb>>>,
         allowed_payment_method_types -> Nullable<Json>,
         connector_metadata -> Nullable<Json>,
@@ -597,6 +601,7 @@ diesel::table! {
         profile_id -> Nullable<Varchar>,
         #[max_length = 64]
         merchant_decision -> Nullable<Varchar>,
+        payment_confirm_source -> Nullable<PaymentSource>,
     }
 }
 
@@ -638,6 +643,7 @@ diesel::table! {
         payment_method_issuer -> Nullable<Varchar>,
         payment_method_issuer_code -> Nullable<PaymentMethodIssuerCode>,
         metadata -> Nullable<Json>,
+        payment_method_data -> Nullable<Bytea>,
     }
 }
 
