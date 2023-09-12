@@ -88,12 +88,12 @@ pub fn create_identity_from_certificate_and_key(
 
 pub fn filter_mca_based_on_business_profile(
     merchant_connector_accounts: Vec<domain::MerchantConnectorAccount>,
-    payment_intent: Option<&PaymentIntent>,
+    profile_id: Option<String>,
 ) -> Vec<domain::MerchantConnectorAccount> {
-    if let Some(payment_intent) = payment_intent {
+    if let Some(profile_id) = profile_id {
         merchant_connector_accounts
             .into_iter()
-            .filter(|mca| mca.profile_id == payment_intent.profile_id)
+            .filter(|mca| mca.profile_id.as_ref() == Some(&profile_id))
             .collect::<Vec<_>>()
     } else {
         merchant_connector_accounts
