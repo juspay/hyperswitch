@@ -917,22 +917,22 @@ pub async fn webhooks_core<W: types::OutgoingWebhookType>(
 async fn fetch_mca_and_connector(
     state: &AppState,
     merchant_account: &domain::MerchantAccount,
-    connector_name_or_id: &str,
+    connector_name_or_mca_id: &str,
     key_store: &domain::MerchantKeyStore,
     request_details: &api::IncomingWebhookRequestDetails<'_>,
 ) -> CustomResult<(domain::MerchantConnectorAccount, api::ConnectorData), errors::ApiErrorResponse>
 {
     let db = &state.store;
-    if connector_name_or_id.starts_with("mca_") {
+    if connector_name_or_mca_id.starts_with("mca_") {
         let mca = db
             .find_by_merchant_connector_account_merchant_id_merchant_connector_id(
                 &merchant_account.merchant_id,
-                connector_name_or_id,
+                connector_name_or_mca_id,
                 key_store,
             )
             .await
             .to_not_found_response(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
-                id: connector_name_or_id.to_string(),
+                id: connector_name_or_mca_id.to_string(),
             })
             .attach_printable(
                 "error while fetching merchant_connector_account from connector_id",
@@ -952,7 +952,7 @@ async fn fetch_mca_and_connector(
     } else {
         let connector = api::ConnectorData::get_connector_by_name(
             &state.conf.connectors,
-            connector_name_or_id,
+            connector_name_or_mca_id,
             api::GetToken::Connector,
         )
         .change_context(errors::ApiErrorResponse::InvalidRequestData {
@@ -970,7 +970,7 @@ async fn fetch_mca_and_connector(
             &*state.store,
             object_ref_id,
             merchant_account,
-            connector_name_or_id,
+            connector_name_or_mca_id,
         )
         .await
         .change_context(errors::ApiErrorResponse::InvalidDataValue {
@@ -981,7 +981,7 @@ async fn fetch_mca_and_connector(
         let mca = db
             .find_merchant_connector_account_by_profile_id_connector_name(
                 &profile_id,
-                connector_name_or_id,
+                connector_name_or_mca_id,
                 key_store,
             )
             .await
