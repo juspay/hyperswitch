@@ -25,9 +25,15 @@ pub async fn start_producer<T>(
 where
     T: SchedulerAppState,
 {
-    use rand::Rng;
-    let timeout = rand::thread_rng().gen_range(0..=scheduler_settings.loop_interval);
-    tokio::time::sleep(std::time::Duration::from_millis(timeout)).await;
+    use std::time::Duration;
+
+    use rand::distributions::{Distribution, Uniform};
+
+    let mut rng = rand::thread_rng();
+    let timeout = Uniform::try_from(0..=scheduler_settings.loop_interval)
+        .into_report()
+        .change_context(errors::ProcessTrackerError::ConfigurationError)?;
+    tokio::time::sleep(Duration::from_millis(timeout.sample(&mut rng))).await;
 
     let mut interval = tokio::time::interval(std::time::Duration::from_millis(
         scheduler_settings.loop_interval,

@@ -135,6 +135,7 @@ authorizedotnet.base_url = "https://apitest.authorize.net/xml/v1/request.api"
 bambora.base_url = "https://api.na.bambora.com"
 bitpay.base_url = "https://test.bitpay.com"
 bluesnap.base_url = "https://sandbox.bluesnap.com/"
+bluesnap.secondary_base_url = "https://sandpay.bluesnap.com/"
 boku.base_url = "https://$-api4-stage.boku.com"
 braintree.base_url = "https://api.sandbox.braintreegateway.com/"
 braintree.secondary_base_url = "https://payments.sandbox.braintree-api.com/graphql"
@@ -372,11 +373,16 @@ square = {long_lived_token = false, payment_method = "card"}
 braintree = { long_lived_token = false, payment_method = "card" }
 payme = {long_lived_token = false, payment_method = "card"}
 
+[temp_locker_disable_config]
+trustpay = {payment_method = "card,bank_redirect,wallet"}
+stripe = {payment_method = "card,bank_redirect,pay_later,wallet,bank_debit"}
+
 [connector_customer]
 connector_list = "bluesnap,stax,stripe"
 payout_connector_list = "wise"
 
 [dummy_connector]
+enabled = true
 payment_ttl = 172800
 payment_duration = 1000
 payment_tolerance = 100

@@ -48,7 +48,7 @@ pub async fn lookup_webhook_event(
         Ok(merchant_webhook_config) => merchant_webhook_config.contains(event),
         Err(..) => {
             //if failed to fetch from redis. fetch from db and populate redis
-            db.find_config_by_key_cached(&redis_key)
+            db.find_config_by_key(&redis_key)
                 .await
                 .map(|config| {
                     if let Ok(set) =
@@ -74,7 +74,7 @@ pub async fn construct_webhook_router_data<'a>(
     object_reference_id: &ObjectReferenceId,
     request_details: &api::IncomingWebhookRequestDetails<'_>,
 ) -> CustomResult<types::VerifyWebhookSourceRouterData, errors::ApiErrorResponse> {
-    let connector_label = utils::get_connector_label_using_object_reference_id(
+    let profile_id = utils::get_profile_id_using_object_reference_id(
         &*state.store,
         object_reference_id.clone(),
         merchant_account,
@@ -86,9 +86,10 @@ pub async fn construct_webhook_router_data<'a>(
     let merchant_connector_account = helpers::get_merchant_connector_account(
         state,
         merchant_account.merchant_id.as_str(),
-        &connector_label,
         None,
         key_store,
+        &profile_id,
+        connector_name,
     )
     .await?;
     let auth_type: types::ConnectorAuthType = merchant_connector_account

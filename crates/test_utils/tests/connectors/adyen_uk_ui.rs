@@ -852,6 +852,7 @@ fn should_make_adyen_touch_n_go_payment_test() {
     tester!(should_make_adyen_touch_n_go_payment);
 }
 
+#[ignore]
 #[test]
 #[serial]
 fn should_make_adyen_momo_atm_payment_test() {

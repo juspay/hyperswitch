@@ -19,7 +19,7 @@ use crate::{
     types::{
         api::{self, PaymentIdTypeExt},
         domain,
-        storage::{self, enums, ConnectorResponseExt, PaymentAttemptExt},
+        storage::{self, enums, payment_attempt::PaymentAttemptExt, ConnectorResponseExt},
     },
     utils::OptionExt,
 };
@@ -91,6 +91,12 @@ impl<F: Send + Clone> GetTracker<F, payments::PaymentData<F>, api::PaymentsCaptu
             let amount_to_capture = request
                 .amount_to_capture
                 .get_required_value("amount_to_capture")?;
+
+            helpers::validate_amount_to_capture(
+                payment_attempt.amount_capturable,
+                Some(amount_to_capture),
+            )?;
+
             let previous_captures = db
                 .find_all_captures_by_merchant_id_payment_id_authorized_attempt_id(
                     &payment_attempt.merchant_id,
@@ -100,20 +106,6 @@ impl<F: Send + Clone> GetTracker<F, payments::PaymentData<F>, api::PaymentsCaptu
                 )
                 .await
                 .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
-            let previously_blocked_amount =
-                previous_captures.iter().fold(0, |accumulator, capture| {
-                    accumulator
-                        + match capture.status {
-                            enums::CaptureStatus::Charged | enums::CaptureStatus::Pending => {
-                                capture.amount
-                            }
-                            enums::CaptureStatus::Started | enums::CaptureStatus::Failed => 0,
-                        }
-                });
-            helpers::validate_amount_to_capture(
-                payment_attempt.amount - previously_blocked_amount,
-                Some(amount_to_capture),
-            )?;
 
             let capture = db
                 .insert_capture(
@@ -253,6 +245,7 @@ impl<F: Clone> UpdateTracker<F, payments::PaymentData<F>, api::PaymentsCaptureRe
         _updated_customer: Option<storage::CustomerUpdate>,
         _mechant_key_store: &domain::MerchantKeyStore,
         _frm_suggestion: Option<FrmSuggestion>,
+        _header_payload: api::HeaderPayload,
     ) -> RouterResult<(
         BoxedOperation<'b, F, api::PaymentsCaptureRequest>,
         payments::PaymentData<F>,

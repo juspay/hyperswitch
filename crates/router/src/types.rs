@@ -18,6 +18,7 @@ pub use api_models::{
     payouts as payout_types,
 };
 use common_utils::{pii, pii::Email};
+use data_models::mandates::MandateData;
 use error_stack::{IntoReport, ResultExt};
 use masking::Secret;
 
@@ -361,7 +362,7 @@ pub struct PaymentsAuthorizeData {
     pub setup_future_usage: Option<storage_enums::FutureUsage>,
     pub mandate_id: Option<api_models::payments::MandateIds>,
     pub off_session: Option<bool>,
-    pub setup_mandate_details: Option<payments::MandateData>,
+    pub setup_mandate_details: Option<MandateData>,
     pub browser_info: Option<BrowserInformation>,
     pub order_details: Option<Vec<api_models::payments::OrderDetailsWithAmount>>,
     pub order_category: Option<String>,
@@ -422,7 +423,7 @@ pub struct PaymentsPreProcessingData {
     pub email: Option<Email>,
     pub currency: Option<storage_enums::Currency>,
     pub payment_method_type: Option<storage_enums::PaymentMethodType>,
-    pub setup_mandate_details: Option<payments::MandateData>,
+    pub setup_mandate_details: Option<MandateData>,
     pub capture_method: Option<storage_enums::CaptureMethod>,
     pub order_details: Option<Vec<api_models::payments::OrderDetailsWithAmount>>,
     pub router_return_url: Option<String>,
@@ -443,7 +444,7 @@ pub struct CompleteAuthorizeData {
     pub setup_future_usage: Option<storage_enums::FutureUsage>,
     pub mandate_id: Option<api_models::payments::MandateIds>,
     pub off_session: Option<bool>,
-    pub setup_mandate_details: Option<payments::MandateData>,
+    pub setup_mandate_details: Option<MandateData>,
     pub redirect_response: Option<CompleteAuthorizeRedirectResponse>,
     pub browser_info: Option<BrowserInformation>,
     pub connector_transaction_id: Option<String>,
@@ -463,15 +464,15 @@ pub struct PaymentsSyncData {
     pub encoded_data: Option<String>,
     pub capture_method: Option<storage_enums::CaptureMethod>,
     pub connector_meta: Option<serde_json::Value>,
-    pub capture_sync_type: CaptureSyncType,
+    pub sync_type: SyncRequestType,
     pub mandate_id: Option<api_models::payments::MandateIds>,
 }
 
 #[derive(Debug, Default, Clone)]
-pub enum CaptureSyncType {
+pub enum SyncRequestType {
     MultipleCaptureSync(Vec<String>),
     #[default]
-    SingleCaptureSync,
+    SinglePaymentSync,
 }
 
 #[derive(Debug, Default, Clone)]
@@ -513,7 +514,7 @@ pub struct VerifyRequestData {
     pub mandate_id: Option<api_models::payments::MandateIds>,
     pub setup_future_usage: Option<storage_enums::FutureUsage>,
     pub off_session: Option<bool>,
-    pub setup_mandate_details: Option<payments::MandateData>,
+    pub setup_mandate_details: Option<MandateData>,
     pub router_return_url: Option<String>,
     pub browser_info: Option<BrowserInformation>,
     pub email: Option<Email>,
