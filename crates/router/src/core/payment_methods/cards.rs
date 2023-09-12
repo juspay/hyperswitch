@@ -854,9 +854,24 @@ pub async fn list_payment_methods(
         .await
         .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
 
+    let profile_id = payment_intent
+        .as_ref()
+        .async_map(|payment_intent| async {
+            crate::core::utils::get_profile_id_from_business_details(
+                payment_intent.business_country,
+                payment_intent.business_label.as_ref(),
+                &merchant_account,
+                payment_intent.profile_id.as_ref(),
+                db,
+            )
+            .await
+            .attach_printable("Could not find profile id from business details")
+        })
+        .await
+        .transpose()?;
+
     // filter out connectors based on the business country
-    let filtered_mcas =
-        helpers::filter_mca_based_on_business_profile(all_mcas, payment_intent.as_ref());
+    let filtered_mcas = helpers::filter_mca_based_on_business_profile(all_mcas, profile_id);
 
     logger::debug!(mca_before_filtering=?filtered_mcas);
 

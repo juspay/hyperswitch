@@ -226,8 +226,8 @@ impl<T: DatabaseStore> PaymentAttemptInterface for RouterStore<T> {
 
     async fn find_payment_attempt_by_attempt_id_merchant_id(
         &self,
-        merchant_id: &str,
         attempt_id: &str,
+        merchant_id: &str,
         _storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<PaymentAttempt, errors::StorageError> {
         let conn = pg_connection_read(self).await?;
