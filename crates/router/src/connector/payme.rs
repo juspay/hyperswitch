@@ -16,12 +16,12 @@ use crate::{
         errors::{self, CustomResult},
         payments,
     },
-    db, headers,
+    headers,
     services::{self, request, ConnectorIntegration, ConnectorValidation},
     types::{
         self,
         api::{self, ConnectorCommon, ConnectorCommonExt},
-        ErrorResponse, Response,
+        domain, ErrorResponse, Response,
     },
     utils::{self, BytesExt},
 };
@@ -927,12 +927,10 @@ impl api::IncomingWebhook for Payme {
 
     async fn verify_webhook_source(
         &self,
-        db: &dyn db::StorageInterface,
         request: &api::IncomingWebhookRequestDetails<'_>,
-        merchant_account: &types::domain::MerchantAccount,
+        merchant_account: &domain::MerchantAccount,
+        merchant_connector_account: domain::MerchantConnectorAccount,
         connector_label: &str,
-        key_store: &types::domain::MerchantKeyStore,
-        object_reference_id: api_models::webhooks::ObjectReferenceId,
     ) -> CustomResult<bool, errors::ConnectorError> {
         let algorithm = self
             .get_webhook_source_verification_algorithm(request)
@@ -944,11 +942,9 @@ impl api::IncomingWebhook for Payme {
 
         let connector_webhook_secrets = self
             .get_webhook_source_verification_merchant_secret(
-                db,
                 merchant_account,
                 connector_label,
-                key_store,
-                object_reference_id,
+                merchant_connector_account,
             )
             .await
             .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
