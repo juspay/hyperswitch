@@ -136,15 +136,6 @@ where
         get_connector_tokenization_action(state, &operation, payment_data, &validate_result)
             .await?;
 
-    let updated_customer = call_create_connector_customer_if_required(
-        state,
-        &customer,
-        &merchant_account,
-        &key_store,
-        &mut payment_data,
-    )
-    .await?;
-
     let mut connector_http_status_code = None;
 
     if let Some(connector_details) = connector {
@@ -160,7 +151,6 @@ where
                     &customer,
                     call_connector_action,
                     tokenization_action,
-                    updated_customer,
                     validate_result.requeue,
                     schedule_time,
                 )
@@ -218,7 +208,7 @@ where
                 payment_data.clone(),
                 customer.clone(),
                 validate_result.storage_scheme,
-                updated_customer,
+                None,
                 &key_store,
                 None,
             )
@@ -547,7 +537,6 @@ pub async fn call_connector_service<F, RouterDReq, ApiRequest>(
     customer: &Option<domain::Customer>,
     call_connector_action: CallConnectorAction,
     tokenization_action: TokenizationAction,
-    updated_customer: Option<storage::CustomerUpdate>,
     requeue: bool,
     schedule_time: Option<time::PrimitiveDateTime>,
 ) -> RouterResult<router_types::RouterData<F, RouterDReq, router_types::PaymentsResponseData>>
@@ -565,6 +554,15 @@ where
         services::api::ConnectorIntegration<F, RouterDReq, router_types::PaymentsResponseData>,
 {
     let stime_connector = Instant::now();
+
+    let updated_customer = call_create_connector_customer_if_required(
+        state,
+        customer,
+        merchant_account,
+        key_store,
+        payment_data,
+    )
+    .await?;
 
     let mut router_data = payment_data
         .construct_router_data(
@@ -781,9 +779,6 @@ where
     // To construct connector flow specific api
     dyn api::Connector:
         services::api::ConnectorIntegration<F, Req, router_types::PaymentsResponseData>,
-
-    // To perform router related operation for PaymentResponse
-    PaymentResponse: Operation<F, Req>,
 {
     let connector_name = payment_data.payment_attempt.connector.clone();
 
