@@ -290,7 +290,7 @@ impl ErrorSwitch<api_models::errors::types::ApiErrorResponse> for CustomersError
             }
             Self::MandateActive => AER::BadRequest(ApiError::new(
                 "IR",
-                11,
+                10,
                 "Customer has active mandate/subsciption",
                 None,
             )),
