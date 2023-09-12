@@ -93,6 +93,7 @@ pub struct PaymentIntent {
     pub off_session: Option<bool>,
     pub client_secret: Option<String>,
     pub active_attempt_id: String,
+    pub payment_link_id: Option<String>,
     pub business_country: storage_enums::CountryAlpha2,
     pub business_label: String,
     pub order_details: Option<Vec<pii::SecretSerdeValue>>,
@@ -104,7 +105,6 @@ pub struct PaymentIntent {
     // Denotes the action(approve or reject) taken by merchant in case of manual review.
     // Manual review can occur when the transaction is marked as risky by the frm_processor, payment processor or when there is underpayment/over payment incase of crypto payment
     pub merchant_decision: Option<String>,
-    pub payment_link_id: Option<String>,
 }
 
 #[derive(Clone, Debug, Default, Eq, PartialEq, Serialize, Deserialize)]
@@ -133,6 +133,7 @@ pub struct PaymentIntentNew {
     pub setup_future_usage: Option<storage_enums::FutureUsage>,
     pub off_session: Option<bool>,
     pub client_secret: Option<String>,
+    pub payment_link_id: Option<String>,
     pub active_attempt_id: String,
     pub business_country: storage_enums::CountryAlpha2,
     pub business_label: String,
@@ -143,7 +144,6 @@ pub struct PaymentIntentNew {
     pub attempt_count: i16,
     pub profile_id: Option<String>,
     pub merchant_decision: Option<String>,
-    pub payment_link_id: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

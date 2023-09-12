@@ -422,6 +422,8 @@ where
             .change_context(errors::ApiErrorResponse::InvalidDataValue {
                 field_name: "payment_method_data",
             })?;
+
+    println!("hola {:?}", payment_intent.profile_id);
     let merchant_decision = payment_intent.merchant_decision.to_owned();
     let frm_message = fraud_check.map(FrmMessage::foreign_from);
 

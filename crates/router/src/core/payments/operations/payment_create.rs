@@ -191,6 +191,9 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
             .to_duplicate_response(errors::ApiErrorResponse::DuplicatePayment {
                 payment_id: payment_id.clone(),
             })?;
+        
+        println!("payment intent after making in get tracker {:?}", payment_intent.clone());
+
         connector_response = db
             .insert_connector_response(
                 Self::make_connector_response(&payment_attempt),
@@ -277,6 +280,9 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
                 .clone()
                 .map(ForeignInto::foreign_into)),
         });
+
+        println!("bhola {:?}", payment_intent);
+        
 
         Ok((
             operation,
@@ -421,6 +427,8 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
             .straight_through_algorithm
             .clone();
 
+        println!("non updated payment intent sahkal {:?}", payment_data.payment_intent.clone());
+
         payment_data.payment_attempt = db
             .update_payment_attempt_with_attempt_id(
                 payment_data.payment_attempt,
@@ -435,6 +443,7 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
             .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
 
         let customer_id = payment_data.payment_intent.customer_id.clone();
+
         payment_data.payment_intent = db
             .update_payment_intent(
                 payment_data.payment_intent,
@@ -451,6 +460,8 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
             .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
 
         // payment_data.mandate_id = response.and_then(|router_data| router_data.request.mandate_id);
+
+        println!("updated payment intent sahkal {:?}", payment_data.payment_intent.clone());
 
         Ok((
             payments::is_confirm(self, payment_data.confirm),
@@ -609,7 +620,6 @@ impl PaymentCreate {
         })
     }
 
-    #[allow(clippy::too_many_arguments)]
     #[instrument(skip_all)]
     #[allow(clippy::too_many_arguments)]
     fn make_payment_intent(
@@ -673,6 +683,8 @@ impl PaymentCreate {
             .get_feature_metadata_as_value()
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Error converting feature_metadata to Value")?;
+
+        println!("sahkal profile_id{:?} sahkal payment_link_id{:?}",profile_id,payment_link_id);
 
         Ok(storage::PaymentIntentNew {
             payment_id: payment_id.to_string(),

@@ -36,3 +36,35 @@ pub async fn get_payment_link(
     )
     .await
 }
+
+
+pub async fn initiate_payment_link (
+    state: web::Data<app::AppState>,
+    req: actix_web::HttpRequest,
+    path: web::Path<(String, String)>,
+) -> impl Responder {
+    let flow = Flow::PaymentLinkInitiate;
+    let (merchant_id, payment_id) = path.into_inner();
+
+    let payload = web::Json(api_models::payments::PaymentLinkInitiateRequest {
+        payment_id,
+        merchant_id : merchant_id.clone() ,
+    }).into_inner();
+
+    api::server_wrap(
+        flow,
+        state.get_ref(),
+        &req,
+        payload.clone(),
+        |state, auth , _| {
+            payments::intiate_payment_link(
+                state,
+                auth.merchant_account,
+                payload.merchant_id.clone(),
+                payload.payment_id.clone(),
+            )
+        },
+        &auth::MerchantIdAuth(merchant_id),
+    )
+    .await
+}

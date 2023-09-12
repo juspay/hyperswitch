@@ -92,6 +92,8 @@ where
             auth_flow,
         )
         .await?;
+    
+    println!("payment operation payment intent {:?}", payment_data.payment_intent.clone());
 
     let (operation, customer) = operation
         .to_domain()?
@@ -1918,3 +1920,26 @@ pub async fn retrieve_payment_link(
 
     Ok(services::ApplicationResponse::Json(response))
 }
+
+
+pub async fn intiate_payment_link (
+    state: &AppState,
+    merchant_account: domain::MerchantAccount,
+    merchant_id: String,
+    payment_id: String,
+) -> RouterResponse<services::PaymentLinkFormData>  {
+    let db = &*state.store;
+    let payment_intent = db.find_payment_intent_by_payment_id_merchant_id(&payment_id,&merchant_id, merchant_account.storage_scheme)
+    .await
+    .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
+    let payment_link_data = services::PaymentLinkFormData {
+        client_secret: payment_intent.client_secret.unwrap(),
+        base_url: state.conf.server.base_url.clone(),
+        amount: payment_intent.amount,
+        currency: payment_intent.currency.unwrap().to_string(),
+        pub_key:merchant_account.publishable_key.unwrap(),
+    };
+    Ok(services::ApplicationResponse::PaymenkLinkForm(Box::new(payment_link_data)))
+
+}
+

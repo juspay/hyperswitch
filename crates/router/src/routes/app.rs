@@ -558,6 +558,7 @@ impl PaymentLink {
         web::scope("/payment_link")
             .app_data(web::Data::new(state))
             .service(web::resource("").route(web::get().to(get_payment_link)))
+            .service(web::resource("{merchant_id}/{payment_id}").route(web::get().to(initiate_payment_link)))
     }
 }
 

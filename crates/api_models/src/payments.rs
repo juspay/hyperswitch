@@ -2906,3 +2906,9 @@ pub struct RetrievePaymentLinkResponse {
     #[serde(with = "common_utils::custom_serde::iso8601")]
     pub last_modified_at: PrimitiveDateTime,
 }
+
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
+pub struct PaymentLinkInitiateRequest {
+    pub merchant_id: String,
+    pub payment_id: String,
+}
