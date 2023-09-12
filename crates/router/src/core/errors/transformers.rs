@@ -295,8 +295,8 @@ impl ErrorSwitch<api_models::errors::types::ApiErrorResponse> for CustomersError
                 None,
             )),
             Self::CustomerNotFound => AER::NotFound(ApiError::new(
-                "RE",
-                02,
+                "HE",
+                2,
                 "Customer does not exist in our records",
                 None,
             )),
