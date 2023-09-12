@@ -159,7 +159,7 @@ where
 #[cfg(feature = "dummy_connector")]
 #[derive(Debug, Deserialize, Clone, Default)]
 pub struct DummyConnector {
-    pub is_enabled: bool,
+    pub enabled: bool,
     pub payment_ttl: i64,
     pub payment_duration: u64,
     pub payment_tolerance: u64,

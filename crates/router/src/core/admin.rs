@@ -1393,7 +1393,7 @@ pub async fn validate_dummy_connector_enabled(
     state: &AppState,
     connector_name: &api_enums::Connector,
 ) -> Result<(), errors::ApiErrorResponse> {
-    if !state.conf.dummy_connector.is_enabled
+    if !state.conf.dummy_connector.enabled
         && matches!(
             connector_name,
             api_enums::Connector::DummyConnector1

@@ -311,7 +311,7 @@ square = {long_lived_token = false, payment_method = "card"}
 braintree = { long_lived_token = false, payment_method = "card" }
 
 [dummy_connector]
-is_enabled = true                # Whether dummy connector is enabled or not
+enabled = true                # Whether dummy connector is enabled or not
 payment_ttl = 172800             # Time to live for dummy connector payment in redis
 payment_duration = 1000          # Fake delay duration for dummy connector payment
 payment_tolerance = 100          # Fake delay tolerance for dummy connector payment

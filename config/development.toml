@@ -377,7 +377,7 @@ connector_list = "bluesnap,stax,stripe"
 payout_connector_list = "wise"
 
 [dummy_connector]
-is_enabled = true
+enabled = true
 payment_ttl = 172800
 payment_duration = 1000
 payment_tolerance = 100
