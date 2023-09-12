@@ -341,6 +341,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
                     error_reason: payment_attempt.error_reason.clone(),
                     multiple_capture_count: payment_attempt.multiple_capture_count,
                     connector_response_reference_id: None,
+                    amount_capturable: payment_attempt.amount_capturable,
                 };
 
                 let field = format!("pa_{}", created_attempt.attempt_id);
@@ -905,6 +906,7 @@ impl DataModelExt for PaymentAttempt {
             error_reason: self.error_reason,
             multiple_capture_count: self.multiple_capture_count,
             connector_response_reference_id: self.connector_response_reference_id,
+            amount_capturable: self.amount_capturable,
         }
     }
 
@@ -952,6 +954,7 @@ impl DataModelExt for PaymentAttempt {
             error_reason: storage_model.error_reason,
             multiple_capture_count: storage_model.multiple_capture_count,
             connector_response_reference_id: storage_model.connector_response_reference_id,
+            amount_capturable: storage_model.amount_capturable,
         }
     }
 }
@@ -999,6 +1002,7 @@ impl DataModelExt for PaymentAttemptNew {
             error_reason: self.error_reason,
             connector_response_reference_id: self.connector_response_reference_id,
             multiple_capture_count: self.multiple_capture_count,
+            amount_capturable: self.amount_capturable,
         }
     }
 
@@ -1044,6 +1048,7 @@ impl DataModelExt for PaymentAttemptNew {
             error_reason: storage_model.error_reason,
             connector_response_reference_id: storage_model.connector_response_reference_id,
             multiple_capture_count: storage_model.multiple_capture_count,
+            amount_capturable: storage_model.amount_capturable,
         }
     }
 }
@@ -1147,6 +1152,7 @@ impl DataModelExt for PaymentAttemptUpdate {
                 error_message,
                 error_reason,
                 connector_response_reference_id,
+                amount_capturable,
             } => DieselPaymentAttemptUpdate::ResponseUpdate {
                 status,
                 connector,
@@ -1160,6 +1166,7 @@ impl DataModelExt for PaymentAttemptUpdate {
                 error_message,
                 error_reason,
                 connector_response_reference_id,
+                amount_capturable,
             },
             Self::UnresolvedResponseUpdate {
                 status,
@@ -1187,12 +1194,14 @@ impl DataModelExt for PaymentAttemptUpdate {
                 error_code,
                 error_message,
                 error_reason,
+                amount_capturable,
             } => DieselPaymentAttemptUpdate::ErrorUpdate {
                 connector,
                 status,
                 error_code,
                 error_message,
                 error_reason,
+                amount_capturable,
             },
             Self::MultipleCaptureCountUpdate {
                 multiple_capture_count,
@@ -1222,6 +1231,13 @@ impl DataModelExt for PaymentAttemptUpdate {
                 status,
                 error_code,
                 error_message,
+            },
+            Self::AmountToCaptureUpdate {
+                status,
+                amount_capturable,
+            } => DieselPaymentAttemptUpdate::AmountToCaptureUpdate {
+                status,
+                amount_capturable,
             },
         }
     }
@@ -1322,6 +1338,7 @@ impl DataModelExt for PaymentAttemptUpdate {
                 error_message,
                 error_reason,
                 connector_response_reference_id,
+                amount_capturable,
             } => Self::ResponseUpdate {
                 status,
                 connector,
@@ -1335,6 +1352,7 @@ impl DataModelExt for PaymentAttemptUpdate {
                 error_message,
                 error_reason,
                 connector_response_reference_id,
+                amount_capturable,
             },
             DieselPaymentAttemptUpdate::UnresolvedResponseUpdate {
                 status,
@@ -1362,12 +1380,14 @@ impl DataModelExt for PaymentAttemptUpdate {
                 error_code,
                 error_message,
                 error_reason,
+                amount_capturable,
             } => Self::ErrorUpdate {
                 connector,
                 status,
                 error_code,
                 error_message,
                 error_reason,
+                amount_capturable,
             },
             DieselPaymentAttemptUpdate::MultipleCaptureCountUpdate {
                 multiple_capture_count,
@@ -1397,6 +1417,13 @@ impl DataModelExt for PaymentAttemptUpdate {
                 status,
                 error_code,
                 error_message,
+            },
+            DieselPaymentAttemptUpdate::AmountToCaptureUpdate {
+                status,
+                amount_capturable,
+            } => Self::AmountToCaptureUpdate {
+                status,
+                amount_capturable,
             },
         }
     }
