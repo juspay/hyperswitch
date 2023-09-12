@@ -1320,7 +1320,7 @@ impl api::IncomingWebhook for Braintree {
 
         let signing_key = hmac::Key::new(
             hmac::HMAC_SHA1_FOR_LEGACY_USE_ONLY,
-            &sha1_hash_key.as_slice(),
+            sha1_hash_key.as_slice(),
         );
         let signed_messaged = hmac::sign(&signing_key, &message);
         let payload_sign: String = hex::encode(signed_messaged);
