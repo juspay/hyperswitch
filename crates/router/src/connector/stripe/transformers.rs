@@ -6,6 +6,7 @@ use common_utils::{
     ext_traits::{ByteSliceExt, BytesExt},
     pii::{self, Email},
 };
+use data_models::mandates::AcceptanceType;
 use error_stack::{IntoReport, ResultExt};
 use masking::{ExposeInterface, ExposeOptionInterface, PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
@@ -1306,7 +1307,7 @@ fn create_stripe_payment_method(
                         payment_method_token
                     {
                         let expiry_year_4_digit = Secret::new(format!(
-                            "20{:?}",
+                            "20{}",
                             decrypt_data
                                 .clone()
                                 .application_expiration_date
@@ -1672,7 +1673,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PaymentIntentRequest {
                     .map(|customer_acceptance| {
                         Ok::<_, error_stack::Report<errors::ConnectorError>>(
                             match customer_acceptance.acceptance_type {
-                                payments::AcceptanceType::Online => {
+                                AcceptanceType::Online => {
                                     let online_mandate = customer_acceptance
                                         .online
                                         .clone()
@@ -1696,7 +1697,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PaymentIntentRequest {
                                         },
                                     }
                                 }
-                                payments::AcceptanceType::Offline => StripeMandateRequest {
+                                AcceptanceType::Offline => StripeMandateRequest {
                                     mandate_type: StripeMandateType::Offline,
                                 },
                             },

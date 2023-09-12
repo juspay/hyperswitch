@@ -77,7 +77,7 @@ pub trait RouterData {
 pub const SELECTED_PAYMENT_METHOD: &str = "Selected payment method";
 
 pub fn get_unimplemented_payment_method_error_message(connector: &str) -> String {
-    format!("Selected payment method through {}", connector)
+    format!("{} through {}", SELECTED_PAYMENT_METHOD, connector)
 }
 
 impl<Flow, Request, Response> RouterData for types::RouterData<Flow, Request, Response> {

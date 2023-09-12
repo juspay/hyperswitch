@@ -1341,10 +1341,15 @@ impl<'a> TryFrom<&types::PaymentsAuthorizeRouterData> for AdyenPaymentRequest<'a
                 api_models::payments::PaymentMethodData::GiftCard(ref gift_card_data) => {
                     AdyenPaymentRequest::try_from((item, gift_card_data.as_ref()))
                 }
-                _ => Err(errors::ConnectorError::NotSupported {
-                    message: format!("{:?}", item.request.payment_method_type),
-                    connector: "Adyen",
-                })?,
+                payments::PaymentMethodData::Crypto(_)
+                | payments::PaymentMethodData::MandatePayment
+                | payments::PaymentMethodData::Reward
+                | payments::PaymentMethodData::Upi(_) => {
+                    Err(errors::ConnectorError::NotSupported {
+                        message: utils::SELECTED_PAYMENT_METHOD.to_string(),
+                        connector: "Adyen",
+                    })?
+                }
             },
         }
     }
@@ -1366,10 +1371,12 @@ impl<'a> TryFrom<&types::PaymentsBalanceRouterData> for AdyenBalanceRequest<'a> 
                             balance_pm,
                         )))
                     }
-                    _ => Err(errors::ConnectorError::FlowNotSupported {
-                        flow: "Balance".to_string(),
-                        connector: "adyen".to_string(),
-                    }),
+                    payments::GiftCardData::PaySafeCard {} => {
+                        Err(errors::ConnectorError::FlowNotSupported {
+                            flow: "Balance".to_string(),
+                            connector: "adyen".to_string(),
+                        })
+                    }
                 }
             }
             _ => Err(errors::ConnectorError::FlowNotSupported {
@@ -1633,7 +1640,13 @@ impl<'a> TryFrom<&api_models::payments::BankDebitData> for AdyenPaymentMethod<'a
                     )?,
                 },
             ))),
-            _ => Err(errors::ConnectorError::NotImplemented("Payment method".to_string()).into()),
+            payments::BankDebitData::BecsBankDebit { .. } => {
+                Err(errors::ConnectorError::NotSupported {
+                    message: utils::SELECTED_PAYMENT_METHOD.to_string(),
+                    connector: "Adyen",
+                }
+                .into())
+            }
         }
     }
 }
@@ -1679,9 +1692,10 @@ impl<'a> TryFrom<&api_models::payments::VoucherData> for AdyenPaymentMethod<'a> 
             payments::VoucherData::Efecty
             | payments::VoucherData::PagoEfectivo
             | payments::VoucherData::RedCompra
-            | payments::VoucherData::RedPagos => Err(errors::ConnectorError::NotImplemented(
-                "this payment method".to_string(),
-            )
+            | payments::VoucherData::RedPagos => Err(errors::ConnectorError::NotSupported {
+                message: utils::SELECTED_PAYMENT_METHOD.to_string(),
+                connector: "Adyen",
+            }
             .into()),
         }
     }
@@ -1756,7 +1770,7 @@ impl TryFrom<&storage_enums::PaymentMethodType> for PaymentType {
             | storage_enums::PaymentMethodType::Walley => Ok(Self::Scheme),
             storage_enums::PaymentMethodType::Paypal => Ok(Self::Paypal),
             _ => Err(errors::ConnectorError::NotImplemented(
-                "Payment Method Type".to_string(),
+                utils::get_unimplemented_payment_method_error_message("Adyen"),
             ))?,
         }
     }
@@ -1858,7 +1872,18 @@ impl<'a> TryFrom<&api::WalletData> for AdyenPaymentMethod<'a> {
             api_models::payments::WalletData::VippsRedirect { .. } => Ok(AdyenPaymentMethod::Vipps),
             api_models::payments::WalletData::DanaRedirect { .. } => Ok(AdyenPaymentMethod::Dana),
             api_models::payments::WalletData::SwishQr(_) => Ok(AdyenPaymentMethod::Swish),
-            _ => Err(errors::ConnectorError::NotImplemented("Payment method".to_string()).into()),
+            payments::WalletData::AliPayQr(_)
+            | payments::WalletData::ApplePayRedirect(_)
+            | payments::WalletData::ApplePayThirdPartySdk(_)
+            | payments::WalletData::GooglePayRedirect(_)
+            | payments::WalletData::GooglePayThirdPartySdk(_)
+            | payments::WalletData::PaypalSdk(_)
+            | payments::WalletData::WeChatPayQr(_)
+            | payments::WalletData::CashappQr(_) => Err(errors::ConnectorError::NotSupported {
+                message: utils::SELECTED_PAYMENT_METHOD.to_string(),
+                connector: "Adyen",
+            }
+            .into()),
         }
     }
 }
@@ -1914,7 +1939,11 @@ impl<'a> TryFrom<(&api::PayLaterData, Option<api_enums::CountryAlpha2>)>
             api_models::payments::PayLaterData::AtomeRedirect { .. } => {
                 Ok(AdyenPaymentMethod::Atome)
             }
-            _ => Err(errors::ConnectorError::NotImplemented("Payment method".to_string()).into()),
+            payments::PayLaterData::KlarnaSdk { .. } => Err(errors::ConnectorError::NotSupported {
+                message: utils::SELECTED_PAYMENT_METHOD.to_string(),
+                connector: "Adyen",
+            }
+            .into()),
         }
     }
 }
@@ -2039,7 +2068,14 @@ impl<'a> TryFrom<&api_models::payments::BankRedirectData> for AdyenPaymentMethod
             api_models::payments::BankRedirectData::Trustly { .. } => {
                 Ok(AdyenPaymentMethod::Trustly)
             }
-            _ => Err(errors::ConnectorError::NotImplemented("Payment method".to_string()).into()),
+            payments::BankRedirectData::Interac { .. }
+            | payments::BankRedirectData::Przelewy24 { .. } => {
+                Err(errors::ConnectorError::NotSupported {
+                    message: utils::SELECTED_PAYMENT_METHOD.to_string(),
+                    connector: "Adyen",
+                }
+                .into())
+            }
         }
     }
 }
@@ -2108,9 +2144,10 @@ impl<'a> TryFrom<&api_models::payments::BankTransferData> for AdyenPaymentMethod
             | api_models::payments::BankTransferData::SepaBankTransfer { .. }
             | api_models::payments::BankTransferData::BacsBankTransfer { .. }
             | api_models::payments::BankTransferData::MultibancoBankTransfer { .. }
-            | payments::BankTransferData::Pse {} => {
-                Err(errors::ConnectorError::NotImplemented("Payment method".to_string()).into())
-            }
+            | payments::BankTransferData::Pse {} => Err(errors::ConnectorError::NotImplemented(
+                utils::get_unimplemented_payment_method_error_message("Adyen"),
+            )
+            .into()),
         }
     }
 }
@@ -2181,10 +2218,23 @@ impl<'a>
                         };
                         Ok(AdyenPaymentMethod::AdyenCard(Box::new(adyen_card)))
                     }
-                    _ => Err(errors::ConnectorError::NotSupported {
-                        message: format!("mandate_{:?}", item.payment_method),
-                        connector: "Adyen",
-                    })?,
+                    payments::PaymentMethodData::CardRedirect(_)
+                    | payments::PaymentMethodData::Wallet(_)
+                    | payments::PaymentMethodData::PayLater(_)
+                    | payments::PaymentMethodData::BankRedirect(_)
+                    | payments::PaymentMethodData::BankDebit(_)
+                    | payments::PaymentMethodData::BankTransfer(_)
+                    | payments::PaymentMethodData::Crypto(_)
+                    | payments::PaymentMethodData::MandatePayment
+                    | payments::PaymentMethodData::Reward
+                    | payments::PaymentMethodData::Upi(_)
+                    | payments::PaymentMethodData::Voucher(_)
+                    | payments::PaymentMethodData::GiftCard(_) => {
+                        Err(errors::ConnectorError::NotSupported {
+                            message: "Network tokenization for payment method".to_string(),
+                            connector: "Adyen",
+                        })?
+                    }
                 }
             }
         }?;

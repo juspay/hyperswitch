@@ -4,6 +4,59 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 1.38.0 (2023-09-11)
+
+### Features
+
+- **confirm:** Reduce the database calls to 2 stages in case of non-retry ([#2113](https://github.com/juspay/hyperswitch/pull/2113)) ([`28b102d`](https://github.com/juspay/hyperswitch/commit/28b102de2496c0880b6b232ddc82b1ef227af4da))
+- **core:** Accept payment_confirm_source header in capture call and store in payment_intent ([#2116](https://github.com/juspay/hyperswitch/pull/2116)) ([`2f272d2`](https://github.com/juspay/hyperswitch/commit/2f272d2962901b3e52b547bc0363bfbfb8030277))
+- **router:** Saving verified domains to business_profile table ([#2109](https://github.com/juspay/hyperswitch/pull/2109)) ([`73da641`](https://github.com/juspay/hyperswitch/commit/73da641b58bbfc1b0bd4bf8872b7b316a135b5c7))
+
+### Bug Fixes
+
+- **router:** `validate_psync_reference_id` only if call_connector_action is trigger in psync flow ([#2106](https://github.com/juspay/hyperswitch/pull/2106)) ([`60c5fdb`](https://github.com/juspay/hyperswitch/commit/60c5fdb89a771b7d1e4d41f3ed11daa00bd10f91))
+- Implement persistent caching for config table retrieval ([#2044](https://github.com/juspay/hyperswitch/pull/2044)) ([`25e82a1`](https://github.com/juspay/hyperswitch/commit/25e82a1f7f2cb547e9c42c5bab4b898dd1886d6f))
+
+### Refactors
+
+- **core:** Use profile id to find connector ([#2020](https://github.com/juspay/hyperswitch/pull/2020)) ([`5b29c25`](https://github.com/juspay/hyperswitch/commit/5b29c25210ed118dcd97dafd608170c41b1fba58))
+- **storage_impl:** Split payment attempt models to domain + diesel ([#2010](https://github.com/juspay/hyperswitch/pull/2010)) ([`ad4b7de`](https://github.com/juspay/hyperswitch/commit/ad4b7de628ca4e0f56a06d8b9f5e2c8c5bace67a))
+
+### Testing
+
+- **connector:** Skip ui sanity tests for external contributors ([#2118](https://github.com/juspay/hyperswitch/pull/2118)) ([`f5fed94`](https://github.com/juspay/hyperswitch/commit/f5fed9413083a6635c3d2222d28bd67d5d994eea))
+
+**Full Changelog:** [`v1.37.0...v1.38.0`](https://github.com/juspay/hyperswitch/compare/v1.37.0...v1.38.0)
+
+- - -
+
+
+## 1.37.0 (2023-09-10)
+
+### Features
+
+- **connector:**
+  - (checkout.com) add support for multiple captures PSync ([#2043](https://github.com/juspay/hyperswitch/pull/2043)) ([`517c5c4`](https://github.com/juspay/hyperswitch/commit/517c5c41655f82ab773f6875447d7d88390d538e))
+  - [Cryptopay]Add reference id for cryptopay ([#2107](https://github.com/juspay/hyperswitch/pull/2107)) ([`576648b`](https://github.com/juspay/hyperswitch/commit/576648b5a5d7775d295479df3438c913ae855827))
+- **db:** Implement `BusinessProfileInterface` for `MockDb` ([#2101](https://github.com/juspay/hyperswitch/pull/2101)) ([`0792605`](https://github.com/juspay/hyperswitch/commit/07926050887cdd5d9e3a558ede4212074d17e257))
+- **payments:** Make database calls parallel for `payments_confirm` operation ([#2098](https://github.com/juspay/hyperswitch/pull/2098)) ([`fea075e`](https://github.com/juspay/hyperswitch/commit/fea075e32efd5031b5d38a9e34bedb85b0f99e95))
+
+### Bug Fixes
+
+- **connector:** Revert checkout apple pay to tokenization flow ([#2110](https://github.com/juspay/hyperswitch/pull/2110)) ([`cc5add6`](https://github.com/juspay/hyperswitch/commit/cc5add625da44aeb9d30f02d21d415be12ce0c48))
+- Null value in session token in next action   ([#2111](https://github.com/juspay/hyperswitch/pull/2111)) ([`f015394`](https://github.com/juspay/hyperswitch/commit/f015394e7ac52f891b32e8147ae8aabf2ef9b593))
+
+### Refactors
+
+- **connector:**
+  - [Stripe] Using `connector_request_reference_id` as object_reference_id for Webhooks ([#2064](https://github.com/juspay/hyperswitch/pull/2064)) ([`e659e70`](https://github.com/juspay/hyperswitch/commit/e659e7029e758ef46b4fd12b262a58d0c3f5e5c0))
+  - [Adyen] refactor adyen payment method not implemented errors ([#1950](https://github.com/juspay/hyperswitch/pull/1950)) ([`955534e`](https://github.com/juspay/hyperswitch/commit/955534e9535b3add4841d2bcfe51536c81fd9244))
+
+**Full Changelog:** [`v1.36.0...v1.37.0`](https://github.com/juspay/hyperswitch/compare/v1.36.0...v1.37.0)
+
+- - -
+
+
 ## 1.36.0 (2023-09-07)
 
 ### Features

@@ -17,8 +17,8 @@ use crate::{
     services::RedirectForm,
     types::{
         self, api,
-        storage::{self, enums},
-        transformers::{ForeignFrom, ForeignTryFrom},
+        storage::{self, enums, payment_attempt::PaymentAttemptExt},
+        transformers::ForeignTryFrom,
         CaptureSyncResponse,
     },
     utils,
@@ -305,19 +305,27 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                     )];
                     (Some((multiple_capture_data, capture_update_list)), None)
                 }
-                None => (
-                    None,
-                    Some(storage::PaymentAttemptUpdate::ErrorUpdate {
-                        connector: None,
-                        status: match err.status_code {
-                            500..=511 => storage::enums::AttemptStatus::Pending,
-                            _ => storage::enums::AttemptStatus::Failure,
-                        },
-                        error_message: Some(Some(err.message)),
-                        error_code: Some(Some(err.code)),
-                        error_reason: Some(err.reason),
-                    }),
-                ),
+                None => {
+                    let status = match err.status_code {
+                        500..=511 => storage::enums::AttemptStatus::Pending,
+                        _ => storage::enums::AttemptStatus::Failure,
+                    };
+                    (
+                        None,
+                        Some(storage::PaymentAttemptUpdate::ErrorUpdate {
+                            connector: None,
+                            status,
+                            error_message: Some(Some(err.message)),
+                            error_code: Some(Some(err.code)),
+                            error_reason: Some(err.reason),
+                            amount_capturable: if status.is_terminal_status() {
+                                Some(0)
+                            } else {
+                                None
+                            },
+                        }),
+                    )
+                }
             };
             (
                 capture_update,
@@ -422,6 +430,11 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                                 error_message: error_status.clone(),
                                 error_reason: error_status,
                                 connector_response_reference_id,
+                                amount_capturable: if router_data.status.is_terminal_status() {
+                                    Some(0)
+                                } else {
+                                    None
+                                },
                             }),
                         ),
                     };
@@ -499,8 +512,10 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
 
             let authorized_amount = payment_data.payment_attempt.amount;
 
-            payment_attempt_update = Some(storage::PaymentAttemptUpdate::StatusUpdate {
+            payment_attempt_update = Some(storage::PaymentAttemptUpdate::AmountToCaptureUpdate {
                 status: multiple_capture_data.get_attempt_status(authorized_amount),
+                amount_capturable: payment_data.payment_attempt.amount
+                    - multiple_capture_data.get_total_blocked_amount(),
             });
             Some(multiple_capture_data)
         }
@@ -553,10 +568,14 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
     );
     let payment_intent_update = match &router_data.response {
         Err(_) => storage::PaymentIntentUpdate::PGStatusUpdate {
-            status: enums::IntentStatus::foreign_from(payment_data.payment_attempt.status),
+            status: payment_data
+                .payment_attempt
+                .get_intent_status(payment_data.payment_intent.amount_captured),
         },
         Ok(_) => storage::PaymentIntentUpdate::ResponseUpdate {
-            status: enums::IntentStatus::foreign_from(payment_data.payment_attempt.status),
+            status: payment_data
+                .payment_attempt
+                .get_intent_status(payment_data.payment_intent.amount_captured),
             return_url: router_data.return_url.clone(),
             amount_captured,
         },
