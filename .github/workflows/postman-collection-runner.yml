@@ -97,23 +97,37 @@ jobs:
         env:
           DATABASE_URL: postgres://db_user:db_pass@localhost:5432/hyperswitch_db
         run: diesel migration run
-
+      
+      - name: Build project
+        if: ${{ ((github.event_name == 'pull_request') && (github.event.pull_request.head.repo.full_name == github.event.pull_request.base.repo.full_name)) || (github.event_name == 'merge_group')}}
+        run: cargo build
+  
       - name: Setup Local Server
         if: ${{ ((github.event_name == 'pull_request') && (github.event.pull_request.head.repo.full_name == github.event.pull_request.base.repo.full_name)) || (github.event_name == 'merge_group')}}
         run: |
+          # Check if the build succeeded
+          if [ $? -ne 0 ]; then
+            echo "Cargo build failed. Exiting."
+            exit 1
+          fi
+
+          # Start the server in the background
           cargo run &
-          COUNT=0
+          SERVER_PID=$!
+
           # Wait for the server to start in port 8080
-          while netstat -lnt | awk '$4 ~ /:8080$/ {exit 1}'; do 
-              # Wait for 15 mins to start otherwise kill the task
-              if [ $COUNT -gt 90 ];
-              then
-                  exit 1
-              else 
-                  COUNT=$((COUNT+1))
-                  sleep 10
-              fi
+          COUNT=0
+          while ! nc -z localhost 8080; do
+            if [ $COUNT -gt 12 ]; then # Wait for up to 2 minutes (12 * 10 seconds)
+              echo "Server did not start within a reasonable time. Exiting."
+              kill $SERVER_PID
+              exit 1
+            else
+              COUNT=$((COUNT+1))
+              sleep 10
+            fi
           done
+  
 
       - name: Install newman from fork
         run: |
