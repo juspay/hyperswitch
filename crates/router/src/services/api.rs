@@ -10,6 +10,16 @@ use std::{
     time::{Duration, Instant},
 };
 
+use actix_web::{body, web, FromRequest, HttpRequest, HttpResponse, Responder, ResponseError};
+use api_models::enums::CaptureMethod;
+pub use client::{proxy_bypass_urls, ApiClient, MockApiClient, ProxyClient};
+use common_utils::errors::ReportSwitchExt;
+use error_stack::{report, IntoReport, Report, ResultExt};
+use masking::{ExposeOptionInterface, PeekInterface};
+use router_env::{instrument, tracing, tracing_actix_web::RequestId, Tag};
+use serde::Serialize;
+use serde_json::json;
+
 use self::request::{ContentType, HeaderExt, RequestBuilderExt};
 pub use self::request::{Method, Request, RequestBuilder};
 use crate::{
@@ -32,16 +42,6 @@ use crate::{
         ErrorResponse,
     },
 };
-use actix_web::{body, web, FromRequest, HttpRequest, HttpResponse, Responder, ResponseError};
-use api_models::enums::CaptureMethod;
-pub use client::{proxy_bypass_urls, ApiClient, MockApiClient, ProxyClient};
-use common_utils::errors::ReportSwitchExt;
-use error_stack::{report, IntoReport, Report, ResultExt};
-use masking::{ExposeOptionInterface, PeekInterface};
-use router_env::tracing_actix_web::RequestId;
-use router_env::{instrument, tracing, Tag};
-use serde::Serialize;
-use serde_json::json;
 
 pub type BoxedConnectorIntegration<'a, T, Req, Resp> =
     Box<&'a (dyn ConnectorIntegration<T, Req, Resp> + Send + Sync)>;
@@ -428,7 +428,7 @@ pub async fn call_connector_api(
 ) -> CustomResult<Result<types::Response, types::Response>, errors::ApiClientError> {
     let current_time = Instant::now();
 
-    let response = state.api_client.send_request(&state, request, None).await;
+    let response = state.api_client.send_request(state, request, None).await;
 
     let elapsed_time = current_time.elapsed();
     logger::info!(request_time=?elapsed_time);
@@ -746,7 +746,7 @@ where
     request_state.add_merchant_id(Some(merchant_id.clone()));
 
     request_state.add_flow_name(flow.to_string());
-    
+
     tracing::Span::current().record("merchant_id", &merchant_id);
 
     let output = func(request_state, auth_out, payload).await.switch();

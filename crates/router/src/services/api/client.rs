@@ -351,25 +351,19 @@ impl ApiClient for ProxyClient {
         crate::services::send_request(state, request, option_timeout_secs).await
     }
 
-    fn add_request_id(&mut self, _request_id: Option<String>) {
-
-    }
+    fn add_request_id(&mut self, _request_id: Option<String>) {}
 
     fn get_request_id(&self) -> Option<String> {
         None
     }
 
-    fn add_merchant_id(&mut self, _merchant_id: Option<String>) {
-        
-    }
+    fn add_merchant_id(&mut self, _merchant_id: Option<String>) {}
 
     fn get_merchant_id(&self) -> Option<String> {
         None
     }
 
-    fn add_flow_name(&mut self, _flow_name: String) {
-        
-    }
+    fn add_flow_name(&mut self, _flow_name: String) {}
 }
 
 ///
@@ -419,13 +413,11 @@ impl ApiClient for MockApiClient {
         None
     }
 
-    fn add_merchant_id(&mut self, _merchant_id: Option<String>) {
-    }
+    fn add_merchant_id(&mut self, _merchant_id: Option<String>) {}
 
     fn get_merchant_id(&self) -> Option<String> {
         None
     }
 
-    fn add_flow_name(&mut self, _flow_name: String) {
-    }
+    fn add_flow_name(&mut self, _flow_name: String) {}
 }

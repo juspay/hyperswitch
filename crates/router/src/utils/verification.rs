@@ -15,7 +15,7 @@ use crate::{
 const APPLEPAY_INTERNAL_MERCHANT_NAME: &str = "Applepay_merchant";
 
 pub async fn verify_merchant_creds_for_applepay(
-    state: &AppState,
+    state: AppState,
     _req: &actix_web::HttpRequest,
     body: web::Json<verifications::ApplepayMerchantVerificationRequest>,
     kms_config: &kms::KmsConfig,
@@ -76,7 +76,7 @@ pub async fn verify_merchant_creds_for_applepay(
         .add_certificate_key(Some(key_data))
         .build();
 
-    let response = services::call_connector_api(state, apple_pay_merch_verification_req).await;
+    let response = services::call_connector_api(&state, apple_pay_merch_verification_req).await;
     log_applepay_verification_response_if_error(&response);
 
     let applepay_response =

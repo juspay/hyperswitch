@@ -304,9 +304,7 @@ pub async fn payment_connector_update(
         state,
         &req,
         json_payload.into_inner(),
-        |state, _, req| {
-            update_payment_connector(state, &merchant_id, &merchant_connector_id, req)
-        },
+        |state, _, req| update_payment_connector(state, &merchant_id, &merchant_connector_id, req),
         &auth::AdminApiAuth,
     )
     .await
@@ -350,9 +348,7 @@ pub async fn payment_connector_delete(
         state,
         &req,
         payload,
-        |state, _, req| {
-            delete_payment_connector(state, req.merchant_id, req.merchant_connector_id)
-        },
+        |state, _, req| delete_payment_connector(state, req.merchant_id, req.merchant_connector_id),
         &auth::AdminApiAuth,
     )
     .await
@@ -377,9 +373,7 @@ pub async fn merchant_account_toggle_kv(
         state,
         &req,
         (merchant_id, payload),
-        |state, _, (merchant_id, payload)| {
-            kv_for_merchant(state, merchant_id, payload.kv_enabled)
-        },
+        |state, _, (merchant_id, payload)| kv_for_merchant(state, merchant_id, payload.kv_enabled),
         &auth::AdminApiAuth,
     )
     .await

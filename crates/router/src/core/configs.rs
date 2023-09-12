@@ -2,14 +2,12 @@ use error_stack::ResultExt;
 
 use crate::{
     core::errors::{self, utils::StorageErrorExt, RouterResponse},
+    routes::AppState,
     services::ApplicationResponse,
-    types::{api, transformers::ForeignInto}, routes::AppState,
+    types::{api, transformers::ForeignInto},
 };
 
-pub async fn set_config(
-    state: AppState,
-    config: api::Config,
-) -> RouterResponse<api::Config> {
+pub async fn set_config(state: AppState, config: api::Config) -> RouterResponse<api::Config> {
     let store = state.store.as_ref();
     let config = store
         .insert_config(diesel_models::configs::ConfigNew {

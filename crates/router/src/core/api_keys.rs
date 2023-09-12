@@ -207,7 +207,7 @@ pub async fn create_api_key(
 #[cfg(feature = "email")]
 #[instrument(skip_all)]
 pub async fn add_api_key_expiry_task(
-    store: &dyn StorageInterface,
+    store: &dyn crate::db::StorageInterface,
     api_key: &ApiKey,
     expiry_reminder_days: Vec<u8>,
 ) -> Result<(), errors::ProcessTrackerError> {
@@ -372,7 +372,7 @@ pub async fn update_api_key(
 #[cfg(feature = "email")]
 #[instrument(skip_all)]
 pub async fn update_api_key_expiry_task(
-    store: &dyn StorageInterface,
+    store: &dyn crate::db::StorageInterface,
     api_key: &ApiKey,
     expiry_reminder_days: Vec<u8>,
 ) -> Result<(), errors::ProcessTrackerError> {
@@ -478,7 +478,7 @@ pub async fn revoke_api_key(
 #[cfg(feature = "email")]
 #[instrument(skip_all)]
 pub async fn revoke_api_key_expiry_task(
-    store: &dyn StorageInterface,
+    store: &dyn crate::db::StorageInterface,
     key_id: &str,
 ) -> Result<(), errors::ProcessTrackerError> {
     let task_id = generate_task_id_for_api_key_expiry_workflow(key_id);

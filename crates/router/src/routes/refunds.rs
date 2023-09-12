@@ -167,9 +167,7 @@ pub async fn refunds_update(
         state,
         &req,
         json_payload.into_inner(),
-        |state, auth, req| {
-            refund_update_core(state, auth.merchant_account, &refund_id, req)
-        },
+        |state, auth, req| refund_update_core(state, auth.merchant_account, &refund_id, req),
         &auth::ApiKeyAuth,
     )
     .await

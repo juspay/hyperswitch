@@ -44,7 +44,7 @@ pub async fn create_merchant_account(
     state: AppState,
     req: api::MerchantAccountCreate,
 ) -> RouterResponse<api::MerchantAccountResponse> {
-    let db=state.store.as_ref();
+    let db = state.store.as_ref();
     let master_key = db.get_master_key();
 
     let key = services::generate_aes256_key()
@@ -357,7 +357,7 @@ pub async fn merchant_account_delete(
     state: AppState,
     merchant_id: String,
 ) -> RouterResponse<api::MerchantAccountDeleteResponse> {
-    let db =state.store.as_ref();
+    let db = state.store.as_ref();
     let is_deleted = db
         .delete_merchant_account_by_merchant_id(&merchant_id)
         .await
@@ -447,7 +447,7 @@ pub async fn create_payment_connector(
     req: api::MerchantConnectorCreate,
     merchant_id: &String,
 ) -> RouterResponse<api_models::admin::MerchantConnectorResponse> {
-    let store=state.store.as_ref();
+    let store = state.store.as_ref();
     let key_store = store
         .get_merchant_key_store_by_merchant_id(merchant_id, &store.get_master_key().to_vec().into())
         .await
@@ -595,7 +595,7 @@ pub async fn retrieve_payment_connector(
     merchant_id: String,
     merchant_connector_id: String,
 ) -> RouterResponse<api_models::admin::MerchantConnectorResponse> {
-    let store=state.store.as_ref();
+    let store = state.store.as_ref();
     let key_store = store
         .get_merchant_key_store_by_merchant_id(
             &merchant_id,
@@ -627,7 +627,7 @@ pub async fn list_payment_connectors(
     state: AppState,
     merchant_id: String,
 ) -> RouterResponse<Vec<api_models::admin::MerchantConnectorResponse>> {
-    let store=state.store.as_ref();
+    let store = state.store.as_ref();
     let key_store = store
         .get_merchant_key_store_by_merchant_id(
             &merchant_id,

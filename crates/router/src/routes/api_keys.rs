@@ -42,10 +42,12 @@ pub async fn api_key_create(
         &req,
         payload,
         |state, _, payload| async {
+            #[cfg(feature = "kms")]
+            let kms_client = external_services::kms::get_kms_client(&state.clone().conf.kms).await;
             api_keys::create_api_key(
                 state,
                 #[cfg(feature = "kms")]
-                external_services::kms::get_kms_client(&state.conf.kms).await,
+                kms_client,
                 payload,
                 merchant_id.clone(),
             )
@@ -88,9 +90,7 @@ pub async fn api_key_retrieve(
         state,
         &req,
         (&merchant_id, &key_id),
-        |state, _, (merchant_id, key_id)| {
-            api_keys::retrieve_api_key(state, merchant_id, key_id)
-        },
+        |state, _, (merchant_id, key_id)| api_keys::retrieve_api_key(state, merchant_id, key_id),
         &auth::AdminApiAuth,
     )
     .await

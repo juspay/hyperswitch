@@ -776,9 +776,7 @@ pub async fn payments_list_by_filter(
         state,
         &req,
         payload,
-        |state, auth, req| {
-            payments::apply_filters_on_payments(state, auth.merchant_account, req)
-        },
+        |state, auth, req| payments::apply_filters_on_payments(state, auth.merchant_account, req),
         &auth::ApiKeyAuth,
     )
     .await
@@ -798,9 +796,7 @@ pub async fn get_filters_for_payments(
         state,
         &req,
         payload,
-        |state, auth, req| {
-            payments::get_filters_for_payments(state, auth.merchant_account, req)
-        },
+        |state, auth, req| payments::get_filters_for_payments(state, auth.merchant_account, req),
         &auth::ApiKeyAuth,
     )
     .await
