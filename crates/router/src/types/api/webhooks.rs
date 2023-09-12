@@ -139,7 +139,6 @@ pub trait IncomingWebhook: ConnectorCommon + Sync {
         Ok(Vec::new())
     }
 
-    #[allow(clippy::too_many_arguments)]
     async fn verify_webhook_source(
         &self,
         request: &IncomingWebhookRequestDetails<'_>,

@@ -973,8 +973,10 @@ async fn fetch_mca_and_connector(
             connector_name_or_id,
         )
         .await
-        .ok()
-        .unwrap_or_default();
+        .change_context(errors::ApiErrorResponse::InvalidDataValue {
+            field_name: "object reference id",
+        })
+        .attach_printable("Could not find profile id from object reference id")?;
 
         let mca = db
             .find_merchant_connector_account_by_profile_id_connector_name(
@@ -984,7 +986,7 @@ async fn fetch_mca_and_connector(
             )
             .await
             .to_not_found_response(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
-                id: profile_id.clone(),
+                id: format!("profile_id {profile_id} and connector name {connector_name_or_id}"),
             })
             .attach_printable("error while fetching merchant_connector_account from profile_id")?;
 
