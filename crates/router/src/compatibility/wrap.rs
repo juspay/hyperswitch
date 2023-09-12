@@ -30,7 +30,7 @@ where
     error_stack::Report<E>: services::EmbedError,
     errors::ApiErrorResponse: ErrorSwitch<E>,
     T: std::fmt::Debug,
-    A: AppStateInfo,
+    A: AppStateInfo + Clone,
 {
     let request_method = request.method().as_str();
     let url_path = request.path();
@@ -41,7 +41,7 @@ where
     logger::info!(tag = ?Tag::BeginRequest, payload = ?payload);
 
     let res = match metrics::request::record_request_time_metric(
-        api::server_wrap_util(&flow, state, request, payload, func, api_authentication),
+        api::server_wrap_util(&flow, state.clone(), request, payload, func, api_authentication),
         &flow,
     )
     .await

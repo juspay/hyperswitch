@@ -551,28 +551,18 @@ fn validate_certificate_in_mca_metadata(
 }
 
 pub async fn create_payment_connector(
-<<<<<<< HEAD
     state: AppState,
     req: api::MerchantConnectorCreate,
     merchant_id: &String,
 ) -> RouterResponse<api_models::admin::MerchantConnectorResponse> {
     let store = state.store.as_ref();
-    let key_store = store
-        .get_merchant_key_store_by_merchant_id(merchant_id, &store.get_master_key().to_vec().into())
-=======
-    state: &AppState,
-    req: api::MerchantConnectorCreate,
-    merchant_id: &String,
-) -> RouterResponse<api_models::admin::MerchantConnectorResponse> {
     #[cfg(feature = "dummy_connector")]
-    validate_dummy_connector_enabled(state, &req.connector_name).await?;
-    let key_store = state
-        .store
+    validate_dummy_connector_enabled(&state, &req.connector_name).await?;
+    let key_store = store
         .get_merchant_key_store_by_merchant_id(
             merchant_id,
             &state.store.get_master_key().to_vec().into(),
         )
->>>>>>> a3dd8b7d1e4fb7bc7a6ab6e3903cb990c9f2171b
         .await
         .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
 
@@ -1050,24 +1040,11 @@ pub async fn create_business_profile(
     request: api::BusinessProfileCreate,
     merchant_id: &str,
 ) -> RouterResponse<api_models::admin::BusinessProfileResponse> {
-<<<<<<< HEAD
     let db = state.store.as_ref();
-    let merchant_account = if let Some(merchant_account) = merchant_account {
-        merchant_account
-    } else {
-        let key_store = db
-            .get_merchant_key_store_by_merchant_id(
-                merchant_id,
-                &db.get_master_key().to_vec().into(),
-            )
-            .await
-            .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
-=======
     let key_store = db
         .get_merchant_key_store_by_merchant_id(merchant_id, &db.get_master_key().to_vec().into())
         .await
         .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
->>>>>>> a3dd8b7d1e4fb7bc7a6ab6e3903cb990c9f2171b
 
     // Get the merchant account, if few fields are not passed, then they will be inherited from
     // merchant account

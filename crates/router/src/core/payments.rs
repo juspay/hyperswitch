@@ -1509,15 +1509,10 @@ pub async fn list_payments(
     merchant: domain::MerchantAccount,
     constraints: api::PaymentListConstraints,
 ) -> RouterResponse<api::PaymentListResponse> {
-<<<<<<< HEAD
-    use crate::types::transformers::ForeignFrom;
-    let db = state.store.as_ref();
-=======
     use data_models::errors::StorageError;
-
->>>>>>> a3dd8b7d1e4fb7bc7a6ab6e3903cb990c9f2171b
     helpers::validate_payment_list_request(&constraints)?;
     let merchant_id = &merchant.merchant_id;
+    let db = state.store.as_ref();
     let payment_intents =
         helpers::filter_by_constraints(db, &constraints, merchant_id, merchant.storage_scheme)
             .await
@@ -1580,16 +1575,9 @@ pub async fn apply_filters_on_payments(
     merchant: domain::MerchantAccount,
     constraints: api::PaymentListFilterConstraints,
 ) -> RouterResponse<api::PaymentListResponseV2> {
-<<<<<<< HEAD
-    use storage_impl::DataModelExt;
-    let db = state.store.as_ref();
-    use crate::types::transformers::ForeignFrom;
-
-=======
->>>>>>> a3dd8b7d1e4fb7bc7a6ab6e3903cb990c9f2171b
     let limit = &constraints.limit;
-
     helpers::validate_payment_list_request_for_joins(*limit)?;
+    let db = state.store.as_ref();
     let list: Vec<(storage::PaymentIntent, storage::PaymentAttempt)> = db
         .get_filtered_payment_intents_attempt(
             &merchant.merchant_id,
@@ -1640,11 +1628,7 @@ pub async fn get_filters_for_payments(
     merchant: domain::MerchantAccount,
     time_range: api::TimeRange,
 ) -> RouterResponse<api::PaymentListFilters> {
-<<<<<<< HEAD
-    use crate::types::transformers::ForeignFrom;
     let db = state.store.as_ref();
-=======
->>>>>>> a3dd8b7d1e4fb7bc7a6ab6e3903cb990c9f2171b
     let pi = db
         .filter_payment_intents_by_time_range_constraints(
             &merchant.merchant_id,

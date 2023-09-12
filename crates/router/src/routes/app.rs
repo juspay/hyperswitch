@@ -41,10 +41,6 @@ pub struct AppState {
     pub api_client: Box<dyn crate::services::ApiClient>,
 }
 
-<<<<<<< HEAD
-pub trait AppStateInfo: Clone + AsRef<Self> {
-    fn conf(&self) -> Arc<settings::Settings>;
-=======
 impl scheduler::SchedulerAppState for AppState {
     fn get_db(&self) -> Box<dyn SchedulerInterface> {
         self.store.get_scheduler_db()
@@ -53,7 +49,6 @@ impl scheduler::SchedulerAppState for AppState {
 
 pub trait AppStateInfo {
     fn conf(&self) -> settings::Settings;
->>>>>>> a3dd8b7d1e4fb7bc7a6ab6e3903cb990c9f2171b
     fn flow_name(&self) -> String;
     fn store(&self) -> Box<dyn StorageInterface>;
     #[cfg(feature = "email")]
@@ -64,8 +59,8 @@ pub trait AppStateInfo {
 }
 
 impl AppStateInfo for AppState {
-    fn conf(&self) -> Arc<settings::Settings> {
-        self.conf.to_owned()
+    fn conf(&self) -> settings::Settings {
+        self.conf.as_ref().to_owned()
     }
     fn flow_name(&self) -> String {
         self.flow_name.to_owned()

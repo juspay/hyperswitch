@@ -42,12 +42,12 @@ pub async fn retrieve_apple_pay_verified_domains(
 
     api::server_wrap(
         flow,
-        state.get_ref(),
+        state,
         &req,
         business_profile_id.clone(),
         |state, _, _| {
             verification::get_verified_apple_domains_with_business_profile_id(
-                &*state.store,
+                state,
                 business_profile_id.clone(),
             )
         },

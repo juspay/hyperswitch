@@ -774,7 +774,7 @@ where
     Q: Serialize + Debug + 'a,
     T: Debug,
     U: auth::AuthInfo,
-    A: AppStateInfo,
+    A: AppStateInfo + Clone,
     ApplicationResponse<Q>: Debug,
     CustomResult<ApplicationResponse<Q>, E>:
         ReportSwitchExt<ApplicationResponse<Q>, api_models::errors::types::ApiErrorResponse>,
@@ -788,7 +788,7 @@ where
     logger::info!(tag = ?Tag::BeginRequest, payload = ?payload);
 
     let res = match metrics::request::record_request_time_metric(
-        server_wrap_util(&flow, state, request, payload, func, api_auth),
+        server_wrap_util(&flow, state.clone(), request, payload, func, api_auth),
         &flow,
     )
     .await

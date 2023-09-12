@@ -9,7 +9,6 @@ use external_services::kms;
 
 use crate::{
     core::errors::{self, api_error_response},
-    db::StorageInterface,
     headers, logger,
     routes::AppState,
     services, types, utils,
@@ -18,12 +17,13 @@ use crate::{
 const APPLEPAY_INTERNAL_MERCHANT_NAME: &str = "Applepay_merchant";
 
 pub async fn get_verified_apple_domains_with_business_profile_id(
-    db: &dyn StorageInterface,
+    state: AppState,
     profile_id: String,
 ) -> CustomResult<
     services::ApplicationResponse<api_models::verifications::ApplepayVerifiedDomainsResponse>,
     api_error_response::ApiErrorResponse,
 > {
+    let db = state.store.as_ref();
     let verified_domains = db
         .find_business_profile_by_profile_id(&profile_id)
         .await
@@ -109,7 +109,7 @@ pub async fn verify_merchant_creds_for_applepay(
     Ok(match applepay_response {
         Ok(_) => {
             check_existence_and_add_domain_to_db(
-                state,
+                &state,
                 body.business_profile_id.clone(),
                 body.domain_names.clone(),
             )
