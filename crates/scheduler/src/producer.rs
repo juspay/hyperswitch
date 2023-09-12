@@ -32,7 +32,7 @@ where
     let mut rng = rand::thread_rng();
     let timeout = Uniform::try_from(0..=scheduler_settings.loop_interval)
         .into_report()
-        .change_context(errors::ProcessTrackerError::InvalidInput)?;
+        .change_context(errors::ProcessTrackerError::ConfigurationError)?;
     tokio::time::sleep(Duration::from_millis(timeout.sample(&mut rng))).await;
 
     let mut interval = tokio::time::interval(std::time::Duration::from_millis(
