@@ -4,6 +4,16 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 1.34.0+hotfix.2 (2023-09-12)
+
+### Features
+
+- **connector:** [Cryptopay]Add reference id for cryptopay ([#2107](https://github.com/juspay/hyperswitch/pull/2107)) ([#2136](https://github.com/juspay/hyperswitch/pull/2136)) ([`f0ba8d4`](https://github.com/juspay/hyperswitch/commit/f0ba8d48b6a202ac5fd9e5ee39ed91f3eb032c32))
+
+**Full Changelog:** [`v1.34.0+hotfix.1...v1.34.0+hotfix.2`](https://github.com/juspay/hyperswitch/compare/v1.34.0+hotfix.1...v1.34.0+hotfix.2)
+
+- - -
+
 ## 1.34.0+hotfix.1 (2023-09-11)
 
 ### Bug Fixes
