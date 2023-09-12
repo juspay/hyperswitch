@@ -286,7 +286,7 @@ impl ErrorSwitch<api_models::errors::types::ApiErrorResponse> for CustomersError
                 None,
             )),
             Self::InternalServerError => {
-                AER::InternalServerError(ApiError::new("HE", 01, "Something went wrong", None))
+                AER::InternalServerError(ApiError::new("HE", 0, "Something went wrong", None))
             }
             Self::MandateActive => AER::BadRequest(ApiError::new(
                 "IR",
