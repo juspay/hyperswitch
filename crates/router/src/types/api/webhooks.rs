@@ -128,8 +128,7 @@ pub trait IncomingWebhook: ConnectorCommon + Sync {
                             .merchant_secret
                             .expose()
                             .into_bytes(),
-                        additional_secret: connector_webhook_details
-                            .additional_secret
+                        additional_secret: connector_webhook_details.additional_secret,
                     }
                 }
                 None => api_models::webhooks::ConnectorWebhookSecrets {

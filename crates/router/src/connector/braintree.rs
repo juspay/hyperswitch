@@ -1251,11 +1251,11 @@ impl api::IncomingWebhook for Braintree {
 
         let signature_pairs: Vec<(&str, &str)> = notif_item
             .bt_signature
-            .split("&")
+            .split('&')
             .collect::<Vec<&str>>()
             .into_iter()
             .map(|pair| {
-                let key_signature: Vec<&str> = pair.split("|").collect();
+                let key_signature: Vec<&str> = pair.split('|').collect();
                 (key_signature[0], key_signature[1])
             })
             .collect();
@@ -1318,7 +1318,10 @@ impl api::IncomingWebhook for Braintree {
 
         let sha1_hash_key = Sha1::digest(&connector_webhook_secrets.secret);
 
-        let signing_key = hmac::Key::new(hmac::HMAC_SHA1_FOR_LEGACY_USE_ONLY, &sha1_hash_key);
+        let signing_key = hmac::Key::new(
+            hmac::HMAC_SHA1_FOR_LEGACY_USE_ONLY,
+            &sha1_hash_key.as_slice(),
+        );
         let signed_messaged = hmac::sign(&signing_key, &message);
         let payload_sign: String = hex::encode(signed_messaged);
         Ok(payload_sign.as_bytes().eq(&signature))
@@ -1331,7 +1334,7 @@ impl api::IncomingWebhook for Braintree {
         let notif = get_webhook_object_from_body(_request.body)
             .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
 
-        let response = decode_webhook_payload(notif.bt_payload.replace("\n", "").as_bytes())?;
+        let response = decode_webhook_payload(notif.bt_payload.replace('\n', "").as_bytes())?;
 
         match response.dispute {
             Some(dispute_data) => Ok(api_models::webhooks::ObjectReferenceId::PaymentId(
@@ -1350,7 +1353,7 @@ impl api::IncomingWebhook for Braintree {
         let notif = get_webhook_object_from_body(request.body)
             .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
 
-        let response = decode_webhook_payload(notif.bt_payload.replace("\n", "").as_bytes())?;
+        let response = decode_webhook_payload(notif.bt_payload.replace('\n', "").as_bytes())?;
 
         Ok(IncomingWebhookEvent::foreign_from(response.kind.as_str()))
     }
@@ -1362,7 +1365,7 @@ impl api::IncomingWebhook for Braintree {
         let notif = get_webhook_object_from_body(request.body)
             .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
 
-        let response = decode_webhook_payload(notif.bt_payload.replace("\n", "").as_bytes())?;
+        let response = decode_webhook_payload(notif.bt_payload.replace('\n', "").as_bytes())?;
 
         let res_json = serde_json::to_value(response)
             .into_report()
@@ -1388,7 +1391,7 @@ impl api::IncomingWebhook for Braintree {
         let notif = get_webhook_object_from_body(request.body)
             .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
 
-        let response = decode_webhook_payload(notif.bt_payload.replace("\n", "").as_bytes())?;
+        let response = decode_webhook_payload(notif.bt_payload.replace('\n', "").as_bytes())?;
 
         match response.dispute {
             Some(dispute_data) => {
@@ -1425,11 +1428,11 @@ fn get_matching_webhook_signature(
     secret: String,
 ) -> Option<String> {
     for (public_key, signature) in signature_pairs {
-        if public_key.to_string() == secret {
+        if *public_key == secret {
             return Some(signature.to_string());
         }
     }
-    return None;
+    None
 }
 
 fn get_webhook_object_from_body(
@@ -1454,8 +1457,8 @@ fn decode_webhook_payload(
         .into_report()
         .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
 
-    Ok(xml_response
+    xml_response
         .parse_xml::<braintree_graphql_transformers::Notification>()
         .into_report()
-        .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?)
+        .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)
 }
