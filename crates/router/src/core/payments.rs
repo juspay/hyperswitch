@@ -152,15 +152,6 @@ where
     )
     .await?;
 
-    let updated_customer = call_create_connector_customer_if_required(
-        state,
-        &customer,
-        &merchant_account,
-        &key_store,
-        &mut payment_data,
-    )
-    .await?;
-
     let mut connector_http_status_code = None;
 
     if let Some(connector_details) = connector {
@@ -175,7 +166,6 @@ where
                     &mut payment_data,
                     &customer,
                     call_connector_action,
-                    updated_customer,
                     &validate_result,
                     schedule_time,
                     header_payload,
@@ -234,7 +224,7 @@ where
                 payment_data.clone(),
                 customer.clone(),
                 validate_result.storage_scheme,
-                updated_customer,
+                None,
                 &key_store,
                 None,
                 header_payload,
@@ -567,7 +557,6 @@ pub async fn call_connector_service<F, RouterDReq, ApiRequest>(
     payment_data: &mut PaymentData<F>,
     customer: &Option<domain::Customer>,
     call_connector_action: CallConnectorAction,
-    updated_customer: Option<storage::CustomerUpdate>,
     validate_result: &operations::ValidateResult<'_>,
     schedule_time: Option<time::PrimitiveDateTime>,
     header_payload: HeaderPayload,
@@ -601,6 +590,15 @@ where
         payment_data,
         connector_name,
         key_store,
+    )
+    .await?;
+
+    let updated_customer = call_create_connector_customer_if_required(
+        state,
+        &customer,
+        &merchant_account,
+        &key_store,
+        payment_data,
     )
     .await?;
 
@@ -883,9 +881,6 @@ where
     // To construct connector flow specific api
     dyn api::Connector:
         services::api::ConnectorIntegration<F, Req, router_types::PaymentsResponseData>,
-
-    // To perform router related operation for PaymentResponse
-    PaymentResponse: Operation<F, Req>,
 {
     let connector_name = payment_data.payment_attempt.connector.clone();
 
