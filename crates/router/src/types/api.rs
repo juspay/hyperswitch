@@ -47,9 +47,19 @@ pub trait ConnectorTransactionId: ConnectorCommon + Sync {
     }
 }
 
+pub enum CurrencyUnit {
+    Base,
+    Minor,
+}
+
 pub trait ConnectorCommon {
     /// Name of the connector (in lowercase).
     fn id(&self) -> &'static str;
+
+    /// Connector accepted currency unit as either "Base" or "Minor"
+    fn get_currency_unit(&self) -> CurrencyUnit {
+        CurrencyUnit::Minor // Default implementation should be remove once it is implemented in all connectors
+    }
 
     /// HTTP header used for authorization.
     fn get_auth_header(
