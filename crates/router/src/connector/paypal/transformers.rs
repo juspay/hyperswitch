@@ -1347,7 +1347,9 @@ impl TryFrom<PaypalWebhookEventType> for PaypalPaymentStatus {
             | PaypalWebhookEventType::CheckoutOrderProcessed => Ok(Self::Pending),
             PaypalWebhookEventType::PaymentAuthorizationCreated => Ok(Self::Created),
             PaypalWebhookEventType::PaymentCaptureRefunded => Ok(Self::Refunded),
-            _ => Err(errors::ConnectorError::WebhookEventTypeNotFound.into()),
+            PaypalWebhookEventType::Unknown => {
+                Err(errors::ConnectorError::WebhookEventTypeNotFound.into())
+            }
         }
     }
 }
