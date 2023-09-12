@@ -1430,7 +1430,7 @@ fn get_headers(
     let header_value = header
         .get(key.clone())
         .map(|value| value.to_str())
-        .ok_or_else(|| errors::ConnectorError::MissingRequiredField { field_name: key })?
+        .ok_or(errors::ConnectorError::MissingRequiredField { field_name: key })?
         .into_report()
         .change_context(errors::ConnectorError::InvalidDataFormat { field_name: key })?
         .to_owned();
