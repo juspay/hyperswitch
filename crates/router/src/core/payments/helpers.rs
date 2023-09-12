@@ -7,7 +7,7 @@ use common_utils::{
 };
 use data_models::{
     mandates::MandateData,
-    payments::{payment_attempt::PaymentAttempt, payment_intent::PaymentIntent},
+    payments::{payment_attempt::PaymentAttempt, PaymentIntent},
 };
 use diesel_models::enums;
 // TODO : Evaluate all the helper functions ()

@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use data_models::{
     errors::StorageError,
-    payments::{payment_attempt::PaymentAttempt, payment_intent::PaymentIntent},
+    payments::{payment_attempt::PaymentAttempt, PaymentIntent},
 };
 use diesel_models::{self as store};
 use error_stack::ResultExt;

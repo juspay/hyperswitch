@@ -3,7 +3,7 @@ use common_enums as storage_enums;
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
 
-use super::payment_intent::PaymentIntent;
+use super::PaymentIntent;
 use crate::{errors, mandates::MandateDataType, MerchantStorageScheme};
 
 #[async_trait::async_trait]

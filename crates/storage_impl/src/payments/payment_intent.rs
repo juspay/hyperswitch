@@ -8,8 +8,9 @@ use data_models::payments::{
 use data_models::{
     errors::StorageError,
     payments::payment_intent::{
-        PaymentIntent, PaymentIntentInterface, PaymentIntentNew, PaymentIntentUpdate,
+        PaymentIntentInterface, PaymentIntentNew, PaymentIntentUpdate,
     },
+    payments::PaymentIntent,
     MerchantStorageScheme,
 };
 #[cfg(feature = "olap")]

@@ -2,8 +2,9 @@ use common_utils::errors::CustomResult;
 use data_models::{
     errors::StorageError,
     payments::payment_intent::{
-        PaymentIntent, PaymentIntentInterface, PaymentIntentNew, PaymentIntentUpdate,
+        PaymentIntentInterface, PaymentIntentNew, PaymentIntentUpdate,
     },
+    payments::PaymentIntent,
     MerchantStorageScheme,
 };
 use error_stack::{IntoReport, ResultExt};

@@ -31,7 +31,8 @@ pub mod refund;
 
 pub use data_models::payments::{
     payment_attempt::{PaymentAttempt, PaymentAttemptNew, PaymentAttemptUpdate},
-    payment_intent::{PaymentIntent, PaymentIntentNew, PaymentIntentUpdate},
+    payment_intent::{PaymentIntentNew, PaymentIntentUpdate},
+    PaymentIntent,
 };
 
 pub use self::{
