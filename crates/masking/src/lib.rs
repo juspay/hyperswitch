@@ -54,3 +54,8 @@ pub mod prelude {
 
 #[cfg(feature = "diesel")]
 mod diesel;
+
+/// This module contains Masking objects and traits
+pub mod maskable;
+
+pub use maskable::*;
