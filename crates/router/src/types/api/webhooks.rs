@@ -103,7 +103,7 @@ pub trait IncomingWebhook: ConnectorCommon + Sync {
         let merchant_connector_account_result = db
             .find_merchant_connector_account_by_profile_id_connector_name(
                 &profile_id,
-                &merchant_account.merchant_id,
+                connector_name,
                 key_store,
             )
             .await;
