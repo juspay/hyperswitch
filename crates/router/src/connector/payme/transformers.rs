@@ -760,7 +760,7 @@ impl TryFrom<&types::PaymentsPreProcessingRouterData> for SaleType {
     }
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq, strum::Display)]
 #[serde(rename_all = "kebab-case")]
 pub enum SaleStatus {
     Initial,
@@ -1013,6 +1013,8 @@ pub struct WebhookEventDataResource {
     pub payme_transaction_id: String,
     pub status_error_details: Option<String>,
     pub status_error_code: Option<u32>,
+    pub price: i64,
+    pub currency: enums::Currency,
 }
 
 #[derive(Debug, Deserialize)]
@@ -1058,9 +1060,9 @@ impl From<NotifyType> for api::IncomingWebhookEvent {
             NotifyType::SaleComplete => Self::PaymentIntentSuccess,
             NotifyType::Refund => Self::RefundSuccess,
             NotifyType::SaleFailure => Self::PaymentIntentFailure,
-            NotifyType::SaleAuthorized
-            | NotifyType::SaleChargeback
-            | NotifyType::SaleChargebackRefund => Self::EventNotSupported,
+            NotifyType::SaleChargeback => Self::DisputeOpened,
+            NotifyType::SaleChargebackRefund => Self::DisputeWon,
+            NotifyType::SaleAuthorized => Self::EventNotSupported,
         }
     }
 }
