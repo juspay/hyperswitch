@@ -41,7 +41,14 @@ where
     logger::info!(tag = ?Tag::BeginRequest, payload = ?payload);
 
     let res = match metrics::request::record_request_time_metric(
-        api::server_wrap_util(&flow, state.clone(), request, payload, func, api_authentication),
+        api::server_wrap_util(
+            &flow,
+            state.clone(),
+            request,
+            payload,
+            func,
+            api_authentication,
+        ),
         &flow,
     )
     .await
