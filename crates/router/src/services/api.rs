@@ -732,18 +732,22 @@ where
         .ok()
         .map(|id| id.as_hyphenated().to_string());
 
-    let mut statex = state.get_ref().clone();
+    let mut temp_state = state.get_ref().clone();
 
-    statex.add_request_id(request_id);
+    temp_state.add_request_id(request_id);
 
     let auth_out = api_auth
-        .authenticate_and_fetch(request.headers(), &statex)
+        .authenticate_and_fetch(request.headers(), &temp_state)
         .await
         .switch()?;
+
     let merchant_id = auth_out.get_merchant_id().unwrap_or("").to_string();
+
+    temp_state.add_merchant_id(Some(merchant_id.clone()));
+    
     tracing::Span::current().record("merchant_id", &merchant_id);
 
-    let output = func(statex, auth_out, payload).await.switch();
+    let output = func(temp_state, auth_out, payload).await.switch();
 
     let status_code = match output.as_ref() {
         Ok(res) => metrics::request::track_response_status_code(res),
