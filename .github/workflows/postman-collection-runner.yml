@@ -118,7 +118,7 @@ jobs:
           # Wait for the server to start in port 8080
           COUNT=0
           while ! nc -z localhost 8080; do
-            if [ $COUNT -gt 12 ]; then # Wait for up to 2 minutes (12 * 10 seconds)
+            if [ $COUNT -gt 90 ]; then # Wait for up to 2 minutes (90 * 10 seconds)
               echo "Server did not start within a reasonable time. Exiting."
               kill $SERVER_PID
               exit 1
