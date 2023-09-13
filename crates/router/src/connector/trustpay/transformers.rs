@@ -435,24 +435,30 @@ fn get_pending_status_based_on_redirect_url(redirect_url: Option<Url>) -> enums:
 }
 
 fn get_transaction_status(
-    payment_status: &str,
+    payment_status: Option<String>,
     redirect_url: Option<Url>,
 ) -> CustomResult<(enums::AttemptStatus, Option<String>), errors::ConnectorError> {
-    let (is_failed, failure_message) = is_payment_failed(payment_status);
-    let pending_status = get_pending_status_based_on_redirect_url(redirect_url);
-    if payment_status == "000.200.000" {
-        return Ok((pending_status, None));
+    // We don't get payment_status only in case, when the user doesn't complete the authentication step.
+    // If we recieve status, then return the proper status based on the connector response
+    if let Some(payment_status) = payment_status {
+        let (is_failed, failure_message) = is_payment_failed(&payment_status);
+        if is_failed {
+            return Ok((
+                enums::AttemptStatus::AuthorizationFailed,
+                Some(failure_message.to_string()),
+            ));
+        }
+
+        if is_payment_successful(&payment_status)? {
+            return Ok((enums::AttemptStatus::Charged, None));
+        }
+
+        let pending_status = get_pending_status_based_on_redirect_url(redirect_url);
+
+        Ok((pending_status, None))
+    } else {
+        Ok((enums::AttemptStatus::AuthenticationPending, None))
     }
-    if is_failed {
-        return Ok((
-            enums::AttemptStatus::AuthorizationFailed,
-            Some(failure_message.to_string()),
-        ));
-    }
-    if is_payment_successful(payment_status)? {
-        return Ok((enums::AttemptStatus::Charged, None));
-    }
-    Ok((pending_status, None))
 }
 
 #[derive(Debug, Serialize, Deserialize, Eq, PartialEq, Clone)]
@@ -571,15 +577,11 @@ fn handle_cards_response(
     ),
     errors::ConnectorError,
 > {
-    // By default, payment status is pending(000.200.000 status code)
     let (status, msg) = get_transaction_status(
-        response
-            .payment_status
-            .to_owned()
-            .unwrap_or("000.200.000".to_string())
-            .as_str(),
-        response.redirect_url.clone(),
+        response.payment_status.to_owned(),
+        response.redirect_url.to_owned(),
     )?;
+
     let form_fields = response.redirect_params.unwrap_or_default();
     let redirection_data = response
         .redirect_url
