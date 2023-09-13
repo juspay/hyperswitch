@@ -7,11 +7,12 @@ use external_services::kms;
 
 use crate::{
     core::errors::{self, api_error_response, utils::StorageErrorExt},
+    db::StorageInterface,
     headers, logger,
     routes::AppState,
     services, types,
     types::storage,
-    utils, db::StorageInterface,
+    utils,
 };
 
 const APPLEPAY_INTERNAL_MERCHANT_NAME: &str = "Applepay_merchant";
@@ -185,10 +186,7 @@ pub async fn get_verified_apple_domains_with_mid_mca_id(
     api_error_response::ApiErrorResponse,
 > {
     let key_store = db
-        .get_merchant_key_store_by_merchant_id(
-            &merchant_id,
-            &db.get_master_key().to_vec().into(),
-        )
+        .get_merchant_key_store_by_merchant_id(&merchant_id, &db.get_master_key().to_vec().into())
         .await
         .to_not_found_response(errors::ApiErrorResponse::InternalServerError)?;
 

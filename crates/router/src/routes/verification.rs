@@ -53,14 +53,13 @@ pub async fn retrieve_apple_pay_verified_domains(
         &req,
         merchant_id.clone(),
         |state, _, _| {
-            verification::get_verified_apple_domains_with_mid_mca_id (
+            verification::get_verified_apple_domains_with_mid_mca_id(
                 &*state.store,
-                merchant_id.clone(),
-                mca_id.to_string(),
+                merchant_id.to_string(),
+                mca_id.clone(),
             )
         },
         auth::auth_type(&auth::ApiKeyAuth, &auth::JWTAuth, req.headers()),
     )
     .await
 }
-
