@@ -439,7 +439,7 @@ fn get_transaction_status(
     redirect_url: Option<Url>,
 ) -> CustomResult<(enums::AttemptStatus, Option<String>), errors::ConnectorError> {
     // We don't get payment_status only in case, when the user doesn't complete the authentication step.
-    // If we recieve status, then return the proper status based on the connector response
+    // If we receive status, then return the proper status based on the connector response
     if let Some(payment_status) = payment_status {
         let (is_failed, failure_message) = is_payment_failed(&payment_status);
         if is_failed {
