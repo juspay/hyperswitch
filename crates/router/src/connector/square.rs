@@ -844,14 +844,14 @@ impl api::IncomingWebhook for Square {
         _merchant_id: &str,
         _secret: &[u8],
     ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
-        let authority = request
+        let header_value = request
             .headers
             .get(actix_web::http::header::HOST)
-            .map(|header_value| header_value.to_str().map(String::from))
-            .transpose()
+            .ok_or(errors::ConnectorError::WebhookSourceVerificationFailed)?;
+        let authority = header_value
+            .to_str()
             .into_report()
-            .change_context(errors::ConnectorError::WebhookResponseEncodingFailed)?
-            .unwrap_or("".to_string());
+            .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
 
         Ok(format!(
             "https://{}{}{}",
