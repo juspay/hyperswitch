@@ -78,7 +78,6 @@ diesel::table! {
         frm_routing_algorithm -> Nullable<Jsonb>,
         payout_routing_algorithm -> Nullable<Jsonb>,
         is_recon_enabled -> Bool,
-        applepay_verified_domains -> Nullable<Array<Nullable<Text>>>,
     }
 }
 
@@ -471,6 +470,7 @@ diesel::table! {
         frm_config -> Nullable<Array<Nullable<Jsonb>>>,
         #[max_length = 64]
         profile_id -> Nullable<Varchar>,
+        applepay_verified_domains -> Nullable<Array<Nullable<Text>>>,
     }
 }
 

@@ -30,8 +30,6 @@ pub struct BusinessProfile {
     pub frm_routing_algorithm: Option<serde_json::Value>,
     pub payout_routing_algorithm: Option<serde_json::Value>,
     pub is_recon_enabled: bool,
-    #[diesel(deserialize_as = super::OptionalDieselArray<String>)]
-    pub applepay_verified_domains: Option<Vec<String>>,
 }
 
 #[derive(Clone, Debug, Insertable, router_derive::DebugAsDisplay)]
@@ -53,8 +51,6 @@ pub struct BusinessProfileNew {
     pub frm_routing_algorithm: Option<serde_json::Value>,
     pub payout_routing_algorithm: Option<serde_json::Value>,
     pub is_recon_enabled: bool,
-    #[diesel(deserialize_as = super::OptionalDieselArray<String>)]
-    pub applepay_verified_domains: Option<Vec<String>>,
 }
 
 #[derive(Clone, Debug, Default, AsChangeset, router_derive::DebugAsDisplay)]
@@ -73,8 +69,6 @@ pub struct BusinessProfileUpdateInternal {
     pub frm_routing_algorithm: Option<serde_json::Value>,
     pub payout_routing_algorithm: Option<serde_json::Value>,
     pub is_recon_enabled: Option<bool>,
-    #[diesel(deserialize_as = super::OptionalDieselArray<String>)]
-    pub applepay_verified_domains: Option<Vec<String>>,
 }
 
 impl From<BusinessProfileNew> for BusinessProfile {
@@ -96,7 +90,6 @@ impl From<BusinessProfileNew> for BusinessProfile {
             frm_routing_algorithm: new.frm_routing_algorithm,
             payout_routing_algorithm: new.payout_routing_algorithm,
             is_recon_enabled: new.is_recon_enabled,
-            applepay_verified_domains: new.applepay_verified_domains,
         }
     }
 }

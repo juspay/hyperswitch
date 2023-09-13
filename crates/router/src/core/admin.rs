@@ -676,6 +676,7 @@ pub async fn create_payment_connector(
             None => None,
         },
         profile_id: Some(profile_id.clone()),
+        applepay_verified_domains: req.applepay_verified_domains,
     };
 
     let mca = state
@@ -837,6 +838,7 @@ pub async fn update_payment_connector(
             }
             None => None,
         },
+        applepay_verified_domains: req.applepay_verified_domains,
     };
 
     let updated_mca = db
@@ -1174,7 +1176,6 @@ pub async fn update_business_profile(
         frm_routing_algorithm: request.frm_routing_algorithm,
         payout_routing_algorithm: request.payout_routing_algorithm,
         is_recon_enabled: None,
-        applepay_verified_domains: request.applepay_verified_domains,
     };
 
     let updated_business_profile = db
