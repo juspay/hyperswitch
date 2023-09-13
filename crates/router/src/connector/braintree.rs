@@ -429,8 +429,8 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
         req: &types::PaymentsCaptureRouterData,
     ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
         let connector_api_version = &req.connector_api_version.clone();
-        let conversion_req =
-            braintree_graphql_transformers::BriantreeAmountConversion::try_from((
+        let connector_router_data =
+            braintree_graphql_transformers::BraintreeRouterData::try_from((
                 &self.get_currency_unit(),
                 req.request.currency,
                 req.request.amount_to_capture,
@@ -440,7 +440,7 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
             true => {
                 let connector_request =
                     braintree_graphql_transformers::BraintreeCaptureRequest::try_from(
-                        &conversion_req,
+                        &connector_router_data,
                     )?;
 
                 let braintree_req = types::RequestBody::log_and_get_request_body(
@@ -749,8 +749,8 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         req: &types::PaymentsAuthorizeRouterData,
     ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
         let connector_api_version = &req.connector_api_version;
-        let conversion_req =
-            braintree_graphql_transformers::BriantreeAmountConversion::try_from((
+        let connector_router_data =
+            braintree_graphql_transformers::BraintreeRouterData::try_from((
                 &self.get_currency_unit(),
                 req.request.currency,
                 req.request.amount,
@@ -760,7 +760,7 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
             true => {
                 let connector_request =
                     braintree_graphql_transformers::BraintreePaymentsRequest::try_from(
-                        &conversion_req,
+                        &connector_router_data,
                     )?;
                 let braintree_payment_request = types::RequestBody::log_and_get_request_body(
                     &connector_request,
@@ -1048,8 +1048,8 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
         req: &types::RefundsRouterData<api::Execute>,
     ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
         let connector_api_version = &req.connector_api_version;
-        let conversion_req =
-            braintree_graphql_transformers::BriantreeAmountConversion::try_from((
+        let connector_router_data =
+            braintree_graphql_transformers::BraintreeRouterData::try_from((
                 &self.get_currency_unit(),
                 req.request.currency,
                 req.request.refund_amount,
@@ -1059,7 +1059,7 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
             true => {
                 let connector_request =
                     braintree_graphql_transformers::BraintreeRefundRequest::try_from(
-                        conversion_req,
+                        connector_router_data,
                     )?;
                 let braintree_refund_request = types::RequestBody::log_and_get_request_body(
             &connector_request,
@@ -1341,8 +1341,8 @@ impl
         &self,
         req: &types::PaymentsCompleteAuthorizeRouterData,
     ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
-        let conversion_req =
-            braintree_graphql_transformers::BriantreeAmountConversion::try_from((
+        let connector_router_data =
+            braintree_graphql_transformers::BraintreeRouterData::try_from((
                 &self.get_currency_unit(),
                 req.request.currency,
                 req.request.amount,
@@ -1353,7 +1353,7 @@ impl
             true => {
                 let connector_request =
                     braintree_graphql_transformers::BraintreePaymentsRequest::try_from(
-                        &conversion_req,
+                        &connector_router_data,
                     )?;
                 let braintree_payment_request = types::RequestBody::log_and_get_request_body(
                     &connector_request,
