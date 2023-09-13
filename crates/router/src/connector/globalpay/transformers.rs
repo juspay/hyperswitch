@@ -500,4 +500,11 @@ impl utils::MultipleCaptureSyncResponse for GlobalpayPaymentsResponse {
     fn is_capture_response(&self) -> bool {
         true
     }
+
+    fn get_amount_captured(&self) -> Option<i64> {
+        match self.amount.clone() {
+            Some(amount) => amount.parse().ok(),
+            None => None,
+        }
+    }
 }

@@ -3715,6 +3715,10 @@ impl utils::MultipleCaptureSyncResponse for Response {
     fn get_connector_reference_id(&self) -> Option<String> {
         Some(self.merchant_reference.clone())
     }
+
+    fn get_amount_captured(&self) -> Option<i64> {
+        self.amount.clone().map(|amount_struct| amount_struct.value)
+    }
 }
 
 // Payouts
