@@ -727,7 +727,7 @@ pub async fn webhooks_core<W: types::OutgoingWebhookType>(
     };
 
     let (merchant_connector_account, connector) = fetch_mca_and_connector(
-        state,
+        &state,
         &merchant_account,
         connector_name_or_mca_id,
         &key_store,
