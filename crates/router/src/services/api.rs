@@ -13,7 +13,7 @@ use std::{
 use actix_web::{body, HttpRequest, HttpResponse, Responder, ResponseError};
 use api_models::enums::CaptureMethod;
 pub use client::{proxy_bypass_urls, ApiClient, MockApiClient, ProxyClient};
-use common_utils::errors::ReportSwitchExt;
+use common_utils::{errors::ReportSwitchExt, ext_traits::AsyncExt};
 use error_stack::{report, IntoReport, Report, ResultExt};
 use masking::{ExposeOptionInterface, PeekInterface};
 use router_env::{instrument, tracing, Tag};
@@ -697,8 +697,8 @@ pub enum AuthFlow {
 }
 
 #[instrument(skip(request, payload, state, func, api_auth), fields(merchant_id))]
-pub async fn server_wrap_util<'a, 'b, A, U, T, Q, F, Fut, E, OErr>(
-    flow: &'a impl router_env::types::FlowMetric,
+pub async fn server_wrap_util<'a, 'b, A, U, T, Q, F, Fut, E, OErr, Flow>(
+    flow: &'a Flow,
     state: &'b A,
     request: &'a HttpRequest,
     payload: T,
@@ -707,27 +707,41 @@ pub async fn server_wrap_util<'a, 'b, A, U, T, Q, F, Fut, E, OErr>(
 ) -> CustomResult<ApplicationResponse<Q>, OErr>
 where
     F: Fn(&'b A, U, T) -> Fut,
+    Flow: router_env::types::FlowMetric,
     'b: 'a,
     Fut: Future<Output = CustomResult<ApplicationResponse<Q>, E>>,
     Q: Serialize + Debug + 'a,
-    // T: api_locking::GetLockingInput + Debug,
-    T: Debug,
-    A: AppStateInfo,
+    T: api_locking::GetLockAction<Flow> + Debug,
+    A: AppStateInfo + Sync,
     U: auth::AuthInfo,
     CustomResult<ApplicationResponse<Q>, E>: ReportSwitchExt<ApplicationResponse<Q>, OErr>,
     CustomResult<U, errors::ApiErrorResponse>: ReportSwitchExt<U, OErr>,
+    CustomResult<Option<api_locking::LockAction>, errors::ApiErrorResponse>:
+        ReportSwitchExt<Option<api_locking::LockAction>, OErr>,
     OErr: ResponseError + Sync + Send + 'static,
 {
     let auth_out = api_auth
         .authenticate_and_fetch(request.headers(), state)
         .await
         .switch()?;
+
     let merchant_id = auth_out.get_merchant_id().unwrap_or("").to_string();
     tracing::Span::current().record("merchant_id", &merchant_id);
 
-    // locking_action()?
+    let lock_action = payload
+        .get_locking_action()
+        .async_map(|action| async { action.perform_locking_action(state).await })
+        .await
+        .transpose()
+        .switch()?;
 
     let output = func(state, auth_out, payload).await.switch();
+
+    let _lock_action = lock_action
+        .async_map(|action| async { action.free_lock_action(state).await })
+        .await
+        .transpose()
+        .switch()?;
 
     let status_code = match output.as_ref() {
         Ok(res) => metrics::request::track_response_status_code(res),
@@ -743,8 +757,8 @@ where
     skip(request, state, func, api_auth, payload),
     fields(request_method, request_url_path)
 )]
-pub async fn server_wrap<'a, 'b, A, T, U, Q, F, Fut, E>(
-    flow: impl router_env::types::FlowMetric,
+pub async fn server_wrap<'a, 'b, A, T, U, Q, F, Fut, E, Flow>(
+    flow: Flow,
     state: &'b A,
     request: &'a HttpRequest,
     payload: T,
@@ -756,9 +770,10 @@ where
     Fut: Future<Output = CustomResult<ApplicationResponse<Q>, E>>,
     Q: Serialize + Debug + 'a,
     T: Debug,
-    // T: api_locking::GetLockingInput + Debug,
+    Flow: router_env::types::FlowMetric,
+    T: api_locking::GetLockAction<Flow> + Debug,
     U: auth::AuthInfo,
-    A: AppStateInfo,
+    A: AppStateInfo + Sync,
     ApplicationResponse<Q>: Debug,
     CustomResult<ApplicationResponse<Q>, E>:
         ReportSwitchExt<ApplicationResponse<Q>, api_models::errors::types::ApiErrorResponse>,

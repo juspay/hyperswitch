@@ -6,14 +6,17 @@ use router_env::{instrument, tracing, Tag};
 use serde::Serialize;
 
 use crate::{
-    core::errors::{self, RouterResult},
+    core::{
+        api_locking,
+        errors::{self, RouterResult},
+    },
     routes::{app::AppStateInfo, metrics},
     services::{self, api, authentication as auth, logger},
 };
 
 #[instrument(skip(request, payload, state, func, api_authentication))]
-pub async fn compatibility_api_wrap<'a, 'b, A, U, T, Q, F, Fut, S, E>(
-    flow: impl router_env::types::FlowMetric,
+pub async fn compatibility_api_wrap<'a, 'b, Flow, A, U, T, Q, F, Fut, S, E>(
+    flow: Flow,
     state: &'b A,
     request: &'a HttpRequest,
     payload: T,
@@ -23,14 +26,15 @@ pub async fn compatibility_api_wrap<'a, 'b, A, U, T, Q, F, Fut, S, E>(
 where
     F: Fn(&'b A, U, T) -> Fut,
     Fut: Future<Output = RouterResult<api::ApplicationResponse<Q>>>,
+    Flow: router_env::types::FlowMetric,
     Q: Serialize + std::fmt::Debug + 'a,
     S: TryFrom<Q> + Serialize,
     E: Serialize + error_stack::Context + actix_web::ResponseError + Clone,
     U: auth::AuthInfo,
     error_stack::Report<E>: services::EmbedError,
     errors::ApiErrorResponse: ErrorSwitch<E>,
-    T: std::fmt::Debug,
-    A: AppStateInfo,
+    T: api_locking::GetLockAction<Flow> + std::fmt::Debug,
+    A: AppStateInfo + Sync,
 {
     let request_method = request.method().as_str();
     let url_path = request.path();

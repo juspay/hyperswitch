@@ -38,6 +38,7 @@ pub async fn refund_create(
         _,
         _,
         _,
+        _,
         types::StripeRefundResponse,
         errors::StripeErrorCode,
     >(
@@ -71,6 +72,7 @@ pub async fn refund_retrieve_with_gateway_creds(
     let flow = Flow::RefundsRetrieve;
 
     Box::pin(wrap::compatibility_api_wrap::<
+        _,
         _,
         _,
         _,
@@ -119,6 +121,7 @@ pub async fn refund_retrieve(
         _,
         _,
         _,
+        _,
         types::StripeRefundResponse,
         errors::StripeErrorCode,
     >(
@@ -153,6 +156,7 @@ pub async fn refund_update(
     let flow = Flow::RefundsUpdate;
 
     Box::pin(wrap::compatibility_api_wrap::<
+        _,
         _,
         _,
         _,

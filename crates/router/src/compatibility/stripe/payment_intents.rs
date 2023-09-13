@@ -42,6 +42,7 @@ pub async fn payment_intents_create(
         _,
         _,
         _,
+        _,
         types::StripePaymentIntentResponse,
         errors::StripeErrorCode,
     >(
@@ -94,6 +95,7 @@ pub async fn payment_intents_retrieve(
     let flow = Flow::PaymentsRetrieve;
 
     Box::pin(wrap::compatibility_api_wrap::<
+        _,
         _,
         _,
         _,
@@ -162,6 +164,7 @@ pub async fn payment_intents_retrieve_with_gateway_creds(
         _,
         _,
         _,
+        _,
         types::StripePaymentIntentResponse,
         errors::StripeErrorCode,
     >(
@@ -219,6 +222,7 @@ pub async fn payment_intents_update(
     let flow = Flow::PaymentsUpdate;
 
     Box::pin(wrap::compatibility_api_wrap::<
+        _,
         _,
         _,
         _,
@@ -290,6 +294,7 @@ pub async fn payment_intents_confirm(
         _,
         _,
         _,
+        _,
         types::StripePaymentIntentResponse,
         errors::StripeErrorCode,
     >(
@@ -339,6 +344,7 @@ pub async fn payment_intents_capture(
     let flow = Flow::PaymentsCapture;
 
     Box::pin(wrap::compatibility_api_wrap::<
+        _,
         _,
         _,
         _,
@@ -404,6 +410,7 @@ pub async fn payment_intents_cancel(
         _,
         _,
         _,
+        _,
         types::StripePaymentIntentResponse,
         errors::StripeErrorCode,
     >(
@@ -443,6 +450,7 @@ pub async fn payment_intent_list(
     let flow = Flow::PaymentsList;
 
     Box::pin(wrap::compatibility_api_wrap::<
+        _,
         _,
         _,
         _,

@@ -6,7 +6,8 @@ use redis_interface as redis;
 use router_env::{instrument, logger, tracing};
 
 use super::errors::{self, RouterResult};
-use crate::routes;
+use crate::routes::app::AppStateInfo;
+
 pub const API_LOCK_PREFIX: &str = "API_LOCK";
 pub const LOCK_RETRIES: u32 =
     ((REDIS_LOCK_EXPIRY_SECONDS * 1000) / DELAY_BETWEEN_RETRIES_IN_MILLISECONDS) + 1;
@@ -56,13 +57,9 @@ impl LockingInput {
 
 impl LockAction {
     #[instrument(skip_all)]
-    pub async fn perform_locking_action<T>(
-        self,
-        state: &routes::AppState,
-        _payload: &T,
-    ) -> RouterResult<Self>
+    pub async fn perform_locking_action<A>(self, state: &A) -> RouterResult<Self>
     where
-        T: GetLockingAction + Debug,
+        A: AppStateInfo,
     {
         match self {
             LockAction::Hold {
@@ -70,7 +67,7 @@ impl LockAction {
                 ..
             } => {
                 let redis_conn = state
-                    .store
+                    .store()
                     .get_redis_conn()
                     .change_context(errors::ApiErrorResponse::InternalServerError)?;
 
@@ -90,11 +87,13 @@ impl LockAction {
                     match redis_lock_result {
                         Ok(redis::SetnxReply::KeySet) => {
                             lock_status = Some(LockStatus::Acquired);
+                            logger::info!("Lock acquired for locking input {:?}", input);
                             break;
                         }
                         Ok(redis::SetnxReply::KeyNotSet) => {
                             // key already exists
                             lock_status = Some(LockStatus::Busy);
+                            logger::info!("Lock busy by other request when tried for locking input {:?}", input);
                             actix_time::sleep(tokio::time::Duration::from_millis(
                                 u64::from(DELAY_BETWEEN_RETRIES_IN_MILLISECONDS),
                             ))
@@ -121,24 +120,27 @@ impl LockAction {
     }
 
     #[instrument(skip_all)]
-    pub async fn free_lock_action(
-        self,
-        state: &routes::AppState,
-    ) -> RouterResult<Self> {
+    pub async fn free_lock_action<A>(self, state: &A) -> RouterResult<Self>
+    where
+        A: AppStateInfo,
+    {
         match self {
             LockAction::Hold { input, status } => match status {
                 Some(LockStatus::Acquired) => {
                     let redis_conn = state
-                        .store
+                        .store()
                         .get_redis_conn()
                         .change_context(errors::ApiErrorResponse::InternalServerError)?;
 
                     let redis_locking_key = input.get_redis_locking_key();
                     match redis_conn.delete_key(redis_locking_key.as_str()).await {
-                        Ok(redis::types::DelReply::KeyDeleted) => Ok(LockAction::Hold {
-                            input,
-                            status: Some(LockStatus::Free),
-                        }),
+                        Ok(redis::types::DelReply::KeyDeleted) => {
+                            logger::info!("Lock freed for locking input {:?}", input);
+                            Ok(LockAction::Hold {
+                                input,
+                                status: Some(LockStatus::Free),
+                            })
+                        }
                         Ok(redis::types::DelReply::KeyNotDeleted) => {
                             Err(errors::ApiErrorResponse::InternalServerError)
                                 .into_report()
@@ -164,10 +166,12 @@ impl LockAction {
     }
 }
 
-pub trait GetLockingAction {
+pub trait GetLockAction<F: router_env::types::FlowMetric> {
     // add generics for Flow and payload so that every combination of Flow and Payload implements this trait.
     fn get_locking_action(&self) -> Option<LockAction> {
         logger::warn!("Locking not enabled");
         None
     }
 }
+
+impl<X, F: router_env::types::FlowMetric> GetLockAction<F> for X where X: Debug {}

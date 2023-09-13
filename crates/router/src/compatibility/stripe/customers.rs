@@ -37,6 +37,7 @@ pub async fn customer_create(
         _,
         _,
         _,
+        _,
         types::CreateCustomerResponse,
         errors::StripeErrorCode,
     >(
@@ -65,6 +66,7 @@ pub async fn customer_retrieve(
     let flow = Flow::CustomersRetrieve;
 
     Box::pin(wrap::compatibility_api_wrap::<
+        _,
         _,
         _,
         _,
@@ -114,6 +116,7 @@ pub async fn customer_update(
         _,
         _,
         _,
+        _,
         types::CustomerUpdateResponse,
         errors::StripeErrorCode,
     >(
@@ -148,6 +151,7 @@ pub async fn customer_delete(
         _,
         _,
         _,
+        _,
         types::CustomerDeleteResponse,
         errors::StripeErrorCode,
     >(
@@ -175,6 +179,7 @@ pub async fn list_customer_payment_method_api(
     let flow = Flow::CustomerPaymentMethodsList;
 
     Box::pin(wrap::compatibility_api_wrap::<
+        _,
         _,
         _,
         _,

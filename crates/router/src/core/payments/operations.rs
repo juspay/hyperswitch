@@ -27,10 +27,7 @@ pub use self::{
 };
 use super::{helpers, CustomerDetails, PaymentData};
 use crate::{
-    core::{
-        api_locking,
-        errors::{self, CustomResult, RouterResult},
-    },
+    core::errors::{self, CustomResult, RouterResult},
     db::StorageInterface,
     routes::AppState,
     services,
