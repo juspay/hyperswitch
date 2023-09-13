@@ -27,7 +27,10 @@ use uuid::Uuid;
 pub use self::ext_traits::{OptionExt, ValidateCall};
 use crate::{
     consts,
-    core::errors::{self, CustomResult, RouterResult, StorageErrorExt},
+    core::{
+        errors::{self, CustomResult, RouterResult, StorageErrorExt},
+        utils,
+    },
     db::StorageInterface,
     logger,
     routes::metrics,
@@ -305,14 +308,18 @@ pub async fn get_profile_id_using_object_reference_id(
                     .await?
                 }
             };
-            let profile_id = payment_intent
-                .profile_id
-                .ok_or(errors::ApiErrorResponse::MissingRequiredField {
-                    field_name: "business_profile",
-                })
-                .into_report()
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("profile_id is not set in payment_intent")?;
+
+            let profile_id = utils::get_profile_id_from_business_details(
+                payment_intent.business_country,
+                payment_intent.business_label.as_ref(),
+                merchant_account,
+                payment_intent.profile_id.as_ref(),
+                db,
+            )
+            .await
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("profile_id is not set in payment_intent")?;
+
             Ok(profile_id)
         }
     }
