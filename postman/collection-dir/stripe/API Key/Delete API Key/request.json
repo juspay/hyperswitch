@@ -27,14 +27,8 @@
   ],
   "url": {
     "raw": "{{baseUrl}}/api_keys/:merchant_id/:api-key",
-    "host": [
-      "{{baseUrl}}"
-    ],
-    "path": [
-      "api_keys",
-      ":merchant_id",
-      ":api-key"
-    ],
+    "host": ["{{baseUrl}}"],
+    "path": ["api_keys", ":merchant_id", ":api-key"],
     "variable": [
       {
         "key": "merchant_id",
