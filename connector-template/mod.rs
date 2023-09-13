@@ -157,7 +157,14 @@ impl
     }
 
     fn get_request_body(&self, req: &types::PaymentsAuthorizeRouterData) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
-        let req_obj = {{project-name | downcase}}::{{project-name | downcase | pascal_case}}PaymentsRequest::try_from(req)?;
+        let connector_router_data =
+            {{project-name | downcase}}::{{project-name | downcase | pascal_case}}RouterData::try_from((
+                &self.get_currency_unit(),
+                req.request.currency,
+                req.request.amount,
+                req,
+            ))?;
+        let req_obj = {{project-name | downcase}}::{{project-name | downcase | pascal_case}}PaymentsRequest::try_from(&connector_router_data)?;
         let {{project-name | downcase}}_req = types::RequestBody::log_and_get_request_body(&req_obj, utils::Encode::<{{project-name | downcase}}::{{project-name | downcase | pascal_case}}PaymentsRequest>::encode_to_string_of_json)
             .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(Some({{project-name | downcase}}_req))
@@ -368,7 +375,14 @@ impl
     }
 
     fn get_request_body(&self, req: &types::RefundsRouterData<api::Execute>) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
-        let req_obj = {{project-name | downcase}}::{{project-name | downcase | pascal_case}}RefundRequest::try_from(req)?;
+        let connector_router_data =
+            {{project-name | downcase}}::{{project-name | downcase | pascal_case}}RouterData::try_from((
+                &self.get_currency_unit(),
+                req.request.currency,
+                req.request.refund_amount,
+                req,
+            ))?;
+        let req_obj = {{project-name | downcase}}::{{project-name | downcase | pascal_case}}RefundRequest::try_from(&connector_router_data)?;
         let {{project-name | downcase}}_req = types::RequestBody::log_and_get_request_body(&req_obj, utils::Encode::<{{project-name | downcase}}::{{project-name | downcase | pascal_case}}RefundRequest>::encode_to_string_of_json)
             .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(Some({{project-name | downcase}}_req))
