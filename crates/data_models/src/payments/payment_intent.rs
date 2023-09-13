@@ -54,7 +54,7 @@ pub trait PaymentIntentInterface {
         constraints: &PaymentIntentFetchConstraints,
         storage_scheme: MerchantStorageScheme,
     ) -> error_stack::Result<
-        Vec<(PaymentIntent, super::payment_attempt::PaymentAttempt)>,
+        Vec<(PaymentIntent, PaymentAttempt)>,
         errors::StorageError,
     >;
 

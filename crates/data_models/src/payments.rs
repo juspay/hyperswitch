@@ -1,5 +1,4 @@
 use common_utils::pii;
-use serde::{Serialize, Deserialize};
 use time::PrimitiveDateTime;
 
 pub mod payment_attempt;
@@ -7,9 +6,11 @@ pub mod payment_intent;
 
 use common_enums as storage_enums;
 
+use crate::RemoteStorageObject;
+
 use self::payment_attempt::PaymentAttempt;
 
-#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct PaymentIntent {
     pub id: i32,
     pub payment_id: String,
@@ -27,16 +28,13 @@ pub struct PaymentIntent {
     pub billing_address_id: Option<String>,
     pub statement_descriptor_name: Option<String>,
     pub statement_descriptor_suffix: Option<String>,
-    #[serde(with = "common_utils::custom_serde::iso8601")]
     pub created_at: PrimitiveDateTime,
-    #[serde(with = "common_utils::custom_serde::iso8601")]
     pub modified_at: PrimitiveDateTime,
-    #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
     pub last_synced: Option<PrimitiveDateTime>,
     pub setup_future_usage: Option<storage_enums::FutureUsage>,
     pub off_session: Option<bool>,
     pub client_secret: Option<String>,
-    pub active_attempt: PaymentAttempt,
+    pub active_attempt: RemoteStorageObject<PaymentAttempt>,
     pub business_country: Option<storage_enums::CountryAlpha2>,
     pub business_label: Option<String>,
     pub order_details: Option<Vec<pii::SecretSerdeValue>>,

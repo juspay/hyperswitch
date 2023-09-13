@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
 
 use super::PaymentIntent;
-use crate::{errors, mandates::MandateDataType, MerchantStorageScheme};
+use crate::{errors, mandates::MandateDataType, MerchantStorageScheme, ForeignIDRef};
 
 #[async_trait::async_trait]
 pub trait PaymentAttemptInterface {
@@ -297,4 +297,10 @@ pub enum PaymentAttemptUpdate {
         connector_transaction_id: Option<String>,
         connector_response_reference_id: Option<String>,
     },
+}
+
+impl ForeignIDRef for PaymentAttempt {
+    fn foreign_id(&self) -> String {
+        self.attempt_id.clone()
+    }
 }

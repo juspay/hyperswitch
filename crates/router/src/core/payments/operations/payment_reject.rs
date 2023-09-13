@@ -66,7 +66,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, PaymentsRejectRequest> for P
             "reject",
         )?;
 
-        let attempt_id = payment_intent.active_attempt.attempt_id.clone();
+        let attempt_id = payment_intent.active_attempt.get_id().clone();
         let payment_attempt = db
             .find_payment_attempt_by_payment_id_merchant_id_attempt_id(
                 payment_intent.payment_id.as_str(),

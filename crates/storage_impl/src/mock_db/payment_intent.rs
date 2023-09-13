@@ -98,7 +98,7 @@ impl PaymentIntentInterface for MockDb {
             client_secret: new.client_secret,
             business_country: new.business_country,
             business_label: new.business_label,
-            active_attempt: new.active_attempt.to_owned(),
+            active_attempt: data_models::RemoteStorageObject::Object(new.active_attempt.to_owned()),
             order_details: new.order_details,
             allowed_payment_method_types: new.allowed_payment_method_types,
             connector_metadata: new.connector_metadata,

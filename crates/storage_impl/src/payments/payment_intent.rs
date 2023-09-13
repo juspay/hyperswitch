@@ -81,7 +81,7 @@ impl<T: DatabaseStore> PaymentIntentInterface for KVRouterStore<T> {
                     client_secret: new.client_secret.clone(),
                     business_country: new.business_country,
                     business_label: new.business_label.clone(),
-                    active_attempt: new.active_attempt.clone(),
+                    active_attempt: data_models::RemoteStorageObject::Object(new.active_attempt.clone()),
                     order_details: new.order_details.clone(),
                     allowed_payment_method_types: new.allowed_payment_method_types.clone(),
                     connector_metadata: new.connector_metadata.clone(),
@@ -91,11 +91,12 @@ impl<T: DatabaseStore> PaymentIntentInterface for KVRouterStore<T> {
                     merchant_decision: new.merchant_decision.clone(),
                     payment_confirm_source: new.payment_confirm_source,
                 };
+                let diesel_intent = created_intent.clone().to_storage_model();
 
                 match self
                     .get_redis_conn()
                     .change_context(StorageError::DatabaseConnectionError)?
-                    .serialize_and_set_hash_field_if_not_exist(&key, "pi", &created_intent)
+                    .serialize_and_set_hash_field_if_not_exist(&key, "pi", &diesel_intent)
                     .await
                 {
                     Ok(HsetnxReply::KeyNotSet) => Err(StorageError::DuplicateValue {
@@ -142,18 +143,18 @@ impl<T: DatabaseStore> PaymentIntentInterface for KVRouterStore<T> {
                 let key = format!("{}_{}", this.merchant_id, this.payment_id);
 
                 let updated_intent = payment_intent.clone().apply_changeset(this.clone());
+                let diesel_intent = payment_intent.to_storage_model();
                 // Check for database presence as well Maybe use a read replica here ?
 
                 let redis_value =
-                    Encode::<PaymentIntent>::encode_to_string_of_json(&updated_intent)
+                    Encode::<PaymentIntent>::encode_to_string_of_json(&diesel_intent)
                         .change_context(StorageError::SerializationFailed)?;
 
-                let updated_intent = self
+                self
                     .get_redis_conn()
                     .change_context(StorageError::DatabaseConnectionError)?
                     .set_hash_fields(&key, ("pi", &redis_value))
                     .await
-                    .map(|_| updated_intent)
                     .change_context(StorageError::KVError)?;
 
                 let redis_entry = kv::TypedSql {
@@ -161,7 +162,7 @@ impl<T: DatabaseStore> PaymentIntentInterface for KVRouterStore<T> {
                         updatable: kv::Updateable::PaymentIntentUpdate(
                             kv::PaymentIntentUpdateMems {
                                 orig: this.to_storage_model(),
-                                update_data: payment_intent.to_storage_model(),
+                                update_data: diesel_intent,
                             },
                         ),
                     },
@@ -188,13 +189,13 @@ impl<T: DatabaseStore> PaymentIntentInterface for KVRouterStore<T> {
         storage_scheme: MerchantStorageScheme,
     ) -> error_stack::Result<PaymentIntent, StorageError> {
         let database_call = || async {
-            self.router_store
-                .find_payment_intent_by_payment_id_merchant_id(
-                    payment_id,
-                    merchant_id,
-                    storage_scheme,
-                )
-                .await
+            let conn = pg_connection_read(self).await?;
+            DieselPaymentIntent::find_by_payment_id_merchant_id(&conn, payment_id, merchant_id)
+            .await
+            .map_err(|er| {
+                let new_err = crate::diesel_error_to_data_error(er.current_context());
+                er.change_context(new_err)
+            })
         };
         match storage_scheme {
             MerchantStorageScheme::PostgresOnly => database_call().await,
@@ -209,7 +210,7 @@ impl<T: DatabaseStore> PaymentIntentInterface for KVRouterStore<T> {
                 )
                 .await
             }
-        }
+        }.map(PaymentIntent::from_storage_model)
     }
 
     #[cfg(feature = "olap")]
@@ -704,7 +705,7 @@ impl DataModelExt for PaymentIntentNew {
         }
     }
 
-    fn from_storage_model(storage_model: Self::StorageModel) -> Self {
+    fn from_storage_model(_storage_model: Self::StorageModel) -> Self {
         todo!("Implement reverse conversion")
         // Self {
         //     payment_id: storage_model.payment_id,
@@ -770,7 +771,7 @@ impl DataModelExt for PaymentIntent {
             setup_future_usage: self.setup_future_usage,
             off_session: self.off_session,
             client_secret: self.client_secret,
-            active_attempt_id: self.active_attempt.attempt_id,
+            active_attempt_id: self.active_attempt.get_id(),
             business_country: self.business_country,
             business_label: self.business_label,
             order_details: self.order_details,
@@ -784,7 +785,7 @@ impl DataModelExt for PaymentIntent {
         }
     }
 
-    fn from_storage_model(storage_model: Self::StorageModel) -> Self {
+    fn from_storage_model(_storage_model: Self::StorageModel) -> Self {
         todo!("Implement reverse transfer")
         // Self {
         //     id: storage_model.id,
@@ -928,7 +929,7 @@ impl DataModelExt for PaymentIntentUpdate {
         }
     }
 
-    fn from_storage_model(storage_model: Self::StorageModel) -> Self {
+    fn from_storage_model(_storage_model: Self::StorageModel) -> Self {
         todo!("Reverse map should no longer be needed")
     }
 }

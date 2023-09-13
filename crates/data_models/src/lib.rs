@@ -23,3 +23,27 @@ pub enum MerchantStorageScheme {
     PostgresOnly,
     RedisKv,
 }
+
+#[derive(
+    Clone,
+    Debug,
+    Eq,
+    PartialEq,
+)]
+pub enum RemoteStorageObject<T: ForeignIDRef> {
+    ForeignID(String),
+    Object(T)
+}
+
+pub trait ForeignIDRef {
+    fn foreign_id(&self) -> String;
+}
+
+impl<T: ForeignIDRef> RemoteStorageObject<T> {
+    pub fn get_id(&self) -> String {
+        match self {
+            RemoteStorageObject::ForeignID(id) => id.clone(),
+            RemoteStorageObject::Object(i) => i.foreign_id(),
+        }
+    }
+}
