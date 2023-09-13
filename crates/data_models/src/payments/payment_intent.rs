@@ -31,6 +31,8 @@ pub trait PaymentIntentInterface {
         storage_scheme: MerchantStorageScheme,
     ) -> error_stack::Result<PaymentIntent, errors::StorageError>;
 
+    async fn get_active_payment_attempt(&self, payment: &mut PaymentIntent, storage_scheme: MerchantStorageScheme) -> error_stack::Result<PaymentAttempt, errors::StorageError>;
+
     #[cfg(feature = "olap")]
     async fn filter_payment_intent_by_constraints(
         &self,
