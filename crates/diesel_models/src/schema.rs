@@ -471,6 +471,7 @@ diesel::table! {
         frm_config -> Nullable<Array<Nullable<Jsonb>>>,
         #[max_length = 64]
         profile_id -> Nullable<Varchar>,
+        pm_auth_config -> Nullable<Jsonb>,
     }
 }
 

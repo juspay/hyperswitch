@@ -667,6 +667,7 @@ impl TryFrom<domain::MerchantConnectorAccount> for api_models::admin::MerchantCo
                 })
                 .transpose()?,
             profile_id: item.profile_id,
+            pm_auth_config: item.pm_auth_config,
         })
     }
 }

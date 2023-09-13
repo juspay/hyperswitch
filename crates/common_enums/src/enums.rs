@@ -208,6 +208,8 @@ pub enum ConnectorType {
     NonBankingFinance,
     /// Acquirers, Gateways etc
     PayoutProcessor,
+    /// PaymentMethods Auth Services
+    PaymentMethodAuth,
 }
 
 #[allow(clippy::upper_case_acronyms)]

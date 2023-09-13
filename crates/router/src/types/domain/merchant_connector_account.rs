@@ -33,6 +33,7 @@ pub struct MerchantConnectorAccount {
     pub modified_at: time::PrimitiveDateTime,
     pub connector_webhook_details: Option<pii::SecretSerdeValue>,
     pub profile_id: Option<String>,
+    pub pm_auth_config: Option<serde_json::Value>,
 }
 
 #[derive(Debug)]
@@ -49,6 +50,7 @@ pub enum MerchantConnectorAccountUpdate {
         metadata: Option<pii::SecretSerdeValue>,
         frm_configs: Option<Vec<Secret<serde_json::Value>>>,
         connector_webhook_details: Option<pii::SecretSerdeValue>,
+        pm_auth_config: Option<serde_json::Value>,
     },
 }
 
@@ -82,6 +84,7 @@ impl behaviour::Conversion for MerchantConnectorAccount {
                 modified_at: self.modified_at,
                 connector_webhook_details: self.connector_webhook_details,
                 profile_id: self.profile_id,
+                pm_auth_config: self.pm_auth_config,
             },
         )
     }
@@ -119,6 +122,7 @@ impl behaviour::Conversion for MerchantConnectorAccount {
             modified_at: other.modified_at,
             connector_webhook_details: other.connector_webhook_details,
             profile_id: other.profile_id,
+            pm_auth_config: other.pm_auth_config,
         })
     }
 
@@ -144,6 +148,7 @@ impl behaviour::Conversion for MerchantConnectorAccount {
             modified_at: now,
             connector_webhook_details: self.connector_webhook_details,
             profile_id: self.profile_id,
+            pm_auth_config: self.pm_auth_config,
         })
     }
 }
@@ -163,6 +168,7 @@ impl From<MerchantConnectorAccountUpdate> for MerchantConnectorAccountUpdateInte
                 metadata,
                 frm_configs,
                 connector_webhook_details,
+                pm_auth_config,
             } => Self {
                 merchant_id,
                 connector_type,
@@ -177,6 +183,7 @@ impl From<MerchantConnectorAccountUpdate> for MerchantConnectorAccountUpdateInte
                 frm_config: frm_configs,
                 modified_at: Some(common_utils::date_time::now()),
                 connector_webhook_details,
+                pm_auth_config,
             },
         }
     }

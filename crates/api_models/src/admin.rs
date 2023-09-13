@@ -634,6 +634,8 @@ pub struct MerchantConnectorCreate {
 
     /// Identifier for the business profile, if not provided default will be chosen from merchant account
     pub profile_id: Option<String>,
+
+    pub pm_auth_config: Option<serde_json::Value>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
@@ -735,6 +737,8 @@ pub struct MerchantConnectorResponse {
     /// default value from merchant account is taken if not passed
     #[schema(max_length = 64)]
     pub profile_id: Option<String>,
+
+    pub pm_auth_config: Option<serde_json::Value>,
 }
 
 /// Create a new Merchant Connector for the merchant account. The connector could be a payment processor / facilitator / acquirer or specialized services like Fraud / Accounting etc."
@@ -804,6 +808,8 @@ pub struct MerchantConnectorUpdate {
         }
     }))]
     pub connector_webhook_details: Option<MerchantConnectorWebhookDetails>,
+
+    pub pm_auth_config: Option<serde_json::Value>,
 }
 
 ///Details of FrmConfigs are mentioned here... it should be passed in payment connector create api call, and stored in merchant_connector_table
