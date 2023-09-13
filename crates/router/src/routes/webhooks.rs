@@ -22,9 +22,9 @@ pub async fn receive_incoming_webhook<W: types::OutgoingWebhookType>(
         state,
         &req,
         body,
-        |statex, auth, body| {
+        |state, auth, body| {
             webhooks::webhooks_core::<W>(
-                statex,
+                state,
                 &req,
                 auth.merchant_account,
                 auth.key_store,
