@@ -38,18 +38,13 @@
       }
     },
     "raw_json_formatted": {
-    "client_secret": "{{client_secret}}"}
+      "client_secret": "{{client_secret}}"
+    }
   },
   "url": {
     "raw": "{{baseUrl}}/payments/:id/confirm",
-    "host": [
-      "{{baseUrl}}"
-    ],
-    "path": [
-      "payments",
-      ":id",
-      "confirm"
-    ],
+    "host": ["{{baseUrl}}"],
+    "path": ["payments", ":id", "confirm"],
     "variable": [
       {
         "key": "id",

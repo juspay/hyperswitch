@@ -38,7 +38,7 @@
       }
     },
     "raw_json_formatted": {
-    "client_secret": "{{client_secret}}",
+      "client_secret": "{{client_secret}}",
       "return_url": "https://integ.hyperswitch.io/home",
       "payment_method": "card",
       "payment_method_data": {
@@ -68,14 +68,8 @@
   },
   "url": {
     "raw": "{{baseUrl}}/payments/:id/confirm",
-    "host": [
-      "{{baseUrl}}"
-    ],
-    "path": [
-      "payments",
-      ":id",
-      "confirm"
-    ],
+    "host": ["{{baseUrl}}"],
+    "path": ["payments", ":id", "confirm"],
     "variable": [
       {
         "key": "id",

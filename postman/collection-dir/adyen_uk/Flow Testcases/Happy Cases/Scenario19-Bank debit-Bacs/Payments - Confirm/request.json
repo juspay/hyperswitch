@@ -38,7 +38,7 @@
       }
     },
     "raw_json_formatted": {
-    "client_secret": "{{client_secret}}",
+      "client_secret": "{{client_secret}}",
       "payment_method": "bank_debit",
       "payment_method_type": "bacs",
       "payment_method_data": {
@@ -68,14 +68,8 @@
   },
   "url": {
     "raw": "{{baseUrl}}/payments/:id/confirm",
-    "host": [
-      "{{baseUrl}}"
-    ],
-    "path": [
-      "payments",
-      ":id",
-      "confirm"
-    ],
+    "host": ["{{baseUrl}}"],
+    "path": ["payments", ":id", "confirm"],
     "variable": [
       {
         "key": "id",
