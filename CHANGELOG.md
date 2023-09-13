@@ -4,6 +4,17 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 1.34.0+hotfix.4 (2023-09-13)
+
+### Bug Fixes
+
+- **router:** `validate_psync_reference_id` only if call_connector_action is trigger in psync flow ([#2149](https://github.com/juspay/hyperswitch/pull/2149)) ([`0d0816c`](https://github.com/juspay/hyperswitch/commit/0d0816c89f21bbafef442766b62dc7c7138c62d1))
+- Payment status in trustpay 3ds and wallets ([#2151](https://github.com/juspay/hyperswitch/pull/2151)) ([`7839d20`](https://github.com/juspay/hyperswitch/commit/7839d2068fc917a1f093336557d5d2b827806d54))
+
+**Full Changelog:** [`v1.34.0+hotfix.3...v1.34.0+hotfix.4`](https://github.com/juspay/hyperswitch/compare/v1.34.0+hotfix.3...v1.34.0+hotfix.4)
+
+- - -
+
 ## 1.34.0+hotfix.3 (2023-09-12)
 
 ### Bug Fixes
