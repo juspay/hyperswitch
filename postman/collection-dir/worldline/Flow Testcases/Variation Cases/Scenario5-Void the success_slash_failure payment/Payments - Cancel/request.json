@@ -23,14 +23,8 @@
   },
   "url": {
     "raw": "{{baseUrl}}/payments/:id/cancel",
-    "host": [
-      "{{baseUrl}}"
-    ],
-    "path": [
-      "payments",
-      ":id",
-      "cancel"
-    ],
+    "host": ["{{baseUrl}}"],
+    "path": ["payments", ":id", "cancel"],
     "variable": [
       {
         "key": "id",
