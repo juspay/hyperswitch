@@ -282,6 +282,7 @@ fn get_card_request_data(
 
 fn get_debtor_info(
     item: &types::PaymentsAuthorizeRouterData,
+    params: TrustpayMandatoryParams,
 ) -> CustomResult<Option<DebtorInformation>, errors::ConnectorError> {
     let payment_method_type = item
         .request
@@ -290,12 +291,7 @@ fn get_debtor_info(
         .ok_or(errors::ConnectorError::MissingPaymentMethodType)?;
     match payment_method_type {
         enums::PaymentMethodType::Blik => Ok(Some(DebtorInformation {
-            name: item
-                .get_billing()?
-                .address
-                .as_ref()
-                .map(|address| address.first_name.clone().unwrap_or_default())
-                .unwrap_or_default(),
+            name: params.billing_first_name,
             email: item.request.get_email()?,
         })),
         _ => Ok(None),
@@ -305,6 +301,7 @@ fn get_debtor_info(
 fn get_bank_redirection_request_data(
     item: &types::PaymentsAuthorizeRouterData,
     bank_redirection_data: &BankRedirectData,
+    params: TrustpayMandatoryParams,
     amount: String,
     auth: TrustpayAuthType,
 ) -> Result<TrustpayPaymentsRequest, error_stack::Report<errors::ConnectorError>> {
@@ -323,7 +320,7 @@ fn get_bank_redirection_request_data(
                 references: References {
                     merchant_reference: item.payment_id.clone(),
                 },
-                debtor: get_debtor_info(item)?,
+                debtor: get_debtor_info(item, params)?,
             },
             callback_urls: CallbackURLs {
                 success: format!("{return_url}?status=SuccessOk"),
@@ -370,7 +367,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for TrustpayPaymentsRequest {
                 item.request.get_return_url()?,
             )?),
             api::PaymentMethodData::BankRedirect(ref bank_redirection_data) => {
-                get_bank_redirection_request_data(item, bank_redirection_data, amount, auth)
+                get_bank_redirection_request_data(item, bank_redirection_data, params, amount, auth)
             }
             _ => Err(errors::ConnectorError::NotImplemented("Payment methods".to_string()).into()),
         }
