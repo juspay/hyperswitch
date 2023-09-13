@@ -36,3 +36,31 @@ pub async fn apple_pay_merchant_registration(
     )
     .await
 }
+
+#[instrument(skip_all, fields(flow = ?Flow::Verification))]
+pub async fn retrieve_apple_pay_verified_domains(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    params: web::Query<verifications::ApplepayGetVerifiedDomainsParam>,
+) -> impl Responder {
+    let flow = Flow::Verification;
+    let merchant_id = &params.merchant_id;
+    let mca_id = &params.merchant_connector_account_id;
+
+    api::server_wrap(
+        flow,
+        state.get_ref(),
+        &req,
+        merchant_id.clone(),
+        |state, _, _| {
+            verification::get_verified_apple_domains_with_mid_mca_id (
+                &*state.store,
+                merchant_id.clone(),
+                mca_id.to_string(),
+            )
+        },
+        auth::auth_type(&auth::ApiKeyAuth, &auth::JWTAuth, req.headers()),
+    )
+    .await
+}
+

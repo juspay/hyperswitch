@@ -11,7 +11,7 @@ use crate::{
     routes::AppState,
     services, types,
     types::storage,
-    utils,
+    utils, db::StorageInterface,
 };
 
 const APPLEPAY_INTERNAL_MERCHANT_NAME: &str = "Applepay_merchant";
@@ -109,6 +109,7 @@ pub async fn verify_merchant_creds_for_applepay(
         }
     })
 }
+
 async fn check_existence_and_add_domain_to_db(
     state: &AppState,
     merchant_id: String,
@@ -173,6 +174,41 @@ async fn check_existence_and_add_domain_to_db(
         })?;
 
     Ok(already_verified_domains.clone())
+}
+
+pub async fn get_verified_apple_domains_with_mid_mca_id(
+    db: &dyn StorageInterface,
+    merchant_id: String,
+    merchant_connector_id: String,
+) -> CustomResult<
+    services::ApplicationResponse<api_models::verifications::ApplepayVerifiedDomainsResponse>,
+    api_error_response::ApiErrorResponse,
+> {
+    let key_store = db
+        .get_merchant_key_store_by_merchant_id(
+            &merchant_id,
+            &db.get_master_key().to_vec().into(),
+        )
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::InternalServerError)?;
+
+    let verified_domains = db
+        .find_by_merchant_connector_account_merchant_id_merchant_connector_id(
+            merchant_id.as_str(),
+            merchant_connector_id.as_str(),
+            &key_store,
+        )
+        .await
+        .change_context(api_error_response::ApiErrorResponse::ResourceIdNotFound)?
+        .applepay_verified_domains
+        .unwrap_or_default();
+
+    Ok(services::api::ApplicationResponse::Json(
+        api_models::verifications::ApplepayVerifiedDomainsResponse {
+            status_code: 200,
+            verified_domains,
+        },
+    ))
 }
 
 fn log_applepay_verification_response_if_error(

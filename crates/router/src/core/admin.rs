@@ -676,7 +676,11 @@ pub async fn create_payment_connector(
             None => None,
         },
         profile_id: Some(profile_id.clone()),
+<<<<<<< HEAD
         applepay_verified_domains: req.applepay_verified_domains,
+=======
+        applepay_verified_domains: None,
+>>>>>>> caa385a5a6635a4bf7910e2d56e2660069c146a9
     };
 
     let mca = state
@@ -838,7 +842,7 @@ pub async fn update_payment_connector(
             }
             None => None,
         },
-        applepay_verified_domains: req.applepay_verified_domains,
+        applepay_verified_domains: None,
     };
 
     let updated_mca = db
