@@ -716,6 +716,15 @@ pub async fn webhooks_core<W: types::OutgoingWebhookType>(
             merchant_account.merchant_id.clone(),
         )],
     );
+    let authority = req
+        .headers()
+        .get(actix_web::http::header::HOST)
+        .map(|header_value| header_value.to_str().map(String::from))
+        .transpose()
+        .into_report()
+        .change_context(errors::ApiErrorResponse::WebhookProcessingFailure)?
+        .unwrap_or("".to_string());
+
     let mut request_details = api::IncomingWebhookRequestDetails {
         method: req.method().clone(),
         uri: req.uri().clone(),
