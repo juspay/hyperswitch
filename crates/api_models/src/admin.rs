@@ -633,8 +633,6 @@ pub struct MerchantConnectorCreate {
     pub connector_webhook_details: Option<MerchantConnectorWebhookDetails>,
     /// Identifier for the business profile, if not provided default will be chosen from merchant account
     pub profile_id: Option<String>,
-    /// identifier for the verified domains of a particular connector account
-    pub applepay_verified_domains: Option<Vec<String>>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
@@ -807,9 +805,6 @@ pub struct MerchantConnectorUpdate {
         }
     }))]
     pub connector_webhook_details: Option<MerchantConnectorWebhookDetails>,
-
-    /// Verified applepay domains for a particular profile
-    pub applepay_verified_domains: Option<Vec<String>>,
 }
 
 ///Details of FrmConfigs are mentioned here... it should be passed in payment connector create api call, and stored in merchant_connector_table
