@@ -1073,8 +1073,8 @@ pub fn get_apple_pay_session<F, T>(
             ))),
             connector_response_reference_id: None,
         }),
-        // We don't get status from TrustPay but status should be pending by default for session response
-        status: diesel_models::enums::AttemptStatus::Pending,
+        // We don't get status from TrustPay but status should be AuthenticationPending by default for session response
+        status: diesel_models::enums::AttemptStatus::AuthenticationPending,
         ..item.data
     })
 }
@@ -1120,8 +1120,8 @@ pub fn get_google_pay_session<F, T>(
             ))),
             connector_response_reference_id: None,
         }),
-        // We don't get status from TrustPay but status should be pending by default for session response
-        status: diesel_models::enums::AttemptStatus::Pending,
+        // We don't get status from TrustPay but status should be AuthenticationPending by default for session response
+        status: diesel_models::enums::AttemptStatus::AuthenticationPending,
         ..item.data
     })
 }
