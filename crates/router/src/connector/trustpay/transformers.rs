@@ -1,7 +1,10 @@
 use std::collections::HashMap;
 
 use api_models::payments::BankRedirectData;
-use common_utils::{errors::CustomResult, pii};
+use common_utils::{
+    errors::CustomResult,
+    pii::{self, Email},
+};
 use error_stack::{report, IntoReport, ResultExt};
 use masking::{PeekInterface, Secret};
 use reqwest::Url;
@@ -54,6 +57,7 @@ pub enum TrustpayPaymentMethod {
     Giropay,
     IDeal,
     Sofort,
+    Blik,
 }
 
 #[derive(Debug, Serialize, Deserialize, Eq, PartialEq)]
@@ -90,9 +94,17 @@ pub struct StatusReasonInformation {
 
 #[derive(Default, Debug, Serialize, Deserialize, Eq, PartialEq, Clone)]
 #[serde(rename_all = "PascalCase")]
+pub struct DebtorInformation {
+    pub name: Secret<String>,
+    pub email: Email,
+}
+
+#[derive(Default, Debug, Serialize, Deserialize, Eq, PartialEq, Clone)]
+#[serde(rename_all = "PascalCase")]
 pub struct BankPaymentInformation {
     pub amount: Amount,
     pub references: References,
+    pub debtor: Option<DebtorInformation>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Eq, PartialEq, Clone)]
@@ -131,7 +143,7 @@ pub struct PaymentRequestCards {
     #[serde(rename = "billing[postcode]")]
     pub billing_postcode: Secret<String>,
     #[serde(rename = "customer[email]")]
-    pub customer_email: pii::Email,
+    pub customer_email: Email,
     #[serde(rename = "customer[ipAddress]")]
     pub customer_ip_address: Secret<String, pii::IpAddress>,
     #[serde(rename = "browser[acceptHeader]")]
@@ -193,6 +205,7 @@ impl TryFrom<&BankRedirectData> for TrustpayPaymentMethod {
             api_models::payments::BankRedirectData::Eps { .. } => Ok(Self::Eps),
             api_models::payments::BankRedirectData::Ideal { .. } => Ok(Self::IDeal),
             api_models::payments::BankRedirectData::Sofort { .. } => Ok(Self::Sofort),
+            api_models::payments::BankRedirectData::Blik { .. } => Ok(Self::Blik),
             _ => Err(errors::ConnectorError::NotImplemented("Payment methods".to_string()).into()),
         }
     }
@@ -267,6 +280,28 @@ fn get_card_request_data(
     )))
 }
 
+fn get_debtor_info(
+    item: &types::PaymentsAuthorizeRouterData,
+) -> CustomResult<Option<DebtorInformation>, errors::ConnectorError> {
+    let payment_method_type = item
+        .request
+        .payment_method_type
+        .as_ref()
+        .ok_or(errors::ConnectorError::MissingPaymentMethodType)?;
+    match payment_method_type {
+        enums::PaymentMethodType::Blik => Ok(Some(DebtorInformation {
+            name: item
+                .get_billing()?
+                .address
+                .as_ref()
+                .map(|address| address.first_name.clone().unwrap_or_default())
+                .unwrap_or_default(),
+            email: item.request.get_email()?,
+        })),
+        _ => Ok(None),
+    }
+}
+
 fn get_bank_redirection_request_data(
     item: &types::PaymentsAuthorizeRouterData,
     bank_redirection_data: &BankRedirectData,
@@ -288,6 +323,7 @@ fn get_bank_redirection_request_data(
                 references: References {
                     merchant_reference: item.payment_id.clone(),
                 },
+                debtor: get_debtor_info(item)?,
             },
             callback_urls: CallbackURLs {
                 success: format!("{return_url}?status=SuccessOk"),
@@ -1253,6 +1289,7 @@ impl<F> TryFrom<&types::RefundsRouterData<F>> for TrustpayRefundRequest {
                             references: References {
                                 merchant_reference: item.request.refund_id.clone(),
                             },
+                            debtor: None,
                         },
                     },
                 )))
