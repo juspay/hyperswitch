@@ -3,9 +3,12 @@ use router_env::Flow;
 
 use crate::{
     self as app,
-    core::payments::{self},
+    core::payment_link::{self},
     services::{api, authentication as auth},
 };
+
+
+// use payment_link;
 
 pub async fn get_payment_link(
     state: web::Data<app::AppState>,
@@ -26,7 +29,7 @@ pub async fn get_payment_link(
         &req,
         payload.clone(),
         |state, auth, _| {
-            payments::retrieve_payment_link(
+            payment_link::retrieve_payment_link(
                 state,
                 auth.merchant_account,
                 payload.payment_link_id.clone(),
@@ -45,8 +48,6 @@ pub async fn initiate_payment_link (
 ) -> impl Responder {
     let flow = Flow::PaymentLinkInitiate;
     let (merchant_id, payment_id) = path.into_inner();
-    println!("payment_id sahkal {}", payment_id.clone());
-
     let payload = web::Json(api_models::payments::PaymentLinkInitiateRequest {
         payment_id,
         merchant_id : merchant_id.clone() ,
@@ -57,14 +58,14 @@ pub async fn initiate_payment_link (
         &req,
         payload.clone(),
         |state, auth , _| {
-            payments::intiate_payment_link(
+            payment_link::intiate_payment_link_flow(
                 state,
                 auth.merchant_account,
                 payload.merchant_id.clone(),
-                "pay_F3D2Hh2yjb7hEl6riM3Q".to_string(),
+                payload.payment_id.clone(),
             )
         },
-        &auth::MerchantIdAuth(merchant_id),
+        &crate::services::authentication::MerchantIdAuth(merchant_id),
     )
     .await
 }
