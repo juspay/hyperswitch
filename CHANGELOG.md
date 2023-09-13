@@ -4,6 +4,29 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 1.39.1 (2023-09-13)
+
+### Bug Fixes
+
+- **connector:** [SQUARE] Add uri authority in Webhooks ([#2138](https://github.com/juspay/hyperswitch/pull/2138)) ([`daa0759`](https://github.com/juspay/hyperswitch/commit/daa07598922d1bf0c61e2482752570153f62cdb1))
+- **core:** Update amount_capturable in update trackers ([#2142](https://github.com/juspay/hyperswitch/pull/2142)) ([`bed8326`](https://github.com/juspay/hyperswitch/commit/bed8326597febd89bb4c961c9085a78b09f99f49))
+- Payment status fix in trustpay for 3ds and wallets ([#2146](https://github.com/juspay/hyperswitch/pull/2146)) ([`9b92d04`](https://github.com/juspay/hyperswitch/commit/9b92d046de9fb794d67163582af4360d5e558037))
+
+### Refactors
+
+- **connector:** [Stripe] add support for more incoming woocommerce Stripe disputes webhooks ([#2150](https://github.com/juspay/hyperswitch/pull/2150)) ([`e023eb8`](https://github.com/juspay/hyperswitch/commit/e023eb800d17ffc24cfaf2335d2560fb0f529e50))
+- **masking:** Move masking implementations to masking crate ([#2135](https://github.com/juspay/hyperswitch/pull/2135)) ([`9d74a75`](https://github.com/juspay/hyperswitch/commit/9d74a75ddbd49e7ef7fa0cbfab1528da342dd5a0))
+- Move `Request` and `RequestBuilder` structs to common_utils crate ([#2145](https://github.com/juspay/hyperswitch/pull/2145)) ([`21be67a`](https://github.com/juspay/hyperswitch/commit/21be67ada07e41f3ff8824f608a82b606201892a))
+
+### Testing
+
+- **postman:** Update postman collection files ([`be397de`](https://github.com/juspay/hyperswitch/commit/be397dec48d143d9180f316659aa033f668c1a55))
+
+**Full Changelog:** [`v1.39.0...v1.39.1`](https://github.com/juspay/hyperswitch/compare/v1.39.0...v1.39.1)
+
+- - -
+
+
 ## 1.39.0 (2023-09-12)
 
 ### Features
