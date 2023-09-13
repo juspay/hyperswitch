@@ -39,6 +39,8 @@ pub struct MerchantConnectorAccount {
     #[diesel(deserialize_as = super::OptionalDieselArray<pii::SecretSerdeValue>)]
     pub frm_config: Option<Vec<Secret<serde_json::Value>>>,
     pub profile_id: Option<String>,
+    #[diesel(deserialize_as = super::OptionalDieselArray<String>)]
+    pub applepay_verified_domains: Option<Vec<String>>,
 }
 
 #[derive(Clone, Debug, Insertable, router_derive::DebugAsDisplay)]
@@ -64,6 +66,8 @@ pub struct MerchantConnectorAccountNew {
     #[diesel(deserialize_as = super::OptionalDieselArray<pii::SecretSerdeValue>)]
     pub frm_config: Option<Vec<Secret<serde_json::Value>>>,
     pub profile_id: Option<String>,
+    #[diesel(deserialize_as = super::OptionalDieselArray<String>)]
+    pub applepay_verified_domains: Option<Vec<String>>,
 }
 
 #[derive(Clone, Debug, AsChangeset, router_derive::DebugAsDisplay)]
@@ -83,6 +87,8 @@ pub struct MerchantConnectorAccountUpdateInternal {
     pub connector_webhook_details: Option<pii::SecretSerdeValue>,
     #[diesel(deserialize_as = super::OptionalDieselArray<pii::SecretSerdeValue>)]
     pub frm_config: Option<Vec<Secret<serde_json::Value>>>,
+    #[diesel(deserialize_as = super::OptionalDieselArray<String>)]
+    pub applepay_verified_domains: Option<Vec<String>>,
 }
 
 impl MerchantConnectorAccountUpdateInternal {
