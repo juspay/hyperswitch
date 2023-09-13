@@ -844,9 +844,18 @@ impl api::IncomingWebhook for Square {
         _merchant_id: &str,
         _secret: &[u8],
     ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
+        let authority = request
+            .headers
+            .get(actix_web::http::header::HOST)
+            .map(|header_value| header_value.to_str().map(String::from))
+            .transpose()
+            .into_report()
+            .change_context(errors::ConnectorError::WebhookResponseEncodingFailed)?
+            .unwrap_or("".to_string());
+
         Ok(format!(
             "https://{}{}{}",
-            request.authority,
+            authority,
             request.uri,
             String::from_utf8_lossy(request.body)
         )
