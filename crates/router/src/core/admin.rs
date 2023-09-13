@@ -17,7 +17,7 @@ use crate::{
         utils as core_utils,
     },
     db::StorageInterface,
-    routes::metrics,
+    routes::{metrics, AppState},
     services::{self, api as service_api},
     types::{
         self, api,
@@ -547,12 +547,18 @@ fn validate_certificate_in_mca_metadata(
 }
 
 pub async fn create_payment_connector(
-    store: &dyn StorageInterface,
+    state: &AppState,
     req: api::MerchantConnectorCreate,
     merchant_id: &String,
 ) -> RouterResponse<api_models::admin::MerchantConnectorResponse> {
-    let key_store = store
-        .get_merchant_key_store_by_merchant_id(merchant_id, &store.get_master_key().to_vec().into())
+    #[cfg(feature = "dummy_connector")]
+    validate_dummy_connector_enabled(state, &req.connector_name).await?;
+    let key_store = state
+        .store
+        .get_merchant_key_store_by_merchant_id(
+            merchant_id,
+            &state.store.get_master_key().to_vec().into(),
+        )
         .await
         .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
 
@@ -561,7 +567,8 @@ pub async fn create_payment_connector(
         .map(validate_certificate_in_mca_metadata)
         .transpose()?;
 
-    let merchant_account = store
+    let merchant_account = state
+        .store
         .find_merchant_account_by_merchant_id(merchant_id, &key_store)
         .await
         .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
@@ -624,7 +631,7 @@ pub async fn create_payment_connector(
         req.business_label.as_ref(),
         &merchant_account,
         req.profile_id.as_ref(),
-        store,
+        &*state.store,
     )
     .await?;
 
@@ -669,9 +676,11 @@ pub async fn create_payment_connector(
             None => None,
         },
         profile_id: Some(profile_id.clone()),
+        applepay_verified_domains: None,
     };
 
-    let mca = store
+    let mca = state
+        .store
         .insert_merchant_connector_account(merchant_connector_account, &key_store)
         .await
         .to_duplicate_response(
@@ -829,6 +838,7 @@ pub async fn update_payment_connector(
             }
             None => None,
         },
+        applepay_verified_domains: None,
     };
 
     let updated_mca = db
@@ -1377,5 +1387,30 @@ pub(crate) fn validate_auth_type(
             Err(report!(errors::ConnectorError::InvalidConnectorName)
                 .attach_printable(format!("invalid connector name: {connector_name}")))
         }
+    }
+}
+
+#[cfg(feature = "dummy_connector")]
+pub async fn validate_dummy_connector_enabled(
+    state: &AppState,
+    connector_name: &api_enums::Connector,
+) -> Result<(), errors::ApiErrorResponse> {
+    if !state.conf.dummy_connector.enabled
+        && matches!(
+            connector_name,
+            api_enums::Connector::DummyConnector1
+                | api_enums::Connector::DummyConnector2
+                | api_enums::Connector::DummyConnector3
+                | api_enums::Connector::DummyConnector4
+                | api_enums::Connector::DummyConnector5
+                | api_enums::Connector::DummyConnector6
+                | api_enums::Connector::DummyConnector7
+        )
+    {
+        Err(errors::ApiErrorResponse::InvalidRequestData {
+            message: "Invalid connector name".to_string(),
+        })
+    } else {
+        Ok(())
     }
 }
