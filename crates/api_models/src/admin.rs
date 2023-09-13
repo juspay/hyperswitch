@@ -1019,6 +1019,8 @@ pub struct BusinessProfileCreate {
     )]
     pub payout_routing_algorithm: Option<serde_json::Value>,
 
+    /// Verified applepay domains for a particular profile
+    pub applepay_verified_domains: Option<Vec<String>>,
 }
 
 #[derive(Clone, Debug, ToSchema, Serialize)]
@@ -1081,6 +1083,8 @@ pub struct BusinessProfileResponse {
     )]
     pub payout_routing_algorithm: Option<serde_json::Value>,
 
+    /// Verified applepay domains for a particular profile
+    pub applepay_verified_domains: Option<Vec<String>>,
 }
 
 #[derive(Clone, Debug, Deserialize, ToSchema)]
@@ -1136,4 +1140,6 @@ pub struct BusinessProfileUpdate {
     )]
     pub payout_routing_algorithm: Option<serde_json::Value>,
 
+    /// Verified applepay domains for a particular profile
+    pub applepay_verified_domains: Option<Vec<String>>,
 }

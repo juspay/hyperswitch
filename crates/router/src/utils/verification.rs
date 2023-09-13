@@ -131,7 +131,8 @@ async fn check_existence_and_add_domain_to_db(
             &merchant_connector_id,
             &key_store,
         )
-        .await.change_context(errors::ApiErrorResponse::InternalServerError)?;
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)?;
 
     let mut already_verified_domains = merchant_connector_account
         .applepay_verified_domains

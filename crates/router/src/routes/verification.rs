@@ -24,10 +24,15 @@ pub async fn apple_pay_merchant_registration(
         &req,
         json_payload,
         |state, _, body| {
-            verification::verify_merchant_creds_for_applepay(state, &req, body, &state.conf.kms, merchant_id.clone())
+            verification::verify_merchant_creds_for_applepay(
+                state,
+                &req,
+                body,
+                &state.conf.kms,
+                merchant_id.clone(),
+            )
         },
         auth::auth_type(&auth::ApiKeyAuth, &auth::JWTAuth, req.headers()),
     )
     .await
 }
-
