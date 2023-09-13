@@ -70,6 +70,11 @@ impl ConnectorCommon for {{project-name | downcase | pascal_case}} {
         "{{project-name | downcase}}"
     }
 
+    fn get_currency_unit(&self) -> api::CurrencyUnit {
+        todo!()
+        // Ex: api::CurrencyUnit::Minor
+    }
+
     fn common_get_content_type(&self) -> &'static str {
         "application/json"
     }
