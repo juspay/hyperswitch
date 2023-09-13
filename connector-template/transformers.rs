@@ -1,10 +1,10 @@
 use serde::{Deserialize, Serialize};
 use masking::Secret;
-use crate::{connector::utils::PaymentsAuthorizeRequestData,core::errors,types::{self,api, storage::enums}};
+use crate::{connector::utils::{PaymentsAuthorizeRequestData},core::errors,types::{self,api, storage::enums}};
 
 //TODO: Fill the struct with respective fields
-pub struct {{project-name | downcase | pascal_case}}RouterData {
-    pub amount: String, // The type of amount that a connector accepts, for example, String, i64, f64, etc.
+pub struct {{project-name | downcase | pascal_case}}RouterData<T> {
+    pub amount: i64, // The type of amount that a connector accepts, for example, String, i64, f64, etc.
     pub router_data: T,
 }
 
@@ -18,14 +18,14 @@ impl<T>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        (currency_unit, currency, amount, item): (
+        (_currency_unit, _currency, amount, item): (
             &types::api::CurrencyUnit,
             types::storage::enums::Currency,
             i64,
             T,
         ),
     ) -> Result<Self, Self::Error> {
-        let amount = utils::get_amount_as_string(currency_unit, amount, currency)?; // use utils to convert the amount to the type of amount that a connector accepts
+         //Todo :  use utils to convert the amount to the type of amount that a connector accepts
         Ok(Self {
             amount,
             router_data: item,
@@ -61,7 +61,7 @@ impl TryFrom<&{{project-name | downcase | pascal_case}}RouterData<&types::Paymen
                     expiry_month: req_card.card_exp_month,
                     expiry_year: req_card.card_exp_year,
                     cvc: req_card.card_cvc,
-                    complete: item.request.is_auto_capture()?,
+                    complete: item.router_data.request.is_auto_capture()?,
                 };
                 Ok(Self {
                     amount: item.amount.to_owned(),
