@@ -26,10 +26,11 @@ pub use self::{
     payment_update::PaymentUpdate,
 };
 use super::{helpers, CustomerDetails, PaymentData};
-#[cfg(feature = "api_locking")]
-use crate::core::api_locking;
 use crate::{
-    core::errors::{self, CustomResult, RouterResult},
+    core::{
+        api_locking,
+        errors::{self, CustomResult, RouterResult},
+    },
     db::StorageInterface,
     routes::AppState,
     services,
@@ -79,18 +80,6 @@ pub struct ValidateResult<'a> {
     pub mandate_type: Option<api::MandateTransactionType>,
     pub storage_scheme: enums::MerchantStorageScheme,
     pub requeue: bool,
-}
-
-#[cfg(feature = "api_locking")]
-impl api_locking::GetLockingInput for ValidateResult<'_> {
-    fn get_locking_input(&self) -> RouterResult<api_locking::LockingInput> {
-        Ok(api_locking::LockingInput {
-            unique_locking_key: self.payment_id.get_id(),
-            api_identifier: "PAYMENTS".to_string(),
-            action_on_wait_timeout: api_locking::ActionOnWaitTimeout::Default,
-            merchant_id: self.merchant_id.to_string(),
-        })
-    }
 }
 
 #[allow(clippy::type_complexity)]

@@ -32,15 +32,12 @@ use self::{
     operations::{payment_complete_authorize, BoxedOperation, Operation},
 };
 use super::errors::StorageErrorExt;
-#[cfg(feature = "api_locking")]
-use crate::core::api_locking::{self, GetLockingInput};
-
 #[cfg(feature = "olap")]
 use crate::types::transformers::ForeignFrom;
-
 use crate::{
     configs::settings::PaymentMethodTypeTokenFilter,
     core::{
+        api_locking,
         errors::{self, CustomResult, RouterResponse, RouterResult},
         utils,
     },
@@ -94,11 +91,10 @@ where
 
     tracing::Span::current().record("payment_id", &format!("{}", validate_result.payment_id));
 
-    #[cfg(feature = "api_locking")]
-    let acquired_lock =
-        api_locking::get_key_and_lock_resource(state, validate_result.get_locking_input()?, true)
-            .await?
-            .is_acquired()?;
+    // let acquired_lock =
+    //     api_locking::get_key_and_lock_resource(state, validate_result.get_locking_input()?, true)
+    //         .await?
+    //         .is_acquired()?;
 
     let (operation, mut payment_data, customer_details) = operation
         .to_get_tracker()?
@@ -253,16 +249,15 @@ where
             .await?;
     }
 
-    #[cfg(feature = "api_locking")]
-    let _ = api_locking::release_lock(state, 3, acquired_lock.to_owned())
-        .await
-        .map_err(|err| {
-            logger::error!(
-                "Failed to release lock for {:?}, err = {:?}",
-                acquired_lock,
-                err
-            )
-        });
+    // let _ = api_locking::release_lock(state, 3, acquired_lock.to_owned())
+    //     .await
+    //     .map_err(|err| {
+    //         logger::error!(
+    //             "Failed to release lock for {:?}, err = {:?}",
+    //             acquired_lock,
+    //             err
+    //         )
+    //     });
 
     Ok((payment_data, req, customer, connector_http_status_code))
 }

@@ -1440,17 +1440,6 @@ impl std::fmt::Display for PaymentIdType {
     }
 }
 
-impl PaymentIdType {
-    pub fn get_id(&self) -> String {
-        match &self {
-            Self::PaymentIntentId(a)
-            | Self::ConnectorTransactionId(a)
-            | Self::PaymentAttemptId(a)
-            | Self::PreprocessingId(a) => a.to_owned(),
-        }
-    }
-}
-
 impl Default for PaymentIdType {
     fn default() -> Self {
         Self::PaymentIntentId(Default::default())

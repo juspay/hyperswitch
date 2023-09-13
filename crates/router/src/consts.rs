@@ -10,7 +10,7 @@ pub(crate) const ALPHABETS: [char; 62] = [
     'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z',
 ];
 /// API client request timeout (in seconds)
-pub const REQUEST_TIME_OUT: u64 = 30;
+pub const REQUEST_TIME_OUT: u32 = 30;
 pub const REQUEST_TIMEOUT_ERROR_CODE: &str = "TIMEOUT";
 pub const REQUEST_TIMEOUT_ERROR_MESSAGE: &str = "Connector did not respond in specified time";
 

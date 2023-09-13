@@ -1,6 +1,5 @@
 pub mod admin;
 pub mod api_keys;
-#[cfg(feature = "api_locking")]
 pub mod api_locking;
 pub mod cache;
 pub mod cards_info;

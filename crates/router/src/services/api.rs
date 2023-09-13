@@ -26,6 +26,7 @@ use crate::{
     configs::settings::Connectors,
     consts,
     core::{
+        api_locking,
         errors::{self, CustomResult},
         payments,
     },
@@ -504,7 +505,7 @@ pub async fn send_request(
         }
         .add_headers(headers)
         .timeout(Duration::from_secs(
-            option_timeout_secs.unwrap_or(crate::consts::REQUEST_TIME_OUT),
+            option_timeout_secs.unwrap_or(u64::from(crate::consts::REQUEST_TIME_OUT)),
         ))
         .send()
         .await
@@ -709,6 +710,7 @@ where
     'b: 'a,
     Fut: Future<Output = CustomResult<ApplicationResponse<Q>, E>>,
     Q: Serialize + Debug + 'a,
+    // T: api_locking::GetLockingInput + Debug,
     T: Debug,
     A: AppStateInfo,
     U: auth::AuthInfo,
@@ -722,6 +724,8 @@ where
         .switch()?;
     let merchant_id = auth_out.get_merchant_id().unwrap_or("").to_string();
     tracing::Span::current().record("merchant_id", &merchant_id);
+
+    // locking_action()?
 
     let output = func(state, auth_out, payload).await.switch();
 
@@ -752,6 +756,7 @@ where
     Fut: Future<Output = CustomResult<ApplicationResponse<Q>, E>>,
     Q: Serialize + Debug + 'a,
     T: Debug,
+    // T: api_locking::GetLockingInput + Debug,
     U: auth::AuthInfo,
     A: AppStateInfo,
     ApplicationResponse<Q>: Debug,
