@@ -36,6 +36,12 @@ pub trait ConfigInterface {
         config_update: storage::ConfigUpdate,
     ) -> CustomResult<storage::Config, errors::StorageError>;
 
+    async fn update_config_in_database(
+        &self,
+        key: &str,
+        config_update: storage::ConfigUpdate,
+    ) -> CustomResult<storage::Config, errors::StorageError>;
+
     async fn delete_config_by_key(&self, key: &str) -> CustomResult<bool, errors::StorageError>;
 }
 
@@ -49,6 +55,18 @@ impl ConfigInterface for Store {
         config.insert(&conn).await.map_err(Into::into).into_report()
     }
 
+    async fn update_config_in_database(
+        &self,
+        key: &str,
+        config_update: storage::ConfigUpdate,
+    ) -> CustomResult<storage::Config, errors::StorageError> {
+        let conn = connection::pg_connection_write(self).await?;
+        storage::Config::update_by_key(&conn, key, config_update)
+            .await
+            .map_err(Into::into)
+            .into_report()
+    }
+
     //update in DB and remove in redis and cache
     async fn update_config_by_key(
         &self,
@@ -56,7 +74,7 @@ impl ConfigInterface for Store {
         config_update: storage::ConfigUpdate,
     ) -> CustomResult<storage::Config, errors::StorageError> {
         cache::publish_and_redact(self, CacheKind::Config(key.into()), || {
-            self.update_config_by_key(key, config_update)
+            self.update_config_in_database(key, config_update)
         })
         .await
     }
@@ -124,6 +142,14 @@ impl ConfigInterface for MockDb {
         Ok(config_new)
     }
 
+    async fn update_config_in_database(
+        &self,
+        key: &str,
+        config_update: storage::ConfigUpdate,
+    ) -> CustomResult<storage::Config, errors::StorageError> {
+        self.update_config_by_key(key, config_update).await
+    }
+
     async fn update_config_by_key(
         &self,
         key: &str,
@@ -166,7 +192,7 @@ impl ConfigInterface for MockDb {
         result
     }
 
-    async fn find_config_by_key_from_db(
+    async fn find_config_by_key(
         &self,
         key: &str,
     ) -> CustomResult<storage::Config, errors::StorageError> {
@@ -178,15 +204,10 @@ impl ConfigInterface for MockDb {
         })
     }
 
-    async fn find_config_by_key(
+    async fn find_config_by_key_from_db(
         &self,
         key: &str,
     ) -> CustomResult<storage::Config, errors::StorageError> {
-        let configs = self.configs.lock().await;
-        let config = configs.iter().find(|c| c.key == key).cloned();
-
-        config.ok_or_else(|| {
-            errors::StorageError::ValueNotFound("cannot find config".to_string()).into()
-        })
+        self.find_config_by_key(key).await
     }
 }
