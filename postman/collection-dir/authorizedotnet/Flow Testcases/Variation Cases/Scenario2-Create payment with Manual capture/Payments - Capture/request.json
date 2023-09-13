@@ -21,14 +21,8 @@
   },
   "url": {
     "raw": "{{baseUrl}}/payments/:id/capture?force_sync=true",
-    "host": [
-      "{{baseUrl}}"
-    ],
-    "path": [
-      "payments",
-      ":id",
-      "capture"
-    ],
+    "host": ["{{baseUrl}}"],
+    "path": ["payments", ":id", "capture"],
     "query": [
       {
         "key": "force_sync",
