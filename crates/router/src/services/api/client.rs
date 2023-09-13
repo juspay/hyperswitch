@@ -171,6 +171,7 @@ where
     fn add_merchant_id(&mut self, _merchant_id: Option<String>);
     fn get_merchant_id(&self) -> Option<String>;
     fn add_flow_name(&mut self, _flow_name: String);
+    fn get_flow_name(&self) -> String;
 }
 
 dyn_clone::clone_trait_object!(ApiClient);
@@ -364,6 +365,10 @@ impl ApiClient for ProxyClient {
     }
 
     fn add_flow_name(&mut self, _flow_name: String) {}
+
+    fn get_flow_name(&self) -> String {
+        "default".to_string()
+    }
 }
 
 ///
@@ -420,4 +425,8 @@ impl ApiClient for MockApiClient {
     }
 
     fn add_flow_name(&mut self, _flow_name: String) {}
+
+    fn get_flow_name(&self) -> String {
+        "default".to_string()
+    }
 }

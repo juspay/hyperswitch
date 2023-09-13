@@ -451,7 +451,15 @@ pub async fn send_request(
     )?;
 
     let mut headers_with_request_id = request.headers;
-    headers_with_request_id.insert((crate::headers::X_REQUEST_ID.to_string(), state.api_client.get_request_id().ok_or(errors::ApiClientError::InternalServerErrorReceived).into_report()?.into()));
+    headers_with_request_id.insert((
+        crate::headers::X_REQUEST_ID.to_string(),
+        state
+            .api_client
+            .get_request_id()
+            .ok_or(errors::ApiClientError::InternalServerErrorReceived)
+            .into_report()?
+            .into(),
+    ));
     let headers = headers_with_request_id.construct_header_map()?;
     let metrics_tag = router_env::opentelemetry::KeyValue {
         key: consts::METRICS_HOST_TAG_NAME.into(),

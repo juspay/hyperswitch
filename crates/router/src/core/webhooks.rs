@@ -754,7 +754,13 @@ pub async fn webhooks_core<W: types::OutgoingWebhookType>(
     let event_type = match connector
         .get_webhook_event_type(&request_details)
         .allow_webhook_event_type_not_found(
-            state.clone().conf.webhooks.ignore_error.event_type.unwrap_or(true),
+            state
+                .clone()
+                .conf
+                .webhooks
+                .ignore_error
+                .event_type
+                .unwrap_or(true),
         )
         .switch()
         .attach_printable("Could not find event type in incoming webhook body")?
