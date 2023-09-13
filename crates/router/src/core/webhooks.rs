@@ -727,7 +727,7 @@ pub async fn webhooks_core<W: types::OutgoingWebhookType>(
     };
 
     let (merchant_connector_account, connector) = fetch_mca_and_connector(
-        &state,
+        state.clone(),
         &merchant_account,
         connector_name_or_mca_id,
         &key_store,
@@ -741,7 +741,7 @@ pub async fn webhooks_core<W: types::OutgoingWebhookType>(
 
     let decoded_body = connector
         .decode_webhook_body(
-            &*state.store,
+            &*state.clone().store,
             &request_details,
             &merchant_account.merchant_id,
         )
@@ -754,7 +754,7 @@ pub async fn webhooks_core<W: types::OutgoingWebhookType>(
     let event_type = match connector
         .get_webhook_event_type(&request_details)
         .allow_webhook_event_type_not_found(
-            state.conf.webhooks.ignore_error.event_type.unwrap_or(true),
+            state.clone().conf.webhooks.ignore_error.event_type.unwrap_or(true),
         )
         .switch()
         .attach_printable("Could not find event type in incoming webhook body")?
@@ -784,7 +784,7 @@ pub async fn webhooks_core<W: types::OutgoingWebhookType>(
     };
 
     let process_webhook_further = utils::lookup_webhook_event(
-        &*state.store,
+        &*state.clone().store,
         connector_name.as_str(),
         &merchant_account.merchant_id,
         &event_type,
@@ -917,7 +917,7 @@ pub async fn webhooks_core<W: types::OutgoingWebhookType>(
 }
 
 async fn fetch_mca_and_connector(
-    state: &AppState,
+    state: AppState,
     merchant_account: &domain::MerchantAccount,
     connector_name_or_mca_id: &str,
     key_store: &domain::MerchantKeyStore,
