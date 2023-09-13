@@ -429,10 +429,19 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
         req: &types::PaymentsCaptureRouterData,
     ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
         let connector_api_version = &req.connector_api_version.clone();
+        let conversion_req =
+            braintree_graphql_transformers::BriantreeAmountConversion::try_from((
+                &self.get_currency_unit(),
+                req.request.currency,
+                req.request.amount_to_capture,
+                req,
+            ))?;
         match self.is_braintree_graphql_version(connector_api_version) {
             true => {
                 let connector_request =
-                    braintree_graphql_transformers::BraintreeCaptureRequest::try_from(req)?;
+                    braintree_graphql_transformers::BraintreeCaptureRequest::try_from(
+                        &conversion_req,
+                    )?;
 
                 let braintree_req = types::RequestBody::log_and_get_request_body(
             &connector_request,

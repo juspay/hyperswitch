@@ -969,18 +969,19 @@ pub struct BraintreeCaptureRequest {
     variables: VariableCaptureInput,
 }
 
-impl TryFrom<&types::PaymentsCaptureRouterData> for BraintreeCaptureRequest {
+impl TryFrom<&BriantreeAmountConversion<&types::PaymentsCaptureRouterData>>
+    for BraintreeCaptureRequest
+{
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(item: &types::PaymentsCaptureRouterData) -> Result<Self, Self::Error> {
+    fn try_from(
+        item: &BriantreeAmountConversion<&types::PaymentsCaptureRouterData>,
+    ) -> Result<Self, Self::Error> {
         let query = CAPTURE_TRANSACTION_MUTATION.to_string();
         let variables = VariableCaptureInput {
             input: CaptureInputData {
-                transaction_id: item.request.connector_transaction_id.clone(),
+                transaction_id: item.req.request.connector_transaction_id.clone(),
                 transaction: CaptureTransactionBody {
-                    amount: utils::to_currency_base_unit(
-                        item.request.amount_to_capture,
-                        item.request.currency,
-                    )?,
+                    amount: item.amount.to_owned(),
                 },
             },
         };
