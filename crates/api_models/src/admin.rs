@@ -631,7 +631,6 @@ pub struct MerchantConnectorCreate {
         }
     }))]
     pub connector_webhook_details: Option<MerchantConnectorWebhookDetails>,
-
     /// Identifier for the business profile, if not provided default will be chosen from merchant account
     pub profile_id: Option<String>,
 }

@@ -567,6 +567,12 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
         req: &types::PaymentsCaptureRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
+        if req.request.amount_to_capture != req.request.payment_amount {
+            Err(errors::ConnectorError::NotSupported {
+                message: "Partial Capture".to_string(),
+                connector: "Square",
+            })?
+        }
         Ok(Some(
             services::RequestBuilder::new()
                 .method(services::Method::Post)

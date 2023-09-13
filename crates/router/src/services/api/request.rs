@@ -1,7 +1,8 @@
 use std::{collections, str::FromStr};
 
 use error_stack::{IntoReport, ResultExt};
-use masking::{ExposeInterface, Secret};
+use masking::Secret;
+pub use masking::{Mask, Maskable};
 use router_env::{instrument, tracing};
 use serde::{Deserialize, Serialize};
 
@@ -11,81 +12,6 @@ use crate::{
 };
 
 pub(crate) type Headers = collections::HashSet<(String, Maskable<String>)>;
-
-///
-/// An Enum that allows us to optionally mask data, based on which enum variant that data is stored
-/// in.
-///
-#[derive(Clone, Eq, PartialEq)]
-pub enum Maskable<T: Eq + PartialEq + Clone> {
-    Masked(Secret<T>),
-    Normal(T),
-}
-
-impl<T: std::fmt::Debug + Clone + Eq + PartialEq> std::fmt::Debug for Maskable<T> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Self::Masked(secret_value) => std::fmt::Debug::fmt(secret_value, f),
-            Self::Normal(value) => std::fmt::Debug::fmt(value, f),
-        }
-    }
-}
-
-impl<T: Eq + PartialEq + Clone + std::hash::Hash> std::hash::Hash for Maskable<T> {
-    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
-        match self {
-            Self::Masked(value) => masking::PeekInterface::peek(value).hash(state),
-            Self::Normal(value) => value.hash(state),
-        }
-    }
-}
-
-impl<T: Eq + PartialEq + Clone> Maskable<T> {
-    pub fn into_inner(self) -> T {
-        match self {
-            Self::Masked(inner_secret) => inner_secret.expose(),
-            Self::Normal(inner) => inner,
-        }
-    }
-
-    pub fn new_masked(item: Secret<T>) -> Self {
-        Self::Masked(item)
-    }
-    pub fn new_normal(item: T) -> Self {
-        Self::Normal(item)
-    }
-}
-
-pub trait Mask {
-    type Output: Eq + Clone + PartialEq;
-    fn into_masked(self) -> Maskable<Self::Output>;
-}
-
-impl Mask for String {
-    type Output = Self;
-    fn into_masked(self) -> Maskable<Self::Output> {
-        Maskable::new_masked(self.into())
-    }
-}
-
-impl Mask for Secret<String> {
-    type Output = String;
-    fn into_masked(self) -> Maskable<Self::Output> {
-        Maskable::new_masked(self)
-    }
-}
-
-impl<T: Eq + PartialEq + Clone> From<T> for Maskable<T> {
-    fn from(value: T) -> Self {
-        Self::new_normal(value)
-    }
-}
-
-impl From<&str> for Maskable<String> {
-    fn from(value: &str) -> Self {
-        Self::new_normal(value.to_string())
-    }
-}
 
 #[derive(
     Clone, Copy, Debug, Eq, PartialEq, Deserialize, Serialize, strum::Display, strum::EnumString,
