@@ -716,7 +716,6 @@ pub async fn webhooks_core<W: types::OutgoingWebhookType>(
             merchant_account.merchant_id.clone(),
         )],
     );
-
     let mut request_details = api::IncomingWebhookRequestDetails {
         method: req.method().clone(),
         uri: req.uri().clone(),
