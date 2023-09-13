@@ -430,7 +430,7 @@ fn is_payment_successful(payment_status: &str) -> CustomResult<bool, errors::Con
 fn get_pending_status_based_on_redirect_url(redirect_url: Option<Url>) -> enums::AttemptStatus {
     match redirect_url {
         Some(_url) => enums::AttemptStatus::AuthenticationPending,
-        None => enums::AttemptStatus::Authorizing,
+        None => enums::AttemptStatus::Pending,
     }
 }
 
@@ -444,7 +444,7 @@ fn get_transaction_status(
         let (is_failed, failure_message) = is_payment_failed(&payment_status);
         if is_failed {
             return Ok((
-                enums::AttemptStatus::AuthorizationFailed,
+                enums::AttemptStatus::Failure,
                 Some(failure_message.to_string()),
             ));
         }
