@@ -253,9 +253,12 @@ impl
             | api_models::payments::VoucherData::MiniStop { .. }
             | api_models::payments::VoucherData::FamilyMart { .. }
             | api_models::payments::VoucherData::Seicomart { .. }
-            | api_models::payments::VoucherData::PayEasy { .. } => Err(
-                errors::ConnectorError::NotImplemented("payment method".to_string()),
-            )?,
+            | api_models::payments::VoucherData::PayEasy { .. } => {
+                Err(errors::ConnectorError::NotSupported {
+                    message: utils::SELECTED_PAYMENT_METHOD.to_string(),
+                    connector: "Zen",
+                })?
+            }
         };
         Ok(Self::ApiRequest(Box::new(ApiRequest {
             merchant_transaction_id: item.connector_request_reference_id.clone(),
@@ -303,8 +306,12 @@ impl
             api_models::payments::BankTransferData::Pse { .. } => {
                 ZenPaymentChannels::PclBoacompraPse
             }
+            api_models::payments::BankTransferData::SepaBankTransfer { .. } => {
+                Err(errors::ConnectorError::NotImplemented(
+                    utils::get_unimplemented_payment_method_error_message("Zen"),
+                ))?
+            }
             api_models::payments::BankTransferData::AchBankTransfer { .. }
-            | api_models::payments::BankTransferData::SepaBankTransfer { .. }
             | api_models::payments::BankTransferData::BacsBankTransfer { .. }
             | api_models::payments::BankTransferData::PermataBankTransfer { .. }
             | api_models::payments::BankTransferData::BcaBankTransfer { .. }
@@ -313,9 +320,10 @@ impl
             | api_models::payments::BankTransferData::CimbVaBankTransfer { .. }
             | api_models::payments::BankTransferData::DanamonVaBankTransfer { .. }
             | api_models::payments::BankTransferData::MandiriVaBankTransfer { .. } => {
-                Err(errors::ConnectorError::NotImplemented(
-                    utils::get_unimplemented_payment_method_error_message("zen"),
-                ))?
+                Err(errors::ConnectorError::NotSupported {
+                    message: utils::SELECTED_PAYMENT_METHOD.to_string(),
+                    connector: "Zen",
+                })?
             }
         };
         Ok(Self::ApiRequest(Box::new(ApiRequest {
@@ -442,6 +450,14 @@ impl
                     .google_pay
                     .ok_or(errors::ConnectorError::RequestEncodingFailed)?,
             ),
+            api_models::payments::WalletData::WeChatPayRedirect(_)
+            | api_models::payments::WalletData::PaypalRedirect(_)
+            | api_models::payments::WalletData::ApplePay(_)
+            | api_models::payments::WalletData::GooglePay(_) => {
+                Err(errors::ConnectorError::NotImplemented(
+                    utils::get_unimplemented_payment_method_error_message("Zen"),
+                ))?
+            }
             api_models::payments::WalletData::AliPayQr(_)
             | api_models::payments::WalletData::AliPayRedirect(_)
             | api_models::payments::WalletData::AliPayHkRedirect(_)
@@ -449,26 +465,23 @@ impl
             | api_models::payments::WalletData::KakaoPayRedirect(_)
             | api_models::payments::WalletData::GoPayRedirect(_)
             | api_models::payments::WalletData::GcashRedirect(_)
-            | api_models::payments::WalletData::ApplePay(_)
             | api_models::payments::WalletData::ApplePayThirdPartySdk(_)
             | api_models::payments::WalletData::DanaRedirect {}
-            | api_models::payments::WalletData::GooglePay(_)
             | api_models::payments::WalletData::GooglePayThirdPartySdk(_)
             | api_models::payments::WalletData::MbWayRedirect(_)
             | api_models::payments::WalletData::MobilePayRedirect(_)
-            | api_models::payments::WalletData::PaypalRedirect(_)
             | api_models::payments::WalletData::PaypalSdk(_)
             | api_models::payments::WalletData::SamsungPay(_)
             | api_models::payments::WalletData::TwintRedirect {}
             | api_models::payments::WalletData::VippsRedirect {}
             | api_models::payments::WalletData::TouchNGoRedirect(_)
-            | api_models::payments::WalletData::WeChatPayRedirect(_)
             | api_models::payments::WalletData::CashappQr(_)
             | api_models::payments::WalletData::SwishQr(_)
             | api_models::payments::WalletData::WeChatPayQr(_) => {
-                Err(errors::ConnectorError::NotImplemented(
-                    utils::get_unimplemented_payment_method_error_message("zen"),
-                ))?
+                Err(errors::ConnectorError::NotSupported {
+                    message: utils::SELECTED_PAYMENT_METHOD.to_string(),
+                    connector: "Zen",
+                })?
             }
         };
         let terminal_uuid = session_data
@@ -650,18 +663,143 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for ZenPaymentsRequest {
             api_models::payments::PaymentMethodData::BankTransfer(bank_transfer_data) => {
                 Self::try_from((item, bank_transfer_data))
             }
-            api_models::payments::PaymentMethodData::PayLater(_)
-            | api_models::payments::PaymentMethodData::BankRedirect(_)
-            | api_models::payments::PaymentMethodData::BankDebit(_)
-            | api_models::payments::PaymentMethodData::Crypto(_)
+            api_models::payments::PaymentMethodData::BankRedirect(bank_redirect_data) => {
+                Self::try_from(bank_redirect_data)
+            }
+            api_models::payments::PaymentMethodData::PayLater(paylater_data) => {
+                Self::try_from(paylater_data)
+            }
+            api_models::payments::PaymentMethodData::BankDebit(bank_debit_data) => {
+                Self::try_from(bank_debit_data)
+            }
+            api_models::payments::PaymentMethodData::CardRedirect(car_redirect_data) => {
+                Self::try_from(car_redirect_data)
+            }
+            api_models::payments::PaymentMethodData::GiftCard(gift_card_data) => {
+                Self::try_from(gift_card_data.as_ref())
+            }
+            api_models::payments::PaymentMethodData::Crypto(_)
             | api_models::payments::PaymentMethodData::MandatePayment
             | api_models::payments::PaymentMethodData::Reward
-            | api_models::payments::PaymentMethodData::Upi(_)
-            | api_models::payments::PaymentMethodData::CardRedirect(_)
-            | api_models::payments::PaymentMethodData::GiftCard(_) => {
+            | api_models::payments::PaymentMethodData::Upi(_) => {
+                Err(errors::ConnectorError::NotSupported {
+                    message: utils::SELECTED_PAYMENT_METHOD.to_string(),
+                    connector: "Zen",
+                })?
+            }
+        }
+    }
+}
+
+impl TryFrom<&api_models::payments::BankRedirectData> for ZenPaymentsRequest {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(value: &api_models::payments::BankRedirectData) -> Result<Self, Self::Error> {
+        match value {
+            api_models::payments::BankRedirectData::Ideal { .. }
+            | api_models::payments::BankRedirectData::Sofort { .. }
+            | api_models::payments::BankRedirectData::BancontactCard { .. }
+            | api_models::payments::BankRedirectData::Blik { .. }
+            | api_models::payments::BankRedirectData::Trustly { .. } => {
                 Err(errors::ConnectorError::NotImplemented(
-                    utils::get_unimplemented_payment_method_error_message("zen"),
-                ))?
+                    utils::get_unimplemented_payment_method_error_message("Zen"),
+                )
+                .into())
+            }
+            api_models::payments::BankRedirectData::Eps { .. }
+            | api_models::payments::BankRedirectData::Giropay { .. }
+            | api_models::payments::BankRedirectData::Przelewy24 { .. }
+            | api_models::payments::BankRedirectData::Bizum {}
+            | api_models::payments::BankRedirectData::Interac { .. }
+            | api_models::payments::BankRedirectData::OnlineBankingCzechRepublic { .. }
+            | api_models::payments::BankRedirectData::OnlineBankingFinland { .. }
+            | api_models::payments::BankRedirectData::OnlineBankingPoland { .. }
+            | api_models::payments::BankRedirectData::OnlineBankingSlovakia { .. }
+            | api_models::payments::BankRedirectData::OpenBankingUk { .. }
+            | api_models::payments::BankRedirectData::OnlineBankingFpx { .. }
+            | api_models::payments::BankRedirectData::OnlineBankingThailand { .. } => {
+                Err(errors::ConnectorError::NotSupported {
+                    message: utils::SELECTED_PAYMENT_METHOD.to_string(),
+                    connector: "Zen",
+                }
+                .into())
+            }
+        }
+    }
+}
+
+impl TryFrom<&api_models::payments::PayLaterData> for ZenPaymentsRequest {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(value: &api_models::payments::PayLaterData) -> Result<Self, Self::Error> {
+        match value {
+            api_models::payments::PayLaterData::KlarnaRedirect { .. }
+            | api_models::payments::PayLaterData::KlarnaSdk { .. }
+            | api_models::payments::PayLaterData::AffirmRedirect {}
+            | api_models::payments::PayLaterData::AfterpayClearpayRedirect { .. }
+            | api_models::payments::PayLaterData::PayBrightRedirect {}
+            | api_models::payments::PayLaterData::WalleyRedirect {}
+            | api_models::payments::PayLaterData::AlmaRedirect {}
+            | api_models::payments::PayLaterData::AtomeRedirect {} => {
+                Err(errors::ConnectorError::NotSupported {
+                    message: utils::SELECTED_PAYMENT_METHOD.to_string(),
+                    connector: "Zen",
+                }
+                .into())
+            }
+        }
+    }
+}
+
+impl TryFrom<&api_models::payments::BankDebitData> for ZenPaymentsRequest {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(value: &api_models::payments::BankDebitData) -> Result<Self, Self::Error> {
+        match value {
+            api_models::payments::BankDebitData::AchBankDebit { .. }
+            | api_models::payments::BankDebitData::SepaBankDebit { .. }
+            | api_models::payments::BankDebitData::BecsBankDebit { .. }
+            | api_models::payments::BankDebitData::BacsBankDebit { .. } => {
+                Err(errors::ConnectorError::NotSupported {
+                    message: utils::SELECTED_PAYMENT_METHOD.to_string(),
+                    connector: "Zen",
+                }
+                .into())
+            }
+        }
+    }
+}
+
+impl TryFrom<&api_models::payments::CardRedirectData> for ZenPaymentsRequest {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(value: &api_models::payments::CardRedirectData) -> Result<Self, Self::Error> {
+        match value {
+            api_models::payments::CardRedirectData::Knet {}
+            | api_models::payments::CardRedirectData::Benefit {}
+            | api_models::payments::CardRedirectData::MomoAtm {} => {
+                Err(errors::ConnectorError::NotSupported {
+                    message: utils::SELECTED_PAYMENT_METHOD.to_string(),
+                    connector: "Zen",
+                }
+                .into())
+            }
+        }
+    }
+}
+
+impl TryFrom<&api_models::payments::GiftCardData> for ZenPaymentsRequest {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(value: &api_models::payments::GiftCardData) -> Result<Self, Self::Error> {
+        match value {
+            api_models::payments::GiftCardData::PaySafeCard {} => {
+                Err(errors::ConnectorError::NotImplemented(
+                    utils::get_unimplemented_payment_method_error_message("Zen"),
+                )
+                .into())
+            }
+            api_models::payments::GiftCardData::Givex(_) => {
+                Err(errors::ConnectorError::NotSupported {
+                    message: utils::SELECTED_PAYMENT_METHOD.to_string(),
+                    connector: "Zen",
+                }
+                .into())
             }
         }
     }
