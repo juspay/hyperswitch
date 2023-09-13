@@ -87,6 +87,8 @@ impl<T: DatabaseStore> PaymentIntentInterface for KVRouterStore<T> {
                     feature_metadata: new.feature_metadata.clone(),
                     attempt_count: new.attempt_count,
                     profile_id: new.profile_id.clone(),
+                    merchant_decision: new.merchant_decision.clone(),
+                    payment_confirm_source: new.payment_confirm_source,
                 };
 
                 match self
@@ -696,6 +698,8 @@ impl DataModelExt for PaymentIntentNew {
             feature_metadata: self.feature_metadata,
             attempt_count: self.attempt_count,
             profile_id: self.profile_id,
+            merchant_decision: self.merchant_decision,
+            payment_confirm_source: self.payment_confirm_source,
         }
     }
 
@@ -731,6 +735,8 @@ impl DataModelExt for PaymentIntentNew {
             feature_metadata: storage_model.feature_metadata,
             attempt_count: storage_model.attempt_count,
             profile_id: storage_model.profile_id,
+            merchant_decision: storage_model.merchant_decision,
+            payment_confirm_source: storage_model.payment_confirm_source,
         }
     }
 }
@@ -771,6 +777,8 @@ impl DataModelExt for PaymentIntent {
             feature_metadata: self.feature_metadata,
             attempt_count: self.attempt_count,
             profile_id: self.profile_id,
+            merchant_decision: self.merchant_decision,
+            payment_confirm_source: self.payment_confirm_source,
         }
     }
 
@@ -807,6 +815,8 @@ impl DataModelExt for PaymentIntent {
             feature_metadata: storage_model.feature_metadata,
             attempt_count: storage_model.attempt_count,
             profile_id: storage_model.profile_id,
+            merchant_decision: storage_model.merchant_decision,
+            payment_confirm_source: storage_model.payment_confirm_source,
         }
     }
 }
@@ -867,6 +877,7 @@ impl DataModelExt for PaymentIntentUpdate {
                 statement_descriptor_suffix,
                 order_details,
                 metadata,
+                payment_confirm_source,
             } => DieselPaymentIntentUpdate::Update {
                 amount,
                 currency,
@@ -883,6 +894,7 @@ impl DataModelExt for PaymentIntentUpdate {
                 statement_descriptor_suffix,
                 order_details,
                 metadata,
+                payment_confirm_source,
             },
             Self::PaymentAttemptAndAttemptCountUpdate {
                 active_attempt_id,
@@ -899,6 +911,16 @@ impl DataModelExt for PaymentIntentUpdate {
                 status,
                 active_attempt_id,
                 attempt_count,
+            },
+            Self::ApproveUpdate { merchant_decision } => {
+                DieselPaymentIntentUpdate::ApproveUpdate { merchant_decision }
+            }
+            Self::RejectUpdate {
+                status,
+                merchant_decision,
+            } => DieselPaymentIntentUpdate::RejectUpdate {
+                status,
+                merchant_decision,
             },
         }
     }
@@ -956,6 +978,7 @@ impl DataModelExt for PaymentIntentUpdate {
                 statement_descriptor_suffix,
                 order_details,
                 metadata,
+                payment_confirm_source,
             } => Self::Update {
                 amount,
                 currency,
@@ -972,6 +995,7 @@ impl DataModelExt for PaymentIntentUpdate {
                 statement_descriptor_suffix,
                 order_details,
                 metadata,
+                payment_confirm_source,
             },
             DieselPaymentIntentUpdate::PaymentAttemptAndAttemptCountUpdate {
                 active_attempt_id,
@@ -988,6 +1012,16 @@ impl DataModelExt for PaymentIntentUpdate {
                 status,
                 active_attempt_id,
                 attempt_count,
+            },
+            DieselPaymentIntentUpdate::ApproveUpdate { merchant_decision } => {
+                Self::ApproveUpdate { merchant_decision }
+            }
+            DieselPaymentIntentUpdate::RejectUpdate {
+                status,
+                merchant_decision,
+            } => Self::RejectUpdate {
+                status,
+                merchant_decision,
             },
         }
     }

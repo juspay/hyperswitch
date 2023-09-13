@@ -11,13 +11,14 @@ use super::ConnectorCommon;
 use crate::{
     core::errors::{self, CustomResult},
     db::StorageInterface,
-    logger, services,
+    services,
     types::domain,
-    utils::{self, crypto},
+    utils::crypto,
 };
 
 pub struct IncomingWebhookRequestDetails<'a> {
     pub method: actix_web::http::Method,
+    pub uri: actix_web::http::Uri,
     pub headers: &'a actix_web::http::header::HeaderMap,
     pub body: &'a [u8],
     pub query_params: String,
@@ -77,38 +78,19 @@ pub trait IncomingWebhook: ConnectorCommon + Sync {
 
     async fn get_webhook_source_verification_merchant_secret(
         &self,
-        db: &dyn StorageInterface,
         merchant_account: &domain::MerchantAccount,
         connector_name: &str,
-        key_store: &domain::MerchantKeyStore,
-        object_reference_id: ObjectReferenceId,
-    ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
+        merchant_connector_account: domain::MerchantConnectorAccount,
+    ) -> CustomResult<api_models::webhooks::ConnectorWebhookSecrets, errors::ConnectorError> {
         let merchant_id = merchant_account.merchant_id.as_str();
         let debug_suffix = format!(
             "For merchant_id: {}, and connector_name: {}",
             merchant_id, connector_name
         );
         let default_secret = "default_secret".to_string();
-        let connector_label = utils::get_connector_label_using_object_reference_id(
-            db,
-            object_reference_id,
-            merchant_account,
-            connector_name,
-        )
-        .await
-        .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)
-        .attach_printable("Error while fetching connector_label")?;
-        let merchant_connector_account_result = db
-            .find_merchant_connector_account_by_merchant_id_connector_label(
-                merchant_id,
-                &connector_label,
-                key_store,
-            )
-            .await;
-
-        let merchant_secret = match merchant_connector_account_result {
-            Ok(mca) => match mca.connector_webhook_details {
-                Some(merchant_connector_webhook_details) => merchant_connector_webhook_details
+        let merchant_secret = match merchant_connector_account.connector_webhook_details {
+            Some(merchant_connector_webhook_details) => {
+                let connector_webhook_details = merchant_connector_webhook_details
                     .parse_value::<MerchantConnectorWebhookDetails>(
                         "MerchantConnectorWebhookDetails",
                     )
@@ -118,26 +100,27 @@ pub trait IncomingWebhook: ConnectorCommon + Sync {
                             "Deserializing MerchantConnectorWebhookDetails failed {}",
                             debug_suffix
                         )
-                    })?
-                    .merchant_secret
-                    .expose(),
-                None => default_secret,
-            },
-            Err(err) => {
-                logger::error!(
-                    "Failed to fetch merchant_secret for source verification {}",
-                    debug_suffix
-                );
-                logger::error!("DB error = {:?}", err);
-                default_secret
+                    })?;
+                api_models::webhooks::ConnectorWebhookSecrets {
+                    secret: connector_webhook_details
+                        .merchant_secret
+                        .expose()
+                        .into_bytes(),
+                    additional_secret: connector_webhook_details.additional_secret,
+                }
             }
+
+            None => api_models::webhooks::ConnectorWebhookSecrets {
+                secret: default_secret.into_bytes(),
+                additional_secret: None,
+            },
         };
 
         //need to fetch merchant secret from config table with caching in future for enhanced performance
 
         //If merchant has not set the secret for webhook source verification, "default_secret" is returned.
         //So it will fail during verification step and goes to psync flow.
-        Ok(merchant_secret.into_bytes())
+        Ok(merchant_secret)
     }
 
     fn get_webhook_source_verification_signature(
@@ -158,12 +141,10 @@ pub trait IncomingWebhook: ConnectorCommon + Sync {
 
     async fn verify_webhook_source(
         &self,
-        db: &dyn StorageInterface,
         request: &IncomingWebhookRequestDetails<'_>,
         merchant_account: &domain::MerchantAccount,
+        merchant_connector_account: domain::MerchantConnectorAccount,
         connector_label: &str,
-        key_store: &domain::MerchantKeyStore,
-        object_reference_id: ObjectReferenceId,
     ) -> CustomResult<bool, errors::ConnectorError> {
         let algorithm = self
             .get_webhook_source_verification_algorithm(request)
@@ -172,25 +153,24 @@ pub trait IncomingWebhook: ConnectorCommon + Sync {
         let signature = self
             .get_webhook_source_verification_signature(request)
             .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
-        let secret = self
+        let connector_webhook_secrets = self
             .get_webhook_source_verification_merchant_secret(
-                db,
                 merchant_account,
                 connector_label,
-                key_store,
-                object_reference_id,
+                merchant_connector_account,
             )
             .await
             .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
+
         let message = self
             .get_webhook_source_verification_message(
                 request,
                 &merchant_account.merchant_id,
-                &secret,
+                &connector_webhook_secrets.secret,
             )
             .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
         algorithm
-            .verify_signature(&secret, &signature, &message)
+            .verify_signature(&connector_webhook_secrets.secret, &signature, &message)
             .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)
     }
 

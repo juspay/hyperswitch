@@ -41,6 +41,8 @@ counter_metric!(DELETE_FROM_LOCKER, GLOBAL_METER);
 counter_metric!(CREATED_TOKENIZED_CARD, GLOBAL_METER);
 counter_metric!(DELETED_TOKENIZED_CARD, GLOBAL_METER);
 counter_metric!(GET_TOKENIZED_CARD, GLOBAL_METER);
+counter_metric!(TOKENIZED_DATA_COUNT, GLOBAL_METER); // Tokenized data added
+counter_metric!(RETRIED_DELETE_DATA_COUNT, GLOBAL_METER); // Tokenized data retried
 
 counter_metric!(CUSTOMER_CREATED, GLOBAL_METER);
 counter_metric!(CUSTOMER_REDACTED, GLOBAL_METER);

@@ -125,7 +125,7 @@ impl ConnectorCommon for Bluesnap {
             bluesnap::BluesnapErrors::Auth(error_res) => ErrorResponse {
                 status_code: res.status_code,
                 code: error_res.error_code.clone(),
-                message: error_res.error_name.clone(),
+                message: error_res.error_name.clone().unwrap_or(error_res.error_code),
                 reason: Some(error_res.error_description),
             },
             bluesnap::BluesnapErrors::General(error_response) => ErrorResponse {
@@ -1042,7 +1042,7 @@ impl api::IncomingWebhook for Bluesnap {
         let webhook_body: bluesnap::BluesnapWebhookBody =
             serde_urlencoded::from_bytes(request.body)
                 .into_report()
-                .change_context(errors::ConnectorError::WebhookSignatureNotFound)?;
+                .change_context(errors::ConnectorError::WebhookReferenceIdNotFound)?;
         Ok(api_models::webhooks::ObjectReferenceId::PaymentId(
             api_models::payments::PaymentIdType::PaymentAttemptId(
                 webhook_body.merchant_transaction_id,
@@ -1058,18 +1058,31 @@ impl api::IncomingWebhook for Bluesnap {
             serde_urlencoded::from_bytes(request.body)
                 .into_report()
                 .change_context(errors::ConnectorError::WebhookEventTypeNotFound)?;
+        api::IncomingWebhookEvent::try_from(details)
+    }
 
-        Ok(match details.transaction_type {
-            bluesnap::BluesnapWebhookEvents::Decline
-            | bluesnap::BluesnapWebhookEvents::CcChargeFailed => {
-                api::IncomingWebhookEvent::PaymentIntentFailure
-            }
-            bluesnap::BluesnapWebhookEvents::Charge => {
-                api::IncomingWebhookEvent::PaymentIntentSuccess
-            }
-            bluesnap::BluesnapWebhookEvents::Unknown => {
-                api::IncomingWebhookEvent::EventNotSupported
-            }
+    fn get_dispute_details(
+        &self,
+        request: &api::IncomingWebhookRequestDetails<'_>,
+    ) -> CustomResult<api::disputes::DisputePayload, errors::ConnectorError> {
+        let dispute_details: bluesnap::BluesnapDisputeWebhookBody =
+            serde_urlencoded::from_bytes(request.body)
+                .into_report()
+                .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
+        Ok(api::disputes::DisputePayload {
+            amount: connector_utils::to_currency_lower_unit(
+                dispute_details.invoice_charge_amount.abs().to_string(),
+                dispute_details.currency,
+            )?,
+            currency: dispute_details.currency.to_string(),
+            dispute_stage: api_models::enums::DisputeStage::Dispute,
+            connector_dispute_id: dispute_details.reversal_ref_num,
+            connector_reason: dispute_details.reversal_reason,
+            connector_reason_code: None,
+            challenge_required_by: None,
+            connector_status: dispute_details.cb_status,
+            created_at: None,
+            updated_at: None,
         })
     }
 
@@ -1092,8 +1105,18 @@ impl api::IncomingWebhook for Bluesnap {
                 bluesnap::BluesnapTxnType::Capture,
                 bluesnap::BluesnapProcessingStatus::Success,
             )),
+            bluesnap::BluesnapWebhookEvents::Chargeback
+            | bluesnap::BluesnapWebhookEvents::ChargebackStatusChanged => {
+                // returning the complete incoming webhook body, It won't be consumed in dispute flow, so currently does not hold any significance
+                let res_json =
+                    utils::Encode::<bluesnap::BluesnapWebhookObjectResource>::encode_to_value(
+                        &details,
+                    )
+                    .change_context(errors::ConnectorError::WebhookResourceObjectNotFound)?;
+                return Ok(res_json);
+            }
             bluesnap::BluesnapWebhookEvents::Unknown => {
-                Err(errors::ConnectorError::WebhookEventTypeNotFound)
+                Err(errors::ConnectorError::WebhookResourceObjectNotFound)
             }
         }?;
 

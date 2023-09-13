@@ -488,7 +488,7 @@ impl From<StraightThroughAlgorithm> for StraightThroughAlgorithmSerde {
     }
 }
 
-#[derive(Clone, Debug, Deserialize, ToSchema, Serialize)]
+#[derive(Clone, Debug, Deserialize, ToSchema, Serialize, PartialEq)]
 #[serde(deny_unknown_fields)]
 pub struct PrimaryBusinessDetails {
     #[schema(value_type = CountryAlpha2)]
@@ -615,10 +615,10 @@ pub struct MerchantConnectorCreate {
     #[schema(example = json!(common_utils::consts::FRM_CONFIGS_EG))]
     pub frm_configs: Option<Vec<FrmConfigs>>,
 
-    #[schema(value_type = CountryAlpha2, example = "US")]
-    pub business_country: api_enums::CountryAlpha2,
+    #[schema(value_type = Option<CountryAlpha2>, example = "US")]
+    pub business_country: Option<api_enums::CountryAlpha2>,
 
-    pub business_label: String,
+    pub business_label: Option<String>,
 
     /// Business Sub label of the merchant
     #[schema(example = "chase")]
@@ -631,7 +631,6 @@ pub struct MerchantConnectorCreate {
         }
     }))]
     pub connector_webhook_details: Option<MerchantConnectorWebhookDetails>,
-
     /// Identifier for the business profile, if not provided default will be chosen from merchant account
     pub profile_id: Option<String>,
 }
@@ -641,6 +640,8 @@ pub struct MerchantConnectorCreate {
 pub struct MerchantConnectorWebhookDetails {
     #[schema(value_type = String, example = "12345678900987654321")]
     pub merchant_secret: Secret<String>,
+    #[schema(value_type = String, example = "12345678900987654321")]
+    pub additional_secret: Option<Secret<String>>,
 }
 
 /// Response of creating a new Merchant Connector for the merchant account."
@@ -656,7 +657,7 @@ pub struct MerchantConnectorResponse {
     // /// Connector label for specific country and Business
     #[serde(skip_deserializing)]
     #[schema(example = "stripe_US_travel")]
-    pub connector_label: String,
+    pub connector_label: Option<String>,
 
     /// Unique ID of the connector
     #[schema(example = "mca_5apGeP94tMts6rg3U3kR")]
@@ -706,12 +707,12 @@ pub struct MerchantConnectorResponse {
     pub metadata: Option<pii::SecretSerdeValue>,
 
     /// Business Country of the connector
-    #[schema(value_type = CountryAlpha2, example = "US")]
-    pub business_country: api_enums::CountryAlpha2,
+    #[schema(value_type = Option<CountryAlpha2>, example = "US")]
+    pub business_country: Option<api_enums::CountryAlpha2>,
 
     ///Business Type of the merchant
     #[schema(example = "travel")]
-    pub business_label: String,
+    pub business_label: Option<String>,
 
     /// Business Sub label of the merchant
     #[schema(example = "chase")]
@@ -1010,6 +1011,9 @@ pub struct BusinessProfileCreate {
         deserialize_with = "payout_routing_algorithm::deserialize_option"
     )]
     pub payout_routing_algorithm: Option<serde_json::Value>,
+
+    /// Verified applepay domains for a particular profile
+    pub applepay_verified_domains: Option<Vec<String>>,
 }
 
 #[derive(Clone, Debug, ToSchema, Serialize)]
@@ -1071,6 +1075,9 @@ pub struct BusinessProfileResponse {
         deserialize_with = "payout_routing_algorithm::deserialize_option"
     )]
     pub payout_routing_algorithm: Option<serde_json::Value>,
+
+    /// Verified applepay domains for a particular profile
+    pub applepay_verified_domains: Option<Vec<String>>,
 }
 
 #[derive(Clone, Debug, Deserialize, ToSchema)]
@@ -1125,4 +1132,7 @@ pub struct BusinessProfileUpdate {
         deserialize_with = "payout_routing_algorithm::deserialize_option"
     )]
     pub payout_routing_algorithm: Option<serde_json::Value>,
+
+    /// Verified applepay domains for a particular profile
+    pub applepay_verified_domains: Option<Vec<String>>,
 }

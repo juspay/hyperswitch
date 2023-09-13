@@ -398,9 +398,14 @@ impl api::IncomingWebhook for Cryptopay {
                 .body
                 .parse_struct("CryptopayWebhookDetails")
                 .change_context(errors::ConnectorError::WebhookReferenceIdNotFound)?;
-        Ok(api_models::webhooks::ObjectReferenceId::PaymentId(
-            api_models::payments::PaymentIdType::ConnectorTransactionId(notif.data.id),
-        ))
+        match notif.data.custom_id {
+            Some(custom_id) => Ok(api_models::webhooks::ObjectReferenceId::PaymentId(
+                api_models::payments::PaymentIdType::PaymentAttemptId(custom_id),
+            )),
+            None => Ok(api_models::webhooks::ObjectReferenceId::PaymentId(
+                api_models::payments::PaymentIdType::ConnectorTransactionId(notif.data.id),
+            )),
+        }
     }
 
     fn get_webhook_event_type(

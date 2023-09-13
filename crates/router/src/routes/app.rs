@@ -3,6 +3,8 @@ use actix_web::{web, Scope};
 use external_services::email::{AwsSes, EmailClient};
 #[cfg(feature = "kms")]
 use external_services::kms::{self, decrypt::KmsDecrypt};
+use scheduler::SchedulerInterface;
+use storage_impl::MockDb;
 use tokio::sync::oneshot;
 
 #[cfg(feature = "dummy_connector")]
@@ -10,7 +12,7 @@ use super::dummy_connector::*;
 #[cfg(feature = "payouts")]
 use super::payouts::*;
 #[cfg(all(feature = "olap", feature = "kms"))]
-use super::verification::apple_pay_merchant_registration;
+use super::verification::{apple_pay_merchant_registration, retrieve_apple_pay_verified_domains};
 #[cfg(feature = "olap")]
 use super::{admin::*, api_keys::*, disputes::*, files::*};
 use super::{cache::*, health::*};
@@ -20,7 +22,7 @@ use super::{configs::*, customers::*, mandates::*, payments::*, refunds::*};
 use super::{ephemeral_key::*, payment_methods::*, webhooks::*};
 use crate::{
     configs::settings,
-    db::{MockDb, StorageImpl, StorageInterface},
+    db::{StorageImpl, StorageInterface},
     routes::cards_info::card_iin_info,
     services::get_store,
 };
@@ -34,6 +36,13 @@ pub struct AppState {
     pub email_client: Box<dyn EmailClient>,
     #[cfg(feature = "kms")]
     pub kms_secrets: settings::ActiveKmsSecrets,
+    pub api_client: Box<dyn crate::services::ApiClient>,
+}
+
+impl scheduler::SchedulerAppState for AppState {
+    fn get_db(&self) -> Box<dyn SchedulerInterface> {
+        self.store.get_scheduler_db()
+    }
 }
 
 pub trait AppStateInfo {
@@ -68,6 +77,7 @@ impl AppState {
         conf: settings::Settings,
         storage_impl: StorageImpl,
         shut_down_signal: oneshot::Sender<()>,
+        api_client: Box<dyn crate::services::ApiClient>,
     ) -> Self {
         #[cfg(feature = "kms")]
         let kms_client = kms::get_kms_client(&conf.kms).await;
@@ -79,7 +89,12 @@ impl AppState {
                     .await
                     .expect("Failed to create store"),
             ),
-            StorageImpl::Mock => Box::new(MockDb::new(&conf).await),
+            #[allow(clippy::expect_used)]
+            StorageImpl::Mock => Box::new(
+                MockDb::new(&conf.redis)
+                    .await
+                    .expect("Failed to create mock store"),
+            ),
         };
 
         #[cfg(feature = "kms")]
@@ -101,11 +116,16 @@ impl AppState {
             email_client,
             #[cfg(feature = "kms")]
             kms_secrets,
+            api_client,
         }
     }
 
-    pub async fn new(conf: settings::Settings, shut_down_signal: oneshot::Sender<()>) -> Self {
-        Self::with_storage(conf, StorageImpl::Postgresql, shut_down_signal).await
+    pub async fn new(
+        conf: settings::Settings,
+        shut_down_signal: oneshot::Sender<()>,
+        api_client: Box<dyn crate::services::ApiClient>,
+    ) -> Self {
+        Self::with_storage(conf, StorageImpl::Postgresql, shut_down_signal, api_client).await
     }
 }
 
@@ -432,7 +452,7 @@ impl Webhooks {
         web::scope("/webhooks")
             .app_data(web::Data::new(config))
             .service(
-                web::resource("/{merchant_id}/{connector_name}")
+                web::resource("/{merchant_id}/{connector_id_or_name}")
                     .route(
                         web::post().to(receive_incoming_webhook::<webhook_type::OutgoingWebhook>),
                     )
@@ -568,6 +588,10 @@ impl Verify {
             .service(
                 web::resource("/{merchant_id}/apple_pay")
                     .route(web::post().to(apple_pay_merchant_registration)),
+            )
+            .service(
+                web::resource("/applepay_verified_domains")
+                    .route(web::get().to(retrieve_apple_pay_verified_domains)),
             )
     }
 }

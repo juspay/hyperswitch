@@ -13,6 +13,7 @@ use external_services::email::EmailSettings;
 use external_services::kms;
 use redis_interface::RedisSettings;
 pub use router_env::config::{Log, LogConsole, LogFile, LogTelemetry};
+use scheduler::SchedulerSettings;
 use serde::{de::Error, Deserialize, Deserializer};
 
 use crate::{
@@ -93,9 +94,10 @@ pub struct Settings {
     pub connector_request_reference_id_config: ConnectorRequestReferenceIdConfig,
     #[cfg(feature = "payouts")]
     pub payouts: Payouts,
+    pub applepay_decrypt_keys: ApplePayDecryptConifg,
     pub multiple_api_version_supported_connectors: MultipleApiVersionSupportedConnectors,
-    #[cfg(all(feature = "olap", feature = "kms"))]
     pub applepay_merchant_configs: ApplepayMerchantConfigs,
+    pub temp_locker_disable_config: TempLockerDisableConfig,
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
@@ -104,6 +106,7 @@ pub struct ApplepayMerchantConfigs {
     pub merchant_cert: String,
     pub merchant_cert_key: String,
     pub common_merchant_identifier: String,
+    pub applepay_endpoint: String,
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
@@ -115,6 +118,10 @@ pub struct MultipleApiVersionSupportedConnectors {
 #[derive(Debug, Deserialize, Clone, Default)]
 #[serde(transparent)]
 pub struct TokenizationConfig(pub HashMap<String, PaymentMethodTokenFilter>);
+
+#[derive(Debug, Deserialize, Clone, Default)]
+#[serde(transparent)]
+pub struct TempLockerDisableConfig(pub HashMap<String, TempLockerDisablePaymentMethodFilter>);
 
 #[derive(Debug, Deserialize, Clone, Default)]
 pub struct ConnectorCustomer {
@@ -157,6 +164,7 @@ where
 #[cfg(feature = "dummy_connector")]
 #[derive(Debug, Deserialize, Clone, Default)]
 pub struct DummyConnector {
+    pub enabled: bool,
     pub payment_ttl: i64,
     pub payment_duration: u64,
     pub payment_tolerance: u64,
@@ -203,6 +211,12 @@ pub struct PaymentMethodTokenFilter {
     pub payment_method: HashSet<diesel_models::enums::PaymentMethod>,
     pub payment_method_type: Option<PaymentMethodTypeTokenFilter>,
     pub long_lived_token: bool,
+}
+
+#[derive(Debug, Deserialize, Clone, Default)]
+pub struct TempLockerDisablePaymentMethodFilter {
+    #[serde(deserialize_with = "pm_deser")]
+    pub payment_method: HashSet<diesel_models::enums::PaymentMethod>,
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
@@ -484,7 +498,7 @@ pub struct Connectors {
     pub authorizedotnet: ConnectorParams,
     pub bambora: ConnectorParams,
     pub bitpay: ConnectorParams,
-    pub bluesnap: ConnectorParams,
+    pub bluesnap: ConnectorParamsWithSecondaryBaseUrl,
     pub boku: ConnectorParams,
     pub braintree: ConnectorParams,
     pub cashtocode: ConnectorParams,
@@ -549,40 +563,11 @@ pub struct ConnectorParamsWithFileUploadUrl {
     pub base_url_file_upload: String,
 }
 
-#[cfg(feature = "payouts")]
 #[derive(Debug, Deserialize, Clone, Default, router_derive::ConfigValidate)]
 #[serde(default)]
 pub struct ConnectorParamsWithSecondaryBaseUrl {
     pub base_url: String,
     pub secondary_base_url: String,
-}
-
-#[derive(Debug, Clone, Deserialize)]
-#[serde(default)]
-pub struct SchedulerSettings {
-    pub stream: String,
-    pub producer: ProducerSettings,
-    pub consumer: ConsumerSettings,
-    pub loop_interval: u64,
-    pub graceful_shutdown_interval: u64,
-}
-
-#[derive(Debug, Clone, Deserialize)]
-#[serde(default)]
-pub struct ProducerSettings {
-    pub upper_fetch_limit: i64,
-    pub lower_fetch_limit: i64,
-
-    pub lock_key: String,
-    pub lock_ttl: i64,
-    pub batch_size: usize,
-}
-
-#[derive(Debug, Clone, Deserialize)]
-#[serde(default)]
-pub struct ConsumerSettings {
-    pub disabled: bool,
-    pub consumer_group: String,
 }
 
 #[cfg(feature = "kv_store")]
@@ -640,8 +625,16 @@ pub struct FileUploadConfig {
 
 #[derive(Debug, Deserialize, Clone, Default)]
 pub struct DelayedSessionConfig {
-    #[serde(deserialize_with = "delayed_session_deser")]
+    #[serde(deserialize_with = "deser_to_get_connectors")]
     pub connectors_with_delayed_session_response: HashSet<api_models::enums::Connector>,
+}
+
+#[derive(Debug, Deserialize, Clone, Default)]
+pub struct ApplePayDecryptConifg {
+    pub apple_pay_ppc: String,
+    pub apple_pay_ppc_key: String,
+    pub apple_pay_merchant_cert: String,
+    pub apple_pay_merchant_cert_key: String,
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
@@ -649,7 +642,7 @@ pub struct ConnectorRequestReferenceIdConfig {
     pub merchant_ids_send_payment_id_as_connector_request_id: HashSet<String>,
 }
 
-fn delayed_session_deser<'a, D>(
+fn deser_to_get_connectors<'a, D>(
     deserializer: D,
 ) -> Result<HashSet<api_models::enums::Connector>, D::Error>
 where

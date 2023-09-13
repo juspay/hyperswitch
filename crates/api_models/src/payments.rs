@@ -124,7 +124,7 @@ pub struct PaymentsRequest {
     pub currency: Option<api_enums::Currency>,
 
     /// This is the instruction for capture/ debit the money from the users' card. On the other hand authorization refers to blocking the amount on the users' payment method.
-    #[schema(value_type = Option<CaptureMethod>, example = "PaymentProcessor")]
+    #[schema(value_type = Option<CaptureMethod>, example = "automatic")]
     pub capture_method: Option<api_enums::CaptureMethod>,
 
     /// The Amount to be captured/ debited from the users payment method. It shall be in lowest denomination of the currency. (i.e) in cents for USD denomination, in paisa for INR denomination etc.,
@@ -298,6 +298,11 @@ pub struct PaymentsRequest {
     /// The business profile to use for this payment, if not passed the default business profile
     /// associated with the merchant account will be used.
     pub profile_id: Option<String>,
+}
+
+#[derive(Default, Debug, Clone, Copy)]
+pub struct HeaderPayload {
+    pub payment_confirm_source: Option<api_enums::PaymentSource>,
 }
 
 #[derive(
@@ -1775,7 +1780,7 @@ pub struct PaymentsResponse {
     pub capture_on: Option<PrimitiveDateTime>,
 
     /// This is the instruction for capture/ debit the money from the users' card. On the other hand authorization refers to blocking the amount on the users' payment method.
-    #[schema(value_type = Option<CaptureMethod>, example = "PaymentProcessor")]
+    #[schema(value_type = Option<CaptureMethod>, example = "automatic")]
     pub capture_method: Option<api_enums::CaptureMethod>,
 
     /// The payment method that is to be used
@@ -1861,11 +1866,11 @@ pub struct PaymentsResponse {
     pub connector_label: Option<String>,
 
     /// The business country of merchant for this payment
-    #[schema(value_type = CountryAlpha2, example = "US")]
-    pub business_country: api_enums::CountryAlpha2,
+    #[schema(value_type = Option<CountryAlpha2>, example = "US")]
+    pub business_country: Option<api_enums::CountryAlpha2>,
 
     /// The business label of merchant for this payment
-    pub business_label: String,
+    pub business_label: Option<String>,
 
     /// The business_sub_label for this payment
     pub business_sub_label: Option<String>,
@@ -1908,6 +1913,9 @@ pub struct PaymentsResponse {
 
     /// total number of attempts associated with this payment
     pub attempt_count: i16,
+
+    /// Denotes the action(approve or reject) taken by merchant in case of manual review. Manual review can occur when the transaction is marked as risky by the frm_processor, payment processor or when there is underpayment/over payment incase of crypto payment
+    pub merchant_decision: Option<String>,
 }
 
 #[derive(Clone, Debug, serde::Deserialize, ToSchema)]
@@ -1991,8 +1999,9 @@ pub struct PaymentListResponseV2 {
 pub struct PaymentListFilterConstraints {
     /// The identifier for payment
     pub payment_id: Option<String>,
-    /// The limit on the number of objects. The max limit is 20
-    pub limit: Option<u32>,
+    /// The limit on the number of objects. The default limit is 10 and max limit is 20
+    #[serde(default = "default_limit")]
+    pub limit: u32,
     /// The starting point within a list of objects
     pub offset: Option<u32>,
     /// The time range for which objects are needed. TimeRange has two fields start_time and end_time from which objects can be filtered as per required scenarios (created_at, time less than, greater than etc).
@@ -2359,14 +2368,34 @@ pub struct ApplepayConnectorMetadataRequest {
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct ApplepaySessionTokenData {
-    #[serde(rename = "apple_pay")]
-    pub data: ApplePayMetadata,
+    #[serde(flatten)]
+    pub data: ApplepaySessionTokenMetadata,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ApplepaySessionTokenMetadata {
+    ApplePayCombined(ApplePayCombinedMetadata),
+    ApplePay(ApplePayMetadata),
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct ApplePayMetadata {
     pub payment_request_data: PaymentRequestMetadata,
     pub session_token_data: SessionTokenInfo,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ApplePayCombinedMetadata {
+    Simplified {
+        payment_request_data: PaymentRequestMetadata,
+        session_token_data: SessionTokenForSimplifiedApplePay,
+    },
+    Manual {
+        payment_request_data: PaymentRequestMetadata,
+        session_token_data: SessionTokenInfo,
+    },
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
@@ -2383,6 +2412,11 @@ pub struct SessionTokenInfo {
     pub merchant_identifier: String,
     pub display_name: String,
     pub initiative: String,
+    pub initiative_context: String,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
+pub struct SessionTokenForSimplifiedApplePay {
     pub initiative_context: String,
 }
 
@@ -2474,6 +2508,8 @@ pub struct ApplepaySessionTokenResponse {
     pub connector_reference_id: Option<String>,
     /// The public key id is to invoke third party sdk
     pub connector_sdk_public_key: Option<String>,
+    /// The connector merchant id
+    pub connector_merchant_id: Option<String>,
 }
 
 #[derive(Debug, Eq, PartialEq, serde::Serialize, Clone, ToSchema)]
@@ -2627,6 +2663,20 @@ pub struct PaymentsCancelRequest {
     /// Merchant connector details used to make payments.
     #[schema(value_type = MerchantConnectorDetailsWrap)]
     pub merchant_connector_details: Option<admin::MerchantConnectorDetailsWrap>,
+}
+
+#[derive(Default, Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
+pub struct PaymentsApproveRequest {
+    /// The identifier for the payment
+    #[serde(skip)]
+    pub payment_id: String,
+}
+
+#[derive(Default, Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
+pub struct PaymentsRejectRequest {
+    /// The identifier for the payment
+    #[serde(skip)]
+    pub payment_id: String,
 }
 
 #[derive(Default, Debug, serde::Deserialize, serde::Serialize, ToSchema, Clone)]

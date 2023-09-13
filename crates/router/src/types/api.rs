@@ -41,7 +41,7 @@ pub trait ConnectorAccessToken:
 pub trait ConnectorTransactionId: ConnectorCommon + Sync {
     fn connector_transaction_id(
         &self,
-        payment_attempt: diesel_models::payment_attempt::PaymentAttempt,
+        payment_attempt: data_models::payments::payment_attempt::PaymentAttempt,
     ) -> Result<Option<String>, errors::ApiErrorResponse> {
         Ok(payment_attempt.connector_transaction_id)
     }
@@ -319,7 +319,7 @@ impl ConnectorData {
                 enums::Connector::Powertranz => Ok(Box::new(&connector::Powertranz)),
                 enums::Connector::Rapyd => Ok(Box::new(&connector::Rapyd)),
                 enums::Connector::Shift4 => Ok(Box::new(&connector::Shift4)),
-                //enums::Connector::Square => Ok(Box::new(&connector::Square)), it is added as template code for future usage
+                enums::Connector::Square => Ok(Box::new(&connector::Square)),
                 enums::Connector::Stax => Ok(Box::new(&connector::Stax)),
                 enums::Connector::Stripe => Ok(Box::new(&connector::Stripe)),
                 enums::Connector::Wise => Ok(Box::new(&connector::Wise)),
