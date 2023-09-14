@@ -119,6 +119,7 @@ pub enum Connector {
     Worldpay,
     Zen,
     Signifyd,
+    Plaid,
 }
 
 impl Connector {
@@ -220,6 +221,7 @@ pub enum RoutableConnectors {
     Payme,
     Paypal,
     Payu,
+    Plaid,
     Powertranz,
     Rapyd,
     Shift4,
