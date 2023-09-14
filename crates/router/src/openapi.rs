@@ -488,4 +488,11 @@ pub mod examples {
             }
         }
     }"#;
+
+    /// Creating the payment with payment_link
+    pub const PAYMENTS_CREATE_WITH_PAYMENT_LINK_OBJECT: &str = r#"{
+        "payment_link_object" :{
+            "create_payment_link": true
+        }
+    }"#;
 }

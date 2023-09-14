@@ -15,7 +15,7 @@ use crate::{
         PAYMENTS_CREATE, PAYMENTS_CREATE_MINIMUM_FIELDS, PAYMENTS_CREATE_WITH_ADDRESS,
         PAYMENTS_CREATE_WITH_CUSTOMER_DATA, PAYMENTS_CREATE_WITH_FORCED_3DS,
         PAYMENTS_CREATE_WITH_MANUAL_CAPTURE, PAYMENTS_CREATE_WITH_NOON_ORDER_CATETORY,
-        PAYMENTS_CREATE_WITH_ORDER_DETAILS,
+        PAYMENTS_CREATE_WITH_ORDER_DETAILS, PAYMENTS_CREATE_WITH_PAYMENT_LINK_OBJECT,
     },
     services::{api, authentication as auth},
     types::{
@@ -74,6 +74,11 @@ use crate::{
                     value = json!(PAYMENTS_CREATE_WITH_NOON_ORDER_CATETORY)
                 )
             ),
+            (
+                "Create a payment with payment link" = (
+                    value = json!(PAYMENTS_CREATE_WITH_PAYMENT_LINK_OBJECT)
+                )
+            )
         )),
     responses(
         (status = 200, description = "Payment created", body = PaymentsResponse),
