@@ -341,12 +341,7 @@ impl ConnectorData {
                 enums::Connector::Trustpay => Ok(Box::new(&connector::Trustpay)),
                 enums::Connector::Tsys => Ok(Box::new(&connector::Tsys)),
                 enums::Connector::Zen => Ok(Box::new(&connector::Zen)),
-                enums::Connector::Signifyd => {
-                    Err(report!(errors::ConnectorError::InvalidConnectorName)
-                        .attach_printable(format!("invalid connector name: {connector_name}")))
-                    .change_context(errors::ApiErrorResponse::InternalServerError)
-                }
-                enums::Connector::Plaid => {
+                enums::Connector::Signifyd | enums::Connector::Plaid => {
                     Err(report!(errors::ConnectorError::InvalidConnectorName)
                         .attach_printable(format!("invalid connector name: {connector_name}")))
                     .change_context(errors::ApiErrorResponse::InternalServerError)

@@ -1383,12 +1383,10 @@ pub(crate) fn validate_auth_type(
             zen::transformers::ZenAuthType::try_from(val)?;
             Ok(())
         }
-        api_enums::Connector::Signifyd => {
+        api_enums::Connector::Signifyd | api_enums::Connector::Plaid => {
             Err(report!(errors::ConnectorError::InvalidConnectorName)
                 .attach_printable(format!("invalid connector name: {connector_name}")))
         }
-        api_enums::Connector::Plaid => Err(report!(errors::ConnectorError::InvalidConnectorName)
-            .attach_printable(format!("invalid connector name: {connector_name}"))),
     }
 }
 
