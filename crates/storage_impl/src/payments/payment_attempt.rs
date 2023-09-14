@@ -1089,10 +1089,12 @@ impl DataModelExt for PaymentAttemptUpdate {
                 payment_token,
                 connector,
                 straight_through_algorithm,
+                amount_capturable,
             } => DieselPaymentAttemptUpdate::UpdateTrackers {
                 payment_token,
                 connector,
                 straight_through_algorithm,
+                amount_capturable,
             },
             Self::AuthenticationTypeUpdate {
                 authentication_type,
@@ -1115,6 +1117,7 @@ impl DataModelExt for PaymentAttemptUpdate {
                 straight_through_algorithm,
                 error_code,
                 error_message,
+                amount_capturable,
             } => DieselPaymentAttemptUpdate::ConfirmUpdate {
                 amount,
                 currency,
@@ -1131,6 +1134,7 @@ impl DataModelExt for PaymentAttemptUpdate {
                 straight_through_algorithm,
                 error_code,
                 error_message,
+                amount_capturable,
             },
             Self::VoidUpdate {
                 status,
@@ -1275,10 +1279,12 @@ impl DataModelExt for PaymentAttemptUpdate {
                 payment_token,
                 connector,
                 straight_through_algorithm,
+                amount_capturable,
             } => Self::UpdateTrackers {
                 payment_token,
                 connector,
                 straight_through_algorithm,
+                amount_capturable,
             },
             DieselPaymentAttemptUpdate::AuthenticationTypeUpdate {
                 authentication_type,
@@ -1301,6 +1307,7 @@ impl DataModelExt for PaymentAttemptUpdate {
                 straight_through_algorithm,
                 error_code,
                 error_message,
+                amount_capturable,
             } => Self::ConfirmUpdate {
                 amount,
                 currency,
@@ -1317,6 +1324,7 @@ impl DataModelExt for PaymentAttemptUpdate {
                 straight_through_algorithm,
                 error_code,
                 error_message,
+                amount_capturable,
             },
             DieselPaymentAttemptUpdate::VoidUpdate {
                 status,
