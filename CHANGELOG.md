@@ -4,6 +4,29 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 1.39.2 (2023-09-14)
+
+### Bug Fixes
+
+- **router:** Add scoped error enum for customer error ([#1988](https://github.com/juspay/hyperswitch/pull/1988)) ([`5c5058d`](https://github.com/juspay/hyperswitch/commit/5c5058de8765f2a0818115ee584a39981395213a))
+
+### Refactors
+
+- **connector:** [BraintreeGraphQl] Enhance currency Mapping with ConnectorCurrencyCommon Trait  ([#2143](https://github.com/juspay/hyperswitch/pull/2143)) ([`05696d3`](https://github.com/juspay/hyperswitch/commit/05696d326f87a08919f177e67bfa54e09fba5147))
+- **router:**
+  - Changed the storage of applepay_verified_domains from business_profile to merchant_connector_account table ([#2147](https://github.com/juspay/hyperswitch/pull/2147)) ([`caa385a`](https://github.com/juspay/hyperswitch/commit/caa385a5a6635a4bf7910e2d56e2660069c146a9))
+  - Get route for applepay_verified_domains ([#2157](https://github.com/juspay/hyperswitch/pull/2157)) ([`fb1760b`](https://github.com/juspay/hyperswitch/commit/fb1760b1d8b5ca55dbaa93ab18f9fba9e7930e17))
+- Add instrument to trackers for payment_confirm ([#2164](https://github.com/juspay/hyperswitch/pull/2164)) ([`c804954`](https://github.com/juspay/hyperswitch/commit/c8049542dea9b129ce81e6e550b9267642b8d027))
+
+### Testing
+
+- **postman:** Update postman collection files ([`089bb64`](https://github.com/juspay/hyperswitch/commit/089bb64e21451fa095acb93792ea745e1275d74e))
+
+**Full Changelog:** [`v1.39.1+hotfix.1...v1.39.2`](https://github.com/juspay/hyperswitch/compare/v1.39.1+hotfix.1...v1.39.2)
+
+- - -
+
+
 ## 1.39.1 (2023-09-13)
 
 ### Bug Fixes
