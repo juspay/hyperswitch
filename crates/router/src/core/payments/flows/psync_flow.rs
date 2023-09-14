@@ -198,10 +198,6 @@ impl types::RouterData<api::PSync, types::PaymentsSyncData, types::PaymentsRespo
                     }
                     _ => Err(ApiErrorResponse::PreconditionFailed { message: "Response type must be PaymentsResponseData::MultipleCaptureResponse for payment sync".into() })?,
                 };
-                if let payments::CallConnectorAction::HandleResponse(_) = call_connector_action {
-                    // if webhook consume flow, call execute_connector_processing_step() only once
-                    break;
-                }
             }
             self.response = Ok(types::PaymentsResponseData::MultipleCaptureResponse {
                 capture_sync_response_list: capture_sync_response_map,
