@@ -4,6 +4,7 @@ use async_trait::async_trait;
 use error_stack::ResultExt;
 use futures::FutureExt;
 use router_derive;
+use router_env::{instrument, tracing};
 
 use super::{Operation, PostUpdateTracker};
 use crate::{
@@ -276,6 +277,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::CompleteAuthorizeData
     }
 }
 
+#[instrument(skip_all)]
 async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
     db: &dyn StorageInterface,
     _payment_id: &api::PaymentIdType,

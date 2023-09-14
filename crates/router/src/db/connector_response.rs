@@ -1,4 +1,5 @@
 use error_stack::{IntoReport, ResultExt};
+use router_env::{instrument, tracing};
 
 use super::{MockDb, Store};
 use crate::{
@@ -33,6 +34,7 @@ pub trait ConnectorResponseInterface {
 
 #[async_trait::async_trait]
 impl ConnectorResponseInterface for Store {
+    #[instrument(skip_all)]
     async fn insert_connector_response(
         &self,
         connector_response: storage::ConnectorResponseNew,
@@ -46,6 +48,7 @@ impl ConnectorResponseInterface for Store {
             .into_report()
     }
 
+    #[instrument(skip_all)]
     async fn find_connector_response_by_payment_id_merchant_id_attempt_id(
         &self,
         payment_id: &str,
@@ -81,6 +84,7 @@ impl ConnectorResponseInterface for Store {
 
 #[async_trait::async_trait]
 impl ConnectorResponseInterface for MockDb {
+    #[instrument(skip_all)]
     async fn insert_connector_response(
         &self,
         new: storage::ConnectorResponseNew,
@@ -107,6 +111,7 @@ impl ConnectorResponseInterface for MockDb {
         Ok(response)
     }
 
+    #[instrument(skip_all)]
     async fn find_connector_response_by_payment_id_merchant_id_attempt_id(
         &self,
         _payment_id: &str,
