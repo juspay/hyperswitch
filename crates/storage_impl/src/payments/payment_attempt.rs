@@ -23,6 +23,7 @@ use diesel_models::{
 };
 use error_stack::{IntoReport, ResultExt};
 use redis_interface::HsetnxReply;
+use router_env::{instrument, tracing};
 
 use crate::{
     lookup::ReverseLookupInterface,
@@ -36,6 +37,7 @@ use crate::{
 
 #[async_trait::async_trait]
 impl<T: DatabaseStore> PaymentAttemptInterface for RouterStore<T> {
+    #[instrument(skip_all)]
     async fn insert_payment_attempt(
         &self,
         payment_attempt: PaymentAttemptNew,
@@ -53,6 +55,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for RouterStore<T> {
             .map(PaymentAttempt::from_storage_model)
     }
 
+    #[instrument(skip_all)]
     async fn update_payment_attempt_with_attempt_id(
         &self,
         this: PaymentAttempt,
@@ -279,6 +282,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for RouterStore<T> {
 
 #[async_trait::async_trait]
 impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
+    #[instrument(skip_all)]
     async fn insert_payment_attempt(
         &self,
         payment_attempt: PaymentAttemptNew,
@@ -403,6 +407,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
         }
     }
 
+    #[instrument(skip_all)]
     async fn update_payment_attempt_with_attempt_id(
         &self,
         this: PaymentAttempt,
@@ -616,6 +621,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
         }
     }
 
+    #[instrument(skip_all)]
     async fn find_payment_attempt_by_payment_id_merchant_id_attempt_id(
         &self,
         payment_id: &str,

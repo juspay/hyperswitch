@@ -103,6 +103,7 @@ pub fn filter_mca_based_on_business_profile(
     }
 }
 
+#[instrument(skip_all)]
 pub async fn get_address_for_payment_request(
     db: &dyn StorageInterface,
     req_address: Option<&api::Address>,
@@ -975,6 +976,7 @@ pub fn validate_customer_details_in_request(
 
 /// Get the customer details from customer field if present
 /// or from the individual fields in `PaymentsRequest`
+#[instrument(skip_all)]
 pub fn get_customer_details_from_request(
     request: &api_models::payments::PaymentsRequest,
 ) -> CustomerDetails {
@@ -2086,6 +2088,7 @@ pub(crate) fn validate_payment_status_against_not_allowed_statuses(
     })
 }
 
+#[instrument(skip_all)]
 pub(crate) fn validate_pm_or_token_given(
     payment_method: &Option<api_enums::PaymentMethod>,
     payment_method_data: &Option<api::PaymentMethodData>,
@@ -2364,6 +2367,7 @@ mod tests {
 }
 
 // This function will be removed after moving this functionality to server_wrap and using cache instead of config
+#[instrument(skip_all)]
 pub async fn insert_merchant_connector_creds_to_config(
     db: &dyn StorageInterface,
     merchant_id: &str,
@@ -2551,6 +2555,7 @@ pub fn router_data_type_conversion<F1, F2, Req1, Req2, Res1, Res2>(
     }
 }
 
+#[instrument(skip_all)]
 pub fn get_attempt_type(
     payment_intent: &PaymentIntent,
     payment_attempt: &PaymentAttempt,
@@ -2740,6 +2745,7 @@ impl AttemptType {
         }
     }
 
+    #[instrument(skip_all)]
     pub async fn modify_payment_intent_and_payment_attempt(
         &self,
         request: &api::PaymentsRequest,
@@ -2793,6 +2799,7 @@ impl AttemptType {
         }
     }
 
+    #[instrument(skip_all)]
     pub async fn get_or_insert_connector_response(
         &self,
         payment_attempt: &PaymentAttempt,
@@ -2821,6 +2828,7 @@ impl AttemptType {
         }
     }
 
+    #[instrument(skip_all)]
     pub async fn get_connector_response(
         &self,
         db: &dyn StorageInterface,
@@ -2927,6 +2935,7 @@ mod test {
     }
 }
 
+#[instrument(skip_all)]
 pub async fn get_additional_payment_data(
     pm_data: &api_models::payments::PaymentMethodData,
     db: &dyn StorageInterface,

@@ -30,6 +30,7 @@ use diesel_models::{
 };
 use error_stack::{IntoReport, ResultExt};
 use redis_interface::HsetnxReply;
+use router_env::{instrument, tracing};
 #[cfg(feature = "olap")]
 use router_env::logger;
 
@@ -125,6 +126,7 @@ impl<T: DatabaseStore> PaymentIntentInterface for KVRouterStore<T> {
         }
     }
 
+    #[instrument(skip_all)]
     async fn update_payment_intent(
         &self,
         this: PaymentIntent,

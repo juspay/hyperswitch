@@ -1,4 +1,5 @@
 use error_stack::IntoReport;
+use router_env::{instrument, tracing};
 
 use crate::{
     connection,
@@ -18,6 +19,7 @@ pub trait CardsInfoInterface {
 
 #[async_trait::async_trait]
 impl CardsInfoInterface for Store {
+    #[instrument(skip_all)]
     async fn get_card_info(
         &self,
         card_iin: &str,
@@ -32,6 +34,7 @@ impl CardsInfoInterface for Store {
 
 #[async_trait::async_trait]
 impl CardsInfoInterface for MockDb {
+    #[instrument(skip_all)]
     async fn get_card_info(
         &self,
         card_iin: &str,
