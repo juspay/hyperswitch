@@ -221,7 +221,6 @@ pub enum RoutableConnectors {
     Payme,
     Paypal,
     Payu,
-    Plaid,
     Powertranz,
     Rapyd,
     Shift4,
