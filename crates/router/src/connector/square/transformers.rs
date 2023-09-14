@@ -341,8 +341,13 @@ impl<F, T>
     fn try_from(
         item: types::ResponseRouterData<F, SquarePaymentsResponse, T, types::PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
+        let status = enums::AttemptStatus::from(item.response.payment.status);
+        let mut amount_captured = None;
+        if status == enums::AttemptStatus::Charged {
+            amount_captured = Some(item.response.payment.amount_money.amount)
+        };
         Ok(Self {
-            status: enums::AttemptStatus::from(item.response.payment.status),
+            status,
             response: Ok(types::PaymentsResponseData::TransactionResponse {
                 resource_id: types::ResponseId::ConnectorTransactionId(item.response.payment.id),
                 redirection_data: None,
@@ -351,7 +356,7 @@ impl<F, T>
                 network_txn_id: None,
                 connector_response_reference_id: None,
             }),
-            amount_captured: Some(item.response.payment.amount_money.amount),
+            amount_captured,
             ..item.data
         })
     }
