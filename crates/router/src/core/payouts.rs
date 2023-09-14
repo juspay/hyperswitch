@@ -1165,6 +1165,7 @@ pub async fn payout_create_db_entries(
         merchant_id,
         Some(&customer_id.to_owned()),
         key_store,
+        payout_id,
     )
     .await?;
     let address_id = billing_address
@@ -1300,6 +1301,7 @@ pub async fn make_payout_data(
         merchant_id,
         Some(&payouts.customer_id.to_owned()),
         key_store,
+        &payouts.payout_id,
     )
     .await?;
 

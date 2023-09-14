@@ -20,6 +20,7 @@ pub struct AddressNew {
     pub country_code: Option<String>,
     pub customer_id: String,
     pub merchant_id: String,
+    pub payment_id: Option<String>,
     pub created_at: PrimitiveDateTime,
     pub modified_at: PrimitiveDateTime,
 }
@@ -44,6 +45,7 @@ pub struct Address {
     pub modified_at: PrimitiveDateTime,
     pub customer_id: String,
     pub merchant_id: String,
+    pub payment_id: Option<String>,
 }
 
 #[derive(Clone, Debug, AsChangeset, router_derive::DebugAsDisplay)]

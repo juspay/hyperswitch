@@ -27,6 +27,8 @@ diesel::table! {
         customer_id -> Varchar,
         #[max_length = 64]
         merchant_id -> Varchar,
+        #[max_length = 64]
+        payment_id -> Nullable<Varchar>,
     }
 }
 
@@ -197,6 +199,8 @@ diesel::table! {
         metadata -> Nullable<Json>,
         connector_customer -> Nullable<Jsonb>,
         modified_at -> Timestamp,
+        #[max_length = 64]
+        address_id -> Nullable<Varchar>,
     }
 }
 

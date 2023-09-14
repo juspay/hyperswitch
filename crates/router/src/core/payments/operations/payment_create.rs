@@ -99,6 +99,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
             merchant_id,
             customer_details.customer_id.as_ref(),
             merchant_key_store,
+            &payment_id,
         )
         .await?;
 
@@ -109,6 +110,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
             merchant_id,
             customer_details.customer_id.as_ref(),
             merchant_key_store,
+            &payment_id,
         )
         .await?;
 

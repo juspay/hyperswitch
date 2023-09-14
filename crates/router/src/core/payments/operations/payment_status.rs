@@ -241,12 +241,14 @@ async fn get_tracker_for_sync<
         db,
         payment_intent.shipping_address_id.clone(),
         mechant_key_store,
+        payment_intent.payment_id.clone(),
     )
     .await?;
     let billing_address = helpers::get_address_by_id(
         db,
         payment_intent.billing_address_id.clone(),
         mechant_key_store,
+        payment_intent.payment_id.clone(),
     )
     .await?;
 

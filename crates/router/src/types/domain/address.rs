@@ -38,6 +38,7 @@ pub struct Address {
     pub modified_at: PrimitiveDateTime,
     pub customer_id: String,
     pub merchant_id: String,
+    pub payment_id: Option<String>,
 }
 
 #[async_trait]
@@ -66,6 +67,7 @@ impl behaviour::Conversion for Address {
             modified_at: self.modified_at,
             customer_id: self.customer_id,
             merchant_id: self.merchant_id,
+            payment_id: self.payment_id,
         })
     }
 
@@ -93,6 +95,7 @@ impl behaviour::Conversion for Address {
                 modified_at: other.modified_at,
                 customer_id: other.customer_id,
                 merchant_id: other.merchant_id,
+                payment_id: other.payment_id,
             })
         }
         .await
@@ -123,6 +126,7 @@ impl behaviour::Conversion for Address {
             country_code: self.country_code,
             customer_id: self.customer_id,
             merchant_id: self.merchant_id,
+            payment_id: self.payment_id,
             created_at: now,
             modified_at: now,
         })

@@ -21,6 +21,7 @@ pub struct Customer {
     pub metadata: Option<pii::SecretSerdeValue>,
     pub modified_at: PrimitiveDateTime,
     pub connector_customer: Option<serde_json::Value>,
+    pub address_id: Option<String>,
 }
 
 #[async_trait::async_trait]
@@ -43,6 +44,7 @@ impl super::behaviour::Conversion for Customer {
             metadata: self.metadata,
             modified_at: self.modified_at,
             connector_customer: self.connector_customer,
+            address_id: self.address_id,
         })
     }
 
@@ -69,6 +71,7 @@ impl super::behaviour::Conversion for Customer {
                 metadata: item.metadata,
                 modified_at: item.modified_at,
                 connector_customer: item.connector_customer,
+                address_id: item.address_id,
             })
         }
         .await
@@ -91,6 +94,7 @@ impl super::behaviour::Conversion for Customer {
             created_at: now,
             modified_at: now,
             connector_customer: self.connector_customer,
+            address_id: self.address_id,
         })
     }
 }
@@ -105,6 +109,7 @@ pub enum CustomerUpdate {
         phone_country_code: Option<String>,
         metadata: Option<pii::SecretSerdeValue>,
         connector_customer: Option<serde_json::Value>,
+        address_id: Option<String>,
     },
     ConnectorCustomer {
         connector_customer: Option<serde_json::Value>,
@@ -122,6 +127,7 @@ impl From<CustomerUpdate> for CustomerUpdateInternal {
                 phone_country_code,
                 metadata,
                 connector_customer,
+                address_id,
             } => Self {
                 name: name.map(Encryption::from),
                 email: email.map(Encryption::from),
@@ -131,6 +137,7 @@ impl From<CustomerUpdate> for CustomerUpdateInternal {
                 metadata,
                 connector_customer,
                 modified_at: Some(date_time::now()),
+                address_id,
             },
             CustomerUpdate::ConnectorCustomer { connector_customer } => Self {
                 connector_customer,

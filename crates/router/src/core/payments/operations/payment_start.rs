@@ -92,6 +92,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsStartRequest> f
             merchant_id,
             payment_intent.customer_id.as_ref(),
             mechant_key_store,
+            &payment_intent.payment_id,
         )
         .await?;
         let billing_address = helpers::get_address_for_payment_request(
@@ -101,6 +102,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsStartRequest> f
             merchant_id,
             payment_intent.customer_id.as_ref(),
             mechant_key_store,
+            &payment_intent.payment_id,
         )
         .await?;
 
