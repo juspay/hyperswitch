@@ -8,13 +8,8 @@
   ],
   "url": {
     "raw": "{{baseUrl}}/refunds/:id",
-    "host": [
-      "{{baseUrl}}"
-    ],
-    "path": [
-      "refunds",
-      ":id"
-    ],
+    "host": ["{{baseUrl}}"],
+    "path": ["refunds", ":id"],
     "variable": [
       {
         "key": "id",
