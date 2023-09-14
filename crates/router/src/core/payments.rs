@@ -548,6 +548,7 @@ impl PaymentRedirectFlow for PaymentRedirectSync {
 }
 
 #[allow(clippy::too_many_arguments)]
+#[instrument(skip_all)]
 pub async fn call_connector_service<F, RouterDReq, ApiRequest>(
     state: &AppState,
     merchant_account: &domain::MerchantAccount,
@@ -1038,6 +1039,7 @@ pub fn is_preprocessing_required_for_wallets(connector_name: String) -> bool {
     connector_name == *"trustpay" || connector_name == *"payme"
 }
 
+#[instrument(skip_all)]
 pub async fn construct_profile_id_and_get_mca<'a, F>(
     state: &'a AppState,
     merchant_account: &domain::MerchantAccount,

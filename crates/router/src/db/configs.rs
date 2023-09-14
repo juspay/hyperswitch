@@ -1,5 +1,6 @@
 use diesel_models::configs::ConfigUpdateInternal;
 use error_stack::{IntoReport, ResultExt};
+use router_env::{instrument, tracing};
 use storage_impl::redis::{
     cache::{CacheKind, CONFIG_CACHE},
     kv_store::RedisConnInterface,
@@ -47,6 +48,7 @@ pub trait ConfigInterface {
 
 #[async_trait::async_trait]
 impl ConfigInterface for Store {
+    #[instrument(skip_all)]
     async fn insert_config(
         &self,
         config: storage::ConfigNew,
@@ -123,6 +125,7 @@ impl ConfigInterface for Store {
 
 #[async_trait::async_trait]
 impl ConfigInterface for MockDb {
+    #[instrument(skip_all)]
     async fn insert_config(
         &self,
         config: storage::ConfigNew,
