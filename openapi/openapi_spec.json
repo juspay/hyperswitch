@@ -1001,9 +1001,6 @@
                 },
                 "Create a payment with order details": {
                   "value": "{\n        \"amount\": 6540,\n        \"currency\": \"USD\",\n        \"order_details\": [\n            {\n                \"product_name\": \"Apple iPhone 15\",\n                \"quantity\": 1,\n                \"amount\" : 6540\n            }\n        ]\n    }"
-                },
-                "Create a payment with payment link": {
-                  "value": "{\n        \"payment_link_object\" :{\n            \"create_payment_link\": true\n        }\n    }"
                 }
               }
             }
