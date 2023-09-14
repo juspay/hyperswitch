@@ -10,6 +10,37 @@ pub trait StorageErrorExt<T, E> {
     fn to_duplicate_response(self, duplicate_response: E) -> error_stack::Result<T, E>;
 }
 
+impl<T> StorageErrorExt<T, errors::CustomersErrorResponse>
+    for error_stack::Result<T, errors::StorageError>
+{
+    #[track_caller]
+    fn to_not_found_response(
+        self,
+        not_found_response: errors::CustomersErrorResponse,
+    ) -> error_stack::Result<T, errors::CustomersErrorResponse> {
+        self.map_err(|err| match err.current_context() {
+            error if error.is_db_not_found() => err.change_context(not_found_response),
+            errors::StorageError::CustomerRedacted => {
+                err.change_context(errors::CustomersErrorResponse::CustomerRedacted)
+            }
+            _ => err.change_context(errors::CustomersErrorResponse::InternalServerError),
+        })
+    }
+
+    fn to_duplicate_response(
+        self,
+        duplicate_response: errors::CustomersErrorResponse,
+    ) -> error_stack::Result<T, errors::CustomersErrorResponse> {
+        self.map_err(|err| {
+            if err.current_context().is_db_unique_violation() {
+                err.change_context(duplicate_response)
+            } else {
+                err.change_context(errors::CustomersErrorResponse::InternalServerError)
+            }
+        })
+    }
+}
+
 impl<T> StorageErrorExt<T, errors::ApiErrorResponse>
     for error_stack::Result<T, data_models::errors::StorageError>
 {
