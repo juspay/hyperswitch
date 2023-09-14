@@ -1,6 +1,7 @@
 use router_env::Flow;
 
-// #[derive()]
+#[derive(Clone, Debug, strum::Display)]
+#[strum(serialize_all = "snake_case")]
 pub enum ApiIdentifier {
     Payments,
     Refunds,
@@ -23,45 +24,42 @@ pub enum ApiIdentifier {
 }
 
 impl From<Flow> for ApiIdentifier {
-    fn from(flow: Flow) -> Self  {
+    fn from(flow: Flow) -> Self {
         match flow {
             Flow::MerchantsAccountCreate
             | Flow::MerchantsAccountRetrieve
             | Flow::MerchantsAccountUpdate
             | Flow::MerchantsAccountDelete => Self::MerchantAccount,
-            
+
             Flow::MerchantConnectorsCreate
             | Flow::MerchantConnectorsRetrieve
             | Flow::MerchantConnectorsUpdate
             | Flow::MerchantConnectorsDelete
             | Flow::MerchantConnectorsList => Self::MerchantConnector,
-            
+
             Flow::ConfigKeyCreate
             | Flow::ConfigKeyFetch
             | Flow::ConfigKeyUpdate
             | Flow::CreateConfigKey => Self::Configs,
-            
+
             Flow::CustomersCreate
             | Flow::CustomersRetrieve
             | Flow::CustomersUpdate
             | Flow::CustomersDelete
             | Flow::CustomersGetMandates => Self::Customers,
-            
-            Flow::EphemeralKeyCreate
-            | Flow::EphemeralKeyDelete => Self::Ephemeral,
-            
-            Flow::MandatesRetrieve
-            | Flow::MandatesRevoke
-            | Flow::MandatesList => Self::Mandates,
-            
+
+            Flow::EphemeralKeyCreate | Flow::EphemeralKeyDelete => Self::Ephemeral,
+
+            Flow::MandatesRetrieve | Flow::MandatesRevoke | Flow::MandatesList => Self::Mandates,
+
             Flow::PaymentMethodsCreate
-            | Flow::PaymentMethodsList 
+            | Flow::PaymentMethodsList
             | Flow::CustomerPaymentMethodsList
             | Flow::PaymentMethodsRetrieve
             | Flow::PaymentMethodsUpdate
-            | Flow::PaymentMethodsDelete 
+            | Flow::PaymentMethodsDelete
             | Flow::ValidatePaymentMethod => Self::PaymentMethods,
-            
+
             Flow::PaymentsCreate
             | Flow::PaymentsRetrieve
             | Flow::PaymentsUpdate
@@ -72,7 +70,7 @@ impl From<Flow> for ApiIdentifier {
             | Flow::PaymentsReject
             | Flow::PaymentsSessionToken
             | Flow::PaymentsStart
-            | Flow::PaymentsList 
+            | Flow::PaymentsList
             | Flow::PaymentsRedirect => Self::Payments,
 
             Flow::PayoutsCreate
@@ -81,21 +79,20 @@ impl From<Flow> for ApiIdentifier {
             | Flow::PayoutsCancel
             | Flow::PayoutsFulfill
             | Flow::PayoutsAccounts => Self::Payouts,
-            
-            
-            | Flow::RefundsCreate
+
+            Flow::RefundsCreate
             | Flow::RefundsRetrieve
             | Flow::RefundsUpdate
             | Flow::RefundsList => Self::Refunds,
 
             Flow::IncomingWebhookReceive => Self::Webhooks,
-            
+
             Flow::ApiKeyCreate
             | Flow::ApiKeyRetrieve
             | Flow::ApiKeyUpdate
             | Flow::ApiKeyRevoke
             | Flow::ApiKeyList => Self::ApiKeys,
-            
+
             Flow::DisputesRetrieve
             | Flow::DisputesList
             | Flow::DisputesEvidenceSubmit
@@ -104,11 +101,8 @@ impl From<Flow> for ApiIdentifier {
 
             Flow::CardsInfo => Self::CardsInfo,
 
-            | Flow::CreateFile
-            | Flow::DeleteFile
-            | Flow::RetrieveFile => Self::Files,
-            
-            
+            Flow::CreateFile | Flow::DeleteFile | Flow::RetrieveFile => Self::Files,
+
             Flow::CacheInvalidate => Self::Cache,
 
             Flow::BusinessProfileCreate
@@ -116,8 +110,8 @@ impl From<Flow> for ApiIdentifier {
             | Flow::BusinessProfileRetrieve
             | Flow::BusinessProfileDelete
             | Flow::BusinessProfileList => Self::Business,
-            
-            Flow::Verification  => Self::Verification,
+
+            Flow::Verification => Self::Verification,
         }
     }
 }

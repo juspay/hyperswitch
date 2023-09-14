@@ -1,12 +1,11 @@
 pub mod types;
-
 use actix_web::{web, HttpRequest, HttpResponse};
 use error_stack::report;
 use router_env::{instrument, tracing, Flow};
 
 use crate::{
     compatibility::{stripe::errors, wrap},
-    core::{customers, payment_methods::cards},
+    core::{api_locking, customers, payment_methods::cards},
     routes,
     services::{api, authentication as auth},
     types::api::{customers as customer_types, payment_methods},
@@ -48,10 +47,10 @@ pub async fn customer_create(
             customers::create_customer(&*state.store, auth.merchant_account, auth.key_store, req)
         },
         &auth::ApiKeyAuth,
+        api_locking::LockAction::NotApplicable,
     ))
     .await
 }
-
 #[instrument(skip_all, fields(flow = ?Flow::CustomersRetrieve))]
 pub async fn customer_retrieve(
     state: web::Data<routes::AppState>,
@@ -82,10 +81,10 @@ pub async fn customer_retrieve(
             customers::retrieve_customer(&*state.store, auth.merchant_account, auth.key_store, req)
         },
         &auth::ApiKeyAuth,
+        api_locking::LockAction::NotApplicable,
     ))
     .await
 }
-
 #[instrument(skip_all, fields(flow = ?Flow::CustomersUpdate))]
 pub async fn customer_update(
     state: web::Data<routes::AppState>,
@@ -125,10 +124,10 @@ pub async fn customer_update(
             customers::update_customer(&*state.store, auth.merchant_account, req, auth.key_store)
         },
         &auth::ApiKeyAuth,
+        api_locking::LockAction::NotApplicable,
     ))
     .await
 }
-
 #[instrument(skip_all, fields(flow = ?Flow::CustomersDelete))]
 pub async fn customer_delete(
     state: web::Data<routes::AppState>,
@@ -159,10 +158,10 @@ pub async fn customer_delete(
             customers::delete_customer(state, auth.merchant_account, req, auth.key_store)
         },
         &auth::ApiKeyAuth,
+        api_locking::LockAction::NotApplicable,
     ))
     .await
 }
-
 #[instrument(skip_all, fields(flow = ?Flow::CustomerPaymentMethodsList))]
 pub async fn list_customer_payment_method_api(
     state: web::Data<routes::AppState>,
@@ -198,6 +197,7 @@ pub async fn list_customer_payment_method_api(
             )
         },
         &auth::ApiKeyAuth,
+        api_locking::LockAction::NotApplicable,
     ))
     .await
 }

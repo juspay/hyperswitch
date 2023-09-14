@@ -22,6 +22,7 @@ pub async fn compatibility_api_wrap<'a, 'b, A, U, T, Q, F, Fut, S, E>(
     payload: T,
     func: F,
     api_authentication: &dyn auth::AuthenticateAndFetch<U, A>,
+    lock_action: api_locking::LockAction,
 ) -> HttpResponse
 where
     F: Fn(&'b A, U, T) -> Fut,
@@ -44,7 +45,15 @@ where
     logger::info!(tag = ?Tag::BeginRequest, payload = ?payload);
 
     let res = match metrics::request::record_request_time_metric(
-        api::server_wrap_util(&flow, state, request, payload, func, api_authentication),
+        api::server_wrap_util(
+            &flow,
+            state,
+            request,
+            payload,
+            func,
+            api_authentication,
+            lock_action,
+        ),
         &flow,
     )
     .await

@@ -13,7 +13,7 @@ use std::{
 use actix_web::{body, HttpRequest, HttpResponse, Responder, ResponseError};
 use api_models::enums::CaptureMethod;
 pub use client::{proxy_bypass_urls, ApiClient, MockApiClient, ProxyClient};
-use common_utils::{errors::ReportSwitchExt, ext_traits::AsyncExt};
+use common_utils::errors::ReportSwitchExt;
 use error_stack::{report, IntoReport, Report, ResultExt};
 use masking::{ExposeOptionInterface, PeekInterface};
 use router_env::{instrument, tracing, Tag};
@@ -704,6 +704,7 @@ pub async fn server_wrap_util<'a, 'b, A, U, T, Q, F, Fut, E, OErr>(
     payload: T,
     func: F,
     api_auth: &dyn auth::AuthenticateAndFetch<U, A>,
+    lock_action: api_locking::LockAction,
 ) -> CustomResult<ApplicationResponse<Q>, OErr>
 where
     F: Fn(&'b A, U, T) -> Fut,
@@ -715,6 +716,7 @@ where
     U: auth::AuthInfo,
     CustomResult<ApplicationResponse<Q>, E>: ReportSwitchExt<ApplicationResponse<Q>, OErr>,
     CustomResult<U, errors::ApiErrorResponse>: ReportSwitchExt<U, OErr>,
+    CustomResult<(), errors::ApiErrorResponse>: ReportSwitchExt<(), OErr>,
     OErr: ResponseError + Sync + Send + 'static,
 {
     let auth_out = api_auth
@@ -725,13 +727,19 @@ where
     let merchant_id = auth_out.get_merchant_id().unwrap_or("").to_string();
     tracing::Span::current().record("merchant_id", &merchant_id);
 
-    let output = func(state, auth_out, payload).await.switch();
-
-    // let _lock_action = lock_action
-    //     .async_map(|action| async { action.free_lock_action(state).await })
-    //     .await
-    //     .transpose()
-    //     .switch()?;
+    let output = {
+        lock_action
+            .clone()
+            .perform_locking_action(state, merchant_id.to_owned())
+            .await
+            .switch()?;
+        let res = func(state, auth_out, payload).await.switch();
+        lock_action
+            .free_lock_action(state, merchant_id.to_owned())
+            .await
+            .switch()?;
+        res
+    };
 
     let status_code = match output.as_ref() {
         Ok(res) => metrics::request::track_response_status_code(res),
@@ -776,7 +784,7 @@ where
     logger::info!(tag = ?Tag::BeginRequest, payload = ?payload);
 
     let res = match metrics::request::record_request_time_metric(
-        server_wrap_util(&flow, state, request, payload, func, api_auth),
+        server_wrap_util(&flow, state, request, payload, func, api_auth, lock_action),
         &flow,
     )
     .await

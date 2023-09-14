@@ -288,16 +288,11 @@ impl<F: Send + Clone> ValidateRequest<F, api::PaymentsCaptureRequest> for Paymen
         BoxedOperation<'b, F, api::PaymentsCaptureRequest>,
         operations::ValidateResult<'a>,
     )> {
-        let payment_id = request
-            .payment_id
-            .as_ref()
-            .get_required_value("payment_id")?;
-
         Ok((
             Box::new(self),
             operations::ValidateResult {
                 merchant_id: &merchant_account.merchant_id,
-                payment_id: api::PaymentIdType::PaymentIntentId(payment_id.to_owned()),
+                payment_id: api::PaymentIdType::PaymentIntentId(request.payment_id.to_owned()),
                 mandate_type: None,
                 storage_scheme: merchant_account.storage_scheme,
                 requeue: false,

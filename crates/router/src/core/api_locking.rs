@@ -6,7 +6,7 @@ use redis_interface as redis;
 use router_env::{instrument, logger, tracing};
 
 use super::errors::{self, RouterResult};
-use crate::routes::app::AppStateInfo;
+use crate::routes::{app::AppStateInfo, lock_utils};
 
 pub const API_LOCK_PREFIX: &str = "API_LOCK";
 pub const LOCK_RETRIES: u32 =
@@ -22,7 +22,7 @@ pub enum LockStatus {
     Busy,
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub enum LockAction {
     // Sleep until the lock is acquired
     Hold { input: LockingInput },
@@ -36,25 +36,27 @@ pub enum LockAction {
     NotApplicable,
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct LockingInput {
     pub unique_locking_key: String,
-    pub api_identifier: String,
-    pub merchant_id: String,
+    pub api_identifier: lock_utils::ApiIdentifier,
 }
 
 impl LockingInput {
-    fn get_redis_locking_key(&self) -> String {
+    fn get_redis_locking_key(&self, merchant_id: String) -> String {
         format!(
             "{}_{}_{}_{}",
-            API_LOCK_PREFIX, self.merchant_id, self.api_identifier, self.unique_locking_key
+            API_LOCK_PREFIX,
+            merchant_id,
+            self.api_identifier.to_string(),
+            self.unique_locking_key
         )
     }
 }
 
 impl LockAction {
     #[instrument(skip_all)]
-    async fn perform_locking_action<A>(self, state: &A) -> RouterResult<()>
+    pub async fn perform_locking_action<A>(self, state: &A, merchant_id: String) -> RouterResult<()>
     where
         A: AppStateInfo,
     {
@@ -65,7 +67,7 @@ impl LockAction {
                     .get_redis_conn()
                     .change_context(errors::ApiErrorResponse::InternalServerError)?;
 
-                let redis_locking_key = input.get_redis_locking_key();
+                let redis_locking_key = input.get_redis_locking_key(merchant_id);
 
                 for _retry in 0..LOCK_RETRIES {
                     let redis_lock_result = redis_conn
@@ -79,7 +81,9 @@ impl LockAction {
                     match redis_lock_result {
                         Ok(redis::SetnxReply::KeySet) => {
                             logger::info!("Lock acquired for locking input {:?}", input);
-                            break;
+                            tracing::Span::current()
+                                .record("redis_lock_acquired", redis_locking_key);
+                            return Ok(());
                         }
                         Ok(redis::SetnxReply::KeyNotSet) => {
                             logger::info!(
@@ -98,7 +102,7 @@ impl LockAction {
                     }
                 }
 
-                Ok(())
+                Err(errors::ApiErrorResponse::ResourceBusy).into_report()
             }
             LockAction::QueueWithOk
             | LockAction::IgnoreWithOk
@@ -108,7 +112,7 @@ impl LockAction {
     }
 
     #[instrument(skip_all)]
-    async fn free_lock_action<A>(self, state: &A) -> RouterResult<Self>
+    pub async fn free_lock_action<A>(self, state: &A, merchant_id: String) -> RouterResult<()>
     where
         A: AppStateInfo,
     {
@@ -119,12 +123,13 @@ impl LockAction {
                     .get_redis_conn()
                     .change_context(errors::ApiErrorResponse::InternalServerError)?;
 
-                let redis_locking_key = input.get_redis_locking_key();
-                // Add a step to check whether the current lock is acquired by the current request and only then delete
+                let redis_locking_key = input.get_redis_locking_key(merchant_id);
+                // [#2129] Add a step to check whether the current lock is acquired by the current request and only then delete
                 match redis_conn.delete_key(redis_locking_key.as_str()).await {
                     Ok(redis::types::DelReply::KeyDeleted) => {
                         logger::info!("Lock freed for locking input {:?}", input);
-                        Ok(LockAction::Hold { input })
+                        tracing::Span::current().record("redis_lock_released", redis_locking_key);
+                        Ok(())
                     }
                     Ok(redis::types::DelReply::KeyNotDeleted) => {
                         Err(errors::ApiErrorResponse::InternalServerError)
@@ -141,15 +146,14 @@ impl LockAction {
             LockAction::QueueWithOk
             | LockAction::IgnoreWithOk
             | LockAction::Drop
-            | LockAction::NotApplicable => Ok(self),
+            | LockAction::NotApplicable => Ok(()),
         }
     }
 }
 
-// pub trait GetLockAction {
-//     // add generics for Flow and payload so that every combination of Flow and Payload implements this trait.
-//     fn get_locking_action<T: Debug>(&self, _payload: &T) -> Option<LockAction> {
-//         logger::warn!("Locking not enabled");
-//         None
-//     }
-// }
+pub trait GetLockingInput {
+    fn get_locking_input<F>(&self, flow: F) -> LockAction
+    where
+        F: router_env::types::FlowMetric,
+        lock_utils::ApiIdentifier: From<F>;
+}
