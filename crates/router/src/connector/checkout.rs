@@ -61,6 +61,10 @@ impl ConnectorCommon for Checkout {
         "checkout"
     }
 
+    fn get_currency_unit(&self) -> api::CurrencyUnit {
+        api::CurrencyUnit::Minor
+    }
+
     fn common_get_content_type(&self) -> &'static str {
         "application/json"
     }
@@ -305,7 +309,13 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
         &self,
         req: &types::PaymentsCaptureRouterData,
     ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
-        let connector_req = checkout::PaymentCaptureRequest::try_from(req)?;
+        let connector_router_data = checkout::CheckoutRouterData::try_from((
+            &self.get_currency_unit(),
+            req.request.currency,
+            req.request.amount_to_capture,
+            req,
+        ))?;
+        let connector_req = checkout::PaymentCaptureRequest::try_from(&connector_router_data)?;
         let checkout_req = types::RequestBody::log_and_get_request_body(
             &connector_req,
             utils::Encode::<checkout::PaymentCaptureRequest>::encode_to_string_of_json,
@@ -484,7 +494,13 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         &self,
         req: &types::PaymentsAuthorizeRouterData,
     ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
-        let connector_req = checkout::PaymentsRequest::try_from(req)?;
+        let connector_router_data = checkout::CheckoutRouterData::try_from((
+            &self.get_currency_unit(),
+            req.request.currency,
+            req.request.amount,
+            req,
+        ))?;
+        let connector_req = checkout::PaymentsRequest::try_from(&connector_router_data)?;
         let checkout_req = types::RequestBody::log_and_get_request_body(
             &connector_req,
             utils::Encode::<checkout::PaymentsRequest>::encode_to_string_of_json,
@@ -657,7 +673,13 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
         &self,
         req: &types::RefundsRouterData<api::Execute>,
     ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
-        let connector_req = checkout::RefundRequest::try_from(req)?;
+        let connector_router_data = checkout::CheckoutRouterData::try_from((
+            &self.get_currency_unit(),
+            req.request.currency,
+            req.request.refund_amount,
+            req,
+        ))?;
+        let connector_req = checkout::RefundRequest::try_from(&connector_router_data)?;
         let body = types::RequestBody::log_and_get_request_body(
             &connector_req,
             utils::Encode::<checkout::RefundRequest>::encode_to_string_of_json,
