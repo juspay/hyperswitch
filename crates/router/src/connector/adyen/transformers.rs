@@ -3364,7 +3364,9 @@ impl TryFrom<&types::PaymentsCaptureRouterData> for AdyenCaptureRequest {
     fn try_from(item: &types::PaymentsCaptureRouterData) -> Result<Self, Self::Error> {
         let auth_type = AdyenAuthType::try_from(&item.connector_auth_type)?;
         let reference = match item.request.multiple_capture_data.clone() {
+            // if multiple capture request, send capture_id as our reference for the capture
             Some(multiple_capture_request_data) => multiple_capture_request_data.capture_reference,
+            // if single capture request, send connector_request_reference_id(attempt_id)
             None => item.connector_request_reference_id.clone(),
         };
         Ok(Self {
