@@ -56,6 +56,7 @@ pub struct PaymentAttempt {
     pub multiple_capture_count: Option<i16>,
     // reference to the payment at connector side
     pub connector_response_reference_id: Option<String>,
+    pub amount_capturable: i64,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Queryable, Serialize, Deserialize)]
@@ -113,6 +114,7 @@ pub struct PaymentAttemptNew {
     pub error_reason: Option<String>,
     pub connector_response_reference_id: Option<String>,
     pub multiple_capture_count: Option<i16>,
+    pub amount_capturable: i64,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -135,6 +137,7 @@ pub enum PaymentAttemptUpdate {
         payment_token: Option<String>,
         connector: Option<String>,
         straight_through_algorithm: Option<serde_json::Value>,
+        amount_capturable: Option<i64>,
     },
     AuthenticationTypeUpdate {
         authentication_type: storage_enums::AuthenticationType,
@@ -155,6 +158,7 @@ pub enum PaymentAttemptUpdate {
         straight_through_algorithm: Option<serde_json::Value>,
         error_code: Option<Option<String>>,
         error_message: Option<Option<String>>,
+        amount_capturable: Option<i64>,
     },
     VoidUpdate {
         status: storage_enums::AttemptStatus,
@@ -178,6 +182,7 @@ pub enum PaymentAttemptUpdate {
         error_message: Option<Option<String>>,
         error_reason: Option<Option<String>>,
         connector_response_reference_id: Option<String>,
+        amount_capturable: Option<i64>,
     },
     UnresolvedResponseUpdate {
         status: storage_enums::AttemptStatus,
@@ -198,9 +203,14 @@ pub enum PaymentAttemptUpdate {
         error_code: Option<Option<String>>,
         error_message: Option<Option<String>>,
         error_reason: Option<Option<String>>,
+        amount_capturable: Option<i64>,
     },
     MultipleCaptureCountUpdate {
         multiple_capture_count: i16,
+    },
+    AmountToCaptureUpdate {
+        status: storage_enums::AttemptStatus,
+        amount_capturable: i64,
     },
     PreprocessingUpdate {
         status: storage_enums::AttemptStatus,
@@ -242,6 +252,7 @@ pub struct PaymentAttemptUpdateInternal {
     capture_method: Option<storage_enums::CaptureMethod>,
     connector_response_reference_id: Option<String>,
     multiple_capture_count: Option<i16>,
+    amount_capturable: Option<i64>,
 }
 
 impl PaymentAttemptUpdate {
@@ -330,6 +341,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 straight_through_algorithm,
                 error_code,
                 error_message,
+                amount_capturable,
             } => Self {
                 amount: Some(amount),
                 currency: Some(currency),
@@ -347,6 +359,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 straight_through_algorithm,
                 error_code,
                 error_message,
+                amount_capturable,
                 ..Default::default()
             },
             PaymentAttemptUpdate::VoidUpdate {
@@ -380,6 +393,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 error_message,
                 error_reason,
                 connector_response_reference_id,
+                amount_capturable,
             } => Self {
                 status: Some(status),
                 connector,
@@ -394,6 +408,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 payment_token,
                 error_reason,
                 connector_response_reference_id,
+                amount_capturable,
                 ..Default::default()
             },
             PaymentAttemptUpdate::ErrorUpdate {
@@ -402,6 +417,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 error_code,
                 error_message,
                 error_reason,
+                amount_capturable,
             } => Self {
                 connector,
                 status: Some(status),
@@ -409,6 +425,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 error_code,
                 modified_at: Some(common_utils::date_time::now()),
                 error_reason,
+                amount_capturable,
                 ..Default::default()
             },
             PaymentAttemptUpdate::StatusUpdate { status } => Self {
@@ -419,10 +436,12 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 payment_token,
                 connector,
                 straight_through_algorithm,
+                amount_capturable,
             } => Self {
                 payment_token,
                 connector,
                 straight_through_algorithm,
+                amount_capturable,
                 ..Default::default()
             },
             PaymentAttemptUpdate::UnresolvedResponseUpdate {
@@ -467,6 +486,14 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 multiple_capture_count,
             } => Self {
                 multiple_capture_count: Some(multiple_capture_count),
+                ..Default::default()
+            },
+            PaymentAttemptUpdate::AmountToCaptureUpdate {
+                status,
+                amount_capturable,
+            } => Self {
+                status: Some(status),
+                amount_capturable: Some(amount_capturable),
                 ..Default::default()
             },
         }

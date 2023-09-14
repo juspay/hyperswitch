@@ -80,7 +80,7 @@ pub trait RouterData {
 pub const SELECTED_PAYMENT_METHOD: &str = "Selected payment method";
 
 pub fn get_unimplemented_payment_method_error_message(connector: &str) -> String {
-    format!("Selected payment method through {}", connector)
+    format!("{} through {}", SELECTED_PAYMENT_METHOD, connector)
 }
 
 impl<Flow, Request, Response> RouterData for types::RouterData<Flow, Request, Response> {
@@ -994,6 +994,33 @@ pub fn to_currency_base_unit_from_optional_amount(
     }
 }
 
+pub fn get_amount_as_string(
+    currency_unit: &types::api::CurrencyUnit,
+    amount: i64,
+    currency: diesel_models::enums::Currency,
+) -> Result<String, error_stack::Report<errors::ConnectorError>> {
+    let amount = match currency_unit {
+        types::api::CurrencyUnit::Minor => amount.to_string(),
+        types::api::CurrencyUnit::Base => to_currency_base_unit(amount, currency)?,
+    };
+    Ok(amount)
+}
+
+pub fn get_amount_as_f64(
+    currency_unit: &types::api::CurrencyUnit,
+    amount: i64,
+    currency: diesel_models::enums::Currency,
+) -> Result<f64, error_stack::Report<errors::ConnectorError>> {
+    let amount = match currency_unit {
+        types::api::CurrencyUnit::Base => to_currency_base_unit_asf64(amount, currency)?,
+        types::api::CurrencyUnit::Minor => u32::try_from(amount)
+            .into_report()
+            .change_context(errors::ConnectorError::ParsingFailed)?
+            .into(),
+    };
+    Ok(amount)
+}
+
 pub fn to_currency_base_unit(
     amount: i64,
     currency: diesel_models::enums::Currency,
@@ -1001,7 +1028,7 @@ pub fn to_currency_base_unit(
     currency
         .to_currency_base_unit(amount)
         .into_report()
-        .change_context(errors::ConnectorError::RequestEncodingFailed)
+        .change_context(errors::ConnectorError::ParsingFailed)
 }
 
 pub fn to_currency_lower_unit(
@@ -1050,7 +1077,7 @@ pub fn to_currency_base_unit_asf64(
     currency
         .to_currency_base_unit_asf64(amount)
         .into_report()
-        .change_context(errors::ConnectorError::RequestEncodingFailed)
+        .change_context(errors::ConnectorError::ParsingFailed)
 }
 
 pub fn str_to_f32<S>(value: &str, serializer: S) -> Result<S::Ok, S::Error>

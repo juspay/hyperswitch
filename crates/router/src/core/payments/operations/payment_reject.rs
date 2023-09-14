@@ -169,6 +169,7 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, PaymentsRejectRequest> for Payme
         _updated_customer: Option<storage::CustomerUpdate>,
         _mechant_key_store: &domain::MerchantKeyStore,
         _should_decline_transaction: Option<FrmSuggestion>,
+        _header_payload: api::HeaderPayload,
     ) -> RouterResult<(BoxedOperation<'b, F, PaymentsRejectRequest>, PaymentData<F>)>
     where
         F: 'b + Send,

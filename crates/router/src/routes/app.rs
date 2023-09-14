@@ -89,7 +89,12 @@ impl AppState {
                     .await
                     .expect("Failed to create store"),
             ),
-            StorageImpl::Mock => Box::new(MockDb::new().await),
+            #[allow(clippy::expect_used)]
+            StorageImpl::Mock => Box::new(
+                MockDb::new(&conf.redis)
+                    .await
+                    .expect("Failed to create mock store"),
+            ),
         };
 
         #[cfg(feature = "kms")]
@@ -447,7 +452,7 @@ impl Webhooks {
         web::scope("/webhooks")
             .app_data(web::Data::new(config))
             .service(
-                web::resource("/{merchant_id}/{connector_name}")
+                web::resource("/{merchant_id}/{connector_id_or_name}")
                     .route(
                         web::post().to(receive_incoming_webhook::<webhook_type::OutgoingWebhook>),
                     )

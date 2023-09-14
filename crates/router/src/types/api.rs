@@ -41,15 +41,25 @@ pub trait ConnectorAccessToken:
 pub trait ConnectorTransactionId: ConnectorCommon + Sync {
     fn connector_transaction_id(
         &self,
-        payment_attempt: diesel_models::payment_attempt::PaymentAttempt,
+        payment_attempt: data_models::payments::payment_attempt::PaymentAttempt,
     ) -> Result<Option<String>, errors::ApiErrorResponse> {
         Ok(payment_attempt.connector_transaction_id)
     }
 }
 
+pub enum CurrencyUnit {
+    Base,
+    Minor,
+}
+
 pub trait ConnectorCommon {
     /// Name of the connector (in lowercase).
     fn id(&self) -> &'static str;
+
+    /// Connector accepted currency unit as either "Base" or "Minor"
+    fn get_currency_unit(&self) -> CurrencyUnit {
+        CurrencyUnit::Minor // Default implementation should be remove once it is implemented in all connectors
+    }
 
     /// HTTP header used for authorization.
     fn get_auth_header(
