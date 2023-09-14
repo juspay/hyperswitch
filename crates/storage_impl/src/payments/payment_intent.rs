@@ -30,9 +30,9 @@ use diesel_models::{
 };
 use error_stack::{IntoReport, ResultExt};
 use redis_interface::HsetnxReply;
-use router_env::{instrument, tracing};
 #[cfg(feature = "olap")]
 use router_env::logger;
+use router_env::{instrument, tracing};
 
 use crate::{
     redis::kv_store::{PartitionKey, RedisConnInterface},
