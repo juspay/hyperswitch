@@ -40,6 +40,7 @@ pub async fn refund_create(
         _,
         types::StripeRefundResponse,
         errors::StripeErrorCode,
+        _,
     >(
         flow,
         state.get_ref(),
@@ -79,6 +80,7 @@ pub async fn refund_retrieve_with_gateway_creds(
         _,
         types::StripeRefundResponse,
         errors::StripeErrorCode,
+        _,
     >(
         flow,
         state.get_ref(),
@@ -121,6 +123,7 @@ pub async fn refund_retrieve(
         _,
         types::StripeRefundResponse,
         errors::StripeErrorCode,
+        _,
     >(
         flow,
         state.get_ref(),
@@ -161,6 +164,7 @@ pub async fn refund_update(
         _,
         types::StripeRefundResponse,
         errors::StripeErrorCode,
+        _,
     >(
         flow,
         state.get_ref(),

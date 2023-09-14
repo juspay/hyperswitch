@@ -31,6 +31,7 @@ use crate::{
 pub struct PaymentConfirm;
 #[async_trait]
 impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for PaymentConfirm {
+    #[instrument(skip_all)]
     async fn get_trackers<'a>(
         &'a self,
         state: &'a AppState,
@@ -429,6 +430,7 @@ impl<F: Clone + Send> Domain<F, api::PaymentsRequest> for PaymentConfirm {
 
 #[async_trait]
 impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for PaymentConfirm {
+    #[instrument(skip_all)]
     async fn update_trackers<'b>(
         &'b self,
         db: &dyn StorageInterface,
@@ -513,7 +515,7 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
             .take();
         let order_details = payment_data.payment_intent.order_details.clone();
         let metadata = payment_data.payment_intent.metadata.clone();
-
+        let authorized_amount = payment_data.payment_attempt.amount;
         let payment_attempt_fut = db
             .update_payment_attempt_with_attempt_id(
                 payment_data.payment_attempt,
@@ -533,6 +535,7 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
                     straight_through_algorithm,
                     error_code,
                     error_message,
+                    amount_capturable: Some(authorized_amount),
                 },
                 storage_scheme,
             )

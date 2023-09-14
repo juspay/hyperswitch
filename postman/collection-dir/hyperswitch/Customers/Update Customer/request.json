@@ -31,13 +31,8 @@
   },
   "url": {
     "raw": "{{baseUrl}}/customers/:id",
-    "host": [
-      "{{baseUrl}}"
-    ],
-    "path": [
-      "customers",
-      ":id"
-    ],
+    "host": ["{{baseUrl}}"],
+    "path": ["customers", ":id"],
     "variable": [
       {
         "key": "id",
