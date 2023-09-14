@@ -159,7 +159,6 @@ pub async fn get_address_for_payment_request(
                                     .line3
                                     .async_lift(|inner| types::encrypt_optional(inner, key))
                                     .await?,
-                                id: None,
                                 state: address_details
                                     .state
                                     .async_lift(|inner| types::encrypt_optional(inner, key))

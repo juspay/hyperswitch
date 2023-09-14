@@ -16,8 +16,6 @@ use super::{
 #[derive(Clone, Debug, serde::Serialize)]
 pub struct Address {
     #[serde(skip_serializing)]
-    pub id: Option<i32>,
-    #[serde(skip_serializing)]
     pub address_id: String,
     pub city: Option<String>,
     pub country: Option<enums::CountryAlpha2>,
@@ -48,9 +46,6 @@ impl behaviour::Conversion for Address {
 
     async fn convert(self) -> CustomResult<Self::DstType, ValidationError> {
         Ok(diesel_models::address::Address {
-            id: self.id.ok_or(ValidationError::MissingRequiredField {
-                field_name: "id".to_string(),
-            })?,
             address_id: self.address_id,
             city: self.city,
             country: self.country,
@@ -78,7 +73,6 @@ impl behaviour::Conversion for Address {
         async {
             let inner_decrypt = |inner| types::decrypt(inner, key.peek());
             Ok(Self {
-                id: Some(other.id),
                 address_id: other.address_id,
                 city: other.city,
                 country: other.country,
@@ -105,11 +99,6 @@ impl behaviour::Conversion for Address {
     }
 
     async fn construct_new(self) -> CustomResult<Self::NewDstType, ValidationError> {
-        common_utils::fp_utils::when(self.id.is_some(), || {
-            Err(ValidationError::InvalidValue {
-                message: "id present while creating a new database entry".to_string(),
-            })
-        })?;
         let now = date_time::now();
         Ok(Self::NewDstType {
             address_id: self.address_id,

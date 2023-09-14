@@ -25,10 +25,9 @@ pub struct AddressNew {
     pub modified_at: PrimitiveDateTime,
 }
 
-#[derive(Clone, Debug, Identifiable, Queryable)]
-#[diesel(table_name = address)]
+#[derive(Clone, Debug, Queryable, Identifiable)]
+#[diesel(table_name = address, primary_key(address_id))]
 pub struct Address {
-    pub id: i32,
     pub address_id: String,
     pub city: Option<String>,
     pub country: Option<enums::CountryAlpha2>,
