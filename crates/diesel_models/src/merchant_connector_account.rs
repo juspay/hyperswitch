@@ -28,9 +28,9 @@ pub struct MerchantConnectorAccount {
     pub payment_methods_enabled: Option<Vec<serde_json::Value>>,
     pub connector_type: storage_enums::ConnectorType,
     pub metadata: Option<pii::SecretSerdeValue>,
-    pub connector_label: String,
-    pub business_country: storage_enums::CountryAlpha2,
-    pub business_label: String,
+    pub connector_label: Option<String>,
+    pub business_country: Option<storage_enums::CountryAlpha2>,
+    pub business_label: Option<String>,
     pub business_sub_label: Option<String>,
     pub frm_configs: Option<Secret<serde_json::Value>>,
     pub created_at: time::PrimitiveDateTime,
@@ -39,6 +39,8 @@ pub struct MerchantConnectorAccount {
     #[diesel(deserialize_as = super::OptionalDieselArray<pii::SecretSerdeValue>)]
     pub frm_config: Option<Vec<Secret<serde_json::Value>>>,
     pub profile_id: Option<String>,
+    #[diesel(deserialize_as = super::OptionalDieselArray<String>)]
+    pub applepay_verified_domains: Option<Vec<String>>,
 }
 
 #[derive(Clone, Debug, Insertable, router_derive::DebugAsDisplay)]
@@ -53,9 +55,9 @@ pub struct MerchantConnectorAccountNew {
     pub merchant_connector_id: String,
     pub payment_methods_enabled: Option<Vec<serde_json::Value>>,
     pub metadata: Option<pii::SecretSerdeValue>,
-    pub connector_label: String,
-    pub business_country: storage_enums::CountryAlpha2,
-    pub business_label: String,
+    pub connector_label: Option<String>,
+    pub business_country: Option<storage_enums::CountryAlpha2>,
+    pub business_label: Option<String>,
     pub business_sub_label: Option<String>,
     pub frm_configs: Option<Secret<serde_json::Value>>,
     pub created_at: time::PrimitiveDateTime,
@@ -64,6 +66,8 @@ pub struct MerchantConnectorAccountNew {
     #[diesel(deserialize_as = super::OptionalDieselArray<pii::SecretSerdeValue>)]
     pub frm_config: Option<Vec<Secret<serde_json::Value>>>,
     pub profile_id: Option<String>,
+    #[diesel(deserialize_as = super::OptionalDieselArray<String>)]
+    pub applepay_verified_domains: Option<Vec<String>>,
 }
 
 #[derive(Clone, Debug, AsChangeset, router_derive::DebugAsDisplay)]
@@ -83,6 +87,8 @@ pub struct MerchantConnectorAccountUpdateInternal {
     pub connector_webhook_details: Option<pii::SecretSerdeValue>,
     #[diesel(deserialize_as = super::OptionalDieselArray<pii::SecretSerdeValue>)]
     pub frm_config: Option<Vec<Secret<serde_json::Value>>>,
+    #[diesel(deserialize_as = super::OptionalDieselArray<String>)]
+    pub applepay_verified_domains: Option<Vec<String>>,
 }
 
 impl MerchantConnectorAccountUpdateInternal {

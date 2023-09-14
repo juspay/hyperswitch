@@ -1,5 +1,7 @@
 #![allow(unused_variables)]
-use crate::core::errors;
+use common_utils::errors::ErrorSwitch;
+
+use crate::core::errors::{self, CustomersErrorResponse};
 
 #[derive(Debug, router_derive::ApiError, Clone)]
 #[error(error_type_enum = StripeErrorType)]
@@ -124,8 +126,11 @@ pub enum StripeErrorCode {
     #[error(error_type = StripeErrorType::InvalidRequestError, code = "token_already_used", message = "duplicate merchant account")]
     DuplicateMerchantAccount,
 
-    #[error(error_type = StripeErrorType::InvalidRequestError, code = "token_already_used", message = "The merchant connector account with the specified connector_label '{connector_label}' already exists in our records")]
-    DuplicateMerchantConnectorAccount { connector_label: String },
+    #[error(error_type = StripeErrorType::InvalidRequestError, code = "token_already_used", message = "The merchant connector account with the specified profile_id '{profile_id}' and connector_name '{connector_name}' already exists in our records")]
+    DuplicateMerchantConnectorAccount {
+        profile_id: String,
+        connector_name: String,
+    },
 
     #[error(error_type = StripeErrorType::InvalidRequestError, code = "token_already_used", message = "duplicate payment method")]
     DuplicatePaymentMethod,
@@ -391,7 +396,7 @@ impl From<errors::ApiErrorResponse> for StripeErrorCode {
             errors::ApiErrorResponse::Unauthorized
             | errors::ApiErrorResponse::InvalidJwtToken
             | errors::ApiErrorResponse::GenericUnauthorized { .. }
-            | errors::ApiErrorResponse::AccessForbidden
+            | errors::ApiErrorResponse::AccessForbidden { .. }
             | errors::ApiErrorResponse::InvalidEphemeralKey => Self::Unauthorized,
             errors::ApiErrorResponse::InvalidRequestUrl
             | errors::ApiErrorResponse::InvalidHttpMethod
@@ -495,9 +500,13 @@ impl From<errors::ApiErrorResponse> for StripeErrorCode {
             }
             errors::ApiErrorResponse::ReturnUrlUnavailable => Self::ReturnUrlUnavailable,
             errors::ApiErrorResponse::DuplicateMerchantAccount => Self::DuplicateMerchantAccount,
-            errors::ApiErrorResponse::DuplicateMerchantConnectorAccount { connector_label } => {
-                Self::DuplicateMerchantConnectorAccount { connector_label }
-            }
+            errors::ApiErrorResponse::DuplicateMerchantConnectorAccount {
+                profile_id,
+                connector_name,
+            } => Self::DuplicateMerchantConnectorAccount {
+                profile_id,
+                connector_name,
+            },
             errors::ApiErrorResponse::DuplicatePaymentMethod => Self::DuplicatePaymentMethod,
             errors::ApiErrorResponse::ClientSecretInvalid => Self::PaymentIntentInvalidParameter {
                 param: "client_secret".to_owned(),
@@ -694,10 +703,22 @@ impl From<serde_qs::Error> for StripeErrorCode {
     }
 }
 
-impl common_utils::errors::ErrorSwitch<StripeErrorCode> for errors::ApiErrorResponse {
+impl ErrorSwitch<StripeErrorCode> for errors::ApiErrorResponse {
     fn switch(&self) -> StripeErrorCode {
         self.clone().into()
     }
 }
 
 impl crate::services::EmbedError for error_stack::Report<StripeErrorCode> {}
+
+impl ErrorSwitch<StripeErrorCode> for CustomersErrorResponse {
+    fn switch(&self) -> StripeErrorCode {
+        use StripeErrorCode as SC;
+        match self {
+            Self::CustomerRedacted => SC::CustomerRedacted,
+            Self::InternalServerError => SC::InternalServerError,
+            Self::MandateActive => SC::MandateActive,
+            Self::CustomerNotFound => SC::CustomerNotFound,
+        }
+    }
+}

@@ -41,7 +41,7 @@ pub trait ConnectorAccessToken:
 pub trait ConnectorTransactionId: ConnectorCommon + Sync {
     fn connector_transaction_id(
         &self,
-        payment_attempt: diesel_models::payment_attempt::PaymentAttempt,
+        payment_attempt: data_models::payments::payment_attempt::PaymentAttempt,
     ) -> Result<Option<String>, errors::ApiErrorResponse> {
         Ok(payment_attempt.connector_transaction_id)
     }

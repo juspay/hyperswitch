@@ -48,7 +48,7 @@ use crate::{
             types::{decrypt, encrypt_optional, AsyncLift},
         },
         storage::{self, enums},
-        transformers::{ForeignFrom, ForeignInto},
+        transformers::ForeignFrom,
     },
     utils::{self, ConnectorResponseExt, OptionExt},
 };
@@ -854,9 +854,24 @@ pub async fn list_payment_methods(
         .await
         .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
 
+    let profile_id = payment_intent
+        .as_ref()
+        .async_map(|payment_intent| async {
+            crate::core::utils::get_profile_id_from_business_details(
+                payment_intent.business_country,
+                payment_intent.business_label.as_ref(),
+                &merchant_account,
+                payment_intent.profile_id.as_ref(),
+                db,
+            )
+            .await
+            .attach_printable("Could not find profile id from business details")
+        })
+        .await
+        .transpose()?;
+
     // filter out connectors based on the business country
-    let filtered_mcas =
-        helpers::filter_mca_based_on_business_details(all_mcas, payment_intent.as_ref());
+    let filtered_mcas = helpers::filter_mca_based_on_business_profile(all_mcas, profile_id);
 
     logger::debug!(mca_before_filtering=?filtered_mcas);
 
@@ -1249,9 +1264,31 @@ pub async fn list_payment_methods(
             redirect_url: merchant_account.return_url,
             merchant_name: merchant_account.merchant_name,
             payment_methods: payment_method_responses,
-            mandate_payment: payment_attempt
-                .and_then(|inner| inner.mandate_details)
-                .map(ForeignInto::foreign_into),
+            mandate_payment: payment_attempt.and_then(|inner| inner.mandate_details).map(
+                |d| match d {
+                    data_models::mandates::MandateDataType::SingleUse(i) => {
+                        api::MandateType::SingleUse(api::MandateAmountData {
+                            amount: i.amount,
+                            currency: i.currency,
+                            start_date: i.start_date,
+                            end_date: i.end_date,
+                            metadata: i.metadata,
+                        })
+                    }
+                    data_models::mandates::MandateDataType::MultiUse(Some(i)) => {
+                        api::MandateType::MultiUse(Some(api::MandateAmountData {
+                            amount: i.amount,
+                            currency: i.currency,
+                            start_date: i.start_date,
+                            end_date: i.end_date,
+                            metadata: i.metadata,
+                        }))
+                    }
+                    data_models::mandates::MandateDataType::MultiUse(None) => {
+                        api::MandateType::MultiUse(None)
+                    }
+                },
+            ),
         },
     ))
 }
@@ -1899,7 +1936,7 @@ async fn get_card_details(
     state: &routes::AppState,
     hyperswitch_token: &str,
 ) -> errors::RouterResult<Option<api::CardDetailFromLocker>> {
-    let mut card_decrypted =
+    let mut _card_decrypted =
         decrypt::<serde_json::Value, masking::WithType>(pm.payment_method_data.clone(), key)
             .await
             .change_context(errors::StorageError::DecryptionError)
@@ -1912,13 +1949,9 @@ async fn get_card_details(
                 PaymentMethodsData::Card(crd) => api::CardDetailFromLocker::from(crd),
             });
 
-    card_decrypted = if let Some(mut crd) = card_decrypted {
-        crd.scheme = pm.scheme.clone();
-        Some(crd)
-    } else {
-        Some(get_lookup_key_from_locker(state, hyperswitch_token, pm).await?)
-    };
-    Ok(card_decrypted)
+    Ok(Some(
+        get_lookup_key_from_locker(state, hyperswitch_token, pm).await?,
+    ))
 }
 
 pub async fn get_lookup_key_from_locker(

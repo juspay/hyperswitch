@@ -1,18 +1,18 @@
 use std::{future::Future, time::Instant};
 
 use actix_web::{HttpRequest, HttpResponse, Responder};
-use common_utils::errors::ErrorSwitch;
+use common_utils::errors::{CustomResult, ErrorSwitch};
 use router_env::{instrument, tracing, Tag};
 use serde::Serialize;
 
 use crate::{
-    core::errors::{self, RouterResult},
+    core::errors::{self},
     routes::{app::AppStateInfo, metrics},
     services::{self, api, authentication as auth, logger},
 };
 
 #[instrument(skip(request, payload, state, func, api_authentication))]
-pub async fn compatibility_api_wrap<'a, 'b, A, U, T, Q, F, Fut, S, E>(
+pub async fn compatibility_api_wrap<'a, 'b, A, U, T, Q, F, Fut, S, E, E2>(
     flow: impl router_env::types::FlowMetric,
     state: &'b A,
     request: &'a HttpRequest,
@@ -22,7 +22,8 @@ pub async fn compatibility_api_wrap<'a, 'b, A, U, T, Q, F, Fut, S, E>(
 ) -> HttpResponse
 where
     F: Fn(&'b A, U, T) -> Fut,
-    Fut: Future<Output = RouterResult<api::ApplicationResponse<Q>>>,
+    Fut: Future<Output = CustomResult<api::ApplicationResponse<Q>, E2>>,
+    E2: ErrorSwitch<E> + std::error::Error + Send + Sync + 'static,
     Q: Serialize + std::fmt::Debug + 'a,
     S: TryFrom<Q> + Serialize,
     E: Serialize + error_stack::Context + actix_web::ResponseError + Clone,
@@ -110,14 +111,18 @@ where
                 ),
             }
         }
-        Ok(api::ApplicationResponse::Form(redirection_data)) => api::build_redirection_form(
-            &redirection_data.redirect_form,
-            redirection_data.payment_method_data,
-            redirection_data.amount,
-            redirection_data.currency,
-        )
-        .respond_to(request)
-        .map_into_boxed_body(),
+        Ok(api::ApplicationResponse::Form(redirection_data)) => {
+            let config = state.conf();
+            api::build_redirection_form(
+                &redirection_data.redirect_form,
+                redirection_data.payment_method_data,
+                redirection_data.amount,
+                redirection_data.currency,
+                config,
+            )
+            .respond_to(request)
+            .map_into_boxed_body()
+        }
         Err(error) => api::log_and_return_error_response(error),
     };
 

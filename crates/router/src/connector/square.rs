@@ -567,6 +567,12 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
         req: &types::PaymentsCaptureRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
+        if req.request.amount_to_capture != req.request.payment_amount {
+            Err(errors::ConnectorError::NotSupported {
+                message: "Partial Capture".to_string(),
+                connector: "Square",
+            })?
+        }
         Ok(Some(
             services::RequestBuilder::new()
                 .method(services::Method::Post)
@@ -839,7 +845,22 @@ impl api::IncomingWebhook for Square {
         _merchant_id: &str,
         _connector_webhook_secrets: &api_models::webhooks::ConnectorWebhookSecrets,
     ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
-        Ok(format!("{}{}", request.uri, String::from_utf8_lossy(request.body)).into_bytes())
+        let header_value = request
+            .headers
+            .get(actix_web::http::header::HOST)
+            .ok_or(errors::ConnectorError::WebhookSourceVerificationFailed)?;
+        let authority = header_value
+            .to_str()
+            .into_report()
+            .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
+
+        Ok(format!(
+            "https://{}{}{}",
+            authority,
+            request.uri,
+            String::from_utf8_lossy(request.body)
+        )
+        .into_bytes())
     }
 
     fn get_webhook_object_reference_id(

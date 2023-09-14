@@ -1,5 +1,11 @@
+// use actix_web::HttpMessage;
+use actix_web::http::header::HeaderMap;
 use api_models::enums as api_enums;
-use common_utils::{crypto::Encryptable, ext_traits::ValueExt, pii};
+use common_utils::{
+    crypto::Encryptable,
+    ext_traits::{StringExt, ValueExt},
+    pii,
+};
 use diesel_models::enums as storage_enums;
 use error_stack::ResultExt;
 use masking::{ExposeInterface, PeekInterface};
@@ -7,6 +13,7 @@ use masking::{ExposeInterface, PeekInterface};
 use super::domain;
 use crate::{
     core::errors,
+    services::authentication::get_header_value_by_key,
     types::{api as api_types, storage},
 };
 
@@ -169,6 +176,58 @@ impl ForeignFrom<storage_enums::MandateAmountData> for api_models::payments::Man
             start_date: from.start_date,
             end_date: from.end_date,
             metadata: from.metadata,
+        }
+    }
+}
+
+// TODO: remove foreign from since this conversion won't be needed in the router crate once data models is treated as a single & primary source of truth for structure information
+impl ForeignFrom<api_models::payments::MandateData> for data_models::mandates::MandateData {
+    fn foreign_from(d: api_models::payments::MandateData) -> Self {
+        Self {
+            customer_acceptance: d.customer_acceptance.map(|d| {
+                data_models::mandates::CustomerAcceptance {
+                    acceptance_type: match d.acceptance_type {
+                        api_models::payments::AcceptanceType::Online => {
+                            data_models::mandates::AcceptanceType::Online
+                        }
+                        api_models::payments::AcceptanceType::Offline => {
+                            data_models::mandates::AcceptanceType::Offline
+                        }
+                    },
+                    accepted_at: d.accepted_at,
+                    online: d.online.map(|d| data_models::mandates::OnlineMandate {
+                        ip_address: d.ip_address,
+                        user_agent: d.user_agent,
+                    }),
+                }
+            }),
+            mandate_type: d.mandate_type.map(|d| match d {
+                api_models::payments::MandateType::MultiUse(Some(i)) => {
+                    data_models::mandates::MandateDataType::MultiUse(Some(
+                        data_models::mandates::MandateAmountData {
+                            amount: i.amount,
+                            currency: i.currency,
+                            start_date: i.start_date,
+                            end_date: i.end_date,
+                            metadata: i.metadata,
+                        },
+                    ))
+                }
+                api_models::payments::MandateType::SingleUse(i) => {
+                    data_models::mandates::MandateDataType::SingleUse(
+                        data_models::mandates::MandateAmountData {
+                            amount: i.amount,
+                            currency: i.currency,
+                            start_date: i.start_date,
+                            end_date: i.end_date,
+                            metadata: i.metadata,
+                        },
+                    )
+                }
+                api_models::payments::MandateType::MultiUse(None) => {
+                    data_models::mandates::MandateDataType::MultiUse(None)
+                }
+            }),
         }
     }
 }
@@ -608,6 +667,7 @@ impl TryFrom<domain::MerchantConnectorAccount> for api_models::admin::MerchantCo
                 })
                 .transpose()?,
             profile_id: item.profile_id,
+            applepay_verified_domains: item.applepay_verified_domains,
         })
     }
 }
@@ -681,6 +741,30 @@ impl ForeignFrom<api_models::enums::PayoutType> for api_enums::PaymentMethod {
             api_models::enums::PayoutType::Bank => Self::BankTransfer,
             api_models::enums::PayoutType::Card => Self::Card,
         }
+    }
+}
+
+impl ForeignTryFrom<&HeaderMap> for api_models::payments::HeaderPayload {
+    type Error = error_stack::Report<errors::ApiErrorResponse>;
+    fn foreign_try_from(headers: &HeaderMap) -> Result<Self, Self::Error> {
+        let payment_confirm_source: Option<api_enums::PaymentSource> =
+            get_header_value_by_key("payment_confirm_source".into(), headers)?
+                .map(|source| {
+                    source
+                        .to_owned()
+                        .parse_enum("PaymentSource")
+                        .change_context(errors::ApiErrorResponse::InvalidRequestData {
+                            message: "Invalid data received in payment_confirm_source header"
+                                .into(),
+                        })
+                        .attach_printable(
+                            "Failed while paring PaymentConfirmSource header value to enum",
+                        )
+                })
+                .transpose()?;
+        Ok(Self {
+            payment_confirm_source,
+        })
     }
 }
 
