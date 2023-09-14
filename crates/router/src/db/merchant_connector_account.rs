@@ -649,6 +649,7 @@ impl MerchantConnectorAccountInterface for MockDb {
             modified_at: common_utils::date_time::now(),
             connector_webhook_details: t.connector_webhook_details,
             profile_id: t.profile_id,
+            applepay_verified_domains: t.applepay_verified_domains,
             pm_auth_config: t.pm_auth_config,
         };
         accounts.push(account.clone());
@@ -844,6 +845,7 @@ mod merchant_connector_account_cache_tests {
             modified_at: date_time::now(),
             connector_webhook_details: None,
             profile_id: Some(profile_id.to_string()),
+            applepay_verified_domains: None,
             pm_auth_config: None,
         };
 

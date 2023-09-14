@@ -207,6 +207,7 @@ trustpay = {payment_method = "card,bank_redirect,wallet"}
 stripe = {payment_method = "card,bank_redirect,pay_later,wallet,bank_debit"}
 
 [dummy_connector]
+enabled = true
 payment_ttl = 172800
 payment_duration = 1000
 payment_tolerance = 100
