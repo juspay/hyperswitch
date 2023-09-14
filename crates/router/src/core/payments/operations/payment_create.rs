@@ -422,6 +422,7 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
             .payment_attempt
             .straight_through_algorithm
             .clone();
+        let authorized_amount = payment_data.payment_attempt.amount;
 
         println!(
             "non updated payment intent sahkal {:?}",
@@ -435,6 +436,10 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
                     payment_token,
                     connector,
                     straight_through_algorithm,
+                    amount_capturable: match payment_data.confirm.unwrap_or(true) {
+                        true => Some(authorized_amount),
+                        false => None,
+                    },
                 },
                 storage_scheme,
             )

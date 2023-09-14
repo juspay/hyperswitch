@@ -331,10 +331,18 @@ where
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Database error when querying for merchant connector accounts")?;
 
-        let filtered_connector_accounts = helpers::filter_mca_based_on_business_profile(
-            all_connector_accounts,
-            Some(payment_intent),
-        );
+        let profile_id = crate::core::utils::get_profile_id_from_business_details(
+            payment_intent.business_country,
+            payment_intent.business_label.as_ref(),
+            merchant_account,
+            payment_intent.profile_id.as_ref(),
+            &*state.store,
+        )
+        .await
+        .attach_printable("Could not find profile id from business details")?;
+
+        let filtered_connector_accounts =
+            helpers::filter_mca_based_on_business_profile(all_connector_accounts, Some(profile_id));
 
         let requested_payment_method_types = request.wallets.clone();
         let mut connector_and_supporting_payment_method_type = Vec::new();
