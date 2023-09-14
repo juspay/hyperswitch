@@ -1,6 +1,5 @@
 use std::marker::PhantomData;
 
-use api_models::webhooks::ObjectReferenceId;
 use common_utils::{errors::CustomResult, ext_traits::ValueExt};
 use error_stack::ResultExt;
 
@@ -10,9 +9,7 @@ use crate::{
         payments::helpers,
     },
     db::{get_and_deserialize_key, StorageInterface},
-    routes::AppState,
     types::{self, api, domain, PaymentAddress},
-    utils,
 };
 
 fn default_webhook_config() -> api::MerchantWebhookConfig {
@@ -66,36 +63,17 @@ pub async fn lookup_webhook_event(
 }
 
 pub async fn construct_webhook_router_data<'a>(
-    state: &'a AppState,
-    merchant_account: &crate::types::domain::MerchantAccount,
-    key_store: &domain::MerchantKeyStore,
     connector_name: &str,
-    merchant_secret: &api_models::webhooks::ConnectorWebhookSecrets,
-    object_reference_id: &ObjectReferenceId,
+    merchant_connector_account: domain::MerchantConnectorAccount,
+    merchant_account: &domain::MerchantAccount,
+    connector_wh_secrets: &api_models::webhooks::ConnectorWebhookSecrets,
     request_details: &api::IncomingWebhookRequestDetails<'_>,
 ) -> CustomResult<types::VerifyWebhookSourceRouterData, errors::ApiErrorResponse> {
-    let profile_id = utils::get_profile_id_using_object_reference_id(
-        &*state.store,
-        object_reference_id.clone(),
-        merchant_account,
-        connector_name,
-    )
-    .await
-    .change_context(errors::ApiErrorResponse::InternalServerError)
-    .attach_printable("Error while fetching connector_label")?;
-    let merchant_connector_account = helpers::get_merchant_connector_account(
-        state,
-        merchant_account.merchant_id.as_str(),
-        None,
-        key_store,
-        &profile_id,
-        connector_name,
-    )
-    .await?;
-    let auth_type: types::ConnectorAuthType = merchant_connector_account
-        .get_connector_account_details()
-        .parse_value("ConnectorAuthType")
-        .change_context(errors::ApiErrorResponse::InternalServerError)?;
+    let auth_type: types::ConnectorAuthType =
+        helpers::MerchantConnectorAccountType::DbVal(merchant_connector_account.clone())
+            .get_connector_account_details()
+            .parse_value("ConnectorAuthType")
+            .change_context(errors::ApiErrorResponse::InternalServerError)?;
 
     let router_data = types::RouterData {
         flow: PhantomData,
@@ -117,7 +95,7 @@ pub async fn construct_webhook_router_data<'a>(
         request: types::VerifyWebhookSourceRequestData {
             webhook_headers: request_details.headers.clone(),
             webhook_body: request_details.body.to_vec().clone(),
-            merchant_secret: merchant_secret.clone(),
+            merchant_secret: connector_wh_secrets.to_owned(),
         },
         response: Err(types::ErrorResponse::default()),
         access_token: None,
