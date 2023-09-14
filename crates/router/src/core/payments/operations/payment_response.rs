@@ -17,7 +17,10 @@ use crate::{
     services::RedirectForm,
     types::{
         self, api,
-        storage::{self, enums, payment_attempt::PaymentAttemptExt},
+        storage::{
+            self, enums,
+            payment_attempt::{AttemptStatusExt, PaymentAttemptExt},
+        },
         transformers::ForeignTryFrom,
         CaptureSyncResponse,
     },
@@ -318,7 +321,11 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                             error_message: Some(Some(err.message)),
                             error_code: Some(Some(err.code)),
                             error_reason: Some(err.reason),
-                            amount_capturable: if status.is_terminal_status() {
+                            amount_capturable: if status.is_terminal_status()
+                                || router_data
+                                    .status
+                                    .maps_to_intent_status(enums::IntentStatus::Processing)
+                            {
                                 Some(0)
                             } else {
                                 None
@@ -430,7 +437,11 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                                 error_message: error_status.clone(),
                                 error_reason: error_status,
                                 connector_response_reference_id,
-                                amount_capturable: if router_data.status.is_terminal_status() {
+                                amount_capturable: if router_data.status.is_terminal_status()
+                                    || router_data
+                                        .status
+                                        .maps_to_intent_status(enums::IntentStatus::Processing)
+                                {
                                     Some(0)
                                 } else {
                                     None
