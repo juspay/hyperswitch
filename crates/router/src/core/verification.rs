@@ -134,8 +134,6 @@ pub async fn get_verified_apple_domains_with_mid_mca_id(
         .unwrap_or_default();
 
     Ok(services::api::ApplicationResponse::Json(
-        api_models::verifications::ApplepayVerifiedDomainsResponse {
-            verified_domains,
-        },
+        api_models::verifications::ApplepayVerifiedDomainsResponse { verified_domains },
     ))
 }
