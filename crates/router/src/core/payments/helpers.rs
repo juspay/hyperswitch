@@ -1356,6 +1356,9 @@ pub async fn make_pm_data<'a, F: Clone, R>(
                     bank_code: None,
                 };
 
+                payment_data.payment_attempt.payment_method =
+                    Some(storage_enums::PaymentMethod::Card);
+
                 Ok(Some(api::PaymentMethodData::Card(api_card)))
             }
         },
