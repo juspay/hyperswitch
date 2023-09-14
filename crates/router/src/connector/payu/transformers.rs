@@ -132,11 +132,20 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PayuPaymentsRequest {
                     })
                 }
             },
-            api::PaymentMethodData::BankDebit(_)
-            | api::PaymentMethodData::BankRedirect(_)
-            | api::PaymentMethodData::BankTransfer(_)
-            | api::PaymentMethodData::Upi(_)
-            | api::PaymentMethodData::PayLater(_)
+
+            api::PaymentMethodData::BankDebit(ref bank_debit_data) => {
+                PayuPaymentMethod::try_from(bank_debit_data)
+            }
+            api::PaymentMethodData::BankRedirect(ref bank_redirect_data) => {
+                PayuPaymentMethod::try_from(bank_redirect_data)
+            }
+            api::PaymentMethodData::BankTransfer(ref bank_transfer_data) => {
+                PayuPaymentMethod::try_from(bank_transfer_data.as_ref())
+            }
+            api::PaymentMethodData::PayLater(ref pay_later_data) => {
+                PayuPaymentMethod::try_from(pay_later_data)
+            }
+            api::PaymentMethodData::Upi(_)
             | api::PaymentMethodData::GiftCard(_) => Err(errors::ConnectorError::NotImplemented(
                 utils::get_unimplemented_payment_method_error_message("payu"),
             )),
@@ -171,6 +180,112 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PayuPaymentsRequest {
             pay_methods: payment_method,
             continue_url: None,
         })
+    }
+}
+
+impl TryFrom<&api_models::payments::BankDebitData> for PayuPaymentMethod {
+    type Error = errors::ConnectorError;
+    fn try_from(value: &api_models::payments::BankDebitData) -> Result<Self, Self::Error> {
+        match value {
+            api_models::payments::BankDebitData::SepaBankDebit { .. } => {
+                Err(errors::ConnectorError::NotImplemented(
+                    utils::get_unimplemented_payment_method_error_message("Payu"),
+                ))
+            }
+            api_models::payments::BankDebitData::AchBankDebit { .. }
+            | api_models::payments::BankDebitData::BecsBankDebit { .. }
+            | api_models::payments::BankDebitData::BacsBankDebit { .. } => {
+                Err(errors::ConnectorError::NotSupported {
+                    message: utils::SELECTED_PAYMENT_METHOD.to_string(),
+                    connector: "Payu",
+                })
+            }
+        }
+    }
+}
+
+impl TryFrom<&api_models::payments::BankRedirectData> for PayuPaymentMethod {
+    type Error = errors::ConnectorError;
+    fn try_from(value: &api_models::payments::BankRedirectData) -> Result<Self, Self::Error> {
+        match value {
+            api_models::payments::BankRedirectData::BancontactCard { .. }
+            | api_models::payments::BankRedirectData::Blik { .. }
+            | api_models::payments::BankRedirectData::Giropay { .. }
+            | api_models::payments::BankRedirectData::Ideal { .. }
+            | api_models::payments::BankRedirectData::Sofort { .. }
+            | api_models::payments::BankRedirectData::Trustly { .. } => {
+                Err(errors::ConnectorError::NotImplemented(
+                    utils::get_unimplemented_payment_method_error_message("Payu"),
+                ))
+            }
+            api_models::payments::BankRedirectData::Interac { .. }
+            | api_models::payments::BankRedirectData::Bizum {}
+            | api_models::payments::BankRedirectData::Eps { .. }
+            | api_models::payments::BankRedirectData::OnlineBankingCzechRepublic { .. }
+            | api_models::payments::BankRedirectData::OnlineBankingFinland { .. }
+            | api_models::payments::BankRedirectData::OnlineBankingPoland { .. }
+            | api_models::payments::BankRedirectData::OnlineBankingSlovakia { .. }
+            | api_models::payments::BankRedirectData::OpenBankingUk { .. }
+            | api_models::payments::BankRedirectData::Przelewy24 { .. }
+            | api_models::payments::BankRedirectData::OnlineBankingFpx { .. }
+            | api_models::payments::BankRedirectData::OnlineBankingThailand { .. } => {
+                Err(errors::ConnectorError::NotSupported {
+                    message: utils::SELECTED_PAYMENT_METHOD.to_string(),
+                    connector: "Payu",
+                })
+            }
+        }
+    }
+}
+
+impl TryFrom<&api_models::payments::BankTransferData> for PayuPaymentMethod {
+    type Error = errors::ConnectorError;
+    fn try_from(value: &api_models::payments::BankTransferData) -> Result<Self, Self::Error> {
+        match value {
+            api_models::payments::BankTransferData::AchBankTransfer { .. } => {
+                Err(errors::ConnectorError::NotImplemented(
+                    utils::get_unimplemented_payment_method_error_message("Payu"),
+                ))
+            }
+            api_models::payments::BankTransferData::SepaBankTransfer { .. }
+            | api_models::payments::BankTransferData::BacsBankTransfer { .. }
+            | api_models::payments::BankTransferData::MultibancoBankTransfer { .. }
+            | api_models::payments::BankTransferData::PermataBankTransfer { .. }
+            | api_models::payments::BankTransferData::BcaBankTransfer { .. }
+            | api_models::payments::BankTransferData::BniVaBankTransfer { .. }
+            | api_models::payments::BankTransferData::BriVaBankTransfer { .. }
+            | api_models::payments::BankTransferData::CimbVaBankTransfer { .. }
+            | api_models::payments::BankTransferData::DanamonVaBankTransfer { .. }
+            | api_models::payments::BankTransferData::MandiriVaBankTransfer { .. }
+            | api_models::payments::BankTransferData::Pix {}
+            | api_models::payments::BankTransferData::Pse {} => {
+                Err(errors::ConnectorError::NotSupported {
+                    message: utils::SELECTED_PAYMENT_METHOD.to_string(),
+                    connector: "Payu",
+                })
+            }
+        }
+    }
+}
+
+impl TryFrom<&api_models::payments::PayLaterData> for PayuPaymentMethod {
+    type Error = errors::ConnectorError;
+    fn try_from(value: &api_models::payments::PayLaterData) -> Result<Self, Self::Error> {
+        match value {
+            api_models::payments::PayLaterData::KlarnaRedirect { .. }
+            | api_models::payments::PayLaterData::KlarnaSdk { .. }
+            | api_models::payments::PayLaterData::AffirmRedirect {}
+            | api_models::payments::PayLaterData::AfterpayClearpayRedirect { .. }
+            | api_models::payments::PayLaterData::PayBrightRedirect {}
+            | api_models::payments::PayLaterData::WalleyRedirect {}
+            | api_models::payments::PayLaterData::AlmaRedirect {}
+            | api_models::payments::PayLaterData::AtomeRedirect {} => {
+                Err(errors::ConnectorError::NotSupported {
+                    message: utils::SELECTED_PAYMENT_METHOD.to_string(),
+                    connector: "Payu",
+                })
+            }
+        }
     }
 }
 
