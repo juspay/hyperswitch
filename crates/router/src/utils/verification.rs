@@ -1,48 +1,27 @@
 use actix_web::web;
-#[cfg(all(feature = "olap", feature = "kms"))]
 use api_models::verifications::{self, ApplepayMerchantResponse};
 use common_utils::errors::CustomResult;
-use diesel_models::business_profile;
 use error_stack::{Report, ResultExt};
 #[cfg(feature = "kms")]
 use external_services::kms;
 
 use crate::{
-    core::errors::{self, api_error_response},
-    db::StorageInterface,
+    core::errors::{self, api_error_response, utils::StorageErrorExt},
     headers, logger,
     routes::AppState,
-    services, types, utils,
+    services, types,
+    types::storage,
+    utils,
 };
 
 const APPLEPAY_INTERNAL_MERCHANT_NAME: &str = "Applepay_merchant";
-
-pub async fn get_verified_apple_domains_with_business_profile_id(
-    db: &dyn StorageInterface,
-    profile_id: String,
-) -> CustomResult<
-    services::ApplicationResponse<api_models::verifications::ApplepayVerifiedDomainsResponse>,
-    api_error_response::ApiErrorResponse,
-> {
-    let verified_domains = db
-        .find_business_profile_by_profile_id(&profile_id)
-        .await
-        .change_context(api_error_response::ApiErrorResponse::ResourceIdNotFound)?
-        .applepay_verified_domains
-        .unwrap_or_default();
-    Ok(services::api::ApplicationResponse::Json(
-        api_models::verifications::ApplepayVerifiedDomainsResponse {
-            status_code: 200,
-            verified_domains,
-        },
-    ))
-}
 
 pub async fn verify_merchant_creds_for_applepay(
     state: &AppState,
     _req: &actix_web::HttpRequest,
     body: web::Json<verifications::ApplepayMerchantVerificationRequest>,
     kms_config: &kms::KmsConfig,
+    merchant_id: String,
 ) -> CustomResult<
     services::ApplicationResponse<ApplepayMerchantResponse>,
     api_error_response::ApiErrorResponse,
@@ -110,7 +89,8 @@ pub async fn verify_merchant_creds_for_applepay(
         Ok(_) => {
             check_existence_and_add_domain_to_db(
                 state,
-                body.business_profile_id.clone(),
+                merchant_id,
+                body.merchant_connector_account_id.clone(),
                 body.domain_names.clone(),
             )
             .await
@@ -129,20 +109,34 @@ pub async fn verify_merchant_creds_for_applepay(
         }
     })
 }
-
-// Checks whether or not the domain verified is already present in db if not adds it
 async fn check_existence_and_add_domain_to_db(
     state: &AppState,
-    business_profile_id: String,
+    merchant_id: String,
+    merchant_connector_id: String,
     domain_from_req: Vec<String>,
-) -> CustomResult<business_profile::BusinessProfile, errors::StorageError> {
-    let business_profile = state
+) -> CustomResult<Vec<String>, errors::ApiErrorResponse> {
+    let key_store = state
         .store
-        .find_business_profile_by_profile_id(&business_profile_id)
-        .await?;
-    let business_profile_to_update = business_profile.clone();
-    let mut already_verified_domains = business_profile
+        .get_merchant_key_store_by_merchant_id(
+            &merchant_id,
+            &state.store.get_master_key().to_vec().into(),
+        )
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::InternalServerError)?;
+
+    let merchant_connector_account = state
+        .store
+        .find_by_merchant_connector_account_merchant_id_merchant_connector_id(
+            &merchant_id,
+            &merchant_connector_id,
+            &key_store,
+        )
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)?;
+
+    let mut already_verified_domains = merchant_connector_account
         .applepay_verified_domains
+        .clone()
         .unwrap_or_default();
 
     let mut new_verified_domains: Vec<String> = domain_from_req
@@ -151,30 +145,34 @@ async fn check_existence_and_add_domain_to_db(
         .collect();
 
     already_verified_domains.append(&mut new_verified_domains);
-
-    let update_business_profile = business_profile::BusinessProfileUpdateInternal {
-        applepay_verified_domains: Some(already_verified_domains),
-        profile_name: Some(business_profile.profile_name),
-        modified_at: Some(business_profile.modified_at),
-        return_url: business_profile.return_url,
-        enable_payment_response_hash: Some(business_profile.enable_payment_response_hash),
-        payment_response_hash_key: business_profile.payment_response_hash_key,
-        redirect_to_merchant_with_http_post: Some(
-            business_profile.redirect_to_merchant_with_http_post,
-        ),
-        webhook_details: business_profile.webhook_details,
-        metadata: business_profile.metadata,
-        routing_algorithm: business_profile.routing_algorithm,
-        intent_fulfillment_time: business_profile.intent_fulfillment_time,
-        frm_routing_algorithm: business_profile.frm_routing_algorithm,
-        payout_routing_algorithm: business_profile.payout_routing_algorithm,
-        is_recon_enabled: Some(business_profile.is_recon_enabled),
+    let updated_mca = storage::MerchantConnectorAccountUpdate::Update {
+        merchant_id: None,
+        connector_type: None,
+        connector_name: None,
+        connector_account_details: None,
+        test_mode: None,
+        disabled: None,
+        merchant_connector_id: None,
+        payment_methods_enabled: None,
+        metadata: None,
+        frm_configs: None,
+        connector_webhook_details: None,
+        applepay_verified_domains: Some(already_verified_domains.clone()),
     };
-
     state
         .store
-        .update_business_profile_by_profile_id(business_profile_to_update, update_business_profile)
+        .update_merchant_connector_account(
+            merchant_connector_account,
+            updated_mca.into(),
+            &key_store,
+        )
         .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable_lazy(|| {
+            format!("Failed while updating MerchantConnectorAccount: id: {merchant_connector_id}")
+        })?;
+
+    Ok(already_verified_domains.clone())
 }
 
 fn log_applepay_verification_response_if_error(
