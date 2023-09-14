@@ -4,6 +4,16 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 1.39.1+hotfix.1 (2023-09-14)
+
+### Bug Fixes
+
+- Make amount_capturable zero when payment intent status is processing ([#2159](https://github.com/juspay/hyperswitch/pull/2159)) ([`10a7596`](https://github.com/juspay/hyperswitch/commit/10a75962d257171ead3e62a83be774b0ab20b737))
+
+**Full Changelog:** [`v1.39.1...v1.39.1+hotfix.1`](https://github.com/juspay/hyperswitch/compare/v1.39.1...v1.39.1+hotfix.1)
+
+- - -
+
 ## 1.39.1 (2023-09-13)
 
 ### Bug Fixes
