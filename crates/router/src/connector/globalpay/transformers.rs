@@ -500,4 +500,8 @@ impl utils::MultipleCaptureSyncResponse for GlobalpayPaymentsResponse {
     fn is_capture_response(&self) -> bool {
         true
     }
+
+    fn get_connector_reference_id(&self) -> Option<String> {
+        self.reference.clone()
+    }
 }

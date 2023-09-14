@@ -158,9 +158,8 @@ impl types::RouterData<api::PSync, types::PaymentsSyncData, types::PaymentsRespo
         >,
     ) -> RouterResult<Self> {
         let mut capture_sync_response_map = HashMap::new();
-        for connector_capture_id in pending_connector_capture_id_list {
-            self.request.connector_transaction_id =
-                types::ResponseId::ConnectorTransactionId(connector_capture_id.clone());
+        if let payments::CallConnectorAction::HandleResponse(_) = call_connector_action {
+            // webhook consume flow, only call connector once. Since there will only be a single event in every webhook
             let resp = services::execute_connector_processing_step(
                 state,
                 connector_integration.clone(),
@@ -170,28 +169,44 @@ impl types::RouterData<api::PSync, types::PaymentsSyncData, types::PaymentsRespo
             )
             .await
             .to_payment_failed_response()?;
-            match resp.response {
-                Err(err) => {
-                    capture_sync_response_map.insert(connector_capture_id, types::CaptureSyncResponse::Error {
-                        code: err.code,
-                        message: err.message,
-                        reason: err.reason,
-                        status_code: err.status_code,
-                    });
-                },
-                Ok(types::PaymentsResponseData::MultipleCaptureResponse { capture_sync_response_list })=> {
-                    capture_sync_response_map.extend(capture_sync_response_list.into_iter());
+            Ok(resp)
+        } else {
+            // in trigger, call connector for every capture_id
+            for connector_capture_id in pending_connector_capture_id_list {
+                self.request.connector_transaction_id =
+                    types::ResponseId::ConnectorTransactionId(connector_capture_id.clone());
+                let resp = services::execute_connector_processing_step(
+                    state,
+                    connector_integration.clone(),
+                    &self,
+                    call_connector_action.clone(),
+                    None,
+                )
+                .await
+                .to_payment_failed_response()?;
+                match resp.response {
+                    Err(err) => {
+                        capture_sync_response_map.insert(connector_capture_id, types::CaptureSyncResponse::Error {
+                            code: err.code,
+                            message: err.message,
+                            reason: err.reason,
+                            status_code: err.status_code,
+                        });
+                    },
+                    Ok(types::PaymentsResponseData::MultipleCaptureResponse { capture_sync_response_list })=> {
+                        capture_sync_response_map.extend(capture_sync_response_list.into_iter());
+                    }
+                    _ => Err(ApiErrorResponse::PreconditionFailed { message: "Response type must be PaymentsResponseData::MultipleCaptureResponse for payment sync".into() })?,
+                };
+                if let payments::CallConnectorAction::HandleResponse(_) = call_connector_action {
+                    // if webhook consume flow, call execute_connector_processing_step() only once
+                    break;
                 }
-                _ => Err(ApiErrorResponse::PreconditionFailed { message: "Response type must be PaymentsResponseData::MultipleCaptureResponse for payment sync".into() })?,
-            };
-            if let payments::CallConnectorAction::HandleResponse(_) = call_connector_action {
-                // if webhook consume flow, call execute_connector_processing_step() only once
-                break;
             }
+            self.response = Ok(types::PaymentsResponseData::MultipleCaptureResponse {
+                capture_sync_response_list: capture_sync_response_map,
+            });
+            Ok(self)
         }
-        self.response = Ok(types::PaymentsResponseData::MultipleCaptureResponse {
-            capture_sync_response_list: capture_sync_response_map,
-        });
-        Ok(self)
     }
 }

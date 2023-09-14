@@ -1367,6 +1367,11 @@ where
     hashmap
 }
 
+pub fn is_manual_capture(capture_method: Option<enums::CaptureMethod>) -> bool {
+    capture_method == Some(enums::CaptureMethod::Manual)
+        || capture_method == Some(enums::CaptureMethod::ManualMultiple)
+}
+
 pub fn validate_currency(
     request_currency: types::storage::enums::Currency,
     merchant_config_currency: Option<types::storage::enums::Currency>,

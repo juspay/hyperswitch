@@ -3305,11 +3305,6 @@ pub fn get_present_to_shopper_metadata(
     }
 }
 
-fn is_manual_capture(capture_method: Option<storage_enums::CaptureMethod>) -> bool {
-    capture_method == Some(storage_enums::CaptureMethod::Manual)
-        || capture_method == Some(storage_enums::CaptureMethod::ManualMultiple)
-}
-
 impl<F, Req>
     TryFrom<(
         types::ResponseRouterData<F, AdyenPaymentResponse, Req, types::PaymentsResponseData>,
@@ -3319,15 +3314,13 @@ impl<F, Req>
 {
     type Error = Error;
     fn try_from(
-        items: (
+        (item, capture_method, is_multiple_capture_psync_flow): (
             types::ResponseRouterData<F, AdyenPaymentResponse, Req, types::PaymentsResponseData>,
             Option<storage_enums::CaptureMethod>,
             bool,
         ),
     ) -> Result<Self, Self::Error> {
-        let item = items.0;
-        let is_manual_capture = is_manual_capture(items.1);
-        let is_multiple_capture_psync_flow = items.2;
+        let is_manual_capture = utils::is_manual_capture(capture_method);
         let (status, error, payment_response_data) = match item.response {
             AdyenPaymentResponse::Response(response) => {
                 if is_multiple_capture_psync_flow {
