@@ -426,7 +426,7 @@ fn get_js_script(
 }
 
 fn get_html_body() -> String {
-    r##" 
+    r#" 
         <body onload="showSDK()">
         <div class="page-spinner hidden" id="page-spinner"></div>
         <div class="hyper-checkout">
@@ -499,11 +499,11 @@ fn get_html_body() -> String {
             </svg>
         </div>
         </body>
-    "##.to_owned()
+    "#.to_owned()
 }
 
 fn get_css() -> String {
-    r##"
+    r#"
     html, body {
         height: 100%;
       }
@@ -810,6 +810,6 @@ fn get_css() -> String {
           font-size: 17px;
         }
       }
-    "##
+    "#
     .to_owned()
 }
