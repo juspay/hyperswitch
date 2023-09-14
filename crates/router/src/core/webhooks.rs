@@ -808,9 +808,9 @@ pub async fn webhooks_core<W: types::OutgoingWebhookType>(
             .attach_printable_lazy(|| {
                 format!("unable to parse connector name {connector_name:?}")
             })?;
-        let connectors_with_source_verfication_call = &state.conf.webhook_source_verification_call;
+        let connectors_with_source_verification_call = &state.conf.webhook_source_verification_call;
 
-        let source_verified = if connectors_with_source_verfication_call
+        let source_verified = if connectors_with_source_verification_call
             .connectors_with_webhook_source_verification_call
             .contains(&connector_enum)
         {
