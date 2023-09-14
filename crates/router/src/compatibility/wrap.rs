@@ -119,16 +119,14 @@ where
         .respond_to(request)
         .map_into_boxed_body(),
 
-        Ok(api::ApplicationResponse::PaymenkLinkForm(payment_link_data)) => api::build_payment_link_html(
-            *payment_link_data
-        )
-        .respond_to(request)
-        .map_into_boxed_body(),
+        Ok(api::ApplicationResponse::PaymenkLinkForm(payment_link_data)) => {
+            api::build_payment_link_html(*payment_link_data)
+                .respond_to(request)
+                .map_into_boxed_body()
+        }
 
         Err(error) => api::log_and_return_error_response(error),
     };
-
-
 
     let response_code = res.status().as_u16();
     let end_instant = Instant::now();

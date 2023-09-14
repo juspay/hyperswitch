@@ -92,7 +92,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
             } else {
                 (None, None)
             };
-        
+
         // Validate whether profile_id passed in request is valid and is linked to the merchant
         helpers::validate_business_details(
             request.business_country,
@@ -171,8 +171,6 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
             .to_duplicate_response(errors::ApiErrorResponse::DuplicatePayment {
                 payment_id: payment_id.clone(),
             })?;
-        
-        println!("payment link id {:?}", payment_link_id);
 
         payment_intent = db
             .insert_payment_intent(
@@ -194,8 +192,11 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
             .to_duplicate_response(errors::ApiErrorResponse::DuplicatePayment {
                 payment_id: payment_id.clone(),
             })?;
-        
-        println!("payment intent after making in get tracker {:?}", payment_intent.clone());
+
+        println!(
+            "payment intent after making in get tracker {:?}",
+            payment_intent.clone()
+        );
 
         connector_response = db
             .insert_connector_response(
@@ -277,9 +278,6 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
 
         // The operation merges mandate data from both request and payment_attempt
         let setup_mandate: Option<MandateData> = setup_mandate.map(Into::into);
-
-        println!("bhola {:?}", payment_intent);
-        
 
         Ok((
             operation,
@@ -425,7 +423,10 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
             .straight_through_algorithm
             .clone();
 
-        println!("non updated payment intent sahkal {:?}", payment_data.payment_intent.clone());
+        println!(
+            "non updated payment intent sahkal {:?}",
+            payment_data.payment_intent.clone()
+        );
 
         payment_data.payment_attempt = db
             .update_payment_attempt_with_attempt_id(
@@ -458,9 +459,6 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
             .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
 
         // payment_data.mandate_id = response.and_then(|router_data| router_data.request.mandate_id);
-
-        println!("updated payment intent sahkal {:?}", payment_data.payment_intent.clone());
-
         Ok((
             payments::is_confirm(self, payment_data.confirm),
             payment_data,
@@ -668,8 +666,6 @@ impl PaymentCreate {
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Error converting feature_metadata to Value")?;
 
-        // println!("sahkal profile_id{:?} sahkal payment_link_id{:?}",profile_id,payment_link_id);
-
         Ok(storage::PaymentIntentNew {
             payment_id: payment_id.to_string(),
             merchant_id: merchant_account.merchant_id.to_string(),
@@ -700,7 +696,7 @@ impl PaymentCreate {
             connector_metadata,
             feature_metadata,
             attempt_count: 1,
-            profile_id: None,
+            profile_id: Some(profile_id),
             merchant_decision: None,
             payment_link_id: payment_link_id_sahkal,
             payment_confirm_source: None,

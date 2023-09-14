@@ -641,7 +641,7 @@ pub struct PaymentLinkFormData {
     pub js_script: String,
     pub css_script: String,
     pub body: String,
-    pub base_url: String
+    pub base_url: String,
 }
 
 #[derive(Debug, Eq, PartialEq)]
@@ -826,11 +826,11 @@ where
         .respond_to(request)
         .map_into_boxed_body(),
 
-        Ok(ApplicationResponse::PaymenkLinkForm(payment_link_data)) => build_payment_link_html(
-            *payment_link_data
-        )
-        .respond_to(request)
-        .map_into_boxed_body(),
+        Ok(ApplicationResponse::PaymenkLinkForm(payment_link_data)) => {
+            build_payment_link_html(*payment_link_data)
+                .respond_to(request)
+                .map_into_boxed_body()
+        }
 
         Ok(ApplicationResponse::JsonWithHeaders((response, headers))) => {
             match serde_json::to_string(&response) {
@@ -1259,12 +1259,9 @@ mod tests {
     }
 }
 
-
-pub fn build_payment_link_html(
-    payment_link_data: PaymentLinkFormData,
-) -> maud::Markup {
+pub fn build_payment_link_html(payment_link_data: PaymentLinkFormData) -> maud::Markup {
     use maud::PreEscaped;
-    maud::html!{
+    maud::html! {
         (maud::DOCTYPE)
         html {
             head {
@@ -1274,11 +1271,11 @@ pub fn build_payment_link_html(
                 ",payment_link_data.css_script)))
 
                 link rel = "stylesheet" href = "https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800";
-            
+
             }
             (PreEscaped(payment_link_data.body))
             (PreEscaped(payment_link_data.js_script))
-            
+
         }
     }
 }

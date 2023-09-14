@@ -297,7 +297,8 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
         _storage_scheme: MerchantStorageScheme,
     ) -> error_stack::Result<PaymentIntent, StorageError> {
         let conn = pg_connection_write(self).await?;
-        let sahkal = new.to_storage_model()
+        let sahkal = new
+            .to_storage_model()
             .insert(&conn)
             .await
             .map_err(|er| {

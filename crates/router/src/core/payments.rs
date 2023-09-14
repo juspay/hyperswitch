@@ -101,8 +101,11 @@ where
             auth_flow,
         )
         .await?;
-    
-    println!("payment operation payment intent {:?}", payment_data.payment_intent.clone());
+
+    println!(
+        "payment operation payment intent {:?}",
+        payment_data.payment_intent.clone()
+    );
 
     let (operation, customer) = operation
         .to_domain()?

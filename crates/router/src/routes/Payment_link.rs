@@ -7,7 +7,6 @@ use crate::{
     services::{api, authentication as auth},
 };
 
-
 // use payment_link;
 
 pub async fn get_payment_link(
@@ -40,8 +39,7 @@ pub async fn get_payment_link(
     .await
 }
 
-
-pub async fn initiate_payment_link (
+pub async fn initiate_payment_link(
     state: web::Data<app::AppState>,
     req: actix_web::HttpRequest,
     path: web::Path<(String, String)>,
@@ -50,14 +48,15 @@ pub async fn initiate_payment_link (
     let (merchant_id, payment_id) = path.into_inner();
     let payload = web::Json(api_models::payments::PaymentLinkInitiateRequest {
         payment_id,
-        merchant_id : merchant_id.clone() ,
-    }).into_inner();
+        merchant_id: merchant_id.clone(),
+    })
+    .into_inner();
     api::server_wrap(
         flow,
         state.get_ref(),
         &req,
         payload.clone(),
-        |state, auth , _| {
+        |state, auth, _| {
             payment_link::intiate_payment_link_flow(
                 state,
                 auth.merchant_account,

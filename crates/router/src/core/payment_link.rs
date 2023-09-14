@@ -1,18 +1,6 @@
-
-
-use diesel_models::schema::payment_intent::client_secret;
-
+use super::errors::{self, StorageErrorExt};
 #[cfg(feature = "olap")]
-use crate::{
-    routes::AppState,
-    types::domain,
-    services,
-    errors::RouterResponse,
-};
-
-use super::errors::{StorageErrorExt, self};
-
-
+use crate::{errors::RouterResponse, routes::AppState, services, types::domain};
 
 pub async fn retrieve_payment_link(
     state: &AppState,
@@ -39,39 +27,49 @@ pub async fn retrieve_payment_link(
     Ok(services::ApplicationResponse::Json(response))
 }
 
-pub async fn intiate_payment_link_flow (
+pub async fn intiate_payment_link_flow(
     state: &AppState,
     merchant_account: domain::MerchantAccount,
     merchant_id: String,
     payment_id: String,
-) -> RouterResponse<services::PaymentLinkFormData>  {
+) -> RouterResponse<services::PaymentLinkFormData> {
     let db = &*state.store;
-    let payment_intent = db.find_payment_intent_by_payment_id_merchant_id(&payment_id,&merchant_id, merchant_account.storage_scheme)
-    .await
-    .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
-
+    let payment_intent = db
+        .find_payment_intent_by_payment_id_merchant_id(
+            &payment_id,
+            &merchant_id,
+            merchant_account.storage_scheme,
+        )
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
 
     let body = get_html_body();
     let css_script = get_css();
-    let js_script = get_js_script(payment_intent.amount.to_string(), payment_intent.currency.unwrap().to_string(), merchant_account.publishable_key.unwrap(), payment_intent.client_secret.unwrap(), payment_intent.payment_id);
-    
+    let js_script = get_js_script(
+        payment_intent.amount.to_string(),
+        payment_intent.currency.unwrap_or_default().to_string(),
+        merchant_account.publishable_key.unwrap_or_default(),
+        payment_intent.client_secret.unwrap_or_default(),
+        payment_intent.payment_id,
+    );
+
     let payment_link_data = services::PaymentLinkFormData {
         js_script,
         css_script,
         body,
-        base_url:state.conf.server.base_url.clone(),
+        base_url: state.conf.server.base_url.clone(),
     };
-    Ok(services::ApplicationResponse::PaymenkLinkForm(Box::new(payment_link_data)))
-
+    Ok(services::ApplicationResponse::PaymenkLinkForm(Box::new(
+        payment_link_data,
+    )))
 }
 
-
-fn get_js_script (
- amount : String,
- currency : String,
- pub_key: String,
- secret: String,
- payment_id: String,
+fn get_js_script(
+    amount: String,
+    currency: String,
+    _pub_key: String,
+    _secret: String,
+    payment_id: String,
 ) -> String {
     format!(
     "
@@ -427,7 +425,7 @@ fn get_js_script (
     ")
 }
 
-fn get_html_body () -> String {
+fn get_html_body() -> String {
     r##" 
         <body onload="showSDK()">
         <div class="page-spinner hidden" id="page-spinner"></div>
@@ -501,10 +499,10 @@ fn get_html_body () -> String {
             </svg>
         </div>
         </body>
-    "##.to_owned() 
+    "##.to_owned()
 }
 
-fn get_css () -> String {
+fn get_css() -> String {
     r##"
     html, body {
         height: 100%;
@@ -812,5 +810,6 @@ fn get_css () -> String {
           font-size: 17px;
         }
       }
-    "##.to_owned()
+    "##
+    .to_owned()
 }
