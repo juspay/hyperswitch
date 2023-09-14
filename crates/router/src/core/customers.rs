@@ -293,7 +293,7 @@ pub async fn delete_customer(
                 .await
                 .switch()?,
         ),
-        phone: Some(redacted_encrypted_value.clone()),
+        phone: Box::new(Some(redacted_encrypted_value.clone())),
         description: Some(REDACTED.to_string()),
         phone_country_code: Some(REDACTED.to_string()),
         metadata: None,
@@ -476,10 +476,10 @@ pub async fn update_customer(
                             types::encrypt_optional(inner.map(|inner| inner.expose()), key)
                         })
                         .await?,
-                    phone: update_customer
+                    phone: Box::new(update_customer
                         .phone
                         .async_lift(|inner| types::encrypt_optional(inner, key))
-                        .await?,
+                        .await?),
                     phone_country_code: update_customer.phone_country_code,
                     metadata: update_customer.metadata,
                     description: update_customer.description,

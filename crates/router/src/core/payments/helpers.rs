@@ -1014,11 +1014,11 @@ pub async fn create_customer_if_not_exist<'a, F: Clone, R>(
                                         )
                                     })
                                     .await?,
-                                phone: request_customer_details
+                                phone: Box::new(request_customer_details
                                     .phone
                                     .clone()
                                     .async_lift(|inner| types::encrypt_optional(inner, key))
-                                    .await?,
+                                    .await?),
                                 phone_country_code: request_customer_details.phone_country_code,
                                 description: None,
                                 connector_customer: None,

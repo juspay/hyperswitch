@@ -104,7 +104,7 @@ pub enum CustomerUpdate {
     Update {
         name: crypto::OptionalEncryptableName,
         email: crypto::OptionalEncryptableEmail,
-        phone: crypto::OptionalEncryptablePhone,
+        phone: Box<crypto::OptionalEncryptablePhone>,
         description: Option<String>,
         phone_country_code: Option<String>,
         metadata: Option<pii::SecretSerdeValue>,
