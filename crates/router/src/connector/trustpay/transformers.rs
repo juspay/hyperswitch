@@ -104,6 +104,7 @@ pub struct DebtorInformation {
 pub struct BankPaymentInformation {
     pub amount: Amount,
     pub references: References,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub debtor: Option<DebtorInformation>,
 }
 
@@ -250,12 +251,7 @@ fn get_card_request_data(
             pan: ccard.card_number.clone(),
             cvv: ccard.card_cvc.clone(),
             expiry_date: ccard.get_card_expiry_month_year_2_digit_with_delimiter("/".to_owned()),
-            cardholder: match billing_last_name {
-                Some(last_name) => {
-                    format!("{} {}", params.billing_first_name.peek(), last_name.peek()).into()
-                }
-                None => params.billing_first_name,
-            },
+            cardholder: get_full_name(params.billing_first_name, billing_last_name),
             reference: item.payment_id.clone(),
             redirect_url: return_url,
             billing_city: params.billing_city,
@@ -280,6 +276,16 @@ fn get_card_request_data(
     )))
 }
 
+fn get_full_name(
+    billing_first_name: Secret<String>,
+    billing_last_name: Option<Secret<String>>,
+) -> Secret<String> {
+    match billing_last_name {
+        Some(last_name) => format!("{} {}", billing_first_name.peek(), last_name.peek()).into(),
+        None => billing_first_name,
+    }
+}
+
 fn get_debtor_info(
     item: &types::PaymentsAuthorizeRouterData,
     params: TrustpayMandatoryParams,
@@ -289,13 +295,18 @@ fn get_debtor_info(
         .payment_method_type
         .as_ref()
         .ok_or(errors::ConnectorError::MissingPaymentMethodType)?;
-    match payment_method_type {
-        enums::PaymentMethodType::Blik => Ok(Some(DebtorInformation {
-            name: params.billing_first_name,
+    let billing_last_name = item
+        .get_billing()?
+        .address
+        .as_ref()
+        .map(|address| address.last_name.clone().unwrap_or_default());
+    Ok(match payment_method_type {
+        enums::PaymentMethodType::Blik => Some(DebtorInformation {
+            name: get_full_name(params.billing_first_name, billing_last_name),
             email: item.request.get_email()?,
-        })),
-        _ => Ok(None),
-    }
+        }),
+        _ => None,
+    })
 }
 
 fn get_bank_redirection_request_data(
