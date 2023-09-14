@@ -1,3 +1,4 @@
+use crate::core::api_locking;
 pub mod helpers;
 
 use actix_web::{web, Responder};
@@ -113,10 +114,10 @@ pub async fn payments_create(
             )
         },
         &auth::ApiKeyAuth,
+        api_locking::LockAction::NotApplicable,
     )
     .await
 }
-
 // /// Payments - Redirect
 // ///
 // /// For a payment which involves the redirection flow. This redirects the user to the authentication page
@@ -165,10 +166,8 @@ pub async fn payments_start(
             )
         },
         &auth::MerchantIdAuth(merchant_id),
-    )
-    .await
+    api_locking::LockAction::NotApplicable).await
 }
-
 /// Payments - Retrieve
 ///
 /// To retrieve the properties of a Payment. This may be used to get the status of a previously initiated payment or next action for an ongoing payment
@@ -229,10 +228,10 @@ pub async fn payments_retrieve(
             )
         },
         &*auth_type,
+        api_locking::LockAction::NotApplicable,
     )
     .await
 }
-
 /// Payments - Retrieve with gateway credentials
 ///
 /// To retrieve the properties of a Payment. This may be used to get the status of a previously initiated payment or next action for an ongoing payment
@@ -287,10 +286,10 @@ pub async fn payments_retrieve_with_gateway_creds(
             )
         },
         &*auth_type,
+        api_locking::LockAction::NotApplicable,
     )
     .await
 }
-
 /// Payments - Update
 ///
 /// To update the properties of a PaymentIntent object. This may include attaching a payment method, or attaching customer object or metadata fields after the Payment is created
@@ -350,10 +349,10 @@ pub async fn payments_update(
             )
         },
         &*auth_type,
+        api_locking::LockAction::NotApplicable,
     )
     .await
 }
-
 /// Payments - Confirm
 ///
 /// This API is to confirm the payment request and forward payment to the payment processor. This API provides more granular control upon when the API is forwarded to the payment processor. Alternatively you can confirm the payment within the Payments Create API
@@ -423,10 +422,10 @@ pub async fn payments_confirm(
             )
         },
         &*auth_type,
+        api_locking::LockAction::NotApplicable,
     )
     .await
 }
-
 /// Payments - Capture
 ///
 /// To capture the funds for an uncaptured payment
@@ -477,10 +476,10 @@ pub async fn payments_capture(
             )
         },
         &auth::ApiKeyAuth,
+        api_locking::LockAction::NotApplicable,
     )
     .await
 }
-
 /// Payments - Session token
 ///
 /// To create the session object or to get session token for wallets
@@ -529,10 +528,10 @@ pub async fn payments_connector_session(
             )
         },
         &auth::PublishableKeyAuth,
+        api_locking::LockAction::NotApplicable,
     )
     .await
 }
-
 // /// Payments - Redirect response
 // ///
 // /// To get the payment response for redirect flows
@@ -585,10 +584,10 @@ pub async fn payments_redirect_response(
             )
         },
         &auth::MerchantIdAuth(merchant_id),
+        api_locking::LockAction::NotApplicable,
     )
     .await
 }
-
 // /// Payments - Redirect response with creds_identifier
 // ///
 // /// To get the payment response for redirect flows
@@ -640,10 +639,10 @@ pub async fn payments_redirect_response_with_creds_identifier(
             )
         },
         &auth::MerchantIdAuth(merchant_id),
+        api_locking::LockAction::NotApplicable,
     )
     .await
 }
-
 #[instrument(skip_all)]
 pub async fn payments_complete_authorize(
     state: web::Data<app::AppState>,
@@ -678,10 +677,10 @@ pub async fn payments_complete_authorize(
             )
         },
         &auth::MerchantIdAuth(merchant_id),
+        api_locking::LockAction::NotApplicable,
     )
     .await
 }
-
 /// Payments - Cancel
 ///
 /// A Payment could can be cancelled when it is in one of these statuses: requires_payment_method, requires_capture, requires_confirmation, requires_customer_action
@@ -730,10 +729,10 @@ pub async fn payments_cancel(
             )
         },
         &auth::ApiKeyAuth,
+        api_locking::LockAction::NotApplicable,
     )
     .await
 }
-
 /// Payments - List
 ///
 /// To list the payments
@@ -775,10 +774,10 @@ pub async fn payments_list(
         payload,
         |state, auth, req| payments::list_payments(&*state.store, auth.merchant_account, req),
         &auth::ApiKeyAuth,
+        api_locking::LockAction::NotApplicable,
     )
     .await
 }
-
 #[instrument(skip_all, fields(flow = ?Flow::PaymentsList))]
 #[cfg(feature = "olap")]
 pub async fn payments_list_by_filter(
@@ -797,10 +796,10 @@ pub async fn payments_list_by_filter(
             payments::apply_filters_on_payments(&*state.store, auth.merchant_account, req)
         },
         &auth::ApiKeyAuth,
+        api_locking::LockAction::NotApplicable,
     )
     .await
 }
-
 #[instrument(skip_all, fields(flow = ?Flow::PaymentsList))]
 #[cfg(feature = "olap")]
 pub async fn get_filters_for_payments(
@@ -819,10 +818,10 @@ pub async fn get_filters_for_payments(
             payments::get_filters_for_payments(&*state.store, auth.merchant_account, req)
         },
         &auth::ApiKeyAuth,
+        api_locking::LockAction::NotApplicable,
     )
     .await
 }
-
 async fn authorize_verify_select<Op>(
     operation: Op,
     state: &app::AppState,

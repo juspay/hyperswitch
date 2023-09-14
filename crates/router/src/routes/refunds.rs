@@ -3,7 +3,7 @@ use router_env::{instrument, tracing, Flow};
 
 use super::app::AppState;
 use crate::{
-    core::refunds::*,
+    core::{api_locking, refunds::*},
     services::{api, authentication as auth},
     types::api::refunds,
 };
@@ -38,10 +38,10 @@ pub async fn refunds_create(
         json_payload.into_inner(),
         |state, auth, req| refund_create_core(state, auth.merchant_account, auth.key_store, req),
         &auth::ApiKeyAuth,
+        api_locking::LockAction::NotApplicable,
     )
     .await
 }
-
 /// Refunds - Retrieve (GET)
 ///
 /// To retrieve the properties of a Refund. This may be used to get the status of a previously initiated payment or next action for an ongoing payment
@@ -89,10 +89,10 @@ pub async fn refunds_retrieve(
             )
         },
         &auth::ApiKeyAuth,
+        api_locking::LockAction::NotApplicable,
     )
     .await
 }
-
 /// Refunds - Retrieve (POST)
 ///
 /// To retrieve the properties of a Refund. This may be used to get the status of a previously initiated payment or next action for an ongoing payment
@@ -130,10 +130,10 @@ pub async fn refunds_retrieve_with_body(
             )
         },
         &auth::ApiKeyAuth,
+        api_locking::LockAction::NotApplicable,
     )
     .await
 }
-
 /// Refunds - Update
 ///
 /// To update the properties of a Refund object. This may include attaching a reason for the refund or metadata fields
@@ -171,10 +171,10 @@ pub async fn refunds_update(
             refund_update_core(&*state.store, auth.merchant_account, &refund_id, req)
         },
         &auth::ApiKeyAuth,
+        api_locking::LockAction::NotApplicable,
     )
     .await
 }
-
 /// Refunds - List
 ///
 /// To list the refunds associated with a payment_id or with the merchant, if payment_id is not provided
@@ -204,10 +204,10 @@ pub async fn refunds_list(
         payload.into_inner(),
         |state, auth, req| refund_list(&*state.store, auth.merchant_account, req),
         &auth::ApiKeyAuth,
+        api_locking::LockAction::NotApplicable,
     )
     .await
 }
-
 /// Refunds - Filter
 ///
 /// To list the refunds filters associated with list of connectors, currencies and payment statuses
@@ -237,6 +237,7 @@ pub async fn refunds_filter_list(
         payload.into_inner(),
         |state, auth, req| refund_filter_list(&*state.store, auth.merchant_account, req),
         &auth::ApiKeyAuth,
+        api_locking::LockAction::NotApplicable,
     )
     .await
 }

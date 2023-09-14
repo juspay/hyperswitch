@@ -3,7 +3,7 @@ use router_env::{instrument, tracing, Flow};
 
 use super::app::AppState;
 use crate::{
-    core::cards_info,
+    core::{api_locking, cards_info},
     services::{api, authentication as auth},
 };
 
@@ -48,6 +48,7 @@ pub async fn card_iin_info(
         payload,
         |state, auth, req| cards_info::retrieve_card_info(state, auth.merchant_account, req),
         &*auth,
+        api_locking::LockAction::NotApplicable,
     )
     .await
 }

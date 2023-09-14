@@ -5,6 +5,7 @@ use router_env::{instrument, tracing, Flow};
 
 use super::app::AppState;
 use crate::{
+    core::api_locking,
     services::{api, authentication as auth},
     utils::verification,
 };
@@ -25,6 +26,7 @@ pub async fn apple_pay_merchant_registration(
             verification::verify_merchant_creds_for_applepay(state, &req, body, &state.conf.kms)
         },
         auth::auth_type(&auth::ApiKeyAuth, &auth::JWTAuth, req.headers()),
+        api_locking::LockAction::NotApplicable,
     )
     .await
 }

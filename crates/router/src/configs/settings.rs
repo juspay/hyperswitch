@@ -97,6 +97,7 @@ pub struct Settings {
     pub applepay_decrypt_keys: ApplePayDecryptConifg,
     pub multiple_api_version_supported_connectors: MultipleApiVersionSupportedConnectors,
     pub applepay_merchant_configs: ApplepayMerchantConfigs,
+    pub lock_settings: LockSettings,
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
@@ -753,4 +754,10 @@ mod payment_method_deserialization_test {
 #[derive(Debug, Deserialize, Clone, Default)]
 pub struct Payouts {
     pub payout_eligibility: bool,
+}
+
+#[derive(Debug, Deserialize, Clone, Default)]
+pub struct LockSettings {
+    pub redis_lock_expiry_seconds: u32,
+    pub delay_between_retries_in_milliseconds: u32,
 }

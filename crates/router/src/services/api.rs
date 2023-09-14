@@ -505,7 +505,7 @@ pub async fn send_request(
         }
         .add_headers(headers)
         .timeout(Duration::from_secs(
-            option_timeout_secs.unwrap_or(u64::from(crate::consts::REQUEST_TIME_OUT)),
+            option_timeout_secs.unwrap_or(crate::consts::REQUEST_TIME_OUT),
         ))
         .send()
         .await
@@ -697,8 +697,8 @@ pub enum AuthFlow {
 }
 
 #[instrument(skip(request, payload, state, func, api_auth), fields(merchant_id))]
-pub async fn server_wrap_util<'a, 'b, A, U, T, Q, F, Fut, E, OErr, Flow>(
-    flow: &'a Flow,
+pub async fn server_wrap_util<'a, 'b, A, U, T, Q, F, Fut, E, OErr>(
+    flow: &'a impl router_env::types::FlowMetric,
     state: &'b A,
     request: &'a HttpRequest,
     payload: T,
@@ -707,17 +707,14 @@ pub async fn server_wrap_util<'a, 'b, A, U, T, Q, F, Fut, E, OErr, Flow>(
 ) -> CustomResult<ApplicationResponse<Q>, OErr>
 where
     F: Fn(&'b A, U, T) -> Fut,
-    Flow: router_env::types::FlowMetric,
     'b: 'a,
     Fut: Future<Output = CustomResult<ApplicationResponse<Q>, E>>,
     Q: Serialize + Debug + 'a,
-    T: api_locking::GetLockAction<Flow> + Debug,
-    A: AppStateInfo + Sync,
+    T: Debug,
+    A: AppStateInfo,
     U: auth::AuthInfo,
     CustomResult<ApplicationResponse<Q>, E>: ReportSwitchExt<ApplicationResponse<Q>, OErr>,
     CustomResult<U, errors::ApiErrorResponse>: ReportSwitchExt<U, OErr>,
-    CustomResult<Option<api_locking::LockAction>, errors::ApiErrorResponse>:
-        ReportSwitchExt<Option<api_locking::LockAction>, OErr>,
     OErr: ResponseError + Sync + Send + 'static,
 {
     let auth_out = api_auth
@@ -728,20 +725,13 @@ where
     let merchant_id = auth_out.get_merchant_id().unwrap_or("").to_string();
     tracing::Span::current().record("merchant_id", &merchant_id);
 
-    let lock_action = payload
-        .get_locking_action()
-        .async_map(|action| async { action.perform_locking_action(state).await })
-        .await
-        .transpose()
-        .switch()?;
-
     let output = func(state, auth_out, payload).await.switch();
 
-    let _lock_action = lock_action
-        .async_map(|action| async { action.free_lock_action(state).await })
-        .await
-        .transpose()
-        .switch()?;
+    // let _lock_action = lock_action
+    //     .async_map(|action| async { action.free_lock_action(state).await })
+    //     .await
+    //     .transpose()
+    //     .switch()?;
 
     let status_code = match output.as_ref() {
         Ok(res) => metrics::request::track_response_status_code(res),
@@ -757,23 +747,22 @@ where
     skip(request, state, func, api_auth, payload),
     fields(request_method, request_url_path)
 )]
-pub async fn server_wrap<'a, 'b, A, T, U, Q, F, Fut, E, Flow>(
-    flow: Flow,
+pub async fn server_wrap<'a, 'b, A, T, U, Q, F, Fut, E>(
+    flow: impl router_env::types::FlowMetric,
     state: &'b A,
     request: &'a HttpRequest,
     payload: T,
     func: F,
     api_auth: &dyn auth::AuthenticateAndFetch<U, A>,
+    lock_action: api_locking::LockAction,
 ) -> HttpResponse
 where
     F: Fn(&'b A, U, T) -> Fut,
     Fut: Future<Output = CustomResult<ApplicationResponse<Q>, E>>,
     Q: Serialize + Debug + 'a,
     T: Debug,
-    Flow: router_env::types::FlowMetric,
-    T: api_locking::GetLockAction<Flow> + Debug,
     U: auth::AuthInfo,
-    A: AppStateInfo + Sync,
+    A: AppStateInfo,
     ApplicationResponse<Q>: Debug,
     CustomResult<ApplicationResponse<Q>, E>:
         ReportSwitchExt<ApplicationResponse<Q>, api_models::errors::types::ApiErrorResponse>,

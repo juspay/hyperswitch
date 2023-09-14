@@ -21,6 +21,7 @@ pub mod refunds;
 #[cfg(all(feature = "olap", feature = "kms"))]
 pub mod verification;
 pub mod webhooks;
+pub mod lock_utils;
 
 #[cfg(feature = "dummy_connector")]
 pub use self::app::DummyConnector;

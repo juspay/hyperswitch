@@ -46,7 +46,6 @@ pub async fn setup_intents_create(
         _,
         _,
         _,
-        _,
         types::StripeSetupIntentResponse,
         errors::StripeErrorCode,
     >(
@@ -99,7 +98,6 @@ pub async fn setup_intents_retrieve(
     let flow = Flow::PaymentsRetrieve;
 
     Box::pin(wrap::compatibility_api_wrap::<
-        _,
         _,
         _,
         _,
@@ -170,7 +168,6 @@ pub async fn setup_intents_update(
         _,
         _,
         _,
-        _,
         types::StripeSetupIntentResponse,
         errors::StripeErrorCode,
     >(
@@ -230,7 +227,6 @@ pub async fn setup_intents_confirm(
     let flow = Flow::PaymentsConfirm;
 
     Box::pin(wrap::compatibility_api_wrap::<
-        _,
         _,
         _,
         _,
