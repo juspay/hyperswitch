@@ -548,6 +548,7 @@ impl PaymentRedirectFlow for PaymentRedirectSync {
 }
 
 #[allow(clippy::too_many_arguments)]
+#[instrument(skip_all)]
 pub async fn call_connector_service<F, RouterDReq, ApiRequest>(
     state: &AppState,
     merchant_account: &domain::MerchantAccount,

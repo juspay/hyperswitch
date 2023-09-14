@@ -164,6 +164,7 @@ where
         state: &AppState,
         request: Request,
         option_timeout_secs: Option<u64>,
+        forward_to_kafka: bool,
     ) -> CustomResult<reqwest::Response, ApiClientError>;
 
     fn add_request_id(&mut self, _request_id: Option<String>);
@@ -346,6 +347,7 @@ impl ApiClient for ProxyClient {
         state: &AppState,
         request: Request,
         option_timeout_secs: Option<u64>,
+        _forward_to_kafka: bool,
     ) -> CustomResult<reqwest::Response, ApiClientError> {
         crate::services::send_request(state, request, option_timeout_secs).await
     }
@@ -404,6 +406,7 @@ impl ApiClient for MockApiClient {
         _state: &AppState,
         _request: Request,
         _option_timeout_secs: Option<u64>,
+        _forward_to_kafka: bool,
     ) -> CustomResult<reqwest::Response, ApiClientError> {
         // [#2066]: Add Mock implementation for ApiClient
         Err(ApiClientError::UnexpectedState.into())
