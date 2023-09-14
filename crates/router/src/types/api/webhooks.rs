@@ -143,7 +143,6 @@ pub trait IncomingWebhook: ConnectorCommon + Sync {
         Ok(Vec::new())
     }
 
-    #[allow(clippy::too_many_arguments)]
     async fn verify_webhook_source_verification_call(
         &self,
         state: &crate::routes::AppState,
@@ -165,7 +164,7 @@ pub trait IncomingWebhook: ConnectorCommon + Sync {
             types::VerifyWebhookSourceRequestData,
             types::VerifyWebhookSourceResponseData,
         > = connector_data.connector.get_connector_integration();
-        let connector_wh_secrets = self
+        let connector_webhook_secrets = self
             .get_webhook_source_verification_merchant_secret(
                 merchant_account,
                 connector_name,
@@ -178,7 +177,7 @@ pub trait IncomingWebhook: ConnectorCommon + Sync {
             connector_name,
             merchant_connector_account,
             merchant_account,
-            &connector_wh_secrets,
+            &connector_webhook_secrets,
             request_details,
         )
         .await
