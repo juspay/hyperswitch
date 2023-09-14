@@ -13,10 +13,11 @@ concurrency:
 env:
   CARGO_INCREMENTAL: 1
   CARGO_NET_RETRY: 10
-  RUSTUP_MAX_RETRIES: 10
-  RUST_BACKTRACE: short
   CARGO_REGISTRIES_CRATES_IO_PROTOCOL: sparse
   CONNECTORS: stripe
+  RUST_BACKTRACE: short
+  RUSTUP_MAX_RETRIES: 10
+  RUST_MIN_STACK: 8388608
 
 jobs:
   runner:
@@ -98,6 +99,9 @@ jobs:
           DATABASE_URL: postgres://db_user:db_pass@localhost:5432/hyperswitch_db
         run: diesel migration run
 
+      - name: Install newman from fork
+        run: npm ci
+
       - name: Build project
         if: ${{ ((github.event_name == 'pull_request') && (github.event.pull_request.head.repo.full_name == github.event.pull_request.base.repo.full_name)) || (github.event_name == 'merge_group')}}
         run: cargo build --package router --bin router
@@ -121,10 +125,6 @@ jobs:
               sleep 10
             fi
           done
-
-      - name: Install newman from fork
-        run: |
-          npm ci
 
       - name: Run Tests
         if: ${{ ((github.event_name == 'pull_request') && (github.event.pull_request.head.repo.full_name == github.event.pull_request.base.repo.full_name)) || (github.event_name == 'merge_group')}}
