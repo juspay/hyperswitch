@@ -1013,7 +1013,7 @@ pub struct BusinessProfileCreate {
         deserialize_with = "payout_routing_algorithm::deserialize_option"
     )]
     pub payout_routing_algorithm: Option<serde_json::Value>,
-    
+
     /// Verified applepay domains for a particular profile
     pub applepay_verified_domains: Option<Vec<String>>,
 }
@@ -1134,7 +1134,7 @@ pub struct BusinessProfileUpdate {
         deserialize_with = "payout_routing_algorithm::deserialize_option"
     )]
     pub payout_routing_algorithm: Option<serde_json::Value>,
-    
+
     /// Verified applepay domains for a particular profile
     pub applepay_verified_domains: Option<Vec<String>>,
 }
