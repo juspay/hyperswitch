@@ -476,10 +476,12 @@ pub async fn update_customer(
                             types::encrypt_optional(inner.map(|inner| inner.expose()), key)
                         })
                         .await?,
-                    phone: Box::new(update_customer
-                        .phone
-                        .async_lift(|inner| types::encrypt_optional(inner, key))
-                        .await?),
+                    phone: Box::new(
+                        update_customer
+                            .phone
+                            .async_lift(|inner| types::encrypt_optional(inner, key))
+                            .await?,
+                    ),
                     phone_country_code: update_customer.phone_country_code,
                     metadata: update_customer.metadata,
                     description: update_customer.description,
