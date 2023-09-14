@@ -97,14 +97,12 @@ pub async fn verify_merchant_creds_for_applepay(
             .await
             .change_context(api_error_response::ApiErrorResponse::InternalServerError)?;
             services::api::ApplicationResponse::Json(ApplepayMerchantResponse {
-                status_code: 200,
                 status_message: "Applepay verification Completed".to_string(),
             })
         }
         Err(error) => {
             logger::error!(?error);
             services::api::ApplicationResponse::Json(ApplepayMerchantResponse {
-                status_code: 200,
                 status_message: "Applepay verification Failed".to_string(),
             })
         }
@@ -137,7 +135,6 @@ pub async fn get_verified_apple_domains_with_mid_mca_id(
 
     Ok(services::api::ApplicationResponse::Json(
         api_models::verifications::ApplepayVerifiedDomainsResponse {
-            status_code: 200,
             verified_domains,
         },
     ))

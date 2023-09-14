@@ -79,10 +79,10 @@ pub fn log_applepay_verification_response_if_error(
     response: &Result<Result<types::Response, types::Response>, Report<errors::ApiClientError>>,
 ) {
     if let Err(error) = response.as_ref() {
-        logger::error!(?error);
+        logger::error!(applepay_domain_verification_error= ?error);
     };
-    response
-        .as_ref()
-        .ok()
-        .map(|res| res.as_ref().map_err(|error| logger::error!(?error)));
+    response.as_ref().ok().map(|res| {
+        res.as_ref()
+            .map_err(|error| logger::error!(applepay_domain_verification_error= ?error))
+    });
 }
