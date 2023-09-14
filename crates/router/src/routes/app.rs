@@ -49,7 +49,6 @@ impl scheduler::SchedulerAppState for AppState {
 
 pub trait AppStateInfo {
     fn conf(&self) -> settings::Settings;
-    fn flow_name(&self) -> String;
     fn store(&self) -> Box<dyn StorageInterface>;
     #[cfg(feature = "email")]
     fn email_client(&self) -> Box<dyn EmailClient>;
@@ -61,9 +60,6 @@ pub trait AppStateInfo {
 impl AppStateInfo for AppState {
     fn conf(&self) -> settings::Settings {
         self.conf.as_ref().to_owned()
-    }
-    fn flow_name(&self) -> String {
-        self.flow_name.to_owned()
     }
     fn store(&self) -> Box<dyn StorageInterface> {
         self.store.to_owned()
