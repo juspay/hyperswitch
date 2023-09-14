@@ -1315,9 +1315,11 @@ pub async fn filter_payment_methods(
                     payment_intent
                         .allowed_payment_method_types
                         .clone()
-                        .parse_value("Vec<PaymentMethodType>")
-                        .map_err(|error| logger::error!(%error, "Failed to deserialize PaymentIntent allowed_payment_method_types"))
-                        .ok()
+                        .map(|val| val.parse_value("Vec<PaymentMethodType>"))
+                        .transpose()
+                        .unwrap_or_else(|error| {
+                            logger::error!(%error, "Failed to deserialize PaymentIntent allowed_payment_method_types"); None
+                        })
                 });
 
             for payment_method_type_info in payment_methods_enabled
