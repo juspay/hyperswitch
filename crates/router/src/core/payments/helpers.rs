@@ -2440,6 +2440,7 @@ impl MerchantConnectorAccountType {
 
 /// Query for merchant connector account either by business label or profile id
 /// If profile_id is passed use it, or use connector_label to query merchant connector account
+#[instrument(skip_all)]
 pub async fn get_merchant_connector_account(
     state: &AppState,
     merchant_id: &str,
