@@ -805,7 +805,6 @@ pub struct MerchantConnectorUpdate {
         }
     }))]
     pub connector_webhook_details: Option<MerchantConnectorWebhookDetails>,
-
 }
 
 ///Details of FrmConfigs are mentioned here... it should be passed in payment connector create api call, and stored in merchant_connector_table
@@ -1014,7 +1013,9 @@ pub struct BusinessProfileCreate {
         deserialize_with = "payout_routing_algorithm::deserialize_option"
     )]
     pub payout_routing_algorithm: Option<serde_json::Value>,
-
+    
+    /// Verified applepay domains for a particular profile
+    pub applepay_verified_domains: Option<Vec<String>>,
 }
 
 #[derive(Clone, Debug, ToSchema, Serialize)]
@@ -1133,5 +1134,7 @@ pub struct BusinessProfileUpdate {
         deserialize_with = "payout_routing_algorithm::deserialize_option"
     )]
     pub payout_routing_algorithm: Option<serde_json::Value>,
-
+    
+    /// Verified applepay domains for a particular profile
+    pub applepay_verified_domains: Option<Vec<String>>,
 }
