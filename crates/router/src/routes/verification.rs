@@ -4,11 +4,10 @@ use router_env::{instrument, tracing, Flow};
 
 use super::app::AppState;
 use crate::{
+    core::verification,
     services::{api, authentication as auth},
-    utils::verification,
 };
 
-#[cfg(all(feature = "olap", feature = "kms"))]
 #[instrument(skip_all, fields(flow = ?Flow::Verification))]
 pub async fn apple_pay_merchant_registration(
     state: web::Data<AppState>,
