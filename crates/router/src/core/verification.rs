@@ -81,7 +81,6 @@ pub async fn verify_merchant_creds_for_applepay(
 
     let response = services::call_connector_api(state, apple_pay_merch_verification_req).await;
     utils::log_applepay_verification_response_if_error(&response);
-    println!("ssssssssssssssss{:?}", response);
 
     let applepay_response =
         response.change_context(api_error_response::ApiErrorResponse::InternalServerError)?;
