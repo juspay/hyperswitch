@@ -33,7 +33,7 @@ pub async fn get_payment_link(
                 auth.merchant_account,
                 payload.payment_link_id.clone(),
             )
-    },
+        },
         &*auth_type,
     )
     .await
