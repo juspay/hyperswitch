@@ -76,12 +76,31 @@ impl Address {
     }
 
     #[instrument(skip(conn))]
-    pub async fn find_by_address_id<'a>(
+    pub async fn find_by_payment_id_address_id<'a>(
         conn: &PgPooledConn,
+        payment_id: &str,
         address_id: &str,
     ) -> StorageResult<Self> {
-        generics::generic_find_by_id::<<Self as HasTable>::Table, _, _>(conn, address_id.to_owned())
-            .await
+        match generics::generic_find_one::<<Self as HasTable>::Table, _, _>(
+            conn,
+            dsl::payment_id
+                .eq(payment_id.to_owned())
+                .and(dsl::address_id.eq(address_id.to_owned())),
+        )
+        .await
+        {
+            Err(error) => match error.current_context() {
+                errors::DatabaseError::NotFound => {
+                    generics::generic_find_by_id::<<Self as HasTable>::Table, _, _>(
+                        conn,
+                        address_id.to_owned(),
+                    )
+                    .await
+                }
+                _ => Err(error),
+            },
+            result => result,
+        }
     }
 
     #[instrument(skip(conn))]

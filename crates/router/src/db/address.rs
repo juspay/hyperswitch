@@ -60,12 +60,12 @@ where
 impl AddressInterface for Store {
     async fn find_address_payment_id_address_id(
         &self,
-        _payment_id: &str,
+        payment_id: &str,
         address_id: &str,
         key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<domain::Address, errors::StorageError> {
         let conn = connection::pg_connection_read(self).await?;
-        storage::Address::find_by_address_id(&conn, address_id)
+        storage::Address::find_by_payment_id_address_id(&conn, payment_id, address_id)
             .await
             .map_err(Into::into)
             .into_report()
