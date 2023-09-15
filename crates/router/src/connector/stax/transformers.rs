@@ -2,6 +2,7 @@ use common_utils::pii::Email;
 use error_stack::{IntoReport, ResultExt};
 use masking::{ExposeInterface, Secret};
 use serde::{Deserialize, Serialize};
+use time::PrimitiveDateTime;
 
 use crate::{
     connector::utils::{
@@ -462,11 +463,31 @@ pub enum StaxWebhookEventType {
     Unknown,
 }
 
+#[derive(Debug, Deserialize, strum::Display)]
+#[serde(rename_all = "UPPERCASE")]
+pub enum StaxWebhookStatus {
+    Pending,
+    Won,
+    Lost,
+    #[serde(rename = "EVIDENCE_UPLOADED")]
+    EvidenceUploaded,
+    #[serde(other)]
+    Unknown,
+}
+
 #[derive(Debug, Deserialize)]
 pub struct StaxWebhookBody {
     #[serde(rename = "type")]
-    pub transaction_type: StaxWebhookEventType,
+    pub transaction_type: Option<StaxWebhookEventType>,
     pub id: String,
     pub auth_id: Option<String>,
-    pub success: bool,
+    pub success: Option<bool>,
+    pub reason: Option<String>,
+    #[serde(rename = "status")]
+    pub webhook_status: Option<StaxWebhookStatus>,
+    pub transaction_id: Option<String>,
+    pub amount: Option<i64>,
+    // pub respond_by: Option<PrimitiveDateTime>,
+    // pub created_at: Option<PrimitiveDateTime>,
+    // pub updated_at: Option<PrimitiveDateTime>,
 }

@@ -789,30 +789,35 @@ impl api::IncomingWebhook for Stax {
             .parse_struct("StaxWebhookBody")
             .change_context(errors::ConnectorError::WebhookReferenceIdNotFound)?;
 
-        match webhook_body.transaction_type {
-            stax::StaxWebhookEventType::Refund => {
-                Ok(api_models::webhooks::ObjectReferenceId::RefundId(
-                    api_models::webhooks::RefundIdType::ConnectorRefundId(webhook_body.id),
-                ))
-            }
-            stax::StaxWebhookEventType::Unknown => {
-                Err(errors::ConnectorError::WebhookEventTypeNotFound.into())
-            }
-            stax::StaxWebhookEventType::PreAuth
-            | stax::StaxWebhookEventType::Capture
-            | stax::StaxWebhookEventType::Charge
-            | stax::StaxWebhookEventType::Void => {
-                Ok(api_models::webhooks::ObjectReferenceId::PaymentId(
-                    api_models::payments::PaymentIdType::ConnectorTransactionId(match webhook_body
-                        .transaction_type
-                    {
-                        stax::StaxWebhookEventType::Capture => webhook_body
-                            .auth_id
-                            .ok_or(errors::ConnectorError::WebhookReferenceIdNotFound)?,
-                        _ => webhook_body.id,
-                    }),
-                ))
-            }
+        match webhook_body.transaction_type.as_ref() {
+            Some(event_type) => match event_type {
+                stax::StaxWebhookEventType::Refund => {
+                    Ok(api_models::webhooks::ObjectReferenceId::RefundId(
+                        api_models::webhooks::RefundIdType::ConnectorRefundId(webhook_body.id),
+                    ))
+                }
+                stax::StaxWebhookEventType::Unknown => {
+                    Err(errors::ConnectorError::WebhookEventTypeNotFound.into())
+                }
+                stax::StaxWebhookEventType::PreAuth
+                | stax::StaxWebhookEventType::Capture
+                | stax::StaxWebhookEventType::Charge
+                | stax::StaxWebhookEventType::Void => {
+                    Ok(api_models::webhooks::ObjectReferenceId::PaymentId(
+                        api_models::payments::PaymentIdType::ConnectorTransactionId(
+                            match webhook_body.transaction_type.unwrap() {
+                                stax::StaxWebhookEventType::Capture => webhook_body
+                                    .auth_id
+                                    .ok_or(errors::ConnectorError::WebhookReferenceIdNotFound)?,
+                                _ => webhook_body.id,
+                            },
+                        ),
+                    ))
+                }
+            },
+            None => Ok(api_models::webhooks::ObjectReferenceId::PaymentId(
+                api_models::payments::PaymentIdType::ConnectorTransactionId(webhook_body.id),
+            )),
         }
     }
 
@@ -824,22 +829,32 @@ impl api::IncomingWebhook for Stax {
             .body
             .parse_struct("StaxWebhookEventType")
             .change_context(errors::ConnectorError::WebhookEventTypeNotFound)?;
-
-        Ok(match &details.transaction_type {
-            StaxWebhookEventType::Refund => match &details.success {
-                true => api::IncomingWebhookEvent::RefundSuccess,
-                false => api::IncomingWebhookEvent::RefundFailure,
-            },
-            StaxWebhookEventType::Capture | StaxWebhookEventType::Charge => {
-                match &details.success {
-                    true => api::IncomingWebhookEvent::PaymentIntentSuccess,
-                    false => api::IncomingWebhookEvent::PaymentIntentFailure,
+        match details.transaction_type {
+            Some(event_type) => Ok(match event_type {
+                StaxWebhookEventType::Refund => match &details.success.unwrap() {
+                    true => api::IncomingWebhookEvent::RefundSuccess,
+                    false => api::IncomingWebhookEvent::RefundFailure,
+                },
+                StaxWebhookEventType::Capture | StaxWebhookEventType::Charge => {
+                    match &details.success.unwrap() {
+                        true => api::IncomingWebhookEvent::PaymentIntentSuccess,
+                        false => api::IncomingWebhookEvent::PaymentIntentFailure,
+                    }
                 }
-            }
-            StaxWebhookEventType::PreAuth
-            | StaxWebhookEventType::Void
-            | StaxWebhookEventType::Unknown => api::IncomingWebhookEvent::EventNotSupported,
-        })
+                StaxWebhookEventType::PreAuth
+                | StaxWebhookEventType::Void
+                | StaxWebhookEventType::Unknown => api::IncomingWebhookEvent::EventNotSupported,
+            }),
+            None => Ok(match details.webhook_status.unwrap() {
+                stax::StaxWebhookStatus::Pending => api::IncomingWebhookEvent::DisputeOpened,
+                stax::StaxWebhookStatus::Won => api::IncomingWebhookEvent::DisputeWon,
+                stax::StaxWebhookStatus::Lost => api::IncomingWebhookEvent::DisputeLost,
+                stax::StaxWebhookStatus::EvidenceUploaded => {
+                    api::IncomingWebhookEvent::DisputeChallenged
+                }
+                stax::StaxWebhookStatus::Unknown => api::IncomingWebhookEvent::EventNotSupported,
+            }),
+        }
     }
 
     fn get_webhook_resource_object(
@@ -850,5 +865,30 @@ impl api::IncomingWebhook for Stax {
             .into_report()
             .change_context(errors::ConnectorError::WebhookResourceObjectNotFound)?;
         Ok(reference_object)
+    }
+
+    fn get_dispute_details(
+        &self,
+        request: &api::IncomingWebhookRequestDetails<'_>,
+    ) -> CustomResult<api::disputes::DisputePayload, errors::ConnectorError> {
+        let details: stax::StaxWebhookBody = request
+            .body
+            .parse_struct("StaxWebhookEventType")
+            .change_context(errors::ConnectorError::WebhookEventTypeNotFound)?;
+        Ok(api::disputes::DisputePayload {
+            amount: details.amount.unwrap().to_string(),
+            currency: enums::Currency::USD.to_string(),
+            dispute_stage: api_models::enums::DisputeStage::Dispute,
+            connector_dispute_id: details.id,
+            connector_reason: details.reason,
+            connector_reason_code: None,
+            connector_status: details.webhook_status.unwrap().to_string(),
+            // challenge_required_by: details.respond_by,
+            // created_at: details.created_at,
+            // updated_at: details.updated_at,
+            challenge_required_by: None,
+            created_at: None,
+            updated_at: None,
+        })
     }
 }
