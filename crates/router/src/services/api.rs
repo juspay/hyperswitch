@@ -1261,12 +1261,18 @@ mod tests {
 
 pub fn build_payment_link_html(payment_link_data: PaymentLinkFormData) -> maud::Markup {
     use maud::PreEscaped;
+    let hyper_loader_sdk = if payment_link_data.base_url == "http://localhost:8080" {
+        "http://localhost:9090/dist/HyperLoader.js".to_string()
+    } else {
+        "https://beta.hyperswitch.io/v1/HyperLoader.js".to_string()
+    };
+
     maud::html! {
         (maud::DOCTYPE)
         html {
             head {
                 (PreEscaped(format!("
-                <script src=\"https://beta.hyperswitch.io/v1/HyperLoader.js\"></script>
+                <script src= \"{hyper_loader_sdk}\"></script>
                 <style>{}</style>
                 ",payment_link_data.css_script)))
 

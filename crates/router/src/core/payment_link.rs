@@ -1,6 +1,12 @@
 use super::errors::{self, StorageErrorExt};
 #[cfg(feature = "olap")]
-use crate::{errors::RouterResponse, routes::AppState, services, types::domain};
+use crate::{
+    core::payments::helpers,
+    errors::RouterResponse,
+    routes::AppState,
+    services,
+    types::{domain, storage::enums as storage_enums},
+};
 
 pub async fn retrieve_payment_link(
     state: &AppState,
@@ -43,6 +49,18 @@ pub async fn intiate_payment_link_flow(
         .await
         .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
 
+    helpers::validate_payment_status_against_not_allowed_statuses(
+        &payment_intent.status,
+        &[
+            storage_enums::IntentStatus::Cancelled,
+            storage_enums::IntentStatus::Succeeded,
+            storage_enums::IntentStatus::Processing,
+            storage_enums::IntentStatus::RequiresCapture,
+            storage_enums::IntentStatus::RequiresMerchantAction,
+        ],
+        "create",
+    )?;
+
     let body = get_html_body();
     let css_script = get_css();
     let js_script = get_js_script(
@@ -67,15 +85,15 @@ pub async fn intiate_payment_link_flow(
 fn get_js_script(
     amount: String,
     currency: String,
-    _pub_key: String,
-    _secret: String,
+    pub_key: String,
+    secret: String,
     payment_id: String,
 ) -> String {
     format!(
     "
     <script>
         window.__PAYMENT_DETAILS_STR = JSON.stringify({{
-            client_secret: 'pay_JK60bN6CYXf44wQlTF4v_secret_w3K9hHm2yvYYmHMMWijs',
+            client_secret: '{secret}',
             return_url: 'http://localhost:5500/public/index.html',
             merchant_logo: 'https://upload.wikimedia.org/wikipedia/commons/8/83/Steam_icon_logo.svg',
             merchant: 'Steam',
@@ -85,7 +103,7 @@ fn get_js_script(
             payment_id: '{payment_id}'
         }});
 
-        const hyper = Hyper(\"pk_snd_0460c970a9854320b57826f43bd3d7dc\");
+        const hyper = Hyper(\"{pub_key}\");
         var widgets = null;
 
         window.__PAYMENT_DETAILS = {{}};

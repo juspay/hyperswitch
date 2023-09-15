@@ -85,10 +85,16 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
                     created_at,
                     last_modified_at,
                 };
-                let payment_link_db = db.insert_payment_link(payment_link_req).await;
-                println!("payment link db object {:?}", payment_link_db);
-
-                (Some(payment_link), Some(payment_link_id))
+                let payment_link_db = db
+                    .insert_payment_link(payment_link_req)
+                    .await
+                    .to_duplicate_response(errors::ApiErrorResponse::DuplicatePayment {
+                        payment_id: payment_id.clone(),
+                    })?;
+                (
+                    Some(payment_link_db.link_to_pay),
+                    Some(payment_link_db.payment_link_id),
+                )
             } else {
                 (None, None)
             };
@@ -192,11 +198,6 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
             .to_duplicate_response(errors::ApiErrorResponse::DuplicatePayment {
                 payment_id: payment_id.clone(),
             })?;
-
-        println!(
-            "payment intent after making in get tracker {:?}",
-            payment_intent.clone()
-        );
 
         connector_response = db
             .insert_connector_response(
