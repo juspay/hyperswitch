@@ -1,4 +1,4 @@
-use std::{future::Future, time::Instant, sync::Arc};
+use std::{future::Future, sync::Arc, time::Instant};
 
 use actix_web::{HttpRequest, HttpResponse, Responder};
 use common_utils::errors::{CustomResult, ErrorSwitch};
