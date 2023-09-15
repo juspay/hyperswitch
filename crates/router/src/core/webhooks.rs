@@ -931,9 +931,7 @@ async fn fetch_mca_and_connector(
                 key_store,
             )
             .await
-            .to_not_found_response(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
-                id: connector_name_or_mca_id.to_string(),
-            })
+            .to_not_found_response(errors::ApiErrorResponse::MerchantConnectorAccountNotFound)
             .attach_printable(
                 "error while fetching merchant_connector_account from connector_id",
             )?;
@@ -985,11 +983,7 @@ async fn fetch_mca_and_connector(
                 key_store,
             )
             .await
-            .to_not_found_response(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
-                id: format!(
-                    "profile_id {profile_id} and connector name {connector_name_or_mca_id}"
-                ),
-            })
+            .to_not_found_response(errors::ApiErrorResponse::MerchantConnectorAccountNotFound)
             .attach_printable("error while fetching merchant_connector_account from profile_id")?;
 
         Ok((mca, connector))

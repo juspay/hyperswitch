@@ -2460,7 +2460,7 @@ pub async fn get_merchant_connector_account(
     merchant_id: &str,
     creds_identifier: Option<String>,
     key_store: &domain::MerchantKeyStore,
-    profile_id: &String,
+    profile_id: &str,
     connector_name: &str,
 ) -> RouterResult<MerchantConnectorAccountType> {
     let db = &*state.store;
@@ -2470,9 +2470,7 @@ pub async fn get_merchant_connector_account(
                 .find_config_by_key(format!("mcd_{merchant_id}_{creds_identifier}").as_str())
                 .await
                 .to_not_found_response(
-                    errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
-                        id: format!("mcd_{merchant_id}_{creds_identifier}"),
-                    },
+                    errors::ApiErrorResponse::MerchantConnectorAccountNotFound,
                 )?;
 
             #[cfg(feature = "kms")]
@@ -2510,11 +2508,7 @@ pub async fn get_merchant_connector_account(
                 key_store,
             )
             .await
-            .to_not_found_response(
-                errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
-                    id: format!("profile id {profile_id} and connector name {connector_name}"),
-                },
-            )
+            .to_not_found_response(errors::ApiErrorResponse::MerchantConnectorAccountNotFound)
         }
         .map(MerchantConnectorAccountType::DbVal),
     }
@@ -2783,9 +2777,7 @@ impl AttemptType {
                         storage_scheme,
                     )
                     .await
-                    .to_duplicate_response(errors::ApiErrorResponse::DuplicatePayment {
-                        payment_id: fetched_payment_intent.payment_id.to_owned(),
-                    })?;
+                    .to_duplicate_response(errors::ApiErrorResponse::DuplicatePayment)?;
 
                 let updated_payment_intent = db
                     .update_payment_intent(
@@ -2828,9 +2820,7 @@ impl AttemptType {
                     storage_scheme,
                 )
                 .await
-                .to_duplicate_response(errors::ApiErrorResponse::DuplicatePayment {
-                    payment_id: payment_attempt.payment_id.clone(),
-                }),
+                .to_duplicate_response(errors::ApiErrorResponse::DuplicatePayment),
             Self::SameOld => db
                 .find_connector_response_by_payment_id_merchant_id_attempt_id(
                     &payment_attempt.payment_id,

@@ -102,8 +102,8 @@ pub enum StripeErrorCode {
     #[error(error_type = StripeErrorType::InvalidRequestError, code = "resource_missing", message = "No such resource ID")]
     ResourceIdNotFound,
 
-    #[error(error_type = StripeErrorType::InvalidRequestError, code = "resource_missing", message = "Merchant connector account with id '{id}' does not exist in our records")]
-    MerchantConnectorAccountNotFound { id: String },
+    #[error(error_type = StripeErrorType::InvalidRequestError, code = "resource_missing", message = "Merchant connector account with id does not exist in our records")]
+    MerchantConnectorAccountNotFound,
 
     #[error(error_type = StripeErrorType::InvalidRequestError, code = "invalid_request", message = "The merchant connector account is disabled")]
     MerchantConnectorAccountDisabled,
@@ -193,8 +193,8 @@ pub enum StripeErrorCode {
     #[error(error_type = StripeErrorType::InvalidRequestError, code = "", message = "The mandate information is invalid. {message}")]
     PaymentIntentMandateInvalid { message: String },
 
-    #[error(error_type = StripeErrorType::InvalidRequestError, code = "", message = "The payment with the specified payment_id '{payment_id}' already exists in our records.")]
-    DuplicatePayment { payment_id: String },
+    #[error(error_type = StripeErrorType::InvalidRequestError, code = "", message = "The payment with the specified payment_id already exists in our records.")]
+    DuplicatePayment,
 
     #[error(error_type = StripeErrorType::ConnectorError, code = "", message = "{code}: {message}")]
     ExternalConnectorError {
@@ -489,8 +489,8 @@ impl From<errors::ApiErrorResponse> for StripeErrorCode {
             | errors::ApiErrorResponse::ClientSecretExpired => Self::ClientSecretNotFound,
             errors::ApiErrorResponse::MerchantAccountNotFound => Self::MerchantAccountNotFound,
             errors::ApiErrorResponse::ResourceIdNotFound => Self::ResourceIdNotFound,
-            errors::ApiErrorResponse::MerchantConnectorAccountNotFound { id } => {
-                Self::MerchantConnectorAccountNotFound { id }
+            errors::ApiErrorResponse::MerchantConnectorAccountNotFound => {
+                Self::MerchantConnectorAccountNotFound
             }
             errors::ApiErrorResponse::MandateNotFound => Self::MandateNotFound,
             errors::ApiErrorResponse::ApiKeyNotFound => Self::ApiKeyNotFound,
@@ -539,9 +539,7 @@ impl From<errors::ApiErrorResponse> for StripeErrorCode {
                 current_value,
                 states,
             },
-            errors::ApiErrorResponse::DuplicatePayment { payment_id } => {
-                Self::DuplicatePayment { payment_id }
-            }
+            errors::ApiErrorResponse::DuplicatePayment => Self::DuplicatePayment,
             errors::ApiErrorResponse::DisputeNotFound { dispute_id } => Self::ResourceMissing {
                 object: "dispute".to_owned(),
                 id: dispute_id,
@@ -608,7 +606,7 @@ impl actix_web::ResponseError for StripeErrorCode {
             | Self::PaymentNotFound
             | Self::PaymentMethodNotFound
             | Self::MerchantAccountNotFound
-            | Self::MerchantConnectorAccountNotFound { .. }
+            | Self::MerchantConnectorAccountNotFound
             | Self::MerchantConnectorAccountDisabled
             | Self::MandateNotFound
             | Self::ApiKeyNotFound

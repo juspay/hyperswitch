@@ -134,8 +134,8 @@ impl ErrorSwitch<api_models::errors::types::ApiErrorResponse> for ApiErrorRespon
                 AER::BadRequest(ApiError::new("HE", 1, format!("The merchant connector account with the specified profile_id '{profile_id}' and connector_name '{connector_name}' already exists in our records"), None))
             }
             Self::DuplicatePaymentMethod => AER::BadRequest(ApiError::new("HE", 1, "The payment method with the specified details already exists in our records", None)),
-            Self::DuplicatePayment { payment_id } => {
-                AER::BadRequest(ApiError::new("HE", 1, format!("The payment with the specified payment_id '{payment_id}' already exists in our records"), None))
+            Self::DuplicatePayment => {
+                AER::BadRequest(ApiError::new("HE", 1, "The payment with the specified payment_id already exists in our records", None))
             }
             Self::DuplicatePayout { payout_id } => {
                 AER::BadRequest(ApiError::new("HE", 1, format!("The payout with the specified payout_id '{payout_id}' already exists in our records"), None))
@@ -164,8 +164,8 @@ impl ErrorSwitch<api_models::errors::types::ApiErrorResponse> for ApiErrorRespon
             Self::MerchantAccountNotFound => {
                 AER::NotFound(ApiError::new("HE", 2, "Merchant account does not exist in our records", None))
             }
-            Self::MerchantConnectorAccountNotFound { id } => {
-                AER::NotFound(ApiError::new("HE", 2, format!("Merchant connector account with id '{id}' does not exist in our records"), None))
+            Self::MerchantConnectorAccountNotFound => {
+                AER::NotFound(ApiError::new("HE", 2, "Merchant connector account with id does not exist in our records", None))
             }
             Self::MerchantConnectorAccountDisabled => {
                 AER::BadRequest(ApiError::new("HE", 3, "The selected merchant connector account is disabled", None))
