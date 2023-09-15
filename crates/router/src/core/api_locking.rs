@@ -46,10 +46,7 @@ impl LockingInput {
     fn get_redis_locking_key(&self, merchant_id: String) -> String {
         format!(
             "{}_{}_{}_{}",
-            API_LOCK_PREFIX,
-            merchant_id,
-            self.api_identifier.to_string(),
-            self.unique_locking_key
+            API_LOCK_PREFIX, merchant_id, self.api_identifier, self.unique_locking_key
         )
     }
 }
@@ -61,7 +58,7 @@ impl LockAction {
         A: AppStateInfo,
     {
         match self {
-            LockAction::Hold { input } => {
+            Self::Hold { input } => {
                 let redis_conn = state
                     .store()
                     .get_redis_conn()
@@ -104,10 +101,7 @@ impl LockAction {
 
                 Err(errors::ApiErrorResponse::ResourceBusy).into_report()
             }
-            LockAction::QueueWithOk
-            | LockAction::IgnoreWithOk
-            | LockAction::Drop
-            | LockAction::NotApplicable => Ok(()),
+            Self::QueueWithOk | Self::IgnoreWithOk | Self::Drop | Self::NotApplicable => Ok(()),
         }
     }
 
@@ -117,7 +111,7 @@ impl LockAction {
         A: AppStateInfo,
     {
         match self {
-            LockAction::Hold { input } => {
+            Self::Hold { input } => {
                 let redis_conn = state
                     .store()
                     .get_redis_conn()
@@ -143,10 +137,7 @@ impl LockAction {
                     }
                 }
             }
-            LockAction::QueueWithOk
-            | LockAction::IgnoreWithOk
-            | LockAction::Drop
-            | LockAction::NotApplicable => Ok(()),
+            Self::QueueWithOk | Self::IgnoreWithOk | Self::Drop | Self::NotApplicable => Ok(()),
         }
     }
 }
