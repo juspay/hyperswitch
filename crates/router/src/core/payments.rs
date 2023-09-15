@@ -603,6 +603,8 @@ where
     )
     .await?;
 
+    *payment_data = pd;
+
     let updated_customer = call_create_connector_customer_if_required(
         state,
         customer,
@@ -611,8 +613,6 @@ where
         payment_data,
     )
     .await?;
-
-    *payment_data = pd;
 
     let mut router_data = payment_data
         .construct_router_data(
