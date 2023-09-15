@@ -594,6 +594,15 @@ where
     )
     .await?;
 
+    let (pd, tokenization_action) = get_connector_tokenization_action_when_confirm_true(
+        state,
+        operation,
+        payment_data,
+        validate_result,
+        &merchant_connector_account,
+    )
+    .await?;
+
     let updated_customer = call_create_connector_customer_if_required(
         state,
         customer,
@@ -603,14 +612,6 @@ where
     )
     .await?;
 
-    let (pd, tokenization_action) = get_connector_tokenization_action_when_confirm_true(
-        state,
-        operation,
-        payment_data,
-        validate_result,
-        &merchant_connector_account,
-    )
-    .await?;
     *payment_data = pd;
 
     let mut router_data = payment_data
