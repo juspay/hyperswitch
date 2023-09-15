@@ -207,6 +207,10 @@ pub enum Flow {
     BusinessProfileList,
     /// Different verification flows
     Verification,
+    /// Payment method auth link token create flow.
+    PmAuthLinkTokenCreate,
+    /// Payment method auth exchange token flow.
+    PmAuthExchangeToken,
 }
 
 ///
