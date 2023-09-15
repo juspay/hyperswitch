@@ -21,10 +21,7 @@ use crate::{
     consts,
     core::errors::{self, CustomResult},
     pii::PeekInterface,
-    types::{
-        self, api, storage::enums as storage_enums, transformers::ForeignTryFrom,
-        PaymentsCancelData, ResponseId,
-    },
+    types::{self, api, transformers::ForeignTryFrom, PaymentsCancelData, ResponseId},
     utils::{OptionExt, ValueExt},
 };
 
@@ -1378,7 +1375,7 @@ mod error_code_error_message_tests {
 
 pub trait MultipleCaptureSyncResponse {
     fn get_connector_capture_id(&self) -> String;
-    fn get_capture_attempt_status(&self) -> storage_enums::AttemptStatus;
+    fn get_capture_attempt_status(&self) -> enums::AttemptStatus;
     fn is_capture_response(&self) -> bool;
     fn get_connector_reference_id(&self) -> Option<String> {
         None
@@ -1409,6 +1406,11 @@ where
             }
         });
     hashmap
+}
+
+pub fn is_manual_capture(capture_method: Option<enums::CaptureMethod>) -> bool {
+    capture_method == Some(enums::CaptureMethod::Manual)
+        || capture_method == Some(enums::CaptureMethod::ManualMultiple)
 }
 
 pub fn validate_currency(
