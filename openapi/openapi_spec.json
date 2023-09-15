@@ -3872,7 +3872,8 @@
           "worldline",
           "worldpay",
           "zen",
-          "signifyd"
+          "signifyd",
+          "plaid"
         ]
       },
       "ConnectorMetadata": {
