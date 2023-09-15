@@ -9,10 +9,6 @@ use super::errors::{self, RouterResult};
 use crate::routes::{app::AppStateInfo, lock_utils};
 
 pub const API_LOCK_PREFIX: &str = "API_LOCK";
-pub const LOCK_RETRIES: u32 =
-    ((REDIS_LOCK_EXPIRY_SECONDS * 1000) / DELAY_BETWEEN_RETRIES_IN_MILLISECONDS) - 1;
-pub const REDIS_LOCK_EXPIRY_SECONDS: u32 = 60 * 3;
-pub const DELAY_BETWEEN_RETRIES_IN_MILLISECONDS: u32 = 500;
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum LockStatus {
@@ -65,13 +61,22 @@ impl LockAction {
                     .change_context(errors::ApiErrorResponse::InternalServerError)?;
 
                 let redis_locking_key = input.get_redis_locking_key(merchant_id);
+                let delay_between_retries_in_milliseconds = state
+                    .conf()
+                    .lock_settings
+                    .delay_between_retries_in_milliseconds;
+                let redis_lock_expiry_seconds =
+                    state.conf().lock_settings.redis_lock_expiry_seconds;
+                let lock_retries: u32 = ((redis_lock_expiry_seconds * 1000)
+                    / delay_between_retries_in_milliseconds)
+                    - 1;
 
-                for _retry in 0..LOCK_RETRIES {
+                for _retry in 0..lock_retries {
                     let redis_lock_result = redis_conn
                         .set_key_if_not_exists_with_expiry(
                             redis_locking_key.as_str(),
                             true, // [#2129] pick up request_id from AppState
-                            Some(i64::from(REDIS_LOCK_EXPIRY_SECONDS)),
+                            Some(i64::from(redis_lock_expiry_seconds)),
                         )
                         .await;
 
@@ -88,7 +93,7 @@ impl LockAction {
                                 input
                             );
                             actix_time::sleep(tokio::time::Duration::from_millis(u64::from(
-                                DELAY_BETWEEN_RETRIES_IN_MILLISECONDS,
+                                delay_between_retries_in_milliseconds,
                             )))
                             .await;
                         }
