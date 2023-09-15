@@ -278,6 +278,7 @@ pub struct Response {
     refusal_reason: Option<String>,
     refusal_reason_code: Option<String>,
     additional_data: Option<AdditionalData>,
+    // event_code will be available only in webhook body
     event_code: Option<WebhookEventCode>,
 }
 
@@ -3712,7 +3713,9 @@ impl utils::MultipleCaptureSyncResponse for Response {
     }
 
     fn get_amount_captured(&self) -> Option<i64> {
-        self.amount.clone().map(|amount_struct| amount_struct.value)
+        self.amount
+            .as_ref()
+            .map(|amount_struct| amount_struct.value)
     }
 }
 
