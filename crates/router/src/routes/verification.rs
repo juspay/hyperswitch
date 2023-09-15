@@ -56,7 +56,7 @@ pub async fn retrieve_apple_pay_verified_domains(
             verification::get_verified_apple_domains_with_mid_mca_id(
                 state,
                 merchant_id.to_string(),
-                mca_id.clone(),
+                mca_id.to_string(),
             )
         },
         auth::auth_type(&auth::ApiKeyAuth, &auth::JWTAuth, req.headers()),
