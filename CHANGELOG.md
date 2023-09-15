@@ -4,6 +4,16 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 1.39.1+hotfix.2 (2023-09-15)
+
+### Bug Fixes
+
+- **core:** Add merchant_id to gpay merchant info ([#2169](https://github.com/juspay/hyperswitch/pull/2169)) ([`3bcb6e6`](https://github.com/juspay/hyperswitch/commit/3bcb6e66cde1d00d917718d49ad51a66c6283ca7))
+
+**Full Changelog:** [`v1.39.1+hotfix.1...v1.39.1+hotfix.2`](https://github.com/juspay/hyperswitch/compare/v1.39.1+hotfix.1...v1.39.1+hotfix.2)
+
+- - -
+
 ## 1.39.1+hotfix.1 (2023-09-14)
 
 ### Bug Fixes
