@@ -341,6 +341,7 @@ impl<F, T>
     fn try_from(
         item: types::ResponseRouterData<F, SquarePaymentsResponse, T, types::PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
+        //Since this try_from is being used in Authorize, Sync, Capture & Void flow. Field amount_captured should only be updated in case of Charged status.
         let status = enums::AttemptStatus::from(item.response.payment.status);
         let mut amount_captured = None;
         if status == enums::AttemptStatus::Charged {
