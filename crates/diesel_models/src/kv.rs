@@ -4,7 +4,8 @@ use serde::{Deserialize, Serialize};
 use crate::{
     errors,
     payment_attempt::{PaymentAttempt, PaymentAttemptNew, PaymentAttemptUpdate},
-    payment_intent::{PaymentIntent, PaymentIntentNew, PaymentIntentUpdate},
+    payment_intent::{PaymentIntentNew, PaymentIntentUpdate},
+    PaymentIntent,
     refund::{Refund, RefundNew, RefundUpdate},
 };
 
