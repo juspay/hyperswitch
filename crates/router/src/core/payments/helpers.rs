@@ -103,6 +103,7 @@ pub fn filter_mca_based_on_business_profile(
     }
 }
 
+#[instrument(skip_all)]
 pub async fn get_address_for_payment_request(
     db: &dyn StorageInterface,
     req_address: Option<&api::Address>,
@@ -975,6 +976,7 @@ pub fn validate_customer_details_in_request(
 
 /// Get the customer details from customer field if present
 /// or from the individual fields in `PaymentsRequest`
+#[instrument(skip_all)]
 pub fn get_customer_details_from_request(
     request: &api_models::payments::PaymentsRequest,
 ) -> CustomerDetails {
@@ -1448,16 +1450,30 @@ pub(crate) fn validate_capture_method(
 }
 
 #[instrument(skip_all)]
-pub(crate) fn validate_status(status: storage_enums::IntentStatus) -> RouterResult<()> {
+pub(crate) fn validate_status_with_capture_method(
+    status: storage_enums::IntentStatus,
+    capture_method: storage_enums::CaptureMethod,
+) -> RouterResult<()> {
+    if status == storage_enums::IntentStatus::Processing
+        && !(capture_method == storage_enums::CaptureMethod::ManualMultiple)
+    {
+        return Err(report!(errors::ApiErrorResponse::PaymentUnexpectedState {
+            field_name: "capture_method".to_string(),
+            current_flow: "captured".to_string(),
+            current_value: capture_method.to_string(),
+            states: "manual_multiple".to_string()
+        }));
+    }
     utils::when(
         status != storage_enums::IntentStatus::RequiresCapture
-            && status != storage_enums::IntentStatus::PartiallyCaptured,
+            && status != storage_enums::IntentStatus::PartiallyCaptured
+            && status != storage_enums::IntentStatus::Processing,
         || {
             Err(report!(errors::ApiErrorResponse::PaymentUnexpectedState {
                 field_name: "payment.status".to_string(),
                 current_flow: "captured".to_string(),
                 current_value: status.to_string(),
-                states: "requires_capture, partially captured".to_string()
+                states: "requires_capture, partially_captured, processing".to_string()
             }))
         },
     )
@@ -2086,6 +2102,7 @@ pub(crate) fn validate_payment_status_against_not_allowed_statuses(
     })
 }
 
+#[instrument(skip_all)]
 pub(crate) fn validate_pm_or_token_given(
     payment_method: &Option<api_enums::PaymentMethod>,
     payment_method_data: &Option<api::PaymentMethodData>,
@@ -2367,6 +2384,7 @@ mod tests {
 }
 
 // This function will be removed after moving this functionality to server_wrap and using cache instead of config
+#[instrument(skip_all)]
 pub async fn insert_merchant_connector_creds_to_config(
     db: &dyn StorageInterface,
     merchant_id: &str,
@@ -2439,6 +2457,7 @@ impl MerchantConnectorAccountType {
 
 /// Query for merchant connector account either by business label or profile id
 /// If profile_id is passed use it, or use connector_label to query merchant connector account
+#[instrument(skip_all)]
 pub async fn get_merchant_connector_account(
     state: &AppState,
     merchant_id: &str,
@@ -2554,6 +2573,7 @@ pub fn router_data_type_conversion<F1, F2, Req1, Req2, Res1, Res2>(
     }
 }
 
+#[instrument(skip_all)]
 pub fn get_attempt_type(
     payment_intent: &PaymentIntent,
     payment_attempt: &PaymentAttempt,
@@ -2743,6 +2763,7 @@ impl AttemptType {
         }
     }
 
+    #[instrument(skip_all)]
     pub async fn modify_payment_intent_and_payment_attempt(
         &self,
         request: &api::PaymentsRequest,
@@ -2796,6 +2817,7 @@ impl AttemptType {
         }
     }
 
+    #[instrument(skip_all)]
     pub async fn get_or_insert_connector_response(
         &self,
         payment_attempt: &PaymentAttempt,
@@ -2824,6 +2846,7 @@ impl AttemptType {
         }
     }
 
+    #[instrument(skip_all)]
     pub async fn get_connector_response(
         &self,
         db: &dyn StorageInterface,
@@ -2930,6 +2953,7 @@ mod test {
     }
 }
 
+#[instrument(skip_all)]
 pub async fn get_additional_payment_data(
     pm_data: &api_models::payments::PaymentMethodData,
     db: &dyn StorageInterface,

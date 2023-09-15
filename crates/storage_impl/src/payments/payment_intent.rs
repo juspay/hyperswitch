@@ -32,6 +32,7 @@ use error_stack::{IntoReport, ResultExt};
 use redis_interface::HsetnxReply;
 #[cfg(feature = "olap")]
 use router_env::logger;
+use router_env::{instrument, tracing};
 
 use crate::{
     redis::kv_store::{PartitionKey, RedisConnInterface},
@@ -126,6 +127,7 @@ impl<T: DatabaseStore> PaymentIntentInterface for KVRouterStore<T> {
         }
     }
 
+    #[instrument(skip_all)]
     async fn update_payment_intent(
         &self,
         this: PaymentIntent,
@@ -181,6 +183,7 @@ impl<T: DatabaseStore> PaymentIntentInterface for KVRouterStore<T> {
         }
     }
 
+    #[instrument(skip_all)]
     async fn find_payment_intent_by_payment_id_merchant_id(
         &self,
         payment_id: &str,
@@ -327,6 +330,7 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
             .map(PaymentIntent::from_storage_model)
     }
 
+    #[instrument(skip_all)]
     async fn find_payment_intent_by_payment_id_merchant_id(
         &self,
         payment_id: &str,
