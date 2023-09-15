@@ -35,7 +35,7 @@ pub struct AppState {
     pub store: Box<dyn StorageInterface>,
     pub conf: Arc<settings::Settings>,
     #[cfg(feature = "email")]
-    pub email_client: Box<dyn EmailClient>,
+    pub email_client: Arc<dyn EmailClient>,
     #[cfg(feature = "kms")]
     pub kms_secrets: Arc<settings::ActiveKmsSecrets>,
     pub api_client: Box<dyn crate::services::ApiClient>,
@@ -51,7 +51,7 @@ pub trait AppStateInfo {
     fn conf(&self) -> settings::Settings;
     fn store(&self) -> Box<dyn StorageInterface>;
     #[cfg(feature = "email")]
-    fn email_client(&self) -> Box<dyn EmailClient>;
+    fn email_client(&self) -> Arc<dyn EmailClient>;
     fn add_request_id(&mut self, request_id: Option<String>);
     fn add_merchant_id(&mut self, merchant_id: Option<String>);
     fn add_flow_name(&mut self, flow_name: String);
@@ -65,7 +65,7 @@ impl AppStateInfo for AppState {
         self.store.to_owned()
     }
     #[cfg(feature = "email")]
-    fn email_client(&self) -> Box<dyn EmailClient> {
+    fn email_client(&self) -> Arc<dyn EmailClient> {
         self.email_client.to_owned()
     }
     fn add_request_id(&mut self, request_id: Option<String>) {
@@ -123,7 +123,7 @@ impl AppState {
         .expect("Failed while performing KMS decryption");
 
         #[cfg(feature = "email")]
-        let email_client = Box::new(AwsSes::new(&conf.email).await);
+        let email_client = Arc::new(AwsSes::new(&conf.email).await);
         Self {
             flow_name: String::from("default"),
             store,
