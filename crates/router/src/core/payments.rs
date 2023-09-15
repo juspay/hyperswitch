@@ -1346,7 +1346,7 @@ where
     Ok(payment_data.to_owned())
 }
 
-#[derive(Clone)]
+#[derive(Clone, PartialEq)]
 pub enum CallConnectorAction {
     Trigger,
     Avoid,
@@ -1487,7 +1487,13 @@ pub fn should_call_connector<Op: Debug, F: Clone>(
                 payment_data.payment_intent.status,
                 storage_enums::IntentStatus::RequiresCapture
                     | storage_enums::IntentStatus::PartiallyCaptured
-            )
+            ) || (matches!(
+                payment_data.payment_intent.status,
+                storage_enums::IntentStatus::Processing
+            ) && matches!(
+                payment_data.payment_attempt.capture_method,
+                Some(storage_enums::CaptureMethod::ManualMultiple)
+            ))
         }
         "CompleteAuthorize" => true,
         "PaymentApprove" => true,
