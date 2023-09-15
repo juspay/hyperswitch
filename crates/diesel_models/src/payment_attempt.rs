@@ -137,6 +137,7 @@ pub enum PaymentAttemptUpdate {
         payment_token: Option<String>,
         connector: Option<String>,
         straight_through_algorithm: Option<serde_json::Value>,
+        amount_capturable: Option<i64>,
     },
     AuthenticationTypeUpdate {
         authentication_type: storage_enums::AuthenticationType,
@@ -157,6 +158,7 @@ pub enum PaymentAttemptUpdate {
         straight_through_algorithm: Option<serde_json::Value>,
         error_code: Option<Option<String>>,
         error_message: Option<Option<String>>,
+        amount_capturable: Option<i64>,
     },
     VoidUpdate {
         status: storage_enums::AttemptStatus,
@@ -339,6 +341,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 straight_through_algorithm,
                 error_code,
                 error_message,
+                amount_capturable,
             } => Self {
                 amount: Some(amount),
                 currency: Some(currency),
@@ -356,6 +359,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 straight_through_algorithm,
                 error_code,
                 error_message,
+                amount_capturable,
                 ..Default::default()
             },
             PaymentAttemptUpdate::VoidUpdate {
@@ -432,10 +436,12 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 payment_token,
                 connector,
                 straight_through_algorithm,
+                amount_capturable,
             } => Self {
                 payment_token,
                 connector,
                 straight_through_algorithm,
+                amount_capturable,
                 ..Default::default()
             },
             PaymentAttemptUpdate::UnresolvedResponseUpdate {

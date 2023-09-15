@@ -98,6 +98,11 @@ impl TryFrom<&types::PaymentsCaptureRouterData> for requests::GlobalpayCaptureRe
                     Sequence::Subsequent
                 }
             }),
+            reference: value
+                .request
+                .multiple_capture_data
+                .as_ref()
+                .map(|mcd| mcd.capture_reference.clone()),
         })
     }
 }
@@ -228,7 +233,7 @@ fn get_payment_response(
             mandate_reference,
             connector_metadata: None,
             network_txn_id: None,
-            connector_response_reference_id: None,
+            connector_response_reference_id: response.reference,
         }),
     }
 }
@@ -506,5 +511,8 @@ impl utils::MultipleCaptureSyncResponse for GlobalpayPaymentsResponse {
             Some(amount) => amount.parse().ok(),
             None => None,
         }
+    }
+    fn get_connector_reference_id(&self) -> Option<String> {
+        self.reference.clone()
     }
 }

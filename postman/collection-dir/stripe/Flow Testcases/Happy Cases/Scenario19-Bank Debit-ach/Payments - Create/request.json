@@ -23,9 +23,7 @@
       "confirm": true,
       "business_label": "default",
       "capture_method": "automatic",
-      "connector": [
-        "stripe"
-      ],
+      "connector": ["stripe"],
       "customer_id": "klarna",
       "capture_on": "2022-09-10T10:11:12Z",
       "authentication_type": "three_ds",
@@ -85,12 +83,8 @@
   },
   "url": {
     "raw": "{{baseUrl}}/payments",
-    "host": [
-      "{{baseUrl}}"
-    ],
-    "path": [
-      "payments"
-    ]
+    "host": ["{{baseUrl}}"],
+    "path": ["payments"]
   },
   "description": "To process a payment you will have to create a payment, attach a payment method and confirm. Depending on the user journey you wish to achieve, you may opt to all the steps in a single request or in a sequence of API request using following APIs: (i) Payments - Update, (ii) Payments - Confirm, and (iii) Payments - Capture"
 }

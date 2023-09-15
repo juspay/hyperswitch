@@ -676,6 +676,7 @@ pub async fn create_payment_connector(
             None => None,
         },
         profile_id: Some(profile_id.clone()),
+        applepay_verified_domains: None,
     };
 
     let mca = state
@@ -837,6 +838,7 @@ pub async fn update_payment_connector(
             }
             None => None,
         },
+        applepay_verified_domains: None,
     };
 
     let updated_mca = db
@@ -1381,7 +1383,7 @@ pub(crate) fn validate_auth_type(
             zen::transformers::ZenAuthType::try_from(val)?;
             Ok(())
         }
-        api_enums::Connector::Signifyd => {
+        api_enums::Connector::Signifyd | api_enums::Connector::Plaid => {
             Err(report!(errors::ConnectorError::InvalidConnectorName)
                 .attach_printable(format!("invalid connector name: {connector_name}")))
         }

@@ -734,6 +734,8 @@ pub struct MerchantConnectorResponse {
     /// default value from merchant account is taken if not passed
     #[schema(max_length = 64)]
     pub profile_id: Option<String>,
+    /// identifier for the verified domains of a particular connector account
+    pub applepay_verified_domains: Option<Vec<String>>,
 }
 
 /// Create a new Merchant Connector for the merchant account. The connector could be a payment processor / facilitator / acquirer or specialized services like Fraud / Accounting etc."
