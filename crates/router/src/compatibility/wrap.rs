@@ -1,6 +1,6 @@
-use std::{future::Future, time::Instant, sync::Arc};
+use std::{future::Future, time::Instant};
 
-use actix_web::{HttpRequest, HttpResponse, Responder};
+use actix_web::{web, HttpRequest, HttpResponse, Responder};
 use common_utils::errors::ErrorSwitch;
 use router_env::{instrument, tracing, Tag};
 use serde::Serialize;
@@ -14,7 +14,7 @@ use crate::{
 #[instrument(skip(request, payload, state, func, api_authentication))]
 pub async fn compatibility_api_wrap<'a, 'b, A, U, T, Q, F, Fut, S, E>(
     flow: impl router_env::types::FlowMetric,
-    state: Arc<A>,
+    state: web::Data<A>,
     request: &'a HttpRequest,
     payload: T,
     func: F,
@@ -43,7 +43,7 @@ where
     let res = match metrics::request::record_request_time_metric(
         api::server_wrap_util(
             &flow,
-            state.clone().into(),
+            state.clone(),
             request,
             payload,
             func,

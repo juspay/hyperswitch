@@ -42,7 +42,7 @@ pub async fn refund_create(
         errors::StripeErrorCode,
     >(
         flow,
-        state.into_inner(),
+        state,
         &req,
         create_refund_req,
         |state, auth, req| {
@@ -81,7 +81,7 @@ pub async fn refund_retrieve_with_gateway_creds(
         errors::StripeErrorCode,
     >(
         flow,
-        state.into_inner(),
+        state,
         &req,
         refund_request,
         |state, auth, refund_request| {
@@ -123,7 +123,7 @@ pub async fn refund_retrieve(
         errors::StripeErrorCode,
     >(
         flow,
-        state.into_inner(),
+        state,
         &req,
         refund_request,
         |state, auth, refund_request| {
@@ -163,7 +163,7 @@ pub async fn refund_update(
         errors::StripeErrorCode,
     >(
         flow,
-        state.into_inner(),
+        state,
         &req,
         create_refund_update_req,
         |state, auth, req| {
