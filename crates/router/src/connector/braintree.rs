@@ -80,6 +80,10 @@ impl ConnectorCommon for Braintree {
         "braintree"
     }
 
+    fn get_currency_unit(&self) -> api::CurrencyUnit {
+        api::CurrencyUnit::Base
+    }
+
     fn base_url<'a>(&self, connectors: &'a settings::Connectors) -> &'a str {
         connectors.braintree.base_url.as_ref()
     }
@@ -431,10 +435,19 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
         req: &types::PaymentsCaptureRouterData,
     ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
         let connector_api_version = &req.connector_api_version.clone();
+        let connector_router_data =
+            braintree_graphql_transformers::BraintreeRouterData::try_from((
+                &self.get_currency_unit(),
+                req.request.currency,
+                req.request.amount_to_capture,
+                req,
+            ))?;
         match self.is_braintree_graphql_version(connector_api_version) {
             true => {
                 let connector_request =
-                    braintree_graphql_transformers::BraintreeCaptureRequest::try_from(req)?;
+                    braintree_graphql_transformers::BraintreeCaptureRequest::try_from(
+                        &connector_router_data,
+                    )?;
 
                 let braintree_req = types::RequestBody::log_and_get_request_body(
             &connector_request,
@@ -742,10 +755,19 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         req: &types::PaymentsAuthorizeRouterData,
     ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
         let connector_api_version = &req.connector_api_version;
+        let connector_router_data =
+            braintree_graphql_transformers::BraintreeRouterData::try_from((
+                &self.get_currency_unit(),
+                req.request.currency,
+                req.request.amount,
+                req,
+            ))?;
         match self.is_braintree_graphql_version(connector_api_version) {
             true => {
                 let connector_request =
-                    braintree_graphql_transformers::BraintreePaymentsRequest::try_from(req)?;
+                    braintree_graphql_transformers::BraintreePaymentsRequest::try_from(
+                        &connector_router_data,
+                    )?;
                 let braintree_payment_request = types::RequestBody::log_and_get_request_body(
                     &connector_request,
                     utils::Encode::<braintree_graphql_transformers::BraintreePaymentsRequest>::encode_to_string_of_json,
@@ -1032,10 +1054,19 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
         req: &types::RefundsRouterData<api::Execute>,
     ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
         let connector_api_version = &req.connector_api_version;
+        let connector_router_data =
+            braintree_graphql_transformers::BraintreeRouterData::try_from((
+                &self.get_currency_unit(),
+                req.request.currency,
+                req.request.refund_amount,
+                req,
+            ))?;
         match self.is_braintree_graphql_version(connector_api_version) {
             true => {
                 let connector_request =
-                    braintree_graphql_transformers::BraintreeRefundRequest::try_from(req)?;
+                    braintree_graphql_transformers::BraintreeRefundRequest::try_from(
+                        connector_router_data,
+                    )?;
                 let braintree_refund_request = types::RequestBody::log_and_get_request_body(
             &connector_request,
             utils::Encode::<braintree_graphql_transformers::BraintreeRefundRequest>::encode_to_string_of_json,
@@ -1519,11 +1550,20 @@ impl
         &self,
         req: &types::PaymentsCompleteAuthorizeRouterData,
     ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
+        let connector_router_data =
+            braintree_graphql_transformers::BraintreeRouterData::try_from((
+                &self.get_currency_unit(),
+                req.request.currency,
+                req.request.amount,
+                req,
+            ))?;
         let connector_api_version = &req.connector_api_version;
         match self.is_braintree_graphql_version(connector_api_version) {
             true => {
                 let connector_request =
-                    braintree_graphql_transformers::BraintreePaymentsRequest::try_from(req)?;
+                    braintree_graphql_transformers::BraintreePaymentsRequest::try_from(
+                        &connector_router_data,
+                    )?;
                 let braintree_payment_request = types::RequestBody::log_and_get_request_body(
                     &connector_request,
                     utils::Encode::<braintree_graphql_transformers::BraintreePaymentsRequest>::encode_to_string_of_json,
