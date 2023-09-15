@@ -79,11 +79,11 @@ impl AppStateInfo for AppState {
     }
 }
 
-impl AsRef<Self> for AppState {
-    fn as_ref(&self) -> &Self {
-        self
-    }
-}
+// impl AsRef<Self> for AppState {
+//     fn as_ref(&self) -> &Self {
+//         self
+//     }
+// }
 
 impl AppState {
     /// # Panics

@@ -746,7 +746,7 @@ where
         .await
         .switch()?;
 
-    let merchant_id = auth_out.get_merchant_id().unwrap_or("").to_string();
+    let merchant_id = auth_out.get_merchant_id().unwrap_or("UNKNOWN").to_string();
 
     request_state.add_merchant_id(Some(merchant_id.clone()));
 

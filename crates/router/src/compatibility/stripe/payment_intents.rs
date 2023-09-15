@@ -46,7 +46,7 @@ pub async fn payment_intents_create(
         errors::StripeErrorCode,
     >(
         flow,
-        state,
+        state.into_inner(),
         &req,
         create_payment_req,
         |state, auth, req| {
@@ -104,7 +104,7 @@ pub async fn payment_intents_retrieve(
         errors::StripeErrorCode,
     >(
         flow,
-        state,
+        state.into_inner(),
         &req,
         payload,
         |state, auth, payload| {
@@ -166,7 +166,7 @@ pub async fn payment_intents_retrieve_with_gateway_creds(
         errors::StripeErrorCode,
     >(
         flow,
-        state,
+        state.into_inner(),
         &req,
         payload,
         |state, auth, req| {
@@ -229,7 +229,7 @@ pub async fn payment_intents_update(
         errors::StripeErrorCode,
     >(
         flow,
-        state,
+        state.into_inner(),
         &req,
         payload,
         |state, auth, req| {
@@ -294,7 +294,7 @@ pub async fn payment_intents_confirm(
         errors::StripeErrorCode,
     >(
         flow,
-        state,
+        state.into_inner(),
         &req,
         payload,
         |state, auth, req| {
@@ -349,7 +349,7 @@ pub async fn payment_intents_capture(
         errors::StripeErrorCode,
     >(
         flow,
-        state,
+        state.into_inner(),
         &req,
         capture_payload,
         |state, auth, payload| {
@@ -408,7 +408,7 @@ pub async fn payment_intents_cancel(
         errors::StripeErrorCode,
     >(
         flow,
-        state,
+        state.into_inner(),
         &req,
         payload,
         |state, auth, req| {
@@ -453,7 +453,7 @@ pub async fn payment_intent_list(
         errors::StripeErrorCode,
     >(
         flow,
-        state,
+        state.into_inner(),
         &req,
         payload,
         |state, auth, req| payments::list_payments(state, auth.merchant_account, req),

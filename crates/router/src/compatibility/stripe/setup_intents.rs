@@ -50,7 +50,7 @@ pub async fn setup_intents_create(
         errors::StripeErrorCode,
     >(
         flow,
-        state,
+        state.into_inner(),
         &req,
         create_payment_req,
         |state, auth, req| {
@@ -108,7 +108,7 @@ pub async fn setup_intents_retrieve(
         errors::StripeErrorCode,
     >(
         flow,
-        state,
+        state.into_inner(),
         &req,
         payload,
         |state, auth, payload| {
@@ -172,7 +172,7 @@ pub async fn setup_intents_update(
         errors::StripeErrorCode,
     >(
         flow,
-        state,
+        state.into_inner(),
         &req,
         payload,
         |state, auth, req| {
@@ -237,7 +237,7 @@ pub async fn setup_intents_confirm(
         errors::StripeErrorCode,
     >(
         flow,
-        state,
+        state.into_inner(),
         &req,
         payload,
         |state, auth, req| {
