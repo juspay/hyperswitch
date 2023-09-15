@@ -90,7 +90,9 @@ pub trait ConnectorValidation: ConnectorCommon {
 }
 
 #[async_trait::async_trait]
-pub trait ConnectorIntegration<T, Req, Resp>: ConnectorIntegrationAny<T, Req, Resp> + Sync {
+pub trait ConnectorIntegration<T, Req, Resp>:
+    ConnectorIntegrationAny<T, Req, Resp> + Sync + ConnectorValidation
+{
     fn get_headers(
         &self,
         _req: &types::RouterData<T, Req, Resp>,

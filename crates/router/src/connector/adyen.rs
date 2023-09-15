@@ -598,7 +598,6 @@ impl
         req: &types::PaymentsAuthorizeRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
-        self.validate_capture_method(req.request.capture_method)?;
         check_for_payment_method_balance(req)?;
         Ok(Some(
             services::RequestBuilder::new()
