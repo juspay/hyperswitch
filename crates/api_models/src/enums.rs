@@ -119,6 +119,7 @@ pub enum Connector {
     Worldpay,
     Zen,
     Signifyd,
+    Plaid,
 }
 
 impl Connector {
