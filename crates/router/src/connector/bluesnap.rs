@@ -157,7 +157,7 @@ impl ConnectorValidation for Bluesnap {
         &self,
         data: &types::PaymentsSyncRouterData,
     ) -> CustomResult<(), errors::ConnectorError> {
-        // If 3DS payment was triggered, connector will have context about payment in CompleteAuthorizeFlow and thus can't make f_sync
+        // If 3DS payment was triggered, connector will have context about payment in CompleteAuthorizeFlow and thus can't make force_sync
         if data.is_three_ds() && data.status == enums::AttemptStatus::AuthenticationPending {
             return Err(
                 errors::ConnectorError::MissingConnectorRelatedTransactionID {

@@ -189,7 +189,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for BluesnapPaymentsTokenReque
             | payments::PaymentMethodData::Voucher(_)
             | payments::PaymentMethodData::GiftCard(_) => {
                 Err(errors::ConnectorError::NotImplemented(
-                    utils::get_unimplemented_payment_method_error_message("bluesnap"),
+                    "Selected payment method via Token flow through bluesnap".to_string(),
                 ))
                 .into_report()
             }
