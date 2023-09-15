@@ -1,6 +1,6 @@
-use std::{future::Future, time::Instant};
+use std::{future::Future, time::Instant, sync::Arc};
 
-use actix_web::{web, HttpRequest, HttpResponse, Responder};
+use actix_web::{HttpRequest, HttpResponse, Responder};
 use common_utils::errors::ErrorSwitch;
 use router_env::{instrument, tracing, Tag};
 use serde::Serialize;
@@ -43,7 +43,7 @@ where
     let res = match metrics::request::record_request_time_metric(
         api::server_wrap_util(
             &flow,
-            state.clone(),
+            state.clone().into(),
             request,
             payload,
             func,

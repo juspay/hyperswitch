@@ -41,7 +41,7 @@ pub async fn customer_create(
         errors::StripeErrorCode,
     >(
         flow,
-        state,
+        state.into_inner(),
         &req,
         create_cust_req,
         |state, auth, req| {
@@ -75,7 +75,7 @@ pub async fn customer_retrieve(
         errors::StripeErrorCode,
     >(
         flow,
-        state,
+        state.into_inner(),
         &req,
         payload,
         |state, auth, req| {
@@ -118,7 +118,7 @@ pub async fn customer_update(
         errors::StripeErrorCode,
     >(
         flow,
-        state,
+        state.into_inner(),
         &req,
         cust_update_req,
         |state, auth, req| {
@@ -152,7 +152,7 @@ pub async fn customer_delete(
         errors::StripeErrorCode,
     >(
         flow,
-        state,
+        state.into_inner(),
         &req,
         payload,
         |state, auth, req| {
@@ -185,7 +185,7 @@ pub async fn list_customer_payment_method_api(
         errors::StripeErrorCode,
     >(
         flow,
-        state,
+        state.into_inner(),
         &req,
         payload,
         |state, auth, req| {
