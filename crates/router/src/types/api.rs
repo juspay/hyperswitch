@@ -47,9 +47,19 @@ pub trait ConnectorTransactionId: ConnectorCommon + Sync {
     }
 }
 
+pub enum CurrencyUnit {
+    Base,
+    Minor,
+}
+
 pub trait ConnectorCommon {
     /// Name of the connector (in lowercase).
     fn id(&self) -> &'static str;
+
+    /// Connector accepted currency unit as either "Base" or "Minor"
+    fn get_currency_unit(&self) -> CurrencyUnit {
+        CurrencyUnit::Minor // Default implementation should be remove once it is implemented in all connectors
+    }
 
     /// HTTP header used for authorization.
     fn get_auth_header(
@@ -331,7 +341,7 @@ impl ConnectorData {
                 enums::Connector::Trustpay => Ok(Box::new(&connector::Trustpay)),
                 enums::Connector::Tsys => Ok(Box::new(&connector::Tsys)),
                 enums::Connector::Zen => Ok(Box::new(&connector::Zen)),
-                enums::Connector::Signifyd => {
+                enums::Connector::Signifyd | enums::Connector::Plaid => {
                     Err(report!(errors::ConnectorError::InvalidConnectorName)
                         .attach_printable(format!("invalid connector name: {connector_name}")))
                     .change_context(errors::ApiErrorResponse::InternalServerError)

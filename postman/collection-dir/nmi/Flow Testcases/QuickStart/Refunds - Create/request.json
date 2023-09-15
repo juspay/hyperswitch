@@ -21,12 +21,8 @@
   },
   "url": {
     "raw": "{{baseUrl}}/refunds",
-    "host": [
-      "{{baseUrl}}"
-    ],
-    "path": [
-      "refunds"
-    ]
+    "host": ["{{baseUrl}}"],
+    "path": ["refunds"]
   },
   "description": "To create a refund against an already processed payment"
 }

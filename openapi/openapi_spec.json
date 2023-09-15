@@ -3872,7 +3872,8 @@
           "worldline",
           "worldpay",
           "zen",
-          "signifyd"
+          "signifyd",
+          "plaid"
         ]
       },
       "ConnectorMetadata": {
@@ -6725,6 +6726,14 @@
             "description": "The business profile this connector must be created in\ndefault value from merchant account is taken if not passed",
             "nullable": true,
             "maxLength": 64
+          },
+          "applepay_verified_domains": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "identifier for the verified domains of a particular connector account",
+            "nullable": true
           }
         }
       },

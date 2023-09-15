@@ -44,6 +44,7 @@ pub async fn payment_intents_create(
         _,
         types::StripePaymentIntentResponse,
         errors::StripeErrorCode,
+        _,
     >(
         flow,
         state.into_inner(),
@@ -102,6 +103,7 @@ pub async fn payment_intents_retrieve(
         _,
         types::StripePaymentIntentResponse,
         errors::StripeErrorCode,
+        _,
     >(
         flow,
         state.into_inner(),
@@ -164,6 +166,7 @@ pub async fn payment_intents_retrieve_with_gateway_creds(
         _,
         types::StripePaymentIntentResponse,
         errors::StripeErrorCode,
+        _,
     >(
         flow,
         state.into_inner(),
@@ -227,6 +230,7 @@ pub async fn payment_intents_update(
         _,
         types::StripePaymentIntentResponse,
         errors::StripeErrorCode,
+        _,
     >(
         flow,
         state.into_inner(),
@@ -292,6 +296,7 @@ pub async fn payment_intents_confirm(
         _,
         types::StripePaymentIntentResponse,
         errors::StripeErrorCode,
+        _,
     >(
         flow,
         state.into_inner(),
@@ -347,6 +352,7 @@ pub async fn payment_intents_capture(
         _,
         types::StripePaymentIntentResponse,
         errors::StripeErrorCode,
+        _,
     >(
         flow,
         state.into_inner(),
@@ -406,6 +412,7 @@ pub async fn payment_intents_cancel(
         _,
         types::StripePaymentIntentResponse,
         errors::StripeErrorCode,
+        _,
     >(
         flow,
         state.into_inner(),
@@ -451,6 +458,7 @@ pub async fn payment_intent_list(
         _,
         types::StripePaymentIntentListResponse,
         errors::StripeErrorCode,
+        _,
     >(
         flow,
         state.into_inner(),

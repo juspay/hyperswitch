@@ -14,14 +14,14 @@ use actix_web::{body, web, FromRequest, HttpRequest, HttpResponse, Responder, Re
 use api_models::enums::CaptureMethod;
 pub use client::{proxy_bypass_urls, ApiClient, MockApiClient, ProxyClient};
 use common_utils::errors::ReportSwitchExt;
+pub use common_utils::request::{ContentType, Method, Request, RequestBuilder};
 use error_stack::{report, IntoReport, Report, ResultExt};
 use masking::{ExposeOptionInterface, PeekInterface};
 use router_env::{instrument, tracing, tracing_actix_web::RequestId, Tag};
 use serde::Serialize;
 use serde_json::json;
 
-use self::request::{ContentType, HeaderExt, RequestBuilderExt};
-pub use self::request::{Method, Request, RequestBuilder};
+use self::request::{HeaderExt, RequestBuilderExt};
 use crate::{
     configs::settings::{Connectors, Settings},
     consts,
@@ -1254,9 +1254,9 @@ pub fn build_redirection_form(
                                                     f.method='POST';
                                                     i.name = 'authentication_response';
                                                     i.value = JSON.stringify(payload);
-                                                    f.appendChild(i); 
+                                                    f.appendChild(i);
                                                     f.body = JSON.stringify(payload);
-                                                    document.body.appendChild(f); 
+                                                    document.body.appendChild(f);
                                                     f.submit();
                                                     }}
                                                 }});

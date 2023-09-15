@@ -39,6 +39,7 @@ pub async fn customer_create(
         _,
         types::CreateCustomerResponse,
         errors::StripeErrorCode,
+        _,
     >(
         flow,
         state.into_inner(),
@@ -73,6 +74,7 @@ pub async fn customer_retrieve(
         _,
         types::CustomerRetrieveResponse,
         errors::StripeErrorCode,
+        _,
     >(
         flow,
         state.into_inner(),
@@ -116,6 +118,7 @@ pub async fn customer_update(
         _,
         types::CustomerUpdateResponse,
         errors::StripeErrorCode,
+        _,
     >(
         flow,
         state.into_inner(),
@@ -150,6 +153,7 @@ pub async fn customer_delete(
         _,
         types::CustomerDeleteResponse,
         errors::StripeErrorCode,
+        _,
     >(
         flow,
         state.into_inner(),
@@ -183,6 +187,7 @@ pub async fn list_customer_payment_method_api(
         _,
         types::CustomerPaymentMethodListResponse,
         errors::StripeErrorCode,
+        _,
     >(
         flow,
         state.into_inner(),

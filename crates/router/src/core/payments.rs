@@ -1039,6 +1039,7 @@ pub fn is_preprocessing_required_for_wallets(connector_name: String) -> bool {
     connector_name == *"trustpay" || connector_name == *"payme"
 }
 
+#[instrument(skip_all)]
 pub async fn construct_profile_id_and_get_mca<'a, F>(
     state: &'a AppState,
     merchant_account: &domain::MerchantAccount,
@@ -1345,7 +1346,7 @@ where
     Ok(payment_data.to_owned())
 }
 
-#[derive(Clone)]
+#[derive(Clone, PartialEq)]
 pub enum CallConnectorAction {
     Trigger,
     Avoid,
@@ -1486,7 +1487,13 @@ pub fn should_call_connector<Op: Debug, F: Clone>(
                 payment_data.payment_intent.status,
                 storage_enums::IntentStatus::RequiresCapture
                     | storage_enums::IntentStatus::PartiallyCaptured
-            )
+            ) || (matches!(
+                payment_data.payment_intent.status,
+                storage_enums::IntentStatus::Processing
+            ) && matches!(
+                payment_data.payment_attempt.capture_method,
+                Some(storage_enums::CaptureMethod::ManualMultiple)
+            ))
         }
         "CompleteAuthorize" => true,
         "PaymentApprove" => true,
