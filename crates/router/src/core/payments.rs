@@ -548,6 +548,7 @@ impl PaymentRedirectFlow for PaymentRedirectSync {
 }
 
 #[allow(clippy::too_many_arguments)]
+#[instrument(skip_all)]
 pub async fn call_connector_service<F, RouterDReq, ApiRequest>(
     state: &AppState,
     merchant_account: &domain::MerchantAccount,
@@ -593,15 +594,6 @@ where
     )
     .await?;
 
-    let updated_customer = call_create_connector_customer_if_required(
-        state,
-        customer,
-        merchant_account,
-        key_store,
-        payment_data,
-    )
-    .await?;
-
     let (pd, tokenization_action) = get_connector_tokenization_action_when_confirm_true(
         state,
         operation,
@@ -610,7 +602,17 @@ where
         &merchant_connector_account,
     )
     .await?;
+
     *payment_data = pd;
+
+    let updated_customer = call_create_connector_customer_if_required(
+        state,
+        customer,
+        merchant_account,
+        key_store,
+        payment_data,
+    )
+    .await?;
 
     let mut router_data = payment_data
         .construct_router_data(
@@ -1038,6 +1040,7 @@ pub fn is_preprocessing_required_for_wallets(connector_name: String) -> bool {
     connector_name == *"trustpay" || connector_name == *"payme"
 }
 
+#[instrument(skip_all)]
 pub async fn construct_profile_id_and_get_mca<'a, F>(
     state: &'a AppState,
     merchant_account: &domain::MerchantAccount,
@@ -1344,7 +1347,7 @@ where
     Ok(payment_data.to_owned())
 }
 
-#[derive(Clone)]
+#[derive(Clone, PartialEq)]
 pub enum CallConnectorAction {
     Trigger,
     Avoid,
@@ -1485,7 +1488,13 @@ pub fn should_call_connector<Op: Debug, F: Clone>(
                 payment_data.payment_intent.status,
                 storage_enums::IntentStatus::RequiresCapture
                     | storage_enums::IntentStatus::PartiallyCaptured
-            )
+            ) || (matches!(
+                payment_data.payment_intent.status,
+                storage_enums::IntentStatus::Processing
+            ) && matches!(
+                payment_data.payment_attempt.capture_method,
+                Some(storage_enums::CaptureMethod::ManualMultiple)
+            ))
         }
         "CompleteAuthorize" => true,
         "PaymentApprove" => true,
