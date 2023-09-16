@@ -212,6 +212,7 @@ default_imp_for_create_customer!(
     connector::Authorizedotnet,
     connector::Bambora,
     connector::Bitpay,
+    connector::Bluesnap,
     connector::Boku,
     connector::Braintree,
     connector::Cashtocode,
