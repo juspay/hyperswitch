@@ -204,6 +204,29 @@ diesel::table! {
     use diesel::sql_types::*;
     use crate::enums::diesel_exports::*;
 
+    dashboard_metadata (id) {
+        id -> Int4,
+        #[max_length = 64]
+        user_id -> Nullable<Varchar>,
+        #[max_length = 64]
+        merchant_id -> Varchar,
+        #[max_length = 64]
+        org_id -> Varchar,
+        data_key -> DashboardMetadata,
+        data_value -> Json,
+        #[max_length = 64]
+        created_by -> Varchar,
+        created_at -> Timestamp,
+        #[max_length = 64]
+        last_modified_by -> Varchar,
+        last_modified_at -> Timestamp,
+    }
+}
+
+diesel::table! {
+    use diesel::sql_types::*;
+    use crate::enums::diesel_exports::*;
+
     dispute (id) {
         id -> Int4,
         #[max_length = 64]
@@ -257,6 +280,23 @@ diesel::table! {
         #[max_length = 64]
         primary_object_id -> Varchar,
         primary_object_type -> EventObjectType,
+        created_at -> Timestamp,
+    }
+}
+
+diesel::table! {
+    use diesel::sql_types::*;
+    use crate::enums::diesel_exports::*;
+
+    feedbacks (id) {
+        id -> Int4,
+        #[max_length = 255]
+        email -> Varchar,
+        #[max_length = 255]
+        description -> Nullable<Varchar>,
+        rating -> Nullable<Int4>,
+        #[max_length = 255]
+        category -> Nullable<Varchar>,
         created_at -> Timestamp,
     }
 }
@@ -324,6 +364,32 @@ diesel::table! {
     use diesel::sql_types::*;
     use crate::enums::diesel_exports::*;
 
+    gateway_status_map (connector, flow, sub_flow, code, message) {
+        #[max_length = 64]
+        connector -> Varchar,
+        #[max_length = 64]
+        flow -> Varchar,
+        #[max_length = 64]
+        sub_flow -> Varchar,
+        #[max_length = 255]
+        code -> Varchar,
+        #[max_length = 1024]
+        message -> Varchar,
+        #[max_length = 64]
+        status -> Varchar,
+        #[max_length = 64]
+        router_error -> Nullable<Varchar>,
+        #[max_length = 64]
+        decision -> Varchar,
+        created_at -> Timestamp,
+        last_modified -> Timestamp,
+    }
+}
+
+diesel::table! {
+    use diesel::sql_types::*;
+    use crate::enums::diesel_exports::*;
+
     locker_mock_up (id) {
         id -> Int4,
         #[max_length = 255]
@@ -334,7 +400,7 @@ diesel::table! {
         card_fingerprint -> Varchar,
         #[max_length = 255]
         card_global_fingerprint -> Varchar,
-        #[max_length = 255]
+        #[max_length = 64]
         merchant_id -> Varchar,
         #[max_length = 255]
         card_number -> Varchar,
@@ -485,6 +551,32 @@ diesel::table! {
         merchant_id -> Varchar,
         key -> Bytea,
         created_at -> Timestamp,
+    }
+}
+
+diesel::table! {
+    use diesel::sql_types::*;
+    use crate::enums::diesel_exports::*;
+
+    onboarding_data (id) {
+        id -> Int4,
+        #[max_length = 64]
+        user_id -> Varchar,
+        onboarding_step -> Int4,
+        created_at -> Timestamp,
+        last_modified -> Timestamp,
+        subscribed -> Nullable<Bool>,
+    }
+}
+
+diesel::table! {
+    use diesel::sql_types::*;
+    use crate::enums::diesel_exports::*;
+
+    organization (org_id) {
+        #[max_length = 32]
+        org_id -> Varchar,
+        org_name -> Nullable<Text>,
     }
 }
 
@@ -722,6 +814,36 @@ diesel::table! {
     use diesel::sql_types::*;
     use crate::enums::diesel_exports::*;
 
+    plan (plan_id) {
+        #[max_length = 64]
+        plan_id -> Varchar,
+        #[max_length = 255]
+        plan_name -> Varchar,
+        #[max_length = 64]
+        merchant_id -> Varchar,
+        currency -> Currency,
+        amount -> Int4,
+        #[max_length = 64]
+        status -> Varchar,
+        #[max_length = 64]
+        billing_unit -> Varchar,
+        billing_length -> Int4,
+        billing_cycle -> Int4,
+        #[max_length = 64]
+        trial_unit -> Nullable<Varchar>,
+        trial_length -> Nullable<Int4>,
+        #[max_length = 64]
+        pricing_type -> Varchar,
+        trial_requires_payment_info -> Bool,
+        created_at -> Timestamp,
+        modified_at -> Timestamp,
+    }
+}
+
+diesel::table! {
+    use diesel::sql_types::*;
+    use crate::enums::diesel_exports::*;
+
     process_tracker (id) {
         #[max_length = 127]
         id -> Varchar,
@@ -741,6 +863,42 @@ diesel::table! {
         event -> Array<Nullable<Text>>,
         created_at -> Timestamp,
         updated_at -> Timestamp,
+    }
+}
+
+diesel::table! {
+    use diesel::sql_types::*;
+    use crate::enums::diesel_exports::*;
+
+    prod_intent (id) {
+        id -> Int4,
+        #[max_length = 255]
+        user_id -> Varchar,
+        #[max_length = 255]
+        merchant_id -> Varchar,
+        #[max_length = 255]
+        legal_business_name -> Nullable<Varchar>,
+        #[max_length = 255]
+        business_label -> Nullable<Varchar>,
+        business_location -> Nullable<CountryAlpha2>,
+        #[max_length = 255]
+        display_name -> Nullable<Varchar>,
+        #[max_length = 255]
+        poc_email -> Nullable<Varchar>,
+        #[max_length = 255]
+        business_type -> Nullable<Varchar>,
+        #[max_length = 255]
+        business_identifier -> Nullable<Varchar>,
+        #[max_length = 255]
+        business_website -> Nullable<Varchar>,
+        #[max_length = 255]
+        poc_name -> Nullable<Varchar>,
+        #[max_length = 255]
+        poc_contact -> Nullable<Varchar>,
+        comments -> Nullable<Text>,
+        is_completed -> Bool,
+        created_at -> Timestamp,
+        modified_at -> Timestamp,
     }
 }
 
@@ -806,6 +964,90 @@ diesel::table! {
     }
 }
 
+diesel::table! {
+    use diesel::sql_types::*;
+    use crate::enums::diesel_exports::*;
+
+    subscriptions (subscription_id) {
+        #[max_length = 64]
+        subscription_id -> Varchar,
+        #[max_length = 64]
+        plan_id -> Varchar,
+        #[max_length = 64]
+        customer_id -> Varchar,
+        #[max_length = 64]
+        merchant_id -> Varchar,
+        #[max_length = 64]
+        mandate_id -> Nullable<Varchar>,
+        currency -> Currency,
+        amount -> Int4,
+        subscription_balance -> Int4,
+        #[max_length = 64]
+        status -> Varchar,
+        next_billing_date -> Timestamp,
+        #[max_length = 64]
+        billing_unit -> Varchar,
+        billing_length -> Int4,
+        billing_cycle -> Int4,
+        #[max_length = 64]
+        trial_unit -> Nullable<Varchar>,
+        trial_length -> Nullable<Int4>,
+        start_date -> Nullable<Timestamp>,
+        end_date -> Nullable<Timestamp>,
+        is_retry_initiated -> Nullable<Bool>,
+        created_at -> Timestamp,
+        modified_at -> Timestamp,
+    }
+}
+
+diesel::table! {
+    use diesel::sql_types::*;
+    use crate::enums::diesel_exports::*;
+
+    user_roles (id) {
+        id -> Int4,
+        #[max_length = 64]
+        user_id -> Varchar,
+        #[max_length = 64]
+        merchant_id -> Varchar,
+        #[max_length = 64]
+        role_id -> Varchar,
+        status -> UserStatus,
+        #[max_length = 64]
+        created_by -> Varchar,
+        #[max_length = 64]
+        last_modified_by -> Varchar,
+        created_at -> Timestamp,
+        last_modified -> Timestamp,
+        #[max_length = 32]
+        org_id -> Nullable<Varchar>,
+    }
+}
+
+diesel::table! {
+    use diesel::sql_types::*;
+    use crate::enums::diesel_exports::*;
+
+    users (id) {
+        id -> Int4,
+        #[max_length = 64]
+        user_id -> Varchar,
+        #[max_length = 255]
+        email -> Varchar,
+        #[max_length = 255]
+        name -> Varchar,
+        #[max_length = 255]
+        password -> Varchar,
+        #[max_length = 64]
+        merchant_id -> Nullable<Varchar>,
+        is_verified -> Bool,
+        created_at -> Timestamp,
+        last_modified -> Timestamp,
+        metadata -> Nullable<Jsonb>,
+        sandbox_integration -> Nullable<Jsonb>,
+    }
+}
+
 diesel::allow_tables_to_appear_in_same_query!(
     address,
     api_keys,
@@ -815,21 +1057,31 @@ diesel::allow_tables_to_appear_in_same_query!(
     configs,
     connector_response,
     customers,
+    dashboard_metadata,
     dispute,
     events,
+    feedbacks,
     file_metadata,
     fraud_check,
+    gateway_status_map,
     locker_mock_up,
     mandate,
     merchant_account,
     merchant_connector_account,
     merchant_key_store,
+    onboarding_data,
+    organization,
     payment_attempt,
     payment_intent,
     payment_methods,
     payout_attempt,
     payouts,
+    plan,
     process_tracker,
+    prod_intent,
     refund,
     reverse_lookup,
+    subscriptions,
+    user_roles,
+    users,
 );
