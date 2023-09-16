@@ -801,6 +801,7 @@ pub async fn list_payment_methods(
                 pi.shipping_address_id.clone(),
                 &key_store,
                 pi.payment_id.clone(),
+                merchant_account.merchant_id.clone(),
             )
             .await
         })
@@ -816,6 +817,7 @@ pub async fn list_payment_methods(
                 pi.billing_address_id.clone(),
                 &key_store,
                 pi.payment_id.clone(),
+                merchant_account.merchant_id.clone(),
             )
             .await
         })

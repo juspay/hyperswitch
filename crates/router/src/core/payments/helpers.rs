@@ -117,8 +117,13 @@ pub async fn get_address_for_payment_request(
 
     Ok(match address_id {
         Some(id) => Some(
-            db.find_address_payment_id_address_id(payment_id, id, merchant_key_store)
-                .await,
+            db.find_address_merchant_id_payment_id_address_id(
+                merchant_id,
+                payment_id,
+                id,
+                merchant_key_store,
+            )
+            .await,
         )
         .transpose()
         .to_not_found_response(errors::ApiErrorResponse::AddressNotFound)?,
@@ -201,11 +206,17 @@ pub async fn get_address_by_id(
     address_id: Option<String>,
     merchant_key_store: &domain::MerchantKeyStore,
     payment_id: String,
+    merchant_id: String,
 ) -> CustomResult<Option<domain::Address>, errors::ApiErrorResponse> {
     match address_id {
         None => Ok(None),
         Some(address_id) => Ok(db
-            .find_address_payment_id_address_id(&payment_id, &address_id, merchant_key_store)
+            .find_address_merchant_id_payment_id_address_id(
+                &merchant_id,
+                &payment_id,
+                &address_id,
+                merchant_key_store,
+            )
             .await
             .ok()),
     }

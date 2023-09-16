@@ -41,8 +41,9 @@ where
         key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<domain::Address, errors::StorageError>;
 
-    async fn find_address_payment_id_address_id(
+    async fn find_address_merchant_id_payment_id_address_id(
         &self,
+        merchant_id: &str,
         payment_id: &str,
         address_id: &str,
         key_store: &domain::MerchantKeyStore,
@@ -59,24 +60,30 @@ where
 
 #[async_trait::async_trait]
 impl AddressInterface for Store {
-    async fn find_address_payment_id_address_id(
+    async fn find_address_merchant_id_payment_id_address_id(
         &self,
+        merchant_id: &str,
         payment_id: &str,
         address_id: &str,
         key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<domain::Address, errors::StorageError> {
         let conn = connection::pg_connection_read(self).await?;
-        storage::Address::find_by_payment_id_address_id(&conn, payment_id, address_id)
-            .await
-            .map_err(Into::into)
-            .into_report()
-            .async_and_then(|address| async {
-                address
-                    .convert(key_store.key.get_inner())
-                    .await
-                    .change_context(errors::StorageError::DecryptionError)
-            })
-            .await
+        storage::Address::find_by_merchant_id_payment_id_address_id(
+            &conn,
+            merchant_id,
+            payment_id,
+            address_id,
+        )
+        .await
+        .map_err(Into::into)
+        .into_report()
+        .async_and_then(|address| async {
+            address
+                .convert(key_store.key.get_inner())
+                .await
+                .change_context(errors::StorageError::DecryptionError)
+        })
+        .await
     }
 
     #[instrument(skip_all)]
@@ -182,8 +189,9 @@ impl AddressInterface for Store {
 
 #[async_trait::async_trait]
 impl AddressInterface for MockDb {
-    async fn find_address_payment_id_address_id(
+    async fn find_address_merchant_id_payment_id_address_id(
         &self,
+        _merchant_id: &str,
         _payment_id: &str,
         address_id: &str,
         key_store: &domain::MerchantKeyStore,

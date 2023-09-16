@@ -76,8 +76,9 @@ impl Address {
     }
 
     #[instrument(skip(conn))]
-    pub async fn find_by_payment_id_address_id<'a>(
+    pub async fn find_by_merchant_id_payment_id_address_id<'a>(
         conn: &PgPooledConn,
+        merchant_id: &str,
         payment_id: &str,
         address_id: &str,
     ) -> StorageResult<Self> {
@@ -85,6 +86,7 @@ impl Address {
             conn,
             dsl::payment_id
                 .eq(payment_id.to_owned())
+                .and(dsl::merchant_id.eq(merchant_id.to_owned()))
                 .and(dsl::address_id.eq(address_id.to_owned())),
         )
         .await
