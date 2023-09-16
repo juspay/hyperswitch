@@ -115,6 +115,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
                 .or(customer_details.customer_id.as_ref()),
             key_store,
             &payment_intent.payment_id,
+            merchant_account.storage_scheme,
         );
 
         let billing_address_fut = helpers::get_address_for_payment_request(
@@ -128,6 +129,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
                 .or(customer_details.customer_id.as_ref()),
             key_store,
             &payment_intent.payment_id,
+            merchant_account.storage_scheme,
         );
 
         let config_update_fut = request

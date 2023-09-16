@@ -1,9 +1,10 @@
 use diesel::{AsChangeset, Identifiable, Insertable, Queryable};
+use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
 
 use crate::{encryption::Encryption, enums, schema::address};
 
-#[derive(Clone, Debug, Insertable, router_derive::DebugAsDisplay)]
+#[derive(Clone, Debug, Insertable, Serialize, Deserialize, router_derive::DebugAsDisplay)]
 #[diesel(table_name = address)]
 pub struct AddressNew {
     pub address_id: String,
@@ -25,7 +26,7 @@ pub struct AddressNew {
     pub modified_at: PrimitiveDateTime,
 }
 
-#[derive(Clone, Debug, Queryable, Identifiable)]
+#[derive(Clone, Debug, Queryable, Identifiable, Serialize, Deserialize)]
 #[diesel(table_name = address, primary_key(address_id))]
 pub struct Address {
     pub address_id: String,
