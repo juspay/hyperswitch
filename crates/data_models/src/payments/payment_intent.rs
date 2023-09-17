@@ -414,25 +414,24 @@ pub enum PaymentIntentFetchConstraints {
 
 impl From<api_models::payments::PaymentListConstraints> for PaymentIntentFetchConstraints {
     fn from(value: api_models::payments::PaymentListConstraints) -> Self {
-    
-            Self::List {
-                offset: 0,
-                starting_at: value.created_gte.or(value.created_gt).or(value.created),
-                ending_at: value.created_lte.or(value.created_lt).or(value.created),
-                connector: None,
-                currency: None,
-                status: None,
-                payment_method: None,
-                payment_method_type: None,
-                authentication_type: None,
-                profile_id: None,
-                customer_id: value.customer_id,
-                starting_after_id: value.starting_after,
-                ending_before_id: value.ending_before,
-                limit: Some(std::cmp::min(value.limit, PAYMENTS_LIST_MAX_LIMIT_V1)),
-            }
+        Self::List {
+            offset: 0,
+            starting_at: value.created_gte.or(value.created_gt).or(value.created),
+            ending_at: value.created_lte.or(value.created_lt).or(value.created),
+            connector: None,
+            currency: None,
+            status: None,
+            payment_method: None,
+            payment_method_type: None,
+            authentication_type: None,
+            profile_id: None,
+            customer_id: value.customer_id,
+            starting_after_id: value.starting_after,
+            ending_before_id: value.ending_before,
+            limit: Some(std::cmp::min(value.limit, PAYMENTS_LIST_MAX_LIMIT_V1)),
         }
     }
+}
 
 impl From<api_models::payments::TimeRange> for PaymentIntentFetchConstraints {
     fn from(value: api_models::payments::TimeRange) -> Self {
