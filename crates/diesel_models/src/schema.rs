@@ -5,6 +5,7 @@ diesel::table! {
     use crate::enums::diesel_exports::*;
 
     address (address_id) {
+        id -> Nullable<Int4>,
         #[max_length = 64]
         address_id -> Varchar,
         #[max_length = 128]

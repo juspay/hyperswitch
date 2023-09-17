@@ -46,6 +46,7 @@ pub async fn create_customer(
 
         let address = async {
             Ok(domain::Address {
+                id: None,
                 city: customer_address.city,
                 country: customer_address.country,
                 line1: customer_address
@@ -398,6 +399,7 @@ pub async fn update_customer(
 
                 let address = async {
                     Ok(domain::Address {
+                        id: None,
                         city: customer_address.city,
                         country: customer_address.country,
                         line1: customer_address

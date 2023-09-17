@@ -16,6 +16,7 @@ use super::{
 #[derive(Clone, Debug, serde::Serialize)]
 pub struct Address {
     #[serde(skip_serializing)]
+    pub id: Option<i32>,
     pub address_id: String,
     pub city: Option<String>,
     pub country: Option<enums::CountryAlpha2>,
@@ -46,6 +47,7 @@ impl behaviour::Conversion for Address {
 
     async fn convert(self) -> CustomResult<Self::DstType, ValidationError> {
         Ok(diesel_models::address::Address {
+            id: self.id,
             address_id: self.address_id,
             city: self.city,
             country: self.country,
@@ -73,6 +75,7 @@ impl behaviour::Conversion for Address {
         async {
             let inner_decrypt = |inner| types::decrypt(inner, key.peek());
             Ok(Self {
+                id: other.id,
                 address_id: other.address_id,
                 city: other.city,
                 country: other.country,
