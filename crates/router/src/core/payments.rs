@@ -1602,7 +1602,9 @@ pub async fn apply_filters_on_payments(
             &merchant.merchant_id,
             &active_attempt_ids,
             constraints.connector,
-            constraints.payment_methods,
+            constraints.payment_method,
+            constraints.payment_method_type,
+            constraints.authentication_type,
             merchant.storage_scheme,
         )
         .await
@@ -1648,6 +1650,8 @@ pub async fn get_filters_for_payments(
             currency: filters.currency,
             status: filters.status,
             payment_method: filters.payment_method,
+            payment_method_type: filters.payment_method_type,
+            authentication_type: filters.authentication_type,
         },
     ))
 }

@@ -363,14 +363,14 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
                 offset,
                 starting_at,
                 ending_at,
-                connector: _,
                 currency,
                 status,
-                payment_methods: _,
                 customer_id,
+                profile_id,
                 starting_after_id,
                 ending_before_id,
                 limit,
+                ..
             } => {
                 if let Some(limit) = limit {
                     query = query.limit((*limit).into());
@@ -378,6 +378,9 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
 
                 if let Some(customer_id) = customer_id {
                     query = query.filter(pi_dsl::customer_id.eq(customer_id.clone()));
+                }
+                if let Some(profile_id) = profile_id {
+                    query = query.filter(pi_dsl::profile_id.eq(profile_id.clone()));
                 }
 
                 query = match (starting_at, starting_after_id) {
@@ -490,7 +493,10 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
                 connector,
                 currency,
                 status,
-                payment_methods,
+                payment_method,
+                payment_method_type,
+                authentication_type,
+                profile_id,
                 customer_id,
                 starting_after_id,
                 ending_before_id,
@@ -502,6 +508,10 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
 
                 if let Some(customer_id) = customer_id {
                     query = query.filter(pi_dsl::customer_id.eq(customer_id.clone()));
+                }
+
+                if let Some(profile_id) = profile_id {
+                    query = query.filter(pi_dsl::profile_id.eq(profile_id.clone()));
                 }
 
                 query = match (starting_at, starting_after_id) {
@@ -559,10 +569,22 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
                     None => query,
                 };
 
-                query = match payment_methods {
-                    Some(payment_methods) => {
-                        query.filter(pa_dsl::payment_method.eq_any(payment_methods.clone()))
+                query = match payment_method {
+                    Some(payment_method) => {
+                        query.filter(pa_dsl::payment_method.eq_any(payment_method.clone()))
                     }
+                    None => query,
+                };
+
+                query = match payment_method_type {
+                    Some(payment_method_type) => query
+                        .filter(pa_dsl::payment_method_type.eq_any(payment_method_type.clone())),
+                    None => query,
+                };
+
+                query = match authentication_type {
+                    Some(authentication_type) => query
+                        .filter(pa_dsl::authentication_type.eq_any(authentication_type.clone())),
                     None => query,
                 };
 

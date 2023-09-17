@@ -1999,6 +1999,10 @@ pub struct PaymentListResponseV2 {
 pub struct PaymentListFilterConstraints {
     /// The identifier for payment
     pub payment_id: Option<String>,
+    /// The identifier for business profile
+    pub profile_id: Option<String>,
+    /// The identifier for customer
+    pub customer_id: Option<String>,
     /// The limit on the number of objects. The default limit is 10 and max limit is 20
     #[serde(default = "default_limit")]
     pub limit: u32,
@@ -2011,10 +2015,14 @@ pub struct PaymentListFilterConstraints {
     pub connector: Option<Vec<api_enums::Connector>>,
     /// The list of currencies to filter payments list
     pub currency: Option<Vec<enums::Currency>>,
-    /// The list of payment statuses to filter payments list
+    /// The list of payment status to filter payments list
     pub status: Option<Vec<enums::IntentStatus>>,
     /// The list of payment methods to filter payments list
-    pub payment_methods: Option<Vec<enums::PaymentMethod>>,
+    pub payment_method: Option<Vec<enums::PaymentMethod>>,
+    /// The list of payment method types to filter payments list
+    pub payment_method_type: Option<Vec<enums::PaymentMethodType>>,
+    /// The list of authentication types to filter payments list
+    pub authentication_type: Option<Vec<enums::AuthenticationType>>,
 }
 #[derive(Clone, Debug, serde::Serialize)]
 pub struct PaymentListFilters {
@@ -2026,6 +2034,10 @@ pub struct PaymentListFilters {
     pub status: Vec<enums::IntentStatus>,
     /// The list of available payment method filters
     pub payment_method: Vec<enums::PaymentMethod>,
+    /// The list of available payment method types
+    pub payment_method_type: Vec<enums::PaymentMethodType>,
+    /// The list of available authentication types
+    pub authentication_type: Vec<enums::AuthenticationType>,
 }
 
 #[derive(Debug, Clone, Copy, serde::Serialize, serde::Deserialize, PartialEq, Eq, Hash)]
