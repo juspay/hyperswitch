@@ -104,6 +104,7 @@ pub fn filter_mca_based_on_business_profile(
 }
 
 #[instrument(skip_all)]
+#[allow(clippy::too_many_arguments)]
 pub async fn get_address_for_payment_request(
     db: &dyn StorageInterface,
     req_address: Option<&api::Address>,

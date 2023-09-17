@@ -802,7 +802,7 @@ pub async fn list_payment_methods(
                 &key_store,
                 pi.payment_id.clone(),
                 merchant_account.merchant_id.clone(),
-                merchant_account.storage_scheme.clone(),
+                merchant_account.storage_scheme,
             )
             .await
         })
@@ -819,7 +819,7 @@ pub async fn list_payment_methods(
                 &key_store,
                 pi.payment_id.clone(),
                 merchant_account.merchant_id.clone(),
-                merchant_account.storage_scheme.clone(),
+                merchant_account.storage_scheme,
             )
             .await
         })
