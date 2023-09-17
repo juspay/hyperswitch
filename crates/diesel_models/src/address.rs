@@ -28,6 +28,7 @@ pub struct AddressNew {
 #[derive(Clone, Debug, Queryable, Identifiable)]
 #[diesel(table_name = address, primary_key(address_id))]
 pub struct Address {
+    pub id: Option<i32>,
     pub address_id: String,
     pub city: Option<String>,
     pub country: Option<enums::CountryAlpha2>,

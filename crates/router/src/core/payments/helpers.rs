@@ -138,6 +138,7 @@ pub async fn get_address_for_payment_request(
                         payment_id,
                         async {
                             Ok(domain::Address {
+                                id: None,
                                 phone_number: address
                                     .phone
                                     .as_ref()
