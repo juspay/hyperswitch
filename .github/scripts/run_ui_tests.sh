@@ -1,10 +1,11 @@
-#!/bin/bash
-sudo apt update
-apt install net-tools
+#! /usr/bin/env bash
+
+sudo apt-get update
+sudo apt-get install net-tools
 mkdir tests
 
 COUNT=0
-#download connector ui tests
+# Download connector ui tests
 while [ ! -f $HOME/target/test/connector_tests.json ]
 do
     if [ $COUNT -gt 10 ];
@@ -17,26 +18,25 @@ do
 done
 
 firefox --version
+rm -rf $HOME/.mozilla
+
+sh ./scripts/decrypt_browser_data.sh "$BROWSER_DATA_PASSPHRASE"
+
 $GECKOWEBDRIVER/geckodriver > tests/geckodriver.log 2>&1 &
 
-#start server and run ui tests
-cargo run &
+# Start server and redirect logs to a file
+target/debug/router > tests/server.log 2>&1 &
 
+SERVER_PID=$!
+# Wait for the server to start in port 8080
 COUNT=0
-#Wait for the server to start in port 8080
-while netstat -lnt | awk '$4 ~ /:8080$/ {exit 1}'; do 
-    #Wait for 15mins to start otherwise kill the task
-    if [ $COUNT -gt 90 ];
-    then
-        exit 1
-    else 
-        COUNT=$((COUNT+1))
-        sleep 10
-    fi
+while ! nc -z localhost 8080; do
+if [ $COUNT -gt 12 ]; then # Wait for up to 2 minutes (12 * 10 seconds)
+    echo "Server did not start within a reasonable time. Exiting."
+    kill $SERVER_PID
+    exit 1
+else
+    COUNT=$((COUNT+1))
+    sleep 10
+fi
 done
-
-IN="$INPUT"
-for i in $(echo $IN | tr "," "\n"); do
-    cargo test --package test_utils --test connectors -- "${i}_ui::" --test-threads=1 >> tests/test_results.log 2>&1
-done
-cat tests/test_results.log
