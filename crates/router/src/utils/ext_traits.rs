@@ -42,13 +42,12 @@ where
     // This will allow the error message that was generated in this function to point to the call site
     #[track_caller]
     fn get_required_value(self, field_name: &'static str) -> CustomResult<T, ValidationError> {
-        match self {
-            Some(v) => Ok(v),
-            None => Err(Report::new(ValidationError::MissingRequiredField {
+        self.ok_or(
+            Report::new(ValidationError::MissingRequiredField {
                 field_name: field_name.to_owned(),
             })
-            .attach_printable(format!("Missing required field {field_name} in {self:?}"))),
-        }
+            .attach_printable(format!("Missing required field {field_name} in {self:?}")),
+        )
     }
 
     fn parse_enum<E>(self, enum_name: &'static str) -> CustomResult<E, errors::ParsingError>
