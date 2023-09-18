@@ -88,6 +88,18 @@ impl ConnectorValidation for Adyen {
             ),
         }
     }
+    fn validate_psync_reference_id(
+        &self,
+        data: &types::PaymentsSyncRouterData,
+    ) -> CustomResult<(), errors::ConnectorError> {
+        if data.request.encoded_data.is_some() {
+            return Ok(());
+        }
+        Err(errors::ConnectorError::MissingRequiredField {
+            field_name: "encoded_data",
+        }
+        .into())
+    }
 }
 
 impl api::Payment for Adyen {}
