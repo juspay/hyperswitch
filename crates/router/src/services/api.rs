@@ -726,7 +726,10 @@ where
         .authenticate_and_fetch(request.headers(), state)
         .await
         .switch()?;
-    let merchant_id = auth_out.get_merchant_id().unwrap_or("").to_string();
+    let merchant_id = auth_out
+        .get_merchant_id()
+        .unwrap_or("MERCHANT_ID_NOT_FOUND")
+        .to_string();
     tracing::Span::current().record("merchant_id", &merchant_id);
 
     let output = func(state, auth_out, payload).await.switch();
