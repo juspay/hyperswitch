@@ -1,8 +1,5 @@
 use masking::Secret;
-use router::{
-    core::utils as core_utils,
-    types::{self, api, storage::enums},
-};
+use router::types::{self, api, storage::enums};
 use test_utils::connector_auth;
 
 use crate::utils::{self, ConnectorActions};
@@ -15,7 +12,7 @@ impl utils::Connector for GocardlessTest {
         use router::connector::Gocardless;
         types::api::ConnectorData {
             connector: Box::new(&Gocardless),
-            connector_name: types::Connector::Gocardless,
+            connector_name: types::Connector::DummyConnector1,
             get_token: types::api::GetToken::Connector,
         }
     }
