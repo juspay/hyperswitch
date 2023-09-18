@@ -346,11 +346,6 @@ impl ConnectorData {
                         .attach_printable(format!("invalid connector name: {connector_name}")))
                     .change_context(errors::ApiErrorResponse::InternalServerError)
                 }
-                enums::Connector::Plaid => {
-                    Err(report!(errors::ConnectorError::InvalidConnectorName)
-                        .attach_printable(format!("invalid connector name: {connector_name}")))
-                    .change_context(errors::ApiErrorResponse::InternalServerError)
-                }
             },
             Err(_) => Err(report!(errors::ConnectorError::InvalidConnectorName)
                 .attach_printable(format!("invalid connector name: {connector_name}")))

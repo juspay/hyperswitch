@@ -1389,8 +1389,6 @@ pub(crate) fn validate_auth_type(
             Err(report!(errors::ConnectorError::InvalidConnectorName)
                 .attach_printable(format!("invalid connector name: {connector_name}")))
         }
-        api_enums::Connector::Plaid => Err(report!(errors::ConnectorError::InvalidConnectorName)
-            .attach_printable(format!("invalid connector name: {connector_name}"))),
     }
 }
 
