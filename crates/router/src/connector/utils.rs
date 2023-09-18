@@ -199,6 +199,7 @@ pub trait PaymentsPreProcessingData {
     fn get_order_details(&self) -> Result<Vec<OrderDetailsWithAmount>, Error>;
     fn get_webhook_url(&self) -> Result<String, Error>;
     fn get_return_url(&self) -> Result<String, Error>;
+    fn get_browser_info(&self) -> Result<types::BrowserInformation, Error>;
 }
 
 impl PaymentsPreProcessingData for types::PaymentsPreProcessingData {
@@ -237,6 +238,11 @@ impl PaymentsPreProcessingData for types::PaymentsPreProcessingData {
         self.router_return_url
             .clone()
             .ok_or_else(missing_field_err("return_url"))
+    }
+    fn get_browser_info(&self) -> Result<types::BrowserInformation, Error> {
+        self.browser_info
+            .clone()
+            .ok_or_else(missing_field_err("browser_info"))
     }
 }
 

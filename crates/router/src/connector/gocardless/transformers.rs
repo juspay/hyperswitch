@@ -2,14 +2,14 @@ use api_models::{
     enums::{BankType, CountryAlpha2},
     payments::BankDebitData,
 };
-use common_utils::pii;
+use common_utils::pii::{self, IpAddress};
 use masking::{ExposeInterface, Secret};
 use serde::{Deserialize, Serialize};
 
 use crate::{
     connector::utils::{
-        self, AddressDetailsData, BankDirectDebitBillingData, ConnectorCustomerData,
-        PaymentsAuthorizeRequestData, RouterData,
+        self, AddressDetailsData, BankDirectDebitBillingData, BrowserInformationData,
+        ConnectorCustomerData, PaymentsAuthorizeRequestData, PaymentsPreProcessingData, RouterData,
     },
     core::errors,
     types::{self, api, storage::enums, MandateReference},
@@ -78,10 +78,7 @@ impl TryFrom<&types::ConnectorCustomerRouterData> for GocardlessCustomerRequest 
         let given_name = billing_address.get_first_name()?.to_owned();
         let family_name = billing_address.get_last_name()?.to_owned();
         let metadata = CustomerMetaData {
-            crm_id: item
-                .customer_id
-                .clone()
-                .map(|customer_id| Secret::new(customer_id)),
+            crm_id: item.customer_id.clone().map(Secret::new),
         };
         Ok(Self {
             customers: GocardlessCustomer {
@@ -98,7 +95,7 @@ impl TryFrom<&types::ConnectorCustomerRouterData> for GocardlessCustomerRequest 
                 postal_code: billing_address.zip.to_owned(),
                 // Should be populated based on the billing country
                 swedish_identity_number: None,
-                city: billing_address.city.clone().map(|city| Secret::new(city)),
+                city: billing_address.city.clone().map(Secret::new),
             },
         })
     }
@@ -162,7 +159,7 @@ pub struct CustomerAccountLink {
 #[derive(Debug, Serialize)]
 #[serde(untagged)]
 pub enum CustomerBankAccount {
-    InternationBankAccount(InternationalBankAccount),
+    InternationalBankAccount(InternationalBankAccount),
     AUBankAccount(AUBankAccount),
     USBankAccount(USBankAccount),
 }
@@ -192,6 +189,7 @@ pub struct USBankAccount {
 }
 
 #[derive(Debug, Serialize)]
+#[serde(rename_all = "lowercase")]
 pub enum AccountType {
     Checking,
     Savings,
@@ -304,7 +302,7 @@ impl TryFrom<&BankDebitData> for CustomerBankAccount {
                     iban: iban.clone(),
                     account_holder_name,
                 };
-                Ok(Self::InternationBankAccount(international_bank_account))
+                Ok(Self::InternationalBankAccount(international_bank_account))
             }
             BankDebitData::BacsBankDebit { .. } => Err(errors::ConnectorError::NotImplemented(
                 utils::get_unimplemented_payment_method_error_message("Gocardless"),
@@ -370,6 +368,7 @@ pub struct GocardlessMandateRequest {
 pub struct Mandate {
     scheme: GocardlessScheme,
     metadata: MandateMetaData,
+    payer_ip_address: Option<Secret<String, IpAddress>>,
     links: MandateLink,
 }
 
@@ -395,10 +394,14 @@ pub struct MandateLink {
 impl TryFrom<&types::PaymentsPreProcessingRouterData> for GocardlessMandateRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::PaymentsPreProcessingRouterData) -> Result<Self, Self::Error> {
-        let scheme = match &item.request.payment_method_data {
+        let (scheme, payer_ip_address) = match &item.request.payment_method_data {
             Some(payment_method_data) => match payment_method_data {
                 api_models::payments::PaymentMethodData::BankDebit(bank_debit_data) => {
-                    GocardlessScheme::try_from(bank_debit_data)
+                    let payer_ip_address = get_ip_if_required(bank_debit_data, item)?;
+                    Ok((
+                        GocardlessScheme::try_from(bank_debit_data)?,
+                        payer_ip_address,
+                    ))
                 }
                 api_models::payments::PaymentMethodData::Card(_)
                 | api_models::payments::PaymentMethodData::CardRedirect(_)
@@ -415,14 +418,12 @@ impl TryFrom<&types::PaymentsPreProcessingRouterData> for GocardlessMandateReque
                     Err(errors::ConnectorError::NotImplemented(
                         "Preprocessing flow for selected payment method through Gocardless"
                             .to_string(),
-                    )
-                    .into())
+                    ))
                 }
             },
             None => Err(errors::ConnectorError::NotImplemented(
                 "Preprocessing flow for selected payment method through Gocardless".to_string(),
-            )
-            .into()),
+            )),
         }?;
         let payment_method_token = item.get_payment_method_token()?;
         let customer_bank_account = match payment_method_token {
@@ -439,11 +440,25 @@ impl TryFrom<&types::PaymentsPreProcessingRouterData> for GocardlessMandateReque
                 metadata: MandateMetaData {
                     payment_reference: item.connector_request_reference_id.clone(),
                 },
+                payer_ip_address,
                 links: MandateLink {
                     customer_bank_account: Secret::new(customer_bank_account),
                 },
             },
         })
+    }
+}
+
+fn get_ip_if_required(
+    bank_debit_data: &BankDebitData,
+    item: &types::PaymentsPreProcessingRouterData,
+) -> Result<Option<Secret<String, IpAddress>>, error_stack::Report<errors::ConnectorError>> {
+    let ip_address = item.request.get_browser_info()?.get_ip_address()?;
+    match bank_debit_data {
+        BankDebitData::AchBankDebit { .. } => Ok(Some(ip_address)),
+        BankDebitData::SepaBankDebit { .. }
+        | BankDebitData::BecsBankDebit { .. }
+        | BankDebitData::BacsBankDebit { .. } => Ok(None),
     }
 }
 
