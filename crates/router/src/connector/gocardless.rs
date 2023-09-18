@@ -5,7 +5,7 @@ use std::fmt::Debug;
 use api_models::enums::enums;
 use common_utils::{crypto, ext_traits::ByteSliceExt};
 use error_stack::{IntoReport, ResultExt};
-use masking::ExposeInterface;
+use masking::{ExposeInterface, PeekInterface};
 use transformers as gocardless;
 
 use crate::{
@@ -90,7 +90,7 @@ impl ConnectorCommon for Gocardless {
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
         Ok(vec![(
             headers::AUTHORIZATION.to_string(),
-            auth.access_token.expose().into_masked(),
+            format!("Bearer {}", auth.access_token.peek()).into_masked(),
         )])
     }
 
