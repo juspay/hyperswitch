@@ -272,7 +272,8 @@ impl PaymentsAuthorizeRequestData for types::PaymentsAuthorizeData {
     fn is_auto_capture(&self) -> Result<bool, Error> {
         match self.capture_method {
             Some(diesel_models::enums::CaptureMethod::Automatic) | None => Ok(true),
-            Some(diesel_models::enums::CaptureMethod::Manual) => Ok(false),
+            Some(diesel_models::enums::CaptureMethod::Manual)
+            | Some(diesel_models::enums::CaptureMethod::ManualMultiple) => Ok(false),
             Some(_) => Err(errors::ConnectorError::CaptureMethodNotSupported.into()),
         }
     }

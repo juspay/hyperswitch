@@ -8,6 +8,7 @@ use crate::{
     connector::utils::{
         self, to_connector_meta, AccessTokenRequestInfo, AddressDetailsData,
         BankRedirectBillingData, CardData, PaymentsAuthorizeRequestData,
+        PaymentsCaptureRequestData,
     },
     core::errors,
     services,
@@ -859,9 +860,10 @@ impl TryFrom<&types::PaymentsCaptureRouterData> for PaypalPaymentsCaptureRequest
                 item.request.currency,
             )?,
         };
+        let final_capture = !item.request.is_multiple_capture();
         Ok(Self {
             amount,
-            final_capture: true,
+            final_capture,
         })
     }
 }
@@ -918,12 +920,15 @@ impl TryFrom<types::PaymentsCaptureResponseRouterData<PaypalCaptureResponse>>
         let status = storage_enums::AttemptStatus::from(item.response.status);
         let connector_payment_id: PaypalMeta =
             to_connector_meta(item.data.request.connector_meta.clone())?;
+        let resource_id = if item.data.request.is_multiple_capture() {
+            item.response.id.clone()
+        } else {
+            item.data.request.connector_transaction_id.to_owned()
+        };
         Ok(Self {
             status,
             response: Ok(types::PaymentsResponseData::TransactionResponse {
-                resource_id: types::ResponseId::ConnectorTransactionId(
-                    item.data.request.connector_transaction_id.clone(),
-                ),
+                resource_id: types::ResponseId::ConnectorTransactionId(resource_id),
                 redirection_data: None,
                 mandate_reference: None,
                 connector_metadata: Some(serde_json::json!(PaypalMeta {
