@@ -13,6 +13,9 @@ fn default_webhook_config() -> api::MerchantWebhookConfig {
     ])
 }
 
+/// Check whether the merchant has configured to process the webhook `event`
+/// First check for the key "whconf_{merchant_id}_{connector_id}" in redis,
+/// if not found, fetch from configs table in database, if not found use default
 pub async fn lookup_webhook_event(
     db: &dyn StorageInterface,
     connector_id: &str,
