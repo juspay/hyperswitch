@@ -888,7 +888,7 @@ pub async fn list_payment_methods(
             &mut response,
             payment_intent.as_ref(),
             payment_attempt.as_ref(),
-            shipping_address.as_ref(),
+            billing_address.as_ref(),
             mca.connector_name,
             pm_config_mapping,
             &state.conf.mandates.supported_payment_methods,
