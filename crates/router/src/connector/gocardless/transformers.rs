@@ -162,7 +162,7 @@ pub struct CustomerAccountLink {
 #[derive(Debug, Serialize)]
 #[serde(untagged)]
 pub enum CustomerBankAccount {
-    InternationBankAccount(InternationalBankAccount),
+    InternationalBankAccount(InternationalBankAccount),
     AUBankAccount(AUBankAccount),
     USBankAccount(USBankAccount),
 }
@@ -304,7 +304,7 @@ impl TryFrom<&BankDebitData> for CustomerBankAccount {
                     iban: iban.clone(),
                     account_holder_name,
                 };
-                Ok(Self::InternationBankAccount(international_bank_account))
+                Ok(Self::InternationalBankAccount(international_bank_account))
             }
             BankDebitData::BacsBankDebit { .. } => Err(errors::ConnectorError::NotImplemented(
                 utils::get_unimplemented_payment_method_error_message("Gocardless"),
