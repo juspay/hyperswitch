@@ -88,16 +88,10 @@ impl ConnectorValidation for Adyen {
     }
     fn validate_psync_reference_id(
         &self,
-        data: &types::PaymentsSyncRouterData,
+        _data: &types::PaymentsSyncRouterData,
     ) -> CustomResult<(), errors::ConnectorError> {
         // since we can make psync call with our reference_id, having connector_transaction_id is not an mandatory criteria
-        if data.request.encoded_data.is_some() {
-            return Ok(());
-        }
-        Err(errors::ConnectorError::MissingRequiredField {
-            field_name: "encoded_data",
-        }
-        .into())
+        Ok(())
     }
 }
 
