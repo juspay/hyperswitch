@@ -5,7 +5,7 @@ use std::fmt::Debug;
 use api_models::enums::enums;
 use common_utils::{crypto, ext_traits::ByteSliceExt};
 use error_stack::{IntoReport, ResultExt};
-use masking::{ExposeInterface, PeekInterface};
+use masking::PeekInterface;
 use transformers as gocardless;
 
 use crate::{
