@@ -1287,10 +1287,10 @@ pub(crate) fn validate_auth_type(
             globepay::transformers::GlobepayAuthType::try_from(val)?;
             Ok(())
         }
-        /*api_enums::Connector::Gocardless => {
+        api_enums::Connector::Gocardless => {
             gocardless::transformers::GocardlessAuthType::try_from(val)?;
             Ok(())
-        }*/
+        }
         api_enums::Connector::Iatapay => {
             iatapay::transformers::IatapayAuthType::try_from(val)?;
             Ok(())

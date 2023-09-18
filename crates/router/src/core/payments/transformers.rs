@@ -1334,6 +1334,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsPreProce
             router_return_url,
             webhook_url,
             complete_authorize_url,
+            mandate_id: payment_data.mandate_id.clone(),
         })
     }
 }

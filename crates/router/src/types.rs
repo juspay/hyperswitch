@@ -419,6 +419,7 @@ pub struct PaymentsPreProcessingData {
     pub router_return_url: Option<String>,
     pub webhook_url: Option<String>,
     pub complete_authorize_url: Option<String>,
+    pub mandate_id: Option<api_models::payments::MandateIds>,
 }
 
 #[derive(Debug, Clone)]
