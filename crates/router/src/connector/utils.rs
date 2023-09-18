@@ -895,7 +895,7 @@ impl BankDirectDebitBillingData for BankDebitBilling {
     fn get_billing_country(&self) -> Result<api_models::enums::CountryAlpha2, Error> {
         self.address
             .as_ref()
-            .and_then(|address| address.country.clone())
+            .and_then(|address| address.country)
             .ok_or_else(missing_field_err("billing_details.country"))
     }
 }

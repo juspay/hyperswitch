@@ -195,7 +195,7 @@ impl TryFrom<&types::TokenizationRouterData> for CustomerBankAccount {
     fn try_from(item: &types::TokenizationRouterData) -> Result<Self, Self::Error> {
         match &item.request.payment_method_data {
             api_models::payments::PaymentMethodData::BankDebit(bank_debit_data) => {
-                CustomerBankAccount::try_from(bank_debit_data)
+                Self::try_from(bank_debit_data)
             }
             api_models::payments::PaymentMethodData::Card(_)
             | api_models::payments::PaymentMethodData::CardRedirect(_)
@@ -267,8 +267,8 @@ impl TryFrom<&BankDebitData> for CustomerBankAccount {
 impl From<BankType> for AccountType {
     fn from(item: BankType) -> Self {
         match item {
-            BankType::Checking => AccountType::Checking,
-            BankType::Savings => AccountType::Savings,
+            BankType::Checking => Self::Checking,
+            BankType::Savings => Self::Savings,
         }
     }
 }
@@ -364,7 +364,10 @@ impl TryFrom<&types::PaymentsPreProcessingRouterData> for GocardlessMandateReque
                     .into())
                 }
             },
-            None => todo!(),
+            None => Err(errors::ConnectorError::NotImplemented(
+                "Preprocessing flow for selected payment method through Gocardless".to_string(),
+            )
+            .into()),
         }?;
         let payment_method_token = item.get_payment_method_token()?;
         let customer_bank_account = match payment_method_token {
@@ -506,7 +509,7 @@ impl TryFrom<&GocardlessRouterData<&types::PaymentsAuthorizeRouterData>>
             )
             .into())
         }?;
-        Ok(GocardlessPaymentsRequest {
+        Ok(Self {
             amount: item.router_data.request.amount,
             currency: item.router_data.request.currency,
             description: item.router_data.description.clone(),
