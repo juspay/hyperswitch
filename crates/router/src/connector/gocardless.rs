@@ -53,12 +53,16 @@ where
         req: &types::RouterData<Flow, Request, Response>,
         _connectors: &settings::Connectors,
     ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
-        let mut header = vec![(
-            headers::CONTENT_TYPE.to_string(),
-            types::PaymentsAuthorizeType::get_content_type(self)
-                .to_string()
-                .into(),
-        )];
+        let mut header = vec![
+            (
+                headers::CONTENT_TYPE.to_string(),
+                self.get_content_type().to_string().into(),
+            ),
+            (
+                "GoCardless-Version".to_string(),
+                "2015-07-06".to_string().into(),
+            ),
+        ];
         let mut api_key = self.get_auth_header(&req.connector_auth_type)?;
         header.append(&mut api_key);
         Ok(header)
@@ -112,7 +116,7 @@ impl ConnectorCommon for Gocardless {
         }
         Ok(ErrorResponse {
             status_code: res.status_code,
-            code: response.error.code,
+            code: response.error.code.to_string(),
             message: response.error.error_type,
             reason: Some(error_reason.join("; ")),
         })
@@ -337,35 +341,33 @@ impl
         req: &types::PaymentsPreProcessingRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<Option<common_utils::request::Request>, errors::ConnectorError> {
-        Ok(Some(
-            services::RequestBuilder::new()
-                .method(services::Method::Post)
-                .url(&types::PaymentsPreProcessingType::get_url(
-                    self, req, connectors,
-                )?)
-                .attach_default_headers()
-                .headers(types::PaymentsPreProcessingType::get_headers(
-                    self, req, connectors,
-                )?)
-                .body(types::PaymentsPreProcessingType::get_request_body(
-                    self, req,
-                )?)
-                .build(),
-        ))
+        // Preprocessing flow is to create mandate, which should to be called only in case of First mandate
+        if req.request.setup_mandate_details.is_some() {
+            Ok(Some(
+                services::RequestBuilder::new()
+                    .method(services::Method::Post)
+                    .url(&types::PaymentsPreProcessingType::get_url(
+                        self, req, connectors,
+                    )?)
+                    .attach_default_headers()
+                    .headers(types::PaymentsPreProcessingType::get_headers(
+                        self, req, connectors,
+                    )?)
+                    .body(types::PaymentsPreProcessingType::get_request_body(
+                        self, req,
+                    )?)
+                    .build(),
+            ))
+        } else {
+            Ok(None)
+        }
     }
 
     fn handle_response(
         &self,
         data: &types::PaymentsPreProcessingRouterData,
         res: Response,
-    ) -> CustomResult<
-        types::RouterData<
-            api::PreProcessing,
-            types::PaymentsPreProcessingData,
-            types::PaymentsResponseData,
-        >,
-        errors::ConnectorError,
-    >
+    ) -> CustomResult<types::PaymentsPreProcessingRouterData, errors::ConnectorError>
     where
         api::PreProcessing: Clone,
         types::PaymentsPreProcessingData: Clone,
@@ -530,7 +532,7 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         Ok(format!(
-            "{}/payments{}",
+            "{}/payments/{}",
             self.base_url(connectors),
             req.request
                 .connector_transaction_id
@@ -581,33 +583,6 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
 impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::PaymentsResponseData>
     for Gocardless
 {
-    fn get_headers(
-        &self,
-        req: &types::PaymentsCaptureRouterData,
-        connectors: &settings::Connectors,
-    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
-        self.build_headers(req, connectors)
-    }
-
-    fn get_content_type(&self) -> &'static str {
-        self.common_get_content_type()
-    }
-
-    fn get_url(
-        &self,
-        _req: &types::PaymentsCaptureRouterData,
-        _connectors: &settings::Connectors,
-    ) -> CustomResult<String, errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented("get_url method".to_string()).into())
-    }
-
-    fn get_request_body(
-        &self,
-        _req: &types::PaymentsCaptureRouterData,
-    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented("get_request_body method".to_string()).into())
-    }
-
     fn build_request(
         &self,
         req: &types::PaymentsCaptureRouterData,
@@ -624,29 +599,6 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
                 .body(types::PaymentsCaptureType::get_request_body(self, req)?)
                 .build(),
         ))
-    }
-
-    fn handle_response(
-        &self,
-        data: &types::PaymentsCaptureRouterData,
-        res: Response,
-    ) -> CustomResult<types::PaymentsCaptureRouterData, errors::ConnectorError> {
-        let response: gocardless::GocardlessPaymentsResponse = res
-            .response
-            .parse_struct("Gocardless PaymentsCaptureResponse")
-            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-        types::RouterData::try_from(types::ResponseRouterData {
-            response,
-            data: data.clone(),
-            http_code: res.status_code,
-        })
-    }
-
-    fn get_error_response(
-        &self,
-        res: Response,
-    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        self.build_error_response(res)
     }
 }
 

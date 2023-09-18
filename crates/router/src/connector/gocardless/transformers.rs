@@ -9,7 +9,7 @@ use serde::{Deserialize, Serialize};
 use crate::{
     connector::utils::{
         self, AddressDetailsData, BankDirectDebitBillingData, ConnectorCustomerData,
-        PaymentsAuthorizeRequestData, PaymentsPreProcessingData, RouterData,
+        PaymentsAuthorizeRequestData, RouterData,
     },
     core::errors,
     types::{self, api, storage::enums, MandateReference},
@@ -46,6 +46,11 @@ impl<T>
 
 #[derive(Default, Debug, Serialize)]
 pub struct GocardlessCustomerRequest {
+    customers: GocardlessCustomer,
+}
+
+#[derive(Default, Debug, Serialize)]
+pub struct GocardlessCustomer {
     address_line1: Option<Secret<String>>,
     address_line2: Option<Secret<String>>,
     address_line3: Option<Secret<String>>,
@@ -54,7 +59,7 @@ pub struct GocardlessCustomerRequest {
     email: pii::Email,
     given_name: Secret<String>,
     family_name: Secret<String>,
-    meta_data: CustomerMetaData,
+    metadata: CustomerMetaData,
     danish_identity_number: Option<Secret<String>>,
     postal_code: Option<Secret<String>>,
     swedish_identity_number: Option<Secret<String>>,
@@ -72,33 +77,40 @@ impl TryFrom<&types::ConnectorCustomerRouterData> for GocardlessCustomerRequest 
         let billing_address = item.get_billing_address()?;
         let given_name = billing_address.get_first_name()?.to_owned();
         let family_name = billing_address.get_last_name()?.to_owned();
-        let meta_data = CustomerMetaData {
+        let metadata = CustomerMetaData {
             crm_id: item
                 .customer_id
                 .clone()
                 .map(|customer_id| Secret::new(customer_id)),
         };
         Ok(Self {
-            email,
-            given_name,
-            family_name,
-            meta_data,
-            address_line1: billing_address.line1.to_owned(),
-            address_line2: billing_address.line2.to_owned(),
-            address_line3: billing_address.line3.to_owned(),
-            country_code: billing_address.country,
-            // Should be populated based on the billing country
-            danish_identity_number: None,
-            postal_code: billing_address.zip.to_owned(),
-            // Should be populated based on the billing country
-            swedish_identity_number: None,
-            city: billing_address.city.clone().map(|city| Secret::new(city)),
+            customers: GocardlessCustomer {
+                email,
+                given_name,
+                family_name,
+                metadata,
+                address_line1: billing_address.line1.to_owned(),
+                address_line2: billing_address.line2.to_owned(),
+                address_line3: billing_address.line3.to_owned(),
+                country_code: billing_address.country,
+                // Should be populated based on the billing country
+                danish_identity_number: None,
+                postal_code: billing_address.zip.to_owned(),
+                // Should be populated based on the billing country
+                swedish_identity_number: None,
+                city: billing_address.city.clone().map(|city| Secret::new(city)),
+            },
         })
     }
 }
 
 #[derive(Debug, Clone, Deserialize)]
 pub struct GocardlessCustomerResponse {
+    customers: Customers,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+pub struct Customers {
     id: Secret<String>,
 }
 
@@ -123,7 +135,7 @@ impl<F>
     ) -> Result<Self, Self::Error> {
         Ok(Self {
             response: Ok(types::PaymentsResponseData::ConnectorCustomerResponse {
-                connector_customer_id: item.response.id.expose(),
+                connector_customer_id: item.response.customers.id.expose(),
             }),
             ..item.data
         })
@@ -132,7 +144,13 @@ impl<F>
 
 #[derive(Debug, Serialize)]
 pub struct GocardlessBankAccountRequest {
-    customer_bank_accounts: CustomerBankAccount,
+    customer_bank_accounts: CustomerBankAccounts,
+}
+
+#[derive(Debug, Serialize)]
+pub struct CustomerBankAccounts {
+    #[serde(flatten)]
+    accounts: CustomerBankAccount,
     links: CustomerAccountLink,
 }
 
@@ -152,6 +170,7 @@ pub enum CustomerBankAccount {
 #[derive(Debug, Serialize)]
 pub struct InternationalBankAccount {
     iban: Secret<String>,
+    account_holder_name: Secret<String>,
 }
 
 #[derive(Debug, Serialize)]
@@ -159,6 +178,7 @@ pub struct AUBankAccount {
     country_code: CountryAlpha2,
     account_number: Secret<String>,
     branch_code: Secret<String>,
+    account_holder_name: Secret<String>,
 }
 
 #[derive(Debug, Serialize)]
@@ -168,6 +188,7 @@ pub struct USBankAccount {
     account_number: Secret<String>,
     bank_code: Secret<String>,
     account_type: AccountType,
+    account_holder_name: Secret<String>,
 }
 
 #[derive(Debug, Serialize)]
@@ -179,13 +200,13 @@ pub enum AccountType {
 impl TryFrom<&types::TokenizationRouterData> for GocardlessBankAccountRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::TokenizationRouterData) -> Result<Self, Self::Error> {
-        let customer = item.get_customer_id()?;
-        let customer_bank_accounts = CustomerBankAccount::try_from(item)?;
+        let customer = item.get_connector_customer_id()?;
+        let accounts = CustomerBankAccount::try_from(item)?;
+        let links = CustomerAccountLink {
+            customer: Secret::new(customer),
+        };
         Ok(Self {
-            customer_bank_accounts,
-            links: CustomerAccountLink {
-                customer: Secret::new(customer),
-            },
+            customer_bank_accounts: CustomerBankAccounts { accounts, links },
         })
     }
 }
@@ -227,15 +248,23 @@ impl TryFrom<&BankDebitData> for CustomerBankAccount {
                 account_number,
                 routing_number,
                 bank_type,
+                bank_account_holder_name,
                 ..
             } => {
                 let bank_type = bank_type.ok_or_else(utils::missing_field_err("bank_type"))?;
                 let country_code = billing_details.get_billing_country()?;
+                let account_holder_name =
+                    bank_account_holder_name
+                        .clone()
+                        .ok_or_else(utils::missing_field_err(
+                        "payment_method_data.bank_debit.ach_bank_debit.bank_account_holder_name",
+                    ))?;
                 let us_bank_account = USBankAccount {
                     country_code,
                     account_number: account_number.clone(),
                     bank_code: routing_number.clone(),
                     account_type: AccountType::from(bank_type),
+                    account_holder_name,
                 };
                 Ok(Self::USBankAccount(us_bank_account))
             }
@@ -243,17 +272,38 @@ impl TryFrom<&BankDebitData> for CustomerBankAccount {
                 billing_details,
                 account_number,
                 bsb_number,
+                bank_account_holder_name,
             } => {
                 let country_code = billing_details.get_billing_country()?;
+                let account_holder_name =
+                    bank_account_holder_name
+                        .clone()
+                        .ok_or_else(utils::missing_field_err(
+                        "payment_method_data.bank_debit.becs_bank_debit.bank_account_holder_name",
+                    ))?;
                 let au_bank_account = AUBankAccount {
                     country_code,
                     account_number: account_number.clone(),
                     branch_code: bsb_number.clone(),
+                    account_holder_name,
                 };
                 Ok(Self::AUBankAccount(au_bank_account))
             }
-            BankDebitData::SepaBankDebit { iban, .. } => {
-                let international_bank_account = InternationalBankAccount { iban: iban.clone() };
+            BankDebitData::SepaBankDebit {
+                iban,
+                bank_account_holder_name,
+                ..
+            } => {
+                let account_holder_name =
+                    bank_account_holder_name
+                        .clone()
+                        .ok_or_else(utils::missing_field_err(
+                        "payment_method_data.bank_debit.sepa_bank_debit.bank_account_holder_name",
+                    ))?;
+                let international_bank_account = InternationalBankAccount {
+                    iban: iban.clone(),
+                    account_holder_name,
+                };
                 Ok(Self::InternationBankAccount(international_bank_account))
             }
             BankDebitData::BacsBankDebit { .. } => Err(errors::ConnectorError::NotImplemented(
@@ -275,6 +325,11 @@ impl From<BankType> for AccountType {
 
 #[derive(Debug, Clone, Deserialize)]
 pub struct GocardlessBankAccountResponse {
+    customer_bank_accounts: CustomerBankAccountResponse,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+pub struct CustomerBankAccountResponse {
     pub id: Secret<String>,
 }
 
@@ -299,7 +354,7 @@ impl<F>
     ) -> Result<Self, Self::Error> {
         Ok(Self {
             response: Ok(types::PaymentsResponseData::TokenizationResponse {
-                token: item.response.id.expose(),
+                token: item.response.customer_bank_accounts.id.expose(),
             }),
             ..item.data
         })
@@ -436,32 +491,16 @@ impl<F>
             types::PaymentsResponseData,
         >,
     ) -> Result<Self, Self::Error> {
-        let response = if item.data.request.setup_mandate_details.is_some() {
-            types::PaymentsResponseData::PreProcessingResponse {
+        Ok(Self {
+            preprocessing_id: Some(item.response.mandates.id.clone()),
+            response: Ok(types::PaymentsResponseData::PreProcessingResponse {
                 pre_processing_id: types::PreprocessingResponseId::PreProcessingId(
                     item.response.mandates.id,
                 ),
                 connector_metadata: None,
                 session_token: None,
                 connector_response_reference_id: None,
-            }
-        } else {
-            let connector_mandate_id = item.data.request.get_connector_mandate_id()?;
-            let mandate_reference = MandateReference {
-                connector_mandate_id: Some(connector_mandate_id),
-                payment_method_id: None,
-            };
-            types::PaymentsResponseData::TransactionResponse {
-                resource_id: types::ResponseId::NoResponseId,
-                redirection_data: None,
-                mandate_reference: Some(mandate_reference),
-                connector_metadata: None,
-                network_txn_id: None,
-                connector_response_reference_id: None,
-            }
-        };
-        Ok(Self {
-            response: Ok(response),
+            }),
             status: enums::AttemptStatus::Pending,
             ..item.data
         })
@@ -470,6 +509,11 @@ impl<F>
 
 #[derive(Debug, Serialize)]
 pub struct GocardlessPaymentsRequest {
+    payments: GocardlessPayment,
+}
+
+#[derive(Debug, Serialize)]
+pub struct GocardlessPayment {
     amount: i64,
     currency: enums::Currency,
     description: Option<String>,
@@ -509,7 +553,7 @@ impl TryFrom<&GocardlessRouterData<&types::PaymentsAuthorizeRouterData>>
             )
             .into())
         }?;
-        Ok(Self {
+        let payments = GocardlessPayment {
             amount: item.router_data.request.amount,
             currency: item.router_data.request.currency,
             description: item.router_data.description.clone(),
@@ -519,7 +563,8 @@ impl TryFrom<&GocardlessRouterData<&types::PaymentsAuthorizeRouterData>>
             links: PaymentLink {
                 mandate: Secret::new(mandate_id),
             },
-        })
+        };
+        Ok(Self { payments })
     }
 }
 
@@ -569,28 +614,81 @@ impl From<GocardlessPaymentStatus> for enums::AttemptStatus {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct GocardlessPaymentsResponse {
+    payments: PaymentResponse,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PaymentResponse {
     status: GocardlessPaymentStatus,
     id: String,
 }
 
-impl<F, T>
+impl<F>
     TryFrom<
-        types::ResponseRouterData<F, GocardlessPaymentsResponse, T, types::PaymentsResponseData>,
-    > for types::RouterData<F, T, types::PaymentsResponseData>
+        types::ResponseRouterData<
+            F,
+            GocardlessPaymentsResponse,
+            types::PaymentsAuthorizeData,
+            types::PaymentsResponseData,
+        >,
+    > for types::RouterData<F, types::PaymentsAuthorizeData, types::PaymentsResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
         item: types::ResponseRouterData<
             F,
             GocardlessPaymentsResponse,
-            T,
+            types::PaymentsAuthorizeData,
+            types::PaymentsResponseData,
+        >,
+    ) -> Result<Self, Self::Error> {
+        let connector_mandate_id = if item.data.request.setup_mandate_details.is_some() {
+            item.data.get_preprocessing_id()?
+        } else {
+            item.data.request.get_connector_mandate_id()?
+        };
+        let mandate_reference = MandateReference {
+            connector_mandate_id: Some(connector_mandate_id),
+            payment_method_id: None,
+        };
+        Ok(Self {
+            status: enums::AttemptStatus::from(item.response.payments.status),
+            response: Ok(types::PaymentsResponseData::TransactionResponse {
+                resource_id: types::ResponseId::ConnectorTransactionId(item.response.payments.id),
+                redirection_data: None,
+                mandate_reference: Some(mandate_reference),
+                connector_metadata: None,
+                network_txn_id: None,
+                connector_response_reference_id: None,
+            }),
+            ..item.data
+        })
+    }
+}
+
+impl<F>
+    TryFrom<
+        types::ResponseRouterData<
+            F,
+            GocardlessPaymentsResponse,
+            types::PaymentsSyncData,
+            types::PaymentsResponseData,
+        >,
+    > for types::RouterData<F, types::PaymentsSyncData, types::PaymentsResponseData>
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        item: types::ResponseRouterData<
+            F,
+            GocardlessPaymentsResponse,
+            types::PaymentsSyncData,
             types::PaymentsResponseData,
         >,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
-            status: enums::AttemptStatus::from(item.response.status),
+            status: enums::AttemptStatus::from(item.response.payments.status),
             response: Ok(types::PaymentsResponseData::TransactionResponse {
-                resource_id: types::ResponseId::ConnectorTransactionId(item.response.id),
+                resource_id: types::ResponseId::ConnectorTransactionId(item.response.payments.id),
                 redirection_data: None,
                 mandate_reference: None,
                 connector_metadata: None,
@@ -674,7 +772,7 @@ pub struct GocardlessErrorResponse {
 #[derive(Clone, Debug, Deserialize)]
 pub struct GocardlessError {
     pub message: String,
-    pub code: String,
+    pub code: u16,
     pub errors: Vec<Error>,
     #[serde(rename = "type")]
     pub error_type: String,
@@ -766,8 +864,10 @@ impl TryFrom<&WebhookEvent> for GocardlessPaymentsResponse {
             }
         };
         Ok(Self {
-            status: GocardlessPaymentStatus::try_from(&item.action)?,
-            id,
+            payments: PaymentResponse {
+                status: GocardlessPaymentStatus::try_from(&item.action)?,
+                id,
+            },
         })
     }
 }

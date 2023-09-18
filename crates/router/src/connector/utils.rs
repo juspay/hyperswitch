@@ -199,7 +199,6 @@ pub trait PaymentsPreProcessingData {
     fn get_order_details(&self) -> Result<Vec<OrderDetailsWithAmount>, Error>;
     fn get_webhook_url(&self) -> Result<String, Error>;
     fn get_return_url(&self) -> Result<String, Error>;
-    fn get_connector_mandate_id(&self) -> Result<String, Error>;
 }
 
 impl PaymentsPreProcessingData for types::PaymentsPreProcessingData {
@@ -238,19 +237,6 @@ impl PaymentsPreProcessingData for types::PaymentsPreProcessingData {
         self.router_return_url
             .clone()
             .ok_or_else(missing_field_err("return_url"))
-    }
-    fn get_connector_mandate_id(&self) -> Result<String, Error> {
-        let connector_mandate_id = self
-            .mandate_id
-            .clone()
-            .and_then(|mandate_id| mandate_id.mandate_reference_id)
-            .and_then(|mandate_reference_id| match mandate_reference_id {
-                payments::MandateReferenceId::ConnectorMandateId(connector_mandate_id) => {
-                    connector_mandate_id.connector_mandate_id
-                }
-                payments::MandateReferenceId::NetworkMandateId(_) => None,
-            });
-        connector_mandate_id.ok_or_else(missing_field_err("connector_mandate_id"))
     }
 }
 
