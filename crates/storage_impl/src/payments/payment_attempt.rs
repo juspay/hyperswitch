@@ -373,6 +373,23 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
                                 "{}_{}",
                                 &created_attempt.merchant_id, &created_attempt.attempt_id,
                             ),
+                            pk_id: key.clone(),
+                            sk_id: field.clone(),
+                            source: "payment_attempt".to_string(),
+                        }
+                        .insert(&conn)
+                        .await
+                        .map_err(|er| {
+                            let new_err = crate::diesel_error_to_data_error(er.current_context());
+                            er.change_context(new_err)
+                        })?;
+
+                        //Reverse lookup for payment_id
+                        ReverseLookupNew {
+                            lookup_id: format!(
+                                "{}_{}",
+                                &created_attempt.merchant_id, &created_attempt.payment_id,
+                            ),
                             pk_id: key,
                             sk_id: field,
                             source: "payment_attempt".to_string(),
@@ -570,13 +587,43 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
         merchant_id: &str,
         storage_scheme: MerchantStorageScheme,
     ) -> error_stack::Result<PaymentAttempt, errors::StorageError> {
-        self.router_store
-            .find_payment_attempt_last_successful_attempt_by_payment_id_merchant_id(
-                payment_id,
-                merchant_id,
-                storage_scheme,
-            )
-            .await
+        let database_call = || {
+            self.router_store
+                .find_payment_attempt_last_successful_attempt_by_payment_id_merchant_id(
+                    payment_id,
+                    merchant_id,
+                    storage_scheme,
+                )
+        };
+        match storage_scheme {
+            MerchantStorageScheme::PostgresOnly => database_call().await,
+            MerchantStorageScheme::RedisKv => {
+                let lookup_id = format!("{merchant_id}_{payment_id}");
+                let lookup = self.get_lookup_by_lookup_id(&lookup_id).await?;
+                let key = &lookup.pk_id;
+                let pattern = generate_hscan_pattern_for_attempt(&lookup.sk_id);
+                let redis_conn = self
+                    .get_redis_conn()
+                    .change_context(errors::StorageError::KVError)?;
+
+                let redis_fut = async {
+                    redis_conn
+                        .hscan_and_deserialize::<PaymentAttempt>(key, &pattern, None)
+                        .await
+                        .and_then(|mut payment_attempts| {
+                            payment_attempts.sort_by(|a, b| b.modified_at.cmp(&a.modified_at));
+                            payment_attempts
+                                .iter()
+                                .find(|&pa| pa.status == api_models::enums::AttemptStatus::Charged)
+                                .cloned()
+                                .ok_or(error_stack::report!(
+                                    redis_interface::errors::RedisError::NotFound
+                                ))
+                        })
+                };
+                try_redis_get_else_try_database_get(redis_fut, database_call).await
+            }
+        }
     }
 
     async fn find_payment_attempt_by_merchant_id_connector_txn_id(
