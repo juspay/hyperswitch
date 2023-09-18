@@ -398,7 +398,7 @@ ach = { currency = "USD" }
 cashapp = {country = "US", currency = "USD"}
 
 [connector_customer]
-connector_list = "stax"
+connector_list = "stax,stripe"
 payout_connector_list = "wise"
 
 [bank_config.online_banking_fpx]

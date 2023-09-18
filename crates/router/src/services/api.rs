@@ -726,7 +726,10 @@ where
         .authenticate_and_fetch(request.headers(), state)
         .await
         .switch()?;
-    let merchant_id = auth_out.get_merchant_id().unwrap_or("").to_string();
+    let merchant_id = auth_out
+        .get_merchant_id()
+        .unwrap_or("MERCHANT_ID_NOT_FOUND")
+        .to_string();
     tracing::Span::current().record("merchant_id", &merchant_id);
 
     let output = func(state, auth_out, payload).await.switch();
@@ -1058,29 +1061,24 @@ pub fn build_redirection_form(
         RedirectForm::BlueSnap {
             payment_fields_token,
         } => {
-            let card_details = if let Some(api::PaymentMethodData::Card(ccard)) =
-                payment_method_data
-            {
-                format!(
-                    "var newCard={{ccNumber: \"{}\",cvv: \"{}\",expDate: \"{}/{}\",amount: {},currency: \"{}\"}};",
-                    ccard.card_number.peek(),
-                    ccard.card_cvc.peek(),
-                    ccard.card_exp_month.peek(),
-                    ccard.card_exp_year.peek(),
-                    amount,
-                    currency
-                )
-            } else {
-                "".to_string()
-            };
-
-            let bluesnap_url = config.connectors.bluesnap.secondary_base_url;
+            let card_details =
+                if let Some(api::PaymentMethodData::Card(ccard)) = payment_method_data {
+                    format!(
+                        "var saveCardDirectly={{cvv: \"{}\",amount: {},currency: \"{}\"}};",
+                        ccard.card_cvc.peek(),
+                        amount,
+                        currency
+                    )
+                } else {
+                    "".to_string()
+                };
+            let bluesnap_sdk_url = config.connectors.bluesnap.secondary_base_url;
             maud::html! {
             (maud::DOCTYPE)
             html {
                 head {
                     meta name="viewport" content="width=device-width, initial-scale=1";
-                    (PreEscaped(format!("<script src=\"{bluesnap_url}web-sdk/5/bluesnap.js\"></script>")))
+                    (PreEscaped(format!("<script src=\"{bluesnap_sdk_url}web-sdk/5/bluesnap.js\"></script>")))
                 }
                     body style="background-color: #ffffff; padding: 20px; font-family: Arial, Helvetica, Sans-Serif;" {
 
@@ -1110,7 +1108,7 @@ pub fn build_redirection_form(
                     function(sdkResponse) {{
                         console.log(sdkResponse);
                         var f = document.createElement('form');
-                        f.action=window.location.pathname.replace(/payments\\/redirect\\/(\\w+)\\/(\\w+)\\/\\w+/, \"payments/$1/$2/redirect/complete/bluesnap\");
+                        f.action=window.location.pathname.replace(/payments\\/redirect\\/(\\w+)\\/(\\w+)\\/\\w+/, \"payments/$1/$2/redirect/complete/bluesnap?paymentToken={payment_fields_token}\");
                         f.method='POST';
                         var i=document.createElement('input');
                         i.type='hidden';
@@ -1121,7 +1119,7 @@ pub fn build_redirection_form(
                         f.submit();
                     }});
                     {card_details}
-                    bluesnap.threeDsPaymentsSubmitData(newCard);
+                    bluesnap.threeDsPaymentsSubmitData(saveCardDirectly);
                 </script>
                 ")))
                 }}
