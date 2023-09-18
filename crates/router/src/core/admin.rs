@@ -636,6 +636,7 @@ pub async fn create_payment_connector(
         &merchant_account,
         req.profile_id.as_ref(),
         &*state.store,
+        true,
     )
     .await?;
 

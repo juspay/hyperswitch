@@ -336,6 +336,7 @@ where
             merchant_account,
             payment_intent.profile_id.as_ref(),
             &*state.store,
+            true,
         )
         .await
         .attach_printable("Could not find profile id from business details")?;
