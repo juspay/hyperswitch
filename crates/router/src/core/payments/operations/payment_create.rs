@@ -734,7 +734,7 @@ impl PaymentCreate {
     ) -> Option<ephemeral_key::EphemeralKey> {
         match request.customer_id.clone() {
             Some(customer_id) => helpers::make_ephemeral_key(
-                state,
+                state.clone(),
                 customer_id,
                 merchant_account.merchant_id.clone(),
             )

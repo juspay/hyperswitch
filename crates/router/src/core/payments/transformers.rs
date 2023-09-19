@@ -1220,6 +1220,7 @@ impl TryFrom<types::CaptureSyncResponse> for storage::CaptureUpdate {
                 resource_id,
                 status,
                 connector_response_reference_id,
+                ..
             } => {
                 let connector_capture_id = match resource_id {
                     types::ResponseId::ConnectorTransactionId(id) => Some(id),
@@ -1236,6 +1237,7 @@ impl TryFrom<types::CaptureSyncResponse> for storage::CaptureUpdate {
                 message,
                 reason,
                 status_code,
+                ..
             } => Ok(Self::ErrorUpdate {
                 status: match status_code {
                     500..=511 => storage::enums::CaptureStatus::Pending,

@@ -1,4 +1,4 @@
-mod client;
+pub mod client;
 pub mod request;
 
 use std::{
@@ -10,20 +10,20 @@ use std::{
     time::{Duration, Instant},
 };
 
-use actix_web::{body, HttpRequest, HttpResponse, Responder, ResponseError};
+use actix_web::{body, web, FromRequest, HttpRequest, HttpResponse, Responder, ResponseError};
 use api_models::enums::CaptureMethod;
 pub use client::{proxy_bypass_urls, ApiClient, MockApiClient, ProxyClient};
 use common_utils::errors::ReportSwitchExt;
 pub use common_utils::request::{ContentType, Method, Request, RequestBuilder};
 use error_stack::{report, IntoReport, Report, ResultExt};
 use masking::{ExposeOptionInterface, PeekInterface};
-use router_env::{instrument, tracing, Tag};
+use router_env::{instrument, tracing, tracing_actix_web::RequestId, Tag};
 use serde::Serialize;
 use serde_json::json;
 
 use self::request::{HeaderExt, RequestBuilderExt};
 use crate::{
-    configs::settings::Connectors,
+    configs::settings::{Connectors, Settings},
     consts,
     core::{
         errors::{self, CustomResult},
@@ -416,7 +416,10 @@ pub async fn call_connector_api(
 ) -> CustomResult<Result<types::Response, types::Response>, errors::ApiClientError> {
     let current_time = Instant::now();
 
-    let response = send_request(state, request, None).await;
+    let response = state
+        .api_client
+        .send_request(state, request, None, true)
+        .await;
 
     let elapsed_time = current_time.elapsed();
     logger::info!(request_time=?elapsed_time);
@@ -449,8 +452,8 @@ pub async fn send_request(
         request.certificate,
         request.certificate_key,
     )?;
-    let headers = request.headers.construct_header_map()?;
 
+    let headers = request.headers.construct_header_map()?;
     let metrics_tag = router_env::opentelemetry::KeyValue {
         key: consts::METRICS_HOST_TAG_NAME.into(),
         value: url.host_str().unwrap_or_default().to_string().into(),
@@ -713,32 +716,50 @@ pub enum AuthFlow {
 #[instrument(skip(request, payload, state, func, api_auth), fields(merchant_id))]
 pub async fn server_wrap_util<'a, 'b, A, U, T, Q, F, Fut, E, OErr>(
     flow: &'a impl router_env::types::FlowMetric,
-    state: &'b A,
+    state: web::Data<A>,
     request: &'a HttpRequest,
     payload: T,
     func: F,
     api_auth: &dyn auth::AuthenticateAndFetch<U, A>,
 ) -> CustomResult<ApplicationResponse<Q>, OErr>
 where
-    F: Fn(&'b A, U, T) -> Fut,
+    F: Fn(A, U, T) -> Fut,
     'b: 'a,
     Fut: Future<Output = CustomResult<ApplicationResponse<Q>, E>>,
     Q: Serialize + Debug + 'a,
     T: Debug,
-    A: AppStateInfo,
+    A: AppStateInfo + Clone,
     U: auth::AuthInfo,
     CustomResult<ApplicationResponse<Q>, E>: ReportSwitchExt<ApplicationResponse<Q>, OErr>,
     CustomResult<U, errors::ApiErrorResponse>: ReportSwitchExt<U, OErr>,
     OErr: ResponseError + Sync + Send + 'static,
 {
+    let request_id = RequestId::extract(request)
+        .await
+        .ok()
+        .map(|id| id.as_hyphenated().to_string());
+
+    let mut request_state = state.get_ref().clone();
+
+    request_state.add_request_id(request_id);
+
     let auth_out = api_auth
-        .authenticate_and_fetch(request.headers(), state)
+        .authenticate_and_fetch(request.headers(), &request_state)
         .await
         .switch()?;
-    let merchant_id = auth_out.get_merchant_id().unwrap_or("").to_string();
+
+    let merchant_id = auth_out
+        .get_merchant_id()
+        .unwrap_or("MERCHANT_ID_NOT_FOUND")
+        .to_string();
+
+    request_state.add_merchant_id(Some(merchant_id.clone()));
+
+    request_state.add_flow_name(flow.to_string());
+
     tracing::Span::current().record("merchant_id", &merchant_id);
 
-    let output = func(state, auth_out, payload).await.switch();
+    let output = func(request_state, auth_out, payload).await.switch();
 
     let status_code = match output.as_ref() {
         Ok(res) => metrics::request::track_response_status_code(res),
@@ -754,21 +775,21 @@ where
     skip(request, state, func, api_auth, payload),
     fields(request_method, request_url_path)
 )]
-pub async fn server_wrap<'a, 'b, A, T, U, Q, F, Fut, E>(
+pub async fn server_wrap<'a, A, T, U, Q, F, Fut, E>(
     flow: impl router_env::types::FlowMetric,
-    state: &'b A,
+    state: web::Data<A>,
     request: &'a HttpRequest,
     payload: T,
     func: F,
     api_auth: &dyn auth::AuthenticateAndFetch<U, A>,
 ) -> HttpResponse
 where
-    F: Fn(&'b A, U, T) -> Fut,
+    F: Fn(A, U, T) -> Fut,
     Fut: Future<Output = CustomResult<ApplicationResponse<Q>, E>>,
     Q: Serialize + Debug + 'a,
     T: Debug,
     U: auth::AuthInfo,
-    A: AppStateInfo,
+    A: AppStateInfo + Clone,
     ApplicationResponse<Q>: Debug,
     CustomResult<ApplicationResponse<Q>, E>:
         ReportSwitchExt<ApplicationResponse<Q>, api_models::errors::types::ApiErrorResponse>,
@@ -782,7 +803,7 @@ where
     logger::info!(tag = ?Tag::BeginRequest, payload = ?payload);
 
     let res = match metrics::request::record_request_time_metric(
-        server_wrap_util(&flow, state, request, payload, func, api_auth),
+        server_wrap_util(&flow, state.clone(), request, payload, func, api_auth),
         &flow,
     )
     .await
@@ -817,14 +838,18 @@ where
                 ),
             }
         }
-        Ok(ApplicationResponse::Form(redirection_data)) => build_redirection_form(
-            &redirection_data.redirect_form,
-            redirection_data.payment_method_data,
-            redirection_data.amount,
-            redirection_data.currency,
-        )
-        .respond_to(request)
-        .map_into_boxed_body(),
+        Ok(ApplicationResponse::Form(redirection_data)) => {
+            let config = state.conf();
+            build_redirection_form(
+                &redirection_data.redirect_form,
+                redirection_data.payment_method_data,
+                redirection_data.amount,
+                redirection_data.currency,
+                config,
+            )
+            .respond_to(request)
+            .map_into_boxed_body()
+        }
 
         Ok(ApplicationResponse::PaymenkLinkForm(payment_link_data)) => {
             build_payment_link_html(*payment_link_data)
@@ -1002,6 +1027,7 @@ pub fn build_redirection_form(
     payment_method_data: Option<api_models::payments::PaymentMethodData>,
     amount: String,
     currency: String,
+    config: Settings,
 ) -> maud::Markup {
     use maud::PreEscaped;
 
@@ -1069,27 +1095,24 @@ pub fn build_redirection_form(
         RedirectForm::BlueSnap {
             payment_fields_token,
         } => {
-            let card_details = if let Some(api::PaymentMethodData::Card(ccard)) =
-                payment_method_data
-            {
-                format!(
-                    "var newCard={{ccNumber: \"{}\",cvv: \"{}\",expDate: \"{}/{}\",amount: {},currency: \"{}\"}};",
-                    ccard.card_number.peek(),
-                    ccard.card_cvc.peek(),
-                    ccard.card_exp_month.peek(),
-                    ccard.card_exp_year.peek(),
-                    amount,
-                    currency
-                )
-            } else {
-                "".to_string()
-            };
+            let card_details =
+                if let Some(api::PaymentMethodData::Card(ccard)) = payment_method_data {
+                    format!(
+                        "var saveCardDirectly={{cvv: \"{}\",amount: {},currency: \"{}\"}};",
+                        ccard.card_cvc.peek(),
+                        amount,
+                        currency
+                    )
+                } else {
+                    "".to_string()
+                };
+            let bluesnap_sdk_url = config.connectors.bluesnap.secondary_base_url;
             maud::html! {
             (maud::DOCTYPE)
             html {
                 head {
                     meta name="viewport" content="width=device-width, initial-scale=1";
-                    (PreEscaped(r#"<script src="https://sandpay.bluesnap.com/web-sdk/5/bluesnap.js"></script>"#))
+                    (PreEscaped(format!("<script src=\"{bluesnap_sdk_url}web-sdk/5/bluesnap.js\"></script>")))
                 }
                     body style="background-color: #ffffff; padding: 20px; font-family: Arial, Helvetica, Sans-Serif;" {
 
@@ -1119,7 +1142,7 @@ pub fn build_redirection_form(
                     function(sdkResponse) {{
                         console.log(sdkResponse);
                         var f = document.createElement('form');
-                        f.action=window.location.pathname.replace(/payments\\/redirect\\/(\\w+)\\/(\\w+)\\/\\w+/, \"payments/$1/$2/redirect/complete/bluesnap\");
+                        f.action=window.location.pathname.replace(/payments\\/redirect\\/(\\w+)\\/(\\w+)\\/\\w+/, \"payments/$1/$2/redirect/complete/bluesnap?paymentToken={payment_fields_token}\");
                         f.method='POST';
                         var i=document.createElement('input');
                         i.type='hidden';
@@ -1130,7 +1153,7 @@ pub fn build_redirection_form(
                         f.submit();
                     }});
                     {card_details}
-                    bluesnap.threeDsPaymentsSubmitData(newCard);
+                    bluesnap.threeDsPaymentsSubmitData(saveCardDirectly);
                 </script>
                 ")))
                 }}

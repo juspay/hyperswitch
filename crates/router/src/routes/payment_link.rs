@@ -1,8 +1,8 @@
 use actix_web::{web, Responder};
 use router_env::Flow;
 
+use super::app::AppState;
 use crate::{
-    self as app,
     core::payment_link::{self},
     services::{api, authentication as auth},
 };
@@ -10,7 +10,7 @@ use crate::{
 // use payment_link;
 
 pub async fn get_payment_link(
-    state: web::Data<app::AppState>,
+    state: web::Data<AppState>,
     req: actix_web::HttpRequest,
     query_payload: web::Query<api_models::payments::RetrievePaymentLinkRequest>,
 ) -> impl Responder {
@@ -24,7 +24,7 @@ pub async fn get_payment_link(
     };
     api::server_wrap(
         flow,
-        state.get_ref(),
+        state,
         &req,
         payload.clone(),
         |state, auth, _| {
@@ -40,7 +40,7 @@ pub async fn get_payment_link(
 }
 
 pub async fn initiate_payment_link(
-    state: web::Data<app::AppState>,
+    state: web::Data<AppState>,
     req: actix_web::HttpRequest,
     path: web::Path<(String, String)>,
 ) -> impl Responder {
@@ -53,7 +53,7 @@ pub async fn initiate_payment_link(
     .into_inner();
     api::server_wrap(
         flow,
-        state.get_ref(),
+        state,
         &req,
         payload.clone(),
         |state, auth, _| {

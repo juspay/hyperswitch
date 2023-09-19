@@ -1,4 +1,4 @@
-use std::{future::Future, time::Instant};
+use std::{future::Future, sync::Arc, time::Instant};
 
 use actix_web::{HttpRequest, HttpResponse, Responder};
 use common_utils::errors::{CustomResult, ErrorSwitch};
@@ -14,14 +14,14 @@ use crate::{
 #[instrument(skip(request, payload, state, func, api_authentication))]
 pub async fn compatibility_api_wrap<'a, 'b, A, U, T, Q, F, Fut, S, E, E2>(
     flow: impl router_env::types::FlowMetric,
-    state: &'b A,
+    state: Arc<A>,
     request: &'a HttpRequest,
     payload: T,
     func: F,
     api_authentication: &dyn auth::AuthenticateAndFetch<U, A>,
 ) -> HttpResponse
 where
-    F: Fn(&'b A, U, T) -> Fut,
+    F: Fn(A, U, T) -> Fut,
     Fut: Future<Output = CustomResult<api::ApplicationResponse<Q>, E2>>,
     E2: ErrorSwitch<E> + std::error::Error + Send + Sync + 'static,
     Q: Serialize + std::fmt::Debug + 'a,
@@ -31,7 +31,7 @@ where
     error_stack::Report<E>: services::EmbedError,
     errors::ApiErrorResponse: ErrorSwitch<E>,
     T: std::fmt::Debug,
-    A: AppStateInfo,
+    A: AppStateInfo + Clone,
 {
     let request_method = request.method().as_str();
     let url_path = request.path();
@@ -42,7 +42,14 @@ where
     logger::info!(tag = ?Tag::BeginRequest, payload = ?payload);
 
     let res = match metrics::request::record_request_time_metric(
-        api::server_wrap_util(&flow, state, request, payload, func, api_authentication),
+        api::server_wrap_util(
+            &flow,
+            state.clone().into(),
+            request,
+            payload,
+            func,
+            api_authentication,
+        ),
         &flow,
     )
     .await
@@ -111,14 +118,18 @@ where
                 ),
             }
         }
-        Ok(api::ApplicationResponse::Form(redirection_data)) => api::build_redirection_form(
-            &redirection_data.redirect_form,
-            redirection_data.payment_method_data,
-            redirection_data.amount,
-            redirection_data.currency,
-        )
-        .respond_to(request)
-        .map_into_boxed_body(),
+        Ok(api::ApplicationResponse::Form(redirection_data)) => {
+            let config = state.conf();
+            api::build_redirection_form(
+                &redirection_data.redirect_form,
+                redirection_data.payment_method_data,
+                redirection_data.amount,
+                redirection_data.currency,
+                config,
+            )
+            .respond_to(request)
+            .map_into_boxed_body()
+        }
 
         Ok(api::ApplicationResponse::PaymenkLinkForm(payment_link_data)) => {
             api::build_payment_link_html(*payment_link_data)

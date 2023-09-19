@@ -9,7 +9,7 @@ use crate::{
 };
 
 pub async fn retrieve_payment_link(
-    state: &AppState,
+    state: AppState,
     merchant_account: domain::MerchantAccount,
     payment_link_id: String,
 ) -> RouterResponse<api_models::payments::RetrievePaymentLinkResponse> {
@@ -34,7 +34,7 @@ pub async fn retrieve_payment_link(
 }
 
 pub async fn intiate_payment_link_flow(
-    state: &AppState,
+    state: AppState,
     merchant_account: domain::MerchantAccount,
     merchant_id: String,
     payment_id: String,

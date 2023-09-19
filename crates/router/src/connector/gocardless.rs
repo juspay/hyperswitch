@@ -4,7 +4,7 @@ use std::fmt::Debug;
 
 use error_stack::{IntoReport, ResultExt};
 use masking::ExposeInterface;
-use transformers as multisafepay;
+use transformers as gocardless;
 
 use crate::{
     configs::settings,
@@ -18,31 +18,65 @@ use crate::{
     types::{
         self,
         api::{self, ConnectorCommon, ConnectorCommonExt},
-        storage::enums,
         ErrorResponse, Response,
     },
     utils::{self, BytesExt},
 };
 
 #[derive(Debug, Clone)]
-pub struct Multisafepay;
+pub struct Gocardless;
 
-impl<Flow, Request, Response> ConnectorCommonExt<Flow, Request, Response> for Multisafepay
+impl api::Payment for Gocardless {}
+impl api::PaymentSession for Gocardless {}
+impl api::ConnectorAccessToken for Gocardless {}
+impl api::PreVerify for Gocardless {}
+impl api::PaymentAuthorize for Gocardless {}
+impl api::PaymentSync for Gocardless {}
+impl api::PaymentCapture for Gocardless {}
+impl api::PaymentVoid for Gocardless {}
+impl api::Refund for Gocardless {}
+impl api::RefundExecute for Gocardless {}
+impl api::RefundSync for Gocardless {}
+impl api::PaymentToken for Gocardless {}
+
+impl
+    ConnectorIntegration<
+        api::PaymentMethodToken,
+        types::PaymentMethodTokenizationData,
+        types::PaymentsResponseData,
+    > for Gocardless
+{
+    // Not Implemented (R)
+}
+
+impl<Flow, Request, Response> ConnectorCommonExt<Flow, Request, Response> for Gocardless
 where
     Self: ConnectorIntegration<Flow, Request, Response>,
 {
     fn build_headers(
         &self,
-        _req: &types::RouterData<Flow, Request, Response>,
+        req: &types::RouterData<Flow, Request, Response>,
         _connectors: &settings::Connectors,
     ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
-        Ok(vec![])
+        let mut header = vec![(
+            headers::CONTENT_TYPE.to_string(),
+            types::PaymentsAuthorizeType::get_content_type(self)
+                .to_string()
+                .into(),
+        )];
+        let mut api_key = self.get_auth_header(&req.connector_auth_type)?;
+        header.append(&mut api_key);
+        Ok(header)
     }
 }
 
-impl ConnectorCommon for Multisafepay {
+impl ConnectorCommon for Gocardless {
     fn id(&self) -> &'static str {
-        "multisafepay"
+        "gocardless"
+    }
+
+    fn get_currency_unit(&self) -> api::CurrencyUnit {
+        api::CurrencyUnit::Minor
     }
 
     fn common_get_content_type(&self) -> &'static str {
@@ -50,19 +84,18 @@ impl ConnectorCommon for Multisafepay {
     }
 
     fn base_url<'a>(&self, connectors: &'a settings::Connectors) -> &'a str {
-        connectors.multisafepay.base_url.as_ref()
+        connectors.gocardless.base_url.as_ref()
     }
 
     fn get_auth_header(
         &self,
         auth_type: &types::ConnectorAuthType,
     ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
-        let auth: multisafepay::MultisafepayAuthType = auth_type
-            .try_into()
+        let auth = gocardless::GocardlessAuthType::try_from(auth_type)
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
         Ok(vec![(
             headers::AUTHORIZATION.to_string(),
-            auth.api_key.into_masked(),
+            auth.api_key.expose().into_masked(),
         )])
     }
 
@@ -70,159 +103,42 @@ impl ConnectorCommon for Multisafepay {
         &self,
         res: Response,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        let response: multisafepay::MultisafepayErrorResponse = res
+        let response: gocardless::GocardlessErrorResponse = res
             .response
-            .parse_struct("MultisafepayErrorResponse")
+            .parse_struct("GocardlessErrorResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+
         Ok(ErrorResponse {
             status_code: res.status_code,
-            code: response.error_code.to_string(),
-            message: response.error_info,
-            reason: None,
+            code: response.code,
+            message: response.message,
+            reason: response.reason,
         })
     }
 }
 
-impl ConnectorValidation for Multisafepay {
-    fn validate_capture_method(
-        &self,
-        capture_method: Option<enums::CaptureMethod>,
-    ) -> CustomResult<(), errors::ConnectorError> {
-        let capture_method = capture_method.unwrap_or_default();
-        match capture_method {
-            enums::CaptureMethod::Automatic => Ok(()),
-            enums::CaptureMethod::Manual
-            | enums::CaptureMethod::ManualMultiple
-            | enums::CaptureMethod::Scheduled => Err(errors::ConnectorError::NotImplemented(
-                format!("{} for {}", capture_method, self.id()),
-            )
-            .into()),
-        }
-    }
+impl ConnectorValidation for Gocardless {
+    //TODO: implement functions when support enabled
 }
-
-impl api::Payment for Multisafepay {}
-
-impl api::PaymentToken for Multisafepay {}
-
-impl
-    ConnectorIntegration<
-        api::PaymentMethodToken,
-        types::PaymentMethodTokenizationData,
-        types::PaymentsResponseData,
-    > for Multisafepay
-{
-    // Not Implemented (R)
-}
-
-impl api::PreVerify for Multisafepay {}
-impl ConnectorIntegration<api::Verify, types::VerifyRequestData, types::PaymentsResponseData>
-    for Multisafepay
-{
-}
-
-impl api::PaymentVoid for Multisafepay {}
-
-impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsResponseData>
-    for Multisafepay
-{
-}
-
-impl api::ConnectorAccessToken for Multisafepay {}
-
-impl ConnectorIntegration<api::AccessTokenAuth, types::AccessTokenRequestData, types::AccessToken>
-    for Multisafepay
-{
-}
-
-impl api::PaymentSync for Multisafepay {}
-impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsResponseData>
-    for Multisafepay
-{
-    fn get_headers(
-        &self,
-        req: &types::PaymentsSyncRouterData,
-        connectors: &settings::Connectors,
-    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
-        self.build_headers(req, connectors)
-    }
-
-    fn get_content_type(&self) -> &'static str {
-        self.common_get_content_type()
-    }
-
-    fn get_url(
-        &self,
-        req: &types::PaymentsSyncRouterData,
-        connectors: &settings::Connectors,
-    ) -> CustomResult<String, errors::ConnectorError> {
-        let url = self.base_url(connectors);
-        let api_key = multisafepay::MultisafepayAuthType::try_from(&req.connector_auth_type)
-            .change_context(errors::ConnectorError::FailedToObtainAuthType)?
-            .api_key
-            .expose();
-        let ord_id = req.payment_id.clone();
-        Ok(format!("{url}v1/json/orders/{ord_id}?api_key={api_key}"))
-    }
-
-    fn build_request(
-        &self,
-        req: &types::PaymentsSyncRouterData,
-        connectors: &settings::Connectors,
-    ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
-        Ok(Some(
-            services::RequestBuilder::new()
-                .method(services::Method::Get)
-                .url(&types::PaymentsSyncType::get_url(self, req, connectors)?)
-                .attach_default_headers()
-                .headers(types::PaymentsSyncType::get_headers(self, req, connectors)?)
-                .build(),
-        ))
-    }
-
-    fn get_error_response(
-        &self,
-        res: Response,
-    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        self.build_error_response(res)
-    }
-
-    fn handle_response(
-        &self,
-        data: &types::PaymentsSyncRouterData,
-        res: Response,
-    ) -> CustomResult<types::PaymentsSyncRouterData, errors::ConnectorError> {
-        let response: multisafepay::MultisafepayPaymentsResponse = res
-            .response
-            .parse_struct("multisafepay PaymentsResponse")
-            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-        types::RouterData::try_from(types::ResponseRouterData {
-            response,
-            data: data.clone(),
-            http_code: res.status_code,
-        })
-        .change_context(errors::ConnectorError::ResponseHandlingFailed)
-    }
-}
-
-impl api::PaymentCapture for Multisafepay {}
-impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::PaymentsResponseData>
-    for Multisafepay
-{
-}
-
-impl api::PaymentSession for Multisafepay {}
 
 impl ConnectorIntegration<api::Session, types::PaymentsSessionData, types::PaymentsResponseData>
-    for Multisafepay
+    for Gocardless
 {
     //TODO: implement sessions flow
 }
 
-impl api::PaymentAuthorize for Multisafepay {}
+impl ConnectorIntegration<api::AccessTokenAuth, types::AccessTokenRequestData, types::AccessToken>
+    for Gocardless
+{
+}
+
+impl ConnectorIntegration<api::Verify, types::VerifyRequestData, types::PaymentsResponseData>
+    for Gocardless
+{
+}
 
 impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::PaymentsResponseData>
-    for Multisafepay
+    for Gocardless
 {
     fn get_headers(
         &self,
@@ -238,28 +154,29 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
 
     fn get_url(
         &self,
-        req: &types::PaymentsAuthorizeRouterData,
-        connectors: &settings::Connectors,
+        _req: &types::PaymentsAuthorizeRouterData,
+        _connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        let url = self.base_url(connectors);
-        let api_key = multisafepay::MultisafepayAuthType::try_from(&req.connector_auth_type)
-            .change_context(errors::ConnectorError::FailedToObtainAuthType)?
-            .api_key
-            .expose();
-        Ok(format!("{url}v1/json/orders?api_key={api_key}"))
+        Err(errors::ConnectorError::NotImplemented("get_url method".to_string()).into())
     }
 
     fn get_request_body(
         &self,
         req: &types::PaymentsAuthorizeRouterData,
     ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
-        let req_obj = multisafepay::MultisafepayPaymentsRequest::try_from(req)?;
-        let multisafepay_req = types::RequestBody::log_and_get_request_body(
+        let connector_router_data = gocardless::GocardlessRouterData::try_from((
+            &self.get_currency_unit(),
+            req.request.currency,
+            req.request.amount,
+            req,
+        ))?;
+        let req_obj = gocardless::GocardlessPaymentsRequest::try_from(&connector_router_data)?;
+        let gocardless_req = types::RequestBody::log_and_get_request_body(
             &req_obj,
-            utils::Encode::<multisafepay::MultisafepayPaymentsRequest>::encode_to_string_of_json,
+            utils::Encode::<gocardless::GocardlessPaymentsRequest>::encode_to_string_of_json,
         )
         .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-        Ok(Some(multisafepay_req))
+        Ok(Some(gocardless_req))
     }
 
     fn build_request(
@@ -267,6 +184,7 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         req: &types::PaymentsAuthorizeRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
+        self.validate_capture_method(req.request.capture_method)?;
         Ok(Some(
             services::RequestBuilder::new()
                 .method(services::Method::Post)
@@ -287,17 +205,15 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         data: &types::PaymentsAuthorizeRouterData,
         res: Response,
     ) -> CustomResult<types::PaymentsAuthorizeRouterData, errors::ConnectorError> {
-        let response: multisafepay::MultisafepayPaymentsResponse = res
+        let response: gocardless::GocardlessPaymentsResponse = res
             .response
-            .parse_struct("MultisafepayPaymentsResponse")
+            .parse_struct("Gocardless PaymentsAuthorizeResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-        types::ResponseRouterData {
+        types::RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
-        }
-        .try_into()
-        .change_context(errors::ConnectorError::ResponseHandlingFailed)
+        })
     }
 
     fn get_error_response(
@@ -308,12 +224,147 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
     }
 }
 
-impl api::Refund for Multisafepay {}
-impl api::RefundExecute for Multisafepay {}
-impl api::RefundSync for Multisafepay {}
+impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsResponseData>
+    for Gocardless
+{
+    fn get_headers(
+        &self,
+        req: &types::PaymentsSyncRouterData,
+        connectors: &settings::Connectors,
+    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
+        self.build_headers(req, connectors)
+    }
+
+    fn get_content_type(&self) -> &'static str {
+        self.common_get_content_type()
+    }
+
+    fn get_url(
+        &self,
+        _req: &types::PaymentsSyncRouterData,
+        _connectors: &settings::Connectors,
+    ) -> CustomResult<String, errors::ConnectorError> {
+        Err(errors::ConnectorError::NotImplemented("get_url method".to_string()).into())
+    }
+
+    fn build_request(
+        &self,
+        req: &types::PaymentsSyncRouterData,
+        connectors: &settings::Connectors,
+    ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
+        Ok(Some(
+            services::RequestBuilder::new()
+                .method(services::Method::Get)
+                .url(&types::PaymentsSyncType::get_url(self, req, connectors)?)
+                .attach_default_headers()
+                .headers(types::PaymentsSyncType::get_headers(self, req, connectors)?)
+                .build(),
+        ))
+    }
+
+    fn handle_response(
+        &self,
+        data: &types::PaymentsSyncRouterData,
+        res: Response,
+    ) -> CustomResult<types::PaymentsSyncRouterData, errors::ConnectorError> {
+        let response: gocardless::GocardlessPaymentsResponse = res
+            .response
+            .parse_struct("gocardless PaymentsSyncResponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        types::RouterData::try_from(types::ResponseRouterData {
+            response,
+            data: data.clone(),
+            http_code: res.status_code,
+        })
+    }
+
+    fn get_error_response(
+        &self,
+        res: Response,
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        self.build_error_response(res)
+    }
+}
+
+impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::PaymentsResponseData>
+    for Gocardless
+{
+    fn get_headers(
+        &self,
+        req: &types::PaymentsCaptureRouterData,
+        connectors: &settings::Connectors,
+    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
+        self.build_headers(req, connectors)
+    }
+
+    fn get_content_type(&self) -> &'static str {
+        self.common_get_content_type()
+    }
+
+    fn get_url(
+        &self,
+        _req: &types::PaymentsCaptureRouterData,
+        _connectors: &settings::Connectors,
+    ) -> CustomResult<String, errors::ConnectorError> {
+        Err(errors::ConnectorError::NotImplemented("get_url method".to_string()).into())
+    }
+
+    fn get_request_body(
+        &self,
+        _req: &types::PaymentsCaptureRouterData,
+    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
+        Err(errors::ConnectorError::NotImplemented("get_request_body method".to_string()).into())
+    }
+
+    fn build_request(
+        &self,
+        req: &types::PaymentsCaptureRouterData,
+        connectors: &settings::Connectors,
+    ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
+        Ok(Some(
+            services::RequestBuilder::new()
+                .method(services::Method::Post)
+                .url(&types::PaymentsCaptureType::get_url(self, req, connectors)?)
+                .attach_default_headers()
+                .headers(types::PaymentsCaptureType::get_headers(
+                    self, req, connectors,
+                )?)
+                .body(types::PaymentsCaptureType::get_request_body(self, req)?)
+                .build(),
+        ))
+    }
+
+    fn handle_response(
+        &self,
+        data: &types::PaymentsCaptureRouterData,
+        res: Response,
+    ) -> CustomResult<types::PaymentsCaptureRouterData, errors::ConnectorError> {
+        let response: gocardless::GocardlessPaymentsResponse = res
+            .response
+            .parse_struct("Gocardless PaymentsCaptureResponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        types::RouterData::try_from(types::ResponseRouterData {
+            response,
+            data: data.clone(),
+            http_code: res.status_code,
+        })
+    }
+
+    fn get_error_response(
+        &self,
+        res: Response,
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        self.build_error_response(res)
+    }
+}
+
+impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsResponseData>
+    for Gocardless
+{
+}
 
 impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsResponseData>
-    for Multisafepay
+    for Gocardless
 {
     fn get_headers(
         &self,
@@ -329,31 +380,29 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
 
     fn get_url(
         &self,
-        req: &types::RefundsRouterData<api::Execute>,
-        connectors: &settings::Connectors,
+        _req: &types::RefundsRouterData<api::Execute>,
+        _connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        let url = self.base_url(connectors);
-        let api_key = multisafepay::MultisafepayAuthType::try_from(&req.connector_auth_type)
-            .change_context(errors::ConnectorError::FailedToObtainAuthType)?
-            .api_key
-            .expose();
-        let ord_id = req.payment_id.clone();
-        Ok(format!(
-            "{url}v1/json/orders/{ord_id}/refunds?api_key={api_key}"
-        ))
+        Err(errors::ConnectorError::NotImplemented("get_url method".to_string()).into())
     }
 
     fn get_request_body(
         &self,
         req: &types::RefundsRouterData<api::Execute>,
     ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
-        let connector_req = multisafepay::MultisafepayRefundRequest::try_from(req)?;
-        let multisafepay_req = types::RequestBody::log_and_get_request_body(
-            &connector_req,
-            utils::Encode::<multisafepay::MultisafepayPaymentsRequest>::encode_to_string_of_json,
+        let connector_router_data = gocardless::GocardlessRouterData::try_from((
+            &self.get_currency_unit(),
+            req.request.currency,
+            req.request.refund_amount,
+            req,
+        ))?;
+        let req_obj = gocardless::GocardlessRefundRequest::try_from(&connector_router_data)?;
+        let gocardless_req = types::RequestBody::log_and_get_request_body(
+            &req_obj,
+            utils::Encode::<gocardless::GocardlessRefundRequest>::encode_to_string_of_json,
         )
         .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-        Ok(Some(multisafepay_req))
+        Ok(Some(gocardless_req))
     }
 
     fn build_request(
@@ -378,17 +427,15 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
         data: &types::RefundsRouterData<api::Execute>,
         res: Response,
     ) -> CustomResult<types::RefundsRouterData<api::Execute>, errors::ConnectorError> {
-        let response: multisafepay::RefundResponse = res
+        let response: gocardless::RefundResponse = res
             .response
-            .parse_struct("multisafepay RefundResponse")
-            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-        types::ResponseRouterData {
+            .parse_struct("gocardless RefundResponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        types::RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
-        }
-        .try_into()
-        .change_context(errors::ConnectorError::ResponseHandlingFailed)
+        })
     }
 
     fn get_error_response(
@@ -400,7 +447,7 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
 }
 
 impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponseData>
-    for Multisafepay
+    for Gocardless
 {
     fn get_headers(
         &self,
@@ -416,18 +463,10 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
 
     fn get_url(
         &self,
-        req: &types::RefundSyncRouterData,
-        connectors: &settings::Connectors,
+        _req: &types::RefundSyncRouterData,
+        _connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        let url = self.base_url(connectors);
-        let api_key = multisafepay::MultisafepayAuthType::try_from(&req.connector_auth_type)
-            .change_context(errors::ConnectorError::FailedToObtainAuthType)?
-            .api_key
-            .expose();
-        let ord_id = req.payment_id.clone();
-        Ok(format!(
-            "{url}v1/json/orders/{ord_id}/refunds?api_key={api_key}"
-        ))
+        Err(errors::ConnectorError::NotImplemented("get_url method".to_string()).into())
     }
 
     fn build_request(
@@ -451,17 +490,15 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
         data: &types::RefundSyncRouterData,
         res: Response,
     ) -> CustomResult<types::RefundSyncRouterData, errors::ConnectorError> {
-        let response: multisafepay::RefundResponse = res
+        let response: gocardless::RefundResponse = res
             .response
-            .parse_struct("multisafepay RefundResponse")
+            .parse_struct("gocardless RefundSyncResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-        types::ResponseRouterData {
+        types::RouterData::try_from(types::ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
-        }
-        .try_into()
-        .change_context(errors::ConnectorError::ResponseHandlingFailed)
+        })
     }
 
     fn get_error_response(
@@ -473,11 +510,11 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
 }
 
 #[async_trait::async_trait]
-impl api::IncomingWebhook for Multisafepay {
+impl api::IncomingWebhook for Gocardless {
     fn get_webhook_object_reference_id(
         &self,
         _request: &api::IncomingWebhookRequestDetails<'_>,
-    ) -> CustomResult<api_models::webhooks::ObjectReferenceId, errors::ConnectorError> {
+    ) -> CustomResult<api::webhooks::ObjectReferenceId, errors::ConnectorError> {
         Err(errors::ConnectorError::WebhooksNotImplemented).into_report()
     }
 
@@ -485,7 +522,7 @@ impl api::IncomingWebhook for Multisafepay {
         &self,
         _request: &api::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<api::IncomingWebhookEvent, errors::ConnectorError> {
-        Ok(api::IncomingWebhookEvent::EventNotSupported)
+        Err(errors::ConnectorError::WebhooksNotImplemented).into_report()
     }
 
     fn get_webhook_resource_object(
