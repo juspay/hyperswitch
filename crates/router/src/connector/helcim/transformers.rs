@@ -2,26 +2,37 @@ use masking::Secret;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    connector::utils::PaymentsAuthorizeRequestData,
+    connector::utils::CardData,
     core::errors,
     types::{self, api, storage::enums},
 };
 
 //TODO: Fill the struct with respective fields
 #[derive(Default, Debug, Serialize, Eq, PartialEq)]
+#[serde(rename_all = "camelCase")]
 pub struct HelcimPaymentsRequest {
     amount: i64,
-    card: HelcimCard,
+    currency: enums::Currency,
+    ip_address: Secret<String>,
+    // ip_address: Secret<String, common_utils::pii::IpAddress>,
+    card_data: HelcimCard,
+    billing_address: HelcimBillingAddress,
 }
 
 #[derive(Default, Debug, Serialize, Eq, PartialEq)]
-pub struct HelcimCard {
+#[serde(rename_all = "camelCase")]
+pub struct HelcimBillingAddress {
     name: Secret<String>,
-    number: cards::CardNumber,
-    expiry_month: Secret<String>,
-    expiry_year: Secret<String>,
-    cvc: Secret<String>,
-    complete: bool,
+    street1: String,
+    postal_code: String,
+}
+
+#[derive(Default, Debug, Serialize, Eq, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct HelcimCard {
+    card_number: cards::CardNumber,
+    card_expiry: Secret<String>,
+    card_c_v_v: Secret<String>,
 }
 
 impl TryFrom<&types::PaymentsAuthorizeRouterData> for HelcimPaymentsRequest {
@@ -29,17 +40,24 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for HelcimPaymentsRequest {
     fn try_from(item: &types::PaymentsAuthorizeRouterData) -> Result<Self, Self::Error> {
         match item.request.payment_method_data.clone() {
             api::PaymentMethodData::Card(req_card) => {
-                let card = HelcimCard {
+                let card_data = HelcimCard {
+                    card_expiry: req_card
+                        .get_card_expiry_month_year_2_digit_with_delimiter("".to_string()),
+                    card_number: req_card.card_number,
+                    card_c_v_v: req_card.card_cvc,
+                };
+                // let ip_address = item.request.get_browser_info()?.get_ip_address()?;
+                let billing_address = HelcimBillingAddress {
                     name: req_card.card_holder_name,
-                    number: req_card.card_number,
-                    expiry_month: req_card.card_exp_month,
-                    expiry_year: req_card.card_exp_year,
-                    cvc: req_card.card_cvc,
-                    complete: item.request.is_auto_capture()?,
+                    street1: "Jump Street 21".to_string(),
+                    postal_code: "H0H0H0".to_string(),
                 };
                 Ok(Self {
                     amount: item.request.amount,
-                    card,
+                    currency: item.request.currency,
+                    ip_address: Secret::new("127.0.0.1".to_string()),
+                    card_data,
+                    billing_address,
                 })
             }
             _ => Err(errors::ConnectorError::NotImplemented("Payment methods".to_string()).into()),
@@ -66,44 +84,55 @@ impl TryFrom<&types::ConnectorAuthType> for HelcimAuthType {
 }
 // PaymentsResponse
 //TODO: Append the remaining status flags
-#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
-#[serde(rename_all = "lowercase")]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "UPPERCASE")]
 pub enum HelcimPaymentStatus {
-    Succeeded,
-    Failed,
-    #[default]
-    Processing,
+    Approved,
+    Declined,
 }
 
 impl From<HelcimPaymentStatus> for enums::AttemptStatus {
     fn from(item: HelcimPaymentStatus) -> Self {
         match item {
-            HelcimPaymentStatus::Succeeded => Self::Charged,
-            HelcimPaymentStatus::Failed => Self::Failure,
-            HelcimPaymentStatus::Processing => Self::Authorizing,
+            HelcimPaymentStatus::Approved => Self::Charged,
+            HelcimPaymentStatus::Declined => Self::Failure,
         }
     }
 }
 
 //TODO: Fill the struct with respective fields
-#[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
 pub struct HelcimPaymentsResponse {
     status: HelcimPaymentStatus,
-    id: String,
+    transaction_id: u64,
 }
 
-impl<F, T>
-    TryFrom<types::ResponseRouterData<F, HelcimPaymentsResponse, T, types::PaymentsResponseData>>
-    for types::RouterData<F, T, types::PaymentsResponseData>
+impl<F>
+    TryFrom<
+        types::ResponseRouterData<
+            F,
+            HelcimPaymentsResponse,
+            types::PaymentsAuthorizeData,
+            types::PaymentsResponseData,
+        >,
+    > for types::RouterData<F, types::PaymentsAuthorizeData, types::PaymentsResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: types::ResponseRouterData<F, HelcimPaymentsResponse, T, types::PaymentsResponseData>,
+        item: types::ResponseRouterData<
+            F,
+            HelcimPaymentsResponse,
+            types::PaymentsAuthorizeData,
+            types::PaymentsResponseData,
+        >,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
             status: enums::AttemptStatus::from(item.response.status),
             response: Ok(types::PaymentsResponseData::TransactionResponse {
-                resource_id: types::ResponseId::ConnectorTransactionId(item.response.id),
+                resource_id: types::ResponseId::ConnectorTransactionId(
+                    item.response.transaction_id.to_string(),
+                ),
                 redirection_data: None,
                 mandate_reference: None,
                 connector_metadata: None,

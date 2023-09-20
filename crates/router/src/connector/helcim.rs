@@ -65,7 +65,13 @@ where
                 .into(),
         )];
         let mut api_key = self.get_auth_header(&req.connector_auth_type)?;
+
+        let mut idempotency_key = vec![(
+            headers::IDEMPOTENCY_KEY.to_string(),
+            format!("{}_", req.payment_id).into_masked(),
+        )];
         header.append(&mut api_key);
+        header.append(&mut idempotency_key);
         Ok(header)
     }
 }
@@ -90,7 +96,7 @@ impl ConnectorCommon for Helcim {
         let auth = helcim::HelcimAuthType::try_from(auth_type)
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
         Ok(vec![(
-            headers::AUTHORIZATION.to_string(),
+            headers::API_TOKEN.to_string(),
             auth.api_key.expose().into_masked(),
         )])
     }
@@ -151,9 +157,9 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
     fn get_url(
         &self,
         _req: &types::PaymentsAuthorizeRouterData,
-        _connectors: &settings::Connectors,
+        connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented("get_url method".to_string()).into())
+        Ok(format!("{}v2/payment/purchase", self.base_url(connectors)))
     }
 
     fn get_request_body(
