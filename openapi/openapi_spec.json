@@ -2611,8 +2611,7 @@
                 "required": [
                   "billing_details",
                   "account_number",
-                  "bsb_number",
-                  "bank_account_holder_name"
+                  "bsb_number"
                 ],
                 "properties": {
                   "billing_details": {
@@ -2631,7 +2630,8 @@
                   "bank_account_holder_name": {
                     "type": "string",
                     "description": "Owner name for bank debit",
-                    "example": "A. Schneider"
+                    "example": "A. Schneider",
+                    "nullable": true
                   }
                 }
               }
