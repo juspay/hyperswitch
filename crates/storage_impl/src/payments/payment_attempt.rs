@@ -26,6 +26,7 @@ use redis_interface::HsetnxReply;
 use router_env::{instrument, tracing};
 
 use crate::{
+    diesel_error_to_data_error,
     lookup::ReverseLookupInterface,
     redis::kv_store::{PartitionKey, RedisConnInterface},
     utils::{
@@ -49,7 +50,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for RouterStore<T> {
             .insert(&conn)
             .await
             .map_err(|er| {
-                let new_err = crate::diesel_error_to_data_error(er.current_context());
+                let new_err = diesel_error_to_data_error(er.current_context());
                 er.change_context(new_err)
             })
             .map(PaymentAttempt::from_storage_model)
@@ -67,7 +68,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for RouterStore<T> {
             .update_with_attempt_id(&conn, payment_attempt.to_storage_model())
             .await
             .map_err(|er| {
-                let new_err = crate::diesel_error_to_data_error(er.current_context());
+                let new_err = diesel_error_to_data_error(er.current_context());
                 er.change_context(new_err)
             })
             .map(PaymentAttempt::from_storage_model)
@@ -89,7 +90,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for RouterStore<T> {
         )
         .await
         .map_err(|er| {
-            let new_err = crate::diesel_error_to_data_error(er.current_context());
+            let new_err = diesel_error_to_data_error(er.current_context());
             er.change_context(new_err)
         })
         .map(PaymentAttempt::from_storage_model)
@@ -109,7 +110,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for RouterStore<T> {
         )
         .await
         .map_err(|er| {
-            let new_err = crate::diesel_error_to_data_error(er.current_context());
+            let new_err = diesel_error_to_data_error(er.current_context());
             er.change_context(new_err)
         })
         .map(PaymentAttempt::from_storage_model)
@@ -129,7 +130,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for RouterStore<T> {
         )
         .await
         .map_err(|er| {
-            let new_err = crate::diesel_error_to_data_error(er.current_context());
+            let new_err = diesel_error_to_data_error(er.current_context());
             er.change_context(new_err)
         })
         .map(PaymentAttempt::from_storage_model)
@@ -153,7 +154,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for RouterStore<T> {
         )
         .await
         .map_err(|er| {
-            let new_err = crate::diesel_error_to_data_error(er.current_context());
+            let new_err = diesel_error_to_data_error(er.current_context());
             er.change_context(new_err)
         })
         .map(PaymentAttempt::from_storage_model)
@@ -174,7 +175,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for RouterStore<T> {
         DieselPaymentAttempt::get_filters_for_payments(&conn, intents.as_slice(), merchant_id)
             .await
             .map_err(|er| {
-                let new_err = crate::diesel_error_to_data_error(er.current_context());
+                let new_err = diesel_error_to_data_error(er.current_context());
                 er.change_context(new_err)
             })
             .map(
@@ -202,7 +203,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for RouterStore<T> {
         )
         .await
         .map_err(|er| {
-            let new_err = crate::diesel_error_to_data_error(er.current_context());
+            let new_err = diesel_error_to_data_error(er.current_context());
             er.change_context(new_err)
         })
         .map(PaymentAttempt::from_storage_model)
@@ -218,7 +219,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for RouterStore<T> {
         DieselPaymentAttempt::find_by_merchant_id_payment_id(&conn, merchant_id, payment_id)
             .await
             .map_err(|er| {
-                let new_err = crate::diesel_error_to_data_error(er.current_context());
+                let new_err = diesel_error_to_data_error(er.current_context());
                 er.change_context(new_err)
             })
             .map(|a| {
@@ -239,7 +240,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for RouterStore<T> {
         DieselPaymentAttempt::find_by_merchant_id_attempt_id(&conn, merchant_id, attempt_id)
             .await
             .map_err(|er| {
-                let new_err = crate::diesel_error_to_data_error(er.current_context());
+                let new_err = diesel_error_to_data_error(er.current_context());
                 er.change_context(new_err)
             })
             .map(PaymentAttempt::from_storage_model)
@@ -275,7 +276,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for RouterStore<T> {
         )
         .await
         .map_err(|er| {
-            let new_err = crate::diesel_error_to_data_error(er.current_context());
+            let new_err = diesel_error_to_data_error(er.current_context());
             er.change_context(new_err)
         })
     }
@@ -380,7 +381,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
                         .insert(&conn)
                         .await
                         .map_err(|er| {
-                            let new_err = crate::diesel_error_to_data_error(er.current_context());
+                            let new_err = diesel_error_to_data_error(er.current_context());
                             er.change_context(new_err)
                         })?;
 
@@ -1491,7 +1492,7 @@ async fn add_connector_txn_id_to_reverse_lookup<T: DatabaseStore>(
     .insert(&conn)
     .await
     .map_err(|err| {
-        let new_err = crate::diesel_error_to_data_error(err.current_context());
+        let new_err = diesel_error_to_data_error(err.current_context());
         err.change_context(new_err)
     })
 }
@@ -1515,7 +1516,7 @@ async fn add_preprocessing_id_to_reverse_lookup<T: DatabaseStore>(
     .insert(&conn)
     .await
     .map_err(|er| {
-        let new_err = crate::diesel_error_to_data_error(er.current_context());
+        let new_err = diesel_error_to_data_error(er.current_context());
         er.change_context(new_err)
     })
 }
