@@ -67,10 +67,7 @@ impl LockAction {
                     .delay_between_retries_in_milliseconds;
                 let redis_lock_expiry_seconds =
                     state.conf().lock_settings.redis_lock_expiry_seconds;
-                let lock_retries: u32 = ((redis_lock_expiry_seconds * 1000)
-                    / delay_between_retries_in_milliseconds)
-                    - 1;
-
+                let lock_retries = state.conf().lock_settings.lock_retries;
                 for _retry in 0..lock_retries {
                     let redis_lock_result = redis_conn
                         .set_key_if_not_exists_with_expiry(

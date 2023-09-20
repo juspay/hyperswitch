@@ -760,4 +760,5 @@ pub struct Payouts {
 pub struct LockSettings {
     pub redis_lock_expiry_seconds: u32,
     pub delay_between_retries_in_milliseconds: u32,
+    pub lock_retries: u32,
 }
