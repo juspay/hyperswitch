@@ -910,6 +910,10 @@ impl utils::MultipleCaptureSyncResponse for ActionResponse {
     fn is_capture_response(&self) -> bool {
         self.action_type == ActionType::Capture
     }
+
+    fn get_amount_captured(&self) -> Option<i64> {
+        Some(self.amount)
+    }
 }
 
 impl utils::MultipleCaptureSyncResponse for Box<PaymentsResponse> {
@@ -927,6 +931,12 @@ impl utils::MultipleCaptureSyncResponse for Box<PaymentsResponse> {
 
     fn is_capture_response(&self) -> bool {
         self.status == CheckoutPaymentStatus::Captured
+    }
+    fn get_amount_captured(&self) -> Option<i64> {
+        match self.amount {
+            Some(amount) => amount.try_into().ok(),
+            None => None,
+        }
     }
 }
 
