@@ -1807,8 +1807,9 @@ pub async fn list_customer_payment_method(
 
     let key = key_store.key.get_inner().peek();
 
+    let requires_cvv_config_key = format!("{}_requires_cvv", merchant_account.merchant_id);
     let is_requires_cvv = db
-        .find_config_by_key(format!("{}_requires_cvv", merchant_account.merchant_id).as_str())
+        .find_config_by_key(requires_cvv_config_key.as_str())
         .await;
 
     let requires_cvv = match is_requires_cvv {
@@ -1817,6 +1818,14 @@ pub async fn list_customer_payment_method(
         Err(err) => {
             if err.current_context().is_db_not_found() {
                 // By default, cvv is made required field for all merchants
+                db.insert_config(diesel_models::configs::ConfigNew {
+                    key: requires_cvv_config_key,
+                    config: "true".to_string(),
+                })
+                .await
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Failed while inserting requires_cvv config to configs table")?;
+
                 true
             } else {
                 Err(err
