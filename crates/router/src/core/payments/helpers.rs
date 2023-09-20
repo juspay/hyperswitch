@@ -1450,16 +1450,30 @@ pub(crate) fn validate_capture_method(
 }
 
 #[instrument(skip_all)]
-pub(crate) fn validate_status(status: storage_enums::IntentStatus) -> RouterResult<()> {
+pub(crate) fn validate_status_with_capture_method(
+    status: storage_enums::IntentStatus,
+    capture_method: storage_enums::CaptureMethod,
+) -> RouterResult<()> {
+    if status == storage_enums::IntentStatus::Processing
+        && !(capture_method == storage_enums::CaptureMethod::ManualMultiple)
+    {
+        return Err(report!(errors::ApiErrorResponse::PaymentUnexpectedState {
+            field_name: "capture_method".to_string(),
+            current_flow: "captured".to_string(),
+            current_value: capture_method.to_string(),
+            states: "manual_multiple".to_string()
+        }));
+    }
     utils::when(
         status != storage_enums::IntentStatus::RequiresCapture
-            && status != storage_enums::IntentStatus::PartiallyCaptured,
+            && status != storage_enums::IntentStatus::PartiallyCaptured
+            && status != storage_enums::IntentStatus::Processing,
         || {
             Err(report!(errors::ApiErrorResponse::PaymentUnexpectedState {
                 field_name: "payment.status".to_string(),
                 current_flow: "captured".to_string(),
                 current_value: status.to_string(),
-                states: "requires_capture, partially captured".to_string()
+                states: "requires_capture, partially_captured, processing".to_string()
             }))
         },
     )
@@ -1851,7 +1865,7 @@ pub fn make_merchant_url_with_response(
 }
 
 pub async fn make_ephemeral_key(
-    state: &AppState,
+    state: AppState,
     customer_id: String,
     merchant_id: String,
 ) -> errors::RouterResponse<ephemeral_key::EphemeralKey> {
@@ -1873,10 +1887,11 @@ pub async fn make_ephemeral_key(
 }
 
 pub async fn delete_ephemeral_key(
-    store: &dyn StorageInterface,
+    state: AppState,
     ek_id: String,
 ) -> errors::RouterResponse<ephemeral_key::EphemeralKey> {
-    let ek = store
+    let db = state.store.as_ref();
+    let ek = db
         .delete_ephemeral_key(&ek_id)
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)

@@ -17,17 +17,18 @@ pub async fn apple_pay_merchant_registration(
 ) -> impl Responder {
     let flow = Flow::Verification;
     let merchant_id = path.into_inner();
+    let kms_conf = &state.clone().conf.kms;
     api::server_wrap(
         flow,
-        state.get_ref(),
+        state,
         &req,
         json_payload,
         |state, _, body| {
             verification::verify_merchant_creds_for_applepay(
-                state,
+                state.clone(),
                 &req,
                 body,
-                &state.conf.kms,
+                kms_conf,
                 merchant_id.clone(),
             )
         },
@@ -48,14 +49,14 @@ pub async fn retrieve_apple_pay_verified_domains(
 
     api::server_wrap(
         flow,
-        state.get_ref(),
+        state,
         &req,
         merchant_id.clone(),
         |state, _, _| {
             verification::get_verified_apple_domains_with_mid_mca_id(
-                &*state.store,
+                state,
                 merchant_id.to_string(),
-                mca_id.clone(),
+                mca_id.to_string(),
             )
         },
         auth::auth_type(&auth::ApiKeyAuth, &auth::JWTAuth, req.headers()),
