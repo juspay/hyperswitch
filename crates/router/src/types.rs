@@ -583,13 +583,32 @@ pub enum CaptureSyncResponse {
         resource_id: ResponseId,
         status: storage_enums::AttemptStatus,
         connector_response_reference_id: Option<String>,
+        amount: Option<i64>,
     },
     Error {
         code: String,
         message: String,
         reason: Option<String>,
         status_code: u16,
+        amount: Option<i64>,
     },
+}
+
+impl CaptureSyncResponse {
+    pub fn get_amount_captured(&self) -> Option<i64> {
+        match self {
+            Self::Success { amount, .. } | Self::Error { amount, .. } => *amount,
+        }
+    }
+    pub fn get_connector_response_reference_id(&self) -> Option<String> {
+        match self {
+            Self::Success {
+                connector_response_reference_id,
+                ..
+            } => connector_response_reference_id.clone(),
+            Self::Error { .. } => None,
+        }
+    }
 }
 
 #[derive(Debug, Clone)]

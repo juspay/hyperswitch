@@ -10,7 +10,7 @@ pub struct ApplepayMerchantVerificationConfigs {
 
 /// The derivation point for domain names from request body
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-#[serde(rename_all = "camelCase")]
+#[serde(rename_all = "snake_case")]
 pub struct ApplepayMerchantVerificationRequest {
     pub domain_names: Vec<String>,
     pub merchant_connector_account_id: String,
@@ -18,22 +18,21 @@ pub struct ApplepayMerchantVerificationRequest {
 
 /// Response to be sent for the verify/applepay api
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-#[serde(rename_all = "camelCase")]
+#[serde(rename_all = "snake_case")]
 pub struct ApplepayMerchantResponse {
     pub status_message: String,
-    pub status_code: u16,
 }
 
 /// QueryParams to be send by the merchant for fetching the verified domains
 #[derive(Debug, serde::Deserialize)]
-#[serde(rename_all = "camelCase")]
+#[serde(rename_all = "snake_case")]
 pub struct ApplepayGetVerifiedDomainsParam {
-    pub business_profile_id: String,
+    pub merchant_id: String,
+    pub merchant_connector_account_id: String,
 }
 /// Response to be sent for derivation of the already verified domains
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-#[serde(rename_all = "camelCase")]
+#[serde(rename_all = "snake_case")]
 pub struct ApplepayVerifiedDomainsResponse {
-    pub status_code: u16,
     pub verified_domains: Vec<String>,
 }

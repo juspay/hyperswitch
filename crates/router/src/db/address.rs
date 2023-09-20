@@ -1,6 +1,7 @@
 use common_utils::ext_traits::AsyncExt;
 use diesel_models::address::AddressUpdateInternal;
 use error_stack::{IntoReport, ResultExt};
+use router_env::{instrument, tracing};
 
 use super::{MockDb, Store};
 use crate::{
@@ -69,6 +70,7 @@ impl AddressInterface for Store {
             .await
     }
 
+    #[instrument(skip_all)]
     async fn update_address(
         &self,
         address_id: String,
@@ -89,6 +91,7 @@ impl AddressInterface for Store {
             .await
     }
 
+    #[instrument(skip_all)]
     async fn insert_address(
         &self,
         address: domain::Address,
@@ -172,6 +175,7 @@ impl AddressInterface for MockDb {
         }
     }
 
+    #[instrument(skip_all)]
     async fn update_address(
         &self,
         address_id: String,
@@ -201,6 +205,7 @@ impl AddressInterface for MockDb {
         }
     }
 
+    #[instrument(skip_all)]
     async fn insert_address(
         &self,
         address_new: domain::Address,
