@@ -50,7 +50,11 @@ pub trait AppStateInfo {
     fn flow_name(&self) -> String;
     fn store(&self) -> Box<dyn StorageInterface>;
     #[cfg(feature = "email")]
-    fn email_client(&self) -> Box<dyn EmailClient>;
+    fn email_client(&self) -> Arc<dyn EmailClient>;
+    fn add_request_id(&mut self, request_id: Option<String>);
+    fn add_merchant_id(&mut self, merchant_id: Option<String>);
+    fn add_flow_name(&mut self, flow_name: String);
+    fn get_request_id(&self) -> Option<String>;
 }
 
 impl AppStateInfo for AppState {
@@ -66,6 +70,24 @@ impl AppStateInfo for AppState {
     #[cfg(feature = "email")]
     fn email_client(&self) -> Box<dyn EmailClient> {
         self.email_client.to_owned()
+    }
+    fn add_request_id(&mut self, request_id: Option<String>) {
+        self.api_client.add_request_id(request_id);
+    }
+    fn add_merchant_id(&mut self, merchant_id: Option<String>) {
+        self.api_client.add_merchant_id(merchant_id);
+    }
+    fn add_flow_name(&mut self, flow_name: String) {
+        self.flow_name = flow_name;
+    }
+    fn get_request_id(&self) -> Option<String> {
+        self.api_client.get_request_id()
+    }
+}
+
+impl AsRef<Self> for AppState {
+    fn as_ref(&self) -> &Self {
+        self
     }
 }
 

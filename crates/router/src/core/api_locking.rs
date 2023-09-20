@@ -72,7 +72,7 @@ impl LockAction {
                     let redis_lock_result = redis_conn
                         .set_key_if_not_exists_with_expiry(
                             redis_locking_key.as_str(),
-                            true, // [#2129] pick up request_id from AppState
+                            state.get_request_id(),
                             Some(i64::from(redis_lock_expiry_seconds)),
                         )
                         .await;
@@ -120,19 +120,34 @@ impl LockAction {
                     .change_context(errors::ApiErrorResponse::InternalServerError)?;
 
                 let redis_locking_key = input.get_redis_locking_key(merchant_id);
-                // [#2129] Add a step to check whether the current lock is acquired by the current request and only then delete
-                match redis_conn.delete_key(redis_locking_key.as_str()).await {
-                    Ok(redis::types::DelReply::KeyDeleted) => {
-                        logger::info!("Lock freed for locking input {:?}", input);
-                        tracing::Span::current().record("redis_lock_released", redis_locking_key);
-                        Ok(())
-                    }
-                    Ok(redis::types::DelReply::KeyNotDeleted) => {
-                        Err(errors::ApiErrorResponse::InternalServerError)
-                            .into_report()
-                            .attach_printable(
-                                "Status release lock called but key is not found in redis",
-                            )
+
+                match redis_conn
+                    .get_key::<Option<String>>(&redis_locking_key)
+                    .await
+                {
+                    Ok(val) => {
+                        if val == state.get_request_id() {
+                            match redis_conn.delete_key(redis_locking_key.as_str()).await {
+                                Ok(redis::types::DelReply::KeyDeleted) => {
+                                    logger::info!("Lock freed for locking input {:?}", input);
+                                    tracing::Span::current()
+                                        .record("redis_lock_released", redis_locking_key);
+                                    Ok(())
+                                }
+                                Ok(redis::types::DelReply::KeyNotDeleted) => Err(
+                                    errors::ApiErrorResponse::InternalServerError,
+                                )
+                                .into_report()
+                                .attach_printable(
+                                    "Status release lock called but key is not found in redis",
+                                ),
+                                Err(error) => Err(error)
+                                    .change_context(errors::ApiErrorResponse::InternalServerError),
+                            }
+                        } else {
+                            Err(errors::ApiErrorResponse::InternalServerError)
+                                .into_report().attach_printable("The request_id which acquired the lock is not equal to the request_id requesting for releasing the lock")
+                        }
                     }
                     Err(error) => {
                         Err(error).change_context(errors::ApiErrorResponse::InternalServerError)
