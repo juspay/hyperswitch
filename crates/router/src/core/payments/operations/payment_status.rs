@@ -339,7 +339,7 @@ async fn get_tracker_for_sync<
         PaymentData {
             flow: PhantomData,
             payment_intent,
-            connector_response,
+            connector_response: Some(connector_response),
             currency,
             amount,
             email: None,
