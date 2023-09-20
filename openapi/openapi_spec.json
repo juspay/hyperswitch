@@ -2611,7 +2611,8 @@
                 "required": [
                   "billing_details",
                   "account_number",
-                  "bsb_number"
+                  "bsb_number",
+                  "bank_account_holder_name"
                 ],
                 "properties": {
                   "billing_details": {
@@ -2628,12 +2629,9 @@
                     "example": "000000"
                   },
                   "bank_account_holder_name": {
-                    "allOf": [
-                      {
-                        "$ref": "#/components/schemas/Secret"
-                      }
-                    ],
-                    "nullable": true
+                    "type": "string",
+                    "description": "Owner name for bank debit",
+                    "example": "A. Schneider"
                   }
                 }
               }
