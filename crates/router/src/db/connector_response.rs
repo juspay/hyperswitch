@@ -88,6 +88,7 @@ mod storage {
 mod storage {
 
     use error_stack::{IntoReport, ResultExt};
+    use redis_interface::HsetnxReply;
     use router_env::{instrument, tracing};
     use storage_impl::redis::kv_store::{PartitionKey, RedisConnInterface};
 
@@ -98,7 +99,6 @@ mod storage {
         types::storage::{self as storage_type, enums, kv},
         utils::db_utils,
     };
-    use redis_interface::HsetnxReply;
 
     #[async_trait::async_trait]
     impl super::ConnectorResponseInterface for Store {
