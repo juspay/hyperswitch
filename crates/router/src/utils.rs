@@ -32,7 +32,14 @@ use crate::{
     db::StorageInterface,
     logger,
     routes::metrics,
-    types::{self, domain},
+    types::{
+        self,
+        domain::{
+            self,
+            types::{encrypt_optional, AsyncLift},
+        },
+        storage,
+    },
 };
 
 pub mod error_parser {
@@ -396,4 +403,109 @@ pub fn add_connector_http_status_code_metrics(option_status_code: Option<u16>) {
     } else {
         logger::info!("Skip metrics as no http status code received from connector")
     }
+}
+
+pub async fn get_address_update_for_customer(
+    address_details: api_models::payments::AddressDetails,
+    customer_request: &api_models::customers::CustomerRequest,
+    key: &Vec<u8>,
+) -> CustomResult<storage::AddressUpdate, common_utils::errors::CryptoError> {
+    async {
+        Ok(storage::AddressUpdate::Update {
+            city: address_details.city,
+            country: address_details.country,
+            line1: address_details
+                .line1
+                .async_lift(|inner| encrypt_optional(inner, key))
+                .await?,
+            line2: address_details
+                .line2
+                .async_lift(|inner| encrypt_optional(inner, key))
+                .await?,
+            line3: address_details
+                .line3
+                .async_lift(|inner| encrypt_optional(inner, key))
+                .await?,
+            zip: address_details
+                .zip
+                .async_lift(|inner| encrypt_optional(inner, key))
+                .await?,
+            state: address_details
+                .state
+                .async_lift(|inner| encrypt_optional(inner, key))
+                .await?,
+            first_name: address_details
+                .first_name
+                .async_lift(|inner| encrypt_optional(inner, key))
+                .await?,
+            last_name: address_details
+                .last_name
+                .async_lift(|inner| encrypt_optional(inner, key))
+                .await?,
+            phone_number: customer_request
+                .phone
+                .clone()
+                .async_lift(|inner| encrypt_optional(inner, key))
+                .await?,
+            country_code: customer_request.phone_country_code.clone(),
+        })
+    }
+    .await
+}
+
+pub async fn get_domain_address_for_customer(
+    address_details: api_models::payments::AddressDetails,
+    customer_request: &api_models::customers::CustomerRequest,
+    merchant_id: &str,
+    customer_id: &str,
+    key: &Vec<u8>,
+) -> CustomResult<domain::Address, common_utils::errors::CryptoError> {
+    async {
+        Ok(domain::Address {
+            id: None,
+            city: address_details.city,
+            country: address_details.country,
+            line1: address_details
+                .line1
+                .async_lift(|inner| encrypt_optional(inner, key))
+                .await?,
+            line2: address_details
+                .line2
+                .async_lift(|inner| encrypt_optional(inner, key))
+                .await?,
+            line3: address_details
+                .line3
+                .async_lift(|inner| encrypt_optional(inner, key))
+                .await?,
+            zip: address_details
+                .zip
+                .async_lift(|inner| encrypt_optional(inner, key))
+                .await?,
+            state: address_details
+                .state
+                .async_lift(|inner| encrypt_optional(inner, key))
+                .await?,
+            first_name: address_details
+                .first_name
+                .async_lift(|inner| encrypt_optional(inner, key))
+                .await?,
+            last_name: address_details
+                .last_name
+                .async_lift(|inner| encrypt_optional(inner, key))
+                .await?,
+            phone_number: customer_request
+                .phone
+                .clone()
+                .async_lift(|inner| encrypt_optional(inner, key))
+                .await?,
+            country_code: customer_request.phone_country_code.clone(),
+            customer_id: customer_id.to_string(),
+            merchant_id: merchant_id.to_string(),
+            address_id: generate_id(consts::ID_LENGTH, "add"),
+            payment_id: None,
+            created_at: common_utils::date_time::now(),
+            modified_at: common_utils::date_time::now(),
+        })
+    }
+    .await
 }
