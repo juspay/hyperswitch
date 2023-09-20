@@ -423,7 +423,7 @@ pub trait SeleniumTest {
             Event::Trigger(Trigger::Goto(url)),
             Event::Trigger(Trigger::Click(By::Css(".gpay-button"))),
             Event::Trigger(Trigger::SwitchTab(Position::Next)),
-            Event::Trigger(Trigger::Sleep(10)),
+            Event::Trigger(Trigger::Sleep(5)),
             Event::RunIf(
                 Assert::EitherOfThemExist("Use your Google Account", "Sign in"),
                 vec![
