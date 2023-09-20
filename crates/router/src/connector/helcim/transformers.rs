@@ -1,3 +1,4 @@
+use error_stack::{IntoReport, ResultExt};
 use masking::Secret;
 use serde::{Deserialize, Serialize};
 
@@ -91,11 +92,34 @@ pub enum HelcimPaymentStatus {
     Declined,
 }
 
-impl From<HelcimPaymentStatus> for enums::AttemptStatus {
-    fn from(item: HelcimPaymentStatus) -> Self {
-        match item {
-            HelcimPaymentStatus::Approved => Self::Charged,
-            HelcimPaymentStatus::Declined => Self::Failure,
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "lowercase")]
+pub enum HelcimTransactionType {
+    Purchase,
+    PreAuth,
+    Capture,
+    Verify,
+}
+
+impl From<HelcimPaymentsResponse> for enums::AttemptStatus {
+    fn from(item: HelcimPaymentsResponse) -> Self {
+        match item.transaction_type {
+            HelcimTransactionType::Purchase => match item.status {
+                HelcimPaymentStatus::Approved => Self::Charged,
+                HelcimPaymentStatus::Declined => Self::Failure,
+            },
+            HelcimTransactionType::PreAuth => match item.status {
+                HelcimPaymentStatus::Approved => Self::Authorized,
+                HelcimPaymentStatus::Declined => Self::AuthorizationFailed,
+            },
+            HelcimTransactionType::Capture => match item.status {
+                HelcimPaymentStatus::Approved => Self::Charged, //Is this the correct status PartialCharged
+                HelcimPaymentStatus::Declined => Self::CaptureFailed,
+            },
+            HelcimTransactionType::Verify => match item.status {
+                HelcimPaymentStatus::Approved => Self::AuthenticationSuccessful,
+                HelcimPaymentStatus::Declined => Self::AuthenticationFailed,
+            },
         }
     }
 }
@@ -106,6 +130,8 @@ impl From<HelcimPaymentStatus> for enums::AttemptStatus {
 pub struct HelcimPaymentsResponse {
     status: HelcimPaymentStatus,
     transaction_id: u64,
+    #[serde(rename = "type")]
+    transaction_type: HelcimTransactionType,
 }
 
 impl<F>
@@ -128,7 +154,6 @@ impl<F>
         >,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
-            status: enums::AttemptStatus::from(item.response.status),
             response: Ok(types::PaymentsResponseData::TransactionResponse {
                 resource_id: types::ResponseId::ConnectorTransactionId(
                     item.response.transaction_id.to_string(),
@@ -139,6 +164,103 @@ impl<F>
                 network_txn_id: None,
                 connector_response_reference_id: None,
             }),
+            status: enums::AttemptStatus::from(item.response),
+            ..item.data
+        })
+    }
+}
+
+impl<F>
+    TryFrom<
+        types::ResponseRouterData<
+            F,
+            HelcimPaymentsResponse,
+            types::PaymentsSyncData,
+            types::PaymentsResponseData,
+        >,
+    > for types::RouterData<F, types::PaymentsSyncData, types::PaymentsResponseData>
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        item: types::ResponseRouterData<
+            F,
+            HelcimPaymentsResponse,
+            types::PaymentsSyncData,
+            types::PaymentsResponseData,
+        >,
+    ) -> Result<Self, Self::Error> {
+        Ok(Self {
+            response: Ok(types::PaymentsResponseData::TransactionResponse {
+                resource_id: types::ResponseId::ConnectorTransactionId(
+                    item.response.transaction_id.to_string(),
+                ),
+                redirection_data: None,
+                mandate_reference: None,
+                connector_metadata: None,
+                network_txn_id: None,
+                connector_response_reference_id: None,
+            }),
+            status: enums::AttemptStatus::from(item.response),
+            ..item.data
+        })
+    }
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct HelcimCaptureRequest {
+    pre_auth_transaction_id: u64,
+    amount: i64,
+    ip_address: Secret<String>,
+}
+
+impl TryFrom<&types::PaymentsCaptureRouterData> for HelcimCaptureRequest {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(item: &types::PaymentsCaptureRouterData) -> Result<Self, Self::Error> {
+        Ok(Self {
+            pre_auth_transaction_id: item
+                .request
+                .connector_transaction_id
+                .parse::<u64>()
+                .into_report()
+                .change_context(errors::ConnectorError::RequestEncodingFailed)?,
+            amount: item.request.amount_to_capture,
+            ip_address: Secret::new("127.0.0.1".to_string()),
+        })
+    }
+}
+
+impl<F>
+    TryFrom<
+        types::ResponseRouterData<
+            F,
+            HelcimPaymentsResponse,
+            types::PaymentsCaptureData,
+            types::PaymentsResponseData,
+        >,
+    > for types::RouterData<F, types::PaymentsCaptureData, types::PaymentsResponseData>
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        item: types::ResponseRouterData<
+            F,
+            HelcimPaymentsResponse,
+            types::PaymentsCaptureData,
+            types::PaymentsResponseData,
+        >,
+    ) -> Result<Self, Self::Error> {
+        Ok(Self {
+            response: Ok(types::PaymentsResponseData::TransactionResponse {
+                resource_id: types::ResponseId::ConnectorTransactionId(
+                    item.response.transaction_id.to_string(),
+                ),
+                redirection_data: None,
+                mandate_reference: None,
+                connector_metadata: None,
+                network_txn_id: None,
+                connector_response_reference_id: None,
+            }),
+            status: enums::AttemptStatus::from(item.response),
             ..item.data
         })
     }
