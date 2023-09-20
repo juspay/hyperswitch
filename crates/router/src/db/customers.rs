@@ -1,6 +1,7 @@
 use common_utils::ext_traits::AsyncExt;
 use error_stack::{IntoReport, ResultExt};
 use masking::PeekInterface;
+use router_env::{instrument, tracing};
 
 use super::{MockDb, Store};
 use crate::{
@@ -95,6 +96,7 @@ impl CustomerInterface for Store {
         })
     }
 
+    #[instrument(skip_all)]
     async fn update_customer_by_customer_id_merchant_id(
         &self,
         customer_id: String,
@@ -207,6 +209,7 @@ impl CustomerInterface for MockDb {
             .transpose()
     }
 
+    #[instrument(skip_all)]
     async fn update_customer_by_customer_id_merchant_id(
         &self,
         _customer_id: String,

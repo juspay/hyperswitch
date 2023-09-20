@@ -40,7 +40,7 @@ pub async fn create_payment_method_api(
     let flow = Flow::PaymentMethodsCreate;
     api::server_wrap(
         flow,
-        state.get_ref(),
+        state,
         &req,
         json_payload.into_inner(),
         |state, auth, req| async move {
@@ -90,7 +90,7 @@ pub async fn list_payment_method_api(
 
     api::server_wrap(
         flow,
-        state.get_ref(),
+        state,
         &req,
         payload,
         |state, auth, req| {
@@ -141,7 +141,7 @@ pub async fn list_customer_payment_method_api(
     let customer_id = customer_id.into_inner().0;
     api::server_wrap(
         flow,
-        state.get_ref(),
+        state,
         &req,
         payload,
         |state, auth, req| {
@@ -197,7 +197,7 @@ pub async fn list_customer_payment_method_api_client(
     };
     api::server_wrap(
         flow,
-        state.get_ref(),
+        state,
         &req,
         payload,
         |state, auth, req| {
@@ -245,7 +245,7 @@ pub async fn payment_method_retrieve_api(
 
     api::server_wrap(
         flow,
-        state.get_ref(),
+        state,
         &req,
         payload,
         |state, _auth, pm| cards::retrieve_payment_method(state, pm),
@@ -284,7 +284,7 @@ pub async fn payment_method_update_api(
 
     api::server_wrap(
         flow,
-        state.get_ref(),
+        state,
         &req,
         json_payload.into_inner(),
         |state, auth, payload| {
@@ -330,7 +330,7 @@ pub async fn payment_method_delete_api(
     };
     api::server_wrap(
         flow,
-        state.get_ref(),
+        state,
         &req,
         pm,
         |state, auth, req| cards::delete_payment_method(state, auth.merchant_account, req),
