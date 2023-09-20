@@ -222,6 +222,7 @@ default_imp_for_webhook_source_verification!(
     connector::Dlocal,
     connector::Fiserv,
     connector::Forte,
+    connector::Gocardless,
     connector::Globalpay,
     connector::Globepay,
     connector::Helcim,
