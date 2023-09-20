@@ -939,7 +939,7 @@ where
                         merchant_account,
                         key_store,
                         customer,
-                        &merchant_connector_account,
+                        merchant_connector_account,
                     )
                     .await?;
 
