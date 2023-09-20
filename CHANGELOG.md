@@ -4,6 +4,20 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 1.40.1+hotfix.2 (2023-09-20)
+
+### Bug Fixes
+
+- **connector:** [trustpay] add missing error_codes ([#2202](https://github.com/juspay/hyperswitch/pull/2202)) ([`1055455`](https://github.com/juspay/hyperswitch/commit/105545572b1f57b6ec45ccb10aab74c33f836cc6))
+
+### Refactors
+
+- **router:** Use billing address for payment method list filters as opposed to shipping address ([#2199](https://github.com/juspay/hyperswitch/pull/2199)) ([`89f6eef`](https://github.com/juspay/hyperswitch/commit/89f6eef1f38e981144c353acbd2bc2866c376009))
+
+**Full Changelog:** [`v1.40.1+hotfix.1...v1.40.1+hotfix.2`](https://github.com/juspay/hyperswitch/compare/v1.40.1+hotfix.1...v1.40.1+hotfix.2)
+
+- - -
+
 ## 1.40.1+hotfix.1 (2023-09-18)
 
 ### Bug Fixes
