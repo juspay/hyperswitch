@@ -45,7 +45,7 @@ Using HyperSwitch, you can:
 - **Increase business reach** with local/alternate payment methods
 
 > HyperSwitch is **wire-compatible** with top processors like Stripe, making it
-> easy to integrate.
+> Easy to integrate.
 
 <br>
 <img src="./docs/imgs/hyperswitch-product.png" alt="HyperSwitch-Product" width="50%" />
@@ -59,7 +59,7 @@ Ways to get started with Hyperswitch:
 
 1. Try it in our Sandbox Environment: Fast and easy to
    start.
-   No code or setup is required in your system, [learn more](/docs/try_sandbox.md)
+   No code or setup is required in your system. [learn more](/docs/try_sandbox.md)
 
 
 <a href="https://app.hyperswitch.io/register"><img src="./docs/imgs/get-api-keys.svg" height="35"></a>
@@ -69,7 +69,7 @@ Ways to get started with Hyperswitch:
 
 3. Install in your local system: Configurations and
    setup required in your system.
-   Suitable if you like to customise the core offering, [setup guide](/docs/try_local_system.md)
+   Suitable if you like to customize the core offering, [setup guide](/docs/try_local_system.md)
 
 ## Fast Integration for Stripe Users
 
@@ -88,7 +88,7 @@ Try the steps below to get a feel for how quick the setup is:
 
 ### Supported Payment Processors and Methods
 
-As of Apr 2023, we support 30 payment processors and multiple payment methods.
+As of April 2023, we support 30 payment processors and multiple payment methods.
 In addition, we are continuously integrating new processors based on their reach
 and community requests.
 Our target is to support 100+ processors by H2 2023.
@@ -106,14 +106,14 @@ analytics, and operations end-to-end:
 
 - **System Performance & Reliability**
 
-  - Scalable to support 50000 tps
+  - Scalable to support 50,000 tps
   - System uptime of up to 99.99%
   - Deployment with very low latency
   - Hosting option with AWS or GCP
 
 - **Value Added Services**
 
-  - Compliance Support, incl. PCI, GDPR, Card Vault etc
+  - Compliance Support, incl. PCI, GDPR, Card Vault, etc
   - Customise the integration or payment experience
   - Control Center with elaborate analytics and reporting
   - Integration with Risk Management Solutions
@@ -192,11 +192,11 @@ should be introduced, checking it agrees with the actual structure -->
 
 ### Our Belief
 
-> Payments should be open, fast, reliable and affordable to serve
+> Payments should be open, fast, reliable, and affordable to serve
 > the billions of people at scale.
 
 <!--
-HyperSwitch would allow everyone to quickly customise and set up an open payment
+HyperSwitch would allow everyone to customize and set up an open payment quickly
 switch while giving a unified experience to your users, abstracting away the
 ever-shifting payments landscape.
 
@@ -205,15 +205,15 @@ It was born from our struggle to understand and integrate various payment
 options/payment processors/networks and banks, with varying degrees of
 documentation and inconsistent API semantics. -->
 
-Globally payment diversity has been growing at a rapid pace.
+Globally, payment diversity has been growing at a rapid pace.
 There are hundreds of payment processors and new payment methods like BNPL,
 RTP etc.
 Businesses need to embrace this diversity to increase conversion, reduce cost
 and improve control.
-But integrating and maintaining multiple processors needs a lot of dev effort.
+However, integrating and maintaining multiple processors needs a lot of dev effort.
 Why should devs across companies repeat the same work?
 Why can't it be unified and reused? Hence, HyperSwitch was born to create that
-reusable core and let companies build and customise it as per their specific requirements.
+reusable core and let companies build and customize it per their specific requirements.
 
 ### Our Values
 
@@ -221,7 +221,7 @@ reusable core and let companies build and customise it as per their specific req
    multiple ways.
 2. Make it Open Source: Increases trust; Improves the quality and reusability of
    software.
-3. Be community driven: It enables participatory design and development.
+3. Be community-driven: It enables participatory design and development.
 4. Build it like Systems Software: This sets a high bar for Reliability,
    Security and Performance SLAs.
 5. Maximise Value Creation: For developers, customers & partners.
@@ -238,14 +238,14 @@ It is built afresh for the global markets as an open-source product in Rust.
 We are long-term committed to building and making it useful for the community.
 
 The product roadmap is open for the community's feedback.
-We shall evolve a prioritisation process that is open and community-driven.
+We shall evolve a prioritization process that is open and community-driven.
 We welcome contributions from the community. Please read through our
 [contributing guidelines](/docs/CONTRIBUTING.md).
 Included are directions for opening issues, coding standards, and notes on
 development.
 
 **Important note for Rust developers**: We aim for contributions from the community
-across a broad range of tracks. Hence, we have prioritised simplicity and code
+across a broad range of tracks. Hence, we have prioritized simplicity and code
 readability over purely idiomatic code. For example, some of the code in core
 functions (e.g., `payments_core`) is written to be more readable than
 pure-idiomatic.
@@ -267,7 +267,7 @@ Get updates on HyperSwitch development and chat with the community:
 ## Bugs and feature requests
 
 Please read the issue guidelines and search for [existing and closed issues].
-If your problem or idea is not addressed yet, please [open a new issue].
+If your problem or idea is not addressed, please [open a new issue].
 
 [existing and closed issues]: https://github.com/juspay/hyperswitch/issues
 [open a new issue]: https://github.com/juspay/hyperswitch/issues/new/choose
