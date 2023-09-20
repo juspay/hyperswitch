@@ -19,10 +19,10 @@ pub async fn config_key_create(
 
     api::server_wrap(
         flow,
-        state.get_ref(),
+        state,
         &req,
         payload,
-        |state, _, data| configs::set_config(&*state.store, data),
+        |state, _, data| configs::set_config(state, data),
         &auth::AdminApiAuth,
     )
     .await
@@ -39,10 +39,10 @@ pub async fn config_key_retrieve(
 
     api::server_wrap(
         flow,
-        state.get_ref(),
+        state,
         &req,
         &key,
-        |state, _, key| configs::read_config(&*state.store, key),
+        |state, _, key| configs::read_config(state, key),
         &auth::AdminApiAuth,
     )
     .await
@@ -62,10 +62,10 @@ pub async fn config_key_update(
 
     api::server_wrap(
         flow,
-        state.get_ref(),
+        state,
         &req,
         &payload,
-        |state, _, payload| configs::update_config(&*state.store, payload),
+        |state, _, payload| configs::update_config(state, payload),
         &auth::AdminApiAuth,
     )
     .await

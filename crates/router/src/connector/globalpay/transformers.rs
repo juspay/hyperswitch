@@ -506,6 +506,12 @@ impl utils::MultipleCaptureSyncResponse for GlobalpayPaymentsResponse {
         true
     }
 
+    fn get_amount_captured(&self) -> Option<i64> {
+        match self.amount.clone() {
+            Some(amount) => amount.parse().ok(),
+            None => None,
+        }
+    }
     fn get_connector_reference_id(&self) -> Option<String> {
         self.reference.clone()
     }

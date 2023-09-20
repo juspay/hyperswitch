@@ -7,8 +7,7 @@ use error_stack::ResultExt;
 use external_services::kms;
 
 use crate::{
-    core::errors::{self, api_error_response, utils::StorageErrorExt},
-    db::StorageInterface,
+    core::errors::{self, api_error_response},
     headers, logger,
     routes::AppState,
     services, types,
@@ -17,7 +16,7 @@ use crate::{
 const APPLEPAY_INTERNAL_MERCHANT_NAME: &str = "Applepay_merchant";
 
 pub async fn verify_merchant_creds_for_applepay(
-    state: &AppState,
+    state: AppState,
     _req: &actix_web::HttpRequest,
     body: web::Json<verifications::ApplepayMerchantVerificationRequest>,
     kms_config: &kms::KmsConfig,
@@ -79,7 +78,7 @@ pub async fn verify_merchant_creds_for_applepay(
         .add_certificate_key(Some(key_data))
         .build();
 
-    let response = services::call_connector_api(state, apple_pay_merch_verification_req).await;
+    let response = services::call_connector_api(&state, apple_pay_merch_verification_req).await;
     utils::log_applepay_verification_response_if_error(&response);
 
     let applepay_response =
@@ -89,7 +88,7 @@ pub async fn verify_merchant_creds_for_applepay(
     Ok(match applepay_response {
         Ok(_) => {
             utils::check_existence_and_add_domain_to_db(
-                state,
+                &state,
                 merchant_id,
                 body.merchant_connector_account_id.clone(),
                 body.domain_names.clone(),
@@ -110,17 +109,18 @@ pub async fn verify_merchant_creds_for_applepay(
 }
 
 pub async fn get_verified_apple_domains_with_mid_mca_id(
-    db: &dyn StorageInterface,
+    state: AppState,
     merchant_id: String,
     merchant_connector_id: String,
 ) -> CustomResult<
     services::ApplicationResponse<api_models::verifications::ApplepayVerifiedDomainsResponse>,
     api_error_response::ApiErrorResponse,
 > {
+    let db = state.store.as_ref();
     let key_store = db
         .get_merchant_key_store_by_merchant_id(&merchant_id, &db.get_master_key().to_vec().into())
         .await
-        .to_not_found_response(errors::ApiErrorResponse::InternalServerError)?;
+        .change_context(api_error_response::ApiErrorResponse::ResourceIdNotFound)?;
 
     let verified_domains = db
         .find_by_merchant_connector_account_merchant_id_merchant_connector_id(

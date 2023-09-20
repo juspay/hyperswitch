@@ -191,6 +191,7 @@ impl types::RouterData<api::PSync, types::PaymentsSyncData, types::PaymentsRespo
                             message: err.message,
                             reason: err.reason,
                             status_code: err.status_code,
+                            amount: None,
                         });
                     },
                     Ok(types::PaymentsResponseData::MultipleCaptureResponse { capture_sync_response_list })=> {
