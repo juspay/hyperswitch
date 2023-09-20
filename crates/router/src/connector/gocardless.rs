@@ -45,6 +45,7 @@ impl api::ConnectorCustomer for Gocardless {}
 impl api::PaymentsPreProcessing for Gocardless {}
 
 const GOCARDLESS_VERSION: &str = "2015-07-06";
+const GOCARDLESS_VERSION_HEADER: &str = "2015-07-06";
 
 impl<Flow, Request, Response> ConnectorCommonExt<Flow, Request, Response> for Gocardless
 where
@@ -60,7 +61,10 @@ where
                 headers::CONTENT_TYPE.to_string(),
                 self.get_content_type().to_string().into(),
             ),
-            (GOCARDLESS_VERSION.to_string(), "".to_string().into()),
+            (
+                GOCARDLESS_VERSION_HEADER.to_string(),
+                GOCARDLESS_VERSION.to_string().into(),
+            ),
         ];
         let mut api_key = self.get_auth_header(&req.connector_auth_type)?;
         header.append(&mut api_key);
