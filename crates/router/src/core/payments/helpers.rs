@@ -165,7 +165,7 @@ pub async fn get_domain_address_for_payments(
     merchant_id: &str,
     customer_id: &str,
     payment_id: &str,
-    key: &Vec<u8>,
+    key: &[u8],
 ) -> CustomResult<domain::Address, common_utils::errors::CryptoError> {
     async {
         Ok(domain::Address {

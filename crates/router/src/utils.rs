@@ -408,7 +408,7 @@ pub fn add_connector_http_status_code_metrics(option_status_code: Option<u16>) {
 pub async fn get_address_update_for_customer(
     address_details: api_models::payments::AddressDetails,
     customer_request: &api_models::customers::CustomerRequest,
-    key: &Vec<u8>,
+    key: &[u8],
 ) -> CustomResult<storage::AddressUpdate, common_utils::errors::CryptoError> {
     async {
         Ok(storage::AddressUpdate::Update {
@@ -458,7 +458,7 @@ pub async fn get_domain_address_for_customer(
     customer_request: &api_models::customers::CustomerRequest,
     merchant_id: &str,
     customer_id: &str,
-    key: &Vec<u8>,
+    key: &[u8],
 ) -> CustomResult<domain::Address, common_utils::errors::CryptoError> {
     async {
         Ok(domain::Address {
