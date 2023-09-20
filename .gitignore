@@ -262,4 +262,4 @@ result*
 # node_modules
 node_modules/
 
-connector_auth.toml
+**/connector_auth.toml

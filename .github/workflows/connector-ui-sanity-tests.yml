@@ -141,7 +141,7 @@ jobs:
           INPUT: ${{ matrix.connector }}
           UI_TESTCASES_PATH: ${{ secrets.UI_TESTCASES_PATH }}
         shell: bash
-        run: .github/scripts/run_ui_tests.sh
+        run: .github/scripts/start_ui_test_server.sh
 
       - name: Run tests
         if: ${{ (github.event_name == 'pull_request') && (github.event.pull_request.head.repo.full_name == github.event.pull_request.base.repo.full_name) }}

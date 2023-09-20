@@ -17,6 +17,8 @@ do
     wget $UI_TESTCASES_PATH && mv testcases $HOME/target/test/connector_tests.json
 done
 
+curl --retry 10 --retry-delay 2 "${UI_TESTCASES_PATH}" --output "${HOME}/target/test/connector_tests.json"
+
 firefox --version
 rm -rf $HOME/.mozilla
 
