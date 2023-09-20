@@ -178,6 +178,80 @@ default_imp_for_complete_authorize!(
     connector::Worldpay,
     connector::Zen
 );
+macro_rules! default_imp_for_webhook_source_verification {
+    ($($path:ident::$connector:ident),*) => {
+        $(
+            impl api::ConnectorVerifyWebhookSource for $path::$connector {}
+            impl
+            services::ConnectorIntegration<
+            api::VerifyWebhookSource,
+            types::VerifyWebhookSourceRequestData,
+            types::VerifyWebhookSourceResponseData,
+        > for $path::$connector
+        {}
+    )*
+    };
+}
+
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8> api::ConnectorVerifyWebhookSource for connector::DummyConnector<T> {}
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8>
+    services::ConnectorIntegration<
+        api::VerifyWebhookSource,
+        types::VerifyWebhookSourceRequestData,
+        types::VerifyWebhookSourceResponseData,
+    > for connector::DummyConnector<T>
+{
+}
+default_imp_for_webhook_source_verification!(
+    connector::Aci,
+    connector::Adyen,
+    connector::Airwallex,
+    connector::Authorizedotnet,
+    connector::Bambora,
+    connector::Bitpay,
+    connector::Bluesnap,
+    connector::Braintree,
+    connector::Boku,
+    connector::Cashtocode,
+    connector::Checkout,
+    connector::Coinbase,
+    connector::Cryptopay,
+    connector::Cybersource,
+    connector::Dlocal,
+    connector::Fiserv,
+    connector::Forte,
+    connector::Globalpay,
+    connector::Globepay,
+    connector::Gocardless,
+    connector::Helcim,
+    connector::Iatapay,
+    connector::Klarna,
+    connector::Mollie,
+    connector::Multisafepay,
+    connector::Nexinets,
+    connector::Nmi,
+    connector::Noon,
+    connector::Nuvei,
+    connector::Opayo,
+    connector::Opennode,
+    connector::Payeezy,
+    connector::Payme,
+    connector::Payu,
+    connector::Powertranz,
+    connector::Rapyd,
+    connector::Shift4,
+    connector::Square,
+    connector::Stax,
+    connector::Stripe,
+    connector::Trustpay,
+    connector::Tsys,
+    connector::Wise,
+    connector::Worldline,
+    connector::Worldpay,
+    connector::Zen
+);
 
 macro_rules! default_imp_for_create_customer {
     ($($path:ident::$connector:ident),*) => {
