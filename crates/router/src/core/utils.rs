@@ -997,18 +997,18 @@ pub async fn get_profile_id_from_business_details(
     merchant_account: &domain::MerchantAccount,
     request_profile_id: Option<&String>,
     db: &dyn StorageInterface,
-    should_validate: bool
+    should_validate: bool,
 ) -> RouterResult<String> {
     match request_profile_id.or(merchant_account.default_profile.as_ref()) {
         Some(profile_id) => {
             // Check whether this business profile belongs to the merchant
             if should_validate {
-            let _ = validate_and_get_business_profile(
-                db,
-                Some(profile_id),
-                &merchant_account.merchant_id,
-            )
-            .await?;
+                let _ = validate_and_get_business_profile(
+                    db,
+                    Some(profile_id),
+                    &merchant_account.merchant_id,
+                )
+                .await?;
             }
             Ok(profile_id.clone())
         }

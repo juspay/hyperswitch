@@ -892,7 +892,6 @@ where
 
     match connector_name {
         Some(connector_name) => {
-
             let connector = api::ConnectorData::get_connector_by_name(
                 &state.conf.connectors,
                 &connector_name,
