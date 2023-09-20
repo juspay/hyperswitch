@@ -47,7 +47,7 @@ use crate::{
             self,
             types::{decrypt, encrypt_optional, AsyncLift},
         },
-        storage::{self, enums, HyperswitchTokenData},
+        storage::{self, enums, PaymentTokenData},
         transformers::ForeignFrom,
     },
     utils::{self, ConnectorResponseExt, OptionExt},
@@ -1842,13 +1842,13 @@ pub async fn list_customer_payment_method(
             enums::PaymentMethod::Card => (
                 Some(get_card_details(&pm, key, state).await?),
                 None,
-                HyperswitchTokenData::permanent(pm.payment_method_id.clone()),
+                PaymentTokenData::permanent(pm.payment_method_id.clone()),
             ),
 
             #[cfg(feature = "payouts")]
             enums::PaymentMethod::BankTransfer => {
                 let token_data =
-                    HyperswitchTokenData::temporary(generate_id(consts::ID_LENGTH, "token"));
+                    PaymentTokenData::temporary(generate_id(consts::ID_LENGTH, "token"));
                 (
                     None,
                     Some(
@@ -1862,7 +1862,7 @@ pub async fn list_customer_payment_method(
             _ => (
                 None,
                 None,
-                HyperswitchTokenData::temporary(generate_id(consts::ID_LENGTH, "token")),
+                PaymentTokenData::temporary(generate_id(consts::ID_LENGTH, "token")),
             ),
         };
 

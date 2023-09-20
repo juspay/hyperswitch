@@ -5,29 +5,29 @@ pub use diesel_models::payment_method::{
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "snake_case")]
-pub enum HypsTokenKind {
+pub enum PaymentTokenKind {
     Temporary,
     Permanent,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-pub struct HyperswitchTokenData {
+pub struct PaymentTokenData {
     pub token: String,
-    pub kind: HypsTokenKind,
+    pub kind: PaymentTokenKind,
 }
 
-impl HyperswitchTokenData {
+impl PaymentTokenData {
     pub fn temporary(token: String) -> Self {
         Self {
             token,
-            kind: HypsTokenKind::Temporary,
+            kind: PaymentTokenKind::Temporary,
         }
     }
 
     pub fn permanent(token: String) -> Self {
         Self {
             token,
-            kind: HypsTokenKind::Permanent,
+            kind: PaymentTokenKind::Permanent,
         }
     }
 }

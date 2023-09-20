@@ -1179,6 +1179,125 @@ pub async fn create_customer_if_not_exist<'a, F: Clone, R>(
     ))
 }
 
+async fn retrieve_payment_method_with_temporary_token<F: Clone>(
+    state: &AppState,
+    payment_data: &mut PaymentData<F>,
+    token: storage::PaymentTokenData,
+    card_cvc: Option<masking::Secret<String>>,
+) -> RouterResult<Option<api::PaymentMethodData>> {
+    let (pm, supplementary_data) =
+        vault::Vault::get_payment_method_data_from_locker(state, &token.token)
+            .await
+            .attach_printable(
+                "Payment method for given token not found or there was a problem fetching it",
+            )?;
+
+    utils::when(
+        supplementary_data
+            .customer_id
+            .ne(&payment_data.payment_intent.customer_id),
+        || {
+            Err(errors::ApiErrorResponse::PreconditionFailed { message: "customer associated with payment method and customer passed in payment are not same".into() })
+        },
+    )?;
+
+    Ok::<_, error_stack::Report<errors::ApiErrorResponse>>(match pm.clone() {
+        Some(api::PaymentMethodData::Card(card)) => {
+            payment_data.payment_attempt.payment_method = Some(storage_enums::PaymentMethod::Card);
+            if let Some(cvc) = card_cvc {
+                let mut updated_card = card;
+                updated_card.card_cvc = cvc;
+                let updated_pm = api::PaymentMethodData::Card(updated_card);
+                vault::Vault::store_payment_method_data_in_locker(
+                    state,
+                    Some(token.token),
+                    &updated_pm,
+                    payment_data.payment_intent.customer_id.to_owned(),
+                    enums::PaymentMethod::Card,
+                )
+                .await?;
+                Some(updated_pm)
+            } else {
+                pm
+            }
+        }
+
+        Some(api::PaymentMethodData::Wallet(_)) => {
+            payment_data.payment_attempt.payment_method =
+                Some(storage_enums::PaymentMethod::Wallet);
+            pm
+        }
+
+        Some(api::PaymentMethodData::BankTransfer(_)) => {
+            payment_data.payment_attempt.payment_method =
+                Some(storage_enums::PaymentMethod::BankTransfer);
+            pm
+        }
+        Some(api::PaymentMethodData::BankRedirect(_)) => {
+            payment_data.payment_attempt.payment_method =
+                Some(storage_enums::PaymentMethod::BankRedirect);
+            pm
+        }
+        Some(_) => Err(errors::ApiErrorResponse::InternalServerError)
+            .into_report()
+            .attach_printable("Payment method received from locker is unsupported by locker")?,
+
+        None => None,
+    })
+}
+
+async fn retrieve_payment_method_with_permanent_token<F: Clone>(
+    state: &AppState,
+    payment_data: &mut PaymentData<F>,
+    token: storage::PaymentTokenData,
+    card_cvc: Option<masking::Secret<String>>,
+) -> RouterResult<api::PaymentMethodData> {
+    let customer_id = payment_data
+        .payment_intent
+        .customer_id
+        .as_ref()
+        .get_required_value("customer_id")
+        .change_context(errors::ApiErrorResponse::UnprocessableEntity {
+            message: "no customer id provided for the payment".to_string(),
+        })?;
+
+    let card = cards::get_card_from_locker(
+        state,
+        customer_id,
+        &payment_data.payment_intent.merchant_id,
+        &token.token,
+    )
+    .await
+    .change_context(errors::ApiErrorResponse::InternalServerError)
+    .attach_printable("failed to fetch card information from the permanent locker")?;
+
+    let api_card = api::Card {
+        card_number: card.card_number,
+        card_holder_name: card
+            .name_on_card
+            .get_required_value("name_on_card")
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("card holder name was not saved in permanent locker")?,
+        card_exp_month: card.card_exp_month,
+        card_exp_year: card.card_exp_year,
+        card_cvc: card_cvc.get_required_value("card_cvc").change_context(
+            errors::ApiErrorResponse::MissingRequiredField {
+                field_name: "card_cvc",
+            },
+        )?,
+        card_issuer: card.card_brand,
+        nick_name: card.nick_name.map(masking::Secret::new),
+        card_network: None,
+        card_type: None,
+        card_issuing_country: None,
+        bank_code: None,
+    };
+
+    payment_data.payment_attempt.payment_method = Some(storage_enums::PaymentMethod::Card);
+
+    Ok(api::PaymentMethodData::Card(api_card))
+}
+
 pub async fn make_pm_data<'a, F: Clone, R>(
     operation: BoxedOperation<'a, F, R>,
     state: &'a AppState,
@@ -1188,7 +1307,7 @@ pub async fn make_pm_data<'a, F: Clone, R>(
     let token = payment_data.token.clone();
 
     let hyperswitch_token = match payment_data.mandate_id {
-        Some(_) => token.map(storage::HyperswitchTokenData::temporary),
+        Some(_) => token.map(storage::PaymentTokenData::temporary),
         None => {
             if let Some(token) = token {
                 let redis_conn = state
@@ -1232,7 +1351,7 @@ pub async fn make_pm_data<'a, F: Clone, R>(
                         if token_data_string.starts_with('{') {
                             return Err(e);
                         } else {
-                            storage::HyperswitchTokenData::temporary(token_data_string)
+                            storage::PaymentTokenData::temporary(token_data_string)
                         }
                     }
                 };
@@ -1249,120 +1368,24 @@ pub async fn make_pm_data<'a, F: Clone, R>(
     // TODO: Handle case where payment method and token both are present in request properly.
     let payment_method = match (request, hyperswitch_token) {
         (_, Some(hyperswitch_token)) => match hyperswitch_token.kind {
-            storage::HypsTokenKind::Temporary => {
-                let (pm, supplementary_data) = vault::Vault::get_payment_method_data_from_locker(
+            storage::PaymentTokenKind::Temporary => {
+                retrieve_payment_method_with_temporary_token(
                     state,
-                    &hyperswitch_token.token,
+                    payment_data,
+                    hyperswitch_token,
+                    card_cvc,
                 )
                 .await
-                .attach_printable(
-                    "Payment method for given token not found or there was a problem fetching it",
-                )?;
-
-                utils::when(
-                    supplementary_data
-                        .customer_id
-                        .ne(&payment_data.payment_intent.customer_id),
-                    || {
-                        Err(errors::ApiErrorResponse::PreconditionFailed { message: "customer associated with payment method and customer passed in payment are not same".into() })
-                    },
-                )?;
-
-                Ok::<_, error_stack::Report<errors::ApiErrorResponse>>(match pm.clone() {
-                    Some(api::PaymentMethodData::Card(card)) => {
-                        payment_data.payment_attempt.payment_method =
-                            Some(storage_enums::PaymentMethod::Card);
-                        if let Some(cvc) = card_cvc {
-                            let mut updated_card = card;
-                            updated_card.card_cvc = cvc;
-                            let updated_pm = api::PaymentMethodData::Card(updated_card);
-                            vault::Vault::store_payment_method_data_in_locker(
-                                state,
-                                Some(hyperswitch_token.token),
-                                &updated_pm,
-                                payment_data.payment_intent.customer_id.to_owned(),
-                                enums::PaymentMethod::Card,
-                            )
-                            .await?;
-                            Some(updated_pm)
-                        } else {
-                            pm
-                        }
-                    }
-
-                    Some(api::PaymentMethodData::Wallet(_)) => {
-                        payment_data.payment_attempt.payment_method =
-                            Some(storage_enums::PaymentMethod::Wallet);
-                        pm
-                    }
-
-                    Some(api::PaymentMethodData::BankTransfer(_)) => {
-                        payment_data.payment_attempt.payment_method =
-                            Some(storage_enums::PaymentMethod::BankTransfer);
-                        pm
-                    }
-                    Some(api::PaymentMethodData::BankRedirect(_)) => {
-                        payment_data.payment_attempt.payment_method =
-                            Some(storage_enums::PaymentMethod::BankRedirect);
-                        pm
-                    }
-                    Some(_) => Err(errors::ApiErrorResponse::InternalServerError)
-                        .into_report()
-                        .attach_printable(
-                            "Payment method received from locker is unsupported by locker",
-                        )?,
-
-                    None => None,
-                })
             }
 
-            storage::HypsTokenKind::Permanent => {
-                let customer_id = payment_data
-                    .payment_intent
-                    .customer_id
-                    .as_ref()
-                    .get_required_value("customer_id")
-                    .change_context(errors::ApiErrorResponse::UnprocessableEntity {
-                        message: "no customer id provided for the payment".to_string(),
-                    })?;
-
-                let card = cards::get_card_from_locker(
-                    state,
-                    customer_id,
-                    &payment_data.payment_intent.merchant_id,
-                    &hyperswitch_token.token,
-                )
-                .await
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("failed to fetch card information from the permanent locker")?;
-
-                let api_card = api::Card {
-                    card_number: card.card_number,
-                    card_holder_name: card
-                        .name_on_card
-                        .get_required_value("name_on_card")
-                        .change_context(errors::ApiErrorResponse::InternalServerError)
-                        .attach_printable("card holder name was not saved in permanent locker")?,
-                    card_exp_month: card.card_exp_month,
-                    card_exp_year: card.card_exp_year,
-                    card_cvc: card_cvc.get_required_value("card_cvc").change_context(
-                        errors::ApiErrorResponse::MissingRequiredField {
-                            field_name: "card_cvc",
-                        },
-                    )?,
-                    card_issuer: card.card_brand,
-                    nick_name: card.nick_name.map(masking::Secret::new),
-                    card_network: None,
-                    card_type: None,
-                    card_issuing_country: None,
-                    bank_code: None,
-                };
-
-                payment_data.payment_attempt.payment_method =
-                    Some(storage_enums::PaymentMethod::Card);
-
-                Ok(Some(api::PaymentMethodData::Card(api_card)))
-            }
+            storage::PaymentTokenKind::Permanent => retrieve_payment_method_with_permanent_token(
+                state,
+                payment_data,
+                hyperswitch_token,
+                card_cvc,
+            )
+            .await
+            .map(Some),
         },
         (pm_opt @ Some(pm @ api::PaymentMethodData::Card(_)), _) => {
             if should_store_payment_method_data_in_vault(
@@ -1480,7 +1503,7 @@ pub async fn store_in_vault_and_generate_ppmt(
         key_for_hyperswitch_token
             .insert(
                 Some(payment_intent.created_at),
-                storage::HyperswitchTokenData::temporary(router_token),
+                storage::PaymentTokenData::temporary(router_token),
                 state,
             )
             .await?;

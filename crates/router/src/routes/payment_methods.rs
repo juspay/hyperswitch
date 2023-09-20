@@ -11,7 +11,7 @@ use crate::{
     services::{api, authentication as auth},
     types::{
         api::payment_methods::{self, PaymentMethodId},
-        storage::payment_method::HyperswitchTokenData,
+        storage::payment_method::PaymentTokenData,
     },
     utils::Encode,
 };
@@ -383,10 +383,10 @@ impl ParentPaymentMethodToken {
     pub async fn insert(
         &self,
         intent_created_at: Option<PrimitiveDateTime>,
-        token: HyperswitchTokenData,
+        token: PaymentTokenData,
         state: &AppState,
     ) -> CustomResult<(), errors::ApiErrorResponse> {
-        let token_json_str = Encode::<HyperswitchTokenData>::encode_to_string_of_json(&token)
+        let token_json_str = Encode::<PaymentTokenData>::encode_to_string_of_json(&token)
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("failed to serialize hyperswitch token to json")?;
         let redis_conn = state
