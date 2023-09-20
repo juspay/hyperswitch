@@ -373,8 +373,8 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
                                 "{}_{}",
                                 &created_attempt.merchant_id, &created_attempt.attempt_id,
                             ),
-                            pk_id: key.clone(),
-                            sk_id: field.clone(),
+                            pk_id: key,
+                            sk_id: field,
                             source: "payment_attempt".to_string(),
                         }
                         .insert(&conn)
