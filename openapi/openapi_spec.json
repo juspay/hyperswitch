@@ -2626,6 +2626,14 @@
                     "type": "string",
                     "description": "Bank-State-Branch (bsb) number",
                     "example": "000000"
+                  },
+                  "bank_account_holder_name": {
+                    "allOf": [
+                      {
+                        "$ref": "#/components/schemas/Secret"
+                      }
+                    ],
+                    "nullable": true
                   }
                 }
               }
@@ -3848,6 +3856,7 @@
           "forte",
           "globalpay",
           "globepay",
+          "gocardless",
           "iatapay",
           "klarna",
           "mollie",
