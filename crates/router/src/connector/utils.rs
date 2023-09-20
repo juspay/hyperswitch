@@ -262,6 +262,7 @@ pub trait PaymentsAuthorizeRequestData {
     fn get_webhook_url(&self) -> Result<String, Error>;
     fn get_router_return_url(&self) -> Result<String, Error>;
     fn is_wallet(&self) -> bool;
+    fn is_card(&self) -> bool;
     fn get_payment_method_type(&self) -> Result<diesel_models::enums::PaymentMethodType, Error>;
     fn get_connector_mandate_id(&self) -> Result<String, Error>;
     fn get_complete_authorize_url(&self) -> Result<String, Error>;
@@ -337,6 +338,9 @@ impl PaymentsAuthorizeRequestData for types::PaymentsAuthorizeData {
     }
     fn is_wallet(&self) -> bool {
         matches!(self.payment_method_data, api::PaymentMethodData::Wallet(_))
+    }
+    fn is_card(&self) -> bool {
+        matches!(self.payment_method_data, api::PaymentMethodData::Card(_))
     }
 
     fn get_payment_method_type(&self) -> Result<diesel_models::enums::PaymentMethodType, Error> {
@@ -591,6 +595,7 @@ pub trait CardData {
         delimiter: String,
     ) -> Secret<String>;
     fn get_expiry_date_as_yyyymm(&self, delimiter: &str) -> Secret<String>;
+    fn get_expiry_date_as_mmyyyy(&self, delimiter: &str) -> Secret<String>;
     fn get_expiry_year_4_digit(&self) -> Secret<String>;
     fn get_expiry_date_as_yymm(&self) -> Secret<String>;
 }
@@ -623,6 +628,15 @@ impl CardData for api::Card {
             year.peek(),
             delimiter,
             self.card_exp_month.peek().clone()
+        ))
+    }
+    fn get_expiry_date_as_mmyyyy(&self, delimiter: &str) -> Secret<String> {
+        let year = self.get_expiry_year_4_digit();
+        Secret::new(format!(
+            "{}{}{}",
+            self.card_exp_month.peek().clone(),
+            delimiter,
+            year.peek()
         ))
     }
     fn get_expiry_year_4_digit(&self) -> Secret<String> {
@@ -1366,6 +1380,7 @@ pub trait MultipleCaptureSyncResponse {
     fn get_connector_reference_id(&self) -> Option<String> {
         None
     }
+    fn get_amount_captured(&self) -> Option<i64>;
 }
 
 pub fn construct_captures_response_hashmap<T>(
@@ -1387,6 +1402,7 @@ where
                         status: capture_sync_response.get_capture_attempt_status(),
                         connector_response_reference_id: capture_sync_response
                             .get_connector_reference_id(),
+                        amount: capture_sync_response.get_amount_captured(),
                     },
                 );
             }

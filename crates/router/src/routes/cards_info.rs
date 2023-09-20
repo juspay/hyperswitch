@@ -43,7 +43,7 @@ pub async fn card_iin_info(
 
     api::server_wrap(
         Flow::CardsInfo,
-        state.as_ref(),
+        state,
         &req,
         payload,
         |state, auth, req| cards_info::retrieve_card_info(state, auth.merchant_account, req),
