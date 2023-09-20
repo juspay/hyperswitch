@@ -139,7 +139,9 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
                 storage_scheme,
             )
             .await
-            .to_duplicate_response(errors::ApiErrorResponse::DuplicatePayment)?;
+            .to_duplicate_response(errors::ApiErrorResponse::DuplicatePayment {
+                payment_id: payment_id.clone(),
+            })?;
 
         payment_intent = db
             .insert_payment_intent(
@@ -157,14 +159,18 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
                 storage_scheme,
             )
             .await
-            .to_duplicate_response(errors::ApiErrorResponse::DuplicatePayment)?;
+            .to_duplicate_response(errors::ApiErrorResponse::DuplicatePayment {
+                payment_id: payment_id.clone(),
+            })?;
         connector_response = db
             .insert_connector_response(
                 Self::make_connector_response(&payment_attempt),
                 storage_scheme,
             )
             .await
-            .to_duplicate_response(errors::ApiErrorResponse::DuplicatePayment)?;
+            .to_duplicate_response(errors::ApiErrorResponse::DuplicatePayment {
+                payment_id: payment_id.clone(),
+            })?;
 
         let mandate_id = request
             .mandate_id

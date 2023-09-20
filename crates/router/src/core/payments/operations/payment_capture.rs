@@ -85,66 +85,69 @@ impl<F: Send + Clone> GetTracker<F, payments::PaymentData<F>, api::PaymentsCaptu
 
         helpers::validate_capture_method(capture_method)?;
 
-        let (multiple_capture_data, connector_response) =
-            if capture_method == enums::CaptureMethod::ManualMultiple {
-                let amount_to_capture = request
-                    .amount_to_capture
-                    .get_required_value("amount_to_capture")?;
+        let (multiple_capture_data, connector_response) = if capture_method
+            == enums::CaptureMethod::ManualMultiple
+        {
+            let amount_to_capture = request
+                .amount_to_capture
+                .get_required_value("amount_to_capture")?;
 
-                helpers::validate_amount_to_capture(
-                    payment_attempt.amount_capturable,
-                    Some(amount_to_capture),
-                )?;
+            helpers::validate_amount_to_capture(
+                payment_attempt.amount_capturable,
+                Some(amount_to_capture),
+            )?;
 
-                let previous_captures = db
-                    .find_all_captures_by_merchant_id_payment_id_authorized_attempt_id(
-                        &payment_attempt.merchant_id,
-                        &payment_attempt.payment_id,
-                        &payment_attempt.attempt_id,
-                        storage_scheme,
-                    )
-                    .await
-                    .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
-
-                let capture = db
-                    .insert_capture(
-                        payment_attempt
-                            .make_new_capture(amount_to_capture, enums::CaptureStatus::Started)?,
-                        storage_scheme,
-                    )
-                    .await
-                    .to_not_found_response(errors::ApiErrorResponse::DuplicatePayment)?;
-                let new_connector_response = db
-                    .insert_connector_response(
-                        ConnectorResponse::make_new_connector_response(
-                            capture.payment_id.clone(),
-                            capture.merchant_id.clone(),
-                            capture.capture_id.clone(),
-                            Some(capture.connector.clone()),
-                        ),
-                        storage_scheme,
-                    )
-                    .await
-                    .to_not_found_response(errors::ApiErrorResponse::DuplicatePayment)?;
-                (
-                    Some(MultipleCaptureData::new_for_create(
-                        previous_captures,
-                        capture,
-                    )),
-                    new_connector_response,
+            let previous_captures = db
+                .find_all_captures_by_merchant_id_payment_id_authorized_attempt_id(
+                    &payment_attempt.merchant_id,
+                    &payment_attempt.payment_id,
+                    &payment_attempt.attempt_id,
+                    storage_scheme,
                 )
-            } else {
-                let connector_response = db
-                    .find_connector_response_by_payment_id_merchant_id_attempt_id(
-                        &payment_attempt.payment_id,
-                        &payment_attempt.merchant_id,
-                        &payment_attempt.attempt_id,
-                        storage_scheme,
-                    )
-                    .await
-                    .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
-                (None, connector_response)
-            };
+                .await
+                .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
+
+            let capture = db
+                .insert_capture(
+                    payment_attempt
+                        .make_new_capture(amount_to_capture, enums::CaptureStatus::Started)?,
+                    storage_scheme,
+                )
+                .await
+                .to_not_found_response(errors::ApiErrorResponse::DuplicatePayment {
+                    payment_id: payment_id.clone(),
+                })?;
+            let new_connector_response = db
+                .insert_connector_response(
+                    ConnectorResponse::make_new_connector_response(
+                        capture.payment_id.clone(),
+                        capture.merchant_id.clone(),
+                        capture.capture_id.clone(),
+                        Some(capture.connector.clone()),
+                    ),
+                    storage_scheme,
+                )
+                .await
+                .to_not_found_response(errors::ApiErrorResponse::DuplicatePayment { payment_id })?;
+            (
+                Some(MultipleCaptureData::new_for_create(
+                    previous_captures,
+                    capture,
+                )),
+                new_connector_response,
+            )
+        } else {
+            let connector_response = db
+                .find_connector_response_by_payment_id_merchant_id_attempt_id(
+                    &payment_attempt.payment_id,
+                    &payment_attempt.merchant_id,
+                    &payment_attempt.attempt_id,
+                    storage_scheme,
+                )
+                .await
+                .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
+            (None, connector_response)
+        };
 
         currency = payment_attempt.currency.get_required_value("currency")?;
 

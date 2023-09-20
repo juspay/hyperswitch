@@ -728,7 +728,9 @@ pub async fn retrieve_payment_connector(
             &key_store,
         )
         .await
-        .to_not_found_response(errors::ApiErrorResponse::MerchantConnectorAccountNotFound)?;
+        .to_not_found_response(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
+            id: merchant_connector_id.clone(),
+        })?;
 
     Ok(service_api::ApplicationResponse::Json(mca.try_into()?))
 }
@@ -792,7 +794,9 @@ pub async fn update_payment_connector(
             &key_store,
         )
         .await
-        .to_not_found_response(errors::ApiErrorResponse::MerchantConnectorAccountNotFound)?;
+        .to_not_found_response(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
+            id: merchant_connector_id.to_string(),
+        })?;
 
     let payment_methods_enabled = req.payment_methods_enabled.map(|pm_enabled| {
         pm_enabled
@@ -872,7 +876,9 @@ pub async fn delete_payment_connector(
             &key_store,
         )
         .await
-        .to_not_found_response(errors::ApiErrorResponse::MerchantConnectorAccountNotFound)?;
+        .to_not_found_response(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
+            id: merchant_connector_id.clone(),
+        })?;
 
     let is_deleted = db
         .delete_merchant_connector_account_by_merchant_id_merchant_connector_id(
@@ -880,7 +886,9 @@ pub async fn delete_payment_connector(
             &merchant_connector_id,
         )
         .await
-        .to_not_found_response(errors::ApiErrorResponse::MerchantConnectorAccountNotFound)?;
+        .to_not_found_response(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
+            id: merchant_connector_id.clone(),
+        })?;
 
     let response = api::MerchantConnectorDeleteResponse {
         merchant_id,
