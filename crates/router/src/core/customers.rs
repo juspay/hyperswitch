@@ -23,7 +23,7 @@ use crate::{
         },
         storage::{self, enums},
     },
-    utils,
+    utils::CustomerAddress,
 };
 
 pub const REDACTED: &str = "Redacted";
@@ -43,16 +43,11 @@ pub async fn create_customer(
     let address_id = if let Some(addr) = &customer_data.address {
         let customer_address: api_models::payments::AddressDetails = addr.clone();
 
-        let address = utils::get_domain_address_for_customer(
-            customer_address,
-            &customer_data,
-            merchant_id,
-            customer_id,
-            key,
-        )
-        .await
-        .switch()
-        .attach_printable("Failed while encrypting address")?;
+        let address = customer_data
+            .get_domain_address(customer_address, merchant_id, customer_id, key)
+            .await
+            .switch()
+            .attach_printable("Failed while encrypting address")?;
 
         Some(
             db.insert_address_for_customers(address, &key_store)
@@ -301,11 +296,11 @@ pub async fn update_customer(
         match customer.address_id {
             Some(address_id) => {
                 let customer_address: api_models::payments::AddressDetails = addr.clone();
-                let update_address =
-                    utils::get_address_update_for_customer(customer_address, &update_customer, key)
-                        .await
-                        .switch()
-                        .attach_printable("Failed while encrypting Address while Update")?;
+                let update_address = update_customer
+                    .get_address_update(customer_address, key)
+                    .await
+                    .switch()
+                    .attach_printable("Failed while encrypting Address while Update")?;
                 db.update_address(address_id.clone(), update_address, &key_store)
                     .await
                     .switch()
@@ -318,16 +313,16 @@ pub async fn update_customer(
             None => {
                 let customer_address: api_models::payments::AddressDetails = addr.clone();
 
-                let address = utils::get_domain_address_for_customer(
-                    customer_address,
-                    &update_customer,
-                    &merchant_account.merchant_id,
-                    &customer.customer_id,
-                    key,
-                )
-                .await
-                .switch()
-                .attach_printable("Failed while encrypting address")?;
+                let address = update_customer
+                    .get_domain_address(
+                        customer_address,
+                        &merchant_account.merchant_id,
+                        &customer.customer_id,
+                        key,
+                    )
+                    .await
+                    .switch()
+                    .attach_printable("Failed while encrypting address")?;
                 Some(
                     db.insert_address_for_customers(address, &key_store)
                         .await
