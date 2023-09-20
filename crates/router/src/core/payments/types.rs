@@ -157,4 +157,10 @@ impl MultipleCaptureData {
             .collect();
         pending_connector_capture_ids
     }
+    pub fn get_pending_captures_without_connector_capture_id(&self) -> Vec<&storage::Capture> {
+        self.get_pending_captures()
+            .into_iter()
+            .filter(|capture| capture.connector_capture_id.is_none())
+            .collect()
+    }
 }
