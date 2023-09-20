@@ -129,7 +129,7 @@ pub async fn get_verified_apple_domains_with_mid_mca_id(
             &key_store,
         )
         .await
-        .change_context(api_error_response::ApiErrorResponse::ResourceIdNotFound)?
+        .change_context(api_error_response::ApiErrorResponse::MerchantAccountNotFound)?
         .applepay_verified_domains
         .unwrap_or_default();
 
