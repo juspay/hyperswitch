@@ -384,23 +384,6 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
                             er.change_context(new_err)
                         })?;
 
-                        //Reverse lookup for payment_id
-                        ReverseLookupNew {
-                            lookup_id: format!(
-                                "{}_{}",
-                                &created_attempt.merchant_id, &created_attempt.payment_id,
-                            ),
-                            pk_id: key,
-                            sk_id: field,
-                            source: "payment_attempt".to_string(),
-                        }
-                        .insert(&conn)
-                        .await
-                        .map_err(|er| {
-                            let new_err = crate::diesel_error_to_data_error(er.current_context());
-                            er.change_context(new_err)
-                        })?;
-
                         let redis_entry = kv::TypedSql {
                             op: kv::DBOperation::Insert {
                                 insertable: kv::Insertable::PaymentAttempt(
@@ -598,17 +581,15 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
         match storage_scheme {
             MerchantStorageScheme::PostgresOnly => database_call().await,
             MerchantStorageScheme::RedisKv => {
-                let lookup_id = format!("{merchant_id}_{payment_id}");
-                let lookup = self.get_lookup_by_lookup_id(&lookup_id).await?;
-                let key = &lookup.pk_id;
-                let pattern = generate_hscan_pattern_for_attempt(&lookup.sk_id);
+                let key = format!("{merchant_id}_{payment_id}");
+                let pattern = "pa_*";
                 let redis_conn = self
                     .get_redis_conn()
                     .change_context(errors::StorageError::KVError)?;
 
                 let redis_fut = async {
                     redis_conn
-                        .hscan_and_deserialize::<PaymentAttempt>(key, &pattern, None)
+                        .hscan_and_deserialize::<PaymentAttempt>(&key, pattern, None)
                         .await
                         .and_then(|mut payment_attempts| {
                             payment_attempts.sort_by(|a, b| b.modified_at.cmp(&a.modified_at));
