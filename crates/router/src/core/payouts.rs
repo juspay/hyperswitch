@@ -1158,13 +1158,14 @@ pub async fn payout_create_db_entries(
         .customer_id;
 
     // Get or create address
-    let billing_address = payment_helpers::get_address_for_payment_request(
+    let billing_address = payment_helpers::create_or_find_address_for_payment_by_request(
         db,
         req.billing.as_ref(),
         None,
         merchant_id,
         Some(&customer_id.to_owned()),
         key_store,
+        payout_id,
     )
     .await?;
     let address_id = billing_address
@@ -1293,13 +1294,14 @@ pub async fn make_payout_data(
         .await
         .to_not_found_response(errors::ApiErrorResponse::PayoutNotFound)?;
 
-    let billing_address = payment_helpers::get_address_for_payment_request(
+    let billing_address = payment_helpers::create_or_find_address_for_payment_by_request(
         db,
         None,
         Some(&payouts.address_id.to_owned()),
         merchant_id,
         Some(&payouts.customer_id.to_owned()),
         key_store,
+        &payouts.payout_id,
     )
     .await?;
 
