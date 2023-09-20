@@ -313,7 +313,7 @@ pub async fn get_profile_id_using_object_reference_id(
                 merchant_account,
                 payment_intent.profile_id.as_ref(),
                 db,
-                true,
+                false,
             )
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)

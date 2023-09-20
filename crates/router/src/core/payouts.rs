@@ -565,7 +565,7 @@ pub async fn create_recipient(
         merchant_account,
         payout_data.payout_attempt.profile_id.as_ref(),
         &*state.store,
-        true,
+        false,
     )
     .await?;
 
