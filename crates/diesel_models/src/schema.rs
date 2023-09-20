@@ -471,6 +471,7 @@ diesel::table! {
         frm_config -> Nullable<Array<Nullable<Jsonb>>>,
         #[max_length = 64]
         profile_id -> Nullable<Varchar>,
+        applepay_verified_domains -> Nullable<Array<Nullable<Text>>>,
     }
 }
 
@@ -545,6 +546,7 @@ diesel::table! {
         multiple_capture_count -> Nullable<Int2>,
         #[max_length = 128]
         connector_response_reference_id -> Nullable<Varchar>,
+        amount_capturable -> Int8,
     }
 }
 

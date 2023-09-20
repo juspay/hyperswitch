@@ -137,6 +137,7 @@ pub struct PaymentAttempt {
     pub multiple_capture_count: Option<i16>,
     // reference to the payment at connector side
     pub connector_response_reference_id: Option<String>,
+    pub amount_capturable: i64,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -192,6 +193,7 @@ pub struct PaymentAttemptNew {
     pub error_reason: Option<String>,
     pub connector_response_reference_id: Option<String>,
     pub multiple_capture_count: Option<i16>,
+    pub amount_capturable: i64,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -214,6 +216,7 @@ pub enum PaymentAttemptUpdate {
         payment_token: Option<String>,
         connector: Option<String>,
         straight_through_algorithm: Option<serde_json::Value>,
+        amount_capturable: Option<i64>,
     },
     AuthenticationTypeUpdate {
         authentication_type: storage_enums::AuthenticationType,
@@ -234,6 +237,7 @@ pub enum PaymentAttemptUpdate {
         straight_through_algorithm: Option<serde_json::Value>,
         error_code: Option<Option<String>>,
         error_message: Option<Option<String>>,
+        amount_capturable: Option<i64>,
     },
     RejectUpdate {
         status: storage_enums::AttemptStatus,
@@ -257,6 +261,7 @@ pub enum PaymentAttemptUpdate {
         error_message: Option<Option<String>>,
         error_reason: Option<Option<String>>,
         connector_response_reference_id: Option<String>,
+        amount_capturable: Option<i64>,
     },
     UnresolvedResponseUpdate {
         status: storage_enums::AttemptStatus,
@@ -277,9 +282,14 @@ pub enum PaymentAttemptUpdate {
         error_code: Option<Option<String>>,
         error_message: Option<Option<String>>,
         error_reason: Option<Option<String>>,
+        amount_capturable: Option<i64>,
     },
     MultipleCaptureCountUpdate {
         multiple_capture_count: i16,
+    },
+    AmountToCaptureUpdate {
+        status: storage_enums::AttemptStatus,
+        amount_capturable: i64,
     },
     PreprocessingUpdate {
         status: storage_enums::AttemptStatus,

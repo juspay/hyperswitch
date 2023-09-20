@@ -1,4 +1,4 @@
-mod client;
+pub mod client;
 pub mod request;
 
 use std::{
@@ -10,20 +10,20 @@ use std::{
     time::{Duration, Instant},
 };
 
-use actix_web::{body, HttpRequest, HttpResponse, Responder, ResponseError};
+use actix_web::{body, web, FromRequest, HttpRequest, HttpResponse, Responder, ResponseError};
 use api_models::enums::CaptureMethod;
 pub use client::{proxy_bypass_urls, ApiClient, MockApiClient, ProxyClient};
 use common_utils::errors::ReportSwitchExt;
+pub use common_utils::request::{ContentType, Method, Request, RequestBuilder};
 use error_stack::{report, IntoReport, Report, ResultExt};
 use masking::{ExposeOptionInterface, PeekInterface};
-use router_env::{instrument, tracing, Tag};
+use router_env::{instrument, tracing, tracing_actix_web::RequestId, Tag};
 use serde::Serialize;
 use serde_json::json;
 
-use self::request::{ContentType, HeaderExt, RequestBuilderExt};
-pub use self::request::{Method, Request, RequestBuilder};
+use self::request::{HeaderExt, RequestBuilderExt};
 use crate::{
-    configs::settings::Connectors,
+    configs::settings::{Connectors, Settings},
     consts,
     core::{
         errors::{self, CustomResult},
@@ -416,7 +416,10 @@ pub async fn call_connector_api(
 ) -> CustomResult<Result<types::Response, types::Response>, errors::ApiClientError> {
     let current_time = Instant::now();
 
-    let response = send_request(state, request, None).await;
+    let response = state
+        .api_client
+        .send_request(state, request, None, true)
+        .await;
 
     let elapsed_time = current_time.elapsed();
     logger::info!(request_time=?elapsed_time);
@@ -449,8 +452,8 @@ pub async fn send_request(
         request.certificate,
         request.certificate_key,
     )?;
-    let headers = request.headers.construct_header_map()?;
 
+    let headers = request.headers.construct_header_map()?;
     let metrics_tag = router_env::opentelemetry::KeyValue {
         key: consts::METRICS_HOST_TAG_NAME.into(),
         value: url.host_str().unwrap_or_default().to_string().into(),
@@ -668,6 +671,12 @@ pub enum RedirectForm {
         payment_fields_token: String, // payment-field-token
     },
     Payme,
+    Braintree {
+        client_token: String,
+        card_token: String,
+        bin: String,
+        amount: i64,
+    },
 }
 
 impl From<(url::Url, Method)> for RedirectForm {
@@ -698,32 +707,50 @@ pub enum AuthFlow {
 #[instrument(skip(request, payload, state, func, api_auth), fields(merchant_id))]
 pub async fn server_wrap_util<'a, 'b, A, U, T, Q, F, Fut, E, OErr>(
     flow: &'a impl router_env::types::FlowMetric,
-    state: &'b A,
+    state: web::Data<A>,
     request: &'a HttpRequest,
     payload: T,
     func: F,
     api_auth: &dyn auth::AuthenticateAndFetch<U, A>,
 ) -> CustomResult<ApplicationResponse<Q>, OErr>
 where
-    F: Fn(&'b A, U, T) -> Fut,
+    F: Fn(A, U, T) -> Fut,
     'b: 'a,
     Fut: Future<Output = CustomResult<ApplicationResponse<Q>, E>>,
     Q: Serialize + Debug + 'a,
     T: Debug,
-    A: AppStateInfo,
+    A: AppStateInfo + Clone,
     U: auth::AuthInfo,
     CustomResult<ApplicationResponse<Q>, E>: ReportSwitchExt<ApplicationResponse<Q>, OErr>,
     CustomResult<U, errors::ApiErrorResponse>: ReportSwitchExt<U, OErr>,
     OErr: ResponseError + Sync + Send + 'static,
 {
+    let request_id = RequestId::extract(request)
+        .await
+        .ok()
+        .map(|id| id.as_hyphenated().to_string());
+
+    let mut request_state = state.get_ref().clone();
+
+    request_state.add_request_id(request_id);
+
     let auth_out = api_auth
-        .authenticate_and_fetch(request.headers(), state)
+        .authenticate_and_fetch(request.headers(), &request_state)
         .await
         .switch()?;
-    let merchant_id = auth_out.get_merchant_id().unwrap_or("").to_string();
+
+    let merchant_id = auth_out
+        .get_merchant_id()
+        .unwrap_or("MERCHANT_ID_NOT_FOUND")
+        .to_string();
+
+    request_state.add_merchant_id(Some(merchant_id.clone()));
+
+    request_state.add_flow_name(flow.to_string());
+
     tracing::Span::current().record("merchant_id", &merchant_id);
 
-    let output = func(state, auth_out, payload).await.switch();
+    let output = func(request_state, auth_out, payload).await.switch();
 
     let status_code = match output.as_ref() {
         Ok(res) => metrics::request::track_response_status_code(res),
@@ -739,21 +766,21 @@ where
     skip(request, state, func, api_auth, payload),
     fields(request_method, request_url_path)
 )]
-pub async fn server_wrap<'a, 'b, A, T, U, Q, F, Fut, E>(
+pub async fn server_wrap<'a, A, T, U, Q, F, Fut, E>(
     flow: impl router_env::types::FlowMetric,
-    state: &'b A,
+    state: web::Data<A>,
     request: &'a HttpRequest,
     payload: T,
     func: F,
     api_auth: &dyn auth::AuthenticateAndFetch<U, A>,
 ) -> HttpResponse
 where
-    F: Fn(&'b A, U, T) -> Fut,
+    F: Fn(A, U, T) -> Fut,
     Fut: Future<Output = CustomResult<ApplicationResponse<Q>, E>>,
     Q: Serialize + Debug + 'a,
     T: Debug,
     U: auth::AuthInfo,
-    A: AppStateInfo,
+    A: AppStateInfo + Clone,
     ApplicationResponse<Q>: Debug,
     CustomResult<ApplicationResponse<Q>, E>:
         ReportSwitchExt<ApplicationResponse<Q>, api_models::errors::types::ApiErrorResponse>,
@@ -767,7 +794,7 @@ where
     logger::info!(tag = ?Tag::BeginRequest, payload = ?payload);
 
     let res = match metrics::request::record_request_time_metric(
-        server_wrap_util(&flow, state, request, payload, func, api_auth),
+        server_wrap_util(&flow, state.clone(), request, payload, func, api_auth),
         &flow,
     )
     .await
@@ -802,14 +829,18 @@ where
                 ),
             }
         }
-        Ok(ApplicationResponse::Form(redirection_data)) => build_redirection_form(
-            &redirection_data.redirect_form,
-            redirection_data.payment_method_data,
-            redirection_data.amount,
-            redirection_data.currency,
-        )
-        .respond_to(request)
-        .map_into_boxed_body(),
+        Ok(ApplicationResponse::Form(redirection_data)) => {
+            let config = state.conf();
+            build_redirection_form(
+                &redirection_data.redirect_form,
+                redirection_data.payment_method_data,
+                redirection_data.amount,
+                redirection_data.currency,
+                config,
+            )
+            .respond_to(request)
+            .map_into_boxed_body()
+        }
         Ok(ApplicationResponse::JsonWithHeaders((response, headers))) => {
             match serde_json::to_string(&response) {
                 Ok(res) => http_response_json_with_headers(res, headers),
@@ -980,6 +1011,7 @@ pub fn build_redirection_form(
     payment_method_data: Option<api_models::payments::PaymentMethodData>,
     amount: String,
     currency: String,
+    config: Settings,
 ) -> maud::Markup {
     use maud::PreEscaped;
 
@@ -1047,27 +1079,24 @@ pub fn build_redirection_form(
         RedirectForm::BlueSnap {
             payment_fields_token,
         } => {
-            let card_details = if let Some(api::PaymentMethodData::Card(ccard)) =
-                payment_method_data
-            {
-                format!(
-                    "var newCard={{ccNumber: \"{}\",cvv: \"{}\",expDate: \"{}/{}\",amount: {},currency: \"{}\"}};",
-                    ccard.card_number.peek(),
-                    ccard.card_cvc.peek(),
-                    ccard.card_exp_month.peek(),
-                    ccard.card_exp_year.peek(),
-                    amount,
-                    currency
-                )
-            } else {
-                "".to_string()
-            };
+            let card_details =
+                if let Some(api::PaymentMethodData::Card(ccard)) = payment_method_data {
+                    format!(
+                        "var saveCardDirectly={{cvv: \"{}\",amount: {},currency: \"{}\"}};",
+                        ccard.card_cvc.peek(),
+                        amount,
+                        currency
+                    )
+                } else {
+                    "".to_string()
+                };
+            let bluesnap_sdk_url = config.connectors.bluesnap.secondary_base_url;
             maud::html! {
             (maud::DOCTYPE)
             html {
                 head {
                     meta name="viewport" content="width=device-width, initial-scale=1";
-                    (PreEscaped(r#"<script src="https://sandpay.bluesnap.com/web-sdk/5/bluesnap.js"></script>"#))
+                    (PreEscaped(format!("<script src=\"{bluesnap_sdk_url}web-sdk/5/bluesnap.js\"></script>")))
                 }
                     body style="background-color: #ffffff; padding: 20px; font-family: Arial, Helvetica, Sans-Serif;" {
 
@@ -1097,7 +1126,7 @@ pub fn build_redirection_form(
                     function(sdkResponse) {{
                         console.log(sdkResponse);
                         var f = document.createElement('form');
-                        f.action=window.location.pathname.replace(/payments\\/redirect\\/(\\w+)\\/(\\w+)\\/\\w+/, \"payments/$1/$2/redirect/complete/bluesnap\");
+                        f.action=window.location.pathname.replace(/payments\\/redirect\\/(\\w+)\\/(\\w+)\\/\\w+/, \"payments/$1/$2/redirect/complete/bluesnap?paymentToken={payment_fields_token}\");
                         f.method='POST';
                         var i=document.createElement('input');
                         i.type='hidden';
@@ -1108,7 +1137,7 @@ pub fn build_redirection_form(
                         f.submit();
                     }});
                     {card_details}
-                    bluesnap.threeDsPaymentsSubmitData(newCard);
+                    bluesnap.threeDsPaymentsSubmitData(saveCardDirectly);
                 </script>
                 ")))
                 }}
@@ -1139,6 +1168,92 @@ pub fn build_redirection_form(
             </script>
                 ".to_string()))
             }
+        }
+        RedirectForm::Braintree {
+            client_token,
+            card_token,
+            bin,
+            amount,
+        } => {
+            maud::html! {
+            (maud::DOCTYPE)
+            html {
+                head {
+                    meta name="viewport" content="width=device-width, initial-scale=1";
+                    (PreEscaped(r#"<script src="https://js.braintreegateway.com/web/3.97.1/js/three-d-secure.js"></script>"#))
+                    (PreEscaped(r#"<script src="https://js.braintreegateway.com/web/3.97.1/js/hosted-fields.js"></script>"#))
+
+                }
+                    body style="background-color: #ffffff; padding: 20px; font-family: Arial, Helvetica, Sans-Serif;" {
+
+                        div id="loader1" class="lottie" style="height: 150px; display: block; position: relative; margin-top: 150px; margin-left: auto; margin-right: auto;" { "" }
+
+                        (PreEscaped(r#"<script src="https://cdnjs.cloudflare.com/ajax/libs/bodymovin/5.7.4/lottie.min.js"></script>"#))
+
+                        (PreEscaped(r#"
+                            <script>
+                            var anime = bodymovin.loadAnimation({
+                                container: document.getElementById('loader1'),
+                                renderer: 'svg',
+                                loop: true,
+                                autoplay: true,
+                                name: 'hyperswitch loader',
+                                animationData: {"v":"4.8.0","meta":{"g":"LottieFiles AE 3.1.1","a":"","k":"","d":"","tc":""},"fr":29.9700012207031,"ip":0,"op":31.0000012626559,"w":400,"h":250,"nm":"loader_shape","ddd":0,"assets":[],"layers":[{"ddd":0,"ind":1,"ty":4,"nm":"circle 2","sr":1,"ks":{"o":{"a":0,"k":100,"ix":11},"r":{"a":0,"k":0,"ix":10},"p":{"a":0,"k":[278.25,202.671,0],"ix":2},"a":{"a":0,"k":[23.72,23.72,0],"ix":1},"s":{"a":0,"k":[100,100,100],"ix":6}},"ao":0,"shapes":[{"ty":"gr","it":[{"ind":0,"ty":"sh","ix":1,"ks":{"a":0,"k":{"i":[[12.935,0],[0,-12.936],[-12.935,0],[0,12.935]],"o":[[-12.952,0],[0,12.935],[12.935,0],[0,-12.936]],"v":[[0,-23.471],[-23.47,0.001],[0,23.471],[23.47,0.001]],"c":true},"ix":2},"nm":"Path 1","mn":"ADBE Vector Shape - Group","hd":false},{"ty":"fl","c":{"a":0,"k":[0,0.427451010311,0.976470648074,1],"ix":4},"o":{"a":1,"k":[{"i":{"x":[0.667],"y":[1]},"o":{"x":[0.333],"y":[0]},"t":10,"s":[10]},{"i":{"x":[0.667],"y":[1]},"o":{"x":[0.333],"y":[0]},"t":19.99,"s":[100]},{"t":29.9800012211104,"s":[10]}],"ix":5},"r":1,"bm":0,"nm":"Fill 1","mn":"ADBE Vector Graphic - Fill","hd":false},{"ty":"tr","p":{"a":0,"k":[23.72,23.721],"ix":2},"a":{"a":0,"k":[0,0],"ix":1},"s":{"a":0,"k":[100,100],"ix":3},"r":{"a":0,"k":0,"ix":6},"o":{"a":0,"k":100,"ix":7},"sk":{"a":0,"k":0,"ix":4},"sa":{"a":0,"k":0,"ix":5},"nm":"Transform"}],"nm":"Group 1","np":2,"cix":2,"bm":0,"ix":1,"mn":"ADBE Vector Group","hd":false}],"ip":0,"op":48.0000019550801,"st":0,"bm":0},{"ddd":0,"ind":2,"ty":4,"nm":"square 2","sr":1,"ks":{"o":{"a":0,"k":100,"ix":11},"r":{"a":0,"k":0,"ix":10},"p":{"a":0,"k":[196.25,201.271,0],"ix":2},"a":{"a":0,"k":[22.028,22.03,0],"ix":1},"s":{"a":0,"k":[100,100,100],"ix":6}},"ao":0,"shapes":[{"ty":"gr","it":[{"ind":0,"ty":"sh","ix":1,"ks":{"a":0,"k":{"i":[[1.914,0],[0,0],[0,-1.914],[0,0],[-1.914,0],[0,0],[0,1.914],[0,0]],"o":[[0,0],[-1.914,0],[0,0],[0,1.914],[0,0],[1.914,0],[0,0],[0,-1.914]],"v":[[18.313,-21.779],[-18.312,-21.779],[-21.779,-18.313],[-21.779,18.314],[-18.312,21.779],[18.313,21.779],[21.779,18.314],[21.779,-18.313]],"c":true},"ix":2},"nm":"Path 1","mn":"ADBE Vector Shape - Group","hd":false},{"ty":"fl","c":{"a":0,"k":[0,0.427451010311,0.976470648074,1],"ix":4},"o":{"a":1,"k":[{"i":{"x":[0.667],"y":[1]},"o":{"x":[0.333],"y":[0]},"t":5,"s":[10]},{"i":{"x":[0.667],"y":[1]},"o":{"x":[0.333],"y":[0]},"t":14.99,"s":[100]},{"t":24.9800010174563,"s":[10]}],"ix":5},"r":1,"bm":0,"nm":"Fill 1","mn":"ADBE Vector Graphic - Fill","hd":false},{"ty":"tr","p":{"a":0,"k":[22.028,22.029],"ix":2},"a":{"a":0,"k":[0,0],"ix":1},"s":{"a":0,"k":[100,100],"ix":3},"r":{"a":0,"k":0,"ix":6},"o":{"a":0,"k":100,"ix":7},"sk":{"a":0,"k":0,"ix":4},"sa":{"a":0,"k":0,"ix":5},"nm":"Transform"}],"nm":"Group 1","np":2,"cix":2,"bm":0,"ix":1,"mn":"ADBE Vector Group","hd":false}],"ip":0,"op":47.0000019143492,"st":0,"bm":0},{"ddd":0,"ind":3,"ty":4,"nm":"Triangle 2","sr":1,"ks":{"o":{"a":0,"k":100,"ix":11},"r":{"a":0,"k":0,"ix":10},"p":{"a":0,"k":[116.25,200.703,0],"ix":2},"a":{"a":0,"k":[27.11,21.243,0],"ix":1},"s":{"a":0,"k":[100,100,100],"ix":6}},"ao":0,"shapes":[{"ty":"gr","it":[{"ind":0,"ty":"sh","ix":1,"ks":{"a":0,"k":{"i":[[0,0],[0.558,-0.879],[0,0],[-1.133,0],[0,0],[0.609,0.947],[0,0]],"o":[[-0.558,-0.879],[0,0],[-0.609,0.947],[0,0],[1.133,0],[0,0],[0,0]],"v":[[1.209,-20.114],[-1.192,-20.114],[-26.251,18.795],[-25.051,20.993],[25.051,20.993],[26.251,18.795],[1.192,-20.114]],"c":true},"ix":2},"nm":"Path 1","mn":"ADBE Vector Shape - Group","hd":false},{"ty":"fl","c":{"a":0,"k":[0,0.427451010311,0.976470648074,1],"ix":4},"o":{"a":1,"k":[{"i":{"x":[0.667],"y":[1]},"o":{"x":[0.333],"y":[0]},"t":0,"s":[10]},{"i":{"x":[0.667],"y":[1]},"o":{"x":[0.333],"y":[0]},"t":9.99,"s":[100]},{"t":19.9800008138021,"s":[10]}],"ix":5},"r":1,"bm":0,"nm":"Fill 1","mn":"ADBE Vector Graphic - Fill","hd":false},{"ty":"tr","p":{"a":0,"k":[27.11,21.243],"ix":2},"a":{"a":0,"k":[0,0],"ix":1},"s":{"a":0,"k":[100,100],"ix":3},"r":{"a":0,"k":0,"ix":6},"o":{"a":0,"k":100,"ix":7},"sk":{"a":0,"k":0,"ix":4},"sa":{"a":0,"k":0,"ix":5},"nm":"Transform"}],"nm":"Group 1","np":2,"cix":2,"bm":0,"ix":1,"mn":"ADBE Vector Group","hd":false}],"ip":0,"op":48.0000019550801,"st":0,"bm":0}],"markers":[]}
+                            })
+                            </script>
+                            "#))
+
+
+                        h3 style="text-align: center;" { "Please wait while we process your payment..." }
+                    }
+
+                    (PreEscaped(format!("<script>
+                                var my3DSContainer;
+                                var clientToken = \"{client_token}\";
+                                braintree.threeDSecure.create({{
+                                        authorization: clientToken,
+                                        version: 2
+                                    }}, function(err, threeDs) {{
+                                        threeDs.verifyCard({{
+                                            amount: \"{amount}\",
+                                            nonce: \"{card_token}\",
+                                            bin: \"{bin}\",
+                                            addFrame: function(err, iframe) {{
+                                                my3DSContainer = document.createElement('div');
+                                                my3DSContainer.appendChild(iframe);
+                                                document.body.appendChild(my3DSContainer);
+                                            }},
+                                            removeFrame: function() {{
+                                                if(my3DSContainer && my3DSContainer.parentNode) {{
+                                                    my3DSContainer.parentNode.removeChild(my3DSContainer);
+                                                }}
+                                            }},
+                                            onLookupComplete: function(data, next) {{
+                                                console.log(\"onLookup Complete\", data);
+                                                    next();
+                                                }}
+                                            }},
+                                            function(err, payload) {{
+                                                if(err) {{
+                                                    console.error(err);
+                                                }} else {{
+                                                    console.log(payload);
+                                                    var f = document.createElement('form');
+                                                    f.action=window.location.pathname.replace(/payments\\/redirect\\/(\\w+)\\/(\\w+)\\/\\w+/, \"payments/$1/$2/redirect/complete/braintree\");
+                                                    var i = document.createElement('input');
+                                                    i.type = 'hidden';
+                                                    f.method='POST';
+                                                    i.name = 'authentication_response';
+                                                    i.value = JSON.stringify(payload);
+                                                    f.appendChild(i);
+                                                    f.body = JSON.stringify(payload);
+                                                    document.body.appendChild(f);
+                                                    f.submit();
+                                                    }}
+                                                }});
+                                        }}); </script>"
+                                    )))
+                }}
         }
     }
 }

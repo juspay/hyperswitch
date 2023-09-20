@@ -519,16 +519,13 @@ where
                         connector_name,
                     )
                 });
-
-                let amount_captured = payment_intent.amount_captured.unwrap_or_default();
-                let amount_capturable = Some(payment_attempt.amount - amount_captured);
                 services::ApplicationResponse::JsonWithHeaders((
                     response
                         .set_payment_id(Some(payment_attempt.payment_id))
                         .set_merchant_id(Some(payment_attempt.merchant_id))
                         .set_status(payment_intent.status)
                         .set_amount(payment_attempt.amount)
-                        .set_amount_capturable(amount_capturable)
+                        .set_amount_capturable(Some(payment_attempt.amount_capturable))
                         .set_amount_received(payment_intent.amount_captured)
                         .set_connector(routed_through)
                         .set_client_secret(payment_intent.client_secret.map(masking::Secret::new))
@@ -1209,6 +1206,7 @@ impl TryFrom<types::CaptureSyncResponse> for storage::CaptureUpdate {
                 resource_id,
                 status,
                 connector_response_reference_id,
+                ..
             } => {
                 let connector_capture_id = match resource_id {
                     types::ResponseId::ConnectorTransactionId(id) => Some(id),
@@ -1225,6 +1223,7 @@ impl TryFrom<types::CaptureSyncResponse> for storage::CaptureUpdate {
                 message,
                 reason,
                 status_code,
+                ..
             } => Ok(Self::ErrorUpdate {
                 status: match status_code {
                     500..=511 => storage::enums::CaptureStatus::Pending,

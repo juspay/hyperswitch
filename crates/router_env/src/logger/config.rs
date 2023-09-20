@@ -141,7 +141,7 @@ impl Config {
         let config_path = Self::config_path(&environment.to_string(), explicit_config_path);
 
         let config = Self::builder(&environment.to_string())?
-            .add_source(config::File::from(config_path).required(true))
+            .add_source(config::File::from(config_path).required(false))
             .add_source(config::Environment::with_prefix("ROUTER").separator("__"))
             .build()?;
 

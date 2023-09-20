@@ -31,3 +31,14 @@ pub struct ReverseLookupNew {
     pub sk_id: String,
     pub source: String,
 }
+
+impl From<ReverseLookupNew> for ReverseLookup {
+    fn from(new: ReverseLookupNew) -> Self {
+        Self {
+            lookup_id: new.lookup_id,
+            sk_id: new.sk_id,
+            pk_id: new.pk_id,
+            source: new.source,
+        }
+    }
+}
