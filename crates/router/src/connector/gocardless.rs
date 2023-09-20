@@ -44,6 +44,8 @@ impl api::PaymentToken for Gocardless {}
 impl api::ConnectorCustomer for Gocardless {}
 impl api::PaymentsPreProcessing for Gocardless {}
 
+const GOCARDLESS_VERSION: &str = "2015-07-06";
+
 impl<Flow, Request, Response> ConnectorCommonExt<Flow, Request, Response> for Gocardless
 where
     Self: ConnectorIntegration<Flow, Request, Response>,
@@ -58,10 +60,7 @@ where
                 headers::CONTENT_TYPE.to_string(),
                 self.get_content_type().to_string().into(),
             ),
-            (
-                "GoCardless-Version".to_string(),
-                "2015-07-06".to_string().into(),
-            ),
+            (GOCARDLESS_VERSION.to_string(), "".to_string().into()),
         ];
         let mut api_key = self.get_auth_header(&req.connector_auth_type)?;
         header.append(&mut api_key);
@@ -143,7 +142,7 @@ impl
         _req: &types::ConnectorCustomerRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Ok(format!("{}{}", self.base_url(connectors), "/customers"))
+        Ok(format!("{}/customers", self.base_url(connectors)))
     }
 
     fn get_request_body(
@@ -236,9 +235,8 @@ impl
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         Ok(format!(
-            "{}{}",
+            "{}/customer_bank_accounts",
             self.base_url(connectors),
-            "/customer_bank_accounts"
         ))
     }
 
@@ -320,7 +318,7 @@ impl
         _req: &types::PaymentsPreProcessingRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Ok(format!("{}{}", self.base_url(connectors), "/mandates"))
+        Ok(format!("{}/mandates", self.base_url(connectors)))
     }
 
     fn get_request_body(
@@ -445,7 +443,7 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         _req: &types::PaymentsAuthorizeRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Ok(format!("{}{}", self.base_url(connectors), "/payments"))
+        Ok(format!("{}/payments", self.base_url(connectors)))
     }
 
     fn get_request_body(
@@ -583,23 +581,6 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
 impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::PaymentsResponseData>
     for Gocardless
 {
-    fn build_request(
-        &self,
-        req: &types::PaymentsCaptureRouterData,
-        connectors: &settings::Connectors,
-    ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
-        Ok(Some(
-            services::RequestBuilder::new()
-                .method(services::Method::Post)
-                .url(&types::PaymentsCaptureType::get_url(self, req, connectors)?)
-                .attach_default_headers()
-                .headers(types::PaymentsCaptureType::get_headers(
-                    self, req, connectors,
-                )?)
-                .body(types::PaymentsCaptureType::get_request_body(self, req)?)
-                .build(),
-        ))
-    }
 }
 
 impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsResponseData>
@@ -627,7 +608,7 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
         _req: &types::RefundsRouterData<api::Execute>,
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Ok(format!("{}{}", self.base_url(connectors), "/refunds"))
+        Ok(format!("{}/refunds", self.base_url(connectors)))
     }
 
     fn get_request_body(
