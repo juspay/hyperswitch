@@ -50,7 +50,7 @@ impl TryFrom<&types::ConnectorAuthType> for TrustpayAuthType {
     }
 }
 
-#[derive(Debug, Serialize, Deserialize, Eq, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, Eq, PartialEq)]
 pub enum TrustpayPaymentMethod {
     #[serde(rename = "EPS")]
     Eps,
@@ -288,24 +288,23 @@ fn get_full_name(
 
 fn get_debtor_info(
     item: &types::PaymentsAuthorizeRouterData,
+    pm: TrustpayPaymentMethod,
     params: TrustpayMandatoryParams,
 ) -> CustomResult<Option<DebtorInformation>, errors::ConnectorError> {
-    let payment_method_type = item
-        .request
-        .payment_method_type
-        .as_ref()
-        .ok_or(errors::ConnectorError::MissingPaymentMethodType)?;
     let billing_last_name = item
         .get_billing()?
         .address
         .as_ref()
         .map(|address| address.last_name.clone().unwrap_or_default());
-    Ok(match payment_method_type {
-        enums::PaymentMethodType::Blik => Some(DebtorInformation {
+    Ok(match pm {
+        TrustpayPaymentMethod::Blik => Some(DebtorInformation {
             name: get_full_name(params.billing_first_name, billing_last_name),
             email: item.request.get_email()?,
         }),
-        _ => None,
+        TrustpayPaymentMethod::Eps
+        | TrustpayPaymentMethod::Giropay
+        | TrustpayPaymentMethod::IDeal
+        | TrustpayPaymentMethod::Sofort => None,
     })
 }
 
@@ -316,10 +315,11 @@ fn get_bank_redirection_request_data(
     amount: String,
     auth: TrustpayAuthType,
 ) -> Result<TrustpayPaymentsRequest, error_stack::Report<errors::ConnectorError>> {
+    let pm = TrustpayPaymentMethod::try_from(bank_redirection_data)?;
     let return_url = item.request.get_return_url()?;
     let payment_request =
         TrustpayPaymentsRequest::BankRedirectPaymentRequest(Box::new(PaymentRequestBankRedirect {
-            payment_method: TrustpayPaymentMethod::try_from(bank_redirection_data)?,
+            payment_method: pm.clone(),
             merchant_identification: MerchantIdentification {
                 project_id: auth.project_id,
             },
@@ -331,7 +331,7 @@ fn get_bank_redirection_request_data(
                 references: References {
                     merchant_reference: item.payment_id.clone(),
                 },
-                debtor: get_debtor_info(item, params)?,
+                debtor: get_debtor_info(item, pm, params)?,
             },
             callback_urls: CallbackURLs {
                 success: format!("{return_url}?status=SuccessOk"),
