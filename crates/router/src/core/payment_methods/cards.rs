@@ -1813,8 +1813,8 @@ pub async fn list_customer_payment_method(
         .await;
 
     let requires_cvv = match is_requires_cvv {
-        // If an entry is found with the config value as `false`, we set requires_cvv to false
-        Ok(value) => value.config != "false",
+        // If an entry is found with the config value as `true`, we set requires_cvv to true
+        Ok(value) => value.config == "true",
         Err(err) => {
             if err.current_context().is_db_not_found() {
                 // By default, cvv is made required field for all merchants
