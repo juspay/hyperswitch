@@ -42,11 +42,11 @@ pub async fn customer_create(
         _,
     >(
         flow,
-        state.get_ref(),
+        state.into_inner(),
         &req,
         create_cust_req,
         |state, auth, req| {
-            customers::create_customer(&*state.store, auth.merchant_account, auth.key_store, req)
+            customers::create_customer(state, auth.merchant_account, auth.key_store, req)
         },
         &auth::ApiKeyAuth,
     ))
@@ -77,11 +77,11 @@ pub async fn customer_retrieve(
         _,
     >(
         flow,
-        state.get_ref(),
+        state.into_inner(),
         &req,
         payload,
         |state, auth, req| {
-            customers::retrieve_customer(&*state.store, auth.merchant_account, auth.key_store, req)
+            customers::retrieve_customer(state, auth.merchant_account, auth.key_store, req)
         },
         &auth::ApiKeyAuth,
     ))
@@ -121,11 +121,11 @@ pub async fn customer_update(
         _,
     >(
         flow,
-        state.get_ref(),
+        state.into_inner(),
         &req,
         cust_update_req,
         |state, auth, req| {
-            customers::update_customer(&*state.store, auth.merchant_account, req, auth.key_store)
+            customers::update_customer(state, auth.merchant_account, req, auth.key_store)
         },
         &auth::ApiKeyAuth,
     ))
@@ -156,7 +156,7 @@ pub async fn customer_delete(
         _,
     >(
         flow,
-        state.get_ref(),
+        state.into_inner(),
         &req,
         payload,
         |state, auth, req| {
@@ -190,7 +190,7 @@ pub async fn list_customer_payment_method_api(
         _,
     >(
         flow,
-        state.get_ref(),
+        state.into_inner(),
         &req,
         payload,
         |state, auth, req| {

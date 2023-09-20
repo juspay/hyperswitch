@@ -4,6 +4,67 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 1.41.0 (2023-09-20)
+
+### Features
+
+- **connector:** [Gocardless] add boilerplate code ([#2179](https://github.com/juspay/hyperswitch/pull/2179)) ([`6a64180`](https://github.com/juspay/hyperswitch/commit/6a641806172e0fad6425a19baffda97ff7eb8c96))
+
+### Bug Fixes
+
+- **core:** Add merchant_id to gpay merchant info ([#2170](https://github.com/juspay/hyperswitch/pull/2170)) ([`5643ecf`](https://github.com/juspay/hyperswitch/commit/5643ecf07521abdebd162ed0c0fe389ae7942a17))
+- Remove x-request-id from headers before connector calls ([#2182](https://github.com/juspay/hyperswitch/pull/2182)) ([`680505f`](https://github.com/juspay/hyperswitch/commit/680505f21ad0c809f007773517dd444b211f4c99))
+- Handle 5xx during multiple capture call ([#2148](https://github.com/juspay/hyperswitch/pull/2148)) ([`e8d948e`](https://github.com/juspay/hyperswitch/commit/e8d948efeed3e9e4475ebc01d2be2ce3addd92a6))
+
+### Refactors
+
+- **connector:** [Adyen] psync validation check for adyen ([#2160](https://github.com/juspay/hyperswitch/pull/2160)) ([`386e820`](https://github.com/juspay/hyperswitch/commit/386e820fb85acfadd234670c6da2622bd2e38460))
+- **core:** Add additional parameters in AppState and refactor AppState references ([#2123](https://github.com/juspay/hyperswitch/pull/2123)) ([`a0a8ef2`](https://github.com/juspay/hyperswitch/commit/a0a8ef27b319bdef01e72995081c7664c1e99127))
+- **router:** Use billing address for payment method list filters as opposed to shipping address ([#2176](https://github.com/juspay/hyperswitch/pull/2176)) ([`b3d5d3b`](https://github.com/juspay/hyperswitch/commit/b3d5d3b3dcdde7480df8493714986b5e737e97e0))
+- Remove redundant validate_capture_method call ([#2171](https://github.com/juspay/hyperswitch/pull/2171)) ([`1ea823b`](https://github.com/juspay/hyperswitch/commit/1ea823b0488c783315da156a474dedce2556d334))
+
+**Full Changelog:** [`v1.40.1+hotfix.1...v1.41.0`](https://github.com/juspay/hyperswitch/compare/v1.40.1+hotfix.1...v1.41.0)
+
+- - -
+
+
+## 1.40.1 (2023-09-18)
+
+### Refactors
+
+- **connector:** [Bluesnap] Enahnce 3ds Flow ([#2115](https://github.com/juspay/hyperswitch/pull/2115)) ([`272f5e4`](https://github.com/juspay/hyperswitch/commit/272f5e4c1f34710fe13b1ede1b938d2f0b76e251))
+- Set merchant_id as `MERCHANT_ID_NOT_FOUND` for traces and metrics if not found ([#2156](https://github.com/juspay/hyperswitch/pull/2156)) ([`d40fae8`](https://github.com/juspay/hyperswitch/commit/d40fae87feb509718059ab2d72539f37f26a8251))
+
+**Full Changelog:** [`v1.40.0...v1.40.1`](https://github.com/juspay/hyperswitch/compare/v1.40.0...v1.40.1)
+
+- - -
+
+
+## 1.40.0 (2023-09-15)
+
+### Features
+
+- **connector:** (adyen) add support for multiple partial capture adyen ([#2102](https://github.com/juspay/hyperswitch/pull/2102)) ([`9668a74`](https://github.com/juspay/hyperswitch/commit/9668a74a79daf7b15069d5c21ebc43749e705558))
+- **pm_auth:** Add plaid to connector list ([#2166](https://github.com/juspay/hyperswitch/pull/2166)) ([`0bc99ad`](https://github.com/juspay/hyperswitch/commit/0bc99ad327d1857dba67504ff12088e4bdd7102e))
+
+### Bug Fixes
+
+- **router:** Move `get_connector_tokenization_action_when_confirm_true` above `call_create_connector_customer_if_required` ([#2167](https://github.com/juspay/hyperswitch/pull/2167)) ([`15418a6`](https://github.com/juspay/hyperswitch/commit/15418a6d0f9429a69eaa179e5f7d9d798bf505e6))
+- Make amount_capturable zero when payment intent status is processing ([#2163](https://github.com/juspay/hyperswitch/pull/2163)) ([`d848b55`](https://github.com/juspay/hyperswitch/commit/d848b55a119e426f809b46bd9d30b356ecd7ba2a))
+
+### Refactors
+
+- **router:** Add camel_case for the applepay request ([#2172](https://github.com/juspay/hyperswitch/pull/2172)) ([`4c36fcb`](https://github.com/juspay/hyperswitch/commit/4c36fcb34f086bb727c87fc5ede6e3bea138685a))
+
+### Testing
+
+- **postman:** Update postman collection files ([`b30d82d`](https://github.com/juspay/hyperswitch/commit/b30d82d9398ced95847eecdc22403febc32f3505))
+
+**Full Changelog:** [`v1.39.2...v1.40.0`](https://github.com/juspay/hyperswitch/compare/v1.39.2...v1.40.0)
+
+- - -
+
+
 ## 1.39.2 (2023-09-14)
 
 ### Bug Fixes
