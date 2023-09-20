@@ -45,7 +45,7 @@ impl api::ConnectorCustomer for Gocardless {}
 impl api::PaymentsPreProcessing for Gocardless {}
 
 const GOCARDLESS_VERSION: &str = "2015-07-06";
-const GOCARDLESS_VERSION_HEADER: &str = "2015-07-06";
+const GOCARDLESS_VERSION_HEADER: &str = "GoCardless-Version";
 
 impl<Flow, Request, Response> ConnectorCommonExt<Flow, Request, Response> for Gocardless
 where
