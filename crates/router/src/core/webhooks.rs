@@ -824,7 +824,7 @@ pub async fn webhooks_core<W: types::OutgoingWebhookType>(
         {
             connector
                 .verify_webhook_source_verification_call(
-                    state,
+                    &state,
                     &merchant_account,
                     merchant_connector_account.clone(),
                     &connector_name,
