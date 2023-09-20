@@ -88,6 +88,18 @@ impl ConnectorValidation for Adyen {
             ),
         }
     }
+    fn validate_psync_reference_id(
+        &self,
+        data: &types::PaymentsSyncRouterData,
+    ) -> CustomResult<(), errors::ConnectorError> {
+        if data.request.encoded_data.is_some() {
+            return Ok(());
+        }
+        Err(errors::ConnectorError::MissingRequiredField {
+            field_name: "encoded_data",
+        }
+        .into())
+    }
 }
 
 impl api::Payment for Adyen {}
@@ -610,7 +622,6 @@ impl
         req: &types::PaymentsAuthorizeRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
-        self.validate_capture_method(req.request.capture_method)?;
         check_for_payment_method_balance(req)?;
         Ok(Some(
             services::RequestBuilder::new()

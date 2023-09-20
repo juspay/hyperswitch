@@ -1142,6 +1142,7 @@ impl From<GooglePayTransactionInfo> for api_models::payments::GpayTransactionInf
 impl From<GooglePayMerchantInfo> for api_models::payments::GpayMerchantInfo {
     fn from(value: GooglePayMerchantInfo) -> Self {
         Self {
+            merchant_id: None,
             merchant_name: value.merchant_name,
         }
     }

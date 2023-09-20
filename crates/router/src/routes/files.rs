@@ -39,7 +39,7 @@ pub async fn files_create(
     };
     api::server_wrap(
         flow,
-        state.get_ref(),
+        state,
         &req,
         create_file_request,
         |state, auth, req| files_create_core(state, auth.merchant_account, auth.key_store, req),
@@ -77,7 +77,7 @@ pub async fn files_delete(
     };
     api::server_wrap(
         flow,
-        state.get_ref(),
+        state,
         &req,
         file_id,
         |state, auth, req| files_delete_core(state, auth.merchant_account, req),
@@ -115,7 +115,7 @@ pub async fn files_retrieve(
     };
     api::server_wrap(
         flow,
-        state.get_ref(),
+        state,
         &req,
         file_id,
         |state, auth, req| files_retrieve_core(state, auth.merchant_account, auth.key_store, req),

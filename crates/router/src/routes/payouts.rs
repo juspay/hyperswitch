@@ -32,7 +32,7 @@ pub async fn payouts_create(
     let flow = Flow::PayoutsCreate;
     api::server_wrap(
         flow,
-        state.get_ref(),
+        state,
         &req,
         json_payload.into_inner(),
         |state, auth, req| payouts_create_core(state, auth.merchant_account, auth.key_store, req),
@@ -71,7 +71,7 @@ pub async fn payouts_retrieve(
     let flow = Flow::PayoutsRetrieve;
     api::server_wrap(
         flow,
-        state.get_ref(),
+        state,
         &req,
         payout_retrieve_request,
         |state, auth, req| payouts_retrieve_core(state, auth.merchant_account, auth.key_store, req),
@@ -110,7 +110,7 @@ pub async fn payouts_update(
     payout_update_payload.payout_id = Some(payout_id);
     api::server_wrap(
         flow,
-        state.get_ref(),
+        state,
         &req,
         payout_update_payload,
         |state, auth, req| payouts_update_core(state, auth.merchant_account, auth.key_store, req),
@@ -149,7 +149,7 @@ pub async fn payouts_cancel(
 
     api::server_wrap(
         flow,
-        state.get_ref(),
+        state,
         &req,
         payload,
         |state, auth, req| payouts_cancel_core(state, auth.merchant_account, auth.key_store, req),
@@ -188,7 +188,7 @@ pub async fn payouts_fulfill(
 
     api::server_wrap(
         flow,
-        state.get_ref(),
+        state,
         &req,
         payload,
         |state, auth, req| payouts_fulfill_core(state, auth.merchant_account, auth.key_store, req),
