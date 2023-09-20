@@ -33,13 +33,23 @@ pub trait ConnectorResponseInterface {
 
 #[cfg(not(feature = "kv_store"))]
 mod storage {
+    use error_stack::IntoReport;
+    use router_env::{instrument, tracing};
+
+    use super::Store;
+    use crate::{
+        connection,
+        core::errors::{self, CustomResult},
+        types::storage::{self as storage_type, enums},
+    };
+
     #[async_trait::async_trait]
-    impl ConnectorResponseInterface for Store {
+    impl super::ConnectorResponseInterface for Store {
         #[instrument(skip_all)]
         async fn insert_connector_response(
             &self,
             connector_response: storage_type::ConnectorResponseNew,
-            storage_scheme: enums::MerchantStorageScheme,
+            _storage_scheme: enums::MerchantStorageScheme,
         ) -> CustomResult<storage_type::ConnectorResponse, errors::StorageError> {
             let conn = connection::pg_connection_write(self).await?;
             connector_response
@@ -55,7 +65,7 @@ mod storage {
             payment_id: &str,
             merchant_id: &str,
             attempt_id: &str,
-            storage_scheme: enums::MerchantStorageScheme,
+            _storage_scheme: enums::MerchantStorageScheme,
         ) -> CustomResult<storage_type::ConnectorResponse, errors::StorageError> {
             let conn = connection::pg_connection_read(self).await?;
             storage_type::ConnectorResponse::find_by_payment_id_merchant_id_attempt_id(
@@ -73,7 +83,7 @@ mod storage {
             &self,
             this: storage_type::ConnectorResponse,
             connector_response_update: storage_type::ConnectorResponseUpdate,
-            storage_scheme: enums::MerchantStorageScheme,
+            _storage_scheme: enums::MerchantStorageScheme,
         ) -> CustomResult<storage_type::ConnectorResponse, errors::StorageError> {
             let conn = connection::pg_connection_write(self).await?;
             this.update(&conn, connector_response_update)
