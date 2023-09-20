@@ -90,6 +90,7 @@ pub enum Connector {
     Forte,
     Globalpay,
     Globepay,
+    //Gocardless,
     //Helcim, added as template code for future usage,
     Iatapay,
     Klarna,
@@ -119,6 +120,7 @@ pub enum Connector {
     Worldpay,
     Zen,
     Signifyd,
+    Plaid,
 }
 
 impl Connector {
@@ -205,6 +207,7 @@ pub enum RoutableConnectors {
     Forte,
     Globalpay,
     Globepay,
+    //Gocardless,
     //Helcim, added as template code for future usage,
     Iatapay,
     Klarna,

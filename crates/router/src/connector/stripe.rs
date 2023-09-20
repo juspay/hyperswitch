@@ -812,7 +812,6 @@ impl
         req: &types::PaymentsAuthorizeRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
-        self.validate_capture_method(req.request.capture_method)?;
         Ok(Some(
             services::RequestBuilder::new()
                 .method(services::Method::Post)
@@ -1894,11 +1893,14 @@ impl api::IncomingWebhook for Stripe {
             stripe::WebhookEventType::PaymentIntentRequiresAction => {
                 api::IncomingWebhookEvent::PaymentActionRequired
             }
+            stripe::WebhookEventType::ChargeDisputeFundsWithdrawn => {
+                api::IncomingWebhookEvent::DisputeLost
+            }
+            stripe::WebhookEventType::ChargeDisputeFundsReinstated => {
+                api::IncomingWebhookEvent::DisputeWon
+            }
             stripe::WebhookEventType::Unknown
             | stripe::WebhookEventType::ChargeCaptured
-            | stripe::WebhookEventType::ChargeDisputeCaptured
-            | stripe::WebhookEventType::ChargeDisputeFundsReinstated
-            | stripe::WebhookEventType::ChargeDisputeFundsWithdrawn
             | stripe::WebhookEventType::ChargeExpired
             | stripe::WebhookEventType::ChargeFailed
             | stripe::WebhookEventType::ChargePending

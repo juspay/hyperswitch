@@ -23,6 +23,7 @@ use diesel_models::{
 };
 use error_stack::{IntoReport, ResultExt};
 use redis_interface::HsetnxReply;
+use router_env::{instrument, tracing};
 
 use crate::{
     lookup::ReverseLookupInterface,
@@ -36,6 +37,7 @@ use crate::{
 
 #[async_trait::async_trait]
 impl<T: DatabaseStore> PaymentAttemptInterface for RouterStore<T> {
+    #[instrument(skip_all)]
     async fn insert_payment_attempt(
         &self,
         payment_attempt: PaymentAttemptNew,
@@ -53,6 +55,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for RouterStore<T> {
             .map(PaymentAttempt::from_storage_model)
     }
 
+    #[instrument(skip_all)]
     async fn update_payment_attempt_with_attempt_id(
         &self,
         this: PaymentAttempt,
@@ -132,6 +135,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for RouterStore<T> {
         .map(PaymentAttempt::from_storage_model)
     }
 
+    #[instrument(skip_all)]
     async fn find_payment_attempt_by_payment_id_merchant_id_attempt_id(
         &self,
         payment_id: &str,
@@ -226,8 +230,8 @@ impl<T: DatabaseStore> PaymentAttemptInterface for RouterStore<T> {
 
     async fn find_payment_attempt_by_attempt_id_merchant_id(
         &self,
-        merchant_id: &str,
         attempt_id: &str,
+        merchant_id: &str,
         _storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<PaymentAttempt, errors::StorageError> {
         let conn = pg_connection_read(self).await?;
@@ -279,6 +283,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for RouterStore<T> {
 
 #[async_trait::async_trait]
 impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
+    #[instrument(skip_all)]
     async fn insert_payment_attempt(
         &self,
         payment_attempt: PaymentAttemptNew,
@@ -403,6 +408,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
         }
     }
 
+    #[instrument(skip_all)]
     async fn update_payment_attempt_with_attempt_id(
         &self,
         this: PaymentAttempt,
@@ -616,6 +622,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
         }
     }
 
+    #[instrument(skip_all)]
     async fn find_payment_attempt_by_payment_id_merchant_id_attempt_id(
         &self,
         payment_id: &str,
@@ -1089,10 +1096,12 @@ impl DataModelExt for PaymentAttemptUpdate {
                 payment_token,
                 connector,
                 straight_through_algorithm,
+                amount_capturable,
             } => DieselPaymentAttemptUpdate::UpdateTrackers {
                 payment_token,
                 connector,
                 straight_through_algorithm,
+                amount_capturable,
             },
             Self::AuthenticationTypeUpdate {
                 authentication_type,
@@ -1115,6 +1124,7 @@ impl DataModelExt for PaymentAttemptUpdate {
                 straight_through_algorithm,
                 error_code,
                 error_message,
+                amount_capturable,
             } => DieselPaymentAttemptUpdate::ConfirmUpdate {
                 amount,
                 currency,
@@ -1131,6 +1141,7 @@ impl DataModelExt for PaymentAttemptUpdate {
                 straight_through_algorithm,
                 error_code,
                 error_message,
+                amount_capturable,
             },
             Self::VoidUpdate {
                 status,
@@ -1275,10 +1286,12 @@ impl DataModelExt for PaymentAttemptUpdate {
                 payment_token,
                 connector,
                 straight_through_algorithm,
+                amount_capturable,
             } => Self::UpdateTrackers {
                 payment_token,
                 connector,
                 straight_through_algorithm,
+                amount_capturable,
             },
             DieselPaymentAttemptUpdate::AuthenticationTypeUpdate {
                 authentication_type,
@@ -1301,6 +1314,7 @@ impl DataModelExt for PaymentAttemptUpdate {
                 straight_through_algorithm,
                 error_code,
                 error_message,
+                amount_capturable,
             } => Self::ConfirmUpdate {
                 amount,
                 currency,
@@ -1317,6 +1331,7 @@ impl DataModelExt for PaymentAttemptUpdate {
                 straight_through_algorithm,
                 error_code,
                 error_message,
+                amount_capturable,
             },
             DieselPaymentAttemptUpdate::VoidUpdate {
                 status,

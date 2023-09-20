@@ -95,7 +95,7 @@ pub async fn get_connector_data(
 #[cfg(feature = "payouts")]
 #[instrument(skip_all)]
 pub async fn payouts_create_core(
-    state: &AppState,
+    state: AppState,
     merchant_account: domain::MerchantAccount,
     key_store: domain::MerchantKeyStore,
     req: payouts::PayoutCreateRequest,
@@ -104,7 +104,7 @@ where
 {
     // Form connector data
     let connector_data = get_connector_data(
-        state,
+        &state,
         &merchant_account,
         req.connector
             .clone()
@@ -115,11 +115,11 @@ where
 
     // Validate create request
     let (payout_id, payout_method_data) =
-        validator::validate_create_request(state, &merchant_account, &req).await?;
+        validator::validate_create_request(&state, &merchant_account, &req).await?;
 
     // Create DB entries
     let mut payout_data = payout_create_db_entries(
-        state,
+        &state,
         &merchant_account,
         &key_store,
         &req,
@@ -130,7 +130,7 @@ where
     .await?;
 
     call_connector_payout(
-        state,
+        &state,
         &merchant_account,
         &key_store,
         &req,
@@ -142,13 +142,13 @@ where
 
 #[cfg(feature = "payouts")]
 pub async fn payouts_update_core(
-    state: &AppState,
+    state: AppState,
     merchant_account: domain::MerchantAccount,
     key_store: domain::MerchantKeyStore,
     req: payouts::PayoutCreateRequest,
 ) -> RouterResponse<payouts::PayoutCreateResponse> {
     let mut payout_data = make_payout_data(
-        state,
+        &state,
         &merchant_account,
         &key_store,
         &payouts::PayoutRequest::PayoutCreateRequest(req.to_owned()),
@@ -239,7 +239,7 @@ pub async fn payouts_update_core(
     .attach_printable("Failed to get the connector data")?;
 
     call_connector_payout(
-        state,
+        &state,
         &merchant_account,
         &key_store,
         &req,
@@ -252,13 +252,13 @@ pub async fn payouts_update_core(
 #[cfg(feature = "payouts")]
 #[instrument(skip_all)]
 pub async fn payouts_retrieve_core(
-    state: &AppState,
+    state: AppState,
     merchant_account: domain::MerchantAccount,
     key_store: domain::MerchantKeyStore,
     req: payouts::PayoutRetrieveRequest,
 ) -> RouterResponse<payouts::PayoutCreateResponse> {
     let payout_data = make_payout_data(
-        state,
+        &state,
         &merchant_account,
         &key_store,
         &payouts::PayoutRequest::PayoutRetrieveRequest(req.to_owned()),
@@ -266,7 +266,7 @@ pub async fn payouts_retrieve_core(
     .await?;
 
     response_handler(
-        state,
+        &state,
         &merchant_account,
         &payouts::PayoutRequest::PayoutRetrieveRequest(req.to_owned()),
         &payout_data,
@@ -277,13 +277,13 @@ pub async fn payouts_retrieve_core(
 #[cfg(feature = "payouts")]
 #[instrument(skip_all)]
 pub async fn payouts_cancel_core(
-    state: &AppState,
+    state: AppState,
     merchant_account: domain::MerchantAccount,
     key_store: domain::MerchantKeyStore,
     req: payouts::PayoutActionRequest,
 ) -> RouterResponse<payouts::PayoutCreateResponse> {
     let mut payout_data = make_payout_data(
-        state,
+        &state,
         &merchant_account,
         &key_store,
         &payouts::PayoutRequest::PayoutActionRequest(req.to_owned()),
@@ -328,7 +328,7 @@ pub async fn payouts_cancel_core(
     } else {
         // Form connector data
         let connector_data = get_connector_data(
-            state,
+            &state,
             &merchant_account,
             Some(payout_attempt.connector),
             None,
@@ -336,7 +336,7 @@ pub async fn payouts_cancel_core(
         .await?;
 
         payout_data = cancel_payout(
-            state,
+            &state,
             &merchant_account,
             &key_store,
             &payouts::PayoutRequest::PayoutActionRequest(req.to_owned()),
@@ -348,7 +348,7 @@ pub async fn payouts_cancel_core(
     }
 
     response_handler(
-        state,
+        &state,
         &merchant_account,
         &payouts::PayoutRequest::PayoutActionRequest(req.to_owned()),
         &payout_data,
@@ -359,13 +359,13 @@ pub async fn payouts_cancel_core(
 #[cfg(feature = "payouts")]
 #[instrument(skip_all)]
 pub async fn payouts_fulfill_core(
-    state: &AppState,
+    state: AppState,
     merchant_account: domain::MerchantAccount,
     key_store: domain::MerchantKeyStore,
     req: payouts::PayoutActionRequest,
 ) -> RouterResponse<payouts::PayoutCreateResponse> {
     let mut payout_data = make_payout_data(
-        state,
+        &state,
         &merchant_account,
         &key_store,
         &payouts::PayoutRequest::PayoutActionRequest(req.to_owned()),
@@ -389,7 +389,7 @@ pub async fn payouts_fulfill_core(
 
     // Form connector data
     let connector_data = get_connector_data(
-        state,
+        &state,
         &merchant_account,
         Some(payout_attempt.connector.clone()),
         None,
@@ -399,7 +399,7 @@ pub async fn payouts_fulfill_core(
     // Trigger fulfillment
     payout_data.payout_method_data = Some(
         helpers::make_payout_method_data(
-            state,
+            &state,
             None,
             payout_attempt.payout_token.as_deref(),
             &payout_attempt.customer_id,
@@ -411,7 +411,7 @@ pub async fn payouts_fulfill_core(
         .get_required_value("payout_method_data")?,
     );
     payout_data = fulfill_payout(
-        state,
+        &state,
         &merchant_account,
         &key_store,
         &payouts::PayoutRequest::PayoutActionRequest(req.to_owned()),
@@ -430,7 +430,7 @@ pub async fn payouts_fulfill_core(
     }
 
     response_handler(
-        state,
+        &state,
         &merchant_account,
         &payouts::PayoutRequest::PayoutActionRequest(req.to_owned()),
         &payout_data,

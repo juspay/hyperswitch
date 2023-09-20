@@ -142,6 +142,7 @@ impl<const T: u8>
 }
 
 default_imp_for_complete_authorize!(
+    connector::Gocardless,
     connector::Aci,
     connector::Adyen,
     connector::Bitpay,
@@ -206,12 +207,14 @@ impl<const T: u8>
 }
 
 default_imp_for_create_customer!(
+    connector::Gocardless,
     connector::Aci,
     connector::Adyen,
     connector::Airwallex,
     connector::Authorizedotnet,
     connector::Bambora,
     connector::Bitpay,
+    connector::Bluesnap,
     connector::Boku,
     connector::Braintree,
     connector::Cashtocode,
@@ -281,6 +284,7 @@ impl<const T: u8> services::ConnectorRedirectResponse for connector::DummyConnec
 }
 
 default_imp_for_connector_redirect_response!(
+    connector::Gocardless,
     connector::Aci,
     connector::Adyen,
     connector::Bitpay,
@@ -326,6 +330,7 @@ macro_rules! default_imp_for_connector_request_id {
 impl<const T: u8> api::ConnectorTransactionId for connector::DummyConnector<T> {}
 
 default_imp_for_connector_request_id!(
+    connector::Gocardless,
     connector::Aci,
     connector::Adyen,
     connector::Airwallex,
@@ -404,6 +409,7 @@ impl<const T: u8>
 }
 
 default_imp_for_accept_dispute!(
+    connector::Gocardless,
     connector::Aci,
     connector::Adyen,
     connector::Airwallex,
@@ -501,6 +507,7 @@ impl<const T: u8>
 }
 
 default_imp_for_file_upload!(
+    connector::Gocardless,
     connector::Aci,
     connector::Adyen,
     connector::Airwallex,
@@ -575,6 +582,7 @@ impl<const T: u8>
 }
 
 default_imp_for_submit_evidence!(
+    connector::Gocardless,
     connector::Aci,
     connector::Adyen,
     connector::Airwallex,
@@ -649,6 +657,7 @@ impl<const T: u8>
 }
 
 default_imp_for_defend_dispute!(
+    connector::Gocardless,
     connector::Aci,
     connector::Adyen,
     connector::Airwallex,
@@ -724,6 +733,7 @@ impl<const T: u8>
 }
 
 default_imp_for_pre_processing_steps!(
+    connector::Gocardless,
     connector::Aci,
     connector::Adyen,
     connector::Airwallex,
@@ -781,6 +791,7 @@ macro_rules! default_imp_for_payouts {
 impl<const T: u8> api::Payouts for connector::DummyConnector<T> {}
 
 default_imp_for_payouts!(
+    connector::Gocardless,
     connector::Aci,
     connector::Airwallex,
     connector::Authorizedotnet,
@@ -855,6 +866,7 @@ impl<const T: u8>
 
 #[cfg(feature = "payouts")]
 default_imp_for_payouts_create!(
+    connector::Gocardless,
     connector::Aci,
     connector::Airwallex,
     connector::Authorizedotnet,
@@ -932,6 +944,7 @@ impl<const T: u8>
 
 #[cfg(feature = "payouts")]
 default_imp_for_payouts_eligibility!(
+    connector::Gocardless,
     connector::Aci,
     connector::Airwallex,
     connector::Authorizedotnet,
@@ -1007,6 +1020,7 @@ impl<const T: u8>
 
 #[cfg(feature = "payouts")]
 default_imp_for_payouts_fulfill!(
+    connector::Gocardless,
     connector::Aci,
     connector::Airwallex,
     connector::Authorizedotnet,
@@ -1081,6 +1095,7 @@ impl<const T: u8>
 
 #[cfg(feature = "payouts")]
 default_imp_for_payouts_cancel!(
+    connector::Gocardless,
     connector::Aci,
     connector::Airwallex,
     connector::Authorizedotnet,
@@ -1155,6 +1170,7 @@ impl<const T: u8>
 
 #[cfg(feature = "payouts")]
 default_imp_for_payouts_quote!(
+    connector::Gocardless,
     connector::Aci,
     connector::Adyen,
     connector::Airwallex,
@@ -1231,6 +1247,7 @@ impl<const T: u8>
 
 #[cfg(feature = "payouts")]
 default_imp_for_payouts_recipient!(
+    connector::Gocardless,
     connector::Aci,
     connector::Adyen,
     connector::Airwallex,
@@ -1303,6 +1320,7 @@ impl<const T: u8>
 {
 }
 default_imp_for_approve!(
+    connector::Gocardless,
     connector::Aci,
     connector::Adyen,
     connector::Airwallex,
@@ -1379,6 +1397,7 @@ impl<const T: u8>
 }
 
 default_imp_for_reject!(
+    connector::Gocardless,
     connector::Aci,
     connector::Adyen,
     connector::Airwallex,
@@ -1478,6 +1497,7 @@ default_imp_for_payouts_recipient_account!(
     connector::Forte,
     connector::Globalpay,
     connector::Globepay,
+    connector::Gocardless,
     connector::Helcim,
     connector::Iatapay,
     connector::Klarna,

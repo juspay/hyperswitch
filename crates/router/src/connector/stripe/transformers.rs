@@ -3058,8 +3058,6 @@ pub enum WebhookEventType {
     PaymentIntentFailed,
     #[serde(rename = "payment_intent.succeeded")]
     PaymentIntentSucceed,
-    #[serde(rename = "charge.dispute.captured")]
-    ChargeDisputeCaptured,
     #[serde(rename = "charge.dispute.created")]
     DisputeCreated,
     #[serde(rename = "charge.dispute.closed")]

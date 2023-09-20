@@ -13,11 +13,7 @@
   ],
   "url": {
     "raw": "{{baseUrl}}/health",
-    "host": [
-      "{{baseUrl}}"
-    ],
-    "path": [
-      "health"
-    ]
+    "host": ["{{baseUrl}}"],
+    "path": ["health"]
   }
 }
