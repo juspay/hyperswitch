@@ -1,6 +1,36 @@
 {
   "event": [
-    {}
+    {
+      "listen": "prerequest",
+      "script": {
+        "exec": [
+          ""
+        ],
+        "type": "text/javascript"
+      }
+    },
+    {
+      "listen": "test",
+      "script": {
+        "exec": [
+          "// Set response object as internal variable",
+          "let jsonData = {};",
+          "try {",
+          "  jsonData = pm.response.json();",
+          "} catch (e) {}",
+          "",
+          "// pm.collectionVariables - Set payment_id as variable for jsonData.payment_id",
+          "if (jsonData?.payment_id) {",
+          "  pm.collectionVariables.set(\"payment_id\", jsonData.payment_id);",
+          "  console.log(\"[LOG]::payment_id - \" + jsonData.payment_id);",
+          "}",
+          "",
+          "console.log(\"[LOG]::x-request-id - \" + pm.response.headers.get(\"x-request-id\"));",
+          ""
+        ],
+        "type": "text/javascript"
+      }
+    }
   ],
   "item": [
     {
@@ -7238,15 +7268,22 @@
                               "  );",
                               "}",
                               "",
-                              "// Response body should have value \"connector error\" for \"error type\"",
+                              "// Response body should have value \"cancellation succeeded\" for \"payment status\"",
                               "if (jsonData?.status) {",
                               "  pm.test(",
-                              "    \"[POST]::/payments/:id/cancel - Content check if value for 'jsonData.status' matches 'cancelled'\",",
+                              "    \"[POST]::/payments/:id/cancel - Content check if value for 'jsonData.status' matches 'succeeded'\",",
                               "    function () {",
-                              "      pm.expect(jsonData.status).to.eql(\"cancelled\");",
+                              "      pm.expect(jsonData.status).to.eql(\"succeeded\");",
                               "    },",
                               "  );",
                               "}",
+                              "",
+                              "// Response body should have value \"0\" for \"amount_capturable\"",
+                              "if (jsonData?.amount){",
+                              "  pm.test(\"[post]:://payments/:id/capture - Content check if value for 'amount_capturable' matches 'amount - 0'\", function() {",
+                              "  pm.expect(jsonData.amount_capturable).to.eql(0);",
+                              "  } )",
+                              "} ",
                               ""
                             ],
                             "type": "text/javascript"
