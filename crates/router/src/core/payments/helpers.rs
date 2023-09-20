@@ -104,8 +104,7 @@ pub fn filter_mca_based_on_business_profile(
 }
 
 #[instrument(skip_all)]
-#[allow(clippy::too_many_arguments)]
-pub async fn get_address_for_payment_request(
+pub async fn create_or_find_address_for_payment_by_request(
     db: &dyn StorageInterface,
     req_address: Option<&api::Address>,
     address_id: Option<&str>,
@@ -119,7 +118,7 @@ pub async fn get_address_for_payment_request(
 
     Ok(match address_id {
         Some(id) => Some(
-            db.find_address_merchant_id_payment_id_address_id(
+            db.find_address_by_merchant_id_payment_id_address_id(
                 merchant_id,
                 payment_id,
                 id,
@@ -137,59 +136,16 @@ pub async fn get_address_for_payment_request(
 
                 let address_details = address.address.clone().unwrap_or_default();
                 Some(
-                    db.insert_address_payments(
+                    db.insert_address_for_payments(
                         payment_id,
-                        async {
-                            Ok(domain::Address {
-                                id: None,
-                                phone_number: address
-                                    .phone
-                                    .as_ref()
-                                    .and_then(|a| a.number.clone())
-                                    .async_lift(|inner| types::encrypt_optional(inner, key))
-                                    .await?,
-                                country_code: address
-                                    .phone
-                                    .as_ref()
-                                    .and_then(|a| a.country_code.clone()),
-                                customer_id: customer_id.to_string(),
-                                merchant_id: merchant_id.to_string(),
-                                address_id: generate_id(consts::ID_LENGTH, "add"),
-                                city: address_details.city,
-                                country: address_details.country,
-                                line1: address_details
-                                    .line1
-                                    .async_lift(|inner| types::encrypt_optional(inner, key))
-                                    .await?,
-                                line2: address_details
-                                    .line2
-                                    .async_lift(|inner| types::encrypt_optional(inner, key))
-                                    .await?,
-                                line3: address_details
-                                    .line3
-                                    .async_lift(|inner| types::encrypt_optional(inner, key))
-                                    .await?,
-                                state: address_details
-                                    .state
-                                    .async_lift(|inner| types::encrypt_optional(inner, key))
-                                    .await?,
-                                created_at: common_utils::date_time::now(),
-                                first_name: address_details
-                                    .first_name
-                                    .async_lift(|inner| types::encrypt_optional(inner, key))
-                                    .await?,
-                                last_name: address_details
-                                    .last_name
-                                    .async_lift(|inner| types::encrypt_optional(inner, key))
-                                    .await?,
-                                modified_at: common_utils::date_time::now(),
-                                zip: address_details
-                                    .zip
-                                    .async_lift(|inner| types::encrypt_optional(inner, key))
-                                    .await?,
-                                payment_id: Some(payment_id.to_owned()),
-                            })
-                        }
+                        get_domain_address_for_payments(
+                            address_details,
+                            address,
+                            merchant_id,
+                            customer_id,
+                            payment_id,
+                            key,
+                        )
                         .await
                         .change_context(errors::ApiErrorResponse::InternalServerError)
                         .attach_printable("Failed while encrypting address while insert")?,
@@ -206,6 +162,65 @@ pub async fn get_address_for_payment_request(
     })
 }
 
+pub async fn get_domain_address_for_payments(
+    address_details: api_models::payments::AddressDetails,
+    address: &api_models::payments::Address,
+    merchant_id: &str,
+    customer_id: &str,
+    payment_id: &str,
+    key: &[u8],
+) -> CustomResult<domain::Address, common_utils::errors::CryptoError> {
+    async {
+        Ok(domain::Address {
+            id: None,
+            phone_number: address
+                .phone
+                .as_ref()
+                .and_then(|a| a.number.clone())
+                .async_lift(|inner| types::encrypt_optional(inner, key))
+                .await?,
+            country_code: address.phone.as_ref().and_then(|a| a.country_code.clone()),
+            customer_id: customer_id.to_string(),
+            merchant_id: merchant_id.to_string(),
+            address_id: generate_id(consts::ID_LENGTH, "add"),
+            city: address_details.city,
+            country: address_details.country,
+            line1: address_details
+                .line1
+                .async_lift(|inner| types::encrypt_optional(inner, key))
+                .await?,
+            line2: address_details
+                .line2
+                .async_lift(|inner| types::encrypt_optional(inner, key))
+                .await?,
+            line3: address_details
+                .line3
+                .async_lift(|inner| types::encrypt_optional(inner, key))
+                .await?,
+            state: address_details
+                .state
+                .async_lift(|inner| types::encrypt_optional(inner, key))
+                .await?,
+            created_at: common_utils::date_time::now(),
+            first_name: address_details
+                .first_name
+                .async_lift(|inner| types::encrypt_optional(inner, key))
+                .await?,
+            last_name: address_details
+                .last_name
+                .async_lift(|inner| types::encrypt_optional(inner, key))
+                .await?,
+            modified_at: common_utils::date_time::now(),
+            zip: address_details
+                .zip
+                .async_lift(|inner| types::encrypt_optional(inner, key))
+                .await?,
+            payment_id: Some(payment_id.to_owned()),
+        })
+    }
+    .await
+}
+
 pub async fn get_address_by_id(
     db: &dyn StorageInterface,
     address_id: Option<String>,
@@ -217,7 +232,7 @@ pub async fn get_address_by_id(
     match address_id {
         None => Ok(None),
         Some(address_id) => Ok(db
-            .find_address_merchant_id_payment_id_address_id(
+            .find_address_by_merchant_id_payment_id_address_id(
                 &merchant_id,
                 &payment_id,
                 &address_id,
@@ -1406,16 +1421,30 @@ pub(crate) fn validate_capture_method(
 }
 
 #[instrument(skip_all)]
-pub(crate) fn validate_status(status: storage_enums::IntentStatus) -> RouterResult<()> {
+pub(crate) fn validate_status_with_capture_method(
+    status: storage_enums::IntentStatus,
+    capture_method: storage_enums::CaptureMethod,
+) -> RouterResult<()> {
+    if status == storage_enums::IntentStatus::Processing
+        && !(capture_method == storage_enums::CaptureMethod::ManualMultiple)
+    {
+        return Err(report!(errors::ApiErrorResponse::PaymentUnexpectedState {
+            field_name: "capture_method".to_string(),
+            current_flow: "captured".to_string(),
+            current_value: capture_method.to_string(),
+            states: "manual_multiple".to_string()
+        }));
+    }
     utils::when(
         status != storage_enums::IntentStatus::RequiresCapture
-            && status != storage_enums::IntentStatus::PartiallyCaptured,
+            && status != storage_enums::IntentStatus::PartiallyCaptured
+            && status != storage_enums::IntentStatus::Processing,
         || {
             Err(report!(errors::ApiErrorResponse::PaymentUnexpectedState {
                 field_name: "payment.status".to_string(),
                 current_flow: "captured".to_string(),
                 current_value: status.to_string(),
-                states: "requires_capture, partially captured".to_string()
+                states: "requires_capture, partially_captured, processing".to_string()
             }))
         },
     )
@@ -1807,7 +1836,7 @@ pub fn make_merchant_url_with_response(
 }
 
 pub async fn make_ephemeral_key(
-    state: &AppState,
+    state: AppState,
     customer_id: String,
     merchant_id: String,
 ) -> errors::RouterResponse<ephemeral_key::EphemeralKey> {
@@ -1829,10 +1858,11 @@ pub async fn make_ephemeral_key(
 }
 
 pub async fn delete_ephemeral_key(
-    store: &dyn StorageInterface,
+    state: AppState,
     ek_id: String,
 ) -> errors::RouterResponse<ephemeral_key::EphemeralKey> {
-    let ek = store
+    let db = state.store.as_ref();
+    let ek = db
         .delete_ephemeral_key(&ek_id)
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)

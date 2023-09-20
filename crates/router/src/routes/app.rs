@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use actix_web::{web, Scope};
 #[cfg(feature = "email")]
 use external_services::email::{AwsSes, EmailClient};
@@ -31,11 +33,11 @@ use crate::{
 pub struct AppState {
     pub flow_name: String,
     pub store: Box<dyn StorageInterface>,
-    pub conf: settings::Settings,
+    pub conf: Arc<settings::Settings>,
     #[cfg(feature = "email")]
-    pub email_client: Box<dyn EmailClient>,
+    pub email_client: Arc<dyn EmailClient>,
     #[cfg(feature = "kms")]
-    pub kms_secrets: settings::ActiveKmsSecrets,
+    pub kms_secrets: Arc<settings::ActiveKmsSecrets>,
     pub api_client: Box<dyn crate::services::ApiClient>,
 }
 
@@ -47,25 +49,39 @@ impl scheduler::SchedulerAppState for AppState {
 
 pub trait AppStateInfo {
     fn conf(&self) -> settings::Settings;
-    fn flow_name(&self) -> String;
     fn store(&self) -> Box<dyn StorageInterface>;
     #[cfg(feature = "email")]
-    fn email_client(&self) -> Box<dyn EmailClient>;
+    fn email_client(&self) -> Arc<dyn EmailClient>;
+    fn add_request_id(&mut self, request_id: Option<String>);
+    fn add_merchant_id(&mut self, merchant_id: Option<String>);
+    fn add_flow_name(&mut self, flow_name: String);
 }
 
 impl AppStateInfo for AppState {
     fn conf(&self) -> settings::Settings {
-        self.conf.to_owned()
-    }
-    fn flow_name(&self) -> String {
-        self.flow_name.to_owned()
+        self.conf.as_ref().to_owned()
     }
     fn store(&self) -> Box<dyn StorageInterface> {
         self.store.to_owned()
     }
     #[cfg(feature = "email")]
-    fn email_client(&self) -> Box<dyn EmailClient> {
+    fn email_client(&self) -> Arc<dyn EmailClient> {
         self.email_client.to_owned()
+    }
+    fn add_request_id(&mut self, request_id: Option<String>) {
+        self.api_client.add_request_id(request_id);
+    }
+    fn add_merchant_id(&mut self, merchant_id: Option<String>) {
+        self.api_client.add_merchant_id(merchant_id);
+    }
+    fn add_flow_name(&mut self, flow_name: String) {
+        self.flow_name = flow_name;
+    }
+}
+
+impl AsRef<Self> for AppState {
+    fn as_ref(&self) -> &Self {
+        self
     }
 }
 
@@ -107,15 +123,15 @@ impl AppState {
         .expect("Failed while performing KMS decryption");
 
         #[cfg(feature = "email")]
-        let email_client = Box::new(AwsSes::new(&conf.email).await);
+        let email_client = Arc::new(AwsSes::new(&conf.email).await);
         Self {
             flow_name: String::from("default"),
             store,
-            conf,
+            conf: Arc::new(conf),
             #[cfg(feature = "email")]
             email_client,
             #[cfg(feature = "kms")]
-            kms_secrets,
+            kms_secrets: Arc::new(kms_secrets),
             api_client,
         }
     }
@@ -586,7 +602,7 @@ impl Verify {
         web::scope("/verify")
             .app_data(web::Data::new(state))
             .service(
-                web::resource("/{merchant_id}/apple_pay")
+                web::resource("/apple_pay/{merchant_id}")
                     .route(web::post().to(apple_pay_merchant_registration)),
             )
             .service(

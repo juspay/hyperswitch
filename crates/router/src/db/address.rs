@@ -28,7 +28,7 @@ where
         key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<domain::Address, errors::StorageError>;
 
-    async fn insert_address_payments(
+    async fn insert_address_for_payments(
         &self,
         payment_id: &str,
         address: domain::Address,
@@ -36,13 +36,13 @@ where
         storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<domain::Address, errors::StorageError>;
 
-    async fn insert_address_customers(
+    async fn insert_address_for_customers(
         &self,
         address: domain::Address,
         key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<domain::Address, errors::StorageError>;
 
-    async fn find_address_merchant_id_payment_id_address_id(
+    async fn find_address_by_merchant_id_payment_id_address_id(
         &self,
         merchant_id: &str,
         payment_id: &str,
@@ -82,7 +82,7 @@ mod storage {
     };
     #[async_trait::async_trait]
     impl AddressInterface for Store {
-        async fn find_address_merchant_id_payment_id_address_id(
+        async fn find_address_by_merchant_id_payment_id_address_id(
             &self,
             merchant_id: &str,
             payment_id: &str,
@@ -130,7 +130,7 @@ mod storage {
                 .await
         }
 
-        async fn insert_address_payments(
+        async fn insert_address_for_payments(
             &self,
             _payment_id: &str,
             address: domain::Address,
@@ -155,7 +155,7 @@ mod storage {
                 .await
         }
 
-        async fn insert_address_customers(
+        async fn insert_address_for_customers(
             &self,
             address: domain::Address,
             key_store: &domain::MerchantKeyStore,
@@ -237,7 +237,7 @@ mod storage {
     };
     #[async_trait::async_trait]
     impl AddressInterface for Store {
-        async fn find_address_merchant_id_payment_id_address_id(
+        async fn find_address_by_merchant_id_payment_id_address_id(
             &self,
             merchant_id: &str,
             payment_id: &str,
@@ -298,7 +298,7 @@ mod storage {
                 .await
         }
 
-        async fn insert_address_payments(
+        async fn insert_address_for_payments(
             &self,
             payment_id: &str,
             address: domain::Address,
@@ -388,7 +388,7 @@ mod storage {
             }
         }
 
-        async fn insert_address_customers(
+        async fn insert_address_for_customers(
             &self,
             address: domain::Address,
             key_store: &domain::MerchantKeyStore,
@@ -447,7 +447,7 @@ mod storage {
 
 #[async_trait::async_trait]
 impl AddressInterface for MockDb {
-    async fn find_address_merchant_id_payment_id_address_id(
+    async fn find_address_by_merchant_id_payment_id_address_id(
         &self,
         _merchant_id: &str,
         _payment_id: &str,
@@ -505,7 +505,7 @@ impl AddressInterface for MockDb {
         }
     }
 
-    async fn insert_address_payments(
+    async fn insert_address_for_payments(
         &self,
         _payment_id: &str,
         address_new: domain::Address,
@@ -526,7 +526,7 @@ impl AddressInterface for MockDb {
             .change_context(errors::StorageError::DecryptionError)
     }
 
-    async fn insert_address_customers(
+    async fn insert_address_for_customers(
         &self,
         address_new: domain::Address,
         key_store: &domain::MerchantKeyStore,

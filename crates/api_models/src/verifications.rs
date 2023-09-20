@@ -1,6 +1,6 @@
 /// The request body for verification of merchant (everything except domain_names are prefilled)
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-#[serde(rename_all = "snake_case")]
+#[serde(rename_all = "camelCase")]
 pub struct ApplepayMerchantVerificationConfigs {
     pub domain_names: Vec<String>,
     pub encrypt_to: String,

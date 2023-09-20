@@ -237,7 +237,7 @@ where
 
 #[allow(clippy::too_many_arguments)]
 pub async fn payments_core<F, Res, Req, Op, FData>(
-    state: &AppState,
+    state: AppState,
     merchant_account: domain::MerchantAccount,
     key_store: domain::MerchantKeyStore,
     operation: Op,
@@ -264,7 +264,7 @@ where
     PaymentResponse: Operation<F, FData>,
 {
     let (payment_data, req, customer, connector_http_status_code) = payments_operation_core(
-        state,
+        &state,
         merchant_account,
         key_store,
         operation.clone(),
@@ -326,7 +326,7 @@ pub trait PaymentRedirectFlow: Sync {
     #[allow(clippy::too_many_arguments)]
     async fn handle_payments_redirect_response(
         &self,
-        state: &AppState,
+        state: AppState,
         merchant_account: domain::MerchantAccount,
         key_store: domain::MerchantKeyStore,
         req: PaymentsRedirectResponseData,
@@ -372,7 +372,7 @@ pub trait PaymentRedirectFlow: Sync {
 
         let response = self
             .call_payment_flow(
-                state,
+                &state,
                 merchant_account.clone(),
                 key_store,
                 req.clone(),
@@ -420,7 +420,7 @@ impl PaymentRedirectFlow for PaymentRedirectCompleteAuthorize {
             ..Default::default()
         };
         payments_core::<api::CompleteAuthorize, api::PaymentsResponse, _, _, _>(
-            state,
+            state.clone(),
             merchant_account,
             merchant_key_store,
             payment_complete_authorize::CompleteAuthorize,
@@ -515,7 +515,7 @@ impl PaymentRedirectFlow for PaymentRedirectSync {
             expand_captures: None,
         };
         payments_core::<api::PSync, api::PaymentsResponse, _, _, _>(
-            state,
+            state.clone(),
             merchant_account,
             merchant_key_store,
             PaymentStatus,
@@ -594,15 +594,6 @@ where
     )
     .await?;
 
-    let updated_customer = call_create_connector_customer_if_required(
-        state,
-        customer,
-        merchant_account,
-        key_store,
-        payment_data,
-    )
-    .await?;
-
     let (pd, tokenization_action) = get_connector_tokenization_action_when_confirm_true(
         state,
         operation,
@@ -611,7 +602,17 @@ where
         &merchant_connector_account,
     )
     .await?;
+
     *payment_data = pd;
+
+    let updated_customer = call_create_connector_customer_if_required(
+        state,
+        customer,
+        merchant_account,
+        key_store,
+        payment_data,
+    )
+    .await?;
 
     let mut router_data = payment_data
         .construct_router_data(
@@ -1029,6 +1030,16 @@ where
                 (router_data, should_continue_payment)
             }
         }
+        Some(api_models::payments::PaymentMethodData::BankDebit(_)) => {
+            if connector.connector_name == router_types::Connector::Gocardless {
+                router_data = router_data.preprocessing_steps(state, connector).await?;
+                let is_error_in_response = router_data.response.is_err();
+                // If is_error_in_response is true, should_continue_payment should be false, we should throw the error
+                (router_data, !is_error_in_response)
+            } else {
+                (router_data, should_continue_payment)
+            }
+        }
         _ => (router_data, should_continue_payment),
     };
 
@@ -1346,7 +1357,7 @@ where
     Ok(payment_data.to_owned())
 }
 
-#[derive(Clone)]
+#[derive(Clone, PartialEq)]
 pub enum CallConnectorAction {
     Trigger,
     Avoid,
@@ -1487,7 +1498,13 @@ pub fn should_call_connector<Op: Debug, F: Clone>(
                 payment_data.payment_intent.status,
                 storage_enums::IntentStatus::RequiresCapture
                     | storage_enums::IntentStatus::PartiallyCaptured
-            )
+            ) || (matches!(
+                payment_data.payment_intent.status,
+                storage_enums::IntentStatus::Processing
+            ) && matches!(
+                payment_data.payment_attempt.capture_method,
+                Some(storage_enums::CaptureMethod::ManualMultiple)
+            ))
         }
         "CompleteAuthorize" => true,
         "PaymentApprove" => true,
@@ -1502,14 +1519,14 @@ pub fn is_operation_confirm<Op: Debug>(operation: &Op) -> bool {
 
 #[cfg(feature = "olap")]
 pub async fn list_payments(
-    db: &dyn StorageInterface,
+    state: AppState,
     merchant: domain::MerchantAccount,
     constraints: api::PaymentListConstraints,
 ) -> RouterResponse<api::PaymentListResponse> {
     use data_models::errors::StorageError;
-
     helpers::validate_payment_list_request(&constraints)?;
     let merchant_id = &merchant.merchant_id;
+    let db = state.store.as_ref();
     let payment_intents =
         helpers::filter_by_constraints(db, &constraints, merchant_id, merchant.storage_scheme)
             .await
@@ -1568,13 +1585,13 @@ pub async fn list_payments(
 }
 #[cfg(feature = "olap")]
 pub async fn apply_filters_on_payments(
-    db: &dyn StorageInterface,
+    state: AppState,
     merchant: domain::MerchantAccount,
     constraints: api::PaymentListFilterConstraints,
 ) -> RouterResponse<api::PaymentListResponseV2> {
     let limit = &constraints.limit;
-
     helpers::validate_payment_list_request_for_joins(*limit)?;
+    let db = state.store.as_ref();
     let list: Vec<(storage::PaymentIntent, storage::PaymentAttempt)> = db
         .get_filtered_payment_intents_attempt(
             &merchant.merchant_id,
@@ -1621,10 +1638,11 @@ pub async fn apply_filters_on_payments(
 
 #[cfg(feature = "olap")]
 pub async fn get_filters_for_payments(
-    db: &dyn StorageInterface,
+    state: AppState,
     merchant: domain::MerchantAccount,
     time_range: api::TimeRange,
 ) -> RouterResponse<api::PaymentListFilters> {
+    let db = state.store.as_ref();
     let pi = db
         .filter_payment_intents_by_time_range_constraints(
             &merchant.merchant_id,
