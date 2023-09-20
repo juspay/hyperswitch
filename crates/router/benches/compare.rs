@@ -1,4 +1,4 @@
-use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion};
+use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion, SamplingMode};
 // use fp_rs::functor::Functor;
 use criterion::async_executor::FuturesExecutor;
 use router::services::{encrypt, decrypt, encrypt_jwe, decrypt_jwe, jws_sign_payload, verify_sign};
@@ -130,6 +130,7 @@ VuY3OeNxi+dC2r7HppP3O/MJ4gX/RJJfSrcaGP8/Ke1W5+jE97Qy
 
 pub fn add_one(c: &mut Criterion) {
     let mut group = c.benchmark_group("Add_one");
+    group.sampling_mode(SamplingMode::Flat);
     let input = Some(1);
 
 
