@@ -316,7 +316,10 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                     let status =
                         // mark previous attempt status for technical failures in PSync flow
                         if flow_name == "PSync" {
-                            payment_data.payment_attempt.status
+                            match err.status_code {
+                                200..=299 => storage::enums::AttemptStatus::Failure,
+                                _ => payment_data.payment_attempt.status,
+                            }
                         } else {
                             match err.status_code {
                                 500..=511 => storage::enums::AttemptStatus::Pending,
