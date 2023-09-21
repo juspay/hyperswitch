@@ -1286,10 +1286,7 @@ impl api::IncomingWebhook for Braintree {
             .split('&')
             .collect::<Vec<&str>>()
             .into_iter()
-            .map(|pair| match pair.split_once('|') {
-                Some(key_signature) => key_signature,
-                None => ("", ""),
-            })
+            .map(|pair| pair.split_once('|').unwrap_or(("", "")))
             .collect::<Vec<(_, _)>>();
 
         let merchant_secret = connector_webhook_secrets
