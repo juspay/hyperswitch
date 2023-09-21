@@ -12,6 +12,7 @@ use crate::{
         errors::{self, RouterResult, StorageErrorExt},
         mandate,
         payments::{types::MultipleCaptureData, PaymentData},
+        utils as core_utils,
     },
     db::StorageInterface,
     routes::metrics,
@@ -311,10 +312,17 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                     (Some((multiple_capture_data, capture_update_list)), None)
                 }
                 None => {
-                    let status = match err.status_code {
-                        500..=511 => storage::enums::AttemptStatus::Pending,
-                        _ => storage::enums::AttemptStatus::Failure,
-                    };
+                    let flow_name = core_utils::get_flow_name::<F>()?;
+                    let status =
+                        // mark previous attempt status for techincal failures in PSync flow
+                        if flow_name == "PSync" {
+                            payment_data.payment_attempt.status
+                        } else {
+                            match err.status_code {
+                                500..=511 => storage::enums::AttemptStatus::Pending,
+                                _ => storage::enums::AttemptStatus::Failure,
+                            }
+                        };
                     (
                         None,
                         Some(storage::PaymentAttemptUpdate::ErrorUpdate {
