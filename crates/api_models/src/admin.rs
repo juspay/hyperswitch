@@ -35,10 +35,6 @@ pub struct MerchantAccountCreate {
     /// Webhook related details
     pub webhook_details: Option<WebhookDetails>,
 
-    /// The routing algorithm to be used for routing payments to desired connectors
-    #[schema(value_type = Option<Object>,example = json!({"type": "single", "data": "stripe"}))]
-    pub routing_algorithm: Option<serde_json::Value>,
-
     /// The routing algorithm to be  used for routing payouts to desired connectors
     #[cfg(feature = "payouts")]
     #[schema(value_type = Option<RoutingAlgorithm>,example = json!({"type": "single", "data": "wise"}))]
@@ -992,10 +988,6 @@ pub struct BusinessProfileCreate {
     #[schema(value_type = Option<Object>, example = r#"{ "city": "NY", "unit": "245" }"#)]
     pub metadata: Option<pii::SecretSerdeValue>,
 
-    /// The routing algorithm to be used for routing payments to desired connectors
-    #[schema(value_type = Option<Object>,example = json!({"type": "single", "data": "stripe"}))]
-    pub routing_algorithm: Option<serde_json::Value>,
-
     ///Will be used to expire client secret after certain amount of time to be supplied in seconds
     ///(900) for 15 mins
     #[schema(example = 900)]
@@ -1112,10 +1104,6 @@ pub struct BusinessProfileUpdate {
     /// You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Metadata is useful for storing additional, structured information on an object.
     #[schema(value_type = Option<Object>, example = r#"{ "city": "NY", "unit": "245" }"#)]
     pub metadata: Option<pii::SecretSerdeValue>,
-
-    /// The routing algorithm to be used for routing payments to desired connectors
-    #[schema(value_type = Option<Object>,example = json!({"type": "single", "data": "stripe"}))]
-    pub routing_algorithm: Option<serde_json::Value>,
 
     ///Will be used to expire client secret after certain amount of time to be supplied in seconds
     ///(900) for 15 mins

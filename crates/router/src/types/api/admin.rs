@@ -123,9 +123,7 @@ impl ForeignTryFrom<(domain::MerchantAccount, BusinessProfileCreate)>
                 .unwrap_or(merchant_account.redirect_to_merchant_with_http_post),
             webhook_details: webhook_details.or(merchant_account.webhook_details),
             metadata: request.metadata,
-            routing_algorithm: request
-                .routing_algorithm
-                .or(merchant_account.routing_algorithm),
+            routing_algorithm: Some(serde_json::json!({"timestamp":0})),
             intent_fulfillment_time: request
                 .intent_fulfillment_time
                 .map(i64::from)
