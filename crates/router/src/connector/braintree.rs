@@ -1299,7 +1299,7 @@ impl api::IncomingWebhook for Braintree {
             .ok_or(errors::ConnectorError::WebhookVerificationSecretNotFound)?;
 
         let signature = get_matching_webhook_signature(signature_pairs, merchant_secret.expose())
-            .ok_or(errors::ConnectorError::WebhookSourceVerificationFailed)?;
+ .ok_or(errors::ConnectorError::WebhookSignatureNotFound)?;
         Ok(signature.as_bytes().to_vec())
     }
 
