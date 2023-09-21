@@ -104,6 +104,7 @@ pub fn filter_mca_based_on_business_profile(
 }
 
 #[instrument(skip_all)]
+#[allow(clippy::too_many_arguments)]
 pub async fn create_or_find_address_for_payment_by_request(
     db: &dyn StorageInterface,
     req_address: Option<&api::Address>,
@@ -112,6 +113,7 @@ pub async fn create_or_find_address_for_payment_by_request(
     customer_id: Option<&String>,
     merchant_key_store: &domain::MerchantKeyStore,
     payment_id: &str,
+    storage_scheme: storage_enums::MerchantStorageScheme,
 ) -> CustomResult<Option<domain::Address>, errors::ApiErrorResponse> {
     let key = merchant_key_store.key.get_inner().peek();
 
@@ -122,6 +124,7 @@ pub async fn create_or_find_address_for_payment_by_request(
                 payment_id,
                 id,
                 merchant_key_store,
+                storage_scheme,
             )
             .await,
         )
@@ -148,6 +151,7 @@ pub async fn create_or_find_address_for_payment_by_request(
                         .change_context(errors::ApiErrorResponse::InternalServerError)
                         .attach_printable("Failed while encrypting address while insert")?,
                         merchant_key_store,
+                        storage_scheme,
                     )
                     .await
                     .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -224,6 +228,7 @@ pub async fn get_address_by_id(
     merchant_key_store: &domain::MerchantKeyStore,
     payment_id: String,
     merchant_id: String,
+    storage_scheme: storage_enums::MerchantStorageScheme,
 ) -> CustomResult<Option<domain::Address>, errors::ApiErrorResponse> {
     match address_id {
         None => Ok(None),
@@ -233,6 +238,7 @@ pub async fn get_address_by_id(
                 &payment_id,
                 &address_id,
                 merchant_key_store,
+                storage_scheme,
             )
             .await
             .ok()),
