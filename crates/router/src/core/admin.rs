@@ -5,7 +5,6 @@ use common_utils::{
     ext_traits::{AsyncExt, ConfigExt, Encode, ValueExt},
 };
 use data_models::MerchantStorageScheme;
-
 use error_stack::{report, FutureExt, ResultExt};
 use masking::{PeekInterface, Secret};
 use uuid::Uuid;
