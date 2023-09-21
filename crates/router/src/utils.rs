@@ -580,12 +580,12 @@ pub fn add_apple_pay_flow_metrics(
 }
 
 pub fn add_apple_pay_payment_status_metrics(
-    payment_attemp_status: enums::AttemptStatus,
+    payment_attempt_status: enums::AttemptStatus,
     apple_pay_flow: Option<enums::ApplePayFlow>,
     connector: Option<String>,
     merchant_id: String,
 ) {
-    if payment_attemp_status == enums::AttemptStatus::Charged {
+    if payment_attempt_status == enums::AttemptStatus::Charged {
         if let Some(flow) = apple_pay_flow {
             match flow {
                 enums::ApplePayFlow::Simplified => {
@@ -615,7 +615,7 @@ pub fn add_apple_pay_payment_status_metrics(
                     ),
             }
         }
-    } else if payment_attemp_status == enums::AttemptStatus::Failure {
+    } else if payment_attempt_status == enums::AttemptStatus::Failure {
         if let Some(flow) = apple_pay_flow {
             match flow {
                 enums::ApplePayFlow::Simplified => {
