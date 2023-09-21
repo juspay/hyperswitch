@@ -314,6 +314,12 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
         self.build_error_response(res)
     }
+
+    fn get_multiple_capture_sync_method(
+        &self,
+    ) -> CustomResult<services::CaptureSyncMethod, errors::ConnectorError> {
+        Ok(services::CaptureSyncMethod::Individual)
+    }
 }
 
 impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::PaymentsResponseData>

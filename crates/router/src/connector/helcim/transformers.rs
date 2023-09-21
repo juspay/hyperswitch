@@ -3,7 +3,7 @@ use masking::Secret;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    connector::utils::CardData,
+    connector::utils::{self, CardData},
     core::errors,
     types::{self, api, storage::enums},
 };
@@ -128,6 +128,7 @@ impl From<HelcimPaymentsResponse> for enums::AttemptStatus {
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct HelcimPaymentsResponse {
+    amount: i64,
     status: HelcimPaymentStatus,
     transaction_id: u64,
     #[serde(rename = "type")]
@@ -170,6 +171,27 @@ impl<F>
     }
 }
 
+impl utils::MultipleCaptureSyncResponse for HelcimPaymentsResponse {
+    fn get_connector_capture_id(&self) -> String {
+        self.transaction_id.to_string()
+    }
+
+    fn get_capture_attempt_status(&self) -> diesel_models::enums::AttemptStatus {
+        enums::AttemptStatus::from(self.to_owned())
+    }
+
+    fn is_capture_response(&self) -> bool {
+        true
+    }
+
+    fn get_amount_captured(&self) -> Option<i64> {
+        Some(self.amount)
+    }
+    fn get_connector_reference_id(&self) -> Option<String> {
+        None
+    }
+}
+
 impl<F>
     TryFrom<
         types::ResponseRouterData<
@@ -189,20 +211,32 @@ impl<F>
             types::PaymentsResponseData,
         >,
     ) -> Result<Self, Self::Error> {
-        Ok(Self {
-            response: Ok(types::PaymentsResponseData::TransactionResponse {
-                resource_id: types::ResponseId::ConnectorTransactionId(
-                    item.response.transaction_id.to_string(),
-                ),
-                redirection_data: None,
-                mandate_reference: None,
-                connector_metadata: None,
-                network_txn_id: None,
-                connector_response_reference_id: None,
+        match item.data.request.sync_type {
+            types::SyncRequestType::SinglePaymentSync => Ok(Self {
+                response: Ok(types::PaymentsResponseData::TransactionResponse {
+                    resource_id: types::ResponseId::ConnectorTransactionId(
+                        item.response.transaction_id.to_string(),
+                    ),
+                    redirection_data: None,
+                    mandate_reference: None,
+                    connector_metadata: None,
+                    network_txn_id: None,
+                    connector_response_reference_id: None,
+                }),
+                status: enums::AttemptStatus::from(item.response),
+                ..item.data
             }),
-            status: enums::AttemptStatus::from(item.response),
-            ..item.data
-        })
+            types::SyncRequestType::MultipleCaptureSync(_) => {
+                let capture_sync_response_list =
+                    utils::construct_captures_response_hashmap(vec![item.response]);
+                Ok(Self {
+                    response: Ok(types::PaymentsResponseData::MultipleCaptureResponse {
+                        capture_sync_response_list,
+                    }),
+                    ..item.data
+                })
+            }
+        }
     }
 }
 
