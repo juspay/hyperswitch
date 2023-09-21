@@ -2626,6 +2626,12 @@
                     "type": "string",
                     "description": "Bank-State-Branch (bsb) number",
                     "example": "000000"
+                  },
+                  "bank_account_holder_name": {
+                    "type": "string",
+                    "description": "Owner name for bank debit",
+                    "example": "A. Schneider",
+                    "nullable": true
                   }
                 }
               }
@@ -3848,6 +3854,7 @@
           "forte",
           "globalpay",
           "globepay",
+          "gocardless",
           "iatapay",
           "klarna",
           "mollie",
@@ -5537,9 +5544,14 @@
           "merchant_name"
         ],
         "properties": {
+          "merchant_id": {
+            "type": "string",
+            "description": "The merchant Identifier that needs to be passed while invoking Gpay SDK",
+            "nullable": true
+          },
           "merchant_name": {
             "type": "string",
-            "description": "The name of the merchant"
+            "description": "The name of the merchant that needs to be displayed on Gpay PopUp"
           }
         }
       },

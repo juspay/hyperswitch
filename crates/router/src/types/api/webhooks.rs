@@ -9,10 +9,14 @@ use masking::ExposeInterface;
 
 use super::ConnectorCommon;
 use crate::{
-    core::errors::{self, CustomResult},
+    core::{
+        errors::{self, CustomResult},
+        payments,
+        webhooks::utils::construct_webhook_router_data,
+    },
     db::StorageInterface,
-    services,
-    types::domain,
+    services::{self},
+    types::{self, domain},
     utils::crypto,
 };
 
@@ -140,12 +144,71 @@ pub trait IncomingWebhook: ConnectorCommon + Sync {
         Ok(Vec::new())
     }
 
+    async fn verify_webhook_source_verification_call(
+        &self,
+        state: &crate::routes::AppState,
+        merchant_account: &domain::MerchantAccount,
+        merchant_connector_account: domain::MerchantConnectorAccount,
+        connector_name: &str,
+        request_details: &IncomingWebhookRequestDetails<'_>,
+    ) -> CustomResult<bool, errors::ConnectorError> {
+        let connector_data = types::api::ConnectorData::get_connector_by_name(
+            &state.conf.connectors,
+            connector_name,
+            types::api::GetToken::Connector,
+        )
+        .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)
+        .attach_printable("invalid connector name received in payment attempt")?;
+        let connector_integration: services::BoxedConnectorIntegration<
+            '_,
+            types::api::VerifyWebhookSource,
+            types::VerifyWebhookSourceRequestData,
+            types::VerifyWebhookSourceResponseData,
+        > = connector_data.connector.get_connector_integration();
+        let connector_webhook_secrets = self
+            .get_webhook_source_verification_merchant_secret(
+                merchant_account,
+                connector_name,
+                merchant_connector_account.clone(),
+            )
+            .await
+            .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
+
+        let router_data = construct_webhook_router_data(
+            connector_name,
+            merchant_connector_account,
+            merchant_account,
+            &connector_webhook_secrets,
+            request_details,
+        )
+        .await
+        .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)
+        .attach_printable("Failed while constructing webhook router data")?;
+
+        let response = services::execute_connector_processing_step(
+            state,
+            connector_integration,
+            &router_data,
+            payments::CallConnectorAction::Trigger,
+            None,
+        )
+        .await?;
+
+        let verification_result = response
+            .response
+            .map(|response| response.verify_webhook_status);
+        match verification_result {
+            Ok(types::VerifyWebhookStatus::SourceVerified) => Ok(true),
+            _ => Ok(false),
+        }
+    }
+
     async fn verify_webhook_source(
         &self,
         request: &IncomingWebhookRequestDetails<'_>,
         merchant_account: &domain::MerchantAccount,
         merchant_connector_account: domain::MerchantConnectorAccount,
-        connector_label: &str,
+        connector_name: &str,
     ) -> CustomResult<bool, errors::ConnectorError> {
         let algorithm = self
             .get_webhook_source_verification_algorithm(request)
@@ -154,7 +217,7 @@ pub trait IncomingWebhook: ConnectorCommon + Sync {
         let connector_webhook_secrets = self
             .get_webhook_source_verification_merchant_secret(
                 merchant_account,
-                connector_label,
+                connector_name,
                 merchant_connector_account,
             )
             .await

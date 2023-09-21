@@ -18,6 +18,7 @@ pub struct CustomerNew {
     pub connector_customer: Option<serde_json::Value>,
     pub created_at: PrimitiveDateTime,
     pub modified_at: PrimitiveDateTime,
+    pub address_id: Option<String>,
 }
 
 #[derive(Clone, Debug, Identifiable, Queryable)]
@@ -35,6 +36,7 @@ pub struct Customer {
     pub metadata: Option<pii::SecretSerdeValue>,
     pub connector_customer: Option<serde_json::Value>,
     pub modified_at: PrimitiveDateTime,
+    pub address_id: Option<String>,
 }
 
 #[derive(Clone, Debug, Default, AsChangeset, router_derive::DebugAsDisplay)]
@@ -48,4 +50,5 @@ pub struct CustomerUpdateInternal {
     pub metadata: Option<pii::SecretSerdeValue>,
     pub modified_at: Option<PrimitiveDateTime>,
     pub connector_customer: Option<serde_json::Value>,
+    pub address_id: Option<String>,
 }

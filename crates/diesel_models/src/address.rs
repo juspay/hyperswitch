@@ -20,14 +20,15 @@ pub struct AddressNew {
     pub country_code: Option<String>,
     pub customer_id: String,
     pub merchant_id: String,
+    pub payment_id: Option<String>,
     pub created_at: PrimitiveDateTime,
     pub modified_at: PrimitiveDateTime,
 }
 
-#[derive(Clone, Debug, Identifiable, Queryable)]
-#[diesel(table_name = address)]
+#[derive(Clone, Debug, Queryable, Identifiable)]
+#[diesel(table_name = address, primary_key(address_id))]
 pub struct Address {
-    pub id: i32,
+    pub id: Option<i32>,
     pub address_id: String,
     pub city: Option<String>,
     pub country: Option<enums::CountryAlpha2>,
@@ -44,6 +45,7 @@ pub struct Address {
     pub modified_at: PrimitiveDateTime,
     pub customer_id: String,
     pub merchant_id: String,
+    pub payment_id: Option<String>,
 }
 
 #[derive(Clone, Debug, AsChangeset, router_derive::DebugAsDisplay)]
