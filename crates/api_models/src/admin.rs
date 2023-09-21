@@ -121,10 +121,6 @@ pub struct MerchantAccountUpdate {
     /// Webhook related details
     pub webhook_details: Option<WebhookDetails>,
 
-    /// The routing algorithm to be used for routing payments to desired connectors
-    #[schema(value_type = Option<Object>,example = json!({"type": "single", "data": "stripe"}))]
-    pub routing_algorithm: Option<serde_json::Value>,
-
     /// The routing algorithm to be used for routing payouts to desired connectors
     #[cfg(feature = "payouts")]
     #[schema(value_type = Option<RoutingAlgorithm>,example = json!({"type": "single", "data": "wise"}))]
