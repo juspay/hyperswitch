@@ -5994,11 +5994,6 @@
             ],
             "nullable": true
           },
-          "routing_algorithm": {
-            "type": "object",
-            "description": "The routing algorithm to be used for routing payments to desired connectors",
-            "nullable": true
-          },
           "payout_routing_algorithm": {
             "allOf": [
               {
@@ -6297,11 +6292,6 @@
                 "$ref": "#/components/schemas/WebhookDetails"
               }
             ],
-            "nullable": true
-          },
-          "routing_algorithm": {
-            "type": "object",
-            "description": "The routing algorithm to be used for routing payments to desired connectors",
             "nullable": true
           },
           "payout_routing_algorithm": {
