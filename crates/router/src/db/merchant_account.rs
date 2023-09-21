@@ -198,23 +198,44 @@ impl MerchantAccountInterface for Store {
         &self,
         publishable_key: &str,
     ) -> CustomResult<authentication::AuthenticationData, errors::StorageError> {
-        let conn = connection::pg_connection_read(self).await?;
-        let merchant = storage::MerchantAccount::find_by_publishable_key(&conn, publishable_key)
-            .await
-            .map_err(Into::into)
-            .into_report()?;
+        let fetch_by_pub_key_func = || async {
+            let conn = connection::pg_connection_read(self).await?;
+
+            storage::MerchantAccount::find_by_publishable_key(&conn, publishable_key)
+                .await
+                .map_err(Into::into)
+                .into_report()
+        };
+
+        let merchant_account;
+        #[cfg(not(feature = "accounts_cache"))]
+        {
+            merchant_account = fetch_by_pub_key_func().await?;
+        }
+
+        #[cfg(feature = "accounts_cache")]
+        {
+            merchant_account = super::cache::get_or_populate_in_memory(
+                self,
+                publishable_key,
+                fetch_by_pub_key_func,
+                &ACCOUNTS_CACHE,
+            )
+            .await?;
+        }
         let key_store = self
             .get_merchant_key_store_by_merchant_id(
-                &merchant.merchant_id,
+                &merchant_account.merchant_id,
                 &self.get_master_key().to_vec().into(),
             )
             .await?;
 
         Ok(authentication::AuthenticationData {
-            merchant_account: merchant
+            merchant_account: merchant_account
                 .convert(key_store.key.get_inner())
                 .await
                 .change_context(errors::StorageError::DecryptionError)?,
+
             key_store,
         })
     }

@@ -411,6 +411,7 @@ fn is_payment_failed(payment_status: &str) -> (bool, &'static str) {
         "400.001.601" => (true, "Transaction declined (auth. declined)"),
         "400.001.602" => (true, "Invalid transaction"),
         "400.001.603" => (true, "Invalid transaction"),
+        "400.003.600" => (true, "No description available."),
         "700.400.200" => (
             true,
             "Cannot refund (refund volume exceeded or tx reversed or invalid workflow)",
@@ -434,7 +435,9 @@ fn is_payment_failed(payment_status: &str) -> (bool, &'static str) {
         "800.100.171" => (true, "transaction declined (pick up card)"),
         "800.100.172" => (true, "Transaction declined (account blocked)"),
         "800.100.190" => (true, "Transaction declined (invalid configuration data)"),
+        "800.100.202" => (true, "Account Closed"),
         "800.120.100" => (true, "Rejected by throttling"),
+        "800.300.102" => (true, "Country blacklisted"),
         "800.300.401" => (true, "Bin blacklisted"),
         "800.700.100" => (
             true,

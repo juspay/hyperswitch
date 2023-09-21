@@ -32,7 +32,14 @@ use crate::{
     db::StorageInterface,
     logger,
     routes::metrics,
-    types::{self, domain},
+    types::{
+        self,
+        domain::{
+            self,
+            types::{encrypt_optional, AsyncLift},
+        },
+        storage,
+    },
 };
 
 pub mod error_parser {
@@ -398,6 +405,131 @@ pub fn add_connector_http_status_code_metrics(option_status_code: Option<u16>) {
     }
 }
 
+#[async_trait::async_trait]
+pub trait CustomerAddress {
+    async fn get_address_update(
+        &self,
+        address_details: api_models::payments::AddressDetails,
+        key: &[u8],
+    ) -> CustomResult<storage::AddressUpdate, common_utils::errors::CryptoError>;
+
+    async fn get_domain_address(
+        &self,
+        address_details: api_models::payments::AddressDetails,
+        merchant_id: &str,
+        customer_id: &str,
+        key: &[u8],
+    ) -> CustomResult<domain::Address, common_utils::errors::CryptoError>;
+}
+
+#[async_trait::async_trait]
+impl CustomerAddress for api_models::customers::CustomerRequest {
+    async fn get_address_update(
+        &self,
+        address_details: api_models::payments::AddressDetails,
+        key: &[u8],
+    ) -> CustomResult<storage::AddressUpdate, common_utils::errors::CryptoError> {
+        async {
+            Ok(storage::AddressUpdate::Update {
+                city: address_details.city,
+                country: address_details.country,
+                line1: address_details
+                    .line1
+                    .async_lift(|inner| encrypt_optional(inner, key))
+                    .await?,
+                line2: address_details
+                    .line2
+                    .async_lift(|inner| encrypt_optional(inner, key))
+                    .await?,
+                line3: address_details
+                    .line3
+                    .async_lift(|inner| encrypt_optional(inner, key))
+                    .await?,
+                zip: address_details
+                    .zip
+                    .async_lift(|inner| encrypt_optional(inner, key))
+                    .await?,
+                state: address_details
+                    .state
+                    .async_lift(|inner| encrypt_optional(inner, key))
+                    .await?,
+                first_name: address_details
+                    .first_name
+                    .async_lift(|inner| encrypt_optional(inner, key))
+                    .await?,
+                last_name: address_details
+                    .last_name
+                    .async_lift(|inner| encrypt_optional(inner, key))
+                    .await?,
+                phone_number: self
+                    .phone
+                    .clone()
+                    .async_lift(|inner| encrypt_optional(inner, key))
+                    .await?,
+                country_code: self.phone_country_code.clone(),
+            })
+        }
+        .await
+    }
+
+    async fn get_domain_address(
+        &self,
+        address_details: api_models::payments::AddressDetails,
+        merchant_id: &str,
+        customer_id: &str,
+        key: &[u8],
+    ) -> CustomResult<domain::Address, common_utils::errors::CryptoError> {
+        async {
+            Ok(domain::Address {
+                id: None,
+                city: address_details.city,
+                country: address_details.country,
+                line1: address_details
+                    .line1
+                    .async_lift(|inner| encrypt_optional(inner, key))
+                    .await?,
+                line2: address_details
+                    .line2
+                    .async_lift(|inner| encrypt_optional(inner, key))
+                    .await?,
+                line3: address_details
+                    .line3
+                    .async_lift(|inner| encrypt_optional(inner, key))
+                    .await?,
+                zip: address_details
+                    .zip
+                    .async_lift(|inner| encrypt_optional(inner, key))
+                    .await?,
+                state: address_details
+                    .state
+                    .async_lift(|inner| encrypt_optional(inner, key))
+                    .await?,
+                first_name: address_details
+                    .first_name
+                    .async_lift(|inner| encrypt_optional(inner, key))
+                    .await?,
+                last_name: address_details
+                    .last_name
+                    .async_lift(|inner| encrypt_optional(inner, key))
+                    .await?,
+                phone_number: self
+                    .phone
+                    .clone()
+                    .async_lift(|inner| encrypt_optional(inner, key))
+                    .await?,
+                country_code: self.phone_country_code.clone(),
+                customer_id: customer_id.to_string(),
+                merchant_id: merchant_id.to_string(),
+                address_id: generate_id(consts::ID_LENGTH, "add"),
+                payment_id: None,
+                created_at: common_utils::date_time::now(),
+                modified_at: common_utils::date_time::now(),
+            })
+        }
+        .await
+    }
+}
+
 pub fn decide_apple_pay_flow(
     payment_method_type: &Option<types::storage::enums::PaymentMethodType>,
     is_apple_pay_predecrypt: bool,
@@ -499,18 +631,17 @@ pub fn add_apple_pay_payment_status_metrics(
                         ],
                     )
                 }
-                enums::ApplePayFlow::Manual => metrics::APPLE_PAY_MANUAL_FLOW_FAILED_PAYMENT
-                    .add(
-                        &metrics::CONTEXT,
-                        1,
-                        &[
-                            metrics::request::add_attributes(
-                                "connector",
-                                connector.to_owned().unwrap_or("null".to_string()),
-                            ),
-                            metrics::request::add_attributes("merchant_id", merchant_id.to_owned()),
-                        ],
-                    ),
+                enums::ApplePayFlow::Manual => metrics::APPLE_PAY_MANUAL_FLOW_FAILED_PAYMENT.add(
+                    &metrics::CONTEXT,
+                    1,
+                    &[
+                        metrics::request::add_attributes(
+                            "connector",
+                            connector.to_owned().unwrap_or("null".to_string()),
+                        ),
+                        metrics::request::add_attributes("merchant_id", merchant_id.to_owned()),
+                    ],
+                ),
             }
         }
     }
