@@ -315,11 +315,11 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
         self.build_error_response(res)
     }
 
-    fn get_multiple_capture_sync_method(
-        &self,
-    ) -> CustomResult<services::CaptureSyncMethod, errors::ConnectorError> {
-        Ok(services::CaptureSyncMethod::Individual)
-    }
+    // fn get_multiple_capture_sync_method(
+    //     &self,
+    // ) -> CustomResult<services::CaptureSyncMethod, errors::ConnectorError> {
+    //     Ok(services::CaptureSyncMethod::Individual)
+    // }
 }
 
 impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::PaymentsResponseData>
@@ -409,9 +409,23 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
     fn get_headers(
         &self,
         req: &types::RefundsRouterData<api::Execute>,
-        connectors: &settings::Connectors,
+        _connectors: &settings::Connectors,
     ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
-        self.build_headers(req, connectors)
+        let mut header = vec![(
+            headers::CONTENT_TYPE.to_string(),
+            types::PaymentsAuthorizeType::get_content_type(self)
+                .to_string()
+                .into(),
+        )];
+        let mut api_key = self.get_auth_header(&req.connector_auth_type)?;
+
+        let mut idempotency_key = vec![(
+            headers::IDEMPOTENCY_KEY.to_string(),
+            format!("{}_", req.request.refund_id).into_masked(),
+        )];
+        header.append(&mut api_key);
+        header.append(&mut idempotency_key);
+        Ok(header)
     }
 
     fn get_content_type(&self) -> &'static str {
@@ -421,9 +435,9 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
     fn get_url(
         &self,
         _req: &types::RefundsRouterData<api::Execute>,
-        _connectors: &settings::Connectors,
+        connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented("get_url method".to_string()).into())
+        Ok(format!("{}v2/payment/refund", self.base_url(connectors)))
     }
 
     fn get_request_body(
@@ -484,9 +498,17 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
     fn get_headers(
         &self,
         req: &types::RefundSyncRouterData,
-        connectors: &settings::Connectors,
+        _connectors: &settings::Connectors,
     ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
-        self.build_headers(req, connectors)
+        let mut header = vec![(
+            headers::CONTENT_TYPE.to_string(),
+            types::PaymentsAuthorizeType::get_content_type(self)
+                .to_string()
+                .into(),
+        )];
+        let mut api_key = self.get_auth_header(&req.connector_auth_type)?;
+        header.append(&mut api_key);
+        Ok(header)
     }
 
     fn get_content_type(&self) -> &'static str {
@@ -495,10 +517,19 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
 
     fn get_url(
         &self,
-        _req: &types::RefundSyncRouterData,
-        _connectors: &settings::Connectors,
+        req: &types::RefundSyncRouterData,
+        connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented("get_url method".to_string()).into())
+        let connector_refund_id = req
+            .request
+            .connector_refund_id
+            .clone()
+            .ok_or(errors::ConnectorError::MissingConnectorRefundID)?;
+
+        Ok(format!(
+            "{}v2/card-transactions/{connector_refund_id}",
+            self.base_url(connectors)
+        ))
     }
 
     fn build_request(

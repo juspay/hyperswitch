@@ -3,7 +3,7 @@ use masking::Secret;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    connector::utils::{self, CardData},
+    connector::utils::{to_connector_meta, CardData},
     core::errors,
     types::{self, api, storage::enums},
 };
@@ -171,26 +171,31 @@ impl<F>
     }
 }
 
-impl utils::MultipleCaptureSyncResponse for HelcimPaymentsResponse {
-    fn get_connector_capture_id(&self) -> String {
-        self.transaction_id.to_string()
-    }
-
-    fn get_capture_attempt_status(&self) -> diesel_models::enums::AttemptStatus {
-        enums::AttemptStatus::from(self.to_owned())
-    }
-
-    fn is_capture_response(&self) -> bool {
-        true
-    }
-
-    fn get_amount_captured(&self) -> Option<i64> {
-        Some(self.amount)
-    }
-    fn get_connector_reference_id(&self) -> Option<String> {
-        None
-    }
+#[derive(Debug, Deserialize, Serialize)]
+pub struct HelcimMetaData {
+    pub capture_id: u64,
 }
+
+// impl utils::MultipleCaptureSyncResponse for HelcimPaymentsResponse {
+//     fn get_connector_capture_id(&self) -> String {
+//         self.transaction_id.to_string()
+//     }
+
+//     fn get_capture_attempt_status(&self) -> diesel_models::enums::AttemptStatus {
+//         enums::AttemptStatus::from(self.to_owned())
+//     }
+
+//     fn is_capture_response(&self) -> bool {
+//         true
+//     }
+
+//     fn get_amount_captured(&self) -> Option<i64> {
+//         Some(self.amount)
+//     }
+//     fn get_connector_reference_id(&self) -> Option<String> {
+//         None
+//     }
+// }
 
 impl<F>
     TryFrom<
@@ -227,14 +232,18 @@ impl<F>
                 ..item.data
             }),
             types::SyncRequestType::MultipleCaptureSync(_) => {
-                let capture_sync_response_list =
-                    utils::construct_captures_response_hashmap(vec![item.response]);
-                Ok(Self {
-                    response: Ok(types::PaymentsResponseData::MultipleCaptureResponse {
-                        capture_sync_response_list,
-                    }),
-                    ..item.data
-                })
+                Err(errors::ConnectorError::NotImplemented(
+                    "manual multiple capture sync".to_string(),
+                )
+                .into())
+                // let capture_sync_response_list =
+                //     utils::construct_captures_response_hashmap(vec![item.response]);
+                // Ok(Self {
+                //     response: Ok(types::PaymentsResponseData::MultipleCaptureResponse {
+                //         capture_sync_response_list,
+                //     }),
+                //     ..item.data
+                // })
             }
         }
     }
@@ -283,6 +292,9 @@ impl<F>
             types::PaymentsResponseData,
         >,
     ) -> Result<Self, Self::Error> {
+        let connector_metadata = Some(serde_json::json!(HelcimMetaData {
+            capture_id: item.response.transaction_id,
+        }));
         Ok(Self {
             response: Ok(types::PaymentsResponseData::TransactionResponse {
                 resource_id: types::ResponseId::ConnectorTransactionId(
@@ -290,7 +302,7 @@ impl<F>
                 ),
                 redirection_data: None,
                 mandate_reference: None,
-                connector_metadata: None,
+                connector_metadata,
                 network_txn_id: None,
                 connector_response_reference_id: None,
             }),
@@ -304,15 +316,23 @@ impl<F>
 // REFUND :
 // Type definition for RefundRequest
 #[derive(Default, Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct HelcimRefundRequest {
-    pub amount: i64,
+    amount: i64,
+    original_transaction_id: u64,
+    ip_address: Secret<String>,
 }
 
 impl<F> TryFrom<&types::RefundsRouterData<F>> for HelcimRefundRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::RefundsRouterData<F>) -> Result<Self, Self::Error> {
+        let helcim_meta_data: HelcimMetaData =
+            to_connector_meta(item.request.connector_metadata.clone())?;
+        let original_transaction_id = helcim_meta_data.capture_id;
         Ok(Self {
             amount: item.request.refund_amount,
+            original_transaction_id,
+            ip_address: Secret::new("127.0.0.1".to_string()),
         })
     }
 }
@@ -339,11 +359,32 @@ impl From<RefundStatus> for enums::RefundStatus {
     }
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "lowercase")]
+pub enum HelcimRefundTransactionType {
+    Refund,
+}
+
 //TODO: Fill the struct with respective fields
-#[derive(Default, Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct RefundResponse {
-    id: String,
-    status: RefundStatus,
+    amount: i64,
+    status: HelcimPaymentStatus,
+    transaction_id: u64,
+    #[serde(rename = "type")]
+    transaction_type: HelcimRefundTransactionType,
+}
+
+impl From<RefundResponse> for enums::RefundStatus {
+    fn from(item: RefundResponse) -> Self {
+        match item.transaction_type {
+            HelcimRefundTransactionType::Refund => match item.status {
+                HelcimPaymentStatus::Approved => Self::Success,
+                HelcimPaymentStatus::Declined => Self::Failure,
+            },
+        }
+    }
 }
 
 impl TryFrom<types::RefundsResponseRouterData<api::Execute, RefundResponse>>
@@ -355,8 +396,8 @@ impl TryFrom<types::RefundsResponseRouterData<api::Execute, RefundResponse>>
     ) -> Result<Self, Self::Error> {
         Ok(Self {
             response: Ok(types::RefundsResponseData {
-                connector_refund_id: item.response.id.to_string(),
-                refund_status: enums::RefundStatus::from(item.response.status),
+                connector_refund_id: item.response.transaction_id.to_string(),
+                refund_status: enums::RefundStatus::from(item.response),
             }),
             ..item.data
         })
@@ -372,8 +413,8 @@ impl TryFrom<types::RefundsResponseRouterData<api::RSync, RefundResponse>>
     ) -> Result<Self, Self::Error> {
         Ok(Self {
             response: Ok(types::RefundsResponseData {
-                connector_refund_id: item.response.id.to_string(),
-                refund_status: enums::RefundStatus::from(item.response.status),
+                connector_refund_id: item.response.transaction_id.to_string(),
+                refund_status: enums::RefundStatus::from(item.response),
             }),
             ..item.data
         })
