@@ -1,0 +1,47 @@
+{
+  "method": "POST",
+  "header": [
+    {
+      "key": "Content-Type",
+      "value": "application/json"
+    },
+    {
+      "key": "Accept",
+      "value": "application/json"
+    }
+  ],
+  "body": {
+    "mode": "raw",
+    "options": {
+      "raw": {
+        "language": "json"
+      }
+    },
+    "raw_json_formatted": {
+      "payment_method": "card",
+      "payment_method_type": "credit",
+      "payment_method_issuer": "Visa",
+      "card": {
+        "card_number": "{{card_number}}",
+        "card_exp_month": "{{card_expiry_month}}",
+        "card_exp_year": "{{card_expiry_year}}",
+        "card_holder_name": "joseph Doe"
+      },
+      "customer_id": "cus_PostmanGHAction_{{$guid}}",
+      "metadata": {
+        "city": "NY",
+        "unit": "245"
+      }
+    }
+  },
+  "url": {
+    "raw": "{{baseUrl}}/payment_methods",
+    "host": [
+      "{{baseUrl}}"
+    ],
+    "path": [
+      "payment_methods"
+    ]
+  },
+  "description": "To create a payment method against a customer object. In case of cards, this API could be used only by PCI compliant merchants"
+}

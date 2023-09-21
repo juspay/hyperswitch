@@ -1,0 +1,11 @@
+{
+  "childrenOrder": [
+    "MerchantAccounts",
+    "API Key",
+    "PaymentConnectors",
+    "Customers",
+    "Payments",
+    "Refunds",
+    "PaymentMethods"
+  ]
+}
