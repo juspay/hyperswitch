@@ -115,6 +115,16 @@ where
         None
     };
 
+    let is_apple_pay_predecrypt = payments::is_apple_pay_predecrypt(
+        &payment_data.payment_attempt.payment_method_type,
+        &Some(merchant_connector_account.clone()),
+    )?;
+
+    let apple_pay_flow = crate::utils::decide_apple_pay_flow(
+        &payment_data.payment_attempt.payment_method_type,
+        is_apple_pay_predecrypt,
+    );
+
     router_data = types::RouterData {
         flow: PhantomData,
         merchant_id: merchant_account.merchant_id.clone(),
@@ -157,6 +167,7 @@ where
         payment_method_balance: None,
         connector_api_version,
         connector_http_status_code: None,
+        apple_pay_flow,
     };
 
     Ok(router_data)

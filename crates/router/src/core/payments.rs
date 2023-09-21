@@ -48,7 +48,10 @@ use crate::{
         self as router_types, api, domain,
         storage::{self, enums as storage_enums},
     },
-    utils::{add_connector_http_status_code_metrics, Encode, OptionExt, ValueExt},
+    utils::{
+        add_apple_pay_flow_metrics, add_connector_http_status_code_metrics, decide_apple_pay_flow,
+        Encode, OptionExt, ValueExt,
+    },
     workflows::payment_sync,
 };
 
@@ -1268,6 +1271,14 @@ where
                 payment_method_type,
                 &Some(merchant_connector_account.clone()),
             )?;
+
+            let apple_pay_flow =
+                decide_apple_pay_flow(payment_method_type, is_apple_pay_predecrypt);
+            add_apple_pay_flow_metrics(
+                apple_pay_flow,
+                payment_data.payment_attempt.connector.clone(),
+                payment_data.payment_attempt.merchant_id.clone(),
+            );
 
             let payment_method_action = decide_payment_method_tokenize_action(
                 state,

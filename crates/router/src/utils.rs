@@ -5,7 +5,7 @@ pub mod ext_traits;
 #[cfg(feature = "kv_store")]
 pub mod storage_partitioning;
 
-use api_models::{payments, webhooks};
+use api_models::{enums, payments, webhooks};
 use base64::Engine;
 pub use common_utils::{
     crypto,
@@ -395,5 +395,123 @@ pub fn add_connector_http_status_code_metrics(option_status_code: Option<u16>) {
         };
     } else {
         logger::info!("Skip metrics as no http status code received from connector")
+    }
+}
+
+pub fn decide_apple_pay_flow(
+    payment_method_type: &Option<types::storage::enums::PaymentMethodType>,
+    is_apple_pay_predecrypt: bool,
+) -> Option<enums::ApplePayFlow> {
+    match payment_method_type {
+        Some(api_models::enums::PaymentMethodType::ApplePay) => {
+            if is_apple_pay_predecrypt {
+                Some(enums::ApplePayFlow::Simplified)
+            } else {
+                Some(enums::ApplePayFlow::Manual)
+            }
+        }
+        _ => None,
+    }
+}
+
+pub fn add_apple_pay_flow_metrics(
+    apple_pay_flow: Option<enums::ApplePayFlow>,
+    connector: Option<String>,
+    merchant_id: String,
+) {
+    if let Some(flow) = apple_pay_flow {
+        match flow {
+            enums::ApplePayFlow::Simplified => metrics::APPLE_PAY_SIMPLIFIED_FLOW.add(
+                &metrics::CONTEXT,
+                1,
+                &[
+                    metrics::request::add_attributes(
+                        "connector",
+                        connector.to_owned().unwrap_or("null".to_string()),
+                    ),
+                    metrics::request::add_attributes("merchant_id", merchant_id.to_owned()),
+                ],
+            ),
+            enums::ApplePayFlow::Manual => metrics::APPLE_PAY_MANUAL_FLOW.add(
+                &metrics::CONTEXT,
+                1,
+                &[
+                    metrics::request::add_attributes(
+                        "connector",
+                        connector.to_owned().unwrap_or("null".to_string()),
+                    ),
+                    metrics::request::add_attributes("merchant_id", merchant_id.to_owned()),
+                ],
+            ),
+        }
+    }
+}
+
+pub fn add_apple_pay_payment_status_metrics(
+    payment_attemp_status: enums::AttemptStatus,
+    apple_pay_flow: Option<enums::ApplePayFlow>,
+    connector: Option<String>,
+    merchant_id: String,
+) {
+    if payment_attemp_status == enums::AttemptStatus::Charged {
+        if let Some(flow) = apple_pay_flow {
+            match flow {
+                enums::ApplePayFlow::Simplified => {
+                    metrics::APPLE_PAY_SIMPLIFIED_FLOW_SUCCESSFUL_PAYMENT.add(
+                        &metrics::CONTEXT,
+                        1,
+                        &[
+                            metrics::request::add_attributes(
+                                "connector",
+                                connector.to_owned().unwrap_or("null".to_string()),
+                            ),
+                            metrics::request::add_attributes("merchant_id", merchant_id.to_owned()),
+                        ],
+                    )
+                }
+                enums::ApplePayFlow::Manual => metrics::APPLE_PAY_MANUAL_FLOW_SUCCESSFUL_PAYMENT
+                    .add(
+                        &metrics::CONTEXT,
+                        1,
+                        &[
+                            metrics::request::add_attributes(
+                                "connector",
+                                connector.to_owned().unwrap_or("null".to_string()),
+                            ),
+                            metrics::request::add_attributes("merchant_id", merchant_id.to_owned()),
+                        ],
+                    ),
+            }
+        }
+    } else if payment_attemp_status == enums::AttemptStatus::Failure {
+        if let Some(flow) = apple_pay_flow {
+            match flow {
+                enums::ApplePayFlow::Simplified => {
+                    metrics::APPLE_PAY_SIMPLIFIED_FLOW_FAILED_PAYMENT.add(
+                        &metrics::CONTEXT,
+                        1,
+                        &[
+                            metrics::request::add_attributes(
+                                "connector",
+                                connector.to_owned().unwrap_or("null".to_string()),
+                            ),
+                            metrics::request::add_attributes("merchant_id", merchant_id.to_owned()),
+                        ],
+                    )
+                }
+                enums::ApplePayFlow::Manual => metrics::APPLE_PAY_MANUAL_FLOW_FAILED_PAYMENT
+                    .add(
+                        &metrics::CONTEXT,
+                        1,
+                        &[
+                            metrics::request::add_attributes(
+                                "connector",
+                                connector.to_owned().unwrap_or("null".to_string()),
+                            ),
+                            metrics::request::add_attributes("merchant_id", merchant_id.to_owned()),
+                        ],
+                    ),
+            }
+        }
     }
 }

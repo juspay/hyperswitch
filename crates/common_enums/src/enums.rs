@@ -1796,3 +1796,8 @@ pub enum ReconStatus {
     Active,
     Disabled,
 }
+#[derive(Debug, Clone,)]
+pub enum ApplePayFlow {
+    Simplified,
+    Manual,
+}
