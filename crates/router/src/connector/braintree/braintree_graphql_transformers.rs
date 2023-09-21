@@ -1432,8 +1432,7 @@ impl types::transformers::ForeignFrom<&str> for api_models::webhooks::IncomingWe
             "dispute_opened" => Self::DisputeOpened,
             "dispute_lost" => Self::DisputeLost,
             "dispute_won" => Self::DisputeWon,
-            "dispute_accepted" => Self::DisputeAccepted,
-            "dispute_auto_accepted" => Self::DisputeAccepted,
+            "dispute_accepted" | "dispute_auto_accepted" => Self::DisputeAccepted,
             "dispute_expired" => Self::DisputeExpired,
             "dispute_disputed" => Self::DisputeChallenged,
             _ => Self::EventNotSupported,
@@ -1445,8 +1444,8 @@ impl types::transformers::ForeignFrom<&str> for api_models::webhooks::IncomingWe
 pub struct BraintreeDisputeData {
     pub amount_disputed: i64,
     pub amount_won: Option<String>,
-    pub case_number: String,
-    pub chargeback_protection_level: String,
+    pub case_number: Option<String>,
+    pub chargeback_protection_level: Option<String>,
     pub currency_iso_code: String,
     #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
     pub created_at: Option<PrimitiveDateTime>,
@@ -1476,11 +1475,11 @@ pub struct DisputeEvidence {
     pub url: url::Url,
 }
 
-pub(crate) fn get_dispute_stage(code: &str) -> enums::DisputeStage {
+pub(crate) fn get_dispute_stage(code: &str) -> Result<enums::DisputeStage, errors::ConnectorError> {
     match code {
-        "CHARGEBACK" => enums::DisputeStage::Dispute,
-        "PRE_ARBITATION" => enums::DisputeStage::PreArbitration,
-        "RETRIEVAL" => enums::DisputeStage::PreDispute,
-        _ => enums::DisputeStage::Dispute,
+        "CHARGEBACK" => Ok(enums::DisputeStage::Dispute),
+        "PRE_ARBITATION" => Ok(enums::DisputeStage::PreArbitration),
+        "RETRIEVAL" => Ok(enums::DisputeStage::PreDispute),
+        _ => Err(errors::ConnectorError::WebhookBodyDecodingFailed),
     }
 }

@@ -1287,11 +1287,11 @@ impl api::IncomingWebhook for Braintree {
             .split('&')
             .collect::<Vec<&str>>()
             .into_iter()
-            .map(|pair| {
-                let key_signature: Vec<&str> = pair.split('|').collect();
-                (key_signature[0], key_signature[1])
+            .map(|pair| match pair.split_once('|') {
+                Some(key_signature) => key_signature,
+                None => ("", ""),
             })
-            .collect();
+            .collect::<Vec<(_, _)>>();
 
         let merchant_secret = connector_webhook_secrets
             .additional_secret //public key
@@ -1335,7 +1335,7 @@ impl api::IncomingWebhook for Braintree {
 
         let signature = self
             .get_webhook_source_verification_signature(request, &connector_webhook_secrets)
-            .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
+            .change_context(errors::ConnectorError::WebhookSignatureNotFound)?;
 
         let message = self
             .get_webhook_source_verification_message(
@@ -1437,7 +1437,7 @@ impl api::IncomingWebhook for Braintree {
                     currency: dispute_data.currency_iso_code,
                     dispute_stage: braintree_graphql_transformers::get_dispute_stage(
                         dispute_data.kind.as_str(),
-                    ),
+                    )?,
                     connector_dispute_id: dispute_data.id,
                     connector_reason: dispute_data.reason,
                     connector_reason_code: dispute_data.reason_code,
