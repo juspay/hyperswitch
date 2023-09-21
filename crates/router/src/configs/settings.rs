@@ -747,6 +747,7 @@ impl Settings {
             .map_err(|error| ApplicationError::InvalidConfigurationValueError(error.into()))?;
         #[cfg(feature = "s3")]
         self.file_upload_config.validate()?;
+        self.lock_settings.validate()?;
         Ok(())
     }
 }
@@ -775,9 +776,29 @@ pub struct Payouts {
     pub payout_eligibility: bool,
 }
 
-#[derive(Debug, Deserialize, Clone, Default)]
+#[derive(Debug, Clone, Default)]
 pub struct LockSettings {
     pub redis_lock_expiry_seconds: u32,
     pub delay_between_retries_in_milliseconds: u32,
     pub lock_retries: u32,
+}
+
+impl<'de> Deserialize<'de> for LockSettings {
+    fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+        #[derive(Deserialize)]
+        #[serde(deny_unknown_fields)]
+        struct Inner {
+            redis_lock_expiry_seconds: u32,
+            delay_between_retries_in_milliseconds: u32,
+        }
+
+        let inner = Inner::deserialize(deserializer)?;
+        
+        Ok(Self {
+            redis_lock_expiry_seconds: inner.redis_lock_expiry_seconds,
+            delay_between_retries_in_milliseconds: inner.delay_between_retries_in_milliseconds,
+            lock_retries: inner.redis_lock_expiry_seconds
+                / inner.delay_between_retries_in_milliseconds,
+        })
+    }
 }

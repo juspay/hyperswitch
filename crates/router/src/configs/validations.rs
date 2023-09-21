@@ -165,3 +165,27 @@ impl super::settings::ApiKeys {
         })
     }
 }
+
+impl super::settings::LockSettings {
+    pub fn validate(&self) -> Result<(), ApplicationError> {
+        use common_utils::fp_utils::when;
+
+        when(self.redis_lock_expiry_seconds.is_default_or_empty(), || {
+            Err(ApplicationError::InvalidConfigurationValueError(
+                "redis_lock_expiry_seconds must not be empty or 0".into(),
+            ))
+        })?;
+
+        when(self.delay_between_retries_in_milliseconds.is_default_or_empty(), || {
+            Err(ApplicationError::InvalidConfigurationValueError(
+                "delay_between_retries_in_milliseconds must not be empty or 0".into(),
+            ))
+        })?;
+
+        when(self.lock_retries.is_default_or_empty(), || {
+            Err(ApplicationError::InvalidConfigurationValueError(
+                "lock_retries must not be empty or 0".into(),
+            ))
+        })
+    }
+}

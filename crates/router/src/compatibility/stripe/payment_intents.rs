@@ -7,7 +7,7 @@ use router_env::{instrument, tracing, Flow};
 use crate::{
     compatibility::{stripe::errors, wrap},
     core::{
-        api_locking::{self, GetLockingInput},
+        api_locking::GetLockingInput,
         payments,
     },
     routes,
@@ -448,7 +448,7 @@ pub async fn payment_intent_list(
         Ok(p) => p,
         Err(err) => return api::log_and_return_error_response(err),
     };
-
+    use crate::core::api_locking;
     let flow = Flow::PaymentsList;
     Box::pin(wrap::compatibility_api_wrap::<
         _,
