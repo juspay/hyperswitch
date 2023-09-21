@@ -314,7 +314,7 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                 None => {
                     let flow_name = core_utils::get_flow_name::<F>()?;
                     let status =
-                        // mark previous attempt status for techincal failures in PSync flow
+                        // mark previous attempt status for technical failures in PSync flow
                         if flow_name == "PSync" {
                             payment_data.payment_attempt.status
                         } else {
