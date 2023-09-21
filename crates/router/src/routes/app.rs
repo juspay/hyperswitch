@@ -602,7 +602,7 @@ impl Verify {
         web::scope("/verify")
             .app_data(web::Data::new(state))
             .service(
-                web::resource("/{merchant_id}/apple_pay")
+                web::resource("/apple_pay/{merchant_id}")
                     .route(web::post().to(apple_pay_merchant_registration)),
             )
             .service(

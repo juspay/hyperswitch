@@ -379,6 +379,7 @@ impl TryFrom<types::PaymentsAuthorizeData> for types::PaymentsPreProcessingData 
             router_return_url: data.router_return_url,
             webhook_url: data.webhook_url,
             complete_authorize_url: data.complete_authorize_url,
+            browser_info: data.browser_info,
         })
     }
 }
