@@ -438,6 +438,7 @@ fn is_payment_failed(payment_status: &str) -> (bool, &'static str) {
         "800.100.202" => (true, "Account Closed"),
         "800.120.100" => (true, "Rejected by throttling"),
         "800.300.401" => (true, "Bin blacklisted"),
+        "800.300.102" => (true, "Country blacklisted"),
         "800.700.100" => (
             true,
             "Transaction for the same session is currently being processed, please try again later",
