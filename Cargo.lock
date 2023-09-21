@@ -1464,6 +1464,7 @@ dependencies = [
  "fake",
  "futures",
  "hex",
+ "http",
  "masking",
  "md5",
  "nanoid",
@@ -1473,6 +1474,7 @@ dependencies = [
  "quick-xml",
  "rand 0.8.5",
  "regex",
+ "reqwest",
  "ring",
  "router_env",
  "serde",
@@ -1480,6 +1482,7 @@ dependencies = [
  "serde_urlencoded",
  "signal-hook",
  "signal-hook-tokio",
+ "strum 0.24.1",
  "test-case",
  "thiserror",
  "time 0.3.22",
@@ -4539,9 +4542,9 @@ dependencies = [
 
 [[package]]
 name = "serde_json"
-version = "1.0.105"
+version = "1.0.107"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "693151e1ac27563d6dbcec9dee9fbd5da8539b20fa14ad3752b2e6d363ace360"
+checksum = "6b420ce6e3d8bd882e9b243c6eed35dbc9a6110c9769e74b584e0d68d1f20c65"
 dependencies = [
  "indexmap 2.0.0",
  "itoa",
@@ -5838,9 +5841,9 @@ dependencies = [
 
 [[package]]
 name = "webpki"
-version = "0.22.1"
+version = "0.22.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f0e74f82d49d545ad128049b7e88f6576df2da6b02e9ce565c6f533be576957e"
+checksum = "f095d78192e208183081cc07bc5515ef55216397af48b873e5edcd72637fa1bd"
 dependencies = [
  "ring",
  "untrusted",

@@ -38,7 +38,7 @@ pub async fn get_mandate(
     };
     api::server_wrap(
         flow,
-        state.get_ref(),
+        state,
         &req,
         mandate_id,
         |state, auth, req| mandate::get_mandate(state, auth.merchant_account, req),
@@ -77,10 +77,10 @@ pub async fn revoke_mandate(
     };
     api::server_wrap(
         flow,
-        state.get_ref(),
+        state,
         &req,
         mandate_id,
-        |state, auth, req| mandate::revoke_mandate(&*state.store, auth.merchant_account, req),
+        |state, auth, req| mandate::revoke_mandate(state, auth.merchant_account, req),
         &auth::ApiKeyAuth,
         api_locking::LockAction::NotApplicable,
     )
@@ -118,7 +118,7 @@ pub async fn retrieve_mandates_list(
     let payload = payload.into_inner();
     api::server_wrap(
         flow,
-        state.get_ref(),
+        state,
         &req,
         payload,
         |state, auth, req| mandate::retrieve_mandates_list(state, auth.merchant_account, req),

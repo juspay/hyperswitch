@@ -69,6 +69,10 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
             types::PaymentsAuthorizeData,
             types::PaymentsResponseData,
         > = connector.connector.get_connector_integration();
+        connector
+            .connector
+            .validate_capture_method(self.request.capture_method)
+            .to_payment_failed_response()?;
 
         if self.should_proceed_with_authorize() {
             self.decide_authentication_type();
@@ -375,6 +379,7 @@ impl TryFrom<types::PaymentsAuthorizeData> for types::PaymentsPreProcessingData 
             router_return_url: data.router_return_url,
             webhook_url: data.webhook_url,
             complete_authorize_url: data.complete_authorize_url,
+            browser_info: data.browser_info,
         })
     }
 }

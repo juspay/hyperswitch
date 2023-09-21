@@ -24,7 +24,7 @@ pub async fn dummy_connector_authorize_payment(
     let payload = types::DummyConnectorPaymentConfirmRequest { attempt_id };
     api::server_wrap(
         flow,
-        state.get_ref(),
+        state,
         &req,
         payload,
         |state, _, req| core::payment_authorize(state, req),
@@ -48,7 +48,7 @@ pub async fn dummy_connector_complete_payment(
     };
     api::server_wrap(
         flow,
-        state.get_ref(),
+        state,
         &req,
         payload,
         |state, _, req| core::payment_complete(state, req),
@@ -67,7 +67,7 @@ pub async fn dummy_connector_payment(
     let flow = types::Flow::DummyPaymentCreate;
     api::server_wrap(
         flow,
-        state.get_ref(),
+        state,
         &req,
         payload,
         |state, _, req| core::payment(state, req),
@@ -87,7 +87,7 @@ pub async fn dummy_connector_payment_data(
     let payload = types::DummyConnectorPaymentRetrieveRequest { payment_id };
     api::server_wrap(
         flow,
-        state.get_ref(),
+        state,
         &req,
         payload,
         |state, _, req| core::payment_data(state, req),
@@ -108,7 +108,7 @@ pub async fn dummy_connector_refund(
     payload.payment_id = Some(path.to_string());
     api::server_wrap(
         flow,
-        state.get_ref(),
+        state,
         &req,
         payload,
         |state, _, req| core::refund_payment(state, req),
@@ -128,7 +128,7 @@ pub async fn dummy_connector_refund_data(
     let payload = types::DummyConnectorRefundRetrieveRequest { refund_id };
     api::server_wrap(
         flow,
-        state.get_ref(),
+        state,
         &req,
         payload,
         |state, _, req| core::refund_data(state, req),

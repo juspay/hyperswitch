@@ -19,10 +19,10 @@ pub async fn invalidate(
 
     api::server_wrap(
         flow,
-        state.get_ref(),
+        state,
         &req,
         &key,
-        |state, _, key| cache::invalidate(&*state.store, key),
+        |state, _, key| cache::invalidate(state, key),
         &auth::AdminApiAuth,
         api_locking::LockAction::NotApplicable,
     )

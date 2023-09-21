@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use actix_web::{web, Scope};
 #[cfg(feature = "email")]
 use external_services::email::{AwsSes, EmailClient};
@@ -12,7 +14,7 @@ use super::dummy_connector::*;
 #[cfg(feature = "payouts")]
 use super::payouts::*;
 #[cfg(all(feature = "olap", feature = "kms"))]
-use super::verification::apple_pay_merchant_registration;
+use super::verification::{apple_pay_merchant_registration, retrieve_apple_pay_verified_domains};
 #[cfg(feature = "olap")]
 use super::{admin::*, api_keys::*, disputes::*, files::*};
 use super::{cache::*, health::*};
@@ -31,11 +33,11 @@ use crate::{
 pub struct AppState {
     pub flow_name: String,
     pub store: Box<dyn StorageInterface>,
-    pub conf: settings::Settings,
+    pub conf: Arc<settings::Settings>,
     #[cfg(feature = "email")]
-    pub email_client: Box<dyn EmailClient>,
+    pub email_client: Arc<dyn EmailClient>,
     #[cfg(feature = "kms")]
-    pub kms_secrets: settings::ActiveKmsSecrets,
+    pub kms_secrets: Arc<settings::ActiveKmsSecrets>,
     pub api_client: Box<dyn crate::services::ApiClient>,
 }
 
@@ -47,7 +49,6 @@ impl scheduler::SchedulerAppState for AppState {
 
 pub trait AppStateInfo {
     fn conf(&self) -> settings::Settings;
-    fn flow_name(&self) -> String;
     fn store(&self) -> Box<dyn StorageInterface>;
     #[cfg(feature = "email")]
     fn email_client(&self) -> Arc<dyn EmailClient>;
@@ -59,16 +60,13 @@ pub trait AppStateInfo {
 
 impl AppStateInfo for AppState {
     fn conf(&self) -> settings::Settings {
-        self.conf.to_owned()
-    }
-    fn flow_name(&self) -> String {
-        self.flow_name.to_owned()
+        self.conf.as_ref().to_owned()
     }
     fn store(&self) -> Box<dyn StorageInterface> {
         self.store.to_owned()
     }
     #[cfg(feature = "email")]
-    fn email_client(&self) -> Box<dyn EmailClient> {
+    fn email_client(&self) -> Arc<dyn EmailClient> {
         self.email_client.to_owned()
     }
     fn add_request_id(&mut self, request_id: Option<String>) {
@@ -129,15 +127,15 @@ impl AppState {
         .expect("Failed while performing KMS decryption");
 
         #[cfg(feature = "email")]
-        let email_client = Box::new(AwsSes::new(&conf.email).await);
+        let email_client = Arc::new(AwsSes::new(&conf.email).await);
         Self {
             flow_name: String::from("default"),
             store,
-            conf,
+            conf: Arc::new(conf),
             #[cfg(feature = "email")]
             email_client,
             #[cfg(feature = "kms")]
-            kms_secrets,
+            kms_secrets: Arc::new(kms_secrets),
             api_client,
         }
     }
@@ -474,7 +472,7 @@ impl Webhooks {
         web::scope("/webhooks")
             .app_data(web::Data::new(config))
             .service(
-                web::resource("/{merchant_id}/{connector_name}")
+                web::resource("/{merchant_id}/{connector_id_or_name}")
                     .route(
                         web::post().to(receive_incoming_webhook::<webhook_type::OutgoingWebhook>),
                     )
@@ -608,8 +606,12 @@ impl Verify {
         web::scope("/verify")
             .app_data(web::Data::new(state))
             .service(
-                web::resource("/{merchant_id}/apple_pay")
+                web::resource("/apple_pay/{merchant_id}")
                     .route(web::post().to(apple_pay_merchant_registration)),
+            )
+            .service(
+                web::resource("/applepay_verified_domains")
+                    .route(web::get().to(retrieve_apple_pay_verified_domains)),
             )
     }
 }

@@ -1,5 +1,7 @@
 #![allow(unused_variables)]
-use crate::core::errors;
+use common_utils::errors::ErrorSwitch;
+
+use crate::core::errors::{self, CustomersErrorResponse};
 
 #[derive(Debug, router_derive::ApiError, Clone)]
 #[error(error_type_enum = StripeErrorType)]
@@ -705,10 +707,22 @@ impl From<serde_qs::Error> for StripeErrorCode {
     }
 }
 
-impl common_utils::errors::ErrorSwitch<StripeErrorCode> for errors::ApiErrorResponse {
+impl ErrorSwitch<StripeErrorCode> for errors::ApiErrorResponse {
     fn switch(&self) -> StripeErrorCode {
         self.clone().into()
     }
 }
 
 impl crate::services::EmbedError for error_stack::Report<StripeErrorCode> {}
+
+impl ErrorSwitch<StripeErrorCode> for CustomersErrorResponse {
+    fn switch(&self) -> StripeErrorCode {
+        use StripeErrorCode as SC;
+        match self {
+            Self::CustomerRedacted => SC::CustomerRedacted,
+            Self::InternalServerError => SC::InternalServerError,
+            Self::MandateActive => SC::MandateActive,
+            Self::CustomerNotFound => SC::CustomerNotFound,
+        }
+    }
+}

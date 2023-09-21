@@ -102,7 +102,7 @@ pub async fn payments_create(
 
     api::server_wrap(
         flow,
-        state.get_ref(),
+        state,
         &req,
         payload,
         |state, auth, req| {
@@ -157,7 +157,7 @@ pub async fn payments_start(
 
     api::server_wrap(
         flow,
-        state.get_ref(),
+        state,
         &req,
         payload,
         |state,auth, req| {
@@ -223,7 +223,7 @@ pub async fn payments_retrieve(
 
     api::server_wrap(
         flow,
-        state.get_ref(),
+        state,
         &req,
         payload,
         |state, auth, req| {
@@ -284,7 +284,7 @@ pub async fn payments_retrieve_with_gateway_creds(
 
     api::server_wrap(
         flow,
-        state.get_ref(),
+        state,
         &req,
         payload,
         |state, auth, req| {
@@ -350,7 +350,7 @@ pub async fn payments_update(
 
     api::server_wrap(
         flow,
-        state.get_ref(),
+        state,
         &req,
         payload,
         |state, auth, req| {
@@ -426,7 +426,7 @@ pub async fn payments_confirm(
 
     api::server_wrap(
         flow,
-        state.get_ref(),
+        state,
         &req,
         payload,
         |state, auth, req| {
@@ -481,7 +481,7 @@ pub async fn payments_capture(
 
     api::server_wrap(
         flow,
-        state.get_ref(),
+        state,
         &req,
         payload,
         |state, auth, payload| {
@@ -529,7 +529,7 @@ pub async fn payments_connector_session(
 
     api::server_wrap(
         flow,
-        state.get_ref(),
+        state,
         &req,
         payload,
         |state, auth, payload| {
@@ -596,7 +596,7 @@ pub async fn payments_redirect_response(
     let locking_action = payload.get_locking_input(flow.clone());
     api::server_wrap(
         flow,
-        state.get_ref(),
+        state,
         &req,
         payload,
         |state, auth, req| {
@@ -653,7 +653,7 @@ pub async fn payments_redirect_response_with_creds_identifier(
     let locking_action = payload.get_locking_input(flow.clone());
     api::server_wrap(
         flow,
-        state.get_ref(),
+        state,
         &req,
         payload,
         |state, auth, req| {
@@ -692,7 +692,7 @@ pub async fn payments_complete_authorize(
     let locking_action = payload.get_locking_input(flow.clone());
     api::server_wrap(
         flow,
-        state.get_ref(),
+        state,
         &req,
         payload,
         |state, auth, req| {
@@ -741,7 +741,7 @@ pub async fn payments_cancel(
     let locking_action = payload.get_locking_input(flow.clone());
     api::server_wrap(
         flow,
-        state.get_ref(),
+        state,
         &req,
         payload,
         |state, auth, req| {
@@ -797,10 +797,10 @@ pub async fn payments_list(
     let payload = payload.into_inner();
     api::server_wrap(
         flow,
-        state.get_ref(),
+        state,
         &req,
         payload,
-        |state, auth, req| payments::list_payments(&*state.store, auth.merchant_account, req),
+        |state, auth, req| payments::list_payments(state, auth.merchant_account, req),
         &auth::ApiKeyAuth,
         api_locking::LockAction::NotApplicable,
     )
@@ -817,12 +817,10 @@ pub async fn payments_list_by_filter(
     let payload = payload.into_inner();
     api::server_wrap(
         flow,
-        state.get_ref(),
+        state,
         &req,
         payload,
-        |state, auth, req| {
-            payments::apply_filters_on_payments(&*state.store, auth.merchant_account, req)
-        },
+        |state, auth, req| payments::apply_filters_on_payments(state, auth.merchant_account, req),
         &auth::ApiKeyAuth,
         api_locking::LockAction::NotApplicable,
     )
@@ -839,12 +837,10 @@ pub async fn get_filters_for_payments(
     let payload = payload.into_inner();
     api::server_wrap(
         flow,
-        state.get_ref(),
+        state,
         &req,
         payload,
-        |state, auth, req| {
-            payments::get_filters_for_payments(&*state.store, auth.merchant_account, req)
-        },
+        |state, auth, req| payments::get_filters_for_payments(state, auth.merchant_account, req),
         &auth::ApiKeyAuth,
         api_locking::LockAction::NotApplicable,
     )
@@ -852,7 +848,7 @@ pub async fn get_filters_for_payments(
 }
 async fn authorize_verify_select<Op>(
     operation: Op,
-    state: &app::AppState,
+    state: app::AppState,
     merchant_account: domain::MerchantAccount,
     key_store: domain::MerchantKeyStore,
     header_payload: HeaderPayload,

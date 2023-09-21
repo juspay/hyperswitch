@@ -18,11 +18,11 @@ pub async fn receive_incoming_webhook<W: types::OutgoingWebhookType>(
     path: web::Path<(String, String)>,
 ) -> impl Responder {
     let flow = Flow::IncomingWebhookReceive;
-    let (merchant_id, connector_name) = path.into_inner();
+    let (merchant_id, connector_id_or_name) = path.into_inner();
 
     api::server_wrap(
         flow,
-        state.get_ref(),
+        state,
         &req,
         body,
         |state, auth, body| {
@@ -31,7 +31,7 @@ pub async fn receive_incoming_webhook<W: types::OutgoingWebhookType>(
                 &req,
                 auth.merchant_account,
                 auth.key_store,
-                &connector_name,
+                &connector_id_or_name,
                 body,
             )
         },

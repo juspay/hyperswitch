@@ -40,7 +40,7 @@ pub async fn retrieve_dispute(
     };
     api::server_wrap(
         flow,
-        state.get_ref(),
+        state,
         &req,
         dispute_id,
         |state, auth, req| disputes::retrieve_dispute(state, auth.merchant_account, req),
@@ -83,7 +83,7 @@ pub async fn retrieve_disputes_list(
     let payload = payload.into_inner();
     api::server_wrap(
         flow,
-        state.get_ref(),
+        state,
         &req,
         payload,
         |state, auth, req| disputes::retrieve_disputes_list(state, auth.merchant_account, req),
@@ -119,7 +119,7 @@ pub async fn accept_dispute(
     };
     api::server_wrap(
         flow,
-        state.get_ref(),
+        state,
         &req,
         dispute_id,
         |state, auth, req| {
@@ -152,7 +152,7 @@ pub async fn submit_dispute_evidence(
     let flow = Flow::DisputesEvidenceSubmit;
     api::server_wrap(
         flow,
-        state.get_ref(),
+        state,
         &req,
         json_payload.into_inner(),
         |state, auth, req| {
@@ -193,7 +193,7 @@ pub async fn attach_dispute_evidence(
     };
     api::server_wrap(
         flow,
-        state.get_ref(),
+        state,
         &req,
         attach_evidence_request,
         |state, auth, req| {
@@ -231,7 +231,7 @@ pub async fn retrieve_dispute_evidence(
     };
     api::server_wrap(
         flow,
-        state.get_ref(),
+        state,
         &req,
         dispute_id,
         |state, auth, req| disputes::retrieve_dispute_evidence(state, auth.merchant_account, req),

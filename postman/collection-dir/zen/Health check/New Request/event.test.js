@@ -1,4 +1,4 @@
-// Validate status 2xx 
+// Validate status 2xx
 pm.test("[POST]::/accounts - Status code is 2xx", function () {
-   pm.response.to.be.success;
+  pm.response.to.be.success;
 });

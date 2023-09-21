@@ -1,6 +1,7 @@
 use common_utils::ext_traits::AsyncExt;
 use diesel_models::address::AddressUpdateInternal;
 use error_stack::{IntoReport, ResultExt};
+use router_env::{instrument, tracing};
 
 use super::{MockDb, Store};
 use crate::{
@@ -27,14 +28,23 @@ where
         key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<domain::Address, errors::StorageError>;
 
-    async fn insert_address(
+    async fn insert_address_for_payments(
+        &self,
+        payment_id: &str,
+        address: domain::Address,
+        key_store: &domain::MerchantKeyStore,
+    ) -> CustomResult<domain::Address, errors::StorageError>;
+
+    async fn insert_address_for_customers(
         &self,
         address: domain::Address,
         key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<domain::Address, errors::StorageError>;
 
-    async fn find_address(
+    async fn find_address_by_merchant_id_payment_id_address_id(
         &self,
+        merchant_id: &str,
+        payment_id: &str,
         address_id: &str,
         key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<domain::Address, errors::StorageError>;
@@ -50,25 +60,33 @@ where
 
 #[async_trait::async_trait]
 impl AddressInterface for Store {
-    async fn find_address(
+    async fn find_address_by_merchant_id_payment_id_address_id(
         &self,
+        merchant_id: &str,
+        payment_id: &str,
         address_id: &str,
         key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<domain::Address, errors::StorageError> {
         let conn = connection::pg_connection_read(self).await?;
-        storage::Address::find_by_address_id(&conn, address_id)
-            .await
-            .map_err(Into::into)
-            .into_report()
-            .async_and_then(|address| async {
-                address
-                    .convert(key_store.key.get_inner())
-                    .await
-                    .change_context(errors::StorageError::DecryptionError)
-            })
-            .await
+        storage::Address::find_by_merchant_id_payment_id_address_id(
+            &conn,
+            merchant_id,
+            payment_id,
+            address_id,
+        )
+        .await
+        .map_err(Into::into)
+        .into_report()
+        .async_and_then(|address| async {
+            address
+                .convert(key_store.key.get_inner())
+                .await
+                .change_context(errors::StorageError::DecryptionError)
+        })
+        .await
     }
 
+    #[instrument(skip_all)]
     async fn update_address(
         &self,
         address_id: String,
@@ -89,7 +107,31 @@ impl AddressInterface for Store {
             .await
     }
 
-    async fn insert_address(
+    async fn insert_address_for_payments(
+        &self,
+        _payment_id: &str,
+        address: domain::Address,
+        key_store: &domain::MerchantKeyStore,
+    ) -> CustomResult<domain::Address, errors::StorageError> {
+        let conn = connection::pg_connection_write(self).await?;
+        address
+            .construct_new()
+            .await
+            .change_context(errors::StorageError::EncryptionError)?
+            .insert(&conn)
+            .await
+            .map_err(Into::into)
+            .into_report()
+            .async_and_then(|address| async {
+                address
+                    .convert(key_store.key.get_inner())
+                    .await
+                    .change_context(errors::StorageError::DecryptionError)
+            })
+            .await
+    }
+
+    async fn insert_address_for_customers(
         &self,
         address: domain::Address,
         key_store: &domain::MerchantKeyStore,
@@ -147,8 +189,10 @@ impl AddressInterface for Store {
 
 #[async_trait::async_trait]
 impl AddressInterface for MockDb {
-    async fn find_address(
+    async fn find_address_by_merchant_id_payment_id_address_id(
         &self,
+        _merchant_id: &str,
+        _payment_id: &str,
         address_id: &str,
         key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<domain::Address, errors::StorageError> {
@@ -172,6 +216,7 @@ impl AddressInterface for MockDb {
         }
     }
 
+    #[instrument(skip_all)]
     async fn update_address(
         &self,
         address_id: String,
@@ -201,7 +246,27 @@ impl AddressInterface for MockDb {
         }
     }
 
-    async fn insert_address(
+    async fn insert_address_for_payments(
+        &self,
+        _payment_id: &str,
+        address_new: domain::Address,
+        key_store: &domain::MerchantKeyStore,
+    ) -> CustomResult<domain::Address, errors::StorageError> {
+        let mut addresses = self.addresses.lock().await;
+
+        let address = Conversion::convert(address_new)
+            .await
+            .change_context(errors::StorageError::EncryptionError)?;
+
+        addresses.push(address.clone());
+
+        address
+            .convert(key_store.key.get_inner())
+            .await
+            .change_context(errors::StorageError::DecryptionError)
+    }
+
+    async fn insert_address_for_customers(
         &self,
         address_new: domain::Address,
         key_store: &domain::MerchantKeyStore,

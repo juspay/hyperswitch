@@ -1199,6 +1199,7 @@ fn get_bank_debit_data(
             billing_details,
             account_number,
             bsb_number,
+            ..
         } => {
             let becs_data = BankDebitData::Becs {
                 account_number: account_number.to_owned(),
@@ -3055,8 +3056,6 @@ pub enum WebhookEventType {
     PaymentIntentFailed,
     #[serde(rename = "payment_intent.succeeded")]
     PaymentIntentSucceed,
-    #[serde(rename = "charge.dispute.captured")]
-    ChargeDisputeCaptured,
     #[serde(rename = "charge.dispute.created")]
     DisputeCreated,
     #[serde(rename = "charge.dispute.closed")]

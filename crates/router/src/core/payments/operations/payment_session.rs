@@ -90,23 +90,25 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsSessionRequest>
 
         let amount = payment_intent.amount.into();
 
-        let shipping_address = helpers::get_address_for_payment_request(
+        let shipping_address = helpers::create_or_find_address_for_payment_by_request(
             db,
             None,
             payment_intent.shipping_address_id.as_deref(),
             merchant_id,
             payment_intent.customer_id.as_ref(),
             key_store,
+            &payment_intent.payment_id,
         )
         .await?;
 
-        let billing_address = helpers::get_address_for_payment_request(
+        let billing_address = helpers::create_or_find_address_for_payment_by_request(
             db,
             None,
             payment_intent.billing_address_id.as_deref(),
             merchant_id,
             payment_intent.customer_id.as_ref(),
             key_store,
+            &payment_intent.payment_id,
         )
         .await?;
 
@@ -330,10 +332,18 @@ where
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Database error when querying for merchant connector accounts")?;
 
-        let filtered_connector_accounts = helpers::filter_mca_based_on_business_profile(
-            all_connector_accounts,
-            Some(payment_intent),
-        );
+        let profile_id = crate::core::utils::get_profile_id_from_business_details(
+            payment_intent.business_country,
+            payment_intent.business_label.as_ref(),
+            merchant_account,
+            payment_intent.profile_id.as_ref(),
+            &*state.store,
+        )
+        .await
+        .attach_printable("Could not find profile id from business details")?;
+
+        let filtered_connector_accounts =
+            helpers::filter_mca_based_on_business_profile(all_connector_accounts, Some(profile_id));
 
         let requested_payment_method_types = request.wallets.clone();
         let mut connector_and_supporting_payment_method_type = Vec::new();

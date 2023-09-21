@@ -108,13 +108,24 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Co
 
         let token = token.or_else(|| payment_attempt.payment_token.clone());
 
-        helpers::validate_pm_or_token_given(
-            &request.payment_method,
-            &request.payment_method_data,
-            &request.payment_method_type,
-            &mandate_type,
-            &token,
-        )?;
+        if let Some(payment_method) = payment_method {
+            let should_validate_pm_or_token_given =
+                //this validation should happen if data was stored in the vault
+                helpers::should_store_payment_method_data_in_vault(
+                    &state.conf.temp_locker_disable_config,
+                    payment_attempt.connector.clone(),
+                    payment_method,
+                );
+            if should_validate_pm_or_token_given {
+                helpers::validate_pm_or_token_given(
+                    &request.payment_method,
+                    &request.payment_method_data,
+                    &request.payment_method_type,
+                    &mandate_type,
+                    &token,
+                )?;
+            }
+        }
 
         payment_attempt.payment_method = payment_method.or(payment_attempt.payment_method);
         payment_attempt.browser_info = browser_info;
@@ -134,22 +145,24 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Co
                 .or_else(|| request.customer_id.clone()),
         )?;
 
-        let shipping_address = helpers::get_address_for_payment_request(
+        let shipping_address = helpers::create_or_find_address_for_payment_by_request(
             db,
             request.shipping.as_ref(),
             payment_intent.shipping_address_id.as_deref(),
             merchant_id,
             payment_intent.customer_id.as_ref(),
             key_store,
+            &payment_intent.payment_id,
         )
         .await?;
-        let billing_address = helpers::get_address_for_payment_request(
+        let billing_address = helpers::create_or_find_address_for_payment_by_request(
             db,
             request.billing.as_ref(),
             payment_intent.billing_address_id.as_deref(),
             merchant_id,
             payment_intent.customer_id.as_ref(),
             key_store,
+            &payment_intent.payment_id,
         )
         .await?;
 

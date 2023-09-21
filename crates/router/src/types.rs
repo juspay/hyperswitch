@@ -17,6 +17,7 @@ pub use api_models::{
     enums::{Connector, PayoutConnectors},
     payouts as payout_types,
 };
+pub use common_utils::request::RequestBody;
 use common_utils::{pii, pii::Email};
 use data_models::mandates::MandateData;
 use error_stack::{IntoReport, ResultExt};
@@ -176,6 +177,11 @@ pub type AcceptDisputeType = dyn services::ConnectorIntegration<
     AcceptDisputeRequestData,
     AcceptDisputeResponse,
 >;
+pub type VerifyWebhookSourceType = dyn services::ConnectorIntegration<
+    api::VerifyWebhookSource,
+    VerifyWebhookSourceRequestData,
+    VerifyWebhookSourceResponseData,
+>;
 
 pub type SubmitEvidenceType = dyn services::ConnectorIntegration<
     api::Evidence,
@@ -202,6 +208,12 @@ pub type VerifyRouterData = RouterData<api::Verify, VerifyRequestData, PaymentsR
 
 pub type AcceptDisputeRouterData =
     RouterData<api::Accept, AcceptDisputeRequestData, AcceptDisputeResponse>;
+
+pub type VerifyWebhookSourceRouterData = RouterData<
+    api::VerifyWebhookSource,
+    VerifyWebhookSourceRequestData,
+    VerifyWebhookSourceResponseData,
+>;
 
 pub type SubmitEvidenceRouterData =
     RouterData<api::Evidence, SubmitEvidenceRequestData, SubmitEvidenceResponse>;
@@ -418,6 +430,7 @@ pub struct PaymentsPreProcessingData {
     pub router_return_url: Option<String>,
     pub webhook_url: Option<String>,
     pub complete_authorize_url: Option<String>,
+    pub browser_info: Option<BrowserInformation>,
 }
 
 #[derive(Debug, Clone)]
@@ -571,13 +584,32 @@ pub enum CaptureSyncResponse {
         resource_id: ResponseId,
         status: storage_enums::AttemptStatus,
         connector_response_reference_id: Option<String>,
+        amount: Option<i64>,
     },
     Error {
         code: String,
         message: String,
         reason: Option<String>,
         status_code: u16,
+        amount: Option<i64>,
     },
+}
+
+impl CaptureSyncResponse {
+    pub fn get_amount_captured(&self) -> Option<i64> {
+        match self {
+            Self::Success { amount, .. } | Self::Error { amount, .. } => *amount,
+        }
+    }
+    pub fn get_connector_response_reference_id(&self) -> Option<String> {
+        match self {
+            Self::Success {
+                connector_response_reference_id,
+                ..
+            } => connector_response_reference_id.clone(),
+            Self::Error { .. } => None,
+        }
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -697,6 +729,24 @@ pub struct RefundsResponseData {
 pub enum Redirection {
     Redirect,
     NoRedirect,
+}
+
+#[derive(Debug, Clone)]
+pub struct VerifyWebhookSourceRequestData {
+    pub webhook_headers: actix_web::http::header::HeaderMap,
+    pub webhook_body: Vec<u8>,
+    pub merchant_secret: api_models::webhooks::ConnectorWebhookSecrets,
+}
+
+#[derive(Debug, Clone)]
+pub struct VerifyWebhookSourceResponseData {
+    pub verify_webhook_status: VerifyWebhookStatus,
+}
+
+#[derive(Debug, Clone)]
+pub enum VerifyWebhookStatus {
+    SourceVerified,
+    SourceNotVerified,
 }
 
 #[derive(Default, Debug, Clone)]
@@ -1059,26 +1109,6 @@ impl<F1, F2, T1, T2> From<(&RouterData<F1, T1, PaymentsResponseData>, T2)>
             connector_api_version: data.connector_api_version.clone(),
             connector_http_status_code: data.connector_http_status_code,
         }
-    }
-}
-
-#[derive(Clone, Debug)]
-pub struct RequestBody(Secret<String>);
-
-impl RequestBody {
-    pub fn log_and_get_request_body<T, F>(
-        body: T,
-        encoder: F,
-    ) -> errors::CustomResult<Self, errors::ParsingError>
-    where
-        F: FnOnce(T) -> errors::CustomResult<String, errors::ParsingError>,
-        T: std::fmt::Debug,
-    {
-        router_env::logger::info!(connector_request_body=?body);
-        Ok(Self(Secret::new(encoder(body)?)))
-    }
-    pub fn get_inner_value(request_body: Self) -> Secret<String> {
-        request_body.0
     }
 }
 

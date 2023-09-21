@@ -33,7 +33,7 @@ pub async fn refunds_create(
     let flow = Flow::RefundsCreate;
     api::server_wrap(
         flow,
-        state.get_ref(),
+        state,
         &req,
         json_payload.into_inner(),
         |state, auth, req| refund_create_core(state, auth.merchant_account, auth.key_store, req),
@@ -76,7 +76,7 @@ pub async fn refunds_retrieve(
 
     api::server_wrap(
         flow,
-        state.get_ref(),
+        state,
         &req,
         refund_request,
         |state, auth, refund_request| {
@@ -117,7 +117,7 @@ pub async fn refunds_retrieve_with_body(
     let flow = Flow::RefundsRetrieve;
     api::server_wrap(
         flow,
-        state.get_ref(),
+        state,
         &req,
         json_payload.into_inner(),
         |state, auth, req| {
@@ -164,12 +164,10 @@ pub async fn refunds_update(
     let refund_id = path.into_inner();
     api::server_wrap(
         flow,
-        state.get_ref(),
+        state,
         &req,
         json_payload.into_inner(),
-        |state, auth, req| {
-            refund_update_core(&*state.store, auth.merchant_account, &refund_id, req)
-        },
+        |state, auth, req| refund_update_core(state, auth.merchant_account, &refund_id, req),
         &auth::ApiKeyAuth,
         api_locking::LockAction::NotApplicable,
     )
@@ -199,10 +197,10 @@ pub async fn refunds_list(
     let flow = Flow::RefundsList;
     api::server_wrap(
         flow,
-        state.get_ref(),
+        state,
         &req,
         payload.into_inner(),
-        |state, auth, req| refund_list(&*state.store, auth.merchant_account, req),
+        |state, auth, req| refund_list(state, auth.merchant_account, req),
         &auth::ApiKeyAuth,
         api_locking::LockAction::NotApplicable,
     )
@@ -232,10 +230,10 @@ pub async fn refunds_filter_list(
     let flow = Flow::RefundsList;
     api::server_wrap(
         flow,
-        state.get_ref(),
+        state,
         &req,
         payload.into_inner(),
-        |state, auth, req| refund_filter_list(&*state.store, auth.merchant_account, req),
+        |state, auth, req| refund_filter_list(state, auth.merchant_account, req),
         &auth::ApiKeyAuth,
         api_locking::LockAction::NotApplicable,
     )

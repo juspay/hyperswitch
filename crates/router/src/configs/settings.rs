@@ -91,6 +91,7 @@ pub struct Settings {
     pub mandates: Mandates,
     pub required_fields: RequiredFields,
     pub delayed_session_response: DelayedSessionConfig,
+    pub webhook_source_verification_call: WebhookSourceVerificationCall,
     pub connector_request_reference_id_config: ConnectorRequestReferenceIdConfig,
     #[cfg(feature = "payouts")]
     pub payouts: Payouts,
@@ -98,6 +99,7 @@ pub struct Settings {
     pub multiple_api_version_supported_connectors: MultipleApiVersionSupportedConnectors,
     pub applepay_merchant_configs: ApplepayMerchantConfigs,
     pub lock_settings: LockSettings,
+    pub temp_locker_disable_config: TempLockerDisableConfig,
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
@@ -118,6 +120,10 @@ pub struct MultipleApiVersionSupportedConnectors {
 #[derive(Debug, Deserialize, Clone, Default)]
 #[serde(transparent)]
 pub struct TokenizationConfig(pub HashMap<String, PaymentMethodTokenFilter>);
+
+#[derive(Debug, Deserialize, Clone, Default)]
+#[serde(transparent)]
+pub struct TempLockerDisableConfig(pub HashMap<String, TempLockerDisablePaymentMethodFilter>);
 
 #[derive(Debug, Deserialize, Clone, Default)]
 pub struct ConnectorCustomer {
@@ -160,6 +166,7 @@ where
 #[cfg(feature = "dummy_connector")]
 #[derive(Debug, Deserialize, Clone, Default)]
 pub struct DummyConnector {
+    pub enabled: bool,
     pub payment_ttl: i64,
     pub payment_duration: u64,
     pub payment_tolerance: u64,
@@ -206,6 +213,12 @@ pub struct PaymentMethodTokenFilter {
     pub payment_method: HashSet<diesel_models::enums::PaymentMethod>,
     pub payment_method_type: Option<PaymentMethodTypeTokenFilter>,
     pub long_lived_token: bool,
+}
+
+#[derive(Debug, Deserialize, Clone, Default)]
+pub struct TempLockerDisablePaymentMethodFilter {
+    #[serde(deserialize_with = "pm_deser")]
+    pub payment_method: HashSet<diesel_models::enums::PaymentMethod>,
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
@@ -487,7 +500,7 @@ pub struct Connectors {
     pub authorizedotnet: ConnectorParams,
     pub bambora: ConnectorParams,
     pub bitpay: ConnectorParams,
-    pub bluesnap: ConnectorParams,
+    pub bluesnap: ConnectorParamsWithSecondaryBaseUrl,
     pub boku: ConnectorParams,
     pub braintree: ConnectorParams,
     pub cashtocode: ConnectorParams,
@@ -502,6 +515,7 @@ pub struct Connectors {
     pub forte: ConnectorParams,
     pub globalpay: ConnectorParams,
     pub globepay: ConnectorParams,
+    pub gocardless: ConnectorParams,
     pub helcim: ConnectorParams,
     pub iatapay: ConnectorParams,
     pub klarna: ConnectorParams,
@@ -552,7 +566,6 @@ pub struct ConnectorParamsWithFileUploadUrl {
     pub base_url_file_upload: String,
 }
 
-#[cfg(feature = "payouts")]
 #[derive(Debug, Deserialize, Clone, Default, router_derive::ConfigValidate)]
 #[serde(default)]
 pub struct ConnectorParamsWithSecondaryBaseUrl {
@@ -620,6 +633,12 @@ pub struct DelayedSessionConfig {
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
+pub struct WebhookSourceVerificationCall {
+    #[serde(deserialize_with = "connector_deser")]
+    pub connectors_with_webhook_source_verification_call: HashSet<api_models::enums::Connector>,
+}
+
+#[derive(Debug, Deserialize, Clone, Default)]
 pub struct ApplePayDecryptConifg {
     pub apple_pay_ppc: String,
     pub apple_pay_ppc_key: String,
@@ -670,7 +689,7 @@ impl Settings {
         let config_path = router_env::Config::config_path(&environment.to_string(), config_path);
 
         let config = router_env::Config::builder(&environment.to_string())?
-            .add_source(File::from(config_path).required(true))
+            .add_source(File::from(config_path).required(false))
             .add_source(
                 Environment::with_prefix("ROUTER")
                     .try_parsing(true)
