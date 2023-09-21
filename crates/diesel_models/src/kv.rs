@@ -2,6 +2,7 @@ use error_stack::{IntoReport, ResultExt};
 use serde::{Deserialize, Serialize};
 
 use crate::{
+    address::AddressNew,
     connector_response::{ConnectorResponse, ConnectorResponseNew, ConnectorResponseUpdate},
     errors,
     payment_attempt::{PaymentAttempt, PaymentAttemptNew, PaymentAttemptUpdate},
@@ -41,6 +42,7 @@ pub enum Insertable {
     PaymentAttempt(PaymentAttemptNew),
     Refund(RefundNew),
     ConnectorResponse(ConnectorResponseNew),
+    Address(Box<AddressNew>),
 }
 
 #[derive(Debug, Serialize, Deserialize)]

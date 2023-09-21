@@ -149,6 +149,7 @@ async fn drainer(
         let payment_attempt = "payment_attempt";
         let refund = "refund";
         let connector_response = "connector_response";
+        let address = "address";
         match db_op {
             // TODO: Handle errors
             kv::DBOperation::Insert { insertable } => {
@@ -177,6 +178,9 @@ async fn drainer(
                                 insert_op,
                                 connector_response
                             )
+                        }
+                        kv::Insertable::Address(addr) => {
+                            macro_util::handle_resp!(addr.insert(&conn).await, insert_op, address)
                         }
                     }
                 })

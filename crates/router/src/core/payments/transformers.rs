@@ -1206,6 +1206,7 @@ impl TryFrom<types::CaptureSyncResponse> for storage::CaptureUpdate {
                 resource_id,
                 status,
                 connector_response_reference_id,
+                ..
             } => {
                 let connector_capture_id = match resource_id {
                     types::ResponseId::ConnectorTransactionId(id) => Some(id),
@@ -1222,6 +1223,7 @@ impl TryFrom<types::CaptureSyncResponse> for storage::CaptureUpdate {
                 message,
                 reason,
                 status_code,
+                ..
             } => Ok(Self::ErrorUpdate {
                 status: match status_code {
                     500..=511 => storage::enums::CaptureStatus::Pending,
@@ -1321,6 +1323,15 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsPreProce
             attempt,
             connector_name,
         ));
+        let browser_info: Option<types::BrowserInformation> = payment_data
+            .payment_attempt
+            .browser_info
+            .clone()
+            .map(|b| b.parse_value("BrowserInformation"))
+            .transpose()
+            .change_context(errors::ApiErrorResponse::InvalidDataValue {
+                field_name: "browser_info",
+            })?;
 
         Ok(Self {
             payment_method_data,
@@ -1334,6 +1345,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsPreProce
             router_return_url,
             webhook_url,
             complete_authorize_url,
+            browser_info,
         })
     }
 }

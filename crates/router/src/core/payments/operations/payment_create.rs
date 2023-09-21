@@ -92,23 +92,27 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
 
         let customer_details = helpers::get_customer_details_from_request(request);
 
-        let shipping_address = helpers::get_address_for_payment_request(
+        let shipping_address = helpers::create_or_find_address_for_payment_by_request(
             db,
             request.shipping.as_ref(),
             None,
             merchant_id,
             customer_details.customer_id.as_ref(),
             merchant_key_store,
+            &payment_id,
+            merchant_account.storage_scheme,
         )
         .await?;
 
-        let billing_address = helpers::get_address_for_payment_request(
+        let billing_address = helpers::create_or_find_address_for_payment_by_request(
             db,
             request.billing.as_ref(),
             None,
             merchant_id,
             customer_details.customer_id.as_ref(),
             merchant_key_store,
+            &payment_id,
+            merchant_account.storage_scheme,
         )
         .await?;
 
@@ -690,7 +694,7 @@ impl PaymentCreate {
     ) -> Option<ephemeral_key::EphemeralKey> {
         match request.customer_id.clone() {
             Some(customer_id) => helpers::make_ephemeral_key(
-                state,
+                state.clone(),
                 customer_id,
                 merchant_account.merchant_id.clone(),
             )

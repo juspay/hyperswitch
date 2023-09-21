@@ -1199,6 +1199,7 @@ fn get_bank_debit_data(
             billing_details,
             account_number,
             bsb_number,
+            ..
         } => {
             let becs_data = BankDebitData::Becs {
                 account_number: account_number.to_owned(),
