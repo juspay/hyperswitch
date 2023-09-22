@@ -41,9 +41,10 @@ pub fn create_merchant_publishable_key() -> String {
 }
 
 pub async fn create_merchant_account(
-    db: &dyn StorageInterface,
+    state: AppState,
     req: api::MerchantAccountCreate,
 ) -> RouterResponse<api::MerchantAccountResponse> {
+    let db = state.store.as_ref();
     let master_key = db.get_master_key();
 
     let key = services::generate_aes256_key()
@@ -227,9 +228,10 @@ pub async fn create_merchant_account(
 }
 
 pub async fn get_merchant_account(
-    db: &dyn StorageInterface,
+    state: AppState,
     req: api::MerchantId,
 ) -> RouterResponse<api::MerchantAccountResponse> {
+    let db = state.store.as_ref();
     let key_store = db
         .get_merchant_key_store_by_merchant_id(
             &req.merchant_id,
@@ -312,10 +314,11 @@ pub async fn create_business_profile_from_business_labels(
     Ok(())
 }
 pub async fn merchant_account_update(
-    db: &dyn StorageInterface,
+    state: AppState,
     merchant_id: &String,
     req: api::MerchantAccountUpdate,
 ) -> RouterResponse<api::MerchantAccountResponse> {
+    let db = state.store.as_ref();
     let key_store = db
         .get_merchant_key_store_by_merchant_id(
             &req.merchant_id,
@@ -459,9 +462,10 @@ pub async fn merchant_account_update(
 }
 
 pub async fn merchant_account_delete(
-    db: &dyn StorageInterface,
+    state: AppState,
     merchant_id: String,
 ) -> RouterResponse<api::MerchantAccountDeleteResponse> {
+    let db = state.store.as_ref();
     let is_deleted = db
         .delete_merchant_account_by_merchant_id(&merchant_id)
         .await
@@ -547,14 +551,14 @@ fn validate_certificate_in_mca_metadata(
 }
 
 pub async fn create_payment_connector(
-    state: &AppState,
+    state: AppState,
     req: api::MerchantConnectorCreate,
     merchant_id: &String,
 ) -> RouterResponse<api_models::admin::MerchantConnectorResponse> {
+    let store = state.store.as_ref();
     #[cfg(feature = "dummy_connector")]
-    validate_dummy_connector_enabled(state, &req.connector_name).await?;
-    let key_store = state
-        .store
+    validate_dummy_connector_enabled(&state, &req.connector_name).await?;
+    let key_store = store
         .get_merchant_key_store_by_merchant_id(
             merchant_id,
             &state.store.get_master_key().to_vec().into(),
@@ -632,6 +636,7 @@ pub async fn create_payment_connector(
         &merchant_account,
         req.profile_id.as_ref(),
         &*state.store,
+        true,
     )
     .await?;
 
@@ -704,10 +709,11 @@ pub async fn create_payment_connector(
 }
 
 pub async fn retrieve_payment_connector(
-    store: &dyn StorageInterface,
+    state: AppState,
     merchant_id: String,
     merchant_connector_id: String,
 ) -> RouterResponse<api_models::admin::MerchantConnectorResponse> {
+    let store = state.store.as_ref();
     let key_store = store
         .get_merchant_key_store_by_merchant_id(
             &merchant_id,
@@ -736,9 +742,10 @@ pub async fn retrieve_payment_connector(
 }
 
 pub async fn list_payment_connectors(
-    store: &dyn StorageInterface,
+    state: AppState,
     merchant_id: String,
 ) -> RouterResponse<Vec<api_models::admin::MerchantConnectorResponse>> {
+    let store = state.store.as_ref();
     let key_store = store
         .get_merchant_key_store_by_merchant_id(
             &merchant_id,
@@ -772,11 +779,12 @@ pub async fn list_payment_connectors(
 }
 
 pub async fn update_payment_connector(
-    db: &dyn StorageInterface,
+    state: AppState,
     merchant_id: &str,
     merchant_connector_id: &str,
     req: api_models::admin::MerchantConnectorUpdate,
 ) -> RouterResponse<api_models::admin::MerchantConnectorResponse> {
+    let db = state.store.as_ref();
     let key_store = db
         .get_merchant_key_store_by_merchant_id(merchant_id, &db.get_master_key().to_vec().into())
         .await
@@ -855,10 +863,11 @@ pub async fn update_payment_connector(
 }
 
 pub async fn delete_payment_connector(
-    db: &dyn StorageInterface,
+    state: AppState,
     merchant_id: String,
     merchant_connector_id: String,
 ) -> RouterResponse<api::MerchantConnectorDeleteResponse> {
+    let db = state.store.as_ref();
     let key_store = db
         .get_merchant_key_store_by_merchant_id(&merchant_id, &db.get_master_key().to_vec().into())
         .await
@@ -899,10 +908,11 @@ pub async fn delete_payment_connector(
 }
 
 pub async fn kv_for_merchant(
-    db: &dyn StorageInterface,
+    state: AppState,
     merchant_id: String,
     enable: bool,
 ) -> RouterResponse<api_models::admin::ToggleKVResponse> {
+    let db = state.store.as_ref();
     let key_store = db
         .get_merchant_key_store_by_merchant_id(&merchant_id, &db.get_master_key().to_vec().into())
         .await
@@ -958,9 +968,10 @@ pub async fn kv_for_merchant(
 }
 
 pub async fn check_merchant_account_kv_status(
-    db: &dyn StorageInterface,
+    state: AppState,
     merchant_id: String,
 ) -> RouterResponse<api_models::admin::ToggleKVResponse> {
+    let db = state.store.as_ref();
     let key_store = db
         .get_merchant_key_store_by_merchant_id(&merchant_id, &db.get_master_key().to_vec().into())
         .await
@@ -1028,10 +1039,11 @@ pub async fn create_and_insert_business_profile(
 }
 
 pub async fn create_business_profile(
-    db: &dyn StorageInterface,
+    state: AppState,
     request: api::BusinessProfileCreate,
     merchant_id: &str,
 ) -> RouterResponse<api_models::admin::BusinessProfileResponse> {
+    let db = state.store.as_ref();
     let key_store = db
         .get_merchant_key_store_by_merchant_id(merchant_id, &db.get_master_key().to_vec().into())
         .await
@@ -1071,9 +1083,10 @@ pub async fn create_business_profile(
 }
 
 pub async fn list_business_profile(
-    db: &dyn StorageInterface,
+    state: AppState,
     merchant_id: String,
 ) -> RouterResponse<Vec<api_models::admin::BusinessProfileResponse>> {
+    let db = state.store.as_ref();
     let business_profiles = db
         .list_business_profile_by_merchant_id(&merchant_id)
         .await
@@ -1090,9 +1103,10 @@ pub async fn list_business_profile(
 }
 
 pub async fn retrieve_business_profile(
-    db: &dyn StorageInterface,
+    state: AppState,
     profile_id: String,
 ) -> RouterResponse<api_models::admin::BusinessProfileResponse> {
+    let db = state.store.as_ref();
     let business_profile = db
         .find_business_profile_by_profile_id(&profile_id)
         .await
@@ -1107,10 +1121,11 @@ pub async fn retrieve_business_profile(
 }
 
 pub async fn delete_business_profile(
-    db: &dyn StorageInterface,
+    state: AppState,
     profile_id: String,
     merchant_id: &str,
 ) -> RouterResponse<bool> {
+    let db = state.store.as_ref();
     let delete_result = db
         .delete_business_profile_by_profile_id_merchant_id(&profile_id, merchant_id)
         .await
@@ -1122,11 +1137,12 @@ pub async fn delete_business_profile(
 }
 
 pub async fn update_business_profile(
-    db: &dyn StorageInterface,
+    state: AppState,
     profile_id: &str,
     merchant_id: &str,
     request: api::BusinessProfileUpdate,
 ) -> RouterResponse<api::BusinessProfileResponse> {
+    let db = state.store.as_ref();
     let business_profile = db
         .find_business_profile_by_profile_id(profile_id)
         .await
@@ -1285,6 +1301,10 @@ pub(crate) fn validate_auth_type(
         }
         api_enums::Connector::Globepay => {
             globepay::transformers::GlobepayAuthType::try_from(val)?;
+            Ok(())
+        }
+        api_enums::Connector::Gocardless => {
+            gocardless::transformers::GocardlessAuthType::try_from(val)?;
             Ok(())
         }
         api_enums::Connector::Iatapay => {

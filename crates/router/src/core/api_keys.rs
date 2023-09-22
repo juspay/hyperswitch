@@ -13,7 +13,6 @@ use crate::{
     configs::settings,
     consts,
     core::errors::{self, RouterResponse, StorageErrorExt},
-    db::StorageInterface,
     routes::{metrics, AppState},
     services::ApplicationResponse,
     types::{api, storage, transformers::ForeignInto},
@@ -131,13 +130,13 @@ impl PlaintextApiKey {
 
 #[instrument(skip_all)]
 pub async fn create_api_key(
-    state: &AppState,
-    api_key_config: &settings::ApiKeys,
+    state: AppState,
     #[cfg(feature = "kms")] kms_client: &kms::KmsClient,
     api_key: api::CreateApiKeyRequest,
     merchant_id: String,
 ) -> RouterResponse<api::CreateApiKeyResponse> {
-    let store = &*state.store;
+    let api_key_config = &state.conf.api_keys;
+    let store = state.store.as_ref();
     // We are not fetching merchant account as the merchant key store is needed to search for a
     // merchant account.
     // Instead, we're only fetching merchant key store, as it is sufficient to identify
@@ -208,7 +207,7 @@ pub async fn create_api_key(
 #[cfg(feature = "email")]
 #[instrument(skip_all)]
 pub async fn add_api_key_expiry_task(
-    store: &dyn StorageInterface,
+    store: &dyn crate::db::StorageInterface,
     api_key: &ApiKey,
     expiry_reminder_days: Vec<u8>,
 ) -> Result<(), errors::ProcessTrackerError> {
@@ -277,10 +276,11 @@ pub async fn add_api_key_expiry_task(
 
 #[instrument(skip_all)]
 pub async fn retrieve_api_key(
-    store: &dyn StorageInterface,
+    state: AppState,
     merchant_id: &str,
     key_id: &str,
 ) -> RouterResponse<api::RetrieveApiKeyResponse> {
+    let store = state.store.as_ref();
     let api_key = store
         .find_api_key_by_merchant_id_key_id_optional(merchant_id, key_id)
         .await
@@ -293,12 +293,12 @@ pub async fn retrieve_api_key(
 
 #[instrument(skip_all)]
 pub async fn update_api_key(
-    state: &AppState,
+    state: AppState,
     merchant_id: &str,
     key_id: &str,
     api_key: api::UpdateApiKeyRequest,
 ) -> RouterResponse<api::RetrieveApiKeyResponse> {
-    let store = &*state.store;
+    let store = state.store.as_ref();
 
     let api_key = store
         .update_api_key(
@@ -372,7 +372,7 @@ pub async fn update_api_key(
 #[cfg(feature = "email")]
 #[instrument(skip_all)]
 pub async fn update_api_key_expiry_task(
-    store: &dyn StorageInterface,
+    store: &dyn crate::db::StorageInterface,
     api_key: &ApiKey,
     expiry_reminder_days: Vec<u8>,
 ) -> Result<(), errors::ProcessTrackerError> {
@@ -429,11 +429,11 @@ pub async fn update_api_key_expiry_task(
 
 #[instrument(skip_all)]
 pub async fn revoke_api_key(
-    state: &AppState,
+    state: AppState,
     merchant_id: &str,
     key_id: &str,
 ) -> RouterResponse<api::RevokeApiKeyResponse> {
-    let store = &*state.store;
+    let store = state.store.as_ref();
     let revoked = store
         .revoke_api_key(merchant_id, key_id)
         .await
@@ -478,7 +478,7 @@ pub async fn revoke_api_key(
 #[cfg(feature = "email")]
 #[instrument(skip_all)]
 pub async fn revoke_api_key_expiry_task(
-    store: &dyn StorageInterface,
+    store: &dyn crate::db::StorageInterface,
     key_id: &str,
 ) -> Result<(), errors::ProcessTrackerError> {
     let task_id = generate_task_id_for_api_key_expiry_workflow(key_id);
@@ -498,11 +498,12 @@ pub async fn revoke_api_key_expiry_task(
 
 #[instrument(skip_all)]
 pub async fn list_api_keys(
-    store: &dyn StorageInterface,
+    state: AppState,
     merchant_id: String,
     limit: Option<i64>,
     offset: Option<i64>,
 ) -> RouterResponse<Vec<api::RetrieveApiKeyResponse>> {
+    let store = state.store.as_ref();
     let api_keys = store
         .list_api_keys_by_merchant_id(&merchant_id, limit, offset)
         .await

@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use api_models::{
     enums::{CanadaStatesAbbreviation, UsStatesAbbreviation},
-    payments::{self, OrderDetailsWithAmount},
+    payments::{self, BankDebitBilling, OrderDetailsWithAmount},
 };
 use base64::Engine;
 use common_utils::{
@@ -199,6 +199,7 @@ pub trait PaymentsPreProcessingData {
     fn get_order_details(&self) -> Result<Vec<OrderDetailsWithAmount>, Error>;
     fn get_webhook_url(&self) -> Result<String, Error>;
     fn get_return_url(&self) -> Result<String, Error>;
+    fn get_browser_info(&self) -> Result<types::BrowserInformation, Error>;
 }
 
 impl PaymentsPreProcessingData for types::PaymentsPreProcessingData {
@@ -237,6 +238,11 @@ impl PaymentsPreProcessingData for types::PaymentsPreProcessingData {
         self.router_return_url
             .clone()
             .ok_or_else(missing_field_err("return_url"))
+    }
+    fn get_browser_info(&self) -> Result<types::BrowserInformation, Error> {
+        self.browser_info
+            .clone()
+            .ok_or_else(missing_field_err("browser_info"))
     }
 }
 
@@ -352,6 +358,16 @@ impl PaymentsAuthorizeRequestData for types::PaymentsAuthorizeData {
     fn get_connector_mandate_id(&self) -> Result<String, Error> {
         self.connector_mandate_id()
             .ok_or_else(missing_field_err("connector_mandate_id"))
+    }
+}
+
+pub trait ConnectorCustomerData {
+    fn get_email(&self) -> Result<Email, Error>;
+}
+
+impl ConnectorCustomerData for types::ConnectorCustomerData {
+    fn get_email(&self) -> Result<Email, Error> {
+        self.email.clone().ok_or_else(missing_field_err("email"))
     }
 }
 
@@ -860,6 +876,19 @@ impl BankRedirectBillingData for payments::BankRedirectBilling {
         self.billing_name
             .clone()
             .ok_or_else(missing_field_err("billing_details.billing_name"))
+    }
+}
+
+pub trait BankDirectDebitBillingData {
+    fn get_billing_country(&self) -> Result<api_models::enums::CountryAlpha2, Error>;
+}
+
+impl BankDirectDebitBillingData for BankDebitBilling {
+    fn get_billing_country(&self) -> Result<api_models::enums::CountryAlpha2, Error> {
+        self.address
+            .as_ref()
+            .and_then(|address| address.country)
+            .ok_or_else(missing_field_err("billing_details.country"))
     }
 }
 
@@ -1380,6 +1409,7 @@ pub trait MultipleCaptureSyncResponse {
     fn get_connector_reference_id(&self) -> Option<String> {
         None
     }
+    fn get_amount_captured(&self) -> Option<i64>;
 }
 
 pub fn construct_captures_response_hashmap<T>(
@@ -1401,6 +1431,7 @@ where
                         status: capture_sync_response.get_capture_attempt_status(),
                         connector_response_reference_id: capture_sync_response
                             .get_connector_reference_id(),
+                        amount: capture_sync_response.get_amount_captured(),
                     },
                 );
             }
