@@ -83,9 +83,12 @@ pub async fn payments_incoming_webhook_flow<W: types::OutgoingWebhookType>(
                     metrics::WEBHOOK_PAYMENT_NOT_FOUND.add(
                         &metrics::CONTEXT,
                         1,
-                        &[add_attributes("merchant_id", merchant_account.merchant_id)],
+                        &[add_attributes(
+                            "merchant_id",
+                            merchant_account.merchant_id.clone(),
+                        )],
                     );
-                    return Ok(WebhookResponseTracker::NoAffect);
+                    return Ok(WebhookResponseTracker::NoEffect);
                 }
                 error @ Err(_) => error?,
             }
@@ -239,7 +242,11 @@ pub async fn refunds_incoming_webhook_flow<W: types::OutgoingWebhookType>(
 
     // Add the analytics event here
 
-    Ok(WebhookResponseTracker::NoAffect)
+    Ok(WebhookResponseTracker::Refund {
+        payment_id: updated_refund.payment_id,
+        refund_id: updated_refund.refund_id,
+        status: updated_refund.refund_status,
+    })
 }
 
 pub async fn get_payment_attempt_from_object_reference_id(
@@ -403,13 +410,17 @@ pub async fn disputes_incoming_webhook_flow<W: types::OutgoingWebhookType>(
             event_type,
             enums::EventClass::Disputes,
             None,
-            dispute_object.dispute_id,
+            dispute_object.dispute_id.clone(),
             enums::EventObjectType::DisputeDetails,
             api::OutgoingWebhookContent::DisputeDetails(disputes_response),
         )
         .await?;
         metrics::INCOMING_DISPUTE_WEBHOOK_MERCHANT_NOTIFIED_METRIC.add(&metrics::CONTEXT, 1, &[]);
-        Ok(WebhookResponseTracker::NoAffect)
+        Ok(WebhookResponseTracker::Dispute {
+            dispute_id: dispute_object.dispute_id,
+            payment_id: dispute_object.payment_id,
+            status: dispute_object.dispute_status,
+        })
     } else {
         metrics::INCOMING_DISPUTE_WEBHOOK_SIGNATURE_FAILURE_METRIC.add(&metrics::CONTEXT, 1, &[]);
         Err(errors::ApiErrorResponse::WebhookAuthenticationFailed).into_report()
@@ -465,6 +476,7 @@ async fn bank_transfer_webhook_flow<W: types::OutgoingWebhookType>(
                 .attach_printable("did not receive payment id from payments core response")?;
 
             let event_type: Option<enums::EventType> = payments_response.status.foreign_into();
+            let status = payments_response.status;
 
             // If event is NOT an UnsupportedEvent, trigger Outgoing Webhook
             if let Some(outgoing_event_type) = event_type {
@@ -474,20 +486,20 @@ async fn bank_transfer_webhook_flow<W: types::OutgoingWebhookType>(
                     outgoing_event_type,
                     enums::EventClass::Payments,
                     None,
-                    payment_id,
+                    payment_id.clone(),
                     enums::EventObjectType::PaymentDetails,
                     api::OutgoingWebhookContent::PaymentDetails(payments_response),
                 )
                 .await?;
             }
+
+            Ok(WebhookResponseTracker::Payment { payment_id, status })
         }
 
         _ => Err(errors::ApiErrorResponse::WebhookProcessingFailure)
             .into_report()
             .attach_printable("received non-json response from payments core")?,
     }
-
-    Ok(WebhookResponseTracker::NoAffect)
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -813,7 +825,7 @@ pub async fn webhooks_core<W: types::OutgoingWebhookType>(
                 .switch()
                 .attach_printable("Failed while early return in case of event type parsing")?;
 
-            return Ok((response, WebhookResponseTracker::NoAffect));
+            return Ok((response, WebhookResponseTracker::NoEffect));
         }
     };
 
@@ -929,7 +941,7 @@ pub async fn webhooks_core<W: types::OutgoingWebhookType>(
                 .await
                 .attach_printable("Incoming bank-transfer webhook flow failed")?,
 
-                api::WebhookFlow::ReturnResponse => WebhookResponseTracker::NoAffect,
+                api::WebhookFlow::ReturnResponse => WebhookResponseTracker::NoEffect,
 
                 _ => Err(errors::ApiErrorResponse::InternalServerError)
                     .into_report()
@@ -944,7 +956,7 @@ pub async fn webhooks_core<W: types::OutgoingWebhookType>(
                     merchant_account.merchant_id.clone(),
                 )],
             );
-            WebhookResponseTracker::NoAffect
+            WebhookResponseTracker::NoEffect
         };
 
     let response = connector

@@ -39,13 +39,24 @@ pub enum WebhookFlow {
     BankTransfer,
 }
 
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 /// This enum tells about the affect a webhook had on an object
 pub enum WebhookResponseTracker {
     Payment {
         payment_id: String,
         status: common_enums::IntentStatus,
     },
-    NoAffect,
+    Refund {
+        payment_id: String,
+        refund_id: String,
+        status: common_enums::RefundStatus,
+    },
+    Dispute {
+        dispute_id: String,
+        payment_id: String,
+        status: common_enums::DisputeStatus,
+    },
+    NoEffect,
 }
 
 impl From<IncomingWebhookEvent> for WebhookFlow {

@@ -24,7 +24,7 @@ pub async fn receive_incoming_webhook<W: types::OutgoingWebhookType>(
         body,
         |state, auth, body| {
             webhooks::webhooks_wrapper::<W>(
-                state,
+                state.to_owned(),
                 &req,
                 auth.merchant_account,
                 auth.key_store,
