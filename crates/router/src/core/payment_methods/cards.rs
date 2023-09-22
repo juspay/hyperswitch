@@ -879,6 +879,7 @@ pub async fn list_payment_methods(
                 &merchant_account,
                 payment_intent.profile_id.as_ref(),
                 db,
+                false,
             )
             .await
             .attach_printable("Could not find profile id from business details")

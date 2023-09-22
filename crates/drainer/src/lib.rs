@@ -42,6 +42,7 @@ pub async fn start_drainer(
 
     let active_tasks = Arc::new(atomic::AtomicU64::new(0));
     'event: loop {
+        metrics::DRAINER_HEALTH.add(&metrics::CONTEXT, 1, &[]);
         match rx.try_recv() {
             Err(mpsc::error::TryRecvError::Empty) => {
                 if utils::is_stream_available(stream_index, store.clone()).await {
