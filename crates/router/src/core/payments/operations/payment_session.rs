@@ -98,6 +98,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsSessionRequest>
             payment_intent.customer_id.as_ref(),
             key_store,
             &payment_intent.payment_id,
+            merchant_account.storage_scheme,
         )
         .await?;
 
@@ -109,6 +110,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsSessionRequest>
             payment_intent.customer_id.as_ref(),
             key_store,
             &payment_intent.payment_id,
+            merchant_account.storage_scheme,
         )
         .await?;
 
@@ -338,6 +340,7 @@ where
             merchant_account,
             payment_intent.profile_id.as_ref(),
             &*state.store,
+            false,
         )
         .await
         .attach_printable("Could not find profile id from business details")?;
