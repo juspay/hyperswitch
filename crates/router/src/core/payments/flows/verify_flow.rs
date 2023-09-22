@@ -228,8 +228,8 @@ impl mandate::MandateBehaviour for types::VerifyRequestData {
         self.mandate_id = new_mandate_id;
     }
 
-    fn get_payment_method_data(&self) -> api_models::payments::PaymentMethodData {
-        self.payment_method_data.clone()
+    fn get_payment_method_data(&self) -> Option<api_models::payments::PaymentMethodData> {
+        Some(self.payment_method_data.clone())
     }
 
     fn get_setup_mandate_details(&self) -> Option<&data_models::mandates::MandateData> {

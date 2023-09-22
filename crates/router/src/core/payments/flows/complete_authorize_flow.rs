@@ -4,6 +4,7 @@ use super::{ConstructFlowSpecificData, Feature};
 use crate::{
     core::{
         errors::{self, ConnectorErrorExt, RouterResult},
+        mandate,
         payments::{self, access_token, helpers, transformers, PaymentData},
     },
     routes::AppState,
@@ -63,11 +64,11 @@ impl Feature<api::CompleteAuthorize, types::CompleteAuthorizeData>
         mut self,
         state: &AppState,
         connector: &api::ConnectorData,
-        _customer: &Option<domain::Customer>,
+        customer: &Option<domain::Customer>,
         call_connector_action: payments::CallConnectorAction,
-        _merchant_account: &domain::MerchantAccount,
+        merchant_account: &domain::MerchantAccount,
         connector_request: Option<services::Request>,
-        _key_store: &domain::MerchantKeyStore,
+        key_store: &domain::MerchantKeyStore,
     ) -> RouterResult<Self> {
         let connector_integration: services::BoxedConnectorIntegration<
             '_,
@@ -86,7 +87,31 @@ impl Feature<api::CompleteAuthorize, types::CompleteAuthorizeData>
         .await
         .to_payment_failed_response()?;
 
-        Ok(resp)
+        //save payment method
+        let save_payment_result = payments::tokenization::save_payment_method(
+            state,
+            connector,
+            resp.to_owned(),
+            customer,
+            merchant_account,
+            resp.request.payment_method_type,
+            key_store,
+        )
+        .await;
+
+        let pm_id = match save_payment_result {
+            Ok(payment_method_id) => Ok(payment_method_id),
+            Err(error) => {
+                if resp.request.setup_mandate_details.clone().is_some() {
+                    Err(error)
+                } else {
+                    services::logger::error!(save_payment_method_error=?error);
+                    Ok(None)
+                }
+            }
+        }?;
+
+        Ok(mandate::mandate_procedure(state, resp, customer, pm_id).await?)
     }
 
     async fn add_access_token<'a>(
@@ -158,5 +183,26 @@ impl TryFrom<types::CompleteAuthorizeData> for types::PaymentMethodTokenizationD
             currency: data.currency,
             amount: Some(data.amount),
         })
+    }
+}
+
+impl mandate::MandateBehaviour for types::CompleteAuthorizeData {
+    fn get_amount(&self) -> i64 {
+        self.amount
+    }
+    fn get_mandate_id(&self) -> Option<&api_models::payments::MandateIds> {
+        self.mandate_id.as_ref()
+    }
+    fn get_payment_method_data(&self) -> Option<api_models::payments::PaymentMethodData> {
+        self.payment_method_data.clone()
+    }
+    fn get_setup_future_usage(&self) -> Option<diesel_models::enums::FutureUsage> {
+        self.setup_future_usage
+    }
+    fn get_setup_mandate_details(&self) -> Option<&data_models::mandates::MandateData> {
+        self.setup_mandate_details.as_ref()
+    }
+    fn set_mandate_id(&mut self, new_mandate_id: Option<api_models::payments::MandateIds>) {
+        self.mandate_id = new_mandate_id;
     }
 }

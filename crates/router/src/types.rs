@@ -436,6 +436,7 @@ pub struct PaymentsPreProcessingData {
 #[derive(Debug, Clone)]
 pub struct CompleteAuthorizeData {
     pub payment_method_data: Option<payments::PaymentMethodData>,
+    pub payment_method_type: Option<storage_enums::PaymentMethodType>,
     pub amount: i64,
     pub email: Option<Email>,
     pub currency: storage_enums::Currency,
