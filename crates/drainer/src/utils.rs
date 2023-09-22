@@ -36,21 +36,11 @@ pub async fn read_from_stream(
     // "0-0" id gives first entry
     let stream_id = "0-0";
     let (output, execution_time) = common_utils::date_time::time_it(|| async {
-        match redis
+        redis
             .stream_read_entries(stream_name, stream_id, Some(max_read_count))
             .await
-        {
-            Ok(result) => Ok(result),
-            Err(err) => {
-                if let redis::errors::RedisError::StreamEmptyOrNotAvailable = err.current_context()
-                {
-                    metrics::STREAM_EMPTY.add(&metrics::CONTEXT, 1, &[]);
-                    Ok(HashMap::default())
-                } else {
-                    Err(DrainerError::from(err)).into_report()
-                }
-            }
-        }
+            .map_err(DrainerError::from)
+            .into_report()
     })
     .await;
 
