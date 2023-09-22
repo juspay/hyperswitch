@@ -29,6 +29,7 @@ use crate::{
     types::{
         self,
         api::{self, CompleteAuthorize, ConnectorCommon, ConnectorCommonExt, VerifyWebhookSource},
+        transformers::ForeignFrom,
         ErrorResponse, Response,
     },
     utils::{self, BytesExt},
@@ -1044,6 +1045,17 @@ impl api::IncomingWebhook for Paypal {
                     api_models::webhooks::RefundIdType::ConnectorRefundId(resource.id),
                 ))
             }
+            paypal::PaypalResource::PaypalDisputeWebhooks(resource) => {
+                Ok(api_models::webhooks::ObjectReferenceId::PaymentId(
+                    api_models::payments::PaymentIdType::PaymentAttemptId(
+                        resource
+                            .dispute_transactions
+                            .first()
+                            .map(|transaction| transaction.reference_id.clone())
+                            .ok_or(errors::ConnectorError::WebhookReferenceIdNotFound)?,
+                    ),
+                ))
+            }
         }
     }
 
@@ -1055,7 +1067,15 @@ impl api::IncomingWebhook for Paypal {
             .body
             .parse_struct("PaypalWebooksEventType")
             .change_context(errors::ConnectorError::WebhookEventTypeNotFound)?;
-        Ok(api::IncomingWebhookEvent::from(payload.event_type))
+        let outcome: paypal::DisputeOutcome =
+            request
+                .body
+                .parse_struct("PaypalWebooksEventType")
+                .change_context(errors::ConnectorError::WebhookEventTypeNotFound)?;
+        Ok(api::IncomingWebhookEvent::foreign_from((
+            payload.event_type,
+            outcome.outcome_code,
+        )))
     }
 
     fn get_webhook_resource_object(
@@ -1083,8 +1103,35 @@ impl api::IncomingWebhook for Paypal {
             )
             .into_report()
             .change_context(errors::ConnectorError::WebhookResourceObjectNotFound)?,
+            paypal::PaypalResource::PaypalDisputeWebhooks(_) => serde_json::to_value(details)
+                .into_report()
+                .change_context(errors::ConnectorError::WebhookResourceObjectNotFound)?,
         };
         Ok(sync_payload)
+    }
+
+    fn get_dispute_details(
+        &self,
+        request: &api::IncomingWebhookRequestDetails<'_>,
+    ) -> CustomResult<api::disputes::DisputePayload, errors::ConnectorError> {
+        let payload: paypal::PaypalDisputeWebhooks = request
+            .body
+            .parse_struct("PaypalDisputeWebhooks")
+            .change_context(errors::ConnectorError::WebhookReferenceIdNotFound)?;
+        Ok(api::disputes::DisputePayload {
+            amount: payload.dispute_amount.value,
+            currency: payload.dispute_amount.currency_code.to_string(),
+            dispute_stage: api_models::enums::DisputeStage::from(
+                payload.dispute_life_cycle_stage.clone(),
+            ),
+            connector_status: payload.status.to_string(),
+            connector_dispute_id: payload.dispute_id,
+            connector_reason: payload.reason,
+            connector_reason_code: payload.external_reason_code,
+            challenge_required_by: payload.seller_response_due_date,
+            created_at: payload.create_time,
+            updated_at: payload.update_time,
+        })
     }
 }
 

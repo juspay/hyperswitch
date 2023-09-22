@@ -1,8 +1,9 @@
-use api_models::payments::BankRedirectData;
+use api_models::{enums, payments::BankRedirectData};
 use common_utils::errors::CustomResult;
 use error_stack::{IntoReport, ResultExt};
 use masking::Secret;
 use serde::{Deserialize, Serialize};
+use time::PrimitiveDateTime;
 use url::Url;
 
 use crate::{
@@ -35,8 +36,8 @@ pub enum PaypalPaymentIntent {
 
 #[derive(Default, Debug, Clone, Serialize, Eq, PartialEq, Deserialize)]
 pub struct OrderAmount {
-    currency_code: storage_enums::Currency,
-    value: String,
+    pub currency_code: storage_enums::Currency,
+    pub value: String,
 }
 
 #[derive(Default, Debug, Serialize, Eq, PartialEq)]
@@ -1135,7 +1136,7 @@ pub struct PaypalWebhooksBody {
     pub resource: PaypalResource,
 }
 
-#[derive(Deserialize, Debug, Serialize)]
+#[derive(Clone, Deserialize, Debug, strum::Display, Serialize)]
 pub enum PaypalWebhookEventType {
     #[serde(rename = "PAYMENT.AUTHORIZATION.CREATED")]
     PaymentAuthorizationCreated,
@@ -1155,6 +1156,14 @@ pub enum PaypalWebhookEventType {
     CheckoutOrderCompleted,
     #[serde(rename = "CHECKOUT.ORDER.PROCESSED")]
     CheckoutOrderProcessed,
+    #[serde(rename = "CUSTOMER.DISPUTE.CREATED")]
+    CustomerDisputeCreated,
+    #[serde(rename = "CUSTOMER.DISPUTE.RESOLVED")]
+    CustomerDisputeResolved,
+    #[serde(rename = "CUSTOMER.DISPUTE.UPDATED")]
+    CustomerDisputedUpdated,
+    #[serde(rename = "RISK.DISPUTE.CREATED")]
+    RiskDisputeCreated,
     #[serde(other)]
     Unknown,
 }
@@ -1165,6 +1174,67 @@ pub enum PaypalResource {
     PaypalCardWebhooks(Box<PaypalCardWebhooks>),
     PaypalRedirectsWebhooks(Box<PaypalRedirectsWebhooks>),
     PaypalRefundWebhooks(Box<PaypalRefundWebhooks>),
+    PaypalDisputeWebhooks(Box<PaypalDisputeWebhooks>),
+}
+
+#[derive(Deserialize, Debug, Serialize)]
+pub struct PaypalDisputeWebhooks {
+    pub dispute_id: String,
+    pub dispute_transactions: Vec<DisputeTransaction>,
+    pub dispute_amount: OrderAmount,
+    pub dispute_outcome: DisputeOutcome,
+    pub dispute_life_cycle_stage: DisputeLifeCycleStage,
+    pub status: Status,
+    pub reason: Option<String>,
+    pub external_reason_code: Option<String>,
+    pub seller_response_due_date: Option<PrimitiveDateTime>,
+    pub update_time: Option<PrimitiveDateTime>,
+    pub create_time: Option<PrimitiveDateTime>,
+}
+
+#[derive(Deserialize, Debug, Serialize)]
+pub struct DisputeTransaction {
+    pub reference_id: String,
+}
+
+#[derive(Clone, Deserialize, Debug, strum::Display, Serialize)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum DisputeLifeCycleStage {
+    Inquiry,
+    Chargeback,
+    PreArbitration,
+    Arbitration,
+}
+
+#[derive(Deserialize, Debug, strum::Display, Serialize)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum Status {
+    Open,
+    WaitingForBuyerResponse,
+    WaitingForSellerResponse,
+    UnderReview,
+    Resolved,
+    Other,
+}
+
+#[derive(Deserialize, Debug, Serialize)]
+pub struct DisputeOutcome {
+    pub outcome_code: OutcomeCode,
+}
+
+#[derive(Deserialize, Debug, Serialize)]
+pub enum OutcomeCode {
+    #[serde(rename = "RESOLVED_BUYER_FAVOUR")]
+    ResolvedBuyerFavour,
+    #[serde(rename = "RESOLVED_SELLER_FAVOUR")]
+    ResolvedSellerFavour,
+    #[serde(rename = "RESOLVED_WITH_PAYOUT")]
+    ResolvedWithPayout,
+    #[serde(rename = "CANCELED_BY_BUYER")]
+    CanceledByBuyer,
+    ACCEPTED,
+    DENIED,
+    NONE,
 }
 
 #[derive(Deserialize, Debug, Serialize)]
@@ -1213,19 +1283,55 @@ pub struct PaypalWebooksEventType {
     pub event_type: PaypalWebhookEventType,
 }
 
-impl From<PaypalWebhookEventType> for api::IncomingWebhookEvent {
-    fn from(event: PaypalWebhookEventType) -> Self {
-        match event {
-            PaypalWebhookEventType::PaymentCaptureCompleted
-            | PaypalWebhookEventType::CheckoutOrderCompleted => Self::PaymentIntentSuccess,
-            PaypalWebhookEventType::PaymentCapturePending
-            | PaypalWebhookEventType::CheckoutOrderProcessed => Self::PaymentIntentProcessing,
-            PaypalWebhookEventType::PaymentCaptureDeclined => Self::PaymentIntentFailure,
-            PaypalWebhookEventType::PaymentCaptureRefunded => Self::RefundSuccess,
-            PaypalWebhookEventType::PaymentAuthorizationCreated
-            | PaypalWebhookEventType::PaymentAuthorizationVoided
-            | PaypalWebhookEventType::CheckoutOrderApproved
-            | PaypalWebhookEventType::Unknown => Self::EventNotSupported,
+impl ForeignFrom<(PaypalWebhookEventType, OutcomeCode)> for api::IncomingWebhookEvent {
+    fn foreign_from((event, outcome): (PaypalWebhookEventType, OutcomeCode)) -> Self {
+        match (event, outcome) {
+            (PaypalWebhookEventType::PaymentCaptureCompleted, _)
+            | (PaypalWebhookEventType::CheckoutOrderCompleted, _) => Self::PaymentIntentSuccess,
+            (PaypalWebhookEventType::PaymentCapturePending, _)
+            | (PaypalWebhookEventType::CheckoutOrderProcessed, _) => Self::PaymentIntentProcessing,
+            (PaypalWebhookEventType::PaymentCaptureDeclined, _) => Self::PaymentIntentFailure,
+            (PaypalWebhookEventType::PaymentCaptureRefunded, _) => Self::RefundSuccess,
+            (PaypalWebhookEventType::PaymentAuthorizationCreated, _)
+            | (PaypalWebhookEventType::PaymentAuthorizationVoided, _)
+            | (PaypalWebhookEventType::CheckoutOrderApproved, _)
+            | (PaypalWebhookEventType::Unknown, _) => Self::EventNotSupported,
+            (PaypalWebhookEventType::CustomerDisputeCreated, _) => Self::DisputeOpened,
+            (
+                PaypalWebhookEventType::CustomerDisputeResolved,
+                OutcomeCode::ResolvedSellerFavour,
+            ) => Self::DisputeWon,
+            (PaypalWebhookEventType::CustomerDisputeResolved, OutcomeCode::ResolvedBuyerFavour) => {
+                Self::DisputeLost
+            }
+            (PaypalWebhookEventType::CustomerDisputeResolved, OutcomeCode::ResolvedWithPayout) => {
+                Self::DisputeWon
+            }
+            (PaypalWebhookEventType::CustomerDisputeResolved, OutcomeCode::CanceledByBuyer) => {
+                Self::DisputeCancelled
+            }
+            (PaypalWebhookEventType::CustomerDisputeResolved, OutcomeCode::ACCEPTED) => {
+                Self::DisputeAccepted
+            }
+            (PaypalWebhookEventType::CustomerDisputeResolved, OutcomeCode::DENIED) => {
+                Self::DisputeCancelled
+            }
+            (PaypalWebhookEventType::CustomerDisputeResolved, OutcomeCode::NONE) => {
+                Self::DisputeCancelled
+            }
+            (PaypalWebhookEventType::RiskDisputeCreated, _) => Self::DisputeAccepted,
+            (PaypalWebhookEventType::CustomerDisputedUpdated, _) => Self::EventNotSupported,
+        }
+    }
+}
+
+impl From<DisputeLifeCycleStage> for enums::DisputeStage {
+    fn from(dispute_life_cycle_stage: DisputeLifeCycleStage) -> Self {
+        match dispute_life_cycle_stage {
+            DisputeLifeCycleStage::Inquiry => Self::PreDispute,
+            DisputeLifeCycleStage::Chargeback => Self::PreArbitration,
+            DisputeLifeCycleStage::PreArbitration => Self::Dispute,
+            DisputeLifeCycleStage::Arbitration => Self::PreDispute,
         }
     }
 }
@@ -1347,7 +1453,11 @@ impl TryFrom<PaypalWebhookEventType> for PaypalPaymentStatus {
             | PaypalWebhookEventType::CheckoutOrderProcessed => Ok(Self::Pending),
             PaypalWebhookEventType::PaymentAuthorizationCreated => Ok(Self::Created),
             PaypalWebhookEventType::PaymentCaptureRefunded => Ok(Self::Refunded),
-            PaypalWebhookEventType::Unknown => {
+            PaypalWebhookEventType::CustomerDisputeCreated
+            | PaypalWebhookEventType::CustomerDisputeResolved
+            | PaypalWebhookEventType::CustomerDisputedUpdated
+            | PaypalWebhookEventType::RiskDisputeCreated
+            | PaypalWebhookEventType::Unknown => {
                 Err(errors::ConnectorError::WebhookEventTypeNotFound.into())
             }
         }
@@ -1367,6 +1477,10 @@ impl TryFrom<PaypalWebhookEventType> for RefundStatus {
             | PaypalWebhookEventType::CheckoutOrderApproved
             | PaypalWebhookEventType::CheckoutOrderCompleted
             | PaypalWebhookEventType::CheckoutOrderProcessed
+            | PaypalWebhookEventType::CustomerDisputeCreated
+            | PaypalWebhookEventType::CustomerDisputeResolved
+            | PaypalWebhookEventType::CustomerDisputedUpdated
+            | PaypalWebhookEventType::RiskDisputeCreated
             | PaypalWebhookEventType::Unknown => {
                 Err(errors::ConnectorError::WebhookEventTypeNotFound.into())
             }
@@ -1387,6 +1501,10 @@ impl TryFrom<PaypalWebhookEventType> for PaypalOrderStatus {
             PaypalWebhookEventType::CheckoutOrderApproved
             | PaypalWebhookEventType::PaymentCaptureDeclined
             | PaypalWebhookEventType::PaymentCaptureRefunded
+            | PaypalWebhookEventType::CustomerDisputeCreated
+            | PaypalWebhookEventType::CustomerDisputeResolved
+            | PaypalWebhookEventType::CustomerDisputedUpdated
+            | PaypalWebhookEventType::RiskDisputeCreated
             | PaypalWebhookEventType::Unknown => {
                 Err(errors::ConnectorError::WebhookEventTypeNotFound.into())
             }
