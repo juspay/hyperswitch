@@ -594,6 +594,7 @@ where
         payment_data,
         connector_name,
         key_store,
+        false,
     )
     .await?;
 
@@ -613,6 +614,7 @@ where
         customer,
         merchant_account,
         key_store,
+        &merchant_connector_account,
         payment_data,
     )
     .await?;
@@ -802,6 +804,7 @@ where
             &mut payment_data,
             &session_connector_data.connector.connector_name.to_string(),
             key_store,
+            false,
         )
         .await?;
 
@@ -873,6 +876,7 @@ pub async fn call_create_connector_customer_if_required<F, Req>(
     customer: &Option<domain::Customer>,
     merchant_account: &domain::MerchantAccount,
     key_store: &domain::MerchantKeyStore,
+    merchant_connector_account: &helpers::MerchantConnectorAccountType,
     payment_data: &mut PaymentData<F>,
 ) -> RouterResult<Option<storage::CustomerUpdate>>
 where
@@ -891,15 +895,6 @@ where
 
     match connector_name {
         Some(connector_name) => {
-            let merchant_connector_account = construct_profile_id_and_get_mca(
-                state,
-                merchant_account,
-                payment_data,
-                &connector_name,
-                key_store,
-            )
-            .await?;
-
             let connector = api::ConnectorData::get_connector_by_name(
                 &state.conf.connectors,
                 &connector_name,
@@ -922,6 +917,7 @@ where
                     merchant_account,
                     payment_data.payment_intent.profile_id.as_ref(),
                     &*state.store,
+                    false,
                 )
                 .await
                 .attach_printable("Could not find profile id from business details")?;
@@ -946,7 +942,7 @@ where
                         merchant_account,
                         key_store,
                         customer,
-                        &merchant_connector_account,
+                        merchant_connector_account,
                     )
                     .await?;
 
@@ -1060,6 +1056,7 @@ pub async fn construct_profile_id_and_get_mca<'a, F>(
     payment_data: &mut PaymentData<F>,
     connector_id: &str,
     key_store: &domain::MerchantKeyStore,
+    should_validate: bool,
 ) -> RouterResult<helpers::MerchantConnectorAccountType>
 where
     F: Clone,
@@ -1070,6 +1067,7 @@ where
         merchant_account,
         payment_data.payment_intent.profile_id.as_ref(),
         &*state.store,
+        should_validate,
     )
     .await
     .change_context(errors::ApiErrorResponse::InternalServerError)

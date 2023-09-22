@@ -615,6 +615,7 @@ impl PaymentCreate {
             merchant_account,
             request.profile_id.as_ref(),
             &*state.store,
+            true,
         )
         .await?;
 
