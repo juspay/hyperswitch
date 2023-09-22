@@ -4,6 +4,16 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 1.40.1+hotfix.3 (2023-09-22)
+
+### Bug Fixes
+
+- **connector:** Fix dispute webhook failure bug in checkout during get_webhook_resource_object ([#2258](https://github.com/juspay/hyperswitch/pull/2258)) ([`a5b62f4`](https://github.com/juspay/hyperswitch/commit/a5b62f4db0dc24cec2e08ceb3a8356853202a03c))
+
+**Full Changelog:** [`v1.40.1+hotfix.2...v1.40.1+hotfix.3`](https://github.com/juspay/hyperswitch/compare/v1.40.1+hotfix.2...v1.40.1+hotfix.3)
+
+- - -
+
 ## 1.40.1+hotfix.2 (2023-09-20)
 
 ### Bug Fixes
