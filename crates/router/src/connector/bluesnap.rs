@@ -872,22 +872,7 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
         req: &types::RefundSyncRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        let meta_data: CustomResult<bluesnap::BluesnapConnectorMetaData, errors::ConnectorError> =
-            connector_utils::to_connector_meta_from_secret(req.connector_meta_data.clone());
-
-        match meta_data {
-            // if merchant_id is present, rsync can be made using merchant_transaction_id
-            Ok(data) => get_url_with_merchant_transaction_id(
-                self.base_url(connectors).to_string(),
-                data.merchant_id,
-                req.attempt_id.to_owned(),
-            ),
-            // otherwise rsync is made using connector_transaction_id
-            Err(_) => get_rsync_url_with_connector_transaction_id(
-                req,
-                self.base_url(connectors).to_string(),
-            ),
-        }
+        get_rsync_url_with_connector_refund_id(req, self.base_url(connectors).to_string())
     }
 
     fn build_request(
@@ -1252,7 +1237,7 @@ fn get_psync_url_with_connector_transaction_id(
     ))
 }
 
-fn get_rsync_url_with_connector_transaction_id(
+fn get_rsync_url_with_connector_refund_id(
     req: &types::RefundSyncRouterData,
     base_url: String,
 ) -> CustomResult<String, errors::ConnectorError> {
