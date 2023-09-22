@@ -1033,3 +1033,15 @@ pub async fn get_profile_id_from_business_details(
         },
     }
 }
+
+#[inline]
+pub fn get_flow_name<F>() -> RouterResult<String> {
+    Ok(std::any::type_name::<F>()
+        .to_string()
+        .rsplit("::")
+        .next()
+        .ok_or(errors::ApiErrorResponse::InternalServerError)
+        .into_report()
+        .attach_printable("Flow stringify failed")?
+        .to_string())
+}
