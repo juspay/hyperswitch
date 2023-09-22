@@ -4031,7 +4031,7 @@ impl<F> TryFrom<types::PayoutsResponseRouterData<F, StripeConnectPayoutFulfillRe
 
         Ok(Self {
             response: Ok(types::PayoutsResponseData {
-                status: Some(enums::PayoutStatus::foreign_from(response.status)),
+                status: Some(enums::PayoutStatus::from(response.status)),
                 connector_payout_id: response.id,
                 payout_eligible: None,
             }),
@@ -4074,7 +4074,6 @@ impl<F> TryFrom<types::PayoutsResponseRouterData<F, StripeConnectReversalRespons
 }
 
 // Recipient creation request transform
-// TODO: remove hardcoded data
 #[cfg(feature = "payouts")]
 impl<F> TryFrom<&types::PayoutsRouterData<F>> for StripeConnectRecipientCreateRequest {
     type Error = Error;
@@ -4263,8 +4262,8 @@ impl<F> TryFrom<types::PayoutsResponseRouterData<F, StripeConnectRecipientAccoun
 }
 
 #[cfg(feature = "payouts")]
-impl ForeignFrom<StripeConnectStatus> for enums::PayoutStatus {
-    fn foreign_from(stripe_connect_status: StripeConnectStatus) -> Self {
+impl From<StripeConnectStatus> for enums::PayoutStatus {
+    fn from(stripe_connect_status: StripeConnectStatus) -> Self {
         match stripe_connect_status {
             StripeConnectStatus::Succeeded => Self::Success,
             StripeConnectStatus::Failed => Self::Failed,

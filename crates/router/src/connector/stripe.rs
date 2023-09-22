@@ -83,6 +83,30 @@ impl ConnectorCommon for Stripe {
             format!("Bearer {}", auth.api_key.peek()).into_masked(),
         )])
     }
+
+    fn build_error_response(
+        &self,
+        res: types::Response,
+    ) -> CustomResult<types::ErrorResponse, errors::ConnectorError> {
+        let response: stripe::StripeConnectErrorResponse = res
+            .response
+            .parse_struct("StripeConnectErrorResponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+
+        Ok(types::ErrorResponse {
+            status_code: res.status_code,
+            code: response
+                .error
+                .code
+                .clone()
+                .unwrap_or_else(|| consts::NO_ERROR_CODE.to_string()),
+            message: response
+                .error
+                .code
+                .unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
+            reason: response.error.message,
+        })
+    }
 }
 
 impl ConnectorValidation for Stripe {
