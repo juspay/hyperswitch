@@ -98,6 +98,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsSessionRequest>
             payment_intent.customer_id.as_ref(),
             key_store,
             &payment_intent.payment_id,
+            merchant_account.storage_scheme,
         )
         .await?;
 
@@ -109,6 +110,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsSessionRequest>
             payment_intent.customer_id.as_ref(),
             key_store,
             &payment_intent.payment_id,
+            merchant_account.storage_scheme,
         )
         .await?;
 
