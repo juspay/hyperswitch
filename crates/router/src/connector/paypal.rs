@@ -1115,7 +1115,6 @@ impl ConnectorErrorTypeMapping for Paypal {
             "TRANSACTION_BLOCKED_BY_PAYEE" => ConnectorErrorType::BusinessError,
             "NOT_ENABLED_FOR_CARD_PROCESSING" => ConnectorErrorType::BusinessError,
             "PAYEE_NOT_ENABLED_FOR_CARD_PROCESSING" => ConnectorErrorType::BusinessError,
-
             _ => ConnectorErrorType::UnknownError,
         }
     }
