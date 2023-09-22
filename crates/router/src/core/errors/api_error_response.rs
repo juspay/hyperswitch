@@ -155,7 +155,7 @@ pub enum ApiErrorResponse {
     PaymentMethodNotFound,
     #[error(error_type = ErrorType::ObjectNotFound, code = "HE_02", message = "Merchant account does not exist in our records")]
     MerchantAccountNotFound,
-    #[error(error_type = ErrorType::ObjectNotFound, code = "HE_02", message = "Merchant connector account with id does not exist in our records")]
+    #[error(error_type = ErrorType::ObjectNotFound, code = "HE_02", message = "Merchant connector account does not exist in our records")]
     MerchantConnectorAccountNotFound { id: String },
     #[error(error_type = ErrorType::ObjectNotFound, code = "HE_02", message = "Business profile with the given id  '{id}' does not exist in our records")]
     BusinessProfileNotFound { id: String },

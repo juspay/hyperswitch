@@ -165,7 +165,7 @@ impl ErrorSwitch<api_models::errors::types::ApiErrorResponse> for ApiErrorRespon
                 AER::NotFound(ApiError::new("HE", 2, "Merchant account does not exist in our records", None))
             }
             Self::MerchantConnectorAccountNotFound {id } => {
-                AER::NotFound(ApiError::new("HE", 2, "Merchant connector account with id does not exist in our records", Some(Extra {reason: Some(format!("{id} does not exist")), ..Default::default()})))
+                AER::NotFound(ApiError::new("HE", 2, "Merchant connector account does not exist in our records", Some(Extra {reason: Some(format!("{id} does not exist")), ..Default::default()})))
             }
             Self::MerchantConnectorAccountDisabled => {
                 AER::BadRequest(ApiError::new("HE", 3, "The selected merchant connector account is disabled", None))
