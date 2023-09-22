@@ -530,24 +530,8 @@ impl CustomerAddress for api_models::customers::CustomerRequest {
     }
 }
 
-pub fn decide_apple_pay_flow(
-    payment_method_type: &Option<types::storage::enums::PaymentMethodType>,
-    is_apple_pay_predecrypt: bool,
-) -> Option<enums::ApplePayFlow> {
-    match payment_method_type {
-        Some(api_models::enums::PaymentMethodType::ApplePay) => {
-            if is_apple_pay_predecrypt {
-                Some(enums::ApplePayFlow::Simplified)
-            } else {
-                Some(enums::ApplePayFlow::Manual)
-            }
-        }
-        _ => None,
-    }
-}
-
 pub fn add_apple_pay_flow_metrics(
-    apple_pay_flow: Option<enums::ApplePayFlow>,
+    apple_pay_flow: &Option<enums::ApplePayFlow>,
     connector: Option<String>,
     merchant_id: String,
 ) {

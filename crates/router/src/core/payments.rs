@@ -9,7 +9,7 @@ pub mod types;
 
 use std::{fmt::Debug, marker::PhantomData, ops::Deref, time::Instant};
 
-use api_models::payments::HeaderPayload;
+use api_models::{enums, payments::HeaderPayload};
 use common_utils::{ext_traits::AsyncExt, pii};
 use data_models::mandates::MandateData;
 use diesel_models::{ephemeral_key, fraud_check::FraudCheck};
@@ -49,8 +49,8 @@ use crate::{
         storage::{self, enums as storage_enums},
     },
     utils::{
-        add_apple_pay_flow_metrics, add_connector_http_status_code_metrics, decide_apple_pay_flow,
-        Encode, OptionExt, ValueExt,
+        add_apple_pay_flow_metrics, add_connector_http_status_code_metrics, Encode, OptionExt,
+        ValueExt,
     },
     workflows::payment_sync,
 };
@@ -1110,44 +1110,47 @@ fn is_payment_method_tokenization_enabled_for_connector(
         .unwrap_or(false))
 }
 
-fn is_apple_pay_predecrypt(
+fn decide_apple_pay_flow(
     payment_method_type: &Option<api_models::enums::PaymentMethodType>,
     merchant_connector_account: &Option<helpers::MerchantConnectorAccountType>,
-) -> RouterResult<bool> {
+) -> RouterResult<Option<enums::ApplePayFlow>> {
     Ok(payment_method_type
         .map(|pmt| match pmt {
             api_models::enums::PaymentMethodType::ApplePay => {
                 check_apple_pay_metadata(merchant_connector_account)
             }
-            _ => Ok(false),
+            _ => Ok(None),
         })
         .transpose()?
-        .unwrap_or(false))
+        .unwrap_or(None))
 }
 
 fn check_apple_pay_metadata(
     merchant_connector_account: &Option<helpers::MerchantConnectorAccountType>,
-) -> RouterResult<bool> {
-    let apple_pay_predecrypt = merchant_connector_account
-        .clone()
-        .and_then(|mca| {
-            let metadata = mca.get_metadata();
-            metadata.and_then(|apple_pay_metadata| {
-                let parsed_metadata: Result<api_models::payments::ApplepaySessionTokenData, _> =
-                    apple_pay_metadata.parse_value("ApplepaySessionTokenData");
+) -> RouterResult<Option<enums::ApplePayFlow>> {
+    let apple_pay_predecrypt = merchant_connector_account.clone().and_then(|mca| {
+        let metadata = mca.get_metadata();
+        metadata.and_then(|apple_pay_metadata| {
+            let parsed_metadata: Result<api_models::payments::ApplepaySessionTokenData, _> =
+                apple_pay_metadata.parse_value("ApplepaySessionTokenData");
 
-                parsed_metadata.ok().map(|metadata| match metadata.data {
-                    api_models::payments::ApplepaySessionTokenMetadata::ApplePayCombined(
-                        apple_pay_combined,
-                    ) => match apple_pay_combined {
-                        api_models::payments::ApplePayCombinedMetadata::Simplified { .. } => true,
-                        api_models::payments::ApplePayCombinedMetadata::Manual { .. } => false,
-                    },
-                    api_models::payments::ApplepaySessionTokenMetadata::ApplePay(_) => false,
-                })
+            parsed_metadata.ok().map(|metadata| match metadata.data {
+                api_models::payments::ApplepaySessionTokenMetadata::ApplePayCombined(
+                    apple_pay_combined,
+                ) => match apple_pay_combined {
+                    api_models::payments::ApplePayCombinedMetadata::Simplified { .. } => {
+                        enums::ApplePayFlow::Simplified
+                    }
+                    api_models::payments::ApplePayCombinedMetadata::Manual { .. } => {
+                        enums::ApplePayFlow::Manual
+                    }
+                },
+                api_models::payments::ApplepaySessionTokenMetadata::ApplePay(_) => {
+                    enums::ApplePayFlow::Manual
+                }
             })
         })
-        .unwrap_or(false);
+    });
     Ok(apple_pay_predecrypt)
 }
 
@@ -1171,8 +1174,11 @@ async fn decide_payment_method_tokenize_action(
     payment_method: &storage::enums::PaymentMethod,
     pm_parent_token: Option<&String>,
     is_connector_tokenization_enabled: bool,
-    is_apple_pay_predecrypt_supported: bool,
+    apple_pay_flow: Option<enums::ApplePayFlow>,
 ) -> RouterResult<TokenizationAction> {
+    let is_apple_pay_predecrypt_supported =
+        matches!(apple_pay_flow, Some(enums::ApplePayFlow::Simplified));
+
     match pm_parent_token {
         None => {
             if is_connector_tokenization_enabled && is_apple_pay_predecrypt_supported {
@@ -1277,15 +1283,13 @@ where
                     payment_method_type,
                 )?;
 
-            let is_apple_pay_predecrypt = is_apple_pay_predecrypt(
+            let is_apple_pay_predecrypt = decide_apple_pay_flow(
                 payment_method_type,
                 &Some(merchant_connector_account.clone()),
             )?;
 
-            let apple_pay_flow =
-                decide_apple_pay_flow(payment_method_type, is_apple_pay_predecrypt);
             add_apple_pay_flow_metrics(
-                apple_pay_flow,
+                &is_apple_pay_predecrypt,
                 payment_data.payment_attempt.connector.clone(),
                 payment_data.payment_attempt.merchant_id.clone(),
             );

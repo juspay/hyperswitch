@@ -115,15 +115,10 @@ where
         None
     };
 
-    let is_apple_pay_predecrypt = payments::is_apple_pay_predecrypt(
+    let apple_pay_flow = payments::decide_apple_pay_flow(
         &payment_data.payment_attempt.payment_method_type,
         &Some(merchant_connector_account.clone()),
     )?;
-
-    let apple_pay_flow = crate::utils::decide_apple_pay_flow(
-        &payment_data.payment_attempt.payment_method_type,
-        is_apple_pay_predecrypt,
-    );
 
     router_data = types::RouterData {
         flow: PhantomData,
