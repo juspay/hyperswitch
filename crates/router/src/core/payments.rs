@@ -1113,26 +1113,23 @@ fn is_payment_method_tokenization_enabled_for_connector(
 fn decide_apple_pay_flow(
     payment_method_type: &Option<api_models::enums::PaymentMethodType>,
     merchant_connector_account: &Option<helpers::MerchantConnectorAccountType>,
-) -> RouterResult<Option<enums::ApplePayFlow>> {
-    Ok(payment_method_type
-        .map(|pmt| match pmt {
-            api_models::enums::PaymentMethodType::ApplePay => {
-                check_apple_pay_metadata(merchant_connector_account)
-            }
-            _ => Ok(None),
-        })
-        .transpose()?
-        .unwrap_or(None))
+) -> Option<enums::ApplePayFlow> {
+    payment_method_type.and_then(|pmt| match pmt {
+        api_models::enums::PaymentMethodType::ApplePay => {
+            check_apple_pay_metadata(merchant_connector_account)
+        }
+        _ => None,
+    })
 }
 
 fn check_apple_pay_metadata(
     merchant_connector_account: &Option<helpers::MerchantConnectorAccountType>,
-) -> RouterResult<Option<enums::ApplePayFlow>> {
-    let apple_pay_predecrypt = merchant_connector_account.clone().and_then(|mca| {
+) -> Option<enums::ApplePayFlow> {
+    merchant_connector_account.clone().and_then(|mca| {
         let metadata = mca.get_metadata();
         metadata.and_then(|apple_pay_metadata| {
             let parsed_metadata: Result<api_models::payments::ApplepaySessionTokenData, _> =
-                apple_pay_metadata.parse_value("ApplepaySessionTokenData");
+                apple_pay_metadata.parse_value("ApplepaySessionTokenData").map_err(|error| logger::error!(%error, "Failed to Parse Value to ApplepaySessionTokenData"));
 
             parsed_metadata.ok().map(|metadata| match metadata.data {
                 api_models::payments::ApplepaySessionTokenMetadata::ApplePayCombined(
@@ -1150,8 +1147,7 @@ fn check_apple_pay_metadata(
                 }
             })
         })
-    });
-    Ok(apple_pay_predecrypt)
+    })
 }
 
 fn is_payment_method_type_allowed_for_connector(
@@ -1286,7 +1282,7 @@ where
             let apple_pay_flow = decide_apple_pay_flow(
                 payment_method_type,
                 &Some(merchant_connector_account.clone()),
-            )?;
+            );
 
             add_apple_pay_flow_metrics(
                 &apple_pay_flow,
