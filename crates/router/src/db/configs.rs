@@ -99,7 +99,7 @@ impl ConfigInterface for Store {
             .map_err(Into::into)
             .into_report()
     }
-    
+
     //check in cache, then redis then finally DB, and on the way back populate redis and cache
     async fn find_config_by_key(
         &self,
