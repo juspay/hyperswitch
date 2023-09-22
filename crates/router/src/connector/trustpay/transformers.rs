@@ -171,6 +171,7 @@ pub struct PaymentRequestCards {
     pub payment_action: Option<String>,
     #[serde(rename = "browser[paymentType]")]
     pub payment_type: String,
+    pub descriptor: Option<String>,
 }
 
 #[derive(Debug, Serialize, PartialEq)]
@@ -272,6 +273,7 @@ fn get_card_request_data(
             browser_challenge_window: "1".to_string(),
             payment_action: None,
             payment_type: "Plain".to_string(),
+            descriptor: item.request.statement_descriptor.clone(),
         },
     )))
 }
