@@ -176,11 +176,15 @@ impl super::settings::LockSettings {
             ))
         })?;
 
-        when(self.delay_between_retries_in_milliseconds.is_default_or_empty(), || {
-            Err(ApplicationError::InvalidConfigurationValueError(
-                "delay_between_retries_in_milliseconds must not be empty or 0".into(),
-            ))
-        })?;
+        when(
+            self.delay_between_retries_in_milliseconds
+                .is_default_or_empty(),
+            || {
+                Err(ApplicationError::InvalidConfigurationValueError(
+                    "delay_between_retries_in_milliseconds must not be empty or 0".into(),
+                ))
+            },
+        )?;
 
         when(self.lock_retries.is_default_or_empty(), || {
             Err(ApplicationError::InvalidConfigurationValueError(

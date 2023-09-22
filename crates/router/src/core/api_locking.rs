@@ -24,8 +24,6 @@ pub enum LockAction {
     Hold { input: LockingInput },
     // Queue it but return response as 2xx, could be used for webhooks
     QueueWithOk,
-    // Ignore it and return response as 2xx, could be used for webhooks
-    IgnoreWithOk,
     // Return Error
     Drop,
     // Locking Not applicable
@@ -36,6 +34,7 @@ pub enum LockAction {
 pub struct LockingInput {
     pub unique_locking_key: String,
     pub api_identifier: lock_utils::ApiIdentifier,
+    pub override_lock_retries: Option<u32>,
 }
 
 impl LockingInput {
@@ -67,7 +66,9 @@ impl LockAction {
                     .delay_between_retries_in_milliseconds;
                 let redis_lock_expiry_seconds =
                     state.conf().lock_settings.redis_lock_expiry_seconds;
-                let lock_retries = state.conf().lock_settings.lock_retries;
+                let lock_retries = input
+                    .override_lock_retries
+                    .unwrap_or(state.conf().lock_settings.lock_retries);
                 for _retry in 0..lock_retries {
                     let redis_lock_result = redis_conn
                         .set_key_if_not_exists_with_expiry(
@@ -103,7 +104,7 @@ impl LockAction {
 
                 Err(errors::ApiErrorResponse::ResourceBusy).into_report()
             }
-            Self::QueueWithOk | Self::IgnoreWithOk | Self::Drop | Self::NotApplicable => Ok(()),
+            Self::QueueWithOk | Self::Drop | Self::NotApplicable => Ok(()),
         }
     }
 
@@ -154,7 +155,7 @@ impl LockAction {
                     }
                 }
             }
-            Self::QueueWithOk | Self::IgnoreWithOk | Self::Drop | Self::NotApplicable => Ok(()),
+            Self::QueueWithOk | Self::Drop | Self::NotApplicable => Ok(()),
         }
     }
 }

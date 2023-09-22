@@ -60,6 +60,7 @@ pub async fn payments_incoming_webhook_flow<W: types::OutgoingWebhookType>(
                 input: super::api_locking::LockingInput {
                     unique_locking_key: payment_id,
                     api_identifier: lock_utils::ApiIdentifier::Payments,
+                    override_lock_retries: None,
                 },
             };
 

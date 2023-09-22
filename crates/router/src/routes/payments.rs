@@ -915,6 +915,7 @@ impl GetLockingInput for payment_types::PaymentsRequest {
                     input: api_locking::LockingInput {
                         unique_locking_key: id.to_owned(),
                         api_identifier: lock_utils::ApiIdentifier::from(flow),
+                        override_lock_retries: None,
                     },
                 }
             }
@@ -933,6 +934,7 @@ impl GetLockingInput for payment_types::PaymentsStartRequest {
             input: api_locking::LockingInput {
                 unique_locking_key: self.payment_id.to_owned(),
                 api_identifier: lock_utils::ApiIdentifier::from(flow),
+                override_lock_retries: None,
             },
         }
     }
@@ -950,6 +952,7 @@ impl GetLockingInput for payment_types::PaymentsRetrieveRequest {
                     input: api_locking::LockingInput {
                         unique_locking_key: id.to_owned(),
                         api_identifier: lock_utils::ApiIdentifier::from(flow),
+                        override_lock_retries: None,
                     },
                 }
             }
@@ -968,6 +971,7 @@ impl GetLockingInput for payment_types::PaymentsSessionRequest {
             input: api_locking::LockingInput {
                 unique_locking_key: self.payment_id.to_owned(),
                 api_identifier: lock_utils::ApiIdentifier::from(flow),
+                override_lock_retries: None,
             },
         }
     }
@@ -985,6 +989,7 @@ impl GetLockingInput for payments::PaymentsRedirectResponseData {
                     input: api_locking::LockingInput {
                         unique_locking_key: id.to_owned(),
                         api_identifier: lock_utils::ApiIdentifier::from(flow),
+                        override_lock_retries: None,
                     },
                 }
             }
@@ -1003,6 +1008,7 @@ impl GetLockingInput for payment_types::PaymentsCancelRequest {
             input: api_locking::LockingInput {
                 unique_locking_key: self.payment_id.to_owned(),
                 api_identifier: lock_utils::ApiIdentifier::from(flow),
+                override_lock_retries: None,
             },
         }
     }
@@ -1018,6 +1024,7 @@ impl GetLockingInput for payment_types::PaymentsCaptureRequest {
             input: api_locking::LockingInput {
                 unique_locking_key: self.payment_id.to_owned(),
                 api_identifier: lock_utils::ApiIdentifier::from(flow),
+                override_lock_retries: None,
             },
         }
     }

@@ -792,13 +792,15 @@ impl<'de> Deserialize<'de> for LockSettings {
             delay_between_retries_in_milliseconds: u32,
         }
 
-        let inner = Inner::deserialize(deserializer)?;
-        
+        let Inner {
+            redis_lock_expiry_seconds,
+            delay_between_retries_in_milliseconds,
+        } = Inner::deserialize(deserializer)?;
+        let redis_lock_expiry_seconds = redis_lock_expiry_seconds * 1000;
         Ok(Self {
-            redis_lock_expiry_seconds: inner.redis_lock_expiry_seconds,
-            delay_between_retries_in_milliseconds: inner.delay_between_retries_in_milliseconds,
-            lock_retries: inner.redis_lock_expiry_seconds
-                / inner.delay_between_retries_in_milliseconds,
+            redis_lock_expiry_seconds,
+            delay_between_retries_in_milliseconds,
+            lock_retries: redis_lock_expiry_seconds / delay_between_retries_in_milliseconds,
         })
     }
 }

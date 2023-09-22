@@ -6,10 +6,7 @@ use router_env::{instrument, tracing, Flow};
 
 use crate::{
     compatibility::{stripe::errors, wrap},
-    core::{
-        api_locking::GetLockingInput,
-        payments,
-    },
+    core::{api_locking::GetLockingInput, payments},
     routes,
     services::{api, authentication as auth},
     types::api::{self as api_types},
