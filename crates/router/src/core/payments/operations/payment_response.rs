@@ -419,6 +419,13 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                     metrics::SUCCESSFUL_PAYMENT.add(&metrics::CONTEXT, 1, &[]);
                 }
 
+                utils::add_apple_pay_payment_status_metrics(
+                    router_data.status,
+                    router_data.apple_pay_flow,
+                    payment_data.payment_attempt.connector.clone(),
+                    payment_data.payment_attempt.merchant_id.clone(),
+                );
+
                 let (capture_updates, payment_attempt_update) =
                     match payment_data.multiple_capture_data {
                         Some(multiple_capture_data) => {
