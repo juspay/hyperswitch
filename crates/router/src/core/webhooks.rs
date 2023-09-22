@@ -1,6 +1,8 @@
 pub mod types;
 pub mod utils;
 
+use std::str::FromStr;
+
 use api_models::payments::HeaderPayload;
 use common_utils::errors::ReportSwitchExt;
 use error_stack::{report, IntoReport, ResultExt};
@@ -806,24 +808,57 @@ pub async fn webhooks_core<W: types::OutgoingWebhookType>(
             .get_webhook_object_reference_id(&request_details)
             .switch()
             .attach_printable("Could not find object reference id in incoming webhook body")?;
-
-        let source_verified = connector
-            .verify_webhook_source(
-                &request_details,
-                &merchant_account,
-                merchant_connector_account.clone(),
-                connector_name.as_str(),
-            )
-            .await
-            .or_else(|error| match error.current_context() {
-                errors::ConnectorError::WebhookSourceVerificationFailed => {
-                    logger::error!(?error, "Source Verification Failed");
-                    Ok(false)
-                }
-                _ => Err(error),
+        let connector_enum = api_models::enums::Connector::from_str(&connector_name)
+            .into_report()
+            .change_context(errors::ApiErrorResponse::InvalidDataValue {
+                field_name: "connector",
             })
-            .switch()
-            .attach_printable("There was an issue in incoming webhook source verification")?;
+            .attach_printable_lazy(|| {
+                format!("unable to parse connector name {connector_name:?}")
+            })?;
+        let connectors_with_source_verification_call = &state.conf.webhook_source_verification_call;
+
+        let source_verified = if connectors_with_source_verification_call
+            .connectors_with_webhook_source_verification_call
+            .contains(&connector_enum)
+        {
+            connector
+                .verify_webhook_source_verification_call(
+                    &state,
+                    &merchant_account,
+                    merchant_connector_account.clone(),
+                    &connector_name,
+                    &request_details,
+                )
+                .await
+                .or_else(|error| match error.current_context() {
+                    errors::ConnectorError::WebhookSourceVerificationFailed => {
+                        logger::error!(?error, "Source Verification Failed");
+                        Ok(false)
+                    }
+                    _ => Err(error),
+                })
+                .switch()
+                .attach_printable("There was an issue in incoming webhook source verification")?
+        } else {
+            connector
+                .verify_webhook_source(
+                    &request_details,
+                    &merchant_account,
+                    merchant_connector_account.clone(),
+                    connector_name.as_str(),
+                )
+                .await
+                .or_else(|error| match error.current_context() {
+                    errors::ConnectorError::WebhookSourceVerificationFailed => {
+                        logger::error!(?error, "Source Verification Failed");
+                        Ok(false)
+                    }
+                    _ => Err(error),
+                })
+                .switch()
+                .attach_printable("There was an issue in incoming webhook source verification")?
+        };
 
         if source_verified {
             metrics::WEBHOOK_SOURCE_VERIFIED_COUNT.add(

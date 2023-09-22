@@ -91,6 +91,7 @@ pub struct Settings {
     pub mandates: Mandates,
     pub required_fields: RequiredFields,
     pub delayed_session_response: DelayedSessionConfig,
+    pub webhook_source_verification_call: WebhookSourceVerificationCall,
     pub connector_request_reference_id_config: ConnectorRequestReferenceIdConfig,
     #[cfg(feature = "payouts")]
     pub payouts: Payouts,
@@ -631,6 +632,12 @@ pub struct DelayedSessionConfig {
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
+pub struct WebhookSourceVerificationCall {
+    #[serde(deserialize_with = "connector_deser")]
+    pub connectors_with_webhook_source_verification_call: HashSet<api_models::enums::Connector>,
+}
+
+#[derive(Debug, Deserialize, Clone, Default)]
 pub struct ApplePayDecryptConifg {
     pub apple_pay_ppc: String,
     pub apple_pay_ppc_key: String,
@@ -681,7 +688,7 @@ impl Settings {
         let config_path = router_env::Config::config_path(&environment.to_string(), config_path);
 
         let config = router_env::Config::builder(&environment.to_string())?
-            .add_source(File::from(config_path).required(true))
+            .add_source(File::from(config_path).required(false))
             .add_source(
                 Environment::with_prefix("ROUTER")
                     .try_parsing(true)

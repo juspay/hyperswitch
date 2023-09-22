@@ -90,23 +90,27 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsSessionRequest>
 
         let amount = payment_intent.amount.into();
 
-        let shipping_address = helpers::get_address_for_payment_request(
+        let shipping_address = helpers::create_or_find_address_for_payment_by_request(
             db,
             None,
             payment_intent.shipping_address_id.as_deref(),
             merchant_id,
             payment_intent.customer_id.as_ref(),
             key_store,
+            &payment_intent.payment_id,
+            merchant_account.storage_scheme,
         )
         .await?;
 
-        let billing_address = helpers::get_address_for_payment_request(
+        let billing_address = helpers::create_or_find_address_for_payment_by_request(
             db,
             None,
             payment_intent.billing_address_id.as_deref(),
             merchant_id,
             payment_intent.customer_id.as_ref(),
             key_store,
+            &payment_intent.payment_id,
+            merchant_account.storage_scheme,
         )
         .await?;
 

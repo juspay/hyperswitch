@@ -1239,7 +1239,7 @@ impl api::IncomingWebhook for Checkout {
             .parse_struct("CheckoutWebhookBody")
             .change_context(errors::ConnectorError::WebhookEventTypeNotFound)?;
         let resource_object = if checkout::is_chargeback_event(&event_type_data.transaction_type)
-            && checkout::is_refund_event(&event_type_data.transaction_type)
+            || checkout::is_refund_event(&event_type_data.transaction_type)
         {
             // if other event, just return the json data.
             let resource_object_data: checkout::CheckoutWebhookObjectResource = request

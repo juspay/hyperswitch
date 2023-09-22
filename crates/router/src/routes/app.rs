@@ -75,7 +75,7 @@ impl AppStateInfo for AppState {
         self.api_client.add_merchant_id(merchant_id);
     }
     fn add_flow_name(&mut self, flow_name: String) {
-        self.flow_name = flow_name;
+        self.api_client.add_flow_name(flow_name);
     }
 }
 
@@ -602,7 +602,7 @@ impl Verify {
         web::scope("/verify")
             .app_data(web::Data::new(state))
             .service(
-                web::resource("/{merchant_id}/apple_pay")
+                web::resource("/apple_pay/{merchant_id}")
                     .route(web::post().to(apple_pay_merchant_registration)),
             )
             .service(
