@@ -3,24 +3,56 @@ use masking::Secret;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    connector::utils::{to_connector_meta, CardData},
+    connector::utils::{self, to_connector_meta, CardData},
     core::errors,
     types::{self, api, storage::enums},
 };
 
+#[derive(Debug, Serialize)]
+pub struct HelcimRouterData<T> {
+    pub amount: f64,
+    pub router_data: T,
+}
+
+impl<T>
+    TryFrom<(
+        &types::api::CurrencyUnit,
+        types::storage::enums::Currency,
+        i64,
+        T,
+    )> for HelcimRouterData<T>
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        (currency_unit, currency, amount, item): (
+            &types::api::CurrencyUnit,
+            types::storage::enums::Currency,
+            i64,
+            T,
+        ),
+    ) -> Result<Self, Self::Error> {
+        let amount = utils::get_amount_as_f64(currency_unit, amount, currency)?;
+        Ok(Self {
+            amount,
+            router_data: item,
+        })
+    }
+}
+
 //TODO: Fill the struct with respective fields
-#[derive(Default, Debug, Serialize, Eq, PartialEq)]
+#[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct HelcimPaymentsRequest {
-    amount: i64,
+    amount: f64,
     currency: enums::Currency,
     ip_address: Secret<String>,
     // ip_address: Secret<String, common_utils::pii::IpAddress>,
     card_data: HelcimCard,
     billing_address: HelcimBillingAddress,
+    ecommerce: Option<bool>,
 }
 
-#[derive(Default, Debug, Serialize, Eq, PartialEq)]
+#[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct HelcimBillingAddress {
     name: Secret<String>,
@@ -28,7 +60,7 @@ pub struct HelcimBillingAddress {
     postal_code: String,
 }
 
-#[derive(Default, Debug, Serialize, Eq, PartialEq)]
+#[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct HelcimCard {
     card_number: cards::CardNumber,
@@ -36,10 +68,12 @@ pub struct HelcimCard {
     card_c_v_v: Secret<String>,
 }
 
-impl TryFrom<&types::PaymentsAuthorizeRouterData> for HelcimPaymentsRequest {
+impl TryFrom<&HelcimRouterData<&types::PaymentsAuthorizeRouterData>> for HelcimPaymentsRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(item: &types::PaymentsAuthorizeRouterData) -> Result<Self, Self::Error> {
-        match item.request.payment_method_data.clone() {
+    fn try_from(
+        item: &HelcimRouterData<&types::PaymentsAuthorizeRouterData>,
+    ) -> Result<Self, Self::Error> {
+        match item.router_data.request.payment_method_data.clone() {
             api::PaymentMethodData::Card(req_card) => {
                 let card_data = HelcimCard {
                     card_expiry: req_card
@@ -54,11 +88,12 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for HelcimPaymentsRequest {
                     postal_code: "H0H0H0".to_string(),
                 };
                 Ok(Self {
-                    amount: item.request.amount,
-                    currency: item.request.currency,
+                    amount: item.amount.to_owned(),
+                    currency: item.router_data.request.currency,
                     ip_address: Secret::new("127.0.0.1".to_string()),
                     card_data,
                     billing_address,
+                    ecommerce: None,
                 })
             }
             _ => Err(errors::ConnectorError::NotImplemented("Payment methods".to_string()).into()),
@@ -85,14 +120,14 @@ impl TryFrom<&types::ConnectorAuthType> for HelcimAuthType {
 }
 // PaymentsResponse
 //TODO: Append the remaining status flags
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Deserialize)]
 #[serde(rename_all = "UPPERCASE")]
 pub enum HelcimPaymentStatus {
     Approved,
     Declined,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum HelcimTransactionType {
     Purchase,
@@ -125,10 +160,9 @@ impl From<HelcimPaymentsResponse> for enums::AttemptStatus {
 }
 
 //TODO: Fill the struct with respective fields
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct HelcimPaymentsResponse {
-    amount: i64,
     status: HelcimPaymentStatus,
     transaction_id: u64,
     #[serde(rename = "type")]
@@ -253,22 +287,27 @@ impl<F>
 #[serde(rename_all = "camelCase")]
 pub struct HelcimCaptureRequest {
     pre_auth_transaction_id: u64,
-    amount: i64,
+    amount: f64,
     ip_address: Secret<String>,
+    ecommerce: Option<bool>,
 }
 
-impl TryFrom<&types::PaymentsCaptureRouterData> for HelcimCaptureRequest {
+impl TryFrom<&HelcimRouterData<&types::PaymentsCaptureRouterData>> for HelcimCaptureRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(item: &types::PaymentsCaptureRouterData) -> Result<Self, Self::Error> {
+    fn try_from(
+        item: &HelcimRouterData<&types::PaymentsCaptureRouterData>,
+    ) -> Result<Self, Self::Error> {
         Ok(Self {
             pre_auth_transaction_id: item
+                .router_data
                 .request
                 .connector_transaction_id
                 .parse::<u64>()
                 .into_report()
                 .change_context(errors::ConnectorError::RequestEncodingFailed)?,
-            amount: item.request.amount_to_capture,
+            amount: item.amount,
             ip_address: Secret::new("127.0.0.1".to_string()),
+            ecommerce: None,
         })
     }
 }
@@ -315,61 +354,42 @@ impl<F>
 //TODO: Fill the struct with respective fields
 // REFUND :
 // Type definition for RefundRequest
-#[derive(Default, Debug, Serialize)]
+#[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct HelcimRefundRequest {
-    amount: i64,
+    amount: f64,
     original_transaction_id: u64,
     ip_address: Secret<String>,
+    ecommerce: Option<bool>,
 }
 
-impl<F> TryFrom<&types::RefundsRouterData<F>> for HelcimRefundRequest {
+impl<F> TryFrom<&HelcimRouterData<&types::RefundsRouterData<F>>> for HelcimRefundRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(item: &types::RefundsRouterData<F>) -> Result<Self, Self::Error> {
+    fn try_from(
+        item: &HelcimRouterData<&types::RefundsRouterData<F>>,
+    ) -> Result<Self, Self::Error> {
         let helcim_meta_data: HelcimMetaData =
-            to_connector_meta(item.request.connector_metadata.clone())?;
+            to_connector_meta(item.router_data.request.connector_metadata.clone())?;
         let original_transaction_id = helcim_meta_data.capture_id;
         Ok(Self {
-            amount: item.request.refund_amount,
+            amount: item.amount,
             original_transaction_id,
             ip_address: Secret::new("127.0.0.1".to_string()),
+            ecommerce: None,
         })
     }
 }
 
-// Type definition for Refund Response
-
-#[allow(dead_code)]
-#[derive(Debug, Serialize, Default, Deserialize, Clone)]
-pub enum RefundStatus {
-    Succeeded,
-    Failed,
-    #[default]
-    Processing,
-}
-
-impl From<RefundStatus> for enums::RefundStatus {
-    fn from(item: RefundStatus) -> Self {
-        match item {
-            RefundStatus::Succeeded => Self::Success,
-            RefundStatus::Failed => Self::Failure,
-            RefundStatus::Processing => Self::Pending,
-            //TODO: Review mapping
-        }
-    }
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum HelcimRefundTransactionType {
     Refund,
 }
 
 //TODO: Fill the struct with respective fields
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct RefundResponse {
-    amount: i64,
     status: HelcimPaymentStatus,
     transaction_id: u64,
     #[serde(rename = "type")]
