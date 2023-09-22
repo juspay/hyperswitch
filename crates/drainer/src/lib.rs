@@ -118,8 +118,7 @@ async fn drainer(
     stream_name: &str,
 ) -> errors::DrainerResult<()> {
     let stream_read =
-        utils::read_from_stream(stream_name, max_read_count, store.redis_conn.as_ref()).await?; // this returns the error.
-
+        utils::read_from_stream(stream_name, max_read_count, store.redis_conn.as_ref()).await?;
     // parse_stream_entries returns error if no entries is found, handle it
     let (entries, last_entry_id) = utils::parse_stream_entries(&stream_read, stream_name)?;
     let read_count = entries.len();
