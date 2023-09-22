@@ -2,6 +2,7 @@ use error_stack::{IntoReport, ResultExt};
 use serde::{Deserialize, Serialize};
 
 use crate::{
+    address::AddressNew,
     errors,
     payment_attempt::{PaymentAttempt, PaymentAttemptNew, PaymentAttemptUpdate},
     payment_intent::{PaymentIntent, PaymentIntentNew, PaymentIntentUpdate},
@@ -39,6 +40,7 @@ pub enum Insertable {
     PaymentIntent(PaymentIntentNew),
     PaymentAttempt(PaymentAttemptNew),
     Refund(RefundNew),
+    Address(Box<AddressNew>),
 }
 
 #[derive(Debug, Serialize, Deserialize)]
