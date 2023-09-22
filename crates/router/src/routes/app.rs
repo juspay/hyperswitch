@@ -75,7 +75,7 @@ impl AppStateInfo for AppState {
         self.api_client.add_merchant_id(merchant_id);
     }
     fn add_flow_name(&mut self, flow_name: String) {
-        self.flow_name = flow_name;
+        self.api_client.add_flow_name(flow_name);
     }
 }
 

@@ -4,7 +4,7 @@ use std::fmt::Debug;
 use base64::Engine;
 use common_utils::ext_traits::ByteSliceExt;
 use diesel_models::enums;
-use error_stack::ResultExt;
+use error_stack::{IntoReport, ResultExt};
 use masking::PeekInterface;
 use transformers as paypal;
 
@@ -29,8 +29,8 @@ use crate::{
     },
     types::{
         self,
-        api::{self, CompleteAuthorize, ConnectorCommon, ConnectorCommonExt},
-        domain, ErrorResponse, Response,
+        api::{self, CompleteAuthorize, ConnectorCommon, ConnectorCommonExt, VerifyWebhookSource},
+        ErrorResponse, Response,
     },
     utils::{self, BytesExt},
 };
@@ -51,6 +51,7 @@ impl api::PaymentVoid for Paypal {}
 impl api::Refund for Paypal {}
 impl api::RefundExecute for Paypal {}
 impl api::RefundSync for Paypal {}
+impl api::ConnectorVerifyWebhookSource for Paypal {}
 
 impl Paypal {
     pub fn get_order_error_response(
@@ -585,31 +586,15 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
         data: &types::PaymentsSyncRouterData,
         res: Response,
     ) -> CustomResult<types::PaymentsSyncRouterData, errors::ConnectorError> {
-        match data.payment_method {
-            diesel_models::enums::PaymentMethod::Wallet
-            | diesel_models::enums::PaymentMethod::BankRedirect => {
-                let response: paypal::PaypalSyncResponse = res
-                    .response
-                    .parse_struct("paypal SyncResponse")
-                    .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-                types::RouterData::try_from(types::ResponseRouterData {
-                    response,
-                    data: data.clone(),
-                    http_code: res.status_code,
-                })
-            }
-            _ => {
-                let response: paypal::PaypalPaymentsSyncResponse = res
-                    .response
-                    .parse_struct("paypal PaymentsSyncResponse")
-                    .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-                types::RouterData::try_from(types::ResponseRouterData {
-                    response,
-                    data: data.clone(),
-                    http_code: res.status_code,
-                })
-            }
-        }
+        let response: paypal::PaypalSyncResponse = res
+            .response
+            .parse_struct("paypal SyncResponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        types::RouterData::try_from(types::ResponseRouterData {
+            response,
+            data: data.clone(),
+            http_code: res.status_code,
+        })
     }
 
     fn get_error_response(
@@ -925,18 +910,123 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
     }
 }
 
-#[async_trait::async_trait]
-impl api::IncomingWebhook for Paypal {
-    async fn verify_webhook_source(
+impl
+    ConnectorIntegration<
+        VerifyWebhookSource,
+        types::VerifyWebhookSourceRequestData,
+        types::VerifyWebhookSourceResponseData,
+    > for Paypal
+{
+    fn get_headers(
         &self,
-        _request: &api::IncomingWebhookRequestDetails<'_>,
-        _merchant_account: &domain::MerchantAccount,
-        _merchant_connector_account: domain::MerchantConnectorAccount,
-        _connector_label: &str,
-    ) -> CustomResult<bool, errors::ConnectorError> {
-        Ok(false) // Verify webhook source is not implemented for Paypal it requires additional apicall this function needs to be modified once we have a way to verify webhook source
+        req: &types::RouterData<
+            VerifyWebhookSource,
+            types::VerifyWebhookSourceRequestData,
+            types::VerifyWebhookSourceResponseData,
+        >,
+        _connectors: &settings::Connectors,
+    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
+        let auth: paypal::PaypalAuthType = (&req.connector_auth_type)
+            .try_into()
+            .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
+
+        let auth_id = auth
+            .key1
+            .zip(auth.api_key)
+            .map(|(key1, api_key)| format!("{}:{}", key1, api_key));
+        let auth_val = format!("Basic {}", consts::BASE64_ENGINE.encode(auth_id.peek()));
+
+        Ok(vec![
+            (
+                headers::CONTENT_TYPE.to_string(),
+                types::VerifyWebhookSourceType::get_content_type(self)
+                    .to_string()
+                    .into(),
+            ),
+            (headers::AUTHORIZATION.to_string(), auth_val.into_masked()),
+        ])
     }
 
+    fn get_content_type(&self) -> &'static str {
+        self.common_get_content_type()
+    }
+
+    fn get_url(
+        &self,
+        _req: &types::RouterData<
+            VerifyWebhookSource,
+            types::VerifyWebhookSourceRequestData,
+            types::VerifyWebhookSourceResponseData,
+        >,
+        connectors: &settings::Connectors,
+    ) -> CustomResult<String, errors::ConnectorError> {
+        Ok(format!(
+            "{}v1/notifications/verify-webhook-signature",
+            self.base_url(connectors)
+        ))
+    }
+
+    fn build_request(
+        &self,
+        req: &types::VerifyWebhookSourceRouterData,
+        connectors: &settings::Connectors,
+    ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
+        let request = services::RequestBuilder::new()
+            .method(services::Method::Post)
+            .url(&types::VerifyWebhookSourceType::get_url(
+                self, req, connectors,
+            )?)
+            .headers(types::VerifyWebhookSourceType::get_headers(
+                self, req, connectors,
+            )?)
+            .body(types::VerifyWebhookSourceType::get_request_body(self, req)?)
+            .build();
+
+        Ok(Some(request))
+    }
+
+    fn get_request_body(
+        &self,
+        req: &types::RouterData<
+            VerifyWebhookSource,
+            types::VerifyWebhookSourceRequestData,
+            types::VerifyWebhookSourceResponseData,
+        >,
+    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
+        let req_obj = paypal::PaypalSourceVerificationRequest::try_from(&req.request)?;
+        let paypal_req = types::RequestBody::log_and_get_request_body(
+            &req_obj,
+            utils::Encode::<paypal::PaypalSourceVerificationRequest>::encode_to_string_of_json,
+        )
+        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        Ok(Some(paypal_req))
+    }
+
+    fn handle_response(
+        &self,
+        data: &types::VerifyWebhookSourceRouterData,
+        res: Response,
+    ) -> CustomResult<types::VerifyWebhookSourceRouterData, errors::ConnectorError> {
+        let response: paypal::PaypalSourceVerificationResponse = res
+            .response
+            .parse_struct("paypal PaypalSourceVerificationResponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        types::RouterData::try_from(types::ResponseRouterData {
+            response,
+            data: data.clone(),
+            http_code: res.status_code,
+        })
+    }
+    fn get_error_response(
+        &self,
+        res: Response,
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        self.build_error_response(res)
+    }
+}
+
+#[async_trait::async_trait]
+impl api::IncomingWebhook for Paypal {
     fn get_webhook_object_reference_id(
         &self,
         request: &api::IncomingWebhookRequestDetails<'_>,
@@ -988,13 +1078,29 @@ impl api::IncomingWebhook for Paypal {
         &self,
         request: &api::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<serde_json::Value, errors::ConnectorError> {
-        let details: paypal::PaypalWebhooksBody = request
-            .body
-            .parse_struct("PaypalWebooksEventType")
-            .change_context(errors::ConnectorError::WebhookResourceObjectNotFound)?;
-        let res_json = utils::Encode::<transformers::PaypalWebhooksBody>::encode_to_value(&details)
-            .change_context(errors::ConnectorError::WebhookResourceObjectNotFound)?;
-        Ok(res_json)
+        let details: paypal::PaypalWebhooksBody =
+            request
+                .body
+                .parse_struct("PaypalWebhooksBody")
+                .change_context(errors::ConnectorError::WebhookResourceObjectNotFound)?;
+        let sync_payload = match details.resource {
+            paypal::PaypalResource::PaypalCardWebhooks(resource) => serde_json::to_value(
+                paypal::PaypalPaymentsSyncResponse::try_from((*resource, details.event_type))?,
+            )
+            .into_report()
+            .change_context(errors::ConnectorError::WebhookResourceObjectNotFound)?,
+            paypal::PaypalResource::PaypalRedirectsWebhooks(resource) => serde_json::to_value(
+                paypal::PaypalOrdersResponse::try_from((*resource, details.event_type))?,
+            )
+            .into_report()
+            .change_context(errors::ConnectorError::WebhookResourceObjectNotFound)?,
+            paypal::PaypalResource::PaypalRefundWebhooks(resource) => serde_json::to_value(
+                paypal::RefundSyncResponse::try_from((*resource, details.event_type))?,
+            )
+            .into_report()
+            .change_context(errors::ConnectorError::WebhookResourceObjectNotFound)?,
+        };
+        Ok(sync_payload)
     }
 }
 
