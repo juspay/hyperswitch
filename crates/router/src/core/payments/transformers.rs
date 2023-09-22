@@ -1048,6 +1048,16 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsCaptureD
             .payment_attempt
             .amount_to_capture
             .map_or(payment_data.amount.into(), |capture_amount| capture_amount);
+        let browser_info: Option<types::BrowserInformation> = payment_data
+            .payment_attempt
+            .browser_info
+            .clone()
+            .map(|b| b.parse_value("BrowserInformation"))
+            .transpose()
+            .change_context(errors::ApiErrorResponse::InvalidDataValue {
+                field_name: "browser_info",
+            })?;
+
         Ok(Self {
             amount_to_capture,
             currency: payment_data.currency,
@@ -1067,6 +1077,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsCaptureD
                 }),
                 None => None,
             },
+            browser_info,
         })
     }
 }

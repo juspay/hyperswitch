@@ -383,6 +383,7 @@ pub struct PaymentsCaptureData {
     pub payment_amount: i64,
     pub multiple_capture_data: Option<MultipleCaptureRequestData>,
     pub connector_meta: Option<serde_json::Value>,
+    pub browser_info: Option<BrowserInformation>,
 }
 
 #[allow(dead_code)]
@@ -702,6 +703,7 @@ pub struct RefundsData {
     pub refund_amount: i64,
     /// Arbitrary metadata required for refund
     pub connector_metadata: Option<serde_json::Value>,
+    pub browser_info: Option<BrowserInformation>,
 }
 
 #[derive(Clone, Debug, Default, serde::Serialize, serde::Deserialize)]

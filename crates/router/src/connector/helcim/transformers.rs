@@ -1,9 +1,13 @@
+use common_utils::pii::IpAddress;
 use error_stack::{IntoReport, ResultExt};
 use masking::Secret;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    connector::utils::{self, to_connector_meta, CardData},
+    connector::utils::{
+        self, to_connector_meta, BrowserInformationData, CardData, PaymentsAuthorizeRequestData,
+        PaymentsCaptureRequestData, RefundsRequestData,
+    },
     core::errors,
     types::{self, api, storage::enums},
 };
@@ -45,8 +49,7 @@ impl<T>
 pub struct HelcimPaymentsRequest {
     amount: f64,
     currency: enums::Currency,
-    ip_address: Secret<String>,
-    // ip_address: Secret<String, common_utils::pii::IpAddress>,
+    ip_address: Secret<String, IpAddress>,
     card_data: HelcimCard,
     billing_address: HelcimBillingAddress,
     ecommerce: Option<bool>,
@@ -81,16 +84,20 @@ impl TryFrom<&HelcimRouterData<&types::PaymentsAuthorizeRouterData>> for HelcimP
                     card_number: req_card.card_number,
                     card_c_v_v: req_card.card_cvc,
                 };
-                // let ip_address = item.request.get_browser_info()?.get_ip_address()?;
                 let billing_address = HelcimBillingAddress {
                     name: req_card.card_holder_name,
                     street1: "Jump Street 21".to_string(),
                     postal_code: "H0H0H0".to_string(),
                 };
+                let ip_address = item
+                    .router_data
+                    .request
+                    .get_browser_info()?
+                    .get_ip_address()?;
                 Ok(Self {
                     amount: item.amount.to_owned(),
                     currency: item.router_data.request.currency,
-                    ip_address: Secret::new("127.0.0.1".to_string()),
+                    ip_address,
                     card_data,
                     billing_address,
                     ecommerce: None,
@@ -288,7 +295,7 @@ impl<F>
 pub struct HelcimCaptureRequest {
     pre_auth_transaction_id: u64,
     amount: f64,
-    ip_address: Secret<String>,
+    ip_address: Secret<String, IpAddress>,
     ecommerce: Option<bool>,
 }
 
@@ -297,6 +304,11 @@ impl TryFrom<&HelcimRouterData<&types::PaymentsCaptureRouterData>> for HelcimCap
     fn try_from(
         item: &HelcimRouterData<&types::PaymentsCaptureRouterData>,
     ) -> Result<Self, Self::Error> {
+        let ip_address = item
+            .router_data
+            .request
+            .get_browser_info()?
+            .get_ip_address()?;
         Ok(Self {
             pre_auth_transaction_id: item
                 .router_data
@@ -306,7 +318,7 @@ impl TryFrom<&HelcimRouterData<&types::PaymentsCaptureRouterData>> for HelcimCap
                 .into_report()
                 .change_context(errors::ConnectorError::RequestEncodingFailed)?,
             amount: item.amount,
-            ip_address: Secret::new("127.0.0.1".to_string()),
+            ip_address,
             ecommerce: None,
         })
     }
@@ -359,7 +371,7 @@ impl<F>
 pub struct HelcimRefundRequest {
     amount: f64,
     original_transaction_id: u64,
-    ip_address: Secret<String>,
+    ip_address: Secret<String, IpAddress>,
     ecommerce: Option<bool>,
 }
 
@@ -371,10 +383,15 @@ impl<F> TryFrom<&HelcimRouterData<&types::RefundsRouterData<F>>> for HelcimRefun
         let helcim_meta_data: HelcimMetaData =
             to_connector_meta(item.router_data.request.connector_metadata.clone())?;
         let original_transaction_id = helcim_meta_data.capture_id;
+        let ip_address = item
+            .router_data
+            .request
+            .get_browser_info()?
+            .get_ip_address()?;
         Ok(Self {
             amount: item.amount,
             original_transaction_id,
-            ip_address: Secret::new("127.0.0.1".to_string()),
+            ip_address,
             ecommerce: None,
         })
     }

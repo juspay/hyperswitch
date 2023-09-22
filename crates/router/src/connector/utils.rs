@@ -248,11 +248,17 @@ impl PaymentsPreProcessingData for types::PaymentsPreProcessingData {
 
 pub trait PaymentsCaptureRequestData {
     fn is_multiple_capture(&self) -> bool;
+    fn get_browser_info(&self) -> Result<types::BrowserInformation, Error>;
 }
 
 impl PaymentsCaptureRequestData for types::PaymentsCaptureData {
     fn is_multiple_capture(&self) -> bool {
         self.multiple_capture_data.is_some()
+    }
+    fn get_browser_info(&self) -> Result<types::BrowserInformation, Error> {
+        self.browser_info
+            .clone()
+            .ok_or_else(missing_field_err("browser_info"))
     }
 }
 
@@ -511,6 +517,7 @@ impl PaymentsCancelRequestData for PaymentsCancelData {
 pub trait RefundsRequestData {
     fn get_connector_refund_id(&self) -> Result<String, Error>;
     fn get_webhook_url(&self) -> Result<String, Error>;
+    fn get_browser_info(&self) -> Result<types::BrowserInformation, Error>;
 }
 
 impl RefundsRequestData for types::RefundsData {
@@ -525,6 +532,11 @@ impl RefundsRequestData for types::RefundsData {
         self.webhook_url
             .clone()
             .ok_or_else(missing_field_err("webhook_url"))
+    }
+    fn get_browser_info(&self) -> Result<types::BrowserInformation, Error> {
+        self.browser_info
+            .clone()
+            .ok_or_else(missing_field_err("browser_info"))
     }
 }
 
