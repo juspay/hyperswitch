@@ -171,6 +171,7 @@ pub struct PaymentRequestCards {
     pub payment_action: Option<String>,
     #[serde(rename = "browser[paymentType]")]
     pub payment_type: String,
+    pub descriptor: Option<String>,
 }
 
 #[derive(Debug, Serialize, PartialEq)]
@@ -272,6 +273,7 @@ fn get_card_request_data(
             browser_challenge_window: "1".to_string(),
             payment_action: None,
             payment_type: "Plain".to_string(),
+            descriptor: item.request.statement_descriptor.clone(),
         },
     )))
 }
@@ -437,6 +439,7 @@ fn is_payment_failed(payment_status: &str) -> (bool, &'static str) {
         "800.100.190" => (true, "Transaction declined (invalid configuration data)"),
         "800.100.202" => (true, "Account Closed"),
         "800.120.100" => (true, "Rejected by throttling"),
+        "800.300.102" => (true, "Country blacklisted"),
         "800.300.401" => (true, "Bin blacklisted"),
         "800.700.100" => (
             true,

@@ -3574,9 +3574,9 @@ dependencies = [
 
 [[package]]
 name = "phonenumber"
-version = "0.3.2+8.13.9"
+version = "0.3.3+8.13.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "34749f64ea9d76f10cdc8a859588b57775f59177c7dd91f744d620bd62982d6f"
+checksum = "635f3e6288e4f01c049d89332a031bd74f25d64b6fb94703ca966e819488cd06"
 dependencies = [
  "bincode",
  "either",
@@ -3589,6 +3589,7 @@ dependencies = [
  "regex-cache",
  "serde",
  "serde_derive",
+ "strum 0.24.1",
  "thiserror",
 ]
 
