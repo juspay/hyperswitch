@@ -1512,6 +1512,7 @@ pub struct PhoneDetails {
 #[derive(Debug, Clone, Default, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema)]
 pub struct PaymentsCaptureRequest {
     /// The unique identifier for the payment
+    #[serde(skip_deserializing)]
     pub payment_id: String,
     /// The unique identifier for the merchant
     pub merchant_id: Option<String>,
