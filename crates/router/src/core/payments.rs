@@ -1283,13 +1283,13 @@ where
                     payment_method_type,
                 )?;
 
-            let is_apple_pay_predecrypt = decide_apple_pay_flow(
+            let apple_pay_flow = decide_apple_pay_flow(
                 payment_method_type,
                 &Some(merchant_connector_account.clone()),
             )?;
 
             add_apple_pay_flow_metrics(
-                &is_apple_pay_predecrypt,
+                &apple_pay_flow,
                 payment_data.payment_attempt.connector.clone(),
                 payment_data.payment_attempt.merchant_id.clone(),
             );
@@ -1300,7 +1300,7 @@ where
                 payment_method,
                 payment_data.token.as_ref(),
                 is_connector_tokenization_enabled,
-                is_apple_pay_predecrypt,
+                apple_pay_flow,
             )
             .await?;
 
