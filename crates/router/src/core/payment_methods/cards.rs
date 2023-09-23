@@ -796,7 +796,15 @@ pub async fn list_payment_methods(
     let shipping_address = payment_intent
         .as_ref()
         .async_map(|pi| async {
-            helpers::get_address_by_id(db, pi.shipping_address_id.clone(), &key_store).await
+            helpers::get_address_by_id(
+                db,
+                pi.shipping_address_id.clone(),
+                &key_store,
+                pi.payment_id.clone(),
+                merchant_account.merchant_id.clone(),
+                merchant_account.storage_scheme,
+            )
+            .await
         })
         .await
         .transpose()?
@@ -805,7 +813,15 @@ pub async fn list_payment_methods(
     let billing_address = payment_intent
         .as_ref()
         .async_map(|pi| async {
-            helpers::get_address_by_id(db, pi.billing_address_id.clone(), &key_store).await
+            helpers::get_address_by_id(
+                db,
+                pi.billing_address_id.clone(),
+                &key_store,
+                pi.payment_id.clone(),
+                merchant_account.merchant_id.clone(),
+                merchant_account.storage_scheme,
+            )
+            .await
         })
         .await
         .transpose()?
@@ -863,6 +879,7 @@ pub async fn list_payment_methods(
                 &merchant_account,
                 payment_intent.profile_id.as_ref(),
                 db,
+                false,
             )
             .await
             .attach_printable("Could not find profile id from business details")

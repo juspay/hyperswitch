@@ -22,6 +22,7 @@ migrations/ @juspay/hyperswitch-framework
 
 connector-template/ @juspay/hyperswitch-connector
 crates/router/src/connector/ @juspay/hyperswitch-connector
+crates/router/tests/connectors @juspay/hyperswitch-connector
 
 crates/router/src/compatibility/ @juspay/hyperswitch-compatibility
 
