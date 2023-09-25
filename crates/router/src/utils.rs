@@ -5,7 +5,7 @@ pub mod ext_traits;
 #[cfg(feature = "kv_store")]
 pub mod storage_partitioning;
 
-use api_models::{payments, webhooks};
+use api_models::{enums, payments, webhooks};
 use base64::Engine;
 pub use common_utils::{
     crypto,
@@ -32,7 +32,14 @@ use crate::{
     db::StorageInterface,
     logger,
     routes::metrics,
-    types::{self, domain},
+    types::{
+        self,
+        domain::{
+            self,
+            types::{encrypt_optional, AsyncLift},
+        },
+        storage,
+    },
 };
 
 pub mod error_parser {
@@ -313,6 +320,7 @@ pub async fn get_profile_id_using_object_reference_id(
                 merchant_account,
                 payment_intent.profile_id.as_ref(),
                 db,
+                false,
             )
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -395,5 +403,231 @@ pub fn add_connector_http_status_code_metrics(option_status_code: Option<u16>) {
         };
     } else {
         logger::info!("Skip metrics as no http status code received from connector")
+    }
+}
+
+#[async_trait::async_trait]
+pub trait CustomerAddress {
+    async fn get_address_update(
+        &self,
+        address_details: api_models::payments::AddressDetails,
+        key: &[u8],
+    ) -> CustomResult<storage::AddressUpdate, common_utils::errors::CryptoError>;
+
+    async fn get_domain_address(
+        &self,
+        address_details: api_models::payments::AddressDetails,
+        merchant_id: &str,
+        customer_id: &str,
+        key: &[u8],
+    ) -> CustomResult<domain::Address, common_utils::errors::CryptoError>;
+}
+
+#[async_trait::async_trait]
+impl CustomerAddress for api_models::customers::CustomerRequest {
+    async fn get_address_update(
+        &self,
+        address_details: api_models::payments::AddressDetails,
+        key: &[u8],
+    ) -> CustomResult<storage::AddressUpdate, common_utils::errors::CryptoError> {
+        async {
+            Ok(storage::AddressUpdate::Update {
+                city: address_details.city,
+                country: address_details.country,
+                line1: address_details
+                    .line1
+                    .async_lift(|inner| encrypt_optional(inner, key))
+                    .await?,
+                line2: address_details
+                    .line2
+                    .async_lift(|inner| encrypt_optional(inner, key))
+                    .await?,
+                line3: address_details
+                    .line3
+                    .async_lift(|inner| encrypt_optional(inner, key))
+                    .await?,
+                zip: address_details
+                    .zip
+                    .async_lift(|inner| encrypt_optional(inner, key))
+                    .await?,
+                state: address_details
+                    .state
+                    .async_lift(|inner| encrypt_optional(inner, key))
+                    .await?,
+                first_name: address_details
+                    .first_name
+                    .async_lift(|inner| encrypt_optional(inner, key))
+                    .await?,
+                last_name: address_details
+                    .last_name
+                    .async_lift(|inner| encrypt_optional(inner, key))
+                    .await?,
+                phone_number: self
+                    .phone
+                    .clone()
+                    .async_lift(|inner| encrypt_optional(inner, key))
+                    .await?,
+                country_code: self.phone_country_code.clone(),
+            })
+        }
+        .await
+    }
+
+    async fn get_domain_address(
+        &self,
+        address_details: api_models::payments::AddressDetails,
+        merchant_id: &str,
+        customer_id: &str,
+        key: &[u8],
+    ) -> CustomResult<domain::Address, common_utils::errors::CryptoError> {
+        async {
+            Ok(domain::Address {
+                id: None,
+                city: address_details.city,
+                country: address_details.country,
+                line1: address_details
+                    .line1
+                    .async_lift(|inner| encrypt_optional(inner, key))
+                    .await?,
+                line2: address_details
+                    .line2
+                    .async_lift(|inner| encrypt_optional(inner, key))
+                    .await?,
+                line3: address_details
+                    .line3
+                    .async_lift(|inner| encrypt_optional(inner, key))
+                    .await?,
+                zip: address_details
+                    .zip
+                    .async_lift(|inner| encrypt_optional(inner, key))
+                    .await?,
+                state: address_details
+                    .state
+                    .async_lift(|inner| encrypt_optional(inner, key))
+                    .await?,
+                first_name: address_details
+                    .first_name
+                    .async_lift(|inner| encrypt_optional(inner, key))
+                    .await?,
+                last_name: address_details
+                    .last_name
+                    .async_lift(|inner| encrypt_optional(inner, key))
+                    .await?,
+                phone_number: self
+                    .phone
+                    .clone()
+                    .async_lift(|inner| encrypt_optional(inner, key))
+                    .await?,
+                country_code: self.phone_country_code.clone(),
+                customer_id: customer_id.to_string(),
+                merchant_id: merchant_id.to_string(),
+                address_id: generate_id(consts::ID_LENGTH, "add"),
+                payment_id: None,
+                created_at: common_utils::date_time::now(),
+                modified_at: common_utils::date_time::now(),
+            })
+        }
+        .await
+    }
+}
+
+pub fn add_apple_pay_flow_metrics(
+    apple_pay_flow: &Option<enums::ApplePayFlow>,
+    connector: Option<String>,
+    merchant_id: String,
+) {
+    if let Some(flow) = apple_pay_flow {
+        match flow {
+            enums::ApplePayFlow::Simplified => metrics::APPLE_PAY_SIMPLIFIED_FLOW.add(
+                &metrics::CONTEXT,
+                1,
+                &[
+                    metrics::request::add_attributes(
+                        "connector",
+                        connector.to_owned().unwrap_or("null".to_string()),
+                    ),
+                    metrics::request::add_attributes("merchant_id", merchant_id.to_owned()),
+                ],
+            ),
+            enums::ApplePayFlow::Manual => metrics::APPLE_PAY_MANUAL_FLOW.add(
+                &metrics::CONTEXT,
+                1,
+                &[
+                    metrics::request::add_attributes(
+                        "connector",
+                        connector.to_owned().unwrap_or("null".to_string()),
+                    ),
+                    metrics::request::add_attributes("merchant_id", merchant_id.to_owned()),
+                ],
+            ),
+        }
+    }
+}
+
+pub fn add_apple_pay_payment_status_metrics(
+    payment_attempt_status: enums::AttemptStatus,
+    apple_pay_flow: Option<enums::ApplePayFlow>,
+    connector: Option<String>,
+    merchant_id: String,
+) {
+    if payment_attempt_status == enums::AttemptStatus::Charged {
+        if let Some(flow) = apple_pay_flow {
+            match flow {
+                enums::ApplePayFlow::Simplified => {
+                    metrics::APPLE_PAY_SIMPLIFIED_FLOW_SUCCESSFUL_PAYMENT.add(
+                        &metrics::CONTEXT,
+                        1,
+                        &[
+                            metrics::request::add_attributes(
+                                "connector",
+                                connector.to_owned().unwrap_or("null".to_string()),
+                            ),
+                            metrics::request::add_attributes("merchant_id", merchant_id.to_owned()),
+                        ],
+                    )
+                }
+                enums::ApplePayFlow::Manual => metrics::APPLE_PAY_MANUAL_FLOW_SUCCESSFUL_PAYMENT
+                    .add(
+                        &metrics::CONTEXT,
+                        1,
+                        &[
+                            metrics::request::add_attributes(
+                                "connector",
+                                connector.to_owned().unwrap_or("null".to_string()),
+                            ),
+                            metrics::request::add_attributes("merchant_id", merchant_id.to_owned()),
+                        ],
+                    ),
+            }
+        }
+    } else if payment_attempt_status == enums::AttemptStatus::Failure {
+        if let Some(flow) = apple_pay_flow {
+            match flow {
+                enums::ApplePayFlow::Simplified => {
+                    metrics::APPLE_PAY_SIMPLIFIED_FLOW_FAILED_PAYMENT.add(
+                        &metrics::CONTEXT,
+                        1,
+                        &[
+                            metrics::request::add_attributes(
+                                "connector",
+                                connector.to_owned().unwrap_or("null".to_string()),
+                            ),
+                            metrics::request::add_attributes("merchant_id", merchant_id.to_owned()),
+                        ],
+                    )
+                }
+                enums::ApplePayFlow::Manual => metrics::APPLE_PAY_MANUAL_FLOW_FAILED_PAYMENT.add(
+                    &metrics::CONTEXT,
+                    1,
+                    &[
+                        metrics::request::add_attributes(
+                            "connector",
+                            connector.to_owned().unwrap_or("null".to_string()),
+                        ),
+                        metrics::request::add_attributes("merchant_id", merchant_id.to_owned()),
+                    ],
+                ),
+            }
+        }
     }
 }

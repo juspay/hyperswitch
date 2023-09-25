@@ -636,6 +636,7 @@ pub async fn create_payment_connector(
         &merchant_account,
         req.profile_id.as_ref(),
         &*state.store,
+        true,
     )
     .await?;
 
@@ -1304,10 +1305,10 @@ pub(crate) fn validate_auth_type(
             globepay::transformers::GlobepayAuthType::try_from(val)?;
             Ok(())
         }
-        /*api_enums::Connector::Gocardless => {
+        api_enums::Connector::Gocardless => {
             gocardless::transformers::GocardlessAuthType::try_from(val)?;
             Ok(())
-        }*/
+        }
         api_enums::Connector::Iatapay => {
             iatapay::transformers::IatapayAuthType::try_from(val)?;
             Ok(())
