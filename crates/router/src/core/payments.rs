@@ -92,6 +92,7 @@ where
         .validate_request(&req, &merchant_account)?;
 
     tracing::Span::current().record("payment_id", &format!("{}", validate_result.payment_id));
+
     let (operation, mut payment_data, customer_details) = operation
         .to_get_tracker()?
         .get_trackers(

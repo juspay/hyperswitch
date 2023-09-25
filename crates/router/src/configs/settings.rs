@@ -98,6 +98,7 @@ pub struct Settings {
     pub applepay_decrypt_keys: ApplePayDecryptConifg,
     pub multiple_api_version_supported_connectors: MultipleApiVersionSupportedConnectors,
     pub applepay_merchant_configs: ApplepayMerchantConfigs,
+    pub lock_settings: LockSettings,
     pub temp_locker_disable_config: TempLockerDisableConfig,
 }
 
@@ -746,6 +747,7 @@ impl Settings {
             .map_err(|error| ApplicationError::InvalidConfigurationValueError(error.into()))?;
         #[cfg(feature = "s3")]
         self.file_upload_config.validate()?;
+        self.lock_settings.validate()?;
         Ok(())
     }
 }
@@ -772,4 +774,33 @@ mod payment_method_deserialization_test {
 #[derive(Debug, Deserialize, Clone, Default)]
 pub struct Payouts {
     pub payout_eligibility: bool,
+}
+
+#[derive(Debug, Clone, Default)]
+pub struct LockSettings {
+    pub redis_lock_expiry_seconds: u32,
+    pub delay_between_retries_in_milliseconds: u32,
+    pub lock_retries: u32,
+}
+
+impl<'de> Deserialize<'de> for LockSettings {
+    fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+        #[derive(Deserialize)]
+        #[serde(deny_unknown_fields)]
+        struct Inner {
+            redis_lock_expiry_seconds: u32,
+            delay_between_retries_in_milliseconds: u32,
+        }
+
+        let Inner {
+            redis_lock_expiry_seconds,
+            delay_between_retries_in_milliseconds,
+        } = Inner::deserialize(deserializer)?;
+        let redis_lock_expiry_seconds = redis_lock_expiry_seconds * 1000;
+        Ok(Self {
+            redis_lock_expiry_seconds,
+            delay_between_retries_in_milliseconds,
+            lock_retries: redis_lock_expiry_seconds / delay_between_retries_in_milliseconds,
+        })
+    }
 }
