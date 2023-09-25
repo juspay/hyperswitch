@@ -380,7 +380,7 @@ impl MerchantConnectorAccountInterface for Store {
         merchant_connector_account: storage::MerchantConnectorAccountUpdateInternal,
         key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<domain::MerchantConnectorAccount, errors::StorageError> {
-        let _merchant_id = this.merchant_id.clone();
+        let _connector_name = this.connector_name.clone();
         let _profile_id = this
             .profile_id
             .clone()
@@ -409,7 +409,7 @@ impl MerchantConnectorAccountInterface for Store {
         {
             super::cache::publish_and_redact(
                 self,
-                cache::CacheKind::Accounts(format!("{}_{}", _merchant_id, _profile_id).into()),
+                cache::CacheKind::Accounts(format!("{}_{}", _profile_id, _connector_name).into()),
                 update_call,
             )
             .await
