@@ -460,7 +460,9 @@ impl MerchantConnectorAccountInterface for Store {
 
             super::cache::publish_and_redact(
                 self,
-                cache::CacheKind::Accounts(format!("{}_{}", mca.merchant_id, _profile_id).into()),
+                cache::CacheKind::Accounts(
+                    format!("{}_{}", _profile_id, mca.connector_name).into(),
+                ),
                 delete_call,
             )
             .await
