@@ -1,5 +1,4 @@
 pub mod types;
-
 use actix_web::{web, HttpRequest, HttpResponse};
 use api_models::payments as payment_types;
 use error_stack::report;
@@ -10,7 +9,7 @@ use crate::{
         stripe::{errors, payment_intents::types as stripe_payment_types},
         wrap,
     },
-    core::payments,
+    core::{api_locking, payments},
     routes,
     services::{api, authentication as auth},
     types::api as api_types,
@@ -67,10 +66,10 @@ pub async fn setup_intents_create(
             )
         },
         &auth::ApiKeyAuth,
+        api_locking::LockAction::NotApplicable,
     ))
     .await
 }
-
 #[instrument(skip_all, fields(flow = ?Flow::PaymentsRetrieve))]
 pub async fn setup_intents_retrieve(
     state: web::Data<routes::AppState>,
@@ -126,10 +125,10 @@ pub async fn setup_intents_retrieve(
             )
         },
         &*auth_type,
+        api_locking::LockAction::NotApplicable,
     ))
     .await
 }
-
 #[instrument(skip_all, fields(flow = ?Flow::PaymentsUpdate))]
 pub async fn setup_intents_update(
     state: web::Data<routes::AppState>,
@@ -191,10 +190,10 @@ pub async fn setup_intents_update(
             )
         },
         &*auth_type,
+        api_locking::LockAction::NotApplicable,
     ))
     .await
 }
-
 #[instrument(skip_all, fields(flow = ?Flow::PaymentsConfirm))]
 pub async fn setup_intents_confirm(
     state: web::Data<routes::AppState>,
@@ -257,6 +256,7 @@ pub async fn setup_intents_confirm(
             )
         },
         &*auth_type,
+        api_locking::LockAction::NotApplicable,
     ))
     .await
 }

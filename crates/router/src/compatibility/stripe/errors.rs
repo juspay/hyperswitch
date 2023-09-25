@@ -232,6 +232,8 @@ pub enum StripeErrorCode {
     HyperswitchUnprocessableEntity { message: String },
     #[error(error_type = StripeErrorType::InvalidRequestError, code = "", message = "{message}")]
     CurrencyNotSupported { message: String },
+    #[error(error_type = StripeErrorType::HyperswitchError, code = "", message = "Resource Busy. Please try again later")]
+    LockTimeout,
     // [#216]: https://github.com/juspay/hyperswitch/issues/216
     // Implement the remaining stripe error codes
 
@@ -578,6 +580,7 @@ impl From<errors::ApiErrorResponse> for StripeErrorCode {
             errors::ApiErrorResponse::IncorrectPaymentMethodConfiguration => {
                 Self::PaymentMethodUnactivated
             }
+            errors::ApiErrorResponse::ResourceBusy => Self::PaymentMethodUnactivated,
         }
     }
 }
@@ -654,6 +657,7 @@ impl actix_web::ResponseError for StripeErrorCode {
             Self::ExternalConnectorError { status_code, .. } => {
                 StatusCode::from_u16(*status_code).unwrap_or(StatusCode::INTERNAL_SERVER_ERROR)
             }
+            Self::LockTimeout => StatusCode::LOCKED,
         }
     }
 
