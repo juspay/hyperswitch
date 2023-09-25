@@ -397,7 +397,7 @@ pub async fn disputes_incoming_webhook_flow<W: types::OutgoingWebhookType>(
             dispute_details,
             &merchant_account.merchant_id,
             &payment_attempt,
-            event_type.clone(),
+            event_type,
             connector.id(),
         )
         .await?;
