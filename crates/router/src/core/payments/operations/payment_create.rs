@@ -5,10 +5,11 @@ use async_trait::async_trait;
 use common_utils::ext_traits::{AsyncExt, Encode, ValueExt};
 use data_models::mandates::MandateData;
 use diesel_models::ephemeral_key;
-use error_stack::{self, ResultExt};
+use error_stack::{self, report, ResultExt};
 use router_derive::PaymentOperation;
 use router_env::{instrument, tracing};
 
+// use error_stack::{report, IntoReport, ResultExt};
 use super::{BoxedOperation, Domain, GetTracker, Operation, UpdateTracker, ValidateRequest};
 use crate::{
     consts,
@@ -65,9 +66,17 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
             .get_payment_intent_id()
             .change_context(errors::ApiErrorResponse::PaymentNotFound)?;
 
-        let (payment_link, payment_link_id) =
-            if request.payment_link_object.is_some() && !request.confirm.unwrap_or(false) {
+        let (payment_link, payment_link_id) = if let Some(payment_link_object) =
+            &request.payment_link_object
+        {
+            if !request.confirm.unwrap_or(false) {
                 let created_at @ last_modified_at = Some(common_utils::date_time::now());
+                if created_at > payment_link_object.link_expiry {
+                    return Err(report!(errors::ApiErrorResponse::InvalidRequestData {
+                        message: "link_expiry time cannot be less than current time".to_string(),
+                    }));
+                }
+
                 let payment_link_id = utils::generate_id(consts::ID_LENGTH, "plink");
                 let payment_link = format!(
                     "{}/payment_link/{}/{}",
@@ -84,6 +93,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
                     currency: request.currency,
                     created_at,
                     last_modified_at,
+                    fullfilment_time: payment_link_object.link_expiry,
                 };
                 let payment_link_db = db
                     .insert_payment_link(payment_link_req)
@@ -97,7 +107,53 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
                 )
             } else {
                 (None, None)
-            };
+            }
+        } else {
+            (None, None)
+        };
+
+        // let (payment_link, payment_link_id) =
+        //     if request.payment_link_object.is_some() && !request.confirm.unwrap_or(false) {
+        //         let created_at @ last_modified_at = Some(common_utils::date_time::now());
+        //         if created_at > request.payment_link_object.clone().unwrap().link_expiry {
+        //             return Err(report!(errors::ApiErrorResponse::InvalidRequestData {
+        //                 message: format!(
+        //                     "link_expiry time cannot be less than current time",
+        //                 ),
+        //             }));
+        //         }
+
+        //         let payment_link_id = utils::generate_id(consts::ID_LENGTH, "plink");
+        //         let payment_link = format!(
+        //             "{}/payment_link/{}/{}",
+        //             state.conf.server.base_url,
+        //             merchant_id.clone(),
+        //             payment_id.clone()
+        //         );
+        //         let payment_link_req = storage::PaymentLinkNew {
+        //             payment_link_id: payment_link_id.clone(),
+        //             payment_id: payment_id.clone(),
+        //             merchant_id: merchant_id.clone(),
+        //             link_to_pay: payment_link.clone(),
+        //             amount: amount.into(),
+        //             currency: request.currency,
+        //             created_at,
+        //             last_modified_at,
+        //             fullfilment_time: request.payment_link_object.clone().unwrap().link_expiry
+        //         };
+        //         let payment_link_db = db
+        //             .insert_payment_link(payment_link_req)
+        //             .await
+        //             .to_duplicate_response(errors::ApiErrorResponse::DuplicatePayment {
+        //                 payment_id: payment_id.clone(),
+        //             })?;
+        //         (
+        //             Some(payment_link_db.link_to_pay),
+        //             Some(payment_link_db.payment_link_id),
+        //         )
+        //     } else {
+        //         (None, None)
+        //     };
 
         // Validate whether profile_id passed in request is valid and is linked to the merchant
         helpers::validate_business_details(

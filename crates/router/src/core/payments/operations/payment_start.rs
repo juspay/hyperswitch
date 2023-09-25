@@ -71,7 +71,9 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsStartRequest> f
             payment_intent.client_secret.as_ref(),
             &payment_intent,
             merchant_account.intent_fulfillment_time,
-        )?;
+            db.clone(),
+        )
+        .await?;
         payment_attempt = db
             .find_payment_attempt_by_payment_id_merchant_id_attempt_id(
                 payment_intent.payment_id.as_str(),

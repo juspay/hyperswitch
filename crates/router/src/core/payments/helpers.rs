@@ -2060,27 +2060,47 @@ pub fn generate_mandate(
 }
 
 // A function to manually authenticate the client secret with intent fulfillment time
-pub fn authenticate_client_secret(
+pub async fn authenticate_client_secret(
     request_client_secret: Option<&String>,
     payment_intent: &PaymentIntent,
     merchant_intent_fulfillment_time: Option<i64>,
+    db: &dyn StorageInterface,
 ) -> Result<(), errors::ApiErrorResponse> {
+    let payment_link_db = if let Some(payment_link_id) = &payment_intent.payment_link_id {
+        db.find_payment_link_by_payment_link_id(payment_link_id, &payment_intent.merchant_id)
+            .await
+            .ok()
+    } else {
+        None
+    };
+
     match (request_client_secret, &payment_intent.client_secret) {
         (Some(req_cs), Some(pi_cs)) => {
             if req_cs != pi_cs {
                 Err(errors::ApiErrorResponse::ClientSecretInvalid)
             } else {
                 //This is done to check whether the merchant_account's intent fulfillment time has expired or not
-                let payment_intent_fulfillment_deadline =
-                    payment_intent.created_at.saturating_add(Duration::seconds(
-                        merchant_intent_fulfillment_time
-                            .unwrap_or(consts::DEFAULT_FULFILLMENT_TIME),
-                    ));
-                let current_timestamp = common_utils::date_time::now();
-                fp_utils::when(
-                    current_timestamp > payment_intent_fulfillment_deadline,
-                    || Err(errors::ApiErrorResponse::ClientSecretExpired),
-                )
+                if let Some(payment_link_db) = payment_link_db {
+                    let current_timestamp = common_utils::date_time::now();
+                    fp_utils::when(
+                        current_timestamp
+                            >= payment_link_db
+                                .fullfilment_time
+                                .unwrap_or(current_timestamp),
+                        || Err(errors::ApiErrorResponse::ClientSecretExpired),
+                    )
+                } else {
+                    let payment_intent_fulfillment_deadline =
+                        payment_intent.created_at.saturating_add(Duration::seconds(
+                            merchant_intent_fulfillment_time
+                                .unwrap_or(consts::DEFAULT_FULFILLMENT_TIME),
+                        ));
+                    let current_timestamp = common_utils::date_time::now();
+                    fp_utils::when(
+                        current_timestamp > payment_intent_fulfillment_deadline,
+                        || Err(errors::ApiErrorResponse::ClientSecretExpired),
+                    )
+                }
             }
         }
         // If there is no client in payment intent, then it has expired
@@ -2151,7 +2171,9 @@ pub async fn verify_payment_intent_time_and_client_secret(
                 Some(&cs),
                 &payment_intent,
                 merchant_account.intent_fulfillment_time,
-            )?;
+                db,
+            )
+            .await?;
             Ok(payment_intent)
         })
         .await
@@ -2237,10 +2259,12 @@ pub(crate) fn get_payment_id_from_client_secret(cs: &str) -> RouterResult<String
 #[cfg(test)]
 mod tests {
 
+    use storage_impl::MockDb;
+
     use super::*;
 
-    #[test]
-    fn test_authenticate_client_secret_fulfillment_time_not_expired() {
+    #[tokio::test]
+    async fn test_authenticate_client_secret_fulfillment_time_not_expired() {
         let payment_intent = PaymentIntent {
             id: 21,
             payment_id: "23".to_string(),
@@ -2279,16 +2303,22 @@ mod tests {
         };
         let req_cs = Some("1".to_string());
         let merchant_fulfillment_time = Some(900);
+        #[allow(clippy::expect_used)]
+        let mock_db = MockDb::new(&redis_interface::RedisSettings::default())
+            .await
+            .expect("Failed to create mock DB");
         assert!(authenticate_client_secret(
             req_cs.as_ref(),
             &payment_intent,
-            merchant_fulfillment_time
+            merchant_fulfillment_time,
+            &mock_db,
         )
+        .await
         .is_ok()); // Check if the result is an Ok variant
     }
 
-    #[test]
-    fn test_authenticate_client_secret_fulfillment_time_expired() {
+    #[tokio::test]
+    async fn test_authenticate_client_secret_fulfillment_time_expired() {
         let payment_intent = PaymentIntent {
             id: 21,
             payment_id: "23".to_string(),
@@ -2327,16 +2357,22 @@ mod tests {
         };
         let req_cs = Some("1".to_string());
         let merchant_fulfillment_time = Some(10);
+        #[allow(clippy::expect_used)]
+        let mock_db = MockDb::new(&redis_interface::RedisSettings::default())
+            .await
+            .expect("Failed to create mock DB");
         assert!(authenticate_client_secret(
             req_cs.as_ref(),
             &payment_intent,
-            merchant_fulfillment_time
+            merchant_fulfillment_time,
+            &mock_db,
         )
+        .await
         .is_err())
     }
 
-    #[test]
-    fn test_authenticate_client_secret_expired() {
+    #[tokio::test]
+    async fn test_authenticate_client_secret_expired() {
         let payment_intent = PaymentIntent {
             id: 21,
             payment_id: "23".to_string(),
@@ -2375,11 +2411,17 @@ mod tests {
         };
         let req_cs = Some("1".to_string());
         let merchant_fulfillment_time = Some(10);
+        #[allow(clippy::expect_used)]
+        let mock_db = MockDb::new(&redis_interface::RedisSettings::default())
+            .await
+            .expect("Failed to create mock DB");
         assert!(authenticate_client_secret(
             req_cs.as_ref(),
             &payment_intent,
-            merchant_fulfillment_time
+            merchant_fulfillment_time,
+            &mock_db
         )
+        .await
         .is_err())
     }
 }

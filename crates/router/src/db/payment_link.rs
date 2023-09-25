@@ -12,7 +12,7 @@ use crate::{
 pub trait PaymentLinkInterface {
     async fn find_payment_link_by_payment_link_id(
         &self,
-        payment_id: &str,
+        payment_link_id: &str,
         merchant_id: &str,
     ) -> CustomResult<storage::PaymentLink, errors::StorageError>;
 
@@ -61,7 +61,7 @@ impl PaymentLinkInterface for MockDb {
 
     async fn find_payment_link_by_payment_link_id(
         &self,
-        _payment_id: &str,
+        _payment_link_id: &str,
         _merchant_id: &str,
     ) -> CustomResult<storage::PaymentLink, errors::StorageError> {
         // TODO: Implement function for `MockDb`x

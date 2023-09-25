@@ -2887,6 +2887,8 @@ mod tests {
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize, PartialEq, ToSchema)]
 pub struct PaymentLinkObject {
     pub create_payment_link: bool,
+    #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
+    pub link_expiry: Option<PrimitiveDateTime>,
 }
 
 #[derive(Default, Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
@@ -2913,6 +2915,8 @@ pub struct RetrievePaymentLinkResponse {
     pub created_at: PrimitiveDateTime,
     #[serde(with = "common_utils::custom_serde::iso8601")]
     pub last_modified_at: PrimitiveDateTime,
+    #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
+    pub link_expiry: Option<PrimitiveDateTime>,
 }
 
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]

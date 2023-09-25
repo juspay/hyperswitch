@@ -219,7 +219,9 @@ async fn get_tracker_for_sync<
         request.client_secret.as_ref(),
         &payment_intent,
         merchant_account.intent_fulfillment_time,
-    )?;
+        db.clone(),
+    )
+    .await?;
     let payment_id_str = payment_attempt.payment_id.clone();
 
     let mut connector_response = db

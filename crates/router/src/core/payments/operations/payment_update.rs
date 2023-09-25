@@ -83,7 +83,9 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
             request.client_secret.as_ref(),
             &payment_intent,
             merchant_account.intent_fulfillment_time,
-        )?;
+            db.clone(),
+        )
+        .await?;
         let (
             token,
             payment_method,
