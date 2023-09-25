@@ -88,7 +88,7 @@ pub trait ConnectorValidation: ConnectorCommon {
             .map(|_| ())
     }
 
-    fn webhook_source_verification_mandatory(&self) -> bool {
+    fn is_webhook_source_verification_mandatory(&self) -> bool {
         false
     }
 }

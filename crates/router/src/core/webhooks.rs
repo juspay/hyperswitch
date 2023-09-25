@@ -869,7 +869,7 @@ pub async fn webhooks_core<W: types::OutgoingWebhookType>(
                     merchant_account.merchant_id.clone(),
                 )],
             );
-        } else if connector.webhook_source_verification_mandatory() {
+        } else if connector.is_webhook_source_verification_mandatory() {
             // if webhook consumption is mandatory for connector, fail webhook
             // so that merchant can retrigger it after updating merchant_secret
             return Err(errors::ApiErrorResponse::WebhookAuthenticationFailed.into());
