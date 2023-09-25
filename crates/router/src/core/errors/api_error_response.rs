@@ -15,6 +15,7 @@ pub enum ErrorType {
     DuplicateRequest,
     ValidationError,
     ConnectorError,
+    LockTimeout,
 }
 
 #[allow(dead_code)]
@@ -124,6 +125,8 @@ pub enum ApiErrorResponse {
 
     #[error(error_type = ErrorType::ServerNotAvailable, code = "HE_00", message = "Something went wrong")]
     InternalServerError,
+    #[error(error_type = ErrorType::LockTimeout, code = "HE_00", message = "Resource is busy. Please try again later.")]
+    ResourceBusy,
     #[error(error_type = ErrorType::DuplicateRequest, code = "HE_01", message = "Duplicate refund request. Refund already attempted with the refund ID")]
     DuplicateRefundRequest,
     #[error(error_type = ErrorType::DuplicateRequest, code = "HE_01", message = "Duplicate mandate request. Mandate already attempted with the Mandate ID")]

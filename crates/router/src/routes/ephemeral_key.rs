@@ -3,7 +3,7 @@ use router_env::{instrument, tracing, Flow};
 
 use super::AppState;
 use crate::{
-    core::payments::helpers,
+    core::{api_locking, payments::helpers},
     services::{api, authentication as auth},
     types::api::customers,
 };
@@ -25,10 +25,10 @@ pub async fn ephemeral_key_create(
             helpers::make_ephemeral_key(state, req.customer_id, auth.merchant_account.merchant_id)
         },
         &auth::ApiKeyAuth,
+        api_locking::LockAction::NotApplicable,
     )
     .await
 }
-
 #[instrument(skip_all, fields(flow = ?Flow::EphemeralKeyDelete))]
 pub async fn ephemeral_key_delete(
     state: web::Data<AppState>,
@@ -44,6 +44,7 @@ pub async fn ephemeral_key_delete(
         payload,
         |state, _, req| helpers::delete_ephemeral_key(state, req),
         &auth::ApiKeyAuth,
+        api_locking::LockAction::NotApplicable,
     )
     .await
 }
