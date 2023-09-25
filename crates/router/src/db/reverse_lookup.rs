@@ -40,7 +40,7 @@ impl ReverseLookupInterface for Store {
                 .map_err(Into::into)
                 .into_report()
         };
-        cache::get_or_populate_redis(self, id, database_call).await
+        cache::get_or_populate_redis(self, format!("reverse_lookup_{id}"), database_call).await
     }
 }
 
