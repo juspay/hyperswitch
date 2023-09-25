@@ -4,6 +4,16 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 1.44.0+hotfix.1 (2023-09-25)
+
+### Bug Fixes
+
+- **db:** Merchant_account cache invalidation based on publishable_key ([#2364](https://github.com/juspay/hyperswitch/pull/2364)) ([`00ac702`](https://github.com/juspay/hyperswitch/commit/00ac702bcf8a0c23ea78485558cf6acf3b3bedbe))
+
+**Full Changelog:** [`v1.44.0...v1.44.0+hotfix.1`](https://github.com/juspay/hyperswitch/compare/v1.44.0...v1.44.0+hotfix.1)
+
+- - -
+
 ## 1.44.0 (2023-09-22)
 
 ### Features
