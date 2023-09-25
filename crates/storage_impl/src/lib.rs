@@ -8,6 +8,7 @@ use redis::{kv_store::RedisConnInterface, RedisStore};
 mod address;
 pub mod config;
 pub mod connection;
+mod connector_response;
 pub mod database;
 pub mod errors;
 mod lookup;
