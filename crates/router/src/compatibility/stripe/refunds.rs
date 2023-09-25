@@ -40,9 +40,10 @@ pub async fn refund_create(
         _,
         types::StripeRefundResponse,
         errors::StripeErrorCode,
+        _,
     >(
         flow,
-        state.get_ref(),
+        state.into_inner(),
         &req,
         create_refund_req,
         |state, auth, req| {
@@ -79,9 +80,10 @@ pub async fn refund_retrieve_with_gateway_creds(
         _,
         types::StripeRefundResponse,
         errors::StripeErrorCode,
+        _,
     >(
         flow,
-        state.get_ref(),
+        state.into_inner(),
         &req,
         refund_request,
         |state, auth, refund_request| {
@@ -121,9 +123,10 @@ pub async fn refund_retrieve(
         _,
         types::StripeRefundResponse,
         errors::StripeErrorCode,
+        _,
     >(
         flow,
-        state.get_ref(),
+        state.into_inner(),
         &req,
         refund_request,
         |state, auth, refund_request| {
@@ -161,13 +164,14 @@ pub async fn refund_update(
         _,
         types::StripeRefundResponse,
         errors::StripeErrorCode,
+        _,
     >(
         flow,
-        state.get_ref(),
+        state.into_inner(),
         &req,
         create_refund_update_req,
         |state, auth, req| {
-            refunds::refund_update_core(&*state.store, auth.merchant_account, &refund_id, req)
+            refunds::refund_update_core(state, auth.merchant_account, &refund_id, req)
         },
         &auth::ApiKeyAuth,
     ))

@@ -48,9 +48,10 @@ pub async fn setup_intents_create(
         _,
         types::StripeSetupIntentResponse,
         errors::StripeErrorCode,
+        _,
     >(
         flow,
-        state.get_ref(),
+        state.into_inner(),
         &req,
         create_payment_req,
         |state, auth, req| {
@@ -62,6 +63,7 @@ pub async fn setup_intents_create(
                 req,
                 api::AuthFlow::Merchant,
                 payments::CallConnectorAction::Trigger,
+                api_types::HeaderPayload::default(),
             )
         },
         &auth::ApiKeyAuth,
@@ -105,9 +107,10 @@ pub async fn setup_intents_retrieve(
         _,
         types::StripeSetupIntentResponse,
         errors::StripeErrorCode,
+        _,
     >(
         flow,
-        state.get_ref(),
+        state.into_inner(),
         &req,
         payload,
         |state, auth, payload| {
@@ -119,6 +122,7 @@ pub async fn setup_intents_retrieve(
                 payload,
                 auth_flow,
                 payments::CallConnectorAction::Trigger,
+                api_types::HeaderPayload::default(),
             )
         },
         &*auth_type,
@@ -168,9 +172,10 @@ pub async fn setup_intents_update(
         _,
         types::StripeSetupIntentResponse,
         errors::StripeErrorCode,
+        _,
     >(
         flow,
-        state.get_ref(),
+        state.into_inner(),
         &req,
         payload,
         |state, auth, req| {
@@ -182,6 +187,7 @@ pub async fn setup_intents_update(
                 req,
                 auth_flow,
                 payments::CallConnectorAction::Trigger,
+                api_types::HeaderPayload::default(),
             )
         },
         &*auth_type,
@@ -232,9 +238,10 @@ pub async fn setup_intents_confirm(
         _,
         types::StripeSetupIntentResponse,
         errors::StripeErrorCode,
+        _,
     >(
         flow,
-        state.get_ref(),
+        state.into_inner(),
         &req,
         payload,
         |state, auth, req| {
@@ -246,6 +253,7 @@ pub async fn setup_intents_confirm(
                 req,
                 auth_flow,
                 payments::CallConnectorAction::Trigger,
+                api_types::HeaderPayload::default(),
             )
         },
         &*auth_type,

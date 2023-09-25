@@ -16,6 +16,7 @@ use common_utils::{
 use error_stack::{IntoReport, ResultExt};
 use fred::{
     interfaces::{HashesInterface, KeysInterface, StreamsInterface},
+    prelude::RedisErrorKind,
     types::{
         Expiration, FromRedis, MultipleIDs, MultipleKeys, MultipleOrderedPairs, MultipleStrings,
         RedisKey, RedisMap, RedisValue, Scanner, SetOptions, XCap, XReadResponse,
@@ -539,7 +540,12 @@ impl super::RedisConnectionPool {
             )
             .await
             .into_report()
-            .change_context(errors::RedisError::StreamReadFailed)
+            .map_err(|err| match err.current_context().kind() {
+                RedisErrorKind::NotFound => {
+                    err.change_context(errors::RedisError::StreamEmptyOrNotAvailable)
+                }
+                _ => err.change_context(errors::RedisError::StreamReadFailed),
+            })
     }
 
     #[instrument(level = "DEBUG", skip(self))]

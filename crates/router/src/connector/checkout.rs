@@ -61,6 +61,10 @@ impl ConnectorCommon for Checkout {
         "checkout"
     }
 
+    fn get_currency_unit(&self) -> api::CurrencyUnit {
+        api::CurrencyUnit::Minor
+    }
+
     fn common_get_content_type(&self) -> &'static str {
         "application/json"
     }
@@ -305,7 +309,13 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
         &self,
         req: &types::PaymentsCaptureRouterData,
     ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
-        let connector_req = checkout::PaymentCaptureRequest::try_from(req)?;
+        let connector_router_data = checkout::CheckoutRouterData::try_from((
+            &self.get_currency_unit(),
+            req.request.currency,
+            req.request.amount_to_capture,
+            req,
+        ))?;
+        let connector_req = checkout::PaymentCaptureRequest::try_from(&connector_router_data)?;
         let checkout_req = types::RequestBody::log_and_get_request_body(
             &connector_req,
             utils::Encode::<checkout::PaymentCaptureRequest>::encode_to_string_of_json,
@@ -375,14 +385,19 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
         req: &types::PaymentsSyncRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
+        let suffix = match req.request.sync_type {
+            types::SyncRequestType::MultipleCaptureSync(_) => "/actions",
+            types::SyncRequestType::SinglePaymentSync => "",
+        };
         Ok(format!(
-            "{}{}{}",
+            "{}{}{}{}",
             self.base_url(connectors),
             "payments/",
             req.request
                 .connector_transaction_id
                 .get_connector_transaction_id()
-                .change_context(errors::ConnectorError::MissingConnectorTransactionID)?
+                .change_context(errors::ConnectorError::MissingConnectorTransactionID)?,
+            suffix
         ))
     }
 
@@ -412,17 +427,40 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
         types::PaymentsSyncData: Clone,
         types::PaymentsResponseData: Clone,
     {
-        let response: checkout::PaymentsResponse = res
-            .response
-            .parse_struct("PaymentsResponse")
-            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-        router_env::logger::info!(connector_response=?response);
-        types::RouterData::try_from(types::ResponseRouterData {
-            response,
-            data: data.clone(),
-            http_code: res.status_code,
-        })
-        .change_context(errors::ConnectorError::ResponseHandlingFailed)
+        match &data.request.sync_type {
+            types::SyncRequestType::MultipleCaptureSync(_) => {
+                let response: checkout::PaymentsResponseEnum = res
+                    .response
+                    .parse_struct("checkout::PaymentsResponseEnum")
+                    .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+                router_env::logger::info!(connector_response=?response);
+                types::RouterData::try_from(types::ResponseRouterData {
+                    response,
+                    data: data.clone(),
+                    http_code: res.status_code,
+                })
+                .change_context(errors::ConnectorError::ResponseHandlingFailed)
+            }
+            types::SyncRequestType::SinglePaymentSync => {
+                let response: checkout::PaymentsResponse = res
+                    .response
+                    .parse_struct("PaymentsResponse")
+                    .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+                router_env::logger::info!(connector_response=?response);
+                types::RouterData::try_from(types::ResponseRouterData {
+                    response,
+                    data: data.clone(),
+                    http_code: res.status_code,
+                })
+                .change_context(errors::ConnectorError::ResponseHandlingFailed)
+            }
+        }
+    }
+
+    fn get_multiple_capture_sync_method(
+        &self,
+    ) -> CustomResult<services::CaptureSyncMethod, errors::ConnectorError> {
+        Ok(services::CaptureSyncMethod::Bulk)
     }
 
     fn get_error_response(
@@ -456,7 +494,13 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         &self,
         req: &types::PaymentsAuthorizeRouterData,
     ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
-        let connector_req = checkout::PaymentsRequest::try_from(req)?;
+        let connector_router_data = checkout::CheckoutRouterData::try_from((
+            &self.get_currency_unit(),
+            req.request.currency,
+            req.request.amount,
+            req,
+        ))?;
+        let connector_req = checkout::PaymentsRequest::try_from(&connector_router_data)?;
         let checkout_req = types::RequestBody::log_and_get_request_body(
             &connector_req,
             utils::Encode::<checkout::PaymentsRequest>::encode_to_string_of_json,
@@ -473,7 +517,6 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         >,
         connectors: &settings::Connectors,
     ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
-        self.validate_capture_method(req.request.capture_method)?;
         Ok(Some(
             services::RequestBuilder::new()
                 .method(services::Method::Post)
@@ -629,7 +672,13 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
         &self,
         req: &types::RefundsRouterData<api::Execute>,
     ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
-        let connector_req = checkout::RefundRequest::try_from(req)?;
+        let connector_router_data = checkout::CheckoutRouterData::try_from((
+            &self.get_currency_unit(),
+            req.request.currency,
+            req.request.refund_amount,
+            req,
+        ))?;
+        let connector_req = checkout::RefundRequest::try_from(&connector_router_data)?;
         let body = types::RequestBody::log_and_get_request_body(
             &connector_req,
             utils::Encode::<checkout::RefundRequest>::encode_to_string_of_json,
@@ -1185,12 +1234,26 @@ impl api::IncomingWebhook for Checkout {
         &self,
         request: &api::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<serde_json::Value, errors::ConnectorError> {
-        let details: checkout::CheckoutWebhookObjectResource = request
+        let event_type_data: checkout::CheckoutWebhookEventTypeBody = request
             .body
-            .parse_struct("CheckoutWebhookObjectResource")
-            .change_context(errors::ConnectorError::WebhookResourceObjectNotFound)?;
-
-        Ok(details.data)
+            .parse_struct("CheckoutWebhookBody")
+            .change_context(errors::ConnectorError::WebhookEventTypeNotFound)?;
+        let resource_object = if checkout::is_chargeback_event(&event_type_data.transaction_type)
+            || checkout::is_refund_event(&event_type_data.transaction_type)
+        {
+            // if other event, just return the json data.
+            let resource_object_data: checkout::CheckoutWebhookObjectResource = request
+                .body
+                .parse_struct("CheckoutWebhookObjectResource")
+                .change_context(errors::ConnectorError::WebhookEventTypeNotFound)?;
+            resource_object_data.data
+        } else {
+            // if payment_event, construct PaymentResponse and then serialize it to json and return.
+            let payment_response = checkout::PaymentsResponse::try_from(request)?;
+            utils::Encode::<checkout::PaymentsResponse>::encode_to_value(&payment_response)
+                .change_context(errors::ConnectorError::WebhookResourceObjectNotFound)?
+        };
+        Ok(resource_object)
     }
 
     fn get_dispute_details(

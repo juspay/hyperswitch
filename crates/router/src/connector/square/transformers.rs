@@ -238,19 +238,27 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for SquarePaymentsRequest {
     fn try_from(item: &types::PaymentsAuthorizeRouterData) -> Result<Self, Self::Error> {
         let autocomplete = item.request.is_auto_capture()?;
         match item.request.payment_method_data.clone() {
-            api::PaymentMethodData::Card(_) => Ok(Self {
-                idempotency_key: Secret::new(item.attempt_id.clone()),
-                source_id: Secret::new(item.get_payment_method_token()?),
-                amount_money: SquarePaymentsAmountData {
-                    amount: item.request.amount,
-                    currency: item.request.currency,
-                },
-                autocomplete,
-                external_details: SquarePaymentsRequestExternalDetails {
-                    source: "Hyperswitch".to_string(),
-                    source_type: "Card".to_string(),
-                },
-            }),
+            api::PaymentMethodData::Card(_) => {
+                let pm_token = item.get_payment_method_token()?;
+                Ok(Self {
+                    idempotency_key: Secret::new(item.attempt_id.clone()),
+                    source_id: Secret::new(match pm_token {
+                        types::PaymentMethodToken::Token(token) => token,
+                        types::PaymentMethodToken::ApplePayDecrypt(_) => {
+                            Err(errors::ConnectorError::InvalidWalletToken)?
+                        }
+                    }),
+                    amount_money: SquarePaymentsAmountData {
+                        amount: item.request.amount,
+                        currency: item.request.currency,
+                    },
+                    autocomplete,
+                    external_details: SquarePaymentsRequestExternalDetails {
+                        source: "Hyperswitch".to_string(),
+                        source_type: "Card".to_string(),
+                    },
+                })
+            }
             api::PaymentMethodData::BankDebit(_)
             | api::PaymentMethodData::GiftCard(_)
             | api::PaymentMethodData::PayLater(_)
@@ -292,7 +300,7 @@ impl TryFrom<&types::ConnectorAuthType> for SquareAuthType {
     }
 }
 // PaymentsResponse
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "UPPERCASE")]
 pub enum SquarePaymentStatus {
     Completed,
@@ -314,7 +322,7 @@ impl From<SquarePaymentStatus> for enums::AttemptStatus {
     }
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub struct SquarePaymentsResponseDetails {
     status: SquarePaymentStatus,
     id: String,
@@ -333,8 +341,14 @@ impl<F, T>
     fn try_from(
         item: types::ResponseRouterData<F, SquarePaymentsResponse, T, types::PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
+        //Since this try_from is being used in Authorize, Sync, Capture & Void flow. Field amount_captured should only be updated in case of Charged status.
+        let status = enums::AttemptStatus::from(item.response.payment.status);
+        let mut amount_captured = None;
+        if status == enums::AttemptStatus::Charged {
+            amount_captured = Some(item.response.payment.amount_money.amount)
+        };
         Ok(Self {
-            status: enums::AttemptStatus::from(item.response.payment.status),
+            status,
             response: Ok(types::PaymentsResponseData::TransactionResponse {
                 resource_id: types::ResponseId::ConnectorTransactionId(item.response.payment.id),
                 redirection_data: None,
@@ -343,7 +357,7 @@ impl<F, T>
                 network_txn_id: None,
                 connector_response_reference_id: None,
             }),
-            amount_captured: Some(item.response.payment.amount_money.amount),
+            amount_captured,
             ..item.data
         })
     }
@@ -372,7 +386,7 @@ impl<F> TryFrom<&types::RefundsRouterData<F>> for SquareRefundRequest {
     }
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "UPPERCASE")]
 pub enum RefundStatus {
     Completed,
@@ -391,7 +405,7 @@ impl From<RefundStatus> for enums::RefundStatus {
     }
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub struct SquareRefundResponseDetails {
     status: RefundStatus,
     id: String,
@@ -444,4 +458,44 @@ pub struct SquareErrorDetails {
 #[derive(Clone, Default, Debug, Serialize, Deserialize, PartialEq)]
 pub struct SquareErrorResponse {
     pub errors: Vec<SquareErrorDetails>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum SquareWebhookObject {
+    Payment(SquarePaymentsResponseDetails),
+    Refund(SquareRefundResponseDetails),
+}
+
+#[derive(Debug, Deserialize)]
+pub struct SquareWebhookData {
+    pub id: String,
+    pub object: SquareWebhookObject,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct SquareWebhookBody {
+    #[serde(rename = "type")]
+    pub webhook_type: String,
+    pub data: SquareWebhookData,
+}
+
+impl From<SquareWebhookObject> for api::IncomingWebhookEvent {
+    fn from(item: SquareWebhookObject) -> Self {
+        match item {
+            SquareWebhookObject::Payment(payment_data) => match payment_data.status {
+                SquarePaymentStatus::Completed => Self::PaymentIntentSuccess,
+                SquarePaymentStatus::Failed => Self::PaymentIntentFailure,
+                SquarePaymentStatus::Pending => Self::PaymentIntentProcessing,
+                SquarePaymentStatus::Approved | SquarePaymentStatus::Canceled => {
+                    Self::EventNotSupported
+                }
+            },
+            SquareWebhookObject::Refund(refund_data) => match refund_data.status {
+                RefundStatus::Completed => Self::RefundSuccess,
+                RefundStatus::Failed | RefundStatus::Rejected => Self::RefundFailure,
+                RefundStatus::Pending => Self::EventNotSupported,
+            },
+        }
+    }
 }

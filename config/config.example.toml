@@ -116,6 +116,9 @@ locker_signing_key_id = "1"    # Key_id to sign basilisk hs locker
 [delayed_session_response]
 connectors_with_delayed_session_response = "trustpay,payme" # List of connectors which has delayed session response
 
+[webhook_source_verification_call]
+connectors_with_webhook_source_verification_call = "paypal" # List of connectors which has additional source verification api-call
+
 [jwekey] # 4 priv/pub key pair
 locker_key_identifier1 = "" # key identifier for key rotation , should be same as basilisk
 locker_key_identifier2 = "" # key identifier for key rotation , should be same as basilisk
@@ -159,6 +162,7 @@ authorizedotnet.base_url = "https://apitest.authorize.net/xml/v1/request.api"
 bambora.base_url = "https://api.na.bambora.com"
 bitpay.base_url = "https://test.bitpay.com"
 bluesnap.base_url = "https://sandbox.bluesnap.com/"
+bluesnap.secondary_base_url = "https://sandpay.bluesnap.com/"
 boku.base_url = "https://$-api4-stage.boku.com"
 braintree.base_url = "https://api.sandbox.braintreegateway.com/"
 braintree.secondary_base_url = "https://payments.sandbox.braintree-api.com/graphql"
@@ -173,6 +177,7 @@ fiserv.base_url = "https://cert.api.fiservapps.com/"
 forte.base_url = "https://sandbox.forte.net/api/v3"
 globalpay.base_url = "https://apis.sandbox.globalpay.com/ucp/"
 globepay.base_url = "https://pay.globepay.co/"
+gocardless.base_url = "https://api-sandbox.gocardless.com"
 helcim.base_url = "https://api.helcim.com/"
 iatapay.base_url = "https://sandbox.iata-pay.iata.org/api/v1"
 klarna.base_url = "https://api-na.playground.klarna.com/"
@@ -244,6 +249,7 @@ cards = [
     "cybersource",
     "globalpay",
     "globepay",
+    "gocardless",
     "helcim",
     "mollie",
     "paypal",
@@ -309,8 +315,14 @@ mollie = {long_lived_token = false, payment_method = "card"}
 stax = { long_lived_token = true, payment_method = "card,bank_debit" }
 square = {long_lived_token = false, payment_method = "card"}
 braintree = { long_lived_token = false, payment_method = "card" }
+gocardless = {long_lived_token = true, payment_method = "bank_debit"}
+
+[temp_locker_disable_config]
+trustpay = {payment_method = "card,bank_redirect,wallet"}
+stripe = {payment_method = "card,bank_redirect,pay_later,wallet,bank_debit"}
 
 [dummy_connector]
+enabled = true                # Whether dummy connector is enabled or not
 payment_ttl = 172800             # Time to live for dummy connector payment in redis
 payment_duration = 1000          # Fake delay duration for dummy connector payment
 payment_tolerance = 100          # Fake delay tolerance for dummy connector payment
@@ -392,7 +404,7 @@ ach = { currency = "USD" }
 cashapp = {country = "US", currency = "USD"}
 
 [connector_customer]
-connector_list = "stax"
+connector_list = "gocardless,stax,stripe"
 payout_connector_list = "wise"
 
 [bank_config.online_banking_fpx]
@@ -403,3 +415,9 @@ adyen.banks = "bangkok_bank,krungsri_bank,krung_thai_bank,the_siam_commercial_ba
 
 [multiple_api_version_supported_connectors]
 supported_connectors = "braintree"
+
+[applepay_decrypt_keys]
+apple_pay_ppc = "APPLE_PAY_PAYMENT_PROCESSING_CERTIFICATE"              #Payment Processing Certificate provided by Apple Pay (https://developer.apple.com/) Certificates, Identifiers & Profiles > Apple Pay Payment Processing Certificate
+apple_pay_ppc_key = "APPLE_PAY_PAYMENT_PROCESSING_CERTIFICATE_KEY"      #Private key generate by Elliptic-curve prime256v1 curve
+apple_pay_merchant_cert = "APPLE_PAY_MERCHNAT_CERTIFICATE"              #Merchant Certificate provided by Apple Pay (https://developer.apple.com/) Certificates, Identifiers & Profiles > Apple Pay Merchant Identity Certificate
+apple_pay_merchant_cert_key = "APPLE_PAY_MERCHNAT_CERTIFICATE_KEY"      #Private key generate by RSA:2048 algorithm

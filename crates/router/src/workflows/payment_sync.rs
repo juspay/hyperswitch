@@ -63,6 +63,7 @@ impl ProcessTrackerWorkflow<AppState> for PaymentsSyncWorkflow {
                 tracking_data.clone(),
                 payment_flows::CallConnectorAction::Trigger,
                 services::AuthFlow::Client,
+                api::HeaderPayload::default(),
             )
             .await?;
 
@@ -123,7 +124,7 @@ pub async fn get_sync_process_schedule_time(
         process_data::ConnectorPTMapping,
         errors::StorageError,
     > = db
-        .find_config_by_key_cached(&format!("pt_mapping_{connector}"))
+        .find_config_by_key(&format!("pt_mapping_{connector}"))
         .await
         .map(|value| value.config)
         .and_then(|config| {

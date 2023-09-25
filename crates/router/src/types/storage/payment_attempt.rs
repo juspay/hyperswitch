@@ -1,16 +1,12 @@
-pub use diesel_models::payment_attempt::{
-    PaymentAttempt, PaymentAttemptNew, PaymentAttemptUpdate, PaymentAttemptUpdateInternal,
+pub use data_models::payments::payment_attempt::{
+    PaymentAttempt, PaymentAttemptNew, PaymentAttemptUpdate,
 };
 use diesel_models::{capture::CaptureNew, enums};
 use error_stack::ResultExt;
 
-use crate::{core::errors, errors::RouterResult, utils::OptionExt};
-
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-pub struct RoutingData {
-    pub routed_through: Option<String>,
-    pub algorithm: Option<api_models::admin::StraightThroughAlgorithm>,
-}
+use crate::{
+    core::errors, errors::RouterResult, types::transformers::ForeignFrom, utils::OptionExt,
+};
 
 pub trait PaymentAttemptExt {
     fn make_new_capture(
@@ -20,6 +16,7 @@ pub trait PaymentAttemptExt {
     ) -> RouterResult<CaptureNew>;
 
     fn get_next_capture_id(&self) -> String;
+    fn get_intent_status(&self, amount_captured: Option<i64>) -> enums::IntentStatus;
 }
 
 impl PaymentAttemptExt for PaymentAttempt {
@@ -60,6 +57,25 @@ impl PaymentAttemptExt for PaymentAttempt {
     fn get_next_capture_id(&self) -> String {
         let next_sequence_number = self.multiple_capture_count.unwrap_or_default() + 1;
         format!("{}_{}", self.attempt_id.clone(), next_sequence_number)
+    }
+
+    fn get_intent_status(&self, amount_captured: Option<i64>) -> enums::IntentStatus {
+        let intent_status = enums::IntentStatus::foreign_from(self.status);
+        if intent_status == enums::IntentStatus::Cancelled && amount_captured > Some(0) {
+            enums::IntentStatus::Succeeded
+        } else {
+            intent_status
+        }
+    }
+}
+
+pub trait AttemptStatusExt {
+    fn maps_to_intent_status(self, intent_status: enums::IntentStatus) -> bool;
+}
+
+impl AttemptStatusExt for enums::AttemptStatus {
+    fn maps_to_intent_status(self, intent_status: enums::IntentStatus) -> bool {
+        enums::IntentStatus::foreign_from(self) == intent_status
     }
 }
 

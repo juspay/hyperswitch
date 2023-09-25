@@ -362,13 +362,14 @@ async fn payments_create_core() {
         services::ApplicationResponse::JsonWithHeaders((expected_response, vec![]));
     let actual_response =
         payments::payments_core::<api::Authorize, api::PaymentsResponse, _, _, _>(
-            &state,
+            state,
             merchant_account,
             key_store,
             payments::PaymentCreate,
             req,
             services::AuthFlow::Merchant,
             payments::CallConnectorAction::Trigger,
+            api::HeaderPayload::default(),
         )
         .await
         .unwrap();
@@ -531,13 +532,14 @@ async fn payments_create_core_adyen_no_redirect() {
     ));
     let actual_response =
         payments::payments_core::<api::Authorize, api::PaymentsResponse, _, _, _>(
-            &state,
+            state,
             merchant_account,
             key_store,
             payments::PaymentCreate,
             req,
             services::AuthFlow::Merchant,
             payments::CallConnectorAction::Trigger,
+            api::HeaderPayload::default(),
         )
         .await
         .unwrap();

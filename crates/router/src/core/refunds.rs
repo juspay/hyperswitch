@@ -30,7 +30,7 @@ use crate::{
 
 #[instrument(skip_all)]
 pub async fn refund_create_core(
-    state: &AppState,
+    state: AppState,
     merchant_account: domain::MerchantAccount,
     key_store: domain::MerchantKeyStore,
     req: refunds::RefundRequest,
@@ -102,7 +102,7 @@ pub async fn refund_create_core(
         .transpose()?;
 
     validate_and_create_refund(
-        state,
+        &state,
         &merchant_account,
         &key_store,
         &payment_attempt,
@@ -249,14 +249,14 @@ pub async fn trigger_refund_to_gateway(
 // ********************************************** REFUND SYNC **********************************************
 
 pub async fn refund_response_wrapper<'a, F, Fut, T, Req>(
-    state: &'a AppState,
+    state: AppState,
     merchant_account: domain::MerchantAccount,
     key_store: domain::MerchantKeyStore,
     request: Req,
     f: F,
 ) -> RouterResponse<refunds::RefundResponse>
 where
-    F: Fn(&'a AppState, domain::MerchantAccount, domain::MerchantKeyStore, Req) -> Fut,
+    F: Fn(AppState, domain::MerchantAccount, domain::MerchantKeyStore, Req) -> Fut,
     Fut: futures::Future<Output = RouterResult<T>>,
     T: ForeignInto<refunds::RefundResponse>,
 {
@@ -269,7 +269,7 @@ where
 
 #[instrument(skip_all)]
 pub async fn refund_retrieve_core(
-    state: &AppState,
+    state: AppState,
     merchant_account: domain::MerchantAccount,
     key_store: domain::MerchantKeyStore,
     request: refunds::RefundsRetrieveRequest,
@@ -329,7 +329,7 @@ pub async fn refund_retrieve_core(
 
     response = if should_call_refund(&refund, request.force_sync.unwrap_or(false)) {
         sync_refund_with_gateway(
-            state,
+            &state,
             &merchant_account,
             &key_store,
             &payment_attempt,
@@ -356,6 +356,7 @@ fn should_call_refund(refund: &diesel_models::refund::Refund, force_sync: bool) 
         || !matches!(
             refund.refund_status,
             diesel_models::enums::RefundStatus::Failure
+                | diesel_models::enums::RefundStatus::Success
         );
 
     predicate1 && predicate2
@@ -464,11 +465,12 @@ pub async fn sync_refund_with_gateway(
 // ********************************************** REFUND UPDATE **********************************************
 
 pub async fn refund_update_core(
-    db: &dyn db::StorageInterface,
+    state: AppState,
     merchant_account: domain::MerchantAccount,
     refund_id: &str,
     req: refunds::RefundUpdateRequest,
 ) -> RouterResponse<refunds::RefundResponse> {
+    let db = state.store.as_ref();
     let refund = db
         .find_refund_by_merchant_id_refund_id(
             &merchant_account.merchant_id,
@@ -643,10 +645,11 @@ pub async fn validate_and_create_refund(
 #[instrument(skip_all)]
 #[cfg(feature = "olap")]
 pub async fn refund_list(
-    db: &dyn db::StorageInterface,
+    state: AppState,
     merchant_account: domain::MerchantAccount,
     req: api_models::refunds::RefundListRequest,
 ) -> RouterResponse<api_models::refunds::RefundListResponse> {
+    let db = state.store;
     let limit = validator::validate_refund_list(req.limit)?;
     let offset = req.offset.unwrap_or_default();
 
@@ -687,10 +690,11 @@ pub async fn refund_list(
 #[instrument(skip_all)]
 #[cfg(feature = "olap")]
 pub async fn refund_filter_list(
-    db: &dyn db::StorageInterface,
+    state: AppState,
     merchant_account: domain::MerchantAccount,
     req: api_models::refunds::TimeRange,
 ) -> RouterResponse<api_models::refunds::RefundListMetaData> {
+    let db = state.store;
     let filter_list = db
         .filter_refund_by_meta_constraints(
             &merchant_account.merchant_id,
@@ -833,7 +837,7 @@ pub async fn sync_refund_with_gateway_workflow(
         .await?;
 
     let response = refund_retrieve_core(
-        state,
+        state.clone(),
         merchant_account,
         key_store,
         refunds::RefundsRetrieveRequest {

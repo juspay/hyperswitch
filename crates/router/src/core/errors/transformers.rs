@@ -2,7 +2,7 @@ use api_models::errors::types::Extra;
 use common_utils::errors::ErrorSwitch;
 use http::StatusCode;
 
-use super::{ApiErrorResponse, ConnectorError};
+use super::{ApiErrorResponse, ConnectorError, CustomersErrorResponse, StorageError};
 
 impl ErrorSwitch<api_models::errors::types::ApiErrorResponse> for ApiErrorResponse {
     fn switch(&self) -> api_models::errors::types::ApiErrorResponse {
@@ -89,7 +89,9 @@ impl ErrorSwitch<api_models::errors::types::ApiErrorResponse> for ApiErrorRespon
             Self::MissingRequiredFields { field_names } => AER::BadRequest(
                 ApiError::new("IR", 21, "Missing required params".to_string(), Some(Extra {data: Some(serde_json::json!(field_names)), ..Default::default() })),
             ),
-            Self::AccessForbidden => AER::ForbiddenCommonResource(ApiError::new("IR", 22, "Access forbidden. Not authorized to access this resource", None)),
+            Self::AccessForbidden {resource} => {
+                AER::ForbiddenCommonResource(ApiError::new("IR", 22, format!("Access forbidden. Not authorized to access this resource {resource}"), None))
+            },
             Self::FileProviderNotSupported { message } => {
                 AER::BadRequest(ApiError::new("IR", 23, message.to_string(), None))
             },
@@ -128,8 +130,8 @@ impl ErrorSwitch<api_models::errors::types::ApiErrorResponse> for ApiErrorRespon
             Self::DuplicateRefundRequest => AER::BadRequest(ApiError::new("HE", 1, "Duplicate refund request. Refund already attempted with the refund ID", None)),
             Self::DuplicateMandate => AER::BadRequest(ApiError::new("HE", 1, "Duplicate mandate request. Mandate already attempted with the Mandate ID", None)),
             Self::DuplicateMerchantAccount => AER::BadRequest(ApiError::new("HE", 1, "The merchant account with the specified details already exists in our records", None)),
-            Self::DuplicateMerchantConnectorAccount { connector_label } => {
-                AER::BadRequest(ApiError::new("HE", 1, format!("The merchant connector account with the specified connector_label '{connector_label}' already exists in our records"), None))
+            Self::DuplicateMerchantConnectorAccount { profile_id, connector_name } => {
+                AER::BadRequest(ApiError::new("HE", 1, format!("The merchant connector account with the specified profile_id '{profile_id}' and connector_name '{connector_name}' already exists in our records"), None))
             }
             Self::DuplicatePaymentMethod => AER::BadRequest(ApiError::new("HE", 1, "The payment method with the specified details already exists in our records", None)),
             Self::DuplicatePayment { payment_id } => {
@@ -271,6 +273,64 @@ impl ErrorSwitch<ApiErrorResponse> for ConnectorError {
             | Self::WebhooksNotImplemented => ApiErrorResponse::WebhookBadRequest,
             Self::WebhookEventTypeNotFound => ApiErrorResponse::WebhookUnprocessableEntity,
             _ => ApiErrorResponse::InternalServerError,
+        }
+    }
+}
+
+impl ErrorSwitch<api_models::errors::types::ApiErrorResponse> for CustomersErrorResponse {
+    fn switch(&self) -> api_models::errors::types::ApiErrorResponse {
+        use api_models::errors::types::{ApiError, ApiErrorResponse as AER};
+        match self {
+            Self::CustomerRedacted => AER::BadRequest(ApiError::new(
+                "IR",
+                11,
+                "Customer has already been redacted",
+                None,
+            )),
+            Self::InternalServerError => {
+                AER::InternalServerError(ApiError::new("HE", 0, "Something went wrong", None))
+            }
+            Self::MandateActive => AER::BadRequest(ApiError::new(
+                "IR",
+                10,
+                "Customer has active mandate/subsciption",
+                None,
+            )),
+            Self::CustomerNotFound => AER::NotFound(ApiError::new(
+                "HE",
+                2,
+                "Customer does not exist in our records",
+                None,
+            )),
+        }
+    }
+}
+
+impl ErrorSwitch<CustomersErrorResponse> for StorageError {
+    fn switch(&self) -> CustomersErrorResponse {
+        use CustomersErrorResponse as CER;
+        match self {
+            err if err.is_db_not_found() => CER::CustomerNotFound,
+            Self::CustomerRedacted => CER::CustomerRedacted,
+            _ => CER::InternalServerError,
+        }
+    }
+}
+
+impl ErrorSwitch<CustomersErrorResponse> for common_utils::errors::CryptoError {
+    fn switch(&self) -> CustomersErrorResponse {
+        CustomersErrorResponse::InternalServerError
+    }
+}
+
+impl ErrorSwitch<CustomersErrorResponse> for ApiErrorResponse {
+    fn switch(&self) -> CustomersErrorResponse {
+        use CustomersErrorResponse as CER;
+        match self {
+            Self::InternalServerError => CER::InternalServerError,
+            Self::MandateActive => CER::MandateActive,
+            Self::CustomerNotFound => CER::CustomerNotFound,
+            _ => CER::InternalServerError,
         }
     }
 }

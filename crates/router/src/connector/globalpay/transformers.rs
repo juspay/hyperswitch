@@ -98,6 +98,11 @@ impl TryFrom<&types::PaymentsCaptureRouterData> for requests::GlobalpayCaptureRe
                     Sequence::Subsequent
                 }
             }),
+            reference: value
+                .request
+                .multiple_capture_data
+                .as_ref()
+                .map(|mcd| mcd.capture_reference.clone()),
         })
     }
 }
@@ -228,7 +233,7 @@ fn get_payment_response(
             mandate_reference,
             connector_metadata: None,
             network_txn_id: None,
-            connector_response_reference_id: None,
+            connector_response_reference_id: response.reference,
         }),
     }
 }
@@ -271,6 +276,35 @@ impl<F, T>
             response: get_payment_response(status, item.response, redirection_data),
             ..item.data
         })
+    }
+}
+
+impl
+    TryFrom<(
+        types::PaymentsSyncResponseRouterData<GlobalpayPaymentsResponse>,
+        bool,
+    )> for types::PaymentsSyncRouterData
+{
+    type Error = Error;
+
+    fn try_from(
+        (value, is_multiple_capture_sync): (
+            types::PaymentsSyncResponseRouterData<GlobalpayPaymentsResponse>,
+            bool,
+        ),
+    ) -> Result<Self, Self::Error> {
+        if is_multiple_capture_sync {
+            let capture_sync_response_list =
+                utils::construct_captures_response_hashmap(vec![value.response]);
+            Ok(Self {
+                response: Ok(types::PaymentsResponseData::MultipleCaptureResponse {
+                    capture_sync_response_list,
+                }),
+                ..value.data
+            })
+        } else {
+            Self::try_from(value)
+        }
     }
 }
 
@@ -456,5 +490,29 @@ impl TryFrom<&api_models::payments::BankRedirectData> for PaymentMethodData {
             ))
             .into_report(),
         }
+    }
+}
+
+impl utils::MultipleCaptureSyncResponse for GlobalpayPaymentsResponse {
+    fn get_connector_capture_id(&self) -> String {
+        self.id.clone()
+    }
+
+    fn get_capture_attempt_status(&self) -> diesel_models::enums::AttemptStatus {
+        enums::AttemptStatus::from(self.status)
+    }
+
+    fn is_capture_response(&self) -> bool {
+        true
+    }
+
+    fn get_amount_captured(&self) -> Option<i64> {
+        match self.amount.clone() {
+            Some(amount) => amount.parse().ok(),
+            None => None,
+        }
+    }
+    fn get_connector_reference_id(&self) -> Option<String> {
+        self.reference.clone()
     }
 }
