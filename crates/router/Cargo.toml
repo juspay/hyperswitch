@@ -26,6 +26,7 @@ dummy_connector = ["api_models/dummy_connector"]
 external_access_dc = ["dummy_connector"]
 detailed_errors = ["api_models/detailed_errors", "error-stack/serde"]
 payouts = []
+api_locking = []
 
 
 [dependencies]
