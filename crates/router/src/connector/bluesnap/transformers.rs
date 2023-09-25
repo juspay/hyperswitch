@@ -6,7 +6,7 @@ use common_utils::{
     pii::Email,
 };
 use error_stack::{IntoReport, ResultExt};
-use masking::ExposeInterface;
+use masking::{ExposeInterface, PeekInterface};
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -159,6 +159,42 @@ pub struct ApplepayHeader {
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct BluesnapConnectorMetaData {
     pub merchant_id: String,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct BluesnapPaymentsTokenRequest {
+    cc_number: cards::CardNumber,
+    exp_date: Secret<String>,
+}
+
+impl TryFrom<&types::PaymentsAuthorizeRouterData> for BluesnapPaymentsTokenRequest {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(item: &types::PaymentsAuthorizeRouterData) -> Result<Self, Self::Error> {
+        match item.request.payment_method_data {
+            api::PaymentMethodData::Card(ref ccard) => Ok(Self {
+                cc_number: ccard.card_number.clone(),
+                exp_date: ccard.get_expiry_date_as_mmyyyy("/"),
+            }),
+            api::PaymentMethodData::Wallet(_)
+            | payments::PaymentMethodData::PayLater(_)
+            | payments::PaymentMethodData::BankRedirect(_)
+            | payments::PaymentMethodData::BankDebit(_)
+            | payments::PaymentMethodData::BankTransfer(_)
+            | payments::PaymentMethodData::Crypto(_)
+            | payments::PaymentMethodData::MandatePayment
+            | payments::PaymentMethodData::Reward
+            | payments::PaymentMethodData::Upi(_)
+            | payments::PaymentMethodData::CardRedirect(_)
+            | payments::PaymentMethodData::Voucher(_)
+            | payments::PaymentMethodData::GiftCard(_) => {
+                Err(errors::ConnectorError::NotImplemented(
+                    "Selected payment method via Token flow through bluesnap".to_string(),
+                ))
+                .into_report()
+            }
+        }
+    }
 }
 
 impl TryFrom<&types::PaymentsAuthorizeRouterData> for BluesnapPaymentsRequest {
@@ -444,7 +480,20 @@ impl TryFrom<types::PaymentsSessionResponseRouterData<BluesnapWalletTokenRespons
     }
 }
 
-impl TryFrom<&types::PaymentsCompleteAuthorizeRouterData> for BluesnapPaymentsRequest {
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct BluesnapCompletePaymentsRequest {
+    amount: String,
+    currency: enums::Currency,
+    card_transaction_type: BluesnapTxnType,
+    pf_token: String,
+    three_d_secure: Option<BluesnapThreeDSecureInfo>,
+    transaction_fraud_info: Option<TransactionFraudInfo>,
+    card_holder_info: Option<BluesnapCardHolderInfo>,
+    merchant_transaction_id: Option<String>,
+}
+
+impl TryFrom<&types::PaymentsCompleteAuthorizeRouterData> for BluesnapCompletePaymentsRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::PaymentsCompleteAuthorizeRouterData) -> Result<Self, Self::Error> {
         let redirection_response: BluesnapRedirectionResponse = item
@@ -458,6 +507,22 @@ impl TryFrom<&types::PaymentsCompleteAuthorizeRouterData> for BluesnapPaymentsRe
             .parse_value("BluesnapRedirectionResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
 
+        let pf_token = item
+            .request
+            .redirect_response
+            .clone()
+            .and_then(|res| res.params.to_owned())
+            .ok_or(errors::ConnectorError::MissingConnectorRedirectionPayload {
+                field_name: "request.redirect_response.params",
+            })?
+            .peek()
+            .split_once('=')
+            .ok_or(errors::ConnectorError::MissingConnectorRedirectionPayload {
+                field_name: "request.redirect_response.params.paymentToken",
+            })?
+            .1
+            .to_string();
+
         let redirection_result: BluesnapThreeDsResult = redirection_response
             .authentication_response
             .parse_struct("BluesnapThreeDsResult")
@@ -467,23 +532,8 @@ impl TryFrom<&types::PaymentsCompleteAuthorizeRouterData> for BluesnapPaymentsRe
             Some(enums::CaptureMethod::Manual) => BluesnapTxnType::AuthOnly,
             _ => BluesnapTxnType::AuthCapture,
         };
-        let payment_method = if let Some(api::PaymentMethodData::Card(ccard)) =
-            item.request.payment_method_data.clone()
-        {
-            PaymentMethodDetails::CreditCard(Card {
-                card_number: ccard.card_number.clone(),
-                expiration_month: ccard.card_exp_month.clone(),
-                expiration_year: ccard.get_expiry_year_4_digit(),
-                security_code: ccard.card_cvc,
-            })
-        } else {
-            Err(errors::ConnectorError::MissingConnectorRedirectionPayload {
-                field_name: "request.payment_method_data",
-            })?
-        };
         Ok(Self {
             amount: utils::to_currency_base_unit(item.request.amount, item.request.currency)?,
-            payment_method,
             currency: item.request.currency,
             card_transaction_type: auth_mode,
             three_d_secure: Some(BluesnapThreeDSecureInfo {
@@ -502,6 +552,7 @@ impl TryFrom<&types::PaymentsCompleteAuthorizeRouterData> for BluesnapPaymentsRe
                 item.request.get_email()?,
             )?,
             merchant_transaction_id: Some(item.connector_request_reference_id.clone()),
+            pf_token,
         })
     }
 }
@@ -591,21 +642,6 @@ impl TryFrom<&types::ConnectorAuthType> for BluesnapAuthType {
         } else {
             Err(errors::ConnectorError::FailedToObtainAuthType.into())
         }
-    }
-}
-
-#[derive(Debug, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct BluesnapCustomerRequest {
-    email: Option<Email>,
-}
-
-impl TryFrom<&types::ConnectorCustomerRouterData> for BluesnapCustomerRequest {
-    type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(item: &types::ConnectorCustomerRouterData) -> Result<Self, Self::Error> {
-        Ok(Self {
-            email: item.request.email.to_owned(),
-        })
     }
 }
 

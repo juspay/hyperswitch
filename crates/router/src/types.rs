@@ -177,6 +177,11 @@ pub type AcceptDisputeType = dyn services::ConnectorIntegration<
     AcceptDisputeRequestData,
     AcceptDisputeResponse,
 >;
+pub type VerifyWebhookSourceType = dyn services::ConnectorIntegration<
+    api::VerifyWebhookSource,
+    VerifyWebhookSourceRequestData,
+    VerifyWebhookSourceResponseData,
+>;
 
 pub type SubmitEvidenceType = dyn services::ConnectorIntegration<
     api::Evidence,
@@ -203,6 +208,12 @@ pub type VerifyRouterData = RouterData<api::Verify, VerifyRequestData, PaymentsR
 
 pub type AcceptDisputeRouterData =
     RouterData<api::Accept, AcceptDisputeRequestData, AcceptDisputeResponse>;
+
+pub type VerifyWebhookSourceRouterData = RouterData<
+    api::VerifyWebhookSource,
+    VerifyWebhookSourceRequestData,
+    VerifyWebhookSourceResponseData,
+>;
 
 pub type SubmitEvidenceRouterData =
     RouterData<api::Evidence, SubmitEvidenceRequestData, SubmitEvidenceResponse>;
@@ -274,6 +285,9 @@ pub struct RouterData<Flow, Request, Response> {
 
     pub test_mode: Option<bool>,
     pub connector_http_status_code: Option<u16>,
+
+    /// Contains apple pay flow type simplified or manual
+    pub apple_pay_flow: Option<storage_enums::ApplePayFlow>,
 }
 
 #[derive(Debug, Clone, serde::Deserialize)]
@@ -419,6 +433,7 @@ pub struct PaymentsPreProcessingData {
     pub router_return_url: Option<String>,
     pub webhook_url: Option<String>,
     pub complete_authorize_url: Option<String>,
+    pub browser_info: Option<BrowserInformation>,
 }
 
 #[derive(Debug, Clone)]
@@ -572,13 +587,32 @@ pub enum CaptureSyncResponse {
         resource_id: ResponseId,
         status: storage_enums::AttemptStatus,
         connector_response_reference_id: Option<String>,
+        amount: Option<i64>,
     },
     Error {
         code: String,
         message: String,
         reason: Option<String>,
         status_code: u16,
+        amount: Option<i64>,
     },
+}
+
+impl CaptureSyncResponse {
+    pub fn get_amount_captured(&self) -> Option<i64> {
+        match self {
+            Self::Success { amount, .. } | Self::Error { amount, .. } => *amount,
+        }
+    }
+    pub fn get_connector_response_reference_id(&self) -> Option<String> {
+        match self {
+            Self::Success {
+                connector_response_reference_id,
+                ..
+            } => connector_response_reference_id.clone(),
+            Self::Error { .. } => None,
+        }
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -698,6 +732,24 @@ pub struct RefundsResponseData {
 pub enum Redirection {
     Redirect,
     NoRedirect,
+}
+
+#[derive(Debug, Clone)]
+pub struct VerifyWebhookSourceRequestData {
+    pub webhook_headers: actix_web::http::header::HeaderMap,
+    pub webhook_body: Vec<u8>,
+    pub merchant_secret: api_models::webhooks::ConnectorWebhookSecrets,
+}
+
+#[derive(Debug, Clone)]
+pub struct VerifyWebhookSourceResponseData {
+    pub verify_webhook_status: VerifyWebhookStatus,
+}
+
+#[derive(Debug, Clone)]
+pub enum VerifyWebhookStatus {
+    SourceVerified,
+    SourceNotVerified,
 }
 
 #[derive(Default, Debug, Clone)]
@@ -1059,6 +1111,7 @@ impl<F1, F2, T1, T2> From<(&RouterData<F1, T1, PaymentsResponseData>, T2)>
             payment_method_balance: data.payment_method_balance.clone(),
             connector_api_version: data.connector_api_version.clone(),
             connector_http_status_code: data.connector_http_status_code,
+            apple_pay_flow: data.apple_pay_flow.clone(),
         }
     }
 }
@@ -1112,6 +1165,7 @@ impl<F1, F2>
             payment_method_balance: None,
             connector_api_version: None,
             connector_http_status_code: data.connector_http_status_code,
+            apple_pay_flow: None,
         }
     }
 }

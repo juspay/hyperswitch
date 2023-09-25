@@ -297,6 +297,7 @@ pub async fn get_or_create_customer_details(
                 id: None,
                 created_at: common_utils::date_time::now(),
                 modified_at: common_utils::date_time::now(),
+                address_id: None,
             };
 
             Ok(Some(
