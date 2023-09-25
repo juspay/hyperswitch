@@ -158,7 +158,7 @@ impl MerchantAccountInterface for Store {
 
         #[cfg(feature = "accounts_cache")]
         {
-            publish_and_redact_merchant_account_cache(self, &_updated_merchant_account).await?;
+            publish_and_redact_merchant_account_cache(self, &updated_merchant_account).await?;
         }
         updated_merchant_account
             .convert(merchant_key_store.key.get_inner())
