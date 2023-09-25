@@ -389,6 +389,15 @@ mod storage {
                                     pk_id: key.clone(),
                                     source: "refund".to_string(),
                                 },
+                                storage_types::ReverseLookupNew {
+                                    sk_id: field.clone(),
+                                    lookup_id: format!(
+                                        "{}_{}",
+                                        created_refund.merchant_id, created_refund.payment_id,
+                                    ),
+                                    pk_id: key.clone(),
+                                    source: "refund".to_string(),
+                                },
                                 // [#492]: A discussion is required on whether this is required?
                                 storage_types::ReverseLookupNew {
                                     sk_id: field.clone(),
@@ -629,7 +638,17 @@ mod storage {
                 }
                 enums::MerchantStorageScheme::RedisKv => {
                     let key = format!("{merchant_id}_{payment_id}");
-                    let lookup = self.get_lookup_by_lookup_id(&key).await?;
+                    let lookup = match self.get_lookup_by_lookup_id(&key).await {
+                        Ok(lookup) => Ok(lookup),
+                        Err(err) => {
+                            if err.current_context().is_db_not_found() {
+                                logger::info!("lookup does not exist, no refund against this payment has been made");
+                                return Ok(vec![]);
+                            } else {
+                                Err(err)
+                            }
+                        }
+                    }?;
 
                     let pattern = db_utils::generate_hscan_pattern_for_refund(&lookup.sk_id);
 

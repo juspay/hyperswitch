@@ -29,10 +29,7 @@ use crate::{
     diesel_error_to_data_error,
     lookup::ReverseLookupInterface,
     redis::kv_store::{PartitionKey, RedisConnInterface},
-    utils::{
-        generate_hscan_pattern_for_attempt, pg_connection_read, pg_connection_write,
-        try_redis_get_else_try_database_get,
-    },
+    utils::{pg_connection_read, pg_connection_write, try_redis_get_else_try_database_get},
     DataModelExt, DatabaseStore, KVRouterStore, RouterStore,
 };
 
@@ -800,16 +797,13 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
             }
             MerchantStorageScheme::RedisKv => {
                 let key = format!("{merchant_id}_{payment_id}");
-                let lookup = self.get_lookup_by_lookup_id(&key).await?;
-
-                let pattern = generate_hscan_pattern_for_attempt(&lookup.sk_id);
 
                 self.get_redis_conn()
                     .map_err(|er| {
                         let error = format!("{}", er);
                         er.change_context(errors::StorageError::RedisError(error))
                     })?
-                    .hscan_and_deserialize(&key, &pattern, None)
+                    .hscan_and_deserialize(&key, "pa_*", None)
                     .await
                     .change_context(errors::StorageError::KVError)
             }

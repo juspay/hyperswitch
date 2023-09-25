@@ -50,7 +50,7 @@ impl<T: DatabaseStore> ReverseLookupInterface for RouterStore<T> {
                     er.change_context(new_err)
                 })
         };
-        get_or_populate_redis(self, format!("reverse_lookup_{id}"), database_call).await
+        get_or_populate_redis(self, &format!("reverse_lookup_{id}"), database_call).await
     }
 }
 
