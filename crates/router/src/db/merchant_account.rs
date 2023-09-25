@@ -122,7 +122,7 @@ impl MerchantAccountInterface for Store {
     ) -> CustomResult<domain::MerchantAccount, errors::StorageError> {
         let conn = connection::pg_connection_write(self).await?;
 
-        let merchant_account = Conversion::convert(this)
+        let updated_merchant_account = Conversion::convert(this)
             .await
             .change_context(errors::StorageError::EncryptionError)?
             .update(&conn, merchant_account.into())
@@ -132,9 +132,9 @@ impl MerchantAccountInterface for Store {
 
         #[cfg(feature = "accounts_cache")]
         {
-            publish_and_redact_merchant_account_cache(self, &merchant_account).await?;
+            publish_and_redact_merchant_account_cache(self, &updated_merchant_account).await?;
         }
-        merchant_account
+        updated_merchant_account
             .convert(merchant_key_store.key.get_inner())
             .await
             .change_context(errors::StorageError::DecryptionError)
@@ -147,7 +147,7 @@ impl MerchantAccountInterface for Store {
         merchant_key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<domain::MerchantAccount, errors::StorageError> {
         let conn = connection::pg_connection_write(self).await?;
-        let merchant_account = storage::MerchantAccount::update_with_specific_fields(
+        let updated_merchant_account = storage::MerchantAccount::update_with_specific_fields(
             &conn,
             merchant_id,
             merchant_account.into(),
@@ -158,9 +158,9 @@ impl MerchantAccountInterface for Store {
 
         #[cfg(feature = "accounts_cache")]
         {
-            publish_and_redact_merchant_account_cache(self, &merchant_account).await?;
+            publish_and_redact_merchant_account_cache(self, &_updated_merchant_account).await?;
         }
-        merchant_account
+        updated_merchant_account
             .convert(merchant_key_store.key.get_inner())
             .await
             .change_context(errors::StorageError::DecryptionError)
@@ -218,7 +218,7 @@ impl MerchantAccountInterface for Store {
     ) -> CustomResult<bool, errors::StorageError> {
         let conn = connection::pg_connection_write(self).await?;
 
-        let merchant_account = storage::MerchantAccount::find_by_merchant_id(&conn, merchant_id)
+        let _merchant_account = storage::MerchantAccount::find_by_merchant_id(&conn, merchant_id)
             .await
             .map_err(Into::into)
             .into_report()?;
@@ -230,7 +230,7 @@ impl MerchantAccountInterface for Store {
 
         #[cfg(feature = "accounts_cache")]
         {
-            publish_and_redact_merchant_account_cache(self, &merchant_account).await?;
+            publish_and_redact_merchant_account_cache(self, &_merchant_account).await?;
         }
         Ok(is_deleted)
     }
