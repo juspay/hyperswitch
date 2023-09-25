@@ -105,13 +105,14 @@ impl ConfigInterface for Store {
         &self,
         key: &str,
     ) -> CustomResult<storage::Config, errors::StorageError> {
-        cache::get_or_populate_in_memory(
-            self,
-            key,
-            || self.find_config_by_key_from_db(key),
-            &CONFIG_CACHE,
-        )
-        .await
+        let find_config_by_key_from_db = || async {
+            let conn = connection::pg_connection_write(self).await?;
+            storage::Config::find_by_key(&conn, key)
+                .await
+                .map_err(Into::into)
+                .into_report()
+        };
+        cache::get_or_populate_in_memory(self, key, find_config_by_key_from_db, &CONFIG_CACHE).await
     }
 
     async fn find_config_by_key_unwrap_or(
