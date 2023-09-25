@@ -1,12 +1,12 @@
-use common_utils::pii::IpAddress;
+use common_utils::pii::{Email, IpAddress};
 use error_stack::{IntoReport, ResultExt};
 use masking::Secret;
 use serde::{Deserialize, Serialize};
 
 use crate::{
     connector::utils::{
-        self, to_connector_meta, BrowserInformationData, CardData, PaymentsAuthorizeRequestData,
-        PaymentsCaptureRequestData, RefundsRequestData,
+        self, to_connector_meta, AddressDetailsData, BrowserInformationData, CardData,
+        PaymentsAuthorizeRequestData, PaymentsCaptureRequestData, RefundsRequestData, RouterData,
     },
     core::errors,
     types::{self, api, storage::enums},
@@ -52,6 +52,7 @@ pub struct HelcimPaymentsRequest {
     ip_address: Secret<String, IpAddress>,
     card_data: HelcimCard,
     billing_address: HelcimBillingAddress,
+    #[serde(skip_serializing_if = "Option::is_none")]
     ecommerce: Option<bool>,
 }
 
@@ -59,8 +60,14 @@ pub struct HelcimPaymentsRequest {
 #[serde(rename_all = "camelCase")]
 pub struct HelcimBillingAddress {
     name: Secret<String>,
-    street1: String,
-    postal_code: String,
+    street1: Secret<String>,
+    postal_code: Secret<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    street2: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    city: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    email: Option<Email>,
 }
 
 #[derive(Debug, Serialize)]
@@ -84,11 +91,22 @@ impl TryFrom<&HelcimRouterData<&types::PaymentsAuthorizeRouterData>> for HelcimP
                     card_number: req_card.card_number,
                     card_c_v_v: req_card.card_cvc,
                 };
+                let req_address = item
+                    .router_data
+                    .get_billing()?
+                    .to_owned()
+                    .address
+                    .ok_or_else(utils::missing_field_err("billing.address"))?;
+
                 let billing_address = HelcimBillingAddress {
-                    name: req_card.card_holder_name,
-                    street1: "Jump Street 21".to_string(),
-                    postal_code: "H0H0H0".to_string(),
+                    name: req_address.get_full_name()?,
+                    street1: req_address.get_line1()?.to_owned(),
+                    postal_code: req_address.get_zip()?.to_owned(),
+                    street2: req_address.line2,
+                    city: req_address.city,
+                    email: item.router_data.request.email.clone(),
                 };
+
                 let ip_address = item
                     .router_data
                     .request
