@@ -119,8 +119,24 @@ async fn drainer(
     stream_name: &str,
 ) -> errors::DrainerResult<()> {
     let stream_read =
-        utils::read_from_stream(stream_name, max_read_count, store.redis_conn.as_ref()).await?; // this returns the error.
-
+        match utils::read_from_stream(stream_name, max_read_count, store.redis_conn.as_ref()).await
+        {
+            Ok(result) => result,
+            Err(error) => {
+                if let errors::DrainerError::RedisError(redis_err) = error.current_context() {
+                    if let redis_interface::errors::RedisError::StreamEmptyOrNotAvailable =
+                        redis_err.current_context()
+                    {
+                        metrics::STREAM_EMPTY.add(&metrics::CONTEXT, 1, &[]);
+                        return Ok(());
+                    } else {
+                        return Err(error);
+                    }
+                } else {
+                    return Err(error);
+                }
+            }
+        };
     // parse_stream_entries returns error if no entries is found, handle it
     let (entries, last_entry_id) = utils::parse_stream_entries(&stream_read, stream_name)?;
     let read_count = entries.len();
