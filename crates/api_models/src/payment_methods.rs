@@ -147,6 +147,7 @@ pub struct PaymentMethodResponse {
 #[derive(Clone, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
 pub enum PaymentMethodsData {
     Card(CardDetailsPaymentMethod),
+    BankDetails(PaymentMethodDataBankCreds),
 }
 #[derive(Clone, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
 pub struct CardDetailsPaymentMethod {
@@ -156,6 +157,21 @@ pub struct CardDetailsPaymentMethod {
     pub expiry_year: Option<masking::Secret<String>>,
     pub nick_name: Option<masking::Secret<String>>,
     pub card_holder_name: Option<masking::Secret<String>>,
+}
+
+#[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
+pub struct PaymentMethodDataBankCreds {
+    pub mask: String,
+    pub hash: String,
+    pub payment_method_type: api_enums::PaymentMethodType,
+    pub connector_details: Vec<BankAccountConnectorDetails>,
+}
+
+#[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
+pub struct BankAccountConnectorDetails {
+    pub connector: String,
+    pub account_id: String,
+    pub access_token: String,
 }
 
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]

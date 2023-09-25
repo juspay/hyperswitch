@@ -7,9 +7,10 @@ use api_models::{
     admin::{self, PaymentMethodsEnabled},
     enums::{self as api_enums},
     payment_methods::{
-        CardDetailsPaymentMethod, CardNetworkTypes, PaymentExperienceTypes, PaymentMethodsData,
-        RequestPaymentMethodTypes, RequiredFieldInfo, ResponsePaymentMethodIntermediate,
-        ResponsePaymentMethodTypes, ResponsePaymentMethodsEnabled,
+        CardDetailsPaymentMethod, CardNetworkTypes, PaymentExperienceTypes,
+        PaymentMethodDataBankCreds, PaymentMethodsData, RequestPaymentMethodTypes,
+        RequiredFieldInfo, ResponsePaymentMethodIntermediate, ResponsePaymentMethodTypes,
+        ResponsePaymentMethodsEnabled,
     },
     payments::BankCodeResponse,
 };
@@ -1962,8 +1963,9 @@ async fn get_card_details(
             .flatten()
             .map(|x| x.into_inner().expose())
             .and_then(|v| serde_json::from_value::<PaymentMethodsData>(v).ok())
-            .map(|pmd| match pmd {
-                PaymentMethodsData::Card(crd) => api::CardDetailFromLocker::from(crd),
+            .and_then(|pmd| match pmd {
+                PaymentMethodsData::Card(crd) => Some(api::CardDetailFromLocker::from(crd)),
+                _ => None,
             });
 
     Ok(Some(
