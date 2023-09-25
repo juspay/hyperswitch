@@ -6,7 +6,8 @@ use serde::{Deserialize, Serialize};
 use crate::{
     connector::utils::{
         self, to_connector_meta, AddressDetailsData, BrowserInformationData, CardData,
-        PaymentsAuthorizeRequestData, PaymentsCaptureRequestData, RefundsRequestData, RouterData,
+        PaymentsAuthorizeRequestData, PaymentsCancelRequestData, PaymentsCaptureRequestData,
+        RefundsRequestData, RouterData,
     },
     core::errors,
     types::{self, api, storage::enums},
@@ -159,6 +160,7 @@ pub enum HelcimTransactionType {
     PreAuth,
     Capture,
     Verify,
+    Reverse,
 }
 
 impl From<HelcimPaymentsResponse> for enums::AttemptStatus {
@@ -179,6 +181,10 @@ impl From<HelcimPaymentsResponse> for enums::AttemptStatus {
             HelcimTransactionType::Verify => match item.status {
                 HelcimPaymentStatus::Approved => Self::AuthenticationSuccessful,
                 HelcimPaymentStatus::Declined => Self::AuthenticationFailed,
+            },
+            HelcimTransactionType::Reverse => match item.status {
+                HelcimPaymentStatus::Approved => Self::Voided,
+                HelcimPaymentStatus::Declined => Self::VoidFailed,
             },
         }
     }
@@ -372,6 +378,67 @@ impl<F>
                 redirection_data: None,
                 mandate_reference: None,
                 connector_metadata,
+                network_txn_id: None,
+                connector_response_reference_id: None,
+            }),
+            status: enums::AttemptStatus::from(item.response),
+            ..item.data
+        })
+    }
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct HelcimVoidRequest {
+    card_transaction_id: u64,
+    ip_address: Secret<String, IpAddress>,
+    ecommerce: Option<bool>,
+}
+
+impl TryFrom<&types::PaymentsCancelRouterData> for HelcimVoidRequest {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(item: &types::PaymentsCancelRouterData) -> Result<Self, Self::Error> {
+        let ip_address = item.request.get_browser_info()?.get_ip_address()?;
+        Ok(Self {
+            card_transaction_id: item
+                .request
+                .connector_transaction_id
+                .parse::<u64>()
+                .into_report()
+                .change_context(errors::ConnectorError::RequestEncodingFailed)?,
+            ip_address,
+            ecommerce: None,
+        })
+    }
+}
+
+impl<F>
+    TryFrom<
+        types::ResponseRouterData<
+            F,
+            HelcimPaymentsResponse,
+            types::PaymentsCancelData,
+            types::PaymentsResponseData,
+        >,
+    > for types::RouterData<F, types::PaymentsCancelData, types::PaymentsResponseData>
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        item: types::ResponseRouterData<
+            F,
+            HelcimPaymentsResponse,
+            types::PaymentsCancelData,
+            types::PaymentsResponseData,
+        >,
+    ) -> Result<Self, Self::Error> {
+        Ok(Self {
+            response: Ok(types::PaymentsResponseData::TransactionResponse {
+                resource_id: types::ResponseId::ConnectorTransactionId(
+                    item.response.transaction_id.to_string(),
+                ),
+                redirection_data: None,
+                mandate_reference: None,
+                connector_metadata: None,
                 network_txn_id: None,
                 connector_response_reference_id: None,
             }),

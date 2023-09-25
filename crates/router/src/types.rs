@@ -485,6 +485,7 @@ pub struct PaymentsCancelData {
     pub connector_transaction_id: String,
     pub cancellation_reason: Option<String>,
     pub connector_meta: Option<serde_json::Value>,
+    pub browser_info: Option<BrowserInformation>,
 }
 
 #[derive(Debug, Default, Clone)]

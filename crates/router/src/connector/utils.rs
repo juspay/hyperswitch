@@ -498,6 +498,7 @@ pub trait PaymentsCancelRequestData {
     fn get_amount(&self) -> Result<i64, Error>;
     fn get_currency(&self) -> Result<diesel_models::enums::Currency, Error>;
     fn get_cancellation_reason(&self) -> Result<String, Error>;
+    fn get_browser_info(&self) -> Result<types::BrowserInformation, Error>;
 }
 
 impl PaymentsCancelRequestData for PaymentsCancelData {
@@ -511,6 +512,11 @@ impl PaymentsCancelRequestData for PaymentsCancelData {
         self.cancellation_reason
             .clone()
             .ok_or_else(missing_field_err("cancellation_reason"))
+    }
+    fn get_browser_info(&self) -> Result<types::BrowserInformation, Error> {
+        self.browser_info
+            .clone()
+            .ok_or_else(missing_field_err("browser_info"))
     }
 }
 
