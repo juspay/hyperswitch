@@ -19,7 +19,7 @@ pub async fn receive_incoming_webhook<W: types::OutgoingWebhookType>(
 
     api::server_wrap(
         flow,
-        state.get_ref(),
+        state,
         &req,
         body,
         |state, auth, body| {

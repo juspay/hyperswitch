@@ -41,6 +41,10 @@ impl ConnectorCommon for Adyen {
         "adyen"
     }
 
+    fn get_currency_unit(&self) -> api::CurrencyUnit {
+        api::CurrencyUnit::Minor
+    }
+
     fn get_auth_header(
         &self,
         auth_type: &types::ConnectorAuthType,
@@ -87,6 +91,18 @@ impl ConnectorValidation for Adyen {
                 connector_utils::construct_not_implemented_error_report(capture_method, self.id()),
             ),
         }
+    }
+    fn validate_psync_reference_id(
+        &self,
+        data: &types::PaymentsSyncRouterData,
+    ) -> CustomResult<(), errors::ConnectorError> {
+        if data.request.encoded_data.is_some() {
+            return Ok(());
+        }
+        Err(errors::ConnectorError::MissingRequiredField {
+            field_name: "encoded_data",
+        }
+        .into())
     }
 }
 
@@ -157,7 +173,13 @@ impl
             req,
             types::PaymentsAuthorizeData::from(req),
         ));
-        let connector_req = adyen::AdyenPaymentRequest::try_from(&authorize_req)?;
+        let connector_router_data = adyen::AdyenRouterData::try_from((
+            &self.get_currency_unit(),
+            authorize_req.request.currency,
+            authorize_req.request.amount,
+            &authorize_req,
+        ))?;
+        let connector_req = adyen::AdyenPaymentRequest::try_from(&connector_router_data)?;
 
         let adyen_req = types::RequestBody::log_and_get_request_body(
             &connector_req,
@@ -278,7 +300,13 @@ impl
         &self,
         req: &types::PaymentsCaptureRouterData,
     ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
-        let connector_req = adyen::AdyenCaptureRequest::try_from(req)?;
+        let connector_router_data = adyen::AdyenRouterData::try_from((
+            &self.get_currency_unit(),
+            req.request.currency,
+            req.request.amount_to_capture,
+            req,
+        ))?;
+        let connector_req = adyen::AdyenCaptureRequest::try_from(&connector_router_data)?;
         let adyen_req = types::RequestBody::log_and_get_request_body(
             &connector_req,
             utils::Encode::<adyen::AdyenCaptureRequest>::encode_to_string_of_json,
@@ -596,7 +624,13 @@ impl
         &self,
         req: &types::PaymentsAuthorizeRouterData,
     ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
-        let connector_req = adyen::AdyenPaymentRequest::try_from(req)?;
+        let connector_router_data = adyen::AdyenRouterData::try_from((
+            &self.get_currency_unit(),
+            req.request.currency,
+            req.request.amount,
+            req,
+        ))?;
+        let connector_req = adyen::AdyenPaymentRequest::try_from(&connector_router_data)?;
         let request_body = types::RequestBody::log_and_get_request_body(
         &connector_req,
         common_utils::ext_traits::Encode::<adyen::AdyenPaymentRequest<'_>>::encode_to_string_of_json,
@@ -610,7 +644,6 @@ impl
         req: &types::PaymentsAuthorizeRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
-        self.validate_capture_method(req.request.capture_method)?;
         check_for_payment_method_balance(req)?;
         Ok(Some(
             services::RequestBuilder::new()
@@ -997,7 +1030,13 @@ impl services::ConnectorIntegration<api::PoCreate, types::PayoutsData, types::Pa
         &self,
         req: &types::PayoutsRouterData<api::PoCreate>,
     ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
-        let connector_req = adyen::AdyenPayoutCreateRequest::try_from(req)?;
+        let connector_router_data = adyen::AdyenRouterData::try_from((
+            &self.get_currency_unit(),
+            req.request.destination_currency,
+            req.request.amount,
+            req,
+        ))?;
+        let connector_req = adyen::AdyenPayoutCreateRequest::try_from(&connector_router_data)?;
         let adyen_req = types::RequestBody::log_and_get_request_body(
             &connector_req,
             utils::Encode::<adyen::AdyenPayoutCreateRequest>::encode_to_string_of_json,
@@ -1083,7 +1122,13 @@ impl
         &self,
         req: &types::PayoutsRouterData<api::PoEligibility>,
     ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
-        let connector_req = adyen::AdyenPayoutEligibilityRequest::try_from(req)?;
+        let connector_router_data = adyen::AdyenRouterData::try_from((
+            &self.get_currency_unit(),
+            req.request.destination_currency,
+            req.request.amount,
+            req,
+        ))?;
+        let connector_req = adyen::AdyenPayoutEligibilityRequest::try_from(&connector_router_data)?;
         let adyen_req = types::RequestBody::log_and_get_request_body(
             &connector_req,
             utils::Encode::<adyen::AdyenPayoutEligibilityRequest>::encode_to_string_of_json,
@@ -1186,7 +1231,13 @@ impl services::ConnectorIntegration<api::PoFulfill, types::PayoutsData, types::P
         &self,
         req: &types::PayoutsRouterData<api::PoFulfill>,
     ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
-        let connector_req = adyen::AdyenPayoutFulfillRequest::try_from(req)?;
+        let connector_router_data = adyen::AdyenRouterData::try_from((
+            &self.get_currency_unit(),
+            req.request.destination_currency,
+            req.request.amount,
+            req,
+        ))?;
+        let connector_req = adyen::AdyenPayoutFulfillRequest::try_from(&connector_router_data)?;
         let adyen_req = types::RequestBody::log_and_get_request_body(
             &connector_req,
             utils::Encode::<adyen::AdyenPayoutFulfillRequest>::encode_to_string_of_json,
@@ -1278,7 +1329,13 @@ impl services::ConnectorIntegration<api::Execute, types::RefundsData, types::Ref
         &self,
         req: &types::RefundsRouterData<api::Execute>,
     ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
-        let connector_req = adyen::AdyenRefundRequest::try_from(req)?;
+        let connector_router_data = adyen::AdyenRouterData::try_from((
+            &self.get_currency_unit(),
+            req.request.currency,
+            req.request.refund_amount,
+            req,
+        ))?;
+        let connector_req = adyen::AdyenRefundRequest::try_from(&connector_router_data)?;
 
         let adyen_req = types::RequestBody::log_and_get_request_body(
             &connector_req,
