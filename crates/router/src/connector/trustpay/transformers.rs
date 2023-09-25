@@ -1,8 +1,11 @@
 use std::collections::HashMap;
 
 use api_models::payments::BankRedirectData;
-use common_utils::{errors::CustomResult, pii};
-use error_stack::{report, IntoReport, ResultExt};
+use common_utils::{
+    errors::CustomResult,
+    pii::{self, Email},
+};
+use error_stack::{report, ResultExt};
 use masking::{PeekInterface, Secret};
 use reqwest::Url;
 use serde::{Deserialize, Serialize};
@@ -10,16 +13,46 @@ use serde::{Deserialize, Serialize};
 use crate::{
     connector::utils::{
         self, AddressDetailsData, BrowserInformationData, CardData, PaymentsAuthorizeRequestData,
-        RouterData,
+        PaymentsPreProcessingData, RouterData,
     },
     consts,
     core::errors,
     services,
     types::{self, api, storage::enums, BrowserInformation},
-    utils::OptionExt,
 };
 
 type Error = error_stack::Report<errors::ConnectorError>;
+
+#[derive(Debug, Serialize)]
+pub struct TrustpayRouterData<T> {
+    pub amount: String,
+    pub router_data: T,
+}
+
+impl<T>
+    TryFrom<(
+        &types::api::CurrencyUnit,
+        types::storage::enums::Currency,
+        i64,
+        T,
+    )> for TrustpayRouterData<T>
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        (currency_unit, currency, amount, item): (
+            &types::api::CurrencyUnit,
+            types::storage::enums::Currency,
+            i64,
+            T,
+        ),
+    ) -> Result<Self, Self::Error> {
+        let amount = utils::get_amount_as_string(currency_unit, amount, currency)?;
+        Ok(Self {
+            amount,
+            router_data: item,
+        })
+    }
+}
 
 pub struct TrustpayAuthType {
     pub(super) api_key: Secret<String>,
@@ -47,13 +80,14 @@ impl TryFrom<&types::ConnectorAuthType> for TrustpayAuthType {
     }
 }
 
-#[derive(Debug, Serialize, Deserialize, Eq, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, Eq, PartialEq)]
 pub enum TrustpayPaymentMethod {
     #[serde(rename = "EPS")]
     Eps,
     Giropay,
     IDeal,
     Sofort,
+    Blik,
 }
 
 #[derive(Debug, Serialize, Deserialize, Eq, PartialEq)]
@@ -90,9 +124,18 @@ pub struct StatusReasonInformation {
 
 #[derive(Default, Debug, Serialize, Deserialize, Eq, PartialEq, Clone)]
 #[serde(rename_all = "PascalCase")]
+pub struct DebtorInformation {
+    pub name: Secret<String>,
+    pub email: Email,
+}
+
+#[derive(Default, Debug, Serialize, Deserialize, Eq, PartialEq, Clone)]
+#[serde(rename_all = "PascalCase")]
 pub struct BankPaymentInformation {
     pub amount: Amount,
     pub references: References,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub debtor: Option<DebtorInformation>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Eq, PartialEq, Clone)]
@@ -131,7 +174,7 @@ pub struct PaymentRequestCards {
     #[serde(rename = "billing[postcode]")]
     pub billing_postcode: Secret<String>,
     #[serde(rename = "customer[email]")]
-    pub customer_email: pii::Email,
+    pub customer_email: Email,
     #[serde(rename = "customer[ipAddress]")]
     pub customer_ip_address: Secret<String, pii::IpAddress>,
     #[serde(rename = "browser[acceptHeader]")]
@@ -158,6 +201,7 @@ pub struct PaymentRequestCards {
     pub payment_action: Option<String>,
     #[serde(rename = "browser[paymentType]")]
     pub payment_type: String,
+    pub descriptor: Option<String>,
 }
 
 #[derive(Debug, Serialize, PartialEq)]
@@ -193,6 +237,7 @@ impl TryFrom<&BankRedirectData> for TrustpayPaymentMethod {
             api_models::payments::BankRedirectData::Eps { .. } => Ok(Self::Eps),
             api_models::payments::BankRedirectData::Ideal { .. } => Ok(Self::IDeal),
             api_models::payments::BankRedirectData::Sofort { .. } => Ok(Self::Sofort),
+            api_models::payments::BankRedirectData::Blik { .. } => Ok(Self::Blik),
             _ => Err(errors::ConnectorError::NotImplemented("Payment methods".to_string()).into()),
         }
     }
@@ -229,7 +274,7 @@ fn get_card_request_data(
         .get_billing()?
         .address
         .as_ref()
-        .map(|address| address.last_name.clone().unwrap_or_default());
+        .and_then(|address| address.last_name.clone());
     Ok(TrustpayPaymentsRequest::CardsPaymentRequest(Box::new(
         PaymentRequestCards {
             amount,
@@ -237,12 +282,7 @@ fn get_card_request_data(
             pan: ccard.card_number.clone(),
             cvv: ccard.card_cvc.clone(),
             expiry_date: ccard.get_card_expiry_month_year_2_digit_with_delimiter("/".to_owned()),
-            cardholder: match billing_last_name {
-                Some(last_name) => {
-                    format!("{} {}", params.billing_first_name.peek(), last_name.peek()).into()
-                }
-                None => params.billing_first_name,
-            },
+            cardholder: get_full_name(params.billing_first_name, billing_last_name),
             reference: item.payment_id.clone(),
             redirect_url: return_url,
             billing_city: params.billing_city,
@@ -263,20 +303,55 @@ fn get_card_request_data(
             browser_challenge_window: "1".to_string(),
             payment_action: None,
             payment_type: "Plain".to_string(),
+            descriptor: item.request.statement_descriptor.clone(),
         },
     )))
+}
+
+fn get_full_name(
+    billing_first_name: Secret<String>,
+    billing_last_name: Option<Secret<String>>,
+) -> Secret<String> {
+    match billing_last_name {
+        Some(last_name) => format!("{} {}", billing_first_name.peek(), last_name.peek()).into(),
+        None => billing_first_name,
+    }
+}
+
+fn get_debtor_info(
+    item: &types::PaymentsAuthorizeRouterData,
+    pm: TrustpayPaymentMethod,
+    params: TrustpayMandatoryParams,
+) -> CustomResult<Option<DebtorInformation>, errors::ConnectorError> {
+    let billing_last_name = item
+        .get_billing()?
+        .address
+        .as_ref()
+        .and_then(|address| address.last_name.clone());
+    Ok(match pm {
+        TrustpayPaymentMethod::Blik => Some(DebtorInformation {
+            name: get_full_name(params.billing_first_name, billing_last_name),
+            email: item.request.get_email()?,
+        }),
+        TrustpayPaymentMethod::Eps
+        | TrustpayPaymentMethod::Giropay
+        | TrustpayPaymentMethod::IDeal
+        | TrustpayPaymentMethod::Sofort => None,
+    })
 }
 
 fn get_bank_redirection_request_data(
     item: &types::PaymentsAuthorizeRouterData,
     bank_redirection_data: &BankRedirectData,
+    params: TrustpayMandatoryParams,
     amount: String,
     auth: TrustpayAuthType,
 ) -> Result<TrustpayPaymentsRequest, error_stack::Report<errors::ConnectorError>> {
+    let pm = TrustpayPaymentMethod::try_from(bank_redirection_data)?;
     let return_url = item.request.get_return_url()?;
     let payment_request =
         TrustpayPaymentsRequest::BankRedirectPaymentRequest(Box::new(PaymentRequestBankRedirect {
-            payment_method: TrustpayPaymentMethod::try_from(bank_redirection_data)?,
+            payment_method: pm.clone(),
             merchant_identification: MerchantIdentification {
                 project_id: auth.project_id,
             },
@@ -288,6 +363,7 @@ fn get_bank_redirection_request_data(
                 references: References {
                     merchant_reference: item.payment_id.clone(),
                 },
+                debtor: get_debtor_info(item, pm, params)?,
             },
             callback_urls: CallbackURLs {
                 success: format!("{return_url}?status=SuccessOk"),
@@ -298,10 +374,17 @@ fn get_bank_redirection_request_data(
     Ok(payment_request)
 }
 
-impl TryFrom<&types::PaymentsAuthorizeRouterData> for TrustpayPaymentsRequest {
+impl TryFrom<&TrustpayRouterData<&types::PaymentsAuthorizeRouterData>> for TrustpayPaymentsRequest {
     type Error = Error;
-    fn try_from(item: &types::PaymentsAuthorizeRouterData) -> Result<Self, Self::Error> {
-        let browser_info = item.request.browser_info.clone().unwrap_or_default();
+    fn try_from(
+        item: &TrustpayRouterData<&types::PaymentsAuthorizeRouterData>,
+    ) -> Result<Self, Self::Error> {
+        let browser_info = item
+            .router_data
+            .request
+            .browser_info
+            .clone()
+            .unwrap_or_default();
         let default_browser_info = BrowserInformation {
             color_depth: Some(browser_info.color_depth.unwrap_or(24)),
             java_enabled: Some(browser_info.java_enabled.unwrap_or(false)),
@@ -314,27 +397,27 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for TrustpayPaymentsRequest {
             user_agent: browser_info.user_agent,
             ip_address: browser_info.ip_address,
         };
-        let params = get_mandatory_fields(item)?;
-        let amount = format!(
-            "{:.2}",
-            utils::to_currency_base_unit(item.request.amount, item.request.currency)?
-                .parse::<f64>()
-                .ok()
-                .ok_or(errors::ConnectorError::RequestEncodingFailed)?
-        );
-        let auth = TrustpayAuthType::try_from(&item.connector_auth_type)
+        let params = get_mandatory_fields(item.router_data)?;
+        let amount = item.amount.to_owned();
+        let auth = TrustpayAuthType::try_from(&item.router_data.connector_auth_type)
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
-        match item.request.payment_method_data {
+        match item.router_data.request.payment_method_data {
             api::PaymentMethodData::Card(ref ccard) => Ok(get_card_request_data(
-                item,
+                item.router_data,
                 &default_browser_info,
                 params,
                 amount,
                 ccard,
-                item.request.get_return_url()?,
+                item.router_data.request.get_return_url()?,
             )?),
             api::PaymentMethodData::BankRedirect(ref bank_redirection_data) => {
-                get_bank_redirection_request_data(item, bank_redirection_data, amount, auth)
+                get_bank_redirection_request_data(
+                    item.router_data,
+                    bank_redirection_data,
+                    params,
+                    amount,
+                    auth,
+                )
             }
             _ => Err(errors::ConnectorError::NotImplemented("Payment methods".to_string()).into()),
         }
@@ -367,6 +450,7 @@ fn is_payment_failed(payment_status: &str) -> (bool, &'static str) {
         "400.001.601" => (true, "Transaction declined (auth. declined)"),
         "400.001.602" => (true, "Invalid transaction"),
         "400.001.603" => (true, "Invalid transaction"),
+        "400.003.600" => (true, "No description available."),
         "700.400.200" => (
             true,
             "Cannot refund (refund volume exceeded or tx reversed or invalid workflow)",
@@ -390,7 +474,9 @@ fn is_payment_failed(payment_status: &str) -> (bool, &'static str) {
         "800.100.171" => (true, "transaction declined (pick up card)"),
         "800.100.172" => (true, "Transaction declined (account blocked)"),
         "800.100.190" => (true, "Transaction declined (invalid configuration data)"),
+        "800.100.202" => (true, "Account Closed"),
         "800.120.100" => (true, "Rejected by throttling"),
+        "800.300.102" => (true, "Country blacklisted"),
         "800.300.401" => (true, "Bin blacklisted"),
         "800.700.100" => (
             true,
@@ -841,51 +927,36 @@ pub struct TrustpayCreateIntentRequest {
     pub reference: String,
 }
 
-impl TryFrom<&types::PaymentsPreProcessingRouterData> for TrustpayCreateIntentRequest {
+impl TryFrom<&TrustpayRouterData<&types::PaymentsPreProcessingRouterData>>
+    for TrustpayCreateIntentRequest
+{
     type Error = Error;
-    fn try_from(item: &types::PaymentsPreProcessingRouterData) -> Result<Self, Self::Error> {
+    fn try_from(
+        item: &TrustpayRouterData<&types::PaymentsPreProcessingRouterData>,
+    ) -> Result<Self, Self::Error> {
         let is_apple_pay = item
+            .router_data
             .request
             .payment_method_type
             .as_ref()
             .map(|pmt| matches!(pmt, diesel_models::enums::PaymentMethodType::ApplePay));
 
         let is_google_pay = item
+            .router_data
             .request
             .payment_method_type
             .as_ref()
             .map(|pmt| matches!(pmt, diesel_models::enums::PaymentMethodType::GooglePay));
 
-        let request_amount = item
-            .request
-            .amount
-            .get_required_value("amount")
-            .change_context(errors::ConnectorError::MissingRequiredField {
-                field_name: "amount",
-            })?;
-
-        let currency = item
-            .request
-            .currency
-            .get_required_value("currency")
-            .change_context(errors::ConnectorError::MissingRequiredField {
-                field_name: "currency",
-            })?;
-
-        let amount = format!(
-            "{:.2}",
-            utils::to_currency_base_unit(request_amount, currency)?
-                .parse::<f64>()
-                .into_report()
-                .change_context(errors::ConnectorError::RequestEncodingFailed)?
-        );
+        let currency = item.router_data.request.get_currency()?;
+        let amount = item.amount.to_owned();
 
         Ok(Self {
             amount,
             currency: currency.to_string(),
             init_apple_pay: is_apple_pay,
             init_google_pay: is_google_pay,
-            reference: item.payment_id.clone(),
+            reference: item.router_data.payment_id.clone(),
         })
     }
 }
@@ -1229,19 +1300,15 @@ pub enum TrustpayRefundRequest {
     BankRedirectRefund(Box<TrustpayRefundRequestBankRedirect>),
 }
 
-impl<F> TryFrom<&types::RefundsRouterData<F>> for TrustpayRefundRequest {
+impl<F> TryFrom<&TrustpayRouterData<&types::RefundsRouterData<F>>> for TrustpayRefundRequest {
     type Error = Error;
-    fn try_from(item: &types::RefundsRouterData<F>) -> Result<Self, Self::Error> {
-        let amount = format!(
-            "{:.2}",
-            utils::to_currency_base_unit(item.request.refund_amount, item.request.currency)?
-                .parse::<f64>()
-                .into_report()
-                .change_context(errors::ConnectorError::RequestEncodingFailed)?
-        );
-        match item.payment_method {
+    fn try_from(
+        item: &TrustpayRouterData<&types::RefundsRouterData<F>>,
+    ) -> Result<Self, Self::Error> {
+        let amount = item.amount.to_owned();
+        match item.router_data.payment_method {
             diesel_models::enums::PaymentMethod::BankRedirect => {
-                let auth = TrustpayAuthType::try_from(&item.connector_auth_type)
+                let auth = TrustpayAuthType::try_from(&item.router_data.connector_auth_type)
                     .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
                 Ok(Self::BankRedirectRefund(Box::new(
                     TrustpayRefundRequestBankRedirect {
@@ -1251,20 +1318,21 @@ impl<F> TryFrom<&types::RefundsRouterData<F>> for TrustpayRefundRequest {
                         payment_information: BankPaymentInformation {
                             amount: Amount {
                                 amount,
-                                currency: item.request.currency.to_string(),
+                                currency: item.router_data.request.currency.to_string(),
                             },
                             references: References {
-                                merchant_reference: item.request.refund_id.clone(),
+                                merchant_reference: item.router_data.request.refund_id.clone(),
                             },
+                            debtor: None,
                         },
                     },
                 )))
             }
             _ => Ok(Self::CardsRefund(Box::new(TrustpayRefundRequestCards {
-                instance_id: item.request.connector_transaction_id.clone(),
+                instance_id: item.router_data.request.connector_transaction_id.clone(),
                 amount,
-                currency: item.request.currency.to_string(),
-                reference: item.request.refund_id.clone(),
+                currency: item.router_data.request.currency.to_string(),
+                reference: item.router_data.request.refund_id.clone(),
             }))),
         }
     }
