@@ -3,7 +3,7 @@ pub mod utils;
 
 use std::str::FromStr;
 
-use api_models::payments::HeaderPayload;
+use api_models::{payments::HeaderPayload, webhooks::WebhookResponseTracker};
 use common_utils::errors::ReportSwitchExt;
 use error_stack::{report, IntoReport, ResultExt};
 use masking::ExposeInterface;
@@ -729,7 +729,7 @@ pub async fn webhooks_wrapper<W: types::OutgoingWebhookType>(
     body: actix_web::web::Bytes,
 ) -> RouterResponse<serde_json::Value> {
     let (application_response, _webhooks_response_tracker) = webhooks_core::<W>(
-        &state,
+        state,
         req,
         merchant_account,
         key_store,
@@ -773,7 +773,7 @@ pub async fn webhooks_core<W: types::OutgoingWebhookType>(
     // `webhooks source secret` is a secret shared between the merchant and connector
     // This is used for source verification and webhooks integrity
     let (merchant_connector_account, connector) = fetch_mca_and_connector(
-        state.clone(),
+        &state,
         &merchant_account,
         connector_name_or_mca_id,
         &key_store,
@@ -849,7 +849,9 @@ pub async fn webhooks_core<W: types::OutgoingWebhookType>(
     logger::info!(event_type=?event_type);
 
     let flow_type: api::WebhookFlow = event_type.to_owned().into();
-    if process_webhook_further && !matches!(flow_type, api::WebhookFlow::ReturnResponse) {
+    let webhook_effect = if process_webhook_further
+        && !matches!(flow_type, api::WebhookFlow::ReturnResponse)
+    {
         let object_ref_id = connector
             .get_webhook_object_reference_id(&request_details)
             .switch()
@@ -905,24 +907,6 @@ pub async fn webhooks_core<W: types::OutgoingWebhookType>(
                 .switch()
                 .attach_printable("There was an issue in incoming webhook source verification")?
         };
-
-        let source_verified = connector
-            .verify_webhook_source(
-                &request_details,
-                &merchant_account,
-                merchant_connector_account.clone(),
-                connector_name.as_str(),
-            )
-            .await
-            .or_else(|error| match error.current_context() {
-                errors::ConnectorError::WebhookSourceVerificationFailed => {
-                    logger::error!(?error, "Source Verification Failed");
-                    Ok(false)
-                }
-                _ => Err(error),
-            })
-            .switch()
-            .attach_printable("There was an issue in incoming webhook source verification")?;
 
         if source_verified {
             metrics::WEBHOOK_SOURCE_VERIFIED_COUNT.add(
@@ -1023,7 +1007,7 @@ pub async fn webhooks_core<W: types::OutgoingWebhookType>(
 }
 
 async fn fetch_mca_and_connector(
-    state: AppState,
+    state: &AppState,
     merchant_account: &domain::MerchantAccount,
     connector_name_or_mca_id: &str,
     key_store: &domain::MerchantKeyStore,
