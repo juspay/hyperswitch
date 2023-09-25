@@ -218,20 +218,33 @@ impl MerchantAccountInterface for Store {
     ) -> CustomResult<bool, errors::StorageError> {
         let conn = connection::pg_connection_write(self).await?;
 
-        let _merchant_account = storage::MerchantAccount::find_by_merchant_id(&conn, merchant_id)
-            .await
-            .map_err(Into::into)
-            .into_report()?;
+        let is_deleted_func = || async {
+            storage::MerchantAccount::delete_by_merchant_id(&conn, merchant_id)
+                .await
+                .map_err(Into::into)
+                .into_report()
+        };
 
-        let is_deleted = storage::MerchantAccount::delete_by_merchant_id(&conn, merchant_id)
-            .await
-            .map_err(Into::into)
-            .into_report()?;
+        let is_deleted;
+
+        #[cfg(not(feature = "accounts_cache"))]
+        {
+            is_deleted = is_deleted_func().await?;
+        }
 
         #[cfg(feature = "accounts_cache")]
         {
-            publish_and_redact_merchant_account_cache(self, &_merchant_account).await?;
+            let merchant_account =
+                storage::MerchantAccount::find_by_merchant_id(&conn, merchant_id)
+                    .await
+                    .map_err(Into::into)
+                    .into_report()?;
+
+            is_deleted = is_deleted_func().await?;
+
+            publish_and_redact_merchant_account_cache(self, &merchant_account).await?;
         }
+
         Ok(is_deleted)
     }
 }
