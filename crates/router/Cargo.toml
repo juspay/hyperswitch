@@ -90,7 +90,7 @@ x509-parser = "0.15.0"
 # First party crates
 api_models = { version = "0.1.0", path = "../api_models", features = ["errors"] }
 cards = { version = "0.1.0", path = "../cards" }
-common_utils = { version = "0.1.0", path = "../common_utils", features = ["signals", "async_ext"] }
+common_utils = { version = "0.1.0", path = "../common_utils", features = ["signals", "async_ext", "logs"] }
 external_services = { version = "0.1.0", path = "../external_services" }
 masking = { version = "0.1.0", path = "../masking" }
 redis_interface = { version = "0.1.0", path = "../redis_interface" }
