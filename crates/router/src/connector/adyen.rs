@@ -104,6 +104,9 @@ impl ConnectorValidation for Adyen {
         }
         .into())
     }
+    fn is_webhook_source_verification_mandatory(&self) -> bool {
+        true
+    }
 }
 
 impl api::Payment for Adyen {}

@@ -88,6 +88,10 @@ pub trait ConnectorValidation: ConnectorCommon {
             .change_context(errors::ConnectorError::MissingConnectorTransactionID)
             .map(|_| ())
     }
+
+    fn is_webhook_source_verification_mandatory(&self) -> bool {
+        false
+    }
 }
 
 #[async_trait::async_trait]
