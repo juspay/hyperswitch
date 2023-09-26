@@ -1071,8 +1071,7 @@ impl api::IncomingWebhook for Paypal {
             PaypalWebhookEventType::CustomerDisputeCreated
             | PaypalWebhookEventType::CustomerDisputeResolved
             | PaypalWebhookEventType::CustomerDisputedUpdated
-            | PaypalWebhookEventType::RiskDisputeCreated
-            | PaypalWebhookEventType::Unknown => Some(
+            | PaypalWebhookEventType::RiskDisputeCreated => Some(
                 request
                     .body
                     .parse_struct::<paypal::DisputeOutcome>("PaypalWebooksEventType")
