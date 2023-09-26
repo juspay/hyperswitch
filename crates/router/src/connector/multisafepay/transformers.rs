@@ -309,7 +309,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for MultisafepayPaymentsReques
             email: item.request.email.clone(),
             user_agent: None,
             referrer: None,
-            reference: Some(item.attempt_id.clone()),
+            reference: Some(item.connector_request_reference_id.clone()),
         };
 
         let billing_address = item
