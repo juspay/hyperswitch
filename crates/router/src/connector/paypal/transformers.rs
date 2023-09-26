@@ -1283,8 +1283,8 @@ pub struct PaypalWebooksEventType {
     pub event_type: PaypalWebhookEventType,
 }
 
-impl ForeignFrom<(PaypalWebhookEventType, OutcomeCode)> for api::IncomingWebhookEvent {
-    fn foreign_from((event, outcome): (PaypalWebhookEventType, OutcomeCode)) -> Self {
+impl ForeignFrom<(PaypalWebhookEventType, Option<OutcomeCode>)> for api::IncomingWebhookEvent {
+    fn foreign_from((event, outcome): (PaypalWebhookEventType, Option<OutcomeCode>)) -> Self {
         match (event, outcome) {
             (PaypalWebhookEventType::PaymentCaptureCompleted, _)
             | (PaypalWebhookEventType::CheckoutOrderCompleted, _) => Self::PaymentIntentSuccess,
@@ -1299,26 +1299,30 @@ impl ForeignFrom<(PaypalWebhookEventType, OutcomeCode)> for api::IncomingWebhook
             (PaypalWebhookEventType::CustomerDisputeCreated, _) => Self::DisputeOpened,
             (
                 PaypalWebhookEventType::CustomerDisputeResolved,
-                OutcomeCode::ResolvedSellerFavour,
+                Some(OutcomeCode::ResolvedSellerFavour),
             ) => Self::DisputeWon,
-            (PaypalWebhookEventType::CustomerDisputeResolved, OutcomeCode::ResolvedBuyerFavour) => {
-                Self::DisputeLost
-            }
-            (PaypalWebhookEventType::CustomerDisputeResolved, OutcomeCode::ResolvedWithPayout) => {
-                Self::DisputeWon
-            }
-            (PaypalWebhookEventType::CustomerDisputeResolved, OutcomeCode::CanceledByBuyer) => {
-                Self::DisputeCancelled
-            }
-            (PaypalWebhookEventType::CustomerDisputeResolved, OutcomeCode::ACCEPTED) => {
+            (
+                PaypalWebhookEventType::CustomerDisputeResolved,
+                Some(OutcomeCode::ResolvedBuyerFavour),
+            ) => Self::DisputeLost,
+            (
+                PaypalWebhookEventType::CustomerDisputeResolved,
+                Some(OutcomeCode::ResolvedWithPayout),
+            ) => Self::DisputeWon,
+            (
+                PaypalWebhookEventType::CustomerDisputeResolved,
+                Some(OutcomeCode::CanceledByBuyer),
+            ) => Self::DisputeCancelled,
+            (PaypalWebhookEventType::CustomerDisputeResolved, Some(OutcomeCode::ACCEPTED)) => {
                 Self::DisputeAccepted
             }
-            (PaypalWebhookEventType::CustomerDisputeResolved, OutcomeCode::DENIED) => {
+            (PaypalWebhookEventType::CustomerDisputeResolved, Some(OutcomeCode::DENIED)) => {
                 Self::DisputeCancelled
             }
-            (PaypalWebhookEventType::CustomerDisputeResolved, OutcomeCode::NONE) => {
+            (PaypalWebhookEventType::CustomerDisputeResolved, Some(OutcomeCode::NONE)) => {
                 Self::DisputeCancelled
             }
+            (PaypalWebhookEventType::CustomerDisputeResolved, None) => Self::EventNotSupported,
             (PaypalWebhookEventType::RiskDisputeCreated, _) => Self::DisputeAccepted,
             (PaypalWebhookEventType::CustomerDisputedUpdated, _) => Self::EventNotSupported,
         }

@@ -8,7 +8,7 @@ use error_stack::{IntoReport, ResultExt};
 use masking::PeekInterface;
 use transformers as paypal;
 
-use self::transformers::PaypalMeta;
+use self::transformers::{PaypalMeta, PaypalWebhookEventType};
 use crate::{
     configs::settings,
     connector::{
@@ -1067,14 +1067,24 @@ impl api::IncomingWebhook for Paypal {
             .body
             .parse_struct("PaypalWebooksEventType")
             .change_context(errors::ConnectorError::WebhookEventTypeNotFound)?;
-        let outcome: paypal::DisputeOutcome =
-            request
-                .body
-                .parse_struct("PaypalWebooksEventType")
-                .change_context(errors::ConnectorError::WebhookEventTypeNotFound)?;
+        let outcome = match payload.event_type {
+            PaypalWebhookEventType::CustomerDisputeCreated
+            | PaypalWebhookEventType::CustomerDisputeResolved
+            | PaypalWebhookEventType::CustomerDisputedUpdated
+            | PaypalWebhookEventType::RiskDisputeCreated
+            | PaypalWebhookEventType::Unknown => Some(
+                request
+                    .body
+                    .parse_struct::<paypal::DisputeOutcome>("PaypalWebooksEventType")
+                    .change_context(errors::ConnectorError::WebhookEventTypeNotFound)?
+                    .outcome_code,
+            ),
+            _ => None,
+        };
+
         Ok(api::IncomingWebhookEvent::foreign_from((
             payload.event_type,
-            outcome.outcome_code,
+            outcome,
         )))
     }
 
@@ -1119,7 +1129,10 @@ impl api::IncomingWebhook for Paypal {
             .parse_struct("PaypalDisputeWebhooks")
             .change_context(errors::ConnectorError::WebhookReferenceIdNotFound)?;
         Ok(api::disputes::DisputePayload {
-            amount: payload.dispute_amount.value,
+            amount: connector_utils::to_currency_lower_unit(
+                payload.dispute_amount.value,
+                payload.dispute_amount.currency_code,
+            )?,
             currency: payload.dispute_amount.currency_code.to_string(),
             dispute_stage: api_models::enums::DisputeStage::from(
                 payload.dispute_life_cycle_stage.clone(),
