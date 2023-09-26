@@ -94,17 +94,17 @@ impl Paypal {
                     .map(|errors| errors.into())
                     .collect(),
             );
-            Ok(ErrorResponse {
-                status_code: res.status_code,
-                code: option_error_code_message
-                    .clone()
-                    .map(|error_code_message| error_code_message.error_code)
-                    .unwrap_or(consts::NO_ERROR_CODE.to_string()),
-                message: option_error_code_message
-                    .map(|error_code_message| error_code_message.error_message)
-                    .unwrap_or(consts::NO_ERROR_MESSAGE.to_string()),
-                reason: error_reason.or(Some(response.message)),
-            })
+        Ok(ErrorResponse {
+            status_code: res.status_code,
+            code: option_error_code_message
+                .clone()
+                .map(|error_code_message| error_code_message.error_code)
+                .unwrap_or(consts::NO_ERROR_CODE.to_string()),
+            message: option_error_code_message
+                .map(|error_code_message| error_code_message.error_message)
+                .unwrap_or(consts::NO_ERROR_MESSAGE.to_string()),
+            reason: error_reason.or(Some(response.message)),
+        })
     }
 }
 
@@ -179,7 +179,7 @@ impl ConnectorCommon for Paypal {
             .parse_struct("Paypal ErrorResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
 
-        let error_reason = response.details.clone().map(|error_details| {
+        let error_reason = response.details.map(|error_details| {
             error_details
                 .iter()
                 .map(|error| format!("description - {} ; ", error.description))
