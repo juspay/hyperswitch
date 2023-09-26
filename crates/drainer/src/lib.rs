@@ -165,6 +165,7 @@ async fn drainer(
         let payment_intent = "payment_intent";
         let payment_attempt = "payment_attempt";
         let refund = "refund";
+        let connector_response = "connector_response";
         let address = "address";
         match db_op {
             // TODO: Handle errors
@@ -187,6 +188,13 @@ async fn drainer(
                         }
                         kv::Insertable::Refund(a) => {
                             macro_util::handle_resp!(a.insert(&conn).await, insert_op, refund)
+                        }
+                        kv::Insertable::ConnectorResponse(a) => {
+                            macro_util::handle_resp!(
+                                a.insert(&conn).await,
+                                insert_op,
+                                connector_response
+                            )
                         }
                         kv::Insertable::Address(addr) => {
                             macro_util::handle_resp!(addr.insert(&conn).await, insert_op, address)
@@ -227,6 +235,11 @@ async fn drainer(
                                 refund
                             )
                         }
+                        kv::Updateable::ConnectorResponseUpdate(a) => macro_util::handle_resp!(
+                            a.orig.update(&conn, a.update_data).await,
+                            update_op,
+                            connector_response
+                        ),
                     }
                 })
                 .await;
