@@ -27,6 +27,11 @@ pub trait MerchantKeyStoreInterface {
         merchant_id: &str,
         key: &Secret<Vec<u8>>,
     ) -> CustomResult<domain::MerchantKeyStore, errors::StorageError>;
+
+    async fn delete_merchant_key_store_by_merchant_id(
+        &self,
+        merchant_id: &str,
+    ) -> CustomResult<bool, errors::StorageError>;
 }
 
 #[async_trait::async_trait]
@@ -66,6 +71,7 @@ impl MerchantKeyStoreInterface for Store {
             .map_err(Into::into)
             .into_report()
         };
+
         #[cfg(not(feature = "accounts_cache"))]
         {
             fetch_func()
@@ -88,6 +94,39 @@ impl MerchantKeyStoreInterface for Store {
             .convert(key)
             .await
             .change_context(errors::StorageError::DecryptionError)
+        }
+    }
+
+    async fn delete_merchant_key_store_by_merchant_id(
+        &self,
+        merchant_id: &str,
+    ) -> CustomResult<bool, errors::StorageError> {
+        let delete_func = || async {
+            let conn = connection::pg_connection_write(self).await?;
+            diesel_models::merchant_key_store::MerchantKeyStore::delete_by_merchant_id(
+                &conn,
+                merchant_id,
+            )
+            .await
+            .map_err(Into::into)
+            .into_report()
+        };
+
+        #[cfg(not(feature = "accounts_cache"))]
+        {
+            delete_func().await
+        }
+
+        #[cfg(feature = "accounts_cache")]
+        {
+            let key_store_cache_key = format!("merchant_key_store_{}", merchant_id);
+            super::cache::get_or_populate_in_memory(
+                self,
+                &key_store_cache_key,
+                delete_func,
+                &ACCOUNTS_CACHE,
+            )
+            .await
         }
     }
 }
@@ -139,6 +178,22 @@ impl MerchantKeyStoreInterface for MockDb {
             .convert(key)
             .await
             .change_context(errors::StorageError::DecryptionError)
+    }
+
+    async fn delete_merchant_key_store_by_merchant_id(
+        &self,
+        merchant_id: &str,
+    ) -> CustomResult<bool, errors::StorageError> {
+        let mut merchant_key_stores = self.merchant_key_store.lock().await;
+        let index = merchant_key_stores
+            .iter()
+            .position(|mks| mks.merchant_id == merchant_id)
+            .ok_or(errors::StorageError::ValueNotFound(format!(
+                "No merchant key store found for merchant_id = {}",
+                merchant_id
+            )))?;
+        merchant_key_stores.remove(index);
+        Ok(true)
     }
 }
 
