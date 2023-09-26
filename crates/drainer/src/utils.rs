@@ -36,12 +36,11 @@ pub async fn read_from_stream(
     // "0-0" id gives first entry
     let stream_id = "0-0";
     let (output, execution_time) = common_utils::date_time::time_it(|| async {
-        let entries = redis
+        redis
             .stream_read_entries(stream_name, stream_id, Some(max_read_count))
             .await
             .map_err(DrainerError::from)
-            .into_report()?;
-        Ok(entries)
+            .into_report()
     })
     .await;
 
