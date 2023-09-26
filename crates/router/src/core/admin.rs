@@ -470,6 +470,10 @@ pub async fn merchant_account_delete(
         .delete_merchant_account_by_merchant_id(&merchant_id)
         .await
         .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
+    let _is_deleted = db
+        .delete_merchant_key_store_by_merchant_id(&merchant_id)
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
     let response = api::MerchantAccountDeleteResponse {
         merchant_id,
         deleted: is_deleted,
