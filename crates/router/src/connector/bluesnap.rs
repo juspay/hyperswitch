@@ -903,22 +903,7 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
         req: &types::RefundSyncRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        let meta_data: CustomResult<bluesnap::BluesnapConnectorMetaData, errors::ConnectorError> =
-            connector_utils::to_connector_meta_from_secret(req.connector_meta_data.clone());
-
-        match meta_data {
-            // if merchant_id is present, rsync can be made using merchant_transaction_id
-            Ok(data) => get_url_with_merchant_transaction_id(
-                self.base_url(connectors).to_string(),
-                data.merchant_id,
-                req.attempt_id.to_owned(),
-            ),
-            // otherwise rsync is made using connector_transaction_id
-            Err(_) => get_rsync_url_with_connector_transaction_id(
-                req,
-                self.base_url(connectors).to_string(),
-            ),
-        }
+        get_rsync_url_with_connector_refund_id(req, self.base_url(connectors).to_string())
     }
 
     fn build_request(
@@ -1002,11 +987,29 @@ impl api::IncomingWebhook for Bluesnap {
             serde_urlencoded::from_bytes(request.body)
                 .into_report()
                 .change_context(errors::ConnectorError::WebhookReferenceIdNotFound)?;
-        Ok(api_models::webhooks::ObjectReferenceId::PaymentId(
-            api_models::payments::PaymentIdType::PaymentAttemptId(
-                webhook_body.merchant_transaction_id,
-            ),
-        ))
+        match webhook_body.transaction_type {
+            bluesnap::BluesnapWebhookEvents::Decline
+            | bluesnap::BluesnapWebhookEvents::CcChargeFailed
+            | bluesnap::BluesnapWebhookEvents::Charge
+            | bluesnap::BluesnapWebhookEvents::Chargeback
+            | bluesnap::BluesnapWebhookEvents::ChargebackStatusChanged
+            | bluesnap::BluesnapWebhookEvents::Unknown => {
+                Ok(api_models::webhooks::ObjectReferenceId::PaymentId(
+                    api_models::payments::PaymentIdType::PaymentAttemptId(
+                        webhook_body.merchant_transaction_id,
+                    ),
+                ))
+            }
+            bluesnap::BluesnapWebhookEvents::Refund => {
+                Ok(api_models::webhooks::ObjectReferenceId::RefundId(
+                    api_models::webhooks::RefundIdType::ConnectorRefundId(
+                        webhook_body
+                            .reversal_ref_num
+                            .ok_or(errors::ConnectorError::WebhookReferenceIdNotFound)?,
+                    ),
+                ))
+            }
+        }
     }
 
     fn get_webhook_event_type(
@@ -1049,50 +1052,16 @@ impl api::IncomingWebhook for Bluesnap {
         &self,
         request: &api::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<serde_json::Value, errors::ConnectorError> {
-        let details: bluesnap::BluesnapWebhookObjectResource =
+        let resource: bluesnap::BluesnapWebhookObjectResource =
             serde_urlencoded::from_bytes(request.body)
                 .into_report()
                 .change_context(errors::ConnectorError::WebhookResourceObjectNotFound)?;
 
-        let (card_transaction_type, processing_status) = match details.transaction_type {
-            bluesnap::BluesnapWebhookEvents::Decline
-            | bluesnap::BluesnapWebhookEvents::CcChargeFailed => Ok((
-                bluesnap::BluesnapTxnType::Capture,
-                bluesnap::BluesnapProcessingStatus::Fail,
-            )),
-            bluesnap::BluesnapWebhookEvents::Charge => Ok((
-                bluesnap::BluesnapTxnType::Capture,
-                bluesnap::BluesnapProcessingStatus::Success,
-            )),
-            bluesnap::BluesnapWebhookEvents::Chargeback
-            | bluesnap::BluesnapWebhookEvents::ChargebackStatusChanged => {
-                // returning the complete incoming webhook body, It won't be consumed in dispute flow, so currently does not hold any significance
-                let res_json =
-                    utils::Encode::<bluesnap::BluesnapWebhookObjectResource>::encode_to_value(
-                        &details,
-                    )
-                    .change_context(errors::ConnectorError::WebhookResourceObjectNotFound)?;
-                return Ok(res_json);
-            }
-            bluesnap::BluesnapWebhookEvents::Unknown => {
-                Err(errors::ConnectorError::WebhookResourceObjectNotFound)
-            }
-        }?;
+        let sync_struct = bluesnap::BluesnapPaymentsResponse::try_from(resource)?;
 
-        let psync_struct = bluesnap::BluesnapPaymentsResponse {
-            processing_info: bluesnap::ProcessingInfoResponse {
-                processing_status,
-                authorization_code: None,
-                network_transaction_id: None,
-            },
-            transaction_id: details.reference_number,
-            card_transaction_type,
-        };
-
-        let res_json =
-            utils::Encode::<transformers::BluesnapPaymentsResponse>::encode_to_value(&psync_struct)
-                .change_context(errors::ConnectorError::WebhookResourceObjectNotFound)?;
-
+        let res_json = serde_json::to_value(sync_struct)
+            .into_report()
+            .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
         Ok(res_json)
     }
 }
@@ -1283,7 +1252,7 @@ fn get_psync_url_with_connector_transaction_id(
     ))
 }
 
-fn get_rsync_url_with_connector_transaction_id(
+fn get_rsync_url_with_connector_refund_id(
     req: &types::RefundSyncRouterData,
     base_url: String,
 ) -> CustomResult<String, errors::ConnectorError> {
