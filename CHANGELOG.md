@@ -4,6 +4,16 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 1.44.0+hotfix.2 (2023-09-26)
+
+### Bug Fixes
+
+- **merchant_connector_account:** Use appropriate key when redacting ([#2366](https://github.com/juspay/hyperswitch/pull/2366)) ([`b40a10d`](https://github.com/juspay/hyperswitch/commit/b40a10d1db2f0c65795808a02f898003d331e8c0))
+
+**Full Changelog:** [`v1.44.0+hotfix.1...v1.44.0+hotfix.2`](https://github.com/juspay/hyperswitch/compare/v1.44.0+hotfix.1...v1.44.0+hotfix.2)
+
+- - -
+
 ## 1.44.0+hotfix.1 (2023-09-25)
 
 ### Bug Fixes
