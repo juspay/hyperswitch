@@ -1333,9 +1333,9 @@ impl From<DisputeLifeCycleStage> for enums::DisputeStage {
     fn from(dispute_life_cycle_stage: DisputeLifeCycleStage) -> Self {
         match dispute_life_cycle_stage {
             DisputeLifeCycleStage::Inquiry => Self::PreDispute,
-            DisputeLifeCycleStage::Chargeback => Self::PreArbitration,
-            DisputeLifeCycleStage::PreArbitration => Self::Dispute,
-            DisputeLifeCycleStage::Arbitration => Self::PreDispute,
+            DisputeLifeCycleStage::Chargeback => Self::Dispute,
+            DisputeLifeCycleStage::PreArbitration => Self::PreArbitration,
+            DisputeLifeCycleStage::Arbitration => Self::PreArbitration,
         }
     }
 }
