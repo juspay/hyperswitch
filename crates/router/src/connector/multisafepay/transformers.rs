@@ -198,7 +198,7 @@ pub struct ShoppingCart {
 pub struct MultisafepayPaymentsRequest {
     #[serde(rename = "type")]
     pub payment_type: Type,
-    pub gateway: Gateway,
+    pub gateway: Option<Gateway>,
     pub order_id: String,
     pub currency: String,
     pub amount: i64,
@@ -243,6 +243,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for MultisafepayPaymentsReques
     fn try_from(item: &types::PaymentsAuthorizeRouterData) -> Result<Self, Self::Error> {
         let payment_type = match item.request.payment_method_data {
             api::PaymentMethodData::Card(ref _ccard) => Type::Direct,
+            api::PaymentMethodData::MandatePayment => Type::Direct,
             api::PaymentMethodData::Wallet(ref wallet_data) => match wallet_data {
                 api::WalletData::GooglePay(_) => Type::Direct,
                 api::WalletData::PaypalRedirect(_) => Type::Redirect,
@@ -255,20 +256,23 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for MultisafepayPaymentsReques
         };
 
         let gateway = match item.request.payment_method_data {
-            api::PaymentMethodData::Card(ref ccard) => Gateway::try_from(ccard.get_card_issuer()?)?,
-            api::PaymentMethodData::Wallet(ref wallet_data) => match wallet_data {
+            api::PaymentMethodData::Card(ref ccard) => {
+                Some(Gateway::try_from(ccard.get_card_issuer()?)?)
+            }
+            api::PaymentMethodData::Wallet(ref wallet_data) => Some(match wallet_data {
                 api::WalletData::GooglePay(_) => Gateway::Googlepay,
                 api::WalletData::PaypalRedirect(_) => Gateway::Paypal,
                 _ => Err(errors::ConnectorError::NotImplemented(
                     "Payment method".to_string(),
                 ))?,
-            },
+            }),
             api::PaymentMethodData::PayLater(
                 api_models::payments::PayLaterData::KlarnaRedirect {
                     billing_email: _,
                     billing_country: _,
                 },
-            ) => Gateway::Klarna,
+            ) => Some(Gateway::Klarna),
+            api::PaymentMethodData::MandatePayment => None,
             _ => Err(errors::ConnectorError::NotImplemented(
                 "Payment method".to_string(),
             ))?,
@@ -305,7 +309,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for MultisafepayPaymentsReques
             email: item.request.email.clone(),
             user_agent: None,
             referrer: None,
-            reference: None,
+            reference: Some(item.attempt_id.clone()),
         };
 
         let billing_address = item
@@ -367,6 +371,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for MultisafepayPaymentsReques
                     }),
                 }))
             }
+            api::PaymentMethodData::MandatePayment => None,
             _ => Err(errors::ConnectorError::NotImplemented(
                 "Payment method".to_string(),
             ))?,
@@ -390,7 +395,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for MultisafepayPaymentsReques
             recurring_model: if item.request.setup_future_usage
                 == Some(enums::FutureUsage::OffSession)
             {
-                Some("Unscheduled".to_string())
+                Some("unscheduled".to_string())
             } else {
                 None
             },
