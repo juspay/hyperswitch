@@ -65,7 +65,7 @@ impl Paypal {
             .parse_struct("Paypal ErrorResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
 
-        let error_reason = response.details.map(|order_errors| {
+        let error_reason = response.details.clone().map(|order_errors| {
             order_errors
                 .iter()
                 .map(|error| {
@@ -85,12 +85,26 @@ impl Paypal {
                 })
                 .collect::<String>()
         });
-        Ok(ErrorResponse {
-            status_code: res.status_code,
-            code: response.name,
-            message: response.message.clone(),
-            reason: error_reason.or(Some(response.message)),
-        })
+        let errors_list = response.details.unwrap_or(vec![]);
+        let option_error_code_message =
+            connector_utils::get_error_code_error_message_based_on_priority(
+                Self.clone(),
+                errors_list
+                    .into_iter()
+                    .map(|errors| errors.into())
+                    .collect(),
+            );
+            Ok(ErrorResponse {
+                status_code: res.status_code,
+                code: option_error_code_message
+                    .clone()
+                    .map(|error_code_message| error_code_message.error_code)
+                    .unwrap_or(consts::NO_ERROR_CODE.to_string()),
+                message: option_error_code_message
+                    .map(|error_code_message| error_code_message.error_message)
+                    .unwrap_or(consts::NO_ERROR_MESSAGE.to_string()),
+                reason: error_reason.or(Some(response.message)),
+            })
     }
 }
 
@@ -171,25 +185,10 @@ impl ConnectorCommon for Paypal {
                 .map(|error| format!("description - {} ; ", error.description))
                 .collect::<String>()
         });
-
-        let errors_list = response.details.unwrap_or(vec![]);
-        let option_error_code_message =
-            connector_utils::get_error_code_error_message_based_on_priority(
-                Self.clone(),
-                errors_list
-                    .into_iter()
-                    .map(|errors| errors.into())
-                    .collect(),
-            );
         Ok(ErrorResponse {
             status_code: res.status_code,
-            code: option_error_code_message
-                .clone()
-                .map(|error_code_message| error_code_message.error_code)
-                .unwrap_or(consts::NO_ERROR_CODE.to_string()),
-            message: option_error_code_message
-                .map(|error_code_message| error_code_message.error_message)
-                .unwrap_or(consts::NO_ERROR_MESSAGE.to_string()),
+            code: response.name,
+            message: response.message.clone(),
             reason: error_reason.or(Some(response.message)),
         })
     }
