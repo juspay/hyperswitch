@@ -27,7 +27,7 @@ sh ./scripts/decrypt_browser_data.sh "$BROWSER_DATA_PASSPHRASE"
 $GECKOWEBDRIVER/geckodriver > tests/geckodriver.log 2>&1 &
 
 # Start server and redirect logs to a file
-target/debug/router > tests/server.log 2>&1 &
+target/debug/router &
 
 SERVER_PID=$!
 # Wait for the server to start in port 8080
