@@ -301,7 +301,7 @@ impl TryFrom<&types::ConnectorAuthType> for NoonAuthType {
         }
     }
 }
-#[derive(Default, Debug, Deserialize, strum::Display)]
+#[derive(Default, Debug, Deserialize, Serialize, strum::Display)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 #[strum(serialize_all = "UPPERCASE")]
 pub enum NoonPaymentStatus {
@@ -335,12 +335,12 @@ impl From<NoonPaymentStatus> for enums::AttemptStatus {
     }
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct NoonSubscriptionResponse {
     identifier: String,
 }
 
-#[derive(Default, Debug, Deserialize)]
+#[derive(Default, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct NoonPaymentsOrderResponse {
     status: NoonPaymentStatus,
@@ -349,13 +349,13 @@ pub struct NoonPaymentsOrderResponse {
     error_message: Option<String>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct NoonCheckoutData {
     post_url: url::Url,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct NoonPaymentsResponseResult {
     order: NoonPaymentsOrderResponse,
@@ -363,7 +363,7 @@ pub struct NoonPaymentsResponseResult {
     subscription: Option<NoonSubscriptionResponse>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct NoonPaymentsResponse {
     result: NoonPaymentsResponseResult,
 }
@@ -631,6 +631,32 @@ pub struct NoonWebhookOrderId {
 pub struct NoonWebhookEvent {
     pub order_status: NoonPaymentStatus,
     pub event_type: NoonWebhookEventTypes,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct NoonWebhookObject {
+    pub order_status: NoonPaymentStatus,
+    pub order_id: u64,
+}
+
+/// This from will ensure that webhook body would be properly parsed into PSync response
+impl From<NoonWebhookObject> for NoonPaymentsResponse {
+    fn from(value: NoonWebhookObject) -> Self {
+        Self {
+            result: NoonPaymentsResponseResult {
+                order: NoonPaymentsOrderResponse {
+                    status: value.order_status,
+                    id: value.order_id,
+                    //For successful payments Noon Always populates error_code as 0.
+                    error_code: 0,
+                    error_message: None,
+                },
+                checkout_data: None,
+                subscription: None,
+            },
+        }
+    }
 }
 
 #[derive(Debug, Deserialize)]

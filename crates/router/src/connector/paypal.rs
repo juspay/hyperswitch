@@ -134,6 +134,10 @@ impl ConnectorCommon for Paypal {
         "paypal"
     }
 
+    fn get_currency_unit(&self) -> api::CurrencyUnit {
+        api::CurrencyUnit::Base
+    }
+
     fn common_get_content_type(&self) -> &'static str {
         "application/json"
     }
@@ -344,7 +348,13 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         &self,
         req: &types::PaymentsAuthorizeRouterData,
     ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
-        let req_obj = paypal::PaypalPaymentsRequest::try_from(req)?;
+        let connector_router_data = paypal::PaypalRouterData::try_from((
+            &self.get_currency_unit(),
+            req.request.currency,
+            req.request.amount,
+            req,
+        ))?;
+        let req_obj = paypal::PaypalPaymentsRequest::try_from(&connector_router_data)?;
         let paypal_req = types::RequestBody::log_and_get_request_body(
             &req_obj,
             utils::Encode::<paypal::PaypalPaymentsRequest>::encode_to_string_of_json,
@@ -626,7 +636,13 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
         &self,
         req: &types::PaymentsCaptureRouterData,
     ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
-        let connector_req = paypal::PaypalPaymentsCaptureRequest::try_from(req)?;
+        let connector_router_data = paypal::PaypalRouterData::try_from((
+            &self.get_currency_unit(),
+            req.request.currency,
+            req.request.amount_to_capture,
+            req,
+        ))?;
+        let connector_req = paypal::PaypalPaymentsCaptureRequest::try_from(&connector_router_data)?;
         let paypal_req = types::RequestBody::log_and_get_request_body(
             &connector_req,
             utils::Encode::<paypal::PaypalPaymentsCaptureRequest>::encode_to_string_of_json,
@@ -781,7 +797,13 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
         &self,
         req: &types::RefundsRouterData<api::Execute>,
     ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
-        let req_obj = paypal::PaypalRefundRequest::try_from(req)?;
+        let connector_router_data = paypal::PaypalRouterData::try_from((
+            &self.get_currency_unit(),
+            req.request.currency,
+            req.request.refund_amount,
+            req,
+        ))?;
+        let req_obj = paypal::PaypalRefundRequest::try_from(&connector_router_data)?;
         let paypal_req = types::RequestBody::log_and_get_request_body(
             &req_obj,
             utils::Encode::<paypal::PaypalRefundRequest>::encode_to_string_of_json,
