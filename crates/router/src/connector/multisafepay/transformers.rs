@@ -210,7 +210,7 @@ pub struct MultisafepayPaymentsRequest {
     pub checkout_options: Option<CheckoutOptions>,
     pub shopping_cart: Option<ShoppingCart>,
     pub items: Option<String>,
-    pub recurring_model: Option<String>,
+    pub recurring_model: Option<MandateType>,
     pub recurring_id: Option<String>,
     pub capture: Option<String>,
     pub days_active: Option<i32>,
@@ -392,10 +392,8 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for MultisafepayPaymentsReques
             shopping_cart: None,
             capture: None,
             items: None,
-            recurring_model: if item.request.setup_future_usage
-                == Some(enums::FutureUsage::OffSession)
-            {
-                Some("unscheduled".to_string())
+            recurring_model: if item.request.is_mandate_payment() {
+                Some(MandateType::Unscheduled)
             } else {
                 None
             },
@@ -444,6 +442,12 @@ pub enum MultisafepayPaymentStatus {
     #[default]
     Initialized,
     Void,
+}
+
+#[derive(Debug, Clone, Eq, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "lowercase")]
+pub enum MandateType {
+    Unscheduled,
 }
 
 impl From<MultisafepayPaymentStatus> for enums::AttemptStatus {
