@@ -1078,7 +1078,16 @@ impl api::IncomingWebhook for Paypal {
                     .change_context(errors::ConnectorError::WebhookEventTypeNotFound)?
                     .outcome_code,
             ),
-            _ => None,
+            PaypalWebhookEventType::PaymentAuthorizationCreated
+            | PaypalWebhookEventType::PaymentAuthorizationVoided
+            | PaypalWebhookEventType::PaymentCaptureDeclined
+            | PaypalWebhookEventType::PaymentCaptureCompleted
+            | PaypalWebhookEventType::PaymentCapturePending
+            | PaypalWebhookEventType::PaymentCaptureRefunded
+            | PaypalWebhookEventType::CheckoutOrderApproved
+            | PaypalWebhookEventType::CheckoutOrderCompleted
+            | PaypalWebhookEventType::CheckoutOrderProcessed
+            | PaypalWebhookEventType::Unknown => None,
         };
 
         Ok(api::IncomingWebhookEvent::foreign_from((
@@ -1126,7 +1135,7 @@ impl api::IncomingWebhook for Paypal {
         let payload: paypal::PaypalDisputeWebhooks = request
             .body
             .parse_struct("PaypalDisputeWebhooks")
-            .change_context(errors::ConnectorError::WebhookReferenceIdNotFound)?;
+            .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
         Ok(api::disputes::DisputePayload {
             amount: connector_utils::to_currency_lower_unit(
                 payload.dispute_amount.value,
