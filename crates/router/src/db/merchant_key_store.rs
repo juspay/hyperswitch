@@ -1,5 +1,6 @@
 use error_stack::{IntoReport, ResultExt};
 use masking::Secret;
+use storage_impl::redis::cache::CacheKind;
 #[cfg(feature = "accounts_cache")]
 use storage_impl::redis::cache::ACCOUNTS_CACHE;
 
@@ -119,12 +120,10 @@ impl MerchantKeyStoreInterface for Store {
 
         #[cfg(feature = "accounts_cache")]
         {
-            let key_store_cache_key = format!("merchant_key_store_{}", merchant_id);
-            super::cache::get_or_populate_in_memory(
+            super::cache::publish_and_redact(
                 self,
-                &key_store_cache_key,
+                CacheKind::Accounts(merchant_id.into()),
                 delete_func,
-                &ACCOUNTS_CACHE,
             )
             .await
         }
