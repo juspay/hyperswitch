@@ -78,6 +78,10 @@ impl ConnectorCommon for Zen {
         "zen"
     }
 
+    fn get_currency_unit(&self) -> api::CurrencyUnit {
+        api::CurrencyUnit::Base
+    }
+
     fn common_get_content_type(&self) -> &'static str {
         mime::APPLICATION_JSON.essence_str()
     }
@@ -208,7 +212,13 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         &self,
         req: &types::PaymentsAuthorizeRouterData,
     ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
-        let req_obj = zen::ZenPaymentsRequest::try_from(req)?;
+        let connector_router_data = zen::ZenRouterData::try_from((
+            &self.get_currency_unit(),
+            req.request.currency,
+            req.request.amount,
+            req,
+        ))?;
+        let req_obj = zen::ZenPaymentsRequest::try_from(&connector_router_data)?;
         let zen_req = types::RequestBody::log_and_get_request_body(
             &req_obj,
             utils::Encode::<zen::ZenPaymentsRequest>::encode_to_string_of_json,
@@ -397,7 +407,13 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
         &self,
         req: &types::RefundsRouterData<api::Execute>,
     ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
-        let req_obj = zen::ZenRefundRequest::try_from(req)?;
+        let connector_router_data = zen::ZenRouterData::try_from((
+            &self.get_currency_unit(),
+            req.request.currency,
+            req.request.refund_amount,
+            req,
+        ))?;
+        let req_obj = zen::ZenRefundRequest::try_from(&connector_router_data)?;
         let zen_req = types::RequestBody::log_and_get_request_body(
             &req_obj,
             utils::Encode::<zen::ZenRefundRequest>::encode_to_string_of_json,
