@@ -26,6 +26,7 @@ use crate::{
     configs::settings::{Connectors, Settings},
     consts,
     core::{
+        api_locking,
         errors::{self, CustomResult},
         payments,
     },
@@ -86,6 +87,10 @@ pub trait ConnectorValidation: ConnectorCommon {
             .get_connector_transaction_id()
             .change_context(errors::ConnectorError::MissingConnectorTransactionID)
             .map(|_| ())
+    }
+
+    fn is_webhook_source_verification_mandatory(&self) -> bool {
+        false
     }
 }
 
@@ -712,6 +717,7 @@ pub async fn server_wrap_util<'a, 'b, A, U, T, Q, F, Fut, E, OErr>(
     payload: T,
     func: F,
     api_auth: &dyn auth::AuthenticateAndFetch<U, A>,
+    lock_action: api_locking::LockAction,
 ) -> CustomResult<ApplicationResponse<Q>, OErr>
 where
     F: Fn(A, U, T) -> Fut,
@@ -723,6 +729,7 @@ where
     U: auth::AuthInfo,
     CustomResult<ApplicationResponse<Q>, E>: ReportSwitchExt<ApplicationResponse<Q>, OErr>,
     CustomResult<U, errors::ApiErrorResponse>: ReportSwitchExt<U, OErr>,
+    CustomResult<(), errors::ApiErrorResponse>: ReportSwitchExt<(), OErr>,
     OErr: ResponseError + Sync + Send + 'static,
 {
     let request_id = RequestId::extract(request)
@@ -750,7 +757,21 @@ where
 
     tracing::Span::current().record("merchant_id", &merchant_id);
 
-    let output = func(request_state, auth_out, payload).await.switch();
+    let output = {
+        lock_action
+            .clone()
+            .perform_locking_action(&request_state, merchant_id.to_owned())
+            .await
+            .switch()?;
+        let res = func(request_state.clone(), auth_out, payload)
+            .await
+            .switch();
+        lock_action
+            .free_lock_action(&request_state, merchant_id.to_owned())
+            .await
+            .switch()?;
+        res
+    };
 
     let status_code = match output.as_ref() {
         Ok(res) => metrics::request::track_response_status_code(res),
@@ -773,6 +794,7 @@ pub async fn server_wrap<'a, A, T, U, Q, F, Fut, E>(
     payload: T,
     func: F,
     api_auth: &dyn auth::AuthenticateAndFetch<U, A>,
+    lock_action: api_locking::LockAction,
 ) -> HttpResponse
 where
     F: Fn(A, U, T) -> Fut,
@@ -794,7 +816,15 @@ where
     logger::info!(tag = ?Tag::BeginRequest, payload = ?payload);
 
     let res = match metrics::request::record_request_time_metric(
-        server_wrap_util(&flow, state.clone(), request, payload, func, api_auth),
+        server_wrap_util(
+            &flow,
+            state.clone(),
+            request,
+            payload,
+            func,
+            api_auth,
+            lock_action,
+        ),
         &flow,
     )
     .await

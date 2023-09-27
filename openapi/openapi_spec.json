@@ -8349,11 +8349,13 @@
       },
       "PaymentsCaptureRequest": {
         "type": "object",
+        "required": [
+          "payment_id"
+        ],
         "properties": {
           "payment_id": {
             "type": "string",
-            "description": "The unique identifier for the payment",
-            "nullable": true
+            "description": "The unique identifier for the payment"
           },
           "merchant_id": {
             "type": "string",
