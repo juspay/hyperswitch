@@ -380,7 +380,7 @@ impl MerchantConnectorAccountInterface for Store {
         merchant_connector_account: storage::MerchantConnectorAccountUpdateInternal,
         key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<domain::MerchantConnectorAccount, errors::StorageError> {
-        let _merchant_id = this.merchant_id.clone();
+        let _connector_name = this.connector_name.clone();
         let _profile_id = this
             .profile_id
             .clone()
@@ -409,7 +409,7 @@ impl MerchantConnectorAccountInterface for Store {
         {
             super::cache::publish_and_redact(
                 self,
-                cache::CacheKind::Accounts(format!("{}_{}", _merchant_id, _profile_id).into()),
+                cache::CacheKind::Accounts(format!("{}_{}", _profile_id, _connector_name).into()),
                 update_call,
             )
             .await
@@ -649,6 +649,7 @@ impl MerchantConnectorAccountInterface for MockDb {
             modified_at: common_utils::date_time::now(),
             connector_webhook_details: t.connector_webhook_details,
             profile_id: t.profile_id,
+            applepay_verified_domains: t.applepay_verified_domains,
         };
         accounts.push(account.clone());
         account
@@ -843,6 +844,7 @@ mod merchant_connector_account_cache_tests {
             modified_at: date_time::now(),
             connector_webhook_details: None,
             profile_id: Some(profile_id.to_string()),
+            applepay_verified_domains: None,
         };
 
         db.insert_merchant_connector_account(mca.clone(), &merchant_key)

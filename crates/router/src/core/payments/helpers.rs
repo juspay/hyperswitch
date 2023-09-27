@@ -103,176 +103,278 @@ pub fn filter_mca_based_on_business_profile(
     }
 }
 
-pub async fn get_address_for_payment_request(
+#[instrument(skip_all)]
+#[allow(clippy::too_many_arguments)]
+pub async fn create_or_update_address_for_payment_by_request(
     db: &dyn StorageInterface,
     req_address: Option<&api::Address>,
     address_id: Option<&str>,
     merchant_id: &str,
     customer_id: Option<&String>,
     merchant_key_store: &domain::MerchantKeyStore,
+    payment_id: &str,
+    storage_scheme: storage_enums::MerchantStorageScheme,
 ) -> CustomResult<Option<domain::Address>, errors::ApiErrorResponse> {
     let key = merchant_key_store.key.get_inner().peek();
 
-    Ok(match req_address {
-        Some(address) => {
-            match address_id {
-                Some(id) => {
-                    let address_update = async {
-                        Ok(storage::AddressUpdate::Update {
-                            city: address
-                                .address
-                                .as_ref()
-                                .and_then(|value| value.city.clone()),
-                            country: address.address.as_ref().and_then(|value| value.country),
-                            line1: address
-                                .address
-                                .as_ref()
-                                .and_then(|value| value.line1.clone())
-                                .async_lift(|inner| types::encrypt_optional(inner, key))
-                                .await?,
-                            line2: address
-                                .address
-                                .as_ref()
-                                .and_then(|value| value.line2.clone())
-                                .async_lift(|inner| types::encrypt_optional(inner, key))
-                                .await?,
-                            line3: address
-                                .address
-                                .as_ref()
-                                .and_then(|value| value.line3.clone())
-                                .async_lift(|inner| types::encrypt_optional(inner, key))
-                                .await?,
-                            state: address
-                                .address
-                                .as_ref()
-                                .and_then(|value| value.state.clone())
-                                .async_lift(|inner| types::encrypt_optional(inner, key))
-                                .await?,
-                            zip: address
-                                .address
-                                .as_ref()
-                                .and_then(|value| value.zip.clone())
-                                .async_lift(|inner| types::encrypt_optional(inner, key))
-                                .await?,
-                            first_name: address
-                                .address
-                                .as_ref()
-                                .and_then(|value| value.first_name.clone())
-                                .async_lift(|inner| types::encrypt_optional(inner, key))
-                                .await?,
-                            last_name: address
-                                .address
-                                .as_ref()
-                                .and_then(|value| value.last_name.clone())
-                                .async_lift(|inner| types::encrypt_optional(inner, key))
-                                .await?,
-                            phone_number: address
-                                .phone
-                                .as_ref()
-                                .and_then(|value| value.number.clone())
-                                .async_lift(|inner| types::encrypt_optional(inner, key))
-                                .await?,
-                            country_code: address
-                                .phone
-                                .as_ref()
-                                .and_then(|value| value.country_code.clone()),
-                        })
-                    }
-                    .await
-                    .change_context(errors::ApiErrorResponse::InternalServerError)
-                    .attach_printable("Failed while encrypting address")?;
-                    Some(
-                        db.update_address(id.to_owned(), address_update, merchant_key_store)
-                            .await
-                            .to_not_found_response(errors::ApiErrorResponse::AddressNotFound)?,
-                    )
+    Ok(match address_id {
+        Some(id) => match req_address {
+            Some(address) => {
+                let address_update = async {
+                    Ok(storage::AddressUpdate::Update {
+                        city: address
+                            .address
+                            .as_ref()
+                            .and_then(|value| value.city.clone()),
+                        country: address.address.as_ref().and_then(|value| value.country),
+                        line1: address
+                            .address
+                            .as_ref()
+                            .and_then(|value| value.line1.clone())
+                            .async_lift(|inner| types::encrypt_optional(inner, key))
+                            .await?,
+                        line2: address
+                            .address
+                            .as_ref()
+                            .and_then(|value| value.line2.clone())
+                            .async_lift(|inner| types::encrypt_optional(inner, key))
+                            .await?,
+                        line3: address
+                            .address
+                            .as_ref()
+                            .and_then(|value| value.line3.clone())
+                            .async_lift(|inner| types::encrypt_optional(inner, key))
+                            .await?,
+                        state: address
+                            .address
+                            .as_ref()
+                            .and_then(|value| value.state.clone())
+                            .async_lift(|inner| types::encrypt_optional(inner, key))
+                            .await?,
+                        zip: address
+                            .address
+                            .as_ref()
+                            .and_then(|value| value.zip.clone())
+                            .async_lift(|inner| types::encrypt_optional(inner, key))
+                            .await?,
+                        first_name: address
+                            .address
+                            .as_ref()
+                            .and_then(|value| value.first_name.clone())
+                            .async_lift(|inner| types::encrypt_optional(inner, key))
+                            .await?,
+                        last_name: address
+                            .address
+                            .as_ref()
+                            .and_then(|value| value.last_name.clone())
+                            .async_lift(|inner| types::encrypt_optional(inner, key))
+                            .await?,
+                        phone_number: address
+                            .phone
+                            .as_ref()
+                            .and_then(|value| value.number.clone())
+                            .async_lift(|inner| types::encrypt_optional(inner, key))
+                            .await?,
+                        country_code: address
+                            .phone
+                            .as_ref()
+                            .and_then(|value| value.country_code.clone()),
+                    })
                 }
-                None => {
-                    // generate a new address here
-                    let customer_id = customer_id.get_required_value("customer_id")?;
+                .await
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Failed while encrypting address")?;
+                Some(
+                    db.update_address(id.to_owned(), address_update, merchant_key_store)
+                        .await
+                        .to_not_found_response(errors::ApiErrorResponse::AddressNotFound)?,
+                )
+            }
+            None => Some(
+                db.find_address_by_merchant_id_payment_id_address_id(
+                    merchant_id,
+                    payment_id,
+                    id,
+                    merchant_key_store,
+                    storage_scheme,
+                )
+                .await,
+            )
+            .transpose()
+            .to_not_found_response(errors::ApiErrorResponse::AddressNotFound)?,
+        },
+        None => match req_address {
+            Some(address) => {
+                // generate a new address here
+                let customer_id = customer_id.get_required_value("customer_id")?;
 
-                    let address_details = address.address.clone().unwrap_or_default();
-                    Some(
-                        db.insert_address(
-                            async {
-                                Ok(domain::Address {
-                                    phone_number: address
-                                        .phone
-                                        .as_ref()
-                                        .and_then(|a| a.number.clone())
-                                        .async_lift(|inner| types::encrypt_optional(inner, key))
-                                        .await?,
-                                    country_code: address
-                                        .phone
-                                        .as_ref()
-                                        .and_then(|a| a.country_code.clone()),
-                                    customer_id: customer_id.to_string(),
-                                    merchant_id: merchant_id.to_string(),
-                                    address_id: generate_id(consts::ID_LENGTH, "add"),
-                                    city: address_details.city,
-                                    country: address_details.country,
-                                    line1: address_details
-                                        .line1
-                                        .async_lift(|inner| types::encrypt_optional(inner, key))
-                                        .await?,
-                                    line2: address_details
-                                        .line2
-                                        .async_lift(|inner| types::encrypt_optional(inner, key))
-                                        .await?,
-                                    line3: address_details
-                                        .line3
-                                        .async_lift(|inner| types::encrypt_optional(inner, key))
-                                        .await?,
-                                    id: None,
-                                    state: address_details
-                                        .state
-                                        .async_lift(|inner| types::encrypt_optional(inner, key))
-                                        .await?,
-                                    created_at: common_utils::date_time::now(),
-                                    first_name: address_details
-                                        .first_name
-                                        .async_lift(|inner| types::encrypt_optional(inner, key))
-                                        .await?,
-                                    last_name: address_details
-                                        .last_name
-                                        .async_lift(|inner| types::encrypt_optional(inner, key))
-                                        .await?,
-                                    modified_at: common_utils::date_time::now(),
-                                    zip: address_details
-                                        .zip
-                                        .async_lift(|inner| types::encrypt_optional(inner, key))
-                                        .await?,
-                                })
-                            }
-                            .await
-                            .change_context(errors::ApiErrorResponse::InternalServerError)
-                            .attach_printable("Failed while encrypting address while insert")?,
-                            merchant_key_store,
+                let address_details = address.address.clone().unwrap_or_default();
+                Some(
+                    db.insert_address_for_payments(
+                        payment_id,
+                        get_domain_address_for_payments(
+                            address_details,
+                            address,
+                            merchant_id,
+                            customer_id,
+                            payment_id,
+                            key,
                         )
                         .await
                         .change_context(errors::ApiErrorResponse::InternalServerError)
-                        .attach_printable("Failed while inserting new address")?,
+                        .attach_printable("Failed while encrypting address while insert")?,
+                        merchant_key_store,
+                        storage_scheme,
                     )
-                }
+                    .await
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Failed while inserting new address")?,
+                )
             }
-        }
-        None => match address_id {
-            Some(id) => Some(db.find_address(id, merchant_key_store).await)
-                .transpose()
-                .to_not_found_response(errors::ApiErrorResponse::AddressNotFound)?,
             None => None,
         },
     })
+}
+
+#[instrument(skip_all)]
+#[allow(clippy::too_many_arguments)]
+pub async fn create_or_find_address_for_payment_by_request(
+    db: &dyn StorageInterface,
+    req_address: Option<&api::Address>,
+    address_id: Option<&str>,
+    merchant_id: &str,
+    customer_id: Option<&String>,
+    merchant_key_store: &domain::MerchantKeyStore,
+    payment_id: &str,
+    storage_scheme: storage_enums::MerchantStorageScheme,
+) -> CustomResult<Option<domain::Address>, errors::ApiErrorResponse> {
+    let key = merchant_key_store.key.get_inner().peek();
+
+    Ok(match address_id {
+        Some(id) => Some(
+            db.find_address_by_merchant_id_payment_id_address_id(
+                merchant_id,
+                payment_id,
+                id,
+                merchant_key_store,
+                storage_scheme,
+            )
+            .await,
+        )
+        .transpose()
+        .to_not_found_response(errors::ApiErrorResponse::AddressNotFound)?,
+        None => match req_address {
+            Some(address) => {
+                // generate a new address here
+                let customer_id = customer_id.get_required_value("customer_id")?;
+
+                let address_details = address.address.clone().unwrap_or_default();
+                Some(
+                    db.insert_address_for_payments(
+                        payment_id,
+                        get_domain_address_for_payments(
+                            address_details,
+                            address,
+                            merchant_id,
+                            customer_id,
+                            payment_id,
+                            key,
+                        )
+                        .await
+                        .change_context(errors::ApiErrorResponse::InternalServerError)
+                        .attach_printable("Failed while encrypting address while insert")?,
+                        merchant_key_store,
+                        storage_scheme,
+                    )
+                    .await
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Failed while inserting new address")?,
+                )
+            }
+            None => None,
+        },
+    })
+}
+
+pub async fn get_domain_address_for_payments(
+    address_details: api_models::payments::AddressDetails,
+    address: &api_models::payments::Address,
+    merchant_id: &str,
+    customer_id: &str,
+    payment_id: &str,
+    key: &[u8],
+) -> CustomResult<domain::Address, common_utils::errors::CryptoError> {
+    async {
+        Ok(domain::Address {
+            id: None,
+            phone_number: address
+                .phone
+                .as_ref()
+                .and_then(|a| a.number.clone())
+                .async_lift(|inner| types::encrypt_optional(inner, key))
+                .await?,
+            country_code: address.phone.as_ref().and_then(|a| a.country_code.clone()),
+            customer_id: customer_id.to_string(),
+            merchant_id: merchant_id.to_string(),
+            address_id: generate_id(consts::ID_LENGTH, "add"),
+            city: address_details.city,
+            country: address_details.country,
+            line1: address_details
+                .line1
+                .async_lift(|inner| types::encrypt_optional(inner, key))
+                .await?,
+            line2: address_details
+                .line2
+                .async_lift(|inner| types::encrypt_optional(inner, key))
+                .await?,
+            line3: address_details
+                .line3
+                .async_lift(|inner| types::encrypt_optional(inner, key))
+                .await?,
+            state: address_details
+                .state
+                .async_lift(|inner| types::encrypt_optional(inner, key))
+                .await?,
+            created_at: common_utils::date_time::now(),
+            first_name: address_details
+                .first_name
+                .async_lift(|inner| types::encrypt_optional(inner, key))
+                .await?,
+            last_name: address_details
+                .last_name
+                .async_lift(|inner| types::encrypt_optional(inner, key))
+                .await?,
+            modified_at: common_utils::date_time::now(),
+            zip: address_details
+                .zip
+                .async_lift(|inner| types::encrypt_optional(inner, key))
+                .await?,
+            payment_id: Some(payment_id.to_owned()),
+        })
+    }
+    .await
 }
 
 pub async fn get_address_by_id(
     db: &dyn StorageInterface,
     address_id: Option<String>,
     merchant_key_store: &domain::MerchantKeyStore,
+    payment_id: String,
+    merchant_id: String,
+    storage_scheme: storage_enums::MerchantStorageScheme,
 ) -> CustomResult<Option<domain::Address>, errors::ApiErrorResponse> {
     match address_id {
         None => Ok(None),
-        Some(address_id) => Ok(db.find_address(&address_id, merchant_key_store).await.ok()),
+        Some(address_id) => Ok(db
+            .find_address_by_merchant_id_payment_id_address_id(
+                &merchant_id,
+                &payment_id,
+                &address_id,
+                merchant_key_store,
+                storage_scheme,
+            )
+            .await
+            .ok()),
     }
 }
 
@@ -975,6 +1077,7 @@ pub fn validate_customer_details_in_request(
 
 /// Get the customer details from customer field if present
 /// or from the individual fields in `PaymentsRequest`
+#[instrument(skip_all)]
 pub fn get_customer_details_from_request(
     request: &api_models::payments::PaymentsRequest,
 ) -> CustomerDetails {
@@ -1079,15 +1182,18 @@ pub async fn create_customer_if_not_exist<'a, F: Clone, R>(
                                         )
                                     })
                                     .await?,
-                                phone: request_customer_details
-                                    .phone
-                                    .clone()
-                                    .async_lift(|inner| types::encrypt_optional(inner, key))
-                                    .await?,
+                                phone: Box::new(
+                                    request_customer_details
+                                        .phone
+                                        .clone()
+                                        .async_lift(|inner| types::encrypt_optional(inner, key))
+                                        .await?,
+                                ),
                                 phone_country_code: request_customer_details.phone_country_code,
                                 description: None,
                                 connector_customer: None,
                                 metadata: None,
+                                address_id: None,
                             })
                         }
                         .await
@@ -1134,6 +1240,7 @@ pub async fn create_customer_if_not_exist<'a, F: Clone, R>(
                             metadata: None,
                             modified_at: common_utils::date_time::now(),
                             connector_customer: None,
+                            address_id: None,
                         })
                     }
                     .await
@@ -1448,16 +1555,30 @@ pub(crate) fn validate_capture_method(
 }
 
 #[instrument(skip_all)]
-pub(crate) fn validate_status(status: storage_enums::IntentStatus) -> RouterResult<()> {
+pub(crate) fn validate_status_with_capture_method(
+    status: storage_enums::IntentStatus,
+    capture_method: storage_enums::CaptureMethod,
+) -> RouterResult<()> {
+    if status == storage_enums::IntentStatus::Processing
+        && !(capture_method == storage_enums::CaptureMethod::ManualMultiple)
+    {
+        return Err(report!(errors::ApiErrorResponse::PaymentUnexpectedState {
+            field_name: "capture_method".to_string(),
+            current_flow: "captured".to_string(),
+            current_value: capture_method.to_string(),
+            states: "manual_multiple".to_string()
+        }));
+    }
     utils::when(
         status != storage_enums::IntentStatus::RequiresCapture
-            && status != storage_enums::IntentStatus::PartiallyCaptured,
+            && status != storage_enums::IntentStatus::PartiallyCaptured
+            && status != storage_enums::IntentStatus::Processing,
         || {
             Err(report!(errors::ApiErrorResponse::PaymentUnexpectedState {
                 field_name: "payment.status".to_string(),
                 current_flow: "captured".to_string(),
                 current_value: status.to_string(),
-                states: "requires_capture, partially captured".to_string()
+                states: "requires_capture, partially_captured, processing".to_string()
             }))
         },
     )
@@ -1849,7 +1970,7 @@ pub fn make_merchant_url_with_response(
 }
 
 pub async fn make_ephemeral_key(
-    state: &AppState,
+    state: AppState,
     customer_id: String,
     merchant_id: String,
 ) -> errors::RouterResponse<ephemeral_key::EphemeralKey> {
@@ -1871,10 +1992,11 @@ pub async fn make_ephemeral_key(
 }
 
 pub async fn delete_ephemeral_key(
-    store: &dyn StorageInterface,
+    state: AppState,
     ek_id: String,
 ) -> errors::RouterResponse<ephemeral_key::EphemeralKey> {
-    let ek = store
+    let db = state.store.as_ref();
+    let ek = db
         .delete_ephemeral_key(&ek_id)
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -2086,6 +2208,7 @@ pub(crate) fn validate_payment_status_against_not_allowed_statuses(
     })
 }
 
+#[instrument(skip_all)]
 pub(crate) fn validate_pm_or_token_given(
     payment_method: &Option<api_enums::PaymentMethod>,
     payment_method_data: &Option<api::PaymentMethodData>,
@@ -2364,6 +2487,7 @@ mod tests {
 }
 
 // This function will be removed after moving this functionality to server_wrap and using cache instead of config
+#[instrument(skip_all)]
 pub async fn insert_merchant_connector_creds_to_config(
     db: &dyn StorageInterface,
     merchant_id: &str,
@@ -2436,6 +2560,7 @@ impl MerchantConnectorAccountType {
 
 /// Query for merchant connector account either by business label or profile id
 /// If profile_id is passed use it, or use connector_label to query merchant connector account
+#[instrument(skip_all)]
 pub async fn get_merchant_connector_account(
     state: &AppState,
     merchant_id: &str,
@@ -2548,9 +2673,11 @@ pub fn router_data_type_conversion<F1, F2, Req1, Req2, Res1, Res2>(
         test_mode: router_data.test_mode,
         connector_api_version: router_data.connector_api_version,
         connector_http_status_code: router_data.connector_http_status_code,
+        apple_pay_flow: router_data.apple_pay_flow,
     }
 }
 
+#[instrument(skip_all)]
 pub fn get_attempt_type(
     payment_intent: &PaymentIntent,
     payment_attempt: &PaymentAttempt,
@@ -2737,9 +2864,11 @@ impl AttemptType {
             multiple_capture_count: None,
             connector_response_reference_id: None,
             amount_capturable: old_payment_attempt.amount,
+            surcharge_metadata: old_payment_attempt.surcharge_metadata,
         }
     }
 
+    #[instrument(skip_all)]
     pub async fn modify_payment_intent_and_payment_attempt(
         &self,
         request: &api::PaymentsRequest,
@@ -2793,6 +2922,7 @@ impl AttemptType {
         }
     }
 
+    #[instrument(skip_all)]
     pub async fn get_or_insert_connector_response(
         &self,
         payment_attempt: &PaymentAttempt,
@@ -2821,6 +2951,7 @@ impl AttemptType {
         }
     }
 
+    #[instrument(skip_all)]
     pub async fn get_connector_response(
         &self,
         db: &dyn StorageInterface,
@@ -2927,6 +3058,7 @@ mod test {
     }
 }
 
+#[instrument(skip_all)]
 pub async fn get_additional_payment_data(
     pm_data: &api_models::payments::PaymentMethodData,
     db: &dyn StorageInterface,

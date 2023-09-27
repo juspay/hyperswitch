@@ -1,5 +1,6 @@
 pub mod admin;
 pub mod api_keys;
+pub mod api_locking;
 pub mod cache;
 pub mod cards_info;
 pub mod configs;
@@ -15,4 +16,6 @@ pub mod payments;
 pub mod payouts;
 pub mod refunds;
 pub mod utils;
+#[cfg(all(feature = "olap", feature = "kms"))]
+pub mod verification;
 pub mod webhooks;

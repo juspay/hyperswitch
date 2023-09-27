@@ -629,13 +629,9 @@ mod storage {
                 }
                 enums::MerchantStorageScheme::RedisKv => {
                     let key = format!("{merchant_id}_{payment_id}");
-                    let lookup = self.get_lookup_by_lookup_id(&key).await?;
-
-                    let pattern = db_utils::generate_hscan_pattern_for_refund(&lookup.sk_id);
-
                     self.get_redis_conn()
                         .map_err(Into::<errors::StorageError>::into)?
-                        .hscan_and_deserialize(&key, &pattern, None)
+                        .hscan_and_deserialize(&key, "pa_*_ref_*", None)
                         .await
                         .change_context(errors::StorageError::KVError)
                 }

@@ -2,7 +2,7 @@ use api_models::errors::types::Extra;
 use common_utils::errors::ErrorSwitch;
 use http::StatusCode;
 
-use super::{ApiErrorResponse, ConnectorError};
+use super::{ApiErrorResponse, ConnectorError, CustomersErrorResponse, StorageError};
 
 impl ErrorSwitch<api_models::errors::types::ApiErrorResponse> for ApiErrorResponse {
     fn switch(&self) -> api_models::errors::types::ApiErrorResponse {
@@ -135,7 +135,7 @@ impl ErrorSwitch<api_models::errors::types::ApiErrorResponse> for ApiErrorRespon
             }
             Self::DuplicatePaymentMethod => AER::BadRequest(ApiError::new("HE", 1, "The payment method with the specified details already exists in our records", None)),
             Self::DuplicatePayment { payment_id } => {
-                AER::BadRequest(ApiError::new("HE", 1, format!("The payment with the specified payment_id '{payment_id}' already exists in our records"), None))
+                AER::BadRequest(ApiError::new("HE", 1, "The payment with the specified payment_id already exists in our records", Some(Extra {reason: Some(format!("{payment_id} already exists")), ..Default::default()})))
             }
             Self::DuplicatePayout { payout_id } => {
                 AER::BadRequest(ApiError::new("HE", 1, format!("The payout with the specified payout_id '{payout_id}' already exists in our records"), None))
@@ -164,8 +164,8 @@ impl ErrorSwitch<api_models::errors::types::ApiErrorResponse> for ApiErrorRespon
             Self::MerchantAccountNotFound => {
                 AER::NotFound(ApiError::new("HE", 2, "Merchant account does not exist in our records", None))
             }
-            Self::MerchantConnectorAccountNotFound { id } => {
-                AER::NotFound(ApiError::new("HE", 2, format!("Merchant connector account with id '{id}' does not exist in our records"), None))
+            Self::MerchantConnectorAccountNotFound {id } => {
+                AER::NotFound(ApiError::new("HE", 2, "Merchant connector account does not exist in our records", Some(Extra {reason: Some(format!("{id} does not exist")), ..Default::default()})))
             }
             Self::MerchantConnectorAccountDisabled => {
                 AER::BadRequest(ApiError::new("HE", 3, "The selected merchant connector account is disabled", None))
@@ -257,6 +257,9 @@ impl ErrorSwitch<api_models::errors::types::ApiErrorResponse> for ApiErrorRespon
             }
             Self::WebhookUnprocessableEntity => {
                 AER::Unprocessable(ApiError::new("WE", 5, "There was an issue processing the webhook body", None))
+            },
+            Self::ResourceBusy => {
+                AER::Unprocessable(ApiError::new("WE", 5, "There was an issue processing the webhook body", None))
             }
         }
     }
@@ -273,6 +276,64 @@ impl ErrorSwitch<ApiErrorResponse> for ConnectorError {
             | Self::WebhooksNotImplemented => ApiErrorResponse::WebhookBadRequest,
             Self::WebhookEventTypeNotFound => ApiErrorResponse::WebhookUnprocessableEntity,
             _ => ApiErrorResponse::InternalServerError,
+        }
+    }
+}
+
+impl ErrorSwitch<api_models::errors::types::ApiErrorResponse> for CustomersErrorResponse {
+    fn switch(&self) -> api_models::errors::types::ApiErrorResponse {
+        use api_models::errors::types::{ApiError, ApiErrorResponse as AER};
+        match self {
+            Self::CustomerRedacted => AER::BadRequest(ApiError::new(
+                "IR",
+                11,
+                "Customer has already been redacted",
+                None,
+            )),
+            Self::InternalServerError => {
+                AER::InternalServerError(ApiError::new("HE", 0, "Something went wrong", None))
+            }
+            Self::MandateActive => AER::BadRequest(ApiError::new(
+                "IR",
+                10,
+                "Customer has active mandate/subsciption",
+                None,
+            )),
+            Self::CustomerNotFound => AER::NotFound(ApiError::new(
+                "HE",
+                2,
+                "Customer does not exist in our records",
+                None,
+            )),
+        }
+    }
+}
+
+impl ErrorSwitch<CustomersErrorResponse> for StorageError {
+    fn switch(&self) -> CustomersErrorResponse {
+        use CustomersErrorResponse as CER;
+        match self {
+            err if err.is_db_not_found() => CER::CustomerNotFound,
+            Self::CustomerRedacted => CER::CustomerRedacted,
+            _ => CER::InternalServerError,
+        }
+    }
+}
+
+impl ErrorSwitch<CustomersErrorResponse> for common_utils::errors::CryptoError {
+    fn switch(&self) -> CustomersErrorResponse {
+        CustomersErrorResponse::InternalServerError
+    }
+}
+
+impl ErrorSwitch<CustomersErrorResponse> for ApiErrorResponse {
+    fn switch(&self) -> CustomersErrorResponse {
+        use CustomersErrorResponse as CER;
+        match self {
+            Self::InternalServerError => CER::InternalServerError,
+            Self::MandateActive => CER::MandateActive,
+            Self::CustomerNotFound => CER::CustomerNotFound,
+            _ => CER::InternalServerError,
         }
     }
 }

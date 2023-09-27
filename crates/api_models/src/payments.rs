@@ -753,6 +753,9 @@ pub enum BankDebitData {
         /// Bank-State-Branch (bsb) number
         #[schema(value_type = String, example = "000000")]
         bsb_number: Secret<String>,
+        /// Owner name for bank debit
+        #[schema(value_type = Option<String>, example = "A. Schneider")]
+        bank_account_holder_name: Option<Secret<String>>,
     },
     BacsBankDebit {
         /// Billing details for bank debit
@@ -1509,7 +1512,8 @@ pub struct PhoneDetails {
 #[derive(Debug, Clone, Default, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema)]
 pub struct PaymentsCaptureRequest {
     /// The unique identifier for the payment
-    pub payment_id: Option<String>,
+    #[serde(skip_deserializing)]
+    pub payment_id: String,
     /// The unique identifier for the merchant
     pub merchant_id: Option<String>,
     /// The Amount to be captured/ debited from the user's payment method.
@@ -2328,7 +2332,10 @@ pub struct GpayTransactionInfo {
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
 pub struct GpayMerchantInfo {
-    /// The name of the merchant
+    /// The merchant Identifier that needs to be passed while invoking Gpay SDK
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub merchant_id: Option<String>,
+    /// The name of the merchant that needs to be displayed on Gpay PopUp
     pub merchant_name: String,
 }
 

@@ -31,6 +31,7 @@ use crate::{
 pub struct PaymentConfirm;
 #[async_trait]
 impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for PaymentConfirm {
+    #[instrument(skip_all)]
     async fn get_trackers<'a>(
         &'a self,
         state: &'a AppState,
@@ -103,7 +104,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
             )
             .map(|x| x.to_not_found_response(errors::ApiErrorResponse::PaymentNotFound));
 
-        let shipping_address_fut = helpers::get_address_for_payment_request(
+        let shipping_address_fut = helpers::create_or_find_address_for_payment_by_request(
             db,
             request.shipping.as_ref(),
             payment_intent.shipping_address_id.as_deref(),
@@ -113,9 +114,11 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
                 .as_ref()
                 .or(customer_details.customer_id.as_ref()),
             key_store,
+            &payment_intent.payment_id,
+            merchant_account.storage_scheme,
         );
 
-        let billing_address_fut = helpers::get_address_for_payment_request(
+        let billing_address_fut = helpers::create_or_find_address_for_payment_by_request(
             db,
             request.billing.as_ref(),
             payment_intent.billing_address_id.as_deref(),
@@ -125,6 +128,8 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
                 .as_ref()
                 .or(customer_details.customer_id.as_ref()),
             key_store,
+            &payment_intent.payment_id,
+            merchant_account.storage_scheme,
         );
 
         let config_update_fut = request
@@ -429,6 +434,7 @@ impl<F: Clone + Send> Domain<F, api::PaymentsRequest> for PaymentConfirm {
 
 #[async_trait]
 impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for PaymentConfirm {
+    #[instrument(skip_all)]
     async fn update_trackers<'b>(
         &'b self,
         db: &dyn StorageInterface,

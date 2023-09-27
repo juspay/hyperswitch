@@ -69,6 +69,16 @@ impl PaymentAttemptExt for PaymentAttempt {
     }
 }
 
+pub trait AttemptStatusExt {
+    fn maps_to_intent_status(self, intent_status: enums::IntentStatus) -> bool;
+}
+
+impl AttemptStatusExt for enums::AttemptStatus {
+    fn maps_to_intent_status(self, intent_status: enums::IntentStatus) -> bool {
+        enums::IntentStatus::foreign_from(self) == intent_status
+    }
+}
+
 #[cfg(test)]
 #[cfg(feature = "dummy_connector")]
 mod tests {
