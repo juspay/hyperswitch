@@ -43,7 +43,7 @@ pub struct NoonSubscriptionData {
 #[serde(rename_all = "camelCase")]
 pub struct NoonBillingAddress {
     street: Option<Secret<String>>,
-    street_2: Option<Secret<String>>,
+    street2: Option<Secret<String>>,
     city: Option<String>,
     state_province: Option<Secret<String>>,
     country: Option<api_models::enums::CountryAlpha2>,
@@ -291,7 +291,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for NoonPaymentsRequest {
             .map(|address| NoonBilling {
                 address: NoonBillingAddress {
                     street: address.line1,
-                    street_2: address.line2,
+                    street2: address.line2,
                     city: address.city,
                     // If state is passed in request, country becomes mandatory, keep a check while debugging failed payments
                     state_province: address.state,
