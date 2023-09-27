@@ -985,7 +985,7 @@ pub struct BluesnapWebhookObjectResource {
     reversal_ref_num: Option<String>,
 }
 
-impl TryFrom<BluesnapWebhookObjectResource> for BluesnapPaymentsResponse {
+impl TryFrom<BluesnapWebhookObjectResource> for serde_json::Value {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(details: BluesnapWebhookObjectResource) -> Result<Self, Self::Error> {
         let (card_transaction_type, processing_status, transaction_id) = match details
@@ -1003,7 +1003,9 @@ impl TryFrom<BluesnapWebhookObjectResource> for BluesnapPaymentsResponse {
             )),
             BluesnapWebhookEvents::Chargeback | BluesnapWebhookEvents::ChargebackStatusChanged => {
                 //It won't be consumed in dispute flow, so currently does not hold any significance
-                Err(errors::ConnectorError::WebhookResourceObjectNotFound).into_report()
+                return serde_json::to_value(details)
+                    .into_report()
+                    .change_context(errors::ConnectorError::WebhookBodyDecodingFailed);
             }
             BluesnapWebhookEvents::Refund => Ok((
                 BluesnapTxnType::Refund,
@@ -1016,7 +1018,7 @@ impl TryFrom<BluesnapWebhookObjectResource> for BluesnapPaymentsResponse {
                 Err(errors::ConnectorError::WebhookResourceObjectNotFound).into_report()
             }
         }?;
-        Ok(Self {
+        let sync_struct = BluesnapPaymentsResponse {
             processing_info: ProcessingInfoResponse {
                 processing_status,
                 authorization_code: None,
@@ -1024,7 +1026,10 @@ impl TryFrom<BluesnapWebhookObjectResource> for BluesnapPaymentsResponse {
             },
             transaction_id,
             card_transaction_type,
-        })
+        };
+        serde_json::to_value(sync_struct)
+            .into_report()
+            .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)
     }
 }
 
