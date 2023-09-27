@@ -44,6 +44,17 @@ impl<T>
     }
 }
 
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct HelcimVerifyRequest {
+    currency: enums::Currency,
+    ip_address: Secret<String, IpAddress>,
+    card_data: HelcimCard,
+    billing_address: HelcimBillingAddress,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    ecommerce: Option<bool>,
+}
+
 //TODO: Fill the struct with respective fields
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -77,6 +88,51 @@ pub struct HelcimCard {
     card_number: cards::CardNumber,
     card_expiry: Secret<String>,
     card_c_v_v: Secret<String>,
+}
+
+impl TryFrom<&types::VerifyRouterData> for HelcimVerifyRequest {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(item: &types::VerifyRouterData) -> Result<Self, Self::Error> {
+        match item.request.payment_method_data.clone() {
+            api::PaymentMethodData::Card(req_card) => {
+                let card_data = HelcimCard {
+                    card_expiry: req_card
+                        .get_card_expiry_month_year_2_digit_with_delimiter("".to_string()),
+                    card_number: req_card.card_number,
+                    card_c_v_v: req_card.card_cvc,
+                };
+                let req_address = item
+                    .get_billing()?
+                    .to_owned()
+                    .address
+                    .ok_or_else(utils::missing_field_err("billing.address"))?;
+
+                let billing_address = HelcimBillingAddress {
+                    name: req_address.get_full_name()?,
+                    street1: req_address.get_line1()?.to_owned(),
+                    postal_code: req_address.get_zip()?.to_owned(),
+                    street2: req_address.line2,
+                    city: req_address.city,
+                    email: item.request.email.clone(),
+                };
+                let ip_address = item
+                    .request
+                    .browser_info
+                    .clone()
+                    .ok_or_else(utils::missing_field_err("browser_info"))?
+                    .get_ip_address()?;
+
+                Ok(Self {
+                    currency: item.request.currency,
+                    ip_address,
+                    card_data,
+                    billing_address,
+                    ecommerce: None,
+                })
+            }
+            _ => Err(errors::ConnectorError::NotImplemented("Payment methods".to_string()).into()),
+        }
+    }
 }
 
 impl TryFrom<&HelcimRouterData<&types::PaymentsAuthorizeRouterData>> for HelcimPaymentsRequest {
@@ -166,7 +222,7 @@ pub enum HelcimTransactionType {
 impl From<HelcimPaymentsResponse> for enums::AttemptStatus {
     fn from(item: HelcimPaymentsResponse) -> Self {
         match item.transaction_type {
-            HelcimTransactionType::Purchase => match item.status {
+            HelcimTransactionType::Purchase | HelcimTransactionType::Verify => match item.status {
                 HelcimPaymentStatus::Approved => Self::Charged,
                 HelcimPaymentStatus::Declined => Self::Failure,
             },
@@ -175,12 +231,8 @@ impl From<HelcimPaymentsResponse> for enums::AttemptStatus {
                 HelcimPaymentStatus::Declined => Self::AuthorizationFailed,
             },
             HelcimTransactionType::Capture => match item.status {
-                HelcimPaymentStatus::Approved => Self::Charged, //Is this the correct status PartialCharged
+                HelcimPaymentStatus::Approved => Self::Charged,
                 HelcimPaymentStatus::Declined => Self::CaptureFailed,
-            },
-            HelcimTransactionType::Verify => match item.status {
-                HelcimPaymentStatus::Approved => Self::AuthenticationSuccessful,
-                HelcimPaymentStatus::Declined => Self::AuthenticationFailed,
             },
             HelcimTransactionType::Reverse => match item.status {
                 HelcimPaymentStatus::Approved => Self::Voided,
@@ -198,6 +250,42 @@ pub struct HelcimPaymentsResponse {
     transaction_id: u64,
     #[serde(rename = "type")]
     transaction_type: HelcimTransactionType,
+}
+
+impl<F>
+    TryFrom<
+        types::ResponseRouterData<
+            F,
+            HelcimPaymentsResponse,
+            types::VerifyRequestData,
+            types::PaymentsResponseData,
+        >,
+    > for types::RouterData<F, types::VerifyRequestData, types::PaymentsResponseData>
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        item: types::ResponseRouterData<
+            F,
+            HelcimPaymentsResponse,
+            types::VerifyRequestData,
+            types::PaymentsResponseData,
+        >,
+    ) -> Result<Self, Self::Error> {
+        Ok(Self {
+            response: Ok(types::PaymentsResponseData::TransactionResponse {
+                resource_id: types::ResponseId::ConnectorTransactionId(
+                    item.response.transaction_id.to_string(),
+                ),
+                redirection_data: None,
+                mandate_reference: None,
+                connector_metadata: None,
+                network_txn_id: None,
+                connector_response_reference_id: None,
+            }),
+            status: enums::AttemptStatus::from(item.response),
+            ..item.data
+        })
+    }
 }
 
 impl<F>

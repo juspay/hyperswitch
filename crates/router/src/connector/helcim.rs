@@ -156,6 +156,72 @@ impl ConnectorIntegration<api::AccessTokenAuth, types::AccessTokenRequestData, t
 impl ConnectorIntegration<api::Verify, types::VerifyRequestData, types::PaymentsResponseData>
     for Helcim
 {
+    fn get_headers(
+        &self,
+        req: &types::VerifyRouterData,
+        connectors: &settings::Connectors,
+    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
+        self.build_headers(req, connectors)
+    }
+
+    fn get_url(
+        &self,
+        _req: &types::VerifyRouterData,
+        connectors: &settings::Connectors,
+    ) -> CustomResult<String, errors::ConnectorError> {
+        Ok(format!("{}v2/payment/verify", self.base_url(connectors)))
+    }
+    fn get_request_body(
+        &self,
+        req: &types::VerifyRouterData,
+    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
+        let connector_req = helcim::HelcimVerifyRequest::try_from(req)?;
+
+        let helcim_req = types::RequestBody::log_and_get_request_body(
+            &connector_req,
+            utils::Encode::<helcim::HelcimVerifyRequest>::encode_to_string_of_json,
+        )
+        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        Ok(Some(helcim_req))
+    }
+    fn build_request(
+        &self,
+        req: &types::VerifyRouterData,
+        connectors: &settings::Connectors,
+    ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
+        Ok(Some(
+            services::RequestBuilder::new()
+                .method(services::Method::Post)
+                .url(&types::PaymentsVerifyType::get_url(self, req, connectors)?)
+                .attach_default_headers()
+                .headers(types::PaymentsVerifyType::get_headers(
+                    self, req, connectors,
+                )?)
+                .body(types::PaymentsVerifyType::get_request_body(self, req)?)
+                .build(),
+        ))
+    }
+    fn handle_response(
+        &self,
+        data: &types::VerifyRouterData,
+        res: Response,
+    ) -> CustomResult<types::VerifyRouterData, errors::ConnectorError> {
+        let response: helcim::HelcimPaymentsResponse = res
+            .response
+            .parse_struct("Helcim PaymentsAuthorizeResponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        types::RouterData::try_from(types::ResponseRouterData {
+            response,
+            data: data.clone(),
+            http_code: res.status_code,
+        })
+    }
+    fn get_error_response(
+        &self,
+        res: Response,
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        self.build_error_response(res)
+    }
 }
 
 impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::PaymentsResponseData>
