@@ -868,7 +868,7 @@ pub enum BankRedirectData {
     Bizum {},
     Blik {
         // Blik Code
-        blik_code: String,
+        blik_code: Option<String>,
     },
     Eps {
         /// The billing details for bank redirection

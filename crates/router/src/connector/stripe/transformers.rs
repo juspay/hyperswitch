@@ -1582,7 +1582,7 @@ impl TryFrom<&payments::BankRedirectData> for StripePaymentMethodData {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(bank_redirect_data: &payments::BankRedirectData) -> Result<Self, Self::Error> {
         let payment_method_data_type = StripePaymentMethodType::try_from(bank_redirect_data)?;
-        match bank_redirect_data.deref() {
+        match bank_redirect_data {
             payments::BankRedirectData::BancontactCard { .. } => Ok(Self::BankRedirect(
                 StripeBankRedirectData::StripeBancontactCard(Box::new(StripeBancontactCard {
                     payment_method_data_type,
@@ -1591,7 +1591,9 @@ impl TryFrom<&payments::BankRedirectData> for StripePaymentMethodData {
             payments::BankRedirectData::Blik { blik_code } => Ok(Self::BankRedirect(
                 StripeBankRedirectData::StripeBlik(Box::new(StripeBlik {
                     payment_method_data_type,
-                    code: blik_code.to_owned(),
+                    code: blik_code.clone().ok_or(errors::ConnectorError::MissingRequiredField {
+                        field_name: "blik_code",
+                    })?,
                 })),
             )),
             payments::BankRedirectData::Eps { bank_name, .. } => Ok(Self::BankRedirect(

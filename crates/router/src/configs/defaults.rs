@@ -3840,6 +3840,57 @@ impl Default for super::settings::RequiredFields {
                                 ]),
                         },
                     ),
+                    (
+                        enums::PaymentMethodType::Blik,
+                        ConnectorFields {
+                            fields: HashMap::from([
+                                (
+                                    enums::Connector::Adyen,
+                                    RequiredFieldFinal {
+                                        mandate: HashMap::new(),
+                                        non_mandate: HashMap::new(),
+                                        common: HashMap::from([
+                                            (
+                                                "payment_method_data.bank_redirect.blik.blik_code".to_string(),
+                                                RequiredFieldInfo {
+                                                    required_field: "payment_method_data.bank_redirect.blik.blik_code".to_string(),
+                                                    display_name: "blik_code".to_string(),
+                                                    field_type: enums::FieldType::UserBlikCode,
+                                                    value: None,
+                                                }
+                                            )
+                                        ]),
+                                    }
+                                ),
+                                (
+                                    enums::Connector::Stripe,
+                                    RequiredFieldFinal {
+                                        mandate: HashMap::new(),
+                                        non_mandate: HashMap::new(),
+                                        common: HashMap::from([
+                                            (
+                                                "payment_method_data.bank_redirect.blik.blik_code".to_string(),
+                                                RequiredFieldInfo {
+                                                    required_field: "payment_method_data.bank_redirect.blik.blik_code".to_string(),
+                                                    display_name: "blik_code".to_string(),
+                                                    field_type: enums::FieldType::UserBlikCode,
+                                                    value: None,
+                                                }
+                                            )
+                                        ]),
+                                    }
+                                ),
+                                // (
+                                //     enums::Connector::Trustpay,
+                                //     RequiredFieldFinal {
+                                //         mandate: HashMap::new(),
+                                //         non_mandate: HashMap::new(),
+                                //         common: HashMap::new(),
+                                //     }
+                                // )
+                                ]),
+                        },
+                    ),
                 ])),
             ),
             (
