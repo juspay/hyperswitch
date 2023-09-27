@@ -105,6 +105,139 @@ pub fn filter_mca_based_on_business_profile(
 
 #[instrument(skip_all)]
 #[allow(clippy::too_many_arguments)]
+pub async fn create_or_update_address_for_payment_by_request(
+    db: &dyn StorageInterface,
+    req_address: Option<&api::Address>,
+    address_id: Option<&str>,
+    merchant_id: &str,
+    customer_id: Option<&String>,
+    merchant_key_store: &domain::MerchantKeyStore,
+    payment_id: &str,
+    storage_scheme: storage_enums::MerchantStorageScheme,
+) -> CustomResult<Option<domain::Address>, errors::ApiErrorResponse> {
+    let key = merchant_key_store.key.get_inner().peek();
+
+    Ok(match address_id {
+        Some(id) => match req_address {
+            Some(address) => {
+                let address_update = async {
+                    Ok(storage::AddressUpdate::Update {
+                        city: address
+                            .address
+                            .as_ref()
+                            .and_then(|value| value.city.clone()),
+                        country: address.address.as_ref().and_then(|value| value.country),
+                        line1: address
+                            .address
+                            .as_ref()
+                            .and_then(|value| value.line1.clone())
+                            .async_lift(|inner| types::encrypt_optional(inner, key))
+                            .await?,
+                        line2: address
+                            .address
+                            .as_ref()
+                            .and_then(|value| value.line2.clone())
+                            .async_lift(|inner| types::encrypt_optional(inner, key))
+                            .await?,
+                        line3: address
+                            .address
+                            .as_ref()
+                            .and_then(|value| value.line3.clone())
+                            .async_lift(|inner| types::encrypt_optional(inner, key))
+                            .await?,
+                        state: address
+                            .address
+                            .as_ref()
+                            .and_then(|value| value.state.clone())
+                            .async_lift(|inner| types::encrypt_optional(inner, key))
+                            .await?,
+                        zip: address
+                            .address
+                            .as_ref()
+                            .and_then(|value| value.zip.clone())
+                            .async_lift(|inner| types::encrypt_optional(inner, key))
+                            .await?,
+                        first_name: address
+                            .address
+                            .as_ref()
+                            .and_then(|value| value.first_name.clone())
+                            .async_lift(|inner| types::encrypt_optional(inner, key))
+                            .await?,
+                        last_name: address
+                            .address
+                            .as_ref()
+                            .and_then(|value| value.last_name.clone())
+                            .async_lift(|inner| types::encrypt_optional(inner, key))
+                            .await?,
+                        phone_number: address
+                            .phone
+                            .as_ref()
+                            .and_then(|value| value.number.clone())
+                            .async_lift(|inner| types::encrypt_optional(inner, key))
+                            .await?,
+                        country_code: address
+                            .phone
+                            .as_ref()
+                            .and_then(|value| value.country_code.clone()),
+                    })
+                }
+                .await
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Failed while encrypting address")?;
+                Some(
+                    db.update_address(id.to_owned(), address_update, merchant_key_store)
+                        .await
+                        .to_not_found_response(errors::ApiErrorResponse::AddressNotFound)?,
+                )
+            }
+            None => Some(
+                db.find_address_by_merchant_id_payment_id_address_id(
+                    merchant_id,
+                    payment_id,
+                    id,
+                    merchant_key_store,
+                    storage_scheme,
+                )
+                .await,
+            )
+            .transpose()
+            .to_not_found_response(errors::ApiErrorResponse::AddressNotFound)?,
+        },
+        None => match req_address {
+            Some(address) => {
+                // generate a new address here
+                let customer_id = customer_id.get_required_value("customer_id")?;
+
+                let address_details = address.address.clone().unwrap_or_default();
+                Some(
+                    db.insert_address_for_payments(
+                        payment_id,
+                        get_domain_address_for_payments(
+                            address_details,
+                            address,
+                            merchant_id,
+                            customer_id,
+                            payment_id,
+                            key,
+                        )
+                        .await
+                        .change_context(errors::ApiErrorResponse::InternalServerError)
+                        .attach_printable("Failed while encrypting address while insert")?,
+                        merchant_key_store,
+                        storage_scheme,
+                    )
+                    .await
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Failed while inserting new address")?,
+                )
+            }
+            None => None,
+        },
+    })
+}
+
+#[instrument(skip_all)]
+#[allow(clippy::too_many_arguments)]
 pub async fn create_or_find_address_for_payment_by_request(
     db: &dyn StorageInterface,
     req_address: Option<&api::Address>,
@@ -2731,6 +2864,7 @@ impl AttemptType {
             multiple_capture_count: None,
             connector_response_reference_id: None,
             amount_capturable: old_payment_attempt.amount,
+            surcharge_metadata: old_payment_attempt.surcharge_metadata,
         }
     }
 
