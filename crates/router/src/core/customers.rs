@@ -40,7 +40,7 @@ pub async fn create_customer(
     customer_data.merchant_id = merchant_id.to_owned();
 
     let key = key_store.key.get_inner().peek();
-    let address_id = if let Some(addr) = &customer_data.address {
+    let address = if let Some(addr) = &customer_data.address {
         let customer_address: api_models::payments::AddressDetails = addr.clone();
 
         let address = customer_data
@@ -53,8 +53,7 @@ pub async fn create_customer(
             db.insert_address_for_customers(address, &key_store)
                 .await
                 .switch()
-                .attach_printable("Failed while inserting new address")?
-                .address_id,
+                .attach_printable("Failed while inserting new address")?,
         )
     } else {
         None
@@ -81,7 +80,7 @@ pub async fn create_customer(
             metadata: customer_data.metadata,
             id: None,
             connector_customer: None,
-            address_id,
+            address_id: address.clone().map(|addr| addr.address_id),
             created_at: common_utils::date_time::now(),
             modified_at: common_utils::date_time::now(),
         })
@@ -107,10 +106,12 @@ pub async fn create_customer(
             }
         }
     };
-    let mut customer_response: customers::CustomerResponse = customer.into();
-    customer_response.address = customer_data.address;
 
-    Ok(services::ApplicationResponse::Json(customer_response))
+    let address_details = address.map(api_models::payments::AddressDetails::from);
+
+    Ok(services::ApplicationResponse::Json(
+        customers::CustomerResponse::from((customer, address_details)),
+    ))
 }
 
 #[instrument(skip(state))]
@@ -129,8 +130,17 @@ pub async fn retrieve_customer(
         )
         .await
         .switch()?;
-
-    Ok(services::ApplicationResponse::Json(response.into()))
+    let address = match &response.address_id {
+        Some(address_id) => Some(api_models::payments::AddressDetails::from(
+            db.find_address_by_address_id(address_id, &key_store)
+                .await
+                .switch()?,
+        )),
+        None => None,
+    };
+    Ok(services::ApplicationResponse::Json(
+        customers::CustomerResponse::from((response, address)),
+    ))
 }
 
 #[instrument(skip_all)]
@@ -294,7 +304,7 @@ pub async fn update_customer(
 
     let key = key_store.key.get_inner().peek();
 
-    let address_id = if let Some(addr) = &update_customer.address {
+    let address = if let Some(addr) = &update_customer.address {
         match customer.address_id {
             Some(address_id) => {
                 let customer_address: api_models::payments::AddressDetails = addr.clone();
@@ -303,14 +313,15 @@ pub async fn update_customer(
                     .await
                     .switch()
                     .attach_printable("Failed while encrypting Address while Update")?;
-                db.update_address(address_id.clone(), update_address, &key_store)
-                    .await
-                    .switch()
-                    .attach_printable(format!(
-                        "Failed while updating address: merchant_id: {}, customer_id: {}",
-                        merchant_account.merchant_id, update_customer.customer_id
-                    ))?;
-                Some(address_id)
+                Some(
+                    db.update_address(address_id.clone(), update_address, &key_store)
+                        .await
+                        .switch()
+                        .attach_printable(format!(
+                            "Failed while updating address: merchant_id: {}, customer_id: {}",
+                            merchant_account.merchant_id, update_customer.customer_id
+                        ))?,
+                )
             }
             None => {
                 let customer_address: api_models::payments::AddressDetails = addr.clone();
@@ -329,13 +340,19 @@ pub async fn update_customer(
                     db.insert_address_for_customers(address, &key_store)
                         .await
                         .switch()
-                        .attach_printable("Failed while inserting new address")?
-                        .address_id,
+                        .attach_printable("Failed while inserting new address")?,
                 )
             }
         }
     } else {
-        None
+        match &customer.address_id {
+            Some(address_id) => Some(
+                db.find_address_by_address_id(address_id, &key_store)
+                    .await
+                    .switch()?,
+            ),
+            None => None,
+        }
     };
 
     let response = db
@@ -364,7 +381,7 @@ pub async fn update_customer(
                     metadata: update_customer.metadata,
                     description: update_customer.description,
                     connector_customer: None,
-                    address_id,
+                    address_id: address.clone().map(|addr| addr.address_id),
                 })
             }
             .await
@@ -375,9 +392,7 @@ pub async fn update_customer(
         .await
         .switch()?;
 
-    let mut customer_update_response: customers::CustomerResponse = response.into();
-    customer_update_response.address = update_customer.address;
     Ok(services::ApplicationResponse::Json(
-        customer_update_response,
+        customers::CustomerResponse::from((response, update_customer.address)),
     ))
 }
