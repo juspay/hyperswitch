@@ -391,30 +391,30 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
 }
 
 pub enum PaymentIntentFetchConstraints {
-    Single {
-        payment_intent_id: String,
-    },
-    List {
-        offset: u32,
-        starting_at: Option<PrimitiveDateTime>,
-        ending_at: Option<PrimitiveDateTime>,
-        connector: Option<Vec<api_models::enums::Connector>>,
-        currency: Option<Vec<storage_enums::Currency>>,
-        status: Option<Vec<storage_enums::IntentStatus>>,
-        payment_method: Option<Vec<storage_enums::PaymentMethod>>,
-        payment_method_type: Option<Vec<storage_enums::PaymentMethodType>>,
-        authentication_type: Option<Vec<storage_enums::AuthenticationType>>,
-        profile_id: Option<String>,
-        customer_id: Option<String>,
-        starting_after_id: Option<String>,
-        ending_before_id: Option<String>,
-        limit: Option<u32>,
-    },
+    Single { payment_intent_id: String },
+    List(Box<PaymentIntentListParams>),
+}
+
+pub struct PaymentIntentListParams {
+    pub offset: u32,
+    pub starting_at: Option<PrimitiveDateTime>,
+    pub ending_at: Option<PrimitiveDateTime>,
+    pub connector: Option<Vec<api_models::enums::Connector>>,
+    pub currency: Option<Vec<storage_enums::Currency>>,
+    pub status: Option<Vec<storage_enums::IntentStatus>>,
+    pub payment_method: Option<Vec<storage_enums::PaymentMethod>>,
+    pub payment_method_type: Option<Vec<storage_enums::PaymentMethodType>>,
+    pub authentication_type: Option<Vec<storage_enums::AuthenticationType>>,
+    pub profile_id: Option<String>,
+    pub customer_id: Option<String>,
+    pub starting_after_id: Option<String>,
+    pub ending_before_id: Option<String>,
+    pub limit: Option<u32>,
 }
 
 impl From<api_models::payments::PaymentListConstraints> for PaymentIntentFetchConstraints {
     fn from(value: api_models::payments::PaymentListConstraints) -> Self {
-        Self::List {
+        Self::List(Box::new(PaymentIntentListParams {
             offset: 0,
             starting_at: value.created_gte.or(value.created_gt).or(value.created),
             ending_at: value.created_lte.or(value.created_lt).or(value.created),
@@ -429,13 +429,13 @@ impl From<api_models::payments::PaymentListConstraints> for PaymentIntentFetchCo
             starting_after_id: value.starting_after,
             ending_before_id: value.ending_before,
             limit: Some(std::cmp::min(value.limit, PAYMENTS_LIST_MAX_LIMIT_V1)),
-        }
+        }))
     }
 }
 
 impl From<api_models::payments::TimeRange> for PaymentIntentFetchConstraints {
     fn from(value: api_models::payments::TimeRange) -> Self {
-        Self::List {
+        Self::List(Box::new(PaymentIntentListParams {
             offset: 0,
             starting_at: Some(value.start_time),
             ending_at: value.end_time,
@@ -450,7 +450,7 @@ impl From<api_models::payments::TimeRange> for PaymentIntentFetchConstraints {
             starting_after_id: None,
             ending_before_id: None,
             limit: None,
-        }
+        }))
     }
 }
 
@@ -459,7 +459,7 @@ impl From<api_models::payments::PaymentListFilterConstraints> for PaymentIntentF
         if let Some(payment_intent_id) = value.payment_id {
             Self::Single { payment_intent_id }
         } else {
-            Self::List {
+            Self::List(Box::new(PaymentIntentListParams {
                 offset: value.offset.unwrap_or_default(),
                 starting_at: value.time_range.map(|t| t.start_time),
                 ending_at: value.time_range.and_then(|t| t.end_time),
@@ -474,7 +474,7 @@ impl From<api_models::payments::PaymentListFilterConstraints> for PaymentIntentF
                 starting_after_id: None,
                 ending_before_id: None,
                 limit: Some(std::cmp::min(value.limit, PAYMENTS_LIST_MAX_LIMIT_V2)),
-            }
+            }))
         }
     }
 }
