@@ -12,7 +12,7 @@ use crate::{
     core::{api_locking, payments},
     routes,
     services::{api, authentication as auth},
-    types::api as api_types,
+    types::{api as api_types, OSS},
 };
 
 #[instrument(skip_all, fields(flow = ?Flow::PaymentsCreate))]
@@ -54,7 +54,7 @@ pub async fn setup_intents_create(
         &req,
         create_payment_req,
         |state, auth, req| {
-            payments::payments_core::<api_types::Verify, api_types::PaymentsResponse, _, _, _>(
+            payments::payments_core::<api_types::Verify, api_types::PaymentsResponse, _, _, _, OSS>(
                 state,
                 auth.merchant_account,
                 auth.key_store,
@@ -113,7 +113,7 @@ pub async fn setup_intents_retrieve(
         &req,
         payload,
         |state, auth, payload| {
-            payments::payments_core::<api_types::PSync, api_types::PaymentsResponse, _, _, _>(
+            payments::payments_core::<api_types::PSync, api_types::PaymentsResponse, _, _, _, OSS>(
                 state,
                 auth.merchant_account,
                 auth.key_store,
@@ -178,7 +178,7 @@ pub async fn setup_intents_update(
         &req,
         payload,
         |state, auth, req| {
-            payments::payments_core::<api_types::Verify, api_types::PaymentsResponse, _, _, _>(
+            payments::payments_core::<api_types::Verify, api_types::PaymentsResponse, _, _, _, OSS>(
                 state,
                 auth.merchant_account,
                 auth.key_store,
@@ -244,7 +244,7 @@ pub async fn setup_intents_confirm(
         &req,
         payload,
         |state, auth, req| {
-            payments::payments_core::<api_types::Verify, api_types::PaymentsResponse, _, _, _>(
+            payments::payments_core::<api_types::Verify, api_types::PaymentsResponse, _, _, _, OSS>(
                 state,
                 auth.merchant_account,
                 auth.key_store,

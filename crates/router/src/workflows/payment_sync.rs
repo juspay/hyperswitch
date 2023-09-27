@@ -22,7 +22,7 @@ use crate::{
 pub struct PaymentsSyncWorkflow;
 
 #[async_trait::async_trait]
-impl ProcessTrackerWorkflow<AppState> for PaymentsSyncWorkflow {
+impl<Ctx> ProcessTrackerWorkflow<AppState, Ctx> for PaymentsSyncWorkflow {
     async fn execute_workflow<'a>(
         &'a self,
         state: &'a AppState,
@@ -55,7 +55,7 @@ impl ProcessTrackerWorkflow<AppState> for PaymentsSyncWorkflow {
             .await?;
 
         let (payment_data, _, _, _) =
-            payment_flows::payments_operation_core::<api::PSync, _, _, _>(
+            payment_flows::payments_operation_core::<api::PSync, _, _, _, Ctx>(
                 state,
                 merchant_account.clone(),
                 key_store,

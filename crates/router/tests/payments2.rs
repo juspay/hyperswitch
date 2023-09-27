@@ -5,7 +5,10 @@ mod utils;
 use router::{
     core::payments,
     db::StorageImpl,
-    types::api::{self, enums as api_enums},
+    types::{
+        api::{self, enums as api_enums},
+        OSS,
+    },
     *,
 };
 use time::macros::datetime;
@@ -120,19 +123,25 @@ async fn payments_create_core() {
     };
     let expected_response =
         services::ApplicationResponse::JsonWithHeaders((expected_response, vec![]));
-    let actual_response =
-        router::core::payments::payments_core::<api::Authorize, api::PaymentsResponse, _, _, _>(
-            state,
-            merchant_account,
-            key_store,
-            payments::PaymentCreate,
-            req,
-            services::AuthFlow::Merchant,
-            payments::CallConnectorAction::Trigger,
-            api::HeaderPayload::default(),
-        )
-        .await
-        .unwrap();
+    let actual_response = router::core::payments::payments_core::<
+        api::Authorize,
+        api::PaymentsResponse,
+        _,
+        _,
+        _,
+        OSS,
+    >(
+        state,
+        merchant_account,
+        key_store,
+        payments::PaymentCreate,
+        req,
+        services::AuthFlow::Merchant,
+        payments::CallConnectorAction::Trigger,
+        api::HeaderPayload::default(),
+    )
+    .await
+    .unwrap();
     assert_eq!(expected_response, actual_response);
 }
 
@@ -292,18 +301,24 @@ async fn payments_create_core_adyen_no_redirect() {
         },
         vec![],
     ));
-    let actual_response =
-        router::core::payments::payments_core::<api::Authorize, api::PaymentsResponse, _, _, _>(
-            state,
-            merchant_account,
-            key_store,
-            payments::PaymentCreate,
-            req,
-            services::AuthFlow::Merchant,
-            payments::CallConnectorAction::Trigger,
-            api::HeaderPayload::default(),
-        )
-        .await
-        .unwrap();
+    let actual_response = router::core::payments::payments_core::<
+        api::Authorize,
+        api::PaymentsResponse,
+        _,
+        _,
+        _,
+        OSS,
+    >(
+        state,
+        merchant_account,
+        key_store,
+        payments::PaymentCreate,
+        req,
+        services::AuthFlow::Merchant,
+        payments::CallConnectorAction::Trigger,
+        api::HeaderPayload::default(),
+    )
+    .await
+    .unwrap();
     assert_eq!(expected_response, actual_response);
 }

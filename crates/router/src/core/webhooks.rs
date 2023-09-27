@@ -34,7 +34,7 @@ use crate::{
 const OUTGOING_WEBHOOK_TIMEOUT_SECS: u64 = 5;
 const MERCHANT_ID: &str = "merchant_id";
 
-pub async fn payments_incoming_webhook_flow<W: types::OutgoingWebhookType>(
+pub async fn payments_incoming_webhook_flow<W: types::OutgoingWebhookType, Ctx>(
     state: AppState,
     merchant_account: domain::MerchantAccount,
     key_store: domain::MerchantKeyStore,
@@ -69,27 +69,28 @@ pub async fn payments_incoming_webhook_flow<W: types::OutgoingWebhookType>(
                 .perform_locking_action(&state, merchant_account.merchant_id.to_string())
                 .await?;
 
-            let response = payments::payments_core::<api::PSync, api::PaymentsResponse, _, _, _>(
-                state.clone(),
-                merchant_account.clone(),
-                key_store,
-                payments::operations::PaymentStatus,
-                api::PaymentsRetrieveRequest {
-                    resource_id: id,
-                    merchant_id: Some(merchant_account.merchant_id.clone()),
-                    force_sync: true,
-                    connector: None,
-                    param: None,
-                    merchant_connector_details: None,
-                    client_secret: None,
-                    expand_attempts: None,
-                    expand_captures: None,
-                },
-                services::AuthFlow::Merchant,
-                consume_or_trigger_flow,
-                HeaderPayload::default(),
-            )
-            .await;
+            let response =
+                payments::payments_core::<api::PSync, api::PaymentsResponse, _, _, _, Ctx>(
+                    state.clone(),
+                    merchant_account.clone(),
+                    key_store,
+                    payments::operations::PaymentStatus,
+                    api::PaymentsRetrieveRequest {
+                        resource_id: id,
+                        merchant_id: Some(merchant_account.merchant_id.clone()),
+                        force_sync: true,
+                        connector: None,
+                        param: None,
+                        merchant_connector_details: None,
+                        client_secret: None,
+                        expand_attempts: None,
+                        expand_captures: None,
+                    },
+                    services::AuthFlow::Merchant,
+                    consume_or_trigger_flow,
+                    HeaderPayload::default(),
+                )
+                .await;
 
             lock_action
                 .free_lock_action(&state, merchant_account.merchant_id.to_owned())
@@ -437,7 +438,7 @@ pub async fn disputes_incoming_webhook_flow<W: types::OutgoingWebhookType>(
     }
 }
 
-async fn bank_transfer_webhook_flow<W: types::OutgoingWebhookType>(
+async fn bank_transfer_webhook_flow<W: types::OutgoingWebhookType, Ctx>(
     state: AppState,
     merchant_account: domain::MerchantAccount,
     key_store: domain::MerchantKeyStore,
@@ -459,7 +460,7 @@ async fn bank_transfer_webhook_flow<W: types::OutgoingWebhookType>(
             payment_token: payment_attempt.payment_token,
             ..Default::default()
         };
-        payments::payments_core::<api::Authorize, api::PaymentsResponse, _, _, _>(
+        payments::payments_core::<api::Authorize, api::PaymentsResponse, _, _, _, Ctx>(
             state.clone(),
             merchant_account.to_owned(),
             key_store,
@@ -730,7 +731,7 @@ pub async fn trigger_webhook_to_merchant<W: types::OutgoingWebhookType>(
 }
 
 #[instrument(skip_all)]
-pub async fn webhooks_core<W: types::OutgoingWebhookType>(
+pub async fn webhooks_core<W: types::OutgoingWebhookType, Ctx>(
     state: AppState,
     req: &actix_web::HttpRequest,
     merchant_account: domain::MerchantAccount,
@@ -918,7 +919,7 @@ pub async fn webhooks_core<W: types::OutgoingWebhookType>(
         };
 
         match flow_type {
-            api::WebhookFlow::Payment => payments_incoming_webhook_flow::<W>(
+            api::WebhookFlow::Payment => payments_incoming_webhook_flow::<W, Ctx>(
                 state.clone(),
                 merchant_account,
                 key_store,
@@ -952,7 +953,7 @@ pub async fn webhooks_core<W: types::OutgoingWebhookType>(
             .await
             .attach_printable("Incoming webhook flow for disputes failed")?,
 
-            api::WebhookFlow::BankTransfer => bank_transfer_webhook_flow::<W>(
+            api::WebhookFlow::BankTransfer => bank_transfer_webhook_flow::<W, Ctx>(
                 state.clone(),
                 merchant_account,
                 key_store,

@@ -55,12 +55,12 @@ pub trait SchedulerAppState: Send + Sync + Clone {
     fn get_db(&self) -> Box<dyn SchedulerInterface>;
 }
 
-pub async fn start_process_tracker<T: SchedulerAppState + 'static>(
+pub async fn start_process_tracker<T: SchedulerAppState + 'static, Ctx: 'static>(
     state: &T,
     scheduler_flow: SchedulerFlow,
     scheduler_settings: Arc<SchedulerSettings>,
     channel: (mpsc::Sender<()>, mpsc::Receiver<()>),
-    runner_from_task: impl workflows::ProcessTrackerWorkflows<T> + 'static + Copy + std::fmt::Debug,
+    runner_from_task: impl workflows::ProcessTrackerWorkflows<T, Ctx> + 'static + Copy + std::fmt::Debug,
 ) -> CustomResult<(), errors::ProcessTrackerError> {
     match scheduler_flow {
         SchedulerFlow::Producer => {

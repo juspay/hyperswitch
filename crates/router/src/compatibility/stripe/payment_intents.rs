@@ -9,7 +9,10 @@ use crate::{
     core::{api_locking::GetLockingInput, payments},
     routes,
     services::{api, authentication as auth},
-    types::api::{self as api_types},
+    types::{
+        api::{self as api_types},
+        OSS,
+    },
 };
 
 #[instrument(skip_all, fields(flow = ?Flow::PaymentsCreate))]
@@ -50,7 +53,7 @@ pub async fn payment_intents_create(
         &req,
         create_payment_req,
         |state, auth, req| {
-            payments::payments_core::<api_types::Authorize, api_types::PaymentsResponse, _, _, _>(
+            payments::payments_core::<api_types::Authorize, api_types::PaymentsResponse, _, _, _,OSS>(
                 state,
                 auth.merchant_account,
                 auth.key_store,
@@ -109,7 +112,7 @@ pub async fn payment_intents_retrieve(
         &req,
         payload,
         |state, auth, payload| {
-            payments::payments_core::<api_types::PSync, api_types::PaymentsResponse, _, _, _>(
+            payments::payments_core::<api_types::PSync, api_types::PaymentsResponse, _, _, _, OSS>(
                 state,
                 auth.merchant_account,
                 auth.key_store,
@@ -172,7 +175,7 @@ pub async fn payment_intents_retrieve_with_gateway_creds(
         &req,
         payload,
         |state, auth, req| {
-            payments::payments_core::<api_types::PSync, payment_types::PaymentsResponse, _, _, _>(
+            payments::payments_core::<api_types::PSync, payment_types::PaymentsResponse, _, _, _,OSS>(
                 state,
                 auth.merchant_account,
                 auth.key_store,
@@ -236,7 +239,7 @@ pub async fn payment_intents_update(
         &req,
         payload,
         |state, auth, req| {
-            payments::payments_core::<api_types::Authorize, api_types::PaymentsResponse, _, _, _>(
+            payments::payments_core::<api_types::Authorize, api_types::PaymentsResponse, _, _, _,OSS>(
                 state,
                 auth.merchant_account,
                 auth.key_store,
@@ -302,7 +305,7 @@ pub async fn payment_intents_confirm(
         &req,
         payload,
         |state, auth, req| {
-            payments::payments_core::<api_types::Authorize, api_types::PaymentsResponse, _, _, _>(
+            payments::payments_core::<api_types::Authorize, api_types::PaymentsResponse, _, _, _,OSS>(
                 state,
                 auth.merchant_account,
                 auth.key_store,
@@ -358,7 +361,7 @@ pub async fn payment_intents_capture(
         &req,
         payload,
         |state, auth, payload| {
-            payments::payments_core::<api_types::Capture, api_types::PaymentsResponse, _, _, _>(
+            payments::payments_core::<api_types::Capture, api_types::PaymentsResponse, _, _, _,OSS>(
                 state,
                 auth.merchant_account,
                 auth.key_store,
@@ -418,7 +421,7 @@ pub async fn payment_intents_cancel(
         &req,
         payload,
         |state, auth, req| {
-            payments::payments_core::<api_types::Void, api_types::PaymentsResponse, _, _, _>(
+            payments::payments_core::<api_types::Void, api_types::PaymentsResponse, _, _, _, OSS>(
                 state,
                 auth.merchant_account,
                 auth.key_store,

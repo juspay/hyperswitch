@@ -7,7 +7,7 @@ use crate::{
 pub struct RefundWorkflowRouter;
 
 #[async_trait::async_trait]
-impl ProcessTrackerWorkflow<AppState> for RefundWorkflowRouter {
+impl<Ctx> ProcessTrackerWorkflow<AppState, Ctx> for RefundWorkflowRouter {
     async fn execute_workflow<'a>(
         &'a self,
         state: &'a AppState,

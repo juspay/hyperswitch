@@ -7,7 +7,7 @@ use crate::{errors, logger::error, routes::AppState, types::storage};
 pub struct DeleteTokenizeDataWorkflow;
 
 #[async_trait::async_trait]
-impl ProcessTrackerWorkflow<AppState> for DeleteTokenizeDataWorkflow {
+impl<Ctx> ProcessTrackerWorkflow<AppState, Ctx> for DeleteTokenizeDataWorkflow {
     #[cfg(feature = "basilisk")]
     async fn execute_workflow<'a>(
         &'a self,

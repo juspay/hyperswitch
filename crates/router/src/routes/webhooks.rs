@@ -8,6 +8,7 @@ use crate::{
         webhooks::{self, types},
     },
     services::{api, authentication as auth},
+    types::OSS
 };
 
 #[instrument(skip_all, fields(flow = ?Flow::IncomingWebhookReceive))]
@@ -26,7 +27,7 @@ pub async fn receive_incoming_webhook<W: types::OutgoingWebhookType>(
         &req,
         body,
         |state, auth, body| {
-            webhooks::webhooks_core::<W>(
+            webhooks::webhooks_core::<W, OSS>(
                 state,
                 &req,
                 auth.merchant_account,

@@ -24,6 +24,7 @@ use crate::{
         api::{self as api_types, enums as api_enums, payments as payment_types},
         domain,
         transformers::ForeignTryFrom,
+        OSS,
     },
 };
 
@@ -106,7 +107,7 @@ pub async fn payments_create(
         &req,
         payload,
         |state, auth, req| {
-            authorize_verify_select(
+            authorize_verify_select::<_, OSS>(
                 payments::PaymentCreate,
                 state,
                 auth.merchant_account,
@@ -160,8 +161,15 @@ pub async fn payments_start(
         state,
         &req,
         payload,
-        |state,auth, req| {
-            payments::payments_core::<api_types::Authorize, payment_types::PaymentsResponse, _, _, _>(
+        |state, auth, req| {
+            payments::payments_core::<
+                api_types::Authorize,
+                payment_types::PaymentsResponse,
+                _,
+                _,
+                _,
+                OSS,
+            >(
                 state,
                 auth.merchant_account,
                 auth.key_store,
@@ -227,7 +235,7 @@ pub async fn payments_retrieve(
         &req,
         payload,
         |state, auth, req| {
-            payments::payments_core::<api_types::PSync, payment_types::PaymentsResponse, _, _, _>(
+            payments::payments_core::<api_types::PSync, payment_types::PaymentsResponse, _, _, _,OSS>(
                 state,
                 auth.merchant_account,
                 auth.key_store,
@@ -288,7 +296,7 @@ pub async fn payments_retrieve_with_gateway_creds(
         &req,
         payload,
         |state, auth, req| {
-            payments::payments_core::<api_types::PSync, payment_types::PaymentsResponse, _, _, _>(
+            payments::payments_core::<api_types::PSync, payment_types::PaymentsResponse, _, _, _,OSS>(
                 state,
                 auth.merchant_account,
                 auth.key_store,
@@ -354,7 +362,7 @@ pub async fn payments_update(
         &req,
         payload,
         |state, auth, req| {
-            authorize_verify_select(
+            authorize_verify_select::<_, OSS>(
                 payments::PaymentUpdate,
                 state,
                 auth.merchant_account,
@@ -430,7 +438,7 @@ pub async fn payments_confirm(
         &req,
         payload,
         |state, auth, req| {
-            authorize_verify_select(
+            authorize_verify_select::<_, OSS>(
                 payments::PaymentConfirm,
                 state,
                 auth.merchant_account,
@@ -485,7 +493,14 @@ pub async fn payments_capture(
         &req,
         payload,
         |state, auth, payload| {
-            payments::payments_core::<api_types::Capture, payment_types::PaymentsResponse, _, _, _>(
+            payments::payments_core::<
+                api_types::Capture,
+                payment_types::PaymentsResponse,
+                _,
+                _,
+                _,
+                OSS,
+            >(
                 state,
                 auth.merchant_account,
                 auth.key_store,
@@ -539,6 +554,7 @@ pub async fn payments_connector_session(
                 _,
                 _,
                 _,
+                OSS,
             >(
                 state,
                 auth.merchant_account,
@@ -600,7 +616,8 @@ pub async fn payments_redirect_response(
         &req,
         payload,
         |state, auth, req| {
-            payments::PaymentRedirectSync {}.handle_payments_redirect_response(
+            <payments::PaymentRedirectSync as PaymentRedirectFlow<OSS>>::handle_payments_redirect_response(
+                &payments::PaymentRedirectSync {},
                 state,
                 auth.merchant_account,
                 auth.key_store,
@@ -657,7 +674,8 @@ pub async fn payments_redirect_response_with_creds_identifier(
         &req,
         payload,
         |state, auth, req| {
-            payments::PaymentRedirectSync {}.handle_payments_redirect_response(
+           <payments::PaymentRedirectSync as PaymentRedirectFlow<OSS>>::handle_payments_redirect_response(
+                &payments::PaymentRedirectSync {},
                 state,
                 auth.merchant_account,
                 auth.key_store,
@@ -696,7 +714,9 @@ pub async fn payments_complete_authorize(
         &req,
         payload,
         |state, auth, req| {
-            payments::PaymentRedirectCompleteAuthorize {}.handle_payments_redirect_response(
+
+            <payments::PaymentRedirectCompleteAuthorize as PaymentRedirectFlow<OSS>>::handle_payments_redirect_response(
+                &payments::PaymentRedirectCompleteAuthorize {},
                 state,
                 auth.merchant_account,
                 auth.key_store,
@@ -745,7 +765,7 @@ pub async fn payments_cancel(
         &req,
         payload,
         |state, auth, req| {
-            payments::payments_core::<api_types::Void, payment_types::PaymentsResponse, _, _, _>(
+            payments::payments_core::<api_types::Void, payment_types::PaymentsResponse, _, _, _,OSS>(
                 state,
                 auth.merchant_account,
                 auth.key_store,
@@ -846,7 +866,7 @@ pub async fn get_filters_for_payments(
     )
     .await
 }
-async fn authorize_verify_select<Op>(
+async fn authorize_verify_select<Op, Ctx>(
     operation: Op,
     state: app::AppState,
     merchant_account: domain::MerchantAccount,
@@ -869,26 +889,36 @@ where
     // Thus the flow can be generated just before calling the connector instead of explicitly passing it here.
 
     match req.amount.as_ref() {
-        Some(api_types::Amount::Value(_)) | None => payments::payments_core::<
-            api_types::Authorize,
-            payment_types::PaymentsResponse,
-            _,
-            _,
-            _,
-        >(
-            state,
-            merchant_account,
-            key_store,
-            operation,
-            req,
-            auth_flow,
-            payments::CallConnectorAction::Trigger,
-            header_payload,
-        )
-        .await,
+        Some(api_types::Amount::Value(_)) | None => {
+            payments::payments_core::<
+                api_types::Authorize,
+                payment_types::PaymentsResponse,
+                _,
+                _,
+                _,
+                Ctx,
+            >(
+                state,
+                merchant_account,
+                key_store,
+                operation,
+                req,
+                auth_flow,
+                payments::CallConnectorAction::Trigger,
+                header_payload,
+            )
+            .await
+        }
 
         Some(api_types::Amount::Zero) => {
-            payments::payments_core::<api_types::Verify, payment_types::PaymentsResponse, _, _, _>(
+            payments::payments_core::<
+                api_types::Verify,
+                payment_types::PaymentsResponse,
+                _,
+                _,
+                _,
+                Ctx,
+            >(
                 state,
                 merchant_account,
                 key_store,

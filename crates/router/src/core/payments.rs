@@ -57,7 +57,7 @@ use crate::{
 
 #[allow(clippy::too_many_arguments)]
 #[instrument(skip_all, fields(payment_id, merchant_id))]
-pub async fn payments_operation_core<F, Req, Op, FData>(
+pub async fn payments_operation_core<F, Req, Op, FData, Ctx>(
     state: &AppState,
     merchant_account: domain::MerchantAccount,
     key_store: domain::MerchantKeyStore,
@@ -240,7 +240,7 @@ where
 }
 
 #[allow(clippy::too_many_arguments)]
-pub async fn payments_core<F, Res, Req, Op, FData>(
+pub async fn payments_core<F, Res, Req, Op, FData, Ctx>(
     state: AppState,
     merchant_account: domain::MerchantAccount,
     key_store: domain::MerchantKeyStore,
@@ -267,17 +267,18 @@ where
     // To perform router related operation for PaymentResponse
     PaymentResponse: Operation<F, FData>,
 {
-    let (payment_data, req, customer, connector_http_status_code) = payments_operation_core(
-        &state,
-        merchant_account,
-        key_store,
-        operation.clone(),
-        req,
-        call_connector_action,
-        auth_flow,
-        header_payload,
-    )
-    .await?;
+    let (payment_data, req, customer, connector_http_status_code) =
+        payments_operation_core::<_, _, _, _, Ctx>(
+            &state,
+            merchant_account,
+            key_store,
+            operation.clone(),
+            req,
+            call_connector_action,
+            auth_flow,
+            header_payload,
+        )
+        .await?;
 
     Res::generate_response(
         Some(req),
@@ -307,7 +308,7 @@ pub struct PaymentsRedirectResponseData {
 }
 
 #[async_trait::async_trait]
-pub trait PaymentRedirectFlow: Sync {
+pub trait PaymentRedirectFlow<Ctx>: Sync {
     async fn call_payment_flow(
         &self,
         state: &AppState,
@@ -403,7 +404,7 @@ pub trait PaymentRedirectFlow: Sync {
 pub struct PaymentRedirectCompleteAuthorize;
 
 #[async_trait::async_trait]
-impl PaymentRedirectFlow for PaymentRedirectCompleteAuthorize {
+impl<Ctx> PaymentRedirectFlow<Ctx> for PaymentRedirectCompleteAuthorize {
     async fn call_payment_flow(
         &self,
         state: &AppState,
@@ -423,7 +424,7 @@ impl PaymentRedirectFlow for PaymentRedirectCompleteAuthorize {
             }),
             ..Default::default()
         };
-        payments_core::<api::CompleteAuthorize, api::PaymentsResponse, _, _, _>(
+        payments_core::<api::CompleteAuthorize, api::PaymentsResponse, _, _, _, Ctx>(
             state.clone(),
             merchant_account,
             merchant_key_store,
@@ -493,7 +494,7 @@ impl PaymentRedirectFlow for PaymentRedirectCompleteAuthorize {
 pub struct PaymentRedirectSync;
 
 #[async_trait::async_trait]
-impl PaymentRedirectFlow for PaymentRedirectSync {
+impl<Ctx> PaymentRedirectFlow<Ctx> for PaymentRedirectSync {
     async fn call_payment_flow(
         &self,
         state: &AppState,
@@ -518,7 +519,7 @@ impl PaymentRedirectFlow for PaymentRedirectSync {
             expand_attempts: None,
             expand_captures: None,
         };
-        payments_core::<api::PSync, api::PaymentsResponse, _, _, _>(
+        payments_core::<api::PSync, api::PaymentsResponse, _, _, _, Ctx>(
             state.clone(),
             merchant_account,
             merchant_key_store,

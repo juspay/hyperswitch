@@ -29,10 +29,13 @@ pub fn valid_business_statuses() -> Vec<&'static str> {
 }
 
 #[instrument(skip_all)]
-pub async fn start_consumer<T: SchedulerAppState + 'static>(
+pub async fn start_consumer<T: SchedulerAppState + 'static, Ctx: 'static>(
     state: &T,
     settings: sync::Arc<SchedulerSettings>,
-    workflow_selector: impl workflows::ProcessTrackerWorkflows<T> + 'static + Copy + std::fmt::Debug,
+    workflow_selector: impl workflows::ProcessTrackerWorkflows<T, Ctx>
+        + 'static
+        + Copy
+        + std::fmt::Debug,
     (tx, mut rx): (mpsc::Sender<()>, mpsc::Receiver<()>),
 ) -> CustomResult<(), errors::ProcessTrackerError> {
     use std::time::Duration;
@@ -106,10 +109,13 @@ pub async fn start_consumer<T: SchedulerAppState + 'static>(
 }
 
 #[instrument(skip_all)]
-pub async fn consumer_operations<T: SchedulerAppState + 'static>(
+pub async fn consumer_operations<T: SchedulerAppState + 'static, Ctx: 'static>(
     state: &T,
     settings: &SchedulerSettings,
-    workflow_selector: impl workflows::ProcessTrackerWorkflows<T> + 'static + Copy + std::fmt::Debug,
+    workflow_selector: impl workflows::ProcessTrackerWorkflows<T, Ctx>
+        + 'static
+        + Copy
+        + std::fmt::Debug,
 ) -> CustomResult<(), errors::ProcessTrackerError> {
     let stream_name = settings.stream.clone();
     let group_name = settings.consumer.consumer_group.clone();
@@ -194,11 +200,11 @@ pub async fn fetch_consumer_tasks(
 
 // Accept flow_options if required
 #[instrument(skip(state), fields(workflow_id))]
-pub async fn start_workflow<T>(
+pub async fn start_workflow<T, Ctx: 'static>(
     state: T,
     process: storage::ProcessTracker,
     _pickup_time: PrimitiveDateTime,
-    workflow_selector: impl workflows::ProcessTrackerWorkflows<T> + 'static + std::fmt::Debug,
+    workflow_selector: impl workflows::ProcessTrackerWorkflows<T, Ctx> + 'static + std::fmt::Debug,
 ) -> Result<(), errors::ProcessTrackerError>
 where
     T: SchedulerAppState,
