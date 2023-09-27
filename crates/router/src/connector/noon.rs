@@ -270,7 +270,7 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
         Ok(format!(
             "{}payment/v1/order/getbyreference/{}",
             self.base_url(connectors),
-            req.connector_request_reference_id
+            req.attempt_id
         ))
     }
 
