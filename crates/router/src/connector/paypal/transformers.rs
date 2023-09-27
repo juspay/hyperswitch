@@ -1,4 +1,4 @@
-use api_models::payments::BankRedirectData;
+use api_models::payments::{BankRedirectData, MandateReferenceId};
 use common_utils::errors::CustomResult;
 use error_stack::{IntoReport, ResultExt};
 use masking::Secret;
@@ -13,7 +13,7 @@ use crate::{
     core::errors,
     services,
     types::{
-        self, api, storage::enums as storage_enums, transformers::ForeignFrom,
+        self, api, storage::enums as storage_enums, transformers::ForeignFrom, MandateReference,
         VerifyWebhookSourceResponseData,
     },
 };
@@ -99,15 +99,64 @@ pub struct RedirectRequest {
     experience_context: ContextStruct,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ContextStruct {
-    return_url: Option<String>,
-    cancel_url: Option<String>,
+    return_url: String,
+    cancel_url: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AttributesStruct {
+    vault: VaultType,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(untagged)]
+pub enum VaultType {
+    VaultRequest(VaultRequest),
+    VaultResponse(VaultResponse),
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct VaultRequest {
+    permit_multiple_payment_tokens: bool,
+    store_in_vault: VaultMethod,
+    usage_type: UsageType,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct VaultResponse {
+    id: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum VaultMethod {
+    OnSuccess,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum UsageType {
+    Merchant,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PaypalRedirectionStruct {
+    experience_context: Option<ContextStruct>,
+    attributes: Option<AttributesStruct>,
 }
 
 #[derive(Debug, Serialize)]
-pub struct PaypalRedirectionRequest {
-    experience_context: ContextStruct,
+pub struct PaypalVaultStruct {
+    vault_id: String,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(untagged)]
+pub enum PaypalRedirectionRequest {
+    PaypalRedirectionStruct(PaypalRedirectionStruct),
+    PaypalVaultStruct(PaypalVaultStruct),
 }
 
 #[derive(Debug, Serialize)]
@@ -157,8 +206,16 @@ fn get_payment_source(
                 field_name: "eps.country",
             })?,
             experience_context: ContextStruct {
-                return_url: item.request.complete_authorize_url.clone(),
-                cancel_url: item.request.complete_authorize_url.clone(),
+                return_url: item.request.complete_authorize_url.clone().ok_or(
+                    errors::ConnectorError::MissingRequiredField {
+                        field_name: "complete_authorize_url",
+                    },
+                )?,
+                cancel_url: item.request.complete_authorize_url.clone().ok_or(
+                    errors::ConnectorError::MissingRequiredField {
+                        field_name: "complete_authorize_url",
+                    },
+                )?,
             },
         })),
         BankRedirectData::Giropay {
@@ -171,8 +228,16 @@ fn get_payment_source(
                 field_name: "giropay.country",
             })?,
             experience_context: ContextStruct {
-                return_url: item.request.complete_authorize_url.clone(),
-                cancel_url: item.request.complete_authorize_url.clone(),
+                return_url: item.request.complete_authorize_url.clone().ok_or(
+                    errors::ConnectorError::MissingRequiredField {
+                        field_name: "complete_authorize_url",
+                    },
+                )?,
+                cancel_url: item.request.complete_authorize_url.clone().ok_or(
+                    errors::ConnectorError::MissingRequiredField {
+                        field_name: "complete_authorize_url",
+                    },
+                )?,
             },
         })),
         BankRedirectData::Ideal {
@@ -185,8 +250,16 @@ fn get_payment_source(
                 field_name: "ideal.country",
             })?,
             experience_context: ContextStruct {
-                return_url: item.request.complete_authorize_url.clone(),
-                cancel_url: item.request.complete_authorize_url.clone(),
+                return_url: item.request.complete_authorize_url.clone().ok_or(
+                    errors::ConnectorError::MissingRequiredField {
+                        field_name: "complete_authorize_url",
+                    },
+                )?,
+                cancel_url: item.request.complete_authorize_url.clone().ok_or(
+                    errors::ConnectorError::MissingRequiredField {
+                        field_name: "complete_authorize_url",
+                    },
+                )?,
             },
         })),
         BankRedirectData::Sofort {
@@ -197,8 +270,16 @@ fn get_payment_source(
             name: billing_details.get_billing_name()?,
             country_code: *country,
             experience_context: ContextStruct {
-                return_url: item.request.complete_authorize_url.clone(),
-                cancel_url: item.request.complete_authorize_url.clone(),
+                return_url: item.request.complete_authorize_url.clone().ok_or(
+                    errors::ConnectorError::MissingRequiredField {
+                        field_name: "complete_authorize_url",
+                    },
+                )?,
+                cancel_url: item.request.complete_authorize_url.clone().ok_or(
+                    errors::ConnectorError::MissingRequiredField {
+                        field_name: "complete_authorize_url",
+                    },
+                )?,
             },
         })),
         BankRedirectData::BancontactCard { .. }
@@ -281,13 +362,41 @@ impl TryFrom<&PaypalRouterData<&types::PaymentsAuthorizeRouterData>> for PaypalP
                         reference_id,
                         amount,
                     }];
-                    let payment_source =
-                        Some(PaymentSourceItem::Paypal(PaypalRedirectionRequest {
-                            experience_context: ContextStruct {
-                                return_url: item.router_data.request.complete_authorize_url.clone(),
-                                cancel_url: item.router_data.request.complete_authorize_url.clone(),
+                    let vault = VaultType::VaultRequest(VaultRequest {
+                        permit_multiple_payment_tokens: false,
+                        store_in_vault: VaultMethod::OnSuccess,
+                        usage_type: UsageType::Merchant,
+                    });
+                    let attributes = item
+                        .router_data
+                        .request
+                        .setup_future_usage
+                        .map(|_| AttributesStruct { vault });
+                    let payment_source = Some(PaymentSourceItem::Paypal(
+                        PaypalRedirectionRequest::PaypalRedirectionStruct(
+                            PaypalRedirectionStruct {
+                                experience_context: Some(ContextStruct {
+                                    return_url: item
+                                        .router_data
+                                        .request
+                                        .complete_authorize_url
+                                        .clone()
+                                        .ok_or(errors::ConnectorError::MissingRequiredField {
+                                            field_name: "complete_authorize_url",
+                                        })?,
+                                    cancel_url: item
+                                        .router_data
+                                        .request
+                                        .complete_authorize_url
+                                        .clone()
+                                        .ok_or(errors::ConnectorError::MissingRequiredField {
+                                            field_name: "complete_authorize_url",
+                                        })?,
+                                }),
+                                attributes,
                             },
-                        }));
+                        ),
+                    ));
 
                     Ok(Self {
                         intent,
@@ -372,10 +481,50 @@ impl TryFrom<&PaypalRouterData<&types::PaymentsAuthorizeRouterData>> for PaypalP
                 Self::try_from(giftcard_data.as_ref())
             }
             api_models::payments::PaymentMethodData::MandatePayment => {
-                Err(errors::ConnectorError::NotImplemented(
-                    utils::get_unimplemented_payment_method_error_message("Paypal"),
-                )
-                .into())
+                let intent = if item.router_data.request.is_auto_capture()? {
+                    PaypalPaymentIntent::Capture
+                } else {
+                    PaypalPaymentIntent::Authorize
+                };
+                let amount = OrderAmount {
+                    currency_code: item.router_data.request.currency,
+                    value: utils::to_currency_base_unit_with_zero_decimal_check(
+                        item.router_data.request.amount,
+                        item.router_data.request.currency,
+                    )?,
+                };
+                let reference_id = item.router_data.attempt_id.clone();
+                let purchase_units = vec![PurchaseUnitRequest {
+                    reference_id,
+                    amount,
+                }];
+
+                let mandate_data = item
+                    .router_data
+                    .request
+                    .mandate_id
+                    .clone()
+                    .ok_or(errors::ConnectorError::MissingConnectorMandateID)?;
+                let mandate_reference_id = mandate_data
+                    .mandate_reference_id
+                    .ok_or(errors::ConnectorError::MissingConnectorMandateID)?;
+
+                let payment_source = match mandate_reference_id {
+                    MandateReferenceId::ConnectorMandateId(connector_mandate_data) => {
+                        connector_mandate_data.connector_mandate_id.map(|id| {
+                            PaymentSourceItem::Paypal(PaypalRedirectionRequest::PaypalVaultStruct(
+                                PaypalVaultStruct { vault_id: id },
+                            ))
+                        })
+                    }
+                    _ => Err(errors::ConnectorError::MissingConnectorMandateID)?,
+                };
+
+                Ok(Self {
+                    intent,
+                    purchase_units,
+                    payment_source,
+                })
             }
             api_models::payments::PaymentMethodData::Reward
             | api_models::payments::PaymentMethodData::Crypto(_)
@@ -631,12 +780,18 @@ pub struct PurchaseUnitItem {
     pub payments: PaymentsCollection,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PaypalOrdersResponse {
     id: String,
     intent: PaypalPaymentIntent,
     status: PaypalOrderStatus,
     purchase_units: Vec<PurchaseUnitItem>,
+    payment_source: Option<VaultData>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct VaultData {
+    paypal: PaypalRedirectionStruct,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -651,6 +806,13 @@ pub struct PaypalRedirectResponse {
     intent: PaypalPaymentIntent,
     status: PaypalOrderStatus,
     links: Vec<PaypalLinks>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(untagged)]
+pub enum PaypalAuthResponse {
+    PaypalOrdersResponse(PaypalOrdersResponse),
+    PaypalRedirectResponse(PaypalRedirectResponse),
 }
 
 #[derive(Debug, Deserialize)]
@@ -713,6 +875,22 @@ impl<F, T>
     fn try_from(
         item: types::ResponseRouterData<F, PaypalOrdersResponse, T, types::PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
+        let vault_data = item
+            .response
+            .payment_source
+            .clone()
+            .ok_or(errors::ConnectorError::MissingConnectorMandateID)?;
+        let mandate_reference = match vault_data.paypal.attributes {
+            Some(vault_type) => match vault_type.vault {
+                VaultType::VaultResponse(res) => Some(MandateReference {
+                    connector_mandate_id: Some(res.id.clone()),
+                    payment_method_id: None,
+                }),
+                VaultType::VaultRequest(_) => None,
+            },
+            None => None,
+        };
+
         let purchase_units = item
             .response
             .purchase_units
@@ -764,7 +942,7 @@ impl<F, T>
             response: Ok(types::PaymentsResponseData::TransactionResponse {
                 resource_id: order_id,
                 redirection_data: None,
-                mandate_reference: None,
+                mandate_reference,
                 connector_metadata: Some(connector_meta),
                 network_txn_id: None,
                 connector_response_reference_id: None,
@@ -1342,6 +1520,7 @@ impl TryFrom<(PaypalRedirectsWebhooks, PaypalWebhookEventType)> for PaypalOrders
             intent: webhook_body.intent,
             status: PaypalOrderStatus::try_from(webhook_event)?,
             purchase_units: webhook_body.purchase_units,
+            payment_source: None,
         })
     }
 }
