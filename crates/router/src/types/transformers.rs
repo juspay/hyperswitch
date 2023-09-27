@@ -1,6 +1,6 @@
 // use actix_web::HttpMessage;
 use actix_web::http::header::HeaderMap;
-use api_models::enums as api_enums;
+use api_models::{enums as api_enums, payments};
 use common_utils::{
     crypto::Encryptable,
     ext_traits::{StringExt, ValueExt},
@@ -795,6 +795,22 @@ impl
             phone: customer.and_then(|cust| cust.phone.as_ref().map(|p| p.clone().into_inner())),
             name: customer.and_then(|cust| cust.name.as_ref().map(|n| n.clone().into_inner())),
             ..Self::default()
+        }
+    }
+}
+
+impl From<domain::Address> for payments::AddressDetails {
+    fn from(addr: domain::Address) -> Self {
+        Self {
+            city: addr.city,
+            country: addr.country,
+            line1: addr.line1.map(Encryptable::into_inner),
+            line2: addr.line2.map(Encryptable::into_inner),
+            line3: addr.line3.map(Encryptable::into_inner),
+            zip: addr.zip.map(Encryptable::into_inner),
+            state: addr.state.map(Encryptable::into_inner),
+            first_name: addr.first_name.map(Encryptable::into_inner),
+            last_name: addr.last_name.map(Encryptable::into_inner),
         }
     }
 }

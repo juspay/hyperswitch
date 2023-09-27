@@ -18,6 +18,15 @@ impl AddressNew {
 
 impl Address {
     #[instrument(skip(conn))]
+    pub async fn find_by_address_id<'a>(
+        conn: &PgPooledConn,
+        address_id: &str,
+    ) -> StorageResult<Self> {
+        generics::generic_find_by_id::<<Self as HasTable>::Table, _, _>(conn, address_id.to_owned())
+            .await
+    }
+
+    #[instrument(skip(conn))]
     pub async fn update_by_address_id(
         conn: &PgPooledConn,
         address_id: String,
