@@ -1824,20 +1824,16 @@ pub async fn list_customer_payment_method(
 
     let key = key_store.key.get_inner().peek();
 
-    let requires_cvv_config_key = format!("{}_requires_cvv", merchant_account.merchant_id);
     let is_requires_cvv = db
-        .find_config_by_key_unwrap_or(requires_cvv_config_key.as_str(), Some("true".to_string()))
-        .await;
+        .find_config_by_key_unwrap_or(
+            format!("{}_requires_cvv", merchant_account.merchant_id).as_str(),
+            Some("true".to_string()),
+        )
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to fetch merchant_id config for requires_cvv")?;
 
-    let requires_cvv = match is_requires_cvv {
-        // If an entry is found with the config value as `true`, we set requires_cvv to true
-        Ok(value) => value.config == "true",
-        Err(err) => Err(err
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable(
-                "Failed while fetching or setting the merchant_id config for requires_cvv",
-            ))?,
-    };
+    let requires_cvv = is_requires_cvv.config != "false";
 
     let resp = db
         .find_payment_method_by_customer_id_merchant_id_list(
