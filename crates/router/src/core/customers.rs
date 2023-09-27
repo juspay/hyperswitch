@@ -107,10 +107,10 @@ pub async fn create_customer(
             }
         }
     };
-    let mut customer_response: customers::CustomerResponse = customer.into();
-    customer_response.address = customer_data.address;
 
-    Ok(services::ApplicationResponse::Json(customer_response))
+    Ok(services::ApplicationResponse::Json(
+        customers::CustomerResponse::from((customer, customer_data.address)),
+    ))
 }
 
 #[instrument(skip(state))]
@@ -129,8 +129,15 @@ pub async fn retrieve_customer(
         )
         .await
         .switch()?;
-
-    Ok(services::ApplicationResponse::Json(response.into()))
+    let address = match response.address_id.clone() {
+        Some(address_id) => Some(api_models::payments::AddressDetails::from(
+            db.find_address(&address_id, &key_store).await.switch()?,
+        )),
+        None => None,
+    };
+    Ok(services::ApplicationResponse::Json(
+        customers::CustomerResponse::from((response, address)),
+    ))
 }
 
 #[instrument(skip_all)]
@@ -375,9 +382,7 @@ pub async fn update_customer(
         .await
         .switch()?;
 
-    let mut customer_update_response: customers::CustomerResponse = response.into();
-    customer_update_response.address = update_customer.address;
     Ok(services::ApplicationResponse::Json(
-        customer_update_response,
+        customers::CustomerResponse::from((response, update_customer.address)),
     ))
 }
