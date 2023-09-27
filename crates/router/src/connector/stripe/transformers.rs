@@ -1470,7 +1470,7 @@ impl TryFrom<(&payments::WalletData, Option<types::PaymentMethodToken>)>
                         payment_method_token
                     {
                         let expiry_year_4_digit = Secret::new(format!(
-                            "20{:?}",
+                            "20{}",
                             decrypt_data
                                 .clone()
                                 .application_expiration_date
@@ -2181,6 +2181,7 @@ pub enum StripePaymentMethodDetailsResponse {
     #[serde(rename = "wechat_pay")]
     Wechatpay,
     Alipay,
+    CustomerBalance,
 }
 
 #[derive(Deserialize)]

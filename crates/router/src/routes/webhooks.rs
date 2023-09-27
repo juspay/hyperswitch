@@ -3,7 +3,10 @@ use router_env::{instrument, tracing, Flow};
 
 use super::app::AppState;
 use crate::{
-    core::webhooks::{self, types},
+    core::{
+        api_locking,
+        webhooks::{self, types},
+    },
     services::{api, authentication as auth},
 };
 
@@ -33,6 +36,7 @@ pub async fn receive_incoming_webhook<W: types::OutgoingWebhookType>(
             )
         },
         &auth::MerchantIdAuth(merchant_id),
+        api_locking::LockAction::NotApplicable,
     )
     .await
 }
