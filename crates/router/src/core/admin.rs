@@ -466,17 +466,17 @@ pub async fn merchant_account_delete(
     merchant_id: String,
 ) -> RouterResponse<api::MerchantAccountDeleteResponse> {
     let db = state.store.as_ref();
-    let is_deleted = db
+    let is_merchant_account_deleted = db
         .delete_merchant_account_by_merchant_id(&merchant_id)
         .await
         .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
-    let _is_deleted = db
+    let is_merchant_key_store_deleted = db
         .delete_merchant_key_store_by_merchant_id(&merchant_id)
         .await
         .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
     let response = api::MerchantAccountDeleteResponse {
         merchant_id,
-        deleted: is_deleted,
+        deleted: is_merchant_account_deleted && is_merchant_key_store_deleted,
     };
     Ok(service_api::ApplicationResponse::Json(response))
 }
