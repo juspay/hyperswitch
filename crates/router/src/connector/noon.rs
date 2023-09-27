@@ -9,7 +9,6 @@ use error_stack::{IntoReport, ResultExt};
 use masking::PeekInterface;
 use transformers as noon;
 
-use super::utils::PaymentsSyncRequestData;
 use crate::{
     configs::settings,
     connector::utils as connector_utils,
@@ -58,6 +57,33 @@ impl
     // Not Implemented (R)
 }
 
+fn get_auth_header(
+    auth_type: &types::ConnectorAuthType,
+    connectors: &settings::Connectors,
+) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
+    let auth = noon::NoonAuthType::try_from(auth_type)?;
+
+    let encoded_api_key = auth
+        .business_identifier
+        .zip(auth.application_identifier)
+        .zip(auth.api_key)
+        .map(|((business_identifier, application_identifier), api_key)| {
+            consts::BASE64_ENGINE.encode(format!(
+                "{}.{}:{}",
+                business_identifier, application_identifier, api_key
+            ))
+        });
+    Ok(vec![(
+        headers::AUTHORIZATION.to_string(),
+        format!(
+            "Key_{} {}",
+            connectors.noon.key_mode,
+            encoded_api_key.peek()
+        )
+        .into_masked(),
+    )])
+}
+
 impl<Flow, Request, Response> ConnectorCommonExt<Flow, Request, Response> for Noon
 where
     Self: ConnectorIntegration<Flow, Request, Response>,
@@ -65,7 +91,7 @@ where
     fn build_headers(
         &self,
         req: &types::RouterData<Flow, Request, Response>,
-        _connectors: &settings::Connectors,
+        connectors: &settings::Connectors,
     ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
         let mut header = vec![(
             headers::CONTENT_TYPE.to_string(),
@@ -73,7 +99,7 @@ where
                 .to_string()
                 .into(),
         )];
-        let mut api_key = self.get_auth_header(&req.connector_auth_type)?;
+        let mut api_key = get_auth_header(&req.connector_auth_type, connectors)?;
         header.append(&mut api_key);
         Ok(header)
     }
@@ -90,28 +116,6 @@ impl ConnectorCommon for Noon {
 
     fn base_url<'a>(&self, connectors: &'a settings::Connectors) -> &'a str {
         connectors.noon.base_url.as_ref()
-    }
-
-    fn get_auth_header(
-        &self,
-        auth_type: &types::ConnectorAuthType,
-    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
-        let auth = noon::NoonAuthType::try_from(auth_type)?;
-
-        let encoded_api_key = auth
-            .business_identifier
-            .zip(auth.application_identifier)
-            .zip(auth.api_key)
-            .map(|((business_identifier, application_identifier), api_key)| {
-                consts::BASE64_ENGINE.encode(format!(
-                    "{}.{}:{}",
-                    business_identifier, application_identifier, api_key
-                ))
-            });
-        Ok(vec![(
-            headers::AUTHORIZATION.to_string(),
-            format!("Key_Test {}", encoded_api_key.peek()).into_masked(),
-        )])
     }
 
     fn build_error_response(
@@ -263,10 +267,10 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
         req: &types::PaymentsSyncRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        let connector_transaction_id = req.request.get_connector_transaction_id()?;
         Ok(format!(
-            "{}payment/v1/order/{connector_transaction_id}",
-            self.base_url(connectors)
+            "{}payment/v1/order/getbyreference/{}",
+            self.base_url(connectors),
+            req.connector_request_reference_id
         ))
     }
 
