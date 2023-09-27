@@ -59,7 +59,7 @@ impl
 
 fn get_auth_header(
     auth_type: &types::ConnectorAuthType,
-    connectors: &settings::Connectors,
+    is_test_mode: bool,
 ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
     let auth = noon::NoonAuthType::try_from(auth_type)?;
 
@@ -77,7 +77,7 @@ fn get_auth_header(
         headers::AUTHORIZATION.to_string(),
         format!(
             "Key_{} {}",
-            connectors.noon.key_mode,
+            if is_test_mode { "Test" } else { "Live" },
             encoded_api_key.peek()
         )
         .into_masked(),
@@ -91,7 +91,7 @@ where
     fn build_headers(
         &self,
         req: &types::RouterData<Flow, Request, Response>,
-        connectors: &settings::Connectors,
+        _connectors: &settings::Connectors,
     ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
         let mut header = vec![(
             headers::CONTENT_TYPE.to_string(),
@@ -99,7 +99,7 @@ where
                 .to_string()
                 .into(),
         )];
-        let mut api_key = get_auth_header(&req.connector_auth_type, connectors)?;
+        let mut api_key = get_auth_header(&req.connector_auth_type, req.test_mode.unwrap_or(true))?;
         header.append(&mut api_key);
         Ok(header)
     }
