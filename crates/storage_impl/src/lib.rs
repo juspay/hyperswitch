@@ -25,6 +25,9 @@ use redis_interface::errors::RedisError;
 
 pub use crate::database::store::DatabaseStore;
 
+// TTL for KV setup
+pub(crate) const KV_TTL: u32 = 300;
+
 #[derive(Debug, Clone)]
 pub struct RouterStore<T: DatabaseStore> {
     db_store: T,
