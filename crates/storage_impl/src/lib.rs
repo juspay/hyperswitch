@@ -9,6 +9,7 @@ mod address;
 pub mod config;
 pub mod connection;
 mod connector_response;
+mod consts;
 pub mod database;
 pub mod errors;
 mod lookup;
@@ -24,9 +25,6 @@ pub use mock_db::MockDb;
 use redis_interface::errors::RedisError;
 
 pub use crate::database::store::DatabaseStore;
-
-// TTL for KV setup
-pub(crate) const KV_TTL: u32 = 300;
 
 #[derive(Debug, Clone)]
 pub struct RouterStore<T: DatabaseStore> {

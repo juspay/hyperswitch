@@ -3,7 +3,7 @@ use std::{fmt::Debug, sync::Arc};
 use common_utils::errors::CustomResult;
 use serde::de;
 
-use crate::KVRouterStore;
+use crate::{consts, KVRouterStore};
 
 pub trait KvStorePartition {
     fn partition_number(key: PartitionKey<'_>, num_partitions: u8) -> u32 {
@@ -112,7 +112,7 @@ where
     match op {
         KvOperation::Set(value) => {
             redis_conn
-                .set_hash_fields(key, value, Some(crate::KV_TTL))
+                .set_hash_fields(key, value, Some(consts::KV_TTL))
                 .await?;
             Ok(KvResult::Set(()))
         }
@@ -128,7 +128,7 @@ where
         }
         KvOperation::SetNx(field, value) => {
             let result = redis_conn
-                .serialize_and_set_hash_field_if_not_exist(key, field, value, Some(crate::KV_TTL))
+                .serialize_and_set_hash_field_if_not_exist(key, field, value, Some(consts::KV_TTL))
                 .await?;
             Ok(KvResult::SetNx(result))
         }
