@@ -1995,7 +1995,6 @@ pub struct PaymentListResponseV2 {
 }
 
 #[derive(Clone, Debug, serde::Deserialize)]
-#[serde(deny_unknown_fields)]
 pub struct PaymentListFilterConstraints {
     /// The identifier for payment
     pub payment_id: Option<String>,

@@ -621,6 +621,9 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
                 if let Some(customer_id) = &params.customer_id {
                     query = query.filter(pi_dsl::customer_id.eq(customer_id.clone()));
                 }
+                if let Some(profile_id) = &params.profile_id {
+                    query = query.filter(pi_dsl::profile_id.eq(profile_id.clone()));
+                }
 
                 query = match params.starting_at {
                     Some(starting_at) => query.filter(pi_dsl::created_at.ge(starting_at)),
