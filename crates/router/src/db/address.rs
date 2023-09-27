@@ -28,7 +28,7 @@ where
         key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<domain::Address, errors::StorageError>;
 
-    async fn find_address(
+    async fn find_address_by_address_id(
         &self,
         address_id: &str,
         key_store: &domain::MerchantKeyStore,
@@ -88,6 +88,25 @@ mod storage {
     };
     #[async_trait::async_trait]
     impl AddressInterface for Store {
+        async fn find_address_by_address_id(
+            &self,
+            address_id: &str,
+            key_store: &domain::MerchantKeyStore,
+        ) -> CustomResult<domain::Address, errors::StorageError> {
+            let conn = connection::pg_connection_read(self).await?;
+            storage_types::Address::find_by_address_id(&conn, address_id)
+                .await
+                .map_err(Into::into)
+                .into_report()
+                .async_and_then(|address| async {
+                    address
+                        .convert(key_store.key.get_inner())
+                        .await
+                        .change_context(errors::StorageError::DecryptionError)
+                })
+                .await
+        }
+
         async fn find_address_by_merchant_id_payment_id_address_id(
             &self,
             merchant_id: &str,
@@ -243,7 +262,7 @@ mod storage {
     };
     #[async_trait::async_trait]
     impl AddressInterface for Store {
-        async fn find_address(
+        async fn find_address_by_address_id(
             &self,
             address_id: &str,
             key_store: &domain::MerchantKeyStore,
@@ -472,7 +491,7 @@ mod storage {
 
 #[async_trait::async_trait]
 impl AddressInterface for MockDb {
-    async fn find_address(
+    async fn find_address_by_address_id(
         &self,
         address_id: &str,
         key_store: &domain::MerchantKeyStore,
