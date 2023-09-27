@@ -643,8 +643,5 @@ impl TryFrom<types::RefundsResponseRouterData<api::RSync, RefundResponse>>
 //TODO: Fill the struct with respective fields
 #[derive(Default, Debug, Serialize, Deserialize, PartialEq)]
 pub struct HelcimErrorResponse {
-    pub status_code: u16,
-    pub code: String,
-    pub message: String,
-    pub reason: Option<String>,
+    pub errors: String,
 }

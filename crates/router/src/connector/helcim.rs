@@ -118,9 +118,9 @@ impl ConnectorCommon for Helcim {
 
         Ok(ErrorResponse {
             status_code: res.status_code,
-            code: response.code,
-            message: response.message,
-            reason: response.reason,
+            code: response.errors.clone(),
+            message: response.errors,
+            reason: None,
         })
     }
 }
