@@ -2864,6 +2864,7 @@ impl AttemptType {
             multiple_capture_count: None,
             connector_response_reference_id: None,
             amount_capturable: old_payment_attempt.amount,
+            surcharge_metadata: old_payment_attempt.surcharge_metadata,
         }
     }
 
