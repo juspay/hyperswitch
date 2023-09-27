@@ -903,10 +903,12 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
         req: &types::RefundSyncRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        let meta_data: CustomResult<bluesnap::BluesnapConnectorMetaData, errors::ConnectorError> =
-            connector_utils::to_connector_meta_from_secret(req.connector_meta_data.clone());
-
         if req.request.payment_amount == req.request.refund_amount {
+            let meta_data: CustomResult<
+                bluesnap::BluesnapConnectorMetaData,
+                errors::ConnectorError,
+            > = connector_utils::to_connector_meta_from_secret(req.connector_meta_data.clone());
+
             match meta_data {
                 // if merchant_id is present, rsync can be made using merchant_transaction_id
                 Ok(data) => get_url_with_merchant_transaction_id(
