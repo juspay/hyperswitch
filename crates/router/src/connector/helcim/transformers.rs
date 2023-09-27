@@ -553,9 +553,18 @@ impl<F> TryFrom<&HelcimRouterData<&types::RefundsRouterData<F>>> for HelcimRefun
     fn try_from(
         item: &HelcimRouterData<&types::RefundsRouterData<F>>,
     ) -> Result<Self, Self::Error> {
-        let helcim_meta_data: HelcimMetaData =
-            to_connector_meta(item.router_data.request.connector_metadata.clone())?;
-        let original_transaction_id = helcim_meta_data.capture_id;
+        let original_transaction_id = if item.router_data.request.connector_metadata.is_none() {
+            item.router_data
+                .request
+                .connector_transaction_id
+                .parse::<u64>()
+                .into_report()
+                .change_context(errors::ConnectorError::RequestEncodingFailed)?
+        } else {
+            let helcim_capture: HelcimMetaData =
+                to_connector_meta(item.router_data.request.connector_metadata.clone())?;
+            helcim_capture.capture_id
+        };
         let ip_address = item
             .router_data
             .request
