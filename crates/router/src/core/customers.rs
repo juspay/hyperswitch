@@ -304,7 +304,7 @@ pub async fn update_customer(
 
     let key = key_store.key.get_inner().peek();
 
-    let address_id = if let Some(addr) = &update_customer.address {
+    let address = if let Some(addr) = &update_customer.address {
         match customer.address_id {
             Some(address_id) => {
                 let customer_address: api_models::payments::AddressDetails = addr.clone();
@@ -313,14 +313,15 @@ pub async fn update_customer(
                     .await
                     .switch()
                     .attach_printable("Failed while encrypting Address while Update")?;
-                db.update_address(address_id.clone(), update_address, &key_store)
-                    .await
-                    .switch()
-                    .attach_printable(format!(
-                        "Failed while updating address: merchant_id: {}, customer_id: {}",
-                        merchant_account.merchant_id, update_customer.customer_id
-                    ))?;
-                Some(address_id)
+                Some(
+                    db.update_address(address_id.clone(), update_address, &key_store)
+                        .await
+                        .switch()
+                        .attach_printable(format!(
+                            "Failed while updating address: merchant_id: {}, customer_id: {}",
+                            merchant_account.merchant_id, update_customer.customer_id
+                        ))?,
+                )
             }
             None => {
                 let customer_address: api_models::payments::AddressDetails = addr.clone();
@@ -339,13 +340,19 @@ pub async fn update_customer(
                     db.insert_address_for_customers(address, &key_store)
                         .await
                         .switch()
-                        .attach_printable("Failed while inserting new address")?
-                        .address_id,
+                        .attach_printable("Failed while inserting new address")?,
                 )
             }
         }
     } else {
-        None
+        match &customer.address_id {
+            Some(address_id) => Some(
+                db.find_address_by_address_id(address_id, &key_store)
+                    .await
+                    .switch()?,
+            ),
+            None => None,
+        }
     };
 
     let response = db
@@ -374,7 +381,7 @@ pub async fn update_customer(
                     metadata: update_customer.metadata,
                     description: update_customer.description,
                     connector_customer: None,
-                    address_id,
+                    address_id: address.clone().map(|addr| addr.address_id),
                 })
             }
             .await
