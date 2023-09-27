@@ -60,7 +60,6 @@ pub struct BluesnapPaymentsRequest {
     payment_method: PaymentMethodDetails,
     currency: enums::Currency,
     card_transaction_type: BluesnapTxnType,
-    three_d_secure: Option<BluesnapThreeDSecureInfo>,
     transaction_fraud_info: Option<TransactionFraudInfo>,
     card_holder_info: Option<BluesnapCardHolderInfo>,
     merchant_transaction_id: Option<String>,
@@ -400,7 +399,6 @@ impl TryFrom<&BluesnapRouterData<&types::PaymentsAuthorizeRouterData>> for Blues
             payment_method,
             currency: item.router_data.request.currency,
             card_transaction_type: auth_mode,
-            three_d_secure: None,
             transaction_fraud_info: Some(TransactionFraudInfo {
                 fraud_session_id: item.router_data.payment_id.clone(),
             }),
@@ -700,33 +698,6 @@ impl TryFrom<&types::ConnectorAuthType> for BluesnapAuthType {
     }
 }
 
-#[derive(Debug, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct BluesnapCustomerResponse {
-    vaulted_shopper_id: Secret<u64>,
-}
-impl<F, T>
-    TryFrom<types::ResponseRouterData<F, BluesnapCustomerResponse, T, types::PaymentsResponseData>>
-    for types::RouterData<F, T, types::PaymentsResponseData>
-{
-    type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(
-        item: types::ResponseRouterData<
-            F,
-            BluesnapCustomerResponse,
-            T,
-            types::PaymentsResponseData,
-        >,
-    ) -> Result<Self, Self::Error> {
-        Ok(Self {
-            response: Ok(types::PaymentsResponseData::ConnectorCustomerResponse {
-                connector_customer_id: item.response.vaulted_shopper_id.expose().to_string(),
-            }),
-            ..item.data
-        })
-    }
-}
-
 // PaymentsResponse
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
@@ -780,6 +751,15 @@ impl From<BluesnapProcessingStatus> for enums::RefundStatus {
             BluesnapProcessingStatus::Pending => Self::Pending,
             BluesnapProcessingStatus::PendingMerchantReview => Self::ManualReview,
             BluesnapProcessingStatus::Fail => Self::Failure,
+        }
+    }
+}
+
+impl From<BluesnapRefundStatus> for enums::RefundStatus {
+    fn from(item: BluesnapRefundStatus) -> Self {
+        match item {
+            BluesnapRefundStatus::Success => Self::Success,
+            BluesnapRefundStatus::Pending => Self::Pending,
         }
     }
 }
@@ -865,10 +845,18 @@ impl<F> TryFrom<&BluesnapRouterData<&types::RefundsRouterData<F>>> for BluesnapR
     }
 }
 
+#[derive(Debug, Clone, Default, Deserialize)]
+#[serde(rename_all = "UPPERCASE")]
+pub enum BluesnapRefundStatus {
+    Success,
+    #[default]
+    Pending,
+}
 #[derive(Default, Debug, Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct RefundResponse {
     refund_transaction_id: i32,
+    refund_status: BluesnapRefundStatus,
 }
 
 impl TryFrom<types::RefundsResponseRouterData<api::RSync, BluesnapPaymentsResponse>>
@@ -900,7 +888,7 @@ impl TryFrom<types::RefundsResponseRouterData<api::Execute, RefundResponse>>
         Ok(Self {
             response: Ok(types::RefundsResponseData {
                 connector_refund_id: item.response.refund_transaction_id.to_string(),
-                refund_status: enums::RefundStatus::Pending,
+                refund_status: enums::RefundStatus::from(item.response.refund_status),
             }),
             ..item.data
         })
@@ -911,13 +899,15 @@ impl TryFrom<types::RefundsResponseRouterData<api::Execute, RefundResponse>>
 pub struct BluesnapWebhookBody {
     pub merchant_transaction_id: String,
     pub reference_number: String,
+    pub transaction_type: BluesnapWebhookEvents,
+    pub reversal_ref_num: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct BluesnapWebhookObjectEventType {
-    pub transaction_type: BluesnapWebhookEvents,
-    pub cb_status: Option<BluesnapChargebackStatus>,
+    transaction_type: BluesnapWebhookEvents,
+    cb_status: Option<BluesnapChargebackStatus>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -937,12 +927,13 @@ pub enum BluesnapChargebackStatus {
     CompletedWon,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum BluesnapWebhookEvents {
     Decline,
     CcChargeFailed,
     Charge,
+    Refund,
     Chargeback,
     ChargebackStatusChanged,
     #[serde(other)]
@@ -957,6 +948,7 @@ impl TryFrom<BluesnapWebhookObjectEventType> for api::IncomingWebhookEvent {
                 Ok(Self::PaymentIntentFailure)
             }
             BluesnapWebhookEvents::Charge => Ok(Self::PaymentIntentSuccess),
+            BluesnapWebhookEvents::Refund => Ok(Self::RefundSuccess),
             BluesnapWebhookEvents::Chargeback | BluesnapWebhookEvents::ChargebackStatusChanged => {
                 match details
                     .cb_status
@@ -988,8 +980,57 @@ pub struct BluesnapDisputeWebhookBody {
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct BluesnapWebhookObjectResource {
-    pub reference_number: String,
-    pub transaction_type: BluesnapWebhookEvents,
+    reference_number: String,
+    transaction_type: BluesnapWebhookEvents,
+    reversal_ref_num: Option<String>,
+}
+
+impl TryFrom<BluesnapWebhookObjectResource> for serde_json::Value {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(details: BluesnapWebhookObjectResource) -> Result<Self, Self::Error> {
+        let (card_transaction_type, processing_status, transaction_id) = match details
+            .transaction_type
+        {
+            BluesnapWebhookEvents::Decline | BluesnapWebhookEvents::CcChargeFailed => Ok((
+                BluesnapTxnType::Capture,
+                BluesnapProcessingStatus::Fail,
+                details.reference_number,
+            )),
+            BluesnapWebhookEvents::Charge => Ok((
+                BluesnapTxnType::Capture,
+                BluesnapProcessingStatus::Success,
+                details.reference_number,
+            )),
+            BluesnapWebhookEvents::Chargeback | BluesnapWebhookEvents::ChargebackStatusChanged => {
+                //It won't be consumed in dispute flow, so currently does not hold any significance
+                return serde_json::to_value(details)
+                    .into_report()
+                    .change_context(errors::ConnectorError::WebhookBodyDecodingFailed);
+            }
+            BluesnapWebhookEvents::Refund => Ok((
+                BluesnapTxnType::Refund,
+                BluesnapProcessingStatus::Success,
+                details
+                    .reversal_ref_num
+                    .ok_or(errors::ConnectorError::WebhookResourceObjectNotFound)?,
+            )),
+            BluesnapWebhookEvents::Unknown => {
+                Err(errors::ConnectorError::WebhookResourceObjectNotFound).into_report()
+            }
+        }?;
+        let sync_struct = BluesnapPaymentsResponse {
+            processing_info: ProcessingInfoResponse {
+                processing_status,
+                authorization_code: None,
+                network_transaction_id: None,
+            },
+            transaction_id,
+            card_transaction_type,
+        };
+        serde_json::to_value(sync_struct)
+            .into_report()
+            .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)
+    }
 }
 
 #[derive(Default, Debug, Clone, Serialize, Deserialize)]

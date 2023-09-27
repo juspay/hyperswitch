@@ -56,6 +56,7 @@ impl<T: DatabaseStore> PaymentIntentInterface for KVRouterStore<T> {
 
             MerchantStorageScheme::RedisKv => {
                 let key = format!("{}_{}", new.merchant_id, new.payment_id);
+                let field = format!("pi_{}", new.payment_id);
                 let created_intent = PaymentIntent {
                     id: 0i32,
                     payment_id: new.payment_id.clone(),
@@ -94,7 +95,7 @@ impl<T: DatabaseStore> PaymentIntentInterface for KVRouterStore<T> {
 
                 match kv_wrapper::<PaymentIntent, _, _>(
                     self,
-                    KvOperation::SetNx("pi", &created_intent),
+                    KvOperation::SetNx(&field, &created_intent),
                     &key,
                 )
                 .await
@@ -144,6 +145,7 @@ impl<T: DatabaseStore> PaymentIntentInterface for KVRouterStore<T> {
             }
             MerchantStorageScheme::RedisKv => {
                 let key = format!("{}_{}", this.merchant_id, this.payment_id);
+                let field = format!("pi_{}", this.payment_id);
 
                 let updated_intent = payment_intent.clone().apply_changeset(this.clone());
                 // Check for database presence as well Maybe use a read replica here ?
@@ -152,9 +154,9 @@ impl<T: DatabaseStore> PaymentIntentInterface for KVRouterStore<T> {
                     Encode::<PaymentIntent>::encode_to_string_of_json(&updated_intent)
                         .change_context(StorageError::SerializationFailed)?;
 
-                kv_wrapper::<PaymentIntent, _, _>(
+                kv_wrapper::<(), _, _>(
                     self,
-                    KvOperation::<PaymentIntent>::Set(("pi", redis_value)),
+                    KvOperation::<PaymentIntent>::Set((&field, redis_value)),
                     &key,
                 )
                 .await
@@ -208,11 +210,12 @@ impl<T: DatabaseStore> PaymentIntentInterface for KVRouterStore<T> {
 
             MerchantStorageScheme::RedisKv => {
                 let key = format!("{merchant_id}_{payment_id}");
+                let field = format!("pi_{payment_id}");
                 crate::utils::try_redis_get_else_try_database_get(
                     async {
                         kv_wrapper::<PaymentIntent, _, _>(
                             self,
-                            KvOperation::<PaymentIntent>::Get("pi"),
+                            KvOperation::<PaymentIntent>::Get(&field),
                             &key,
                         )
                         .await?

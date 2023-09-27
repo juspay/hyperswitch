@@ -664,14 +664,11 @@ mod storage {
                 enums::MerchantStorageScheme::PostgresOnly => database_call().await,
                 enums::MerchantStorageScheme::RedisKv => {
                     let key = format!("{merchant_id}_{payment_id}");
-                    let lookup = self.get_lookup_by_lookup_id(&key).await?;
-
-                    let pattern = db_utils::generate_hscan_pattern_for_refund(&lookup.sk_id);
                     db_utils::try_redis_get_else_try_database_get(
                         async {
                             kv_wrapper(
                                 self,
-                                KvOperation::<storage_types::Refund>::Scan(&pattern),
+                                KvOperation::<storage_types::Refund>::Scan("pa_*_ref_*"),
                                 key,
                             )
                             .await?

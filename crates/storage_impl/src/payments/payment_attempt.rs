@@ -29,10 +29,7 @@ use crate::{
     diesel_error_to_data_error,
     lookup::ReverseLookupInterface,
     redis::kv_store::{kv_wrapper, KvOperation, PartitionKey},
-    utils::{
-        generate_hscan_pattern_for_attempt, pg_connection_read, pg_connection_write,
-        try_redis_get_else_try_database_get,
-    },
+    utils::{pg_connection_read, pg_connection_write, try_redis_get_else_try_database_get},
     DataModelExt, DatabaseStore, KVRouterStore, RouterStore,
 };
 
@@ -348,6 +345,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
                     multiple_capture_count: payment_attempt.multiple_capture_count,
                     connector_response_reference_id: None,
                     amount_capturable: payment_attempt.amount_capturable,
+                    surcharge_metadata: payment_attempt.surcharge_metadata.clone(),
                 };
 
                 let field = format!("pa_{}", created_attempt.attempt_id);
@@ -795,11 +793,8 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
             }
             MerchantStorageScheme::RedisKv => {
                 let key = format!("{merchant_id}_{payment_id}");
-                let lookup = self.get_lookup_by_lookup_id(&key).await?;
 
-                let pattern = generate_hscan_pattern_for_attempt(&lookup.sk_id);
-
-                kv_wrapper(self, KvOperation::<PaymentAttempt>::Scan(&pattern), key)
+                kv_wrapper(self, KvOperation::<PaymentAttempt>::Scan("pa_*"), key)
                     .await
                     .change_context(errors::StorageError::KVError)?
                     .try_into_get()
@@ -935,6 +930,7 @@ impl DataModelExt for PaymentAttempt {
             multiple_capture_count: self.multiple_capture_count,
             connector_response_reference_id: self.connector_response_reference_id,
             amount_capturable: self.amount_capturable,
+            surcharge_metadata: self.surcharge_metadata,
         }
     }
 
@@ -983,6 +979,7 @@ impl DataModelExt for PaymentAttempt {
             multiple_capture_count: storage_model.multiple_capture_count,
             connector_response_reference_id: storage_model.connector_response_reference_id,
             amount_capturable: storage_model.amount_capturable,
+            surcharge_metadata: storage_model.surcharge_metadata,
         }
     }
 }
@@ -1031,6 +1028,7 @@ impl DataModelExt for PaymentAttemptNew {
             connector_response_reference_id: self.connector_response_reference_id,
             multiple_capture_count: self.multiple_capture_count,
             amount_capturable: self.amount_capturable,
+            surcharge_metadata: self.surcharge_metadata,
         }
     }
 
@@ -1077,6 +1075,7 @@ impl DataModelExt for PaymentAttemptNew {
             connector_response_reference_id: storage_model.connector_response_reference_id,
             multiple_capture_count: storage_model.multiple_capture_count,
             amount_capturable: storage_model.amount_capturable,
+            surcharge_metadata: storage_model.surcharge_metadata,
         }
     }
 }
@@ -1271,6 +1270,9 @@ impl DataModelExt for PaymentAttemptUpdate {
                 status,
                 amount_capturable,
             },
+            Self::SurchargeMetadataUpdate { surcharge_metadata } => {
+                DieselPaymentAttemptUpdate::SurchargeMetadataUpdate { surcharge_metadata }
+            }
         }
     }
 
@@ -1461,6 +1463,9 @@ impl DataModelExt for PaymentAttemptUpdate {
                 status,
                 amount_capturable,
             },
+            DieselPaymentAttemptUpdate::SurchargeMetadataUpdate { surcharge_metadata } => {
+                Self::SurchargeMetadataUpdate { surcharge_metadata }
+            }
         }
     }
 }
