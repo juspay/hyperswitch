@@ -2183,6 +2183,7 @@ pub enum StripePaymentMethodDetailsResponse {
     #[serde(rename = "wechat_pay")]
     Wechatpay,
     Alipay,
+    CustomerBalance,
 }
 
 #[derive(Deserialize)]
