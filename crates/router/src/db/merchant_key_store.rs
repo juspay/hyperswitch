@@ -120,9 +120,10 @@ impl MerchantKeyStoreInterface for Store {
 
         #[cfg(feature = "accounts_cache")]
         {
+            let key_store_cache_key = format!("merchant_key_store_{}", merchant_id);
             super::cache::publish_and_redact(
                 self,
-                CacheKind::Accounts(merchant_id.into()),
+                CacheKind::Accounts(key_store_cache_key.into()),
                 delete_func,
             )
             .await
