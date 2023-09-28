@@ -29,7 +29,9 @@ use crate::{
 pub struct PaymentCancel;
 
 #[async_trait]
-impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsCancelRequest> for PaymentCancel {
+impl<F: Send + Clone, Ctx> GetTracker<F, PaymentData<F>, api::PaymentsCancelRequest, Ctx>
+    for PaymentCancel
+{
     #[instrument(skip_all)]
     async fn get_trackers<'a>(
         &'a self,
@@ -41,7 +43,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsCancelRequest> 
         key_store: &domain::MerchantKeyStore,
         _auth_flow: services::AuthFlow,
     ) -> RouterResult<(
-        BoxedOperation<'a, F, api::PaymentsCancelRequest>,
+        BoxedOperation<'a, F, api::PaymentsCancelRequest, Ctx>,
         PaymentData<F>,
         Option<CustomerDetails>,
     )> {
@@ -176,7 +178,9 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsCancelRequest> 
 }
 
 #[async_trait]
-impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsCancelRequest> for PaymentCancel {
+impl<F: Clone, Ctx> UpdateTracker<F, PaymentData<F>, api::PaymentsCancelRequest, Ctx>
+    for PaymentCancel
+{
     #[instrument(skip_all)]
     async fn update_trackers<'b>(
         &'b self,
@@ -189,7 +193,7 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsCancelRequest> for 
         _frm_suggestion: Option<FrmSuggestion>,
         _header_payload: api::HeaderPayload,
     ) -> RouterResult<(
-        BoxedOperation<'b, F, api::PaymentsCancelRequest>,
+        BoxedOperation<'b, F, api::PaymentsCancelRequest, Ctx>,
         PaymentData<F>,
     )>
     where
@@ -231,14 +235,14 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsCancelRequest> for 
     }
 }
 
-impl<F: Send + Clone> ValidateRequest<F, api::PaymentsCancelRequest> for PaymentCancel {
+impl<F: Send + Clone, Ctx> ValidateRequest<F, api::PaymentsCancelRequest, Ctx> for PaymentCancel {
     #[instrument(skip_all)]
     fn validate_request<'a, 'b>(
         &'b self,
         request: &api::PaymentsCancelRequest,
         merchant_account: &'a domain::MerchantAccount,
     ) -> RouterResult<(
-        BoxedOperation<'b, F, api::PaymentsCancelRequest>,
+        BoxedOperation<'b, F, api::PaymentsCancelRequest, Ctx>,
         operations::ValidateResult<'a>,
     )> {
         Ok((

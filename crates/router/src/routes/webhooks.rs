@@ -8,7 +8,7 @@ use crate::{
         webhooks::{self, types},
     },
     services::{api, authentication as auth},
-    types::OSS
+    types::OSS,
 };
 
 #[instrument(skip_all, fields(flow = ?Flow::IncomingWebhookReceive))]

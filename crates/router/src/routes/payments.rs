@@ -879,8 +879,15 @@ where
     Op: Sync
         + Clone
         + std::fmt::Debug
-        + payments::operations::Operation<api_types::Authorize, api_models::payments::PaymentsRequest>
-        + payments::operations::Operation<api_types::Verify, api_models::payments::PaymentsRequest>,
+        + payments::operations::Operation<
+            api_types::Authorize,
+            api_models::payments::PaymentsRequest,
+            Ctx,
+        > + payments::operations::Operation<
+            api_types::Verify,
+            api_models::payments::PaymentsRequest,
+            Ctx,
+        >,
 {
     // TODO: Change for making it possible for the flow to be inferred internally or through validation layer
     // This is a temporary fix.

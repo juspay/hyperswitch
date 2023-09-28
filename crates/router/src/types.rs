@@ -1171,5 +1171,3 @@ impl<F1, F2>
 }
 
 pub struct OSS;
-
-pub struct VAS;
