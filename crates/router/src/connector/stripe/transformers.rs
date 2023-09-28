@@ -1591,9 +1591,11 @@ impl TryFrom<&payments::BankRedirectData> for StripePaymentMethodData {
             payments::BankRedirectData::Blik { blik_code } => Ok(Self::BankRedirect(
                 StripeBankRedirectData::StripeBlik(Box::new(StripeBlik {
                     payment_method_data_type,
-                    code: blik_code.clone().ok_or(errors::ConnectorError::MissingRequiredField {
-                        field_name: "blik_code",
-                    })?,
+                    code: blik_code.clone().ok_or(
+                        errors::ConnectorError::MissingRequiredField {
+                            field_name: "blik_code",
+                        },
+                    )?,
                 })),
             )),
             payments::BankRedirectData::Eps { bank_name, .. } => Ok(Self::BankRedirect(

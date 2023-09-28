@@ -2034,9 +2034,11 @@ impl<'a> TryFrom<&api_models::payments::BankRedirectData> for AdyenPaymentMethod
             api_models::payments::BankRedirectData::Blik { blik_code } => {
                 Ok(AdyenPaymentMethod::Blik(Box::new(BlikRedirectionData {
                     payment_type: PaymentType::Blik,
-                    blik_code: blik_code.clone().ok_or(errors::ConnectorError::MissingRequiredField {
-                        field_name: "blik_code",
-                    })?,
+                    blik_code: blik_code.clone().ok_or(
+                        errors::ConnectorError::MissingRequiredField {
+                            field_name: "blik_code",
+                        },
+                    )?,
                 })))
             }
             api_models::payments::BankRedirectData::Eps { bank_name, .. } => Ok(
