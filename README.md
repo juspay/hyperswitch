@@ -43,9 +43,7 @@ New to Rust? Hyperswitch is the perfect place to start this hacktoberfest! 😁
 
 
 <hr>
-<a href="https://github.com/juspay/hyperswitch/blob/main/LICENSE">
-  <img src="./docs/imgs/switch.png" />
-</a>
+<img src="./docs/imgs/switch.png" />
 
 Hyperswitch is an open source payments switch to make payments fast, reliable, and, affordable.
 It lets you connect with multiple payment processors and route traffic effortlessly, all with a single API integration.
