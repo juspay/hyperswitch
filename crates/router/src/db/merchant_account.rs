@@ -120,38 +120,24 @@ impl MerchantAccountInterface for Store {
         merchant_account: storage::MerchantAccountUpdate,
         merchant_key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<domain::MerchantAccount, errors::StorageError> {
-        let _merchant_id = this.merchant_id.clone();
-        let update_func = || async {
-            let conn = connection::pg_connection_write(self).await?;
-            Conversion::convert(this)
-                .await
-                .change_context(errors::StorageError::EncryptionError)?
-                .update(&conn, merchant_account.into())
-                .await
-                .map_err(Into::into)
-                .into_report()
-                .async_and_then(|item| async {
-                    item.convert(merchant_key_store.key.get_inner())
-                        .await
-                        .change_context(errors::StorageError::DecryptionError)
-                })
-                .await
-        };
+        let conn = connection::pg_connection_write(self).await?;
 
-        #[cfg(not(feature = "accounts_cache"))]
-        {
-            update_func().await
-        }
+        let updated_merchant_account = Conversion::convert(this)
+            .await
+            .change_context(errors::StorageError::EncryptionError)?
+            .update(&conn, merchant_account.into())
+            .await
+            .map_err(Into::into)
+            .into_report()?;
 
         #[cfg(feature = "accounts_cache")]
         {
-            super::cache::publish_and_redact(
-                self,
-                CacheKind::Accounts((&_merchant_id).into()),
-                update_func,
-            )
-            .await
+            publish_and_redact_merchant_account_cache(self, &updated_merchant_account).await?;
         }
+        updated_merchant_account
+            .convert(merchant_key_store.key.get_inner())
+            .await
+            .change_context(errors::StorageError::DecryptionError)
     }
 
     async fn update_specific_fields_in_merchant(
@@ -160,61 +146,68 @@ impl MerchantAccountInterface for Store {
         merchant_account: storage::MerchantAccountUpdate,
         merchant_key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<domain::MerchantAccount, errors::StorageError> {
-        let update_func = || async {
-            let conn = connection::pg_connection_write(self).await?;
-            storage::MerchantAccount::update_with_specific_fields(
-                &conn,
-                merchant_id,
-                merchant_account.into(),
-            )
-            .await
-            .map_err(Into::into)
-            .into_report()
-            .async_and_then(|item| async {
-                item.convert(merchant_key_store.key.get_inner())
-                    .await
-                    .change_context(errors::StorageError::DecryptionError)
-            })
-            .await
-        };
-
-        #[cfg(not(feature = "accounts_cache"))]
-        {
-            update_func().await
-        }
+        let conn = connection::pg_connection_write(self).await?;
+        let updated_merchant_account = storage::MerchantAccount::update_with_specific_fields(
+            &conn,
+            merchant_id,
+            merchant_account.into(),
+        )
+        .await
+        .map_err(Into::into)
+        .into_report()?;
 
         #[cfg(feature = "accounts_cache")]
         {
-            super::cache::publish_and_redact(
-                self,
-                CacheKind::Accounts(merchant_id.into()),
-                update_func,
-            )
-            .await
+            publish_and_redact_merchant_account_cache(self, &updated_merchant_account).await?;
         }
+        updated_merchant_account
+            .convert(merchant_key_store.key.get_inner())
+            .await
+            .change_context(errors::StorageError::DecryptionError)
     }
 
     async fn find_merchant_account_by_publishable_key(
         &self,
         publishable_key: &str,
     ) -> CustomResult<authentication::AuthenticationData, errors::StorageError> {
-        let conn = connection::pg_connection_read(self).await?;
-        let merchant = storage::MerchantAccount::find_by_publishable_key(&conn, publishable_key)
-            .await
-            .map_err(Into::into)
-            .into_report()?;
+        let fetch_by_pub_key_func = || async {
+            let conn = connection::pg_connection_read(self).await?;
+
+            storage::MerchantAccount::find_by_publishable_key(&conn, publishable_key)
+                .await
+                .map_err(Into::into)
+                .into_report()
+        };
+
+        let merchant_account;
+        #[cfg(not(feature = "accounts_cache"))]
+        {
+            merchant_account = fetch_by_pub_key_func().await?;
+        }
+
+        #[cfg(feature = "accounts_cache")]
+        {
+            merchant_account = super::cache::get_or_populate_in_memory(
+                self,
+                publishable_key,
+                fetch_by_pub_key_func,
+                &ACCOUNTS_CACHE,
+            )
+            .await?;
+        }
         let key_store = self
             .get_merchant_key_store_by_merchant_id(
-                &merchant.merchant_id,
+                &merchant_account.merchant_id,
                 &self.get_master_key().to_vec().into(),
             )
             .await?;
 
         Ok(authentication::AuthenticationData {
-            merchant_account: merchant
+            merchant_account: merchant_account
                 .convert(key_store.key.get_inner())
                 .await
                 .change_context(errors::StorageError::DecryptionError)?,
+
             key_store,
         })
     }
@@ -223,28 +216,36 @@ impl MerchantAccountInterface for Store {
         &self,
         merchant_id: &str,
     ) -> CustomResult<bool, errors::StorageError> {
-        let delete_func = || async {
-            let conn = connection::pg_connection_write(self).await?;
+        let conn = connection::pg_connection_write(self).await?;
+
+        let is_deleted_func = || async {
             storage::MerchantAccount::delete_by_merchant_id(&conn, merchant_id)
                 .await
                 .map_err(Into::into)
                 .into_report()
         };
 
+        let is_deleted;
+
         #[cfg(not(feature = "accounts_cache"))]
         {
-            delete_func().await
+            is_deleted = is_deleted_func().await?;
         }
 
         #[cfg(feature = "accounts_cache")]
         {
-            super::cache::publish_and_redact(
-                self,
-                CacheKind::Accounts(merchant_id.into()),
-                delete_func,
-            )
-            .await
+            let merchant_account =
+                storage::MerchantAccount::find_by_merchant_id(&conn, merchant_id)
+                    .await
+                    .map_err(Into::into)
+                    .into_report()?;
+
+            is_deleted = is_deleted_func().await?;
+
+            publish_and_redact_merchant_account_cache(self, &merchant_account).await?;
         }
+
+        Ok(is_deleted)
     }
 }
 
@@ -336,4 +337,26 @@ impl MerchantAccountInterface for MockDb {
         // [#172]: Implement function for `MockDb`
         Err(errors::StorageError::MockDbError)?
     }
+}
+
+#[cfg(feature = "accounts_cache")]
+async fn publish_and_redact_merchant_account_cache(
+    store: &dyn super::StorageInterface,
+    merchant_account: &storage::MerchantAccount,
+) -> CustomResult<(), errors::StorageError> {
+    super::cache::publish_into_redact_channel(
+        store,
+        CacheKind::Accounts(merchant_account.merchant_id.as_str().into()),
+    )
+    .await?;
+    merchant_account
+        .publishable_key
+        .as_ref()
+        .async_map(|pub_key| async {
+            super::cache::publish_into_redact_channel(store, CacheKind::Accounts(pub_key.into()))
+                .await
+        })
+        .await
+        .transpose()?;
+    Ok(())
 }

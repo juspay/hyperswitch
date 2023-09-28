@@ -1,5 +1,4 @@
 pub mod types;
-
 use actix_web::{web, HttpRequest, HttpResponse};
 use api_models::payments as payment_types;
 use error_stack::report;
@@ -7,7 +6,7 @@ use router_env::{instrument, tracing, Flow};
 
 use crate::{
     compatibility::{stripe::errors, wrap},
-    core::payments,
+    core::{api_locking::GetLockingInput, payments},
     routes,
     services::{api, authentication as auth},
     types::api::{self as api_types},
@@ -34,7 +33,7 @@ pub async fn payment_intents_create(
     };
 
     let flow = Flow::PaymentsCreate;
-
+    let locking_action = create_payment_req.get_locking_input(flow.clone());
     Box::pin(wrap::compatibility_api_wrap::<
         _,
         _,
@@ -44,9 +43,10 @@ pub async fn payment_intents_create(
         _,
         types::StripePaymentIntentResponse,
         errors::StripeErrorCode,
+        _,
     >(
         flow,
-        state.get_ref(),
+        state.into_inner(),
         &req,
         create_payment_req,
         |state, auth, req| {
@@ -62,10 +62,10 @@ pub async fn payment_intents_create(
             )
         },
         &auth::ApiKeyAuth,
+        locking_action,
     ))
     .await
 }
-
 #[instrument(skip_all, fields(flow = ?Flow::PaymentsRetrieve))]
 pub async fn payment_intents_retrieve(
     state: web::Data<routes::AppState>,
@@ -92,7 +92,7 @@ pub async fn payment_intents_retrieve(
         };
 
     let flow = Flow::PaymentsRetrieve;
-
+    let locking_action = payload.get_locking_input(flow.clone());
     Box::pin(wrap::compatibility_api_wrap::<
         _,
         _,
@@ -102,9 +102,10 @@ pub async fn payment_intents_retrieve(
         _,
         types::StripePaymentIntentResponse,
         errors::StripeErrorCode,
+        _,
     >(
         flow,
-        state.get_ref(),
+        state.into_inner(),
         &req,
         payload,
         |state, auth, payload| {
@@ -120,10 +121,10 @@ pub async fn payment_intents_retrieve(
             )
         },
         &*auth_type,
+        locking_action,
     ))
     .await
 }
-
 #[instrument(skip_all, fields(flow = ?Flow::PaymentsRetrieve))]
 pub async fn payment_intents_retrieve_with_gateway_creds(
     state: web::Data<routes::AppState>,
@@ -154,7 +155,7 @@ pub async fn payment_intents_retrieve_with_gateway_creds(
     };
 
     let flow = Flow::PaymentsRetrieve;
-
+    let locking_action = payload.get_locking_input(flow.clone());
     Box::pin(wrap::compatibility_api_wrap::<
         _,
         _,
@@ -164,9 +165,10 @@ pub async fn payment_intents_retrieve_with_gateway_creds(
         _,
         types::StripePaymentIntentResponse,
         errors::StripeErrorCode,
+        _,
     >(
         flow,
-        state.get_ref(),
+        state.into_inner(),
         &req,
         payload,
         |state, auth, req| {
@@ -182,10 +184,10 @@ pub async fn payment_intents_retrieve_with_gateway_creds(
             )
         },
         &*auth_type,
+        locking_action,
     ))
     .await
 }
-
 #[instrument(skip_all, fields(flow = ?Flow::PaymentsUpdate))]
 pub async fn payment_intents_update(
     state: web::Data<routes::AppState>,
@@ -217,7 +219,7 @@ pub async fn payment_intents_update(
     };
 
     let flow = Flow::PaymentsUpdate;
-
+    let locking_action = payload.get_locking_input(flow.clone());
     Box::pin(wrap::compatibility_api_wrap::<
         _,
         _,
@@ -227,9 +229,10 @@ pub async fn payment_intents_update(
         _,
         types::StripePaymentIntentResponse,
         errors::StripeErrorCode,
+        _,
     >(
         flow,
-        state.get_ref(),
+        state.into_inner(),
         &req,
         payload,
         |state, auth, req| {
@@ -245,10 +248,10 @@ pub async fn payment_intents_update(
             )
         },
         &*auth_type,
+        locking_action,
     ))
     .await
 }
-
 #[instrument(skip_all, fields(flow = ?Flow::PaymentsConfirm))]
 pub async fn payment_intents_confirm(
     state: web::Data<routes::AppState>,
@@ -282,7 +285,7 @@ pub async fn payment_intents_confirm(
         };
 
     let flow = Flow::PaymentsConfirm;
-
+    let locking_action = payload.get_locking_input(flow.clone());
     Box::pin(wrap::compatibility_api_wrap::<
         _,
         _,
@@ -292,9 +295,10 @@ pub async fn payment_intents_confirm(
         _,
         types::StripePaymentIntentResponse,
         errors::StripeErrorCode,
+        _,
     >(
         flow,
-        state.get_ref(),
+        state.into_inner(),
         &req,
         payload,
         |state, auth, req| {
@@ -310,10 +314,10 @@ pub async fn payment_intents_confirm(
             )
         },
         &*auth_type,
+        locking_action,
     ))
     .await
 }
-
 #[instrument(skip_all, fields(flow = ?Flow::PaymentsCapture))]
 pub async fn payment_intents_capture(
     state: web::Data<routes::AppState>,
@@ -331,13 +335,13 @@ pub async fn payment_intents_capture(
         }
     };
 
-    let capture_payload = payment_types::PaymentsCaptureRequest {
-        payment_id: Some(path.into_inner()),
+    let payload = payment_types::PaymentsCaptureRequest {
+        payment_id: path.into_inner(),
         ..stripe_payload
     };
 
     let flow = Flow::PaymentsCapture;
-
+    let locking_action = payload.get_locking_input(flow.clone());
     Box::pin(wrap::compatibility_api_wrap::<
         _,
         _,
@@ -347,11 +351,12 @@ pub async fn payment_intents_capture(
         _,
         types::StripePaymentIntentResponse,
         errors::StripeErrorCode,
+        _,
     >(
         flow,
-        state.get_ref(),
+        state.into_inner(),
         &req,
-        capture_payload,
+        payload,
         |state, auth, payload| {
             payments::payments_core::<api_types::Capture, api_types::PaymentsResponse, _, _, _>(
                 state,
@@ -365,10 +370,10 @@ pub async fn payment_intents_capture(
             )
         },
         &auth::ApiKeyAuth,
+        locking_action,
     ))
     .await
 }
-
 #[instrument(skip_all, fields(flow = ?Flow::PaymentsCancel))]
 pub async fn payment_intents_cancel(
     state: web::Data<routes::AppState>,
@@ -396,7 +401,7 @@ pub async fn payment_intents_cancel(
     };
 
     let flow = Flow::PaymentsCancel;
-
+    let locking_action = payload.get_locking_input(flow.clone());
     Box::pin(wrap::compatibility_api_wrap::<
         _,
         _,
@@ -406,9 +411,10 @@ pub async fn payment_intents_cancel(
         _,
         types::StripePaymentIntentResponse,
         errors::StripeErrorCode,
+        _,
     >(
         flow,
-        state.get_ref(),
+        state.into_inner(),
         &req,
         payload,
         |state, auth, req| {
@@ -424,10 +430,10 @@ pub async fn payment_intents_cancel(
             )
         },
         &*auth_type,
+        locking_action,
     ))
     .await
 }
-
 #[instrument(skip_all, fields(flow = ?Flow::PaymentsList))]
 #[cfg(feature = "olap")]
 pub async fn payment_intent_list(
@@ -439,9 +445,8 @@ pub async fn payment_intent_list(
         Ok(p) => p,
         Err(err) => return api::log_and_return_error_response(err),
     };
-
+    use crate::core::api_locking;
     let flow = Flow::PaymentsList;
-
     Box::pin(wrap::compatibility_api_wrap::<
         _,
         _,
@@ -451,13 +456,15 @@ pub async fn payment_intent_list(
         _,
         types::StripePaymentIntentListResponse,
         errors::StripeErrorCode,
+        _,
     >(
         flow,
-        state.get_ref(),
+        state.into_inner(),
         &req,
         payload,
-        |state, auth, req| payments::list_payments(&*state.store, auth.merchant_account, req),
+        |state, auth, req| payments::list_payments(state, auth.merchant_account, req),
         &auth::ApiKeyAuth,
+        api_locking::LockAction::NotApplicable,
     ))
     .await
 }

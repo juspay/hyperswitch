@@ -14,7 +14,7 @@ use crate::{
 
 pub async fn get_or_populate_redis<T, F, Fut>(
     store: &dyn StorageInterface,
-    key: &str,
+    key: impl AsRef<str>,
     fun: F,
 ) -> CustomResult<T, errors::StorageError>
 where
@@ -23,6 +23,7 @@ where
     Fut: futures::Future<Output = CustomResult<T, errors::StorageError>> + Send,
 {
     let type_name = std::any::type_name::<T>();
+    let key = key.as_ref();
     let redis = &store
         .get_redis_conn()
         .change_context(errors::StorageError::RedisError(

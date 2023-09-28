@@ -204,7 +204,6 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         req: &types::PaymentsAuthorizeRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
-        self.validate_capture_method(req.request.capture_method)?;
         Ok(Some(
             services::RequestBuilder::new()
                 .method(services::Method::Post)
@@ -706,9 +705,15 @@ impl api::IncomingWebhook for Noon {
         &self,
         request: &api::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<serde_json::Value, errors::ConnectorError> {
-        let reference_object: serde_json::Value = serde_json::from_slice(request.body)
-            .into_report()
+        let resource: noon::NoonWebhookObject = request
+            .body
+            .parse_struct("NoonWebhookObject")
             .change_context(errors::ConnectorError::WebhookResourceObjectNotFound)?;
-        Ok(reference_object)
+
+        let res_json = serde_json::to_value(noon::NoonPaymentsResponse::from(resource))
+            .into_report()
+            .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
+
+        Ok(res_json)
     }
 }

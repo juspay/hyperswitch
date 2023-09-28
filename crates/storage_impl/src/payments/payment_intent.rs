@@ -32,6 +32,7 @@ use error_stack::{IntoReport, ResultExt};
 use redis_interface::HsetnxReply;
 #[cfg(feature = "olap")]
 use router_env::logger;
+use router_env::{instrument, tracing};
 
 use crate::{
     redis::kv_store::{PartitionKey, RedisConnInterface},
@@ -55,6 +56,7 @@ impl<T: DatabaseStore> PaymentIntentInterface for KVRouterStore<T> {
 
             MerchantStorageScheme::RedisKv => {
                 let key = format!("{}_{}", new.merchant_id, new.payment_id);
+                let field = format!("pi_{}", new.payment_id);
                 let created_intent = PaymentIntent {
                     id: 0i32,
                     payment_id: new.payment_id.clone(),
@@ -94,7 +96,7 @@ impl<T: DatabaseStore> PaymentIntentInterface for KVRouterStore<T> {
                 match self
                     .get_redis_conn()
                     .change_context(StorageError::DatabaseConnectionError)?
-                    .serialize_and_set_hash_field_if_not_exist(&key, "pi", &created_intent)
+                    .serialize_and_set_hash_field_if_not_exist(&key, &field, &created_intent)
                     .await
                 {
                     Ok(HsetnxReply::KeyNotSet) => Err(StorageError::DuplicateValue {
@@ -125,6 +127,7 @@ impl<T: DatabaseStore> PaymentIntentInterface for KVRouterStore<T> {
         }
     }
 
+    #[instrument(skip_all)]
     async fn update_payment_intent(
         &self,
         this: PaymentIntent,
@@ -139,6 +142,7 @@ impl<T: DatabaseStore> PaymentIntentInterface for KVRouterStore<T> {
             }
             MerchantStorageScheme::RedisKv => {
                 let key = format!("{}_{}", this.merchant_id, this.payment_id);
+                let field = format!("pi_{}", this.payment_id);
 
                 let updated_intent = payment_intent.clone().apply_changeset(this.clone());
                 // Check for database presence as well Maybe use a read replica here ?
@@ -150,7 +154,7 @@ impl<T: DatabaseStore> PaymentIntentInterface for KVRouterStore<T> {
                 let updated_intent = self
                     .get_redis_conn()
                     .change_context(StorageError::DatabaseConnectionError)?
-                    .set_hash_fields(&key, ("pi", &redis_value))
+                    .set_hash_fields(&key, (&field, &redis_value))
                     .await
                     .map(|_| updated_intent)
                     .change_context(StorageError::KVError)?;
@@ -180,6 +184,7 @@ impl<T: DatabaseStore> PaymentIntentInterface for KVRouterStore<T> {
         }
     }
 
+    #[instrument(skip_all)]
     async fn find_payment_intent_by_payment_id_merchant_id(
         &self,
         payment_id: &str,
@@ -200,10 +205,11 @@ impl<T: DatabaseStore> PaymentIntentInterface for KVRouterStore<T> {
 
             MerchantStorageScheme::RedisKv => {
                 let key = format!("{merchant_id}_{payment_id}");
+                let field = format!("pi_{payment_id}");
                 crate::utils::try_redis_get_else_try_database_get(
                     self.get_redis_conn()
                         .change_context(StorageError::DatabaseConnectionError)?
-                        .get_hash_field_and_deserialize(&key, "pi", "PaymentIntent"),
+                        .get_hash_field_and_deserialize(&key, &field, "PaymentIntent"),
                     database_call,
                 )
                 .await
@@ -323,6 +329,7 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
             .map(PaymentIntent::from_storage_model)
     }
 
+    #[instrument(skip_all)]
     async fn find_payment_intent_by_payment_id_merchant_id(
         &self,
         payment_id: &str,
