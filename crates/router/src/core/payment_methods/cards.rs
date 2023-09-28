@@ -777,7 +777,7 @@ fn get_val(str: String, val: &serde_json::Value) -> Option<String> {
         .map(|s| s.to_string())
 }
 
-pub async fn list_payment_methods(
+pub async fn list_payment_methods<Ctx: crate::types::ExtraReq>(
     state: routes::AppState,
     merchant_account: domain::MerchantAccount,
     key_store: domain::MerchantKeyStore,
@@ -899,7 +899,7 @@ pub async fn list_payment_methods(
             None => continue,
         };
 
-        filter_payment_methods(
+        filter_payment_methods::<Ctx>(
             payment_methods,
             &mut req,
             &mut response,
@@ -1311,7 +1311,7 @@ pub async fn list_payment_methods(
 }
 
 #[allow(clippy::too_many_arguments)]
-pub async fn filter_payment_methods(
+pub async fn filter_payment_methods<Ctx: crate::types::ExtraReq>(
     payment_methods: Vec<serde_json::Value>,
     req: &mut api::PaymentMethodListRequest,
     resp: &mut Vec<ResponsePaymentMethodIntermediate>,
@@ -1322,6 +1322,8 @@ pub async fn filter_payment_methods(
     config: &settings::ConnectorFilters,
     supported_payment_methods_for_mandate: &settings::SupportedPaymentMethodsForMandate,
 ) -> errors::CustomResult<(), errors::ApiErrorResponse> {
+    let output = Ctx::extra_fun();
+    logger::debug!(outpput=?output);
     for payment_method in payment_methods.into_iter() {
         let parse_result = serde_json::from_value::<PaymentMethodsEnabled>(payment_method);
         if let Ok(payment_methods_enabled) = parse_result {

@@ -1169,3 +1169,24 @@ impl<F1, F2>
         }
     }
 }
+
+pub struct OSS;
+
+// In OSS
+pub trait ExtraReq {
+    fn extra_fun() -> String;
+}
+
+// In OSS
+impl ExtraReq for OSS {
+    fn extra_fun() -> String {
+        "OSS".to_string()
+    }
+}
+
+// // In VAS - Here we call plaid api and return bank details which will be collected in OSS make_pm_data()
+// impl ExtraReq for Vas {
+//     fn extra_fun() {
+//         println!("VAS");
+//     }
+// }

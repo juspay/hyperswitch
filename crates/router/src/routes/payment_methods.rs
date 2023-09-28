@@ -90,7 +90,12 @@ pub async fn list_payment_method_api(
         &req,
         payload,
         |state, auth, req| {
-            cards::list_payment_methods(state, auth.merchant_account, auth.key_store, req)
+            cards::list_payment_methods::<crate::types::OSS>(
+                state,
+                auth.merchant_account,
+                auth.key_store,
+                req,
+            )
         },
         &*auth,
         api_locking::LockAction::NotApplicable,
