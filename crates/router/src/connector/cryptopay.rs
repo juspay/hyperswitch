@@ -287,9 +287,8 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
     ) -> CustomResult<String, errors::ConnectorError> {
         let custom_id = req.connector_request_reference_id.clone();
         Ok(format!(
-            "{}/api/invoices/custom_id/{}",
-            self.base_url(connectors),
-            custom_id
+            "{}/api/invoices/custom_id/{custom_id}",
+            self.base_url(connectors)
         ))
     }
 
