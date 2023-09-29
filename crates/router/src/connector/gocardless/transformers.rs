@@ -259,26 +259,34 @@ impl TryFrom<&BankDebitData> for CustomerBankAccount {
     fn try_from(item: &BankDebitData) -> Result<Self, Self::Error> {
         match item {
             BankDebitData::AchBankDebit {
-                billing_details,
+                //billing_details,
                 account_number,
                 routing_number,
-                bank_type,
-                bank_account_holder_name,
+                // bank_type,
+                //bank_account_holder_name,
+                card_holder_name,
                 ..
             } => {
-                let bank_type = bank_type.ok_or_else(utils::missing_field_err("bank_type"))?;
-                let country_code = billing_details.get_billing_country()?;
+                //let bank_type = bank_type.ok_or_else(utils::missing_field_err("bank_type"))?;
+                //let country_code = billing_details.get_billing_country()?;
+                //let account_holder_name =
+                //   bank_account_holder_name
+                //        .clone()
+                //      .ok_or_else(utils::missing_field_err(
+                //    "payment_method_data.bank_debit.ach_bank_debit.bank_account_holder_name",
+                //))?;
                 let account_holder_name =
-                    bank_account_holder_name
+                    card_holder_name
                         .clone()
                         .ok_or_else(utils::missing_field_err(
-                        "payment_method_data.bank_debit.ach_bank_debit.bank_account_holder_name",
+                        "payment_method_data.bank_debit.ach_bank_debit.card_holder_name",
                     ))?;
                 let us_bank_account = USBankAccount {
-                    country_code,
+                    country_code: CountryAlpha2::US,
                     account_number: account_number.clone(),
                     bank_code: routing_number.clone(),
-                    account_type: AccountType::from(bank_type),
+                    //account_type: AccountType::from(bank_type),
+                    account_type: AccountType::Checking,
                     account_holder_name,
                 };
                 Ok(Self::USBankAccount(us_bank_account))
