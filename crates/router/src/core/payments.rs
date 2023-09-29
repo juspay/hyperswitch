@@ -102,11 +102,6 @@ where
         )
         .await?;
 
-    println!(
-        "payment operation payment intent {:?}",
-        payment_data.payment_intent.clone()
-    );
-
     let (operation, customer) = operation
         .to_domain()?
         .get_or_create_customer_details(

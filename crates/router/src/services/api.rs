@@ -1,6 +1,5 @@
 pub mod client;
 pub mod request;
-
 use std::{
     collections::HashMap,
     error::Error,
@@ -20,6 +19,7 @@ use masking::{ExposeOptionInterface, PeekInterface};
 use router_env::{instrument, tracing, tracing_actix_web::RequestId, Tag};
 use serde::Serialize;
 use serde_json::json;
+use tera::{Context, Tera};
 
 use self::request::{HeaderExt, RequestBuilderExt};
 use crate::{
@@ -642,8 +642,6 @@ pub enum ApplicationResponse<R> {
 #[derive(Debug, Eq, PartialEq, Clone, serde::Serialize, serde::Deserialize)]
 pub struct PaymentLinkFormData {
     pub js_script: String,
-    pub css_script: String,
-    pub body: String,
     pub base_url: String,
 }
 
@@ -852,9 +850,16 @@ where
         }
 
         Ok(ApplicationResponse::PaymenkLinkForm(payment_link_data)) => {
-            build_payment_link_html(*payment_link_data)
-                .respond_to(request)
-                .map_into_boxed_body()
+            match build_payment_link_html(*payment_link_data) {
+                Ok(rendered_html) => http_response_html_data(rendered_html),
+                Err(_) => http_response_err(
+                    r#"{
+                            "error": {
+                                "message": "Error while rendering payment link html page"
+                            }
+                        }"#,
+                ),
+            }
         }
 
         Ok(ApplicationResponse::JsonWithHeaders((response, headers))) => {
@@ -956,6 +961,10 @@ pub fn http_response_file_data<T: body::MessageBody + 'static>(
     content_type: mime::Mime,
 ) -> HttpResponse {
     HttpResponse::Ok().content_type(content_type).body(res)
+}
+
+pub fn http_response_html_data<T: body::MessageBody + 'static>(res: T) -> HttpResponse {
+    HttpResponse::Ok().content_type(mime::TEXT_HTML).body(res)
 }
 
 pub fn http_response_ok() -> HttpResponse {
@@ -1282,29 +1291,35 @@ mod tests {
     }
 }
 
-pub fn build_payment_link_html(payment_link_data: PaymentLinkFormData) -> maud::Markup {
-    use maud::PreEscaped;
-    let hyper_loader_sdk = if payment_link_data.base_url == "http://localhost:8080" {
-        "http://localhost:9090/dist/HyperLoader.js".to_string()
-    } else {
-        "https://beta.hyperswitch.io/v1/HyperLoader.js".to_string()
-    };
+pub fn build_payment_link_html(
+    payment_link_data: PaymentLinkFormData,
+) -> CustomResult<String, errors::ApiErrorResponse> {
+    let html_template = include_str!("../core/payment_link/payment_link.html").to_string();
 
-    maud::html! {
-        (maud::DOCTYPE)
-        html {
-            head {
-                (PreEscaped(format!("
-                <script src= \"{hyper_loader_sdk}\"></script>
-                <style>{}</style>
-                ",payment_link_data.css_script)))
+    let mut tera = Tera::default();
 
-                link rel = "stylesheet" href = "https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800";
+    let _ = tera.add_raw_template("payment_link", &html_template);
 
-            }
-            (PreEscaped(payment_link_data.body))
-            (PreEscaped(payment_link_data.js_script))
+    let mut context = Context::new();
+    context.insert(
+        "hyperloader_sdk_link",
+        &get_hyper_loader_sdk(&payment_link_data.base_url),
+    );
+    context.insert("payment_details_js_script11", &payment_link_data.js_script);
 
+    match tera.render("payment_link", &context) {
+        Ok(rendered_html) => Ok(rendered_html),
+        Err(tera_error) => {
+            crate::logger::warn!("{tera_error}");
+            Err(errors::ApiErrorResponse::InternalServerError)?
         }
+    }
+}
+
+fn get_hyper_loader_sdk(base_url: &str) -> String {
+    if base_url == "http://localhost:8080" {
+        "<script src=\"http://localhost:9090/dist/HyperLoader.js\"></script>".to_string()
+    } else {
+        "<script src=\"https://beta.hyperswitch.io/v1/HyperLoader.js\"></script>".to_string()
     }
 }

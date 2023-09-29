@@ -2066,20 +2066,23 @@ pub async fn authenticate_client_secret(
     merchant_intent_fulfillment_time: Option<i64>,
     db: &dyn StorageInterface,
 ) -> Result<(), errors::ApiErrorResponse> {
-    let payment_link_db = if let Some(payment_link_id) = &payment_intent.payment_link_id {
-        db.find_payment_link_by_payment_link_id(payment_link_id, &payment_intent.merchant_id)
-            .await
-            .ok()
-    } else {
-        None
-    };
-
     match (request_client_secret, &payment_intent.client_secret) {
         (Some(req_cs), Some(pi_cs)) => {
             if req_cs != pi_cs {
                 Err(errors::ApiErrorResponse::ClientSecretInvalid)
             } else {
                 //This is done to check whether the merchant_account's intent fulfillment time has expired or not
+                let payment_link_db = if let Some(payment_link_id) = &payment_intent.payment_link_id
+                {
+                    db.find_payment_link_by_payment_link_id(
+                        payment_link_id,
+                        &payment_intent.merchant_id,
+                    )
+                    .await
+                    .ok()
+                } else {
+                    None
+                };
                 if let Some(payment_link_db) = payment_link_db {
                     let current_timestamp = common_utils::date_time::now();
                     fp_utils::when(
