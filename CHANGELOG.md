@@ -4,6 +4,16 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 1.48.1+hotfix.1 (2023-09-29)
+
+### Features
+
+- Temp support for ach gocardless with existing api contracts ([#2394](https://github.com/juspay/hyperswitch/pull/2394)) ([`03d98a7`](https://github.com/juspay/hyperswitch/commit/03d98a7564a38ce39e4c97364b7c093b8fbaaae7))
+
+**Full Changelog:** [`v1.48.1...v1.48.1+hotfix.1`](https://github.com/juspay/hyperswitch/compare/v1.48.1...v1.48.1+hotfix.1)
+
+- - -
+
 ## 1.48.1 (2023-09-28)
 
 ### Bug Fixes
