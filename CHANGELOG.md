@@ -4,6 +4,17 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 1.48.1 (2023-09-28)
+
+### Bug Fixes
+
+- [Gocardless] add region in customer create request based on country ([#2389](https://github.com/juspay/hyperswitch/pull/2389)) ([`c293cb6`](https://github.com/juspay/hyperswitch/commit/c293cb6ffafd61702ee16233cf06a206c0093f3d))
+
+**Full Changelog:** [`v1.48.0...v1.48.1`](https://github.com/juspay/hyperswitch/compare/v1.48.0...v1.48.1)
+
+- - -
+
+
 ## 1.48.0 (2023-09-27)
 
 ### Features
