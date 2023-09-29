@@ -279,8 +279,8 @@ impl TryFrom<&BankDebitData> for CustomerBankAccount {
                     card_holder_name
                         .clone()
                         .ok_or_else(utils::missing_field_err(
-                        "payment_method_data.bank_debit.ach_bank_debit.card_holder_name",
-                    ))?;
+                            "payment_method_data.bank_debit.ach_bank_debit.card_holder_name",
+                        ))?;
                 let us_bank_account = USBankAccount {
                     country_code: CountryAlpha2::US,
                     account_number: account_number.clone(),
