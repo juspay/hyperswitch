@@ -180,40 +180,32 @@ should be introduced, checking it agrees with the actual structure -->
 
 ```text
 .
-├── config
-├── connector-template
-├── crates
-│   ├── api_models
-│   ├── cards
-│   ├── common_enums
-│   ├── common_utils
-│   ├── data_models
-│   ├── diesel_models
-│   ├── drainer
-│   ├── external_services
-│   ├── masking
-│   ├── redis_interface
-│   ├── router
-│   ├── router_derive
-│   ├── router_env
-│   ├── scheduler
-│   ├── storage_impl
-│   └── test_utils
-├── docs
-│   ├── imgs
-│   └── rfcs
-├── loadtest
-│   ├── config
-│   ├── grafana
-│   └── k6
-├── migrations
-├── monitoring
-│   └── config
-├── openapi
-├── postman
-│   ├── collection-dir
-│   └── collection-json
-└── scripts
+├── config                             : Initial startup config files for the router
+├── connector-template                 : boilerplate code for connectors
+├── crates                             : sub-crates
+│   ├── api_models                     : Request/response models for the `router` crate
+│   ├── cards                          : Types to handle card masking and validation
+│   ├── common_enums                   : Enums shared across the request/response types and database types
+│   ├── common_utils                   : Utilities shared across `router` and other crates
+│   ├── data_models                    : Represents the data/domain models used by the business/domain layer
+│   ├── diesel_models                  : Database models shared across `router` and other crates
+│   ├── drainer                        : Application that reads Redis streams and executes queries in database
+│   ├── external_services              : Interactions with external systems like emails, KMS, etc.
+│   ├── masking                        : Personal Identifiable Information protection
+│   ├── redis_interface                : A user-friendly interface to Redis
+│   ├── router                         : Main crate of the project
+│   ├── router_derive                  : Utility macros for the `router` crate
+│   ├── router_env                     : Environment of payment router: logger, basic config, its environment awareness
+│   ├── scheduler                      : Scheduling and executing deferred tasks like mail scheduling
+│   ├── storage_impl                   : Storage backend implementations for data structures & objects
+│   └── test_utils                     : Utilities to run Postman and connector UI tests
+├── docs                               : hand-written documentation
+├── loadtest                           : performance benchmarking setup
+├── migrations                         : diesel DB setup
+├── monitoring                         : Grafana & Loki monitoring related configuration files
+├── openapi                            : automatically generated OpenAPI spec
+├── postman                            : postman scenarios API
+└── scripts                            : automation, testing, and other utility scripts
 ```
 
 ## 💪 Join us in building Hyperswitch
