@@ -302,3 +302,7 @@ payout_connector_list = "wise"
 
 [multiple_api_version_supported_connectors]
 supported_connectors = "braintree"
+
+[lock_settings]
+redis_lock_expiry_seconds = 180 # 3 * 60 seconds
+delay_between_retries_in_milliseconds = 500
