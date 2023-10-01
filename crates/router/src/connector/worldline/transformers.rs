@@ -505,7 +505,9 @@ impl<F, T> TryFrom<types::ResponseRouterData<F, Payment, T, types::PaymentsRespo
                 mandate_reference: None,
                 connector_metadata: None,
                 network_txn_id: None,
-                connector_response_reference_id: Some(item.response.reference.unwrap_or(item.response.id)),
+                connector_response_reference_id: Some(
+                    item.response.reference.unwrap_or(item.response.id),
+                ),
             }),
             ..item.data
         })
@@ -556,7 +558,7 @@ impl<F, T> TryFrom<types::ResponseRouterData<F, PaymentResponse, T, types::Payme
                 mandate_reference: None,
                 connector_metadata: None,
                 network_txn_id: None,
-                connector_response_reference_id: Option<String>,
+                connector_response_reference_id: Option::<String>,
             }),
             ..item.data
         })
