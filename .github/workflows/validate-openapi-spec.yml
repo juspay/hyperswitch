@@ -18,7 +18,7 @@ jobs:
     steps:
       - name: Checkout PR
         if: ${{ github.event_name == 'pull_request' }}
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           # Checkout pull request branch instead of merge commit
           ref: ${{ github.event.pull_request.head.ref }}
@@ -26,7 +26,7 @@ jobs:
 
       - name: Checkout merge group HEAD commit
         if: ${{ github.event_name == 'merge_group' }}
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           ref: ${{ github.event.merge_group.head_sha }}
 
