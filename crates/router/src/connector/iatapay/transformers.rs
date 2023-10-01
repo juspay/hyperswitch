@@ -1,6 +1,5 @@
 use std::collections::HashMap;
 
-use api_models::enums::PaymentMethod;
 use masking::{Secret, SwitchStrategy};
 use serde::{Deserialize, Serialize};
 
@@ -83,11 +82,7 @@ pub struct IatapayPaymentsRequest {
 impl TryFrom<&types::PaymentsAuthorizeRouterData> for IatapayPaymentsRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::PaymentsAuthorizeRouterData) -> Result<Self, Self::Error> {
-        let payment_method = item.payment_method;
-        let country = match payment_method {
-            PaymentMethod::Upi => "IN".to_string(),
-            _ => item.get_billing_country()?.to_string(),
-        };
+        let country = item.get_billing_country()?.to_string();
         let return_url = item.get_return_url()?;
         let payer_info = match item.request.payment_method_data.clone() {
             api::PaymentMethodData::Upi(upi_data) => upi_data.vpa_id.map(|id| PayerInfo {
@@ -157,6 +152,7 @@ pub enum IatapayPaymentStatus {
     Cleared,
     Failed,
     Locked,
+    Cancel,
     #[serde(rename = "UNEXPECTED SETTLED")]
     UnexpectedSettled,
     #[serde(other)]
@@ -166,11 +162,17 @@ pub enum IatapayPaymentStatus {
 impl From<IatapayPaymentStatus> for enums::AttemptStatus {
     fn from(item: IatapayPaymentStatus) -> Self {
         match item {
-            IatapayPaymentStatus::Authorized | IatapayPaymentStatus::Settled => Self::Charged,
-            IatapayPaymentStatus::Failed | IatapayPaymentStatus::UnexpectedSettled => Self::Failure,
+            IatapayPaymentStatus::Authorized => Self::Authorized,
+            IatapayPaymentStatus::Settled
+            | IatapayPaymentStatus::Cleared
+            | IatapayPaymentStatus::Tobeinvestigated
+            | IatapayPaymentStatus::Blocked => Self::Charged,
+            IatapayPaymentStatus::Failed
+            | IatapayPaymentStatus::UnexpectedSettled
+            | IatapayPaymentStatus::Unknown => Self::Failure,
             IatapayPaymentStatus::Created => Self::AuthenticationPending,
-            IatapayPaymentStatus::Initiated => Self::Pending,
-            _ => Self::Voided,
+            IatapayPaymentStatus::Initiated | IatapayPaymentStatus::Locked => Self::Pending,
+            IatapayPaymentStatus::Cancel => Self::Voided,
         }
     }
 }
