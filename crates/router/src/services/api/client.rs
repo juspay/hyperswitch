@@ -20,7 +20,7 @@ static PROXIED_CLIENT: OnceCell<reqwest::Client> = OnceCell::new();
 
 fn get_client_builder(
     proxy_config: &Proxy,
-    proxy_exluded_urls: Vec<String>,
+    proxy_excluded_urls: Vec<String>,
 ) -> CustomResult<reqwest::ClientBuilder, ApiClientError> {
     let mut client_builder = reqwest::Client::builder()
         .redirect(reqwest::redirect::Policy::none())
@@ -34,7 +34,7 @@ fn get_client_builder(
     //     return Ok(client_builder);
     // }
 
-    let no_proxy_urls = proxy_exluded_urls.join(", ");
+    let no_proxy_urls = proxy_excluded_urls.join(", ");
 
     // Proxy all HTTPS traffic through the configured HTTPS proxy
     if let Some(url) = proxy_config.https_url.as_ref() {
@@ -63,11 +63,11 @@ fn get_client_builder(
 
 fn get_base_client(
     proxy_config: &Proxy,
-    proxy_exluded_urls: Vec<String>,
+    proxy_excluded_urls: Vec<String>,
 ) -> CustomResult<reqwest::Client, ApiClientError> {
     Ok(PROXIED_CLIENT
         .get_or_try_init(|| {
-            get_client_builder(proxy_config, proxy_exluded_urls)?
+            get_client_builder(proxy_config, proxy_excluded_urls)?
                 .build()
                 .into_report()
                 .change_context(ApiClientError::ClientConstructionFailed)
@@ -81,13 +81,13 @@ fn get_base_client(
 // Precedence will be the environment variables, followed by the config.
 pub(super) fn create_client(
     proxy_config: &Proxy,
-    proxy_exluded_urls: Vec<String>,
+    proxy_excluded_urls: Vec<String>,
     client_certificate: Option<String>,
     client_certificate_key: Option<String>,
 ) -> CustomResult<reqwest::Client, ApiClientError> {
     match (client_certificate, client_certificate_key) {
         (Some(encoded_certificate), Some(encoded_certificate_key)) => {
-            let client_builder = get_client_builder(proxy_config, proxy_exluded_urls)?;
+            let client_builder = get_client_builder(proxy_config, proxy_excluded_urls)?;
 
             let identity = payments::helpers::create_identity_from_certificate_and_key(
                 encoded_certificate,
@@ -101,7 +101,7 @@ pub(super) fn create_client(
                 .change_context(ApiClientError::ClientConstructionFailed)
                 .attach_printable("Failed to construct client with certificate and certificate key")
         }
-        _ => get_base_client(proxy_config, proxy_exluded_urls),
+        _ => get_base_client(proxy_config, proxy_excluded_urls),
     }
 }
 

@@ -412,7 +412,7 @@ pub async fn send_request(
     logger::debug!(method=?request.method, headers=?request.headers, payload=?request.payload, ?request);
     let url = &request.url;
     #[cfg(feature = "dummy_connector")]
-    let proxy_exluded_urls = if url.starts_with(&state.conf.connectors.dummyconnector.base_url) {
+    let proxy_excluded_urls = if url.starts_with(&state.conf.connectors.dummyconnector.base_url) {
         let mut url_vec = client::proxy_bypass_urls(&state.conf.locker);
         url_vec.push(state.conf.connectors.dummyconnector.base_url.to_owned());
         url_vec
@@ -420,10 +420,10 @@ pub async fn send_request(
         client::proxy_bypass_urls(&state.conf.locker)
     };
     #[cfg(not(feature = "dummy_connector"))]
-    let proxy_exluded_urls = client::proxy_bypass_urls(&state.conf.locker);
+    let proxy_excluded_urls = client::proxy_bypass_urls(&state.conf.locker);
     let client = client::create_client(
         &state.conf.proxy,
-        proxy_exluded_urls,
+        proxy_excluded_urls,
         request.certificate,
         request.certificate_key,
     )?;
