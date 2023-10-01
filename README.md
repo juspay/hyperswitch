@@ -10,17 +10,17 @@
 The single API to access payment ecosystems across 130+ countries</div>
 
 <p align="center">
-  <a href="#quick-start-guide">Quick Start Guide</a> •
-  <a href="#fast-integration-for-stripe-users">Fast Integration for Stripe Users</a> •
-  <a href="#supported-features">Supported Features</a> •
-  <a href="#faqs">FAQs</a>
+  <a href="#%EF%B8%8F-quick-start-guide">Quick Start Guide</a> •
+  <a href="#-fast-integration-for-stripe-users">Fast Integration for Stripe Users</a> •
+  <a href="#-supported-features">Supported Features</a> •
+  <a href="#-FAQs">FAQs</a>
   <br>
   <a href="#whats-included">What's Included</a> •
-  <a href="#join-us-in-building-hyperswitch">Join us in building HyperSwitch</a> •
-  <a href="#community">Community</a> •
-  <a href="#bugs-and-feature-requests">Bugs and feature requests</a> •
-  <a href="#versioning">Versioning</a> •
-  <a href="#copyright-and-license">Copyright and License</a>
+  <a href="#-join-us-in-building-hyperswitch">Join us in building HyperSwitch</a> •
+  <a href="#-community">Community</a> •
+  <a href="#-bugs-and-feature-requests">Bugs and feature requests</a> •
+  <a href="#-versioning">Versioning</a> •
+  <a href="#%EF%B8%8F-copyright-and-license">Copyright and License</a>
 </p>
 
 <p align="center">
@@ -63,7 +63,9 @@ Using Hyperswitch, you can:
 <br>
 <img src="./docs/imgs/hyperswitch-product.png" alt="Hyperswitch-Product" width="50%"/>
 
-## ⚡️ Quick Start Guide
+<a href="#Quick Start Guide">
+  <h2 id="Quick Start Guide">⚡️ Quick Start Guide</h2>
+</a>
 
 
 <a href="https://app.hyperswitch.io/register"><img src="./docs/imgs/signup-to-hs.svg" height="35"></a>
@@ -84,7 +86,9 @@ Ways to get started with Hyperswitch:
    setup required in your system.
    Suitable if you like to customise the core offering, [setup guide](/docs/try_local_system.md)
 
-## 🔌 Fast Integration for Stripe Users
+<a href="#Fast-Integration-for-Stripe-Users">
+  <h2 id="Fast Integration for Stripe Users">🔌 Fast Integration for Stripe Users</h2>
+</a>
 
 If you are already using Stripe, integrating with Hyperswitch is fun, fast &
 easy.
@@ -97,7 +101,9 @@ Try the steps below to get a feel for how quick the setup is:
 [dashboard]: https://app.hyperswitch.io/register
 [migrate-from-stripe]: https://hyperswitch.io/docs/migrateFromStripe
 
-## ✅ Supported Features
+<a href="#Supported-Features">
+  <h2 id="Supported Features">✅ Supported Features</h2>
+</a>
 
 ### 🌟 Supported Payment Processors and Methods
 
@@ -141,7 +147,9 @@ analytics, and operations end-to-end:
 
 You can [try the hosted version in our sandbox][dashboard].
 
-## 🤔 FAQs
+<a href="#FAQs">
+  <h2 id="FAQs">🤔 FAQs</h2>
+</a>
 
 Got more questions?
 Please refer to our [FAQs page][faqs].
@@ -160,7 +168,9 @@ Please refer to the following documentation pages:
 - Router Architecture [Link]
  -->
 
-## What's Included❓
+<a href="#what's-Included❓">
+  <h2 id="what's-Included❓">What's Included❓</h2>
+</a>
 
 Within the repositories, you'll find the following directories and files,
 logically grouping common assets and providing both compiled and minified
@@ -208,7 +218,9 @@ should be introduced, checking it agrees with the actual structure -->
 └── scripts                            : automation, testing, and other utility scripts
 ```
 
-## 💪 Join us in building Hyperswitch
+<a href="#Join-us-in-building-Hyperswitch">
+  <h2 id="Join-us-in-building-Hyperswitch">💪 Join us in building Hyperswitch</h2>
+</a>
 
 ### 🤝 Our Belief
 
@@ -260,7 +272,9 @@ readability over purely idiomatic code. For example, some of the code in core
 functions (e.g., `payments_core`) is written to be more readable than
 pure-idiomatic.
 
-## 👥 Community
+<a href="#Community">
+  <h2 id="Community">👥 Community</h2>
+</a>
 
 Get updates on Hyperswitch development and chat with the community:
 
@@ -292,7 +306,9 @@ Get updates on Hyperswitch development and chat with the community:
   </div>
 </div>
 
-## 🐞 Bugs and feature requests
+<a href="#Bugs and feature requests">
+  <h2 id="Bugs and feature requests">🐞 Bugs and feature requests</h2>
+</a>
 
 Please read the issue guidelines and search for [existing and closed issues].
 If your problem or idea is not addressed yet, please [open a new issue].
@@ -300,16 +316,22 @@ If your problem or idea is not addressed yet, please [open a new issue].
 [existing and closed issues]: https://github.com/juspay/hyperswitch/issues
 [open a new issue]: https://github.com/juspay/hyperswitch/issues/new/choose
 
-## 🔖 Versioning
+<a href="#Versioning">
+  <h2 id="Versioning">🔖 Versioning</h2>
+</a>
 
 Check the [CHANGELOG.md](./CHANGELOG.md) file for details.
 
-## ©️ Copyright and License
+<a href="#©Copyright and License">
+  <h2 id="©Copyright and License">©️ Copyright and License</h2>
+</a>
 
 This product is licensed under the [Apache 2.0 License](LICENSE).
 
 
-## ✨ Thanks to all contributors
+<a href="#Thanks to all contributors">
+  <h2 id="Thanks to all contributors">✨ Thanks to all contributors</h2>
+</a>
 
 Thank you for your support in hyperswitch's growth. Keep up the great work! 🥂
 
