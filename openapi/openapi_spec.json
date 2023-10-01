@@ -2911,12 +2911,10 @@
             "properties": {
               "blik": {
                 "type": "object",
-                "required": [
-                  "blik_code"
-                ],
                 "properties": {
                   "blik_code": {
-                    "type": "string"
+                    "type": "string",
+                    "nullable": true
                   }
                 }
               }
