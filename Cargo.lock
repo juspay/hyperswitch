@@ -396,7 +396,7 @@ dependencies = [
  "cards",
  "common_enums",
  "common_utils",
- "error-stack",
+ "error-stack 0.3.1",
  "masking",
  "mime",
  "reqwest",
@@ -1313,7 +1313,7 @@ name = "cards"
 version = "0.1.0"
 dependencies = [
  "common_utils",
- "error-stack",
+ "error-stack 0.3.1",
  "luhn",
  "masking",
  "serde",
@@ -1471,7 +1471,7 @@ dependencies = [
  "async-trait",
  "bytes",
  "diesel",
- "error-stack",
+ "error-stack 0.3.1",
  "fake",
  "futures",
  "hex",
@@ -1756,7 +1756,7 @@ dependencies = [
  "async-trait",
  "common_enums",
  "common_utils",
- "error-stack",
+ "error-stack 0.3.1",
  "masking",
  "serde",
  "serde_json",
@@ -1879,7 +1879,7 @@ dependencies = [
  "common_enums",
  "common_utils",
  "diesel",
- "error-stack",
+ "error-stack 0.3.1",
  "external_services",
  "frunk",
  "frunk_core",
@@ -1967,7 +1967,7 @@ dependencies = [
  "config",
  "diesel",
  "diesel_models",
- "error-stack",
+ "error-stack 0.3.1",
  "external_services",
  "masking",
  "once_cell",
@@ -2058,6 +2058,16 @@ checksum = "5f00447f331c7f726db5b8532ebc9163519eed03c6d7c8b73c90b3ff5646ac85"
 dependencies = [
  "anyhow",
  "rustc_version",
+]
+
+[[package]]
+name = "error-stack"
+version = "0.4.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "27a72baa257b5e0e2de241967bc5ee8f855d6072351042688621081d66b2a76b"
+dependencies = [
+ "anyhow",
+ "rustc_version",
  "serde",
 ]
 
@@ -2079,7 +2089,7 @@ dependencies = [
  "base64 0.21.4",
  "common_utils",
  "dyn-clone",
- "error-stack",
+ "error-stack 0.3.1",
  "masking",
  "once_cell",
  "router_env",
@@ -3970,7 +3980,7 @@ name = "redis_interface"
 version = "0.1.0"
 dependencies = [
  "common_utils",
- "error-stack",
+ "error-stack 0.3.1",
  "fred",
  "futures",
  "router_env",
@@ -4166,9 +4176,10 @@ dependencies = [
  "diesel_models",
  "dyn-clone",
  "encoding_rs",
- "error-stack",
+ "error-stack 0.4.1",
  "external_services",
  "futures",
+ "futures-core",
  "hex",
  "http",
  "hyper",
@@ -4179,6 +4190,7 @@ dependencies = [
  "literally",
  "masking",
  "maud",
+ "memchr",
  "mimalloc",
  "mime",
  "nanoid",
@@ -4497,7 +4509,7 @@ dependencies = [
  "diesel_models",
  "dyn-clone",
  "env_logger",
- "error-stack",
+ "error-stack 0.3.1",
  "external_services",
  "frunk",
  "frunk_core",
@@ -4901,7 +4913,7 @@ dependencies = [
  "diesel",
  "diesel_models",
  "dyn-clone",
- "error-stack",
+ "error-stack 0.3.1",
  "external_services",
  "futures",
  "http",
