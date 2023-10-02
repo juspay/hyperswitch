@@ -1,8 +1,7 @@
 use error_stack::{IntoReport, ResultExt};
 use masking::Secret;
 #[cfg(feature = "accounts_cache")]
-use storage_impl::redis::cache::CacheKind;
-use storage_impl::redis::cache::ACCOUNTS_CACHE;
+use storage_impl::redis::cache::{CacheKind, ACCOUNTS_CACHE};
 
 use crate::{
     connection,
