@@ -381,6 +381,6 @@ where
 #[cfg(target_os = "windows")]
 pub(crate) async fn signal_handler(
     _sig: common_utils::signals::DummySignal,
-    _sender: oneshot::Sender<()>,
+    _sender: tokio::sync::mpsc::Sender<()>,
 ) {
 }
