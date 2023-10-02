@@ -32,6 +32,10 @@ impl ConnectorCommon for Klarna {
         "klarna"
     }
 
+    fn get_currency_unit(&self) -> api::CurrencyUnit {
+        api::CurrencyUnit::Minor
+    }
+
     fn common_get_content_type(&self) -> &'static str {
         "application/json"
     }
@@ -406,7 +410,13 @@ impl
         &self,
         req: &types::PaymentsAuthorizeRouterData,
     ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
-        let connector_req = klarna::KlarnaPaymentsRequest::try_from(req)?;
+        let connector_router_data = klarna::KlarnaRouterData::try_from((
+            &self.get_currency_unit(),
+            req.request.currency,
+            req.request.amount,
+            req,
+        ))?;
+        let connector_req = klarna::KlarnaPaymentsRequest::try_from(&connector_router_data)?;
         let klarna_req = types::RequestBody::log_and_get_request_body(
             &connector_req,
             utils::Encode::<klarna::KlarnaPaymentsRequest>::encode_to_string_of_json,
