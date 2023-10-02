@@ -71,6 +71,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for StaxPaymentsRequest {
                             Err(errors::ConnectorError::InvalidWalletToken)?
                         }
                     }),
+                    reference: item.connector_request_reference_id.clone(),
                 })
             }
             api::PaymentMethodData::BankDebit(_)
@@ -326,15 +327,15 @@ impl<F, T>
         Ok(Self {
             status,
             response: Ok(types::PaymentsResponseData::TransactionResponse {
-                resource_id: types::ResponseId::ConnectorTransactionId(
-                    item.response.id.clone(),
-                ),
+                resource_id: types::ResponseId::ConnectorTransactionId(item.response.id.clone()),
                 redirection_data: None,
                 mandate_reference: None,
                 connector_metadata,
                 network_txn_id: None,
                 connector_response_reference_id: Some(
-                    item.response.reference.unwrap_or(item.response.id),
+                    item.response
+                        .reference
+                        .unwrap_or(item.response.id),
                 ),
             }),
             ..item.data
