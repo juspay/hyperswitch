@@ -120,10 +120,10 @@ impl ProcessTrackerWorkflow<AppState> for PaymentsSyncWorkflow {
                             connector: None,
                             status: api_models::enums::AttemptStatus::AuthenticationFailed,
                             error_code: None,
-                            error_message: Some(Some(
-                                "Failed due to no response from connector".to_string(),
+                            error_message: None,
+                            error_reason: Some(Some(
+                                crate::consts::REQUEST_TIMEOUT_ERROR_MESSAGE_FROM_PSYNC.to_string(),
                             )),
-                            error_reason: None,
                             amount_capturable: Some(0),
                         };
 
