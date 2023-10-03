@@ -8,7 +8,7 @@ use router::{
     configs::settings::{CmdLineConf, Settings},
     core::errors::{self, CustomResult},
     logger, routes, services,
-    types::{storage::ProcessTrackerExt, OSS},
+    types::{handler::Oss, storage::ProcessTrackerExt},
     workflows,
 };
 use scheduler::{
@@ -63,7 +63,7 @@ async fn main() -> CustomResult<(), ProcessTrackerError> {
 
     logger::debug!(startup_config=?state.conf);
 
-    start_scheduler::<OSS>(&state, scheduler_flow, (tx, rx)).await?;
+    start_scheduler::<Oss>(&state, scheduler_flow, (tx, rx)).await?;
 
     eprintln!("Scheduler shut down");
     Ok(())
@@ -82,7 +82,7 @@ pub enum PTRunner {
 pub struct WorkflowRunner;
 
 #[async_trait::async_trait]
-impl<Ctx: 'static> ProcessTrackerWorkflows<routes::AppState, Ctx> for WorkflowRunner {
+impl ProcessTrackerWorkflows<routes::AppState> for WorkflowRunner {
     async fn trigger_workflow<'a>(
         &'a self,
         state: &'a routes::AppState,
@@ -90,7 +90,7 @@ impl<Ctx: 'static> ProcessTrackerWorkflows<routes::AppState, Ctx> for WorkflowRu
     ) -> Result<(), ProcessTrackerError> {
         let runner = process.runner.clone().get_required_value("runner")?;
         let runner: Option<PTRunner> = runner.parse_enum("PTRunner").ok();
-        let operation: Box<dyn ProcessTrackerWorkflow<routes::AppState, Ctx>> = match runner {
+        let operation: Box<dyn ProcessTrackerWorkflow<routes::AppState>> = match runner {
             Some(PTRunner::PaymentsSyncWorkflow) => {
                 Box::new(workflows::payment_sync::PaymentsSyncWorkflow)
             }
@@ -139,7 +139,7 @@ async fn start_scheduler<Ctx: 'static>(
         .scheduler
         .clone()
         .ok_or(errors::ProcessTrackerError::ConfigurationError)?;
-    scheduler::start_process_tracker::<_, Ctx>(
+    scheduler::start_process_tracker::<_>(
         state,
         scheduler_flow,
         Arc::new(scheduler_settings),

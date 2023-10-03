@@ -29,8 +29,8 @@ use crate::{
 pub struct PaymentSession;
 
 #[async_trait]
-impl<F: Send + Clone, Ctx> GetTracker<F, PaymentData<F>, api::PaymentsSessionRequest, Ctx>
-    for PaymentSession
+impl<F: Send + Clone, Ctx: crate::types::handler::PaymentMethodRetrieve>
+    GetTracker<F, PaymentData<F>, api::PaymentsSessionRequest, Ctx> for PaymentSession
 {
     #[instrument(skip_all)]
     async fn get_trackers<'a>(
@@ -198,8 +198,8 @@ impl<F: Send + Clone, Ctx> GetTracker<F, PaymentData<F>, api::PaymentsSessionReq
 }
 
 #[async_trait]
-impl<F: Clone, Ctx> UpdateTracker<F, PaymentData<F>, api::PaymentsSessionRequest, Ctx>
-    for PaymentSession
+impl<F: Clone, Ctx: crate::types::handler::PaymentMethodRetrieve>
+    UpdateTracker<F, PaymentData<F>, api::PaymentsSessionRequest, Ctx> for PaymentSession
 {
     #[instrument(skip_all)]
     async fn update_trackers<'b>(
@@ -236,7 +236,9 @@ impl<F: Clone, Ctx> UpdateTracker<F, PaymentData<F>, api::PaymentsSessionRequest
     }
 }
 
-impl<F: Send + Clone, Ctx> ValidateRequest<F, api::PaymentsSessionRequest, Ctx> for PaymentSession {
+impl<F: Send + Clone, Ctx: crate::types::handler::PaymentMethodRetrieve>
+    ValidateRequest<F, api::PaymentsSessionRequest, Ctx> for PaymentSession
+{
     #[instrument(skip_all)]
     fn validate_request<'a, 'b>(
         &'b self,
@@ -263,8 +265,11 @@ impl<F: Send + Clone, Ctx> ValidateRequest<F, api::PaymentsSessionRequest, Ctx> 
 }
 
 #[async_trait]
-impl<F: Clone + Send, Ctx, Op: Send + Sync + Operation<F, api::PaymentsSessionRequest, Ctx>>
-    Domain<F, api::PaymentsSessionRequest, Ctx> for Op
+impl<
+        F: Clone + Send,
+        Ctx: crate::types::handler::PaymentMethodRetrieve,
+        Op: Send + Sync + Operation<F, api::PaymentsSessionRequest, Ctx>,
+    > Domain<F, api::PaymentsSessionRequest, Ctx> for Op
 where
     for<'a> &'a Op: Operation<F, api::PaymentsSessionRequest, Ctx>,
 {

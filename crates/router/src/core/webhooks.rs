@@ -34,7 +34,10 @@ use crate::{
 const OUTGOING_WEBHOOK_TIMEOUT_SECS: u64 = 5;
 const MERCHANT_ID: &str = "merchant_id";
 
-pub async fn payments_incoming_webhook_flow<W: types::OutgoingWebhookType, Ctx>(
+pub async fn payments_incoming_webhook_flow<
+    W: types::OutgoingWebhookType,
+    Ctx: crate::types::handler::PaymentMethodRetrieve,
+>(
     state: AppState,
     merchant_account: domain::MerchantAccount,
     key_store: domain::MerchantKeyStore,
@@ -438,7 +441,10 @@ pub async fn disputes_incoming_webhook_flow<W: types::OutgoingWebhookType>(
     }
 }
 
-async fn bank_transfer_webhook_flow<W: types::OutgoingWebhookType, Ctx>(
+async fn bank_transfer_webhook_flow<
+    W: types::OutgoingWebhookType,
+    Ctx: crate::types::handler::PaymentMethodRetrieve,
+>(
     state: AppState,
     merchant_account: domain::MerchantAccount,
     key_store: domain::MerchantKeyStore,
@@ -731,7 +737,11 @@ pub async fn trigger_webhook_to_merchant<W: types::OutgoingWebhookType>(
 }
 
 #[instrument(skip_all)]
-pub async fn webhooks_core<W: types::OutgoingWebhookType, Ctx>(
+
+pub async fn webhooks_core<
+    W: types::OutgoingWebhookType,
+    Ctx: crate::types::handler::PaymentMethodRetrieve,
+>(
     state: AppState,
     req: &actix_web::HttpRequest,
     merchant_account: domain::MerchantAccount,

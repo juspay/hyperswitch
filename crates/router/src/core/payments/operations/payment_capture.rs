@@ -29,8 +29,8 @@ use crate::{
 pub struct PaymentCapture;
 
 #[async_trait]
-impl<F: Send + Clone, Ctx> GetTracker<F, payments::PaymentData<F>, api::PaymentsCaptureRequest, Ctx>
-    for PaymentCapture
+impl<F: Send + Clone, Ctx: crate::types::handler::PaymentMethodRetrieve>
+    GetTracker<F, payments::PaymentData<F>, api::PaymentsCaptureRequest, Ctx> for PaymentCapture
 {
     #[instrument(skip_all)]
     async fn get_trackers<'a>(
@@ -236,7 +236,8 @@ impl<F: Send + Clone, Ctx> GetTracker<F, payments::PaymentData<F>, api::Payments
 }
 
 #[async_trait]
-impl<F: Clone, Ctx> UpdateTracker<F, payments::PaymentData<F>, api::PaymentsCaptureRequest, Ctx>
+impl<F: Clone, Ctx: crate::types::handler::PaymentMethodRetrieve>
+    UpdateTracker<F, payments::PaymentData<F>, api::PaymentsCaptureRequest, Ctx>
     for PaymentCapture
 {
     #[instrument(skip_all)]
@@ -274,7 +275,9 @@ impl<F: Clone, Ctx> UpdateTracker<F, payments::PaymentData<F>, api::PaymentsCapt
     }
 }
 
-impl<F: Send + Clone, Ctx> ValidateRequest<F, api::PaymentsCaptureRequest, Ctx> for PaymentCapture {
+impl<F: Send + Clone, Ctx: crate::types::handler::PaymentMethodRetrieve>
+    ValidateRequest<F, api::PaymentsCaptureRequest, Ctx> for PaymentCapture
+{
     #[instrument(skip_all)]
     fn validate_request<'a, 'b>(
         &'b self,

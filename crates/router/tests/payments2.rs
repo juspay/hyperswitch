@@ -7,7 +7,7 @@ use router::{
     db::StorageImpl,
     types::{
         api::{self, enums as api_enums},
-        OSS,
+        handler::Oss,
     },
     *,
 };
@@ -129,7 +129,7 @@ async fn payments_create_core() {
         _,
         _,
         _,
-        OSS,
+        Oss,
     >(
         state,
         merchant_account,
@@ -307,7 +307,7 @@ async fn payments_create_core_adyen_no_redirect() {
         _,
         _,
         _,
-        OSS,
+        Oss,
     >(
         state,
         merchant_account,

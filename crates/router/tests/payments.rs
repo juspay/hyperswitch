@@ -10,7 +10,7 @@ use router::{
     types::{
         self,
         api::{self, enums as api_enums},
-        OSS,
+        handler::Oss,
     },
 };
 use time::macros::datetime;
@@ -362,7 +362,7 @@ async fn payments_create_core() {
     let expected_response =
         services::ApplicationResponse::JsonWithHeaders((expected_response, vec![]));
     let actual_response =
-        payments::payments_core::<api::Authorize, api::PaymentsResponse, _, _, _, OSS>(
+        payments::payments_core::<api::Authorize, api::PaymentsResponse, _, _, _, Oss>(
             state,
             merchant_account,
             key_store,
@@ -532,7 +532,7 @@ async fn payments_create_core_adyen_no_redirect() {
         vec![],
     ));
     let actual_response =
-        payments::payments_core::<api::Authorize, api::PaymentsResponse, _, _, _, OSS>(
+        payments::payments_core::<api::Authorize, api::PaymentsResponse, _, _, _, Oss>(
             state,
             merchant_account,
             key_store,

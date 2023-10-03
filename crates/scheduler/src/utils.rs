@@ -241,15 +241,12 @@ pub fn get_time_from_delta(delta: Option<i32>) -> Option<time::PrimitiveDateTime
     delta.map(|t| common_utils::date_time::now().saturating_add(time::Duration::seconds(t.into())))
 }
 
-pub async fn consumer_operation_handler<E, T: Send + Sync + 'static, Ctx: 'static>(
+pub async fn consumer_operation_handler<E, T: Send + Sync + 'static>(
     state: T,
     settings: sync::Arc<SchedulerSettings>,
     error_handler_fun: E,
     consumer_operation_counter: sync::Arc<atomic::AtomicU64>,
-    workflow_selector: impl workflows::ProcessTrackerWorkflows<T, Ctx>
-        + 'static
-        + Copy
-        + std::fmt::Debug,
+    workflow_selector: impl workflows::ProcessTrackerWorkflows<T> + 'static + Copy + std::fmt::Debug,
 ) where
     // Error handler function
     E: FnOnce(error_stack::Report<errors::ProcessTrackerError>),

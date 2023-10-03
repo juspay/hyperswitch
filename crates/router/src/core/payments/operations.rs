@@ -40,7 +40,9 @@ use crate::{
 
 pub type BoxedOperation<'a, F, T, Ctx> = Box<dyn Operation<F, T, Ctx> + Send + Sync + 'a>;
 
-pub trait Operation<F: Clone, T, Ctx>: Send + std::fmt::Debug {
+pub trait Operation<F: Clone, T, Ctx: crate::types::handler::PaymentMethodRetrieve>:
+    Send + std::fmt::Debug
+{
     fn to_validate_request(&self) -> RouterResult<&(dyn ValidateRequest<F, T, Ctx> + Send + Sync)> {
         Err(report!(errors::ApiErrorResponse::InternalServerError))
             .attach_printable_lazy(|| format!("validate request interface not found for {self:?}"))
@@ -80,7 +82,7 @@ pub struct ValidateResult<'a> {
 }
 
 #[allow(clippy::type_complexity)]
-pub trait ValidateRequest<F, R, Ctx> {
+pub trait ValidateRequest<F, R, Ctx: crate::types::handler::PaymentMethodRetrieve> {
     fn validate_request<'a, 'b>(
         &'b self,
         request: &R,
@@ -89,7 +91,7 @@ pub trait ValidateRequest<F, R, Ctx> {
 }
 
 #[async_trait]
-pub trait GetTracker<F, D, R, Ctx>: Send {
+pub trait GetTracker<F, D, R, Ctx: crate::types::handler::PaymentMethodRetrieve>: Send {
     #[allow(clippy::too_many_arguments)]
     async fn get_trackers<'a>(
         &'a self,
@@ -104,7 +106,9 @@ pub trait GetTracker<F, D, R, Ctx>: Send {
 }
 
 #[async_trait]
-pub trait Domain<F: Clone, R, Ctx>: Send + Sync {
+pub trait Domain<F: Clone, R, Ctx: crate::types::handler::PaymentMethodRetrieve>:
+    Send + Sync
+{
     /// This will fetch customer details, (this operation is flow specific)
     async fn get_or_create_customer_details<'a>(
         &'a self,
@@ -147,7 +151,9 @@ pub trait Domain<F: Clone, R, Ctx>: Send + Sync {
 
 #[async_trait]
 #[allow(clippy::too_many_arguments)]
-pub trait UpdateTracker<F, D, Req, Ctx>: Send {
+pub trait UpdateTracker<F, D, Req, Ctx: crate::types::handler::PaymentMethodRetrieve>:
+    Send
+{
     async fn update_trackers<'b>(
         &'b self,
         db: &dyn StorageInterface,
@@ -178,8 +184,11 @@ pub trait PostUpdateTracker<F, D, R>: Send {
 }
 
 #[async_trait]
-impl<F: Clone + Send, Ctx, Op: Send + Sync + Operation<F, api::PaymentsRetrieveRequest, Ctx>>
-    Domain<F, api::PaymentsRetrieveRequest, Ctx> for Op
+impl<
+        F: Clone + Send,
+        Ctx: crate::types::handler::PaymentMethodRetrieve,
+        Op: Send + Sync + Operation<F, api::PaymentsRetrieveRequest, Ctx>,
+    > Domain<F, api::PaymentsRetrieveRequest, Ctx> for Op
 where
     for<'a> &'a Op: Operation<F, api::PaymentsRetrieveRequest, Ctx>,
 {
@@ -236,8 +245,11 @@ where
 }
 
 #[async_trait]
-impl<F: Clone + Send, Ctx, Op: Send + Sync + Operation<F, api::PaymentsCaptureRequest, Ctx>>
-    Domain<F, api::PaymentsCaptureRequest, Ctx> for Op
+impl<
+        F: Clone + Send,
+        Ctx: crate::types::handler::PaymentMethodRetrieve,
+        Op: Send + Sync + Operation<F, api::PaymentsCaptureRequest, Ctx>,
+    > Domain<F, api::PaymentsCaptureRequest, Ctx> for Op
 where
     for<'a> &'a Op: Operation<F, api::PaymentsCaptureRequest, Ctx>,
 {
@@ -293,8 +305,11 @@ where
 }
 
 #[async_trait]
-impl<F: Clone + Send, Ctx, Op: Send + Sync + Operation<F, api::PaymentsCancelRequest, Ctx>>
-    Domain<F, api::PaymentsCancelRequest, Ctx> for Op
+impl<
+        F: Clone + Send,
+        Ctx: crate::types::handler::PaymentMethodRetrieve,
+        Op: Send + Sync + Operation<F, api::PaymentsCancelRequest, Ctx>,
+    > Domain<F, api::PaymentsCancelRequest, Ctx> for Op
 where
     for<'a> &'a Op: Operation<F, api::PaymentsCancelRequest, Ctx>,
 {
@@ -351,8 +366,11 @@ where
 }
 
 #[async_trait]
-impl<F: Clone + Send, Ctx, Op: Send + Sync + Operation<F, api::PaymentsRejectRequest, Ctx>>
-    Domain<F, api::PaymentsRejectRequest, Ctx> for Op
+impl<
+        F: Clone + Send,
+        Ctx: crate::types::handler::PaymentMethodRetrieve,
+        Op: Send + Sync + Operation<F, api::PaymentsRejectRequest, Ctx>,
+    > Domain<F, api::PaymentsRejectRequest, Ctx> for Op
 where
     for<'a> &'a Op: Operation<F, api::PaymentsRejectRequest, Ctx>,
 {

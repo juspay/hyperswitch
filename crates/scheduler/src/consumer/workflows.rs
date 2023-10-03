@@ -8,7 +8,7 @@ pub type WorkflowSelectorFn =
     fn(&storage::ProcessTracker) -> Result<(), errors::ProcessTrackerError>;
 
 #[async_trait]
-pub trait ProcessTrackerWorkflows<T, Ctx: 'static>: Send + Sync {
+pub trait ProcessTrackerWorkflows<T>: Send + Sync {
     // The core execution of the workflow
     async fn trigger_workflow<'a>(
         &'a self,
@@ -19,7 +19,7 @@ pub trait ProcessTrackerWorkflows<T, Ctx: 'static>: Send + Sync {
     }
     async fn execute_workflow<'a>(
         &'a self,
-        operation: Box<dyn ProcessTrackerWorkflow<T, Ctx>>,
+        operation: Box<dyn ProcessTrackerWorkflow<T>>,
         state: &'a T,
         process: storage::ProcessTracker,
     ) -> Result<(), errors::ProcessTrackerError>
@@ -54,7 +54,7 @@ pub trait ProcessTrackerWorkflows<T, Ctx: 'static>: Send + Sync {
 }
 
 #[async_trait]
-pub trait ProcessTrackerWorkflow<T, Ctx>: Send + Sync {
+pub trait ProcessTrackerWorkflow<T>: Send + Sync {
     // The core execution of the workflow
     async fn execute_workflow<'a>(
         &'a self,

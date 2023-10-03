@@ -27,7 +27,9 @@ use crate::{
 #[operation(ops = "all", flow = "sync")]
 pub struct PaymentStatus;
 
-impl<F: Send + Clone, Ctx> Operation<F, api::PaymentsRequest, Ctx> for PaymentStatus {
+impl<F: Send + Clone, Ctx: crate::types::handler::PaymentMethodRetrieve>
+    Operation<F, api::PaymentsRequest, Ctx> for PaymentStatus
+{
     fn to_domain(&self) -> RouterResult<&dyn Domain<F, api::PaymentsRequest, Ctx>> {
         Ok(self)
     }
@@ -39,7 +41,9 @@ impl<F: Send + Clone, Ctx> Operation<F, api::PaymentsRequest, Ctx> for PaymentSt
         Ok(self)
     }
 }
-impl<F: Send + Clone, Ctx> Operation<F, api::PaymentsRequest, Ctx> for &PaymentStatus {
+impl<F: Send + Clone, Ctx: crate::types::handler::PaymentMethodRetrieve>
+    Operation<F, api::PaymentsRequest, Ctx> for &PaymentStatus
+{
     fn to_domain(&self) -> RouterResult<&dyn Domain<F, api::PaymentsRequest, Ctx>> {
         Ok(*self)
     }
@@ -53,7 +57,9 @@ impl<F: Send + Clone, Ctx> Operation<F, api::PaymentsRequest, Ctx> for &PaymentS
 }
 
 #[async_trait]
-impl<F: Clone + Send, Ctx> Domain<F, api::PaymentsRequest, Ctx> for PaymentStatus {
+impl<F: Clone + Send, Ctx: crate::types::handler::PaymentMethodRetrieve>
+    Domain<F, api::PaymentsRequest, Ctx> for PaymentStatus
+{
     #[instrument(skip_all)]
     async fn get_or_create_customer_details<'a>(
         &'a self,
@@ -116,7 +122,9 @@ impl<F: Clone + Send, Ctx> Domain<F, api::PaymentsRequest, Ctx> for PaymentStatu
 }
 
 #[async_trait]
-impl<F: Clone, Ctx> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest, Ctx> for PaymentStatus {
+impl<F: Clone, Ctx: crate::types::handler::PaymentMethodRetrieve>
+    UpdateTracker<F, PaymentData<F>, api::PaymentsRequest, Ctx> for PaymentStatus
+{
     async fn update_trackers<'b>(
         &'b self,
         _db: &dyn StorageInterface,
@@ -139,8 +147,8 @@ impl<F: Clone, Ctx> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest, Ctx> 
 }
 
 #[async_trait]
-impl<F: Clone, Ctx> UpdateTracker<F, PaymentData<F>, api::PaymentsRetrieveRequest, Ctx>
-    for PaymentStatus
+impl<F: Clone, Ctx: crate::types::handler::PaymentMethodRetrieve>
+    UpdateTracker<F, PaymentData<F>, api::PaymentsRetrieveRequest, Ctx> for PaymentStatus
 {
     async fn update_trackers<'b>(
         &'b self,
@@ -164,8 +172,8 @@ impl<F: Clone, Ctx> UpdateTracker<F, PaymentData<F>, api::PaymentsRetrieveReques
 }
 
 #[async_trait]
-impl<F: Send + Clone, Ctx> GetTracker<F, PaymentData<F>, api::PaymentsRetrieveRequest, Ctx>
-    for PaymentStatus
+impl<F: Send + Clone, Ctx: crate::types::handler::PaymentMethodRetrieve>
+    GetTracker<F, PaymentData<F>, api::PaymentsRetrieveRequest, Ctx> for PaymentStatus
 {
     #[instrument(skip_all)]
     async fn get_trackers<'a>(
@@ -198,7 +206,7 @@ impl<F: Send + Clone, Ctx> GetTracker<F, PaymentData<F>, api::PaymentsRetrieveRe
 async fn get_tracker_for_sync<
     'a,
     F: Send + Clone,
-    Ctx,
+    Ctx: crate::types::handler::PaymentMethodRetrieve,
     Op: Operation<F, api::PaymentsRetrieveRequest, Ctx> + 'a + Send + Sync,
 >(
     payment_id: &api::PaymentIdType,
@@ -396,7 +404,9 @@ async fn get_tracker_for_sync<
     ))
 }
 
-impl<F: Send + Clone, Ctx> ValidateRequest<F, api::PaymentsRetrieveRequest, Ctx> for PaymentStatus {
+impl<F: Send + Clone, Ctx: crate::types::handler::PaymentMethodRetrieve>
+    ValidateRequest<F, api::PaymentsRetrieveRequest, Ctx> for PaymentStatus
+{
     fn validate_request<'a, 'b>(
         &'b self,
         request: &api::PaymentsRetrieveRequest,

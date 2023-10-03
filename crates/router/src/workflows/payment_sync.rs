@@ -15,6 +15,7 @@ use crate::{
     services,
     types::{
         api,
+        handler::Oss,
         storage::{self, enums},
     },
 };
@@ -22,7 +23,7 @@ use crate::{
 pub struct PaymentsSyncWorkflow;
 
 #[async_trait::async_trait]
-impl<Ctx> ProcessTrackerWorkflow<AppState, Ctx> for PaymentsSyncWorkflow {
+impl ProcessTrackerWorkflow<AppState> for PaymentsSyncWorkflow {
     async fn execute_workflow<'a>(
         &'a self,
         state: &'a AppState,
@@ -55,7 +56,7 @@ impl<Ctx> ProcessTrackerWorkflow<AppState, Ctx> for PaymentsSyncWorkflow {
             .await?;
 
         let (payment_data, _, _, _) =
-            payment_flows::payments_operation_core::<api::PSync, _, _, _, Ctx>(
+            payment_flows::payments_operation_core::<api::PSync, _, _, _, Oss>(
                 state,
                 merchant_account.clone(),
                 key_store,

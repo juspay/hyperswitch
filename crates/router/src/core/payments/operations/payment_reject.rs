@@ -28,8 +28,8 @@ use crate::{
 pub struct PaymentReject;
 
 #[async_trait]
-impl<F: Send + Clone, Ctx> GetTracker<F, PaymentData<F>, PaymentsRejectRequest, Ctx>
-    for PaymentReject
+impl<F: Send + Clone, Ctx: crate::types::handler::PaymentMethodRetrieve>
+    GetTracker<F, PaymentData<F>, PaymentsRejectRequest, Ctx> for PaymentReject
 {
     #[instrument(skip_all)]
     async fn get_trackers<'a>(
@@ -164,7 +164,9 @@ impl<F: Send + Clone, Ctx> GetTracker<F, PaymentData<F>, PaymentsRejectRequest, 
 }
 
 #[async_trait]
-impl<F: Clone, Ctx> UpdateTracker<F, PaymentData<F>, PaymentsRejectRequest, Ctx> for PaymentReject {
+impl<F: Clone, Ctx: crate::types::handler::PaymentMethodRetrieve>
+    UpdateTracker<F, PaymentData<F>, PaymentsRejectRequest, Ctx> for PaymentReject
+{
     #[instrument(skip_all)]
     async fn update_trackers<'b>(
         &'b self,
@@ -225,7 +227,9 @@ impl<F: Clone, Ctx> UpdateTracker<F, PaymentData<F>, PaymentsRejectRequest, Ctx>
     }
 }
 
-impl<F: Send + Clone, Ctx> ValidateRequest<F, PaymentsRejectRequest, Ctx> for PaymentReject {
+impl<F: Send + Clone, Ctx: crate::types::handler::PaymentMethodRetrieve>
+    ValidateRequest<F, PaymentsRejectRequest, Ctx> for PaymentReject
+{
     #[instrument(skip_all)]
     fn validate_request<'a, 'b>(
         &'b self,
