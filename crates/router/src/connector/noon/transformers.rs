@@ -22,7 +22,6 @@ const GOOGLEPAY_API_VERSION: u8 = 2;
 #[serde(rename_all = "UPPERCASE")]
 pub enum NoonChannels {
     Web,
-    Mobile,
 }
 
 #[derive(Debug, Serialize)]
@@ -270,18 +269,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for NoonPaymentsRequest {
 
         let ip_address = item.request.get_ip_address_as_optional();
 
-        let channel: NoonChannels = item
-            .request
-            .browser_info
-            .clone()
-            .and_then(|browser_info| browser_info.user_agent)
-            .map_or(NoonChannels::Web, |user_agent| {
-                if user_agent.contains("iPhone") || user_agent.contains("Android") {
-                    NoonChannels::Mobile
-                } else {
-                    NoonChannels::Web
-                }
-            });
+        let channel = NoonChannels::Web;
 
         let billing = item
             .address
