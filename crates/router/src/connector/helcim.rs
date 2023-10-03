@@ -120,8 +120,8 @@ impl ConnectorCommon for Helcim {
         Ok(ErrorResponse {
             status_code: res.status_code,
             code: response.errors.clone(),
-            message: response.errors,
-            reason: None,
+            message: response.errors.clone(),
+            reason: Some(response.errors),
         })
     }
 }
@@ -133,10 +133,8 @@ impl ConnectorValidation for Helcim {
     ) -> CustomResult<(), errors::ConnectorError> {
         let capture_method = capture_method.unwrap_or_default();
         match capture_method {
-            enums::CaptureMethod::Automatic
-            | enums::CaptureMethod::Manual
-            | enums::CaptureMethod::ManualMultiple => Ok(()),
-            enums::CaptureMethod::Scheduled => Err(
+            enums::CaptureMethod::Automatic | enums::CaptureMethod::Manual => Ok(()),
+            enums::CaptureMethod::ManualMultiple | enums::CaptureMethod::Scheduled => Err(
                 super::utils::construct_not_supported_error_report(capture_method, self.id()),
             ),
         }

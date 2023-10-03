@@ -7,7 +7,7 @@ use crate::{
     connector::utils::{
         self, to_connector_meta, AddressDetailsData, BrowserInformationData, CardData,
         PaymentsAuthorizeRequestData, PaymentsCancelRequestData, PaymentsCaptureRequestData,
-        RefundsRequestData, RouterData,
+        PaymentsVerifyRequestData, RefundsRequestData, RouterData,
     },
     core::errors,
     types::{self, api, storage::enums},
@@ -55,7 +55,6 @@ pub struct HelcimVerifyRequest {
     ecommerce: Option<bool>,
 }
 
-//TODO: Fill the struct with respective fields
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct HelcimPaymentsRequest {
@@ -64,6 +63,8 @@ pub struct HelcimPaymentsRequest {
     ip_address: Secret<String, IpAddress>,
     card_data: HelcimCard,
     billing_address: HelcimBillingAddress,
+    //The ecommerce field is an optional field in Connector Helcim.
+    //Setting the ecommerce field to true activates the Helcim Fraud Defender.
     #[serde(skip_serializing_if = "Option::is_none")]
     ecommerce: Option<bool>,
 }
@@ -90,48 +91,120 @@ pub struct HelcimCard {
     card_c_v_v: Secret<String>,
 }
 
+impl TryFrom<(&types::VerifyRouterData, &api::Card)> for HelcimVerifyRequest {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(value: (&types::VerifyRouterData, &api::Card)) -> Result<Self, Self::Error> {
+        let (item, req_card) = value;
+        let card_data = HelcimCard {
+            card_expiry: req_card.get_card_expiry_month_year_2_digit_with_delimiter("".to_string()),
+            card_number: req_card.card_number.clone(),
+            card_c_v_v: req_card.card_cvc.clone(),
+        };
+        let req_address = item
+            .get_billing()?
+            .to_owned()
+            .address
+            .ok_or_else(utils::missing_field_err("billing.address"))?;
+
+        let billing_address = HelcimBillingAddress {
+            name: req_address.get_full_name()?,
+            street1: req_address.get_line1()?.to_owned(),
+            postal_code: req_address.get_zip()?.to_owned(),
+            street2: req_address.line2,
+            city: req_address.city,
+            email: item.request.email.clone(),
+        };
+        let ip_address = item.request.get_browser_info()?.get_ip_address()?;
+
+        Ok(Self {
+            currency: item.request.currency,
+            ip_address,
+            card_data,
+            billing_address,
+            ecommerce: None,
+        })
+    }
+}
+
 impl TryFrom<&types::VerifyRouterData> for HelcimVerifyRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::VerifyRouterData) -> Result<Self, Self::Error> {
         match item.request.payment_method_data.clone() {
             api::PaymentMethodData::Card(req_card) => {
-                let card_data = HelcimCard {
-                    card_expiry: req_card
-                        .get_card_expiry_month_year_2_digit_with_delimiter("".to_string()),
-                    card_number: req_card.card_number,
-                    card_c_v_v: req_card.card_cvc,
-                };
-                let req_address = item
-                    .get_billing()?
-                    .to_owned()
-                    .address
-                    .ok_or_else(utils::missing_field_err("billing.address"))?;
-
-                let billing_address = HelcimBillingAddress {
-                    name: req_address.get_full_name()?,
-                    street1: req_address.get_line1()?.to_owned(),
-                    postal_code: req_address.get_zip()?.to_owned(),
-                    street2: req_address.line2,
-                    city: req_address.city,
-                    email: item.request.email.clone(),
-                };
-                let ip_address = item
-                    .request
-                    .browser_info
-                    .clone()
-                    .ok_or_else(utils::missing_field_err("browser_info"))?
-                    .get_ip_address()?;
-
-                Ok(Self {
-                    currency: item.request.currency,
-                    ip_address,
-                    card_data,
-                    billing_address,
-                    ecommerce: None,
-                })
+                Self::try_from((item, &req_card))
             }
-            _ => Err(errors::ConnectorError::NotImplemented("Payment methods".to_string()).into()),
+            api_models::payments::PaymentMethodData::BankTransfer(_) => Err(
+                errors::ConnectorError::NotImplemented("Payment Method".to_string()),
+            )
+            .into_report(),
+            api_models::payments::PaymentMethodData::CardRedirect(_)
+            | api_models::payments::PaymentMethodData::Wallet(_)
+            | api_models::payments::PaymentMethodData::PayLater(_)
+            | api_models::payments::PaymentMethodData::BankRedirect(_)
+            | api_models::payments::PaymentMethodData::BankDebit(_)
+            | api_models::payments::PaymentMethodData::Crypto(_)
+            | api_models::payments::PaymentMethodData::MandatePayment
+            | api_models::payments::PaymentMethodData::Reward
+            | api_models::payments::PaymentMethodData::Upi(_)
+            | api_models::payments::PaymentMethodData::Voucher(_)
+            | api_models::payments::PaymentMethodData::GiftCard(_) => {
+                Err(errors::ConnectorError::NotSupported {
+                    message: format!("{:?}", item.request.payment_method_data),
+                    connector: "Helcim",
+                })?
+            }
         }
+    }
+}
+
+impl
+    TryFrom<(
+        &HelcimRouterData<&types::PaymentsAuthorizeRouterData>,
+        &api::Card,
+    )> for HelcimPaymentsRequest
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        value: (
+            &HelcimRouterData<&types::PaymentsAuthorizeRouterData>,
+            &api::Card,
+        ),
+    ) -> Result<Self, Self::Error> {
+        let (item, req_card) = value;
+        let card_data = HelcimCard {
+            card_expiry: req_card.get_card_expiry_month_year_2_digit_with_delimiter("".to_string()),
+            card_number: req_card.card_number.clone(),
+            card_c_v_v: req_card.card_cvc.clone(),
+        };
+        let req_address = item
+            .router_data
+            .get_billing()?
+            .to_owned()
+            .address
+            .ok_or_else(utils::missing_field_err("billing.address"))?;
+
+        let billing_address = HelcimBillingAddress {
+            name: req_address.get_full_name()?,
+            street1: req_address.get_line1()?.to_owned(),
+            postal_code: req_address.get_zip()?.to_owned(),
+            street2: req_address.line2,
+            city: req_address.city,
+            email: item.router_data.request.email.clone(),
+        };
+
+        let ip_address = item
+            .router_data
+            .request
+            .get_browser_info()?
+            .get_ip_address()?;
+        Ok(Self {
+            amount: item.amount.to_owned(),
+            currency: item.router_data.request.currency,
+            ip_address,
+            card_data,
+            billing_address,
+            ecommerce: None,
+        })
     }
 }
 
@@ -142,48 +215,32 @@ impl TryFrom<&HelcimRouterData<&types::PaymentsAuthorizeRouterData>> for HelcimP
     ) -> Result<Self, Self::Error> {
         match item.router_data.request.payment_method_data.clone() {
             api::PaymentMethodData::Card(req_card) => {
-                let card_data = HelcimCard {
-                    card_expiry: req_card
-                        .get_card_expiry_month_year_2_digit_with_delimiter("".to_string()),
-                    card_number: req_card.card_number,
-                    card_c_v_v: req_card.card_cvc,
-                };
-                let req_address = item
-                    .router_data
-                    .get_billing()?
-                    .to_owned()
-                    .address
-                    .ok_or_else(utils::missing_field_err("billing.address"))?;
-
-                let billing_address = HelcimBillingAddress {
-                    name: req_address.get_full_name()?,
-                    street1: req_address.get_line1()?.to_owned(),
-                    postal_code: req_address.get_zip()?.to_owned(),
-                    street2: req_address.line2,
-                    city: req_address.city,
-                    email: item.router_data.request.email.clone(),
-                };
-
-                let ip_address = item
-                    .router_data
-                    .request
-                    .get_browser_info()?
-                    .get_ip_address()?;
-                Ok(Self {
-                    amount: item.amount.to_owned(),
-                    currency: item.router_data.request.currency,
-                    ip_address,
-                    card_data,
-                    billing_address,
-                    ecommerce: None,
-                })
+                Self::try_from((item, &req_card))
             }
-            _ => Err(errors::ConnectorError::NotImplemented("Payment methods".to_string()).into()),
+            api_models::payments::PaymentMethodData::BankTransfer(_) => Err(
+                errors::ConnectorError::NotImplemented("Payment Method".to_string()),
+            )
+            .into_report(),
+            api_models::payments::PaymentMethodData::CardRedirect(_)
+            | api_models::payments::PaymentMethodData::Wallet(_)
+            | api_models::payments::PaymentMethodData::PayLater(_)
+            | api_models::payments::PaymentMethodData::BankRedirect(_)
+            | api_models::payments::PaymentMethodData::BankDebit(_)
+            | api_models::payments::PaymentMethodData::Crypto(_)
+            | api_models::payments::PaymentMethodData::MandatePayment
+            | api_models::payments::PaymentMethodData::Reward
+            | api_models::payments::PaymentMethodData::Upi(_)
+            | api_models::payments::PaymentMethodData::Voucher(_)
+            | api_models::payments::PaymentMethodData::GiftCard(_) => {
+                Err(errors::ConnectorError::NotSupported {
+                    message: format!("{:?}", item.router_data.request.payment_method_data),
+                    connector: "Helcim",
+                })?
+            }
         }
     }
 }
 
-//TODO: Fill the struct with respective fields
 // Auth Struct
 pub struct HelcimAuthType {
     pub(super) api_key: Secret<String>,
@@ -201,7 +258,6 @@ impl TryFrom<&types::ConnectorAuthType> for HelcimAuthType {
     }
 }
 // PaymentsResponse
-//TODO: Append the remaining status flags
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "UPPERCASE")]
 pub enum HelcimPaymentStatus {
@@ -242,7 +298,6 @@ impl From<HelcimPaymentsResponse> for enums::AttemptStatus {
     }
 }
 
-//TODO: Fill the struct with respective fields
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct HelcimPaymentsResponse {
@@ -538,7 +593,6 @@ impl<F>
     }
 }
 
-//TODO: Fill the struct with respective fields
 // REFUND :
 // Type definition for RefundRequest
 #[derive(Debug, Serialize)]
@@ -587,8 +641,6 @@ impl<F> TryFrom<&HelcimRouterData<&types::RefundsRouterData<F>>> for HelcimRefun
 pub enum HelcimRefundTransactionType {
     Refund,
 }
-
-//TODO: Fill the struct with respective fields
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct RefundResponse {
@@ -643,7 +695,6 @@ impl TryFrom<types::RefundsResponseRouterData<api::RSync, RefundResponse>>
     }
 }
 
-//TODO: Fill the struct with respective fields
 #[derive(Default, Debug, Serialize, Deserialize, PartialEq)]
 pub struct HelcimErrorResponse {
     pub errors: String,
