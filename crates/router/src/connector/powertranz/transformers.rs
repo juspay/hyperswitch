@@ -29,7 +29,6 @@ pub struct PowertranzPaymentsRequest {
     // billing_address: Option<PowertranzAddressDetails>,
     // shipping_address: Option<PowertranzAddressDetails>,
     extended_data: Option<ExtendedData>,
-    reference: String,
 }
 
 #[derive(Debug, Serialize)]
@@ -128,7 +127,6 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PowertranzPaymentsRequest 
             // billing_address,
             // shipping_address,
             extended_data,
-            reference: item.connector_request_reference_id.clone(),
         })
     }
 }
@@ -241,7 +239,7 @@ pub struct PowertranzBaseResponse {
     iso_response_code: String,
     redirect_data: Option<String>,
     response_message: String,
-    reference: Option<String>,
+    order_identifier: String,
 }
 
 impl ForeignFrom<(u8, bool, bool)> for enums::AttemptStatus {
@@ -314,11 +312,7 @@ impl<F, T>
                 mandate_reference: None,
                 connector_metadata: None,
                 network_txn_id: None,
-                connector_response_reference_id: Some(
-                    item.response
-                        .reference
-                        .unwrap_or(item.response.transaction_identifier),
-                ),
+                connector_response_reference_id: Some(item.response.order_identifier),
             }),
             Err,
         );
