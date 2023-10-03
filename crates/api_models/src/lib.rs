@@ -3,6 +3,7 @@ pub mod admin;
 pub mod api_keys;
 pub mod bank_accounts;
 pub mod cards_info;
+pub mod consts;
 pub mod customers;
 pub mod disputes;
 pub mod enums;
@@ -16,5 +17,6 @@ pub mod payments;
 #[cfg(feature = "payouts")]
 pub mod payouts;
 pub mod refunds;
+pub mod types;
 pub mod verifications;
 pub mod webhooks;

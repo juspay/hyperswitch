@@ -8,8 +8,11 @@ use utoipa::ToSchema;
 #[cfg(feature = "payouts")]
 use crate::payouts;
 use crate::{
-    admin, enums as api_enums,
+    admin,
+    consts::SURCHARGE_PERCENTAGE_PRECISION_LENGTH,
+    enums as api_enums,
     payments::{self, BankCodeResponse},
+    types::Percentage,
 };
 
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
@@ -243,7 +246,7 @@ pub struct BankDebitTypes {
     pub eligible_connectors: Vec<String>,
 }
 
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema, PartialEq, Eq)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema, PartialEq)]
 pub struct ResponsePaymentMethodTypes {
     /// The payment method type enabled
     #[schema(example = "klarna")]
@@ -265,6 +268,22 @@ pub struct ResponsePaymentMethodTypes {
 
     /// Required fields for the payment_method_type.
     pub required_fields: Option<HashMap<String, RequiredFieldInfo>>,
+
+    /// surcharge details for this payment method type if exists
+    pub surcharge_details: Option<SurchargeDetails>,
+}
+#[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub struct SurchargeDetails {
+    surcharge: Surcharge,
+    tax_on_surcharge: Option<Percentage<SURCHARGE_PERCENTAGE_PRECISION_LENGTH>>,
+}
+
+#[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "snake_case", tag = "type", content = "value")]
+pub enum Surcharge {
+    Fixed(i64),
+    Rate(Percentage<SURCHARGE_PERCENTAGE_PRECISION_LENGTH>),
 }
 
 /// Required fields info used while listing the payment_method_data
@@ -518,6 +537,10 @@ pub struct PaymentMethodListResponse {
 
     #[schema(value_type = Option<String>)]
     pub merchant_name: OptionalEncryptableName,
+
+    /// flag to indicate if surcharge and tax breakup screen should be shown or not
+    #[schema(value_type = bool)]
+    pub show_breakup_screen: bool,
 }
 
 #[derive(Eq, PartialEq, Hash, Debug, serde::Deserialize, ToSchema)]
