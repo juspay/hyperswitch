@@ -241,9 +241,9 @@ ideal = { country = "NL", currency = "EUR" }
 [pm_filters.stripe]
 google_pay = { country = "AL,DZ,AS,AO,AG,AR,AU,AT,AZ,BH,BY,BE,BR,BG,CA,CL,CO,HR,CZ,DK,DO,EG,EE,FI,FR,DE,GR,HK,HU,IN,ID,IE,IL,IT,JP,JO,KZ,KE,KW,LV,LB,LT,LU,MY,MX,NL,NZ,NO,OM,PK,PA,PE,PH,PL,PT,QA,RO,RU,SA,SG,SK,ZA,ES,LK,SE,CH,TW,TH,TR,UA,AE,GB,US,UY,VN" }
 apple_pay = { country = "AU,CN,HK,JP,MO,MY,NZ,SG,TW,AM,AT,AZ,BY,BE,BG,HR,CY,CZ,DK,EE,FO,FI,FR,GE,DE,GR,GL,GG,HU,IS,IE,IM,IT,KZ,JE,LV,LI,LT,LU,MT,MD,MC,ME,NL,NO,PL,PT,RO,SM,RS,SK,SI,ES,SE,CH,UA,GB,AR,CO,CR,BR,MX,PE,BH,IL,JO,KW,PS,QA,SA,AE,CA,UM,US" }
-klarna = { country = "AT,BE,DK,FI,FR,DE,IE,IT,NL,NO,ES,SE,GB,US", currency = "EUR,USD,GBP,DKK,SEK,NOK" }
+klarna = { country = "US", currency = "USD" }
 affirm = { country = "US", currency = "USD" }
-afterpay_clearpay = { country = "US,CA,GB,AU,NZ,FR,ES", currency = "USD,CAD,GBP,AUD,NZD,EUR" }
+afterpay_clearpay = { country = "US,CA,GB,AU,NZ,FR,ES", currency = "USD,CAD,GBP,AUD,NZD" }
 giropay = { country = "DE", currency = "EUR" }
 eps = { country = "AT", currency = "EUR" }
 sofort = { country = "AT,BE,DE,IT,NL,ES", currency = "EUR" }
@@ -374,13 +374,14 @@ mollie = {long_lived_token = false, payment_method = "card"}
 square = {long_lived_token = false, payment_method = "card"}
 braintree = { long_lived_token = false, payment_method = "card" }
 payme = {long_lived_token = false, payment_method = "card"}
+gocardless = {long_lived_token = true, payment_method = "bank_debit"}
 
 [temp_locker_disable_config]
 trustpay = {payment_method = "card,bank_redirect,wallet"}
 stripe = {payment_method = "card,bank_redirect,pay_later,wallet,bank_debit"}
 
 [connector_customer]
-connector_list = "stax,stripe"
+connector_list = "gocardless,stax,stripe"
 payout_connector_list = "wise"
 
 [dummy_connector]
@@ -406,6 +407,9 @@ discord_invite_url = "https://discord.gg/wJZ7DVW8mm"
 [delayed_session_response]
 connectors_with_delayed_session_response = "trustpay,payme"
 
+[webhook_source_verification_call]
+connectors_with_webhook_source_verification_call = "paypal"
+
 [mandates.supported_payment_methods]
 pay_later.klarna = { connector_list = "adyen" }
 wallet.google_pay = { connector_list = "stripe,adyen" }
@@ -428,3 +432,7 @@ apple_pay_ppc = "APPLE_PAY_PAYMENT_PROCESSING_CERTIFICATE"
 apple_pay_ppc_key = "APPLE_PAY_PAYMENT_PROCESSING_CERTIFICATE_KEY"
 apple_pay_merchant_cert = "APPLE_PAY_MERCHNAT_CERTIFICATE"
 apple_pay_merchant_cert_key = "APPLE_PAY_MERCHNAT_CERTIFICATE_KEY"
+
+[lock_settings]
+redis_lock_expiry_seconds = 180 # 3 * 60 seconds
+delay_between_retries_in_milliseconds = 500

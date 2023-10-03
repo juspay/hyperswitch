@@ -42,6 +42,7 @@ pub async fn start_drainer(
 
     let active_tasks = Arc::new(atomic::AtomicU64::new(0));
     'event: loop {
+        metrics::DRAINER_HEALTH.add(&metrics::CONTEXT, 1, &[]);
         match rx.try_recv() {
             Err(mpsc::error::TryRecvError::Empty) => {
                 if utils::is_stream_available(stream_index, store.clone()).await {
@@ -118,8 +119,24 @@ async fn drainer(
     stream_name: &str,
 ) -> errors::DrainerResult<()> {
     let stream_read =
-        utils::read_from_stream(stream_name, max_read_count, store.redis_conn.as_ref()).await?; // this returns the error.
-
+        match utils::read_from_stream(stream_name, max_read_count, store.redis_conn.as_ref()).await
+        {
+            Ok(result) => result,
+            Err(error) => {
+                if let errors::DrainerError::RedisError(redis_err) = error.current_context() {
+                    if let redis_interface::errors::RedisError::StreamEmptyOrNotAvailable =
+                        redis_err.current_context()
+                    {
+                        metrics::STREAM_EMPTY.add(&metrics::CONTEXT, 1, &[]);
+                        return Ok(());
+                    } else {
+                        return Err(error);
+                    }
+                } else {
+                    return Err(error);
+                }
+            }
+        };
     // parse_stream_entries returns error if no entries is found, handle it
     let (entries, last_entry_id) = utils::parse_stream_entries(&stream_read, stream_name)?;
     let read_count = entries.len();
@@ -148,6 +165,8 @@ async fn drainer(
         let payment_intent = "payment_intent";
         let payment_attempt = "payment_attempt";
         let refund = "refund";
+        let connector_response = "connector_response";
+        let address = "address";
         match db_op {
             // TODO: Handle errors
             kv::DBOperation::Insert { insertable } => {
@@ -169,6 +188,16 @@ async fn drainer(
                         }
                         kv::Insertable::Refund(a) => {
                             macro_util::handle_resp!(a.insert(&conn).await, insert_op, refund)
+                        }
+                        kv::Insertable::ConnectorResponse(a) => {
+                            macro_util::handle_resp!(
+                                a.insert(&conn).await,
+                                insert_op,
+                                connector_response
+                            )
+                        }
+                        kv::Insertable::Address(addr) => {
+                            macro_util::handle_resp!(addr.insert(&conn).await, insert_op, address)
                         }
                     }
                 })
@@ -206,6 +235,11 @@ async fn drainer(
                                 refund
                             )
                         }
+                        kv::Updateable::ConnectorResponseUpdate(a) => macro_util::handle_resp!(
+                            a.orig.update(&conn, a.update_data).await,
+                            update_op,
+                            connector_response
+                        ),
                     }
                 })
                 .await;

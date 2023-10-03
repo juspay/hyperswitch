@@ -28,6 +28,8 @@ pub enum RedisError {
     StreamTrimFailed,
     #[error("Failed to acknowledge Redis stream entry")]
     StreamAcknowledgeFailed,
+    #[error("Stream is either empty or not available")]
+    StreamEmptyOrNotAvailable,
     #[error("Failed to create Redis consumer group")]
     ConsumerGroupCreateFailed,
     #[error("Failed to destroy Redis consumer group")]

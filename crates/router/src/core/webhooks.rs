@@ -1,6 +1,8 @@
 pub mod types;
 pub mod utils;
 
+use std::str::FromStr;
+
 use api_models::payments::HeaderPayload;
 use common_utils::errors::ReportSwitchExt;
 use error_stack::{report, IntoReport, ResultExt};
@@ -13,11 +15,13 @@ use crate::compatibility::stripe::webhooks as stripe_webhooks;
 use crate::{
     consts,
     core::{
+        api_locking,
         errors::{self, ConnectorErrorExt, CustomResult, RouterResponse},
         payments, refunds,
     },
+    db::StorageInterface,
     logger,
-    routes::{metrics::request::add_attributes, AppState},
+    routes::{lock_utils, metrics::request::add_attributes, AppState},
     services,
     types::{
         self as router_types, api, domain,
@@ -30,7 +34,6 @@ use crate::{
 const OUTGOING_WEBHOOK_TIMEOUT_SECS: u64 = 5;
 const MERCHANT_ID: &str = "merchant_id";
 
-#[instrument(skip_all)]
 pub async fn payments_incoming_webhook_flow<W: types::OutgoingWebhookType>(
     state: AppState,
     merchant_account: domain::MerchantAccount,
@@ -45,6 +48,27 @@ pub async fn payments_incoming_webhook_flow<W: types::OutgoingWebhookType>(
     };
     let payments_response = match webhook_details.object_reference_id {
         api_models::webhooks::ObjectReferenceId::PaymentId(id) => {
+            let payment_id = get_payment_id(
+                state.store.as_ref(),
+                &id,
+                merchant_account.merchant_id.as_str(),
+                merchant_account.storage_scheme,
+            )
+            .await?;
+
+            let lock_action = api_locking::LockAction::Hold {
+                input: super::api_locking::LockingInput {
+                    unique_locking_key: payment_id,
+                    api_identifier: lock_utils::ApiIdentifier::Payments,
+                    override_lock_retries: None,
+                },
+            };
+
+            lock_action
+                .clone()
+                .perform_locking_action(&state, merchant_account.merchant_id.to_string())
+                .await?;
+
             let response = payments::payments_core::<api::PSync, api::PaymentsResponse, _, _, _>(
                 state.clone(),
                 merchant_account.clone(),
@@ -66,6 +90,10 @@ pub async fn payments_incoming_webhook_flow<W: types::OutgoingWebhookType>(
                 HeaderPayload::default(),
             )
             .await;
+
+            lock_action
+                .free_lock_action(&state, merchant_account.merchant_id.to_owned())
+                .await?;
 
             match response {
                 Ok(value) => value,
@@ -806,24 +834,57 @@ pub async fn webhooks_core<W: types::OutgoingWebhookType>(
             .get_webhook_object_reference_id(&request_details)
             .switch()
             .attach_printable("Could not find object reference id in incoming webhook body")?;
-
-        let source_verified = connector
-            .verify_webhook_source(
-                &request_details,
-                &merchant_account,
-                merchant_connector_account.clone(),
-                connector_name.as_str(),
-            )
-            .await
-            .or_else(|error| match error.current_context() {
-                errors::ConnectorError::WebhookSourceVerificationFailed => {
-                    logger::error!(?error, "Source Verification Failed");
-                    Ok(false)
-                }
-                _ => Err(error),
+        let connector_enum = api_models::enums::Connector::from_str(&connector_name)
+            .into_report()
+            .change_context(errors::ApiErrorResponse::InvalidDataValue {
+                field_name: "connector",
             })
-            .switch()
-            .attach_printable("There was an issue in incoming webhook source verification")?;
+            .attach_printable_lazy(|| {
+                format!("unable to parse connector name {connector_name:?}")
+            })?;
+        let connectors_with_source_verification_call = &state.conf.webhook_source_verification_call;
+
+        let source_verified = if connectors_with_source_verification_call
+            .connectors_with_webhook_source_verification_call
+            .contains(&connector_enum)
+        {
+            connector
+                .verify_webhook_source_verification_call(
+                    &state,
+                    &merchant_account,
+                    merchant_connector_account.clone(),
+                    &connector_name,
+                    &request_details,
+                )
+                .await
+                .or_else(|error| match error.current_context() {
+                    errors::ConnectorError::WebhookSourceVerificationFailed => {
+                        logger::error!(?error, "Source Verification Failed");
+                        Ok(false)
+                    }
+                    _ => Err(error),
+                })
+                .switch()
+                .attach_printable("There was an issue in incoming webhook source verification")?
+        } else {
+            connector
+                .verify_webhook_source(
+                    &request_details,
+                    &merchant_account,
+                    merchant_connector_account.clone(),
+                    connector_name.as_str(),
+                )
+                .await
+                .or_else(|error| match error.current_context() {
+                    errors::ConnectorError::WebhookSourceVerificationFailed => {
+                        logger::error!(?error, "Source Verification Failed");
+                        Ok(false)
+                    }
+                    _ => Err(error),
+                })
+                .switch()
+                .attach_printable("There was an issue in incoming webhook source verification")?
+        };
 
         if source_verified {
             metrics::WEBHOOK_SOURCE_VERIFIED_COUNT.add(
@@ -834,6 +895,10 @@ pub async fn webhooks_core<W: types::OutgoingWebhookType>(
                     merchant_account.merchant_id.clone(),
                 )],
             );
+        } else if connector.is_webhook_source_verification_mandatory() {
+            // if webhook consumption is mandatory for connector, fail webhook
+            // so that merchant can retrigger it after updating merchant_secret
+            return Err(errors::ApiErrorResponse::WebhookAuthenticationFailed.into());
         }
 
         logger::info!(source_verified=?source_verified);
@@ -920,6 +985,44 @@ pub async fn webhooks_core<W: types::OutgoingWebhookType>(
         .attach_printable("Could not get incoming webhook api response from connector")?;
 
     Ok(response)
+}
+
+#[inline]
+pub async fn get_payment_id(
+    db: &dyn StorageInterface,
+    payment_id: &api::PaymentIdType,
+    merchant_id: &str,
+    storage_scheme: enums::MerchantStorageScheme,
+) -> errors::RouterResult<String> {
+    let pay_id = || async {
+        match payment_id {
+            api_models::payments::PaymentIdType::PaymentIntentId(ref id) => Ok(id.to_string()),
+            api_models::payments::PaymentIdType::ConnectorTransactionId(ref id) => db
+                .find_payment_attempt_by_merchant_id_connector_txn_id(
+                    merchant_id,
+                    id,
+                    storage_scheme,
+                )
+                .await
+                .map(|p| p.payment_id),
+            api_models::payments::PaymentIdType::PaymentAttemptId(ref id) => db
+                .find_payment_attempt_by_attempt_id_merchant_id(id, merchant_id, storage_scheme)
+                .await
+                .map(|p| p.payment_id),
+            api_models::payments::PaymentIdType::PreprocessingId(ref id) => db
+                .find_payment_attempt_by_preprocessing_id_merchant_id(
+                    id,
+                    merchant_id,
+                    storage_scheme,
+                )
+                .await
+                .map(|p| p.payment_id),
+        }
+    };
+
+    pay_id()
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)
 }
 
 async fn fetch_mca_and_connector(

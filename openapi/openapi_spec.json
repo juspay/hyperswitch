@@ -2626,6 +2626,12 @@
                     "type": "string",
                     "description": "Bank-State-Branch (bsb) number",
                     "example": "000000"
+                  },
+                  "bank_account_holder_name": {
+                    "type": "string",
+                    "description": "Owner name for bank debit",
+                    "example": "A. Schneider",
+                    "nullable": true
                   }
                 }
               }
@@ -3848,6 +3854,7 @@
           "forte",
           "globalpay",
           "globepay",
+          "gocardless",
           "iatapay",
           "klarna",
           "mollie",
@@ -8332,11 +8339,13 @@
       },
       "PaymentsCaptureRequest": {
         "type": "object",
+        "required": [
+          "payment_id"
+        ],
         "properties": {
           "payment_id": {
             "type": "string",
-            "description": "The unique identifier for the payment",
-            "nullable": true
+            "description": "The unique identifier for the payment"
           },
           "merchant_id": {
             "type": "string",

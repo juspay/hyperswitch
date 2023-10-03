@@ -11,7 +11,7 @@ use transformers as payme;
 
 use crate::{
     configs::settings,
-    connector::utils as connector_utils,
+    connector::{utils as connector_utils, utils::PaymentsPreProcessingData},
     core::{
         errors::{self, CustomResult},
         payments,
@@ -63,6 +63,10 @@ where
 impl ConnectorCommon for Payme {
     fn id(&self) -> &'static str {
         "payme"
+    }
+
+    fn get_currency_unit(&self) -> api::CurrencyUnit {
+        api::CurrencyUnit::Minor
     }
 
     fn common_get_content_type(&self) -> &'static str {
@@ -249,7 +253,11 @@ impl
         &self,
         req: &types::PaymentsPreProcessingRouterData,
     ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
-        let req_obj = payme::GenerateSaleRequest::try_from(req)?;
+        let amount = req.request.get_amount()?;
+        let currency = req.request.get_currency()?;
+        let connector_router_data =
+            payme::PaymeRouterData::try_from((&self.get_currency_unit(), currency, amount, req))?;
+        let req_obj = payme::GenerateSaleRequest::try_from(&connector_router_data)?;
         let payme_req = types::RequestBody::log_and_get_request_body(
             &req_obj,
             utils::Encode::<payme::GenerateSaleRequest>::encode_to_string_of_json,
@@ -464,7 +472,13 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         &self,
         req: &types::PaymentsAuthorizeRouterData,
     ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
-        let req_obj = payme::PaymePaymentRequest::try_from(req)?;
+        let connector_router_data = payme::PaymeRouterData::try_from((
+            &self.get_currency_unit(),
+            req.request.currency,
+            req.request.amount,
+            req,
+        ))?;
+        let req_obj = payme::PaymePaymentRequest::try_from(&connector_router_data)?;
         let payme_req = types::RequestBody::log_and_get_request_body(
             &req_obj,
             utils::Encode::<payme::PayRequest>::encode_to_string_of_json,
@@ -637,7 +651,13 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
         &self,
         req: &types::PaymentsCaptureRouterData,
     ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
-        let req_obj = payme::PaymentCaptureRequest::try_from(req)?;
+        let connector_router_data = payme::PaymeRouterData::try_from((
+            &self.get_currency_unit(),
+            req.request.currency,
+            req.request.amount_to_capture,
+            req,
+        ))?;
+        let req_obj = payme::PaymentCaptureRequest::try_from(&connector_router_data)?;
         let payme_req = types::RequestBody::log_and_get_request_body(
             &req_obj,
             utils::Encode::<payme::PaymentCaptureRequest>::encode_to_string_of_json,
@@ -737,7 +757,13 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
         &self,
         req: &types::RefundsRouterData<api::Execute>,
     ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
-        let req_obj = payme::PaymeRefundRequest::try_from(req)?;
+        let connector_router_data = payme::PaymeRouterData::try_from((
+            &self.get_currency_unit(),
+            req.request.currency,
+            req.request.refund_amount,
+            req,
+        ))?;
+        let req_obj = payme::PaymeRefundRequest::try_from(&connector_router_data)?;
         let payme_req = types::RequestBody::log_and_get_request_body(
             &req_obj,
             utils::Encode::<payme::PaymeRefundRequest>::encode_to_string_of_json,

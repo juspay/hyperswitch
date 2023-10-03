@@ -7,7 +7,7 @@ use error_stack::ResultExt;
 use external_services::kms;
 
 use crate::{
-    core::errors::{self, api_error_response, utils::StorageErrorExt},
+    core::errors::{self, api_error_response},
     headers, logger,
     routes::AppState,
     services, types,
@@ -120,7 +120,7 @@ pub async fn get_verified_apple_domains_with_mid_mca_id(
     let key_store = db
         .get_merchant_key_store_by_merchant_id(&merchant_id, &db.get_master_key().to_vec().into())
         .await
-        .to_not_found_response(errors::ApiErrorResponse::InternalServerError)?;
+        .change_context(api_error_response::ApiErrorResponse::MerchantAccountNotFound)?;
 
     let verified_domains = db
         .find_by_merchant_connector_account_merchant_id_merchant_connector_id(
