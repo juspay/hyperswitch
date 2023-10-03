@@ -12,6 +12,34 @@ use crate::{
     types::{self, api},
 };
 
+#[derive(Debug,Serialize)]
+pub struct WorldpayRouterData<T>{
+    amount: i64,
+    router_data: T,
+}
+impl<T>
+    TryFrom<(
+        &types::api::CurrencyUnit,
+        types::storage::enums::Currency,
+        i64,
+        T,
+    )> for WorldpayRouterData<T>
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        (_currency_unit, _currency, amount, router_data): (
+            &types::api::CurrencyUnit,
+            types::storage::enums::Currency,
+            i64,
+            T,
+        ),
+    ) -> Result<Self, Self::Error> {
+        Ok(Self {
+            amount,
+            router_data,
+        })
+    }
+}
 fn fetch_payment_instrument(
     payment_method: api::PaymentMethodData,
 ) -> CustomResult<PaymentInstrument, errors::ConnectorError> {
@@ -100,9 +128,15 @@ fn fetch_payment_instrument(
     }
 }
 
-impl TryFrom<&types::PaymentsAuthorizeRouterData> for WorldpayPaymentsRequest {
+impl TryFrom<&WorldpayRouterData<&types::PaymentsAuthorizeRouterData>> for WorldpayPaymentsRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(item: &types::PaymentsAuthorizeRouterData) -> Result<Self, Self::Error> {
+
+    fn try_from(item: &WorldpayRouterData<&types::PaymentsAuthorizeRouterData>,) -> Result<Self, Self::Error> {
+        let request = &item.router_data.request;
+        match
+        request.order_details.clone(){
+            Some(order_details)=>
+        
         Ok(Self {
             instruction: Instruction {
                 value: PaymentValue {
@@ -127,6 +161,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for WorldpayPaymentsRequest {
             customer: None,
         })
     }
+}
 }
 
 pub struct WorldpayAuthType {
