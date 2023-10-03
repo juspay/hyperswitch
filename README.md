@@ -45,14 +45,14 @@ New to Rust? Hyperswitch is the perfect place to start this hacktoberfest! 😁
 <hr>
 <img src="./docs/imgs/switch.png" />
 
-Hyperswitch is an open source payments switch to make payments fast, reliable, and, affordable.
+Hyperswitch is an open-source payment switch to make payments fast, reliable, and affordable.
 It lets you connect with multiple payment processors and route traffic effortlessly, all with a single API integration.
 
 
 Using Hyperswitch, you can:
 
 - ⬇️ **Reduce dependency** on a single processor like Stripe or Braintree
-- 🧑‍💻 **Reduce Dev effort** by 90% to add & maintain integrations
+- 🧑‍💻 **Reduce dev effort** by 90% to add & maintain integrations
 - 🚀 **Improve success rates** with seamless failover and auto-retries
 - 💸 **Reduce processing fees** with smart routing
 - 🎨 **Customize payment flows** with full visibility and control
