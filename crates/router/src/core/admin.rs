@@ -94,6 +94,14 @@ pub async fn create_merchant_account(
             .attach_printable("Invalid routing algorithm given")?;
     }
 
+    db.insert_config(diesel_models::configs::ConfigNew {
+        key: format!("{}_requires_cvv", req.merchant_id),
+        config: "true".to_string(),
+    })
+    .await
+    .change_context(errors::ApiErrorResponse::InternalServerError)
+    .attach_printable("Error while setting requires_cvv config")?;
+
     let key_store = domain::MerchantKeyStore {
         merchant_id: req.merchant_id.clone(),
         key: domain_types::encrypt(key.to_vec().into(), master_key)
