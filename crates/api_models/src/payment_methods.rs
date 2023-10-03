@@ -171,9 +171,13 @@ pub struct PaymentMethodDataBankCreds {
 pub struct BankAccountConnectorDetails {
     pub connector: String,
     pub account_id: String,
-    pub access_token: String,
+    pub access_token: BankAccountAccessCreds,
 }
 
+#[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
+pub enum BankAccountAccessCreds {
+    AccessToken(String),
+}
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
 pub struct CardDetailFromLocker {
     pub scheme: Option<String>,
