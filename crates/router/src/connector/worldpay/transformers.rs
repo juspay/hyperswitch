@@ -12,8 +12,8 @@ use crate::{
     types::{self, api},
 };
 
-#[derive(Debug,Serialize)]
-pub struct WorldpayRouterData<T>{
+#[derive(Debug, Serialize)]
+pub struct WorldpayRouterData<T> {
     amount: i64,
     router_data: T,
 }
@@ -131,37 +131,39 @@ fn fetch_payment_instrument(
 impl TryFrom<&WorldpayRouterData<&types::PaymentsAuthorizeRouterData>> for WorldpayPaymentsRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
 
-    fn try_from(item: &WorldpayRouterData<&types::PaymentsAuthorizeRouterData>,) -> Result<Self, Self::Error> {
+    fn try_from(
+        item: &WorldpayRouterData<&types::PaymentsAuthorizeRouterData>,
+    ) -> Result<Self, Self::Error> {
         let request = &item.router_data.request;
-        match
-        request.order_details.clone(){
-            Some(order_details)=>
-        
-        Ok(Self {
-            instruction: Instruction {
-                value: PaymentValue {
-                    amount: item.request.amount,
-                    currency: item.request.currency.to_string(),
+        match request.order_details.clone() {
+            Some(order_details) => Ok(Self {
+                instruction: Instruction {
+                    value: PaymentValue {
+                        amount: item.request.amount,
+                        currency: item.request.currency.to_string(),
+                    },
+                    narrative: InstructionNarrative {
+                        line1: item.merchant_id.clone().replace('_', "-"),
+                        ..Default::default()
+                    },
+                    payment_instrument: fetch_payment_instrument(
+                        item.request.payment_method_data.clone(),
+                    )?,
+                    debt_repayment: None,
                 },
-                narrative: InstructionNarrative {
-                    line1: item.merchant_id.clone().replace('_', "-"),
+                merchant: Merchant {
+                    entity: item.attempt_id.clone().replace('_', "-"),
                     ..Default::default()
                 },
-                payment_instrument: fetch_payment_instrument(
-                    item.request.payment_method_data.clone(),
-                )?,
-                debt_repayment: None,
-            },
-            merchant: Merchant {
-                entity: item.attempt_id.clone().replace('_', "-"),
-                ..Default::default()
-            },
-            transaction_reference: item.attempt_id.clone(),
-            channel: None,
-            customer: None,
-        })
+                transaction_reference: item.attempt_id.clone(),
+                channel: None,
+                customer: None,
+            }),
+            None => Err(error_stack::Report::new(
+                errors::ConnectorError::CustomError("order_details is None"),
+            )),
+        }
     }
-}
 }
 
 pub struct WorldpayAuthType {

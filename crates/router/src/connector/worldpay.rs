@@ -58,7 +58,7 @@ impl ConnectorCommon for Worldpay {
 
     fn get_currency_unit(&self) -> api::CurrencyUnit {
         api::CurrencyUnit::Minor
-    } 
+    }
 
     fn common_get_content_type(&self) -> &'static str {
         "application/vnd.worldpay.payments-v6+json"
