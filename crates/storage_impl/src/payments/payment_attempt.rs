@@ -345,6 +345,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
                     multiple_capture_count: payment_attempt.multiple_capture_count,
                     connector_response_reference_id: None,
                     amount_capturable: payment_attempt.amount_capturable,
+                    surcharge_metadata: payment_attempt.surcharge_metadata.clone(),
                 };
 
                 let field = format!("pa_{}", created_attempt.attempt_id);
@@ -937,6 +938,7 @@ impl DataModelExt for PaymentAttempt {
             multiple_capture_count: self.multiple_capture_count,
             connector_response_reference_id: self.connector_response_reference_id,
             amount_capturable: self.amount_capturable,
+            surcharge_metadata: self.surcharge_metadata,
         }
     }
 
@@ -985,6 +987,7 @@ impl DataModelExt for PaymentAttempt {
             multiple_capture_count: storage_model.multiple_capture_count,
             connector_response_reference_id: storage_model.connector_response_reference_id,
             amount_capturable: storage_model.amount_capturable,
+            surcharge_metadata: storage_model.surcharge_metadata,
         }
     }
 }
@@ -1033,6 +1036,7 @@ impl DataModelExt for PaymentAttemptNew {
             connector_response_reference_id: self.connector_response_reference_id,
             multiple_capture_count: self.multiple_capture_count,
             amount_capturable: self.amount_capturable,
+            surcharge_metadata: self.surcharge_metadata,
         }
     }
 
@@ -1079,6 +1083,7 @@ impl DataModelExt for PaymentAttemptNew {
             connector_response_reference_id: storage_model.connector_response_reference_id,
             multiple_capture_count: storage_model.multiple_capture_count,
             amount_capturable: storage_model.amount_capturable,
+            surcharge_metadata: storage_model.surcharge_metadata,
         }
     }
 }
@@ -1273,6 +1278,9 @@ impl DataModelExt for PaymentAttemptUpdate {
                 status,
                 amount_capturable,
             },
+            Self::SurchargeMetadataUpdate { surcharge_metadata } => {
+                DieselPaymentAttemptUpdate::SurchargeMetadataUpdate { surcharge_metadata }
+            }
         }
     }
 
@@ -1463,6 +1471,9 @@ impl DataModelExt for PaymentAttemptUpdate {
                 status,
                 amount_capturable,
             },
+            DieselPaymentAttemptUpdate::SurchargeMetadataUpdate { surcharge_metadata } => {
+                Self::SurchargeMetadataUpdate { surcharge_metadata }
+            }
         }
     }
 }
