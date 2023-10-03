@@ -78,6 +78,7 @@ pub struct OpennodePaymentsResponseData {
     id: String,
     hosted_checkout_url: String,
     status: OpennodePaymentStatus,
+    order_id: Option<String>,
 }
 
 //TODO: Fill the struct with respective fields
@@ -105,7 +106,7 @@ impl<F, T>
             method: services::Method::Get,
             form_fields,
         };
-        let connector_id = types::ResponseId::ConnectorTransactionId(item.response.data.id.clone());
+        let connector_id = types::ResponseId::ConnectorTransactionId(item.response.data.id);
         let attempt_status = item.response.data.status;
         let response_data = if attempt_status != OpennodePaymentStatus::Underpaid {
             Ok(types::PaymentsResponseData::TransactionResponse {
@@ -114,7 +115,7 @@ impl<F, T>
                 mandate_reference: None,
                 connector_metadata: None,
                 network_txn_id: None,
-                connector_response_reference_id: Some(item.response.data.id),
+                connector_response_reference_id: item.response.data.order_id,
             })
         } else {
             Ok(types::PaymentsResponseData::TransactionUnresolvedResponse {
@@ -125,7 +126,7 @@ impl<F, T>
                         "Please check the transaction in opennode dashboard and resolve manually"
                             .to_string(),
                 }),
-                connector_response_reference_id: Some(item.response.data.id),
+                connector_response_reference_id: item.response.data.order_id,
             })
         };
         Ok(Self {
