@@ -408,6 +408,7 @@ pub struct HelcimCaptureRequest {
     pre_auth_transaction_id: u64,
     amount: f64,
     ip_address: Secret<String, IpAddress>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     ecommerce: Option<bool>,
 }
 
@@ -480,6 +481,7 @@ impl<F>
 pub struct HelcimVoidRequest {
     card_transaction_id: u64,
     ip_address: Secret<String, IpAddress>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     ecommerce: Option<bool>,
 }
 
@@ -545,6 +547,7 @@ pub struct HelcimRefundRequest {
     amount: f64,
     original_transaction_id: u64,
     ip_address: Secret<String, IpAddress>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     ecommerce: Option<bool>,
 }
 

@@ -62,16 +62,17 @@ where
     ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
         let mut header = vec![(
             headers::CONTENT_TYPE.to_string(),
-            types::PaymentsAuthorizeType::get_content_type(self)
-                .to_string()
-                .into(),
+            self.get_content_type().to_string().into(),
         )];
         let mut api_key = self.get_auth_header(&req.connector_auth_type)?;
 
+        //Helcim requires an Idempotency Key of length 25. We prefix every ID by "HS_".
+        const ID_LENGTH: usize = 22;
         let mut idempotency_key = vec![(
             headers::IDEMPOTENCY_KEY.to_string(),
-            format!("{}_", req.payment_id).into_masked(),
+            utils::generate_id(ID_LENGTH, "HS").into_masked(),
         )];
+
         header.append(&mut api_key);
         header.append(&mut idempotency_key);
         Ok(header)
@@ -488,23 +489,9 @@ impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsR
     fn get_headers(
         &self,
         req: &types::PaymentsCancelRouterData,
-        _connectors: &settings::Connectors,
+        connectors: &settings::Connectors,
     ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
-        let mut header = vec![(
-            headers::CONTENT_TYPE.to_string(),
-            types::PaymentsVoidType::get_content_type(self)
-                .to_string()
-                .into(),
-        )];
-        let mut api_key = self.get_auth_header(&req.connector_auth_type)?;
-
-        let mut idempotency_key = vec![(
-            headers::IDEMPOTENCY_KEY.to_string(),
-            format!("{}V", req.payment_id).into_masked(),
-        )];
-        header.append(&mut api_key);
-        header.append(&mut idempotency_key);
-        Ok(header)
+        self.build_headers(req, connectors)
     }
 
     fn get_content_type(&self) -> &'static str {
@@ -577,23 +564,9 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
     fn get_headers(
         &self,
         req: &types::RefundsRouterData<api::Execute>,
-        _connectors: &settings::Connectors,
+        connectors: &settings::Connectors,
     ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
-        let mut header = vec![(
-            headers::CONTENT_TYPE.to_string(),
-            types::RefundExecuteType::get_content_type(self)
-                .to_string()
-                .into(),
-        )];
-        let mut api_key = self.get_auth_header(&req.connector_auth_type)?;
-
-        let mut idempotency_key = vec![(
-            headers::IDEMPOTENCY_KEY.to_string(),
-            format!("{}_", req.request.refund_id).into_masked(),
-        )];
-        header.append(&mut api_key);
-        header.append(&mut idempotency_key);
-        Ok(header)
+        self.build_headers(req, connectors)
     }
 
     fn get_content_type(&self) -> &'static str {
