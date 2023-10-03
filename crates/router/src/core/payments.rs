@@ -15,7 +15,6 @@ use data_models::mandates::MandateData;
 use diesel_models::{ephemeral_key, fraud_check::FraudCheck};
 use error_stack::{IntoReport, ResultExt};
 use futures::future::join_all;
-#[cfg(feature = "kms")]
 use helpers::ApplePayData;
 use masking::Secret;
 use router_env::{instrument, tracing};
@@ -651,7 +650,6 @@ where
 
     // Tokenization Action will be DecryptApplePayToken, only when payment method type is Apple Pay
     // and the connector supports Apple Pay predecrypt
-    #[cfg(feature = "kms")]
     if matches!(
         tokenization_action,
         TokenizationAction::DecryptApplePayToken

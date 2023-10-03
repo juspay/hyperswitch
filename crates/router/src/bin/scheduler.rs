@@ -139,7 +139,7 @@ async fn start_scheduler(
         .scheduler
         .clone()
         .ok_or(errors::ProcessTrackerError::ConfigurationError)?;
-    scheduler::start_process_tracker::<_>(
+    scheduler::start_process_tracker(
         state,
         scheduler_flow,
         Arc::new(scheduler_settings),
