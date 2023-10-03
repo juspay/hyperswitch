@@ -2911,12 +2911,10 @@
             "properties": {
               "blik": {
                 "type": "object",
-                "required": [
-                  "blik_code"
-                ],
                 "properties": {
                   "blik_code": {
-                    "type": "string"
+                    "type": "string",
+                    "nullable": true
                   }
                 }
               }
@@ -3922,7 +3920,8 @@
           "networks",
           "banking_entities",
           "non_banking_finance",
-          "payout_processor"
+          "payout_processor",
+          "payment_method_auth"
         ]
       },
       "CountryAlpha2": {
@@ -6522,6 +6521,9 @@
             "type": "string",
             "description": "Identifier for the business profile, if not provided default will be chosen from merchant account",
             "nullable": true
+          },
+          "pm_auth_config": {
+            "nullable": true
           }
         }
       },
@@ -6746,6 +6748,9 @@
             },
             "description": "identifier for the verified domains of a particular connector account",
             "nullable": true
+          },
+          "pm_auth_config": {
+            "nullable": true
           }
         }
       },
@@ -6842,6 +6847,9 @@
                 "$ref": "#/components/schemas/MerchantConnectorWebhookDetails"
               }
             ],
+            "nullable": true
+          },
+          "pm_auth_config": {
             "nullable": true
           }
         }
