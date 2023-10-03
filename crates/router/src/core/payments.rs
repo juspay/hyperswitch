@@ -1125,10 +1125,32 @@ fn check_apple_pay_metadata(
     merchant_connector_account.clone().and_then(|mca| {
         let metadata = mca.get_metadata();
         metadata.and_then(|apple_pay_metadata| {
-            let parsed_metadata: Result<api_models::payments::ApplepaySessionTokenData, _> =
-                apple_pay_metadata.parse_value("ApplepaySessionTokenData").map_err(|error| logger::error!(%error, "Failed to Parse Value to ApplepaySessionTokenData"));
+            let parsed_metadata = apple_pay_metadata
+                .clone()
+                .parse_value::<api_models::payments::ApplepayCombinedSessionTokenData>(
+                    "ApplepayCombinedSessionTokenData",
+                )
+                .map(|combined_metadata| {
+                    api_models::payments::ApplepaySessionTokenMetadata::ApplePayCombined(
+                        combined_metadata.apple_pay_combined,
+                    )
+                })
+                .or_else(|_| {
+                    apple_pay_metadata
+                        .parse_value::<api_models::payments::ApplepaySessionTokenData>(
+                            "ApplepaySessionTokenData",
+                        )
+                        .map(|old_metadata| {
+                            api_models::payments::ApplepaySessionTokenMetadata::ApplePay(
+                                old_metadata.apple_pay,
+                            )
+                        })
+                })
+                .map_err(
+                    |error| logger::error!(%error, "Failed to Parse Value to ApplepaySessionTokenData"),
+                );
 
-            parsed_metadata.ok().map(|metadata| match metadata.data {
+            parsed_metadata.ok().map(|metadata| match metadata {
                 api_models::payments::ApplepaySessionTokenMetadata::ApplePayCombined(
                     apple_pay_combined,
                 ) => match apple_pay_combined {
