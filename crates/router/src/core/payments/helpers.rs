@@ -1407,7 +1407,7 @@ pub async fn make_pm_data<'a, F: Clone, R, Ctx: router_types::handler::PaymentMe
         }
 
         (Some(_), _) => {
-            Ctx::retrive_payment_method(
+            Ctx::retrieve_payment_method(
                 request,
                 state,
                 &payment_data.payment_intent,

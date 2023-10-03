@@ -8,7 +8,7 @@ use router::{
     configs::settings::{CmdLineConf, Settings},
     core::errors::{self, CustomResult},
     logger, routes, services,
-    types::{handler::Oss, storage::ProcessTrackerExt},
+    types::storage::ProcessTrackerExt,
     workflows,
 };
 use scheduler::{
@@ -63,7 +63,7 @@ async fn main() -> CustomResult<(), ProcessTrackerError> {
 
     logger::debug!(startup_config=?state.conf);
 
-    start_scheduler::<Oss>(&state, scheduler_flow, (tx, rx)).await?;
+    start_scheduler(&state, scheduler_flow, (tx, rx)).await?;
 
     eprintln!("Scheduler shut down");
     Ok(())
@@ -129,7 +129,7 @@ impl ProcessTrackerWorkflows<routes::AppState> for WorkflowRunner {
     }
 }
 
-async fn start_scheduler<Ctx: 'static>(
+async fn start_scheduler(
     state: &routes::AppState,
     scheduler_flow: scheduler::SchedulerFlow,
     channel: (mpsc::Sender<()>, mpsc::Receiver<()>),

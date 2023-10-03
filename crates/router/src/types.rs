@@ -12,6 +12,8 @@ pub mod handler;
 pub mod storage;
 pub mod transformers;
 
+use std::{collections::HashMap, marker::PhantomData};
+
 pub use api_models::{
     enums::{Connector, PayoutConnectors},
     payouts as payout_types,
@@ -21,7 +23,6 @@ use common_utils::{pii, pii::Email};
 use data_models::mandates::MandateData;
 use error_stack::{IntoReport, ResultExt};
 use masking::Secret;
-use std::{collections::HashMap, marker::PhantomData};
 
 use self::{api::payments, storage::enums as storage_enums};
 pub use crate::core::payments::{CustomerDetails, PaymentAddress};

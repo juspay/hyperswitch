@@ -3,7 +3,6 @@ pub use api_models::{
     payouts as payout_types,
 };
 pub use common_utils::request::RequestBody;
-
 use data_models::payments::{payment_attempt::PaymentAttempt, payment_intent::PaymentIntent};
 use diesel_models::enums;
 
@@ -17,7 +16,7 @@ pub struct Oss;
 
 #[async_trait::async_trait]
 pub trait PaymentMethodRetrieve {
-    async fn retrive_payment_method(
+    async fn retrieve_payment_method(
         pm_data: &Option<payments::PaymentMethodData>,
         state: &AppState,
         payment_intent: &PaymentIntent,
@@ -28,7 +27,7 @@ pub trait PaymentMethodRetrieve {
 
 #[async_trait::async_trait]
 impl PaymentMethodRetrieve for Oss {
-    async fn retrive_payment_method(
+    async fn retrieve_payment_method(
         pm_data: &Option<payments::PaymentMethodData>,
         state: &AppState,
         payment_intent: &PaymentIntent,
@@ -43,8 +42,8 @@ impl PaymentMethodRetrieve for Oss {
                     enums::PaymentMethod::Card,
                 ) {
                     let parent_payment_method_token = helpers::store_in_vault_and_generate_ppmt(
-                        &state,
-                        &pm,
+                        state,
+                        pm,
                         payment_intent,
                         payment_attempt,
                         enums::PaymentMethod::Card,
@@ -70,8 +69,8 @@ impl PaymentMethodRetrieve for Oss {
                     enums::PaymentMethod::BankTransfer,
                 ) {
                     let parent_payment_method_token = helpers::store_in_vault_and_generate_ppmt(
-                        &state,
-                        &pm,
+                        state,
+                        pm,
                         payment_intent,
                         payment_attempt,
                         enums::PaymentMethod::BankTransfer,
@@ -90,8 +89,8 @@ impl PaymentMethodRetrieve for Oss {
                     enums::PaymentMethod::Wallet,
                 ) {
                     let parent_payment_method_token = helpers::store_in_vault_and_generate_ppmt(
-                        &state,
-                        &pm,
+                        state,
+                        pm,
                         payment_intent,
                         payment_attempt,
                         enums::PaymentMethod::Wallet,
@@ -109,8 +108,8 @@ impl PaymentMethodRetrieve for Oss {
                     enums::PaymentMethod::BankRedirect,
                 ) {
                     let parent_payment_method_token = helpers::store_in_vault_and_generate_ppmt(
-                        &state,
-                        &pm,
+                        state,
+                        pm,
                         payment_intent,
                         payment_attempt,
                         enums::PaymentMethod::BankRedirect,

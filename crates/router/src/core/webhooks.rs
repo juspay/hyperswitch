@@ -753,7 +753,10 @@ pub async fn trigger_webhook_to_merchant<W: types::OutgoingWebhookType>(
     Ok(())
 }
 
-pub async fn webhooks_wrapper<W: types::OutgoingWebhookType>(
+pub async fn webhooks_wrapper<
+    W: types::OutgoingWebhookType,
+    Ctx: crate::types::handler::PaymentMethodRetrieve,
+>(
     state: AppState,
     req: &actix_web::HttpRequest,
     merchant_account: domain::MerchantAccount,
@@ -761,7 +764,7 @@ pub async fn webhooks_wrapper<W: types::OutgoingWebhookType>(
     connector_name_or_mca_id: &str,
     body: actix_web::web::Bytes,
 ) -> RouterResponse<serde_json::Value> {
-    let (application_response, _webhooks_response_tracker) = webhooks_core::<W>(
+    let (application_response, _webhooks_response_tracker) = webhooks_core::<W, Ctx>(
         state,
         req,
         merchant_account,
