@@ -3,7 +3,7 @@ pub mod utils;
 
 use std::str::FromStr;
 
-use api_models::payments::HeaderPayload;
+use api_models::{payments::HeaderPayload, webhooks::WebhookResponseTracker};
 use common_utils::errors::ReportSwitchExt;
 use error_stack::{report, IntoReport, ResultExt};
 use masking::ExposeInterface;
@@ -43,7 +43,7 @@ pub async fn payments_incoming_webhook_flow<
     key_store: domain::MerchantKeyStore,
     webhook_details: api::IncomingWebhookDetails,
     source_verified: bool,
-) -> CustomResult<(), errors::ApiErrorResponse> {
+) -> CustomResult<WebhookResponseTracker, errors::ApiErrorResponse> {
     let consume_or_trigger_flow = if source_verified {
         payments::CallConnectorAction::HandleResponse(webhook_details.resource_object)
     } else {
@@ -115,9 +115,12 @@ pub async fn payments_incoming_webhook_flow<
                     metrics::WEBHOOK_PAYMENT_NOT_FOUND.add(
                         &metrics::CONTEXT,
                         1,
-                        &[add_attributes("merchant_id", merchant_account.merchant_id)],
+                        &[add_attributes(
+                            "merchant_id",
+                            merchant_account.merchant_id.clone(),
+                        )],
                     );
-                    return Ok(());
+                    return Ok(WebhookResponseTracker::NoEffect);
                 }
                 error @ Err(_) => error?,
             }
@@ -138,6 +141,8 @@ pub async fn payments_incoming_webhook_flow<
                 .change_context(errors::ApiErrorResponse::WebhookProcessingFailure)
                 .attach_printable("payment id not received from payments core")?;
 
+            let status = payments_response.status;
+
             let event_type: Option<enums::EventType> = payments_response.status.foreign_into();
 
             // If event is NOT an UnsupportedEvent, trigger Outgoing Webhook
@@ -148,20 +153,22 @@ pub async fn payments_incoming_webhook_flow<
                     outgoing_event_type,
                     enums::EventClass::Payments,
                     None,
-                    payment_id,
+                    payment_id.clone(),
                     enums::EventObjectType::PaymentDetails,
                     api::OutgoingWebhookContent::PaymentDetails(payments_response),
                 )
                 .await?;
-            }
+            };
+
+            let response = WebhookResponseTracker::Payment { payment_id, status };
+
+            Ok(response)
         }
 
         _ => Err(errors::ApiErrorResponse::WebhookProcessingFailure)
             .into_report()
             .attach_printable("received non-json response from payments core")?,
     }
-
-    Ok(())
 }
 
 #[instrument(skip_all)]
@@ -173,7 +180,7 @@ pub async fn refunds_incoming_webhook_flow<W: types::OutgoingWebhookType>(
     connector_name: &str,
     source_verified: bool,
     event_type: api_models::webhooks::IncomingWebhookEvent,
-) -> CustomResult<(), errors::ApiErrorResponse> {
+) -> CustomResult<WebhookResponseTracker, errors::ApiErrorResponse> {
     let db = &*state.store;
     //find refund by connector refund id
     let refund = match webhook_details.object_reference_id {
@@ -250,7 +257,8 @@ pub async fn refunds_incoming_webhook_flow<W: types::OutgoingWebhookType>(
 
     // If event is NOT an UnsupportedEvent, trigger Outgoing Webhook
     if let Some(outgoing_event_type) = event_type {
-        let refund_response: api_models::refunds::RefundResponse = updated_refund.foreign_into();
+        let refund_response: api_models::refunds::RefundResponse =
+            updated_refund.clone().foreign_into();
         create_event_and_trigger_outgoing_webhook::<W>(
             state,
             merchant_account,
@@ -264,7 +272,11 @@ pub async fn refunds_incoming_webhook_flow<W: types::OutgoingWebhookType>(
         .await?;
     }
 
-    Ok(())
+    Ok(WebhookResponseTracker::Refund {
+        payment_id: updated_refund.payment_id,
+        refund_id: updated_refund.refund_id,
+        status: updated_refund.refund_status,
+    })
 }
 
 pub async fn get_payment_attempt_from_object_reference_id(
@@ -390,7 +402,7 @@ pub async fn disputes_incoming_webhook_flow<W: types::OutgoingWebhookType>(
     connector: &(dyn api::Connector + Sync),
     request_details: &api::IncomingWebhookRequestDetails<'_>,
     event_type: api_models::webhooks::IncomingWebhookEvent,
-) -> CustomResult<(), errors::ApiErrorResponse> {
+) -> CustomResult<WebhookResponseTracker, errors::ApiErrorResponse> {
     metrics::INCOMING_DISPUTE_WEBHOOK_METRIC.add(&metrics::CONTEXT, 1, &[]);
     if source_verified {
         let db = &*state.store;
@@ -415,7 +427,7 @@ pub async fn disputes_incoming_webhook_flow<W: types::OutgoingWebhookType>(
             dispute_details,
             &merchant_account.merchant_id,
             &payment_attempt,
-            event_type.clone(),
+            event_type,
             connector.id(),
         )
         .await?;
@@ -428,13 +440,17 @@ pub async fn disputes_incoming_webhook_flow<W: types::OutgoingWebhookType>(
             event_type,
             enums::EventClass::Disputes,
             None,
-            dispute_object.dispute_id,
+            dispute_object.dispute_id.clone(),
             enums::EventObjectType::DisputeDetails,
             api::OutgoingWebhookContent::DisputeDetails(disputes_response),
         )
         .await?;
         metrics::INCOMING_DISPUTE_WEBHOOK_MERCHANT_NOTIFIED_METRIC.add(&metrics::CONTEXT, 1, &[]);
-        Ok(())
+        Ok(WebhookResponseTracker::Dispute {
+            dispute_id: dispute_object.dispute_id,
+            payment_id: dispute_object.payment_id,
+            status: dispute_object.dispute_status,
+        })
     } else {
         metrics::INCOMING_DISPUTE_WEBHOOK_SIGNATURE_FAILURE_METRIC.add(&metrics::CONTEXT, 1, &[]);
         Err(errors::ApiErrorResponse::WebhookAuthenticationFailed).into_report()
@@ -450,7 +466,7 @@ async fn bank_transfer_webhook_flow<
     key_store: domain::MerchantKeyStore,
     webhook_details: api::IncomingWebhookDetails,
     source_verified: bool,
-) -> CustomResult<(), errors::ApiErrorResponse> {
+) -> CustomResult<WebhookResponseTracker, errors::ApiErrorResponse> {
     let response = if source_verified {
         let payment_attempt = get_payment_attempt_from_object_reference_id(
             &state,
@@ -493,6 +509,7 @@ async fn bank_transfer_webhook_flow<
                 .attach_printable("did not receive payment id from payments core response")?;
 
             let event_type: Option<enums::EventType> = payments_response.status.foreign_into();
+            let status = payments_response.status;
 
             // If event is NOT an UnsupportedEvent, trigger Outgoing Webhook
             if let Some(outgoing_event_type) = event_type {
@@ -502,20 +519,20 @@ async fn bank_transfer_webhook_flow<
                     outgoing_event_type,
                     enums::EventClass::Payments,
                     None,
-                    payment_id,
+                    payment_id.clone(),
                     enums::EventObjectType::PaymentDetails,
                     api::OutgoingWebhookContent::PaymentDetails(payments_response),
                 )
                 .await?;
             }
+
+            Ok(WebhookResponseTracker::Payment { payment_id, status })
         }
 
         _ => Err(errors::ApiErrorResponse::WebhookProcessingFailure)
             .into_report()
             .attach_printable("received non-json response from payments core")?,
     }
-
-    Ok(())
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -736,6 +753,27 @@ pub async fn trigger_webhook_to_merchant<W: types::OutgoingWebhookType>(
     Ok(())
 }
 
+pub async fn webhooks_wrapper<W: types::OutgoingWebhookType>(
+    state: AppState,
+    req: &actix_web::HttpRequest,
+    merchant_account: domain::MerchantAccount,
+    key_store: domain::MerchantKeyStore,
+    connector_name_or_mca_id: &str,
+    body: actix_web::web::Bytes,
+) -> RouterResponse<serde_json::Value> {
+    let (application_response, _webhooks_response_tracker) = webhooks_core::<W>(
+        state,
+        req,
+        merchant_account,
+        key_store,
+        connector_name_or_mca_id,
+        body,
+    )
+    .await?;
+
+    Ok(application_response)
+}
+
 #[instrument(skip_all)]
 
 pub async fn webhooks_core<
@@ -748,7 +786,10 @@ pub async fn webhooks_core<
     key_store: domain::MerchantKeyStore,
     connector_name_or_mca_id: &str,
     body: actix_web::web::Bytes,
-) -> RouterResponse<serde_json::Value> {
+) -> errors::RouterResult<(
+    services::ApplicationResponse<serde_json::Value>,
+    WebhookResponseTracker,
+)> {
     metrics::WEBHOOK_INCOMING_COUNT.add(
         &metrics::CONTEXT,
         1,
@@ -765,8 +806,11 @@ pub async fn webhooks_core<
         body: &body,
     };
 
+    // Fetch the merchant connector account to get the webhooks source secret
+    // `webhooks source secret` is a secret shared between the merchant and connector
+    // This is used for source verification and webhooks integrity
     let (merchant_connector_account, connector) = fetch_mca_and_connector(
-        state.clone(),
+        &state,
         &merchant_account,
         connector_name_or_mca_id,
         &key_store,
@@ -821,10 +865,12 @@ pub async fn webhooks_core<
                 ],
             );
 
-            return connector
+            let response = connector
                 .get_webhook_api_response(&request_details)
                 .switch()
-                .attach_printable("Failed while early return in case of event type parsing");
+                .attach_printable("Failed while early return in case of event type parsing")?;
+
+            return Ok((response, WebhookResponseTracker::NoEffect));
         }
     };
 
@@ -840,7 +886,9 @@ pub async fn webhooks_core<
     logger::info!(event_type=?event_type);
 
     let flow_type: api::WebhookFlow = event_type.to_owned().into();
-    if process_webhook_further && !matches!(flow_type, api::WebhookFlow::ReturnResponse) {
+    let webhook_effect = if process_webhook_further
+        && !matches!(flow_type, api::WebhookFlow::ReturnResponse)
+    {
         let object_ref_id = connector
             .get_webhook_object_reference_id(&request_details)
             .switch()
@@ -973,7 +1021,7 @@ pub async fn webhooks_core<
             .await
             .attach_printable("Incoming bank-transfer webhook flow failed")?,
 
-            api::WebhookFlow::ReturnResponse => {}
+            api::WebhookFlow::ReturnResponse => WebhookResponseTracker::NoEffect,
 
             _ => Err(errors::ApiErrorResponse::InternalServerError)
                 .into_report()
@@ -988,14 +1036,15 @@ pub async fn webhooks_core<
                 merchant_account.merchant_id.clone(),
             )],
         );
-    }
+        WebhookResponseTracker::NoEffect
+    };
 
     let response = connector
         .get_webhook_api_response(&request_details)
         .switch()
         .attach_printable("Could not get incoming webhook api response from connector")?;
 
-    Ok(response)
+    Ok((response, webhook_effect))
 }
 
 #[inline]
@@ -1037,7 +1086,7 @@ pub async fn get_payment_id(
 }
 
 async fn fetch_mca_and_connector(
-    state: AppState,
+    state: &AppState,
     merchant_account: &domain::MerchantAccount,
     connector_name_or_mca_id: &str,
     key_store: &domain::MerchantKeyStore,

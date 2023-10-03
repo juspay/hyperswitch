@@ -32,19 +32,19 @@ if (jsonData?.refund_id) {
 // Response body should have value "succeeded" for "status"
 if (jsonData?.status) {
   pm.test(
-    "[POST]::/refunds - Content check if value for 'status' matches 'pending'",
+    "[POST]::/refunds - Content check if value for 'status' matches 'succeeded'",
     function () {
-      pm.expect(jsonData.status).to.eql("pending");
+      pm.expect(jsonData.status).to.eql("succeeded");
     },
   );
 }
 
-// Response body should have value "1000" for "amount"
+// Response body should have value "540" for "amount"
 if (jsonData?.status) {
   pm.test(
-    "[POST]::/refunds - Content check if value for 'amount' matches '1000'",
+    "[POST]::/refunds - Content check if value for 'amount' matches '540'",
     function () {
-      pm.expect(jsonData.amount).to.eql(1000);
+      pm.expect(jsonData.amount).to.eql(540);
     },
   );
 }
