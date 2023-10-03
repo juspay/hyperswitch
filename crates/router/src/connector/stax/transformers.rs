@@ -23,7 +23,7 @@ pub struct StaxPaymentsRequest {
     is_refundable: bool,
     pre_auth: bool,
     meta: StaxPaymentsRequestMetaData,
-    reference: String,
+    idempotency_id: Option<String>,
 }
 
 impl TryFrom<&types::PaymentsAuthorizeRouterData> for StaxPaymentsRequest {
@@ -52,7 +52,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for StaxPaymentsRequest {
                             Err(errors::ConnectorError::InvalidWalletToken)?
                         }
                     }),
-                    reference: item.connector_request_reference_id.clone(),
+                    idempotency_id: item.connector_request_reference_id.clone(),
                 })
             }
             api::PaymentMethodData::BankDebit(
@@ -71,7 +71,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for StaxPaymentsRequest {
                             Err(errors::ConnectorError::InvalidWalletToken)?
                         }
                     }),
-                    reference: item.connector_request_reference_id.clone(),
+                    idempotency_id: item.connector_request_reference_id.clone(),
                 })
             }
             api::PaymentMethodData::BankDebit(_)
@@ -285,7 +285,7 @@ pub struct StaxPaymentsResponse {
     child_captures: Vec<StaxChildCapture>,
     #[serde(rename = "type")]
     payment_response_type: StaxPaymentResponseTypes,
-    reference: Option<String>,
+    idempotency_id: Option<String>,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -334,7 +334,7 @@ impl<F, T>
                 network_txn_id: None,
                 connector_response_reference_id: Some(
                     item.response
-                        .reference
+                        .idempotency_id
                         .unwrap_or(item.response.id),
                 ),
             }),
