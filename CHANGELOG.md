@@ -4,6 +4,21 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 1.44.0+hotfix.3 (2023-10-03)
+
+### Bug Fixes
+
+- **CI:** Fix CI pipeline on hotfix branch ([#2368](https://github.com/juspay/hyperswitch/pull/2368)) ([`1b401a6`](https://github.com/juspay/hyperswitch/commit/1b401a66d7baf49ec46d7cbf89d826e2f83159e0))
+- Use key_mode based on env and update description ([#2428](https://github.com/juspay/hyperswitch/pull/2428)) ([`3b969c3`](https://github.com/juspay/hyperswitch/commit/3b969c3d919e3f3614b0a21e6875651946460d44))
+
+### Refactors
+
+- Enable `logs` feature flag in router crate ([#2358](https://github.com/juspay/hyperswitch/pull/2358)) ([#2382](https://github.com/juspay/hyperswitch/pull/2382)) ([`5cefda0`](https://github.com/juspay/hyperswitch/commit/5cefda00a6b30a2b41dfb6fe441d408833063e08))
+
+**Full Changelog:** [`v1.44.0+hotfix.2...v1.44.0+hotfix.3`](https://github.com/juspay/hyperswitch/compare/v1.44.0+hotfix.2...v1.44.0+hotfix.3)
+
+- - -
+
 ## 1.44.0+hotfix.2 (2023-09-26)
 
 ### Bug Fixes
