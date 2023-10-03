@@ -238,7 +238,16 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for NoonPaymentsRequest {
                 item.request.order_category.clone(),
             ),
         };
-        let name = item.get_description()?;
+
+        // The description should not have leading or trailing whitespaces, also it should not have double whitespaces and a max 50 chars according to Noon's Docs
+        let name: String = item
+            .get_description()?
+            .trim()
+            .replace("  ", " ")
+            .chars()
+            .take(50)
+            .collect();
+
         let (subscription, tokenize_c_c) =
             match item.request.setup_future_usage.is_some().then_some((
                 NoonSubscriptionData {
