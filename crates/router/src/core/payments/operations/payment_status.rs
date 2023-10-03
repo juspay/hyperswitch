@@ -215,13 +215,19 @@ async fn get_tracker_for_sync<
     )
     .await?;
 
+    let intent_fulfillment_time = helpers::get_merchant_fullfillment_time(
+        payment_intent.payment_link_id.clone(),
+        merchant_account.intent_fulfillment_time,
+        &merchant_account.merchant_id.clone(),
+        db.clone(),
+    )
+    .await;
     helpers::authenticate_client_secret(
         request.client_secret.as_ref(),
         &payment_intent,
-        merchant_account.intent_fulfillment_time,
-        db.clone(),
-    )
-    .await?;
+        intent_fulfillment_time,
+    )?;
+
     let payment_id_str = payment_attempt.payment_id.clone();
 
     let mut connector_response = db
@@ -378,7 +384,7 @@ async fn get_tracker_for_sync<
             ephemeral_key: None,
             multiple_capture_data,
             redirect_response: None,
-            payment_link: None,
+            payment_link_data: None,
             frm_message: frm_response.ok(),
         },
         None,

@@ -294,7 +294,7 @@ pub struct PaymentsRequest {
 
     /// additional data that might be required by hyperswitch
     pub feature_metadata: Option<FeatureMetadata>,
-    /// payment link object for required for generating payment_link
+    /// payment link object for required for generating the payment_link
     pub payment_link_object: Option<PaymentLinkObject>,
 
     /// The business profile to use for this payment, if not passed the default business profile
@@ -2886,7 +2886,6 @@ mod tests {
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize, PartialEq, ToSchema)]
 pub struct PaymentLinkObject {
-    pub create_payment_link: bool,
     #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
     pub link_expiry: Option<PrimitiveDateTime>,
 }
@@ -2899,8 +2898,8 @@ pub struct RetrievePaymentLinkRequest {
 
 #[derive(Clone, Debug, serde::Serialize, PartialEq, serde::Deserialize)]
 pub struct PaymentLinkResponse {
-    pub payment_link: Option<String>,
-    pub payment_link_id: Option<String>,
+    pub payment_link: String,
+    pub payment_link_id: String,
 }
 
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]

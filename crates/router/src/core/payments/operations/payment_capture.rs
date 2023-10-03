@@ -225,7 +225,7 @@ impl<F: Send + Clone> GetTracker<F, payments::PaymentData<F>, api::PaymentsCaptu
                 multiple_capture_data,
                 redirect_response: None,
                 frm_message: None,
-                payment_link: None,
+                payment_link_data: None,
             },
             None,
         ))

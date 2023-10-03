@@ -30,10 +30,14 @@ impl PaymentLinkInterface for Store {
         merchant_id: &str,
     ) -> CustomResult<storage::PaymentLink, errors::StorageError> {
         let conn = connection::pg_connection_read(self).await?;
-        storage::PaymentLink::find_by_link_payment_id(&conn, payment_link_id, merchant_id)
-            .await
-            .map_err(Into::into)
-            .into_report()
+        storage::PaymentLink::find_by_link_payment_id_merchant_id(
+            &conn,
+            payment_link_id,
+            merchant_id,
+        )
+        .await
+        .map_err(Into::into)
+        .into_report()
     }
 
     async fn insert_payment_link(

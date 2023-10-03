@@ -1398,7 +1398,7 @@ where
     pub ephemeral_key: Option<ephemeral_key::EphemeralKey>,
     pub redirect_response: Option<api_models::payments::RedirectResponse>,
     pub frm_message: Option<FraudCheck>,
-    pub payment_link: Option<String>,
+    pub payment_link_data: Option<api_models::payments::PaymentLinkResponse>,
 }
 
 #[derive(Debug, Default, Clone)]

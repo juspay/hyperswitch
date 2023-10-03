@@ -390,6 +390,22 @@
 </body>
 
 <script>
+
+    // Dummy payment details object
+    /*
+          "window.__PAYMENT_DETAILS_STR = JSON.stringify({{
+          client_secret: '{secret}',
+          return_url: 'http://localhost:5500/public/index.html',
+          merchant_logo: 'https://upload.wikimedia.org/wikipedia/commons/8/83/Steam_icon_logo.svg',
+          merchant: 'Steam',
+          amount: '{amount}',
+          currency: '{currency}',
+          purchased_item: 'Tea',
+          payment_id: '{payment_id}'
+      }});
+      const hyper = Hyper(\"{pub_key}\");"
+    */
+      
         {{ payment_details_js_script }}
 
         var widgets = null;

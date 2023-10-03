@@ -2060,11 +2060,10 @@ pub fn generate_mandate(
 }
 
 // A function to manually authenticate the client secret with intent fulfillment time
-pub async fn authenticate_client_secret(
+pub fn authenticate_client_secret(
     request_client_secret: Option<&String>,
     payment_intent: &PaymentIntent,
     merchant_intent_fulfillment_time: Option<i64>,
-    db: &dyn StorageInterface,
 ) -> Result<(), errors::ApiErrorResponse> {
     match (request_client_secret, &payment_intent.client_secret) {
         (Some(req_cs), Some(pi_cs)) => {
@@ -2072,43 +2071,42 @@ pub async fn authenticate_client_secret(
                 Err(errors::ApiErrorResponse::ClientSecretInvalid)
             } else {
                 //This is done to check whether the merchant_account's intent fulfillment time has expired or not
-                let payment_link_db = if let Some(payment_link_id) = &payment_intent.payment_link_id
-                {
-                    db.find_payment_link_by_payment_link_id(
-                        payment_link_id,
-                        &payment_intent.merchant_id,
-                    )
-                    .await
-                    .ok()
-                } else {
-                    None
-                };
-                if let Some(payment_link_db) = payment_link_db {
-                    let current_timestamp = common_utils::date_time::now();
-                    fp_utils::when(
-                        current_timestamp
-                            >= payment_link_db
-                                .fullfilment_time
-                                .unwrap_or(current_timestamp),
-                        || Err(errors::ApiErrorResponse::ClientSecretExpired),
-                    )
-                } else {
-                    let payment_intent_fulfillment_deadline =
-                        payment_intent.created_at.saturating_add(Duration::seconds(
-                            merchant_intent_fulfillment_time
-                                .unwrap_or(consts::DEFAULT_FULFILLMENT_TIME),
-                        ));
-                    let current_timestamp = common_utils::date_time::now();
-                    fp_utils::when(
-                        current_timestamp > payment_intent_fulfillment_deadline,
-                        || Err(errors::ApiErrorResponse::ClientSecretExpired),
-                    )
-                }
+                let payment_intent_fulfillment_deadline =
+                    payment_intent.created_at.saturating_add(Duration::seconds(
+                        merchant_intent_fulfillment_time
+                            .unwrap_or(consts::DEFAULT_FULFILLMENT_TIME),
+                    ));
+                let current_timestamp = common_utils::date_time::now();
+                fp_utils::when(
+                    current_timestamp > payment_intent_fulfillment_deadline,
+                    || Err(errors::ApiErrorResponse::ClientSecretExpired),
+                )
             }
         }
         // If there is no client in payment intent, then it has expired
         (Some(_), None) => Err(errors::ApiErrorResponse::ClientSecretExpired),
         _ => Ok(()),
+    }
+}
+
+pub async fn get_merchant_fullfillment_time(
+    payment_link_id: Option<String>,
+    intent_fulfillment_time: Option<i64>,
+    merchant_id: &str,
+    db: &dyn StorageInterface,
+) -> Option<i64> {
+    if let Some(payment_link_id) = payment_link_id {
+        let payment_link_db = db
+            .find_payment_link_by_payment_link_id(&payment_link_id, merchant_id)
+            .await
+            .ok();
+        payment_link_db.and_then(|link_db| {
+            link_db
+                .fullfilment_time
+                .map(|time| time.assume_utc().unix_timestamp())
+        })
+    } else {
+        intent_fulfillment_time
     }
 }
 
@@ -2170,13 +2168,15 @@ pub async fn verify_payment_intent_time_and_client_secret(
                 .await
                 .change_context(errors::ApiErrorResponse::PaymentNotFound)?;
 
-            authenticate_client_secret(
-                Some(&cs),
-                &payment_intent,
+            let intent_fulfillment_time = get_merchant_fullfillment_time(
+                payment_intent.payment_link_id.clone(),
                 merchant_account.intent_fulfillment_time,
-                db,
+                &merchant_account.merchant_id.clone(),
+                db.clone(),
             )
-            .await?;
+            .await;
+
+            authenticate_client_secret(Some(&cs), &payment_intent, intent_fulfillment_time)?;
             Ok(payment_intent)
         })
         .await
@@ -2262,8 +2262,6 @@ pub(crate) fn get_payment_id_from_client_secret(cs: &str) -> RouterResult<String
 #[cfg(test)]
 mod tests {
 
-    use storage_impl::MockDb;
-
     use super::*;
 
     #[tokio::test]
@@ -2306,17 +2304,11 @@ mod tests {
         };
         let req_cs = Some("1".to_string());
         let merchant_fulfillment_time = Some(900);
-        #[allow(clippy::expect_used)]
-        let mock_db = MockDb::new(&redis_interface::RedisSettings::default())
-            .await
-            .expect("Failed to create mock DB");
         assert!(authenticate_client_secret(
             req_cs.as_ref(),
             &payment_intent,
             merchant_fulfillment_time,
-            &mock_db,
         )
-        .await
         .is_ok()); // Check if the result is an Ok variant
     }
 
@@ -2360,17 +2352,11 @@ mod tests {
         };
         let req_cs = Some("1".to_string());
         let merchant_fulfillment_time = Some(10);
-        #[allow(clippy::expect_used)]
-        let mock_db = MockDb::new(&redis_interface::RedisSettings::default())
-            .await
-            .expect("Failed to create mock DB");
         assert!(authenticate_client_secret(
             req_cs.as_ref(),
             &payment_intent,
             merchant_fulfillment_time,
-            &mock_db,
         )
-        .await
         .is_err())
     }
 
@@ -2414,17 +2400,11 @@ mod tests {
         };
         let req_cs = Some("1".to_string());
         let merchant_fulfillment_time = Some(10);
-        #[allow(clippy::expect_used)]
-        let mock_db = MockDb::new(&redis_interface::RedisSettings::default())
-            .await
-            .expect("Failed to create mock DB");
         assert!(authenticate_client_secret(
             req_cs.as_ref(),
             &payment_intent,
             merchant_fulfillment_time,
-            &mock_db
         )
-        .await
         .is_err())
     }
 }
@@ -3313,4 +3293,16 @@ impl ApplePayData {
 
         Ok(decrypted)
     }
+}
+
+pub fn validate_payment_link_expiry(
+    payment_link_object: &api_models::payments::PaymentLinkObject,
+) -> Result<(), errors::ApiErrorResponse> {
+    let current_time = Some(common_utils::date_time::now());
+    if current_time > payment_link_object.link_expiry {
+        return Err(errors::ApiErrorResponse::InvalidRequestData {
+            message: "link_expiry time cannot be less than current time".to_string(),
+        });
+    }
+    Ok(())
 }

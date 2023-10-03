@@ -245,7 +245,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
                 multiple_capture_data: None,
                 redirect_response,
                 frm_message: frm_response.ok(),
-                payment_link: None,
+                payment_link_data: None,
             },
             Some(CustomerDetails {
                 customer_id: request.customer_id.clone(),

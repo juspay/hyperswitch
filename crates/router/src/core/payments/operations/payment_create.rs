@@ -66,94 +66,22 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
             .get_payment_intent_id()
             .change_context(errors::ApiErrorResponse::PaymentNotFound)?;
 
-        let (payment_link, payment_link_id) = if let Some(payment_link_object) =
-            &request.payment_link_object
-        {
-            if !request.confirm.unwrap_or(false) {
-                let created_at @ last_modified_at = Some(common_utils::date_time::now());
-                if created_at > payment_link_object.link_expiry {
-                    return Err(report!(errors::ApiErrorResponse::InvalidRequestData {
-                        message: "link_expiry time cannot be less than current time".to_string(),
-                    }));
-                }
-
-                let payment_link_id = utils::generate_id(consts::ID_LENGTH, "plink");
-                let payment_link = format!(
-                    "{}/payment_link/{}/{}",
-                    state.conf.server.base_url,
-                    merchant_id.clone(),
-                    payment_id.clone()
-                );
-                let payment_link_req = storage::PaymentLinkNew {
-                    payment_link_id: payment_link_id.clone(),
-                    payment_id: payment_id.clone(),
-                    merchant_id: merchant_id.clone(),
-                    link_to_pay: payment_link.clone(),
-                    amount: amount.into(),
-                    currency: request.currency,
-                    created_at,
-                    last_modified_at,
-                    fullfilment_time: payment_link_object.link_expiry,
-                };
-                let payment_link_db = db
-                    .insert_payment_link(payment_link_req)
-                    .await
-                    .to_duplicate_response(errors::ApiErrorResponse::DuplicatePayment {
-                        payment_id: payment_id.clone(),
-                    })?;
-                (
-                    Some(payment_link_db.link_to_pay),
-                    Some(payment_link_db.payment_link_id),
-                )
-            } else {
-                (None, None)
-            }
+        let payment_link_data = if let Some(payment_link_object) = &request.payment_link_object {
+            create_payment_link(
+                &request.clone(),
+                payment_link_object.clone(),
+                merchant_id.clone(),
+                payment_id.clone(),
+                db,
+                state,
+                amount,
+            )
+            .await
+            .ok()
+            .flatten()
         } else {
-            (None, None)
+            None
         };
-
-        // let (payment_link, payment_link_id) =
-        //     if request.payment_link_object.is_some() && !request.confirm.unwrap_or(false) {
-        //         let created_at @ last_modified_at = Some(common_utils::date_time::now());
-        //         if created_at > request.payment_link_object.clone().unwrap().link_expiry {
-        //             return Err(report!(errors::ApiErrorResponse::InvalidRequestData {
-        //                 message: format!(
-        //                     "link_expiry time cannot be less than current time",
-        //                 ),
-        //             }));
-        //         }
-
-        //         let payment_link_id = utils::generate_id(consts::ID_LENGTH, "plink");
-        //         let payment_link = format!(
-        //             "{}/payment_link/{}/{}",
-        //             state.conf.server.base_url,
-        //             merchant_id.clone(),
-        //             payment_id.clone()
-        //         );
-        //         let payment_link_req = storage::PaymentLinkNew {
-        //             payment_link_id: payment_link_id.clone(),
-        //             payment_id: payment_id.clone(),
-        //             merchant_id: merchant_id.clone(),
-        //             link_to_pay: payment_link.clone(),
-        //             amount: amount.into(),
-        //             currency: request.currency,
-        //             created_at,
-        //             last_modified_at,
-        //             fullfilment_time: request.payment_link_object.clone().unwrap().link_expiry
-        //         };
-        //         let payment_link_db = db
-        //             .insert_payment_link(payment_link_req)
-        //             .await
-        //             .to_duplicate_response(errors::ApiErrorResponse::DuplicatePayment {
-        //                 payment_id: payment_id.clone(),
-        //             })?;
-        //         (
-        //             Some(payment_link_db.link_to_pay),
-        //             Some(payment_link_db.payment_link_id),
-        //         )
-        //     } else {
-        //         (None, None)
-        //     };
 
         // Validate whether profile_id passed in request is valid and is linked to the merchant
         helpers::validate_business_details(
@@ -242,7 +170,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
                     money,
                     request,
                     shipping_address.clone().map(|x| x.address_id),
-                    payment_link_id,
+                    payment_link_data.clone(),
                     billing_address.clone().map(|x| x.address_id),
                     payment_attempt.attempt_id.to_owned(),
                     state,
@@ -370,7 +298,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
                 multiple_capture_data: None,
                 redirect_response: None,
                 frm_message: None,
-                payment_link,
+                payment_link_data,
             },
             Some(customer_details),
         ))
@@ -540,6 +468,10 @@ impl<F: Send + Clone> ValidateRequest<F, api::PaymentsRequest> for PaymentCreate
     )> {
         helpers::validate_customer_details_in_request(request)?;
 
+        if let Some(payment_link_object) = &request.payment_link_object {
+            helpers::validate_payment_link_expiry(payment_link_object)?;
+        }
+
         let given_payment_id = match &request.payment_id {
             Some(id_type) => Some(
                 id_type
@@ -686,7 +618,7 @@ impl PaymentCreate {
         money: (api::Amount, enums::Currency),
         request: &api::PaymentsRequest,
         shipping_address_id: Option<String>,
-        payment_link_id_sahkal: Option<String>,
+        payment_link_data: Option<api_models::payments::PaymentLinkResponse>,
         billing_address_id: Option<String>,
         active_attempt_id: String,
         state: &AppState,
@@ -728,6 +660,8 @@ impl PaymentCreate {
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Error converting feature_metadata to Value")?;
 
+        let payment_link_id = payment_link_data.map(|pl_data| pl_data.payment_link_id);
+
         Ok(storage::PaymentIntentNew {
             payment_id: payment_id.to_string(),
             merchant_id: merchant_account.merchant_id.to_string(),
@@ -760,7 +694,7 @@ impl PaymentCreate {
             attempt_count: 1,
             profile_id: Some(profile_id),
             merchant_decision: None,
-            payment_link_id: payment_link_id_sahkal,
+            payment_link_id,
             payment_confirm_source: None,
         })
     }
@@ -815,4 +749,55 @@ pub fn payments_create_request_validation(
     let currency = req.currency.get_required_value("currency")?;
     let amount = req.amount.get_required_value("amount")?;
     Ok((amount, currency))
+}
+
+async fn create_payment_link(
+    request: &api::PaymentsRequest,
+    payment_link_object: api_models::payments::PaymentLinkObject,
+    merchant_id: String,
+    payment_id: String,
+    db: &dyn StorageInterface,
+    state: &AppState,
+    amount: api::Amount,
+) -> RouterResult<Option<api_models::payments::PaymentLinkResponse>> {
+    if !request.confirm.unwrap_or(false) {
+        let created_at @ last_modified_at = Some(common_utils::date_time::now());
+        if created_at > payment_link_object.link_expiry {
+            return Err(report!(errors::ApiErrorResponse::InvalidRequestData {
+                message: "link_expiry time cannot be less than current time".to_string(),
+            }));
+        }
+
+        let payment_link_id = utils::generate_id(consts::ID_LENGTH, "plink");
+        let payment_link = format!(
+            "{}/payment_link/{}/{}",
+            state.conf.server.base_url,
+            merchant_id.clone(),
+            payment_id.clone()
+        );
+        let payment_link_req = storage::PaymentLinkNew {
+            payment_link_id: payment_link_id.clone(),
+            payment_id: payment_id.clone(),
+            merchant_id: merchant_id.clone(),
+            link_to_pay: payment_link.clone(),
+            amount: amount.into(),
+            currency: request.currency,
+            created_at,
+            last_modified_at,
+            fullfilment_time: payment_link_object.link_expiry,
+        };
+        let _payment_link_db = db
+            .insert_payment_link(payment_link_req)
+            .await
+            .to_duplicate_response(errors::ApiErrorResponse::DuplicatePayment {
+                payment_id: payment_id.clone(),
+            })?;
+
+        Ok(Some(api_models::payments::PaymentLinkResponse {
+            payment_link,
+            payment_link_id,
+        }))
+    } else {
+        Ok(None)
+    }
 }

@@ -67,13 +67,19 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsStartRequest> f
             "update",
         )?;
 
+        let intent_fulfillment_time = helpers::get_merchant_fullfillment_time(
+            payment_intent.payment_link_id.clone(),
+            merchant_account.intent_fulfillment_time,
+            &merchant_account.merchant_id.clone(),
+            db.clone(),
+        )
+        .await;
+
         helpers::authenticate_client_secret(
             payment_intent.client_secret.as_ref(),
             &payment_intent,
-            merchant_account.intent_fulfillment_time,
-            db.clone(),
-        )
-        .await?;
+            intent_fulfillment_time,
+        )?;
         payment_attempt = db
             .find_payment_attempt_by_payment_id_merchant_id_attempt_id(
                 payment_intent.payment_id.as_str(),
@@ -162,7 +168,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsStartRequest> f
                 multiple_capture_data: None,
                 redirect_response: None,
                 frm_message: None,
-                payment_link: None,
+                payment_link_data: None,
             },
             Some(customer_details),
         ))

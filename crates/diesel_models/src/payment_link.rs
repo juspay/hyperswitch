@@ -18,7 +18,6 @@ pub struct PaymentLink {
     pub created_at: PrimitiveDateTime,
     #[serde(with = "common_utils::custom_serde::iso8601")]
     pub last_modified_at: PrimitiveDateTime,
-    // #[schema(example = "2022-09-10T10:11:12Z")]
     #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
     pub fullfilment_time: Option<PrimitiveDateTime>,
 }
@@ -47,7 +46,6 @@ pub struct PaymentLinkNew {
     pub created_at: Option<PrimitiveDateTime>,
     #[serde(with = "common_utils::custom_serde::iso8601::option")]
     pub last_modified_at: Option<PrimitiveDateTime>,
-    // #[schema(example = "2022-09-10T10:11:12Z")]
     #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
     pub fullfilment_time: Option<PrimitiveDateTime>,
 }

@@ -151,7 +151,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, PaymentsRejectRequest> for P
                 multiple_capture_data: None,
                 redirect_response: None,
                 frm_message: frm_response.ok(),
-                payment_link: None,
+                payment_link_data: None,
             },
             None,
         ))

@@ -1,6 +1,6 @@
 use std::{fmt::Debug, marker::PhantomData, str::FromStr};
 
-use api_models::payments::FrmMessage;
+use api_models::payments::{FrmMessage, PaymentLinkResponse};
 use common_utils::fp_utils;
 use data_models::mandates::MandateData;
 use diesel_models::ephemeral_key;
@@ -231,7 +231,7 @@ where
             payment_data.frm_message,
             payment_data.setup_mandate,
             connector_request_reference_id_config,
-            payment_data.payment_link,
+            payment_data.payment_link_data,
             connector_http_status_code,
         )
     }
@@ -348,21 +348,12 @@ pub fn payments_to_payments_response<R, Op>(
     fraud_check: Option<payments::FraudCheck>,
     mandate_data: Option<MandateData>,
     connector_request_reference_id_config: &ConnectorRequestReferenceIdConfig,
-    payment_link: Option<String>,
+    payment_link_data: Option<PaymentLinkResponse>,
     connector_http_status_code: Option<u16>,
 ) -> RouterResponse<api::PaymentsResponse>
 where
     Op: Debug,
 {
-    let payment_link_response = if let Some(pl) = payment_link {
-        Some(api_models::payments::PaymentLinkResponse {
-            payment_link: Some(pl),
-            payment_link_id: payment_intent.payment_link_id.clone(),
-        })
-    } else {
-        None
-    };
-
     let currency = payment_attempt
         .currency
         .as_ref()
@@ -661,7 +652,7 @@ where
                         .set_feature_metadata(payment_intent.feature_metadata)
                         .set_connector_metadata(payment_intent.connector_metadata)
                         .set_reference_id(payment_attempt.connector_response_reference_id)
-                        .set_payment_link_response(payment_link_response)
+                        .set_payment_link_response(payment_link_data)
                         .set_profile_id(payment_intent.profile_id)
                         .set_attempt_count(payment_intent.attempt_count)
                         .to_owned(),
@@ -722,7 +713,7 @@ where
                 allowed_payment_method_types: payment_intent.allowed_payment_method_types,
                 reference_id: payment_attempt.connector_response_reference_id,
                 attempt_count: payment_intent.attempt_count,
-                payment_link_response,
+                payment_link_response: payment_link_data,
                 ..Default::default()
             },
             headers,

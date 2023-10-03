@@ -19,7 +19,7 @@ impl PaymentLinkNew {
 }
 
 impl PaymentLink {
-    pub async fn find_by_link_payment_id(
+    pub async fn find_by_link_payment_id_merchant_id(
         conn: &PgPooledConn,
         payment_link_id: &str,
         merchant_id: &str,

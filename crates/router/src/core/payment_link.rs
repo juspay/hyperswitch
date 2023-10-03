@@ -34,6 +34,22 @@ pub async fn retrieve_payment_link(
     Ok(services::ApplicationResponse::Json(response))
 }
 
+// impl From<diesel_models::payment_link::PaymentLink> for RetrievePaymentLinkResponse {
+//   fn from(payment_link_object: diesel_models::payment_link::PaymentLink) -> Self {
+//     RetrievePaymentLinkResponse {
+//           payment_link_id: payment_link_object.payment_link_id,
+//           payment_id: payment_link_object.payment_id,
+//           merchant_id: payment_link_object.merchant_id,
+//           link_to_pay: payment_link_object.link_to_pay,
+//           amount: payment_link_object.amount,
+//           currency: payment_link_object.currency,
+//           created_at: payment_link_object.created_at,
+//           last_modified_at: payment_link_object.last_modified_at,
+//           link_expiry: payment_link_object.fullfilment_time,
+//       }
+//   }
+// }
+
 pub async fn intiate_payment_link_flow(
     state: AppState,
     merchant_account: domain::MerchantAccount,
@@ -78,6 +94,10 @@ pub async fn intiate_payment_link_flow(
         payment_link_data,
     )))
 }
+
+/*
+The get_js_script function is used to inject dynamic value to payment_link sdk, which is unique to every payment.
+*/
 
 fn get_js_script(
     amount: String,
