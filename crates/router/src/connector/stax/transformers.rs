@@ -52,7 +52,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for StaxPaymentsRequest {
                             Err(errors::ConnectorError::InvalidWalletToken)?
                         }
                     }),
-                    idempotency_id: item.connector_request_reference_id.clone(),
+                    idempotency_id: Some(item.connector_request_reference_id.clone()),
                 })
             }
             api::PaymentMethodData::BankDebit(
@@ -71,7 +71,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for StaxPaymentsRequest {
                             Err(errors::ConnectorError::InvalidWalletToken)?
                         }
                     }),
-                    idempotency_id: item.connector_request_reference_id.clone(),
+                    idempotency_id: Some(item.connector_request_reference_id.clone()),
                 })
             }
             api::PaymentMethodData::BankDebit(_)
@@ -333,9 +333,7 @@ impl<F, T>
                 connector_metadata,
                 network_txn_id: None,
                 connector_response_reference_id: Some(
-                    item.response
-                        .idempotency_id
-                        .unwrap_or(item.response.id),
+                    item.response.idempotency_id.unwrap_or(item.response.id),
                 ),
             }),
             ..item.data
