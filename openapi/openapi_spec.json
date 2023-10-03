@@ -8040,7 +8040,8 @@
         "type": "object",
         "required": [
           "payment_methods",
-          "mandate_payment"
+          "mandate_payment",
+          "show_breakup_screen"
         ],
         "properties": {
           "redirect_url": {
@@ -8072,6 +8073,10 @@
           "merchant_name": {
             "type": "string",
             "nullable": true
+          },
+          "show_breakup_screen": {
+            "type": "boolean",
+            "description": "flag to indicate if surcharge and tax breakup screen should be shown or not"
           }
         }
       },
