@@ -421,3 +421,6 @@ apple_pay_ppc = "APPLE_PAY_PAYMENT_PROCESSING_CERTIFICATE"              #Payment
 apple_pay_ppc_key = "APPLE_PAY_PAYMENT_PROCESSING_CERTIFICATE_KEY"      #Private key generate by Elliptic-curve prime256v1 curve
 apple_pay_merchant_cert = "APPLE_PAY_MERCHNAT_CERTIFICATE"              #Merchant Certificate provided by Apple Pay (https://developer.apple.com/) Certificates, Identifiers & Profiles > Apple Pay Merchant Identity Certificate
 apple_pay_merchant_cert_key = "APPLE_PAY_MERCHNAT_CERTIFICATE_KEY"      #Private key generate by RSA:2048 algorithm
+
+[frm]
+is_frm_enabled = true

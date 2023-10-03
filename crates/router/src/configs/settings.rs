@@ -100,6 +100,7 @@ pub struct Settings {
     pub applepay_merchant_configs: ApplepayMerchantConfigs,
     pub lock_settings: LockSettings,
     pub temp_locker_disable_config: TempLockerDisableConfig,
+    pub frm: Frm
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
@@ -803,4 +804,9 @@ impl<'de> Deserialize<'de> for LockSettings {
             lock_retries: redis_lock_expiry_seconds / delay_between_retries_in_milliseconds,
         })
     }
+}
+
+#[derive(Debug, Deserialize, Clone, Default)]
+pub struct Frm {
+    pub is_frm_enabled: bool
 }

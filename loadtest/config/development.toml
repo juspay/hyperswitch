@@ -218,3 +218,6 @@ payout_eligibility = true
 
 [multiple_api_version_supported_connectors]
 supported_connectors = "braintree"
+
+[frm]
+is_frm_enabled = true
