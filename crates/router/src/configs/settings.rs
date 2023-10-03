@@ -523,7 +523,7 @@ pub struct Connectors {
     pub multisafepay: ConnectorParams,
     pub nexinets: ConnectorParams,
     pub nmi: ConnectorParams,
-    pub noon: ConnectorParams,
+    pub noon: ConnectorParamsWithModeType,
     pub nuvei: ConnectorParams,
     pub opayo: ConnectorParams,
     pub opennode: ConnectorParams,
@@ -550,6 +550,15 @@ pub struct Connectors {
 pub struct ConnectorParams {
     pub base_url: String,
     pub secondary_base_url: Option<String>,
+}
+
+#[derive(Debug, Deserialize, Clone, Default, router_derive::ConfigValidate)]
+#[serde(default)]
+pub struct ConnectorParamsWithModeType {
+    pub base_url: String,
+    pub secondary_base_url: Option<String>,
+    /// Can take values like Test or Live for Noon
+    pub key_mode: String,
 }
 
 #[derive(Debug, Deserialize, Clone, Default, router_derive::ConfigValidate)]
