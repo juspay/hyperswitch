@@ -413,7 +413,7 @@ impl<F, T>
                 }),
                 _ => {
                     let connector_response_reference_id =
-                        Some(order.reference.unwrap_or(order.id.to_string()));
+                        order.reference.or(Some(order.id.to_string()));
                     Ok(types::PaymentsResponseData::TransactionResponse {
                         resource_id: types::ResponseId::ConnectorTransactionId(
                             order.id.to_string(),
