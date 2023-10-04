@@ -4845,6 +4845,7 @@ dependencies = [
  "once_cell",
  "redis_interface",
  "ring",
+ "router_derive",
  "router_env",
  "serde",
  "serde_json",

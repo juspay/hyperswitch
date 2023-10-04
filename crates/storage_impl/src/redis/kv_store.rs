@@ -1,6 +1,8 @@
 use std::{fmt::Debug, sync::Arc};
 
 use common_utils::errors::CustomResult;
+use redis_interface::errors::RedisError;
+use router_derive::TryGetEnumVariant;
 use serde::de;
 
 use crate::{consts, KVRouterStore};
@@ -37,10 +39,7 @@ impl<'a> std::fmt::Display for PartitionKey<'a> {
 pub trait RedisConnInterface {
     fn get_redis_conn(
         &self,
-    ) -> error_stack::Result<
-        Arc<redis_interface::RedisConnectionPool>,
-        redis_interface::errors::RedisError,
-    >;
+    ) -> error_stack::Result<Arc<redis_interface::RedisConnectionPool>, RedisError>;
 }
 
 pub enum KvOperation<'a, S: serde::Serialize + Debug> {
@@ -50,6 +49,8 @@ pub enum KvOperation<'a, S: serde::Serialize + Debug> {
     Scan(&'a str),
 }
 
+#[derive(TryGetEnumVariant)]
+#[error(RedisError(UnknownResult))]
 pub enum KvResult<T: de::DeserializeOwned> {
     Get(T),
     Set(()),
@@ -57,48 +58,11 @@ pub enum KvResult<T: de::DeserializeOwned> {
     Scan(Vec<T>),
 }
 
-impl<T: de::DeserializeOwned> KvResult<T> {
-    pub fn try_into_get(self) -> CustomResult<T, redis_interface::errors::RedisError> {
-        match self {
-            Self::Get(t) => Ok(t),
-            _ => Err(error_stack::report!(
-                redis_interface::errors::RedisError::UnknownResult
-            )),
-        }
-    }
-    pub fn try_into_set(self) -> CustomResult<(), redis_interface::errors::RedisError> {
-        match self {
-            Self::Set(t) => Ok(t),
-            _ => Err(error_stack::report!(
-                redis_interface::errors::RedisError::UnknownResult
-            )),
-        }
-    }
-    pub fn try_into_scan(self) -> CustomResult<Vec<T>, redis_interface::errors::RedisError> {
-        match self {
-            Self::Scan(t) => Ok(t),
-            _ => Err(error_stack::report!(
-                redis_interface::errors::RedisError::UnknownResult
-            )),
-        }
-    }
-    pub fn try_into_setnx(
-        self,
-    ) -> CustomResult<redis_interface::HsetnxReply, redis_interface::errors::RedisError> {
-        match self {
-            Self::SetNx(t) => Ok(t),
-            _ => Err(error_stack::report!(
-                redis_interface::errors::RedisError::UnknownResult
-            )),
-        }
-    }
-}
-
 pub async fn kv_wrapper<'a, T, D, S>(
     store: &KVRouterStore<D>,
     op: KvOperation<'a, S>,
     key: impl AsRef<str>,
-) -> CustomResult<KvResult<T>, redis_interface::errors::RedisError>
+) -> CustomResult<KvResult<T>, RedisError>
 where
     T: de::DeserializeOwned,
     D: crate::database::store::DatabaseStore,
