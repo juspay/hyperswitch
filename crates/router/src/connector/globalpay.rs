@@ -332,8 +332,12 @@ impl
 }
 
 impl api::PreVerify for Globalpay {}
-impl ConnectorIntegration<api::Verify, types::VerifyRequestData, types::PaymentsResponseData>
-    for Globalpay
+impl
+    ConnectorIntegration<
+        api::SetupMandate,
+        types::SetupMandateRequestData,
+        types::PaymentsResponseData,
+    > for Globalpay
 {
 }
 

@@ -144,8 +144,11 @@ impl<const T: u8>
 }
 
 impl<const T: u8>
-    ConnectorIntegration<api::Verify, types::VerifyRequestData, types::PaymentsResponseData>
-    for DummyConnector<T>
+    ConnectorIntegration<
+        api::SetupMandate,
+        types::SetupMandateRequestData,
+        types::PaymentsResponseData,
+    > for DummyConnector<T>
 {
 }
 

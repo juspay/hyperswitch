@@ -31,10 +31,7 @@ impl
         customer: &Option<domain::Customer>,
         merchant_connector_account: &helpers::MerchantConnectorAccountType,
     ) -> RouterResult<types::SetupMandateRouterData> {
-        transformers::construct_payment_router_data::<
-            api::SetupMandate,
-            types::SetupMandateRequestData,
-        >(
+        transformers::construct_payment_router_data::<api::Verify, types::SetupMandateRequestData>(
             state,
             self.clone(),
             connector_id,
@@ -73,7 +70,7 @@ impl Feature<api::SetupMandate, types::SetupMandateRequestData> for types::Setup
             connector_request,
         )
         .await
-        .to_setup_mandate_failed_response()?;
+        .to_verify_failed_response()?;
 
         let pm_id = tokenization::save_payment_method(
             state,
@@ -170,7 +167,7 @@ impl TryFrom<types::SetupMandateRequestData> for types::ConnectorCustomerData {
 }
 
 #[allow(clippy::too_many_arguments)]
-impl types::SetupMandateRouterData {
+impl types::VerifyRouterData {
     pub async fn decide_flow<'a, 'b>(
         &'b self,
         state: &'a AppState,
@@ -197,7 +194,7 @@ impl types::SetupMandateRouterData {
                     None,
                 )
                 .await
-                .to_setup_mandate_failed_response()?;
+                .to_verify_failed_response()?;
 
                 let payment_method_type = self.request.payment_method_type;
                 let pm_id = tokenization::save_payment_method(

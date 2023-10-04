@@ -378,8 +378,12 @@ impl
 impl api::PreVerify for Braintree {}
 
 #[allow(dead_code)]
-impl ConnectorIntegration<api::Verify, types::VerifyRequestData, types::PaymentsResponseData>
-    for Braintree
+impl
+    ConnectorIntegration<
+        api::SetupMandate,
+        types::SetupMandateRequestData,
+        types::PaymentsResponseData,
+    > for Braintree
 {
     // Not Implemented (R)
 }

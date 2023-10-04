@@ -112,8 +112,12 @@ impl ConnectorValidation for Worldpay {
 impl api::Payment for Worldpay {}
 
 impl api::PreVerify for Worldpay {}
-impl ConnectorIntegration<api::Verify, types::VerifyRequestData, types::PaymentsResponseData>
-    for Worldpay
+impl
+    ConnectorIntegration<
+        api::SetupMandate,
+        types::SetupMandateRequestData,
+        types::PaymentsResponseData,
+    > for Worldpay
 {
 }
 

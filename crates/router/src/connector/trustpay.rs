@@ -165,8 +165,12 @@ impl
 }
 
 impl api::PreVerify for Trustpay {}
-impl ConnectorIntegration<api::Verify, types::VerifyRequestData, types::PaymentsResponseData>
-    for Trustpay
+impl
+    ConnectorIntegration<
+        api::SetupMandate,
+        types::SetupMandateRequestData,
+        types::PaymentsResponseData,
+    > for Trustpay
 {
 }
 

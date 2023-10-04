@@ -198,8 +198,12 @@ impl
 impl api::PreVerify for Fiserv {}
 
 #[allow(dead_code)]
-impl ConnectorIntegration<api::Verify, types::VerifyRequestData, types::PaymentsResponseData>
-    for Fiserv
+impl
+    ConnectorIntegration<
+        api::SetupMandate,
+        types::SetupMandateRequestData,
+        types::PaymentsResponseData,
+    > for Fiserv
 {
 }
 

@@ -76,7 +76,7 @@ pub struct PaymentMethodToken;
 pub struct CreateConnectorCustomer;
 
 #[derive(Debug, Clone)]
-pub struct Verify;
+pub struct SetupMandate;
 
 #[derive(Debug, Clone)]
 pub struct PreProcessing;
@@ -160,7 +160,7 @@ pub trait PaymentSession:
 }
 
 pub trait PreVerify:
-    api::ConnectorIntegration<Verify, types::VerifyRequestData, types::PaymentsResponseData>
+    api::ConnectorIntegration<SetupMandate, types::SetupMandateRequestData, types::PaymentsResponseData>
 {
 }
 

@@ -129,8 +129,12 @@ impl
 }
 
 impl api::PreVerify for Bambora {}
-impl ConnectorIntegration<api::Verify, types::VerifyRequestData, types::PaymentsResponseData>
-    for Bambora
+impl
+    ConnectorIntegration<
+        api::SetupMandate,
+        types::SetupMandateRequestData,
+        types::PaymentsResponseData,
+    > for Bambora
 {
 }
 

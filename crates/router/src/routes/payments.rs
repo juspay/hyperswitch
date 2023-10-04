@@ -860,7 +860,10 @@ where
         + Clone
         + std::fmt::Debug
         + payments::operations::Operation<api_types::Authorize, api_models::payments::PaymentsRequest>
-        + payments::operations::Operation<api_types::Verify, api_models::payments::PaymentsRequest>,
+        + payments::operations::Operation<
+            api_types::SetupMandate,
+            api_models::payments::PaymentsRequest,
+        >,
 {
     // TODO: Change for making it possible for the flow to be inferred internally or through validation layer
     // This is a temporary fix.
@@ -888,7 +891,13 @@ where
         .await,
 
         Some(api_types::Amount::Zero) => {
-            payments::payments_core::<api_types::Verify, payment_types::PaymentsResponse, _, _, _>(
+            payments::payments_core::<
+                api_types::SetupMandate,
+                payment_types::PaymentsResponse,
+                _,
+                _,
+                _,
+            >(
                 state,
                 merchant_account,
                 key_store,
