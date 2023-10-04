@@ -2129,6 +2129,7 @@ pub struct PaymentIntentSyncResponse {
 }
 
 #[derive(Deserialize, Debug, Clone)]
+#[serde(untagged)]
 pub enum StripeChargeEnum {
     ChargeId(String),
     ChargeObject(StripeCharge),
