@@ -67,6 +67,7 @@ pub struct PayeezyPaymentsRequest {
     pub currency_code: String,
     pub credit_card: PayeezyPaymentMethod,
     pub stored_credentials: Option<StoredCredentials>,
+    pub reference: String,
 }
 
 #[derive(Serialize, Debug)]
@@ -118,6 +119,7 @@ fn get_card_specific_payment_data(
         currency_code,
         credit_card,
         stored_credentials,
+        reference: item.connector_request_reference_id.clone(),
     })
 }
 fn get_transaction_type_and_stored_creds(
@@ -252,6 +254,7 @@ pub struct PayeezyPaymentsResponse {
     pub gateway_resp_code: String,
     pub gateway_message: String,
     pub stored_credentials: Option<PaymentsStoredCredentials>,
+    pub reference: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -354,13 +357,17 @@ impl<F, T>
             status,
             response: Ok(types::PaymentsResponseData::TransactionResponse {
                 resource_id: types::ResponseId::ConnectorTransactionId(
-                    item.response.transaction_id,
+                    item.response.transaction_id.clone(),
                 ),
                 redirection_data: None,
                 mandate_reference,
                 connector_metadata: metadata,
                 network_txn_id: None,
-                connector_response_reference_id: None,
+                connector_response_reference_id: Some(
+                    item.response
+                        .reference
+                        .unwrap_or(item.response.transaction_id),
+                ),
             }),
             ..item.data
         })

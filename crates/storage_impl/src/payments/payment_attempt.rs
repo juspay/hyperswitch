@@ -682,16 +682,15 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
                     .await
             }
             MerchantStorageScheme::RedisKv => {
-                let lookup_id = format!("{merchant_id}_{attempt_id}");
-                let lookup = self.get_lookup_by_lookup_id(&lookup_id).await?;
-                let key = &lookup.pk_id;
+                let key = format!("{merchant_id}_{payment_id}");
+                let field = format!("pa_{attempt_id}");
                 try_redis_get_else_try_database_get(
                     self.get_redis_conn()
                         .map_err(|er| {
                             let error = format!("{}", er);
                             er.change_context(errors::StorageError::RedisError(error))
                         })?
-                        .get_hash_field_and_deserialize(key, &lookup.sk_id, "PaymentAttempt"),
+                        .get_hash_field_and_deserialize(&key, &field, "PaymentAttempt"),
                     || async {
                         self.router_store
                             .find_payment_attempt_by_payment_id_merchant_id_attempt_id(
