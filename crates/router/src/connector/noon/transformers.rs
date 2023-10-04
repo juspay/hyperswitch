@@ -648,7 +648,6 @@ pub struct NoonWebhookEvent {
 pub struct NoonWebhookObject {
     pub order_status: NoonPaymentStatus,
     pub order_id: u64,
-    pub reference: Option<String>,
 }
 
 /// This from will ensure that webhook body would be properly parsed into PSync response
@@ -662,7 +661,7 @@ impl From<NoonWebhookObject> for NoonPaymentsResponse {
                     //For successful payments Noon Always populates error_code as 0.
                     error_code: 0,
                     error_message: None,
-                    reference: value.reference,
+                    reference: None,
                 },
                 checkout_data: None,
                 subscription: None,
