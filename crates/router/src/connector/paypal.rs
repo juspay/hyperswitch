@@ -5,10 +5,10 @@ use base64::Engine;
 use common_utils::ext_traits::ByteSliceExt;
 use diesel_models::enums;
 use error_stack::{IntoReport, ResultExt};
-use masking::PeekInterface;
+use masking::{ExposeInterface, PeekInterface};
 use transformers as paypal;
 
-use self::transformers::PaypalMeta;
+use self::transformers::{auth_headers, PaypalMeta};
 use crate::{
     configs::settings,
     connector::{
@@ -29,7 +29,7 @@ use crate::{
     types::{
         self,
         api::{self, CompleteAuthorize, ConnectorCommon, ConnectorCommonExt, VerifyWebhookSource},
-        ErrorResponse, Response,
+        ConnectorAuthType, ErrorResponse, Response,
     },
     utils::{self, BytesExt},
 };
@@ -107,25 +107,77 @@ where
             .clone()
             .ok_or(errors::ConnectorError::FailedToObtainAuthType)?;
         let key = &req.attempt_id;
-
-        Ok(vec![
-            (
-                headers::CONTENT_TYPE.to_string(),
-                self.get_content_type().to_string().into(),
-            ),
-            (
-                headers::AUTHORIZATION.to_string(),
-                format!("Bearer {}", access_token.token.peek()).into_masked(),
-            ),
-            (
-                "Prefer".to_string(),
-                "return=representation".to_string().into(),
-            ),
-            (
-                "PayPal-Request-Id".to_string(),
-                key.to_string().into_masked(),
-            ),
-        ])
+        let auth: paypal::PaypalAuthType = match req.connector_auth_type {
+            ConnectorAuthType::BodyKey { .. } => (&req.connector_auth_type)
+                .try_into()
+                .change_context(errors::ConnectorError::FailedToObtainAuthType)?,
+            ConnectorAuthType::SignatureKey { .. } => (&req.connector_auth_type)
+                .try_into()
+                .change_context(errors::ConnectorError::FailedToObtainAuthType)?,
+            _ => Err(errors::ConnectorError::FailedToObtainAuthType)?,
+        };
+        let headers = if auth.payer_id.is_none() {
+            let result = vec![
+                (
+                    headers::CONTENT_TYPE.to_string(),
+                    self.get_content_type().to_string().into(),
+                ),
+                (
+                    headers::AUTHORIZATION.to_string(),
+                    format!("Bearer {}", access_token.token.peek()).into_masked(),
+                ),
+                (
+                    auth_headers::PREFER.to_string(),
+                    "return=representation".to_string().into(),
+                ),
+                (
+                    auth_headers::PAYPAL_REQUEST_ID.to_string(),
+                    key.to_string().into_masked(),
+                ),
+            ];
+            result
+        } else {
+            let auth_header1 = consts::BASE64_ENGINE
+                .encode("{\"alg\":\"none\"}")
+                .to_string();
+            let keys = format!(
+                "{{\"iss\":\"{}\",\"payer_id\":\"{}\"}}",
+                auth.client_id.clone().expose(),
+                auth.payer_id
+                    .clone()
+                    .ok_or(errors::ConnectorError::FailedToObtainAuthType)?
+                    .expose()
+            );
+            let encode = consts::BASE64_ENGINE.encode(keys).to_string();
+            let auth_headers = format!("{}.{}.", auth_header1, encode);
+            vec![
+                (
+                    headers::CONTENT_TYPE.to_string(),
+                    self.get_content_type().to_string().into(),
+                ),
+                (
+                    headers::AUTHORIZATION.to_string(),
+                    format!("Bearer {}", access_token.token.peek()).into_masked(),
+                ),
+                (
+                    auth_headers::PREFER.to_string(),
+                    "return=representation".to_string().into(),
+                ),
+                (
+                    auth_headers::PAYPAL_REQUEST_ID.to_string(),
+                    key.to_string().into_masked(),
+                ),
+                (
+                    auth_headers::PAYPAL_AUTH_ASSERTION.to_string(),
+                    auth_headers.to_string().into_masked(),
+                ),
+                (
+                    auth_headers::PAYPAL_PARTNER_ATTRIBUTION_ID.to_string(),
+                    "HyperSwitchlegacy_Ecom".to_string().into(),
+                ),
+            ]
+        };
+        Ok(headers)
     }
 }
 
@@ -148,14 +200,14 @@ impl ConnectorCommon for Paypal {
 
     fn get_auth_header(
         &self,
-        auth_type: &types::ConnectorAuthType,
+        auth_type: &ConnectorAuthType,
     ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
         let auth: paypal::PaypalAuthType = auth_type
             .try_into()
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
         Ok(vec![(
             headers::AUTHORIZATION.to_string(),
-            auth.api_key.into_masked(),
+            auth.client_secret.into_masked(),
         )])
     }
 
@@ -235,9 +287,9 @@ impl ConnectorIntegration<api::AccessTokenAuth, types::AccessTokenRequestData, t
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
 
         let auth_id = auth
-            .key1
-            .zip(auth.api_key)
-            .map(|(key1, api_key)| format!("{}:{}", key1, api_key));
+            .client_id
+            .zip(auth.client_secret)
+            .map(|(client_id, client_secret)| format!("{}:{}", client_id, client_secret));
         let auth_val = format!("Basic {}", consts::BASE64_ENGINE.encode(auth_id.peek()));
 
         Ok(vec![
@@ -937,9 +989,9 @@ impl
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
 
         let auth_id = auth
-            .key1
-            .zip(auth.api_key)
-            .map(|(key1, api_key)| format!("{}:{}", key1, api_key));
+            .client_id
+            .zip(auth.client_secret)
+            .map(|(client_id, client_secret)| format!("{}:{}", client_id, client_secret));
         let auth_val = format!("Basic {}", consts::BASE64_ENGINE.encode(auth_id.peek()));
 
         Ok(vec![

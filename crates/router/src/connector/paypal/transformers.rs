@@ -13,7 +13,7 @@ use crate::{
     core::errors,
     services,
     types::{
-        self, api, storage::enums as storage_enums, transformers::ForeignFrom,
+        self, api, storage::enums as storage_enums, transformers::ForeignFrom, ConnectorAuthType,
         VerifyWebhookSourceResponseData,
     },
 };
@@ -56,6 +56,12 @@ mod webhook_headers {
     pub const PAYPAL_CERT_URL: &str = "paypal-cert-url";
     pub const PAYPAL_AUTH_ALGO: &str = "paypal-auth-algo";
 }
+pub mod auth_headers {
+    pub const PAYPAL_PARTNER_ATTRIBUTION_ID: &str = "PayPal-Partner-Attribution-Id";
+    pub const PREFER: &str = "Prefer";
+    pub const PAYPAL_REQUEST_ID: &str = "PayPal-Request-Id";
+    pub const PAYPAL_AUTH_ASSERTION: &str = "PayPal-Auth-Assertion";
+}
 
 #[derive(Debug, Clone, Serialize, Deserialize, Eq, PartialEq)]
 #[serde(rename_all = "UPPERCASE")]
@@ -74,6 +80,13 @@ pub struct OrderAmount {
 pub struct PurchaseUnitRequest {
     reference_id: String,
     amount: OrderAmount,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    payee: Option<Payee>,
+}
+
+#[derive(Default, Debug, Serialize, Eq, PartialEq)]
+pub struct Payee {
+    merchant_id: Secret<String>,
 }
 
 #[derive(Debug, Serialize)]
@@ -226,11 +239,27 @@ fn get_payment_source(
     }
 }
 
+fn get_payee(auth_type: &PaypalAuthType) -> Option<Payee> {
+    match auth_type {
+        PaypalAuthType {
+            payer_id: Some(merchant_id),
+            ..
+        } => Some(Payee {
+            merchant_id: merchant_id.clone(),
+        }),
+
+        PaypalAuthType { payer_id: None, .. } => None,
+    }
+}
+
 impl TryFrom<&PaypalRouterData<&types::PaymentsAuthorizeRouterData>> for PaypalPaymentsRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
         item: &PaypalRouterData<&types::PaymentsAuthorizeRouterData>,
     ) -> Result<Self, Self::Error> {
+        let paypal_auth: PaypalAuthType =
+            PaypalAuthType::try_from(&item.router_data.connector_auth_type)?; // Assuming you have implemented TryInto for ConnectorAuthType to PaypalAuthType
+        let payee = get_payee(&paypal_auth);
         match item.router_data.request.payment_method_data {
             api_models::payments::PaymentMethodData::Card(ref ccard) => {
                 let intent = if item.router_data.request.is_auto_capture()? {
@@ -247,6 +276,7 @@ impl TryFrom<&PaypalRouterData<&types::PaymentsAuthorizeRouterData>> for PaypalP
                 let purchase_units = vec![PurchaseUnitRequest {
                     reference_id,
                     amount,
+                    payee,
                 }];
                 let card = item.router_data.request.get_card()?;
                 let expiry = Some(card.get_expiry_date_as_yyyymm("-"));
@@ -280,6 +310,7 @@ impl TryFrom<&PaypalRouterData<&types::PaymentsAuthorizeRouterData>> for PaypalP
                     let purchase_units = vec![PurchaseUnitRequest {
                         reference_id,
                         amount,
+                        payee,
                     }];
                     let payment_source =
                         Some(PaymentSourceItem::Paypal(PaypalRedirectionRequest {
@@ -343,6 +374,7 @@ impl TryFrom<&PaypalRouterData<&types::PaymentsAuthorizeRouterData>> for PaypalP
                 let purchase_units = vec![PurchaseUnitRequest {
                     reference_id,
                     amount,
+                    payee,
                 }];
                 let payment_source =
                     Some(get_payment_source(item.router_data, bank_redirection_data)?);
@@ -561,17 +593,28 @@ impl<F, T> TryFrom<types::ResponseRouterData<F, PaypalAuthUpdateResponse, T, typ
 
 #[derive(Debug)]
 pub struct PaypalAuthType {
-    pub(super) api_key: Secret<String>,
-    pub(super) key1: Secret<String>,
+    pub(super) client_id: Secret<String>,
+    pub(super) client_secret: Secret<String>,
+    pub(super) payer_id: Option<Secret<String>>,
 }
 
-impl TryFrom<&types::ConnectorAuthType> for PaypalAuthType {
+impl TryFrom<&ConnectorAuthType> for PaypalAuthType {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(auth_type: &types::ConnectorAuthType) -> Result<Self, Self::Error> {
+    fn try_from(auth_type: &ConnectorAuthType) -> Result<Self, Self::Error> {
         match auth_type {
             types::ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self {
-                api_key: api_key.to_owned(),
-                key1: key1.to_owned(),
+                client_id: key1.to_owned(),
+                client_secret: api_key.to_owned(),
+                payer_id: None,
+            }),
+            types::ConnectorAuthType::SignatureKey {
+                api_key,
+                key1,
+                api_secret,
+            } => Ok(Self {
+                client_id: key1.to_owned(),
+                client_secret: api_key.to_owned(),
+                payer_id: Some(api_secret.to_owned()),
             }),
             _ => Err(errors::ConnectorError::FailedToObtainAuthType)?,
         }
