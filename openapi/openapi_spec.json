@@ -8080,6 +8080,14 @@
           "merchant_name": {
             "type": "string",
             "nullable": true
+          },
+          "payment_type": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/api_enums.PaymentType"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -8395,7 +8403,8 @@
         "type": "object",
         "required": [
           "amount",
-          "currency"
+          "currency",
+          "payment_type"
         ],
         "properties": {
           "payment_id": {
@@ -8731,6 +8740,9 @@
             "type": "string",
             "description": "The business profile to use for this payment, if not passed the default business profile\nassociated with the merchant account will be used.",
             "nullable": true
+          },
+          "payment_type": {
+            "$ref": "#/components/schemas/api_enums.PaymentType"
           }
         }
       },
@@ -9070,6 +9082,9 @@
             "type": "string",
             "description": "The business profile to use for this payment, if not passed the default business profile\nassociated with the merchant account will be used.",
             "nullable": true
+          },
+          "payment_type": {
+            "$ref": "#/components/schemas/api_enums.PaymentType"
           }
         }
       },
