@@ -10,6 +10,7 @@ use transformers as helcim;
 use super::utils::PaymentsAuthorizeRequestData;
 use crate::{
     configs::settings,
+    consts::NO_ERROR_CODE,
     core::errors::{self, CustomResult},
     headers,
     services::{
@@ -123,7 +124,7 @@ impl ConnectorCommon for Helcim {
 
         Ok(ErrorResponse {
             status_code: res.status_code,
-            code: error_string.clone(),
+            code: NO_ERROR_CODE.to_owned(),
             message: error_string.clone(),
             reason: Some(error_string),
         })
