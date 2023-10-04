@@ -116,12 +116,16 @@ impl ConnectorCommon for Helcim {
             .response
             .parse_struct("HelcimErrorResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        let error_string = match response.errors {
+            transformers::HelcimErrorTypes::StringType(error) => error,
+            transformers::HelcimErrorTypes::JsonType(error) => error.to_string(),
+        };
 
         Ok(ErrorResponse {
             status_code: res.status_code,
-            code: response.errors.clone(),
-            message: response.errors.clone(),
-            reason: Some(response.errors),
+            code: error_string.clone(),
+            message: error_string.clone(),
+            reason: Some(error_string),
         })
     }
 }
