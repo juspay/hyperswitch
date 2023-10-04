@@ -16,26 +16,23 @@ use error_stack::{report, IntoReport, ResultExt};
 use external_services::kms;
 use josekit::jwe;
 use masking::{ExposeInterface, PeekInterface};
-#[cfg(feature = "kms")]
-use openssl::derive::Deriver;
-#[cfg(feature = "kms")]
-use openssl::pkey::PKey;
-#[cfg(feature = "kms")]
-use openssl::symm::{decrypt_aead, Cipher};
+use openssl::{
+    derive::Deriver,
+    pkey::PKey,
+    symm::{decrypt_aead, Cipher},
+};
 use router_env::{instrument, logger, tracing};
 use time::Duration;
 use uuid::Uuid;
-#[cfg(feature = "kms")]
 use x509_parser::parse_x509_certificate;
 
 use super::{
     operations::{BoxedOperation, Operation, PaymentResponse},
     CustomerDetails, PaymentData,
 };
-#[cfg(feature = "kms")]
-use crate::connector;
 use crate::{
     configs::settings::{ConnectorRequestReferenceIdConfig, Server, TempLockerDisableConfig},
+    connector,
     consts::{self, BASE64_ENGINE},
     core::{
         errors::{self, CustomResult, RouterResult, StorageErrorExt},
@@ -101,6 +98,139 @@ pub fn filter_mca_based_on_business_profile(
     } else {
         merchant_connector_accounts
     }
+}
+
+#[instrument(skip_all)]
+#[allow(clippy::too_many_arguments)]
+pub async fn create_or_update_address_for_payment_by_request(
+    db: &dyn StorageInterface,
+    req_address: Option<&api::Address>,
+    address_id: Option<&str>,
+    merchant_id: &str,
+    customer_id: Option<&String>,
+    merchant_key_store: &domain::MerchantKeyStore,
+    payment_id: &str,
+    storage_scheme: storage_enums::MerchantStorageScheme,
+) -> CustomResult<Option<domain::Address>, errors::ApiErrorResponse> {
+    let key = merchant_key_store.key.get_inner().peek();
+
+    Ok(match address_id {
+        Some(id) => match req_address {
+            Some(address) => {
+                let address_update = async {
+                    Ok(storage::AddressUpdate::Update {
+                        city: address
+                            .address
+                            .as_ref()
+                            .and_then(|value| value.city.clone()),
+                        country: address.address.as_ref().and_then(|value| value.country),
+                        line1: address
+                            .address
+                            .as_ref()
+                            .and_then(|value| value.line1.clone())
+                            .async_lift(|inner| types::encrypt_optional(inner, key))
+                            .await?,
+                        line2: address
+                            .address
+                            .as_ref()
+                            .and_then(|value| value.line2.clone())
+                            .async_lift(|inner| types::encrypt_optional(inner, key))
+                            .await?,
+                        line3: address
+                            .address
+                            .as_ref()
+                            .and_then(|value| value.line3.clone())
+                            .async_lift(|inner| types::encrypt_optional(inner, key))
+                            .await?,
+                        state: address
+                            .address
+                            .as_ref()
+                            .and_then(|value| value.state.clone())
+                            .async_lift(|inner| types::encrypt_optional(inner, key))
+                            .await?,
+                        zip: address
+                            .address
+                            .as_ref()
+                            .and_then(|value| value.zip.clone())
+                            .async_lift(|inner| types::encrypt_optional(inner, key))
+                            .await?,
+                        first_name: address
+                            .address
+                            .as_ref()
+                            .and_then(|value| value.first_name.clone())
+                            .async_lift(|inner| types::encrypt_optional(inner, key))
+                            .await?,
+                        last_name: address
+                            .address
+                            .as_ref()
+                            .and_then(|value| value.last_name.clone())
+                            .async_lift(|inner| types::encrypt_optional(inner, key))
+                            .await?,
+                        phone_number: address
+                            .phone
+                            .as_ref()
+                            .and_then(|value| value.number.clone())
+                            .async_lift(|inner| types::encrypt_optional(inner, key))
+                            .await?,
+                        country_code: address
+                            .phone
+                            .as_ref()
+                            .and_then(|value| value.country_code.clone()),
+                    })
+                }
+                .await
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Failed while encrypting address")?;
+                Some(
+                    db.update_address(id.to_owned(), address_update, merchant_key_store)
+                        .await
+                        .to_not_found_response(errors::ApiErrorResponse::AddressNotFound)?,
+                )
+            }
+            None => Some(
+                db.find_address_by_merchant_id_payment_id_address_id(
+                    merchant_id,
+                    payment_id,
+                    id,
+                    merchant_key_store,
+                    storage_scheme,
+                )
+                .await,
+            )
+            .transpose()
+            .to_not_found_response(errors::ApiErrorResponse::AddressNotFound)?,
+        },
+        None => match req_address {
+            Some(address) => {
+                // generate a new address here
+                let customer_id = customer_id.get_required_value("customer_id")?;
+
+                let address_details = address.address.clone().unwrap_or_default();
+                Some(
+                    db.insert_address_for_payments(
+                        payment_id,
+                        get_domain_address_for_payments(
+                            address_details,
+                            address,
+                            merchant_id,
+                            customer_id,
+                            payment_id,
+                            key,
+                        )
+                        .await
+                        .change_context(errors::ApiErrorResponse::InternalServerError)
+                        .attach_printable("Failed while encrypting address while insert")?,
+                        merchant_key_store,
+                        storage_scheme,
+                    )
+                    .await
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Failed while inserting new address")?,
+                )
+            }
+            None => None,
+        },
+    })
 }
 
 #[instrument(skip_all)]
@@ -2540,6 +2670,7 @@ pub fn router_data_type_conversion<F1, F2, Req1, Req2, Res1, Res2>(
         test_mode: router_data.test_mode,
         connector_api_version: router_data.connector_api_version,
         connector_http_status_code: router_data.connector_http_status_code,
+        apple_pay_flow: router_data.apple_pay_flow,
     }
 }
 
@@ -2730,6 +2861,7 @@ impl AttemptType {
             multiple_capture_count: None,
             connector_response_reference_id: None,
             amount_capturable: old_payment_attempt.amount,
+            surcharge_metadata: old_payment_attempt.surcharge_metadata,
         }
     }
 
@@ -3078,7 +3210,6 @@ pub struct ApplePayHeader {
     transaction_id: masking::Secret<String>,
 }
 
-#[cfg(feature = "kms")]
 impl ApplePayData {
     pub fn token_json(
         wallet_data: api_models::payments::WalletData,
@@ -3106,11 +3237,15 @@ impl ApplePayData {
         &self,
         state: &AppState,
     ) -> CustomResult<String, errors::ApplePayDecryptionError> {
+        #[cfg(feature = "kms")]
         let cert_data = kms::get_kms_client(&state.conf.kms)
             .await
             .decrypt(&state.conf.applepay_decrypt_keys.apple_pay_ppc)
             .await
             .change_context(errors::ApplePayDecryptionError::DecryptionFailed)?;
+
+        #[cfg(not(feature = "kms"))]
+        let cert_data = &state.conf.applepay_decrypt_keys.apple_pay_ppc;
 
         let base64_decode_cert_data = BASE64_ENGINE
             .decode(cert_data)
@@ -3162,12 +3297,15 @@ impl ApplePayData {
             .change_context(errors::ApplePayDecryptionError::KeyDeserializationFailed)
             .attach_printable("Failed to deserialize the public key")?;
 
+        #[cfg(feature = "kms")]
         let decrypted_apple_pay_ppc_key = kms::get_kms_client(&state.conf.kms)
             .await
             .decrypt(&state.conf.applepay_decrypt_keys.apple_pay_ppc_key)
             .await
             .change_context(errors::ApplePayDecryptionError::DecryptionFailed)?;
 
+        #[cfg(not(feature = "kms"))]
+        let decrypted_apple_pay_ppc_key = &state.conf.applepay_decrypt_keys.apple_pay_ppc_key;
         // Create PKey objects from EcKey
         let private_key = PKey::private_key_from_pem(decrypted_apple_pay_ppc_key.as_bytes())
             .into_report()

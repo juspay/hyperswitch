@@ -868,7 +868,7 @@ pub enum BankRedirectData {
     Bizum {},
     Blik {
         // Blik Code
-        blik_code: String,
+        blik_code: Option<String>,
     },
     Eps {
         /// The billing details for bank redirection
@@ -1512,7 +1512,8 @@ pub struct PhoneDetails {
 #[derive(Debug, Clone, Default, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema)]
 pub struct PaymentsCaptureRequest {
     /// The unique identifier for the payment
-    pub payment_id: Option<String>,
+    #[serde(skip_deserializing)]
+    pub payment_id: String,
     /// The unique identifier for the merchant
     pub merchant_id: Option<String>,
     /// The Amount to be captured/ debited from the user's payment method.
@@ -2374,8 +2375,12 @@ pub struct ApplepayConnectorMetadataRequest {
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct ApplepaySessionTokenData {
-    #[serde(flatten)]
-    pub data: ApplepaySessionTokenMetadata,
+    pub apple_pay: ApplePayMetadata,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct ApplepayCombinedSessionTokenData {
+    pub apple_pay_combined: ApplePayCombinedMetadata,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]

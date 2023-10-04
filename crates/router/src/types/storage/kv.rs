@@ -1,4 +1,4 @@
 pub use diesel_models::kv::{
-    DBOperation, Insertable, PaymentAttemptUpdateMems, PaymentIntentUpdateMems, RefundUpdateMems,
-    TypedSql, Updateable,
+    ConnectorResponseUpdateMems, DBOperation, Insertable, PaymentAttemptUpdateMems,
+    PaymentIntentUpdateMems, RefundUpdateMems, TypedSql, Updateable,
 };

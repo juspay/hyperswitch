@@ -208,6 +208,8 @@ pub enum ConnectorType {
     NonBankingFinance,
     /// Acquirers, Gateways etc
     PayoutProcessor,
+    /// PaymentMethods Auth Services
+    PaymentMethodAuth,
 }
 
 #[allow(clippy::upper_case_acronyms)]
@@ -1795,4 +1797,9 @@ pub enum ReconStatus {
     Requested,
     Active,
     Disabled,
+}
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum ApplePayFlow {
+    Simplified,
+    Manual,
 }
