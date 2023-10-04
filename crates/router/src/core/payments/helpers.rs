@@ -16,26 +16,23 @@ use error_stack::{report, IntoReport, ResultExt};
 use external_services::kms;
 use josekit::jwe;
 use masking::{ExposeInterface, PeekInterface};
-#[cfg(feature = "kms")]
-use openssl::derive::Deriver;
-#[cfg(feature = "kms")]
-use openssl::pkey::PKey;
-#[cfg(feature = "kms")]
-use openssl::symm::{decrypt_aead, Cipher};
+use openssl::{
+    derive::Deriver,
+    pkey::PKey,
+    symm::{decrypt_aead, Cipher},
+};
 use router_env::{instrument, logger, tracing};
 use time::Duration;
 use uuid::Uuid;
-#[cfg(feature = "kms")]
 use x509_parser::parse_x509_certificate;
 
 use super::{
     operations::{BoxedOperation, Operation, PaymentResponse},
     CustomerDetails, PaymentData,
 };
-#[cfg(feature = "kms")]
-use crate::connector;
 use crate::{
     configs::settings::{ConnectorRequestReferenceIdConfig, Server, TempLockerDisableConfig},
+    connector,
     consts::{self, BASE64_ENGINE},
     core::{
         errors::{self, CustomResult, RouterResult, StorageErrorExt},
@@ -3213,7 +3210,6 @@ pub struct ApplePayHeader {
     transaction_id: masking::Secret<String>,
 }
 
-#[cfg(feature = "kms")]
 impl ApplePayData {
     pub fn token_json(
         wallet_data: api_models::payments::WalletData,
@@ -3241,11 +3237,15 @@ impl ApplePayData {
         &self,
         state: &AppState,
     ) -> CustomResult<String, errors::ApplePayDecryptionError> {
+        #[cfg(feature = "kms")]
         let cert_data = kms::get_kms_client(&state.conf.kms)
             .await
             .decrypt(&state.conf.applepay_decrypt_keys.apple_pay_ppc)
             .await
             .change_context(errors::ApplePayDecryptionError::DecryptionFailed)?;
+
+        #[cfg(not(feature = "kms"))]
+        let cert_data = &state.conf.applepay_decrypt_keys.apple_pay_ppc;
 
         let base64_decode_cert_data = BASE64_ENGINE
             .decode(cert_data)
@@ -3297,12 +3297,15 @@ impl ApplePayData {
             .change_context(errors::ApplePayDecryptionError::KeyDeserializationFailed)
             .attach_printable("Failed to deserialize the public key")?;
 
+        #[cfg(feature = "kms")]
         let decrypted_apple_pay_ppc_key = kms::get_kms_client(&state.conf.kms)
             .await
             .decrypt(&state.conf.applepay_decrypt_keys.apple_pay_ppc_key)
             .await
             .change_context(errors::ApplePayDecryptionError::DecryptionFailed)?;
 
+        #[cfg(not(feature = "kms"))]
+        let decrypted_apple_pay_ppc_key = &state.conf.applepay_decrypt_keys.apple_pay_ppc_key;
         // Create PKey objects from EcKey
         let private_key = PKey::private_key_from_pem(decrypted_apple_pay_ppc_key.as_bytes())
             .into_report()

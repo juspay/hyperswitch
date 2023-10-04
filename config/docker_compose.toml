@@ -105,6 +105,7 @@ multisafepay.base_url = "https://testapi.multisafepay.com/"
 nexinets.base_url = "https://apitest.payengine.de/v1"
 nmi.base_url = "https://secure.nmi.com/"
 noon.base_url = "https://api-test.noonpayments.com/"
+noon.key_mode = "Test"
 nuvei.base_url = "https://ppp-test.nuvei.com/"
 opayo.base_url = "https://pi-test.sagepay.com/"
 opennode.base_url = "https://dev-api.opennode.com"
@@ -302,3 +303,7 @@ payout_connector_list = "wise"
 
 [multiple_api_version_supported_connectors]
 supported_connectors = "braintree"
+
+[lock_settings]
+redis_lock_expiry_seconds = 180 # 3 * 60 seconds
+delay_between_retries_in_milliseconds = 500
