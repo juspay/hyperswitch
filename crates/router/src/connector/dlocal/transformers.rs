@@ -274,7 +274,7 @@ impl<F, T>
             mandate_reference: None,
             connector_metadata: None,
             network_txn_id: None,
-            connector_response_reference_id: Some(item.response.id.clone().unwrap_or_default()),
+            connector_response_reference_id: item.response.id,
         };
         Ok(Self {
             status: enums::AttemptStatus::from(item.response.status),
