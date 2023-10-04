@@ -6,10 +6,8 @@ use diesel_models::{
         ReverseLookup as DieselReverseLookup, ReverseLookupNew as DieselReverseLookupNew,
     },
 };
-
-use redis_interface::SetnxReply;
-
 use error_stack::{IntoReport, ResultExt};
+use redis_interface::SetnxReply;
 
 use crate::{
     redis::kv_store::{PartitionKey, RedisConnInterface},
