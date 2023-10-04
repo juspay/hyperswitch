@@ -5,9 +5,9 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     connector::utils::{
-        self, to_connector_meta, AddressDetailsData, BrowserInformationData, CardData,
-        PaymentsAuthorizeRequestData, PaymentsCancelRequestData, PaymentsCaptureRequestData,
-        PaymentsVerifyRequestData, RefundsRequestData, RouterData,
+        self, AddressDetailsData, BrowserInformationData, CardData, PaymentsAuthorizeRequestData,
+        PaymentsCancelRequestData, PaymentsCaptureRequestData, PaymentsVerifyRequestData,
+        RefundsRequestData, RouterData,
     },
     core::errors,
     types::{self, api, storage::enums},
@@ -130,9 +130,7 @@ impl TryFrom<&types::VerifyRouterData> for HelcimVerifyRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::VerifyRouterData) -> Result<Self, Self::Error> {
         match item.request.payment_method_data.clone() {
-            api::PaymentMethodData::Card(req_card) => {
-                Self::try_from((item, &req_card))
-            }
+            api::PaymentMethodData::Card(req_card) => Self::try_from((item, &req_card)),
             api_models::payments::PaymentMethodData::BankTransfer(_) => Err(
                 errors::ConnectorError::NotImplemented("Payment Method".to_string()),
             )
@@ -214,9 +212,7 @@ impl TryFrom<&HelcimRouterData<&types::PaymentsAuthorizeRouterData>> for HelcimP
         item: &HelcimRouterData<&types::PaymentsAuthorizeRouterData>,
     ) -> Result<Self, Self::Error> {
         match item.router_data.request.payment_method_data.clone() {
-            api::PaymentMethodData::Card(req_card) => {
-                Self::try_from((item, &req_card))
-            }
+            api::PaymentMethodData::Card(req_card) => Self::try_from((item, &req_card)),
             api_models::payments::PaymentMethodData::BankTransfer(_) => Err(
                 errors::ConnectorError::NotImplemented("Payment Method".to_string()),
             )
@@ -343,6 +339,11 @@ impl<F>
     }
 }
 
+#[derive(Debug, Deserialize, Serialize)]
+pub struct HelcimMetaData {
+    pub preauth_transaction_id: u64,
+}
+
 impl<F>
     TryFrom<
         types::ResponseRouterData<
@@ -362,14 +363,21 @@ impl<F>
             types::PaymentsResponseData,
         >,
     ) -> Result<Self, Self::Error> {
+        let resource_id =
+            types::ResponseId::ConnectorTransactionId(item.response.transaction_id.to_string());
+        let connector_metadata = if !item.data.request.is_auto_capture()? {
+            Some(serde_json::json!(HelcimMetaData {
+                preauth_transaction_id: item.response.transaction_id,
+            }))
+        } else {
+            None
+        };
         Ok(Self {
             response: Ok(types::PaymentsResponseData::TransactionResponse {
-                resource_id: types::ResponseId::ConnectorTransactionId(
-                    item.response.transaction_id.to_string(),
-                ),
+                resource_id,
                 redirection_data: None,
                 mandate_reference: None,
-                connector_metadata: None,
+                connector_metadata,
                 network_txn_id: None,
                 connector_response_reference_id: None,
             }),
@@ -377,11 +385,6 @@ impl<F>
             ..item.data
         })
     }
-}
-
-#[derive(Debug, Deserialize, Serialize)]
-pub struct HelcimMetaData {
-    pub capture_id: u64,
 }
 
 // impl utils::MultipleCaptureSyncResponse for HelcimPaymentsResponse {
@@ -511,9 +514,6 @@ impl<F>
             types::PaymentsResponseData,
         >,
     ) -> Result<Self, Self::Error> {
-        let connector_metadata = Some(serde_json::json!(HelcimMetaData {
-            capture_id: item.response.transaction_id,
-        }));
         Ok(Self {
             response: Ok(types::PaymentsResponseData::TransactionResponse {
                 resource_id: types::ResponseId::ConnectorTransactionId(
@@ -521,7 +521,7 @@ impl<F>
                 ),
                 redirection_data: None,
                 mandate_reference: None,
-                connector_metadata,
+                connector_metadata: None,
                 network_txn_id: None,
                 connector_response_reference_id: None,
             }),
@@ -610,18 +610,14 @@ impl<F> TryFrom<&HelcimRouterData<&types::RefundsRouterData<F>>> for HelcimRefun
     fn try_from(
         item: &HelcimRouterData<&types::RefundsRouterData<F>>,
     ) -> Result<Self, Self::Error> {
-        let original_transaction_id = if item.router_data.request.connector_metadata.is_none() {
-            item.router_data
-                .request
-                .connector_transaction_id
-                .parse::<u64>()
-                .into_report()
-                .change_context(errors::ConnectorError::RequestEncodingFailed)?
-        } else {
-            let helcim_capture: HelcimMetaData =
-                to_connector_meta(item.router_data.request.connector_metadata.clone())?;
-            helcim_capture.capture_id
-        };
+        let original_transaction_id = item
+            .router_data
+            .request
+            .connector_transaction_id
+            .parse::<u64>()
+            .into_report()
+            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+
         let ip_address = item
             .router_data
             .request
