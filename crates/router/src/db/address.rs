@@ -304,7 +304,7 @@ mod storage {
             let address = match storage_scheme {
                 MerchantStorageScheme::PostgresOnly => database_call().await,
                 MerchantStorageScheme::RedisKv => {
-                    let key = format!("{}_{}", merchant_id, payment_id);
+                    let key = format!("mid_{}_pid_{}", merchant_id, payment_id);
                     let field = format!("add_{}", address_id);
                     db_utils::try_redis_get_else_try_database_get(
                         self.get_redis_conn()
@@ -372,7 +372,7 @@ mod storage {
                         .await
                 }
                 MerchantStorageScheme::RedisKv => {
-                    let key = format!("{}_{}", merchant_id, payment_id);
+                    let key = format!("mid_{}_pid_{}", merchant_id, payment_id);
                     let field = format!("add_{}", &address_new.address_id);
                     let created_address = diesel_models::Address {
                         id: Some(0i32),

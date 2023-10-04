@@ -55,7 +55,7 @@ impl<T: DatabaseStore> PaymentIntentInterface for KVRouterStore<T> {
             }
 
             MerchantStorageScheme::RedisKv => {
-                let key = format!("{}_{}", new.merchant_id, new.payment_id);
+                let key = format!("mid_{}_pid_{}", new.merchant_id, new.payment_id);
                 let field = format!("pi_{}", new.payment_id);
                 let created_intent = PaymentIntent {
                     id: 0i32,
@@ -141,7 +141,7 @@ impl<T: DatabaseStore> PaymentIntentInterface for KVRouterStore<T> {
                     .await
             }
             MerchantStorageScheme::RedisKv => {
-                let key = format!("{}_{}", this.merchant_id, this.payment_id);
+                let key = format!("mid_{}_pid_{}", this.merchant_id, this.payment_id);
                 let field = format!("pi_{}", this.payment_id);
 
                 let updated_intent = payment_intent.clone().apply_changeset(this.clone());
@@ -204,7 +204,7 @@ impl<T: DatabaseStore> PaymentIntentInterface for KVRouterStore<T> {
             MerchantStorageScheme::PostgresOnly => database_call().await,
 
             MerchantStorageScheme::RedisKv => {
-                let key = format!("{merchant_id}_{payment_id}");
+                let key = format!("mid_{merchant_id}_pid_{payment_id}");
                 let field = format!("pi_{payment_id}");
                 crate::utils::try_redis_get_else_try_database_get(
                     self.get_redis_conn()

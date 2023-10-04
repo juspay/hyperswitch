@@ -305,7 +305,9 @@ mod storage {
                 enums::MerchantStorageScheme::PostgresOnly => database_call().await,
                 enums::MerchantStorageScheme::RedisKv => {
                     let lookup_id = format!("{merchant_id}_{internal_reference_id}");
-                    let lookup = self.get_lookup_by_lookup_id(&lookup_id).await?;
+                    let lookup = self
+                        .get_lookup_by_lookup_id(&lookup_id, storage_scheme)
+                        .await?;
 
                     let key = &lookup.pk_id;
                     db_utils::try_redis_get_else_try_database_get(
@@ -330,7 +332,7 @@ mod storage {
                     new.insert(&conn).await.map_err(Into::into).into_report()
                 }
                 enums::MerchantStorageScheme::RedisKv => {
-                    let key = format!("{}_{}", new.merchant_id, new.payment_id);
+                    let key = format!("mid_{}_pid_{}", new.merchant_id, new.payment_id);
                     // TODO: need to add an application generated payment attempt id to distinguish between multiple attempts for the same payment id
                     // Check for database presence as well Maybe use a read replica here ?
                     let created_refund = storage_types::Refund {
@@ -377,8 +379,6 @@ mod storage {
                         })
                         .into_report(),
                         Ok(HsetnxReply::KeySet) => {
-                            let conn = connection::pg_connection_write(self).await?;
-
                             let mut reverse_lookups = vec![
                                 storage_types::ReverseLookupNew {
                                     sk_id: field.clone(),
@@ -416,9 +416,11 @@ mod storage {
                                     source: "refund".to_string(),
                                 })
                             };
-                            storage_types::ReverseLookupNew::batch_insert(reverse_lookups, &conn)
-                                .await
-                                .change_context(errors::StorageError::KVError)?;
+                            let rev_look = reverse_lookups
+                                .into_iter()
+                                .map(|rev| self.insert_reverse_lookup(rev, storage_scheme));
+
+                            futures::future::try_join_all(rev_look).await?;
 
                             let redis_entry = kv::TypedSql {
                                 op: kv::DBOperation::Insert {
@@ -463,7 +465,10 @@ mod storage {
                 }
                 enums::MerchantStorageScheme::RedisKv => {
                     let lookup_id = format!("{merchant_id}_{connector_transaction_id}");
-                    let lookup = match self.get_lookup_by_lookup_id(&lookup_id).await {
+                    let lookup = match self
+                        .get_lookup_by_lookup_id(&lookup_id, storage_scheme)
+                        .await
+                    {
                         Ok(l) => l,
                         Err(err) => {
                             logger::error!(?err);
@@ -503,7 +508,7 @@ mod storage {
                     let updated_refund = refund.clone().apply_changeset(this.clone());
                     // Check for database presence as well Maybe use a read replica here ?
 
-                    let lookup = self.get_lookup_by_lookup_id(&key).await?;
+                    let lookup = self.get_lookup_by_lookup_id(&key, storage_scheme).await?;
 
                     let field = &lookup.sk_id;
 
@@ -558,7 +563,9 @@ mod storage {
                 enums::MerchantStorageScheme::PostgresOnly => database_call().await,
                 enums::MerchantStorageScheme::RedisKv => {
                     let lookup_id = format!("{merchant_id}_{refund_id}");
-                    let lookup = self.get_lookup_by_lookup_id(&lookup_id).await?;
+                    let lookup = self
+                        .get_lookup_by_lookup_id(&lookup_id, storage_scheme)
+                        .await?;
 
                     let key = &lookup.pk_id;
                     db_utils::try_redis_get_else_try_database_get(
@@ -595,7 +602,9 @@ mod storage {
                 enums::MerchantStorageScheme::PostgresOnly => database_call().await,
                 enums::MerchantStorageScheme::RedisKv => {
                     let lookup_id = format!("{merchant_id}_{connector_refund_id}_{connector}");
-                    let lookup = self.get_lookup_by_lookup_id(&lookup_id).await?;
+                    let lookup = self
+                        .get_lookup_by_lookup_id(&lookup_id, storage_scheme)
+                        .await?;
 
                     let key = &lookup.pk_id;
                     db_utils::try_redis_get_else_try_database_get(
@@ -628,7 +637,7 @@ mod storage {
                     .into_report()
                 }
                 enums::MerchantStorageScheme::RedisKv => {
-                    let key = format!("{merchant_id}_{payment_id}");
+                    let key = format!("mid_{merchant_id}_pid_{payment_id}");
                     self.get_redis_conn()
                         .map_err(Into::<errors::StorageError>::into)?
                         .hscan_and_deserialize(&key, "pa_*_ref_*", None)

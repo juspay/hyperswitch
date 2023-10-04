@@ -16,6 +16,9 @@ pub enum PartitionKey<'a> {
         merchant_id: &'a str,
         payment_id: &'a str,
     },
+    MerchantIdPaymentIdCombination {
+        combination: &'a str,
+    },
 }
 
 impl<'a> std::fmt::Display for PartitionKey<'a> {
@@ -25,6 +28,9 @@ impl<'a> std::fmt::Display for PartitionKey<'a> {
                 merchant_id,
                 payment_id,
             } => f.write_str(&format!("mid_{merchant_id}_pid_{payment_id}")),
+            PartitionKey::MerchantIdPaymentIdCombination { combination } => {
+                f.write_str(combination)
+            }
         }
     }
 }

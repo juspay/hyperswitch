@@ -66,6 +66,21 @@ impl super::RedisConnectionPool {
     }
 
     #[instrument(level = "DEBUG", skip(self))]
+    pub async fn serialize_and_set_key_if_not_exist<V>(
+        &self,
+        key: &str,
+        value: V,
+    ) -> CustomResult<SetnxReply, errors::RedisError>
+    where
+        V: serde::Serialize + Debug,
+    {
+        let serialized = Encode::<V>::encode_to_vec(&value)
+            .change_context(errors::RedisError::JsonSerializationFailed)?;
+        self.set_key_if_not_exists_with_expiry(key, serialized.as_slice(), None)
+            .await
+    }
+
+    #[instrument(level = "DEBUG", skip(self))]
     pub async fn serialize_and_set_key<V>(
         &self,
         key: &str,

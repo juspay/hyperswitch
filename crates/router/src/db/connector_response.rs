@@ -131,7 +131,7 @@ mod storage {
                     let payment_id = &connector_response.payment_id;
                     let attempt_id = &connector_response.attempt_id;
 
-                    let key = format!("{merchant_id}_{payment_id}");
+                    let key = format!("mid_{merchant_id}_pid_{payment_id}");
                     let field = format!("connector_resp_{merchant_id}_{payment_id}_{attempt_id}");
 
                     let created_connector_resp = storage_type::ConnectorResponse {
@@ -211,7 +211,7 @@ mod storage {
             match storage_scheme {
                 data_models::MerchantStorageScheme::PostgresOnly => database_call().await,
                 data_models::MerchantStorageScheme::RedisKv => {
-                    let key = format!("{merchant_id}_{payment_id}");
+                    let key = format!("mid_{merchant_id}_pid_{payment_id}");
                     let field = format!("connector_resp_{merchant_id}_{payment_id}_{attempt_id}");
                     let redis_conn = self
                         .get_redis_conn()
@@ -242,7 +242,7 @@ mod storage {
                     .map_err(Into::into)
                     .into_report(),
                 data_models::MerchantStorageScheme::RedisKv => {
-                    let key = format!("{}_{}", this.merchant_id, this.payment_id);
+                    let key = format!("mid_{}_pid_{}", this.merchant_id, this.payment_id);
                     let updated_connector_response = connector_response_update
                         .clone()
                         .apply_changeset(this.clone());
