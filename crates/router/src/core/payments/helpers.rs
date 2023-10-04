@@ -1404,14 +1404,17 @@ pub async fn make_pm_data<'a, F: Clone, R, Ctx: router_types::handler::PaymentMe
         }
 
         (Some(_), _) => {
-            Ctx::retrieve_payment_method(
+            let payment_method_data = Ctx::retrieve_payment_method(
                 request,
                 state,
                 &payment_data.payment_intent,
                 &payment_data.payment_attempt,
-                &mut payment_data.token,
             )
-            .await
+            .await?;
+
+            payment_data.token = payment_method_data.1;
+
+            Ok(payment_method_data.0)
         }
         _ => Ok(None),
     }?;
@@ -1421,7 +1424,7 @@ pub async fn make_pm_data<'a, F: Clone, R, Ctx: router_types::handler::PaymentMe
 
 pub async fn store_in_vault_and_generate_ppmt(
     state: &AppState,
-    payment_method_data: &api_models::payments::PaymentMethodData,
+    payment_method_data: &api::PaymentMethodData,
     payment_intent: &PaymentIntent,
     payment_attempt: &PaymentAttempt,
     payment_method: enums::PaymentMethod,
@@ -1449,6 +1452,32 @@ pub async fn store_in_vault_and_generate_ppmt(
     Ok(parent_payment_method_token)
 }
 
+pub async fn store_payment_method_data_in_vault(
+    state: &AppState,
+    payment_attempt: &PaymentAttempt,
+    payment_intent: &PaymentIntent,
+    payment_method: enums::PaymentMethod,
+    payment_method_data: &api::PaymentMethodData,
+) -> RouterResult<Option<String>> {
+    if should_store_payment_method_data_in_vault(
+        &state.conf.temp_locker_disable_config,
+        payment_attempt.connector.clone(),
+        payment_method,
+    ) {
+        let parent_payment_method_token = store_in_vault_and_generate_ppmt(
+            state,
+            payment_method_data,
+            payment_intent,
+            payment_attempt,
+            payment_method,
+        )
+        .await?;
+
+        return Ok(Some(parent_payment_method_token));
+    }
+
+    Ok(None)
+}
 pub fn should_store_payment_method_data_in_vault(
     temp_locker_disable_config: &TempLockerDisableConfig,
     option_connector: Option<String>,
