@@ -199,7 +199,9 @@ impl<F, T>
                 mandate_reference: None,
                 connector_metadata: None,
                 network_txn_id: None,
-                connector_response_reference_id: None,
+                connector_response_reference_id: Some(
+                    item.response.ext_order_id.unwrap_or(item.response.order_id)
+                ),
             }),
             amount_captured: None,
             ..item.data
@@ -331,7 +333,9 @@ impl<F, T>
                 mandate_reference: None,
                 connector_metadata: None,
                 network_txn_id: None,
-                connector_response_reference_id: None,
+                connector_response_reference_id: Some(
+                    item.response.ext_order_id.unwrap_or(item.response.order_id)
+                ),
             }),
             amount_captured: None,
             ..item.data
@@ -461,7 +465,9 @@ impl<F, T>
                 mandate_reference: None,
                 connector_metadata: None,
                 network_txn_id: None,
-                connector_response_reference_id: None,
+                connector_response_reference_id: Some(
+                    order.ext_order_id.unwrap_or(order.order_id)
+                ),
             }),
             amount_captured: Some(
                 order
