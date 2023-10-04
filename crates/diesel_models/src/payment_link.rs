@@ -32,7 +32,6 @@ pub struct PaymentLink {
     serde::Serialize,
     serde::Deserialize,
     router_derive::DebugAsDisplay,
-    router_derive::Setter,
 )]
 #[diesel(table_name = payment_link)]
 pub struct PaymentLinkNew {

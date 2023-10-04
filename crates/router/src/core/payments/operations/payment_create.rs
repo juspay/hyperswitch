@@ -409,11 +409,6 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
             .clone();
         let authorized_amount = payment_data.payment_attempt.amount;
 
-        println!(
-            "non updated payment intent sahkal {:?}",
-            payment_data.payment_intent.clone()
-        );
-
         payment_data.payment_attempt = db
             .update_payment_attempt_with_attempt_id(
                 payment_data.payment_attempt,

@@ -642,7 +642,7 @@ pub enum ApplicationResponse<R> {
 #[derive(Debug, Eq, PartialEq, Clone, serde::Serialize, serde::Deserialize)]
 pub struct PaymentLinkFormData {
     pub js_script: String,
-    pub base_url: String,
+    pub sdk_url: String,
 }
 
 #[derive(Debug, Eq, PartialEq)]
@@ -1303,9 +1303,9 @@ pub fn build_payment_link_html(
     let mut context = Context::new();
     context.insert(
         "hyperloader_sdk_link",
-        &get_hyper_loader_sdk(&payment_link_data.base_url),
+        &get_hyper_loader_sdk(&payment_link_data.sdk_url),
     );
-    context.insert("payment_details_js_script11", &payment_link_data.js_script);
+    context.insert("payment_details_js_script", &payment_link_data.js_script);
 
     match tera.render("payment_link", &context) {
         Ok(rendered_html) => Ok(rendered_html),
@@ -1316,10 +1316,6 @@ pub fn build_payment_link_html(
     }
 }
 
-fn get_hyper_loader_sdk(base_url: &str) -> String {
-    if base_url == "http://localhost:8080" {
-        "<script src=\"http://localhost:9090/dist/HyperLoader.js\"></script>".to_string()
-    } else {
-        "<script src=\"https://beta.hyperswitch.io/v1/HyperLoader.js\"></script>".to_string()
-    }
+fn get_hyper_loader_sdk(sdk_url: &str) -> String {
+    format!("<script src=\"{sdk_url}\"></script>")
 }

@@ -5,7 +5,11 @@ use crate::{
     errors::RouterResponse,
     routes::AppState,
     services,
-    types::{domain, storage::enums as storage_enums},
+    types::{
+        domain,
+        storage::{self, enums as storage_enums},
+        transformers::ForeignFrom,
+    },
 };
 
 pub async fn retrieve_payment_link(
@@ -19,36 +23,26 @@ pub async fn retrieve_payment_link(
         .await
         .to_not_found_response(errors::ApiErrorResponse::PaymentLinkNotFound)?;
 
-    let response = api_models::payments::RetrievePaymentLinkResponse {
-        payment_link_id: payment_link_object.payment_link_id,
-        payment_id: payment_link_object.payment_id,
-        merchant_id: payment_link_object.merchant_id,
-        link_to_pay: payment_link_object.link_to_pay,
-        amount: payment_link_object.amount,
-        currency: payment_link_object.currency,
-        created_at: payment_link_object.created_at,
-        last_modified_at: payment_link_object.last_modified_at,
-        link_expiry: payment_link_object.fullfilment_time,
-    };
-
+    let response =
+        api_models::payments::RetrievePaymentLinkResponse::foreign_from(payment_link_object);
     Ok(services::ApplicationResponse::Json(response))
 }
 
-// impl From<diesel_models::payment_link::PaymentLink> for RetrievePaymentLinkResponse {
-//   fn from(payment_link_object: diesel_models::payment_link::PaymentLink) -> Self {
-//     RetrievePaymentLinkResponse {
-//           payment_link_id: payment_link_object.payment_link_id,
-//           payment_id: payment_link_object.payment_id,
-//           merchant_id: payment_link_object.merchant_id,
-//           link_to_pay: payment_link_object.link_to_pay,
-//           amount: payment_link_object.amount,
-//           currency: payment_link_object.currency,
-//           created_at: payment_link_object.created_at,
-//           last_modified_at: payment_link_object.last_modified_at,
-//           link_expiry: payment_link_object.fullfilment_time,
-//       }
-//   }
-// }
+impl ForeignFrom<storage::PaymentLink> for api_models::payments::RetrievePaymentLinkResponse {
+    fn foreign_from(payment_link_object: storage::PaymentLink) -> Self {
+        Self {
+            payment_link_id: payment_link_object.payment_link_id,
+            payment_id: payment_link_object.payment_id,
+            merchant_id: payment_link_object.merchant_id,
+            link_to_pay: payment_link_object.link_to_pay,
+            amount: payment_link_object.amount,
+            currency: payment_link_object.currency,
+            created_at: payment_link_object.created_at,
+            last_modified_at: payment_link_object.last_modified_at,
+            link_expiry: payment_link_object.fullfilment_time,
+        }
+    }
+}
 
 pub async fn intiate_payment_link_flow(
     state: AppState,
@@ -88,7 +82,7 @@ pub async fn intiate_payment_link_flow(
 
     let payment_link_data = services::PaymentLinkFormData {
         js_script,
-        base_url: state.conf.server.base_url.clone(),
+        sdk_url: state.conf.payment_link_sdk_url.sdk_url.clone(),
     };
     Ok(services::ApplicationResponse::PaymenkLinkForm(Box::new(
         payment_link_data,
