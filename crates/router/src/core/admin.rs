@@ -465,11 +465,19 @@ pub async fn merchant_account_delete(
     state: AppState,
     merchant_id: String,
 ) -> RouterResponse<api::MerchantAccountDeleteResponse> {
+    let mut is_deleted = false;
     let db = state.store.as_ref();
-    let is_deleted = db
+    let is_merchant_account_deleted = db
         .delete_merchant_account_by_merchant_id(&merchant_id)
         .await
         .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
+    if is_merchant_account_deleted {
+        let is_merchant_key_store_deleted = db
+            .delete_merchant_key_store_by_merchant_id(&merchant_id)
+            .await
+            .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
+        is_deleted = is_merchant_account_deleted && is_merchant_key_store_deleted;
+    }
     let response = api::MerchantAccountDeleteResponse {
         merchant_id,
         deleted: is_deleted,
@@ -682,6 +690,7 @@ pub async fn create_payment_connector(
         },
         profile_id: Some(profile_id.clone()),
         applepay_verified_domains: None,
+        pm_auth_config: req.pm_auth_config.clone(),
     };
 
     let mca = state
@@ -847,6 +856,7 @@ pub async fn update_payment_connector(
             None => None,
         },
         applepay_verified_domains: None,
+        pm_auth_config: req.pm_auth_config,
     };
 
     let updated_mca = db

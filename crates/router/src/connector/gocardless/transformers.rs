@@ -1,6 +1,6 @@
 use api_models::{
-    enums::{BankType, CountryAlpha2},
-    payments::BankDebitData,
+    enums::{BankType, CountryAlpha2, UsStatesAbbreviation},
+    payments::{AddressDetails, BankDebitData},
 };
 use common_utils::pii::{self, IpAddress};
 use masking::{ExposeInterface, Secret};
@@ -12,7 +12,7 @@ use crate::{
         ConnectorCustomerData, PaymentsAuthorizeRequestData, PaymentsPreProcessingData, RouterData,
     },
     core::errors,
-    types::{self, api, storage::enums, MandateReference},
+    types::{self, api, storage::enums, transformers::ForeignTryFrom, MandateReference},
 };
 
 pub struct GocardlessRouterData<T> {
@@ -55,6 +55,7 @@ pub struct GocardlessCustomer {
     address_line2: Option<Secret<String>>,
     address_line3: Option<Secret<String>>,
     city: Option<Secret<String>>,
+    region: Option<Secret<String>>,
     country_code: Option<CountryAlpha2>,
     email: pii::Email,
     given_name: Secret<String>,
@@ -80,6 +81,7 @@ impl TryFrom<&types::ConnectorCustomerRouterData> for GocardlessCustomerRequest 
         let metadata = CustomerMetaData {
             crm_id: item.customer_id.clone().map(Secret::new),
         };
+        let region = get_region(billing_address)?;
         Ok(Self {
             customers: GocardlessCustomer {
                 email,
@@ -90,6 +92,7 @@ impl TryFrom<&types::ConnectorCustomerRouterData> for GocardlessCustomerRequest 
                 address_line2: billing_address.line2.to_owned(),
                 address_line3: billing_address.line3.to_owned(),
                 country_code: billing_address.country,
+                region,
                 // Should be populated based on the billing country
                 danish_identity_number: None,
                 postal_code: billing_address.zip.to_owned(),
@@ -98,6 +101,20 @@ impl TryFrom<&types::ConnectorCustomerRouterData> for GocardlessCustomerRequest 
                 city: billing_address.city.clone().map(Secret::new),
             },
         })
+    }
+}
+
+fn get_region(
+    address_details: &AddressDetails,
+) -> Result<Option<Secret<String>>, error_stack::Report<errors::ConnectorError>> {
+    match address_details.country {
+        Some(CountryAlpha2::US) => {
+            let state = address_details.get_state()?.to_owned();
+            Ok(Some(Secret::new(
+                UsStatesAbbreviation::foreign_try_from(state.expose())?.to_string(),
+            )))
+        }
+        _ => Ok(None),
     }
 }
 
@@ -242,26 +259,34 @@ impl TryFrom<&BankDebitData> for CustomerBankAccount {
     fn try_from(item: &BankDebitData) -> Result<Self, Self::Error> {
         match item {
             BankDebitData::AchBankDebit {
-                billing_details,
+                //billing_details,
                 account_number,
                 routing_number,
-                bank_type,
-                bank_account_holder_name,
+                // bank_type,
+                //bank_account_holder_name,
+                card_holder_name,
                 ..
             } => {
-                let bank_type = bank_type.ok_or_else(utils::missing_field_err("bank_type"))?;
-                let country_code = billing_details.get_billing_country()?;
+                //let bank_type = bank_type.ok_or_else(utils::missing_field_err("bank_type"))?;
+                //let country_code = billing_details.get_billing_country()?;
+                //let account_holder_name =
+                //   bank_account_holder_name
+                //        .clone()
+                //      .ok_or_else(utils::missing_field_err(
+                //    "payment_method_data.bank_debit.ach_bank_debit.bank_account_holder_name",
+                //))?;
                 let account_holder_name =
-                    bank_account_holder_name
+                    card_holder_name
                         .clone()
                         .ok_or_else(utils::missing_field_err(
-                        "payment_method_data.bank_debit.ach_bank_debit.bank_account_holder_name",
-                    ))?;
+                            "payment_method_data.bank_debit.ach_bank_debit.card_holder_name",
+                        ))?;
                 let us_bank_account = USBankAccount {
-                    country_code,
+                    country_code: CountryAlpha2::US,
                     account_number: account_number.clone(),
                     bank_code: routing_number.clone(),
-                    account_type: AccountType::from(bank_type),
+                    //account_type: AccountType::from(bank_type),
+                    account_type: AccountType::Checking,
                     account_holder_name,
                 };
                 Ok(Self::USBankAccount(us_bank_account))

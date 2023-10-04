@@ -258,6 +258,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for NoonPaymentsRequest {
                 item.request.order_category.clone(),
             ),
         };
+
         // The description should not have leading or trailing whitespaces, also it should not have double whitespaces and a max 50 chars according to Noon's Docs
         let name: String = item
             .get_description()?
