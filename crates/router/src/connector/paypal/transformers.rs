@@ -90,6 +90,23 @@ pub struct CardRequest {
     name: Secret<String>,
     number: Option<cards::CardNumber>,
     security_code: Option<Secret<String>>,
+    attributes: Option<ThreeDsSetting>,
+}
+
+#[derive(Debug, Serialize)]
+pub struct ThreeDsSetting {
+    verification: ThreeDsMethod,
+}
+
+#[derive(Debug, Serialize)]
+pub struct ThreeDsMethod {
+    method: ThreeDsType,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum ThreeDsType {
+    ScaAlways,
 }
 
 #[derive(Debug, Serialize)]
@@ -251,12 +268,22 @@ impl TryFrom<&PaypalRouterData<&types::PaymentsAuthorizeRouterData>> for PaypalP
                 let card = item.router_data.request.get_card()?;
                 let expiry = Some(card.get_expiry_date_as_yyyymm("-"));
 
+                let attributes = match item.router_data.auth_type {
+                    api_models::enums::AuthenticationType::ThreeDs => Some(ThreeDsSetting {
+                        verification: ThreeDsMethod {
+                            method: ThreeDsType::ScaAlways,
+                        },
+                    }),
+                    api_models::enums::AuthenticationType::NoThreeDs => None,
+                };
+
                 let payment_source = Some(PaymentSourceItem::Card(CardRequest {
                     billing_address: get_address_info(item.router_data.address.billing.as_ref())?,
                     expiry,
                     name: ccard.card_holder_name.clone(),
                     number: Some(ccard.card_number.clone()),
                     security_code: Some(ccard.card_cvc.clone()),
+                    attributes,
                 }));
 
                 Ok(Self {
@@ -631,7 +658,14 @@ pub struct PurchaseUnitItem {
     pub payments: PaymentsCollection,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PaypalThreeDsResponse {
+    id: String,
+    status: PaypalOrderStatus,
+    links: Vec<PaypalLinks>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PaypalOrdersResponse {
     id: String,
     intent: PaypalPaymentIntent,
@@ -651,6 +685,14 @@ pub struct PaypalRedirectResponse {
     intent: PaypalPaymentIntent,
     status: PaypalOrderStatus,
     links: Vec<PaypalLinks>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(untagged)]
+pub enum PaypalAuthResponse {
+    PaypalOrdersResponse(PaypalOrdersResponse),
+    PaypalRedirectResponse(PaypalRedirectResponse),
+    PaypalThreeDsResponse(PaypalThreeDsResponse),
 }
 
 #[derive(Debug, Deserialize)]
@@ -775,10 +817,9 @@ impl<F, T>
 }
 
 fn get_redirect_url(
-    item: PaypalRedirectResponse,
+    link_vec: Vec<PaypalLinks>,
 ) -> CustomResult<Option<Url>, errors::ConnectorError> {
     let mut link: Option<Url> = None;
-    let link_vec = item.links;
     for item2 in link_vec.iter() {
         if item2.rel == "payer-action" {
             link = item2.href.clone();
@@ -832,7 +873,7 @@ impl<F, T>
             item.response.clone().status,
             item.response.intent.clone(),
         ));
-        let link = get_redirect_url(item.response.clone())?;
+        let link = get_redirect_url(item.response.links.clone())?;
         let connector_meta = serde_json::json!(PaypalMeta {
             authorize_id: None,
             capture_id: None,
@@ -854,6 +895,85 @@ impl<F, T>
             }),
             ..item.data
         })
+    }
+}
+
+impl<F>
+    TryFrom<
+        types::ResponseRouterData<
+            F,
+            PaypalThreeDsResponse,
+            types::PaymentsAuthorizeData,
+            types::PaymentsResponseData,
+        >,
+    > for types::RouterData<F, types::PaymentsAuthorizeData, types::PaymentsResponseData>
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        item: types::ResponseRouterData<
+            F,
+            PaypalThreeDsResponse,
+            types::PaymentsAuthorizeData,
+            types::PaymentsResponseData,
+        >,
+    ) -> Result<Self, Self::Error> {
+        let intent = if item.data.request.is_auto_capture()? {
+            PaypalPaymentIntent::Capture
+        } else {
+            PaypalPaymentIntent::Authorize
+        };
+        let connector_meta = serde_json::json!(PaypalMeta {
+            authorize_id: None,
+            capture_id: None,
+            psync_flow: intent.clone()
+        });
+
+        let status =
+            storage_enums::AttemptStatus::foreign_from((item.response.clone().status, intent));
+        let link = get_redirect_url(item.response.links.clone())?;
+
+        Ok(Self {
+            status,
+            response: Ok(types::PaymentsResponseData::TransactionResponse {
+                resource_id: types::ResponseId::ConnectorTransactionId(item.response.id),
+                redirection_data: Some(paypal_threeds_link((
+                    link.ok_or(errors::ConnectorError::ResponseDeserializationFailed)?,
+                    item.data.request.complete_authorize_url.clone().ok_or(
+                        errors::ConnectorError::MissingRequiredField {
+                            field_name: "router_return_url",
+                        },
+                    )?,
+                    services::Method::Get,
+                ))),
+                mandate_reference: None,
+                connector_metadata: Some(connector_meta),
+                network_txn_id: None,
+                connector_response_reference_id: None,
+            }),
+            ..item.data
+        })
+    }
+}
+
+fn paypal_threeds_link(
+    (mut redirect_url, complete_auth_url, method): (Url, String, services::Method),
+) -> services::RedirectForm {
+    let mut form_fields = std::collections::HashMap::from_iter(
+        redirect_url
+            .query_pairs()
+            .map(|(key, value)| (key.to_string(), value.to_string())),
+    );
+
+    // paypal requires return url to be passed as a field along with payer_action_url
+    form_fields.insert(String::from("redirect_uri"), complete_auth_url);
+
+    // Do not include query params in the endpoint
+    redirect_url.set_query(None);
+
+    services::RedirectForm::Form {
+        endpoint: redirect_url.to_string(),
+        method,
+        form_fields,
     }
 }
 

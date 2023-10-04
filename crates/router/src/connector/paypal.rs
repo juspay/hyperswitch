@@ -8,7 +8,7 @@ use error_stack::{IntoReport, ResultExt};
 use masking::PeekInterface;
 use transformers as paypal;
 
-use self::transformers::PaypalMeta;
+use self::transformers::{PaypalAuthResponse, PaypalMeta};
 use crate::{
     configs::settings,
     connector::{
@@ -387,24 +387,27 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         data: &types::PaymentsAuthorizeRouterData,
         res: Response,
     ) -> CustomResult<types::PaymentsAuthorizeRouterData, errors::ConnectorError> {
-        match data.payment_method {
-            diesel_models::enums::PaymentMethod::Wallet
-            | diesel_models::enums::PaymentMethod::BankRedirect => {
-                let response: paypal::PaypalRedirectResponse = res
-                    .response
-                    .parse_struct("paypal PaymentsRedirectResponse")
-                    .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        let response: PaypalAuthResponse =
+            res.response
+                .parse_struct("paypal PaypalAuthResponse")
+                .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+
+        match response {
+            PaypalAuthResponse::PaypalOrdersResponse(response) => {
                 types::RouterData::try_from(types::ResponseRouterData {
                     response,
                     data: data.clone(),
                     http_code: res.status_code,
                 })
             }
-            _ => {
-                let response: paypal::PaypalOrdersResponse = res
-                    .response
-                    .parse_struct("paypal PaymentsOrderResponse")
-                    .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+            PaypalAuthResponse::PaypalRedirectResponse(response) => {
+                types::RouterData::try_from(types::ResponseRouterData {
+                    response,
+                    data: data.clone(),
+                    http_code: res.status_code,
+                })
+            }
+            PaypalAuthResponse::PaypalThreeDsResponse(response) => {
                 types::RouterData::try_from(types::ResponseRouterData {
                     response,
                     data: data.clone(),
@@ -489,7 +492,7 @@ impl
     ) -> CustomResult<types::PaymentsCompleteAuthorizeRouterData, errors::ConnectorError> {
         let response: paypal::PaypalOrdersResponse = res
             .response
-            .parse_struct("paypal PaymentsOrderResponse")
+            .parse_struct("paypal PaypalOrdersResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         types::RouterData::try_from(types::ResponseRouterData {
             response,
