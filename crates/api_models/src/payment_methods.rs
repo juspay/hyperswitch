@@ -518,6 +518,8 @@ pub struct PaymentMethodListResponse {
 
     #[schema(value_type = Option<String>)]
     pub merchant_name: OptionalEncryptableName,
+
+    pub payment_type: Option<api_enums::PaymentType>,
 }
 
 #[derive(Eq, PartialEq, Hash, Debug, serde::Deserialize, ToSchema)]
