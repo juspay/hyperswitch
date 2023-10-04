@@ -60,7 +60,7 @@ jobs:
         shell: bash
         run: |
           if ! cargo +nightly fmt --all --check; then
-            echo "::notice Formatting check failed. Auto-formatting it"
+            echo "::notice::Formatting check failed. Auto-formatting it"
             cargo +nightly fmt
             git config --local user.name 'github-actions[bot]'
             git config --local user.email '41898282+github-actions[bot]@users.noreply.github.com'
