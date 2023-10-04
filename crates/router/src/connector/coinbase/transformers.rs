@@ -136,7 +136,7 @@ impl<F, T>
             .last()
             .ok_or(errors::ConnectorError::ResponseHandlingFailed)?
             .clone();
-        let connector_id = types::ResponseId::ConnectorTransactionId(item.response.data.id);
+        let connector_id = types::ResponseId::ConnectorTransactionId(item.response.data.id.clone());
         let attempt_status = timeline.status.clone();
         let response_data = timeline.context.map_or(
             Ok(types::PaymentsResponseData::TransactionResponse {
@@ -145,7 +145,7 @@ impl<F, T>
                 mandate_reference: None,
                 connector_metadata: None,
                 network_txn_id: None,
-                connector_response_reference_id: None,
+                connector_response_reference_id: Some(item.response.data.id.clone()),
             }),
             |context| {
                 Ok(types::PaymentsResponseData::TransactionUnresolvedResponse{
@@ -155,7 +155,7 @@ impl<F, T>
                 message: "Please check the transaction in coinbase dashboard and resolve manually"
                     .to_string(),
                 }),
-                connector_response_reference_id: None,
+                connector_response_reference_id: Some(item.response.data.id.clone()),
             })
             },
         );
