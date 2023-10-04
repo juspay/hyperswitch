@@ -86,7 +86,6 @@ impl From<OpayoPaymentStatus> for enums::AttemptStatus {
 pub struct OpayoPaymentsResponse {
     status: OpayoPaymentStatus,
     id: String,
-    #[serde(rename = "transaction_Id")]
     transaction_id : String,
 }
 
@@ -101,12 +100,12 @@ impl<F, T>
         Ok(Self {
             status: enums::AttemptStatus::from(item.response.status),
             response: Ok(types::PaymentsResponseData::TransactionResponse {
-                resource_id: types::ResponseId::ConnectorTransactionId(item.response.transaction_Id.clone()),
+                resource_id: types::ResponseId::ConnectorTransactionId(item.response.transaction_id.clone()),
                 redirection_data: None,
                 mandate_reference: None,
                 connector_metadata: None,
                 network_txn_id: None,
-                connector_response_reference_id: Some(item.response.transaction_Id),
+                connector_response_reference_id: Some(item.response.transaction_id),
             }),
             ..item.data
         })
