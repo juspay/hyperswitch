@@ -250,6 +250,7 @@ pub struct DlocalPaymentsResponse {
     status: DlocalPaymentStatus,
     id: String,
     three_dsecure: Option<ThreeDSecureResData>,
+    order_id: String;
 }
 
 impl<F, T>
