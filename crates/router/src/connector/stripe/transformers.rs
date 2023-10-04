@@ -2125,7 +2125,13 @@ pub struct PaymentIntentSyncResponse {
     #[serde(flatten)]
     payment_intent_fields: PaymentIntentResponse,
     pub last_payment_error: Option<LastPaymentError>,
-    pub latest_charge: Option<StripeCharge>,
+    pub latest_charge: Option<StripeChargeEnum>,
+}
+
+#[derive(Deserialize, Debug, Clone)]
+pub enum StripeChargeEnum {
+    ChargeId(String),
+    ChargeObject(StripeCharge),
 }
 
 #[derive(Deserialize, Clone, Debug)]
@@ -2414,19 +2420,21 @@ impl<F, T>
             types::MandateReference::foreign_from((
                 item.response.payment_method_options.clone(),
                 match item.response.latest_charge.clone() {
-                    Some(charge) => match charge.payment_method_details {
-                        Some(StripePaymentMethodDetailsResponse::Bancontact { bancontact }) => {
-                            bancontact.attached_payment_method.unwrap_or(pm)
+                    Some(StripeChargeEnum::ChargeObject(charge)) => {
+                        match charge.payment_method_details {
+                            Some(StripePaymentMethodDetailsResponse::Bancontact { bancontact }) => {
+                                bancontact.attached_payment_method.unwrap_or(pm)
+                            }
+                            Some(StripePaymentMethodDetailsResponse::Ideal { ideal }) => {
+                                ideal.attached_payment_method.unwrap_or(pm)
+                            }
+                            Some(StripePaymentMethodDetailsResponse::Sofort { sofort }) => {
+                                sofort.attached_payment_method.unwrap_or(pm)
+                            }
+                            _ => pm,
                         }
-                        Some(StripePaymentMethodDetailsResponse::Ideal { ideal }) => {
-                            ideal.attached_payment_method.unwrap_or(pm)
-                        }
-                        Some(StripePaymentMethodDetailsResponse::Sofort { sofort }) => {
-                            sofort.attached_payment_method.unwrap_or(pm)
-                        }
-                        _ => pm,
-                    },
-                    None => pm,
+                    }
+                    _ => pm,
                 },
             ))
         });
