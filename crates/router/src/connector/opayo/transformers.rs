@@ -86,7 +86,8 @@ impl From<OpayoPaymentStatus> for enums::AttemptStatus {
 pub struct OpayoPaymentsResponse {
     status: OpayoPaymentStatus,
     id: String,
-    transaction_Id : String,
+    #[serde(rename = "transaction_Id")]
+    transaction_id : String,
 }
 
 impl<F, T>
