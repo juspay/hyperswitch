@@ -269,12 +269,12 @@ impl<F, T>
             });
 
         let response = types::PaymentsResponseData::TransactionResponse {
-            resource_id: types::ResponseId::ConnectorTransactionId(item.response.id.clone()),
+            resource_id: types::ResponseId::ConnectorTransactionId(item.response.order_id.clone()),
             redirection_data,
             mandate_reference: None,
             connector_metadata: None,
             network_txn_id: None,
-            connector_response_reference_id: item.response.id,
+            connector_response_reference_id: item.response.order_id,
         };
         Ok(Self {
             status: enums::AttemptStatus::from(item.response.status),
@@ -312,7 +312,7 @@ impl<F, T>
                 mandate_reference: None,
                 connector_metadata: None,
                 network_txn_id: None,
-                connector_response_reference_id: None,
+                connector_response_reference_id: item.response.order_id,
             }),
             ..item.data
         })
@@ -347,7 +347,7 @@ impl<F, T>
                 mandate_reference: None,
                 connector_metadata: None,
                 network_txn_id: None,
-                connector_response_reference_id: None,
+                connector_response_reference_id: item.response.order_id,
             }),
             ..item.data
         })
@@ -381,7 +381,7 @@ impl<F, T>
                 mandate_reference: None,
                 connector_metadata: None,
                 network_txn_id: None,
-                connector_response_reference_id: None,
+                connector_response_reference_id: item.response.order_id,
             }),
             ..item.data
         })
