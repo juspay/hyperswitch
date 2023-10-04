@@ -35,6 +35,18 @@ fn valid_range() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     if let Ok(percentage) = percentage {
         assert_eq!(percentage.get_percentage(), 2.22)
     }
+
+    let percentage = Percentage::<PRECISION_2>::from_float(0.0);
+    assert!(percentage.is_ok());
+    if let Ok(percentage) = percentage {
+        assert_eq!(percentage.get_percentage(), 0.0)
+    }
+
+    let percentage = Percentage::<PRECISION_2>::from_float(100.0);
+    assert!(percentage.is_ok());
+    if let Ok(percentage) = percentage {
+        assert_eq!(percentage.get_percentage(), 100.0)
+    }
     Ok(())
 }
 #[test]
