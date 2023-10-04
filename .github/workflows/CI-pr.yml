@@ -1,7 +1,9 @@
 name: CI-pr
 
 on:
-  pull_request:
+  push:
+    branches: 
+      - auto-format
     # paths:
     #   - ".github/workflows/**"
     #   - "crates/**"
@@ -50,9 +52,22 @@ jobs:
           toolchain: nightly
           components: rustfmt
 
+      #- name: Check formatting
+      #  shell: bash
+      #  run: cargo +nightly fmt --all --check
+
       - name: Check formatting
         shell: bash
-        run: cargo +nightly fmt --all --check
+        run: |
+          if ! cargo +nightly fmt --all --check; then
+            echo "::notice Formatting check failed. Auto-formatting it"
+            cargo +nightly fmt
+            git config --local user.name 'github-actions[bot]'
+            git config --local user.email '41898282+github-actions[bot]@users.noreply.github.com'
+            git add .
+            git commit --message 'chore: Run formatter'
+            git push
+          fi
 
   check-msrv:
     name: Check compilation on MSRV toolchain
