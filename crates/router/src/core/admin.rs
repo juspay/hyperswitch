@@ -225,8 +225,10 @@ pub async fn create_merchant_account(
         config: "true".to_string(),
     })
     .await
-    .change_context(errors::ApiErrorResponse::InternalServerError)
-    .attach_printable("Error while setting requires_cvv config")?;
+    .map_err(|err| {
+        crate::logger::error!("Error while setting requires_cvv config: {err:?}");
+    })
+    .ok();
 
     Ok(service_api::ApplicationResponse::Json(
         merchant_account
