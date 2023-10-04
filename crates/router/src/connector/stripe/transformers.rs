@@ -2432,10 +2432,27 @@ impl<F, T>
                             Some(StripePaymentMethodDetailsResponse::Sofort { sofort }) => {
                                 sofort.attached_payment_method.unwrap_or(pm)
                             }
-                            _ => pm,
+                            Some(StripePaymentMethodDetailsResponse::Blik)
+                            | Some(StripePaymentMethodDetailsResponse::Eps)
+                            | Some(StripePaymentMethodDetailsResponse::Fpx)
+                            | Some(StripePaymentMethodDetailsResponse::Giropay)
+                            | Some(StripePaymentMethodDetailsResponse::Przelewy24)
+                            | Some(StripePaymentMethodDetailsResponse::Card)
+                            | Some(StripePaymentMethodDetailsResponse::Klarna)
+                            | Some(StripePaymentMethodDetailsResponse::Affirm)
+                            | Some(StripePaymentMethodDetailsResponse::AfterpayClearpay)
+                            | Some(StripePaymentMethodDetailsResponse::ApplePay)
+                            | Some(StripePaymentMethodDetailsResponse::Ach)
+                            | Some(StripePaymentMethodDetailsResponse::Sepa)
+                            | Some(StripePaymentMethodDetailsResponse::Becs)
+                            | Some(StripePaymentMethodDetailsResponse::Bacs)
+                            | Some(StripePaymentMethodDetailsResponse::Wechatpay)
+                            | Some(StripePaymentMethodDetailsResponse::Alipay)
+                            | Some(StripePaymentMethodDetailsResponse::CustomerBalance)
+                            | None => pm,
                         }
                     }
-                    _ => pm,
+                    Some(StripeChargeEnum::ChargeId(_)) | None => pm,
                 },
             ))
         });
