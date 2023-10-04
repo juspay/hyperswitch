@@ -62,9 +62,9 @@ pub enum WebhookResponseTracker {
 impl WebhookResponseTracker {
     pub fn get_payment_id(&self) -> Option<String> {
         match self {
-            Self::Payment { payment_id, .. } => Some(payment_id.to_string()),
-            Self::Refund { payment_id, .. } => Some(payment_id.to_string()),
-            Self::Dispute { payment_id, .. } => Some(payment_id.to_string()),
+            Self::Payment { payment_id, .. }
+            | Self::Refund { payment_id, .. }
+            | Self::Dispute { payment_id, .. } => Some(payment_id.to_string()),
             Self::NoEffect => None,
         }
     }
