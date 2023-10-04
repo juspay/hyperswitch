@@ -2911,12 +2911,10 @@
             "properties": {
               "blik": {
                 "type": "object",
-                "required": [
-                  "blik_code"
-                ],
                 "properties": {
                   "blik_code": {
-                    "type": "string"
+                    "type": "string",
+                    "nullable": true
                   }
                 }
               }
@@ -10184,6 +10182,11 @@
               "refund_id": {
                 "type": "string",
                 "description": "The identifier for the refund",
+                "nullable": true
+              },
+              "profile_id": {
+                "type": "string",
+                "description": "The identifier for business profile",
                 "nullable": true
               },
               "limit": {

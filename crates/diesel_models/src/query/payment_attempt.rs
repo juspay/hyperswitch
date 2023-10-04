@@ -216,6 +216,8 @@ impl PaymentAttempt {
         Vec<enums::Currency>,
         Vec<IntentStatus>,
         Vec<enums::PaymentMethod>,
+        Vec<enums::PaymentMethodType>,
+        Vec<enums::AuthenticationType>,
     )> {
         let active_attempts: Vec<String> = pi
             .iter()
@@ -272,11 +274,39 @@ impl PaymentAttempt {
             .flatten()
             .collect::<Vec<enums::PaymentMethod>>();
 
+        let filter_payment_method_type = filter
+            .clone()
+            .select(dsl::payment_method_type)
+            .distinct()
+            .get_results_async::<Option<enums::PaymentMethodType>>(conn)
+            .await
+            .into_report()
+            .change_context(DatabaseError::Others)
+            .attach_printable("Error filtering records by payment method type")?
+            .into_iter()
+            .flatten()
+            .collect::<Vec<enums::PaymentMethodType>>();
+
+        let filter_authentication_type = filter
+            .clone()
+            .select(dsl::authentication_type)
+            .distinct()
+            .get_results_async::<Option<enums::AuthenticationType>>(conn)
+            .await
+            .into_report()
+            .change_context(DatabaseError::Others)
+            .attach_printable("Error filtering records by authentication type")?
+            .into_iter()
+            .flatten()
+            .collect::<Vec<enums::AuthenticationType>>();
+
         Ok((
             filter_connector,
             filter_currency,
             intent_status,
             filter_payment_method,
+            filter_payment_method_type,
+            filter_authentication_type,
         ))
     }
     pub async fn get_total_count_of_attempts(
@@ -285,6 +315,8 @@ impl PaymentAttempt {
         active_attempt_ids: &[String],
         connector: Option<Vec<String>>,
         payment_method: Option<Vec<enums::PaymentMethod>>,
+        payment_method_type: Option<Vec<enums::PaymentMethodType>>,
+        authentication_type: Option<Vec<enums::AuthenticationType>>,
     ) -> StorageResult<i64> {
         let mut filter = <Self as HasTable>::table()
             .count()
@@ -298,6 +330,12 @@ impl PaymentAttempt {
 
         if let Some(payment_method) = payment_method.clone() {
             filter = filter.filter(dsl::payment_method.eq_any(payment_method));
+        }
+        if let Some(payment_method_type) = payment_method_type.clone() {
+            filter = filter.filter(dsl::payment_method_type.eq_any(payment_method_type));
+        }
+        if let Some(authentication_type) = authentication_type.clone() {
+            filter = filter.filter(dsl::authentication_type.eq_any(authentication_type));
         }
         router_env::logger::debug!(query = %debug_query::<Pg, _>(&filter).to_string());
 
