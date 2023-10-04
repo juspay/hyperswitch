@@ -123,7 +123,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PowertranzPaymentsRequest 
                 .to_string(),
             three_d_secure,
             source,
-            order_identifier: item.payment_id.clone(),
+            order_identifier: item.connector_request_reference_id.clone(),
             // billing_address,
             // shipping_address,
             extended_data,
