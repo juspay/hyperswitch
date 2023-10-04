@@ -1494,7 +1494,7 @@ impl api::IncomingWebhook for Adyen {
 
         let raw_key = hex::decode(connector_webhook_secrets.secret)
             .into_report()
-            .change_context(errors::ConnectorError::WebhookSignatureNotFound)?;
+            .change_context(errors::ConnectorError::WebhookVerificationSecretInvalid)?;
 
         let signing_key = hmac::Key::new(hmac::HMAC_SHA256, &raw_key);
         let signed_messaged = hmac::sign(&signing_key, &message);
