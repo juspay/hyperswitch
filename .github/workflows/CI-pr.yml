@@ -44,7 +44,6 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v3
         with:
-          fetch-depth: 0
           ref: ${{ github.event.pull_request.head.ref }}
 
       - name: Install Rust
@@ -63,7 +62,7 @@ jobs:
         shell: bash
         run: |
           cargo +nightly fmt --all
-          if ! git diff --exit-code --quiet; then
+          if ! git diff --exit-code --quiet -- crates; then
             echo "::notice::Formatting check failed"
             git config --local user.name 'github-actions[bot]'
             git config --local user.email '41898282+github-actions[bot]@users.noreply.github.com'
