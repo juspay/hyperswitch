@@ -328,7 +328,7 @@ impl<F, T>
                     connector_response_reference_id: item
                         .response
                         .client_reference_information
-                        .code
+                        .map(|cref| cref.code)
                         .or(Some(item.response.id.clone())),
                 }),
             },
@@ -398,7 +398,7 @@ impl<F, T>
                 connector_response_reference_id: item
                     .response
                     .client_reference_information
-                    .code
+                    .map(|cref| cref.code)
                     .or(Some(item.response.id.clone())),
             }),
             ..item.data
