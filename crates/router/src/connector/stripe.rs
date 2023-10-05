@@ -1886,8 +1886,6 @@ impl api::IncomingWebhook for Stripe {
             | stripe::WebhookEventType::PaymentIntentProcessing
             | stripe::WebhookEventType::PaymentIntentAmountCapturableUpdated
             | stripe::WebhookEventType::SourceTransactionCreated => {
-
-                
                 api::IncomingWebhookEvent::EventNotSupported
             }
         })
