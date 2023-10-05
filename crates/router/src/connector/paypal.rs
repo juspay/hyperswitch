@@ -9,6 +9,7 @@ use masking::PeekInterface;
 use transformers as paypal;
 
 use self::transformers::{PaypalAuthResponse, PaypalMeta};
+use super::utils::PaymentsCompleteAuthorizeRequestData;
 use crate::{
     configs::settings,
     connector::{
@@ -449,10 +450,10 @@ impl
         req: &types::PaymentsCompleteAuthorizeRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        let paypal_meta: PaypalMeta = to_connector_meta(req.request.connector_meta.clone())?;
-        let complete_authorize_url = match paypal_meta.psync_flow {
-            transformers::PaypalPaymentIntent::Authorize => "authorize".to_string(),
-            transformers::PaypalPaymentIntent::Capture => "capture".to_string(),
+        let complete_authorize_url = if req.request.is_auto_capture()? {
+            "capture".to_string()
+        } else {
+            "authorize".to_string()
         };
         Ok(format!(
             "{}v2/checkout/orders/{}/{complete_authorize_url}",
@@ -557,6 +558,19 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
                             ),
                         )?;
                         format!("v2/payments/captures/{capture_id}")
+                    }
+                    // only set when payment is done through card 3DS
+                    //because no authorize or capture id is generated during payment authorize call for card 3DS
+                    transformers::PaypalPaymentIntent::Authenticate => {
+                        format!(
+                            "v2/checkout/orders/{}",
+                            req.request
+                                .connector_transaction_id
+                                .get_connector_transaction_id()
+                                .change_context(
+                                    errors::ConnectorError::MissingConnectorTransactionID
+                                )?
+                        )
                     }
                 };
                 Ok(format!("{}{psync_url}", self.base_url(connectors)))

@@ -62,6 +62,7 @@ mod webhook_headers {
 pub enum PaypalPaymentIntent {
     Capture,
     Authorize,
+    Authenticate,
 }
 
 #[derive(Default, Debug, Clone, Serialize, Eq, PartialEq, Deserialize)]
@@ -699,6 +700,7 @@ pub enum PaypalAuthResponse {
 #[serde(untagged)]
 pub enum PaypalSyncResponse {
     PaypalOrdersSyncResponse(PaypalOrdersResponse),
+    PaypalThreeDsSyncResponse(PaypalThreeDsSyncResponse),
     PaypalRedirectSyncResponse(PaypalRedirectResponse),
     PaypalPaymentsSyncResponse(PaypalPaymentsSyncResponse),
 }
@@ -709,6 +711,24 @@ pub struct PaypalPaymentsSyncResponse {
     status: PaypalPaymentStatus,
     amount: OrderAmount,
     supplementary_data: PaypalSupplementaryData,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PaypalThreeDsSyncResponse {
+    id: String,
+    status: PaypalOrderStatus,
+    // provided to seperated response of card's 3DS from other
+    payment_source: CardsData,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CardsData {
+    card: CardDetails,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CardDetails {
+    last_digits: String,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -742,6 +762,7 @@ fn get_id_based_on_intent(
                     .next()?
                     .id,
             ),
+            PaypalPaymentIntent::Authenticate => None,
         }
     }()
     .ok_or_else(|| errors::ConnectorError::MissingConnectorTransactionID.into())
@@ -780,6 +801,10 @@ impl<F, T>
                 }),
                 types::ResponseId::ConnectorTransactionId(item.response.id),
             ),
+
+            PaypalPaymentIntent::Authenticate => {
+                Err(errors::ConnectorError::ResponseDeserializationFailed)?
+            }
         };
         //payment collection will always have only one element as we only make one transaction per order.
         let payment_collection = &item
@@ -828,12 +853,24 @@ fn get_redirect_url(
     Ok(link)
 }
 
-impl<F, T> TryFrom<types::ResponseRouterData<F, PaypalSyncResponse, T, types::PaymentsResponseData>>
-    for types::RouterData<F, T, types::PaymentsResponseData>
+impl<F>
+    TryFrom<
+        types::ResponseRouterData<
+            F,
+            PaypalSyncResponse,
+            types::PaymentsSyncData,
+            types::PaymentsResponseData,
+        >,
+    > for types::RouterData<F, types::PaymentsSyncData, types::PaymentsResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: types::ResponseRouterData<F, PaypalSyncResponse, T, types::PaymentsResponseData>,
+        item: types::ResponseRouterData<
+            F,
+            PaypalSyncResponse,
+            types::PaymentsSyncData,
+            types::PaymentsResponseData,
+        >,
     ) -> Result<Self, Self::Error> {
         match item.response {
             PaypalSyncResponse::PaypalOrdersSyncResponse(response) => {
@@ -851,6 +888,13 @@ impl<F, T> TryFrom<types::ResponseRouterData<F, PaypalSyncResponse, T, types::Pa
                 })
             }
             PaypalSyncResponse::PaypalPaymentsSyncResponse(response) => {
+                Self::try_from(types::ResponseRouterData {
+                    response,
+                    data: item.data,
+                    http_code: item.http_code,
+                })
+            }
+            PaypalSyncResponse::PaypalThreeDsSyncResponse(response) => {
                 Self::try_from(types::ResponseRouterData {
                     response,
                     data: item.data,
@@ -902,6 +946,44 @@ impl<F>
     TryFrom<
         types::ResponseRouterData<
             F,
+            PaypalThreeDsSyncResponse,
+            types::PaymentsSyncData,
+            types::PaymentsResponseData,
+        >,
+    > for types::RouterData<F, types::PaymentsSyncData, types::PaymentsResponseData>
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        item: types::ResponseRouterData<
+            F,
+            PaypalThreeDsSyncResponse,
+            types::PaymentsSyncData,
+            types::PaymentsResponseData,
+        >,
+    ) -> Result<Self, Self::Error> {
+        let status = storage_enums::AttemptStatus::foreign_from((
+            item.response.clone().status,
+            PaypalPaymentIntent::Authenticate,
+        ));
+        Ok(Self {
+            status,
+            response: Ok(types::PaymentsResponseData::TransactionResponse {
+                resource_id: types::ResponseId::ConnectorTransactionId(item.response.id),
+                redirection_data: None,
+                mandate_reference: None,
+                connector_metadata: None,
+                network_txn_id: None,
+                connector_response_reference_id: None,
+            }),
+            ..item.data
+        })
+    }
+}
+
+impl<F>
+    TryFrom<
+        types::ResponseRouterData<
+            F,
             PaypalThreeDsResponse,
             types::PaymentsAuthorizeData,
             types::PaymentsResponseData,
@@ -917,19 +999,16 @@ impl<F>
             types::PaymentsResponseData,
         >,
     ) -> Result<Self, Self::Error> {
-        let intent = if item.data.request.is_auto_capture()? {
-            PaypalPaymentIntent::Capture
-        } else {
-            PaypalPaymentIntent::Authorize
-        };
         let connector_meta = serde_json::json!(PaypalMeta {
             authorize_id: None,
             capture_id: None,
-            psync_flow: intent.clone()
+            psync_flow: PaypalPaymentIntent::Authenticate // when there is no capture or auth id present
         });
 
-        let status =
-            storage_enums::AttemptStatus::foreign_from((item.response.clone().status, intent));
+        let status = storage_enums::AttemptStatus::foreign_from((
+            item.response.clone().status,
+            PaypalPaymentIntent::Authenticate,
+        ));
         let link = get_redirect_url(item.response.links.clone())?;
 
         Ok(Self {
