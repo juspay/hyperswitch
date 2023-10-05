@@ -20,7 +20,7 @@ enum Derives {
     Capturedata,
     CompleteAuthorizeData,
     Rejectdata,
-    VerifyData,
+    SetupMandateData,
     Start,
     Verify,
     Session,
@@ -44,7 +44,7 @@ impl From<String> for Derives {
             "rejectdata" => Self::Rejectdata,
             "start" => Self::Start,
             "verify" => Self::Verify,
-            "verifydata" => Self::VerifyData,
+            "setupmandatedata" => Self::SetupMandateData,
             "session" => Self::Session,
             "sessiondata" => Self::SessionData,
             _ => Self::Authorize,
@@ -126,7 +126,7 @@ impl Conversion {
             }
             Derives::Start => syn::Ident::new("PaymentsStartRequest", Span::call_site()),
             Derives::Verify => syn::Ident::new("VerifyRequest", Span::call_site()),
-            Derives::VerifyData => syn::Ident::new("SetupMandateRequestData", Span::call_site()),
+            Derives::SetupMandateData => syn::Ident::new("SetupMandateRequestData", Span::call_site()),
             Derives::Session => syn::Ident::new("PaymentsSessionRequest", Span::call_site()),
             Derives::SessionData => syn::Ident::new("PaymentsSessionData", Span::call_site()),
         }
