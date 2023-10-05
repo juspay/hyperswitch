@@ -4,6 +4,40 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 1.50.0 (2023-10-04)
+
+### Features
+
+- **connector:**
+  - [Stax] Use connector_response_reference_id as reference to merchant ([#2415](https://github.com/juspay/hyperswitch/pull/2415)) ([`099b241`](https://github.com/juspay/hyperswitch/commit/099b241096c69879a805ca81b1c5a23118e10b52))
+  - [PowerTranz] Use connector_response_reference_id as reference to merchant ([#2413](https://github.com/juspay/hyperswitch/pull/2413)) ([`0d703c7`](https://github.com/juspay/hyperswitch/commit/0d703c7ab85c68f433767a70a0feabe8daa4f24c))
+  - [Payeezy] Use connector_response_reference_id as reference to merchant ([#2410](https://github.com/juspay/hyperswitch/pull/2410)) ([`485c09d`](https://github.com/juspay/hyperswitch/commit/485c09d16743d73b446d6313f0ee6462c8a77028))
+  - [Square] Use reference_id as reference to merchant ([#2434](https://github.com/juspay/hyperswitch/pull/2434)) ([`591c9b7`](https://github.com/juspay/hyperswitch/commit/591c9b70d9b7f8df5d7f5d2cb2d19cfaa1457fe1))
+- **router:**
+  - Remove unnecessary lookups in refund and payment_attempt kv flow ([#2425](https://github.com/juspay/hyperswitch/pull/2425)) ([`f720aec`](https://github.com/juspay/hyperswitch/commit/f720aecf1fb676cec71e636b877a46f9791d713a))
+  - [OpenNode] response reference id ([#2416](https://github.com/juspay/hyperswitch/pull/2416)) ([`3bfea72`](https://github.com/juspay/hyperswitch/commit/3bfea72df34f4ce0ffdb61e49960fdf09b96eb5a))
+  - Add profile id and extra filters in lists ([#2379](https://github.com/juspay/hyperswitch/pull/2379)) ([`ab2cde7`](https://github.com/juspay/hyperswitch/commit/ab2cde799371a66eb045cf8b20431b3b108dac44))
+
+### Bug Fixes
+
+- **CI:** Fix spell check for CI pull request ([#2439](https://github.com/juspay/hyperswitch/pull/2439)) ([`04f2e11`](https://github.com/juspay/hyperswitch/commit/04f2e11cd4f3fd327408cddec36ccf4fb486b935))
+- **router:** Merchant account delete does not delete the merchant_key_store ([#2367](https://github.com/juspay/hyperswitch/pull/2367)) ([`35f7ce0`](https://github.com/juspay/hyperswitch/commit/35f7ce0f4d9e16184e2bb94360d3ced60f8b5af2))
+
+### Refactors
+
+- **config:** Update payment method filter for apple pay ([#2423](https://github.com/juspay/hyperswitch/pull/2423)) ([`d177b4d`](https://github.com/juspay/hyperswitch/commit/d177b4d94f08fb8ef44b5c07ec1bdc771baa016d))
+- **payment_methods:** Add `requires_cvv` config while creating merchant account ([#2431](https://github.com/juspay/hyperswitch/pull/2431)) ([`6e5ab0d`](https://github.com/juspay/hyperswitch/commit/6e5ab0d121d6345f18bccc7f917064caa2737475))
+- **webhook:** Add a function to retrieve payment_id ([#2447](https://github.com/juspay/hyperswitch/pull/2447)) ([`409913f`](https://github.com/juspay/hyperswitch/commit/409913fd75076e4ee1dac1e4dc5b2f164528bc23))
+
+### Build System / Dependencies
+
+- **deps:** Address `undeclared crate or module` errors on Windows for `scheduler` crate ([#2411](https://github.com/juspay/hyperswitch/pull/2411)) ([`4225238`](https://github.com/juspay/hyperswitch/commit/422523848e6516643a6beef1ba15af4e967f0c5b))
+
+**Full Changelog:** [`v1.49.0...v1.50.0`](https://github.com/juspay/hyperswitch/compare/v1.49.0...v1.50.0)
+
+- - -
+
+
 ## 1.49.0 (2023-10-03)
 
 ### Features

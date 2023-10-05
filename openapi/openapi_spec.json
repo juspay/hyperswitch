@@ -10208,6 +10208,11 @@
                 "description": "The identifier for the refund",
                 "nullable": true
               },
+              "profile_id": {
+                "type": "string",
+                "description": "The identifier for business profile",
+                "nullable": true
+              },
               "limit": {
                 "type": "integer",
                 "format": "int64",

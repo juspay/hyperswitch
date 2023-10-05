@@ -902,6 +902,7 @@ impl RefundInterface for MockDb {
                     .clone()
                     .map_or(true, |id| id == refund.refund_id)
             })
+            .filter(|refund| refund_details.profile_id == refund.profile_id)
             .filter(|refund| {
                 refund.created_at
                     >= refund_details.time_range.map_or(
@@ -1025,6 +1026,7 @@ impl RefundInterface for MockDb {
                     .clone()
                     .map_or(true, |id| id == refund.refund_id)
             })
+            .filter(|refund| refund_details.profile_id == refund.profile_id)
             .filter(|refund| {
                 refund.created_at
                     >= refund_details.time_range.map_or(
