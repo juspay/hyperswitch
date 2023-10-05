@@ -6111,6 +6111,7 @@
           "enable_payment_response_hash",
           "redirect_to_merchant_with_http_post",
           "primary_business_details",
+          "organization_id",
           "is_recon_enabled",
           "recon_status"
         ],
@@ -6239,8 +6240,7 @@
           },
           "organization_id": {
             "type": "string",
-            "description": "The organization id merchant is associated with",
-            "nullable": true
+            "description": "The organization id merchant is associated with"
           },
           "is_recon_enabled": {
             "type": "boolean",
