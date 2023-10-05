@@ -4,6 +4,16 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 1.48.1+hotfix.2 (2023-10-05)
+
+### Bug Fixes
+
+- **connector:** [noon] add connector_auth params and update description ([#2427](https://github.com/juspay/hyperswitch/pull/2427)) ([`b6f37d0`](https://github.com/juspay/hyperswitch/commit/b6f37d01197222c5f7d678fe499593b8f800f622))
+
+**Full Changelog:** [`v1.48.1+hotfix.1...v1.48.1+hotfix.2`](https://github.com/juspay/hyperswitch/compare/v1.48.1+hotfix.1...v1.48.1+hotfix.2)
+
+- - -
+
 ## 1.48.1+hotfix.1 (2023-09-29)
 
 ### Features
