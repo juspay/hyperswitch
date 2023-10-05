@@ -524,7 +524,6 @@ impl<F>
             payment_method_id: None,
         });
         Ok(Self {
-            preprocessing_id: Some(item.response.mandates.id),
             response: Ok(types::PaymentsResponseData::TransactionResponse {
                 connector_metadata: None,
                 connector_response_reference_id: None,
@@ -571,14 +570,10 @@ impl TryFrom<&GocardlessRouterData<&types::PaymentsAuthorizeRouterData>>
         item: &GocardlessRouterData<&types::PaymentsAuthorizeRouterData>,
     ) -> Result<Self, Self::Error> {
         let mandate_id = if item.router_data.request.is_mandate_payment() {
-            if item.router_data.request.setup_future_usage.is_some() {
-                item.router_data.get_preprocessing_id()
-            } else {
-                item.router_data
-                    .request
-                    .connector_mandate_id()
-                    .ok_or_else(utils::missing_field_err("preprocessing_id"))
-            }
+            item.router_data
+                .request
+                .connector_mandate_id()
+                .ok_or_else(utils::missing_field_err("mandate_id"))
         } else {
             Err(errors::ConnectorError::NotImplemented(
                 utils::get_unimplemented_payment_method_error_message("gocardless"),
@@ -674,13 +669,8 @@ impl<F>
             types::PaymentsResponseData,
         >,
     ) -> Result<Self, Self::Error> {
-        let connector_mandate_id = if item.data.request.setup_mandate_details.is_some() {
-            item.data.get_preprocessing_id()?
-        } else {
-            item.data.request.get_connector_mandate_id()?
-        };
         let mandate_reference = MandateReference {
-            connector_mandate_id: Some(connector_mandate_id),
+            connector_mandate_id: Some(item.data.request.get_connector_mandate_id()?),
             payment_method_id: None,
         };
         Ok(Self {

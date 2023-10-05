@@ -414,6 +414,7 @@ pub struct ConnectorCustomerData {
     pub phone: Option<Secret<String>>,
     pub name: Option<String>,
     pub preprocessing_id: Option<String>,
+    // pass payment_method_data
 }
 
 #[derive(Debug, Clone)]
