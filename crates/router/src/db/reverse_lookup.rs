@@ -23,34 +23,39 @@ pub trait ReverseLookupInterface {
 
 #[cfg(not(feature = "kv_store"))]
 mod storage {
-    use super::{MockDb, Store};
+    use super::{ReverseLookupInterface, Store};
     use crate::{
+        connection,
         errors::{self, CustomResult},
         types::storage::{
             enums,
             reverse_lookup::{ReverseLookup, ReverseLookupNew},
         },
     };
+    use error_stack::IntoReport;
 
-    async fn insert_reverse_lookup(
-        &self,
-        new: ReverseLookupNew,
-        _storage_scheme: enums::MerchantStorageScheme,
-    ) -> CustomResult<ReverseLookup, errors::StorageError> {
-        let conn = connection::pg_connection_write(self).await?;
-        new.insert(&conn).await.map_err(Into::into).into_report()
-    }
+    #[async_trait::async_trait]
+    impl ReverseLookupInterface for Store {
+        async fn insert_reverse_lookup(
+            &self,
+            new: ReverseLookupNew,
+            _storage_scheme: enums::MerchantStorageScheme,
+        ) -> CustomResult<ReverseLookup, errors::StorageError> {
+            let conn = connection::pg_connection_write(self).await?;
+            new.insert(&conn).await.map_err(Into::into).into_report()
+        }
 
-    async fn get_lookup_by_lookup_id(
-        &self,
-        id: &str,
-        _storage_scheme: enums::MerchantStorageScheme,
-    ) -> CustomResult<ReverseLookup, errors::StorageError> {
-        let conn = connection::pg_connection_read(self).await?;
-        ReverseLookup::find_by_lookup_id(id, &conn)
-            .await
-            .map_err(Into::into)
-            .into_report()
+        async fn get_lookup_by_lookup_id(
+            &self,
+            id: &str,
+            _storage_scheme: enums::MerchantStorageScheme,
+        ) -> CustomResult<ReverseLookup, errors::StorageError> {
+            let conn = connection::pg_connection_read(self).await?;
+            ReverseLookup::find_by_lookup_id(id, &conn)
+                .await
+                .map_err(Into::into)
+                .into_report()
+        }
     }
 }
 
