@@ -1,8 +1,8 @@
 name: Validate Generated OpenAPI Spec File
 
 on:
-  push:
-    branches: auto-generate-openapi_spec
+  pull_request:
+
   merge_group:
     types:
       - checks_requested
@@ -49,7 +49,7 @@ jobs:
 
       - name: Commit the JSON file if it is not up-to-date
         # PR originated from same repository
-        if: ${{ github.event.pull_request.head.repo.full_name == github.event.pull_request.base.repo.full_name }}
+        if: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.event.pull_request.base.repo.full_name }}
         shell: bash
         run: |
           if ! git diff --quiet --exit-code -- openapi/openapi_spec.json ; then
