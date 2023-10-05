@@ -199,7 +199,10 @@ impl<F, T>
                 mandate_reference: None,
                 connector_metadata: None,
                 network_txn_id: None,
-                connector_response_reference_id: item.response.ext_order_id.or(Some(item.response.order_id)),
+                connector_response_reference_id: item
+                     .response
+                     .ext_order_id
+                     .or(Some(item.response.order_id)),
             }),
             amount_captured: None,
             ..item.data
