@@ -342,6 +342,7 @@ impl<F, T>
 pub struct CybersourceTransactionResponse {
     id: String,
     application_information: ApplicationInformation,
+    client_reference_information: Option<ClientReferenceInformation>,
 }
 
 #[derive(Debug, Deserialize)]
