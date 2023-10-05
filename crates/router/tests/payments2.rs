@@ -3,12 +3,9 @@
 mod utils;
 
 use router::{
-    core::payments,
+    core::{payment_methods::Oss, payments},
     db::StorageImpl,
-    types::{
-        api::{self, enums as api_enums},
-        handler::Oss,
-    },
+    types::api::{self, enums as api_enums},
     *,
 };
 use time::macros::datetime;

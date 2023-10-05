@@ -10,6 +10,7 @@ use crate::{
     self as app,
     core::{
         errors::http_not_implemented,
+        payment_methods::{Oss, PaymentMethodRetrieve},
         payments::{self, PaymentRedirectFlow},
     },
     openapi::examples::{
@@ -21,10 +22,8 @@ use crate::{
     routes::lock_utils,
     services::{api, authentication as auth},
     types::{
-        self as router_types,
         api::{self as api_types, enums as api_enums, payments as payment_types},
         domain,
-        handler::Oss,
         transformers::ForeignTryFrom,
     },
 };
@@ -877,7 +876,7 @@ async fn authorize_verify_select<Op, Ctx>(
     auth_flow: api::AuthFlow,
 ) -> app::core::errors::RouterResponse<api_models::payments::PaymentsResponse>
 where
-    Ctx: router_types::handler::PaymentMethodRetrieve,
+    Ctx: PaymentMethodRetrieve,
     Op: Sync
         + Clone
         + std::fmt::Debug

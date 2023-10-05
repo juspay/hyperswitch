@@ -36,14 +36,13 @@ use crate::{
     consts::{self, BASE64_ENGINE},
     core::{
         errors::{self, CustomResult, RouterResult, StorageErrorExt},
-        payment_methods::{cards, vault},
+        payment_methods::{cards, vault, PaymentMethodRetrieve},
         payments,
     },
     db::StorageInterface,
     routes::{metrics, payment_methods, AppState},
     services,
     types::{
-        self as router_types,
         api::{self, admin, enums as api_enums, MandateValidationFieldsExt},
         domain::{
             self,
@@ -919,7 +918,7 @@ where
 pub fn response_operation<'a, F, R, Ctx>() -> BoxedOperation<'a, F, R, Ctx>
 where
     F: Send + Clone,
-    Ctx: router_types::handler::PaymentMethodRetrieve,
+    Ctx: PaymentMethodRetrieve,
     PaymentResponse: Operation<F, R, Ctx>,
 {
     Box::new(PaymentResponse)
@@ -1283,7 +1282,7 @@ pub async fn create_customer_if_not_exist<'a, F: Clone, R, Ctx>(
     ))
 }
 
-pub async fn make_pm_data<'a, F: Clone, R, Ctx: router_types::handler::PaymentMethodRetrieve>(
+pub async fn make_pm_data<'a, F: Clone, R, Ctx: PaymentMethodRetrieve>(
     operation: BoxedOperation<'a, F, R, Ctx>,
     state: &'a AppState,
     payment_data: &mut PaymentData<F>,

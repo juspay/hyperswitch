@@ -8,7 +8,6 @@
 
 pub mod api;
 pub mod domain;
-pub mod handler;
 pub mod storage;
 pub mod transformers;
 

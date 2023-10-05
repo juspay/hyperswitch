@@ -10,13 +10,13 @@ use super::{BoxedOperation, Domain, GetTracker, Operation, UpdateTracker, Valida
 use crate::{
     core::{
         errors::{self, RouterResult, StorageErrorExt},
+        payment_methods::PaymentMethodRetrieve,
         payments::{helpers, operations, CustomerDetails, PaymentAddress, PaymentData},
     },
     db::StorageInterface,
     routes::AppState,
     services,
     types::{
-        self,
         api::{self, PaymentIdTypeExt},
         domain,
         storage::{self, enums},
@@ -29,7 +29,7 @@ use crate::{
 pub struct PaymentReject;
 
 #[async_trait]
-impl<F: Send + Clone, Ctx: types::handler::PaymentMethodRetrieve>
+impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
     GetTracker<F, PaymentData<F>, PaymentsRejectRequest, Ctx> for PaymentReject
 {
     #[instrument(skip_all)]
@@ -165,7 +165,7 @@ impl<F: Send + Clone, Ctx: types::handler::PaymentMethodRetrieve>
 }
 
 #[async_trait]
-impl<F: Clone, Ctx: types::handler::PaymentMethodRetrieve>
+impl<F: Clone, Ctx: PaymentMethodRetrieve>
     UpdateTracker<F, PaymentData<F>, PaymentsRejectRequest, Ctx> for PaymentReject
 {
     #[instrument(skip_all)]
@@ -228,8 +228,8 @@ impl<F: Clone, Ctx: types::handler::PaymentMethodRetrieve>
     }
 }
 
-impl<F: Send + Clone, Ctx: types::handler::PaymentMethodRetrieve>
-    ValidateRequest<F, PaymentsRejectRequest, Ctx> for PaymentReject
+impl<F: Send + Clone, Ctx: PaymentMethodRetrieve> ValidateRequest<F, PaymentsRejectRequest, Ctx>
+    for PaymentReject
 {
     #[instrument(skip_all)]
     fn validate_request<'a, 'b>(

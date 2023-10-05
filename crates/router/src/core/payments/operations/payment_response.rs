@@ -11,6 +11,7 @@ use crate::{
     core::{
         errors::{self, RouterResult, StorageErrorExt},
         mandate,
+        payment_methods::PaymentMethodRetrieve,
         payments::{types::MultipleCaptureData, PaymentData},
         utils as core_utils,
     },

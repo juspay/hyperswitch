@@ -6,13 +6,10 @@ use router_env::{instrument, tracing, Flow};
 
 use crate::{
     compatibility::{stripe::errors, wrap},
-    core::{api_locking::GetLockingInput, payments},
+    core::{api_locking::GetLockingInput, payment_methods::Oss, payments},
     routes,
     services::{api, authentication as auth},
-    types::{
-        api::{self as api_types},
-        handler::Oss,
-    },
+    types::api::{self as api_types},
 };
 
 #[instrument(skip_all, fields(flow = ?Flow::PaymentsCreate))]

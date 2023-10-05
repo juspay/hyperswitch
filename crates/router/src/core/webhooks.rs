@@ -17,6 +17,7 @@ use crate::{
     core::{
         api_locking,
         errors::{self, ConnectorErrorExt, CustomResult, RouterResponse},
+        payment_methods::PaymentMethodRetrieve,
         payments, refunds,
     },
     db::StorageInterface,
@@ -36,7 +37,7 @@ const MERCHANT_ID: &str = "merchant_id";
 
 pub async fn payments_incoming_webhook_flow<
     W: types::OutgoingWebhookType,
-    Ctx: router_types::handler::PaymentMethodRetrieve,
+    Ctx: PaymentMethodRetrieve,
 >(
     state: AppState,
     merchant_account: domain::MerchantAccount,
@@ -457,10 +458,7 @@ pub async fn disputes_incoming_webhook_flow<W: types::OutgoingWebhookType>(
     }
 }
 
-async fn bank_transfer_webhook_flow<
-    W: types::OutgoingWebhookType,
-    Ctx: router_types::handler::PaymentMethodRetrieve,
->(
+async fn bank_transfer_webhook_flow<W: types::OutgoingWebhookType, Ctx: PaymentMethodRetrieve>(
     state: AppState,
     merchant_account: domain::MerchantAccount,
     key_store: domain::MerchantKeyStore,
@@ -753,10 +751,7 @@ pub async fn trigger_webhook_to_merchant<W: types::OutgoingWebhookType>(
     Ok(())
 }
 
-pub async fn webhooks_wrapper<
-    W: types::OutgoingWebhookType,
-    Ctx: router_types::handler::PaymentMethodRetrieve,
->(
+pub async fn webhooks_wrapper<W: types::OutgoingWebhookType, Ctx: PaymentMethodRetrieve>(
     state: AppState,
     req: &actix_web::HttpRequest,
     merchant_account: domain::MerchantAccount,
@@ -779,10 +774,7 @@ pub async fn webhooks_wrapper<
 
 #[instrument(skip_all)]
 
-pub async fn webhooks_core<
-    W: types::OutgoingWebhookType,
-    Ctx: router_types::handler::PaymentMethodRetrieve,
->(
+pub async fn webhooks_core<W: types::OutgoingWebhookType, Ctx: PaymentMethodRetrieve>(
     state: AppState,
     req: &actix_web::HttpRequest,
     merchant_account: domain::MerchantAccount,

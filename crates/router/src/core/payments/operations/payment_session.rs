@@ -11,13 +11,13 @@ use super::{BoxedOperation, Domain, GetTracker, Operation, UpdateTracker, Valida
 use crate::{
     core::{
         errors::{self, RouterResult, StorageErrorExt},
+        payment_methods::PaymentMethodRetrieve,
         payments::{self, helpers, operations, PaymentData},
     },
     db::StorageInterface,
     routes::AppState,
     services,
     types::{
-        self,
         api::{self, PaymentIdTypeExt},
         domain,
         storage::{self, enums as storage_enums},
@@ -30,7 +30,7 @@ use crate::{
 pub struct PaymentSession;
 
 #[async_trait]
-impl<F: Send + Clone, Ctx: types::handler::PaymentMethodRetrieve>
+impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
     GetTracker<F, PaymentData<F>, api::PaymentsSessionRequest, Ctx> for PaymentSession
 {
     #[instrument(skip_all)]
@@ -199,7 +199,7 @@ impl<F: Send + Clone, Ctx: types::handler::PaymentMethodRetrieve>
 }
 
 #[async_trait]
-impl<F: Clone, Ctx: types::handler::PaymentMethodRetrieve>
+impl<F: Clone, Ctx: PaymentMethodRetrieve>
     UpdateTracker<F, PaymentData<F>, api::PaymentsSessionRequest, Ctx> for PaymentSession
 {
     #[instrument(skip_all)]
@@ -237,7 +237,7 @@ impl<F: Clone, Ctx: types::handler::PaymentMethodRetrieve>
     }
 }
 
-impl<F: Send + Clone, Ctx: types::handler::PaymentMethodRetrieve>
+impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
     ValidateRequest<F, api::PaymentsSessionRequest, Ctx> for PaymentSession
 {
     #[instrument(skip_all)]
@@ -268,7 +268,7 @@ impl<F: Send + Clone, Ctx: types::handler::PaymentMethodRetrieve>
 #[async_trait]
 impl<
         F: Clone + Send,
-        Ctx: types::handler::PaymentMethodRetrieve,
+        Ctx: PaymentMethodRetrieve,
         Op: Send + Sync + Operation<F, api::PaymentsSessionRequest, Ctx>,
     > Domain<F, api::PaymentsSessionRequest, Ctx> for Op
 where

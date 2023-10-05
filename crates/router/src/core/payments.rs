@@ -37,6 +37,7 @@ use crate::{
     configs::settings::PaymentMethodTypeTokenFilter,
     core::{
         errors::{self, CustomResult, RouterResponse, RouterResult},
+        payment_methods::PaymentMethodRetrieve,
         utils,
     },
     db::StorageInterface,
@@ -82,7 +83,7 @@ where
     // To perform router related operation for PaymentResponse
     PaymentResponse: Operation<F, FData, Ctx>,
     FData: Send + Sync,
-    Ctx: router_types::handler::PaymentMethodRetrieve,
+    Ctx: PaymentMethodRetrieve,
 {
     let operation: BoxedOperation<'_, F, Req, Ctx> = Box::new(operation);
 
@@ -259,7 +260,7 @@ where
     // To create connector flow specific interface data
     PaymentData<F>: ConstructFlowSpecificData<F, FData, router_types::PaymentsResponseData>,
     router_types::RouterData<F, FData, router_types::PaymentsResponseData>: Feature<F, FData>,
-    Ctx: router_types::handler::PaymentMethodRetrieve,
+    Ctx: PaymentMethodRetrieve,
 
     // To construct connector flow specific api
     dyn router_types::api::Connector:
@@ -309,7 +310,7 @@ pub struct PaymentsRedirectResponseData {
 }
 
 #[async_trait::async_trait]
-pub trait PaymentRedirectFlow<Ctx: router_types::handler::PaymentMethodRetrieve>: Sync {
+pub trait PaymentRedirectFlow<Ctx: PaymentMethodRetrieve>: Sync {
     async fn call_payment_flow(
         &self,
         state: &AppState,
@@ -405,9 +406,7 @@ pub trait PaymentRedirectFlow<Ctx: router_types::handler::PaymentMethodRetrieve>
 pub struct PaymentRedirectCompleteAuthorize;
 
 #[async_trait::async_trait]
-impl<Ctx: router_types::handler::PaymentMethodRetrieve> PaymentRedirectFlow<Ctx>
-    for PaymentRedirectCompleteAuthorize
-{
+impl<Ctx: PaymentMethodRetrieve> PaymentRedirectFlow<Ctx> for PaymentRedirectCompleteAuthorize {
     async fn call_payment_flow(
         &self,
         state: &AppState,
@@ -497,9 +496,7 @@ impl<Ctx: router_types::handler::PaymentMethodRetrieve> PaymentRedirectFlow<Ctx>
 pub struct PaymentRedirectSync;
 
 #[async_trait::async_trait]
-impl<Ctx: router_types::handler::PaymentMethodRetrieve> PaymentRedirectFlow<Ctx>
-    for PaymentRedirectSync
-{
+impl<Ctx: PaymentMethodRetrieve> PaymentRedirectFlow<Ctx> for PaymentRedirectSync {
     async fn call_payment_flow(
         &self,
         state: &AppState,
@@ -580,7 +577,7 @@ where
     PaymentData<F>: ConstructFlowSpecificData<F, RouterDReq, router_types::PaymentsResponseData>,
     router_types::RouterData<F, RouterDReq, router_types::PaymentsResponseData>:
         Feature<F, RouterDReq> + Send,
-    Ctx: router_types::handler::PaymentMethodRetrieve,
+    Ctx: PaymentMethodRetrieve,
 
     // To construct connector flow specific api
     dyn api::Connector:
@@ -795,7 +792,7 @@ where
     // To construct connector flow specific api
     dyn api::Connector:
         services::api::ConnectorIntegration<F, Req, router_types::PaymentsResponseData>,
-    Ctx: router_types::handler::PaymentMethodRetrieve,
+    Ctx: PaymentMethodRetrieve,
 
     // To perform router related operation for PaymentResponse
     PaymentResponse: Operation<F, Req, Ctx>,
@@ -1274,7 +1271,7 @@ pub async fn get_connector_tokenization_action_when_confirm_true<F, Req, Ctx>(
 ) -> RouterResult<(PaymentData<F>, TokenizationAction)>
 where
     F: Send + Clone,
-    Ctx: router_types::handler::PaymentMethodRetrieve,
+    Ctx: PaymentMethodRetrieve,
 {
     let connector = payment_data.payment_attempt.connector.to_owned();
 
@@ -1382,7 +1379,7 @@ pub async fn tokenize_in_router_when_confirm_false<F, Req, Ctx>(
 ) -> RouterResult<PaymentData<F>>
 where
     F: Send + Clone,
-    Ctx: router_types::handler::PaymentMethodRetrieve,
+    Ctx: PaymentMethodRetrieve,
 {
     // On confirm is false and only router related
     let payment_data = if !is_operation_confirm(operation) {
@@ -1474,7 +1471,7 @@ where
     F: Send + Clone,
     Op: Operation<F, api::PaymentsRequest, Ctx> + Send + Sync,
     &'a Op: Operation<F, api::PaymentsRequest, Ctx>,
-    Ctx: router_types::handler::PaymentMethodRetrieve,
+    Ctx: PaymentMethodRetrieve,
 {
     if confirm.unwrap_or(false) {
         Box::new(PaymentConfirm)
@@ -1497,7 +1494,7 @@ where
     &'a PaymentConfirm: Operation<F, R, Ctx>,
     Op: Operation<F, R, Ctx> + Send + Sync,
     &'a Op: Operation<F, R, Ctx>,
-    Ctx: router_types::handler::PaymentMethodRetrieve,
+    Ctx: PaymentMethodRetrieve,
 {
     if confirm.unwrap_or(false) {
         Box::new(&PaymentConfirm)
@@ -1800,7 +1797,7 @@ pub async fn get_connector_choice<F, Req, Ctx>(
 ) -> RouterResult<Option<api::ConnectorCallType>>
 where
     F: Send + Clone,
-    Ctx: router_types::handler::PaymentMethodRetrieve,
+    Ctx: PaymentMethodRetrieve,
 {
     let connector_choice = operation
         .to_domain()?

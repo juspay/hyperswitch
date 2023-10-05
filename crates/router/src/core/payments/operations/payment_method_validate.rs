@@ -12,6 +12,7 @@ use crate::{
     consts,
     core::{
         errors::{self, RouterResult, StorageErrorExt},
+        payment_methods::PaymentMethodRetrieve,
         payments::{self, helpers, operations, Operation, PaymentData},
         utils as core_utils,
     },
@@ -31,8 +32,8 @@ use crate::{
 #[operation(ops = "all", flow = "verify")]
 pub struct PaymentMethodValidate;
 
-impl<F: Send + Clone, Ctx: types::handler::PaymentMethodRetrieve>
-    ValidateRequest<F, api::VerifyRequest, Ctx> for PaymentMethodValidate
+impl<F: Send + Clone, Ctx: PaymentMethodRetrieve> ValidateRequest<F, api::VerifyRequest, Ctx>
+    for PaymentMethodValidate
 {
     #[instrument(skip_all)]
     fn validate_request<'a, 'b>(
@@ -65,7 +66,7 @@ impl<F: Send + Clone, Ctx: types::handler::PaymentMethodRetrieve>
 }
 
 #[async_trait]
-impl<F: Send + Clone, Ctx: types::handler::PaymentMethodRetrieve>
+impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
     GetTracker<F, PaymentData<F>, api::VerifyRequest, Ctx> for PaymentMethodValidate
 {
     #[instrument(skip_all)]
@@ -208,8 +209,8 @@ impl<F: Send + Clone, Ctx: types::handler::PaymentMethodRetrieve>
 }
 
 #[async_trait]
-impl<F: Clone, Ctx: types::handler::PaymentMethodRetrieve>
-    UpdateTracker<F, PaymentData<F>, api::VerifyRequest, Ctx> for PaymentMethodValidate
+impl<F: Clone, Ctx: PaymentMethodRetrieve> UpdateTracker<F, PaymentData<F>, api::VerifyRequest, Ctx>
+    for PaymentMethodValidate
 {
     #[instrument(skip_all)]
     async fn update_trackers<'b>(
@@ -254,7 +255,7 @@ impl<F: Clone, Ctx: types::handler::PaymentMethodRetrieve>
 }
 
 #[async_trait]
-impl<F, Op, Ctx: types::handler::PaymentMethodRetrieve> Domain<F, api::VerifyRequest, Ctx> for Op
+impl<F, Op, Ctx: PaymentMethodRetrieve> Domain<F, api::VerifyRequest, Ctx> for Op
 where
     F: Clone + Send,
     Op: Send + Sync + Operation<F, api::VerifyRequest, Ctx>,

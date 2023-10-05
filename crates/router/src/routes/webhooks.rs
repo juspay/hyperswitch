@@ -5,10 +5,10 @@ use super::app::AppState;
 use crate::{
     core::{
         api_locking,
+        payment_methods::Oss,
         webhooks::{self, types},
     },
     services::{api, authentication as auth},
-    types::handler::Oss,
 };
 
 #[instrument(skip_all, fields(flow = ?Flow::IncomingWebhookReceive))]

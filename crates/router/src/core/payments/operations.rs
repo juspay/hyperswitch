@@ -27,7 +27,10 @@ pub use self::{
 };
 use super::{helpers, CustomerDetails, PaymentData};
 use crate::{
-    core::errors::{self, CustomResult, RouterResult},
+    core::{
+        errors::{self, CustomResult, RouterResult},
+        payment_methods::PaymentMethodRetrieve,
+    },
     db::StorageInterface,
     routes::AppState,
     services,
@@ -40,9 +43,7 @@ use crate::{
 
 pub type BoxedOperation<'a, F, T, Ctx> = Box<dyn Operation<F, T, Ctx> + Send + Sync + 'a>;
 
-pub trait Operation<F: Clone, T, Ctx: types::handler::PaymentMethodRetrieve>:
-    Send + std::fmt::Debug
-{
+pub trait Operation<F: Clone, T, Ctx: PaymentMethodRetrieve>: Send + std::fmt::Debug {
     fn to_validate_request(&self) -> RouterResult<&(dyn ValidateRequest<F, T, Ctx> + Send + Sync)> {
         Err(report!(errors::ApiErrorResponse::InternalServerError))
             .attach_printable_lazy(|| format!("validate request interface not found for {self:?}"))
@@ -82,7 +83,7 @@ pub struct ValidateResult<'a> {
 }
 
 #[allow(clippy::type_complexity)]
-pub trait ValidateRequest<F, R, Ctx: types::handler::PaymentMethodRetrieve> {
+pub trait ValidateRequest<F, R, Ctx: PaymentMethodRetrieve> {
     fn validate_request<'a, 'b>(
         &'b self,
         request: &R,
@@ -91,7 +92,7 @@ pub trait ValidateRequest<F, R, Ctx: types::handler::PaymentMethodRetrieve> {
 }
 
 #[async_trait]
-pub trait GetTracker<F, D, R, Ctx: types::handler::PaymentMethodRetrieve>: Send {
+pub trait GetTracker<F, D, R, Ctx: PaymentMethodRetrieve>: Send {
     #[allow(clippy::too_many_arguments)]
     async fn get_trackers<'a>(
         &'a self,
@@ -106,7 +107,7 @@ pub trait GetTracker<F, D, R, Ctx: types::handler::PaymentMethodRetrieve>: Send 
 }
 
 #[async_trait]
-pub trait Domain<F: Clone, R, Ctx: types::handler::PaymentMethodRetrieve>: Send + Sync {
+pub trait Domain<F: Clone, R, Ctx: PaymentMethodRetrieve>: Send + Sync {
     /// This will fetch customer details, (this operation is flow specific)
     async fn get_or_create_customer_details<'a>(
         &'a self,
@@ -149,7 +150,7 @@ pub trait Domain<F: Clone, R, Ctx: types::handler::PaymentMethodRetrieve>: Send 
 
 #[async_trait]
 #[allow(clippy::too_many_arguments)]
-pub trait UpdateTracker<F, D, Req, Ctx: types::handler::PaymentMethodRetrieve>: Send {
+pub trait UpdateTracker<F, D, Req, Ctx: PaymentMethodRetrieve>: Send {
     async fn update_trackers<'b>(
         &'b self,
         db: &dyn StorageInterface,
@@ -182,7 +183,7 @@ pub trait PostUpdateTracker<F, D, R>: Send {
 #[async_trait]
 impl<
         F: Clone + Send,
-        Ctx: types::handler::PaymentMethodRetrieve,
+        Ctx: PaymentMethodRetrieve,
         Op: Send + Sync + Operation<F, api::PaymentsRetrieveRequest, Ctx>,
     > Domain<F, api::PaymentsRetrieveRequest, Ctx> for Op
 where
@@ -243,7 +244,7 @@ where
 #[async_trait]
 impl<
         F: Clone + Send,
-        Ctx: types::handler::PaymentMethodRetrieve,
+        Ctx: PaymentMethodRetrieve,
         Op: Send + Sync + Operation<F, api::PaymentsCaptureRequest, Ctx>,
     > Domain<F, api::PaymentsCaptureRequest, Ctx> for Op
 where
@@ -303,7 +304,7 @@ where
 #[async_trait]
 impl<
         F: Clone + Send,
-        Ctx: types::handler::PaymentMethodRetrieve,
+        Ctx: PaymentMethodRetrieve,
         Op: Send + Sync + Operation<F, api::PaymentsCancelRequest, Ctx>,
     > Domain<F, api::PaymentsCancelRequest, Ctx> for Op
 where
@@ -364,7 +365,7 @@ where
 #[async_trait]
 impl<
         F: Clone + Send,
-        Ctx: types::handler::PaymentMethodRetrieve,
+        Ctx: PaymentMethodRetrieve,
         Op: Send + Sync + Operation<F, api::PaymentsRejectRequest, Ctx>,
     > Domain<F, api::PaymentsRejectRequest, Ctx> for Op
 where

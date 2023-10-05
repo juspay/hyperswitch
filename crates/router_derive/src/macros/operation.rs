@@ -61,7 +61,7 @@ impl Derives {
         let req_type = Conversion::get_req_type(self);
         quote! {
             #[automatically_derived]
-            impl<F:Send+Clone,Ctx: types::handler::PaymentMethodRetrieve,> Operation<F,#req_type,Ctx> for #struct_name {
+            impl<F:Send+Clone,Ctx: PaymentMethodRetrieve,> Operation<F,#req_type,Ctx> for #struct_name {
                 #(#fns)*
             }
         }
@@ -75,7 +75,7 @@ impl Derives {
         let req_type = Conversion::get_req_type(self);
         quote! {
             #[automatically_derived]
-            impl<F:Send+Clone,Ctx: types::handler::PaymentMethodRetrieve,> Operation<F,#req_type,Ctx> for &#struct_name {
+            impl<F:Send+Clone,Ctx: PaymentMethodRetrieve,> Operation<F,#req_type,Ctx> for &#struct_name {
                 #(#ref_fns)*
             }
         }

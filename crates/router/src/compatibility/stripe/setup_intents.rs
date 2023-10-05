@@ -9,10 +9,10 @@ use crate::{
         stripe::{errors, payment_intents::types as stripe_payment_types},
         wrap,
     },
-    core::{api_locking, payments},
+    core::{api_locking, payment_methods::Oss, payments},
     routes,
     services::{api, authentication as auth},
-    types::{api as api_types, handler::Oss},
+    types::api as api_types,
 };
 
 #[instrument(skip_all, fields(flow = ?Flow::PaymentsCreate))]

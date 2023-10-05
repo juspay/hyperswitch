@@ -14,6 +14,7 @@ use crate::{
     consts,
     core::{
         errors::{self, CustomResult, RouterResult, StorageErrorExt},
+        payment_methods::PaymentMethodRetrieve,
         payments::{self, helpers, operations, CustomerDetails, PaymentAddress, PaymentData},
         utils::{self as core_utils},
     },
@@ -39,7 +40,7 @@ pub struct PaymentCreate;
 /// The `get_trackers` function for `PaymentsCreate` is an entrypoint for new payments
 /// This will create all the entities required for a new payment from the request
 #[async_trait]
-impl<F: Send + Clone, Ctx: types::handler::PaymentMethodRetrieve>
+impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
     GetTracker<F, PaymentData<F>, api::PaymentsRequest, Ctx> for PaymentCreate
 {
     #[instrument(skip_all)]
@@ -301,8 +302,8 @@ impl<F: Send + Clone, Ctx: types::handler::PaymentMethodRetrieve>
 }
 
 #[async_trait]
-impl<F: Clone + Send, Ctx: types::handler::PaymentMethodRetrieve>
-    Domain<F, api::PaymentsRequest, Ctx> for PaymentCreate
+impl<F: Clone + Send, Ctx: PaymentMethodRetrieve> Domain<F, api::PaymentsRequest, Ctx>
+    for PaymentCreate
 {
     #[instrument(skip_all)]
     async fn get_or_create_customer_details<'a>(
@@ -366,7 +367,7 @@ impl<F: Clone + Send, Ctx: types::handler::PaymentMethodRetrieve>
 }
 
 #[async_trait]
-impl<F: Clone, Ctx: types::handler::PaymentMethodRetrieve>
+impl<F: Clone, Ctx: PaymentMethodRetrieve>
     UpdateTracker<F, PaymentData<F>, api::PaymentsRequest, Ctx> for PaymentCreate
 {
     #[instrument(skip_all)]
@@ -453,8 +454,8 @@ impl<F: Clone, Ctx: types::handler::PaymentMethodRetrieve>
     }
 }
 
-impl<F: Send + Clone, Ctx: types::handler::PaymentMethodRetrieve>
-    ValidateRequest<F, api::PaymentsRequest, Ctx> for PaymentCreate
+impl<F: Send + Clone, Ctx: PaymentMethodRetrieve> ValidateRequest<F, api::PaymentsRequest, Ctx>
+    for PaymentCreate
 {
     #[instrument(skip_all)]
     fn validate_request<'a, 'b>(

@@ -8,14 +8,16 @@ use scheduler::{
 };
 
 use crate::{
-    core::payments::{self as payment_flows, operations},
+    core::{
+        payment_methods::Oss,
+        payments::{self as payment_flows, operations},
+    },
     db::StorageInterface,
     errors,
     routes::AppState,
     services,
     types::{
         api,
-        handler::Oss,
         storage::{self, enums},
     },
 };
