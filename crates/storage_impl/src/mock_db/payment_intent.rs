@@ -106,6 +106,7 @@ impl PaymentIntentInterface for MockDb {
             profile_id: new.profile_id,
             merchant_decision: new.merchant_decision,
             payment_confirm_source: new.payment_confirm_source,
+            payment_type: new.payment_type,
         };
         payment_intents.push(payment_intent.clone());
         Ok(payment_intent)

@@ -298,6 +298,11 @@ pub struct PaymentsRequest {
     /// The business profile to use for this payment, if not passed the default business profile
     /// associated with the merchant account will be used.
     pub profile_id: Option<String>,
+
+    /// The type of the payment that differentiates between normal and various types of mandate payments
+    #[schema(value_type = Option<PaymentType>)]
+    #[serde(default)]
+    pub payment_type: api_enums::PaymentType,
 }
 
 #[derive(Default, Debug, Clone, Copy)]

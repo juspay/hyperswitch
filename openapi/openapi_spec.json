@@ -8080,6 +8080,14 @@
           "merchant_name": {
             "type": "string",
             "nullable": true
+          },
+          "payment_type": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PaymentType"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -8328,6 +8336,15 @@
             "nullable": true
           }
         }
+      },
+      "PaymentType": {
+        "type": "string",
+        "enum": [
+          "normal",
+          "new_mandate",
+          "setup_mandate",
+          "recurring_mandate"
+        ]
       },
       "PaymentsCancelRequest": {
         "type": "object",
@@ -8731,6 +8748,14 @@
             "type": "string",
             "description": "The business profile to use for this payment, if not passed the default business profile\nassociated with the merchant account will be used.",
             "nullable": true
+          },
+          "payment_type": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PaymentType"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -9069,6 +9094,14 @@
           "profile_id": {
             "type": "string",
             "description": "The business profile to use for this payment, if not passed the default business profile\nassociated with the merchant account will be used.",
+            "nullable": true
+          },
+          "payment_type": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PaymentType"
+              }
+            ],
             "nullable": true
           }
         }

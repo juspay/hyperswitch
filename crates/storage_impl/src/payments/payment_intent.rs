@@ -91,6 +91,7 @@ impl<T: DatabaseStore> PaymentIntentInterface for KVRouterStore<T> {
                     profile_id: new.profile_id.clone(),
                     merchant_decision: new.merchant_decision.clone(),
                     payment_confirm_source: new.payment_confirm_source,
+                    payment_type: new.payment_type,
                 };
 
                 match self
@@ -707,6 +708,7 @@ impl DataModelExt for PaymentIntentNew {
             profile_id: self.profile_id,
             merchant_decision: self.merchant_decision,
             payment_confirm_source: self.payment_confirm_source,
+            payment_type: self.payment_type,
         }
     }
 
@@ -744,6 +746,7 @@ impl DataModelExt for PaymentIntentNew {
             profile_id: storage_model.profile_id,
             merchant_decision: storage_model.merchant_decision,
             payment_confirm_source: storage_model.payment_confirm_source,
+            payment_type: storage_model.payment_type,
         }
     }
 }
@@ -786,6 +789,7 @@ impl DataModelExt for PaymentIntent {
             profile_id: self.profile_id,
             merchant_decision: self.merchant_decision,
             payment_confirm_source: self.payment_confirm_source,
+            payment_type: self.payment_type,
         }
     }
 
@@ -824,6 +828,7 @@ impl DataModelExt for PaymentIntent {
             profile_id: storage_model.profile_id,
             merchant_decision: storage_model.merchant_decision,
             payment_confirm_source: storage_model.payment_confirm_source,
+            payment_type: storage_model.payment_type,
         }
     }
 }

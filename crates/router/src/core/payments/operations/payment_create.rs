@@ -77,6 +77,8 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
         core_utils::validate_and_get_business_profile(db, request.profile_id.as_ref(), merchant_id)
             .await?;
 
+        let payment_type = helpers::infer_payment_type(&amount, mandate_type.as_ref());
+
         let (
             token,
             payment_method,
@@ -145,6 +147,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
             request,
             shipping_address.clone().map(|x| x.address_id),
             billing_address.clone().map(|x| x.address_id),
+            payment_type,
             attempt_id,
             state,
         )
@@ -603,6 +606,7 @@ impl PaymentCreate {
         request: &api::PaymentsRequest,
         shipping_address_id: Option<String>,
         billing_address_id: Option<String>,
+        payment_type: enums::PaymentType,
         active_attempt_id: String,
         state: &AppState,
     ) -> RouterResult<storage::PaymentIntentNew> {
@@ -677,6 +681,7 @@ impl PaymentCreate {
             profile_id: Some(profile_id),
             merchant_decision: None,
             payment_confirm_source: None,
+            payment_type: Some(payment_type),
         })
     }
 
