@@ -28,6 +28,9 @@ impl DisputeDbExt for Dispute {
             .order(dsl::modified_at.desc())
             .into_boxed();
 
+        if let Some(profile_id) = dispute_list_constraints.profile_id {
+            filter = filter.filter(dsl::profile_id.eq(profile_id));
+        }
         if let Some(received_time) = dispute_list_constraints.received_time {
             filter = filter.filter(dsl::created_at.eq(received_time));
         }
