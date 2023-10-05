@@ -139,7 +139,8 @@ impl TryFrom<&api_models::payments::PaymentMethodData> for PaymentMethod {
                     Err(error_stack::report!(errors::ConnectorError::NotSupported {
                         message: utils::SELECTED_PAYMENT_METHOD.to_string(),
                         connector: "nmi",
-                    }))
+                    })
+                    .into_report(),
                 }
             },
             api::PaymentMethodData::CardRedirect(_)
@@ -156,7 +157,8 @@ impl TryFrom<&api_models::payments::PaymentMethodData> for PaymentMethod {
                 Err(error_stack::report!(errors::ConnectorError::NotSupported {
                     message: utils::SELECTED_PAYMENT_METHOD.to_string(),
                     connector: "nmi",
-                }))
+                })
+                .into_report(),
             }
         }
     }
