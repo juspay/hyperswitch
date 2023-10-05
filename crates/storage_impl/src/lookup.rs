@@ -12,7 +12,7 @@ use redis_interface::SetnxReply;
 use crate::{
     diesel_error_to_data_error,
     redis::kv_store::{PartitionKey, RedisConnInterface},
-    utils::try_redis_get_else_try_database_get,
+    utils::{self, try_redis_get_else_try_database_get},
     DatabaseStore, KVRouterStore, RouterStore,
 };
 
@@ -54,7 +54,7 @@ impl<T: DatabaseStore> ReverseLookupInterface for RouterStore<T> {
         id: &str,
         _storage_scheme: data_models::MerchantStorageScheme,
     ) -> CustomResult<DieselReverseLookup, errors::StorageError> {
-        let conn = crate::utils::pg_connection_read(self).await?;
+        let conn = utils::pg_connection_read(self).await?;
         DieselReverseLookup::find_by_lookup_id(id, &conn)
             .await
             .map_err(|er| {
