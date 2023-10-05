@@ -1281,7 +1281,7 @@ pub async fn list_payment_methods(
             redirect_url: merchant_account.return_url,
             merchant_name: merchant_account.merchant_name,
             payment_methods: payment_method_responses,
-            payment_type: payment_intent.as_ref().map(|pi| pi.payment_type),
+            payment_type: payment_intent.as_ref().and_then(|pi| pi.payment_type),
             mandate_payment: payment_attempt.and_then(|inner| inner.mandate_details).map(
                 |d| match d {
                     data_models::mandates::MandateDataType::SingleUse(i) => {

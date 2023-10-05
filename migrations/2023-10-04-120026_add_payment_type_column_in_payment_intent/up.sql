@@ -8,4 +8,4 @@ CREATE TYPE "PaymentType" AS ENUM (
 );
 
 ALTER TABLE payment_intent
-ADD COLUMN payment_type "PaymentType" NOT NULL DEFAULT 'normal';
+ADD COLUMN payment_type "PaymentType";

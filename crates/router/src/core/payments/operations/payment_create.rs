@@ -671,7 +671,7 @@ impl PaymentCreate {
             profile_id: Some(profile_id),
             merchant_decision: None,
             payment_confirm_source: None,
-            payment_type,
+            payment_type: Some(payment_type),
         })
     }
 
