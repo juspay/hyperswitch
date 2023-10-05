@@ -1156,6 +1156,7 @@ pub async fn list_payment_methods(
                     .get(key.0)
                     .and_then(|inner_hm| inner_hm.get(payment_method_types_hm.0))
                     .cloned(),
+                surcharge_details: None,
             })
         }
 
@@ -1188,6 +1189,7 @@ pub async fn list_payment_methods(
                     .get(key.0)
                     .and_then(|inner_hm| inner_hm.get(payment_method_types_hm.0))
                     .cloned(),
+                surcharge_details: None,
             })
         }
 
@@ -1216,6 +1218,7 @@ pub async fn list_payment_methods(
                     .get(&api_enums::PaymentMethod::BankRedirect)
                     .and_then(|inner_hm| inner_hm.get(key.0))
                     .cloned(),
+                surcharge_details: None,
             }
         })
     }
@@ -1247,6 +1250,7 @@ pub async fn list_payment_methods(
                     .get(&api_enums::PaymentMethod::BankDebit)
                     .and_then(|inner_hm| inner_hm.get(key.0))
                     .cloned(),
+                surcharge_details: None,
             }
         })
     }
@@ -1278,6 +1282,7 @@ pub async fn list_payment_methods(
                     .get(&api_enums::PaymentMethod::BankTransfer)
                     .and_then(|inner_hm| inner_hm.get(key.0))
                     .cloned(),
+                surcharge_details: None,
             }
         })
     }
@@ -1320,6 +1325,7 @@ pub async fn list_payment_methods(
                     }
                 },
             ),
+            show_surcharge_breakup_screen: false,
         },
     ))
 }

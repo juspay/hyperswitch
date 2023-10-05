@@ -218,6 +218,7 @@ where
 
                     if let Some(new_mandate_data) = helpers::generate_mandate(
                         resp.merchant_id.clone(),
+                        resp.payment_id.clone(),
                         resp.connector.clone(),
                         resp.request.get_setup_mandate_details().map(Clone::clone),
                         maybe_customer,
