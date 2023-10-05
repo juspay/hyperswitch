@@ -122,7 +122,7 @@ impl
     // Not Implemented (R)
 }
 
-impl api::PreVerify for Aci {}
+impl api::MandateSetup for Aci {}
 
 impl
     services::ConnectorIntegration<

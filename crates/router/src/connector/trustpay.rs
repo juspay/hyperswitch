@@ -164,7 +164,7 @@ impl
     // Not Implemented (R)
 }
 
-impl api::PreVerify for Trustpay {}
+impl api::MandateSetup for Trustpay {}
 impl
     ConnectorIntegration<
         api::SetupMandate,

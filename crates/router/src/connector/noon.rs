@@ -38,7 +38,7 @@ pub struct Noon;
 impl api::Payment for Noon {}
 impl api::PaymentSession for Noon {}
 impl api::ConnectorAccessToken for Noon {}
-impl api::PreVerify for Noon {}
+impl api::MandateSetup for Noon {}
 impl api::PaymentAuthorize for Noon {}
 impl api::PaymentSync for Noon {}
 impl api::PaymentCapture for Noon {}

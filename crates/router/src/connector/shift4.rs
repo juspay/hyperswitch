@@ -148,7 +148,7 @@ impl ConnectorIntegration<api::AccessTokenAuth, types::AccessTokenRequestData, t
     // Not Implemented (R)
 }
 
-impl api::PreVerify for Shift4 {}
+impl api::MandateSetup for Shift4 {}
 impl
     ConnectorIntegration<
         api::SetupMandate,

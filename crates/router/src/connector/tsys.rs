@@ -30,7 +30,7 @@ pub struct Tsys;
 impl api::Payment for Tsys {}
 impl api::PaymentSession for Tsys {}
 impl api::ConnectorAccessToken for Tsys {}
-impl api::PreVerify for Tsys {}
+impl api::MandateSetup for Tsys {}
 impl api::PaymentAuthorize for Tsys {}
 impl api::PaymentSync for Tsys {}
 impl api::PaymentCapture for Tsys {}

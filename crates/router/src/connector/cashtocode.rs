@@ -32,7 +32,7 @@ pub struct Cashtocode;
 impl api::Payment for Cashtocode {}
 impl api::PaymentSession for Cashtocode {}
 impl api::ConnectorAccessToken for Cashtocode {}
-impl api::PreVerify for Cashtocode {}
+impl api::MandateSetup for Cashtocode {}
 impl api::PaymentAuthorize for Cashtocode {}
 impl api::PaymentSync for Cashtocode {}
 impl api::PaymentCapture for Cashtocode {}

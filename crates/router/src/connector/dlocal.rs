@@ -37,7 +37,7 @@ impl api::Payment for Dlocal {}
 impl api::PaymentToken for Dlocal {}
 impl api::PaymentSession for Dlocal {}
 impl api::ConnectorAccessToken for Dlocal {}
-impl api::PreVerify for Dlocal {}
+impl api::MandateSetup for Dlocal {}
 impl api::PaymentAuthorize for Dlocal {}
 impl api::PaymentSync for Dlocal {}
 impl api::PaymentCapture for Dlocal {}

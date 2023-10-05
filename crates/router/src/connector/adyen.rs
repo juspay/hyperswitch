@@ -114,7 +114,7 @@ impl api::PaymentAuthorize for Adyen {}
 impl api::PaymentSync for Adyen {}
 impl api::PaymentVoid for Adyen {}
 impl api::PaymentCapture for Adyen {}
-impl api::PreVerify for Adyen {}
+impl api::MandateSetup for Adyen {}
 impl api::ConnectorAccessToken for Adyen {}
 impl api::PaymentToken for Adyen {}
 

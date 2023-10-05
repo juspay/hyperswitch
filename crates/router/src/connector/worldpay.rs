@@ -111,7 +111,7 @@ impl ConnectorValidation for Worldpay {
 
 impl api::Payment for Worldpay {}
 
-impl api::PreVerify for Worldpay {}
+impl api::MandateSetup for Worldpay {}
 impl
     ConnectorIntegration<
         api::SetupMandate,

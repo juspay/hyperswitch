@@ -33,7 +33,7 @@ impl api::Payment for Payme {}
 impl api::PaymentSession for Payme {}
 impl api::PaymentsCompleteAuthorize for Payme {}
 impl api::ConnectorAccessToken for Payme {}
-impl api::PreVerify for Payme {}
+impl api::MandateSetup for Payme {}
 impl api::PaymentAuthorize for Payme {}
 impl api::PaymentSync for Payme {}
 impl api::PaymentCapture for Payme {}

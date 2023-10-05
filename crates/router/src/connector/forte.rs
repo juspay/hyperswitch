@@ -36,7 +36,7 @@ pub struct Forte;
 impl api::Payment for Forte {}
 impl api::PaymentSession for Forte {}
 impl api::ConnectorAccessToken for Forte {}
-impl api::PreVerify for Forte {}
+impl api::MandateSetup for Forte {}
 impl api::PaymentAuthorize for Forte {}
 impl api::PaymentSync for Forte {}
 impl api::PaymentCapture for Forte {}

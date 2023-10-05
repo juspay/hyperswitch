@@ -140,7 +140,7 @@ impl ConnectorValidation for Payeezy {
 
 impl api::Payment for Payeezy {}
 
-impl api::PreVerify for Payeezy {}
+impl api::MandateSetup for Payeezy {}
 impl
     ConnectorIntegration<
         api::SetupMandate,

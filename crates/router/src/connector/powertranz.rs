@@ -36,7 +36,7 @@ pub struct Powertranz;
 impl api::Payment for Powertranz {}
 impl api::PaymentSession for Powertranz {}
 impl api::ConnectorAccessToken for Powertranz {}
-impl api::PreVerify for Powertranz {}
+impl api::MandateSetup for Powertranz {}
 impl api::PaymentAuthorize for Powertranz {}
 impl api::PaymentsCompleteAuthorize for Powertranz {}
 impl api::PaymentSync for Powertranz {}

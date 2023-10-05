@@ -226,7 +226,7 @@ impl api::PaymentAuthorize for Cybersource {}
 impl api::PaymentSync for Cybersource {}
 impl api::PaymentVoid for Cybersource {}
 impl api::PaymentCapture for Cybersource {}
-impl api::PreVerify for Cybersource {}
+impl api::MandateSetup for Cybersource {}
 impl api::ConnectorAccessToken for Cybersource {}
 impl api::PaymentToken for Cybersource {}
 

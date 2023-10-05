@@ -275,7 +275,7 @@ impl ConnectorIntegration<api::AccessTokenAuth, types::AccessTokenRequestData, t
     // Not Implemented (R)
 }
 
-impl api::PreVerify for Checkout {}
+impl api::MandateSetup for Checkout {}
 
 impl
     ConnectorIntegration<

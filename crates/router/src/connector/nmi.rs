@@ -27,7 +27,7 @@ pub struct Nmi;
 impl api::Payment for Nmi {}
 impl api::PaymentSession for Nmi {}
 impl api::ConnectorAccessToken for Nmi {}
-impl api::PreVerify for Nmi {}
+impl api::MandateSetup for Nmi {}
 impl api::PaymentAuthorize for Nmi {}
 impl api::PaymentSync for Nmi {}
 impl api::PaymentCapture for Nmi {}

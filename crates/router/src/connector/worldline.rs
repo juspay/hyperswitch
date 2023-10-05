@@ -162,7 +162,7 @@ impl ConnectorIntegration<api::AccessTokenAuth, types::AccessTokenRequestData, t
 
 impl api::Payment for Worldline {}
 
-impl api::PreVerify for Worldline {}
+impl api::MandateSetup for Worldline {}
 impl
     ConnectorIntegration<
         api::SetupMandate,

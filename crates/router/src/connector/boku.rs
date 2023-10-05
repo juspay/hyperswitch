@@ -37,7 +37,7 @@ pub struct Boku;
 impl api::Payment for Boku {}
 impl api::PaymentSession for Boku {}
 impl api::ConnectorAccessToken for Boku {}
-impl api::PreVerify for Boku {}
+impl api::MandateSetup for Boku {}
 impl api::PaymentAuthorize for Boku {}
 impl api::PaymentSync for Boku {}
 impl api::PaymentCapture for Boku {}

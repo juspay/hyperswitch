@@ -453,7 +453,7 @@ impl
     }
 }
 
-impl api::PreVerify for Stripe {}
+impl api::MandateSetup for Stripe {}
 
 impl
     services::ConnectorIntegration<

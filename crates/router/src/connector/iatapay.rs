@@ -34,7 +34,7 @@ pub struct Iatapay;
 impl api::Payment for Iatapay {}
 impl api::PaymentSession for Iatapay {}
 impl api::ConnectorAccessToken for Iatapay {}
-impl api::PreVerify for Iatapay {}
+impl api::MandateSetup for Iatapay {}
 impl api::PaymentAuthorize for Iatapay {}
 impl api::PaymentSync for Iatapay {}
 impl api::PaymentCapture for Iatapay {}
