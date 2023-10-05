@@ -166,6 +166,7 @@ impl TryFrom<types::SetupMandateRequestData> for types::ConnectorCustomerData {
             phone: None,
             name: None,
             preprocessing_id: None,
+            setup_mandate_details: data.setup_mandate_details,
         })
     }
 }

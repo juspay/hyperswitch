@@ -415,6 +415,7 @@ pub struct ConnectorCustomerData {
     pub name: Option<String>,
     pub preprocessing_id: Option<String>,
     pub payment_method_data: payments::PaymentMethodData,
+    pub setup_mandate_details: Option<MandateData>,
 }
 
 #[derive(Debug, Clone)]
@@ -998,6 +999,7 @@ impl From<&&mut PaymentsAuthorizeRouterData> for ConnectorCustomerData {
             description: None,
             phone: None,
             name: None,
+            setup_mandate_details: data.request.setup_mandate_details.clone(),
         }
     }
 }

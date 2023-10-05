@@ -220,22 +220,21 @@ impl
 
 impl
     ConnectorIntegration<
-        api::PaymentMethodToken,
-        types::PaymentMethodTokenizationData,
+        api::PreProcessing,
+        types::PaymentsPreProcessingData,
         types::PaymentsResponseData,
     > for Gocardless
 {
     fn get_headers(
         &self,
-        req: &types::TokenizationRouterData,
+        req: &types::PaymentsPreProcessingRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
         self.build_headers(req, connectors)
     }
-
     fn get_url(
         &self,
-        _req: &types::TokenizationRouterData,
+        _req: &types::PaymentsPreProcessingRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         Ok(format!(
@@ -243,10 +242,9 @@ impl
             self.base_url(connectors),
         ))
     }
-
     fn get_request_body(
         &self,
-        req: &types::TokenizationRouterData,
+        req: &types::PaymentsPreProcessingRouterData,
     ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
         let req_obj = gocardless::GocardlessBankAccountRequest::try_from(req)?;
         let gocardless_req = types::RequestBody::log_and_get_request_body(
@@ -256,31 +254,48 @@ impl
         .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(Some(gocardless_req))
     }
-
     fn build_request(
         &self,
-        req: &types::TokenizationRouterData,
+        req: &types::PaymentsPreProcessingRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<Option<common_utils::request::Request>, errors::ConnectorError> {
-        Ok(Some(
-            services::RequestBuilder::new()
-                .method(services::Method::Post)
-                .url(&types::TokenizationType::get_url(self, req, connectors)?)
-                .attach_default_headers()
-                .headers(types::TokenizationType::get_headers(self, req, connectors)?)
-                .body(types::TokenizationType::get_request_body(self, req)?)
-                .build(),
-        ))
+        print!("Inside preprocessing.......");
+        // Preprocessing should be executed only for setup mandates
+        if req.request.setup_mandate_details.is_some() {
+            Ok(Some(
+                services::RequestBuilder::new()
+                    .method(services::Method::Post)
+                    .url(&types::PaymentsPreProcessingType::get_url(
+                        self, req, connectors,
+                    )?)
+                    .attach_default_headers()
+                    .headers(types::PaymentsPreProcessingType::get_headers(
+                        self, req, connectors,
+                    )?)
+                    .body(types::PaymentsPreProcessingType::get_request_body(
+                        self, req,
+                    )?)
+                    .build(),
+            ))
+        } else {
+            Ok(None)
+        }
     }
-
     fn handle_response(
         &self,
-        data: &types::TokenizationRouterData,
+        data: &types::PaymentsPreProcessingRouterData,
         res: Response,
-    ) -> CustomResult<types::TokenizationRouterData, errors::ConnectorError>
+    ) -> CustomResult<
+        types::RouterData<
+            api::PreProcessing,
+            types::PaymentsPreProcessingData,
+            types::PaymentsResponseData,
+        >,
+        errors::ConnectorError,
+    >
     where
-        api::PaymentMethodToken: Clone,
-        types::PaymentMethodTokenizationData: Clone,
+        api::PreProcessing: Clone,
+        types::PaymentsPreProcessingData: Clone,
         types::PaymentsResponseData: Clone,
     {
         let response: gocardless::GocardlessBankAccountResponse = res
@@ -293,7 +308,6 @@ impl
             http_code: res.status_code,
         })
     }
-
     fn get_error_response(
         &self,
         res: Response,
@@ -304,8 +318,8 @@ impl
 
 impl
     ConnectorIntegration<
-        api::PreProcessing,
-        types::PaymentsPreProcessingData,
+        api::PaymentMethodToken,
+        types::PaymentMethodTokenizationData,
         types::PaymentsResponseData,
     > for Gocardless
 {
@@ -380,7 +394,6 @@ impl
         req: &types::SetupMandateRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<Option<common_utils::request::Request>, errors::ConnectorError> {
-        // Preprocessing flow is to create mandate, which should to be called only in case of First mandate
         if req.request.setup_mandate_details.is_some() {
             Ok(Some(
                 services::RequestBuilder::new()

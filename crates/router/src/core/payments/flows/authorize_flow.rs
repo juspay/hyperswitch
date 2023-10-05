@@ -347,6 +347,7 @@ impl<F> TryFrom<&types::RouterData<F, types::PaymentsAuthorizeData, types::Payme
             phone: None,
             name: None,
             preprocessing_id: data.preprocessing_id.clone(),
+            setup_mandate_details: data.request.setup_mandate_details.clone(),
         })
     }
 }

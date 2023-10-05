@@ -1029,6 +1029,7 @@ where
             }
         }
         Some(api_models::payments::PaymentMethodData::BankDebit(_)) => {
+            print!("complete_preprocessing_steps_if_required: true");
             if connector.connector_name == router_types::Connector::Gocardless {
                 router_data = router_data.preprocessing_steps(state, connector).await?;
                 let is_error_in_response = router_data.response.is_err();
