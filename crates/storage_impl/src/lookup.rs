@@ -10,6 +10,7 @@ use error_stack::{IntoReport, ResultExt};
 use redis_interface::SetnxReply;
 
 use crate::{
+    diesel_error_to_data_error,
     redis::kv_store::{PartitionKey, RedisConnInterface},
     utils::try_redis_get_else_try_database_get,
     DatabaseStore, KVRouterStore, RouterStore,
@@ -43,7 +44,7 @@ impl<T: DatabaseStore> ReverseLookupInterface for RouterStore<T> {
             .into_report()
             .change_context(errors::StorageError::DatabaseConnectionError)?;
         new.insert(&conn).await.map_err(|er| {
-            let new_err = crate::diesel_error_to_data_error(er.current_context());
+            let new_err = diesel_error_to_data_error(er.current_context());
             er.change_context(new_err)
         })
     }
@@ -57,7 +58,7 @@ impl<T: DatabaseStore> ReverseLookupInterface for RouterStore<T> {
         DieselReverseLookup::find_by_lookup_id(id, &conn)
             .await
             .map_err(|er| {
-                let new_err = crate::diesel_error_to_data_error(er.current_context());
+                let new_err = diesel_error_to_data_error(er.current_context());
                 er.change_context(new_err)
             })
     }

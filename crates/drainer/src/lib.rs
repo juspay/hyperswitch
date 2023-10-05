@@ -165,7 +165,7 @@ async fn drainer(
         let payment_intent = "payment_intent";
         let payment_attempt = "payment_attempt";
         let refund = "refund";
-        let reverse_lookup = "reverse";
+        let reverse_lookup = "reverse_lookup";
         let connector_response = "connector_response";
         let address = "address";
         match db_op {
