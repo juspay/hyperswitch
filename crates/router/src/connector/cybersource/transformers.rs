@@ -325,7 +325,10 @@ impl<F, T>
                     mandate_reference: None,
                     connector_metadata: None,
                     network_txn_id: None,
-                    connector_response_reference_id: item.response.client_reference_information.code,
+                    connector_response_reference_id: item
+                        .response
+                        .client_reference_information
+                        .code,
                 }),
             },
             ..item.data
