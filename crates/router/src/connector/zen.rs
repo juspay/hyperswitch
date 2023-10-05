@@ -36,7 +36,7 @@ pub struct Zen;
 impl api::Payment for Zen {}
 impl api::PaymentSession for Zen {}
 impl api::ConnectorAccessToken for Zen {}
-impl api::PreVerify for Zen {}
+impl api::MandateSetup for Zen {}
 impl api::PaymentAuthorize for Zen {}
 impl api::PaymentSync for Zen {}
 impl api::PaymentCapture for Zen {}

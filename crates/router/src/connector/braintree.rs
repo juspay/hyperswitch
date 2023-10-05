@@ -375,7 +375,7 @@ impl
     }
 }
 
-impl api::PreVerify for Braintree {}
+impl api::MandateSetup for Braintree {}
 
 #[allow(dead_code)]
 impl

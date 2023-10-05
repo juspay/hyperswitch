@@ -98,7 +98,7 @@ impl
     // Not Implemented (R)
 }
 
-impl api::PreVerify for Nuvei {}
+impl api::MandateSetup for Nuvei {}
 impl api::PaymentVoid for Nuvei {}
 impl api::PaymentSync for Nuvei {}
 impl api::PaymentCapture for Nuvei {}

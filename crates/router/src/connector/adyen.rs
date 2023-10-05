@@ -114,7 +114,7 @@ impl api::PaymentAuthorize for Adyen {}
 impl api::PaymentSync for Adyen {}
 impl api::PaymentVoid for Adyen {}
 impl api::PaymentCapture for Adyen {}
-impl api::PreVerify for Adyen {}
+impl api::MandateSetup for Adyen {}
 impl api::ConnectorAccessToken for Adyen {}
 impl api::PaymentToken for Adyen {}
 
@@ -152,7 +152,7 @@ impl
     ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
         let mut header = vec![(
             headers::CONTENT_TYPE.to_string(),
-            types::PaymentsVerifyType::get_content_type(self)
+            types::SetupMandateType::get_content_type(self)
                 .to_string()
                 .into(),
         )];
@@ -199,12 +199,10 @@ impl
         Ok(Some(
             services::RequestBuilder::new()
                 .method(services::Method::Post)
-                .url(&types::PaymentsVerifyType::get_url(self, req, connectors)?)
+                .url(&types::SetupMandateType::get_url(self, req, connectors)?)
                 .attach_default_headers()
-                .headers(types::PaymentsVerifyType::get_headers(
-                    self, req, connectors,
-                )?)
-                .body(types::PaymentsVerifyType::get_request_body(self, req)?)
+                .headers(types::SetupMandateType::get_headers(self, req, connectors)?)
+                .body(types::SetupMandateType::get_request_body(self, req)?)
                 .build(),
         ))
     }
@@ -1498,7 +1496,7 @@ impl api::IncomingWebhook for Adyen {
 
         let raw_key = hex::decode(connector_webhook_secrets.secret)
             .into_report()
-            .change_context(errors::ConnectorError::WebhookSignatureNotFound)?;
+            .change_context(errors::ConnectorError::WebhookVerificationSecretInvalid)?;
 
         let signing_key = hmac::Key::new(hmac::HMAC_SHA256, &raw_key);
         let signed_messaged = hmac::sign(&signing_key, &message);

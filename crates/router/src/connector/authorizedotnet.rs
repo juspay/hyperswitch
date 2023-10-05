@@ -104,7 +104,7 @@ impl ConnectorIntegration<api::AccessTokenAuth, types::AccessTokenRequestData, t
     // Not Implemented (R)
 }
 
-impl api::PreVerify for Authorizedotnet {}
+impl api::MandateSetup for Authorizedotnet {}
 
 impl
     ConnectorIntegration<

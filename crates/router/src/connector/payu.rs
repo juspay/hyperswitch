@@ -117,7 +117,7 @@ impl ConnectorValidation for Payu {
 
 impl api::Payment for Payu {}
 
-impl api::PreVerify for Payu {}
+impl api::MandateSetup for Payu {}
 impl
     ConnectorIntegration<
         api::SetupMandate,

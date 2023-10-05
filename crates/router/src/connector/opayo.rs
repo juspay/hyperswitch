@@ -31,7 +31,7 @@ pub struct Opayo;
 impl api::Payment for Opayo {}
 impl api::PaymentSession for Opayo {}
 impl api::ConnectorAccessToken for Opayo {}
-impl api::PreVerify for Opayo {}
+impl api::MandateSetup for Opayo {}
 impl api::PaymentAuthorize for Opayo {}
 impl api::PaymentSync for Opayo {}
 impl api::PaymentCapture for Opayo {}

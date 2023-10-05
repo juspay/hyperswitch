@@ -119,7 +119,7 @@ impl api::PaymentAuthorize for Wise {}
 impl api::PaymentSync for Wise {}
 impl api::PaymentVoid for Wise {}
 impl api::PaymentCapture for Wise {}
-impl api::PreVerify for Wise {}
+impl api::MandateSetup for Wise {}
 impl api::ConnectorAccessToken for Wise {}
 impl api::PaymentToken for Wise {}
 impl ConnectorValidation for Wise {}

@@ -34,7 +34,7 @@ impl api::Payment for Coinbase {}
 impl api::PaymentToken for Coinbase {}
 impl api::PaymentSession for Coinbase {}
 impl api::ConnectorAccessToken for Coinbase {}
-impl api::PreVerify for Coinbase {}
+impl api::MandateSetup for Coinbase {}
 impl api::PaymentAuthorize for Coinbase {}
 impl api::PaymentSync for Coinbase {}
 impl api::PaymentCapture for Coinbase {}

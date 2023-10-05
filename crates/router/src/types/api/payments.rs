@@ -159,7 +159,7 @@ pub trait PaymentSession:
 {
 }
 
-pub trait PreVerify:
+pub trait MandateSetup:
     api::ConnectorIntegration<SetupMandate, types::SetupMandateRequestData, types::PaymentsResponseData>
 {
 }
@@ -210,7 +210,7 @@ pub trait Payment:
     + PaymentVoid
     + PaymentApprove
     + PaymentReject
-    + PreVerify
+    + MandateSetup
     + PaymentSession
     + PaymentToken
     + PaymentsPreProcessing

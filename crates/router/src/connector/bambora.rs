@@ -128,7 +128,7 @@ impl
     // Not Implemented (R)
 }
 
-impl api::PreVerify for Bambora {}
+impl api::MandateSetup for Bambora {}
 impl
     ConnectorIntegration<
         api::SetupMandate,

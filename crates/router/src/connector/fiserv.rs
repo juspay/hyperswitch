@@ -195,7 +195,7 @@ impl
     // Not Implemented (R)
 }
 
-impl api::PreVerify for Fiserv {}
+impl api::MandateSetup for Fiserv {}
 
 #[allow(dead_code)]
 impl

@@ -27,7 +27,7 @@ pub struct Nmi;
 impl api::Payment for Nmi {}
 impl api::PaymentSession for Nmi {}
 impl api::ConnectorAccessToken for Nmi {}
-impl api::PreVerify for Nmi {}
+impl api::MandateSetup for Nmi {}
 impl api::PaymentAuthorize for Nmi {}
 impl api::PaymentSync for Nmi {}
 impl api::PaymentCapture for Nmi {}
@@ -157,11 +157,9 @@ impl
         Ok(Some(
             services::RequestBuilder::new()
                 .method(services::Method::Post)
-                .url(&types::PaymentsVerifyType::get_url(self, req, connectors)?)
-                .headers(types::PaymentsVerifyType::get_headers(
-                    self, req, connectors,
-                )?)
-                .body(types::PaymentsVerifyType::get_request_body(self, req)?)
+                .url(&types::SetupMandateType::get_url(self, req, connectors)?)
+                .headers(types::SetupMandateType::get_headers(self, req, connectors)?)
+                .body(types::SetupMandateType::get_request_body(self, req)?)
                 .build(),
         ))
     }

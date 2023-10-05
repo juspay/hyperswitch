@@ -331,7 +331,7 @@ impl
     // Not Implemented (R)
 }
 
-impl api::PreVerify for Globalpay {}
+impl api::MandateSetup for Globalpay {}
 impl
     ConnectorIntegration<
         api::SetupMandate,

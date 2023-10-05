@@ -207,7 +207,7 @@ impl
     }
 }
 
-impl api::PreVerify for Klarna {}
+impl api::MandateSetup for Klarna {}
 
 impl
     services::ConnectorIntegration<

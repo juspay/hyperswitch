@@ -39,7 +39,7 @@ pub struct Cryptopay;
 impl api::Payment for Cryptopay {}
 impl api::PaymentSession for Cryptopay {}
 impl api::ConnectorAccessToken for Cryptopay {}
-impl api::PreVerify for Cryptopay {}
+impl api::MandateSetup for Cryptopay {}
 impl api::PaymentAuthorize for Cryptopay {}
 impl api::PaymentSync for Cryptopay {}
 impl api::PaymentCapture for Cryptopay {}
