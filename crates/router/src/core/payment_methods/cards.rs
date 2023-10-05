@@ -863,9 +863,9 @@ pub async fn list_payment_methods(
 
     let payment_type = payment_attempt.as_ref().map(|pa| {
         let amount = api::Amount::from(pa.amount);
-        let mandate_type = if let Some(_) = pa.mandate_id {
+        let mandate_type = if pa.mandate_id.is_some() {
             Some(api::MandateTransactionType::RecurringMandateTransaction)
-        } else if let Some(_) = pa.mandate_details {
+        } else if pa.mandate_details.is_some() {
             Some(api::MandateTransactionType::NewMandateTransaction)
         } else {
             None
