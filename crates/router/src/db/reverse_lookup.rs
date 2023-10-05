@@ -23,6 +23,8 @@ pub trait ReverseLookupInterface {
 
 #[cfg(not(feature = "kv_store"))]
 mod storage {
+    use error_stack::IntoReport;
+
     use super::{ReverseLookupInterface, Store};
     use crate::{
         connection,
@@ -32,7 +34,6 @@ mod storage {
             reverse_lookup::{ReverseLookup, ReverseLookupNew},
         },
     };
-    use error_stack::IntoReport;
 
     #[async_trait::async_trait]
     impl ReverseLookupInterface for Store {
