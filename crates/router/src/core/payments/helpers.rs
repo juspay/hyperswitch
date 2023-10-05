@@ -633,20 +633,22 @@ pub fn validate_card_data(
 }
 
 pub fn infer_payment_type(
-    req: &api::PaymentsRequest,
+    amount: &api::Amount,
     mandate_type: Option<&api::MandateTransactionType>,
 ) -> api_enums::PaymentType {
     match mandate_type {
         Some(api::MandateTransactionType::NewMandateTransaction) => {
-            if let Some(api::Amount::Value(_)) = req.amount {
+            if let api::Amount::Value(_) = amount {
                 api_enums::PaymentType::NewMandate
             } else {
                 api_enums::PaymentType::SetupMandate
             }
         }
+
         Some(api::MandateTransactionType::RecurringMandateTransaction) => {
             api_enums::PaymentType::RecurringMandate
         }
+
         None => api_enums::PaymentType::Normal,
     }
 }

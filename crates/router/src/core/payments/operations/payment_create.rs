@@ -75,7 +75,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
         core_utils::validate_and_get_business_profile(db, request.profile_id.as_ref(), merchant_id)
             .await?;
 
-        let payment_type = helpers::infer_payment_type(request, mandate_type.as_ref());
+        let payment_type = helpers::infer_payment_type(&amount, mandate_type.as_ref());
 
         let (
             token,
