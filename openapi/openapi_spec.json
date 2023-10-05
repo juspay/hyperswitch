@@ -8337,6 +8337,15 @@
           }
         }
       },
+      "PaymentType": {
+        "type": "string",
+        "enum": [
+          "normal",
+          "new_mandate",
+          "setup_mandate",
+          "recurring_mandate"
+        ]
+      },
       "PaymentsCancelRequest": {
         "type": "object",
         "required": [
