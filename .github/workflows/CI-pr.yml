@@ -63,7 +63,7 @@ jobs:
         shell: bash
         run: |
           cargo +nightly fmt --all
-          if git diff --exit-code --quiet; then
+          if ! git diff --exit-code --quiet; then
             echo "::notice::Formatting check failed"
             git config --local user.name 'github-actions[bot]'
             git config --local user.email '41898282+github-actions[bot]@users.noreply.github.com'
