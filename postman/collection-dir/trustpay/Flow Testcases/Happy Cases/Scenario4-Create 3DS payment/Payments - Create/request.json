@@ -30,7 +30,7 @@
       "phone": "999999999",
       "phone_country_code": "+1",
       "description": "Its my first payment request",
-      "authentication_type": "no_three_ds",
+      "authentication_type": "three_ds",
       "billing": {
         "address": {
           "line1": "1467",
@@ -68,7 +68,7 @@
       "payment_method": "card",
       "payment_method_data": {
         "card": {
-          "card_number": "4200000000000067",
+          "card_number": "5200000000000015",
           "card_exp_month": "03",
           "card_exp_year": "2030",
           "card_holder_name": "something",
