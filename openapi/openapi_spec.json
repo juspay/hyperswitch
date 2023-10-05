@@ -8084,7 +8084,7 @@
           "payment_type": {
             "allOf": [
               {
-                "$ref": "#/components/schemas/api_enums.PaymentType"
+                "$ref": "#/components/schemas/PaymentType"
               }
             ],
             "nullable": true
@@ -8412,8 +8412,7 @@
         "type": "object",
         "required": [
           "amount",
-          "currency",
-          "payment_type"
+          "currency"
         ],
         "properties": {
           "payment_id": {
@@ -8751,7 +8750,12 @@
             "nullable": true
           },
           "payment_type": {
-            "$ref": "#/components/schemas/api_enums.PaymentType"
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PaymentType"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -9093,7 +9097,12 @@
             "nullable": true
           },
           "payment_type": {
-            "$ref": "#/components/schemas/api_enums.PaymentType"
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PaymentType"
+              }
+            ],
+            "nullable": true
           }
         }
       },
