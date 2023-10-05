@@ -1,16 +1,16 @@
 use std::collections::HashMap;
 
 use cards::CardNumber;
-use common_utils::{crypto::OptionalEncryptableName, pii};
+use common_utils::{
+    consts::SURCHARGE_PERCENTAGE_PRECISION_LENGTH, crypto::OptionalEncryptableName, pii,
+};
 use serde::de;
 use utoipa::ToSchema;
 
 #[cfg(feature = "payouts")]
 use crate::payouts;
 use crate::{
-    admin,
-    consts::SURCHARGE_PERCENTAGE_PRECISION_LENGTH,
-    enums as api_enums,
+    admin, enums as api_enums,
     payments::{self, BankCodeResponse},
     types::Percentage,
 };
