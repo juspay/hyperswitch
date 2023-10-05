@@ -43,6 +43,10 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v3
+        with:
+          ref: ${{ github.event.pull_request.head.ref }}
+          repository: ${{ github.event.pull_request.head.repo.full_name }}
+          
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@master
@@ -50,9 +54,24 @@ jobs:
           toolchain: nightly
           components: rustfmt
 
-      - name: Check formatting
+      - name: Check formatting for forked pull requests
+        if: ${{ github.event.pull_request.head.repo.full_name != github.event.pull_request.base.repo.full_name }}
         shell: bash
         run: cargo +nightly fmt --all --check
+
+      - name: Run formatter 
+        if: ${{ github.event.pull_request.head.repo.full_name == github.event.pull_request.base.repo.full_name }}
+        shell: bash
+        run: |
+          cargo +nightly fmt --all
+          if ! git diff --exit-code --quiet -- crates; then
+            echo "::notice::Formatting check failed"
+            git config --local user.name 'github-actions[bot]'
+            git config --local user.email '41898282+github-actions[bot]@users.noreply.github.com'
+            git add crates
+            git commit --message 'chore: run formatter'
+            git push
+          fi
 
   check-msrv:
     name: Check compilation on MSRV toolchain
