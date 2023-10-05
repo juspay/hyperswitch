@@ -471,7 +471,7 @@ impl<F, T>
                 mandate_reference: None,
                 connector_metadata: None,
                 network_txn_id: None,
-                connector_response_reference_id: order.ext_order_id.or(Some(order.order_id)),
+                connector_response_reference_id: order.ext_order_id.clone().or(Some(order.order_id.clone())),
             }),
             amount_captured: Some(
                 order
