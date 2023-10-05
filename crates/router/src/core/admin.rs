@@ -230,6 +230,16 @@ pub async fn create_merchant_account(
     })
     .ok();
 
+    db.insert_config(diesel_models::configs::ConfigNew {
+        key: format!("should_call_gsm_{}", merchant_account.merchant_id),
+        config: "false".to_string(),
+    })
+    .await
+    .map_err(|err| {
+        crate::logger::error!("Error while setting should_call_gsm config: {err:?}");
+    })
+    .ok();
+
     Ok(service_api::ApplicationResponse::Json(
         merchant_account
             .try_into()
