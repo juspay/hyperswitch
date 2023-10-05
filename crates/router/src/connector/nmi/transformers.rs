@@ -135,11 +135,10 @@ impl TryFrom<&api_models::payments::PaymentMethodData> for PaymentMethod {
                 | api_models::payments::WalletData::WeChatPayRedirect(_)
                 | api_models::payments::WalletData::WeChatPayQr(_)
                 | api_models::payments::WalletData::CashappQr(_)
-                | api_models::payments::WalletData::SwishQr(_) 
-                => {
+                | api_models::payments::WalletData::SwishQr(_) => {
                     Err(error_stack::report!(errors::ConnectorError::NotSupported {
                         message: utils::SELECTED_PAYMENT_METHOD.to_string(),
-                        connector:"nmi",
+                        connector: "nmi",
                     }))
                 }
             },
@@ -154,9 +153,9 @@ impl TryFrom<&api_models::payments::PaymentMethodData> for PaymentMethod {
             | api::PaymentMethodData::Upi(_)
             | api::PaymentMethodData::Voucher(_)
             | api::PaymentMethodData::GiftCard(_) => {
-                Err(error_stack::report!(errors::ConnectorError::NotSupported{
+                Err(error_stack::report!(errors::ConnectorError::NotSupported {
                     message: utils::SELECTED_PAYMENT_METHOD.to_string(),
-                    connector:"nmi",
+                    connector: "nmi",
                 }))
             }
         }
