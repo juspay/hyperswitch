@@ -34,6 +34,7 @@ pub struct MerchantConnectorAccount {
     pub connector_webhook_details: Option<pii::SecretSerdeValue>,
     pub profile_id: Option<String>,
     pub applepay_verified_domains: Option<Vec<String>>,
+    pub pm_auth_config: Option<serde_json::Value>,
 }
 
 #[derive(Debug)]
@@ -51,6 +52,7 @@ pub enum MerchantConnectorAccountUpdate {
         frm_configs: Option<Vec<Secret<serde_json::Value>>>,
         connector_webhook_details: Option<pii::SecretSerdeValue>,
         applepay_verified_domains: Option<Vec<String>>,
+        pm_auth_config: Option<serde_json::Value>,
     },
 }
 
@@ -85,6 +87,7 @@ impl behaviour::Conversion for MerchantConnectorAccount {
                 connector_webhook_details: self.connector_webhook_details,
                 profile_id: self.profile_id,
                 applepay_verified_domains: self.applepay_verified_domains,
+                pm_auth_config: self.pm_auth_config,
             },
         )
     }
@@ -123,6 +126,7 @@ impl behaviour::Conversion for MerchantConnectorAccount {
             connector_webhook_details: other.connector_webhook_details,
             profile_id: other.profile_id,
             applepay_verified_domains: other.applepay_verified_domains,
+            pm_auth_config: other.pm_auth_config,
         })
     }
 
@@ -149,6 +153,7 @@ impl behaviour::Conversion for MerchantConnectorAccount {
             connector_webhook_details: self.connector_webhook_details,
             profile_id: self.profile_id,
             applepay_verified_domains: self.applepay_verified_domains,
+            pm_auth_config: self.pm_auth_config,
         })
     }
 }
@@ -169,6 +174,7 @@ impl From<MerchantConnectorAccountUpdate> for MerchantConnectorAccountUpdateInte
                 frm_configs,
                 connector_webhook_details,
                 applepay_verified_domains,
+                pm_auth_config,
             } => Self {
                 merchant_id,
                 connector_type,
@@ -184,6 +190,7 @@ impl From<MerchantConnectorAccountUpdate> for MerchantConnectorAccountUpdateInte
                 modified_at: Some(common_utils::date_time::now()),
                 connector_webhook_details,
                 applepay_verified_domains,
+                pm_auth_config,
             },
         }
     }

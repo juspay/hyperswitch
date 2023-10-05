@@ -15,7 +15,6 @@ use data_models::mandates::MandateData;
 use diesel_models::{ephemeral_key, fraud_check::FraudCheck};
 use error_stack::{IntoReport, ResultExt};
 use futures::future::join_all;
-#[cfg(feature = "kms")]
 use helpers::ApplePayData;
 use masking::Secret;
 use router_env::{instrument, tracing};
@@ -643,7 +642,6 @@ where
 
     // Tokenization Action will be DecryptApplePayToken, only when payment method type is Apple Pay
     // and the connector supports Apple Pay predecrypt
-    #[cfg(feature = "kms")]
     if matches!(
         tokenization_action,
         TokenizationAction::DecryptApplePayToken
@@ -1127,10 +1125,32 @@ fn check_apple_pay_metadata(
     merchant_connector_account.clone().and_then(|mca| {
         let metadata = mca.get_metadata();
         metadata.and_then(|apple_pay_metadata| {
-            let parsed_metadata: Result<api_models::payments::ApplepaySessionTokenData, _> =
-                apple_pay_metadata.parse_value("ApplepaySessionTokenData").map_err(|error| logger::error!(%error, "Failed to Parse Value to ApplepaySessionTokenData"));
+            let parsed_metadata = apple_pay_metadata
+                .clone()
+                .parse_value::<api_models::payments::ApplepayCombinedSessionTokenData>(
+                    "ApplepayCombinedSessionTokenData",
+                )
+                .map(|combined_metadata| {
+                    api_models::payments::ApplepaySessionTokenMetadata::ApplePayCombined(
+                        combined_metadata.apple_pay_combined,
+                    )
+                })
+                .or_else(|_| {
+                    apple_pay_metadata
+                        .parse_value::<api_models::payments::ApplepaySessionTokenData>(
+                            "ApplepaySessionTokenData",
+                        )
+                        .map(|old_metadata| {
+                            api_models::payments::ApplepaySessionTokenMetadata::ApplePay(
+                                old_metadata.apple_pay,
+                            )
+                        })
+                })
+                .map_err(
+                    |error| logger::error!(%error, "Failed to Parse Value to ApplepaySessionTokenData"),
+                );
 
-            parsed_metadata.ok().map(|metadata| match metadata.data {
+            parsed_metadata.ok().map(|metadata| match metadata {
                 api_models::payments::ApplepaySessionTokenMetadata::ApplePayCombined(
                     apple_pay_combined,
                 ) => match apple_pay_combined {
@@ -1631,7 +1651,9 @@ pub async fn apply_filters_on_payments(
             &merchant.merchant_id,
             &active_attempt_ids,
             constraints.connector,
-            constraints.payment_methods,
+            constraints.payment_method,
+            constraints.payment_method_type,
+            constraints.authentication_type,
             merchant.storage_scheme,
         )
         .await
@@ -1678,6 +1700,8 @@ pub async fn get_filters_for_payments(
             currency: filters.currency,
             status: filters.status,
             payment_method: filters.payment_method,
+            payment_method_type: filters.payment_method_type,
+            authentication_type: filters.authentication_type,
         },
     ))
 }
