@@ -632,6 +632,27 @@ pub fn validate_card_data(
     Ok(())
 }
 
+pub fn infer_payment_type(
+    amount: &api::Amount,
+    mandate_type: Option<&api::MandateTransactionType>,
+) -> api_enums::PaymentType {
+    match mandate_type {
+        Some(api::MandateTransactionType::NewMandateTransaction) => {
+            if let api::Amount::Value(_) = amount {
+                api_enums::PaymentType::NewMandate
+            } else {
+                api_enums::PaymentType::SetupMandate
+            }
+        }
+
+        Some(api::MandateTransactionType::RecurringMandateTransaction) => {
+            api_enums::PaymentType::RecurringMandate
+        }
+
+        None => api_enums::PaymentType::Normal,
+    }
+}
+
 pub fn validate_mandate(
     req: impl Into<api::MandateValidationFields>,
     is_confirm_operation: bool,
@@ -2377,6 +2398,7 @@ mod tests {
             profile_id: None,
             merchant_decision: None,
             payment_confirm_source: None,
+            payment_type: Some(api_enums::PaymentType::Normal),
         };
         let req_cs = Some("1".to_string());
         let merchant_fulfillment_time = Some(900);
@@ -2424,6 +2446,7 @@ mod tests {
             profile_id: None,
             merchant_decision: None,
             payment_confirm_source: None,
+            payment_type: Some(api_enums::PaymentType::Normal),
         };
         let req_cs = Some("1".to_string());
         let merchant_fulfillment_time = Some(10);
@@ -2471,6 +2494,7 @@ mod tests {
             profile_id: None,
             merchant_decision: None,
             payment_confirm_source: None,
+            payment_type: Some(api_enums::PaymentType::Normal),
         };
         let req_cs = Some("1".to_string());
         let merchant_fulfillment_time = Some(10);

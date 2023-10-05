@@ -11,9 +11,6 @@ pub struct Percentage<const PRECISION: u8> {
     percentage: f32,
 }
 
-#[derive(Clone, Debug, Default, PartialEq, Eq)]
-struct Private;
-
 fn get_invalid_percentage_error_message(precision: u8) -> String {
     format!(
         "value should be between 0 to 100 and precise to only upto {} decimal digits",
