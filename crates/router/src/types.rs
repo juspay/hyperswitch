@@ -414,7 +414,7 @@ pub struct ConnectorCustomerData {
     pub phone: Option<Secret<String>>,
     pub name: Option<String>,
     pub preprocessing_id: Option<String>,
-    // pass payment_method_data
+    pub payment_method_data: payments::PaymentMethodData,
 }
 
 #[derive(Debug, Clone)]
@@ -994,6 +994,7 @@ impl From<&&mut PaymentsAuthorizeRouterData> for ConnectorCustomerData {
         Self {
             email: data.request.email.to_owned(),
             preprocessing_id: data.preprocessing_id.to_owned(),
+            payment_method_data: data.request.payment_method_data.to_owned(),
             description: None,
             phone: None,
             name: None,

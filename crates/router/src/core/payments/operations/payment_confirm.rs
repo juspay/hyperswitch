@@ -319,10 +319,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
 
         // The operation merges mandate data from both request and payment_attempt
         setup_mandate = setup_mandate.map(|mut sm| {
-            sm.mandate_type = payment_attempt
-                .mandate_details
-                .clone()
-                .or(sm.mandate_type);
+            sm.mandate_type = payment_attempt.mandate_details.clone().or(sm.mandate_type);
             sm
         });
 

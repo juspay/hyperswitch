@@ -77,18 +77,68 @@ impl TryFrom<&types::ConnectorCustomerRouterData> for GocardlessCustomerRequest 
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::ConnectorCustomerRouterData) -> Result<Self, Self::Error> {
         let email = item.request.get_email()?;
-        let billing_address = item.get_billing_address()?;
-        let given_name = billing_address.get_first_name()?.to_owned();
-        let family_name = billing_address.get_last_name()?.to_owned();
+        let billing_details = match &item.request.payment_method_data {
+            api_models::payments::PaymentMethodData::BankDebit(bank_debit_data) => {
+                match bank_debit_data.clone() {
+                    BankDebitData::AchBankDebit {
+                        billing_details, ..
+                    } => Ok(billing_details),
+                    BankDebitData::SepaBankDebit {
+                        billing_details, ..
+                    } => Ok(billing_details),
+                    BankDebitData::BecsBankDebit {
+                        billing_details, ..
+                    } => Ok(billing_details),
+                    BankDebitData::BacsBankDebit { .. } => {
+                        Err(errors::ConnectorError::NotImplemented(
+                            utils::get_unimplemented_payment_method_error_message("Gocardless"),
+                        ))
+                    }
+                }
+            }
+            api_models::payments::PaymentMethodData::Card(_)
+            | api_models::payments::PaymentMethodData::CardRedirect(_)
+            | api_models::payments::PaymentMethodData::Wallet(_)
+            | api_models::payments::PaymentMethodData::PayLater(_)
+            | api_models::payments::PaymentMethodData::BankRedirect(_)
+            | api_models::payments::PaymentMethodData::BankTransfer(_)
+            | api_models::payments::PaymentMethodData::Crypto(_)
+            | api_models::payments::PaymentMethodData::MandatePayment
+            | api_models::payments::PaymentMethodData::Reward
+            | api_models::payments::PaymentMethodData::Upi(_)
+            | api_models::payments::PaymentMethodData::Voucher(_)
+            | api_models::payments::PaymentMethodData::GiftCard(_) => {
+                Err(errors::ConnectorError::NotImplemented(
+                    utils::get_unimplemented_payment_method_error_message("Gocardless"),
+                ))
+            }
+        }?;
+
+        let billing_details_name = billing_details.name.expose();
+
+        if billing_details_name.is_empty() {
+            Err(errors::ConnectorError::MissingRequiredField {
+                field_name: "billing_details.name",
+            })?
+        }
+        let (given_name, family_name) = billing_details_name
+            .trim()
+            .rsplit_once(' ')
+            .unwrap_or((&billing_details_name, &billing_details_name));
+
+        let billing_address = billing_details
+            .address
+            .ok_or_else(utils::missing_field_err("billing_details.address"))?;
+
         let metadata = CustomerMetaData {
             crm_id: item.customer_id.clone().map(Secret::new),
         };
-        let region = get_region(billing_address)?;
+        let region = get_region(&billing_address)?;
         Ok(Self {
             customers: GocardlessCustomer {
                 email,
-                given_name,
-                family_name,
+                given_name: Secret::new(given_name.to_string()),
+                family_name: Secret::new(family_name.to_string()),
                 metadata,
                 address_line1: billing_address.line1.to_owned(),
                 address_line2: billing_address.line2.to_owned(),
@@ -100,7 +150,7 @@ impl TryFrom<&types::ConnectorCustomerRouterData> for GocardlessCustomerRequest 
                 postal_code: billing_address.zip.to_owned(),
                 // Should be populated based on the billing country
                 swedish_identity_number: None,
-                city: billing_address.city.clone().map(Secret::new),
+                city: billing_address.city.map(Secret::new),
             },
         })
     }
