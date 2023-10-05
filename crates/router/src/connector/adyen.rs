@@ -114,7 +114,7 @@ impl api::PaymentAuthorize for Adyen {}
 impl api::PaymentSync for Adyen {}
 impl api::PaymentVoid for Adyen {}
 impl api::PaymentCapture for Adyen {}
-impl api::PreVerify for Adyen {}
+impl api::MandateSetup for Adyen {}
 impl api::ConnectorAccessToken for Adyen {}
 impl api::PaymentToken for Adyen {}
 
@@ -140,19 +140,19 @@ impl
 
 impl
     services::ConnectorIntegration<
-        api::Verify,
-        types::VerifyRequestData,
+        api::SetupMandate,
+        types::SetupMandateRequestData,
         types::PaymentsResponseData,
     > for Adyen
 {
     fn get_headers(
         &self,
-        req: &types::VerifyRouterData,
+        req: &types::SetupMandateRouterData,
         _connectors: &settings::Connectors,
     ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
         let mut header = vec![(
             headers::CONTENT_TYPE.to_string(),
-            types::PaymentsVerifyType::get_content_type(self)
+            types::SetupMandateType::get_content_type(self)
                 .to_string()
                 .into(),
         )];
@@ -163,14 +163,14 @@ impl
 
     fn get_url(
         &self,
-        _req: &types::VerifyRouterData,
+        _req: &types::SetupMandateRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         Ok(format!("{}{}", self.base_url(connectors), "v68/payments"))
     }
     fn get_request_body(
         &self,
-        req: &types::VerifyRouterData,
+        req: &types::SetupMandateRouterData,
     ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
         let authorize_req = types::PaymentsAuthorizeRouterData::from((
             req,
@@ -193,32 +193,34 @@ impl
     }
     fn build_request(
         &self,
-        req: &types::VerifyRouterData,
+        req: &types::SetupMandateRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
         Ok(Some(
             services::RequestBuilder::new()
                 .method(services::Method::Post)
-                .url(&types::PaymentsVerifyType::get_url(self, req, connectors)?)
+                .url(&types::SetupMandateType::get_url(self, req, connectors)?)
                 .attach_default_headers()
-                .headers(types::PaymentsVerifyType::get_headers(
-                    self, req, connectors,
-                )?)
-                .body(types::PaymentsVerifyType::get_request_body(self, req)?)
+                .headers(types::SetupMandateType::get_headers(self, req, connectors)?)
+                .body(types::SetupMandateType::get_request_body(self, req)?)
                 .build(),
         ))
     }
     fn handle_response(
         &self,
-        data: &types::VerifyRouterData,
+        data: &types::SetupMandateRouterData,
         res: types::Response,
     ) -> CustomResult<
-        types::RouterData<api::Verify, types::VerifyRequestData, types::PaymentsResponseData>,
+        types::RouterData<
+            api::SetupMandate,
+            types::SetupMandateRequestData,
+            types::PaymentsResponseData,
+        >,
         errors::ConnectorError,
     >
     where
-        api::Verify: Clone,
-        types::VerifyRequestData: Clone,
+        api::SetupMandate: Clone,
+        types::SetupMandateRequestData: Clone,
         types::PaymentsResponseData: Clone,
     {
         let response: adyen::AdyenPaymentResponse = res

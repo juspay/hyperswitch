@@ -33,7 +33,7 @@ impl api::PaymentSession for Opennode {}
 impl api::PaymentToken for Opennode {}
 impl api::ConnectorAccessToken for Opennode {}
 
-impl api::PreVerify for Opennode {}
+impl api::MandateSetup for Opennode {}
 impl api::PaymentAuthorize for Opennode {}
 impl api::PaymentSync for Opennode {}
 impl api::PaymentCapture for Opennode {}
@@ -133,8 +133,12 @@ impl ConnectorIntegration<api::AccessTokenAuth, types::AccessTokenRequestData, t
 {
 }
 
-impl ConnectorIntegration<api::Verify, types::VerifyRequestData, types::PaymentsResponseData>
-    for Opennode
+impl
+    ConnectorIntegration<
+        api::SetupMandate,
+        types::SetupMandateRequestData,
+        types::PaymentsResponseData,
+    > for Opennode
 {
 }
 

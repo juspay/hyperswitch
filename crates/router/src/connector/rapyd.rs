@@ -255,11 +255,11 @@ impl
 
 impl api::Payment for Rapyd {}
 
-impl api::PreVerify for Rapyd {}
+impl api::MandateSetup for Rapyd {}
 impl
     services::ConnectorIntegration<
-        api::Verify,
-        types::VerifyRequestData,
+        api::SetupMandate,
+        types::SetupMandateRequestData,
         types::PaymentsResponseData,
     > for Rapyd
 {

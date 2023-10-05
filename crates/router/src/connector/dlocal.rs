@@ -37,7 +37,7 @@ impl api::Payment for Dlocal {}
 impl api::PaymentToken for Dlocal {}
 impl api::PaymentSession for Dlocal {}
 impl api::ConnectorAccessToken for Dlocal {}
-impl api::PreVerify for Dlocal {}
+impl api::MandateSetup for Dlocal {}
 impl api::PaymentAuthorize for Dlocal {}
 impl api::PaymentSync for Dlocal {}
 impl api::PaymentCapture for Dlocal {}
@@ -171,8 +171,12 @@ impl ConnectorIntegration<api::AccessTokenAuth, types::AccessTokenRequestData, t
 {
 }
 
-impl ConnectorIntegration<api::Verify, types::VerifyRequestData, types::PaymentsResponseData>
-    for Dlocal
+impl
+    ConnectorIntegration<
+        api::SetupMandate,
+        types::SetupMandateRequestData,
+        types::PaymentsResponseData,
+    > for Dlocal
 {
 }
 

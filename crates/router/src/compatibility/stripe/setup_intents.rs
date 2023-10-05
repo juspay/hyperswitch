@@ -54,7 +54,7 @@ pub async fn setup_intents_create(
         &req,
         create_payment_req,
         |state, auth, req| {
-            payments::payments_core::<api_types::Verify, api_types::PaymentsResponse, _, _, _>(
+            payments::payments_core::<api_types::SetupMandate, api_types::PaymentsResponse, _, _, _>(
                 state,
                 auth.merchant_account,
                 auth.key_store,
@@ -178,7 +178,7 @@ pub async fn setup_intents_update(
         &req,
         payload,
         |state, auth, req| {
-            payments::payments_core::<api_types::Verify, api_types::PaymentsResponse, _, _, _>(
+            payments::payments_core::<api_types::SetupMandate, api_types::PaymentsResponse, _, _, _>(
                 state,
                 auth.merchant_account,
                 auth.key_store,
@@ -244,7 +244,7 @@ pub async fn setup_intents_confirm(
         &req,
         payload,
         |state, auth, req| {
-            payments::payments_core::<api_types::Verify, api_types::PaymentsResponse, _, _, _>(
+            payments::payments_core::<api_types::SetupMandate, api_types::PaymentsResponse, _, _, _>(
                 state,
                 auth.merchant_account,
                 auth.key_store,

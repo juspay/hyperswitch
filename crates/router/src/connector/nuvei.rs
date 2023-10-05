@@ -98,7 +98,7 @@ impl
     // Not Implemented (R)
 }
 
-impl api::PreVerify for Nuvei {}
+impl api::MandateSetup for Nuvei {}
 impl api::PaymentVoid for Nuvei {}
 impl api::PaymentSync for Nuvei {}
 impl api::PaymentCapture for Nuvei {}
@@ -110,8 +110,12 @@ impl api::RefundSync for Nuvei {}
 impl api::PaymentsCompleteAuthorize for Nuvei {}
 impl api::ConnectorAccessToken for Nuvei {}
 
-impl ConnectorIntegration<api::Verify, types::VerifyRequestData, types::PaymentsResponseData>
-    for Nuvei
+impl
+    ConnectorIntegration<
+        api::SetupMandate,
+        types::SetupMandateRequestData,
+        types::PaymentsResponseData,
+    > for Nuvei
 {
 }
 

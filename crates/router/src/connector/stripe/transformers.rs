@@ -1929,9 +1929,9 @@ fn get_payment_method_type_for_saved_payment_method_payment(
     }
 }
 
-impl TryFrom<&types::VerifyRouterData> for SetupIntentRequest {
+impl TryFrom<&types::SetupMandateRouterData> for SetupIntentRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(item: &types::VerifyRouterData) -> Result<Self, Self::Error> {
+    fn try_from(item: &types::SetupMandateRouterData) -> Result<Self, Self::Error> {
         let metadata_order_id = item.connector_request_reference_id.clone();
         let metadata_txn_id = format!("{}_{}_{}", item.merchant_id, item.payment_id, "1");
         let metadata_txn_uuid = Uuid::new_v4().to_string();
