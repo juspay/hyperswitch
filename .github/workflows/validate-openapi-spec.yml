@@ -1,8 +1,8 @@
 name: Validate Generated OpenAPI Spec File
 
 on:
-  pull_request:
-
+  push:
+    branches: auto-generate-openapi_spec
   merge_group:
     types:
       - checks_requested
@@ -46,6 +46,19 @@ jobs:
       - name: Validate the JSON file
         shell: bash
         run: swagger-cli validate ./openapi/openapi_spec.json
+
+      - name: Commit the JSON file if it is not up-to-date
+        # PR originated from same repository
+        if: ${{ github.event.pull_request.head.repo.full_name == github.event.pull_request.base.repo.full_name }}
+        shell: bash
+        run: |
+          if ! git diff --quiet --exit-code -- openapi/openapi_spec.json ; then
+            git config --local user.name 'github-actions[bot]'
+            git config --local user.email '41898282+github-actions[bot]@users.noreply.github.com'
+            git add openapi/openapi_spec.json
+            git commit --message 'docs(openapi): re-generate OpenAPI specification'
+            git push
+          fi
 
       - name: Fail check if the JSON file is not up-to-date
         shell: bash

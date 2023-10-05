@@ -283,7 +283,6 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::payments::DokuBillingDetails,
         api_models::payments::BankTransferInstructions,
         api_models::payments::ReceiverDetails,
-        api_models::payments::AchTransfer,
         api_models::payments::MultibancoTransferInstructions,
         api_models::payments::DokuBankTransferInstructions,
         api_models::payments::ApplePayRedirectData,
