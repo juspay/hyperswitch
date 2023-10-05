@@ -194,15 +194,17 @@ impl<F, T>
         Ok(Self {
             status: enums::AttemptStatus::from(item.response.status.status_code),
             response: Ok(types::PaymentsResponseData::TransactionResponse {
-                resource_id: types::ResponseId::ConnectorTransactionId(item.response.order_id.clone()),
+                resource_id: types::ResponseId::ConnectorTransactionId(
+                    item.response.order_id.clone()
+                ),
                 redirection_data: None,
                 mandate_reference: None,
                 connector_metadata: None,
                 network_txn_id: None,
                 connector_response_reference_id: item
                     .response
-                     .ext_order_id
-                     .or(Some(item.response.order_id)),
+                    .ext_order_id
+                    .or(Some(item.response.order_id)),
             }),
             amount_captured: None,
             ..item.data
@@ -329,12 +331,17 @@ impl<F, T>
         Ok(Self {
             status: enums::AttemptStatus::from(item.response.status.status_code.clone()),
             response: Ok(types::PaymentsResponseData::TransactionResponse {
-                resource_id: types::ResponseId::ConnectorTransactionId(item.response.order_id.clone()),
+                resource_id: types::ResponseId::ConnectorTransactionId(
+                    item.response.order_id.clone()
+                ),
                 redirection_data: None,
                 mandate_reference: None,
                 connector_metadata: None,
                 network_txn_id: None,
-                connector_response_reference_id: item.response.ext_order_id.or(Some(item.response.order_id)),
+                connector_response_reference_id: item
+                    .response
+                    .ext_order_id
+                    .or(Some(item.response.order_id)),
             }),
             amount_captured: None,
             ..item.data
