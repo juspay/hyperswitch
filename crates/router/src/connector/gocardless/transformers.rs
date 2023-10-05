@@ -9,10 +9,12 @@ use serde::{Deserialize, Serialize};
 use crate::{
     connector::utils::{
         self, AddressDetailsData, BankDirectDebitBillingData, BrowserInformationData,
-        ConnectorCustomerData, PaymentsAuthorizeRequestData, PaymentsPreProcessingData, RouterData,
+        ConnectorCustomerData, PaymentsAuthorizeRequestData, RouterData, SetupMandateRequestData,
     },
     core::errors,
-    types::{self, api, storage::enums, transformers::ForeignTryFrom, MandateReference},
+    types::{
+        self, api, storage::enums, transformers::ForeignTryFrom, MandateReference, ResponseId,
+    },
 };
 
 pub struct GocardlessRouterData<T> {
@@ -75,18 +77,68 @@ impl TryFrom<&types::ConnectorCustomerRouterData> for GocardlessCustomerRequest 
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::ConnectorCustomerRouterData) -> Result<Self, Self::Error> {
         let email = item.request.get_email()?;
-        let billing_address = item.get_billing_address()?;
-        let given_name = billing_address.get_first_name()?.to_owned();
-        let family_name = billing_address.get_last_name()?.to_owned();
+        let billing_details = match &item.request.payment_method_data {
+            api_models::payments::PaymentMethodData::BankDebit(bank_debit_data) => {
+                match bank_debit_data.clone() {
+                    BankDebitData::AchBankDebit {
+                        billing_details, ..
+                    } => Ok(billing_details),
+                    BankDebitData::SepaBankDebit {
+                        billing_details, ..
+                    } => Ok(billing_details),
+                    BankDebitData::BecsBankDebit {
+                        billing_details, ..
+                    } => Ok(billing_details),
+                    BankDebitData::BacsBankDebit { .. } => {
+                        Err(errors::ConnectorError::NotImplemented(
+                            utils::get_unimplemented_payment_method_error_message("Gocardless"),
+                        ))
+                    }
+                }
+            }
+            api_models::payments::PaymentMethodData::Card(_)
+            | api_models::payments::PaymentMethodData::CardRedirect(_)
+            | api_models::payments::PaymentMethodData::Wallet(_)
+            | api_models::payments::PaymentMethodData::PayLater(_)
+            | api_models::payments::PaymentMethodData::BankRedirect(_)
+            | api_models::payments::PaymentMethodData::BankTransfer(_)
+            | api_models::payments::PaymentMethodData::Crypto(_)
+            | api_models::payments::PaymentMethodData::MandatePayment
+            | api_models::payments::PaymentMethodData::Reward
+            | api_models::payments::PaymentMethodData::Upi(_)
+            | api_models::payments::PaymentMethodData::Voucher(_)
+            | api_models::payments::PaymentMethodData::GiftCard(_) => {
+                Err(errors::ConnectorError::NotImplemented(
+                    utils::get_unimplemented_payment_method_error_message("Gocardless"),
+                ))
+            }
+        }?;
+
+        let billing_details_name = billing_details.name.expose();
+
+        if billing_details_name.is_empty() {
+            Err(errors::ConnectorError::MissingRequiredField {
+                field_name: "billing_details.name",
+            })?
+        }
+        let (given_name, family_name) = billing_details_name
+            .trim()
+            .rsplit_once(' ')
+            .unwrap_or((&billing_details_name, &billing_details_name));
+
+        let billing_address = billing_details
+            .address
+            .ok_or_else(utils::missing_field_err("billing_details.address"))?;
+
         let metadata = CustomerMetaData {
             crm_id: item.customer_id.clone().map(Secret::new),
         };
-        let region = get_region(billing_address)?;
+        let region = get_region(&billing_address)?;
         Ok(Self {
             customers: GocardlessCustomer {
                 email,
-                given_name,
-                family_name,
+                given_name: Secret::new(given_name.to_string()),
+                family_name: Secret::new(family_name.to_string()),
                 metadata,
                 address_line1: billing_address.line1.to_owned(),
                 address_line2: billing_address.line2.to_owned(),
@@ -98,7 +150,7 @@ impl TryFrom<&types::ConnectorCustomerRouterData> for GocardlessCustomerRequest 
                 postal_code: billing_address.zip.to_owned(),
                 // Should be populated based on the billing country
                 swedish_identity_number: None,
-                city: billing_address.city.clone().map(Secret::new),
+                city: billing_address.city.map(Secret::new),
             },
         })
     }
@@ -259,34 +311,26 @@ impl TryFrom<&BankDebitData> for CustomerBankAccount {
     fn try_from(item: &BankDebitData) -> Result<Self, Self::Error> {
         match item {
             BankDebitData::AchBankDebit {
-                //billing_details,
+                billing_details,
                 account_number,
                 routing_number,
-                // bank_type,
-                //bank_account_holder_name,
-                card_holder_name,
+                bank_type,
+                bank_account_holder_name,
                 ..
             } => {
-                //let bank_type = bank_type.ok_or_else(utils::missing_field_err("bank_type"))?;
-                //let country_code = billing_details.get_billing_country()?;
-                //let account_holder_name =
-                //   bank_account_holder_name
-                //        .clone()
-                //      .ok_or_else(utils::missing_field_err(
-                //    "payment_method_data.bank_debit.ach_bank_debit.bank_account_holder_name",
-                //))?;
+                let bank_type = bank_type.ok_or_else(utils::missing_field_err("bank_type"))?;
+                let country_code = billing_details.get_billing_country()?;
                 let account_holder_name =
-                    card_holder_name
+                    bank_account_holder_name
                         .clone()
                         .ok_or_else(utils::missing_field_err(
-                            "payment_method_data.bank_debit.ach_bank_debit.card_holder_name",
-                        ))?;
+                        "payment_method_data.bank_debit.ach_bank_debit.bank_account_holder_name",
+                    ))?;
                 let us_bank_account = USBankAccount {
-                    country_code: CountryAlpha2::US,
+                    country_code,
                     account_number: account_number.clone(),
                     bank_code: routing_number.clone(),
-                    //account_type: AccountType::from(bank_type),
-                    account_type: AccountType::Checking,
+                    account_type: AccountType::from(bank_type),
                     account_holder_name,
                 };
                 Ok(Self::USBankAccount(us_bank_account))
@@ -416,46 +460,40 @@ pub struct MandateLink {
     customer_bank_account: Secret<String>,
 }
 
-impl TryFrom<&types::PaymentsPreProcessingRouterData> for GocardlessMandateRequest {
+impl TryFrom<&types::SetupMandateRouterData> for GocardlessMandateRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(item: &types::PaymentsPreProcessingRouterData) -> Result<Self, Self::Error> {
+    fn try_from(item: &types::SetupMandateRouterData) -> Result<Self, Self::Error> {
         let (scheme, payer_ip_address) = match &item.request.payment_method_data {
-            Some(payment_method_data) => match payment_method_data {
-                api_models::payments::PaymentMethodData::BankDebit(bank_debit_data) => {
-                    let payer_ip_address = get_ip_if_required(bank_debit_data, item)?;
-                    Ok((
-                        GocardlessScheme::try_from(bank_debit_data)?,
-                        payer_ip_address,
-                    ))
-                }
-                api_models::payments::PaymentMethodData::Card(_)
-                | api_models::payments::PaymentMethodData::CardRedirect(_)
-                | api_models::payments::PaymentMethodData::Wallet(_)
-                | api_models::payments::PaymentMethodData::PayLater(_)
-                | api_models::payments::PaymentMethodData::BankRedirect(_)
-                | api_models::payments::PaymentMethodData::BankTransfer(_)
-                | api_models::payments::PaymentMethodData::Crypto(_)
-                | api_models::payments::PaymentMethodData::MandatePayment
-                | api_models::payments::PaymentMethodData::Reward
-                | api_models::payments::PaymentMethodData::Upi(_)
-                | api_models::payments::PaymentMethodData::Voucher(_)
-                | api_models::payments::PaymentMethodData::GiftCard(_) => {
-                    Err(errors::ConnectorError::NotImplemented(
-                        "Preprocessing flow for selected payment method through Gocardless"
-                            .to_string(),
-                    ))
-                }
-            },
-            None => Err(errors::ConnectorError::NotImplemented(
-                "Preprocessing flow for selected payment method through Gocardless".to_string(),
-            )),
+            api_models::payments::PaymentMethodData::BankDebit(bank_debit_data) => {
+                let payer_ip_address = get_ip_if_required(bank_debit_data, item)?;
+                Ok((
+                    GocardlessScheme::try_from(bank_debit_data)?,
+                    payer_ip_address,
+                ))
+            }
+            api_models::payments::PaymentMethodData::Card(_)
+            | api_models::payments::PaymentMethodData::CardRedirect(_)
+            | api_models::payments::PaymentMethodData::Wallet(_)
+            | api_models::payments::PaymentMethodData::PayLater(_)
+            | api_models::payments::PaymentMethodData::BankRedirect(_)
+            | api_models::payments::PaymentMethodData::BankTransfer(_)
+            | api_models::payments::PaymentMethodData::Crypto(_)
+            | api_models::payments::PaymentMethodData::MandatePayment
+            | api_models::payments::PaymentMethodData::Reward
+            | api_models::payments::PaymentMethodData::Upi(_)
+            | api_models::payments::PaymentMethodData::Voucher(_)
+            | api_models::payments::PaymentMethodData::GiftCard(_) => {
+                Err(errors::ConnectorError::NotImplemented(
+                    "Setup Mandate flow for selected payment method through Gocardless".to_string(),
+                ))
+            }
         }?;
         let payment_method_token = item.get_payment_method_token()?;
         let customer_bank_account = match payment_method_token {
             types::PaymentMethodToken::Token(token) => Ok(token),
             types::PaymentMethodToken::ApplePayDecrypt(_) => {
                 Err(errors::ConnectorError::NotImplemented(
-                    "Preprocessing flow for selected payment method through Gocardless".to_string(),
+                    "Setup Mandate flow for selected payment method through Gocardless".to_string(),
                 ))
             }
         }?;
@@ -476,7 +514,7 @@ impl TryFrom<&types::PaymentsPreProcessingRouterData> for GocardlessMandateReque
 
 fn get_ip_if_required(
     bank_debit_data: &BankDebitData,
-    item: &types::PaymentsPreProcessingRouterData,
+    item: &types::SetupMandateRouterData,
 ) -> Result<Option<Secret<String, IpAddress>>, error_stack::Report<errors::ConnectorError>> {
     let ip_address = item.request.get_browser_info()?.get_ip_address()?;
     match bank_debit_data {
@@ -495,7 +533,7 @@ impl TryFrom<&BankDebitData> for GocardlessScheme {
             BankDebitData::SepaBankDebit { .. } => Ok(Self::SepaCore),
             BankDebitData::BecsBankDebit { .. } => Ok(Self::Becs),
             BankDebitData::BacsBankDebit { .. } => Err(errors::ConnectorError::NotImplemented(
-                "Preprocessing flow for selected payment method through Gocardless".to_string(),
+                "Setup Mandate flow for selected payment method through Gocardless".to_string(),
             )
             .into()),
         }
@@ -517,29 +555,32 @@ impl<F>
         types::ResponseRouterData<
             F,
             GocardlessMandateResponse,
-            types::PaymentsPreProcessingData,
+            types::SetupMandateRequestData,
             types::PaymentsResponseData,
         >,
-    > for types::RouterData<F, types::PaymentsPreProcessingData, types::PaymentsResponseData>
+    > for types::RouterData<F, types::SetupMandateRequestData, types::PaymentsResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
         item: types::ResponseRouterData<
             F,
             GocardlessMandateResponse,
-            types::PaymentsPreProcessingData,
+            types::SetupMandateRequestData,
             types::PaymentsResponseData,
         >,
     ) -> Result<Self, Self::Error> {
+        let mandate_reference = Some(MandateReference {
+            connector_mandate_id: Some(item.response.mandates.id.clone()),
+            payment_method_id: None,
+        });
         Ok(Self {
-            preprocessing_id: Some(item.response.mandates.id.clone()),
-            response: Ok(types::PaymentsResponseData::PreProcessingResponse {
-                pre_processing_id: types::PreprocessingResponseId::PreProcessingId(
-                    item.response.mandates.id,
-                ),
+            response: Ok(types::PaymentsResponseData::TransactionResponse {
                 connector_metadata: None,
-                session_token: None,
                 connector_response_reference_id: None,
+                resource_id: ResponseId::NoResponseId,
+                redirection_data: None,
+                mandate_reference,
+                network_txn_id: None,
             }),
             status: enums::AttemptStatus::Pending,
             ..item.data
@@ -579,14 +620,10 @@ impl TryFrom<&GocardlessRouterData<&types::PaymentsAuthorizeRouterData>>
         item: &GocardlessRouterData<&types::PaymentsAuthorizeRouterData>,
     ) -> Result<Self, Self::Error> {
         let mandate_id = if item.router_data.request.is_mandate_payment() {
-            if item.router_data.request.setup_future_usage.is_some() {
-                item.router_data.get_preprocessing_id()
-            } else {
-                item.router_data
-                    .request
-                    .connector_mandate_id()
-                    .ok_or_else(utils::missing_field_err("preprocessing_id"))
-            }
+            item.router_data
+                .request
+                .connector_mandate_id()
+                .ok_or_else(utils::missing_field_err("mandate_id"))
         } else {
             Err(errors::ConnectorError::NotImplemented(
                 utils::get_unimplemented_payment_method_error_message("gocardless"),
@@ -682,13 +719,8 @@ impl<F>
             types::PaymentsResponseData,
         >,
     ) -> Result<Self, Self::Error> {
-        let connector_mandate_id = if item.data.request.setup_mandate_details.is_some() {
-            item.data.get_preprocessing_id()?
-        } else {
-            item.data.request.get_connector_mandate_id()?
-        };
         let mandate_reference = MandateReference {
-            connector_mandate_id: Some(connector_mandate_id),
+            connector_mandate_id: Some(item.data.request.get_connector_mandate_id()?),
             payment_method_id: None,
         };
         Ok(Self {
