@@ -543,7 +543,7 @@ impl<F, T>
                     }),
                 connector_metadata: None,
                 network_txn_id: None,
-                connector_response_reference_id: item.response.data.transaction_id,
+                connector_response_reference_id: item.response.data.order_id,
             }),
             ..item.data
         })
