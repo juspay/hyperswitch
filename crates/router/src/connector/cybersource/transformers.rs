@@ -275,6 +275,7 @@ pub struct CybersourcePaymentsResponse {
     id: String,
     status: CybersourcePaymentStatus,
     error_information: Option<CybersourceErrorInformation>,
+    client_reference_information: Option<ClientReferenceInformation>,
 }
 
 #[derive(Default, Debug, Clone, Deserialize, Eq, PartialEq)]
@@ -324,7 +325,7 @@ impl<F, T>
                     mandate_reference: None,
                     connector_metadata: None,
                     network_txn_id: None,
-                    connector_response_reference_id: None,
+                    connector_response_reference_id: item.response.client_reference_information.code,
                 }),
             },
             ..item.data
@@ -389,7 +390,7 @@ impl<F, T>
                 mandate_reference: None,
                 connector_metadata: None,
                 network_txn_id: None,
-                connector_response_reference_id: None,
+                connector_response_reference_id: item.response.client_reference_information.code,
             }),
             ..item.data
         })
