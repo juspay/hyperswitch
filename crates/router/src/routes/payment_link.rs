@@ -7,8 +7,6 @@ use crate::{
     services::{api, authentication as auth},
 };
 
-// use payment_link;
-
 pub async fn get_payment_link(
     state: web::Data<AppState>,
     req: actix_web::HttpRequest,
