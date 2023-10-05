@@ -2398,7 +2398,6 @@ mod tests {
             profile_id: None,
             merchant_decision: None,
             payment_confirm_source: None,
-            payment_type: Some(api_enums::PaymentType::Normal),
         };
         let req_cs = Some("1".to_string());
         let merchant_fulfillment_time = Some(900);
@@ -2446,7 +2445,6 @@ mod tests {
             profile_id: None,
             merchant_decision: None,
             payment_confirm_source: None,
-            payment_type: Some(api_enums::PaymentType::Normal),
         };
         let req_cs = Some("1".to_string());
         let merchant_fulfillment_time = Some(10);
@@ -2494,7 +2492,6 @@ mod tests {
             profile_id: None,
             merchant_decision: None,
             payment_confirm_source: None,
-            payment_type: Some(api_enums::PaymentType::Normal),
         };
         let req_cs = Some("1".to_string());
         let merchant_fulfillment_time = Some(10);
