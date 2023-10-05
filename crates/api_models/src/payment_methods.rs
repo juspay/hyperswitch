@@ -519,6 +519,7 @@ pub struct PaymentMethodListResponse {
     #[schema(value_type = Option<String>)]
     pub merchant_name: OptionalEncryptableName,
 
+    #[schema(value_type = Option<PaymentType>)]
     pub payment_type: Option<api_enums::PaymentType>,
 }
 
