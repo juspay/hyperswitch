@@ -5,7 +5,7 @@ use utoipa::ToSchema;
 
 use crate::{disputes, enums as api_enums, payments, refunds};
 
-#[derive(Clone, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash, Serialize, Deserialize, Copy)]
 #[serde(rename_all = "snake_case")]
 pub enum IncomingWebhookEvent {
     PaymentIntentFailure,
@@ -37,6 +37,37 @@ pub enum WebhookFlow {
     Subscription,
     ReturnResponse,
     BankTransfer,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+/// This enum tells about the affect a webhook had on an object
+pub enum WebhookResponseTracker {
+    Payment {
+        payment_id: String,
+        status: common_enums::IntentStatus,
+    },
+    Refund {
+        payment_id: String,
+        refund_id: String,
+        status: common_enums::RefundStatus,
+    },
+    Dispute {
+        dispute_id: String,
+        payment_id: String,
+        status: common_enums::DisputeStatus,
+    },
+    NoEffect,
+}
+
+impl WebhookResponseTracker {
+    pub fn get_payment_id(&self) -> Option<String> {
+        match self {
+            Self::Payment { payment_id, .. }
+            | Self::Refund { payment_id, .. }
+            | Self::Dispute { payment_id, .. } => Some(payment_id.to_string()),
+            Self::NoEffect => None,
+        }
+    }
 }
 
 impl From<IncomingWebhookEvent> for WebhookFlow {

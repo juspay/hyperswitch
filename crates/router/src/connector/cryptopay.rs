@@ -39,7 +39,7 @@ pub struct Cryptopay;
 impl api::Payment for Cryptopay {}
 impl api::PaymentSession for Cryptopay {}
 impl api::ConnectorAccessToken for Cryptopay {}
-impl api::PreVerify for Cryptopay {}
+impl api::MandateSetup for Cryptopay {}
 impl api::PaymentAuthorize for Cryptopay {}
 impl api::PaymentSync for Cryptopay {}
 impl api::PaymentCapture for Cryptopay {}
@@ -183,8 +183,12 @@ impl ConnectorIntegration<api::AccessTokenAuth, types::AccessTokenRequestData, t
 {
 }
 
-impl ConnectorIntegration<api::Verify, types::VerifyRequestData, types::PaymentsResponseData>
-    for Cryptopay
+impl
+    ConnectorIntegration<
+        api::SetupMandate,
+        types::SetupMandateRequestData,
+        types::PaymentsResponseData,
+    > for Cryptopay
 {
 }
 
@@ -295,16 +299,10 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
         req: &types::PaymentsSyncRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        let connector_id = req
-            .request
-            .connector_transaction_id
-            .get_connector_transaction_id()
-            .change_context(errors::ConnectorError::MissingConnectorTransactionID)?;
-
+        let custom_id = req.connector_request_reference_id.clone();
         Ok(format!(
-            "{}/api/invoices/{}",
-            self.base_url(connectors),
-            connector_id
+            "{}/api/invoices/custom_id/{custom_id}",
+            self.base_url(connectors)
         ))
     }
 
