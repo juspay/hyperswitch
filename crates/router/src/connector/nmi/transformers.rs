@@ -158,9 +158,9 @@ impl From<&api_models::payments::ApplePayWalletData> for PaymentMethod {
     }
 }
 
-impl TryFrom<&types::VerifyRouterData> for NmiPaymentsRequest {
+impl TryFrom<&types::SetupMandateRouterData> for NmiPaymentsRequest {
     type Error = Error;
-    fn try_from(item: &types::VerifyRouterData) -> Result<Self, Self::Error> {
+    fn try_from(item: &types::SetupMandateRouterData) -> Result<Self, Self::Error> {
         let auth_type: NmiAuthType = (&item.connector_auth_type).try_into()?;
         let payment_method = PaymentMethod::try_from(&item.request.payment_method_data)?;
         Ok(Self {
@@ -314,13 +314,18 @@ pub struct StandardResponse {
 
 impl<T>
     TryFrom<
-        types::ResponseRouterData<api::Verify, StandardResponse, T, types::PaymentsResponseData>,
-    > for types::RouterData<api::Verify, T, types::PaymentsResponseData>
+        types::ResponseRouterData<
+            api::SetupMandate,
+            StandardResponse,
+            T,
+            types::PaymentsResponseData,
+        >,
+    > for types::RouterData<api::SetupMandate, T, types::PaymentsResponseData>
 {
     type Error = Error;
     fn try_from(
         item: types::ResponseRouterData<
-            api::Verify,
+            api::SetupMandate,
             StandardResponse,
             T,
             types::PaymentsResponseData,

@@ -147,6 +147,7 @@ pub struct PaymentMethodResponse {
 #[derive(Clone, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
 pub enum PaymentMethodsData {
     Card(CardDetailsPaymentMethod),
+    BankDetails(PaymentMethodDataBankCreds),
 }
 #[derive(Clone, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
 pub struct CardDetailsPaymentMethod {
@@ -158,6 +159,25 @@ pub struct CardDetailsPaymentMethod {
     pub card_holder_name: Option<masking::Secret<String>>,
 }
 
+#[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
+pub struct PaymentMethodDataBankCreds {
+    pub mask: String,
+    pub hash: String,
+    pub payment_method_type: api_enums::PaymentMethodType,
+    pub connector_details: Vec<BankAccountConnectorDetails>,
+}
+
+#[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
+pub struct BankAccountConnectorDetails {
+    pub connector: String,
+    pub account_id: String,
+    pub access_token: BankAccountAccessCreds,
+}
+
+#[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
+pub enum BankAccountAccessCreds {
+    AccessToken(String),
+}
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
 pub struct CardDetailFromLocker {
     pub scheme: Option<String>,
@@ -518,6 +538,9 @@ pub struct PaymentMethodListResponse {
 
     #[schema(value_type = Option<String>)]
     pub merchant_name: OptionalEncryptableName,
+
+    #[schema(value_type = Option<PaymentType>)]
+    pub payment_type: Option<api_enums::PaymentType>,
 }
 
 #[derive(Eq, PartialEq, Hash, Debug, serde::Deserialize, ToSchema)]

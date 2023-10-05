@@ -632,6 +632,27 @@ pub fn validate_card_data(
     Ok(())
 }
 
+pub fn infer_payment_type(
+    amount: &api::Amount,
+    mandate_type: Option<&api::MandateTransactionType>,
+) -> api_enums::PaymentType {
+    match mandate_type {
+        Some(api::MandateTransactionType::NewMandateTransaction) => {
+            if let api::Amount::Value(_) = amount {
+                api_enums::PaymentType::NewMandate
+            } else {
+                api_enums::PaymentType::SetupMandate
+            }
+        }
+
+        Some(api::MandateTransactionType::RecurringMandateTransaction) => {
+            api_enums::PaymentType::RecurringMandate
+        }
+
+        None => api_enums::PaymentType::Normal,
+    }
+}
+
 pub fn validate_mandate(
     req: impl Into<api::MandateValidationFields>,
     is_confirm_operation: bool,

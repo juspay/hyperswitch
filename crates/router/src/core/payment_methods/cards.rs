@@ -861,6 +861,19 @@ pub async fn list_payment_methods(
         .await
         .transpose()?;
 
+    let payment_type = payment_attempt.as_ref().map(|pa| {
+        let amount = api::Amount::from(pa.amount);
+        let mandate_type = if pa.mandate_id.is_some() {
+            Some(api::MandateTransactionType::RecurringMandateTransaction)
+        } else if pa.mandate_details.is_some() {
+            Some(api::MandateTransactionType::NewMandateTransaction)
+        } else {
+            None
+        };
+
+        helpers::infer_payment_type(&amount, mandate_type.as_ref())
+    });
+
     let all_mcas = db
         .find_merchant_connector_account_by_merchant_id_and_disabled_list(
             &merchant_account.merchant_id,
@@ -1280,6 +1293,7 @@ pub async fn list_payment_methods(
         api::PaymentMethodListResponse {
             redirect_url: merchant_account.return_url,
             merchant_name: merchant_account.merchant_name,
+            payment_type,
             payment_methods: payment_method_responses,
             mandate_payment: payment_attempt.and_then(|inner| inner.mandate_details).map(
                 |d| match d {
@@ -1954,8 +1968,9 @@ async fn get_card_details(
             .flatten()
             .map(|x| x.into_inner().expose())
             .and_then(|v| serde_json::from_value::<PaymentMethodsData>(v).ok())
-            .map(|pmd| match pmd {
-                PaymentMethodsData::Card(crd) => api::CardDetailFromLocker::from(crd),
+            .and_then(|pmd| match pmd {
+                PaymentMethodsData::Card(crd) => Some(api::CardDetailFromLocker::from(crd)),
+                _ => None,
             });
 
     Ok(Some(
