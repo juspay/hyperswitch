@@ -555,7 +555,7 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         Ok(format!(
-            "{}v2/payments/{}/complete",
+            "{}v2/payments/{connector_payment_id}/complete",
             self.base_url(connectors),
             req.request.connector_transaction_id,
         ))
@@ -629,7 +629,7 @@ impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsR
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         Ok(format!(
-            "{}v2/payments/{}/cancel",
+            "{}v2/payments/{connector_payment_id}/cancel",
             self.base_url(connectors),
             req.request.connector_transaction_id,
         ))
