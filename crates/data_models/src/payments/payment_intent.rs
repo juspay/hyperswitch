@@ -105,6 +105,7 @@ pub struct PaymentIntent {
     // Manual review can occur when the transaction is marked as risky by the frm_processor, payment processor or when there is underpayment/over payment incase of crypto payment
     pub merchant_decision: Option<String>,
     pub payment_confirm_source: Option<storage_enums::PaymentSource>,
+    pub payment_type: Option<storage_enums::PaymentType>,
 }
 
 #[derive(Clone, Debug, Default, Eq, PartialEq, Serialize, Deserialize)]
@@ -144,6 +145,7 @@ pub struct PaymentIntentNew {
     pub profile_id: Option<String>,
     pub merchant_decision: Option<String>,
     pub payment_confirm_source: Option<storage_enums::PaymentSource>,
+    pub payment_type: Option<storage_enums::PaymentType>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
