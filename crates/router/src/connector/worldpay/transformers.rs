@@ -27,7 +27,7 @@ impl<T>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        (_currency_unit, _currency, amount, router_data): (
+        (_currency_unit, _currency, amount, item): (
             &types::api::CurrencyUnit,
             types::storage::enums::Currency,
             i64,
@@ -36,7 +36,7 @@ impl<T>
     ) -> Result<Self, Self::Error> {
         Ok(Self {
             amount,
-            router_data,
+            router_data: item,
         })
     }
 }
@@ -131,38 +131,36 @@ fn fetch_payment_instrument(
 impl TryFrom<&WorldpayRouterData<&types::PaymentsAuthorizeRouterData>> for WorldpayPaymentsRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
 
-    fn try_from(
-        item: &WorldpayRouterData<&types::PaymentsAuthorizeRouterData>,
-    ) -> Result<Self, Self::Error> {
-        let request = &item.router_data.request;
-        match request.order_details.clone() {
-            Some(order_details) => Ok(Self {
-                instruction: Instruction {
-                    value: PaymentValue {
-                        amount: item.request.amount,
-                        currency: item.request.currency.to_string(),
-                    },
-                    narrative: InstructionNarrative {
-                        line1: item.merchant_id.clone().replace('_', "-"),
-                        ..Default::default()
-                    },
-                    payment_instrument: fetch_payment_instrument(
-                        item.request.payment_method_data.clone(),
-                    )?,
-                    debt_repayment: None,
+    fn try_from(item: &types::PaymentsAuthorizeRouterData) -> Result<Self, Self::Error> {
+        let connector_common_instance = utils::get_connector_common_instance()?;
+
+        // Use the get_currency_unit method to obtain the currency unit.
+        let currency_unit = connector_common_instance.get_currency_unit();
+
+        // Create the WorldpayPaymentsRequest instance.
+        Ok(Self {
+            instruction: Instruction {
+                value: PaymentValue {
+                    amount: item.request.amount,
+                    currency: currency_unit, // Use the currency unit obtained from ConnectorCommon
                 },
-                merchant: Merchant {
-                    entity: item.attempt_id.clone().replace('_', "-"),
+                narrative: InstructionNarrative {
+                    line1: item.merchant_id.clone().replace('_', "-"),
                     ..Default::default()
                 },
-                transaction_reference: item.attempt_id.clone(),
-                channel: None,
-                customer: None,
-            }),
-            None => Err(error_stack::Report::new(
-                errors::ConnectorError::CustomError("order_details is None"),
-            )),
-        }
+                payment_instrument: fetch_payment_instrument(
+                    item.request.payment_method_data.clone(),
+                )?,
+                debt_repayment: None,
+            },
+            merchant: Merchant {
+                entity: item.attempt_id.clone().replace('_', "-"),
+                ..Default::default()
+            },
+            transaction_reference: item.attempt_id.clone(),
+            channel: None,
+            customer: None,
+        })
     }
 }
 
