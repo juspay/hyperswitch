@@ -537,7 +537,7 @@ pub struct BamboraErrorResponse {
     pub code: i32,
     pub category: i32,
     pub message: String,
-    pub reference: Option<String>,
+    pub reference: String,
     pub details: Option<Vec<ErrorDetail>>,
     pub validation: Option<CardValidation>,
     pub card: Option<CardError>,

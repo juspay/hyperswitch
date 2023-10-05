@@ -293,11 +293,6 @@ pub struct CashtocodeErrorResponse {
     pub errors: Option<Vec<CashtocodeErrors>>,
 }
 
-#[derive(Debug, Deserialize)]
-pub enum ErrorValue {
-    ErrorString(String),
-    ErrorNumber(u32),
-}
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CashtocodeIncomingWebhook {
