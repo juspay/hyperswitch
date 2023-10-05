@@ -4,6 +4,31 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 1.51.0 (2023-10-05)
+
+### Features
+
+- **connector:**
+  - [Noon] Use connector_response_reference_id as reference ([#2442](https://github.com/juspay/hyperswitch/pull/2442)) ([`688557e`](https://github.com/juspay/hyperswitch/commit/688557ef95826622fe87a4de1dfbc09446496686))
+  - [Opayo] Add connector id ([#2418](https://github.com/juspay/hyperswitch/pull/2418)) ([`8e51073`](https://github.com/juspay/hyperswitch/commit/8e51073c837909838b92a9eadea32e5a577e2b54))
+- **payment_methods:** Bank details support for payment method data in pmt ([#2385](https://github.com/juspay/hyperswitch/pull/2385)) ([`e86c032`](https://github.com/juspay/hyperswitch/commit/e86c0325f51d06ecfcbc810f3320c97850716825))
+- **router:** Add support for payment_type field in payment intent ([#2448](https://github.com/juspay/hyperswitch/pull/2448)) ([`f116728`](https://github.com/juspay/hyperswitch/commit/f116728d1cba458a1e184c2fdf5a1cc012430c35))
+
+### Bug Fixes
+
+- **connector:** Use enum to deserialize latest_charge in stripe psync response ([#2444](https://github.com/juspay/hyperswitch/pull/2444)) ([`05ee47a`](https://github.com/juspay/hyperswitch/commit/05ee47a6e90bd68a0faa6dcc381c48a1f0f274d8))
+- **payments:** Move validations of payment intent before attempt ([#2440](https://github.com/juspay/hyperswitch/pull/2440)) ([`7fb5c04`](https://github.com/juspay/hyperswitch/commit/7fb5c044bc9611e375b271065859308792773f30))
+- Return appropriate error message during webhook call for invalid merchant_secret adyen ([#2450](https://github.com/juspay/hyperswitch/pull/2450)) ([`db7f9fa`](https://github.com/juspay/hyperswitch/commit/db7f9fa801d2bacf3abda6cc447220d254f56382))
+
+### Testing
+
+- **postman:** Update postman collection files ([`a9221d4`](https://github.com/juspay/hyperswitch/commit/a9221d44d192a3baadf9978d517e8153ef7a739a))
+
+**Full Changelog:** [`v1.50.0...v1.51.0`](https://github.com/juspay/hyperswitch/compare/v1.50.0...v1.51.0)
+
+- - -
+
+
 ## 1.50.0 (2023-10-04)
 
 ### Features

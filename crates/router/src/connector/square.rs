@@ -37,7 +37,7 @@ pub struct Square;
 impl api::Payment for Square {}
 impl api::PaymentSession for Square {}
 impl api::ConnectorAccessToken for Square {}
-impl api::PreVerify for Square {}
+impl api::MandateSetup for Square {}
 impl api::PaymentAuthorize for Square {}
 impl api::PaymentSync for Square {}
 impl api::PaymentCapture for Square {}
@@ -153,8 +153,12 @@ impl ConnectorIntegration<api::AccessTokenAuth, types::AccessTokenRequestData, t
 {
 }
 
-impl ConnectorIntegration<api::Verify, types::VerifyRequestData, types::PaymentsResponseData>
-    for Square
+impl
+    ConnectorIntegration<
+        api::SetupMandate,
+        types::SetupMandateRequestData,
+        types::PaymentsResponseData,
+    > for Square
 {
 }
 

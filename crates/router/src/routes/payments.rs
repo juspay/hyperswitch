@@ -885,7 +885,7 @@ where
             api_models::payments::PaymentsRequest,
             Ctx,
         > + payments::operations::Operation<
-            api_types::Verify,
+            api_types::SetupMandate,
             api_models::payments::PaymentsRequest,
             Ctx,
         >,
@@ -896,8 +896,10 @@ where
     // the operation are flow agnostic, and the flow is only required in the post_update_tracker
     // Thus the flow can be generated just before calling the connector instead of explicitly passing it here.
 
-    match req.amount.as_ref() {
-        Some(api_types::Amount::Value(_)) | None => {
+    match req.payment_type {
+        api_models::enums::PaymentType::Normal
+        | api_models::enums::PaymentType::RecurringMandate
+        | api_models::enums::PaymentType::NewMandate => {
             payments::payments_core::<
                 api_types::Authorize,
                 payment_types::PaymentsResponse,
@@ -917,10 +919,9 @@ where
             )
             .await
         }
-
-        Some(api_types::Amount::Zero) => {
+        api_models::enums::PaymentType::SetupMandate => {
             payments::payments_core::<
-                api_types::Verify,
+                api_types::SetupMandate,
                 payment_types::PaymentsResponse,
                 _,
                 _,
