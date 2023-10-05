@@ -270,19 +270,36 @@ pub struct ResponsePaymentMethodTypes {
     pub required_fields: Option<HashMap<String, RequiredFieldInfo>>,
 
     /// surcharge details for this payment method type if exists
+    #[schema(example = r#"
+        {
+            "surcharge": {
+                "type": "rate",
+                "value": {
+                    "percentage": 2.5
+                }
+            },
+            "tax_on_surcharge": {
+                "percentage": 1.5
+            }
+        }
+    "#)]
     pub surcharge_details: Option<SurchargeDetails>,
 }
-#[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
 #[serde(rename_all = "snake_case")]
 pub struct SurchargeDetails {
+    /// surcharge value
     surcharge: Surcharge,
+    /// tax on surcharge value
     tax_on_surcharge: Option<Percentage<SURCHARGE_PERCENTAGE_PRECISION_LENGTH>>,
 }
 
-#[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
 #[serde(rename_all = "snake_case", tag = "type", content = "value")]
 pub enum Surcharge {
+    /// Fixed Surcharge value
     Fixed(i64),
+    /// Surcharge percentage
     Rate(Percentage<SURCHARGE_PERCENTAGE_PRECISION_LENGTH>),
 }
 
