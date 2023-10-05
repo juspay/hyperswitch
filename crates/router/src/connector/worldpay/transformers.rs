@@ -134,15 +134,13 @@ impl TryFrom<&WorldpayRouterData<&types::PaymentsAuthorizeRouterData>> for World
     fn try_from(item: &types::PaymentsAuthorizeRouterData) -> Result<Self, Self::Error> {
         let connector_common_instance = utils::get_connector_common_instance()?;
 
-        // Use the get_currency_unit method to obtain the currency unit.
         let currency_unit = connector_common_instance.get_currency_unit();
 
-        // Create the WorldpayPaymentsRequest instance.
         Ok(Self {
             instruction: Instruction {
                 value: PaymentValue {
                     amount: item.request.amount,
-                    currency: currency_unit, // Use the currency unit obtained from ConnectorCommon
+                    currency: currency_unit,
                 },
                 narrative: InstructionNarrative {
                     line1: item.merchant_id.clone().replace('_', "-"),
