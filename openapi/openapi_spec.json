@@ -4998,7 +4998,9 @@
           "dispute_cancelled",
           "dispute_challenged",
           "dispute_won",
-          "dispute_lost"
+          "dispute_lost",
+          "mandate_active",
+          "mandate_revoked"
         ]
       },
       "FeatureMetadata": {
@@ -7356,6 +7358,24 @@
               },
               "object": {
                 "$ref": "#/components/schemas/DisputeResponse"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "type",
+              "object"
+            ],
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": [
+                  "mandate_details"
+                ]
+              },
+              "object": {
+                "$ref": "#/components/schemas/MandateResponse"
               }
             }
           }

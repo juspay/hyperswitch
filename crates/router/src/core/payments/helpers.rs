@@ -2115,6 +2115,7 @@ pub fn check_if_operation_confirm<Op: std::fmt::Debug>(operations: Op) -> bool {
 #[allow(clippy::too_many_arguments)]
 pub fn generate_mandate(
     merchant_id: String,
+    payment_id: String,
     connector: String,
     setup_mandate_details: Option<MandateData>,
     customer: &Option<domain::Customer>,
@@ -2137,6 +2138,7 @@ pub fn generate_mandate(
                 .set_mandate_id(mandate_id)
                 .set_customer_id(cus.customer_id.clone())
                 .set_merchant_id(merchant_id)
+                .set_original_payment_id(Some(payment_id))
                 .set_payment_method_id(payment_method_id)
                 .set_connector(connector)
                 .set_mandate_status(storage_enums::MandateStatus::Active)
