@@ -61,7 +61,6 @@ pub enum WebhookResponseTracker {
     },
     Mandate {
         mandate_id: String,
-        payment_id: String,
         status: common_enums::MandateStatus,
     },
     NoEffect,
@@ -72,9 +71,8 @@ impl WebhookResponseTracker {
         match self {
             Self::Payment { payment_id, .. }
             | Self::Refund { payment_id, .. }
-            | Self::Dispute { payment_id, .. }
-            | Self::Mandate { payment_id, .. } => Some(payment_id.to_string()),
-            Self::NoEffect => None,
+            | Self::Dispute { payment_id, .. } => Some(payment_id.to_string()),
+            Self::NoEffect | Self::Mandate { .. } => None,
         }
     }
 }

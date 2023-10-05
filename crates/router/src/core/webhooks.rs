@@ -426,26 +426,6 @@ pub async fn mandates_incoming_webhook_flow<W: types::OutgoingWebhookType>(
                 .into_report()
                 .attach_printable("received a non-mandate id for retrieving mandate")?,
         };
-        let payment_intent = db
-            .find_payment_intent_by_payment_id_merchant_id(
-                &mandate
-                    .original_payment_id
-                    .ok_or(errors::ApiErrorResponse::InternalServerError)
-                    .into_report()
-                    .attach_printable("original_payment_id not present in mandate record")?,
-                &merchant_account.merchant_id,
-                merchant_account.storage_scheme,
-            )
-            .await
-            .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
-        let payment_attempt = db
-            .find_payment_attempt_by_attempt_id_merchant_id(
-                &payment_intent.active_attempt_id.clone(),
-                &merchant_account.merchant_id,
-                merchant_account.storage_scheme,
-            )
-            .await
-            .change_context(errors::ApiErrorResponse::PaymentNotFound)?;
         let mandate_status = event_type
             .foreign_try_into()
             .into_report()
@@ -459,24 +439,6 @@ pub async fn mandates_incoming_webhook_flow<W: types::OutgoingWebhookType>(
             )
             .await
             .to_not_found_response(errors::ApiErrorResponse::MandateNotFound)?;
-        db.update_payment_intent(
-            payment_intent.clone(),
-            storage::PaymentIntentUpdate::PGStatusUpdate {
-                status: api_models::enums::IntentStatus::Succeeded,
-            },
-            merchant_account.storage_scheme,
-        )
-        .await
-        .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
-        db.update_payment_attempt_with_attempt_id(
-            payment_attempt,
-            storage::PaymentAttemptUpdate::StatusUpdate {
-                status: api_models::enums::AttemptStatus::Charged,
-            },
-            merchant_account.storage_scheme,
-        )
-        .await
-        .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
         let mandates_response = Box::new(
             api::mandates::MandateResponse::from_db_mandate(&state, updated_mandate.clone())
                 .await?,
@@ -497,7 +459,6 @@ pub async fn mandates_incoming_webhook_flow<W: types::OutgoingWebhookType>(
         }
         Ok(WebhookResponseTracker::Mandate {
             mandate_id: updated_mandate.mandate_id,
-            payment_id: payment_intent.payment_id,
             status: updated_mandate.mandate_status,
         })
     } else {
