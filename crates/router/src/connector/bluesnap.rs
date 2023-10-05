@@ -201,9 +201,13 @@ impl
     // Not Implemented (R)
 }
 
-impl api::PreVerify for Bluesnap {}
-impl ConnectorIntegration<api::Verify, types::VerifyRequestData, types::PaymentsResponseData>
-    for Bluesnap
+impl api::MandateSetup for Bluesnap {}
+impl
+    ConnectorIntegration<
+        api::SetupMandate,
+        types::SetupMandateRequestData,
+        types::PaymentsResponseData,
+    > for Bluesnap
 {
 }
 

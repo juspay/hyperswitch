@@ -1,7 +1,9 @@
 use std::collections::HashMap;
 
 use cards::CardNumber;
-use common_utils::{crypto::OptionalEncryptableName, pii};
+use common_utils::{
+    consts::SURCHARGE_PERCENTAGE_PRECISION_LENGTH, crypto::OptionalEncryptableName, pii,
+};
 use serde::de;
 use utoipa::ToSchema;
 
@@ -10,6 +12,7 @@ use crate::payouts;
 use crate::{
     admin, enums as api_enums,
     payments::{self, BankCodeResponse},
+    types::Percentage,
 };
 
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
@@ -263,7 +266,7 @@ pub struct BankDebitTypes {
     pub eligible_connectors: Vec<String>,
 }
 
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema, PartialEq, Eq)]
+#[derive(Debug, Clone, serde::Serialize, ToSchema, PartialEq)]
 pub struct ResponsePaymentMethodTypes {
     /// The payment method type enabled
     #[schema(example = "klarna")]
@@ -285,6 +288,39 @@ pub struct ResponsePaymentMethodTypes {
 
     /// Required fields for the payment_method_type.
     pub required_fields: Option<HashMap<String, RequiredFieldInfo>>,
+
+    /// surcharge details for this payment method type if exists
+    #[schema(example = r#"
+        {
+            "surcharge": {
+                "type": "rate",
+                "value": {
+                    "percentage": 2.5
+                }
+            },
+            "tax_on_surcharge": {
+                "percentage": 1.5
+            }
+        }
+    "#)]
+    pub surcharge_details: Option<SurchargeDetails>,
+}
+#[derive(Clone, Debug, PartialEq, serde::Serialize, ToSchema)]
+#[serde(rename_all = "snake_case")]
+pub struct SurchargeDetails {
+    /// surcharge value
+    surcharge: Surcharge,
+    /// tax on surcharge value
+    tax_on_surcharge: Option<Percentage<SURCHARGE_PERCENTAGE_PRECISION_LENGTH>>,
+}
+
+#[derive(Clone, Debug, PartialEq, serde::Serialize, ToSchema)]
+#[serde(rename_all = "snake_case", tag = "type", content = "value")]
+pub enum Surcharge {
+    /// Fixed Surcharge value
+    Fixed(i64),
+    /// Surcharge percentage
+    Rate(Percentage<SURCHARGE_PERCENTAGE_PRECISION_LENGTH>),
 }
 
 /// Required fields info used while listing the payment_method_data
@@ -303,7 +339,7 @@ pub struct RequiredFieldInfo {
     pub value: Option<String>,
 }
 
-#[derive(Debug, Clone, serde::Deserialize, serde::Serialize, ToSchema)]
+#[derive(Debug, Clone, serde::Serialize, ToSchema)]
 pub struct ResponsePaymentMethodsEnabled {
     /// The payment method enabled
     #[schema(value_type = PaymentMethod)]
@@ -538,6 +574,10 @@ pub struct PaymentMethodListResponse {
 
     #[schema(value_type = Option<String>)]
     pub merchant_name: OptionalEncryptableName,
+
+    /// flag to indicate if surcharge and tax breakup screen should be shown or not
+    #[schema(value_type = bool)]
+    pub show_surcharge_breakup_screen: bool,
 
     #[schema(value_type = Option<PaymentType>)]
     pub payment_type: Option<api_enums::PaymentType>,

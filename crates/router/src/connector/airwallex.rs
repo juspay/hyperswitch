@@ -110,9 +110,13 @@ impl ConnectorValidation for Airwallex {
 
 impl api::Payment for Airwallex {}
 impl api::PaymentsCompleteAuthorize for Airwallex {}
-impl api::PreVerify for Airwallex {}
-impl ConnectorIntegration<api::Verify, types::VerifyRequestData, types::PaymentsResponseData>
-    for Airwallex
+impl api::MandateSetup for Airwallex {}
+impl
+    ConnectorIntegration<
+        api::SetupMandate,
+        types::SetupMandateRequestData,
+        types::PaymentsResponseData,
+    > for Airwallex
 {
 }
 

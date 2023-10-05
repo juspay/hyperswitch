@@ -41,7 +41,7 @@ impl api::Payment for Paypal {}
 impl api::PaymentSession for Paypal {}
 impl api::PaymentToken for Paypal {}
 impl api::ConnectorAccessToken for Paypal {}
-impl api::PreVerify for Paypal {}
+impl api::MandateSetup for Paypal {}
 impl api::PaymentAuthorize for Paypal {}
 impl api::PaymentsCompleteAuthorize for Paypal {}
 impl api::PaymentSync for Paypal {}
@@ -316,8 +316,12 @@ impl ConnectorIntegration<api::AccessTokenAuth, types::AccessTokenRequestData, t
     }
 }
 
-impl ConnectorIntegration<api::Verify, types::VerifyRequestData, types::PaymentsResponseData>
-    for Paypal
+impl
+    ConnectorIntegration<
+        api::SetupMandate,
+        types::SetupMandateRequestData,
+        types::PaymentsResponseData,
+    > for Paypal
 {
 }
 

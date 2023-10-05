@@ -861,6 +861,19 @@ pub async fn list_payment_methods(
         .await
         .transpose()?;
 
+    let payment_type = payment_attempt.as_ref().map(|pa| {
+        let amount = api::Amount::from(pa.amount);
+        let mandate_type = if pa.mandate_id.is_some() {
+            Some(api::MandateTransactionType::RecurringMandateTransaction)
+        } else if pa.mandate_details.is_some() {
+            Some(api::MandateTransactionType::NewMandateTransaction)
+        } else {
+            None
+        };
+
+        helpers::infer_payment_type(&amount, mandate_type.as_ref())
+    });
+
     let all_mcas = db
         .find_merchant_connector_account_by_merchant_id_and_disabled_list(
             &merchant_account.merchant_id,
@@ -1143,6 +1156,7 @@ pub async fn list_payment_methods(
                     .get(key.0)
                     .and_then(|inner_hm| inner_hm.get(payment_method_types_hm.0))
                     .cloned(),
+                surcharge_details: None,
             })
         }
 
@@ -1175,6 +1189,7 @@ pub async fn list_payment_methods(
                     .get(key.0)
                     .and_then(|inner_hm| inner_hm.get(payment_method_types_hm.0))
                     .cloned(),
+                surcharge_details: None,
             })
         }
 
@@ -1203,6 +1218,7 @@ pub async fn list_payment_methods(
                     .get(&api_enums::PaymentMethod::BankRedirect)
                     .and_then(|inner_hm| inner_hm.get(key.0))
                     .cloned(),
+                surcharge_details: None,
             }
         })
     }
@@ -1234,6 +1250,7 @@ pub async fn list_payment_methods(
                     .get(&api_enums::PaymentMethod::BankDebit)
                     .and_then(|inner_hm| inner_hm.get(key.0))
                     .cloned(),
+                surcharge_details: None,
             }
         })
     }
@@ -1265,6 +1282,7 @@ pub async fn list_payment_methods(
                     .get(&api_enums::PaymentMethod::BankTransfer)
                     .and_then(|inner_hm| inner_hm.get(key.0))
                     .cloned(),
+                surcharge_details: None,
             }
         })
     }
@@ -1280,8 +1298,8 @@ pub async fn list_payment_methods(
         api::PaymentMethodListResponse {
             redirect_url: merchant_account.return_url,
             merchant_name: merchant_account.merchant_name,
+            payment_type,
             payment_methods: payment_method_responses,
-            payment_type: payment_intent.as_ref().and_then(|pi| pi.payment_type),
             mandate_payment: payment_attempt.and_then(|inner| inner.mandate_details).map(
                 |d| match d {
                     data_models::mandates::MandateDataType::SingleUse(i) => {
@@ -1307,6 +1325,7 @@ pub async fn list_payment_methods(
                     }
                 },
             ),
+            show_surcharge_breakup_screen: false,
         },
     ))
 }

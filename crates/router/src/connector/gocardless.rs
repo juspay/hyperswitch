@@ -32,7 +32,7 @@ pub struct Gocardless;
 impl api::Payment for Gocardless {}
 impl api::PaymentSession for Gocardless {}
 impl api::ConnectorAccessToken for Gocardless {}
-impl api::PreVerify for Gocardless {}
+impl api::MandateSetup for Gocardless {}
 impl api::PaymentAuthorize for Gocardless {}
 impl api::PaymentSync for Gocardless {}
 impl api::PaymentCapture for Gocardless {}
@@ -422,8 +422,12 @@ impl ConnectorIntegration<api::AccessTokenAuth, types::AccessTokenRequestData, t
 {
 }
 
-impl ConnectorIntegration<api::Verify, types::VerifyRequestData, types::PaymentsResponseData>
-    for Gocardless
+impl
+    ConnectorIntegration<
+        api::SetupMandate,
+        types::SetupMandateRequestData,
+        types::PaymentsResponseData,
+    > for Gocardless
 {
 }
 

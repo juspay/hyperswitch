@@ -118,7 +118,7 @@ pub trait ConnectorErrorExt<T> {
     #[track_caller]
     fn to_payment_failed_response(self) -> error_stack::Result<T, errors::ApiErrorResponse>;
     #[track_caller]
-    fn to_verify_failed_response(self) -> error_stack::Result<T, errors::ApiErrorResponse>;
+    fn to_setup_mandate_failed_response(self) -> error_stack::Result<T, errors::ApiErrorResponse>;
     #[track_caller]
     fn to_dispute_failed_response(self) -> error_stack::Result<T, errors::ApiErrorResponse>;
     #[cfg(feature = "payouts")]
@@ -211,7 +211,7 @@ impl<T> ConnectorErrorExt<T> for error_stack::Result<T, errors::ConnectorError> 
         })
     }
 
-    fn to_verify_failed_response(self) -> error_stack::Result<T, errors::ApiErrorResponse> {
+    fn to_setup_mandate_failed_response(self) -> error_stack::Result<T, errors::ApiErrorResponse> {
         self.map_err(|err| {
             let error = err.current_context();
             let data = match error {
