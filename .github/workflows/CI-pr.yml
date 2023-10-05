@@ -60,7 +60,7 @@ jobs:
           else
             echo cargo +nightly fmt --all
           fi
-          if git diff --exit-code --quiet origin/$GITHUB_BASE_REF -- crates/ ; then
+          if git diff --exit-code --quiet origin/$GITHUB_BASE_REF -- ; then
             echo "::notice::Formatting check failed"
             cargo +nightly fmt --all
             git config --local user.name 'github-actions[bot]'
