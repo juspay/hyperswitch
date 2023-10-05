@@ -3,7 +3,10 @@ use router_env::{instrument, tracing, Flow};
 
 use super::app::AppState;
 use crate::{
-    core::webhooks::{self, types},
+    core::{
+        api_locking,
+        webhooks::{self, types},
+    },
     services::{api, authentication as auth},
 };
 
@@ -15,24 +18,25 @@ pub async fn receive_incoming_webhook<W: types::OutgoingWebhookType>(
     path: web::Path<(String, String)>,
 ) -> impl Responder {
     let flow = Flow::IncomingWebhookReceive;
-    let (merchant_id, connector_name) = path.into_inner();
+    let (merchant_id, connector_id_or_name) = path.into_inner();
 
     api::server_wrap(
         flow,
-        state.get_ref(),
+        state,
         &req,
         body,
         |state, auth, body| {
-            webhooks::webhooks_core::<W>(
-                state,
+            webhooks::webhooks_wrapper::<W>(
+                state.to_owned(),
                 &req,
                 auth.merchant_account,
                 auth.key_store,
-                &connector_name,
+                &connector_id_or_name,
                 body,
             )
         },
         &auth::MerchantIdAuth(merchant_id),
+        api_locking::LockAction::NotApplicable,
     )
     .await
 }

@@ -40,7 +40,7 @@ impl ReverseLookupInterface for Store {
                 .map_err(Into::into)
                 .into_report()
         };
-        cache::get_or_populate_redis(self, id, database_call).await
+        cache::get_or_populate_redis(self, format!("reverse_lookup_{id}"), database_call).await
     }
 }
 
@@ -48,14 +48,31 @@ impl ReverseLookupInterface for Store {
 impl ReverseLookupInterface for MockDb {
     async fn insert_reverse_lookup(
         &self,
-        _new: ReverseLookupNew,
+        new: ReverseLookupNew,
     ) -> CustomResult<ReverseLookup, errors::StorageError> {
-        Err(errors::StorageError::MockDbError.into())
+        let reverse_lookup_insert = ReverseLookup::from(new);
+        self.reverse_lookups
+            .lock()
+            .await
+            .push(reverse_lookup_insert.clone());
+        Ok(reverse_lookup_insert)
     }
     async fn get_lookup_by_lookup_id(
         &self,
-        _id: &str,
+        lookup_id: &str,
     ) -> CustomResult<ReverseLookup, errors::StorageError> {
-        Err(errors::StorageError::MockDbError.into())
+        self.reverse_lookups
+            .lock()
+            .await
+            .iter()
+            .find(|reverse_lookup| reverse_lookup.lookup_id == lookup_id)
+            .ok_or(
+                errors::StorageError::ValueNotFound(format!(
+                    "No reverse lookup found for lookup_id = {}",
+                    lookup_id
+                ))
+                .into(),
+            )
+            .cloned()
     }
 }

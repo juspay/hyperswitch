@@ -1,6 +1,6 @@
 use std::marker::PhantomData;
 
-use api_models::enums::CancelTransaction;
+use api_models::enums::FrmSuggestion;
 use async_trait::async_trait;
 use common_utils::{date_time, errors::CustomResult, ext_traits::AsyncExt};
 use error_stack::ResultExt;
@@ -171,7 +171,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::VerifyRequest> for Paym
                 email: None,
                 mandate_id: None,
                 mandate_connector: None,
-                setup_mandate: request.mandate_data.clone(),
+                setup_mandate: request.mandate_data.clone().map(Into::into),
                 token: request.payment_token.clone(),
                 connector_response,
                 payment_method_data: request.payment_method_data.clone(),
@@ -214,7 +214,8 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::VerifyRequest> for PaymentM
         storage_scheme: storage_enums::MerchantStorageScheme,
         _updated_customer: Option<storage::CustomerUpdate>,
         _mechant_key_store: &domain::MerchantKeyStore,
-        _should_cancel_transaction: Option<CancelTransaction>,
+        _frm_suggestion: Option<FrmSuggestion>,
+        _header_payload: api::HeaderPayload,
     ) -> RouterResult<(BoxedOperation<'b, F, api::VerifyRequest>, PaymentData<F>)>
     where
         F: 'b + Send,

@@ -1,0 +1,14 @@
+{
+  "childrenOrder": [
+    "Scenario1-Create payment with confirm true",
+    "Scenario2-Create payment with confirm false",
+    "Scenario3-Create payment without PMD",
+    "Scenario4-Create payment with Manual capture with confirm false",
+    "Scenario5-Create payment with Manual capture",
+    "Scenario6-Create Partial Capture payment",
+    "Scenario7-Void the payment",
+    "Scenario8-Refund full payment",
+    "Scenario9-Partial refund",
+    "Scenario10-Multiple Captures"
+  ]
+}

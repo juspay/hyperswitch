@@ -1,0 +1,22 @@
+{
+  "method": "DELETE",
+  "header": [
+    {
+      "key": "Accept",
+      "value": "application/json"
+    }
+  ],
+  "url": {
+    "raw": "{{baseUrl}}/customers/:id",
+    "host": ["{{baseUrl}}"],
+    "path": ["customers", ":id"],
+    "variable": [
+      {
+        "key": "id",
+        "value": "{{customer_id}}",
+        "description": "(Required) unique customer id"
+      }
+    ]
+  },
+  "description": "Delete a customer record."
+}

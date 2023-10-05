@@ -25,13 +25,16 @@ pub struct MerchantConnectorAccount {
     pub connector_type: enums::ConnectorType,
     pub metadata: Option<pii::SecretSerdeValue>,
     pub frm_configs: Option<Vec<Secret<serde_json::Value>>>,
-    pub connector_label: String,
-    pub business_country: enums::CountryAlpha2,
-    pub business_label: String,
+    pub connector_label: Option<String>,
+    pub business_country: Option<enums::CountryAlpha2>,
+    pub business_label: Option<String>,
     pub business_sub_label: Option<String>,
     pub created_at: time::PrimitiveDateTime,
     pub modified_at: time::PrimitiveDateTime,
     pub connector_webhook_details: Option<pii::SecretSerdeValue>,
+    pub profile_id: Option<String>,
+    pub applepay_verified_domains: Option<Vec<String>>,
+    pub pm_auth_config: Option<serde_json::Value>,
 }
 
 #[derive(Debug)]
@@ -48,6 +51,8 @@ pub enum MerchantConnectorAccountUpdate {
         metadata: Option<pii::SecretSerdeValue>,
         frm_configs: Option<Vec<Secret<serde_json::Value>>>,
         connector_webhook_details: Option<pii::SecretSerdeValue>,
+        applepay_verified_domains: Option<Vec<String>>,
+        pm_auth_config: Option<serde_json::Value>,
     },
 }
 
@@ -80,6 +85,9 @@ impl behaviour::Conversion for MerchantConnectorAccount {
                 created_at: self.created_at,
                 modified_at: self.modified_at,
                 connector_webhook_details: self.connector_webhook_details,
+                profile_id: self.profile_id,
+                applepay_verified_domains: self.applepay_verified_domains,
+                pm_auth_config: self.pm_auth_config,
             },
         )
     }
@@ -116,6 +124,9 @@ impl behaviour::Conversion for MerchantConnectorAccount {
             created_at: other.created_at,
             modified_at: other.modified_at,
             connector_webhook_details: other.connector_webhook_details,
+            profile_id: other.profile_id,
+            applepay_verified_domains: other.applepay_verified_domains,
+            pm_auth_config: other.pm_auth_config,
         })
     }
 
@@ -140,6 +151,9 @@ impl behaviour::Conversion for MerchantConnectorAccount {
             created_at: now,
             modified_at: now,
             connector_webhook_details: self.connector_webhook_details,
+            profile_id: self.profile_id,
+            applepay_verified_domains: self.applepay_verified_domains,
+            pm_auth_config: self.pm_auth_config,
         })
     }
 }
@@ -159,6 +173,8 @@ impl From<MerchantConnectorAccountUpdate> for MerchantConnectorAccountUpdateInte
                 metadata,
                 frm_configs,
                 connector_webhook_details,
+                applepay_verified_domains,
+                pm_auth_config,
             } => Self {
                 merchant_id,
                 connector_type,
@@ -173,6 +189,8 @@ impl From<MerchantConnectorAccountUpdate> for MerchantConnectorAccountUpdateInte
                 frm_config: frm_configs,
                 modified_at: Some(common_utils::date_time::now()),
                 connector_webhook_details,
+                applepay_verified_domains,
+                pm_auth_config,
             },
         }
     }

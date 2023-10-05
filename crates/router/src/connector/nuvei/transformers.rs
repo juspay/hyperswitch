@@ -4,6 +4,7 @@ use common_utils::{
     date_time, fp_utils, pii,
     pii::Email,
 };
+use data_models::mandates::MandateDataType;
 use error_stack::{IntoReport, ResultExt};
 use masking::{PeekInterface, Secret};
 use reqwest::Url;
@@ -11,8 +12,8 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     connector::utils::{
-        self, AddressDetailsData, BrowserInformationData, MandateData,
-        PaymentsAuthorizeRequestData, PaymentsCancelRequestData, RouterData,
+        self, AddressDetailsData, BrowserInformationData, PaymentsAuthorizeRequestData,
+        PaymentsCancelRequestData, RouterData,
     },
     consts,
     core::errors,
@@ -721,7 +722,7 @@ impl<F>
             | payments::PaymentMethodData::BankTransfer(_)
             | payments::PaymentMethodData::Crypto(_)
             | payments::PaymentMethodData::MandatePayment
-            | payments::PaymentMethodData::Reward(_)
+            | payments::PaymentMethodData::Reward
             | payments::PaymentMethodData::Upi(_)
             | payments::PaymentMethodData::Voucher(_)
             | api_models::payments::PaymentMethodData::CardRedirect(_)
@@ -790,20 +791,28 @@ fn get_card_info<F>(
                         .change_context(errors::ConnectorError::MissingRequiredField {
                             field_name: "mandate_type",
                         })? {
-                        payments::MandateType::SingleUse(details) => details,
-                        payments::MandateType::MultiUse(details) => {
+                        MandateDataType::SingleUse(details) => details,
+                        MandateDataType::MultiUse(details) => {
                             details.ok_or(errors::ConnectorError::MissingRequiredField {
                                 field_name: "mandate_data.mandate_type.multi_use",
                             })?
                         }
                     };
-                    let mandate_meta: NuveiMandateMeta =
-                        utils::to_connector_meta_from_secret(Some(details.get_metadata()?))?;
+                    let mandate_meta: NuveiMandateMeta = utils::to_connector_meta_from_secret(
+                        Some(details.get_metadata().ok_or_else(utils::missing_field_err(
+                            "mandate_data.mandate_type.{multi_use|single_use}.metadata",
+                        ))?),
+                    )?;
                     (
                         Some("0".to_string()), // In case of first installment, rebilling should be 0
                         Some(V2AdditionalParams {
                             rebill_expiry: Some(
-                                details.get_end_date(date_time::DateFormat::YYYYMMDD)?,
+                                details
+                                    .get_end_date(date_time::DateFormat::YYYYMMDD)
+                                    .change_context(errors::ConnectorError::DateFormattingFailed)?
+                                    .ok_or_else(utils::missing_field_err(
+                                        "mandate_data.mandate_type.{multi_use|single_use}.end_date",
+                                    ))?,
                             ),
                             rebill_frequency: Some(mandate_meta.frequency),
                             challenge_window_size: None,
@@ -895,7 +904,7 @@ impl TryFrom<(&types::PaymentsCompleteAuthorizeRouterData, String)> for NuveiPay
             | Some(api::PaymentMethodData::GiftCard(..))
             | Some(api::PaymentMethodData::Voucher(..))
             | Some(api::PaymentMethodData::CardRedirect(..))
-            | Some(api::PaymentMethodData::Reward(..))
+            | Some(api::PaymentMethodData::Reward)
             | Some(api::PaymentMethodData::Upi(..))
             | None => Err(errors::ConnectorError::NotImplemented(
                 utils::get_unimplemented_payment_method_error_message("nuvei"),
@@ -1285,7 +1294,7 @@ where
                 Ok(types::PaymentsResponseData::TransactionResponse {
                     resource_id: response
                         .transaction_id
-                        .map_or(response.order_id, Some) // For paypal there will be no transaction_id, only order_id will be present
+                        .map_or(response.order_id.clone(), Some) // For paypal there will be no transaction_id, only order_id will be present
                         .map(types::ResponseId::ConnectorTransactionId)
                         .ok_or(errors::ConnectorError::MissingConnectorTransactionID)?,
                     redirection_data,
@@ -1309,7 +1318,7 @@ where
                         None
                     },
                     network_txn_id: None,
-                    connector_response_reference_id: None,
+                    connector_response_reference_id: response.order_id,
                 })
             },
             ..item.data

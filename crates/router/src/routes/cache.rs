@@ -3,7 +3,7 @@ use router_env::{instrument, tracing, Flow};
 
 use super::AppState;
 use crate::{
-    core::cache,
+    core::{api_locking, cache},
     services::{api, authentication as auth},
 };
 
@@ -19,11 +19,12 @@ pub async fn invalidate(
 
     api::server_wrap(
         flow,
-        state.get_ref(),
+        state,
         &req,
         &key,
-        |state, _, key| cache::invalidate(&*state.store, key),
+        |state, _, key| cache::invalidate(state, key),
         &auth::AdminApiAuth,
+        api_locking::LockAction::NotApplicable,
     )
     .await
 }

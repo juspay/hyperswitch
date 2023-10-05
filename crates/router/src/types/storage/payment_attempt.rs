@@ -1,22 +1,22 @@
-pub use diesel_models::payment_attempt::{
-    PaymentAttempt, PaymentAttemptNew, PaymentAttemptUpdate, PaymentAttemptUpdateInternal,
+pub use data_models::payments::payment_attempt::{
+    PaymentAttempt, PaymentAttemptNew, PaymentAttemptUpdate,
 };
 use diesel_models::{capture::CaptureNew, enums};
+use error_stack::ResultExt;
 
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-pub struct RoutingData {
-    pub routed_through: Option<String>,
-    pub algorithm: Option<api_models::admin::StraightThroughAlgorithm>,
-}
+use crate::{
+    core::errors, errors::RouterResult, types::transformers::ForeignFrom, utils::OptionExt,
+};
 
 pub trait PaymentAttemptExt {
     fn make_new_capture(
         &self,
         capture_amount: i64,
         capture_status: enums::CaptureStatus,
-    ) -> CaptureNew;
+    ) -> RouterResult<CaptureNew>;
 
     fn get_next_capture_id(&self) -> String;
+    fn get_intent_status(&self, amount_captured: Option<i64>) -> enums::IntentStatus;
 }
 
 impl PaymentAttemptExt for PaymentAttempt {
@@ -24,17 +24,24 @@ impl PaymentAttemptExt for PaymentAttempt {
         &self,
         capture_amount: i64,
         capture_status: enums::CaptureStatus,
-    ) -> CaptureNew {
+    ) -> RouterResult<CaptureNew> {
         let capture_sequence = self.multiple_capture_count.unwrap_or_default() + 1;
         let now = common_utils::date_time::now();
-        CaptureNew {
+        Ok(CaptureNew {
             payment_id: self.payment_id.clone(),
             merchant_id: self.merchant_id.clone(),
             capture_id: self.get_next_capture_id(),
             status: capture_status,
             amount: capture_amount,
             currency: self.currency,
-            connector: self.connector.clone(),
+            connector: self
+                .connector
+                .clone()
+                .get_required_value("connector")
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable(
+                    "connector field is required in payment_attempt to create a capture",
+                )?,
             error_message: None,
             tax_amount: None,
             created_at: now,
@@ -43,12 +50,32 @@ impl PaymentAttemptExt for PaymentAttempt {
             error_reason: None,
             authorized_attempt_id: self.attempt_id.clone(),
             capture_sequence,
-            connector_transaction_id: None,
-        }
+            connector_capture_id: None,
+            connector_response_reference_id: None,
+        })
     }
     fn get_next_capture_id(&self) -> String {
         let next_sequence_number = self.multiple_capture_count.unwrap_or_default() + 1;
         format!("{}_{}", self.attempt_id.clone(), next_sequence_number)
+    }
+
+    fn get_intent_status(&self, amount_captured: Option<i64>) -> enums::IntentStatus {
+        let intent_status = enums::IntentStatus::foreign_from(self.status);
+        if intent_status == enums::IntentStatus::Cancelled && amount_captured > Some(0) {
+            enums::IntentStatus::Succeeded
+        } else {
+            intent_status
+        }
+    }
+}
+
+pub trait AttemptStatusExt {
+    fn maps_to_intent_status(self, intent_status: enums::IntentStatus) -> bool;
+}
+
+impl AttemptStatusExt for enums::AttemptStatus {
+    fn maps_to_intent_status(self, intent_status: enums::IntentStatus) -> bool {
+        enums::IntentStatus::foreign_from(self) == intent_status
     }
 }
 
@@ -63,7 +90,7 @@ mod tests {
     use crate::{
         configs::settings::Settings,
         db::StorageImpl,
-        routes,
+        routes, services,
         types::{self, storage::enums},
     };
 
@@ -72,7 +99,9 @@ mod tests {
     async fn test_payment_attempt_insert() {
         let conf = Settings::new().expect("invalid settings");
         let tx: oneshot::Sender<()> = oneshot::channel().0;
-        let state = routes::AppState::with_storage(conf, StorageImpl::PostgresqlTest, tx).await;
+        let api_client = Box::new(services::MockApiClient);
+        let state =
+            routes::AppState::with_storage(conf, StorageImpl::PostgresqlTest, tx, api_client).await;
 
         let payment_id = Uuid::new_v4().to_string();
         let current_time = common_utils::date_time::now();
@@ -102,7 +131,11 @@ mod tests {
         use crate::configs::settings::Settings;
         let conf = Settings::new().expect("invalid settings");
         let tx: oneshot::Sender<()> = oneshot::channel().0;
-        let state = routes::AppState::with_storage(conf, StorageImpl::PostgresqlTest, tx).await;
+
+        let api_client = Box::new(services::MockApiClient);
+
+        let state =
+            routes::AppState::with_storage(conf, StorageImpl::PostgresqlTest, tx, api_client).await;
 
         let current_time = common_utils::date_time::now();
         let payment_id = Uuid::new_v4().to_string();
@@ -149,7 +182,11 @@ mod tests {
         let conf = Settings::new().expect("invalid settings");
         let uuid = Uuid::new_v4().to_string();
         let tx: oneshot::Sender<()> = oneshot::channel().0;
-        let state = routes::AppState::with_storage(conf, StorageImpl::PostgresqlTest, tx).await;
+
+        let api_client = Box::new(services::MockApiClient);
+
+        let state =
+            routes::AppState::with_storage(conf, StorageImpl::PostgresqlTest, tx, api_client).await;
         let current_time = common_utils::date_time::now();
         let connector = types::Connector::DummyConnector1.to_string();
 

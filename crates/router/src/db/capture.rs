@@ -1,3 +1,5 @@
+use router_env::{instrument, tracing};
+
 use super::MockDb;
 use crate::{
     core::errors::{self, CustomResult},
@@ -192,12 +194,14 @@ impl CaptureInterface for MockDb {
             modified_at: capture.modified_at,
             authorized_attempt_id: capture.authorized_attempt_id,
             capture_sequence: capture.capture_sequence,
-            connector_transaction_id: capture.connector_transaction_id,
+            connector_capture_id: capture.connector_capture_id,
+            connector_response_reference_id: capture.connector_response_reference_id,
         };
         captures.push(capture.clone());
         Ok(capture)
     }
 
+    #[instrument(skip_all)]
     async fn update_capture_with_capture_id(
         &self,
         _this: types::Capture,

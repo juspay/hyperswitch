@@ -662,21 +662,18 @@ async fn should_make_adyen_momo_atm_payment(web_driver: WebDriver) -> Result<(),
 
 #[test]
 #[serial]
-#[ignore]
 fn should_make_adyen_gpay_payment_test() {
     tester!(should_make_adyen_gpay_payment);
 }
 
 #[test]
 #[serial]
-#[ignore]
 fn should_make_adyen_gpay_mandate_payment_test() {
     tester!(should_make_adyen_gpay_mandate_payment);
 }
 
 #[test]
 #[serial]
-#[ignore]
 fn should_make_adyen_gpay_zero_dollar_mandate_payment_test() {
     tester!(should_make_adyen_gpay_zero_dollar_mandate_payment);
 }
@@ -852,6 +849,7 @@ fn should_make_adyen_touch_n_go_payment_test() {
     tester!(should_make_adyen_touch_n_go_payment);
 }
 
+#[ignore]
 #[test]
 #[serial]
 fn should_make_adyen_momo_atm_payment_test() {

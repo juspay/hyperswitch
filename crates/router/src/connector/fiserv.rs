@@ -3,6 +3,7 @@ pub mod transformers;
 use std::fmt::Debug;
 
 use base64::Engine;
+use diesel_models::enums;
 use error_stack::{IntoReport, ResultExt};
 use masking::{ExposeInterface, PeekInterface};
 use ring::hmac;
@@ -12,6 +13,7 @@ use uuid::Uuid;
 
 use crate::{
     configs::settings,
+    connector::utils as connector_utils,
     consts,
     core::errors::{self, CustomResult},
     headers, logger,
@@ -19,6 +21,7 @@ use crate::{
         self,
         api::ConnectorIntegration,
         request::{self, Mask},
+        ConnectorValidation,
     },
     types::{
         self,
@@ -152,6 +155,21 @@ impl ConnectorCommon for Fiserv {
                 reason: None,
                 status_code: res.status_code,
             }))
+    }
+}
+
+impl ConnectorValidation for Fiserv {
+    fn validate_capture_method(
+        &self,
+        capture_method: Option<enums::CaptureMethod>,
+    ) -> CustomResult<(), errors::ConnectorError> {
+        let capture_method = capture_method.unwrap_or_default();
+        match capture_method {
+            enums::CaptureMethod::Automatic | enums::CaptureMethod::Manual => Ok(()),
+            enums::CaptureMethod::ManualMultiple | enums::CaptureMethod::Scheduled => Err(
+                connector_utils::construct_not_implemented_error_report(capture_method, self.id()),
+            ),
+        }
     }
 }
 

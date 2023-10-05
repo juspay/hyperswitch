@@ -1,4 +1,4 @@
-use error_stack::IntoReport;
+use error_stack::{IntoReport, ResultExt};
 
 use super::{MockDb, Store};
 use crate::{
@@ -52,8 +52,11 @@ impl EventInterface for MockDb {
         let now = common_utils::date_time::now();
 
         let stored_event = storage::Event {
-            #[allow(clippy::as_conversions)]
-            id: locked_events.len() as i32,
+            id: locked_events
+                .len()
+                .try_into()
+                .into_report()
+                .change_context(errors::StorageError::MockDbError)?,
             event_id: event.event_id,
             event_type: event.event_type,
             event_class: event.event_class,
@@ -105,7 +108,10 @@ mod tests {
     #[allow(clippy::unwrap_used)]
     #[tokio::test]
     async fn test_mockdb_event_interface() {
-        let mockdb = MockDb::new(&Default::default()).await;
+        #[allow(clippy::expect_used)]
+        let mockdb = MockDb::new(&redis_interface::RedisSettings::default())
+            .await
+            .expect("Failed to create Mock store");
 
         let event1 = mockdb
             .insert_event(storage::EventNew {

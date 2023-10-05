@@ -2,14 +2,20 @@ pub mod transformers;
 
 use std::fmt::Debug;
 
+use diesel_models::enums;
 use error_stack::{IntoReport, ResultExt};
 use transformers as tsys;
 
 use crate::{
     configs::settings,
+    connector::utils as connector_utils,
     core::errors::{self, CustomResult},
     headers,
-    services::{self, request, ConnectorIntegration},
+    services::{
+        self,
+        request::{self},
+        ConnectorIntegration, ConnectorValidation,
+    },
     types::{
         self,
         api::{self, ConnectorCommon, ConnectorCommonExt},
@@ -71,6 +77,21 @@ impl ConnectorCommon for Tsys {
 
     fn base_url<'a>(&self, connectors: &'a settings::Connectors) -> &'a str {
         connectors.tsys.base_url.as_ref()
+    }
+}
+
+impl ConnectorValidation for Tsys {
+    fn validate_capture_method(
+        &self,
+        capture_method: Option<enums::CaptureMethod>,
+    ) -> CustomResult<(), errors::ConnectorError> {
+        let capture_method = capture_method.unwrap_or_default();
+        match capture_method {
+            enums::CaptureMethod::Automatic | enums::CaptureMethod::Manual => Ok(()),
+            enums::CaptureMethod::ManualMultiple | enums::CaptureMethod::Scheduled => Err(
+                connector_utils::construct_not_supported_error_report(capture_method, self.id()),
+            ),
+        }
     }
 }
 

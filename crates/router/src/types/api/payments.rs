@@ -1,18 +1,17 @@
 pub use api_models::payments::{
     AcceptanceType, Address, AddressDetails, Amount, AuthenticationForStartResponse, Card,
-    CryptoData, CustomerAcceptance, MandateData, MandateTransactionType, MandateType,
-    MandateValidationFields, NextActionType, OnlineMandate, PayLaterData, PaymentIdType,
-    PaymentListConstraints, PaymentListFilterConstraints, PaymentListFilters, PaymentListResponse,
-    PaymentMethodData, PaymentMethodDataResponse, PaymentOp, PaymentRetrieveBody,
-    PaymentRetrieveBodyWithCredentials, PaymentsCancelRequest, PaymentsCaptureRequest,
-    PaymentsRedirectRequest, PaymentsRedirectionResponse, PaymentsRequest, PaymentsResponse,
+    CryptoData, CustomerAcceptance, HeaderPayload, MandateAmountData, MandateData,
+    MandateTransactionType, MandateType, MandateValidationFields, NextActionType, OnlineMandate,
+    PayLaterData, PaymentIdType, PaymentListConstraints, PaymentListFilterConstraints,
+    PaymentListFilters, PaymentListResponse, PaymentListResponseV2, PaymentMethodData,
+    PaymentMethodDataResponse, PaymentOp, PaymentRetrieveBody, PaymentRetrieveBodyWithCredentials,
+    PaymentsApproveRequest, PaymentsCancelRequest, PaymentsCaptureRequest, PaymentsRedirectRequest,
+    PaymentsRedirectionResponse, PaymentsRejectRequest, PaymentsRequest, PaymentsResponse,
     PaymentsResponseForm, PaymentsRetrieveRequest, PaymentsSessionRequest, PaymentsSessionResponse,
     PaymentsStartRequest, PgRedirectResponse, PhoneDetails, RedirectionResponse, SessionToken,
     TimeRange, UrlDetails, VerifyRequest, VerifyResponse, WalletData,
 };
 use error_stack::{IntoReport, ResultExt};
-use masking::PeekInterface;
-use time::PrimitiveDateTime;
 
 use crate::{
     core::errors,
@@ -34,29 +33,6 @@ impl PaymentsRequestExt for PaymentsRequest {
     }
 }
 
-pub(crate) trait CustomerAcceptanceExt {
-    fn get_ip_address(&self) -> Option<String>;
-    fn get_user_agent(&self) -> Option<String>;
-    fn get_accepted_at(&self) -> PrimitiveDateTime;
-}
-
-impl CustomerAcceptanceExt for CustomerAcceptance {
-    fn get_ip_address(&self) -> Option<String> {
-        self.online
-            .as_ref()
-            .and_then(|data| data.ip_address.as_ref().map(|ip| ip.peek().to_owned()))
-    }
-
-    fn get_user_agent(&self) -> Option<String> {
-        self.online.as_ref().map(|data| data.user_agent.clone())
-    }
-
-    fn get_accepted_at(&self) -> PrimitiveDateTime {
-        self.accepted_at
-            .unwrap_or_else(common_utils::date_time::now)
-    }
-}
-
 impl super::Router for PaymentsRequest {}
 
 // Core related api layer.
@@ -68,6 +44,9 @@ pub struct AuthorizeSessionToken;
 
 #[derive(Debug, Clone)]
 pub struct CompleteAuthorize;
+
+#[derive(Debug, Clone)]
+pub struct Approve;
 
 // Used in gift cards balance check
 #[derive(Debug, Clone)]
@@ -83,6 +62,9 @@ pub struct Capture;
 pub struct PSync;
 #[derive(Debug, Clone)]
 pub struct Void;
+
+#[derive(Debug, Clone)]
+pub struct Reject;
 
 #[derive(Debug, Clone)]
 pub struct Session;
@@ -157,6 +139,16 @@ pub trait PaymentVoid:
 {
 }
 
+pub trait PaymentApprove:
+    api::ConnectorIntegration<Approve, types::PaymentsApproveData, types::PaymentsResponseData>
+{
+}
+
+pub trait PaymentReject:
+    api::ConnectorIntegration<Reject, types::PaymentsRejectData, types::PaymentsResponseData>
+{
+}
+
 pub trait PaymentCapture:
     api::ConnectorIntegration<Capture, types::PaymentsCaptureData, types::PaymentsResponseData>
 {
@@ -210,11 +202,14 @@ pub trait PaymentsPreProcessing:
 
 pub trait Payment:
     api_types::ConnectorCommon
+    + api_types::ConnectorValidation
     + PaymentAuthorize
     + PaymentsCompleteAuthorize
     + PaymentSync
     + PaymentCapture
     + PaymentVoid
+    + PaymentApprove
+    + PaymentReject
     + PreVerify
     + PaymentSession
     + PaymentToken

@@ -13,7 +13,7 @@ pub mod db;
 pub mod env;
 pub(crate) mod macros;
 pub mod routes;
-pub mod scheduler;
+pub mod workflows;
 
 pub mod middleware;
 pub mod openapi;
@@ -28,12 +28,13 @@ use actix_web::{
 };
 use http::StatusCode;
 use routes::AppState;
+use storage_impl::errors::ApplicationResult;
 use tokio::sync::{mpsc, oneshot};
 
 pub use self::env::logger;
 use crate::{
     configs::settings,
-    core::errors::{self, ApplicationResult},
+    core::errors::{self},
 };
 
 #[cfg(feature = "mimalloc")]
@@ -63,7 +64,7 @@ pub mod headers {
     pub const X_ACCEPT_VERSION: &str = "X-Accept-Version";
     pub const X_DATE: &str = "X-Date";
     pub const X_WEBHOOK_SIGNATURE: &str = "X-Webhook-Signature-512";
-
+    pub const X_REQUEST_ID: &str = "X-Request-Id";
     pub const STRIPE_COMPATIBLE_WEBHOOK_SIGNATURE: &str = "Stripe-Signature";
 }
 
@@ -138,6 +139,11 @@ pub fn mk_app(
             .service(routes::Disputes::server(state.clone()))
     }
 
+    #[cfg(all(feature = "olap", feature = "kms"))]
+    {
+        server_app = server_app.service(routes::Verify::server(state.clone()));
+    }
+
     #[cfg(feature = "payouts")]
     {
         server_app = server_app.service(routes::Payouts::server(state.clone()));
@@ -164,7 +170,16 @@ pub async fn start_server(conf: settings::Settings) -> ApplicationResult<Server>
     logger::debug!(startup_config=?conf);
     let server = conf.server.clone();
     let (tx, rx) = oneshot::channel();
-    let state = routes::AppState::new(conf, tx).await;
+    let api_client = Box::new(
+        services::ProxyClient::new(
+            conf.proxy.clone(),
+            services::proxy_bypass_urls(&conf.locker),
+        )
+        .map_err(|error| {
+            errors::ApplicationError::ApiClientError(error.current_context().clone())
+        })?,
+    );
+    let state = routes::AppState::new(conf, tx, api_client).await;
     let request_body_limit = server.request_body_limit;
     let server = actix_web::HttpServer::new(move || mk_app(state.clone(), request_body_limit))
         .bind((server.host.as_str(), server.port))?

@@ -32,6 +32,8 @@ pub struct ConnectorAuthentication {
     pub forte: Option<MultiAuthKey>,
     pub globalpay: Option<BodyKey>,
     pub globepay: Option<BodyKey>,
+    pub gocardless: Option<HeaderKey>,
+    pub helcim: Option<HeaderKey>,
     pub iatapay: Option<SignatureKey>,
     pub mollie: Option<BodyKey>,
     pub multisafepay: Option<HeaderKey>,
@@ -48,7 +50,7 @@ pub struct ConnectorAuthentication {
     pub powertranz: Option<BodyKey>,
     pub rapyd: Option<BodyKey>,
     pub shift4: Option<HeaderKey>,
-    pub square: Option<HeaderKey>,
+    pub square: Option<BodyKey>,
     pub stax: Option<HeaderKey>,
     pub stripe: Option<HeaderKey>,
     pub stripe_au: Option<HeaderKey>,
@@ -70,9 +72,12 @@ impl Default for ConnectorAuthentication {
 
 #[allow(dead_code)]
 impl ConnectorAuthentication {
+    /// # Panics
+    ///
+    /// Will panic if `CONNECTOR_AUTH_FILE_PATH` env is not set
     #[allow(clippy::expect_used)]
     pub fn new() -> Self {
-        // Do `export CONNECTOR_AUTH_FILE_PATH="/hyperswitch/crates/router/tests/connectors/sample_auth.toml"`
+        // Do `export CONNECTOR_AUTH_FILE_PATH="/hyperswitch/crates/router/tests/connectors/sample_sample_auth.toml"`
         // before running tests in shell
         let path = env::var("CONNECTOR_AUTH_FILE_PATH")
             .expect("Connector authentication file path not set");
@@ -99,9 +104,12 @@ impl ConnectorAuthenticationMap {
         &self.0
     }
 
+    /// # Panics
+    ///
+    /// Will panic if `CONNECTOR_AUTH_FILE_PATH` env  is not set
     #[allow(clippy::expect_used)]
     pub fn new() -> Self {
-        // Do `export CONNECTOR_AUTH_FILE_PATH="/hyperswitch/crates/router/tests/connectors/sample_auth.toml"`
+        // Do `export CONNECTOR_AUTH_FILE_PATH="/hyperswitch/crates/router/tests/connectors/sample_sample_auth.toml"`
         // before running tests in shell
         let path = env::var("CONNECTOR_AUTH_FILE_PATH")
             .expect("connector authentication file path not set");

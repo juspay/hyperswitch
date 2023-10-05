@@ -3,6 +3,7 @@ use std::fmt::Debug;
 
 use base64::Engine;
 use common_utils::{date_time, ext_traits::StringExt};
+use diesel_models::enums;
 use error_stack::{IntoReport, Report, ResultExt};
 use masking::{ExposeInterface, PeekInterface};
 use rand::distributions::{Alphanumeric, DistString};
@@ -11,14 +12,14 @@ use transformers as rapyd;
 
 use crate::{
     configs::settings,
-    connector::utils as conn_utils,
+    connector::{utils as connector_utils, utils as conn_utils},
     consts,
     core::errors::{self, CustomResult},
-    db::StorageInterface,
     headers, logger,
     services::{
         self,
         request::{self, Mask},
+        ConnectorValidation,
     },
     types::{
         self,
@@ -98,6 +99,21 @@ impl ConnectorCommon for Rapyd {
                 logger::error!(deserialization_error =? error_msg);
                 utils::handle_json_response_deserialization_failure(res, "rapyd".to_owned())
             }
+        }
+    }
+}
+
+impl ConnectorValidation for Rapyd {
+    fn validate_capture_method(
+        &self,
+        capture_method: Option<enums::CaptureMethod>,
+    ) -> CustomResult<(), errors::ConnectorError> {
+        let capture_method = capture_method.unwrap_or_default();
+        match capture_method {
+            enums::CaptureMethod::Automatic | enums::CaptureMethod::Manual => Ok(()),
+            enums::CaptureMethod::ManualMultiple | enums::CaptureMethod::Scheduled => Err(
+                connector_utils::construct_not_supported_error_report(capture_method, self.id()),
+            ),
         }
     }
 }
@@ -744,23 +760,19 @@ impl api::IncomingWebhook for Rapyd {
 
     async fn verify_webhook_source(
         &self,
-        db: &dyn StorageInterface,
         request: &api::IncomingWebhookRequestDetails<'_>,
         merchant_account: &domain::MerchantAccount,
+        merchant_connector_account: domain::MerchantConnectorAccount,
         connector_label: &str,
-        key_store: &domain::MerchantKeyStore,
-        object_reference_id: api_models::webhooks::ObjectReferenceId,
     ) -> CustomResult<bool, errors::ConnectorError> {
         let signature = self
             .get_webhook_source_verification_signature(request)
             .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
-        let secret = self
+        let connector_webhook_secrets = self
             .get_webhook_source_verification_merchant_secret(
-                db,
                 merchant_account,
                 connector_label,
-                key_store,
-                object_reference_id,
+                merchant_connector_account,
             )
             .await
             .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
@@ -768,11 +780,11 @@ impl api::IncomingWebhook for Rapyd {
             .get_webhook_source_verification_message(
                 request,
                 &merchant_account.merchant_id,
-                &secret,
+                &connector_webhook_secrets.secret,
             )
             .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
 
-        let stringify_auth = String::from_utf8(secret.to_vec())
+        let stringify_auth = String::from_utf8(connector_webhook_secrets.secret.to_vec())
             .into_report()
             .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)
             .attach_printable("Could not convert secret to UTF-8")?;

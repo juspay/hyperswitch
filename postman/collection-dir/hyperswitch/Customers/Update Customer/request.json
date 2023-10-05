@@ -1,0 +1,45 @@
+{
+  "method": "POST",
+  "header": [
+    {
+      "key": "Content-Type",
+      "value": "application/json"
+    },
+    {
+      "key": "Accept",
+      "value": "application/json"
+    }
+  ],
+  "body": {
+    "mode": "raw",
+    "options": {
+      "raw": {
+        "language": "json"
+      }
+    },
+    "raw_json_formatted": {
+      "email": "JohnTest@test.com",
+      "name": "John Test",
+      "phone_country_code": "+65",
+      "phone": "888888888",
+      "description": "First customer",
+      "metadata": {
+        "city": "NY",
+        "unit": "245"
+      }
+    }
+  },
+  "url": {
+    "raw": "{{baseUrl}}/customers/:id",
+    "host": ["{{baseUrl}}"],
+    "path": ["customers", ":id"],
+    "variable": [
+      {
+        "key": "id",
+        "value": "{{customer_id}}",
+        "description": "(Required) unique customer id"
+      }
+    ]
+  },
+  "description": "Updates the customer's details in a customer object."
+}

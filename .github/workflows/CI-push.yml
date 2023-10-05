@@ -68,9 +68,10 @@ jobs:
           save-if: ${{ github.event_name == 'push' }}
 
       - name: Install cargo-hack
-        uses: baptiste0928/cargo-install@v2.0.0
+        uses: baptiste0928/cargo-install@v2.1.0
         with:
           crate: cargo-hack
+          version: 0.6.5
 
       - name: Deny warnings
         shell: bash
@@ -131,16 +132,16 @@ jobs:
       - name: Install Rust
         uses: dtolnay/rust-toolchain@master
         with:
-          toolchain: stable
+          toolchain: stable 2 weeks ago
           components: clippy
 
       - name: Install cargo-hack
-        uses: baptiste0928/cargo-install@v2.0.0
+        uses: baptiste0928/cargo-install@v2.1.0
         with:
           crate: cargo-hack
 
       # - name: Install cargo-nextest
-      #   uses: baptiste0928/cargo-install@v2.0.0
+      #   uses: baptiste0928/cargo-install@v2.1.0
       #   with:
       #     crate: cargo-nextest
 

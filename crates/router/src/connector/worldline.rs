@@ -14,14 +14,14 @@ use transformers as worldline;
 use super::utils::RefundsRequestData;
 use crate::{
     configs::settings::Connectors,
-    connector::utils as conn_utils,
+    connector::{utils as connector_utils, utils as conn_utils},
     consts,
     core::errors::{self, CustomResult},
     headers, logger,
     services::{
         self,
         request::{self, Mask},
-        ConnectorIntegration,
+        ConnectorIntegration, ConnectorValidation,
     },
     types::{
         self,
@@ -135,6 +135,21 @@ impl ConnectorCommon for Worldline {
                 .unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
             ..Default::default()
         })
+    }
+}
+
+impl ConnectorValidation for Worldline {
+    fn validate_capture_method(
+        &self,
+        capture_method: Option<enums::CaptureMethod>,
+    ) -> CustomResult<(), errors::ConnectorError> {
+        let capture_method = capture_method.unwrap_or_default();
+        match capture_method {
+            enums::CaptureMethod::Automatic | enums::CaptureMethod::Manual => Ok(()),
+            enums::CaptureMethod::ManualMultiple | enums::CaptureMethod::Scheduled => Err(
+                connector_utils::construct_not_implemented_error_report(capture_method, self.id()),
+            ),
+        }
     }
 }
 

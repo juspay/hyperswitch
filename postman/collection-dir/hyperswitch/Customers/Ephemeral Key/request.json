@@ -1,0 +1,20 @@
+{
+  "method": "POST",
+  "header": [
+    {
+      "key": "Content-Type",
+      "value": "application/json"
+    }
+  ],
+  "body": {
+    "mode": "raw",
+    "raw_json_formatted": {
+      "customer_id": "{{customer_id}}"
+    }
+  },
+  "url": {
+    "raw": "{{baseUrl}}/ephemeral_keys",
+    "host": ["{{baseUrl}}"],
+    "path": ["ephemeral_keys"]
+  }
+}

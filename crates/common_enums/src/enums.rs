@@ -1,4 +1,4 @@
-use std::num::TryFromIntError;
+use std::num::{ParseFloatError, TryFromIntError};
 
 use router_derive;
 use serde::{Deserialize, Serialize};
@@ -7,11 +7,12 @@ use utoipa::ToSchema;
 pub mod diesel_exports {
     pub use super::{
         DbAttemptStatus as AttemptStatus, DbAuthenticationType as AuthenticationType,
-        DbCaptureMethod as CaptureMethod, DbConnectorType as ConnectorType,
-        DbCountryAlpha2 as CountryAlpha2, DbCurrency as Currency, DbDisputeStage as DisputeStage,
-        DbDisputeStatus as DisputeStatus, DbEventType as EventType, DbFutureUsage as FutureUsage,
-        DbIntentStatus as IntentStatus, DbMandateStatus as MandateStatus,
-        DbPaymentMethodIssuerCode as PaymentMethodIssuerCode, DbRefundStatus as RefundStatus,
+        DbCaptureMethod as CaptureMethod, DbCaptureStatus as CaptureStatus,
+        DbConnectorType as ConnectorType, DbCountryAlpha2 as CountryAlpha2, DbCurrency as Currency,
+        DbDisputeStage as DisputeStage, DbDisputeStatus as DisputeStatus, DbEventType as EventType,
+        DbFutureUsage as FutureUsage, DbIntentStatus as IntentStatus,
+        DbMandateStatus as MandateStatus, DbPaymentMethodIssuerCode as PaymentMethodIssuerCode,
+        DbRefundStatus as RefundStatus,
     };
 }
 
@@ -58,6 +59,36 @@ pub enum AttemptStatus {
     DeviceDataCollectionPending,
 }
 
+impl AttemptStatus {
+    pub fn is_terminal_status(self) -> bool {
+        match self {
+            Self::RouterDeclined
+            | Self::Charged
+            | Self::AutoRefunded
+            | Self::Voided
+            | Self::VoidFailed
+            | Self::CaptureFailed
+            | Self::Failure => true,
+            Self::Started
+            | Self::AuthenticationFailed
+            | Self::AuthenticationPending
+            | Self::AuthenticationSuccessful
+            | Self::Authorized
+            | Self::AuthorizationFailed
+            | Self::Authorizing
+            | Self::CodInitiated
+            | Self::VoidInitiated
+            | Self::CaptureInitiated
+            | Self::PartialCharged
+            | Self::Unresolved
+            | Self::Pending
+            | Self::PaymentMethodAwaited
+            | Self::ConfirmationAwaited
+            | Self::DeviceDataCollectionPending => false,
+        }
+    }
+}
+
 #[derive(
     Clone,
     Copy,
@@ -96,6 +127,7 @@ pub enum AuthenticationType {
     serde::Serialize,
     strum::Display,
     strum::EnumString,
+    ToSchema,
     Hash,
 )]
 #[router_derive::diesel_enum(storage_type = "pg_enum")]
@@ -176,6 +208,8 @@ pub enum ConnectorType {
     NonBankingFinance,
     /// Acquirers, Gateways etc
     PayoutProcessor,
+    /// PaymentMethods Auth Services
+    PaymentMethodAuth,
 }
 
 #[allow(clippy::upper_case_acronyms)]
@@ -338,6 +372,19 @@ impl Currency {
             amount_f64 / 100.00
         };
         Ok(amount)
+    }
+
+    ///Convert the higher decimal amount to its base absolute units
+    pub fn to_currency_lower_unit(&self, amount: String) -> Result<String, ParseFloatError> {
+        let amount_f64 = amount.parse::<f64>()?;
+        let amount_string = if self.is_zero_decimal_currency() {
+            amount_f64
+        } else if self.is_three_decimal_currency() {
+            amount_f64 * 1000.00
+        } else {
+            amount_f64 * 100.00
+        };
+        Ok(amount_string.to_string())
     }
 
     /// Convert the amount to its base denomination based on Currency and check for zero decimal currency and return String
@@ -1663,6 +1710,50 @@ pub enum PayoutEntityType {
 #[derive(
     Clone,
     Copy,
+    Debug,
+    Default,
+    Eq,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    strum::EnumString,
+    ToSchema,
+    Hash,
+)]
+#[router_derive::diesel_enum(storage_type = "pg_enum")]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum PaymentSource {
+    #[default]
+    MerchantServer,
+    Postman,
+    Dashboard,
+    Sdk,
+}
+
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    PartialEq,
+    serde::Serialize,
+    serde::Deserialize,
+    strum::Display,
+    strum::EnumString,
+)]
+#[router_derive::diesel_enum(storage_type = "text")]
+#[strum(serialize_all = "snake_case")]
+pub enum MerchantDecision {
+    Approved,
+    Rejected,
+    AutoRefunded,
+}
+
+#[derive(
+    Clone,
+    Copy,
     Default,
     Debug,
     Eq,
@@ -1676,7 +1767,39 @@ pub enum PayoutEntityType {
 )]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
-pub enum CancelTransaction {
+pub enum FrmSuggestion {
     #[default]
     FrmCancelTransaction,
+    FrmManualReview,
+    FrmAutoRefund,
+}
+
+#[derive(
+    Clone,
+    Debug,
+    Eq,
+    Default,
+    Hash,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    strum::EnumString,
+    utoipa::ToSchema,
+    Copy,
+)]
+#[router_derive::diesel_enum(storage_type = "pg_enum")]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum ReconStatus {
+    #[default]
+    NotRequested,
+    Requested,
+    Active,
+    Disabled,
+}
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum ApplePayFlow {
+    Simplified,
+    Manual,
 }

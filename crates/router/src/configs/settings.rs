@@ -13,6 +13,7 @@ use external_services::email::EmailSettings;
 use external_services::kms;
 use redis_interface::RedisSettings;
 pub use router_env::config::{Log, LogConsole, LogFile, LogTelemetry};
+use scheduler::SchedulerSettings;
 use serde::{de::Error, Deserialize, Deserializer};
 
 use crate::{
@@ -90,14 +91,39 @@ pub struct Settings {
     pub mandates: Mandates,
     pub required_fields: RequiredFields,
     pub delayed_session_response: DelayedSessionConfig,
+    pub webhook_source_verification_call: WebhookSourceVerificationCall,
     pub connector_request_reference_id_config: ConnectorRequestReferenceIdConfig,
     #[cfg(feature = "payouts")]
     pub payouts: Payouts,
+    pub applepay_decrypt_keys: ApplePayDecryptConifg,
+    pub multiple_api_version_supported_connectors: MultipleApiVersionSupportedConnectors,
+    pub applepay_merchant_configs: ApplepayMerchantConfigs,
+    pub lock_settings: LockSettings,
+    pub temp_locker_disable_config: TempLockerDisableConfig,
+}
+
+#[derive(Debug, Deserialize, Clone, Default)]
+#[serde(default)]
+pub struct ApplepayMerchantConfigs {
+    pub merchant_cert: String,
+    pub merchant_cert_key: String,
+    pub common_merchant_identifier: String,
+    pub applepay_endpoint: String,
+}
+
+#[derive(Debug, Deserialize, Clone, Default)]
+pub struct MultipleApiVersionSupportedConnectors {
+    #[serde(deserialize_with = "connector_deser")]
+    pub supported_connectors: HashSet<api_models::enums::Connector>,
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
 #[serde(transparent)]
 pub struct TokenizationConfig(pub HashMap<String, PaymentMethodTokenFilter>);
+
+#[derive(Debug, Deserialize, Clone, Default)]
+#[serde(transparent)]
+pub struct TempLockerDisableConfig(pub HashMap<String, TempLockerDisablePaymentMethodFilter>);
 
 #[derive(Debug, Deserialize, Clone, Default)]
 pub struct ConnectorCustomer {
@@ -140,6 +166,7 @@ where
 #[cfg(feature = "dummy_connector")]
 #[derive(Debug, Deserialize, Clone, Default)]
 pub struct DummyConnector {
+    pub enabled: bool,
     pub payment_ttl: i64,
     pub payment_duration: u64,
     pub payment_tolerance: u64,
@@ -186,6 +213,12 @@ pub struct PaymentMethodTokenFilter {
     pub payment_method: HashSet<diesel_models::enums::PaymentMethod>,
     pub payment_method_type: Option<PaymentMethodTypeTokenFilter>,
     pub long_lived_token: bool,
+}
+
+#[derive(Debug, Deserialize, Clone, Default)]
+pub struct TempLockerDisablePaymentMethodFilter {
+    #[serde(deserialize_with = "pm_deser")]
+    pub payment_method: HashSet<diesel_models::enums::PaymentMethod>,
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
@@ -402,11 +435,12 @@ pub struct Jwekey {
     pub tunnel_private_key: String,
 }
 
-#[derive(Debug, Deserialize, Clone, Default)]
+#[derive(Debug, Deserialize, Clone)]
 #[serde(default)]
 pub struct Proxy {
     pub http_url: Option<String>,
     pub https_url: Option<String>,
+    pub idle_pool_connection_timeout: Option<u64>,
 }
 
 #[derive(Debug, Deserialize, Clone)]
@@ -466,7 +500,7 @@ pub struct Connectors {
     pub authorizedotnet: ConnectorParams,
     pub bambora: ConnectorParams,
     pub bitpay: ConnectorParams,
-    pub bluesnap: ConnectorParams,
+    pub bluesnap: ConnectorParamsWithSecondaryBaseUrl,
     pub boku: ConnectorParams,
     pub braintree: ConnectorParams,
     pub cashtocode: ConnectorParams,
@@ -481,13 +515,15 @@ pub struct Connectors {
     pub forte: ConnectorParams,
     pub globalpay: ConnectorParams,
     pub globepay: ConnectorParams,
+    pub gocardless: ConnectorParams,
+    pub helcim: ConnectorParams,
     pub iatapay: ConnectorParams,
     pub klarna: ConnectorParams,
     pub mollie: ConnectorParams,
     pub multisafepay: ConnectorParams,
     pub nexinets: ConnectorParams,
     pub nmi: ConnectorParams,
-    pub noon: ConnectorParams,
+    pub noon: ConnectorParamsWithModeType,
     pub nuvei: ConnectorParams,
     pub opayo: ConnectorParams,
     pub opennode: ConnectorParams,
@@ -518,6 +554,15 @@ pub struct ConnectorParams {
 
 #[derive(Debug, Deserialize, Clone, Default, router_derive::ConfigValidate)]
 #[serde(default)]
+pub struct ConnectorParamsWithModeType {
+    pub base_url: String,
+    pub secondary_base_url: Option<String>,
+    /// Can take values like Test or Live for Noon
+    pub key_mode: String,
+}
+
+#[derive(Debug, Deserialize, Clone, Default, router_derive::ConfigValidate)]
+#[serde(default)]
 pub struct ConnectorParamsWithMoreUrls {
     pub base_url: String,
     pub base_url_bank_redirects: String,
@@ -530,40 +575,11 @@ pub struct ConnectorParamsWithFileUploadUrl {
     pub base_url_file_upload: String,
 }
 
-#[cfg(feature = "payouts")]
 #[derive(Debug, Deserialize, Clone, Default, router_derive::ConfigValidate)]
 #[serde(default)]
 pub struct ConnectorParamsWithSecondaryBaseUrl {
     pub base_url: String,
     pub secondary_base_url: String,
-}
-
-#[derive(Debug, Clone, Deserialize)]
-#[serde(default)]
-pub struct SchedulerSettings {
-    pub stream: String,
-    pub producer: ProducerSettings,
-    pub consumer: ConsumerSettings,
-    pub loop_interval: u64,
-    pub graceful_shutdown_interval: u64,
-}
-
-#[derive(Debug, Clone, Deserialize)]
-#[serde(default)]
-pub struct ProducerSettings {
-    pub upper_fetch_limit: i64,
-    pub lower_fetch_limit: i64,
-
-    pub lock_key: String,
-    pub lock_ttl: i64,
-    pub batch_size: usize,
-}
-
-#[derive(Debug, Clone, Deserialize)]
-#[serde(default)]
-pub struct ConsumerSettings {
-    pub disabled: bool,
-    pub consumer_group: String,
 }
 
 #[cfg(feature = "kv_store")]
@@ -621,8 +637,22 @@ pub struct FileUploadConfig {
 
 #[derive(Debug, Deserialize, Clone, Default)]
 pub struct DelayedSessionConfig {
-    #[serde(deserialize_with = "delayed_session_deser")]
+    #[serde(deserialize_with = "deser_to_get_connectors")]
     pub connectors_with_delayed_session_response: HashSet<api_models::enums::Connector>,
+}
+
+#[derive(Debug, Deserialize, Clone, Default)]
+pub struct WebhookSourceVerificationCall {
+    #[serde(deserialize_with = "connector_deser")]
+    pub connectors_with_webhook_source_verification_call: HashSet<api_models::enums::Connector>,
+}
+
+#[derive(Debug, Deserialize, Clone, Default)]
+pub struct ApplePayDecryptConifg {
+    pub apple_pay_ppc: String,
+    pub apple_pay_ppc_key: String,
+    pub apple_pay_merchant_cert: String,
+    pub apple_pay_merchant_cert_key: String,
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
@@ -630,7 +660,7 @@ pub struct ConnectorRequestReferenceIdConfig {
     pub merchant_ids_send_payment_id_as_connector_request_id: HashSet<String>,
 }
 
-fn delayed_session_deser<'a, D>(
+fn deser_to_get_connectors<'a, D>(
     deserializer: D,
 ) -> Result<HashSet<api_models::enums::Connector>, D::Error>
 where
@@ -668,7 +698,7 @@ impl Settings {
         let config_path = router_env::Config::config_path(&environment.to_string(), config_path);
 
         let config = router_env::Config::builder(&environment.to_string())?
-            .add_source(File::from(config_path).required(true))
+            .add_source(File::from(config_path).required(false))
             .add_source(
                 Environment::with_prefix("ROUTER")
                     .try_parsing(true)
@@ -726,6 +756,7 @@ impl Settings {
             .map_err(|error| ApplicationError::InvalidConfigurationValueError(error.into()))?;
         #[cfg(feature = "s3")]
         self.file_upload_config.validate()?;
+        self.lock_settings.validate()?;
         Ok(())
     }
 }
@@ -752,4 +783,33 @@ mod payment_method_deserialization_test {
 #[derive(Debug, Deserialize, Clone, Default)]
 pub struct Payouts {
     pub payout_eligibility: bool,
+}
+
+#[derive(Debug, Clone, Default)]
+pub struct LockSettings {
+    pub redis_lock_expiry_seconds: u32,
+    pub delay_between_retries_in_milliseconds: u32,
+    pub lock_retries: u32,
+}
+
+impl<'de> Deserialize<'de> for LockSettings {
+    fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+        #[derive(Deserialize)]
+        #[serde(deny_unknown_fields)]
+        struct Inner {
+            redis_lock_expiry_seconds: u32,
+            delay_between_retries_in_milliseconds: u32,
+        }
+
+        let Inner {
+            redis_lock_expiry_seconds,
+            delay_between_retries_in_milliseconds,
+        } = Inner::deserialize(deserializer)?;
+        let redis_lock_expiry_seconds = redis_lock_expiry_seconds * 1000;
+        Ok(Self {
+            redis_lock_expiry_seconds,
+            delay_between_retries_in_milliseconds,
+            lock_retries: redis_lock_expiry_seconds / delay_between_retries_in_milliseconds,
+        })
+    }
 }

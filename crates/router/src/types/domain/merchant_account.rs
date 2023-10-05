@@ -1,11 +1,14 @@
 use common_utils::{
     crypto::{OptionalEncryptableName, OptionalEncryptableValue},
-    date_time, pii,
+    date_time,
+    ext_traits::ValueExt,
+    pii,
 };
 use data_models::MerchantStorageScheme;
 use diesel_models::{encryption::Encryption, merchant_account::MerchantAccountUpdateInternal};
 use error_stack::ResultExt;
 use masking::{PeekInterface, Secret};
+use router_env::logger;
 use storage_impl::DataModelExt;
 
 use crate::{
@@ -39,6 +42,8 @@ pub struct MerchantAccount {
     pub payout_routing_algorithm: Option<serde_json::Value>,
     pub organization_id: Option<String>,
     pub is_recon_enabled: bool,
+    pub default_profile: Option<String>,
+    pub recon_status: diesel_models::enums::ReconStatus,
 }
 
 #[allow(clippy::large_enum_variant)]
@@ -62,13 +67,15 @@ pub enum MerchantAccountUpdate {
         intent_fulfillment_time: Option<i64>,
         frm_routing_algorithm: Option<serde_json::Value>,
         payout_routing_algorithm: Option<serde_json::Value>,
+        default_profile: Option<Option<String>>,
     },
     StorageSchemeUpdate {
         storage_scheme: MerchantStorageScheme,
     },
     ReconUpdate {
-        is_recon_enabled: bool,
+        recon_status: diesel_models::enums::ReconStatus,
     },
+    UnsetDefaultProfile,
 }
 
 impl From<MerchantAccountUpdate> for MerchantAccountUpdateInternal {
@@ -92,6 +99,7 @@ impl From<MerchantAccountUpdate> for MerchantAccountUpdateInternal {
                 intent_fulfillment_time,
                 frm_routing_algorithm,
                 payout_routing_algorithm,
+                default_profile,
             } => Self {
                 merchant_name: merchant_name.map(Encryption::from),
                 merchant_details: merchant_details.map(Encryption::from),
@@ -111,6 +119,7 @@ impl From<MerchantAccountUpdate> for MerchantAccountUpdateInternal {
                 modified_at: Some(date_time::now()),
                 intent_fulfillment_time,
                 payout_routing_algorithm,
+                default_profile,
                 ..Default::default()
             },
             MerchantAccountUpdate::StorageSchemeUpdate { storage_scheme } => Self {
@@ -118,8 +127,12 @@ impl From<MerchantAccountUpdate> for MerchantAccountUpdateInternal {
                 modified_at: Some(date_time::now()),
                 ..Default::default()
             },
-            MerchantAccountUpdate::ReconUpdate { is_recon_enabled } => Self {
-                is_recon_enabled,
+            MerchantAccountUpdate::ReconUpdate { recon_status } => Self {
+                recon_status,
+                ..Default::default()
+            },
+            MerchantAccountUpdate::UnsetDefaultProfile => Self {
+                default_profile: Some(None),
                 ..Default::default()
             },
         }
@@ -158,6 +171,8 @@ impl super::behaviour::Conversion for MerchantAccount {
             payout_routing_algorithm: self.payout_routing_algorithm,
             organization_id: self.organization_id,
             is_recon_enabled: self.is_recon_enabled,
+            default_profile: self.default_profile,
+            recon_status: self.recon_status,
         })
     }
 
@@ -200,6 +215,8 @@ impl super::behaviour::Conversion for MerchantAccount {
                 payout_routing_algorithm: item.payout_routing_algorithm,
                 organization_id: item.organization_id,
                 is_recon_enabled: item.is_recon_enabled,
+                default_profile: item.default_profile,
+                recon_status: item.recon_status,
             })
         }
         .await
@@ -233,6 +250,21 @@ impl super::behaviour::Conversion for MerchantAccount {
             payout_routing_algorithm: self.payout_routing_algorithm,
             organization_id: self.organization_id,
             is_recon_enabled: self.is_recon_enabled,
+            default_profile: self.default_profile,
+            recon_status: self.recon_status,
         })
+    }
+}
+
+impl MerchantAccount {
+    pub fn get_compatible_connector(&self) -> Option<api_models::enums::Connector> {
+        let metadata: Option<api_models::admin::MerchantAccountMetadata> =
+            self.metadata.as_ref().and_then(|meta| {
+                meta.clone()
+                    .parse_value("MerchantAccountMetadata")
+                    .map_err(|err| logger::error!("Failed to deserialize {:?}", err))
+                    .ok()
+            });
+        metadata.and_then(|a| a.compatible_connector)
     }
 }

@@ -3,6 +3,7 @@ pub mod transformers;
 use std::fmt::Debug;
 
 use common_utils::{crypto, ext_traits::ByteSliceExt};
+use diesel_models::enums;
 use error_stack::{IntoReport, ResultExt};
 use transformers as coinbase;
 
@@ -10,12 +11,13 @@ use self::coinbase::CoinbaseWebhookDetails;
 use super::utils;
 use crate::{
     configs::settings,
+    connector::utils as connector_utils,
     core::errors::{self, CustomResult},
     headers,
     services::{
         self,
         request::{self, Mask},
-        ConnectorIntegration,
+        ConnectorIntegration, ConnectorValidation,
     },
     types::{
         self,
@@ -107,6 +109,21 @@ impl ConnectorCommon for Coinbase {
             message: response.error.message,
             reason: response.error.code,
         })
+    }
+}
+
+impl ConnectorValidation for Coinbase {
+    fn validate_capture_method(
+        &self,
+        capture_method: Option<enums::CaptureMethod>,
+    ) -> CustomResult<(), errors::ConnectorError> {
+        let capture_method = capture_method.unwrap_or_default();
+        match capture_method {
+            enums::CaptureMethod::Automatic | enums::CaptureMethod::Manual => Ok(()),
+            enums::CaptureMethod::ManualMultiple | enums::CaptureMethod::Scheduled => Err(
+                connector_utils::construct_not_supported_error_report(capture_method, self.id()),
+            ),
+        }
     }
 }
 

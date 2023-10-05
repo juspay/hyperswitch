@@ -8,7 +8,7 @@ use url::Url;
 use super::{
     requests::{
         self, ApmProvider, GlobalpayPaymentsRequest, GlobalpayRefreshTokenRequest, Initiator,
-        PaymentMethodData, StoredCredential,
+        PaymentMethodData, Sequence, StoredCredential,
     },
     response::{GlobalpayPaymentStatus, GlobalpayPaymentsResponse, GlobalpayRefreshTokenResponse},
 };
@@ -91,6 +91,18 @@ impl TryFrom<&types::PaymentsCaptureRouterData> for requests::GlobalpayCaptureRe
     fn try_from(value: &types::PaymentsCaptureRouterData) -> Result<Self, Self::Error> {
         Ok(Self {
             amount: Some(value.request.amount_to_capture.to_string()),
+            capture_sequence: value.request.multiple_capture_data.clone().map(|mcd| {
+                if mcd.capture_sequence == 1 {
+                    Sequence::First
+                } else {
+                    Sequence::Subsequent
+                }
+            }),
+            reference: value
+                .request
+                .multiple_capture_data
+                .as_ref()
+                .map(|mcd| mcd.capture_reference.clone()),
         })
     }
 }
@@ -187,6 +199,7 @@ impl From<Option<enums::CaptureMethod>> for requests::CaptureMode {
     fn from(capture_method: Option<enums::CaptureMethod>) -> Self {
         match capture_method {
             Some(enums::CaptureMethod::Manual) => Self::Later,
+            Some(enums::CaptureMethod::ManualMultiple) => Self::Multiple,
             _ => Self::Auto,
         }
     }
@@ -220,7 +233,7 @@ fn get_payment_response(
             mandate_reference,
             connector_metadata: None,
             network_txn_id: None,
-            connector_response_reference_id: None,
+            connector_response_reference_id: response.reference,
         }),
     }
 }
@@ -263,6 +276,35 @@ impl<F, T>
             response: get_payment_response(status, item.response, redirection_data),
             ..item.data
         })
+    }
+}
+
+impl
+    TryFrom<(
+        types::PaymentsSyncResponseRouterData<GlobalpayPaymentsResponse>,
+        bool,
+    )> for types::PaymentsSyncRouterData
+{
+    type Error = Error;
+
+    fn try_from(
+        (value, is_multiple_capture_sync): (
+            types::PaymentsSyncResponseRouterData<GlobalpayPaymentsResponse>,
+            bool,
+        ),
+    ) -> Result<Self, Self::Error> {
+        if is_multiple_capture_sync {
+            let capture_sync_response_list =
+                utils::construct_captures_response_hashmap(vec![value.response]);
+            Ok(Self {
+                response: Ok(types::PaymentsResponseData::MultipleCaptureResponse {
+                    capture_sync_response_list,
+                }),
+                ..value.data
+            })
+        } else {
+            Self::try_from(value)
+        }
     }
 }
 
@@ -448,5 +490,29 @@ impl TryFrom<&api_models::payments::BankRedirectData> for PaymentMethodData {
             ))
             .into_report(),
         }
+    }
+}
+
+impl utils::MultipleCaptureSyncResponse for GlobalpayPaymentsResponse {
+    fn get_connector_capture_id(&self) -> String {
+        self.id.clone()
+    }
+
+    fn get_capture_attempt_status(&self) -> diesel_models::enums::AttemptStatus {
+        enums::AttemptStatus::from(self.status)
+    }
+
+    fn is_capture_response(&self) -> bool {
+        true
+    }
+
+    fn get_amount_captured(&self) -> Option<i64> {
+        match self.amount.clone() {
+            Some(amount) => amount.parse().ok(),
+            None => None,
+        }
+    }
+    fn get_connector_reference_id(&self) -> Option<String> {
+        self.reference.clone()
     }
 }

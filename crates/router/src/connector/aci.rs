@@ -14,6 +14,7 @@ use crate::{
     services::{
         self,
         request::{self, Mask},
+        ConnectorValidation,
     },
     types::{
         self,
@@ -78,6 +79,8 @@ impl ConnectorCommon for Aci {
         })
     }
 }
+
+impl ConnectorValidation for Aci {}
 
 impl api::Payment for Aci {}
 

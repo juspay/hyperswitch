@@ -24,7 +24,7 @@ use crate::{
 
 #[derive(Default, Serialize, PartialEq, Eq, Deserialize, Clone)]
 pub struct StripeBillingDetails {
-    pub address: Option<payments::AddressDetails>,
+    pub address: Option<AddressDetails>,
     pub email: Option<Email>,
     pub name: Option<String>,
     pub phone: Option<masking::Secret<String>>,
@@ -39,8 +39,17 @@ impl From<StripeBillingDetails> for payments::Address {
                     address.country.as_ref().map(|country| country.to_string())
                 }),
             }),
-
-            address: details.address,
+            address: details.address.map(|address| payments::AddressDetails {
+                city: address.city,
+                country: address.country,
+                line1: address.line1,
+                line2: address.line2,
+                zip: address.postal_code,
+                state: address.state,
+                first_name: None,
+                line3: None,
+                last_name: None,
+            }),
         }
     }
 }
@@ -586,7 +595,7 @@ pub struct StripePaymentListConstraints {
     pub starting_after: Option<String>,
     pub ending_before: Option<String>,
     #[serde(default = "default_limit")]
-    pub limit: i64,
+    pub limit: u32,
     pub created: Option<i64>,
     #[serde(rename = "created[lt]")]
     pub created_lt: Option<i64>,
@@ -598,7 +607,7 @@ pub struct StripePaymentListConstraints {
     pub created_gte: Option<i64>,
 }
 
-fn default_limit() -> i64 {
+fn default_limit() -> u32 {
     10
 }
 

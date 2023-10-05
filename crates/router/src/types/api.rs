@@ -26,7 +26,7 @@ use crate::{
     configs::settings::Connectors,
     connector, consts,
     core::errors::{self, CustomResult},
-    services::{request, ConnectorIntegration, ConnectorRedirectResponse},
+    services::{request, ConnectorIntegration, ConnectorRedirectResponse, ConnectorValidation},
     types::{self, api::enums as api_enums},
 };
 
@@ -38,18 +38,40 @@ pub trait ConnectorAccessToken:
 {
 }
 
+#[derive(Clone, Debug)]
+pub struct VerifyWebhookSource;
+
+pub trait ConnectorVerifyWebhookSource:
+    ConnectorIntegration<
+    VerifyWebhookSource,
+    types::VerifyWebhookSourceRequestData,
+    types::VerifyWebhookSourceResponseData,
+>
+{
+}
+
 pub trait ConnectorTransactionId: ConnectorCommon + Sync {
     fn connector_transaction_id(
         &self,
-        payment_attempt: diesel_models::payment_attempt::PaymentAttempt,
+        payment_attempt: data_models::payments::payment_attempt::PaymentAttempt,
     ) -> Result<Option<String>, errors::ApiErrorResponse> {
         Ok(payment_attempt.connector_transaction_id)
     }
 }
 
+pub enum CurrencyUnit {
+    Base,
+    Minor,
+}
+
 pub trait ConnectorCommon {
     /// Name of the connector (in lowercase).
     fn id(&self) -> &'static str;
+
+    /// Connector accepted currency unit as either "Base" or "Minor"
+    fn get_currency_unit(&self) -> CurrencyUnit {
+        CurrencyUnit::Minor // Default implementation should be remove once it is implemented in all connectors
+    }
 
     /// HTTP header used for authorization.
     fn get_auth_header(
@@ -113,6 +135,7 @@ pub trait Connector:
     + FileUpload
     + ConnectorTransactionId
     + Payouts
+    + ConnectorVerifyWebhookSource
 {
 }
 
@@ -131,7 +154,8 @@ impl<
             + Dispute
             + FileUpload
             + ConnectorTransactionId
-            + Payouts,
+            + Payouts
+            + ConnectorVerifyWebhookSource,
     > Connector for T
 {
 }
@@ -305,6 +329,8 @@ impl ConnectorData {
                 enums::Connector::Forte => Ok(Box::new(&connector::Forte)),
                 enums::Connector::Globalpay => Ok(Box::new(&connector::Globalpay)),
                 enums::Connector::Globepay => Ok(Box::new(&connector::Globepay)),
+                enums::Connector::Gocardless => Ok(Box::new(&connector::Gocardless)),
+                //enums::Connector::Helcim => Ok(Box::new(&connector::Helcim)), , it is added as template code for future usage
                 enums::Connector::Iatapay => Ok(Box::new(&connector::Iatapay)),
                 enums::Connector::Klarna => Ok(Box::new(&connector::Klarna)),
                 enums::Connector::Mollie => Ok(Box::new(&connector::Mollie)),
@@ -318,7 +344,7 @@ impl ConnectorData {
                 enums::Connector::Powertranz => Ok(Box::new(&connector::Powertranz)),
                 enums::Connector::Rapyd => Ok(Box::new(&connector::Rapyd)),
                 enums::Connector::Shift4 => Ok(Box::new(&connector::Shift4)),
-                //enums::Connector::Square => Ok(Box::new(&connector::Square)), it is added as template code for future usage
+                enums::Connector::Square => Ok(Box::new(&connector::Square)),
                 enums::Connector::Stax => Ok(Box::new(&connector::Stax)),
                 enums::Connector::Stripe => Ok(Box::new(&connector::Stripe)),
                 enums::Connector::Wise => Ok(Box::new(&connector::Wise)),
@@ -330,7 +356,7 @@ impl ConnectorData {
                 enums::Connector::Trustpay => Ok(Box::new(&connector::Trustpay)),
                 enums::Connector::Tsys => Ok(Box::new(&connector::Tsys)),
                 enums::Connector::Zen => Ok(Box::new(&connector::Zen)),
-                enums::Connector::Signifyd => {
+                enums::Connector::Signifyd | enums::Connector::Plaid => {
                     Err(report!(errors::ConnectorError::InvalidConnectorName)
                         .attach_printable(format!("invalid connector name: {connector_name}")))
                     .change_context(errors::ApiErrorResponse::InternalServerError)

@@ -2,6 +2,7 @@
 use std::collections::HashSet;
 
 use diesel_models::{errors::DatabaseError, refund::RefundUpdateInternal};
+use error_stack::{IntoReport, ResultExt};
 
 use super::MockDb;
 use crate::{
@@ -357,6 +358,7 @@ mod storage {
                         updated_at: new.created_at.unwrap_or_else(date_time::now),
                         description: new.description.clone(),
                         refund_reason: new.refund_reason.clone(),
+                        profile_id: new.profile_id.clone(),
                     };
 
                     let field = format!(
@@ -496,14 +498,9 @@ mod storage {
                         .into_report()
                 }
                 enums::MerchantStorageScheme::RedisKv => {
-                    let key = format!("{}_{}", this.merchant_id, this.refund_id);
-
+                    let key = format!("{}_{}", this.merchant_id, this.payment_id);
+                    let field = format!("pa_{}_ref_{}", &this.attempt_id, &this.refund_id);
                     let updated_refund = refund.clone().apply_changeset(this.clone());
-                    // Check for database presence as well Maybe use a read replica here ?
-
-                    let lookup = self.get_lookup_by_lookup_id(&key).await?;
-
-                    let field = &lookup.sk_id;
 
                     let redis_value =
                         utils::Encode::<storage_types::Refund>::encode_to_string_of_json(
@@ -513,7 +510,7 @@ mod storage {
 
                     self.get_redis_conn()
                         .map_err(Into::<errors::StorageError>::into)?
-                        .set_hash_fields(&lookup.pk_id, (field, redis_value))
+                        .set_hash_fields(&key, (field, redis_value))
                         .await
                         .change_context(errors::StorageError::KVError)?;
 
@@ -627,13 +624,9 @@ mod storage {
                 }
                 enums::MerchantStorageScheme::RedisKv => {
                     let key = format!("{merchant_id}_{payment_id}");
-                    let lookup = self.get_lookup_by_lookup_id(&key).await?;
-
-                    let pattern = db_utils::generate_hscan_pattern_for_refund(&lookup.sk_id);
-
                     self.get_redis_conn()
                         .map_err(Into::<errors::StorageError>::into)?
-                        .hscan_and_deserialize(&key, &pattern, None)
+                        .hscan_and_deserialize(&key, "pa_*_ref_*", None)
                         .await
                         .change_context(errors::StorageError::KVError)
                 }
@@ -734,8 +727,11 @@ impl RefundInterface for MockDb {
         let current_time = common_utils::date_time::now();
 
         let refund = storage_types::Refund {
-            #[allow(clippy::as_conversions)]
-            id: refunds.len() as i32,
+            id: refunds
+                .len()
+                .try_into()
+                .into_report()
+                .change_context(errors::StorageError::MockDbError)?,
             internal_reference_id: new.internal_reference_id,
             refund_id: new.refund_id,
             payment_id: new.payment_id,
@@ -759,6 +755,7 @@ impl RefundInterface for MockDb {
             updated_at: current_time,
             description: new.description,
             refund_reason: new.refund_reason.clone(),
+            profile_id: new.profile_id,
         };
         refunds.push(refund.clone());
         Ok(refund)
@@ -905,6 +902,7 @@ impl RefundInterface for MockDb {
                     .clone()
                     .map_or(true, |id| id == refund.refund_id)
             })
+            .filter(|refund| refund_details.profile_id == refund.profile_id)
             .filter(|refund| {
                 refund.created_at
                     >= refund_details.time_range.map_or(
@@ -1028,6 +1026,7 @@ impl RefundInterface for MockDb {
                     .clone()
                     .map_or(true, |id| id == refund.refund_id)
             })
+            .filter(|refund| refund_details.profile_id == refund.profile_id)
             .filter(|refund| {
                 refund.created_at
                     >= refund_details.time_range.map_or(

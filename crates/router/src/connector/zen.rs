@@ -9,7 +9,6 @@ use transformers as zen;
 use uuid::Uuid;
 
 use self::transformers::{ZenPaymentStatus, ZenWebhookTxnType};
-use super::utils::RefundsRequestData;
 use crate::{
     configs::settings,
     consts,
@@ -17,12 +16,11 @@ use crate::{
         errors::{self, CustomResult},
         payments,
     },
-    db::StorageInterface,
     headers,
     services::{
         self,
         request::{self, Mask},
-        ConnectorIntegration,
+        ConnectorIntegration, ConnectorValidation,
     },
     types::{
         self,
@@ -80,6 +78,10 @@ impl ConnectorCommon for Zen {
         "zen"
     }
 
+    fn get_currency_unit(&self) -> api::CurrencyUnit {
+        api::CurrencyUnit::Base
+    }
+
     fn common_get_content_type(&self) -> &'static str {
         mime::APPLICATION_JSON.essence_str()
     }
@@ -125,6 +127,16 @@ impl ConnectorCommon for Zen {
             ),
             reason: None,
         })
+    }
+}
+
+impl ConnectorValidation for Zen {
+    fn validate_psync_reference_id(
+        &self,
+        _data: &types::PaymentsSyncRouterData,
+    ) -> CustomResult<(), errors::ConnectorError> {
+        // since we can make psync call with our reference_id, having connector_transaction_id is not an mandatory criteria
+        Ok(())
     }
 }
 
@@ -200,7 +212,13 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         &self,
         req: &types::PaymentsAuthorizeRouterData,
     ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
-        let req_obj = zen::ZenPaymentsRequest::try_from(req)?;
+        let connector_router_data = zen::ZenRouterData::try_from((
+            &self.get_currency_unit(),
+            req.request.currency,
+            req.request.amount,
+            req,
+        ))?;
+        let req_obj = zen::ZenPaymentsRequest::try_from(&connector_router_data)?;
         let zen_req = types::RequestBody::log_and_get_request_body(
             &req_obj,
             utils::Encode::<zen::ZenPaymentsRequest>::encode_to_string_of_json,
@@ -276,15 +294,10 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
         req: &types::PaymentsSyncRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        let payment_id = req
-            .request
-            .connector_transaction_id
-            .get_connector_transaction_id()
-            .change_context(errors::ConnectorError::MissingConnectorTransactionID)?;
-
         Ok(format!(
-            "{}v1/transactions/{payment_id}",
+            "{}v1/transactions/merchant/{}",
             self.base_url(connectors),
+            req.attempt_id,
         ))
     }
 
@@ -394,7 +407,13 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
         &self,
         req: &types::RefundsRouterData<api::Execute>,
     ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
-        let req_obj = zen::ZenRefundRequest::try_from(req)?;
+        let connector_router_data = zen::ZenRouterData::try_from((
+            &self.get_currency_unit(),
+            req.request.currency,
+            req.request.refund_amount,
+            req,
+        ))?;
+        let req_obj = zen::ZenRefundRequest::try_from(&connector_router_data)?;
         let zen_req = types::RequestBody::log_and_get_request_body(
             &req_obj,
             utils::Encode::<zen::ZenRefundRequest>::encode_to_string_of_json,
@@ -466,9 +485,9 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         Ok(format!(
-            "{}v1/transactions/{}",
+            "{}v1/transactions/merchant/{}",
             self.base_url(connectors),
-            req.request.get_connector_refund_id()?
+            req.request.refund_id
         ))
     }
 
@@ -558,33 +577,29 @@ impl api::IncomingWebhook for Zen {
 
     async fn verify_webhook_source(
         &self,
-        db: &dyn StorageInterface,
         request: &api::IncomingWebhookRequestDetails<'_>,
         merchant_account: &domain::MerchantAccount,
+        merchant_connector_account: domain::MerchantConnectorAccount,
         connector_label: &str,
-        key_store: &domain::MerchantKeyStore,
-        object_reference_id: api_models::webhooks::ObjectReferenceId,
     ) -> CustomResult<bool, errors::ConnectorError> {
         let algorithm = self.get_webhook_source_verification_algorithm(request)?;
 
         let signature = self.get_webhook_source_verification_signature(request)?;
-        let mut secret = self
+        let mut connector_webhook_secrets = self
             .get_webhook_source_verification_merchant_secret(
-                db,
                 merchant_account,
                 connector_label,
-                key_store,
-                object_reference_id,
+                merchant_connector_account,
             )
             .await?;
         let mut message = self.get_webhook_source_verification_message(
             request,
             &merchant_account.merchant_id,
-            &secret,
+            &connector_webhook_secrets.secret,
         )?;
-        message.append(&mut secret);
+        message.append(&mut connector_webhook_secrets.secret);
         algorithm
-            .verify_signature(&secret, &signature, &message)
+            .verify_signature(&connector_webhook_secrets.secret, &signature, &message)
             .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)
     }
 
@@ -603,7 +618,7 @@ impl api::IncomingWebhook for Zen {
                 ),
             ),
             ZenWebhookTxnType::TrtRefund => api_models::webhooks::ObjectReferenceId::RefundId(
-                api_models::webhooks::RefundIdType::ConnectorRefundId(webhook_body.transaction_id),
+                api_models::webhooks::RefundIdType::RefundId(webhook_body.merchant_transaction_id),
             ),
 
             ZenWebhookTxnType::Unknown => Err(errors::ConnectorError::WebhookReferenceIdNotFound)?,

@@ -1,3 +1,4 @@
+use api_models::enums::Connector;
 use common_enums as storage_enums;
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
@@ -77,6 +78,18 @@ pub trait PaymentAttemptInterface {
         merchant_id: &str,
         storage_scheme: MerchantStorageScheme,
     ) -> error_stack::Result<PaymentListFilters, errors::StorageError>;
+
+    #[allow(clippy::too_many_arguments)]
+    async fn get_total_count_of_filtered_payment_attempts(
+        &self,
+        merchant_id: &str,
+        active_attempt_ids: &[String],
+        connector: Option<Vec<Connector>>,
+        payment_method: Option<Vec<storage_enums::PaymentMethod>>,
+        payment_method_type: Option<Vec<storage_enums::PaymentMethodType>>,
+        authentication_type: Option<Vec<storage_enums::AuthenticationType>>,
+        storage_scheme: MerchantStorageScheme,
+    ) -> error_stack::Result<i64, errors::StorageError>;
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
@@ -127,14 +140,18 @@ pub struct PaymentAttempt {
     pub multiple_capture_count: Option<i16>,
     // reference to the payment at connector side
     pub connector_response_reference_id: Option<String>,
+    pub amount_capturable: i64,
+    pub surcharge_metadata: Option<serde_json::Value>,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct PaymentListFilters {
     pub connector: Vec<String>,
     pub currency: Vec<storage_enums::Currency>,
     pub status: Vec<storage_enums::IntentStatus>,
     pub payment_method: Vec<storage_enums::PaymentMethod>,
+    pub payment_method_type: Vec<storage_enums::PaymentMethodType>,
+    pub authentication_type: Vec<storage_enums::AuthenticationType>,
 }
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
@@ -182,6 +199,8 @@ pub struct PaymentAttemptNew {
     pub error_reason: Option<String>,
     pub connector_response_reference_id: Option<String>,
     pub multiple_capture_count: Option<i16>,
+    pub amount_capturable: i64,
+    pub surcharge_metadata: Option<serde_json::Value>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -204,6 +223,7 @@ pub enum PaymentAttemptUpdate {
         payment_token: Option<String>,
         connector: Option<String>,
         straight_through_algorithm: Option<serde_json::Value>,
+        amount_capturable: Option<i64>,
     },
     AuthenticationTypeUpdate {
         authentication_type: storage_enums::AuthenticationType,
@@ -222,6 +242,14 @@ pub enum PaymentAttemptUpdate {
         payment_experience: Option<storage_enums::PaymentExperience>,
         business_sub_label: Option<String>,
         straight_through_algorithm: Option<serde_json::Value>,
+        error_code: Option<Option<String>>,
+        error_message: Option<Option<String>>,
+        amount_capturable: Option<i64>,
+    },
+    RejectUpdate {
+        status: storage_enums::AttemptStatus,
+        error_code: Option<Option<String>>,
+        error_message: Option<Option<String>>,
     },
     VoidUpdate {
         status: storage_enums::AttemptStatus,
@@ -240,6 +268,7 @@ pub enum PaymentAttemptUpdate {
         error_message: Option<Option<String>>,
         error_reason: Option<Option<String>>,
         connector_response_reference_id: Option<String>,
+        amount_capturable: Option<i64>,
     },
     UnresolvedResponseUpdate {
         status: storage_enums::AttemptStatus,
@@ -260,10 +289,14 @@ pub enum PaymentAttemptUpdate {
         error_code: Option<Option<String>>,
         error_message: Option<Option<String>>,
         error_reason: Option<Option<String>>,
+        amount_capturable: Option<i64>,
     },
-    MultipleCaptureUpdate {
-        status: Option<storage_enums::AttemptStatus>,
-        multiple_capture_count: Option<i16>,
+    MultipleCaptureCountUpdate {
+        multiple_capture_count: i16,
+    },
+    AmountToCaptureUpdate {
+        status: storage_enums::AttemptStatus,
+        amount_capturable: i64,
     },
     PreprocessingUpdate {
         status: storage_enums::AttemptStatus,
@@ -272,5 +305,8 @@ pub enum PaymentAttemptUpdate {
         preprocessing_step_id: Option<String>,
         connector_transaction_id: Option<String>,
         connector_response_reference_id: Option<String>,
+    },
+    SurchargeMetadataUpdate {
+        surcharge_metadata: Option<serde_json::Value>,
     },
 }

@@ -4,6 +4,7 @@ use std::fmt::Debug;
 
 use base64::Engine;
 use common_utils::{crypto, ext_traits::ByteSliceExt};
+use diesel_models::enums;
 use error_stack::{IntoReport, ResultExt};
 use masking::PeekInterface;
 use transformers as noon;
@@ -11,6 +12,7 @@ use transformers as noon;
 use super::utils::PaymentsSyncRequestData;
 use crate::{
     configs::settings,
+    connector::utils as connector_utils,
     consts,
     core::{
         errors::{self, CustomResult},
@@ -20,7 +22,7 @@ use crate::{
     services::{
         self,
         request::{self, Mask},
-        ConnectorIntegration,
+        ConnectorIntegration, ConnectorValidation,
     },
     types::{
         self,
@@ -63,7 +65,7 @@ where
     fn build_headers(
         &self,
         req: &types::RouterData<Flow, Request, Response>,
-        _connectors: &settings::Connectors,
+        connectors: &settings::Connectors,
     ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
         let mut header = vec![(
             headers::CONTENT_TYPE.to_string(),
@@ -71,10 +73,41 @@ where
                 .to_string()
                 .into(),
         )];
-        let mut api_key = self.get_auth_header(&req.connector_auth_type)?;
+        let mut api_key = get_auth_header(&req.connector_auth_type, connectors, req.test_mode)?;
         header.append(&mut api_key);
         Ok(header)
     }
+}
+
+fn get_auth_header(
+    auth_type: &types::ConnectorAuthType,
+    connectors: &settings::Connectors,
+    test_mode: Option<bool>,
+) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
+    let auth = noon::NoonAuthType::try_from(auth_type)?;
+
+    let encoded_api_key = auth
+        .business_identifier
+        .zip(auth.application_identifier)
+        .zip(auth.api_key)
+        .map(|((business_identifier, application_identifier), api_key)| {
+            consts::BASE64_ENGINE.encode(format!(
+                "{}.{}:{}",
+                business_identifier, application_identifier, api_key
+            ))
+        });
+    let key_mode = test_mode.map_or(connectors.noon.key_mode.clone(), |is_test_mode| {
+        if is_test_mode {
+            "Test".to_string()
+        } else {
+            "Live".to_string()
+        }
+    });
+
+    Ok(vec![(
+        headers::AUTHORIZATION.to_string(),
+        format!("Key_{} {}", key_mode, encoded_api_key.peek()).into_masked(),
+    )])
 }
 
 impl ConnectorCommon for Noon {
@@ -88,28 +121,6 @@ impl ConnectorCommon for Noon {
 
     fn base_url<'a>(&self, connectors: &'a settings::Connectors) -> &'a str {
         connectors.noon.base_url.as_ref()
-    }
-
-    fn get_auth_header(
-        &self,
-        auth_type: &types::ConnectorAuthType,
-    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
-        let auth = noon::NoonAuthType::try_from(auth_type)?;
-
-        let encoded_api_key = auth
-            .business_identifier
-            .zip(auth.application_identifier)
-            .zip(auth.api_key)
-            .map(|((business_identifier, application_identifier), api_key)| {
-                consts::BASE64_ENGINE.encode(format!(
-                    "{}.{}:{}",
-                    business_identifier, application_identifier, api_key
-                ))
-            });
-        Ok(vec![(
-            headers::AUTHORIZATION.to_string(),
-            format!("Key_Test {}", encoded_api_key.peek()).into_masked(),
-        )])
     }
 
     fn build_error_response(
@@ -127,6 +138,21 @@ impl ConnectorCommon for Noon {
             message: response.message,
             reason: Some(response.class_description),
         })
+    }
+}
+
+impl ConnectorValidation for Noon {
+    fn validate_capture_method(
+        &self,
+        capture_method: Option<enums::CaptureMethod>,
+    ) -> CustomResult<(), errors::ConnectorError> {
+        let capture_method = capture_method.unwrap_or_default();
+        match capture_method {
+            enums::CaptureMethod::Automatic | enums::CaptureMethod::Manual => Ok(()),
+            enums::CaptureMethod::ManualMultiple | enums::CaptureMethod::Scheduled => Err(
+                connector_utils::construct_not_implemented_error_report(capture_method, self.id()),
+            ),
+        }
     }
 }
 
@@ -688,9 +714,15 @@ impl api::IncomingWebhook for Noon {
         &self,
         request: &api::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<serde_json::Value, errors::ConnectorError> {
-        let reference_object: serde_json::Value = serde_json::from_slice(request.body)
-            .into_report()
+        let resource: noon::NoonWebhookObject = request
+            .body
+            .parse_struct("NoonWebhookObject")
             .change_context(errors::ConnectorError::WebhookResourceObjectNotFound)?;
-        Ok(reference_object)
+
+        let res_json = serde_json::to_value(noon::NoonPaymentsResponse::from(resource))
+            .into_report()
+            .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
+
+        Ok(res_json)
     }
 }

@@ -10,8 +10,9 @@ pub mod diesel_exports {
         DbFutureUsage as FutureUsage, DbIntentStatus as IntentStatus,
         DbMandateStatus as MandateStatus, DbMandateType as MandateType,
         DbMerchantStorageScheme as MerchantStorageScheme,
-        DbPaymentMethodIssuerCode as PaymentMethodIssuerCode, DbPayoutStatus as PayoutStatus,
-        DbPayoutType as PayoutType, DbProcessTrackerStatus as ProcessTrackerStatus,
+        DbPaymentMethodIssuerCode as PaymentMethodIssuerCode, DbPaymentSource as PaymentSource,
+        DbPayoutStatus as PayoutStatus, DbPayoutType as PayoutType,
+        DbProcessTrackerStatus as ProcessTrackerStatus, DbReconStatus as ReconStatus,
         DbRefundStatus as RefundStatus, DbRefundType as RefundType,
     };
 }
@@ -395,5 +396,5 @@ pub enum FraudCheckLastStep {
     Processing,
     CheckoutOrSale,
     TransactionOrRecordRefund,
-    Fullfillment,
+    Fulfillment,
 }

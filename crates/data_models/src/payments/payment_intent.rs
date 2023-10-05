@@ -1,10 +1,12 @@
 use common_enums as storage_enums;
-use common_utils::pii;
+use common_utils::{
+    consts::{PAYMENTS_LIST_MAX_LIMIT_V1, PAYMENTS_LIST_MAX_LIMIT_V2},
+    pii,
+};
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
 
 use crate::{errors, MerchantStorageScheme};
-
 #[async_trait::async_trait]
 pub trait PaymentIntentInterface {
     async fn update_payment_intent(
@@ -53,6 +55,14 @@ pub trait PaymentIntentInterface {
         Vec<(PaymentIntent, super::payment_attempt::PaymentAttempt)>,
         errors::StorageError,
     >;
+
+    #[cfg(feature = "olap")]
+    async fn get_filtered_active_attempt_ids_for_total_count(
+        &self,
+        merchant_id: &str,
+        constraints: &PaymentIntentFetchConstraints,
+        storage_scheme: MerchantStorageScheme,
+    ) -> error_stack::Result<Vec<String>, errors::StorageError>;
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
@@ -83,13 +93,18 @@ pub struct PaymentIntent {
     pub off_session: Option<bool>,
     pub client_secret: Option<String>,
     pub active_attempt_id: String,
-    pub business_country: storage_enums::CountryAlpha2,
-    pub business_label: String,
+    pub business_country: Option<storage_enums::CountryAlpha2>,
+    pub business_label: Option<String>,
     pub order_details: Option<Vec<pii::SecretSerdeValue>>,
     pub allowed_payment_method_types: Option<serde_json::Value>,
     pub connector_metadata: Option<serde_json::Value>,
     pub feature_metadata: Option<serde_json::Value>,
     pub attempt_count: i16,
+    pub profile_id: Option<String>,
+    // Denotes the action(approve or reject) taken by merchant in case of manual review.
+    // Manual review can occur when the transaction is marked as risky by the frm_processor, payment processor or when there is underpayment/over payment incase of crypto payment
+    pub merchant_decision: Option<String>,
+    pub payment_confirm_source: Option<storage_enums::PaymentSource>,
 }
 
 #[derive(Clone, Debug, Default, Eq, PartialEq, Serialize, Deserialize)]
@@ -119,13 +134,16 @@ pub struct PaymentIntentNew {
     pub off_session: Option<bool>,
     pub client_secret: Option<String>,
     pub active_attempt_id: String,
-    pub business_country: storage_enums::CountryAlpha2,
-    pub business_label: String,
+    pub business_country: Option<storage_enums::CountryAlpha2>,
+    pub business_label: Option<String>,
     pub order_details: Option<Vec<pii::SecretSerdeValue>>,
     pub allowed_payment_method_types: Option<serde_json::Value>,
     pub connector_metadata: Option<serde_json::Value>,
     pub feature_metadata: Option<serde_json::Value>,
     pub attempt_count: i16,
+    pub profile_id: Option<String>,
+    pub merchant_decision: Option<String>,
+    pub payment_confirm_source: Option<storage_enums::PaymentSource>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -169,6 +187,7 @@ pub enum PaymentIntentUpdate {
         statement_descriptor_suffix: Option<String>,
         order_details: Option<Vec<pii::SecretSerdeValue>>,
         metadata: Option<pii::SecretSerdeValue>,
+        payment_confirm_source: Option<storage_enums::PaymentSource>,
     },
     PaymentAttemptAndAttemptCountUpdate {
         active_attempt_id: String,
@@ -178,6 +197,13 @@ pub enum PaymentIntentUpdate {
         status: storage_enums::IntentStatus,
         active_attempt_id: String,
         attempt_count: i16,
+    },
+    ApproveUpdate {
+        merchant_decision: Option<String>,
+    },
+    RejectUpdate {
+        status: storage_enums::IntentStatus,
+        merchant_decision: Option<String>,
     },
 }
 
@@ -203,6 +229,10 @@ pub struct PaymentIntentUpdateInternal {
     pub statement_descriptor_suffix: Option<String>,
     pub order_details: Option<Vec<pii::SecretSerdeValue>>,
     pub attempt_count: Option<i16>,
+    // Denotes the action(approve or reject) taken by merchant in case of manual review.
+    // Manual review can occur when the transaction is marked as risky by the frm_processor, payment processor or when there is underpayment/over payment incase of crypto payment
+    pub merchant_decision: Option<String>,
+    pub payment_confirm_source: Option<storage_enums::PaymentSource>,
 }
 
 impl PaymentIntentUpdate {
@@ -252,6 +282,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 statement_descriptor_suffix,
                 order_details,
                 metadata,
+                payment_confirm_source,
             } => Self {
                 amount: Some(amount),
                 currency: Some(currency),
@@ -269,6 +300,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 statement_descriptor_suffix,
                 order_details,
                 metadata,
+                payment_confirm_source,
                 ..Default::default()
             },
             PaymentIntentUpdate::MetadataUpdate { metadata } => Self {
@@ -342,62 +374,83 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 attempt_count: Some(attempt_count),
                 ..Default::default()
             },
+            PaymentIntentUpdate::ApproveUpdate { merchant_decision } => Self {
+                merchant_decision,
+                ..Default::default()
+            },
+            PaymentIntentUpdate::RejectUpdate {
+                status,
+                merchant_decision,
+            } => Self {
+                status: Some(status),
+                merchant_decision,
+                ..Default::default()
+            },
         }
     }
 }
 
 pub enum PaymentIntentFetchConstraints {
-    Single {
-        payment_intent_id: String,
-    },
-    List {
-        offset: Option<u32>,
-        starting_at: Option<PrimitiveDateTime>,
-        ending_at: Option<PrimitiveDateTime>,
-        connector: Option<Vec<api_models::enums::Connector>>,
-        currency: Option<Vec<storage_enums::Currency>>,
-        status: Option<Vec<storage_enums::IntentStatus>>,
-        payment_methods: Option<Vec<storage_enums::PaymentMethod>>,
-        customer_id: Option<String>,
-        starting_after_id: Option<String>,
-        ending_before_id: Option<String>,
-        limit: Option<u32>,
-    },
+    Single { payment_intent_id: String },
+    List(Box<PaymentIntentListParams>),
+}
+
+pub struct PaymentIntentListParams {
+    pub offset: u32,
+    pub starting_at: Option<PrimitiveDateTime>,
+    pub ending_at: Option<PrimitiveDateTime>,
+    pub connector: Option<Vec<api_models::enums::Connector>>,
+    pub currency: Option<Vec<storage_enums::Currency>>,
+    pub status: Option<Vec<storage_enums::IntentStatus>>,
+    pub payment_method: Option<Vec<storage_enums::PaymentMethod>>,
+    pub payment_method_type: Option<Vec<storage_enums::PaymentMethodType>>,
+    pub authentication_type: Option<Vec<storage_enums::AuthenticationType>>,
+    pub profile_id: Option<String>,
+    pub customer_id: Option<String>,
+    pub starting_after_id: Option<String>,
+    pub ending_before_id: Option<String>,
+    pub limit: Option<u32>,
 }
 
 impl From<api_models::payments::PaymentListConstraints> for PaymentIntentFetchConstraints {
     fn from(value: api_models::payments::PaymentListConstraints) -> Self {
-        Self::List {
-            offset: None,
+        Self::List(Box::new(PaymentIntentListParams {
+            offset: 0,
             starting_at: value.created_gte.or(value.created_gt).or(value.created),
             ending_at: value.created_lte.or(value.created_lt).or(value.created),
             connector: None,
             currency: None,
             status: None,
-            payment_methods: None,
+            payment_method: None,
+            payment_method_type: None,
+            authentication_type: None,
+            profile_id: None,
             customer_id: value.customer_id,
             starting_after_id: value.starting_after,
             ending_before_id: value.ending_before,
-            limit: None,
-        }
+            limit: Some(std::cmp::min(value.limit, PAYMENTS_LIST_MAX_LIMIT_V1)),
+        }))
     }
 }
 
 impl From<api_models::payments::TimeRange> for PaymentIntentFetchConstraints {
     fn from(value: api_models::payments::TimeRange) -> Self {
-        Self::List {
-            offset: None,
+        Self::List(Box::new(PaymentIntentListParams {
+            offset: 0,
             starting_at: Some(value.start_time),
             ending_at: value.end_time,
             connector: None,
             currency: None,
             status: None,
-            payment_methods: None,
+            payment_method: None,
+            payment_method_type: None,
+            authentication_type: None,
+            profile_id: None,
             customer_id: None,
             starting_after_id: None,
             ending_before_id: None,
             limit: None,
-        }
+        }))
     }
 }
 
@@ -406,19 +459,22 @@ impl From<api_models::payments::PaymentListFilterConstraints> for PaymentIntentF
         if let Some(payment_intent_id) = value.payment_id {
             Self::Single { payment_intent_id }
         } else {
-            Self::List {
-                offset: value.offset,
+            Self::List(Box::new(PaymentIntentListParams {
+                offset: value.offset.unwrap_or_default(),
                 starting_at: value.time_range.map(|t| t.start_time),
                 ending_at: value.time_range.and_then(|t| t.end_time),
                 connector: value.connector,
                 currency: value.currency,
                 status: value.status,
-                payment_methods: value.payment_methods,
-                customer_id: None,
+                payment_method: value.payment_method,
+                payment_method_type: value.payment_method_type,
+                authentication_type: value.authentication_type,
+                profile_id: value.profile_id,
+                customer_id: value.customer_id,
                 starting_after_id: None,
                 ending_before_id: None,
-                limit: None,
-            }
+                limit: Some(std::cmp::min(value.limit, PAYMENTS_LIST_MAX_LIMIT_V2)),
+            }))
         }
     }
 }

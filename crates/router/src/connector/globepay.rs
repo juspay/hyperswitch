@@ -3,6 +3,7 @@ pub mod transformers;
 use std::fmt::Debug;
 
 use common_utils::crypto::{self, GenerateDigest};
+use diesel_models::enums;
 use error_stack::{IntoReport, ResultExt};
 use hex::encode;
 use masking::ExposeInterface;
@@ -15,11 +16,10 @@ use crate::{
     consts,
     core::errors::{self, CustomResult},
     headers,
-    services::{self, request, ConnectorIntegration},
+    services::{self, request, ConnectorIntegration, ConnectorValidation},
     types::{
         self,
         api::{self, ConnectorCommon, ConnectorCommonExt},
-        storage::enums,
         ErrorResponse, Response,
     },
     utils::{self, BytesExt},
@@ -125,6 +125,8 @@ impl ConnectorCommon for Globepay {
         })
     }
 }
+
+impl ConnectorValidation for Globepay {}
 
 impl ConnectorIntegration<api::Session, types::PaymentsSessionData, types::PaymentsResponseData>
     for Globepay

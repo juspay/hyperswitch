@@ -18,7 +18,7 @@ use crate::{
     services::{
         self,
         request::{self, Mask},
-        ConnectorIntegration,
+        ConnectorIntegration, ConnectorValidation,
     },
     types::{
         self,
@@ -124,6 +124,8 @@ impl ConnectorCommon for Iatapay {
     }
 }
 
+impl ConnectorValidation for Iatapay {}
+
 impl ConnectorIntegration<api::Session, types::PaymentsSessionData, types::PaymentsResponseData>
     for Iatapay
 {
@@ -227,7 +229,7 @@ impl ConnectorIntegration<api::AccessTokenAuth, types::AccessTokenRequestData, t
         Ok(ErrorResponse {
             status_code: res.status_code,
             code: response.error,
-            message: response.error_description,
+            message: response.path,
             reason: None,
         })
     }

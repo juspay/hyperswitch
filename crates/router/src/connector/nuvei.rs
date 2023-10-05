@@ -18,7 +18,7 @@ use crate::{
         payments,
     },
     headers,
-    services::{self, request, ConnectorIntegration},
+    services::{self, request, ConnectorIntegration, ConnectorValidation},
     types::{
         self,
         api::{self, ConnectorCommon, ConnectorCommonExt, InitPayment},
@@ -66,6 +66,21 @@ impl ConnectorCommon for Nuvei {
         _auth_type: &types::ConnectorAuthType,
     ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
         Ok(vec![])
+    }
+}
+
+impl ConnectorValidation for Nuvei {
+    fn validate_capture_method(
+        &self,
+        capture_method: Option<enums::CaptureMethod>,
+    ) -> CustomResult<(), errors::ConnectorError> {
+        let capture_method = capture_method.unwrap_or_default();
+        match capture_method {
+            enums::CaptureMethod::Automatic | enums::CaptureMethod::Manual => Ok(()),
+            enums::CaptureMethod::ManualMultiple | enums::CaptureMethod::Scheduled => Err(
+                utils::construct_not_supported_error_report(capture_method, self.id()),
+            ),
+        }
     }
 }
 

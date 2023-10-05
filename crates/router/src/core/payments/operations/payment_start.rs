@@ -1,6 +1,6 @@
 use std::marker::PhantomData;
 
-use api_models::enums::CancelTransaction;
+use api_models::enums::FrmSuggestion;
 use async_trait::async_trait;
 use error_stack::ResultExt;
 use router_derive::PaymentOperation;
@@ -67,6 +67,11 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsStartRequest> f
             "update",
         )?;
 
+        helpers::authenticate_client_secret(
+            payment_intent.client_secret.as_ref(),
+            &payment_intent,
+            merchant_account.intent_fulfillment_time,
+        )?;
         payment_attempt = db
             .find_payment_attempt_by_payment_id_merchant_id_attempt_id(
                 payment_intent.payment_id.as_str(),
@@ -80,22 +85,26 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsStartRequest> f
         currency = payment_attempt.currency.get_required_value("currency")?;
         amount = payment_attempt.amount.into();
 
-        let shipping_address = helpers::get_address_for_payment_request(
+        let shipping_address = helpers::create_or_find_address_for_payment_by_request(
             db,
             None,
             payment_intent.shipping_address_id.as_deref(),
             merchant_id,
             payment_intent.customer_id.as_ref(),
             mechant_key_store,
+            &payment_intent.payment_id,
+            merchant_account.storage_scheme,
         )
         .await?;
-        let billing_address = helpers::get_address_for_payment_request(
+        let billing_address = helpers::create_or_find_address_for_payment_by_request(
             db,
             None,
             payment_intent.billing_address_id.as_deref(),
             merchant_id,
             payment_intent.customer_id.as_ref(),
             mechant_key_store,
+            &payment_intent.payment_id,
+            merchant_account.storage_scheme,
         )
         .await?;
 
@@ -172,7 +181,8 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsStartRequest> for P
         _storage_scheme: storage_enums::MerchantStorageScheme,
         _updated_customer: Option<storage::CustomerUpdate>,
         _mechant_key_store: &domain::MerchantKeyStore,
-        _should_cancel_transaction: Option<CancelTransaction>,
+        _frm_suggestion: Option<FrmSuggestion>,
+        _header_payload: api::HeaderPayload,
     ) -> RouterResult<(
         BoxedOperation<'b, F, api::PaymentsStartRequest>,
         PaymentData<F>,

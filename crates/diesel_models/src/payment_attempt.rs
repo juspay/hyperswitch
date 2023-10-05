@@ -56,6 +56,8 @@ pub struct PaymentAttempt {
     pub multiple_capture_count: Option<i16>,
     // reference to the payment at connector side
     pub connector_response_reference_id: Option<String>,
+    pub amount_capturable: i64,
+    pub surcharge_metadata: Option<serde_json::Value>,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Queryable, Serialize, Deserialize)]
@@ -65,7 +67,6 @@ pub struct PaymentListFilters {
     pub status: Vec<storage_enums::IntentStatus>,
     pub payment_method: Vec<storage_enums::PaymentMethod>,
 }
-
 #[derive(
     Clone, Debug, Default, Insertable, router_derive::DebugAsDisplay, Serialize, Deserialize,
 )]
@@ -114,6 +115,8 @@ pub struct PaymentAttemptNew {
     pub error_reason: Option<String>,
     pub connector_response_reference_id: Option<String>,
     pub multiple_capture_count: Option<i16>,
+    pub amount_capturable: i64,
+    pub surcharge_metadata: Option<serde_json::Value>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -136,6 +139,7 @@ pub enum PaymentAttemptUpdate {
         payment_token: Option<String>,
         connector: Option<String>,
         straight_through_algorithm: Option<serde_json::Value>,
+        amount_capturable: Option<i64>,
     },
     AuthenticationTypeUpdate {
         authentication_type: storage_enums::AuthenticationType,
@@ -154,10 +158,18 @@ pub enum PaymentAttemptUpdate {
         payment_experience: Option<storage_enums::PaymentExperience>,
         business_sub_label: Option<String>,
         straight_through_algorithm: Option<serde_json::Value>,
+        error_code: Option<Option<String>>,
+        error_message: Option<Option<String>>,
+        amount_capturable: Option<i64>,
     },
     VoidUpdate {
         status: storage_enums::AttemptStatus,
         cancellation_reason: Option<String>,
+    },
+    RejectUpdate {
+        status: storage_enums::AttemptStatus,
+        error_code: Option<Option<String>>,
+        error_message: Option<Option<String>>,
     },
     ResponseUpdate {
         status: storage_enums::AttemptStatus,
@@ -172,6 +184,7 @@ pub enum PaymentAttemptUpdate {
         error_message: Option<Option<String>>,
         error_reason: Option<Option<String>>,
         connector_response_reference_id: Option<String>,
+        amount_capturable: Option<i64>,
     },
     UnresolvedResponseUpdate {
         status: storage_enums::AttemptStatus,
@@ -192,10 +205,14 @@ pub enum PaymentAttemptUpdate {
         error_code: Option<Option<String>>,
         error_message: Option<Option<String>>,
         error_reason: Option<Option<String>>,
+        amount_capturable: Option<i64>,
     },
-    MultipleCaptureUpdate {
-        status: Option<storage_enums::AttemptStatus>,
-        multiple_capture_count: Option<i16>,
+    MultipleCaptureCountUpdate {
+        multiple_capture_count: i16,
+    },
+    AmountToCaptureUpdate {
+        status: storage_enums::AttemptStatus,
+        amount_capturable: i64,
     },
     PreprocessingUpdate {
         status: storage_enums::AttemptStatus,
@@ -204,6 +221,9 @@ pub enum PaymentAttemptUpdate {
         preprocessing_step_id: Option<String>,
         connector_transaction_id: Option<String>,
         connector_response_reference_id: Option<String>,
+    },
+    SurchargeMetadataUpdate {
+        surcharge_metadata: Option<serde_json::Value>,
     },
 }
 
@@ -237,6 +257,8 @@ pub struct PaymentAttemptUpdateInternal {
     capture_method: Option<storage_enums::CaptureMethod>,
     connector_response_reference_id: Option<String>,
     multiple_capture_count: Option<i16>,
+    amount_capturable: Option<i64>,
+    surcharge_metadata: Option<serde_json::Value>,
 }
 
 impl PaymentAttemptUpdate {
@@ -263,6 +285,7 @@ impl PaymentAttemptUpdate {
             preprocessing_step_id: pa_update
                 .preprocessing_step_id
                 .or(source.preprocessing_step_id),
+            surcharge_metadata: pa_update.surcharge_metadata.or(source.surcharge_metadata),
             ..source
         }
     }
@@ -323,6 +346,9 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 payment_experience,
                 business_sub_label,
                 straight_through_algorithm,
+                error_code,
+                error_message,
+                amount_capturable,
             } => Self {
                 amount: Some(amount),
                 currency: Some(currency),
@@ -338,6 +364,9 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 payment_experience,
                 business_sub_label,
                 straight_through_algorithm,
+                error_code,
+                error_message,
+                amount_capturable,
                 ..Default::default()
             },
             PaymentAttemptUpdate::VoidUpdate {
@@ -346,6 +375,16 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
             } => Self {
                 status: Some(status),
                 cancellation_reason,
+                ..Default::default()
+            },
+            PaymentAttemptUpdate::RejectUpdate {
+                status,
+                error_code,
+                error_message,
+            } => Self {
+                status: Some(status),
+                error_code,
+                error_message,
                 ..Default::default()
             },
             PaymentAttemptUpdate::ResponseUpdate {
@@ -361,6 +400,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 error_message,
                 error_reason,
                 connector_response_reference_id,
+                amount_capturable,
             } => Self {
                 status: Some(status),
                 connector,
@@ -375,6 +415,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 payment_token,
                 error_reason,
                 connector_response_reference_id,
+                amount_capturable,
                 ..Default::default()
             },
             PaymentAttemptUpdate::ErrorUpdate {
@@ -383,6 +424,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 error_code,
                 error_message,
                 error_reason,
+                amount_capturable,
             } => Self {
                 connector,
                 status: Some(status),
@@ -390,6 +432,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 error_code,
                 modified_at: Some(common_utils::date_time::now()),
                 error_reason,
+                amount_capturable,
                 ..Default::default()
             },
             PaymentAttemptUpdate::StatusUpdate { status } => Self {
@@ -400,10 +443,12 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 payment_token,
                 connector,
                 straight_through_algorithm,
+                amount_capturable,
             } => Self {
                 payment_token,
                 connector,
                 straight_through_algorithm,
+                amount_capturable,
                 ..Default::default()
             },
             PaymentAttemptUpdate::UnresolvedResponseUpdate {
@@ -444,12 +489,22 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 connector_response_reference_id,
                 ..Default::default()
             },
-            PaymentAttemptUpdate::MultipleCaptureUpdate {
-                status,
+            PaymentAttemptUpdate::MultipleCaptureCountUpdate {
                 multiple_capture_count,
             } => Self {
+                multiple_capture_count: Some(multiple_capture_count),
+                ..Default::default()
+            },
+            PaymentAttemptUpdate::AmountToCaptureUpdate {
                 status,
-                multiple_capture_count,
+                amount_capturable,
+            } => Self {
+                status: Some(status),
+                amount_capturable: Some(amount_capturable),
+                ..Default::default()
+            },
+            PaymentAttemptUpdate::SurchargeMetadataUpdate { surcharge_metadata } => Self {
+                surcharge_metadata,
                 ..Default::default()
             },
         }

@@ -1,12 +1,11 @@
 pub mod types;
-
 use actix_web::{web, HttpRequest, HttpResponse};
 use error_stack::report;
 use router_env::{instrument, tracing, Flow};
 
 use crate::{
     compatibility::{stripe::errors, wrap},
-    core::{customers, payment_methods::cards},
+    core::{api_locking, customers, payment_methods::cards},
     routes,
     services::{api, authentication as auth},
     types::api::{customers as customer_types, payment_methods},
@@ -30,7 +29,7 @@ pub async fn customer_create(
 
     let flow = Flow::CustomersCreate;
 
-    wrap::compatibility_api_wrap::<
+    Box::pin(wrap::compatibility_api_wrap::<
         _,
         _,
         _,
@@ -39,19 +38,20 @@ pub async fn customer_create(
         _,
         types::CreateCustomerResponse,
         errors::StripeErrorCode,
+        _,
     >(
         flow,
-        state.get_ref(),
+        state.into_inner(),
         &req,
         create_cust_req,
         |state, auth, req| {
-            customers::create_customer(&*state.store, auth.merchant_account, auth.key_store, req)
+            customers::create_customer(state, auth.merchant_account, auth.key_store, req)
         },
         &auth::ApiKeyAuth,
-    )
+        api_locking::LockAction::NotApplicable,
+    ))
     .await
 }
-
 #[instrument(skip_all, fields(flow = ?Flow::CustomersRetrieve))]
 pub async fn customer_retrieve(
     state: web::Data<routes::AppState>,
@@ -64,7 +64,7 @@ pub async fn customer_retrieve(
 
     let flow = Flow::CustomersRetrieve;
 
-    wrap::compatibility_api_wrap::<
+    Box::pin(wrap::compatibility_api_wrap::<
         _,
         _,
         _,
@@ -73,19 +73,20 @@ pub async fn customer_retrieve(
         _,
         types::CustomerRetrieveResponse,
         errors::StripeErrorCode,
+        _,
     >(
         flow,
-        state.get_ref(),
+        state.into_inner(),
         &req,
         payload,
         |state, auth, req| {
-            customers::retrieve_customer(&*state.store, auth.merchant_account, auth.key_store, req)
+            customers::retrieve_customer(state, auth.merchant_account, auth.key_store, req)
         },
         &auth::ApiKeyAuth,
-    )
+        api_locking::LockAction::NotApplicable,
+    ))
     .await
 }
-
 #[instrument(skip_all, fields(flow = ?Flow::CustomersUpdate))]
 pub async fn customer_update(
     state: web::Data<routes::AppState>,
@@ -107,7 +108,7 @@ pub async fn customer_update(
 
     let flow = Flow::CustomersUpdate;
 
-    wrap::compatibility_api_wrap::<
+    Box::pin(wrap::compatibility_api_wrap::<
         _,
         _,
         _,
@@ -116,19 +117,20 @@ pub async fn customer_update(
         _,
         types::CustomerUpdateResponse,
         errors::StripeErrorCode,
+        _,
     >(
         flow,
-        state.get_ref(),
+        state.into_inner(),
         &req,
         cust_update_req,
         |state, auth, req| {
-            customers::update_customer(&*state.store, auth.merchant_account, req, auth.key_store)
+            customers::update_customer(state, auth.merchant_account, req, auth.key_store)
         },
         &auth::ApiKeyAuth,
-    )
+        api_locking::LockAction::NotApplicable,
+    ))
     .await
 }
-
 #[instrument(skip_all, fields(flow = ?Flow::CustomersDelete))]
 pub async fn customer_delete(
     state: web::Data<routes::AppState>,
@@ -141,7 +143,7 @@ pub async fn customer_delete(
 
     let flow = Flow::CustomersDelete;
 
-    wrap::compatibility_api_wrap::<
+    Box::pin(wrap::compatibility_api_wrap::<
         _,
         _,
         _,
@@ -150,19 +152,20 @@ pub async fn customer_delete(
         _,
         types::CustomerDeleteResponse,
         errors::StripeErrorCode,
+        _,
     >(
         flow,
-        state.get_ref(),
+        state.into_inner(),
         &req,
         payload,
         |state, auth, req| {
             customers::delete_customer(state, auth.merchant_account, req, auth.key_store)
         },
         &auth::ApiKeyAuth,
-    )
+        api_locking::LockAction::NotApplicable,
+    ))
     .await
 }
-
 #[instrument(skip_all, fields(flow = ?Flow::CustomerPaymentMethodsList))]
 pub async fn list_customer_payment_method_api(
     state: web::Data<routes::AppState>,
@@ -174,7 +177,7 @@ pub async fn list_customer_payment_method_api(
     let customer_id = path.into_inner();
     let flow = Flow::CustomerPaymentMethodsList;
 
-    wrap::compatibility_api_wrap::<
+    Box::pin(wrap::compatibility_api_wrap::<
         _,
         _,
         _,
@@ -183,9 +186,10 @@ pub async fn list_customer_payment_method_api(
         _,
         types::CustomerPaymentMethodListResponse,
         errors::StripeErrorCode,
+        _,
     >(
         flow,
-        state.get_ref(),
+        state.into_inner(),
         &req,
         payload,
         |state, auth, req| {
@@ -198,6 +202,7 @@ pub async fn list_customer_payment_method_api(
             )
         },
         &auth::ApiKeyAuth,
-    )
+        api_locking::LockAction::NotApplicable,
+    ))
     .await
 }
