@@ -252,14 +252,16 @@ impl<F, T>
         Ok(Self {
             status: enums::AttemptStatus::foreign_from((response_code, action)),
             response: Ok(types::PaymentsResponseData::TransactionResponse {
-                resource_id: types::ResponseId::ConnectorTransactionId(transaction_id.to_string()),
+                resource_id: types::ResponseId::ConnectorTransactionId(
+                    transaction_id.clone().to_string(),
+                ),
                 redirection_data: None,
                 mandate_reference: None,
                 connector_metadata: Some(serde_json::json!(ForteMeta {
                     auth_id: item.response.authorization_code,
                 })),
                 network_txn_id: None,
-                connector_response_reference_id: None,
+                connector_response_reference_id: Some(transaction_id.clone().to_string()),
             }),
             ..item.data
         })
@@ -299,14 +301,16 @@ impl<F, T>
         Ok(Self {
             status: enums::AttemptStatus::from(item.response.status),
             response: Ok(types::PaymentsResponseData::TransactionResponse {
-                resource_id: types::ResponseId::ConnectorTransactionId(transaction_id.to_string()),
+                resource_id: types::ResponseId::ConnectorTransactionId(
+                    transaction_id.clone().to_string(),
+                ),
                 redirection_data: None,
                 mandate_reference: None,
                 connector_metadata: Some(serde_json::json!(ForteMeta {
                     auth_id: item.response.authorization_code,
                 })),
                 network_txn_id: None,
-                connector_response_reference_id: None,
+                connector_response_reference_id: Some(transaction_id.clone().to_string()),
             }),
             ..item.data
         })
@@ -362,19 +366,20 @@ impl TryFrom<types::PaymentsCaptureResponseRouterData<ForteCaptureResponse>>
     fn try_from(
         item: types::PaymentsCaptureResponseRouterData<ForteCaptureResponse>,
     ) -> Result<Self, Self::Error> {
+        let transaction_id = &item.response.transaction_id;
         Ok(Self {
             status: enums::AttemptStatus::from(item.response.response.response_code),
             response: Ok(types::PaymentsResponseData::TransactionResponse {
-                resource_id: types::ResponseId::ConnectorTransactionId(
-                    item.response.transaction_id,
-                ),
+                resource_id: types::ResponseId::ConnectorTransactionId(transaction_id.clone()),
                 redirection_data: None,
                 mandate_reference: None,
                 connector_metadata: Some(serde_json::json!(ForteMeta {
                     auth_id: item.response.authorization_code,
                 })),
                 network_txn_id: None,
-                connector_response_reference_id: None,
+                connector_response_reference_id: Some(
+                    item.response.transaction_id.clone().to_string(),
+                ),
             }),
             amount_captured: None,
             ..item.data
@@ -434,14 +439,16 @@ impl<F, T>
         Ok(Self {
             status: enums::AttemptStatus::from(item.response.response.response_code),
             response: Ok(types::PaymentsResponseData::TransactionResponse {
-                resource_id: types::ResponseId::ConnectorTransactionId(transaction_id.to_string()),
+                resource_id: types::ResponseId::ConnectorTransactionId(
+                    transaction_id.clone().to_string(),
+                ),
                 redirection_data: None,
                 mandate_reference: None,
                 connector_metadata: Some(serde_json::json!(ForteMeta {
                     auth_id: item.response.authorization_code,
                 })),
                 network_txn_id: None,
-                connector_response_reference_id: None,
+                connector_response_reference_id: Some(transaction_id.clone().to_string()),
             }),
             ..item.data
         })
