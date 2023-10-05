@@ -1831,7 +1831,7 @@ pub async fn list_customer_payment_method(
         )
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Failed to fetch merchant_id config for requires_cvv")?;
+        .attach_printable("Failed to fetch requires_cvv config")?;
 
     let requires_cvv = is_requires_cvv.config != "false";
 
