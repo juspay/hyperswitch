@@ -114,7 +114,7 @@ impl TryFrom<&api_models::payments::PaymentMethodData> for PaymentMethod {
                 }
                 api_models::payments::WalletData::AliPayQr(_)
                 | api_models::payments::WalletData::AliPayRedirect(_)
-                | api_models::payments::WalletData::AliPayHkRedirect(_) 
+                | api_models::payments::WalletData::AliPayHkRedirect(_)
                 | api_models::payments::WalletData::MomoRedirect(_)
                 | api_models::payments::WalletData::KakaoPayRedirect(_)
                 | api_models::payments::WalletData::GoPayRedirect(_)
@@ -133,7 +133,7 @@ impl TryFrom<&api_models::payments::PaymentMethodData> for PaymentMethod {
                 | api_models::payments::WalletData::WeChatPayRedirect(_)
                 | api_models::payments::WalletData::WeChatPayQr(_)
                 | api_models::payments::WalletData::CashappQr(_)
-                | api_models::payments::WalletData::SwishQr(_)=>{
+                | api_models::payments::WalletData::SwishQr(_) => {
                     Err(error_stack::report!(errors:ConnectorError::NotSupported{
                         message: utils::SELECTED_PAYMENT_METHOD.to_string(),
                         connector:"nmi",
@@ -150,13 +150,12 @@ impl TryFrom<&api_models::payments::PaymentMethodData> for PaymentMethod {
             | api::PaymentMethodData::Reward
             | api::PaymentMethodData::Upi(_)
             | api::PaymentMethodData::Voucher(_)
-            | api::PaymentMethodData::GiftCard(_) =>{
+            | api::PaymentMethodData::GiftCard(_) => {
                 Err(error_stack::report!(errors:ConnectorError::NotSupported{
-                        message: utils::SELECTED_PAYMENT_METHOD.to_string(),
-                        connector:"nmi",
-                    }))
+                    message: utils::SELECTED_PAYMENT_METHOD.to_string(),
+                    connector:"nmi",
+                }))
             }
-
         }
     }
 }
