@@ -126,7 +126,9 @@ impl Conversion {
             }
             Derives::Start => syn::Ident::new("PaymentsStartRequest", Span::call_site()),
             Derives::Verify => syn::Ident::new("VerifyRequest", Span::call_site()),
-            Derives::SetupMandateData => syn::Ident::new("SetupMandateRequestData", Span::call_site()),
+            Derives::SetupMandateData => {
+                syn::Ident::new("SetupMandateRequestData", Span::call_site())
+            }
             Derives::Session => syn::Ident::new("PaymentsSessionRequest", Span::call_site()),
             Derives::SessionData => syn::Ident::new("PaymentsSessionData", Span::call_site()),
         }
