@@ -36,6 +36,8 @@ use crate::{
 #[operation(ops = "all", flow = "authorize")]
 pub struct PaymentCreate;
 
+/// The `get_trackers` function for `PaymentsCreate` is an entrypoint for new payments
+/// This will create all the entities required for a new payment from the request
 #[async_trait]
 impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for PaymentCreate {
     #[instrument(skip_all)]
@@ -127,45 +129,53 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
                 field_name: "browser_info",
             })?;
 
-        payment_attempt = db
-            .insert_payment_attempt(
-                Self::make_payment_attempt(
-                    &payment_id,
-                    merchant_id,
-                    money,
-                    payment_method,
-                    payment_method_type,
-                    request,
-                    browser_info,
-                    state,
-                )
-                .await?,
-                storage_scheme,
-            )
+        let attempt_id = if core_utils::is_merchant_enabled_for_payment_id_as_connector_request_id(
+            &state.conf,
+            merchant_id,
+        ) {
+            payment_id.to_string()
+        } else {
+            utils::get_payment_attempt_id(payment_id.clone(), 1)
+        };
+
+        let payment_intent_new = Self::make_payment_intent(
+            &payment_id,
+            merchant_account,
+            money,
+            request,
+            shipping_address.clone().map(|x| x.address_id),
+            billing_address.clone().map(|x| x.address_id),
+            attempt_id,
+            state,
+        )
+        .await?;
+
+        let payment_attempt_new = Self::make_payment_attempt(
+            &payment_id,
+            merchant_id,
+            money,
+            payment_method,
+            payment_method_type,
+            request,
+            browser_info,
+            state,
+        )
+        .await?;
+
+        payment_intent = db
+            .insert_payment_intent(payment_intent_new, storage_scheme)
             .await
             .to_duplicate_response(errors::ApiErrorResponse::DuplicatePayment {
                 payment_id: payment_id.clone(),
             })?;
 
-        payment_intent = db
-            .insert_payment_intent(
-                Self::make_payment_intent(
-                    &payment_id,
-                    merchant_account,
-                    money,
-                    request,
-                    shipping_address.clone().map(|x| x.address_id),
-                    billing_address.clone().map(|x| x.address_id),
-                    payment_attempt.attempt_id.to_owned(),
-                    state,
-                )
-                .await?,
-                storage_scheme,
-            )
+        payment_attempt = db
+            .insert_payment_attempt(payment_attempt_new, storage_scheme)
             .await
             .to_duplicate_response(errors::ApiErrorResponse::DuplicatePayment {
                 payment_id: payment_id.clone(),
             })?;
+
         connector_response = db
             .insert_connector_response(
                 Self::make_connector_response(&payment_attempt),
