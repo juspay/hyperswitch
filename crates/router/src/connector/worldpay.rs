@@ -434,7 +434,6 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
             req.request.amount,
             req,
         ))?;
-        // let connector_request = WorldpayPaymentsRequest::try_from(req)?;
         let connector_request = WorldpayPaymentsRequest::try_from(&connector_router_data)?;
         let worldpay_payment_request = types::RequestBody::log_and_get_request_body(
             &connector_request,
