@@ -44,6 +44,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v3
         with:
+          fetch-depth: 0
           ref: ${{ github.event.pull_request.head.ref }}
 
       - name: Install Rust
@@ -52,17 +53,18 @@ jobs:
           toolchain: nightly
           components: rustfmt
 
-      - name: Check formatting
+      - name: Check formatting for forked pull requests
+        if: ${{ github.event.pull_request.head.repo.full_name != github.event.pull_request.base.repo.full_name }}
+        shell: bash
+        run: cargo +nightly fmt --all --check
+
+      - name: Check formatting 
+        if: ${{ github.event.pull_request.head.repo.full_name == github.event.pull_request.base.repo.full_name }}
         shell: bash
         run: |
-          if ${{ github.event.pull_request.head.repo.full_name != github.event.pull_request.base.repo.full_name }}; then
-            echo cargo +nightly fmt --all --check
-          else
-            echo cargo +nightly fmt --all
-          fi
-          if git diff --exit-code --quiet origin/$GITHUB_BASE_REF -- ; then
+          cargo +nightly fmt --all
+          if git diff --exit-code --quiet origin/$GITHUB_BASE_REF -- crates; then
             echo "::notice::Formatting check failed"
-            cargo +nightly fmt --all
             git config --local user.name 'github-actions[bot]'
             git config --local user.email '41898282+github-actions[bot]@users.noreply.github.com'
             git add crates
