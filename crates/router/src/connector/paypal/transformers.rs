@@ -717,7 +717,7 @@ pub struct PaypalPaymentsSyncResponse {
 pub struct PaypalThreeDsSyncResponse {
     id: String,
     status: PaypalOrderStatus,
-    // provided to seperated response of card's 3DS from other
+    // provided to separated response of card's 3DS from other
     payment_source: CardsData,
 }
 
