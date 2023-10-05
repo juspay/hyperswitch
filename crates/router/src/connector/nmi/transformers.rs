@@ -112,15 +112,51 @@ impl TryFrom<&api_models::payments::PaymentMethodData> for PaymentMethod {
                 api_models::payments::WalletData::ApplePay(ref applepay_data) => {
                     Ok(Self::from(applepay_data))
                 }
-                _ => Err(errors::ConnectorError::NotImplemented(
-                    "Payment Method".to_string(),
-                ))
-                .into_report(),
+                api_models::payments::WalletData::AliPayQr(_)
+                | api_models::payments::WalletData::AliPayRedirect(_)
+                | api_models::payments::WalletData::AliPayHkRedirect(_) 
+                | api_models::payments::WalletData::MomoRedirect(_)
+                | api_models::payments::WalletData::KakaoPayRedirect(_)
+                | api_models::payments::WalletData::GoPayRedirect(_)
+                | api_models::payments::WalletData::GcashRedirect(_)
+                | api_models::payments::WalletData::ApplePayRedirect(_)
+                | api_models::payments::WalletData::ApplePayThirdPartySdk(_)
+                | api_models::payments::WalletData::DanaRedirect(_)
+                | api_models::payments::WalletData::GooglePayRedirect(_)
+                | api_models::payments::WalletData::GooglePayThirdPartySdk(_)
+                | api_models::payments::WalletData::MbWayRedirect(_)
+                | api_models::payments::WalletData::PaypalSdk(_)
+                | api_models::payments::WalletData::SamsungPay(_)
+                | api_models::payments::WalletData::TwintRedirect(_)
+                | api_models::payments::WalletData::VippsRedirect(_)
+                | api_models::payments::WalletData::TouchNGoRedirect(_)
+                | api_models::payments::WalletData::WeChatPayRedirect(_)
+                | api_models::payments::WalletData::WeChatPayQr(_)
+                | api_models::payments::WalletData::CashappQr(_)
+                | api_models::payments::WalletData::SwishQr(_)=>{
+                    Err(error_stack::report!(errors:ConnectorError::NotSupported{
+                        message: utils::SELECTED_PAYMENT_METHOD.to_string(),
+                        connector:"nmi",
+                    }))
+                }
             },
-            _ => Err(errors::ConnectorError::NotImplemented(
-                "Payment Method".to_string(),
-            ))
-            .into_report(),
+            api::PaymentMethodData::CardRedirect(_)
+            | api::PaymentMethodData::PayLater(_)
+            | api::PaymentMethodData::BankRedirect(_)
+            | api::PaymentMethodData::BankDebit(_)
+            | api::PaymentMethodData::BankTransfer(_)
+            | api::PaymentMethodData::Crypto(_)
+            | api::PaymentMethodData::MandatePayment
+            | api::PaymentMethodData::Reward
+            | api::PaymentMethodData::Upi(_)
+            | api::PaymentMethodData::Voucher(_)
+            | api::PaymentMethodData::GiftCard(_) =>{
+                Err(error_stack::report!(errors:ConnectorError::NotSupported{
+                        message: utils::SELECTED_PAYMENT_METHOD.to_string(),
+                        connector:"nmi",
+                    }))
+            }
+
         }
     }
 }
@@ -643,6 +679,7 @@ impl From<NmiStatus> for enums::RefundStatus {
     }
 }
 
+// Here also
 impl From<String> for NmiStatus {
     fn from(value: String) -> Self {
         match value.as_str() {
