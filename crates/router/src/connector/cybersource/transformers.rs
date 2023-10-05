@@ -278,6 +278,12 @@ pub struct CybersourcePaymentsResponse {
 }
 
 #[derive(Default, Debug, Clone, Deserialize, Eq, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct ClientReferenceInformation {
+    code: String,
+}
+
+#[derive(Default, Debug, Clone, Deserialize, Eq, PartialEq)]
 pub struct CybersourceErrorInformation {
     reason: String,
     message: String,
