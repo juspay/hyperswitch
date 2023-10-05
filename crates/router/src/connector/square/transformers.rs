@@ -227,7 +227,7 @@ pub struct SquarePaymentsRequestExternalDetails {
 #[derive(Debug, Serialize)]
 pub struct SquarePaymentsRequest {
     amount_money: SquarePaymentsAmountData,
-    idempotency_key: Secret<String>,
+    reference_id: Secret<String>,
     source_id: Secret<String>,
     autocomplete: bool,
     external_details: SquarePaymentsRequestExternalDetails,
@@ -241,7 +241,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for SquarePaymentsRequest {
             api::PaymentMethodData::Card(_) => {
                 let pm_token = item.get_payment_method_token()?;
                 Ok(Self {
-                    idempotency_key: Secret::new(item.attempt_id.clone()),
+                    reference_id: Secret::new(item.connector_request_reference_id.clone()),
                     source_id: Secret::new(match pm_token {
                         types::PaymentMethodToken::Token(token) => token,
                         types::PaymentMethodToken::ApplePayDecrypt(_) => {
@@ -327,7 +327,6 @@ pub struct SquarePaymentsResponseDetails {
     status: SquarePaymentStatus,
     id: String,
     amount_money: SquarePaymentsAmountData,
-    reference_id: Option<String>,
 }
 #[derive(Debug, Deserialize)]
 pub struct SquarePaymentsResponse {
@@ -351,12 +350,12 @@ impl<F, T>
         Ok(Self {
             status,
             response: Ok(types::PaymentsResponseData::TransactionResponse {
-                resource_id: types::ResponseId::ConnectorTransactionId(item.response.payment.id),
+                resource_id: types::ResponseId::ConnectorTransactionId(item.response.payment.id.clone()),
                 redirection_data: None,
                 mandate_reference: None,
                 connector_metadata: None,
                 network_txn_id: None,
-                connector_response_reference_id: item.response.payment.reference_id,
+                connector_response_reference_id: Some(response.merchant_id),
             }),
             amount_captured,
             ..item.data
@@ -369,7 +368,7 @@ impl<F, T>
 #[derive(Debug, Serialize)]
 pub struct SquareRefundRequest {
     amount_money: SquarePaymentsAmountData,
-    idempotency_key: Secret<String>,
+    reference_id: Secret<String>,
     payment_id: Secret<String>,
 }
 
@@ -381,7 +380,7 @@ impl<F> TryFrom<&types::RefundsRouterData<F>> for SquareRefundRequest {
                 amount: item.request.refund_amount,
                 currency: item.request.currency,
             },
-            idempotency_key: Secret::new(item.request.refund_id.clone()),
+            reference_id: Secret::new(item.request.refund_id.clone()),
             payment_id: Secret::new(item.request.connector_transaction_id.clone()),
         })
     }
