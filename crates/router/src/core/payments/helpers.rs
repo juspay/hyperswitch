@@ -919,7 +919,7 @@ where
 pub fn response_operation<'a, F, R, Ctx>() -> BoxedOperation<'a, F, R, Ctx>
 where
     F: Send + Clone,
-    Ctx: crate::types::handler::PaymentMethodRetrieve,
+    Ctx: router_types::handler::PaymentMethodRetrieve,
     PaymentResponse: Operation<F, R, Ctx>,
 {
     Box::new(PaymentResponse)

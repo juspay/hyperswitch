@@ -40,7 +40,7 @@ use crate::{
 
 pub type BoxedOperation<'a, F, T, Ctx> = Box<dyn Operation<F, T, Ctx> + Send + Sync + 'a>;
 
-pub trait Operation<F: Clone, T, Ctx: crate::types::handler::PaymentMethodRetrieve>:
+pub trait Operation<F: Clone, T, Ctx: types::handler::PaymentMethodRetrieve>:
     Send + std::fmt::Debug
 {
     fn to_validate_request(&self) -> RouterResult<&(dyn ValidateRequest<F, T, Ctx> + Send + Sync)> {
@@ -82,7 +82,7 @@ pub struct ValidateResult<'a> {
 }
 
 #[allow(clippy::type_complexity)]
-pub trait ValidateRequest<F, R, Ctx: crate::types::handler::PaymentMethodRetrieve> {
+pub trait ValidateRequest<F, R, Ctx: types::handler::PaymentMethodRetrieve> {
     fn validate_request<'a, 'b>(
         &'b self,
         request: &R,
@@ -91,7 +91,7 @@ pub trait ValidateRequest<F, R, Ctx: crate::types::handler::PaymentMethodRetriev
 }
 
 #[async_trait]
-pub trait GetTracker<F, D, R, Ctx: crate::types::handler::PaymentMethodRetrieve>: Send {
+pub trait GetTracker<F, D, R, Ctx: types::handler::PaymentMethodRetrieve>: Send {
     #[allow(clippy::too_many_arguments)]
     async fn get_trackers<'a>(
         &'a self,
@@ -106,9 +106,7 @@ pub trait GetTracker<F, D, R, Ctx: crate::types::handler::PaymentMethodRetrieve>
 }
 
 #[async_trait]
-pub trait Domain<F: Clone, R, Ctx: crate::types::handler::PaymentMethodRetrieve>:
-    Send + Sync
-{
+pub trait Domain<F: Clone, R, Ctx: types::handler::PaymentMethodRetrieve>: Send + Sync {
     /// This will fetch customer details, (this operation is flow specific)
     async fn get_or_create_customer_details<'a>(
         &'a self,
@@ -151,9 +149,7 @@ pub trait Domain<F: Clone, R, Ctx: crate::types::handler::PaymentMethodRetrieve>
 
 #[async_trait]
 #[allow(clippy::too_many_arguments)]
-pub trait UpdateTracker<F, D, Req, Ctx: crate::types::handler::PaymentMethodRetrieve>:
-    Send
-{
+pub trait UpdateTracker<F, D, Req, Ctx: types::handler::PaymentMethodRetrieve>: Send {
     async fn update_trackers<'b>(
         &'b self,
         db: &dyn StorageInterface,
@@ -186,7 +182,7 @@ pub trait PostUpdateTracker<F, D, R>: Send {
 #[async_trait]
 impl<
         F: Clone + Send,
-        Ctx: crate::types::handler::PaymentMethodRetrieve,
+        Ctx: types::handler::PaymentMethodRetrieve,
         Op: Send + Sync + Operation<F, api::PaymentsRetrieveRequest, Ctx>,
     > Domain<F, api::PaymentsRetrieveRequest, Ctx> for Op
 where
@@ -247,7 +243,7 @@ where
 #[async_trait]
 impl<
         F: Clone + Send,
-        Ctx: crate::types::handler::PaymentMethodRetrieve,
+        Ctx: types::handler::PaymentMethodRetrieve,
         Op: Send + Sync + Operation<F, api::PaymentsCaptureRequest, Ctx>,
     > Domain<F, api::PaymentsCaptureRequest, Ctx> for Op
 where
@@ -307,7 +303,7 @@ where
 #[async_trait]
 impl<
         F: Clone + Send,
-        Ctx: crate::types::handler::PaymentMethodRetrieve,
+        Ctx: types::handler::PaymentMethodRetrieve,
         Op: Send + Sync + Operation<F, api::PaymentsCancelRequest, Ctx>,
     > Domain<F, api::PaymentsCancelRequest, Ctx> for Op
 where
@@ -368,7 +364,7 @@ where
 #[async_trait]
 impl<
         F: Clone + Send,
-        Ctx: crate::types::handler::PaymentMethodRetrieve,
+        Ctx: types::handler::PaymentMethodRetrieve,
         Op: Send + Sync + Operation<F, api::PaymentsRejectRequest, Ctx>,
     > Domain<F, api::PaymentsRejectRequest, Ctx> for Op
 where

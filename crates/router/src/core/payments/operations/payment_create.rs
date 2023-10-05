@@ -39,7 +39,7 @@ pub struct PaymentCreate;
 /// The `get_trackers` function for `PaymentsCreate` is an entrypoint for new payments
 /// This will create all the entities required for a new payment from the request
 #[async_trait]
-impl<F: Send + Clone, Ctx: crate::types::handler::PaymentMethodRetrieve>
+impl<F: Send + Clone, Ctx: types::handler::PaymentMethodRetrieve>
     GetTracker<F, PaymentData<F>, api::PaymentsRequest, Ctx> for PaymentCreate
 {
     #[instrument(skip_all)]
@@ -301,7 +301,7 @@ impl<F: Send + Clone, Ctx: crate::types::handler::PaymentMethodRetrieve>
 }
 
 #[async_trait]
-impl<F: Clone + Send, Ctx: crate::types::handler::PaymentMethodRetrieve>
+impl<F: Clone + Send, Ctx: types::handler::PaymentMethodRetrieve>
     Domain<F, api::PaymentsRequest, Ctx> for PaymentCreate
 {
     #[instrument(skip_all)]
@@ -366,7 +366,7 @@ impl<F: Clone + Send, Ctx: crate::types::handler::PaymentMethodRetrieve>
 }
 
 #[async_trait]
-impl<F: Clone, Ctx: crate::types::handler::PaymentMethodRetrieve>
+impl<F: Clone, Ctx: types::handler::PaymentMethodRetrieve>
     UpdateTracker<F, PaymentData<F>, api::PaymentsRequest, Ctx> for PaymentCreate
 {
     #[instrument(skip_all)]
@@ -453,7 +453,7 @@ impl<F: Clone, Ctx: crate::types::handler::PaymentMethodRetrieve>
     }
 }
 
-impl<F: Send + Clone, Ctx: crate::types::handler::PaymentMethodRetrieve>
+impl<F: Send + Clone, Ctx: types::handler::PaymentMethodRetrieve>
     ValidateRequest<F, api::PaymentsRequest, Ctx> for PaymentCreate
 {
     #[instrument(skip_all)]

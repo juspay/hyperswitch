@@ -16,6 +16,7 @@ use crate::{
     routes::AppState,
     services,
     types::{
+        self,
         api::{self, PaymentIdTypeExt},
         domain,
         storage::{self, enums as storage_enums},
@@ -28,7 +29,7 @@ use crate::{
 pub struct PaymentStart;
 
 #[async_trait]
-impl<F: Send + Clone, Ctx: crate::types::handler::PaymentMethodRetrieve>
+impl<F: Send + Clone, Ctx: types::handler::PaymentMethodRetrieve>
     GetTracker<F, PaymentData<F>, api::PaymentsStartRequest, Ctx> for PaymentStart
 {
     #[instrument(skip_all)]
@@ -173,7 +174,7 @@ impl<F: Send + Clone, Ctx: crate::types::handler::PaymentMethodRetrieve>
 }
 
 #[async_trait]
-impl<F: Clone, Ctx: crate::types::handler::PaymentMethodRetrieve>
+impl<F: Clone, Ctx: types::handler::PaymentMethodRetrieve>
     UpdateTracker<F, PaymentData<F>, api::PaymentsStartRequest, Ctx> for PaymentStart
 {
     #[instrument(skip_all)]
@@ -198,7 +199,7 @@ impl<F: Clone, Ctx: crate::types::handler::PaymentMethodRetrieve>
     }
 }
 
-impl<F: Send + Clone, Ctx: crate::types::handler::PaymentMethodRetrieve>
+impl<F: Send + Clone, Ctx: types::handler::PaymentMethodRetrieve>
     ValidateRequest<F, api::PaymentsStartRequest, Ctx> for PaymentStart
 {
     #[instrument(skip_all)]
@@ -235,7 +236,7 @@ impl<F: Send + Clone, Ctx: crate::types::handler::PaymentMethodRetrieve>
 #[async_trait]
 impl<
         F: Clone + Send,
-        Ctx: crate::types::handler::PaymentMethodRetrieve,
+        Ctx: types::handler::PaymentMethodRetrieve,
         Op: Send + Sync + Operation<F, api::PaymentsStartRequest, Ctx>,
     > Domain<F, api::PaymentsStartRequest, Ctx> for Op
 where

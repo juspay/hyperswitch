@@ -18,6 +18,7 @@ use crate::{
     routes::AppState,
     services,
     types::{
+        self,
         api::{self, PaymentIdTypeExt},
         domain,
         storage::{self, enums as storage_enums},
@@ -30,7 +31,7 @@ use crate::{
 pub struct PaymentUpdate;
 
 #[async_trait]
-impl<F: Send + Clone, Ctx: crate::types::handler::PaymentMethodRetrieve>
+impl<F: Send + Clone, Ctx: types::handler::PaymentMethodRetrieve>
     GetTracker<F, PaymentData<F>, api::PaymentsRequest, Ctx> for PaymentUpdate
 {
     #[instrument(skip_all)]
@@ -352,7 +353,7 @@ impl<F: Send + Clone, Ctx: crate::types::handler::PaymentMethodRetrieve>
 }
 
 #[async_trait]
-impl<F: Clone + Send, Ctx: crate::types::handler::PaymentMethodRetrieve>
+impl<F: Clone + Send, Ctx: types::handler::PaymentMethodRetrieve>
     Domain<F, api::PaymentsRequest, Ctx> for PaymentUpdate
 {
     #[instrument(skip_all)]
@@ -417,7 +418,7 @@ impl<F: Clone + Send, Ctx: crate::types::handler::PaymentMethodRetrieve>
 }
 
 #[async_trait]
-impl<F: Clone, Ctx: crate::types::handler::PaymentMethodRetrieve>
+impl<F: Clone, Ctx: types::handler::PaymentMethodRetrieve>
     UpdateTracker<F, PaymentData<F>, api::PaymentsRequest, Ctx> for PaymentUpdate
 {
     #[instrument(skip_all)]
@@ -565,7 +566,7 @@ impl<F: Clone, Ctx: crate::types::handler::PaymentMethodRetrieve>
     }
 }
 
-impl<F: Send + Clone, Ctx: crate::types::handler::PaymentMethodRetrieve>
+impl<F: Send + Clone, Ctx: types::handler::PaymentMethodRetrieve>
     ValidateRequest<F, api::PaymentsRequest, Ctx> for PaymentUpdate
 {
     #[instrument(skip_all)]
