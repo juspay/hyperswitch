@@ -1,9 +1,10 @@
+use crate::core::api_locking::{self, GetLockingInput};
 pub mod helpers;
 
 use actix_web::{web, Responder};
 use api_models::payments::HeaderPayload;
 use error_stack::report;
-use router_env::{instrument, tracing, Flow};
+use router_env::{instrument, tracing, types, Flow};
 
 use crate::{
     self as app,
@@ -17,6 +18,7 @@ use crate::{
         PAYMENTS_CREATE_WITH_MANUAL_CAPTURE, PAYMENTS_CREATE_WITH_NOON_ORDER_CATETORY,
         PAYMENTS_CREATE_WITH_ORDER_DETAILS,
     },
+    routes::lock_utils,
     services::{api, authentication as auth},
     types::{
         api::{self as api_types, enums as api_enums, payments as payment_types},
@@ -96,6 +98,8 @@ pub async fn payments_create(
         return http_not_implemented();
     };
 
+    let locking_action = payload.get_locking_input(flow.clone());
+
     api::server_wrap(
         flow,
         state,
@@ -113,10 +117,10 @@ pub async fn payments_create(
             )
         },
         &auth::ApiKeyAuth,
+        locking_action,
     )
     .await
 }
-
 // /// Payments - Redirect
 // ///
 // /// For a payment which involves the redirection flow. This redirects the user to the authentication page
@@ -148,7 +152,11 @@ pub async fn payments_start(
         merchant_id: merchant_id.clone(),
         attempt_id: attempt_id.clone(),
     };
-    api::server_wrap(flow,
+
+    let locking_action = payload.get_locking_input(flow.clone());
+
+    api::server_wrap(
+        flow,
         state,
         &req,
         payload,
@@ -165,10 +173,10 @@ pub async fn payments_start(
             )
         },
         &auth::MerchantIdAuth(merchant_id),
+        locking_action,
     )
     .await
 }
-
 /// Payments - Retrieve
 ///
 /// To retrieve the properties of a Payment. This may be used to get the status of a previously initiated payment or next action for an ongoing payment
@@ -211,6 +219,8 @@ pub async fn payments_retrieve(
             Err(err) => return api::log_and_return_error_response(report!(err)),
         };
 
+    let locking_action = payload.get_locking_input(flow.clone());
+
     api::server_wrap(
         flow,
         state,
@@ -229,10 +239,10 @@ pub async fn payments_retrieve(
             )
         },
         &*auth_type,
+        locking_action,
     )
     .await
 }
-
 /// Payments - Retrieve with gateway credentials
 ///
 /// To retrieve the properties of a Payment. This may be used to get the status of a previously initiated payment or next action for an ongoing payment
@@ -269,6 +279,9 @@ pub async fn payments_retrieve_with_gateway_creds(
         ..Default::default()
     };
     let flow = Flow::PaymentsRetrieve;
+
+    let locking_action = payload.get_locking_input(flow.clone());
+
     api::server_wrap(
         flow,
         state,
@@ -287,10 +300,10 @@ pub async fn payments_retrieve_with_gateway_creds(
             )
         },
         &*auth_type,
+        locking_action,
     )
     .await
 }
-
 /// Payments - Update
 ///
 /// To update the properties of a PaymentIntent object. This may include attaching a payment method, or attaching customer object or metadata fields after the Payment is created
@@ -333,6 +346,8 @@ pub async fn payments_update(
         Err(err) => return api::log_and_return_error_response(report!(err)),
     };
 
+    let locking_action = payload.get_locking_input(flow.clone());
+
     api::server_wrap(
         flow,
         state,
@@ -350,10 +365,10 @@ pub async fn payments_update(
             )
         },
         &*auth_type,
+        locking_action,
     )
     .await
 }
-
 /// Payments - Confirm
 ///
 /// This API is to confirm the payment request and forward payment to the payment processor. This API provides more granular control upon when the API is forwarded to the payment processor. Alternatively you can confirm the payment within the Payments Create API
@@ -406,6 +421,9 @@ pub async fn payments_confirm(
             Ok(auth) => auth,
             Err(e) => return api::log_and_return_error_response(e),
         };
+
+    let locking_action = payload.get_locking_input(flow.clone());
+
     api::server_wrap(
         flow,
         state,
@@ -423,10 +441,10 @@ pub async fn payments_confirm(
             )
         },
         &*auth_type,
+        locking_action,
     )
     .await
 }
-
 /// Payments - Capture
 ///
 /// To capture the funds for an uncaptured payment
@@ -454,16 +472,18 @@ pub async fn payments_capture(
     path: web::Path<String>,
 ) -> impl Responder {
     let flow = Flow::PaymentsCapture;
-    let capture_payload = payment_types::PaymentsCaptureRequest {
-        payment_id: Some(path.into_inner()),
+    let payload = payment_types::PaymentsCaptureRequest {
+        payment_id: path.into_inner(),
         ..json_payload.into_inner()
     };
+
+    let locking_action = payload.get_locking_input(flow.clone());
 
     api::server_wrap(
         flow,
         state,
         &req,
-        capture_payload,
+        payload,
         |state, auth, payload| {
             payments::payments_core::<api_types::Capture, payment_types::PaymentsResponse, _, _, _>(
                 state,
@@ -477,10 +497,10 @@ pub async fn payments_capture(
             )
         },
         &auth::ApiKeyAuth,
+        locking_action,
     )
     .await
 }
-
 /// Payments - Session token
 ///
 /// To create the session object or to get session token for wallets
@@ -503,13 +523,15 @@ pub async fn payments_connector_session(
     json_payload: web::Json<payment_types::PaymentsSessionRequest>,
 ) -> impl Responder {
     let flow = Flow::PaymentsSessionToken;
-    let sessions_payload = json_payload.into_inner();
+    let payload = json_payload.into_inner();
+
+    let locking_action = payload.get_locking_input(flow.clone());
 
     api::server_wrap(
         flow,
         state,
         &req,
-        sessions_payload,
+        payload,
         |state, auth, payload| {
             payments::payments_core::<
                 api_types::Session,
@@ -529,10 +551,10 @@ pub async fn payments_connector_session(
             )
         },
         &auth::PublishableKeyAuth,
+        locking_action,
     )
     .await
 }
-
 // /// Payments - Redirect response
 // ///
 // /// To get the payment response for redirect flows
@@ -571,6 +593,7 @@ pub async fn payments_redirect_response(
         connector: Some(connector),
         creds_identifier: None,
     };
+    let locking_action = payload.get_locking_input(flow.clone());
     api::server_wrap(
         flow,
         state,
@@ -585,6 +608,7 @@ pub async fn payments_redirect_response(
             )
         },
         &auth::MerchantIdAuth(merchant_id),
+        locking_action,
     )
     .await
 }
@@ -626,6 +650,7 @@ pub async fn payments_redirect_response_with_creds_identifier(
         creds_identifier: Some(creds_identifier),
     };
     let flow = Flow::PaymentsRedirect;
+    let locking_action = payload.get_locking_input(flow.clone());
     api::server_wrap(
         flow,
         state,
@@ -640,10 +665,10 @@ pub async fn payments_redirect_response_with_creds_identifier(
             )
         },
         &auth::MerchantIdAuth(merchant_id),
+        locking_action,
     )
     .await
 }
-
 #[instrument(skip_all)]
 pub async fn payments_complete_authorize(
     state: web::Data<app::AppState>,
@@ -664,6 +689,7 @@ pub async fn payments_complete_authorize(
         connector: Some(connector),
         creds_identifier: None,
     };
+    let locking_action = payload.get_locking_input(flow.clone());
     api::server_wrap(
         flow,
         state,
@@ -678,10 +704,10 @@ pub async fn payments_complete_authorize(
             )
         },
         &auth::MerchantIdAuth(merchant_id),
+        locking_action,
     )
     .await
 }
-
 /// Payments - Cancel
 ///
 /// A Payment could can be cancelled when it is in one of these statuses: requires_payment_method, requires_capture, requires_confirmation, requires_customer_action
@@ -712,6 +738,7 @@ pub async fn payments_cancel(
     let mut payload = json_payload.into_inner();
     let payment_id = path.into_inner();
     payload.payment_id = payment_id;
+    let locking_action = payload.get_locking_input(flow.clone());
     api::server_wrap(
         flow,
         state,
@@ -730,10 +757,10 @@ pub async fn payments_cancel(
             )
         },
         &auth::ApiKeyAuth,
+        locking_action,
     )
     .await
 }
-
 /// Payments - List
 ///
 /// To list the payments
@@ -775,10 +802,10 @@ pub async fn payments_list(
         payload,
         |state, auth, req| payments::list_payments(state, auth.merchant_account, req),
         &auth::ApiKeyAuth,
+        api_locking::LockAction::NotApplicable,
     )
     .await
 }
-
 #[instrument(skip_all, fields(flow = ?Flow::PaymentsList))]
 #[cfg(feature = "olap")]
 pub async fn payments_list_by_filter(
@@ -795,10 +822,10 @@ pub async fn payments_list_by_filter(
         payload,
         |state, auth, req| payments::apply_filters_on_payments(state, auth.merchant_account, req),
         &auth::ApiKeyAuth,
+        api_locking::LockAction::NotApplicable,
     )
     .await
 }
-
 #[instrument(skip_all, fields(flow = ?Flow::PaymentsList))]
 #[cfg(feature = "olap")]
 pub async fn get_filters_for_payments(
@@ -815,10 +842,10 @@ pub async fn get_filters_for_payments(
         payload,
         |state, auth, req| payments::get_filters_for_payments(state, auth.merchant_account, req),
         &auth::ApiKeyAuth,
+        api_locking::LockAction::NotApplicable,
     )
     .await
 }
-
 async fn authorize_verify_select<Op>(
     operation: Op,
     state: app::AppState,
@@ -872,6 +899,133 @@ where
                 header_payload,
             )
             .await
+        }
+    }
+}
+
+impl GetLockingInput for payment_types::PaymentsRequest {
+    fn get_locking_input<F>(&self, flow: F) -> api_locking::LockAction
+    where
+        F: types::FlowMetric,
+        lock_utils::ApiIdentifier: From<F>,
+    {
+        match self.payment_id {
+            Some(payment_types::PaymentIdType::PaymentIntentId(ref id)) => {
+                api_locking::LockAction::Hold {
+                    input: api_locking::LockingInput {
+                        unique_locking_key: id.to_owned(),
+                        api_identifier: lock_utils::ApiIdentifier::from(flow),
+                        override_lock_retries: None,
+                    },
+                }
+            }
+            _ => api_locking::LockAction::NotApplicable,
+        }
+    }
+}
+
+impl GetLockingInput for payment_types::PaymentsStartRequest {
+    fn get_locking_input<F>(&self, flow: F) -> api_locking::LockAction
+    where
+        F: types::FlowMetric,
+        lock_utils::ApiIdentifier: From<F>,
+    {
+        api_locking::LockAction::Hold {
+            input: api_locking::LockingInput {
+                unique_locking_key: self.payment_id.to_owned(),
+                api_identifier: lock_utils::ApiIdentifier::from(flow),
+                override_lock_retries: None,
+            },
+        }
+    }
+}
+
+impl GetLockingInput for payment_types::PaymentsRetrieveRequest {
+    fn get_locking_input<F>(&self, flow: F) -> api_locking::LockAction
+    where
+        F: types::FlowMetric,
+        lock_utils::ApiIdentifier: From<F>,
+    {
+        match self.resource_id {
+            payment_types::PaymentIdType::PaymentIntentId(ref id) => {
+                api_locking::LockAction::Hold {
+                    input: api_locking::LockingInput {
+                        unique_locking_key: id.to_owned(),
+                        api_identifier: lock_utils::ApiIdentifier::from(flow),
+                        override_lock_retries: None,
+                    },
+                }
+            }
+            _ => api_locking::LockAction::NotApplicable,
+        }
+    }
+}
+
+impl GetLockingInput for payment_types::PaymentsSessionRequest {
+    fn get_locking_input<F>(&self, flow: F) -> api_locking::LockAction
+    where
+        F: types::FlowMetric,
+        lock_utils::ApiIdentifier: From<F>,
+    {
+        api_locking::LockAction::Hold {
+            input: api_locking::LockingInput {
+                unique_locking_key: self.payment_id.to_owned(),
+                api_identifier: lock_utils::ApiIdentifier::from(flow),
+                override_lock_retries: None,
+            },
+        }
+    }
+}
+
+impl GetLockingInput for payments::PaymentsRedirectResponseData {
+    fn get_locking_input<F>(&self, flow: F) -> api_locking::LockAction
+    where
+        F: types::FlowMetric,
+        lock_utils::ApiIdentifier: From<F>,
+    {
+        match self.resource_id {
+            payment_types::PaymentIdType::PaymentIntentId(ref id) => {
+                api_locking::LockAction::Hold {
+                    input: api_locking::LockingInput {
+                        unique_locking_key: id.to_owned(),
+                        api_identifier: lock_utils::ApiIdentifier::from(flow),
+                        override_lock_retries: None,
+                    },
+                }
+            }
+            _ => api_locking::LockAction::NotApplicable,
+        }
+    }
+}
+
+impl GetLockingInput for payment_types::PaymentsCancelRequest {
+    fn get_locking_input<F>(&self, flow: F) -> api_locking::LockAction
+    where
+        F: types::FlowMetric,
+        lock_utils::ApiIdentifier: From<F>,
+    {
+        api_locking::LockAction::Hold {
+            input: api_locking::LockingInput {
+                unique_locking_key: self.payment_id.to_owned(),
+                api_identifier: lock_utils::ApiIdentifier::from(flow),
+                override_lock_retries: None,
+            },
+        }
+    }
+}
+
+impl GetLockingInput for payment_types::PaymentsCaptureRequest {
+    fn get_locking_input<F>(&self, flow: F) -> api_locking::LockAction
+    where
+        F: types::FlowMetric,
+        lock_utils::ApiIdentifier: From<F>,
+    {
+        api_locking::LockAction::Hold {
+            input: api_locking::LockingInput {
+                unique_locking_key: self.payment_id.to_owned(),
+                api_identifier: lock_utils::ApiIdentifier::from(flow),
+                override_lock_retries: None,
+            },
         }
     }
 }

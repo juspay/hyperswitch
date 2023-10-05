@@ -879,6 +879,7 @@ pub async fn list_payment_methods(
                 &merchant_account,
                 payment_intent.profile_id.as_ref(),
                 db,
+                false,
             )
             .await
             .attach_printable("Could not find profile id from business details")
@@ -1824,23 +1825,15 @@ pub async fn list_customer_payment_method(
     let key = key_store.key.get_inner().peek();
 
     let is_requires_cvv = db
-        .find_config_by_key(format!("{}_requires_cvv", merchant_account.merchant_id).as_str())
-        .await;
+        .find_config_by_key_unwrap_or(
+            format!("{}_requires_cvv", merchant_account.merchant_id).as_str(),
+            Some("true".to_string()),
+        )
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to fetch requires_cvv config")?;
 
-    let requires_cvv = match is_requires_cvv {
-        // If an entry is found with the config value as `false`, we set requires_cvv to false
-        Ok(value) => value.config != "false",
-        Err(err) => {
-            if err.current_context().is_db_not_found() {
-                // By default, cvv is made required field for all merchants
-                true
-            } else {
-                Err(err
-                    .change_context(errors::ApiErrorResponse::InternalServerError)
-                    .attach_printable("Failed to fetch merchant_id config for requires_cvv"))?
-            }
-        }
-    };
+    let requires_cvv = is_requires_cvv.config != "false";
 
     let resp = db
         .find_payment_method_by_customer_id_merchant_id_list(

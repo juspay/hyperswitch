@@ -67,6 +67,17 @@ impl RefundDbExt for Refund {
                 filter = filter.limit(limit).offset(offset);
             }
         };
+        match &refund_list_details.profile_id {
+            Some(profile_id) => {
+                filter = filter
+                    .filter(dsl::profile_id.eq(profile_id.to_owned()))
+                    .limit(limit)
+                    .offset(offset);
+            }
+            None => {
+                filter = filter.limit(limit).offset(offset);
+            }
+        };
 
         if let Some(time_range) = refund_list_details.time_range {
             filter = filter.filter(dsl::created_at.ge(time_range.start_time));
@@ -174,6 +185,9 @@ impl RefundDbExt for Refund {
 
         if let Some(ref_id) = &refund_list_details.refund_id {
             filter = filter.filter(dsl::refund_id.eq(ref_id.to_owned()));
+        }
+        if let Some(profile_id) = &refund_list_details.profile_id {
+            filter = filter.filter(dsl::profile_id.eq(profile_id.to_owned()));
         }
 
         if let Some(time_range) = refund_list_details.time_range {

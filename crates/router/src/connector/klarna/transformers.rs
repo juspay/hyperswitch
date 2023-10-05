@@ -8,6 +8,37 @@ use crate::{
     types::{self, storage::enums},
 };
 
+#[derive(Debug, Serialize)]
+pub struct KlarnaRouterData<T> {
+    amount: i64,
+    router_data: T,
+}
+
+impl<T>
+    TryFrom<(
+        &types::api::CurrencyUnit,
+        types::storage::enums::Currency,
+        i64,
+        T,
+    )> for KlarnaRouterData<T>
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+
+    fn try_from(
+        (_currency_unit, _currency, amount, router_data): (
+            &types::api::CurrencyUnit,
+            types::storage::enums::Currency,
+            i64,
+            T,
+        ),
+    ) -> Result<Self, Self::Error> {
+        Ok(Self {
+            amount,
+            router_data,
+        })
+    }
+}
+
 #[derive(Default, Debug, Serialize)]
 pub struct KlarnaPaymentsRequest {
     order_lines: Vec<OrderLines>,
@@ -88,10 +119,13 @@ impl TryFrom<types::PaymentsSessionResponseRouterData<KlarnaSessionResponse>>
     }
 }
 
-impl TryFrom<&types::PaymentsAuthorizeRouterData> for KlarnaPaymentsRequest {
+impl TryFrom<&KlarnaRouterData<&types::PaymentsAuthorizeRouterData>> for KlarnaPaymentsRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(item: &types::PaymentsAuthorizeRouterData) -> Result<Self, Self::Error> {
-        let request = &item.request;
+
+    fn try_from(
+        item: &KlarnaRouterData<&types::PaymentsAuthorizeRouterData>,
+    ) -> Result<Self, Self::Error> {
+        let request = &item.router_data.request;
         match request.order_details.clone() {
             Some(order_details) => Ok(Self {
                 purchase_country: "US".to_string(),

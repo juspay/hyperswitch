@@ -19,6 +19,37 @@ use crate::{
     },
 };
 
+#[derive(Debug, Serialize)]
+pub struct PaypalRouterData<T> {
+    pub amount: String,
+    pub router_data: T,
+}
+
+impl<T>
+    TryFrom<(
+        &types::api::CurrencyUnit,
+        types::storage::enums::Currency,
+        i64,
+        T,
+    )> for PaypalRouterData<T>
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        (currency_unit, currency, amount, item): (
+            &types::api::CurrencyUnit,
+            types::storage::enums::Currency,
+            i64,
+            T,
+        ),
+    ) -> Result<Self, Self::Error> {
+        let amount = utils::get_amount_as_string(currency_unit, amount, currency)?;
+        Ok(Self {
+            amount,
+            router_data: item,
+        })
+    }
+}
+
 mod webhook_headers {
     pub const PAYPAL_TRANSMISSION_ID: &str = "paypal-transmission-id";
     pub const PAYPAL_TRANSMISSION_TIME: &str = "paypal-transmission-time";
@@ -196,34 +227,33 @@ fn get_payment_source(
     }
 }
 
-impl TryFrom<&types::PaymentsAuthorizeRouterData> for PaypalPaymentsRequest {
+impl TryFrom<&PaypalRouterData<&types::PaymentsAuthorizeRouterData>> for PaypalPaymentsRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(item: &types::PaymentsAuthorizeRouterData) -> Result<Self, Self::Error> {
-        match item.request.payment_method_data {
+    fn try_from(
+        item: &PaypalRouterData<&types::PaymentsAuthorizeRouterData>,
+    ) -> Result<Self, Self::Error> {
+        match item.router_data.request.payment_method_data {
             api_models::payments::PaymentMethodData::Card(ref ccard) => {
-                let intent = if item.request.is_auto_capture()? {
+                let intent = if item.router_data.request.is_auto_capture()? {
                     PaypalPaymentIntent::Capture
                 } else {
                     PaypalPaymentIntent::Authorize
                 };
                 let amount = OrderAmount {
-                    currency_code: item.request.currency,
-                    value: utils::to_currency_base_unit_with_zero_decimal_check(
-                        item.request.amount,
-                        item.request.currency,
-                    )?,
+                    currency_code: item.router_data.request.currency,
+                    value: item.amount.to_owned(),
                 };
-                let reference_id = item.attempt_id.clone();
+                let reference_id = item.router_data.attempt_id.clone();
 
                 let purchase_units = vec![PurchaseUnitRequest {
                     reference_id,
                     amount,
                 }];
-                let card = item.request.get_card()?;
+                let card = item.router_data.request.get_card()?;
                 let expiry = Some(card.get_expiry_date_as_yyyymm("-"));
 
                 let payment_source = Some(PaymentSourceItem::Card(CardRequest {
-                    billing_address: get_address_info(item.address.billing.as_ref())?,
+                    billing_address: get_address_info(item.router_data.address.billing.as_ref())?,
                     expiry,
                     name: ccard.card_holder_name.clone(),
                     number: Some(ccard.card_number.clone()),
@@ -238,19 +268,16 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PaypalPaymentsRequest {
             }
             api::PaymentMethodData::Wallet(ref wallet_data) => match wallet_data {
                 api_models::payments::WalletData::PaypalRedirect(_) => {
-                    let intent = if item.request.is_auto_capture()? {
+                    let intent = if item.router_data.request.is_auto_capture()? {
                         PaypalPaymentIntent::Capture
                     } else {
                         PaypalPaymentIntent::Authorize
                     };
                     let amount = OrderAmount {
-                        currency_code: item.request.currency,
-                        value: utils::to_currency_base_unit_with_zero_decimal_check(
-                            item.request.amount,
-                            item.request.currency,
-                        )?,
+                        currency_code: item.router_data.request.currency,
+                        value: item.amount.to_owned(),
                     };
-                    let reference_id = item.attempt_id.clone();
+                    let reference_id = item.router_data.attempt_id.clone();
                     let purchase_units = vec![PurchaseUnitRequest {
                         reference_id,
                         amount,
@@ -258,8 +285,8 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PaypalPaymentsRequest {
                     let payment_source =
                         Some(PaymentSourceItem::Paypal(PaypalRedirectionRequest {
                             experience_context: ContextStruct {
-                                return_url: item.request.complete_authorize_url.clone(),
-                                cancel_url: item.request.complete_authorize_url.clone(),
+                                return_url: item.router_data.request.complete_authorize_url.clone(),
+                                cancel_url: item.router_data.request.complete_authorize_url.clone(),
                             },
                         }));
 
@@ -301,7 +328,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PaypalPaymentsRequest {
                 }
             },
             api::PaymentMethodData::BankRedirect(ref bank_redirection_data) => {
-                let intent = if item.request.is_auto_capture()? {
+                let intent = if item.router_data.request.is_auto_capture()? {
                     PaypalPaymentIntent::Capture
                 } else {
                     Err(errors::ConnectorError::FlowNotSupported {
@@ -310,18 +337,16 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PaypalPaymentsRequest {
                     })?
                 };
                 let amount = OrderAmount {
-                    currency_code: item.request.currency,
-                    value: utils::to_currency_base_unit_with_zero_decimal_check(
-                        item.request.amount,
-                        item.request.currency,
-                    )?,
+                    currency_code: item.router_data.request.currency,
+                    value: item.amount.to_owned(),
                 };
-                let reference_id = item.attempt_id.clone();
+                let reference_id = item.router_data.attempt_id.clone();
                 let purchase_units = vec![PurchaseUnitRequest {
                     reference_id,
                     amount,
                 }];
-                let payment_source = Some(get_payment_source(item, bank_redirection_data)?);
+                let payment_source =
+                    Some(get_payment_source(item.router_data, bank_redirection_data)?);
 
                 Ok(Self {
                     intent,
@@ -870,15 +895,16 @@ pub struct PaypalPaymentsCaptureRequest {
     final_capture: bool,
 }
 
-impl TryFrom<&types::PaymentsCaptureRouterData> for PaypalPaymentsCaptureRequest {
+impl TryFrom<&PaypalRouterData<&types::PaymentsCaptureRouterData>>
+    for PaypalPaymentsCaptureRequest
+{
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(item: &types::PaymentsCaptureRouterData) -> Result<Self, Self::Error> {
+    fn try_from(
+        item: &PaypalRouterData<&types::PaymentsCaptureRouterData>,
+    ) -> Result<Self, Self::Error> {
         let amount = OrderAmount {
-            currency_code: item.request.currency,
-            value: utils::to_currency_base_unit_with_zero_decimal_check(
-                item.request.amount_to_capture,
-                item.request.currency,
-            )?,
+            currency_code: item.router_data.request.currency,
+            value: item.amount.to_owned(),
         };
         Ok(Self {
             amount,
@@ -1012,16 +1038,15 @@ pub struct PaypalRefundRequest {
     pub amount: OrderAmount,
 }
 
-impl<F> TryFrom<&types::RefundsRouterData<F>> for PaypalRefundRequest {
+impl<F> TryFrom<&PaypalRouterData<&types::RefundsRouterData<F>>> for PaypalRefundRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(item: &types::RefundsRouterData<F>) -> Result<Self, Self::Error> {
+    fn try_from(
+        item: &PaypalRouterData<&types::RefundsRouterData<F>>,
+    ) -> Result<Self, Self::Error> {
         Ok(Self {
             amount: OrderAmount {
-                currency_code: item.request.currency,
-                value: utils::to_currency_base_unit_with_zero_decimal_check(
-                    item.request.refund_amount,
-                    item.request.currency,
-                )?,
+                currency_code: item.router_data.request.currency,
+                value: item.amount.to_owned(),
             },
         })
     }

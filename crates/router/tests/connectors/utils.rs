@@ -513,6 +513,7 @@ pub trait ConnectorActions: Connector {
             payment_method_balance: None,
             connector_api_version: None,
             connector_http_status_code: None,
+            apple_pay_flow: None,
         }
     }
 

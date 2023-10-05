@@ -1,4 +1,4 @@
-use api_models::enums::{Connector, PaymentMethod};
+use api_models::enums::{AuthenticationType, Connector, PaymentMethod, PaymentMethodType};
 use common_utils::errors::CustomResult;
 use data_models::{
     errors::StorageError,
@@ -39,7 +39,9 @@ impl PaymentAttemptInterface for MockDb {
         _merchant_id: &str,
         _active_attempt_ids: &[String],
         _connector: Option<Vec<Connector>>,
-        _payment_methods: Option<Vec<PaymentMethod>>,
+        _payment_method: Option<Vec<PaymentMethod>>,
+        _payment_method_type: Option<Vec<PaymentMethodType>>,
+        _authentication_type: Option<Vec<AuthenticationType>>,
         _storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<i64, StorageError> {
         Err(StorageError::MockDbError)?
@@ -138,6 +140,7 @@ impl PaymentAttemptInterface for MockDb {
             multiple_capture_count: payment_attempt.multiple_capture_count,
             connector_response_reference_id: None,
             amount_capturable: payment_attempt.amount_capturable,
+            surcharge_metadata: payment_attempt.surcharge_metadata,
         };
         payment_attempts.push(payment_attempt.clone());
         Ok(payment_attempt)

@@ -11,6 +11,7 @@ pub mod dummy_connector;
 pub mod ephemeral_key;
 pub mod files;
 pub mod health;
+pub mod lock_utils;
 pub mod mandates;
 pub mod metrics;
 pub mod payment_methods;

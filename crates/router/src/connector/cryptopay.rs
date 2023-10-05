@@ -129,6 +129,10 @@ impl ConnectorCommon for Cryptopay {
         "cryptopay"
     }
 
+    fn get_currency_unit(&self) -> api::CurrencyUnit {
+        api::CurrencyUnit::Base
+    }
+
     fn common_get_content_type(&self) -> &'static str {
         "application/json"
     }
@@ -211,7 +215,14 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         &self,
         req: &types::PaymentsAuthorizeRouterData,
     ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
-        let connector_request = cryptopay::CryptopayPaymentsRequest::try_from(req)?;
+        let connector_router_data = cryptopay::CryptopayRouterData::try_from((
+            &self.get_currency_unit(),
+            req.request.currency,
+            req.request.amount,
+            req,
+        ))?;
+        let connector_request =
+            cryptopay::CryptopayPaymentsRequest::try_from(&connector_router_data)?;
         let cryptopay_req = types::RequestBody::log_and_get_request_body(
             &connector_request,
             Encode::<cryptopay::CryptopayPaymentsRequest>::encode_to_string_of_json,
@@ -284,16 +295,10 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
         req: &types::PaymentsSyncRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        let connector_id = req
-            .request
-            .connector_transaction_id
-            .get_connector_transaction_id()
-            .change_context(errors::ConnectorError::MissingConnectorTransactionID)?;
-
+        let custom_id = req.connector_request_reference_id.clone();
         Ok(format!(
-            "{}/api/invoices/{}",
-            self.base_url(connectors),
-            connector_id
+            "{}/api/invoices/custom_id/{custom_id}",
+            self.base_url(connectors)
         ))
     }
 

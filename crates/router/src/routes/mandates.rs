@@ -3,7 +3,7 @@ use router_env::{instrument, tracing, Flow};
 
 use super::app::AppState;
 use crate::{
-    core::mandate,
+    core::{api_locking, mandate},
     services::{api, authentication as auth},
     types::api::mandates,
 };
@@ -43,10 +43,10 @@ pub async fn get_mandate(
         mandate_id,
         |state, auth, req| mandate::get_mandate(state, auth.merchant_account, req),
         &auth::ApiKeyAuth,
+        api_locking::LockAction::NotApplicable,
     )
     .await
 }
-
 /// Mandates - Revoke Mandate
 ///
 /// Revoke a mandate
@@ -82,10 +82,10 @@ pub async fn revoke_mandate(
         mandate_id,
         |state, auth, req| mandate::revoke_mandate(state, auth.merchant_account, req),
         &auth::ApiKeyAuth,
+        api_locking::LockAction::NotApplicable,
     )
     .await
 }
-
 /// Mandates - List Mandates
 #[utoipa::path(
     get,
@@ -123,6 +123,7 @@ pub async fn retrieve_mandates_list(
         payload,
         |state, auth, req| mandate::retrieve_mandates_list(state, auth.merchant_account, req),
         auth::auth_type(&auth::ApiKeyAuth, &auth::JWTAuth, req.headers()),
+        api_locking::LockAction::NotApplicable,
     )
     .await
 }
