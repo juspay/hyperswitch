@@ -872,8 +872,9 @@ where
     // Thus the flow can be generated just before calling the connector instead of explicitly passing it here.
 
     match req.payment_type {
-        api_models::enums::PaymentType::Normal | api_models::enums::PaymentType::RecurringMandate | api_models::enums::PaymentType::NewMandate => {
-        payments::payments_core::<
+        api_models::enums::PaymentType::Normal
+        | api_models::enums::PaymentType::RecurringMandate
+        | api_models::enums::PaymentType::NewMandate => payments::payments_core::<
             api_types::Authorize,
             payment_types::PaymentsResponse,
             _,
@@ -889,8 +890,7 @@ where
             payments::CallConnectorAction::Trigger,
             header_payload,
         )
-        .await
-        },
+        .await,
         api_models::enums::PaymentType::SetupMandate => {
             payments::payments_core::<
                 api_types::SetupMandate,
@@ -909,7 +909,7 @@ where
                 header_payload,
             )
             .await
-        },
+        }
     }
 }
 
