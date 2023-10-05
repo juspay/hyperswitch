@@ -281,7 +281,7 @@ pub struct CybersourcePaymentsResponse {
 #[derive(Default, Debug, Clone, Deserialize, Eq, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct ClientReferenceInformation {
-    code: String,
+    code: Option<String>,
 }
 
 #[derive(Default, Debug, Clone, Deserialize, Eq, PartialEq)]
@@ -328,7 +328,8 @@ impl<F, T>
                     connector_response_reference_id: item
                         .response
                         .client_reference_information
-                        .code,
+                        .code
+                        .or(Some(item.response.id.clone())),
                 }),
             },
             ..item.data
@@ -393,7 +394,11 @@ impl<F, T>
                 mandate_reference: None,
                 connector_metadata: None,
                 network_txn_id: None,
-                connector_response_reference_id: item.response.client_reference_information.code,
+                connector_response_reference_id: item
+                    .response
+                    .client_reference_information
+                    .code
+                    .or(Some(item.response.id.clone())),
             }),
             ..item.data
         })
