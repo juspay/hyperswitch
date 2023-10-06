@@ -1,6 +1,7 @@
 use error_stack::{IntoReport, ResultExt};
 use masking::{ExposeInterface, Secret};
 use serde::{Deserialize, Serialize};
+use time::PrimitiveDateTime;
 
 use crate::{
     connector::utils::{self, PaymentsAuthorizeRequestData, RefundsRequestData, RouterData},
@@ -1410,4 +1411,75 @@ fn get_braintree_redirect_form(
         },
         amount,
     })
+}
+
+#[derive(Debug, Deserialize)]
+pub struct BraintreeWebhookResponse {
+    pub bt_signature: String,
+    pub bt_payload: String,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+#[serde(rename_all = "kebab-case")]
+pub struct Notification {
+    pub kind: String, // xml parse only string to fields
+    pub timestamp: String,
+    pub dispute: Option<BraintreeDisputeData>,
+}
+impl types::transformers::ForeignFrom<&str> for api_models::webhooks::IncomingWebhookEvent {
+    fn foreign_from(status: &str) -> Self {
+        match status {
+            "dispute_opened" => Self::DisputeOpened,
+            "dispute_lost" => Self::DisputeLost,
+            "dispute_won" => Self::DisputeWon,
+            "dispute_accepted" | "dispute_auto_accepted" => Self::DisputeAccepted,
+            "dispute_expired" => Self::DisputeExpired,
+            "dispute_disputed" => Self::DisputeChallenged,
+            _ => Self::EventNotSupported,
+        }
+    }
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+pub struct BraintreeDisputeData {
+    pub amount_disputed: i64,
+    pub amount_won: Option<String>,
+    pub case_number: Option<String>,
+    pub chargeback_protection_level: Option<String>,
+    pub currency_iso_code: String,
+    #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
+    pub created_at: Option<PrimitiveDateTime>,
+    pub evidence: Option<DisputeEvidence>,
+    pub id: String,
+    pub kind: String, // xml parse only string to fields
+    pub status: String,
+    pub reason: Option<String>,
+    pub reason_code: Option<String>,
+    #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
+    pub updated_at: Option<PrimitiveDateTime>,
+    #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
+    pub reply_by_date: Option<PrimitiveDateTime>,
+    pub transaction: DisputeTransaction,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+pub struct DisputeTransaction {
+    pub amount: String,
+    pub id: String,
+}
+#[derive(Debug, Deserialize, Serialize)]
+pub struct DisputeEvidence {
+    pub comment: String,
+    pub id: Secret<String>,
+    pub created_at: Option<PrimitiveDateTime>,
+    pub url: url::Url,
+}
+
+pub(crate) fn get_dispute_stage(code: &str) -> Result<enums::DisputeStage, errors::ConnectorError> {
+    match code {
+        "CHARGEBACK" => Ok(enums::DisputeStage::Dispute),
+        "PRE_ARBITATION" => Ok(enums::DisputeStage::PreArbitration),
+        "RETRIEVAL" => Ok(enums::DisputeStage::PreDispute),
+        _ => Err(errors::ConnectorError::WebhookBodyDecodingFailed),
+    }
 }
