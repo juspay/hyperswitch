@@ -109,13 +109,67 @@ fn get_js_script(
     format!(
         "window.__PAYMENT_DETAILS_STR = JSON.stringify({{
         client_secret: '{secret}',
-        return_url: 'http://localhost:5500/public/index.html',
-        merchant_logo: 'https://upload.wikimedia.org/wikipedia/commons/8/83/Steam_icon_logo.svg',
-        merchant: 'Steam',
         amount: '{amount}',
         currency: '{currency}',
-        purchased_item: 'Tea',
-        payment_id: '{payment_id}'
+        payment_id: '{payment_id}',
+        // TODO: Remove hardcoded values
+        merchant_logo: 'https://upload.wikimedia.org/wikipedia/commons/8/83/Steam_icon_logo.svg',
+        return_url: 'http://localhost:5500/public/index.html',
+        currency_symbol: '$',
+        merchant: 'Steam',
+        max_items_visible_after_collapse: 3,
+        order_details: [
+            {{
+              product_name:
+                'dskjghbdsiuh sagfvbsajd ugbfiusedg fiudshgiu sdhgvishd givuhdsifu gnb gidsug biuesbdg iubsedg bsduxbg jhdxbgv jdskfbgi sdfgibuh ew87t54378 ghdfjbv jfdhgvb dufhvbfidu hg5784ghdfbjnk f (taxes incl.)',
+              quantity: 2,
+              amount: 100,
+              product_image:
+                'https://upload.wikimedia.org/wikipedia/commons/8/83/Steam_icon_logo.svg',
+            }},
+            {{
+              product_name: \"F1 '23\",
+              quantity: 4,
+              amount: 500,
+              product_image:
+                'https://upload.wikimedia.org/wikipedia/commons/8/83/Steam_icon_logo.svg',
+            }},
+            {{
+              product_name: \"Motosport '24\",
+              quantity: 4,
+              amount: 500,
+              product_image:
+                'https://upload.wikimedia.org/wikipedia/commons/8/83/Steam_icon_logo.svg',
+            }},
+            {{
+              product_name: 'Trackmania',
+              quantity: 4,
+              amount: 500,
+              product_image:
+                'https://upload.wikimedia.org/wikipedia/commons/8/83/Steam_icon_logo.svg',
+            }},
+            {{
+              product_name: 'Ghost Recon',
+              quantity: 4,
+              amount: 500,
+              product_image:
+                'https://upload.wikimedia.org/wikipedia/commons/8/83/Steam_icon_logo.svg',
+            }},
+            {{
+              product_name: 'Cup of Tea',
+              quantity: 4,
+              amount: 500,
+              product_image:
+                'https://upload.wikimedia.org/wikipedia/commons/8/83/Steam_icon_logo.svg',
+            }},
+            {{
+              product_name: 'Tea cups',
+              quantity: 4,
+              amount: 500,
+              product_image:
+                'https://upload.wikimedia.org/wikipedia/commons/8/83/Steam_icon_logo.svg',
+            }},
+          ]
     }});
 
     const hyper = Hyper(\"{pub_key}\");"

@@ -1305,7 +1305,7 @@ pub fn build_payment_link_html(
         "hyperloader_sdk_link",
         &get_hyper_loader_sdk(&payment_link_data.base_url),
     );
-    context.insert("payment_details_js_script11", &payment_link_data.js_script);
+    context.insert("payment_details_js_script", &payment_link_data.js_script);
 
     match tera.render("payment_link", &context) {
         Ok(rendered_html) => Ok(rendered_html),
