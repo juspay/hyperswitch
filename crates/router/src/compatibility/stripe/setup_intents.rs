@@ -9,7 +9,7 @@ use crate::{
         stripe::{errors, payment_intents::types as stripe_payment_types},
         wrap,
     },
-    core::{api_locking, payments},
+    core::{api_locking, payment_methods::Oss, payments},
     routes,
     services::{api, authentication as auth},
     types::api as api_types,
@@ -54,7 +54,14 @@ pub async fn setup_intents_create(
         &req,
         create_payment_req,
         |state, auth, req| {
-            payments::payments_core::<api_types::SetupMandate, api_types::PaymentsResponse, _, _, _>(
+            payments::payments_core::<
+                api_types::SetupMandate,
+                api_types::PaymentsResponse,
+                _,
+                _,
+                _,
+                Oss,
+            >(
                 state,
                 auth.merchant_account,
                 auth.key_store,
@@ -113,7 +120,7 @@ pub async fn setup_intents_retrieve(
         &req,
         payload,
         |state, auth, payload| {
-            payments::payments_core::<api_types::PSync, api_types::PaymentsResponse, _, _, _>(
+            payments::payments_core::<api_types::PSync, api_types::PaymentsResponse, _, _, _, Oss>(
                 state,
                 auth.merchant_account,
                 auth.key_store,
@@ -178,7 +185,14 @@ pub async fn setup_intents_update(
         &req,
         payload,
         |state, auth, req| {
-            payments::payments_core::<api_types::SetupMandate, api_types::PaymentsResponse, _, _, _>(
+            payments::payments_core::<
+                api_types::SetupMandate,
+                api_types::PaymentsResponse,
+                _,
+                _,
+                _,
+                Oss,
+            >(
                 state,
                 auth.merchant_account,
                 auth.key_store,
@@ -244,7 +258,14 @@ pub async fn setup_intents_confirm(
         &req,
         payload,
         |state, auth, req| {
-            payments::payments_core::<api_types::SetupMandate, api_types::PaymentsResponse, _, _, _>(
+            payments::payments_core::<
+                api_types::SetupMandate,
+                api_types::PaymentsResponse,
+                _,
+                _,
+                _,
+                Oss,
+            >(
                 state,
                 auth.merchant_account,
                 auth.key_store,

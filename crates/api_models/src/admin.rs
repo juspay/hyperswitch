@@ -265,7 +265,7 @@ pub struct MerchantAccountResponse {
     pub intent_fulfillment_time: Option<i64>,
 
     /// The organization id merchant is associated with
-    pub organization_id: Option<String>,
+    pub organization_id: String,
 
     ///  A boolean value to indicate if the merchant has recon service is enabled or not, by default value is false
     pub is_recon_enabled: bool,

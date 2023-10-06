@@ -325,6 +325,7 @@ impl api::IncomingWebhook for Cashtocode {
     fn get_webhook_source_verification_signature(
         &self,
         request: &api::IncomingWebhookRequestDetails<'_>,
+        _connector_webhook_secrets: &api_models::webhooks::ConnectorWebhookSecrets,
     ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
         let base64_signature = conn_utils::get_header_key_value("authorization", request.headers)?;
         let signature = base64_signature.as_bytes().to_owned();
@@ -338,9 +339,6 @@ impl api::IncomingWebhook for Cashtocode {
         merchant_connector_account: domain::MerchantConnectorAccount,
         connector_label: &str,
     ) -> CustomResult<bool, errors::ConnectorError> {
-        let signature = self
-            .get_webhook_source_verification_signature(request)
-            .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
         let connector_webhook_secrets = self
             .get_webhook_source_verification_merchant_secret(
                 merchant_account,
@@ -349,6 +347,11 @@ impl api::IncomingWebhook for Cashtocode {
             )
             .await
             .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
+
+        let signature = self
+            .get_webhook_source_verification_signature(request, &connector_webhook_secrets)
+            .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
+
         let secret_auth = String::from_utf8(connector_webhook_secrets.secret.to_vec())
             .into_report()
             .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)
