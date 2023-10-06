@@ -162,9 +162,13 @@ impl ConnectorIntegration<api::AccessTokenAuth, types::AccessTokenRequestData, t
 
 impl api::Payment for Worldline {}
 
-impl api::PreVerify for Worldline {}
-impl ConnectorIntegration<api::Verify, types::VerifyRequestData, types::PaymentsResponseData>
-    for Worldline
+impl api::MandateSetup for Worldline {}
+impl
+    ConnectorIntegration<
+        api::SetupMandate,
+        types::SetupMandateRequestData,
+        types::PaymentsResponseData,
+    > for Worldline
 {
 }
 
@@ -722,6 +726,7 @@ impl api::IncomingWebhook for Worldline {
     fn get_webhook_source_verification_signature(
         &self,
         request: &api::IncomingWebhookRequestDetails<'_>,
+        _connector_webhook_secrets: &api_models::webhooks::ConnectorWebhookSecrets,
     ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
         let header_value = conn_utils::get_header_key_value("X-GCS-Signature", request.headers)?;
         let signature = consts::BASE64_ENGINE
@@ -735,7 +740,7 @@ impl api::IncomingWebhook for Worldline {
         &self,
         request: &api::IncomingWebhookRequestDetails<'_>,
         _merchant_id: &str,
-        _secret: &[u8],
+        _connector_webhook_secrets: &api_models::webhooks::ConnectorWebhookSecrets,
     ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
         Ok(request.body.to_vec())
     }

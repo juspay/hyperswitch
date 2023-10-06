@@ -31,6 +31,8 @@ use crate::{
     utils::{self, OptionExt},
 };
 
+const DEFAULT_ORG_ID: &str = "org_abcdefghijklmn";
+
 #[inline]
 pub fn create_merchant_publishable_key() -> String {
     format!(
@@ -164,7 +166,7 @@ pub async fn create_merchant_account(
             intent_fulfillment_time: req.intent_fulfillment_time.map(i64::from),
             payout_routing_algorithm: req.payout_routing_algorithm,
             id: None,
-            organization_id: req.organization_id,
+            organization_id: req.organization_id.unwrap_or(DEFAULT_ORG_ID.to_string()),
             is_recon_enabled: false,
             default_profile: None,
             recon_status: diesel_models::enums::ReconStatus::NotRequested,

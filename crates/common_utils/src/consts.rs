@@ -23,3 +23,6 @@ pub static FRM_CONFIGS_EG: &str = r#"
 pub const PAYMENTS_LIST_MAX_LIMIT_V1: u32 = 100;
 /// Maximum limit for payments list post api with filters
 pub const PAYMENTS_LIST_MAX_LIMIT_V2: u32 = 20;
+
+/// surcharge percentage maximum precision length
+pub const SURCHARGE_PERCENTAGE_PRECISION_LENGTH: u8 = 2;
