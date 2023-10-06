@@ -264,7 +264,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for NoonPaymentsRequest {
             currency,
             channel: NoonChannels::Web,
             category,
-            reference: item.payment_id.clone(),
+            reference: item.connector_request_reference_id.clone(),
             name,
         };
         let payment_action = if item.request.is_auto_capture()? {
