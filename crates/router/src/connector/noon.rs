@@ -38,7 +38,7 @@ pub struct Noon;
 impl api::Payment for Noon {}
 impl api::PaymentSession for Noon {}
 impl api::ConnectorAccessToken for Noon {}
-impl api::PreVerify for Noon {}
+impl api::MandateSetup for Noon {}
 impl api::PaymentAuthorize for Noon {}
 impl api::PaymentSync for Noon {}
 impl api::PaymentCapture for Noon {}
@@ -65,7 +65,7 @@ where
     fn build_headers(
         &self,
         req: &types::RouterData<Flow, Request, Response>,
-        _connectors: &settings::Connectors,
+        connectors: &settings::Connectors,
     ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
         let mut header = vec![(
             headers::CONTENT_TYPE.to_string(),
@@ -73,10 +73,41 @@ where
                 .to_string()
                 .into(),
         )];
-        let mut api_key = self.get_auth_header(&req.connector_auth_type)?;
+        let mut api_key = get_auth_header(&req.connector_auth_type, connectors, req.test_mode)?;
         header.append(&mut api_key);
         Ok(header)
     }
+}
+
+fn get_auth_header(
+    auth_type: &types::ConnectorAuthType,
+    connectors: &settings::Connectors,
+    test_mode: Option<bool>,
+) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
+    let auth = noon::NoonAuthType::try_from(auth_type)?;
+
+    let encoded_api_key = auth
+        .business_identifier
+        .zip(auth.application_identifier)
+        .zip(auth.api_key)
+        .map(|((business_identifier, application_identifier), api_key)| {
+            consts::BASE64_ENGINE.encode(format!(
+                "{}.{}:{}",
+                business_identifier, application_identifier, api_key
+            ))
+        });
+    let key_mode = test_mode.map_or(connectors.noon.key_mode.clone(), |is_test_mode| {
+        if is_test_mode {
+            "Test".to_string()
+        } else {
+            "Live".to_string()
+        }
+    });
+
+    Ok(vec![(
+        headers::AUTHORIZATION.to_string(),
+        format!("Key_{} {}", key_mode, encoded_api_key.peek()).into_masked(),
+    )])
 }
 
 impl ConnectorCommon for Noon {
@@ -90,28 +121,6 @@ impl ConnectorCommon for Noon {
 
     fn base_url<'a>(&self, connectors: &'a settings::Connectors) -> &'a str {
         connectors.noon.base_url.as_ref()
-    }
-
-    fn get_auth_header(
-        &self,
-        auth_type: &types::ConnectorAuthType,
-    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
-        let auth = noon::NoonAuthType::try_from(auth_type)?;
-
-        let encoded_api_key = auth
-            .business_identifier
-            .zip(auth.application_identifier)
-            .zip(auth.api_key)
-            .map(|((business_identifier, application_identifier), api_key)| {
-                consts::BASE64_ENGINE.encode(format!(
-                    "{}.{}:{}",
-                    business_identifier, application_identifier, api_key
-                ))
-            });
-        Ok(vec![(
-            headers::AUTHORIZATION.to_string(),
-            format!("Key_Test {}", encoded_api_key.peek()).into_masked(),
-        )])
     }
 
     fn build_error_response(
@@ -158,8 +167,12 @@ impl ConnectorIntegration<api::AccessTokenAuth, types::AccessTokenRequestData, t
 {
 }
 
-impl ConnectorIntegration<api::Verify, types::VerifyRequestData, types::PaymentsResponseData>
-    for Noon
+impl
+    ConnectorIntegration<
+        api::SetupMandate,
+        types::SetupMandateRequestData,
+        types::PaymentsResponseData,
+    > for Noon
 {
 }
 
@@ -627,6 +640,7 @@ impl api::IncomingWebhook for Noon {
     fn get_webhook_source_verification_signature(
         &self,
         request: &api::IncomingWebhookRequestDetails<'_>,
+        _connector_webhook_secrets: &api_models::webhooks::ConnectorWebhookSecrets,
     ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
         let webhook_body: noon::NoonWebhookSignature = request
             .body
@@ -643,7 +657,7 @@ impl api::IncomingWebhook for Noon {
         &self,
         request: &api::IncomingWebhookRequestDetails<'_>,
         _merchant_id: &str,
-        _secret: &[u8],
+        _connector_webhook_secrets: &api_models::webhooks::ConnectorWebhookSecrets,
     ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
         let webhook_body: noon::NoonWebhookBody = request
             .body
