@@ -1029,3 +1029,113 @@ impl GetLockingInput for payment_types::PaymentsCaptureRequest {
         }
     }
 }
+
+impl GetLockingInput for api_models::payments::PaymentsDeviceDataCollectionRequest {
+    fn get_locking_input<F>(&self, flow: F) -> api_locking::LockAction
+    where
+        F: types::FlowMetric,
+        lock_utils::ApiIdentifier: From<F>,
+    {
+        api_locking::LockAction::Hold {
+            input: api_locking::LockingInput {
+                unique_locking_key: self.payment_id.to_owned(),
+                api_identifier: lock_utils::ApiIdentifier::from(flow),
+                override_lock_retries: None,
+            },
+        }
+    }
+}
+
+impl GetLockingInput for api_models::payments::PaymentsApproveRequest {
+    fn get_locking_input<F>(&self, flow: F) -> api_locking::LockAction
+    where
+        F: types::FlowMetric,
+        lock_utils::ApiIdentifier: From<F>,
+    {
+        api_locking::LockAction::Hold {
+            input: api_locking::LockingInput {
+                unique_locking_key: self.payment_id.to_owned(),
+                api_identifier: lock_utils::ApiIdentifier::from(flow),
+                override_lock_retries: None,
+            },
+        }
+    }
+}
+
+#[instrument(skip_all, fields(flow = ?Flow::PaymentsDeviceDataCollection))]
+pub async fn payments_ddc(
+    state: web::Data<app::AppState>,
+    req: actix_web::HttpRequest,
+    path: web::Path<(String, String)>,
+) -> impl Responder {
+    let flow = Flow::PaymentsDeviceDataCollection;
+    let (payment_id, merchant_id) = path.into_inner();
+    let payload = api_models::payments::PaymentsDeviceDataCollectionRequest {
+        payment_id,
+        merchant_id: merchant_id.clone(),
+    };
+
+    let locking_action = payload.get_locking_input(flow.clone());
+
+    api::server_wrap(
+        flow,
+        state,
+        &req,
+        payload,
+        |state,auth, req| {
+            payments::payments_core::<api_types::Authorize, payment_types::PaymentsResponse, _, _, _>(
+                state,
+                auth.merchant_account,
+                auth.key_store,
+                payments::operations::PaymentDeviceDataCollection,
+                req,
+                api::AuthFlow::Client,
+                payments::CallConnectorAction::Avoid,
+                HeaderPayload::default(),
+            )
+        },
+        &auth::MerchantIdAuth(merchant_id),
+        locking_action,
+    )
+    .await
+}
+
+#[instrument(skip(state, req), fields(flow = ?Flow::PaymentsApprove))]
+pub async fn payments_complete_ddc(
+    state: web::Data<app::AppState>,
+    req: actix_web::HttpRequest,
+    path: web::Path<(String, String)>,
+) -> impl Responder {
+    let flow = Flow::PaymentsApprove;
+    let (payment_id, merchant_id) = path.into_inner();
+    let payload = api_models::payments::PaymentsApproveRequest { payment_id };
+
+    let locking_action = payload.get_locking_input(flow.clone());
+
+    api::server_wrap(
+        flow,
+        state,
+        &req,
+        payload,
+        |state, auth, req| {
+            payments::payments_core::<api_types::Authorize, payment_types::PaymentsResponse, _, _, _>(
+                state,
+                auth.merchant_account,
+                auth.key_store,
+                payments::operations::PaymentApprove,
+                payment_types::PaymentsRequest {
+                    payment_id: Some(payment_types::PaymentIdType::PaymentIntentId(
+                        req.payment_id,
+                    )),
+                    ..Default::default()
+                },
+                api::AuthFlow::Client,
+                payments::CallConnectorAction::Trigger,
+                HeaderPayload::default(),
+            )
+        },
+        &auth::MerchantIdAuth(merchant_id),
+        locking_action,
+    )
+    .await
+}

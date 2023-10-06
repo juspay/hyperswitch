@@ -11,6 +11,7 @@ pub mod payment_session;
 pub mod payment_start;
 pub mod payment_status;
 pub mod payment_update;
+pub mod payments_device_data_collection;
 
 use api_models::enums::FrmSuggestion;
 use async_trait::async_trait;
@@ -23,7 +24,7 @@ pub use self::{
     payment_create::PaymentCreate, payment_method_validate::PaymentMethodValidate,
     payment_reject::PaymentReject, payment_response::PaymentResponse,
     payment_session::PaymentSession, payment_start::PaymentStart, payment_status::PaymentStatus,
-    payment_update::PaymentUpdate,
+    payment_update::PaymentUpdate, payments_device_data_collection::PaymentDeviceDataCollection,
 };
 use super::{helpers, CustomerDetails, PaymentData};
 use crate::{

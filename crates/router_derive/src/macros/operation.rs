@@ -22,6 +22,7 @@ enum Derives {
     Rejectdata,
     VerifyData,
     Start,
+    Ddc,
     Verify,
     Session,
     SessionData,
@@ -43,6 +44,7 @@ impl From<String> for Derives {
             "completeauthorizedata" => Self::CompleteAuthorizeData,
             "rejectdata" => Self::Rejectdata,
             "start" => Self::Start,
+            "ddc" => Self::Ddc,
             "verify" => Self::Verify,
             "verifydata" => Self::VerifyData,
             "session" => Self::Session,
@@ -125,6 +127,9 @@ impl Conversion {
                 syn::Ident::new("CompleteAuthorizeData", Span::call_site())
             }
             Derives::Start => syn::Ident::new("PaymentsStartRequest", Span::call_site()),
+            Derives::Ddc => {
+                syn::Ident::new("PaymentsDeviceDataCollectionRequest", Span::call_site())
+            }
             Derives::Verify => syn::Ident::new("VerifyRequest", Span::call_site()),
             Derives::VerifyData => syn::Ident::new("VerifyRequestData", Span::call_site()),
             Derives::Session => syn::Ident::new("PaymentsSessionRequest", Span::call_site()),
@@ -355,7 +360,8 @@ pub fn operation_derive_inner(input: DeriveInput) -> syn::Result<proc_macro::Tok
                         PaymentsRequest,
                         PaymentsStartRequest,
                         PaymentsSessionRequest,
-                        VerifyRequest
+                        VerifyRequest,
+                        PaymentsDeviceDataCollectionRequest,
                     }
                 };
                 #trait_derive

@@ -755,6 +755,13 @@ pub fn create_startpay_url(
     )
 }
 
+pub fn create_ddc_url(server: &Server, payment_intent: &PaymentIntent) -> String {
+    format!(
+        "{}/payments/ddc/{}/{}",
+        server.base_url, payment_intent.payment_id, payment_intent.merchant_id,
+    )
+}
+
 pub fn create_redirect_url(
     router_base_url: &String,
     payment_attempt: &PaymentAttempt,

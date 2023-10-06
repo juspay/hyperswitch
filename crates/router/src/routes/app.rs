@@ -260,7 +260,9 @@ impl Payments {
                     web::resource("/{payment_id}/{merchant_id}/redirect/complete/{connector}")
                         .route(web::get().to(payments_complete_authorize))
                         .route(web::post().to(payments_complete_authorize)),
-                );
+                )
+                .service(web::resource("/ddc/{payment_id}/{merchant_id}").route(web::get().to(payments_ddc)))
+                .service(web::resource("/complete_ddc/{payment_id}/{merchant_id}").route(web::get().to(payments_complete_ddc)));
         }
         route
     }

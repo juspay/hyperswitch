@@ -1599,6 +1599,12 @@ pub struct VoucherNextStepData {
     pub instructions_url: Option<Url>,
 }
 
+#[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
+pub struct DdcNextStepsData {
+    /// The name of the DDC connector
+    pub ddc_connector: String,
+}
+
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
 pub struct QrCodeNextStepsInstruction {
     pub image_data_url: Url,
@@ -2131,6 +2137,16 @@ impl From<PaymentsStartRequest> for PaymentsRequest {
         }
     }
 }
+
+// impl From<PaymentsDeviceDataCollectionRequest> for PaymentsRequest {
+//     fn from(item: PaymentsDeviceDataCollectionRequest) -> Self {
+//         Self {
+//             payment_id: Some(PaymentIdType::PaymentIntentId(item.payment_id)),
+//             merchant_id: Some(item.merchant_id),
+//             ..Default::default()
+//         }
+//     }
+// }
 
 impl From<AdditionalCardInfo> for CardResponse {
     fn from(card: AdditionalCardInfo) -> Self {
@@ -2697,6 +2713,15 @@ pub struct PaymentsStartRequest {
     pub attempt_id: String,
 }
 
+#[derive(Default, Debug, serde::Deserialize, serde::Serialize, ToSchema, Clone)]
+pub struct PaymentsDeviceDataCollectionRequest {
+    /// Unique identifier for the payment. This ensures idempotency for multiple payments
+    /// that have been done by a single merchant. This field is auto generated and is returned in the API response.
+    pub payment_id: String,
+    /// The identifier for the Merchant Account.
+    pub merchant_id: String,
+}
+
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize, ToSchema)]
 pub struct FeatureMetadata {
     /// Redirection response coming in request as metadata field only for redirection scenarios
@@ -2714,6 +2739,13 @@ pub struct FrmMessage {
     pub frm_score: Option<i32>,
     pub frm_reason: Option<serde_json::Value>,
     pub frm_error: Option<String>,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct FrmRoutingAlgorithm {
+    pub data: String,
+    #[serde(rename = "type")]
+    pub algorithm_type: String,
 }
 
 mod payment_id_type {

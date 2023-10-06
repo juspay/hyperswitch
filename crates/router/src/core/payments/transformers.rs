@@ -451,11 +451,23 @@ where
                     amount,
                     currency: currency.to_string(),
                 }))
+            } else if payments::is_ddc_operation(&operation) {
+                services::ApplicationResponse::Form(Box::new(services::RedirectionFormData {
+                    redirect_form: RedirectForm::Kount {
+                        client_id: "700000".to_string(),
+                        payment_id: payment_attempt.payment_id,
+                    },
+                    payment_method_data,
+                    amount,
+                    currency: currency.to_string(),
+                }))
             } else {
                 let mut next_action_response = None;
 
                 let bank_transfer_next_steps =
                     bank_transfer_next_steps_check(payment_attempt.clone())?;
+
+                let next_action_for_ddc = next_action_check_for_ddc(payment_attempt.clone())?;
 
                 let next_action_voucher = voucher_next_steps_check(payment_attempt.clone())?;
 
@@ -492,6 +504,11 @@ where
                             api_models::payments::NextActionData::WaitScreenInformation {
                                 display_from_timestamp: wait_screen_data.display_from_timestamp,
                                 display_to_timestamp: wait_screen_data.display_to_timestamp,
+                            }
+                        }))
+                        .or(next_action_for_ddc.map(|_| {
+                            api_models::payments::NextActionData::RedirectToUrl {
+                                redirect_to_url: helpers::create_ddc_url(server, &payment_intent),
                             }
                         }))
                         .or(redirection_data.map(|_| {
@@ -833,6 +850,22 @@ impl ForeignFrom<ephemeral_key::EphemeralKey> for api::ephemeral_key::EphemeralK
             secret: from.secret,
         }
     }
+}
+
+pub fn next_action_check_for_ddc(
+    payment_attempt: storage::PaymentAttempt,
+) -> RouterResult<Option<api_models::payments::DdcNextStepsData>> {
+    let ddc_next_steps: Option<api_models::payments::DdcNextStepsData> = payment_attempt
+        .connector_metadata
+        .map(|metadata| {
+            metadata
+                .parse_value("DdcNextStepsData")
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Failed to parse the Value to DdcNextStepsData struct")
+        })
+        .transpose()?;
+
+    Ok(ddc_next_steps)
 }
 
 pub fn bank_transfer_next_steps_check(

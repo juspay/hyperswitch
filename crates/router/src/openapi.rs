@@ -235,6 +235,8 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::payments::PaymentsCreateRequest,
         api_models::payments::PaymentsResponse,
         api_models::payments::PaymentsStartRequest,
+        api_models::payments::PaymentsDeviceDataCollectionRequest,
+        api_models::payments::DdcNextStepsData,
         api_models::payments::PaymentRetrieveBody,
         api_models::payments::PaymentsRetrieveRequest,
         api_models::payments::PaymentIdType,

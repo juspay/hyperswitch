@@ -121,6 +121,7 @@ pub enum Connector {
     Zen,
     Signifyd,
     Plaid,
+    Kount,
 }
 
 impl Connector {

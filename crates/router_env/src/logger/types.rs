@@ -130,6 +130,8 @@ pub enum Flow {
     PaymentsSessionToken,
     /// Payments start flow.
     PaymentsStart,
+    /// Device data collection flow
+    PaymentsDeviceDataCollection,
     /// Payments list flow.
     PaymentsList,
     #[cfg(feature = "payouts")]
