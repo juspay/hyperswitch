@@ -42,7 +42,6 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository 
-        if: ${{ github.event.pull_request.head.repo.full_name != github.event.pull_request.base.repo.full_name }}
         uses: actions/checkout@v3
           
       - name: Install Rust
