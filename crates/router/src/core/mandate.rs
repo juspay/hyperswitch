@@ -207,6 +207,7 @@ where
                     };
 
                     let mandate_ids = mandate_reference
+                        .as_ref()
                         .map(|md| {
                             Encode::<types::MandateReference>::encode_to_value(&md)
                                 .change_context(
@@ -226,6 +227,7 @@ where
                         mandate_ids,
                         network_txn_id,
                         get_insensitive_payment_method_data_if_exists(&resp),
+                        mandate_reference,
                     )? {
                         let connector = new_mandate_data.connector.clone();
                         logger::debug!("{:?}", new_mandate_data);

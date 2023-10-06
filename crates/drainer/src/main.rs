@@ -26,6 +26,7 @@ async fn main() -> DrainerResult<()> {
         [router_env::service_name!()],
     );
 
+    logger::debug!(startup_config=?conf);
     logger::info!("Drainer started [{:?}] [{:?}]", conf.drainer, conf.log);
 
     start_drainer(

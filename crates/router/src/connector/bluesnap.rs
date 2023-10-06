@@ -984,6 +984,7 @@ impl api::IncomingWebhook for Bluesnap {
     fn get_webhook_source_verification_signature(
         &self,
         request: &api::IncomingWebhookRequestDetails<'_>,
+        _connector_webhook_secrets: &api_models::webhooks::ConnectorWebhookSecrets,
     ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
         let security_header =
             connector_utils::get_header_key_value("bls-signature", request.headers)?;
@@ -996,11 +997,10 @@ impl api::IncomingWebhook for Bluesnap {
         &self,
         request: &api::IncomingWebhookRequestDetails<'_>,
         _merchant_id: &str,
-        _secret: &[u8],
+        _connector_webhook_secrets: &api_models::webhooks::ConnectorWebhookSecrets,
     ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
         let timestamp =
             connector_utils::get_header_key_value("bls-ipn-timestamp", request.headers)?;
-
         Ok(format!("{}{}", timestamp, String::from_utf8_lossy(request.body)).into_bytes())
     }
 
