@@ -331,7 +331,7 @@ impl<F, T>
                         .response
                         .client_reference_information
                         .map(|cref| cref.code)
-                        .unwrap_or(Some(item.response.id.clone())),
+                        .unwrap_or(Some(item.response.id)),
                 }),
             },
             ..item.data
@@ -401,7 +401,7 @@ impl<F, T>
                     .response
                     .client_reference_information
                     .map(|cref| cref.code)
-                    .unwrap_or(Some(item.response.id.clone())),
+                    .unwrap_or(Some(item.response.id)),
             }),
             ..item.data
         })
