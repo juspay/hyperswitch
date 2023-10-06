@@ -44,6 +44,7 @@ pub struct MerchantAccount {
     pub is_recon_enabled: bool,
     pub default_profile: Option<String>,
     pub recon_status: diesel_models::enums::ReconStatus,
+    pub payment_link_metadata: Option<serde_json::Value>
 }
 
 #[allow(clippy::large_enum_variant)]
@@ -68,6 +69,7 @@ pub enum MerchantAccountUpdate {
         frm_routing_algorithm: Option<serde_json::Value>,
         payout_routing_algorithm: Option<serde_json::Value>,
         default_profile: Option<Option<String>>,
+        payment_link_metadata: Option<serde_json::Value>
     },
     StorageSchemeUpdate {
         storage_scheme: MerchantStorageScheme,
