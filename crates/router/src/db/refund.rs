@@ -498,14 +498,9 @@ mod storage {
                         .into_report()
                 }
                 enums::MerchantStorageScheme::RedisKv => {
-                    let key = format!("{}_{}", this.merchant_id, this.refund_id);
-
+                    let key = format!("{}_{}", this.merchant_id, this.payment_id);
+                    let field = format!("pa_{}_ref_{}", &this.attempt_id, &this.refund_id);
                     let updated_refund = refund.clone().apply_changeset(this.clone());
-                    // Check for database presence as well Maybe use a read replica here ?
-
-                    let lookup = self.get_lookup_by_lookup_id(&key).await?;
-
-                    let field = &lookup.sk_id;
 
                     let redis_value =
                         utils::Encode::<storage_types::Refund>::encode_to_string_of_json(
@@ -515,7 +510,7 @@ mod storage {
 
                     self.get_redis_conn()
                         .map_err(Into::<errors::StorageError>::into)?
-                        .set_hash_fields(&lookup.pk_id, (field, redis_value))
+                        .set_hash_fields(&key, (field, redis_value))
                         .await
                         .change_context(errors::StorageError::KVError)?;
 
@@ -907,6 +902,7 @@ impl RefundInterface for MockDb {
                     .clone()
                     .map_or(true, |id| id == refund.refund_id)
             })
+            .filter(|refund| refund_details.profile_id == refund.profile_id)
             .filter(|refund| {
                 refund.created_at
                     >= refund_details.time_range.map_or(
@@ -1030,6 +1026,7 @@ impl RefundInterface for MockDb {
                     .clone()
                     .map_or(true, |id| id == refund.refund_id)
             })
+            .filter(|refund| refund_details.profile_id == refund.profile_id)
             .filter(|refund| {
                 refund.created_at
                     >= refund_details.time_range.map_or(

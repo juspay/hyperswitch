@@ -409,6 +409,16 @@ impl ForeignFrom<storage_enums::DisputeStatus> for storage_enums::EventType {
     }
 }
 
+impl ForeignFrom<storage_enums::MandateStatus> for Option<storage_enums::EventType> {
+    fn foreign_from(value: storage_enums::MandateStatus) -> Self {
+        match value {
+            storage_enums::MandateStatus::Active => Some(storage_enums::EventType::MandateActive),
+            storage_enums::MandateStatus::Revoked => Some(storage_enums::EventType::MandateRevoked),
+            storage_enums::MandateStatus::Inactive | storage_enums::MandateStatus::Pending => None,
+        }
+    }
+}
+
 impl ForeignTryFrom<api_models::webhooks::IncomingWebhookEvent> for storage_enums::RefundStatus {
     type Error = errors::ValidationError;
 
@@ -418,6 +428,22 @@ impl ForeignTryFrom<api_models::webhooks::IncomingWebhookEvent> for storage_enum
         match value {
             api_models::webhooks::IncomingWebhookEvent::RefundSuccess => Ok(Self::Success),
             api_models::webhooks::IncomingWebhookEvent::RefundFailure => Ok(Self::Failure),
+            _ => Err(errors::ValidationError::IncorrectValueProvided {
+                field_name: "incoming_webhook_event_type",
+            }),
+        }
+    }
+}
+
+impl ForeignTryFrom<api_models::webhooks::IncomingWebhookEvent> for storage_enums::MandateStatus {
+    type Error = errors::ValidationError;
+
+    fn foreign_try_from(
+        value: api_models::webhooks::IncomingWebhookEvent,
+    ) -> Result<Self, Self::Error> {
+        match value {
+            api_models::webhooks::IncomingWebhookEvent::MandateActive => Ok(Self::Active),
+            api_models::webhooks::IncomingWebhookEvent::MandateRevoked => Ok(Self::Revoked),
             _ => Err(errors::ValidationError::IncorrectValueProvided {
                 field_name: "incoming_webhook_event_type",
             }),

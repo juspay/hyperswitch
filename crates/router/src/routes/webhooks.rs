@@ -5,6 +5,7 @@ use super::app::AppState;
 use crate::{
     core::{
         api_locking,
+        payment_methods::Oss,
         webhooks::{self, types},
     },
     services::{api, authentication as auth},
@@ -26,7 +27,7 @@ pub async fn receive_incoming_webhook<W: types::OutgoingWebhookType>(
         &req,
         body,
         |state, auth, body| {
-            webhooks::webhooks_wrapper::<W>(
+            webhooks::webhooks_wrapper::<W, Oss>(
                 state.to_owned(),
                 &req,
                 auth.merchant_account,

@@ -29,7 +29,7 @@ pub struct Helcim;
 impl api::Payment for Helcim {}
 impl api::PaymentSession for Helcim {}
 impl api::ConnectorAccessToken for Helcim {}
-impl api::PreVerify for Helcim {}
+impl api::MandateSetup for Helcim {}
 impl api::PaymentAuthorize for Helcim {}
 impl api::PaymentSync for Helcim {}
 impl api::PaymentCapture for Helcim {}
@@ -128,8 +128,12 @@ impl ConnectorIntegration<api::AccessTokenAuth, types::AccessTokenRequestData, t
 {
 }
 
-impl ConnectorIntegration<api::Verify, types::VerifyRequestData, types::PaymentsResponseData>
-    for Helcim
+impl
+    ConnectorIntegration<
+        api::SetupMandate,
+        types::SetupMandateRequestData,
+        types::PaymentsResponseData,
+    > for Helcim
 {
 }
 
