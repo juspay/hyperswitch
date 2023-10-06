@@ -338,7 +338,9 @@ where
             match connector_request {
                 Some(request) => {
                     logger::debug!(connector_request=?request);
+                    let current_time = Instant::now();
                     let response = call_connector_api(state, request).await;
+                    let external_latency = current_time.elapsed().as_millis();
                     logger::debug!(connector_response=?response);
                     match response {
                         Ok(body) => {
@@ -363,10 +365,12 @@ where
                                             error
                                         })?;
                                     data.connector_http_status_code = connector_http_status_code;
+                                    data.external_latency = Some(data.external_latency.map_or(external_latency, |val| val + external_latency));
                                     data
                                 }
                                 Err(body) => {
                                     router_data.connector_http_status_code = Some(body.status_code);
+                                    router_data.external_latency = Some(router_data.external_latency.map_or(external_latency, |val| val + external_latency));
                                     metrics::CONNECTOR_ERROR_RESPONSE_COUNT.add(
                                         &metrics::CONTEXT,
                                         1,
@@ -399,6 +403,7 @@ where
                                 };
                                 router_data.response = Err(error_response);
                                 router_data.connector_http_status_code = Some(504);
+                                router_data.external_latency = Some(router_data.external_latency.map_or(external_latency, |val| val + external_latency));
                                 Ok(router_data)
                             } else {
                                 Err(error.change_context(
@@ -561,6 +566,7 @@ async fn handle_response(
             logger::info!(?response);
             let status_code = response.status().as_u16();
             let headers = Some(response.headers().to_owned());
+
             match status_code {
                 200..=202 | 302 | 204 => {
                     logger::debug!(response=?response);
@@ -872,8 +878,9 @@ where
             .map_into_boxed_body()
         }
         Ok(ApplicationResponse::JsonWithHeaders((response, headers))) => {
+            let request_elased_time = Some(start_instant.elapsed());
             match serde_json::to_string(&response) {
-                Ok(res) => http_response_json_with_headers(res, headers),
+                Ok(res) => http_response_json_with_headers(res, headers, request_elased_time),
                 Err(_) => http_response_err(
                     r#"{
                         "error": {
@@ -950,16 +957,29 @@ pub fn http_response_json<T: body::MessageBody + 'static>(response: T) -> HttpRe
 
 pub fn http_response_json_with_headers<T: body::MessageBody + 'static>(
     response: T,
-    headers: Vec<(String, String)>,
+    mut headers: Vec<(String, String)>,
+    request_duration: Option<Duration>,
 ) -> HttpResponse {
     let mut response_builder = HttpResponse::Ok();
-    for (name, value) in headers {
-        response_builder.append_header((name, value));
+
+    for (name, value) in headers.iter_mut() {
+        if name == "x-hs-latency" {
+            if let Some(request_duration) = request_duration {
+                if let Ok(external_latency) = value.parse::<u128>() {
+                    let updated_duration = request_duration.as_millis() as u128 - external_latency;
+                    *value = updated_duration.to_string();
+                }
+            }
+        }
+        response_builder.append_header((name.clone(), value.clone()));
     }
+
     response_builder
         .content_type(mime::APPLICATION_JSON)
         .body(response)
 }
+
+
 
 pub fn http_response_plaintext<T: body::MessageBody + 'static>(res: T) -> HttpResponse {
     HttpResponse::Ok().content_type(mime::TEXT_PLAIN).body(res)

@@ -65,7 +65,7 @@ pub async fn payments_operation_core<F, Req, Op, FData>(
     call_connector_action: CallConnectorAction,
     auth_flow: services::AuthFlow,
     header_payload: HeaderPayload,
-) -> RouterResult<(PaymentData<F>, Req, Option<domain::Customer>, Option<u16>)>
+) -> RouterResult<(PaymentData<F>, Req, Option<domain::Customer>, Option<u16>, Option<u128>)>
 where
     F: Send + Clone + Sync,
     Req: Authenticate,
@@ -156,7 +156,7 @@ where
     .await?;
 
     let mut connector_http_status_code = None;
-
+    let mut external_latency = None;
     if let Some(connector_details) = connector {
         payment_data = match connector_details {
             api::ConnectorCallType::Single(connector) => {
@@ -178,6 +178,7 @@ where
                 let operation = Box::new(PaymentResponse);
                 let db = &*state.store;
                 connector_http_status_code = router_data.connector_http_status_code;
+                external_latency = router_data.external_latency;
                 //add connector http status code metrics
                 add_connector_http_status_code_metrics(connector_http_status_code);
                 operation
@@ -235,7 +236,7 @@ where
             .await?;
     }
 
-    Ok((payment_data, req, customer, connector_http_status_code))
+    Ok((payment_data, req, customer, connector_http_status_code, external_latency))
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -266,7 +267,7 @@ where
     // To perform router related operation for PaymentResponse
     PaymentResponse: Operation<F, FData>,
 {
-    let (payment_data, req, customer, connector_http_status_code) = payments_operation_core(
+    let (payment_data, req, customer, connector_http_status_code, external_latency) = payments_operation_core(
         &state,
         merchant_account,
         key_store,
@@ -287,6 +288,7 @@ where
         operation,
         &state.conf.connector_request_reference_id_config,
         connector_http_status_code,
+        external_latency
     )
 }
 

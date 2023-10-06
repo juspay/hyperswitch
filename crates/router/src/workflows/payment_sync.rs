@@ -54,7 +54,7 @@ impl ProcessTrackerWorkflow<AppState> for PaymentsSyncWorkflow {
             )
             .await?;
 
-        let (payment_data, _, _, _) =
+        let (payment_data, _, _, _, _) =
             payment_flows::payments_operation_core::<api::PSync, _, _, _>(
                 state,
                 merchant_account.clone(),

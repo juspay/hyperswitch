@@ -285,7 +285,7 @@ pub struct RouterData<Flow, Request, Response> {
 
     pub test_mode: Option<bool>,
     pub connector_http_status_code: Option<u16>,
-
+    pub external_latency: Option<u128>,
     /// Contains apple pay flow type simplified or manual
     pub apple_pay_flow: Option<storage_enums::ApplePayFlow>,
 }
@@ -1111,6 +1111,7 @@ impl<F1, F2, T1, T2> From<(&RouterData<F1, T1, PaymentsResponseData>, T2)>
             payment_method_balance: data.payment_method_balance.clone(),
             connector_api_version: data.connector_api_version.clone(),
             connector_http_status_code: data.connector_http_status_code,
+            external_latency: data.external_latency,
             apple_pay_flow: data.apple_pay_flow.clone(),
         }
     }
@@ -1165,6 +1166,7 @@ impl<F1, F2>
             payment_method_balance: None,
             connector_api_version: None,
             connector_http_status_code: data.connector_http_status_code,
+            external_latency: data.external_latency,
             apple_pay_flow: None,
         }
     }
