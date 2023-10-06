@@ -300,17 +300,14 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
         _storage_scheme: MerchantStorageScheme,
     ) -> error_stack::Result<PaymentIntent, StorageError> {
         let conn = pg_connection_write(self).await?;
-        let sahkal = new
-            .to_storage_model()
+        new.to_storage_model()
             .insert(&conn)
             .await
             .map_err(|er| {
                 let new_err = crate::diesel_error_to_data_error(er.current_context());
                 er.change_context(new_err)
             })
-            .map(PaymentIntent::from_storage_model);
-        println!("from storage response {:?}", sahkal);
-        sahkal
+            .map(PaymentIntent::from_storage_model)
     }
 
     async fn update_payment_intent(

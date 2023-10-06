@@ -428,3 +428,6 @@ apple_pay_ppc = "APPLE_PAY_PAYMENT_PROCESSING_CERTIFICATE"
 apple_pay_ppc_key = "APPLE_PAY_PAYMENT_PROCESSING_CERTIFICATE_KEY"
 apple_pay_merchant_cert = "APPLE_PAY_MERCHNAT_CERTIFICATE"
 apple_pay_merchant_cert_key = "APPLE_PAY_MERCHNAT_CERTIFICATE_KEY"
+
+[payment_link_sdk_url]
+sdk_url = "http://localhost:9090/dist/HyperLoader.js"

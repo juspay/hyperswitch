@@ -4297,7 +4297,6 @@ dependencies = [
  "error-stack",
  "external_services",
  "futures",
- "glob",
  "hex",
  "http",
  "hyper",
