@@ -219,6 +219,17 @@ pub async fn create_merchant_account(
         .insert_merchant(merchant_account, &key_store)
         .await
         .to_duplicate_response(errors::ApiErrorResponse::DuplicateMerchantAccount)?;
+
+    db.insert_config(diesel_models::configs::ConfigNew {
+        key: format!("{}_requires_cvv", merchant_account.merchant_id),
+        config: "true".to_string(),
+    })
+    .await
+    .map_err(|err| {
+        crate::logger::error!("Error while setting requires_cvv config: {err:?}");
+    })
+    .ok();
+
     Ok(service_api::ApplicationResponse::Json(
         merchant_account
             .try_into()
@@ -465,11 +476,19 @@ pub async fn merchant_account_delete(
     state: AppState,
     merchant_id: String,
 ) -> RouterResponse<api::MerchantAccountDeleteResponse> {
+    let mut is_deleted = false;
     let db = state.store.as_ref();
-    let is_deleted = db
+    let is_merchant_account_deleted = db
         .delete_merchant_account_by_merchant_id(&merchant_id)
         .await
         .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
+    if is_merchant_account_deleted {
+        let is_merchant_key_store_deleted = db
+            .delete_merchant_key_store_by_merchant_id(&merchant_id)
+            .await
+            .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
+        is_deleted = is_merchant_account_deleted && is_merchant_key_store_deleted;
+    }
     let response = api::MerchantAccountDeleteResponse {
         merchant_id,
         deleted: is_deleted,

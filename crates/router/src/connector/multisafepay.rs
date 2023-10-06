@@ -115,9 +115,13 @@ impl
     // Not Implemented (R)
 }
 
-impl api::PreVerify for Multisafepay {}
-impl ConnectorIntegration<api::Verify, types::VerifyRequestData, types::PaymentsResponseData>
-    for Multisafepay
+impl api::MandateSetup for Multisafepay {}
+impl
+    ConnectorIntegration<
+        api::SetupMandate,
+        types::SetupMandateRequestData,
+        types::PaymentsResponseData,
+    > for Multisafepay
 {
 }
 

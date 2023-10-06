@@ -33,7 +33,7 @@ impl api::Payment for Payme {}
 impl api::PaymentSession for Payme {}
 impl api::PaymentsCompleteAuthorize for Payme {}
 impl api::ConnectorAccessToken for Payme {}
-impl api::PreVerify for Payme {}
+impl api::MandateSetup for Payme {}
 impl api::PaymentAuthorize for Payme {}
 impl api::PaymentSync for Payme {}
 impl api::PaymentCapture for Payme {}
@@ -326,8 +326,12 @@ impl ConnectorIntegration<api::AccessTokenAuth, types::AccessTokenRequestData, t
 {
 }
 
-impl ConnectorIntegration<api::Verify, types::VerifyRequestData, types::PaymentsResponseData>
-    for Payme
+impl
+    ConnectorIntegration<
+        api::SetupMandate,
+        types::SetupMandateRequestData,
+        types::PaymentsResponseData,
+    > for Payme
 {
 }
 

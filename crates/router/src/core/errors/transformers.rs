@@ -252,6 +252,9 @@ impl ErrorSwitch<api_models::errors::types::ApiErrorResponse> for ApiErrorRespon
             Self::WebhookProcessingFailure => {
                 AER::InternalServerError(ApiError::new("WE", 3, "There was an issue processing the webhook", None))
             },
+            Self::WebhookInvalidMerchantSecret => {
+                AER::BadRequest(ApiError::new("WE", 2, "Merchant Secret set for webhook source verificartion is invalid", None))
+            }
             Self::IncorrectPaymentMethodConfiguration => {
                 AER::BadRequest(ApiError::new("HE", 4, "No eligible connector was found for the current payment method configuration", None))
             }
@@ -275,6 +278,9 @@ impl ErrorSwitch<ApiErrorResponse> for ConnectorError {
             | Self::WebhookBodyDecodingFailed
             | Self::WebhooksNotImplemented => ApiErrorResponse::WebhookBadRequest,
             Self::WebhookEventTypeNotFound => ApiErrorResponse::WebhookUnprocessableEntity,
+            Self::WebhookVerificationSecretInvalid => {
+                ApiErrorResponse::WebhookInvalidMerchantSecret
+            }
             _ => ApiErrorResponse::InternalServerError,
         }
     }
