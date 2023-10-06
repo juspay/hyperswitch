@@ -2019,6 +2019,53 @@
           }
         }
       },
+      "AchTransfer": {
+        "type": "object",
+        "required": [
+          "account_number",
+          "bank_name",
+          "routing_number",
+          "swift_code"
+        ],
+        "properties": {
+          "account_number": {
+            "type": "string",
+            "example": "122385736258"
+          },
+          "bank_name": {
+            "type": "string"
+          },
+          "routing_number": {
+            "type": "string",
+            "example": "012"
+          },
+          "swift_code": {
+            "type": "string",
+            "example": "234"
+          }
+        }
+      },
+      "Address": {
+        "type": "object",
+        "properties": {
+          "address": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/AddressDetails"
+              }
+            ],
+            "nullable": true
+          },
+          "phone": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PhoneDetails"
+              }
+            ],
+            "nullable": true
+          }
+        }
+      },
       "AddressDetails": {
         "type": "object",
         "properties": {
