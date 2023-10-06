@@ -4,6 +4,33 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 1.52.0 (2023-10-06)
+
+### Features
+
+- **connector:**
+  - [Forte] Use connector_response_reference_id as reference to merchant ([#2456](https://github.com/juspay/hyperswitch/pull/2456)) ([`cc7e90f`](https://github.com/juspay/hyperswitch/commit/cc7e90f2293f27b74b14669a0c2d5bd6d45c4d99))
+  - [PayU] Use connector_response_response_id as reference to merchant ([#2452](https://github.com/juspay/hyperswitch/pull/2452)) ([`e24897c`](https://github.com/juspay/hyperswitch/commit/e24897cd5d3859124636760a4eb42ee007f00c3e))
+  - [Gocardless] Implement mandate flow ([#2461](https://github.com/juspay/hyperswitch/pull/2461)) ([`4149965`](https://github.com/juspay/hyperswitch/commit/414996592b3016bfa9f3399319c6e02ccd333c68))
+  - [Gocardless] Add mandate webhoooks ([#2468](https://github.com/juspay/hyperswitch/pull/2468)) ([`8d53c66`](https://github.com/juspay/hyperswitch/commit/8d53c663a5e25817d1facda3352f84f1435efdee))
+  - [Noon] Use connector_request_reference_id as Order reference ([#2466](https://github.com/juspay/hyperswitch/pull/2466)) ([`2897b6e`](https://github.com/juspay/hyperswitch/commit/2897b6ecd1a357bae93ca22fe9e7aeed18738b95))
+- **core:** Add surcharge_details field to ResponsePaymentMethodTypes struct ([#2435](https://github.com/juspay/hyperswitch/pull/2435)) ([`3f0d927`](https://github.com/juspay/hyperswitch/commit/3f0d927cb8db503c4dede98c691c1b7e6ebd441a))
+- **router:** Add mandates incoming webhooks flow ([#2464](https://github.com/juspay/hyperswitch/pull/2464)) ([`1cf8b6c`](https://github.com/juspay/hyperswitch/commit/1cf8b6cf53ee5fdde9a7a3996e5a5e5c5b8341c6))
+
+### Bug Fixes
+
+- Update connector_mandate_id column in generate mandate flow ([#2472](https://github.com/juspay/hyperswitch/pull/2472)) ([`61288d5`](https://github.com/juspay/hyperswitch/commit/61288d541f654bcb102465e4da9883aaaac43f5b))
+
+### Refactors
+
+- **connector:** [nmi] refactor nmi and handled variants errors ([#2463](https://github.com/juspay/hyperswitch/pull/2463)) ([`f364a06`](https://github.com/juspay/hyperswitch/commit/f364a069b90dd63a28cf25457b2cd4fda0829a8b))
+- Add support for passing context generic to api calls ([#2433](https://github.com/juspay/hyperswitch/pull/2433)) ([`601c174`](https://github.com/juspay/hyperswitch/commit/601c1744b6f15eb14ecfa3edede3159c32c53492))
+
+**Full Changelog:** [`v1.51.1...v1.52.0`](https://github.com/juspay/hyperswitch/compare/v1.51.1...v1.52.0)
+
+- - -
+
+
 ## 1.51.1 (2023-10-05)
 
 ### Bug Fixes
