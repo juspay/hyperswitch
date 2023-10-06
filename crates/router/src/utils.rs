@@ -29,7 +29,7 @@ use crate::{
     consts,
     core::{
         errors::{self, CustomResult, RouterResult, StorageErrorExt},
-        utils,
+        utils, webhooks as webhooks_core,
     },
     db::StorageInterface,
     logger,
@@ -742,7 +742,7 @@ where
             payments_response
         {
             Box::pin(
-                core::webhooks::create_event_and_trigger_appropriate_outgoing_webhook(
+                webhooks_core::create_event_and_trigger_appropriate_outgoing_webhook(
                     state.clone(),
                     merchant_account,
                     event_type,

@@ -4,10 +4,11 @@ use router_env::logger;
 use scheduler::{
     consumer::{self, types::process_data, workflows::ProcessTrackerWorkflow},
     db::process_tracker::ProcessTrackerExt,
-    errors as sch_errors, utils, SchedulerAppState,
+    errors as sch_errors, utils as scheduler_utils, SchedulerAppState,
 };
 
 use crate::{
+    consts,
     core::{
         errors::StorageErrorExt,
         payment_methods::Oss,
@@ -21,6 +22,7 @@ use crate::{
         api,
         storage::{self, enums},
     },
+    utils,
 };
 
 pub struct PaymentsSyncWorkflow;
@@ -148,11 +150,7 @@ impl ProcessTrackerWorkflow<AppState> for PaymentsSyncWorkflow {
 
                     // Trigger the outgoing webhook to notify the merchant about failed payment
                     let operation = operations::PaymentStatus;
-                    utils::trigger_payments_webhook::<
-                        _,
-                        api_models::payments::PaymentsRequest,
-                        _,
-                    >(
+                    utils::trigger_payments_webhook::<_, api_models::payments::PaymentsRequest, _>(
                         merchant_account,
                         payment_data,
                         None,
@@ -224,9 +222,9 @@ pub async fn get_sync_process_schedule_time(
             process_data::ConnectorPTMapping::default()
         }
     };
-    let time_delta = utils::get_schedule_time(mapping, merchant_id, retry_count + 1);
+    let time_delta = scheduler_utils::get_schedule_time(mapping, merchant_id, retry_count + 1);
 
-    Ok(utils::get_time_from_delta(time_delta))
+    Ok(scheduler_utils::get_time_from_delta(time_delta))
 }
 
 /// Schedule the task for retry
@@ -262,9 +260,11 @@ mod tests {
     #[test]
     fn test_get_default_schedule_time() {
         let schedule_time_delta =
-            utils::get_schedule_time(process_data::ConnectorPTMapping::default(), "-", 0).unwrap();
+            scheduler_utils::get_schedule_time(process_data::ConnectorPTMapping::default(), "-", 0)
+                .unwrap();
         let first_retry_time_delta =
-            utils::get_schedule_time(process_data::ConnectorPTMapping::default(), "-", 1).unwrap();
+            scheduler_utils::get_schedule_time(process_data::ConnectorPTMapping::default(), "-", 1)
+                .unwrap();
         let cpt_default = process_data::ConnectorPTMapping::default().default_mapping;
         assert_eq!(
             vec![schedule_time_delta, first_retry_time_delta],
