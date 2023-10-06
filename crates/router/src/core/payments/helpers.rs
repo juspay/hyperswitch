@@ -50,7 +50,7 @@ use crate::{
         },
         storage::{self, enums as storage_enums, ephemeral_key, CustomerUpdate::Update},
         transformers::{ForeignFrom, ForeignTryFrom},
-        ErrorResponse, RouterData,
+        ErrorResponse, MandateReference, RouterData,
     },
     utils::{
         self,
@@ -2123,6 +2123,7 @@ pub fn generate_mandate(
     connector_mandate_id: Option<pii::SecretSerdeValue>,
     network_txn_id: Option<String>,
     payment_method_data_option: Option<api_models::payments::PaymentMethodData>,
+    mandate_reference: Option<MandateReference>,
 ) -> CustomResult<Option<storage::MandateNew>, errors::ApiErrorResponse> {
     match (setup_mandate_details, customer) {
         (Some(data), Some(cus)) => {
@@ -2155,7 +2156,10 @@ pub fn generate_mandate(
                     pii::SecretSerdeValue::new(
                         serde_json::to_value(payment_method_data).unwrap_or_default(),
                     )
-                }));
+                }))
+                .set_connector_mandate_id(
+                    mandate_reference.and_then(|reference| reference.connector_mandate_id),
+                );
 
             Ok(Some(
                 match data.mandate_type.get_required_value("mandate_type")? {
