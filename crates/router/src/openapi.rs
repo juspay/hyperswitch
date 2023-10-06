@@ -140,6 +140,7 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::admin::AcceptedCountries,
         api_models::admin::AcceptedCurrencies,
         api_models::enums::RoutingAlgorithm,
+        api_models::enums::PaymentType,
         api_models::enums::PaymentMethod,
         api_models::enums::PaymentMethodType,
         api_models::enums::ConnectorType,

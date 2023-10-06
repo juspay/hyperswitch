@@ -1294,7 +1294,7 @@ where
                 Ok(types::PaymentsResponseData::TransactionResponse {
                     resource_id: response
                         .transaction_id
-                        .map_or(response.order_id, Some) // For paypal there will be no transaction_id, only order_id will be present
+                        .map_or(response.order_id.clone(), Some) // For paypal there will be no transaction_id, only order_id will be present
                         .map(types::ResponseId::ConnectorTransactionId)
                         .ok_or(errors::ConnectorError::MissingConnectorTransactionID)?,
                     redirection_data,
@@ -1318,7 +1318,7 @@ where
                         None
                     },
                     network_txn_id: None,
-                    connector_response_reference_id: None,
+                    connector_response_reference_id: response.order_id,
                 })
             },
             ..item.data

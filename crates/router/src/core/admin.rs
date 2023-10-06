@@ -31,6 +31,8 @@ use crate::{
     utils::{self, OptionExt},
 };
 
+const DEFAULT_ORG_ID: &str = "org_abcdefghijklmn";
+
 #[inline]
 pub fn create_merchant_publishable_key() -> String {
     format!(
@@ -164,7 +166,7 @@ pub async fn create_merchant_account(
             intent_fulfillment_time: req.intent_fulfillment_time.map(i64::from),
             payout_routing_algorithm: req.payout_routing_algorithm,
             id: None,
-            organization_id: req.organization_id,
+            organization_id: req.organization_id.unwrap_or(DEFAULT_ORG_ID.to_string()),
             is_recon_enabled: false,
             default_profile: None,
             recon_status: diesel_models::enums::ReconStatus::NotRequested,
@@ -219,6 +221,17 @@ pub async fn create_merchant_account(
         .insert_merchant(merchant_account, &key_store)
         .await
         .to_duplicate_response(errors::ApiErrorResponse::DuplicateMerchantAccount)?;
+
+    db.insert_config(diesel_models::configs::ConfigNew {
+        key: format!("{}_requires_cvv", merchant_account.merchant_id),
+        config: "true".to_string(),
+    })
+    .await
+    .map_err(|err| {
+        crate::logger::error!("Error while setting requires_cvv config: {err:?}");
+    })
+    .ok();
+
     Ok(service_api::ApplicationResponse::Json(
         merchant_account
             .try_into()
@@ -465,11 +478,19 @@ pub async fn merchant_account_delete(
     state: AppState,
     merchant_id: String,
 ) -> RouterResponse<api::MerchantAccountDeleteResponse> {
+    let mut is_deleted = false;
     let db = state.store.as_ref();
-    let is_deleted = db
+    let is_merchant_account_deleted = db
         .delete_merchant_account_by_merchant_id(&merchant_id)
         .await
         .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
+    if is_merchant_account_deleted {
+        let is_merchant_key_store_deleted = db
+            .delete_merchant_key_store_by_merchant_id(&merchant_id)
+            .await
+            .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
+        is_deleted = is_merchant_account_deleted && is_merchant_key_store_deleted;
+    }
     let response = api::MerchantAccountDeleteResponse {
         merchant_id,
         deleted: is_deleted,
@@ -682,6 +703,7 @@ pub async fn create_payment_connector(
         },
         profile_id: Some(profile_id.clone()),
         applepay_verified_domains: None,
+        pm_auth_config: req.pm_auth_config.clone(),
     };
 
     let mca = state
@@ -847,6 +869,7 @@ pub async fn update_payment_connector(
             None => None,
         },
         applepay_verified_domains: None,
+        pm_auth_config: req.pm_auth_config,
     };
 
     let updated_mca = db
