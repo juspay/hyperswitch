@@ -8,7 +8,8 @@ use error_stack::{IntoReport, ResultExt};
 use masking::PeekInterface;
 use transformers as paypal;
 
-use self::transformers::PaypalMeta;
+use self::transformers::{PaypalAuthResponse, PaypalMeta};
+use super::utils::PaymentsCompleteAuthorizeRequestData;
 use crate::{
     configs::settings,
     connector::{
@@ -169,9 +170,11 @@ impl ConnectorCommon for Paypal {
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
 
         let error_reason = response.details.map(|error_details| {
-            error_details.iter().fold(String::new(), |acc, error| {
-                acc + format!("description - {} ; ", error.description).as_str()
-            })
+            error_details
+                .iter()
+                .map(|error| format!("description - {}", error.description))
+                .collect::<Vec<String>>()
+                .join(", ")
         });
         Ok(ErrorResponse {
             status_code: res.status_code,
@@ -390,24 +393,27 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         data: &types::PaymentsAuthorizeRouterData,
         res: Response,
     ) -> CustomResult<types::PaymentsAuthorizeRouterData, errors::ConnectorError> {
-        match data.payment_method {
-            diesel_models::enums::PaymentMethod::Wallet
-            | diesel_models::enums::PaymentMethod::BankRedirect => {
-                let response: paypal::PaypalRedirectResponse = res
-                    .response
-                    .parse_struct("paypal PaymentsRedirectResponse")
-                    .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        let response: PaypalAuthResponse =
+            res.response
+                .parse_struct("paypal PaypalAuthResponse")
+                .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+
+        match response {
+            PaypalAuthResponse::PaypalOrdersResponse(response) => {
                 types::RouterData::try_from(types::ResponseRouterData {
                     response,
                     data: data.clone(),
                     http_code: res.status_code,
                 })
             }
-            _ => {
-                let response: paypal::PaypalOrdersResponse = res
-                    .response
-                    .parse_struct("paypal PaymentsOrderResponse")
-                    .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+            PaypalAuthResponse::PaypalRedirectResponse(response) => {
+                types::RouterData::try_from(types::ResponseRouterData {
+                    response,
+                    data: data.clone(),
+                    http_code: res.status_code,
+                })
+            }
+            PaypalAuthResponse::PaypalThreeDsResponse(response) => {
                 types::RouterData::try_from(types::ResponseRouterData {
                     response,
                     data: data.clone(),
@@ -449,10 +455,10 @@ impl
         req: &types::PaymentsCompleteAuthorizeRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        let paypal_meta: PaypalMeta = to_connector_meta(req.request.connector_meta.clone())?;
-        let complete_authorize_url = match paypal_meta.psync_flow {
-            transformers::PaypalPaymentIntent::Authorize => "authorize".to_string(),
-            transformers::PaypalPaymentIntent::Capture => "capture".to_string(),
+        let complete_authorize_url = if req.request.is_auto_capture()? {
+            "capture".to_string()
+        } else {
+            "authorize".to_string()
         };
         Ok(format!(
             "{}v2/checkout/orders/{}/{complete_authorize_url}",
@@ -492,7 +498,7 @@ impl
     ) -> CustomResult<types::PaymentsCompleteAuthorizeRouterData, errors::ConnectorError> {
         let response: paypal::PaypalOrdersResponse = res
             .response
-            .parse_struct("paypal PaymentsOrderResponse")
+            .parse_struct("paypal PaypalOrdersResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         types::RouterData::try_from(types::ResponseRouterData {
             response,
@@ -557,6 +563,19 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
                             ),
                         )?;
                         format!("v2/payments/captures/{capture_id}")
+                    }
+                    // only set when payment is done through card 3DS
+                    //because no authorize or capture id is generated during payment authorize call for card 3DS
+                    transformers::PaypalPaymentIntent::Authenticate => {
+                        format!(
+                            "v2/checkout/orders/{}",
+                            req.request
+                                .connector_transaction_id
+                                .get_connector_transaction_id()
+                                .change_context(
+                                    errors::ConnectorError::MissingConnectorTransactionID
+                                )?
+                        )
                     }
                 };
                 Ok(format!("{}{psync_url}", self.base_url(connectors)))
