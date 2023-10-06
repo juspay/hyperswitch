@@ -148,7 +148,7 @@ impl ProcessTrackerWorkflow<AppState> for PaymentsSyncWorkflow {
 
                     // Trigger the outgoing webhook to notify the merchant about failed payment
                     let operation = operations::PaymentStatus;
-                    crate::utils::trigger_payments_webhook::<
+                    utils::trigger_payments_webhook::<
                         _,
                         api_models::payments::PaymentsRequest,
                         _,
