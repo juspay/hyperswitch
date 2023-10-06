@@ -5,9 +5,5 @@
   "description": "This is just to run automated newman tests for this service",
   "devDependencies": {
     "newman": "git+ssh://git@github.com:knutties/newman.git#37708c1fbf6b36240ac796a42dc5a7b435990764"
-  },
-  "dependencies": {
-    "cargo": "^0.8.0",
-    "rust": "^0.1.6"
   }
 }
