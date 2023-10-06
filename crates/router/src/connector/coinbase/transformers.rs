@@ -155,7 +155,7 @@ impl<F, T>
                 message: "Please check the transaction in coinbase dashboard and resolve manually"
                     .to_string(),
                 }),
-                connector_response_reference_id: Some(item.response.data.id.clone()),
+                connector_response_reference_id: Some(item.response.data.id),
             })
             },
         );
