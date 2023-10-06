@@ -289,6 +289,40 @@ pub async fn find_payment_intent_from_refund_id_type(
     .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)
 }
 
+pub async fn find_payment_intent_from_mandate_id_type(
+    db: &dyn StorageInterface,
+    mandate_id_type: webhooks::MandateIdType,
+    merchant_account: &domain::MerchantAccount,
+) -> CustomResult<PaymentIntent, errors::ApiErrorResponse> {
+    let mandate = match mandate_id_type {
+        webhooks::MandateIdType::MandateId(mandate_id) => db
+            .find_mandate_by_merchant_id_mandate_id(
+                &merchant_account.merchant_id,
+                mandate_id.as_str(),
+            )
+            .await
+            .to_not_found_response(errors::ApiErrorResponse::MandateNotFound)?,
+        webhooks::MandateIdType::ConnectorMandateId(connector_mandate_id) => db
+            .find_mandate_by_merchant_id_connector_mandate_id(
+                &merchant_account.merchant_id,
+                connector_mandate_id.as_str(),
+            )
+            .await
+            .to_not_found_response(errors::ApiErrorResponse::MandateNotFound)?,
+    };
+    db.find_payment_intent_by_payment_id_merchant_id(
+        &mandate
+            .original_payment_id
+            .ok_or(errors::ApiErrorResponse::InternalServerError)
+            .into_report()
+            .attach_printable("original_payment_id not present in mandate record")?,
+        &merchant_account.merchant_id,
+        merchant_account.storage_scheme,
+    )
+    .await
+    .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)
+}
+
 pub async fn get_profile_id_using_object_reference_id(
     db: &dyn StorageInterface,
     object_reference_id: webhooks::ObjectReferenceId,
@@ -311,6 +345,10 @@ pub async fn get_profile_id_using_object_reference_id(
                         connector_name,
                     )
                     .await?
+                }
+                webhooks::ObjectReferenceId::MandateId(mandate_id_type) => {
+                    find_payment_intent_from_mandate_id_type(db, mandate_id_type, merchant_account)
+                        .await?
                 }
             };
 

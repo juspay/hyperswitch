@@ -301,8 +301,7 @@ pub struct PaymentsRequest {
 
     /// The type of the payment that differentiates between normal and various types of mandate payments
     #[schema(value_type = Option<PaymentType>)]
-    #[serde(default)]
-    pub payment_type: api_enums::PaymentType,
+    pub payment_type: Option<api_enums::PaymentType>,
 }
 
 #[derive(Default, Debug, Clone, Copy)]

@@ -233,7 +233,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             token,
             payment_method,
             payment_method_type,
-            setup_mandate,
+            mut setup_mandate,
             recurring_mandate_payment_data,
             mandate_connector,
         ) = mandate_details;
@@ -321,7 +321,10 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             .or(payment_attempt.business_sub_label);
 
         // The operation merges mandate data from both request and payment_attempt
-        let setup_mandate = setup_mandate.map(Into::into);
+        setup_mandate = setup_mandate.map(|mut sm| {
+            sm.mandate_type = payment_attempt.mandate_details.clone().or(sm.mandate_type);
+            sm
+        });
 
         Ok((
             Box::new(self),
