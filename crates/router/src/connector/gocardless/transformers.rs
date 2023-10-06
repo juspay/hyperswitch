@@ -873,6 +873,7 @@ pub struct WebhookEvent {
 pub enum WebhookResourceType {
     Payments,
     Refunds,
+    Mandates,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -880,6 +881,7 @@ pub enum WebhookResourceType {
 pub enum WebhookAction {
     PaymentsAction(PaymentsAction),
     RefundsAction(RefundsAction),
+    MandatesAction(MandatesAction),
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -910,10 +912,30 @@ pub enum RefundsAction {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum MandatesAction {
+    Created,
+    CustomerApprovalGranted,
+    CustomerApprovalSkipped,
+    Active,
+    Cancelled,
+    Failed,
+    Transferred,
+    Expired,
+    Submitted,
+    ResubmissionRequested,
+    Reinstated,
+    Replaced,
+    Consumed,
+    Blocked,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
 #[serde(untagged)]
 pub enum WebhooksLink {
     PaymentWebhooksLink(PaymentWebhooksLink),
     RefundWebhookLink(RefundWebhookLink),
+    MandateWebhookLink(MandateWebhookLink),
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -926,12 +948,17 @@ pub struct PaymentWebhooksLink {
     pub payment: String,
 }
 
+#[derive(Debug, Serialize, Deserialize)]
+pub struct MandateWebhookLink {
+    pub mandate: String,
+}
+
 impl TryFrom<&WebhookEvent> for GocardlessPaymentsResponse {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &WebhookEvent) -> Result<Self, Self::Error> {
         let id = match &item.links {
             WebhooksLink::PaymentWebhooksLink(link) => link.payment.to_owned(),
-            WebhooksLink::RefundWebhookLink(_) => {
+            WebhooksLink::RefundWebhookLink(_) | WebhooksLink::MandateWebhookLink(_) => {
                 Err(errors::ConnectorError::WebhookEventTypeNotFound)?
             }
         };
@@ -962,7 +989,7 @@ impl TryFrom<&WebhookAction> for GocardlessPaymentStatus {
                 | PaymentsAction::ResubmissionRequired
                 | PaymentsAction::Created => Err(errors::ConnectorError::WebhookEventTypeNotFound)?,
             },
-            WebhookAction::RefundsAction(_) => {
+            WebhookAction::RefundsAction(_) | WebhookAction::MandatesAction(_) => {
                 Err(errors::ConnectorError::WebhookEventTypeNotFound)?
             }
         }
