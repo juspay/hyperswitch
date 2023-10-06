@@ -5,8 +5,8 @@ use crate::{
     errors,
     payment_attempt::{PaymentAttempt, PaymentAttemptNew, PaymentAttemptUpdate},
     payment_intent::{PaymentIntentNew, PaymentIntentUpdate},
-    PaymentIntent,
     refund::{Refund, RefundNew, RefundUpdate},
+    PaymentIntent,
 };
 
 #[derive(Debug, Serialize, Deserialize)]

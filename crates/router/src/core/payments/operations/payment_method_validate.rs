@@ -364,7 +364,7 @@ impl PaymentMethodValidate {
             client_secret: Some(client_secret),
             setup_future_usage: request.setup_future_usage,
             off_session: request.off_session,
-            active_attempt,
+            active_attempt: active_attempt.into(),
             attempt_count: 1,
             amount_captured: Default::default(),
             customer_id: Default::default(),
@@ -384,7 +384,6 @@ impl PaymentMethodValidate {
             profile_id: Default::default(),
             merchant_decision: Default::default(),
             payment_confirm_source: Default::default(),
-
         }
     }
 }

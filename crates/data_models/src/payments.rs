@@ -6,9 +6,8 @@ pub mod payment_intent;
 
 use common_enums as storage_enums;
 
-use crate::RemoteStorageObject;
-
 use self::payment_attempt::PaymentAttempt;
+use crate::RemoteStorageObject;
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct PaymentIntent {

@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
 
 use super::PaymentIntent;
-use crate::{errors, mandates::MandateDataType, MerchantStorageScheme, ForeignIDRef};
+use crate::{errors, mandates::MandateDataType, ForeignIDRef, MerchantStorageScheme};
 
 #[async_trait::async_trait]
 pub trait PaymentAttemptInterface {

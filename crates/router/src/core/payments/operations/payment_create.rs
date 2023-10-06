@@ -650,7 +650,7 @@ impl PaymentCreate {
             metadata: request.metadata.clone(),
             business_country: request.business_country,
             business_label: request.business_label.clone(),
-            active_attempt,
+            active_attempt: active_attempt.into(),
             order_details,
             amount_captured: None,
             customer_id: None,

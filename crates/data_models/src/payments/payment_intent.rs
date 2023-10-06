@@ -6,9 +6,8 @@ use common_utils::{
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
 
+use super::{payment_attempt::PaymentAttempt, PaymentIntent};
 use crate::{errors, MerchantStorageScheme};
-
-use super::{PaymentIntent, payment_attempt::PaymentAttempt};
 #[async_trait::async_trait]
 pub trait PaymentIntentInterface {
     async fn update_payment_intent(
@@ -31,7 +30,11 @@ pub trait PaymentIntentInterface {
         storage_scheme: MerchantStorageScheme,
     ) -> error_stack::Result<PaymentIntent, errors::StorageError>;
 
-    async fn get_active_payment_attempt(&self, payment: &mut PaymentIntent, storage_scheme: MerchantStorageScheme) -> error_stack::Result<PaymentAttempt, errors::StorageError>;
+    async fn get_active_payment_attempt(
+        &self,
+        payment: &mut PaymentIntent,
+        storage_scheme: MerchantStorageScheme,
+    ) -> error_stack::Result<PaymentAttempt, errors::StorageError>;
 
     #[cfg(feature = "olap")]
     async fn filter_payment_intent_by_constraints(
@@ -55,10 +58,7 @@ pub trait PaymentIntentInterface {
         merchant_id: &str,
         constraints: &PaymentIntentFetchConstraints,
         storage_scheme: MerchantStorageScheme,
-    ) -> error_stack::Result<
-        Vec<(PaymentIntent, PaymentAttempt)>,
-        errors::StorageError,
-    >;
+    ) -> error_stack::Result<Vec<(PaymentIntent, PaymentAttempt)>, errors::StorageError>;
 
     #[cfg(feature = "olap")]
     async fn get_filtered_active_attempt_ids_for_total_count(
@@ -69,7 +69,7 @@ pub trait PaymentIntentInterface {
     ) -> error_stack::Result<Vec<String>, errors::StorageError>;
 }
 
-#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct PaymentIntentNew {
     pub payment_id: String,
     pub merchant_id: String,
@@ -86,16 +86,13 @@ pub struct PaymentIntentNew {
     pub billing_address_id: Option<String>,
     pub statement_descriptor_name: Option<String>,
     pub statement_descriptor_suffix: Option<String>,
-    #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
     pub created_at: Option<PrimitiveDateTime>,
-    #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
     pub modified_at: Option<PrimitiveDateTime>,
-    #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
     pub last_synced: Option<PrimitiveDateTime>,
     pub setup_future_usage: Option<storage_enums::FutureUsage>,
     pub off_session: Option<bool>,
     pub client_secret: Option<String>,
-    pub active_attempt: PaymentAttempt,
+    pub active_attempt: crate::RemoteStorageObject<PaymentAttempt>,
     pub business_country: Option<storage_enums::CountryAlpha2>,
     pub business_label: Option<String>,
     pub order_details: Option<Vec<pii::SecretSerdeValue>>,

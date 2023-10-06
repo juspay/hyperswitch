@@ -15,10 +15,9 @@ use crate::{
     payment_attempt::{
         PaymentAttempt, PaymentAttemptNew, PaymentAttemptUpdate, PaymentAttemptUpdateInternal,
     },
-    PaymentIntent,
     query::generics::db_metrics,
     schema::payment_attempt::dsl,
-    PgPooledConn, StorageResult,
+    PaymentIntent, PgPooledConn, StorageResult,
 };
 
 impl PaymentAttemptNew {

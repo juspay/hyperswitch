@@ -2246,7 +2246,7 @@ mod tests {
             setup_future_usage: None,
             off_session: None,
             client_secret: Some("1".to_string()),
-            active_attempt_id: "nopes".to_string(),
+            active_attempt: data_models::RemoteStorageObject::ForeignID("nopes".to_string()),
             business_country: None,
             business_label: None,
             order_details: None,

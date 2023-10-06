@@ -24,15 +24,16 @@ pub enum MerchantStorageScheme {
     RedisKv,
 }
 
-#[derive(
-    Clone,
-    Debug,
-    Eq,
-    PartialEq,
-)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub enum RemoteStorageObject<T: ForeignIDRef> {
     ForeignID(String),
-    Object(T)
+    Object(T),
+}
+
+impl<T: ForeignIDRef> From<T> for RemoteStorageObject<T> {
+    fn from(value: T) -> Self {
+        Self::Object(value)
+    }
 }
 
 pub trait ForeignIDRef {
@@ -42,8 +43,8 @@ pub trait ForeignIDRef {
 impl<T: ForeignIDRef> RemoteStorageObject<T> {
     pub fn get_id(&self) -> String {
         match self {
-            RemoteStorageObject::ForeignID(id) => id.clone(),
-            RemoteStorageObject::Object(i) => i.foreign_id(),
+            Self::ForeignID(id) => id.clone(),
+            Self::Object(i) => i.foreign_id(),
         }
     }
 }
