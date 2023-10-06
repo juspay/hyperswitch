@@ -36,7 +36,7 @@ use crate::{
     consts::{self, BASE64_ENGINE},
     core::{
         errors::{self, CustomResult, RouterResult, StorageErrorExt},
-        payment_methods::{cards, vault},
+        payment_methods::{cards, vault, PaymentMethodRetrieve},
         payments,
     },
     db::StorageInterface,
@@ -936,10 +936,11 @@ where
     }
 }
 
-pub fn response_operation<'a, F, R>() -> BoxedOperation<'a, F, R>
+pub fn response_operation<'a, F, R, Ctx>() -> BoxedOperation<'a, F, R, Ctx>
 where
     F: Send + Clone,
-    PaymentResponse: Operation<F, R>,
+    Ctx: PaymentMethodRetrieve,
+    PaymentResponse: Operation<F, R, Ctx>,
 {
     Box::new(PaymentResponse)
 }
@@ -1149,14 +1150,14 @@ pub async fn get_connector_default(
 }
 
 #[instrument(skip_all)]
-pub async fn create_customer_if_not_exist<'a, F: Clone, R>(
-    operation: BoxedOperation<'a, F, R>,
+pub async fn create_customer_if_not_exist<'a, F: Clone, R, Ctx>(
+    operation: BoxedOperation<'a, F, R, Ctx>,
     db: &dyn StorageInterface,
     payment_data: &mut PaymentData<F>,
     req: Option<CustomerDetails>,
     merchant_id: &str,
     key_store: &domain::MerchantKeyStore,
-) -> CustomResult<(BoxedOperation<'a, F, R>, Option<domain::Customer>), errors::StorageError> {
+) -> CustomResult<(BoxedOperation<'a, F, R, Ctx>, Option<domain::Customer>), errors::StorageError> {
     let request_customer_details = req
         .get_required_value("customer")
         .change_context(errors::StorageError::ValueNotFound("customer".to_owned()))?;
@@ -1302,12 +1303,15 @@ pub async fn create_customer_if_not_exist<'a, F: Clone, R>(
     ))
 }
 
-pub async fn make_pm_data<'a, F: Clone, R>(
-    operation: BoxedOperation<'a, F, R>,
+pub async fn make_pm_data<'a, F: Clone, R, Ctx: PaymentMethodRetrieve>(
+    operation: BoxedOperation<'a, F, R, Ctx>,
     state: &'a AppState,
     payment_data: &mut PaymentData<F>,
-) -> RouterResult<(BoxedOperation<'a, F, R>, Option<api::PaymentMethodData>)> {
-    let request = &payment_data.payment_method_data;
+) -> RouterResult<(
+    BoxedOperation<'a, F, R, Ctx>,
+    Option<api::PaymentMethodData>,
+)> {
+    let request = &payment_data.payment_method_data.clone();
     let token = payment_data.token.clone();
 
     let hyperswitch_token = match payment_data.mandate_id {
@@ -1418,89 +1422,19 @@ pub async fn make_pm_data<'a, F: Clone, R>(
                 None => None,
             })
         }
-        (pm_opt @ Some(pm @ api::PaymentMethodData::Card(_)), _) => {
-            if should_store_payment_method_data_in_vault(
-                &state.conf.temp_locker_disable_config,
-                payment_data.payment_attempt.connector.clone(),
-                enums::PaymentMethod::Card,
-            ) {
-                let parent_payment_method_token = store_in_vault_and_generate_ppmt(
-                    state,
-                    pm,
-                    &payment_data.payment_intent,
-                    &payment_data.payment_attempt,
-                    enums::PaymentMethod::Card,
-                )
-                .await?;
 
-                payment_data.token = Some(parent_payment_method_token);
-            }
-            Ok(pm_opt.to_owned())
-        }
-        (pm @ Some(api::PaymentMethodData::PayLater(_)), _) => Ok(pm.to_owned()),
-        (pm @ Some(api::PaymentMethodData::Crypto(_)), _) => Ok(pm.to_owned()),
-        (pm @ Some(api::PaymentMethodData::BankDebit(_)), _) => Ok(pm.to_owned()),
-        (pm @ Some(api::PaymentMethodData::Upi(_)), _) => Ok(pm.to_owned()),
-        (pm @ Some(api::PaymentMethodData::Voucher(_)), _) => Ok(pm.to_owned()),
-        (pm @ Some(api::PaymentMethodData::Reward), _) => Ok(pm.to_owned()),
-        (pm @ Some(api::PaymentMethodData::CardRedirect(_)), _) => Ok(pm.to_owned()),
-        (pm @ Some(api::PaymentMethodData::GiftCard(_)), _) => Ok(pm.to_owned()),
-        (pm_opt @ Some(pm @ api::PaymentMethodData::BankTransfer(_)), _) => {
-            if should_store_payment_method_data_in_vault(
-                &state.conf.temp_locker_disable_config,
-                payment_data.payment_attempt.connector.clone(),
-                enums::PaymentMethod::BankTransfer,
-            ) {
-                let parent_payment_method_token = store_in_vault_and_generate_ppmt(
-                    state,
-                    pm,
-                    &payment_data.payment_intent,
-                    &payment_data.payment_attempt,
-                    enums::PaymentMethod::BankTransfer,
-                )
-                .await?;
+        (Some(_), _) => {
+            let payment_method_data = Ctx::retrieve_payment_method(
+                request,
+                state,
+                &payment_data.payment_intent,
+                &payment_data.payment_attempt,
+            )
+            .await?;
 
-                payment_data.token = Some(parent_payment_method_token);
-            }
+            payment_data.token = payment_method_data.1;
 
-            Ok(pm_opt.to_owned())
-        }
-        (pm_opt @ Some(pm @ api::PaymentMethodData::Wallet(_)), _) => {
-            if should_store_payment_method_data_in_vault(
-                &state.conf.temp_locker_disable_config,
-                payment_data.payment_attempt.connector.clone(),
-                enums::PaymentMethod::Wallet,
-            ) {
-                let parent_payment_method_token = store_in_vault_and_generate_ppmt(
-                    state,
-                    pm,
-                    &payment_data.payment_intent,
-                    &payment_data.payment_attempt,
-                    enums::PaymentMethod::Wallet,
-                )
-                .await?;
-
-                payment_data.token = Some(parent_payment_method_token);
-            }
-            Ok(pm_opt.to_owned())
-        }
-        (pm_opt @ Some(pm @ api::PaymentMethodData::BankRedirect(_)), _) => {
-            if should_store_payment_method_data_in_vault(
-                &state.conf.temp_locker_disable_config,
-                payment_data.payment_attempt.connector.clone(),
-                enums::PaymentMethod::BankRedirect,
-            ) {
-                let parent_payment_method_token = store_in_vault_and_generate_ppmt(
-                    state,
-                    pm,
-                    &payment_data.payment_intent,
-                    &payment_data.payment_attempt,
-                    enums::PaymentMethod::BankRedirect,
-                )
-                .await?;
-                payment_data.token = Some(parent_payment_method_token);
-            }
-            Ok(pm_opt.to_owned())
+            Ok(payment_method_data.0)
         }
         _ => Ok(None),
     }?;
@@ -1538,6 +1472,32 @@ pub async fn store_in_vault_and_generate_ppmt(
     Ok(parent_payment_method_token)
 }
 
+pub async fn store_payment_method_data_in_vault(
+    state: &AppState,
+    payment_attempt: &PaymentAttempt,
+    payment_intent: &PaymentIntent,
+    payment_method: enums::PaymentMethod,
+    payment_method_data: &api::PaymentMethodData,
+) -> RouterResult<Option<String>> {
+    if should_store_payment_method_data_in_vault(
+        &state.conf.temp_locker_disable_config,
+        payment_attempt.connector.clone(),
+        payment_method,
+    ) {
+        let parent_payment_method_token = store_in_vault_and_generate_ppmt(
+            state,
+            payment_method_data,
+            payment_intent,
+            payment_attempt,
+            payment_method,
+        )
+        .await?;
+
+        return Ok(Some(parent_payment_method_token));
+    }
+
+    Ok(None)
+}
 pub fn should_store_payment_method_data_in_vault(
     temp_locker_disable_config: &TempLockerDisableConfig,
     option_connector: Option<String>,
