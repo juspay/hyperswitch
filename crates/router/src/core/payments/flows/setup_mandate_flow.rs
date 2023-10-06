@@ -161,6 +161,7 @@ impl TryFrom<types::SetupMandateRequestData> for types::ConnectorCustomerData {
     fn try_from(data: types::SetupMandateRequestData) -> Result<Self, Self::Error> {
         Ok(Self {
             email: data.email,
+            payment_method_data: data.payment_method_data,
             description: None,
             phone: None,
             name: None,

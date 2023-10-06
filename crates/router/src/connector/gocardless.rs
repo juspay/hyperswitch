@@ -309,89 +309,6 @@ impl
         types::PaymentsResponseData,
     > for Gocardless
 {
-    fn get_headers(
-        &self,
-        req: &types::PaymentsPreProcessingRouterData,
-        connectors: &settings::Connectors,
-    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
-        self.build_headers(req, connectors)
-    }
-
-    fn get_url(
-        &self,
-        _req: &types::PaymentsPreProcessingRouterData,
-        connectors: &settings::Connectors,
-    ) -> CustomResult<String, errors::ConnectorError> {
-        Ok(format!("{}/mandates", self.base_url(connectors)))
-    }
-
-    fn get_request_body(
-        &self,
-        req: &types::PaymentsPreProcessingRouterData,
-    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
-        let req_obj = gocardless::GocardlessMandateRequest::try_from(req)?;
-        let gocardless_req = types::RequestBody::log_and_get_request_body(
-            &req_obj,
-            utils::Encode::<gocardless::GocardlessMandateRequest>::encode_to_string_of_json,
-        )
-        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-        Ok(Some(gocardless_req))
-    }
-
-    fn build_request(
-        &self,
-        req: &types::PaymentsPreProcessingRouterData,
-        connectors: &settings::Connectors,
-    ) -> CustomResult<Option<common_utils::request::Request>, errors::ConnectorError> {
-        // Preprocessing flow is to create mandate, which should to be called only in case of First mandate
-        if req.request.setup_mandate_details.is_some() {
-            Ok(Some(
-                services::RequestBuilder::new()
-                    .method(services::Method::Post)
-                    .url(&types::PaymentsPreProcessingType::get_url(
-                        self, req, connectors,
-                    )?)
-                    .attach_default_headers()
-                    .headers(types::PaymentsPreProcessingType::get_headers(
-                        self, req, connectors,
-                    )?)
-                    .body(types::PaymentsPreProcessingType::get_request_body(
-                        self, req,
-                    )?)
-                    .build(),
-            ))
-        } else {
-            Ok(None)
-        }
-    }
-
-    fn handle_response(
-        &self,
-        data: &types::PaymentsPreProcessingRouterData,
-        res: Response,
-    ) -> CustomResult<types::PaymentsPreProcessingRouterData, errors::ConnectorError>
-    where
-        api::PreProcessing: Clone,
-        types::PaymentsPreProcessingData: Clone,
-        types::PaymentsResponseData: Clone,
-    {
-        let response: gocardless::GocardlessMandateResponse = res
-            .response
-            .parse_struct("GocardlessMandateResponse")
-            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-        types::RouterData::try_from(types::ResponseRouterData {
-            response,
-            data: data.clone(),
-            http_code: res.status_code,
-        })
-    }
-
-    fn get_error_response(
-        &self,
-        res: Response,
-    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        self.build_error_response(res)
-    }
 }
 
 impl ConnectorValidation for Gocardless {
@@ -429,6 +346,78 @@ impl
         types::PaymentsResponseData,
     > for Gocardless
 {
+    fn get_headers(
+        &self,
+        req: &types::SetupMandateRouterData,
+        connectors: &settings::Connectors,
+    ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
+        self.build_headers(req, connectors)
+    }
+
+    fn get_url(
+        &self,
+        _req: &types::SetupMandateRouterData,
+        connectors: &settings::Connectors,
+    ) -> CustomResult<String, errors::ConnectorError> {
+        Ok(format!("{}/mandates", self.base_url(connectors)))
+    }
+
+    fn get_request_body(
+        &self,
+        req: &types::SetupMandateRouterData,
+    ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
+        let req_obj = gocardless::GocardlessMandateRequest::try_from(req)?;
+        let gocardless_req = types::RequestBody::log_and_get_request_body(
+            &req_obj,
+            utils::Encode::<gocardless::GocardlessMandateRequest>::encode_to_string_of_json,
+        )
+        .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        Ok(Some(gocardless_req))
+    }
+
+    fn build_request(
+        &self,
+        req: &types::SetupMandateRouterData,
+        connectors: &settings::Connectors,
+    ) -> CustomResult<Option<common_utils::request::Request>, errors::ConnectorError> {
+        // Preprocessing flow is to create mandate, which should to be called only in case of First mandate
+        if req.request.setup_mandate_details.is_some() {
+            Ok(Some(
+                services::RequestBuilder::new()
+                    .method(services::Method::Post)
+                    .url(&types::SetupMandateType::get_url(self, req, connectors)?)
+                    .attach_default_headers()
+                    .headers(types::SetupMandateType::get_headers(self, req, connectors)?)
+                    .body(types::SetupMandateType::get_request_body(self, req)?)
+                    .build(),
+            ))
+        } else {
+            Ok(None)
+        }
+    }
+
+    fn handle_response(
+        &self,
+        data: &types::SetupMandateRouterData,
+        res: Response,
+    ) -> CustomResult<types::SetupMandateRouterData, errors::ConnectorError> {
+        let response: gocardless::GocardlessMandateResponse = res
+            .response
+            .parse_struct("GocardlessMandateResponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        types::RouterData::try_from(types::ResponseRouterData {
+            response,
+            data: data.clone(),
+            http_code: res.status_code,
+        })
+    }
+
+    fn get_error_response(
+        &self,
+        res: Response,
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        self.build_error_response(res)
+    }
 }
 
 impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::PaymentsResponseData>
@@ -703,6 +692,7 @@ impl api::IncomingWebhook for Gocardless {
     fn get_webhook_source_verification_signature(
         &self,
         request: &api::IncomingWebhookRequestDetails<'_>,
+        _connector_webhook_secrets: &api_models::webhooks::ConnectorWebhookSecrets,
     ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
         let signature = request
             .headers
@@ -726,7 +716,7 @@ impl api::IncomingWebhook for Gocardless {
         &self,
         request: &api::IncomingWebhookRequestDetails<'_>,
         _merchant_id: &str,
-        _secret: &[u8],
+        _connector_webhook_secrets: &api_models::webhooks::ConnectorWebhookSecrets,
     ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
         Ok(format!("{}", String::from_utf8_lossy(request.body))
             .as_bytes()
@@ -756,6 +746,12 @@ impl api::IncomingWebhook for Gocardless {
                 let refund_id =
                     api_models::webhooks::RefundIdType::ConnectorRefundId(link.refund.to_owned());
                 api::webhooks::ObjectReferenceId::RefundId(refund_id)
+            }
+            transformers::WebhooksLink::MandateWebhookLink(link) => {
+                let mandate_id = api_models::webhooks::MandateIdType::ConnectorMandateId(
+                    link.mandate.to_owned(),
+                );
+                api::webhooks::ObjectReferenceId::MandateId(mandate_id)
             }
         };
         Ok(reference_id)
@@ -803,6 +799,27 @@ impl api::IncomingWebhook for Gocardless {
                     api::IncomingWebhookEvent::EventNotSupported
                 }
             },
+            transformers::WebhookAction::MandatesAction(action) => match action {
+                transformers::MandatesAction::Active | transformers::MandatesAction::Reinstated => {
+                    api::IncomingWebhookEvent::MandateActive
+                }
+                transformers::MandatesAction::Expired
+                | transformers::MandatesAction::Cancelled
+                | transformers::MandatesAction::Failed
+                | transformers::MandatesAction::Consumed => {
+                    api::IncomingWebhookEvent::MandateRevoked
+                }
+                transformers::MandatesAction::Created
+                | transformers::MandatesAction::CustomerApprovalGranted
+                | transformers::MandatesAction::CustomerApprovalSkipped
+                | transformers::MandatesAction::Transferred
+                | transformers::MandatesAction::Submitted
+                | transformers::MandatesAction::ResubmissionRequested
+                | transformers::MandatesAction::Replaced
+                | transformers::MandatesAction::Blocked => {
+                    api::IncomingWebhookEvent::EventNotSupported
+                }
+            },
         };
         Ok(event_type)
     }
@@ -826,6 +843,9 @@ impl api::IncomingWebhook for Gocardless {
             .into_report()
             .change_context(errors::ConnectorError::WebhookBodyDecodingFailed),
             transformers::WebhookResourceType::Refunds => serde_json::to_value(first_event)
+                .into_report()
+                .change_context(errors::ConnectorError::WebhookBodyDecodingFailed),
+            transformers::WebhookResourceType::Mandates => serde_json::to_value(first_event)
                 .into_report()
                 .change_context(errors::ConnectorError::WebhookBodyDecodingFailed),
         }

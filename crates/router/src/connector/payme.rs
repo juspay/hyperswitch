@@ -926,6 +926,7 @@ impl api::IncomingWebhook for Payme {
     fn get_webhook_source_verification_signature(
         &self,
         request: &api::IncomingWebhookRequestDetails<'_>,
+        _connector_webhook_secrets: &api_models::webhooks::ConnectorWebhookSecrets,
     ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
         let resource =
             serde_urlencoded::from_bytes::<payme::WebhookEventDataResourceSignature>(request.body)
@@ -938,7 +939,7 @@ impl api::IncomingWebhook for Payme {
         &self,
         request: &api::IncomingWebhookRequestDetails<'_>,
         _merchant_id: &str,
-        secret: &[u8],
+        connector_webhook_secrets: &api_models::webhooks::ConnectorWebhookSecrets,
     ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
         let resource =
             serde_urlencoded::from_bytes::<payme::WebhookEventDataResource>(request.body)
@@ -946,7 +947,7 @@ impl api::IncomingWebhook for Payme {
                 .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
         Ok(format!(
             "{}{}{}",
-            String::from_utf8_lossy(secret),
+            String::from_utf8_lossy(&connector_webhook_secrets.secret),
             resource.payme_transaction_id,
             resource.payme_sale_id
         )
@@ -965,10 +966,6 @@ impl api::IncomingWebhook for Payme {
             .get_webhook_source_verification_algorithm(request)
             .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
 
-        let signature = self
-            .get_webhook_source_verification_signature(request)
-            .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
-
         let connector_webhook_secrets = self
             .get_webhook_source_verification_merchant_secret(
                 merchant_account,
@@ -977,11 +974,16 @@ impl api::IncomingWebhook for Payme {
             )
             .await
             .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
+
+        let signature = self
+            .get_webhook_source_verification_signature(request, &connector_webhook_secrets)
+            .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
+
         let mut message = self
             .get_webhook_source_verification_message(
                 request,
                 &merchant_account.merchant_id,
-                &connector_webhook_secrets.secret,
+                &connector_webhook_secrets,
             )
             .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
         let mut message_to_verify = connector_webhook_secrets
@@ -992,6 +994,7 @@ impl api::IncomingWebhook for Payme {
             .expose()
             .as_bytes()
             .to_vec();
+
         message_to_verify.append(&mut message);
 
         let signature_to_verify = hex::decode(signature)
