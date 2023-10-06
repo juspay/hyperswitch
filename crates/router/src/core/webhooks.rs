@@ -3,7 +3,10 @@ pub mod utils;
 
 use std::str::FromStr;
 
-use api_models::{payments::HeaderPayload, webhooks::WebhookResponseTracker};
+use api_models::{
+    payments::HeaderPayload,
+    webhooks::{self, WebhookResponseTracker},
+};
 use common_utils::errors::ReportSwitchExt;
 use error_stack::{report, IntoReport, ResultExt};
 use masking::ExposeInterface;
@@ -24,7 +27,9 @@ use crate::{
     routes::{lock_utils, metrics::request::add_attributes, AppState},
     services,
     types::{
-        self as router_types, api, domain,
+        self as router_types,
+        api::{self, mandates::MandateResponseExt},
+        domain,
         storage::{self, enums},
         transformers::{ForeignInto, ForeignTryInto},
     },
@@ -386,6 +391,79 @@ pub async fn get_or_update_dispute_object(
                 .await
                 .to_not_found_response(errors::ApiErrorResponse::WebhookResourceNotFound)
         }
+    }
+}
+
+pub async fn mandates_incoming_webhook_flow<W: types::OutgoingWebhookType>(
+    state: AppState,
+    merchant_account: domain::MerchantAccount,
+    webhook_details: api::IncomingWebhookDetails,
+    source_verified: bool,
+    event_type: api_models::webhooks::IncomingWebhookEvent,
+) -> CustomResult<WebhookResponseTracker, errors::ApiErrorResponse> {
+    if source_verified {
+        let db = &*state.store;
+        let mandate = match webhook_details.object_reference_id {
+            webhooks::ObjectReferenceId::MandateId(webhooks::MandateIdType::MandateId(
+                mandate_id,
+            )) => db
+                .find_mandate_by_merchant_id_mandate_id(
+                    &merchant_account.merchant_id,
+                    mandate_id.as_str(),
+                )
+                .await
+                .to_not_found_response(errors::ApiErrorResponse::MandateNotFound)?,
+            webhooks::ObjectReferenceId::MandateId(
+                webhooks::MandateIdType::ConnectorMandateId(connector_mandate_id),
+            ) => db
+                .find_mandate_by_merchant_id_connector_mandate_id(
+                    &merchant_account.merchant_id,
+                    connector_mandate_id.as_str(),
+                )
+                .await
+                .to_not_found_response(errors::ApiErrorResponse::MandateNotFound)?,
+            _ => Err(errors::ApiErrorResponse::WebhookProcessingFailure)
+                .into_report()
+                .attach_printable("received a non-mandate id for retrieving mandate")?,
+        };
+        let mandate_status = event_type
+            .foreign_try_into()
+            .into_report()
+            .change_context(errors::ApiErrorResponse::WebhookProcessingFailure)
+            .attach_printable("event type to mandate status mapping failed")?;
+        let updated_mandate = db
+            .update_mandate_by_merchant_id_mandate_id(
+                &merchant_account.merchant_id,
+                &mandate.mandate_id,
+                storage::MandateUpdate::StatusUpdate { mandate_status },
+            )
+            .await
+            .to_not_found_response(errors::ApiErrorResponse::MandateNotFound)?;
+        let mandates_response = Box::new(
+            api::mandates::MandateResponse::from_db_mandate(&state, updated_mandate.clone())
+                .await?,
+        );
+        let event_type: Option<enums::EventType> = updated_mandate.mandate_status.foreign_into();
+        if let Some(outgoing_event_type) = event_type {
+            create_event_and_trigger_outgoing_webhook::<W>(
+                state,
+                merchant_account,
+                outgoing_event_type,
+                enums::EventClass::Mandates,
+                None,
+                updated_mandate.mandate_id.clone(),
+                enums::EventObjectType::MandateDetails,
+                api::OutgoingWebhookContent::MandateDetails(mandates_response),
+            )
+            .await?;
+        }
+        Ok(WebhookResponseTracker::Mandate {
+            mandate_id: updated_mandate.mandate_id,
+            status: updated_mandate.mandate_status,
+        })
+    } else {
+        logger::error!("Webhook source verification failed for mandates webhook flow");
+        Err(errors::ApiErrorResponse::WebhookAuthenticationFailed).into_report()
     }
 }
 
@@ -1011,6 +1089,16 @@ pub async fn webhooks_core<W: types::OutgoingWebhookType>(
             .attach_printable("Incoming bank-transfer webhook flow failed")?,
 
             api::WebhookFlow::ReturnResponse => WebhookResponseTracker::NoEffect,
+
+            api::WebhookFlow::Mandate => mandates_incoming_webhook_flow::<W>(
+                state.clone(),
+                merchant_account,
+                webhook_details,
+                source_verified,
+                event_type,
+            )
+            .await
+            .attach_printable("Incoming webhook flow for mandates failed")?,
 
             _ => Err(errors::ApiErrorResponse::InternalServerError)
                 .into_report()

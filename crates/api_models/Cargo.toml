@@ -25,6 +25,7 @@ strum = { version = "0.24.1", features = ["derive"] }
 time = { version = "0.3.21", features = ["serde", "serde-well-known", "std"] }
 url = { version = "2.4.0", features = ["serde"] }
 utoipa = { version = "3.3.0", features = ["preserve_order"] }
+thiserror = "1.0.40"
 
 # First party crates
 cards = { version = "0.1.0", path = "../cards" }
