@@ -688,6 +688,7 @@ pub struct PaypalRedirectResponse {
     links: Vec<PaypalLinks>,
 }
 
+// Note: Don't change order of deserialization of variant, priority is in descending order
 #[derive(Debug, Deserialize)]
 #[serde(untagged)]
 pub enum PaypalAuthResponse {
@@ -696,6 +697,7 @@ pub enum PaypalAuthResponse {
     PaypalThreeDsResponse(PaypalThreeDsResponse),
 }
 
+// Note: Don't change order of deserialization of variant, priority is in descending order
 #[derive(Debug, Deserialize)]
 #[serde(untagged)]
 pub enum PaypalSyncResponse {
@@ -961,12 +963,10 @@ impl<F>
             types::PaymentsResponseData,
         >,
     ) -> Result<Self, Self::Error> {
-        let status = storage_enums::AttemptStatus::foreign_from((
-            item.response.clone().status,
-            PaypalPaymentIntent::Authenticate,
-        ));
         Ok(Self {
-            status,
+            // status is hardcoded because this try_from will only be reached in card 3ds before the completion of complete authorize flow.
+            // also force sync won't be hit in terminal status thus leaving us with only one status to get here.
+            status: storage_enums::AttemptStatus::AuthenticationPending,
             response: Ok(types::PaymentsResponseData::TransactionResponse {
                 resource_id: types::ResponseId::ConnectorTransactionId(item.response.id),
                 redirection_data: None,
@@ -1016,14 +1016,9 @@ impl<F>
             response: Ok(types::PaymentsResponseData::TransactionResponse {
                 resource_id: types::ResponseId::ConnectorTransactionId(item.response.id),
                 redirection_data: Some(paypal_threeds_link((
-                    link.ok_or(errors::ConnectorError::ResponseDeserializationFailed)?,
-                    item.data.request.complete_authorize_url.clone().ok_or(
-                        errors::ConnectorError::MissingRequiredField {
-                            field_name: "router_return_url",
-                        },
-                    )?,
-                    services::Method::Get,
-                ))),
+                    link,
+                    item.data.request.complete_authorize_url.clone(),
+                ))?),
                 mandate_reference: None,
                 connector_metadata: Some(connector_meta),
                 network_txn_id: None,
@@ -1035,8 +1030,14 @@ impl<F>
 }
 
 fn paypal_threeds_link(
-    (mut redirect_url, complete_auth_url, method): (Url, String, services::Method),
-) -> services::RedirectForm {
+    (redirect_url, complete_auth_url): (Option<Url>, Option<String>),
+) -> CustomResult<services::RedirectForm, errors::ConnectorError> {
+    let mut redirect_url =
+        redirect_url.ok_or(errors::ConnectorError::ResponseDeserializationFailed)?;
+    let complete_auth_url =
+        complete_auth_url.ok_or(errors::ConnectorError::MissingRequiredField {
+            field_name: "complete_authorize_url",
+        })?;
     let mut form_fields = std::collections::HashMap::from_iter(
         redirect_url
             .query_pairs()
@@ -1049,11 +1050,11 @@ fn paypal_threeds_link(
     // Do not include query params in the endpoint
     redirect_url.set_query(None);
 
-    services::RedirectForm::Form {
+    Ok(services::RedirectForm::Form {
         endpoint: redirect_url.to_string(),
-        method,
+        method: services::Method::Get,
         form_fields,
-    }
+    })
 }
 
 impl<F, T>
