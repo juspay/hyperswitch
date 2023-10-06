@@ -123,7 +123,7 @@ impl ProcessTrackerWorkflow<AppState> for PaymentsSyncWorkflow {
                             error_code: None,
                             error_message: None,
                             error_reason: Some(Some(
-                                crate::consts::REQUEST_TIMEOUT_ERROR_MESSAGE_FROM_PSYNC.to_string(),
+                                consts::REQUEST_TIMEOUT_ERROR_MESSAGE_FROM_PSYNC.to_string(),
                             )),
                             amount_capturable: Some(0),
                         };
