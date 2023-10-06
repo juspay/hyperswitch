@@ -742,7 +742,7 @@ where
             payments_response
         {
             Box::pin(
-                crate::core::webhooks::create_event_and_trigger_appropriate_outgoing_webhook(
+                core::webhooks::create_event_and_trigger_appropriate_outgoing_webhook(
                     state.clone(),
                     merchant_account,
                     event_type,
