@@ -174,6 +174,7 @@ pub struct PaymentsRequest {
     pub payment_data: WorldlinePaymentMethod,
     pub order: Order,
     pub shipping: Option<Shipping>,
+    pub reference: String,
 }
 
 impl TryFrom<&types::PaymentsAuthorizeRouterData> for PaymentsRequest {
@@ -214,6 +215,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PaymentsRequest {
             payment_data,
             order,
             shipping,
+            reference: item.connector_request_reference_id.clone(),
         })
     }
 }
@@ -505,7 +507,7 @@ impl<F, T> TryFrom<types::ResponseRouterData<F, Payment, T, types::PaymentsRespo
                 mandate_reference: None,
                 connector_metadata: None,
                 network_txn_id: None,
-                connector_response_reference_id: None,
+                connector_response_reference_id: Some(response.merchant_reference),
             }),
             ..item.data
         })
@@ -517,6 +519,7 @@ impl<F, T> TryFrom<types::ResponseRouterData<F, Payment, T, types::PaymentsRespo
 pub struct PaymentResponse {
     pub payment: Payment,
     pub merchant_action: Option<MerchantAction>,
+    pub reference: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -551,12 +554,16 @@ impl<F, T> TryFrom<types::ResponseRouterData<F, PaymentResponse, T, types::Payme
                 item.response.payment.capture_method,
             )),
             response: Ok(types::PaymentsResponseData::TransactionResponse {
-                resource_id: types::ResponseId::ConnectorTransactionId(item.response.payment.id),
+                resource_id: types::ResponseId::ConnectorTransactionId(
+                    item.response.payment.id.clone(),
+                ),
                 redirection_data,
                 mandate_reference: None,
                 connector_metadata: None,
                 network_txn_id: None,
-                connector_response_reference_id: None,
+                connector_response_reference_id: Some(
+                    item.response.reference.unwrap_or(item.response.payment.id),
+                ),
             }),
             ..item.data
         })

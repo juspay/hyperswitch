@@ -1,0 +1,12 @@
+{
+  "ExpandedNodes": [
+    "",
+    "\\crates",
+    "\\crates\\router",
+    "\\crates\\router\\src",
+    "\\crates\\router\\src\\connector",
+    "\\crates\\router\\src\\connector\\worldline"
+  ],
+  "SelectedNode": "\\crates\\router\\src\\connector\\worldline\\transformers.rs",
+  "PreviewInSolutionExplorer": false
+}

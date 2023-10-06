@@ -2,11 +2,12 @@
 name = "router"
 description = "Modern, fast and open payment router"
 version = "0.2.0"
-edition.workspace = true
+edition = "2018"
 default-run = "router"
 rust-version.workspace = true
 readme = "README.md"
 license.workspace = true
+
 
 [features]
 default = ["kv_store", "stripe", "oltp", "olap", "accounts_cache", "dummy_connector", "payouts"]
@@ -48,7 +49,7 @@ config = { version = "0.13.3", features = ["toml"] }
 diesel = { version = "2.1.0", features = ["postgres"] }
 dyn-clone = "1.0.11"
 encoding_rs = "0.8.32"
-error-stack = "0.3.1"
+error-stack = "0.4.1"
 futures = "0.3.28"
 hex = "0.4.3"
 http = "0.2.9"
@@ -87,6 +88,8 @@ utoipa-swagger-ui = { version = "3.1.3", features = ["actix-web"] }
 uuid = { version = "1.3.3", features = ["serde", "v4"] }
 openssl = "0.10.55"
 x509-parser = "0.15.0"
+futures-core = "0.3"
+memchr = "2.3.3"
 
 # First party crates
 api_models = { version = "0.1.0", path = "../api_models", features = ["errors"] }

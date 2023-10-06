@@ -19,5 +19,7 @@ rustflags = [
     "-Wunused_qualifications",
 ]
 
+
+
 [alias]
 gen-pg = "generate --path ../../../../connector-template -n"
