@@ -539,6 +539,7 @@ pub struct Connectors {
     pub stripe: ConnectorParamsWithFileUploadUrl,
     pub trustpay: ConnectorParamsWithMoreUrls,
     pub tsys: ConnectorParams,
+    pub volt: ConnectorParams,
     pub wise: ConnectorParams,
     pub worldline: ConnectorParams,
     pub worldpay: ConnectorParams,
