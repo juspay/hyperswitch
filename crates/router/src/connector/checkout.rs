@@ -110,7 +110,7 @@ impl ConnectorCommon for Checkout {
         };
 
         router_env::logger::info!(error_response=?response);
-        let errors_list = response.error_codes.clone().unwrap_or(vec![]);
+        let errors_list = response.error_codes.clone().unwrap_or_default();
         let option_error_code_message = conn_utils::get_error_code_error_message_based_on_priority(
             self.clone(),
             errors_list

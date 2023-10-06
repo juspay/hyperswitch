@@ -169,10 +169,9 @@ impl ConnectorCommon for Paypal {
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
 
         let error_reason = response.details.map(|error_details| {
-            error_details
-                .iter()
-                .map(|error| format!("description - {} ; ", error.description))
-                .collect::<String>()
+            error_details.iter().fold(String::new(), |acc, error| {
+                acc + format!("description - {} ; ", error.description).as_str()
+            })
         });
         Ok(ErrorResponse {
             status_code: res.status_code,

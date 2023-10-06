@@ -431,7 +431,7 @@ where
                 status_code.to_string(),
             )]
         })
-        .unwrap_or(vec![]);
+        .unwrap_or_default();
     if let Some(payment_confirm_source) = payment_intent.payment_confirm_source {
         headers.push((
             "payment_confirm_source".to_string(),
