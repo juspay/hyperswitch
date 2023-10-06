@@ -230,6 +230,8 @@ pub enum ApiErrorResponse {
     IncorrectPaymentMethodConfiguration,
     #[error(error_type = ErrorType::InvalidRequestError, code = "WE_05", message = "Unable to process the webhook body")]
     WebhookUnprocessableEntity,
+    #[error(error_type = ErrorType::InvalidRequestError, code = "WE_05", message = "Merchant Secret set my merchant for webhook source verification is invalid")]
+    WebhookInvalidMerchantSecret,
     #[error(error_type = ErrorType::InvalidRequestError, code = "IR_19", message = "{message}")]
     CurrencyNotSupported { message: String },
 }

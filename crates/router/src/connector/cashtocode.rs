@@ -32,7 +32,7 @@ pub struct Cashtocode;
 impl api::Payment for Cashtocode {}
 impl api::PaymentSession for Cashtocode {}
 impl api::ConnectorAccessToken for Cashtocode {}
-impl api::PreVerify for Cashtocode {}
+impl api::MandateSetup for Cashtocode {}
 impl api::PaymentAuthorize for Cashtocode {}
 impl api::PaymentSync for Cashtocode {}
 impl api::PaymentCapture for Cashtocode {}
@@ -149,8 +149,12 @@ impl ConnectorIntegration<api::AccessTokenAuth, types::AccessTokenRequestData, t
 {
 }
 
-impl ConnectorIntegration<api::Verify, types::VerifyRequestData, types::PaymentsResponseData>
-    for Cashtocode
+impl
+    ConnectorIntegration<
+        api::SetupMandate,
+        types::SetupMandateRequestData,
+        types::PaymentsResponseData,
+    > for Cashtocode
 {
 }
 
