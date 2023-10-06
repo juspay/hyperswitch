@@ -100,6 +100,7 @@ pub struct Settings {
     pub applepay_merchant_configs: ApplepayMerchantConfigs,
     pub lock_settings: LockSettings,
     pub temp_locker_disable_config: TempLockerDisableConfig,
+    pub latency_header: LatencyHeaderConfig,
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
@@ -125,6 +126,10 @@ pub struct TokenizationConfig(pub HashMap<String, PaymentMethodTokenFilter>);
 #[serde(transparent)]
 pub struct TempLockerDisableConfig(pub HashMap<String, TempLockerDisablePaymentMethodFilter>);
 
+#[derive(Debug, Deserialize, Clone, Default)]
+pub struct LatencyHeaderConfig {
+    pub enabled: bool,
+}
 #[derive(Debug, Deserialize, Clone, Default)]
 pub struct ConnectorCustomer {
     #[serde(deserialize_with = "connector_deser")]

@@ -41,7 +41,7 @@ use crate::{
     },
     db::StorageInterface,
     logger,
-    routes::{metrics, payment_methods::ParentPaymentMethodToken, AppState},
+    routes::{app::AppStateInfo, metrics, payment_methods::ParentPaymentMethodToken, AppState},
     services::{self, api::Authenticate},
     types::{
         self as router_types, api, domain,
@@ -65,7 +65,13 @@ pub async fn payments_operation_core<F, Req, Op, FData>(
     call_connector_action: CallConnectorAction,
     auth_flow: services::AuthFlow,
     header_payload: HeaderPayload,
-) -> RouterResult<(PaymentData<F>, Req, Option<domain::Customer>, Option<u16>, Option<u128>)>
+) -> RouterResult<(
+    PaymentData<F>,
+    Req,
+    Option<domain::Customer>,
+    Option<u16>,
+    Option<u128>,
+)>
 where
     F: Send + Clone + Sync,
     Req: Authenticate,
@@ -236,7 +242,13 @@ where
             .await?;
     }
 
-    Ok((payment_data, req, customer, connector_http_status_code, external_latency))
+    Ok((
+        payment_data,
+        req,
+        customer,
+        connector_http_status_code,
+        external_latency,
+    ))
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -267,17 +279,18 @@ where
     // To perform router related operation for PaymentResponse
     PaymentResponse: Operation<F, FData>,
 {
-    let (payment_data, req, customer, connector_http_status_code, external_latency) = payments_operation_core(
-        &state,
-        merchant_account,
-        key_store,
-        operation.clone(),
-        req,
-        call_connector_action,
-        auth_flow,
-        header_payload,
-    )
-    .await?;
+    let (payment_data, req, customer, connector_http_status_code, external_latency) =
+        payments_operation_core(
+            &state,
+            merchant_account,
+            key_store,
+            operation.clone(),
+            req,
+            call_connector_action,
+            auth_flow,
+            header_payload,
+        )
+        .await?;
 
     Res::generate_response(
         Some(req),
@@ -288,7 +301,8 @@ where
         operation,
         &state.conf.connector_request_reference_id_config,
         connector_http_status_code,
-        external_latency
+        external_latency,
+        state.conf().latency_header.enabled,
     )
 }
 

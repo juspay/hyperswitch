@@ -365,12 +365,19 @@ where
                                             error
                                         })?;
                                     data.connector_http_status_code = connector_http_status_code;
-                                    data.external_latency = Some(data.external_latency.map_or(external_latency, |val| val + external_latency));
+                                    data.external_latency = Some(
+                                        data.external_latency
+                                            .map_or(external_latency, |val| val + external_latency),
+                                    );
                                     data
                                 }
                                 Err(body) => {
                                     router_data.connector_http_status_code = Some(body.status_code);
-                                    router_data.external_latency = Some(router_data.external_latency.map_or(external_latency, |val| val + external_latency));
+                                    router_data.external_latency = Some(
+                                        router_data
+                                            .external_latency
+                                            .map_or(external_latency, |val| val + external_latency),
+                                    );
                                     metrics::CONNECTOR_ERROR_RESPONSE_COUNT.add(
                                         &metrics::CONTEXT,
                                         1,
@@ -403,7 +410,11 @@ where
                                 };
                                 router_data.response = Err(error_response);
                                 router_data.connector_http_status_code = Some(504);
-                                router_data.external_latency = Some(router_data.external_latency.map_or(external_latency, |val| val + external_latency));
+                                router_data.external_latency = Some(
+                                    router_data
+                                        .external_latency
+                                        .map_or(external_latency, |val| val + external_latency),
+                                );
                                 Ok(router_data)
                             } else {
                                 Err(error.change_context(
@@ -878,7 +889,11 @@ where
             .map_into_boxed_body()
         }
         Ok(ApplicationResponse::JsonWithHeaders((response, headers))) => {
-            let request_elased_time = Some(start_instant.elapsed());
+            let request_elased_time = if state.get_ref().conf().latency_header.enabled {
+                Some(start_instant.elapsed())
+            } else {
+                None
+            };
             match serde_json::to_string(&response) {
                 Ok(res) => http_response_json_with_headers(res, headers, request_elased_time),
                 Err(_) => http_response_err(
@@ -966,7 +981,7 @@ pub fn http_response_json_with_headers<T: body::MessageBody + 'static>(
         if name == "x-hs-latency" {
             if let Some(request_duration) = request_duration {
                 if let Ok(external_latency) = value.parse::<u128>() {
-                    let updated_duration = request_duration.as_millis() as u128 - external_latency;
+                    let updated_duration = request_duration.as_millis() - external_latency;
                     *value = updated_duration.to_string();
                 }
             }
@@ -978,8 +993,6 @@ pub fn http_response_json_with_headers<T: body::MessageBody + 'static>(
         .content_type(mime::APPLICATION_JSON)
         .body(response)
 }
-
-
 
 pub fn http_response_plaintext<T: body::MessageBody + 'static>(res: T) -> HttpResponse {
     HttpResponse::Ok().content_type(mime::TEXT_PLAIN).body(res)
