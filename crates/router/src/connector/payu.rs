@@ -117,9 +117,13 @@ impl ConnectorValidation for Payu {
 
 impl api::Payment for Payu {}
 
-impl api::PreVerify for Payu {}
-impl ConnectorIntegration<api::Verify, types::VerifyRequestData, types::PaymentsResponseData>
-    for Payu
+impl api::MandateSetup for Payu {}
+impl
+    ConnectorIntegration<
+        api::SetupMandate,
+        types::SetupMandateRequestData,
+        types::PaymentsResponseData,
+    > for Payu
 {
 }
 

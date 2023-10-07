@@ -110,9 +110,13 @@ impl ConnectorValidation for Airwallex {
 
 impl api::Payment for Airwallex {}
 impl api::PaymentsCompleteAuthorize for Airwallex {}
-impl api::PreVerify for Airwallex {}
-impl ConnectorIntegration<api::Verify, types::VerifyRequestData, types::PaymentsResponseData>
-    for Airwallex
+impl api::MandateSetup for Airwallex {}
+impl
+    ConnectorIntegration<
+        api::SetupMandate,
+        types::SetupMandateRequestData,
+        types::PaymentsResponseData,
+    > for Airwallex
 {
 }
 
@@ -942,6 +946,7 @@ impl api::IncomingWebhook for Airwallex {
     fn get_webhook_source_verification_signature(
         &self,
         request: &api::IncomingWebhookRequestDetails<'_>,
+        _connector_webhook_secrets: &api_models::webhooks::ConnectorWebhookSecrets,
     ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
         let security_header = request
             .headers
@@ -965,7 +970,7 @@ impl api::IncomingWebhook for Airwallex {
         &self,
         request: &api::IncomingWebhookRequestDetails<'_>,
         _merchant_id: &str,
-        _secret: &[u8],
+        _connector_webhook_secrets: &api_models::webhooks::ConnectorWebhookSecrets,
     ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
         let timestamp = request
             .headers

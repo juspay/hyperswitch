@@ -474,6 +474,18 @@ dependencies = [
 [[package]]
 name = "async-bb8-diesel"
 version = "0.1.0"
+source = "git+https://github.com/juspay/async-bb8-diesel?rev=9a71d142726dbc33f41c1fd935ddaa79841c7be5#9a71d142726dbc33f41c1fd935ddaa79841c7be5"
+dependencies = [
+ "async-trait",
+ "bb8",
+ "diesel",
+ "thiserror",
+ "tokio",
+]
+
+[[package]]
+name = "async-bb8-diesel"
+version = "0.1.0"
 source = "git+https://github.com/oxidecomputer/async-bb8-diesel?rev=be3d9bce50051d8c0e0c06078e8066cc27db3001#be3d9bce50051d8c0e0c06078e8066cc27db3001"
 dependencies = [
  "async-trait",
@@ -721,6 +733,39 @@ dependencies = [
  "tokio-stream",
  "tower",
  "tracing",
+]
+
+[[package]]
+name = "aws-sdk-s3"
+version = "0.25.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "392b9811ca489747ac84349790e49deaa1f16631949e7dd4156000251c260eae"
+dependencies = [
+ "aws-credential-types",
+ "aws-endpoint",
+ "aws-http",
+ "aws-sig-auth",
+ "aws-sigv4",
+ "aws-smithy-async",
+ "aws-smithy-checksums",
+ "aws-smithy-client",
+ "aws-smithy-eventstream",
+ "aws-smithy-http",
+ "aws-smithy-http-tower",
+ "aws-smithy-json",
+ "aws-smithy-types",
+ "aws-smithy-xml",
+ "aws-types",
+ "bytes",
+ "http",
+ "http-body",
+ "once_cell",
+ "percent-encoding",
+ "regex",
+ "tokio-stream",
+ "tower",
+ "tracing",
+ "url",
 ]
 
 [[package]]
@@ -1808,9 +1853,9 @@ dependencies = [
 name = "diesel_models"
 version = "0.1.0"
 dependencies = [
- "async-bb8-diesel",
+ "async-bb8-diesel 0.1.0 (git+https://github.com/oxidecomputer/async-bb8-diesel?rev=be3d9bce50051d8c0e0c06078e8066cc27db3001)",
  "aws-config",
- "aws-sdk-s3",
+ "aws-sdk-s3 0.28.0",
  "common_enums",
  "common_utils",
  "diesel",
@@ -1895,7 +1940,7 @@ checksum = "0688c2a7f92e427f44895cd63841bff7b29f8d7a1648b9e7e07a4a365b2e1257"
 name = "drainer"
 version = "0.1.0"
 dependencies = [
- "async-bb8-diesel",
+ "async-bb8-diesel 0.1.0 (git+https://github.com/oxidecomputer/async-bb8-diesel?rev=be3d9bce50051d8c0e0c06078e8066cc27db3001)",
  "bb8",
  "clap",
  "common_utils",
@@ -1943,7 +1988,20 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "44533bbbb3bb3c1fa17d9f2e4e38bbbaf8396ba82193c4cb1b6445d711445d36"
 dependencies = [
  "atty",
- "humantime",
+ "humantime 1.3.0",
+ "log",
+ "regex",
+ "termcolor",
+]
+
+[[package]]
+name = "env_logger"
+version = "0.10.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "85cdab6a89accf66733ad5a1693a4dcced6aeff64602b634530dd73c1f3ee9f0"
+dependencies = [
+ "humantime 2.1.0",
+ "is-terminal",
  "log",
  "regex",
  "termcolor",
@@ -2532,6 +2590,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "humantime"
+version = "2.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9a3a5bfb195931eeb336b2a7b4d761daec841b97f947d34394601737a7bba5e4"
+
+[[package]]
 name = "hyper"
 version = "0.14.27"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2714,6 +2778,18 @@ name = "ipnet"
 version = "2.7.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "12b6ee2129af8d4fb011108c73d99a1b83a85977f23b82460c0ae2e25bb4b57f"
+
+[[package]]
+name = "is-terminal"
+version = "0.4.7"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "adcf93614601c8129ddf72e2d5633df827ba6551541c6d8c59520a371475be1f"
+dependencies = [
+ "hermit-abi 0.3.1",
+ "io-lifetimes",
+ "rustix",
+ "windows-sys 0.48.0",
+]
 
 [[package]]
 name = "itertools"
@@ -3604,7 +3680,7 @@ version = "0.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "926d36b9553851b8b0005f1275891b392ee4d2d833852c417ed025477350fb9d"
 dependencies = [
- "env_logger",
+ "env_logger 0.7.1",
  "log",
 ]
 
@@ -4058,11 +4134,11 @@ dependencies = [
  "actix-rt",
  "actix-web",
  "api_models",
- "async-bb8-diesel",
+ "async-bb8-diesel 0.1.0 (git+https://github.com/oxidecomputer/async-bb8-diesel?rev=be3d9bce50051d8c0e0c06078e8066cc27db3001)",
  "async-trait",
  "awc",
  "aws-config",
- "aws-sdk-s3",
+ "aws-sdk-s3 0.28.0",
  "base64 0.21.2",
  "bb8",
  "blake3",
@@ -4352,19 +4428,36 @@ dependencies = [
 name = "scheduler"
 version = "0.1.0"
 dependencies = [
+ "actix-multipart",
+ "actix-rt",
+ "actix-web",
+ "api_models",
+ "async-bb8-diesel 0.1.0 (git+https://github.com/juspay/async-bb8-diesel?rev=9a71d142726dbc33f41c1fd935ddaa79841c7be5)",
  "async-trait",
+ "aws-config",
+ "aws-sdk-s3 0.25.1",
+ "cards",
+ "clap",
  "common_utils",
+ "diesel",
  "diesel_models",
+ "dyn-clone",
+ "env_logger 0.10.0",
  "error-stack",
  "external_services",
+ "frunk",
+ "frunk_core",
  "futures",
+ "infer 0.13.0",
  "masking",
  "once_cell",
  "rand 0.8.5",
  "redis_interface",
+ "router_derive",
  "router_env",
  "serde",
  "serde_json",
+ "signal-hook",
  "signal-hook-tokio",
  "storage_impl",
  "strum 0.24.1",
@@ -4731,7 +4824,7 @@ version = "0.1.0"
 dependencies = [
  "actix-web",
  "api_models",
- "async-bb8-diesel",
+ "async-bb8-diesel 0.1.0 (git+https://github.com/oxidecomputer/async-bb8-diesel?rev=be3d9bce50051d8c0e0c06078e8066cc27db3001)",
  "async-trait",
  "bb8",
  "bytes",
