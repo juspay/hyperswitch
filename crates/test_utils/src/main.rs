@@ -1,4 +1,5 @@
 use std::process::{exit, Command};
+
 use test_utils::newman_runner;
 
 fn main() {

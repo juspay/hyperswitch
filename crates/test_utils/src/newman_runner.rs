@@ -1,8 +1,9 @@
 use std::{env, process::Command};
 
-use crate::connector_auth::{ConnectorAuthType, ConnectorAuthenticationMap};
 use clap::{arg, command, Parser};
 use masking::PeekInterface;
+
+use crate::connector_auth::{ConnectorAuthType, ConnectorAuthenticationMap};
 
 #[derive(Parser)]
 #[command(version, about = "Postman collection runner using newman!", long_about = None)]
