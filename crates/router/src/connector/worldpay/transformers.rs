@@ -144,7 +144,12 @@ impl TryFrom<&types::ConnectorAuthType> for WorldpayAuthType {
                     api_key: Secret::new(auth_header),
                 })
             }
-            _ => Err(errors::ConnectorError::FailedToObtainAuthType)?,
+            types::ConnectorAuthType::CurrencyAuthKey(_)
+            | types::ConnectorAuthType::BodyKey(_)
+            | types::ConnectorAuthType::SignatureKey(_)
+            | types::ConnectorAuthType::MultiAuthKey(_) => {
+                Err(errors::ConnectorError::FailedToObtainAuthType)?
+            }
         }
     }
 }
@@ -165,7 +170,13 @@ impl From<EventType> for enums::AttemptStatus {
             EventType::CaptureFailed => Self::CaptureFailed,
             EventType::Refused => Self::Failure,
             EventType::Charged | EventType::SentForSettlement => Self::Charged,
-            _ => Self::Pending,
+            EventType::Cancelled
+            | EventType::SentForRefund
+            | EventType::RefundFailed
+            | EventType::Refunded
+            | EventType::Error
+            | EventType::Expired
+            | EventType::Unknown => Self::Pending,
         }
     }
 }
@@ -175,7 +186,16 @@ impl From<EventType> for enums::RefundStatus {
         match value {
             EventType::Refunded => Self::Success,
             EventType::RefundFailed => Self::Failure,
-            _ => Self::Pending,
+            EventType::Authorized
+            | EventType::Cancelled
+            | EventType::Charged
+            | EventType::SentForRefund
+            | EventType::Refused
+            | EventType::Error
+            | EventType::SentForSettlement
+            | EventType::Expired
+            | EventType::CaptureFailed
+            | EventType::Unknown => Self::Pending,
         }
     }
 }
