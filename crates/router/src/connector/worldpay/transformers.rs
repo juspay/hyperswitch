@@ -3,6 +3,7 @@ use common_utils::errors::CustomResult;
 use diesel_models::enums;
 use error_stack::{IntoReport, ResultExt};
 use masking::{PeekInterface, Secret};
+use serde::{Deserialize, Serialize};
 
 use super::{requests::*, response::*};
 use crate::{
@@ -128,10 +129,28 @@ fn fetch_payment_instrument(
     }
 }
 
-impl TryFrom<&WorldpayRouterData<&types::PaymentsAuthorizeRouterData>> for WorldpayPaymentsRequest {
+impl
+    TryFrom<
+        &WorldpayRouterData<
+            &types::RouterData<
+                types::api::payments::Authorize,
+                PaymentsAuthorizeData,
+                PaymentsResponseData,
+            >,
+        >,
+    > for WorldpayPaymentsRequest
+{
     type Error = error_stack::Report<errors::ConnectorError>;
 
-    fn try_from(item: &types::PaymentsAuthorizeRouterData) -> Result<Self, Self::Error> {
+    fn try_from(
+        item: &WorldpayRouterData<
+            &types::RouterData<
+                types::api::payments::Authorize,
+                PaymentsAuthorizeData,
+                PaymentsResponseData,
+            >,
+        >,
+    ) -> Result<Self, Self::Error> {
         let connector_common_instance = utils::get_connector_common_instance()?;
 
         let currency_unit = connector_common_instance.get_currency_unit();
@@ -139,23 +158,23 @@ impl TryFrom<&WorldpayRouterData<&types::PaymentsAuthorizeRouterData>> for World
         Ok(Self {
             instruction: Instruction {
                 value: PaymentValue {
-                    amount: item.request.amount,
-                    currency: currency_unit,
+                    amount: item.amount,
+                    currency: currency_unit.clone(),
                 },
                 narrative: InstructionNarrative {
-                    line1: item.merchant_id.clone().replace('_', "-"),
+                    line1: item.router_data.merchant_id.clone().replace('_', "-"),
                     ..Default::default()
                 },
                 payment_instrument: fetch_payment_instrument(
-                    item.request.payment_method_data.clone(),
+                    item.router_data.request.payment_method_data.clone(),
                 )?,
                 debt_repayment: None,
             },
             merchant: Merchant {
-                entity: item.attempt_id.clone().replace('_', "-"),
+                entity: item.router_data.attempt_id.clone().replace('_', "-"),
                 ..Default::default()
             },
-            transaction_reference: item.attempt_id.clone(),
+            transaction_reference: item.router_data.attempt_id.clone(),
             channel: None,
             customer: None,
         })
