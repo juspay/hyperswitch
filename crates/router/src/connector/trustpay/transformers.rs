@@ -253,8 +253,7 @@ impl TryFrom<&BankRedirectData> for TrustpayPaymentMethod {
                 Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("trustpay"),
                 )
-                    .into())
-
+                .into())
             }
         }
     }
