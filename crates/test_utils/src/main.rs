@@ -17,15 +17,18 @@ fn get_path(name: impl AsRef<str>) -> String {
 #[derive(Parser)]
 #[command(version, about = "Postman collection runner using newman!", long_about = None)]
 struct Args {
-    /// Name of the connector
-    #[arg(short, long = "connector_name")]
-    connector_name: String,
-    /// Base URL of the Hyperswitch environment
-    #[arg(short, long = "base_url")]
-    base_url: String,
     /// Admin API Key of the environment
     #[arg(short, long = "admin_api_key")]
     admin_api_key: String,
+    /// Base URL of the Hyperswitch environment
+    #[arg(short, long = "base_url")]
+    base_url: String,
+    /// Name of the connector
+    #[arg(short, long = "connector_name")]
+    connector_name: String,
+    /// Folder name of specific tests
+    #[arg(short, long = "folder")]
+    folder_s: Option<String>,
     /// Optional Verbose logs
     #[arg(short, long)]
     verbose: bool,
@@ -96,7 +99,7 @@ fn main() {
                     "--env-var",
                     &format!("connector_key1={}", key1.peek()),
                     "--env-var",
-                    &format!("connector_key1={}", key2.peek()),
+                    &format!("connector_key2={}", key2.peek()),
                     "--env-var",
                     &format!("connector_api_secret={}", api_secret.peek()),
                 ]);
@@ -132,6 +135,25 @@ fn main() {
     newman_command.arg("--delay-request").arg("5");
 
     newman_command.arg("--color").arg("on");
+
+    // Add flags for running specific folders
+    if args.folder_s.is_some() {
+        let folder_names: Vec<String> = args
+            .folder_s
+            .unwrap_or_default()
+            .split(',')
+            .map(|s| s.trim().to_string())
+            .collect();
+
+        for folder_name in folder_names {
+            if !&folder_name.contains("QuickStart") {
+                // This is quick fix, "QuickStart" is intentional to have merchant account and API keys set up
+                // This will be replaced by a more robust and efficient account creation or reuse existing old account
+                newman_command.args(["--folder", "QuickStart"]);
+            }
+            newman_command.args(["--folder", &folder_name]);
+        }
+    }
 
     if args.verbose {
         newman_command.arg("--verbose");
