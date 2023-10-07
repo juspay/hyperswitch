@@ -174,7 +174,7 @@ impl ConnectorCommon for Paypal {
                 .iter()
                 .map(|error| format!("description - {}", error.description))
                 .collect::<Vec<String>>()
-                .join(", ")
+                .join("; ")
         });
         Ok(ErrorResponse {
             status_code: res.status_code,
