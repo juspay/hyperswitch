@@ -144,12 +144,24 @@ impl TryFrom<&types::ConnectorAuthType> for WorldpayAuthType {
                     api_key: Secret::new(auth_header),
                 })
             }
-            types::ConnectorAuthType::CurrencyAuthKey(_)
-            | types::ConnectorAuthType::BodyKey(_)
-            | types::ConnectorAuthType::SignatureKey(_)
-            | types::ConnectorAuthType::MultiAuthKey(_) => {
+            types::ConnectorAuthType::CurrencyAuthKey { auth_key_map: _ } => {
                 Err(errors::ConnectorError::FailedToObtainAuthType)?
             }
+            types::ConnectorAuthType::SignatureKey {
+                api_key: _,
+                key1: _,
+                api_secret: _,
+            } => Err(errors::ConnectorError::FailedToObtainAuthType)?,
+            types::ConnectorAuthType::MultiAuthKey {
+                api_key: _,
+                key1: _,
+                api_secret: _,
+                key2: _,
+            } => Err(errors::ConnectorError::FailedToObtainAuthType)?,
+            types::ConnectorAuthType::HeaderKey { api_key: _ } => {
+                Err(errors::ConnectorError::FailedToObtainAuthType)?
+            }
+            types::ConnectorAuthType::NoKey => Err(errors::ConnectorError::FailedToObtainAuthType)?,
         }
     }
 }
