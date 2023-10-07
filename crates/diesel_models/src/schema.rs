@@ -437,7 +437,7 @@ diesel::table! {
         frm_routing_algorithm -> Nullable<Jsonb>,
         payout_routing_algorithm -> Nullable<Jsonb>,
         #[max_length = 32]
-        organization_id -> Nullable<Varchar>,
+        organization_id -> Varchar,
         is_recon_enabled -> Bool,
         #[max_length = 64]
         default_profile -> Nullable<Varchar>,
