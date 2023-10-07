@@ -60,7 +60,7 @@ pub struct DlocalPaymentsRequest {
     pub payment_method_flow: PaymentMethodFlow,
     pub payer: Payer,
     pub card: Option<Card>,
-    pub order_id: String,
+    pub connector_request_reference_id: String,
     pub three_dsecure: Option<ThreeDSecureReqData>,
     pub callback_url: Option<String>,
     pub description: Option<String>,
@@ -87,8 +87,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for DlocalPaymentsRequest {
                     country: country.to_string(),
                     payer: Payer {
                         name,
-                        email,
-                        // [#589]: Allow securely collecting PII from customer in payments request
+                        email,                      
                         document: get_doc_from_currency(country.to_string()),
                     },
                     card: Some(Card {
@@ -103,7 +102,6 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for DlocalPaymentsRequest {
                             .mandate_id
                             .as_ref()
                             .map(|ids| ids.mandate_id.clone()),
-                        // [#595[FEATURE] Pass Mandate history information in payment flows/request]
                         installments: item.request.mandate_id.clone().map(|_| "1".to_string()),
                     }),
                     order_id: item.payment_id.clone(),
@@ -116,6 +114,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for DlocalPaymentsRequest {
                     callback_url: Some(item.request.get_router_return_url()?),
                     description: item.description.clone(),
                 };
+                
                 Ok(payment_request)
             }
             _ => Err(errors::ConnectorError::NotImplemented("Payment Method".to_string()).into()),
