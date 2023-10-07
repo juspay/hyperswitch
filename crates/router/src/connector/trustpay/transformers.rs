@@ -250,7 +250,11 @@ impl TryFrom<&BankRedirectData> for TrustpayPaymentMethod {
             | api_models::payments::BankRedirectData::Trustly { .. }
             | api_models::payments::BankRedirectData::OnlineBankingFpx { .. }
             | api_models::payments::BankRedirectData::OnlineBankingThailand { .. } => {
-                Err(errors::ConnectorError::NotImplemented("Payment methods".to_string()).into())
+                Err(errors::ConnectorError::NotImplemented(
+                    utils::get_unimplemented_payment_method_error_message("trustpay"),
+                )
+                    .into())
+
             }
         }
     }
