@@ -8,7 +8,10 @@ use scheduler::{
 };
 
 use crate::{
-    core::payments::{self as payment_flows, operations},
+    core::{
+        payment_methods::Oss,
+        payments::{self as payment_flows, operations},
+    },
     db::StorageInterface,
     errors,
     routes::AppState,
@@ -55,7 +58,7 @@ impl ProcessTrackerWorkflow<AppState> for PaymentsSyncWorkflow {
             .await?;
 
         let (payment_data, _, _, _) =
-            payment_flows::payments_operation_core::<api::PSync, _, _, _>(
+            payment_flows::payments_operation_core::<api::PSync, _, _, _, Oss>(
                 state,
                 merchant_account.clone(),
                 key_store,
