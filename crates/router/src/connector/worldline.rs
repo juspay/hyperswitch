@@ -11,7 +11,6 @@ use ring::hmac;
 use time::{format_description, OffsetDateTime};
 use transformers as worldline;
 
-use super::utils::RefundsRequestData;
 use crate::{
     configs::settings::Connectors,
     connector::{utils as connector_utils, utils as conn_utils},
@@ -206,9 +205,9 @@ impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsR
         let auth: worldline::WorldlineAuthType =
             worldline::WorldlineAuthType::try_from(&req.connector_auth_type)?;
         let merchant_account_id = auth.merchant_account_id.expose();
-        let payment_id: &str = req.request.connector_transaction_id.as_ref();
+        let connector_request_reference_id: &str = req.connector_request_reference_id.as_ref();
         Ok(format!(
-            "{base_url}v1/{merchant_account_id}/payments/{payment_id}/cancel"
+            "{base_url}v1/{merchant_account_id}/payments/{connector_request_reference_id}/cancel"
         ))
     }
 
@@ -278,16 +277,12 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
         req: &types::PaymentsSyncRouterData,
         connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        let payment_id = req
-            .request
-            .connector_transaction_id
-            .get_connector_transaction_id()
-            .change_context(errors::ConnectorError::MissingConnectorTransactionID)?;
+        let connector_request_reference_id: &str = req.connector_request_reference_id.as_ref();
         let base_url = self.base_url(connectors);
         let auth = worldline::WorldlineAuthType::try_from(&req.connector_auth_type)?;
         let merchant_account_id = auth.merchant_account_id.expose();
         Ok(format!(
-            "{base_url}v1/{merchant_account_id}/payments/{payment_id}"
+            "{base_url}v1/{merchant_account_id}/payments/{connector_request_reference_id}"
         ))
     }
 
@@ -358,12 +353,12 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
         >,
         connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        let payment_id = req.request.connector_transaction_id.clone();
+        let connector_request_reference_id: &str = req.connector_request_reference_id.as_ref();
         let base_url = self.base_url(connectors);
         let auth = worldline::WorldlineAuthType::try_from(&req.connector_auth_type)?;
         let merchant_account_id = auth.merchant_account_id.expose();
         Ok(format!(
-            "{base_url}v1/{merchant_account_id}/payments/{payment_id}/approve"
+            "{base_url}v1/{merchant_account_id}/payments/{connector_request_reference_id}/approve"
         ))
     }
 
@@ -566,12 +561,12 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
         req: &types::RefundsRouterData<api::Execute>,
         connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        let payment_id = req.request.connector_transaction_id.clone();
+        let connector_request_reference_id: &str = req.connector_request_reference_id.as_ref();
         let base_url = self.base_url(connectors);
         let auth = worldline::WorldlineAuthType::try_from(&req.connector_auth_type)?;
         let merchant_account_id = auth.merchant_account_id.expose();
         Ok(format!(
-            "{base_url}v1/{merchant_account_id}/payments/{payment_id}/refund"
+            "{base_url}v1/{merchant_account_id}/payments/{connector_request_reference_id}/refund"
         ))
     }
 
@@ -656,7 +651,7 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
         req: &types::RefundSyncRouterData,
         connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        let refund_id = req.request.get_connector_refund_id()?;
+        let refund_id: &str = req.request.refund_id.as_ref();
         let base_url = self.base_url(connectors);
         let auth: worldline::WorldlineAuthType =
             worldline::WorldlineAuthType::try_from(&req.connector_auth_type)?;
