@@ -604,8 +604,7 @@ impl<F, T>
                             mandate_reference: None,
                             connector_metadata: metadata,
                             network_txn_id: transaction_response.network_trans_id.clone(),
-                            connector_response_reference_id: item.response.payment.ref_transo
-                            _id,
+                            connector_response_reference_id: item.response.payment.ref_trans_id,
                         }),
                     },
                     ..item.data
