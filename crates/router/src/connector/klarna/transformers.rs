@@ -12,6 +12,7 @@ use crate::{
 pub struct KlarnaRouterData<T> {
     amount: i64,
     router_data: T,
+    connector_request_reference_id: String,
 }
 
 impl<T>
@@ -20,21 +21,24 @@ impl<T>
         types::storage::enums::Currency,
         i64,
         T,
+        String,
     )> for KlarnaRouterData<T>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
 
     fn try_from(
-        (_currency_unit, _currency, amount, router_data): (
+        (_currency_unit, _currency, amount, router_data, connector_request_reference_id): (
             &types::api::CurrencyUnit,
             types::storage::enums::Currency,
             i64,
             T,
+            String,
         ),
     ) -> Result<Self, Self::Error> {
         Ok(Self {
             amount,
             router_data,
+            connector_request_reference_id,
         })
     }
 }
