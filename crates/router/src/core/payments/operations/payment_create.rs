@@ -9,7 +9,6 @@ use error_stack::{self, report, ResultExt};
 use router_derive::PaymentOperation;
 use router_env::{instrument, tracing};
 
-// use error_stack::{report, IntoReport, ResultExt};
 use super::{BoxedOperation, Domain, GetTracker, Operation, UpdateTracker, ValidateRequest};
 use crate::{
     consts,
