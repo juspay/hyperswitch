@@ -1098,8 +1098,7 @@ impl
             status_code: res.status_code,
             code: response
                 .error
-                .code
-                .clone()
+                .code.clone()
                 .unwrap_or_else(|| consts::NO_ERROR_CODE.to_string()),
             message: response
                 .error
