@@ -19,7 +19,7 @@ struct Args {
     connector_name: String,
     /// Folder name of specific tests
     #[arg(short, long = "folder")]
-    folder_s: Option<String>,
+    folders: Option<String>,
     /// Optional Verbose logs
     #[arg(short, long)]
     verbose: bool,
@@ -134,7 +134,7 @@ pub fn command_generate() -> Command {
     newman_command.arg("--color").arg("on");
 
     // Add flags for running specific folders
-    if let Some(folders) = &args.folder_s {
+    if let Some(folders) = &args.folders {
         let folder_names: Vec<String> = folders.split(',').map(|s| s.trim().to_string()).collect();
 
         for folder_name in folder_names {
