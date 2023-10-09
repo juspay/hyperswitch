@@ -11,7 +11,7 @@ use redis_interface::SetnxReply;
 
 use crate::{
     diesel_error_to_data_error,
-    redis::kv_store::{PartitionKey, RedisConnInterface},
+    redis::kv_store::{kv_wrapper, KvOperation, PartitionKey},
     utils::{self, try_redis_get_else_try_database_get},
     DatabaseStore, KVRouterStore, RouterStore,
 };
@@ -85,17 +85,14 @@ impl<T: DatabaseStore> ReverseLookupInterface for KVRouterStore<T> {
                     source: new.source.clone(),
                 };
                 let combination = &created_rev_lookup.pk_id;
-                match self
-                    .get_redis_conn()
-                    .map_err(|er| {
-                        let error = format!("{}", er);
-                        er.change_context(errors::StorageError::RedisError(error))
-                    })?
-                    .serialize_and_set_key_if_not_exist(
-                        &created_rev_lookup.lookup_id,
-                        &created_rev_lookup,
-                    )
-                    .await
+                match kv_wrapper::<DieselReverseLookup, _, _>(
+                    self,
+                    KvOperation::SetNx(&created_rev_lookup),
+                    &created_rev_lookup.lookup_id,
+                )
+                .await
+                .change_context(errors::StorageError::KVError)?
+                .try_into_setnx()
                 {
                     Ok(SetnxReply::KeySet) => {
                         let redis_entry = kv::TypedSql {
@@ -136,12 +133,11 @@ impl<T: DatabaseStore> ReverseLookupInterface for KVRouterStore<T> {
         match storage_scheme {
             data_models::MerchantStorageScheme::PostgresOnly => database_call().await,
             data_models::MerchantStorageScheme::RedisKv => {
-                let redis_conn = self.get_redis_conn().map_err(|er| {
-                    let error = format!("{}", er);
-                    er.change_context(errors::StorageError::RedisError(error))
-                })?;
-                let redis_fut =
-                    redis_conn.get_and_deserialize_key::<DieselReverseLookup>(id, "ReverseLookup");
+                let redis_fut = async {
+                    kv_wrapper(self, KvOperation::<DieselReverseLookup>::Get, id)
+                        .await?
+                        .try_into_get()
+                };
 
                 try_redis_get_else_try_database_get(redis_fut, database_call).await
             }

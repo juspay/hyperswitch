@@ -314,11 +314,11 @@ mod storage {
                         async {
                             kv_wrapper(
                                 self,
-                                KvOperation::<storage_types::Refund>::Get(&lookup.sk_id),
+                                KvOperation::<storage_types::Refund>::HGet(&lookup.sk_id),
                                 key,
                             )
                             .await?
-                            .try_into_get()
+                            .try_into_hget()
                         },
                         database_call,
                     )
@@ -375,12 +375,12 @@ mod storage {
                     );
                     match kv_wrapper::<storage_types::Refund, _, _>(
                         self,
-                        KvOperation::SetNx(&field, &created_refund),
+                        KvOperation::HSetNx(&field, &created_refund),
                         &key,
                     )
                     .await
                     .change_context(errors::StorageError::KVError)?
-                    .try_into_setnx()
+                    .try_into_hsetnx()
                     {
                         Ok(HsetnxReply::KeyNotSet) => Err(errors::StorageError::DuplicateValue {
                             entity: "refund",
@@ -533,12 +533,12 @@ mod storage {
 
                     kv_wrapper::<(), _, _>(
                         self,
-                        KvOperation::Set::<storage_types::Refund>((&field, redis_value)),
+                        KvOperation::Hset::<storage_types::Refund>((&field, redis_value)),
                         &key,
                     )
                     .await
                     .change_context(errors::StorageError::KVError)?
-                    .try_into_set()
+                    .try_into_hset()
                     .change_context(errors::StorageError::KVError)?;
 
                     let redis_entry = kv::TypedSql {
@@ -589,11 +589,11 @@ mod storage {
                         async {
                             kv_wrapper(
                                 self,
-                                KvOperation::<storage_types::Refund>::Get(&lookup.sk_id),
+                                KvOperation::<storage_types::Refund>::HGet(&lookup.sk_id),
                                 key,
                             )
                             .await?
-                            .try_into_get()
+                            .try_into_hget()
                         },
                         database_call,
                     )
@@ -634,11 +634,11 @@ mod storage {
                         async {
                             kv_wrapper(
                                 self,
-                                KvOperation::<storage_types::Refund>::Get(&lookup.sk_id),
+                                KvOperation::<storage_types::Refund>::HGet(&lookup.sk_id),
                                 key,
                             )
                             .await?
-                            .try_into_get()
+                            .try_into_hget()
                         },
                         database_call,
                     )

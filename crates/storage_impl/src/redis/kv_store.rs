@@ -49,18 +49,22 @@ pub trait RedisConnInterface {
 }
 
 pub enum KvOperation<'a, S: serde::Serialize + Debug> {
-    Set((&'a str, String)),
-    SetNx(&'a str, S),
-    Get(&'a str),
+    Hset((&'a str, String)),
+    SetNx(S),
+    HSetNx(&'a str, S),
+    HGet(&'a str),
+    Get,
     Scan(&'a str),
 }
 
 #[derive(TryGetEnumVariant)]
 #[error(RedisError(UnknownResult))]
 pub enum KvResult<T: de::DeserializeOwned> {
+    HGet(T),
     Get(T),
-    Set(()),
-    SetNx(redis_interface::HsetnxReply),
+    Hset(()),
+    SetNx(redis_interface::SetnxReply),
+    HSetNx(redis_interface::HsetnxReply),
     Scan(Vec<T>),
 }
 
@@ -80,27 +84,37 @@ where
     let type_name = std::any::type_name::<T>();
 
     match op {
-        KvOperation::Set(value) => {
+        KvOperation::Hset(value) => {
             redis_conn
                 .set_hash_fields(key, value, Some(consts::KV_TTL))
                 .await?;
-            Ok(KvResult::Set(()))
+            Ok(KvResult::Hset(()))
         }
-        KvOperation::Get(field) => {
+        KvOperation::HGet(field) => {
             let result = redis_conn
                 .get_hash_field_and_deserialize(key, field, type_name)
                 .await?;
-            Ok(KvResult::Get(result))
+            Ok(KvResult::HGet(result))
         }
         KvOperation::Scan(pattern) => {
             let result: Vec<T> = redis_conn.hscan_and_deserialize(key, pattern, None).await?;
             Ok(KvResult::Scan(result))
         }
-        KvOperation::SetNx(field, value) => {
+        KvOperation::HSetNx(field, value) => {
             let result = redis_conn
                 .serialize_and_set_hash_field_if_not_exist(key, field, value, Some(consts::KV_TTL))
                 .await?;
+            Ok(KvResult::HSetNx(result))
+        }
+        KvOperation::SetNx(value) => {
+            let result = redis_conn
+                .serialize_and_set_key_if_not_exist(key, value, Some(consts::KV_TTL.into()))
+                .await?;
             Ok(KvResult::SetNx(result))
+        }
+        KvOperation::Get => {
+            let result = redis_conn.get_and_deserialize_key(key, type_name).await?;
+            Ok(KvResult::Get(result))
         }
     }
 }

@@ -70,13 +70,14 @@ impl super::RedisConnectionPool {
         &self,
         key: &str,
         value: V,
+        ttl: Option<i64>,
     ) -> CustomResult<SetnxReply, errors::RedisError>
     where
         V: serde::Serialize + Debug,
     {
         let serialized = Encode::<V>::encode_to_vec(&value)
             .change_context(errors::RedisError::JsonSerializationFailed)?;
-        self.set_key_if_not_exists_with_expiry(key, serialized.as_slice(), None)
+        self.set_key_if_not_exists_with_expiry(key, serialized.as_slice(), ttl)
             .await
     }
 

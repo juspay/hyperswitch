@@ -64,7 +64,7 @@ mod storage {
 mod storage {
     use error_stack::{IntoReport, ResultExt};
     use redis_interface::SetnxReply;
-    use storage_impl::redis::kv_store::RedisConnInterface;
+    use storage_impl::redis::kv_store::{kv_wrapper, KvOperation};
 
     use super::{ReverseLookupInterface, Store};
     use crate::{
@@ -97,14 +97,14 @@ mod storage {
                         source: new.source.clone(),
                     };
                     let combination = &created_rev_lookup.pk_id;
-                    match self
-                        .get_redis_conn()
-                        .map_err(Into::<errors::StorageError>::into)?
-                        .serialize_and_set_key_if_not_exist(
-                            &created_rev_lookup.lookup_id,
-                            &created_rev_lookup,
-                        )
-                        .await
+                    match kv_wrapper::<ReverseLookup, _, _>(
+                        self,
+                        KvOperation::SetNx(&created_rev_lookup),
+                        format!("reverse_lookup_{}", &created_rev_lookup.lookup_id),
+                    )
+                    .await
+                    .change_context(errors::StorageError::KVError)?
+                    .try_into_setnx()
                     {
                         Ok(SetnxReply::KeySet) => {
                             let redis_entry = kv::TypedSql {
@@ -148,12 +148,15 @@ mod storage {
             match storage_scheme {
                 data_models::MerchantStorageScheme::PostgresOnly => database_call().await,
                 data_models::MerchantStorageScheme::RedisKv => {
-                    let redis_conn = self
-                        .get_redis_conn()
-                        .map_err(Into::<errors::StorageError>::into)?;
-
-                    let redis_fut =
-                        redis_conn.get_and_deserialize_key::<ReverseLookup>(id, "ReverseLookup");
+                    let redis_fut = async {
+                        kv_wrapper(
+                            self,
+                            KvOperation::<ReverseLookup>::Get,
+                            format!("reverse_lookup_{id}"),
+                        )
+                        .await?
+                        .try_into_get()
+                    };
 
                     db_utils::try_redis_get_else_try_database_get(redis_fut, database_call).await
                 }

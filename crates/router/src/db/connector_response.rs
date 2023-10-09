@@ -151,12 +151,12 @@ mod storage {
 
                     match kv_wrapper::<storage_type::ConnectorResponse, _, _>(
                         self,
-                        KvOperation::SetNx(&field, &created_connector_resp),
+                        KvOperation::HSetNx(&field, &created_connector_resp),
                         &key,
                     )
                     .await
                     .change_context(errors::StorageError::KVError)?
-                    .try_into_setnx()
+                    .try_into_hsetnx()
                     {
                         Ok(HsetnxReply::KeyNotSet) => Err(errors::StorageError::DuplicateValue {
                             entity: "address",
@@ -218,11 +218,11 @@ mod storage {
                         async {
                             kv_wrapper(
                                 self,
-                                KvOperation::<diesel_models::Address>::Get(&field),
+                                KvOperation::<diesel_models::Address>::HGet(&field),
                                 key,
                             )
                             .await?
-                            .try_into_get()
+                            .try_into_hget()
                         },
                         database_call,
                     )
@@ -261,12 +261,12 @@ mod storage {
 
                     kv_wrapper::<(), _, _>(
                         self,
-                        KvOperation::Set::<storage_type::ConnectorResponse>((&field, redis_value)),
+                        KvOperation::Hset::<storage_type::ConnectorResponse>((&field, redis_value)),
                         &key,
                     )
                     .await
                     .change_context(errors::StorageError::KVError)?
-                    .try_into_set()
+                    .try_into_hset()
                     .change_context(errors::StorageError::KVError)?;
 
                     let redis_entry = kv::TypedSql {

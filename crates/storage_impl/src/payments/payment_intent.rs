@@ -95,12 +95,12 @@ impl<T: DatabaseStore> PaymentIntentInterface for KVRouterStore<T> {
 
                 match kv_wrapper::<PaymentIntent, _, _>(
                     self,
-                    KvOperation::SetNx(&field, &created_intent),
+                    KvOperation::HSetNx(&field, &created_intent),
                     &key,
                 )
                 .await
                 .change_context(StorageError::KVError)?
-                .try_into_setnx()
+                .try_into_hsetnx()
                 {
                     Ok(HsetnxReply::KeyNotSet) => Err(StorageError::DuplicateValue {
                         entity: "payment_intent",
@@ -156,12 +156,12 @@ impl<T: DatabaseStore> PaymentIntentInterface for KVRouterStore<T> {
 
                 kv_wrapper::<(), _, _>(
                     self,
-                    KvOperation::<PaymentIntent>::Set((&field, redis_value)),
+                    KvOperation::<PaymentIntent>::Hset((&field, redis_value)),
                     &key,
                 )
                 .await
                 .change_context(StorageError::KVError)?
-                .try_into_set()
+                .try_into_hset()
                 .change_context(StorageError::KVError)?;
 
                 let redis_entry = kv::TypedSql {
@@ -215,11 +215,11 @@ impl<T: DatabaseStore> PaymentIntentInterface for KVRouterStore<T> {
                     async {
                         kv_wrapper::<PaymentIntent, _, _>(
                             self,
-                            KvOperation::<PaymentIntent>::Get(&field),
+                            KvOperation::<PaymentIntent>::HGet(&field),
                             &key,
                         )
                         .await?
-                        .try_into_get()
+                        .try_into_hget()
                     },
                     database_call,
                 )
