@@ -100,7 +100,7 @@ mod storage {
     use error_stack::{IntoReport, ResultExt};
     use redis_interface::HsetnxReply;
     use router_env::{instrument, tracing};
-    use storage_impl::redis::kv_store::{PartitionKey, RedisConnInterface};
+    use storage_impl::redis::kv_store::{kv_wrapper, KvOperation, PartitionKey};
 
     use super::Store;
     use crate::{
@@ -148,15 +148,15 @@ mod storage {
                         authentication_data: connector_response.authentication_data.clone(),
                         encoded_data: connector_response.encoded_data.clone(),
                     };
-                    match self
-                        .get_redis_conn()
-                        .map_err(|er| error_stack::report!(errors::StorageError::RedisError(er)))?
-                        .serialize_and_set_hash_field_if_not_exist(
-                            &key,
-                            &field,
-                            &created_connector_resp,
-                        )
-                        .await
+
+                    match kv_wrapper::<storage_type::ConnectorResponse, _, _>(
+                        self,
+                        KvOperation::SetNx(&field, &created_connector_resp),
+                        &key,
+                    )
+                    .await
+                    .change_context(errors::StorageError::KVError)?
+                    .try_into_setnx()
                     {
                         Ok(HsetnxReply::KeyNotSet) => Err(errors::StorageError::DuplicateValue {
                             entity: "address",
@@ -213,17 +213,20 @@ mod storage {
                 data_models::MerchantStorageScheme::RedisKv => {
                     let key = format!("{merchant_id}_{payment_id}");
                     let field = format!("connector_resp_{merchant_id}_{payment_id}_{attempt_id}");
-                    let redis_conn = self
-                        .get_redis_conn()
-                        .map_err(|er| error_stack::report!(errors::StorageError::RedisError(er)))?;
 
-                    let redis_fut = redis_conn.get_hash_field_and_deserialize(
-                        &key,
-                        &field,
-                        "ConnectorResponse",
-                    );
-
-                    db_utils::try_redis_get_else_try_database_get(redis_fut, database_call).await
+                    db_utils::try_redis_get_else_try_database_get(
+                        async {
+                            kv_wrapper(
+                                self,
+                                KvOperation::<diesel_models::Address>::Get(&field),
+                                key,
+                            )
+                            .await?
+                            .try_into_get()
+                        },
+                        database_call,
+                    )
+                    .await
                 }
             }
         }
@@ -255,13 +258,16 @@ mod storage {
                         &updated_connector_response.payment_id,
                         &updated_connector_response.attempt_id
                     );
-                    let updated_connector_response = self
-                        .get_redis_conn()
-                        .map_err(|er| error_stack::report!(errors::StorageError::RedisError(er)))?
-                        .set_hash_fields(&key, (&field, &redis_value))
-                        .await
-                        .map(|_| updated_connector_response)
-                        .change_context(errors::StorageError::KVError)?;
+
+                    kv_wrapper::<(), _, _>(
+                        self,
+                        KvOperation::Set::<storage_type::ConnectorResponse>((&field, redis_value)),
+                        &key,
+                    )
+                    .await
+                    .change_context(errors::StorageError::KVError)?
+                    .try_into_set()
+                    .change_context(errors::StorageError::KVError)?;
 
                     let redis_entry = kv::TypedSql {
                         op: kv::DBOperation::Update {
