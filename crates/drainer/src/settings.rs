@@ -69,8 +69,8 @@ impl Default for Database {
             port: 5432,
             dbname: String::new(),
             pool_size: 5,
-            min_idle: Some(2),
-            idle_timeout: Some(10),
+            min_idle: Some(4),
+            idle_timeout: Some(60),
             connection_timeout: 10,
         }
     }
