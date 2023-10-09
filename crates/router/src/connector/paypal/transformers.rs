@@ -1655,7 +1655,7 @@ fn get_headers(
     key: &'static str,
 ) -> CustomResult<String, errors::ConnectorError> {
     let header_value = header
-        .get(key.clone())
+        .get(key)
         .map(|value| value.to_str())
         .ok_or(errors::ConnectorError::MissingRequiredField { field_name: key })?
         .into_report()
