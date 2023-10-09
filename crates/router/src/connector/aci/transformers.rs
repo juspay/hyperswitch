@@ -221,9 +221,18 @@ impl TryFrom<&api_models::payments::WalletData> for PaymentDetails {
                     "Payment method".to_string(),
                 ))?
             }
-            api_models::payments::WalletData::AliPayQr(_) => todo!(),
-            api_models::payments::WalletData::ApplePayRedirect(_) => todo!(),
-            api_models::payments::WalletData::GooglePayRedirect(_) => todo!(),
+            api_models::payments::WalletData::AliPayQr(_) 
+                => Err(errors::ConnectorError::NotImplemented(
+                "Payment method".to_string(),
+            ))?,
+            api_models::payments::WalletData::ApplePayRedirect(_) 
+                => Err(errors::ConnectorError::NotImplemented(
+                "Payment method".to_string(),
+            ))?,
+            api_models::payments::WalletData::GooglePayRedirect(_) 
+                => Err(errors::ConnectorError::NotImplemented(
+                    "Payment method".to_string(),
+                ))?,
             // _ => Err(errors::ConnectorError::NotImplemented(
             //     "Payment method".to_string(),
             // ))?,
