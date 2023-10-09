@@ -4,7 +4,7 @@
     {{ hyperloader_sdk_link }}
     <style>
       :root {
-        --primary-color: #18A7B5;
+        --primary-color: #f4d35e;
         --primary-accent-color: #f8e5a0;
         --secondary-color: #1c7ed9;
       }
@@ -666,7 +666,9 @@
     async function initialize() {
       const paymentDetails = window.__PAYMENT_DETAILS;
       var client_secret = paymentDetails.client_secret;
-      const appearance = { "variables": { "colorPrimary": "rgb(0, 109, 249)", "fontFamily": "Work Sans, sans-serif", "fontSizeBase": "16px", "colorText": "rgb(51, 65, 85)", "colorTextSecondary": "#334155B3", "colorPrimaryText": "rgb(51, 65, 85)", "colorTextPlaceholder": "#33415550", "borderColor": "#33415550", "colorBackground": "rgb(255, 255, 255)" } };
+      const appearance = {
+        theme: "default",
+      };
 
       widgets = hyper.widgets({
         appearance,
