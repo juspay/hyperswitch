@@ -111,9 +111,13 @@ impl ConnectorValidation for Worldpay {
 
 impl api::Payment for Worldpay {}
 
-impl api::PreVerify for Worldpay {}
-impl ConnectorIntegration<api::Verify, types::VerifyRequestData, types::PaymentsResponseData>
-    for Worldpay
+impl api::MandateSetup for Worldpay {}
+impl
+    ConnectorIntegration<
+        api::SetupMandate,
+        types::SetupMandateRequestData,
+        types::PaymentsResponseData,
+    > for Worldpay
 {
 }
 
@@ -438,7 +442,6 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         req: &types::PaymentsAuthorizeRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
-        self.validate_capture_method(req.request.capture_method)?;
         Ok(Some(
             services::RequestBuilder::new()
                 .method(services::Method::Post)
@@ -651,6 +654,7 @@ impl api::IncomingWebhook for Worldpay {
     fn get_webhook_source_verification_signature(
         &self,
         request: &api::IncomingWebhookRequestDetails<'_>,
+        _connector_webhook_secrets: &api_models::webhooks::ConnectorWebhookSecrets,
     ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
         let event_signature =
             utils::get_header_key_value("Event-Signature", request.headers)?.split(',');
@@ -670,9 +674,9 @@ impl api::IncomingWebhook for Worldpay {
         &self,
         request: &api::IncomingWebhookRequestDetails<'_>,
         _merchant_id: &str,
-        secret: &[u8],
+        connector_webhook_secrets: &api_models::webhooks::ConnectorWebhookSecrets,
     ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
-        let secret_str = std::str::from_utf8(secret)
+        let secret_str = std::str::from_utf8(&connector_webhook_secrets.secret)
             .into_report()
             .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
         let to_sign = format!(

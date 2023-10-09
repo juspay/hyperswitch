@@ -1,6 +1,7 @@
 use error_stack::{IntoReport, ResultExt};
 use masking::{ExposeInterface, Secret};
 use serde::{Deserialize, Serialize};
+use time::PrimitiveDateTime;
 
 use crate::{
     connector::utils::{self, PaymentsAuthorizeRequestData, RefundsRequestData, RouterData},
@@ -17,6 +18,37 @@ pub const AUTHORIZE_CREDIT_CARD_MUTATION: &str = "mutation authorizeCreditCard($
 pub const CAPTURE_TRANSACTION_MUTATION: &str = "mutation captureTransaction($input: CaptureTransactionInput!) { captureTransaction(input: $input) { clientMutationId transaction { id legacyId amount { value currencyCode } status } } }";
 pub const VOID_TRANSACTION_MUTATION: &str = "mutation voidTransaction($input:  ReverseTransactionInput!) { reverseTransaction(input: $input) { clientMutationId reversal { ...  on Transaction { id legacyId amount { value currencyCode } status } } } }";
 pub const REFUND_TRANSACTION_MUTATION: &str = "mutation refundTransaction($input:  RefundTransactionInput!) { refundTransaction(input: $input) {clientMutationId refund { id legacyId amount { value currencyCode } status } } }";
+
+#[derive(Debug, Serialize)]
+pub struct BraintreeRouterData<T> {
+    pub amount: String,
+    pub router_data: T,
+}
+
+impl<T>
+    TryFrom<(
+        &types::api::CurrencyUnit,
+        types::storage::enums::Currency,
+        i64,
+        T,
+    )> for BraintreeRouterData<T>
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        (currency_unit, currency, amount, item): (
+            &types::api::CurrencyUnit,
+            types::storage::enums::Currency,
+            i64,
+            T,
+        ),
+    ) -> Result<Self, Self::Error> {
+        let amount = utils::get_amount_as_string(currency_unit, amount, currency)?;
+        Ok(Self {
+            amount,
+            router_data: item,
+        })
+    }
+}
 
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -56,16 +88,23 @@ pub struct TransactionBody {
     merchant_account_id: Secret<String>,
 }
 
-impl TryFrom<&types::PaymentsAuthorizeRouterData> for BraintreePaymentsRequest {
+impl TryFrom<&BraintreeRouterData<&types::PaymentsAuthorizeRouterData>>
+    for BraintreePaymentsRequest
+{
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(item: &types::PaymentsAuthorizeRouterData) -> Result<Self, Self::Error> {
+    fn try_from(
+        item: &BraintreeRouterData<&types::PaymentsAuthorizeRouterData>,
+    ) -> Result<Self, Self::Error> {
         let metadata: BraintreeMeta =
-            utils::to_connector_meta_from_secret(item.connector_meta_data.clone())?;
-        utils::validate_currency(item.request.currency, metadata.merchant_config_currency)?;
+            utils::to_connector_meta_from_secret(item.router_data.connector_meta_data.clone())?;
+        utils::validate_currency(
+            item.router_data.request.currency,
+            metadata.merchant_config_currency,
+        )?;
 
-        match item.request.payment_method_data.clone() {
+        match item.router_data.request.payment_method_data.clone() {
             api::PaymentMethodData::Card(_) => {
-                if item.is_three_ds() {
+                if item.router_data.is_three_ds() {
                     Ok(Self::CardThreeDs(BraintreeClientTokenRequest::try_from(
                         metadata,
                     )?))
@@ -94,10 +133,14 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for BraintreePaymentsRequest {
     }
 }
 
-impl TryFrom<&types::PaymentsCompleteAuthorizeRouterData> for BraintreePaymentsRequest {
+impl TryFrom<&BraintreeRouterData<&types::PaymentsCompleteAuthorizeRouterData>>
+    for BraintreePaymentsRequest
+{
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(item: &types::PaymentsCompleteAuthorizeRouterData) -> Result<Self, Self::Error> {
-        match item.request.payment_method_data.clone() {
+    fn try_from(
+        item: &BraintreeRouterData<&types::PaymentsCompleteAuthorizeRouterData>,
+    ) -> Result<Self, Self::Error> {
+        match item.router_data.request.payment_method_data.clone() {
             Some(api::PaymentMethodData::Card(_)) => {
                 Ok(Self::Card(CardPaymentRequest::try_from(item)?))
             }
@@ -537,22 +580,24 @@ pub struct BraintreeRefundRequest {
     variables: BraintreeRefundVariables,
 }
 
-impl<F> TryFrom<&types::RefundsRouterData<F>> for BraintreeRefundRequest {
+impl<F> TryFrom<BraintreeRouterData<&types::RefundsRouterData<F>>> for BraintreeRefundRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(item: &types::RefundsRouterData<F>) -> Result<Self, Self::Error> {
+    fn try_from(
+        item: BraintreeRouterData<&types::RefundsRouterData<F>>,
+    ) -> Result<Self, Self::Error> {
         let metadata: BraintreeMeta =
-            utils::to_connector_meta_from_secret(item.connector_meta_data.clone())?;
+            utils::to_connector_meta_from_secret(item.router_data.connector_meta_data.clone())?;
 
-        utils::validate_currency(item.request.currency, metadata.merchant_config_currency)?;
+        utils::validate_currency(
+            item.router_data.request.currency,
+            metadata.merchant_config_currency,
+        )?;
         let query = REFUND_TRANSACTION_MUTATION.to_string();
         let variables = BraintreeRefundVariables {
             input: BraintreeRefundInput {
-                transaction_id: item.request.connector_transaction_id.clone(),
+                transaction_id: item.router_data.request.connector_transaction_id.clone(),
                 refund: RefundInputData {
-                    amount: utils::to_currency_base_unit(
-                        item.request.refund_amount,
-                        item.request.currency,
-                    )?,
+                    amount: item.amount,
                     merchant_account_id: metadata.merchant_account_id.ok_or(
                         errors::ConnectorError::MissingRequiredField {
                             field_name: "merchant_account_id",
@@ -928,18 +973,17 @@ pub struct BraintreeCaptureRequest {
     variables: VariableCaptureInput,
 }
 
-impl TryFrom<&types::PaymentsCaptureRouterData> for BraintreeCaptureRequest {
+impl TryFrom<&BraintreeRouterData<&types::PaymentsCaptureRouterData>> for BraintreeCaptureRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(item: &types::PaymentsCaptureRouterData) -> Result<Self, Self::Error> {
+    fn try_from(
+        item: &BraintreeRouterData<&types::PaymentsCaptureRouterData>,
+    ) -> Result<Self, Self::Error> {
         let query = CAPTURE_TRANSACTION_MUTATION.to_string();
         let variables = VariableCaptureInput {
             input: CaptureInputData {
-                transaction_id: item.request.connector_transaction_id.clone(),
+                transaction_id: item.router_data.request.connector_transaction_id.clone(),
                 transaction: CaptureTransactionBody {
-                    amount: utils::to_currency_base_unit(
-                        item.request.amount_to_capture,
-                        item.request.currency,
-                    )?,
+                    amount: item.amount.to_owned(),
                 },
             },
         };
@@ -1231,14 +1275,20 @@ impl TryFrom<BraintreeMeta> for BraintreeClientTokenRequest {
     }
 }
 
-impl TryFrom<(&types::PaymentsAuthorizeRouterData, BraintreeMeta)> for CardPaymentRequest {
+impl
+    TryFrom<(
+        &BraintreeRouterData<&types::PaymentsAuthorizeRouterData>,
+        BraintreeMeta,
+    )> for CardPaymentRequest
+{
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        payment_info: (&types::PaymentsAuthorizeRouterData, BraintreeMeta),
+        (item, metadata): (
+            &BraintreeRouterData<&types::PaymentsAuthorizeRouterData>,
+            BraintreeMeta,
+        ),
     ) -> Result<Self, Self::Error> {
-        let item = payment_info.0;
-        let metadata = payment_info.1;
-        let query = match item.request.is_auto_capture()? {
+        let query = match item.router_data.request.is_auto_capture()? {
             true => CHARGE_CREDIT_CARD_MUTATION.to_string(),
             false => AUTHORIZE_CREDIT_CARD_MUTATION.to_string(),
         };
@@ -1246,17 +1296,14 @@ impl TryFrom<(&types::PaymentsAuthorizeRouterData, BraintreeMeta)> for CardPayme
             query,
             variables: VariablePaymentInput {
                 input: PaymentInput {
-                    payment_method_id: match item.get_payment_method_token()? {
+                    payment_method_id: match item.router_data.get_payment_method_token()? {
                         types::PaymentMethodToken::Token(token) => token,
                         types::PaymentMethodToken::ApplePayDecrypt(_) => {
                             Err(errors::ConnectorError::InvalidWalletToken)?
                         }
                     },
                     transaction: TransactionBody {
-                        amount: utils::to_currency_base_unit(
-                            item.request.amount,
-                            item.request.currency,
-                        )?,
+                        amount: item.amount.to_owned(),
                         merchant_account_id: metadata.merchant_account_id.ok_or(
                             errors::ConnectorError::MissingRequiredField {
                                 field_name: "merchant_account_id",
@@ -1269,15 +1316,22 @@ impl TryFrom<(&types::PaymentsAuthorizeRouterData, BraintreeMeta)> for CardPayme
     }
 }
 
-impl TryFrom<&types::PaymentsCompleteAuthorizeRouterData> for CardPaymentRequest {
+impl TryFrom<&BraintreeRouterData<&types::PaymentsCompleteAuthorizeRouterData>>
+    for CardPaymentRequest
+{
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(item: &types::PaymentsCompleteAuthorizeRouterData) -> Result<Self, Self::Error> {
+    fn try_from(
+        item: &BraintreeRouterData<&types::PaymentsCompleteAuthorizeRouterData>,
+    ) -> Result<Self, Self::Error> {
         let metadata: BraintreeMeta =
-            utils::to_connector_meta_from_secret(item.connector_meta_data.clone())?;
-        utils::validate_currency(item.request.currency, metadata.merchant_config_currency)?;
+            utils::to_connector_meta_from_secret(item.router_data.connector_meta_data.clone())?;
+        utils::validate_currency(
+            item.router_data.request.currency,
+            metadata.merchant_config_currency,
+        )?;
         let payload_data =
             utils::PaymentsCompleteAuthorizeRequestData::get_redirect_response_payload(
-                &item.request,
+                &item.router_data.request,
             )?
             .expose();
         let redirection_response: BraintreeRedirectionResponse =
@@ -1293,21 +1347,19 @@ impl TryFrom<&types::PaymentsCompleteAuthorizeRouterData> for CardPaymentRequest
         .change_context(errors::ConnectorError::MissingConnectorRedirectionPayload {
             field_name: "three_ds_data",
         })?;
-        let query =
-            match utils::PaymentsCompleteAuthorizeRequestData::is_auto_capture(&item.request)? {
-                true => CHARGE_CREDIT_CARD_MUTATION.to_string(),
-                false => AUTHORIZE_CREDIT_CARD_MUTATION.to_string(),
-            };
+        let query = match utils::PaymentsCompleteAuthorizeRequestData::is_auto_capture(
+            &item.router_data.request,
+        )? {
+            true => CHARGE_CREDIT_CARD_MUTATION.to_string(),
+            false => AUTHORIZE_CREDIT_CARD_MUTATION.to_string(),
+        };
         Ok(Self {
             query,
             variables: VariablePaymentInput {
                 input: PaymentInput {
                     payment_method_id: three_ds_data.nonce,
                     transaction: TransactionBody {
-                        amount: utils::to_currency_base_unit(
-                            item.request.amount,
-                            item.request.currency,
-                        )?,
+                        amount: item.amount.to_owned(),
                         merchant_account_id: metadata.merchant_account_id.ok_or(
                             errors::ConnectorError::MissingRequiredField {
                                 field_name: "merchant_account_id",
@@ -1359,4 +1411,75 @@ fn get_braintree_redirect_form(
         },
         amount,
     })
+}
+
+#[derive(Debug, Deserialize)]
+pub struct BraintreeWebhookResponse {
+    pub bt_signature: String,
+    pub bt_payload: String,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+#[serde(rename_all = "kebab-case")]
+pub struct Notification {
+    pub kind: String, // xml parse only string to fields
+    pub timestamp: String,
+    pub dispute: Option<BraintreeDisputeData>,
+}
+impl types::transformers::ForeignFrom<&str> for api_models::webhooks::IncomingWebhookEvent {
+    fn foreign_from(status: &str) -> Self {
+        match status {
+            "dispute_opened" => Self::DisputeOpened,
+            "dispute_lost" => Self::DisputeLost,
+            "dispute_won" => Self::DisputeWon,
+            "dispute_accepted" | "dispute_auto_accepted" => Self::DisputeAccepted,
+            "dispute_expired" => Self::DisputeExpired,
+            "dispute_disputed" => Self::DisputeChallenged,
+            _ => Self::EventNotSupported,
+        }
+    }
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+pub struct BraintreeDisputeData {
+    pub amount_disputed: i64,
+    pub amount_won: Option<String>,
+    pub case_number: Option<String>,
+    pub chargeback_protection_level: Option<String>,
+    pub currency_iso_code: String,
+    #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
+    pub created_at: Option<PrimitiveDateTime>,
+    pub evidence: Option<DisputeEvidence>,
+    pub id: String,
+    pub kind: String, // xml parse only string to fields
+    pub status: String,
+    pub reason: Option<String>,
+    pub reason_code: Option<String>,
+    #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
+    pub updated_at: Option<PrimitiveDateTime>,
+    #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
+    pub reply_by_date: Option<PrimitiveDateTime>,
+    pub transaction: DisputeTransaction,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+pub struct DisputeTransaction {
+    pub amount: String,
+    pub id: String,
+}
+#[derive(Debug, Deserialize, Serialize)]
+pub struct DisputeEvidence {
+    pub comment: String,
+    pub id: Secret<String>,
+    pub created_at: Option<PrimitiveDateTime>,
+    pub url: url::Url,
+}
+
+pub(crate) fn get_dispute_stage(code: &str) -> Result<enums::DisputeStage, errors::ConnectorError> {
+    match code {
+        "CHARGEBACK" => Ok(enums::DisputeStage::Dispute),
+        "PRE_ARBITATION" => Ok(enums::DisputeStage::PreArbitration),
+        "RETRIEVAL" => Ok(enums::DisputeStage::PreDispute),
+        _ => Err(errors::ConnectorError::WebhookBodyDecodingFailed),
+    }
 }

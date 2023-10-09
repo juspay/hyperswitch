@@ -98,7 +98,7 @@ impl
     // Not Implemented (R)
 }
 
-impl api::PreVerify for Nuvei {}
+impl api::MandateSetup for Nuvei {}
 impl api::PaymentVoid for Nuvei {}
 impl api::PaymentSync for Nuvei {}
 impl api::PaymentCapture for Nuvei {}
@@ -110,8 +110,12 @@ impl api::RefundSync for Nuvei {}
 impl api::PaymentsCompleteAuthorize for Nuvei {}
 impl api::ConnectorAccessToken for Nuvei {}
 
-impl ConnectorIntegration<api::Verify, types::VerifyRequestData, types::PaymentsResponseData>
-    for Nuvei
+impl
+    ConnectorIntegration<
+        api::SetupMandate,
+        types::SetupMandateRequestData,
+        types::PaymentsResponseData,
+    > for Nuvei
 {
 }
 
@@ -567,7 +571,6 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         req: &types::PaymentsAuthorizeRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
-        self.validate_capture_method(req.request.capture_method)?;
         Ok(Some(
             services::RequestBuilder::new()
                 .method(services::Method::Post)
@@ -869,6 +872,7 @@ impl api::IncomingWebhook for Nuvei {
     fn get_webhook_source_verification_signature(
         &self,
         request: &api::IncomingWebhookRequestDetails<'_>,
+        _connector_webhook_secrets: &api_models::webhooks::ConnectorWebhookSecrets,
     ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
         let signature = utils::get_header_key_value("advanceResponseChecksum", request.headers)?;
         hex::decode(signature)
@@ -880,12 +884,12 @@ impl api::IncomingWebhook for Nuvei {
         &self,
         request: &api::IncomingWebhookRequestDetails<'_>,
         _merchant_id: &str,
-        secret: &[u8],
+        connector_webhook_secrets: &api_models::webhooks::ConnectorWebhookSecrets,
     ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
         let body = serde_urlencoded::from_str::<nuvei::NuveiWebhookDetails>(&request.query_params)
             .into_report()
             .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
-        let secret_str = std::str::from_utf8(secret)
+        let secret_str = std::str::from_utf8(&connector_webhook_secrets.secret)
             .into_report()
             .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
         let status = format!("{:?}", body.status).to_uppercase();

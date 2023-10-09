@@ -81,6 +81,7 @@ fiserv.base_url = "https://cert.api.fiservapps.com/"
 forte.base_url = "https://sandbox.forte.net/api/v3"
 globalpay.base_url = "https://apis.sandbox.globalpay.com/ucp/"
 globepay.base_url = "https://pay.globepay.co/"
+gocardless.base_url = "https://api-sandbox.gocardless.com"
 helcim.base_url = "https://api.helcim.com/"
 iatapay.base_url = "https://sandbox.iata-pay.iata.org/api/v1"
 klarna.base_url = "https://api-na.playground.klarna.com/"
@@ -90,6 +91,7 @@ multisafepay.base_url = "https://testapi.multisafepay.com/"
 nexinets.base_url = "https://apitest.payengine.de/v1"
 nmi.base_url = "https://secure.nmi.com/"
 noon.base_url = "https://api-test.noonpayments.com/"
+noon.key_mode = "Test"
 nuvei.base_url = "https://ppp-test.nuvei.com/"
 opayo.base_url = "https://pi-test.sagepay.com/"
 opennode.base_url = "https://dev-api.opennode.com"
@@ -115,7 +117,7 @@ zen.base_url = "https://api.zen-test.com/"
 zen.secondary_base_url = "https://secure.zen-test.com/"
 
 [pm_filters.default]
-apple_pay = { country = "AU,CN,HK,JP,MO,MY,NZ,SG,TW,AM,AT,AZ,BY,BE,BG,HR,CY,CZ,DK,EE,FO,FI,FR,GE,DE,GR,GL,GG,HU,IS,IE,IM,IT,KZ,JE,LV,LI,LT,LU,MT,MD,MC,ME,NL,NO,PL,PT,RO,SM,RS,SK,SI,ES,SE,CH,UA,GB,AR,CO,CR,BR,MX,PE,BH,IL,JO,KW,PS,QA,SA,AE,CA,UM,US", currency = "AED,AUD,CHF,CAD,EUR,GBP,HKD,SGD,USD" }
+apple_pay = { country = "AU,CN,HK,JP,MO,MY,NZ,SG,TW,AM,AT,AZ,BY,BE,BG,HR,CY,CZ,DK,EE,FO,FI,FR,GE,DE,GR,GL,GG,HU,IS,IE,IM,IT,KZ,JE,LV,LI,LT,LU,MT,MD,MC,ME,NL,NO,PL,PT,RO,SM,RS,SK,SI,ES,SE,CH,UA,GB,AR,CO,CR,BR,MX,PE,BH,IL,JO,KW,PS,QA,SA,AE,CA,UM,US,KR,VN,MA,ZA,VA,CL,SV,GT,HN,PA", currency = "AED,AUD,CHF,CAD,EUR,GBP,HKD,SGD,USD" }
 
 [connectors.supported]
 wallets = ["klarna", "braintree", "applepay"]
@@ -140,6 +142,7 @@ cards = [
     "forte",
     "globalpay",
     "globepay",
+    "gocardless",
     "helcim",
     "iatapay",
     "mollie",
@@ -185,6 +188,11 @@ stripe = { long_lived_token = false, payment_method = "wallet", payment_method_t
 checkout = { long_lived_token = false, payment_method = "wallet" }
 mollie = {long_lived_token = false, payment_method = "card"}
 braintree = { long_lived_token = false, payment_method = "card" }
+gocardless = {long_lived_token = true, payment_method = "bank_debit"}
+
+[connector_customer]
+connector_list = "gocardless,stax,stripe"
+payout_connector_list = "wise"
 
 [dummy_connector]
 enabled = true

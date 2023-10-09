@@ -34,7 +34,7 @@ pub struct Iatapay;
 impl api::Payment for Iatapay {}
 impl api::PaymentSession for Iatapay {}
 impl api::ConnectorAccessToken for Iatapay {}
-impl api::PreVerify for Iatapay {}
+impl api::MandateSetup for Iatapay {}
 impl api::PaymentAuthorize for Iatapay {}
 impl api::PaymentSync for Iatapay {}
 impl api::PaymentCapture for Iatapay {}
@@ -235,8 +235,12 @@ impl ConnectorIntegration<api::AccessTokenAuth, types::AccessTokenRequestData, t
     }
 }
 
-impl ConnectorIntegration<api::Verify, types::VerifyRequestData, types::PaymentsResponseData>
-    for Iatapay
+impl
+    ConnectorIntegration<
+        api::SetupMandate,
+        types::SetupMandateRequestData,
+        types::PaymentsResponseData,
+    > for Iatapay
 {
 }
 
@@ -281,7 +285,6 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         req: &types::PaymentsAuthorizeRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
-        self.validate_capture_method(req.request.capture_method)?;
         Ok(Some(
             services::RequestBuilder::new()
                 .method(services::Method::Post)
@@ -581,6 +584,7 @@ impl api::IncomingWebhook for Iatapay {
     fn get_webhook_source_verification_signature(
         &self,
         request: &api::IncomingWebhookRequestDetails<'_>,
+        _connector_webhook_secrets: &api_models::webhooks::ConnectorWebhookSecrets,
     ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
         let base64_signature = utils::get_header_key_value("Authorization", request.headers)?;
         let base64_signature = base64_signature.replace("IATAPAY-HMAC-SHA256 ", "");
@@ -591,7 +595,7 @@ impl api::IncomingWebhook for Iatapay {
         &self,
         request: &api::IncomingWebhookRequestDetails<'_>,
         _merchant_id: &str,
-        _secret: &[u8],
+        _connector_webhook_secrets: &api_models::webhooks::ConnectorWebhookSecrets,
     ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
         let message = std::str::from_utf8(request.body)
             .into_report()

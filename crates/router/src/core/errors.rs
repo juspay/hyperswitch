@@ -1,4 +1,5 @@
 pub mod api_error_response;
+pub mod customers_error_response;
 pub mod error_handlers;
 pub mod transformers;
 pub mod utils;
@@ -15,6 +16,7 @@ use storage_impl::errors as storage_impl_errors;
 
 pub use self::{
     api_error_response::ApiErrorResponse,
+    customers_error_response::CustomersErrorResponse,
     sch_errors::*,
     storage_errors::*,
     storage_impl_errors::*,
@@ -23,6 +25,12 @@ pub use self::{
 use crate::services;
 pub type RouterResult<T> = CustomResult<T, ApiErrorResponse>;
 pub type RouterResponse<T> = CustomResult<services::ApplicationResponse<T>, ApiErrorResponse>;
+
+pub type ApplicationResult<T> = Result<T, ApplicationError>;
+pub type ApplicationResponse<T> = ApplicationResult<services::ApplicationResponse<T>>;
+
+pub type CustomerResponse<T> =
+    CustomResult<services::ApplicationResponse<T>, CustomersErrorResponse>;
 
 macro_rules! impl_error_display {
     ($st: ident, $arg: tt) => {
@@ -131,6 +139,8 @@ pub enum ConnectorError {
     WebhookSourceVerificationFailed,
     #[error("Could not find merchant secret in DB for incoming webhook source verification")]
     WebhookVerificationSecretNotFound,
+    #[error("Merchant secret found for incoming webhook source verification is invalid")]
+    WebhookVerificationSecretInvalid,
     #[error("Incoming webhook object reference ID not found")]
     WebhookReferenceIdNotFound,
     #[error("Incoming webhook event type not found")]

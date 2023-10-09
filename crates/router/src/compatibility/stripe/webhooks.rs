@@ -1,5 +1,5 @@
 use api_models::{
-    enums::DisputeStatus,
+    enums::{DisputeStatus, MandateStatus},
     webhooks::{self as api},
 };
 use common_utils::{crypto::SignMessage, date_time, ext_traits};
@@ -73,6 +73,7 @@ pub enum StripeWebhookObject {
     PaymentIntent(StripePaymentIntentResponse),
     Refund(StripeRefundResponse),
     Dispute(StripeDisputeResponse),
+    Mandate(StripeMandateResponse),
 }
 
 #[derive(Serialize, Debug)]
@@ -83,6 +84,22 @@ pub struct StripeDisputeResponse {
     pub payment_intent: String,
     pub reason: Option<String>,
     pub status: StripeDisputeStatus,
+}
+
+#[derive(Serialize, Debug)]
+pub struct StripeMandateResponse {
+    pub mandate_id: String,
+    pub status: StripeMandateStatus,
+    pub payment_method_id: String,
+    pub payment_method: String,
+}
+
+#[derive(Serialize, Debug)]
+#[serde(rename_all = "snake_case")]
+pub enum StripeMandateStatus {
+    Active,
+    Inactive,
+    Pending,
 }
 
 #[derive(Serialize, Debug)]
@@ -107,6 +124,27 @@ impl From<api_models::disputes::DisputeResponse> for StripeDisputeResponse {
             payment_intent: res.payment_id,
             reason: res.connector_reason,
             status: StripeDisputeStatus::from(res.dispute_status),
+        }
+    }
+}
+
+impl From<api_models::mandates::MandateResponse> for StripeMandateResponse {
+    fn from(res: api_models::mandates::MandateResponse) -> Self {
+        Self {
+            mandate_id: res.mandate_id,
+            payment_method: res.payment_method,
+            payment_method_id: res.payment_method_id,
+            status: StripeMandateStatus::from(res.status),
+        }
+    }
+}
+
+impl From<MandateStatus> for StripeMandateStatus {
+    fn from(status: MandateStatus) -> Self {
+        match status {
+            MandateStatus::Active => Self::Active,
+            MandateStatus::Inactive | MandateStatus::Revoked => Self::Inactive,
+            MandateStatus::Pending => Self::Pending,
         }
     }
 }
@@ -142,6 +180,8 @@ fn get_stripe_event_type(event_type: api_models::enums::EventType) -> &'static s
         api_models::enums::EventType::DisputeChallenged => "dispute.challenged",
         api_models::enums::EventType::DisputeWon => "dispute.won",
         api_models::enums::EventType::DisputeLost => "dispute.lost",
+        api_models::enums::EventType::MandateActive => "mandate.active",
+        api_models::enums::EventType::MandateRevoked => "mandate.revoked",
     }
 }
 
@@ -178,6 +218,9 @@ impl From<api::OutgoingWebhookContent> for StripeWebhookObject {
             api::OutgoingWebhookContent::RefundDetails(refund) => Self::Refund(refund.into()),
             api::OutgoingWebhookContent::DisputeDetails(dispute) => {
                 Self::Dispute((*dispute).into())
+            }
+            api::OutgoingWebhookContent::MandateDetails(mandate) => {
+                Self::Mandate((*mandate).into())
             }
         }
     }

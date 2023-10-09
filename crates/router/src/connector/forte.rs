@@ -36,7 +36,7 @@ pub struct Forte;
 impl api::Payment for Forte {}
 impl api::PaymentSession for Forte {}
 impl api::ConnectorAccessToken for Forte {}
-impl api::PreVerify for Forte {}
+impl api::MandateSetup for Forte {}
 impl api::PaymentAuthorize for Forte {}
 impl api::PaymentSync for Forte {}
 impl api::PaymentCapture for Forte {}
@@ -159,8 +159,12 @@ impl ConnectorIntegration<api::AccessTokenAuth, types::AccessTokenRequestData, t
 {
 }
 
-impl ConnectorIntegration<api::Verify, types::VerifyRequestData, types::PaymentsResponseData>
-    for Forte
+impl
+    ConnectorIntegration<
+        api::SetupMandate,
+        types::SetupMandateRequestData,
+        types::PaymentsResponseData,
+    > for Forte
 {
 }
 
@@ -211,7 +215,6 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         req: &types::PaymentsAuthorizeRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
-        self.validate_capture_method(req.request.capture_method)?;
         Ok(Some(
             services::RequestBuilder::new()
                 .method(services::Method::Post)

@@ -37,7 +37,7 @@ pub struct Boku;
 impl api::Payment for Boku {}
 impl api::PaymentSession for Boku {}
 impl api::ConnectorAccessToken for Boku {}
-impl api::PreVerify for Boku {}
+impl api::MandateSetup for Boku {}
 impl api::PaymentAuthorize for Boku {}
 impl api::PaymentSync for Boku {}
 impl api::PaymentCapture for Boku {}
@@ -162,8 +162,12 @@ impl ConnectorIntegration<api::AccessTokenAuth, types::AccessTokenRequestData, t
 {
 }
 
-impl ConnectorIntegration<api::Verify, types::VerifyRequestData, types::PaymentsResponseData>
-    for Boku
+impl
+    ConnectorIntegration<
+        api::SetupMandate,
+        types::SetupMandateRequestData,
+        types::PaymentsResponseData,
+    > for Boku
 {
 }
 
@@ -217,7 +221,6 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         req: &types::PaymentsAuthorizeRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
-        self.validate_capture_method(req.request.capture_method)?;
         Ok(Some(
             services::RequestBuilder::new()
                 .method(services::Method::Post)

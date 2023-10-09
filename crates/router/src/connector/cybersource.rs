@@ -101,7 +101,7 @@ impl ConnectorCommon for Cybersource {
             .response
             .parse_struct("Cybersource ErrorResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-        let details = response.details.unwrap_or(vec![]);
+        let details = response.details.unwrap_or_default();
         let connector_reason = details
             .iter()
             .map(|det| format!("{} : {}", det.field, det.reason))
@@ -226,7 +226,7 @@ impl api::PaymentAuthorize for Cybersource {}
 impl api::PaymentSync for Cybersource {}
 impl api::PaymentVoid for Cybersource {}
 impl api::PaymentCapture for Cybersource {}
-impl api::PreVerify for Cybersource {}
+impl api::MandateSetup for Cybersource {}
 impl api::ConnectorAccessToken for Cybersource {}
 impl api::PaymentToken for Cybersource {}
 
@@ -240,8 +240,12 @@ impl
     // Not Implemented (R)
 }
 
-impl ConnectorIntegration<api::Verify, types::VerifyRequestData, types::PaymentsResponseData>
-    for Cybersource
+impl
+    ConnectorIntegration<
+        api::SetupMandate,
+        types::SetupMandateRequestData,
+        types::PaymentsResponseData,
+    > for Cybersource
 {
 }
 
@@ -478,7 +482,6 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         req: &types::PaymentsAuthorizeRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
-        self.validate_capture_method(req.request.capture_method)?;
         let request = services::RequestBuilder::new()
             .method(services::Method::Post)
             .url(&types::PaymentsAuthorizeType::get_url(

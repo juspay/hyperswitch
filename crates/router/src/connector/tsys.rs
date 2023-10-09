@@ -30,7 +30,7 @@ pub struct Tsys;
 impl api::Payment for Tsys {}
 impl api::PaymentSession for Tsys {}
 impl api::ConnectorAccessToken for Tsys {}
-impl api::PreVerify for Tsys {}
+impl api::MandateSetup for Tsys {}
 impl api::PaymentAuthorize for Tsys {}
 impl api::PaymentSync for Tsys {}
 impl api::PaymentCapture for Tsys {}
@@ -105,8 +105,12 @@ impl ConnectorIntegration<api::AccessTokenAuth, types::AccessTokenRequestData, t
 {
 }
 
-impl ConnectorIntegration<api::Verify, types::VerifyRequestData, types::PaymentsResponseData>
-    for Tsys
+impl
+    ConnectorIntegration<
+        api::SetupMandate,
+        types::SetupMandateRequestData,
+        types::PaymentsResponseData,
+    > for Tsys
 {
 }
 
@@ -154,7 +158,6 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         req: &types::PaymentsAuthorizeRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
-        self.validate_capture_method(req.request.capture_method)?;
         Ok(Some(
             services::RequestBuilder::new()
                 .method(services::Method::Post)

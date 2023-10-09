@@ -61,6 +61,10 @@ impl ConnectorCommon for Checkout {
         "checkout"
     }
 
+    fn get_currency_unit(&self) -> api::CurrencyUnit {
+        api::CurrencyUnit::Minor
+    }
+
     fn common_get_content_type(&self) -> &'static str {
         "application/json"
     }
@@ -106,7 +110,7 @@ impl ConnectorCommon for Checkout {
         };
 
         router_env::logger::info!(error_response=?response);
-        let errors_list = response.error_codes.clone().unwrap_or(vec![]);
+        let errors_list = response.error_codes.clone().unwrap_or_default();
         let option_error_code_message = conn_utils::get_error_code_error_message_based_on_priority(
             self.clone(),
             errors_list
@@ -271,10 +275,14 @@ impl ConnectorIntegration<api::AccessTokenAuth, types::AccessTokenRequestData, t
     // Not Implemented (R)
 }
 
-impl api::PreVerify for Checkout {}
+impl api::MandateSetup for Checkout {}
 
-impl ConnectorIntegration<api::Verify, types::VerifyRequestData, types::PaymentsResponseData>
-    for Checkout
+impl
+    ConnectorIntegration<
+        api::SetupMandate,
+        types::SetupMandateRequestData,
+        types::PaymentsResponseData,
+    > for Checkout
 {
     // Issue: #173
 }
@@ -305,7 +313,13 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
         &self,
         req: &types::PaymentsCaptureRouterData,
     ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
-        let connector_req = checkout::PaymentCaptureRequest::try_from(req)?;
+        let connector_router_data = checkout::CheckoutRouterData::try_from((
+            &self.get_currency_unit(),
+            req.request.currency,
+            req.request.amount_to_capture,
+            req,
+        ))?;
+        let connector_req = checkout::PaymentCaptureRequest::try_from(&connector_router_data)?;
         let checkout_req = types::RequestBody::log_and_get_request_body(
             &connector_req,
             utils::Encode::<checkout::PaymentCaptureRequest>::encode_to_string_of_json,
@@ -484,7 +498,13 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         &self,
         req: &types::PaymentsAuthorizeRouterData,
     ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
-        let connector_req = checkout::PaymentsRequest::try_from(req)?;
+        let connector_router_data = checkout::CheckoutRouterData::try_from((
+            &self.get_currency_unit(),
+            req.request.currency,
+            req.request.amount,
+            req,
+        ))?;
+        let connector_req = checkout::PaymentsRequest::try_from(&connector_router_data)?;
         let checkout_req = types::RequestBody::log_and_get_request_body(
             &connector_req,
             utils::Encode::<checkout::PaymentsRequest>::encode_to_string_of_json,
@@ -501,7 +521,6 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         >,
         connectors: &settings::Connectors,
     ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
-        self.validate_capture_method(req.request.capture_method)?;
         Ok(Some(
             services::RequestBuilder::new()
                 .method(services::Method::Post)
@@ -657,7 +676,13 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
         &self,
         req: &types::RefundsRouterData<api::Execute>,
     ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
-        let connector_req = checkout::RefundRequest::try_from(req)?;
+        let connector_router_data = checkout::CheckoutRouterData::try_from((
+            &self.get_currency_unit(),
+            req.request.currency,
+            req.request.refund_amount,
+            req,
+        ))?;
+        let connector_req = checkout::RefundRequest::try_from(&connector_router_data)?;
         let body = types::RequestBody::log_and_get_request_body(
             &connector_req,
             utils::Encode::<checkout::RefundRequest>::encode_to_string_of_json,
@@ -1148,6 +1173,7 @@ impl api::IncomingWebhook for Checkout {
     fn get_webhook_source_verification_signature(
         &self,
         request: &api::IncomingWebhookRequestDetails<'_>,
+        _connector_webhook_secrets: &api_models::webhooks::ConnectorWebhookSecrets,
     ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
         let signature = conn_utils::get_header_key_value("cko-signature", request.headers)
             .change_context(errors::ConnectorError::WebhookSignatureNotFound)?;
@@ -1159,7 +1185,7 @@ impl api::IncomingWebhook for Checkout {
         &self,
         request: &api::IncomingWebhookRequestDetails<'_>,
         _merchant_id: &str,
-        _secret: &[u8],
+        _connector_webhook_secrets: &api_models::webhooks::ConnectorWebhookSecrets,
     ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
         Ok(format!("{}", String::from_utf8_lossy(request.body)).into_bytes())
     }
@@ -1218,7 +1244,7 @@ impl api::IncomingWebhook for Checkout {
             .parse_struct("CheckoutWebhookBody")
             .change_context(errors::ConnectorError::WebhookEventTypeNotFound)?;
         let resource_object = if checkout::is_chargeback_event(&event_type_data.transaction_type)
-            && checkout::is_refund_event(&event_type_data.transaction_type)
+            || checkout::is_refund_event(&event_type_data.transaction_type)
         {
             // if other event, just return the json data.
             let resource_object_data: checkout::CheckoutWebhookObjectResource = request

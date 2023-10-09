@@ -1,6 +1,6 @@
 // use actix_web::HttpMessage;
 use actix_web::http::header::HeaderMap;
-use api_models::enums as api_enums;
+use api_models::{enums as api_enums, payments};
 use common_utils::{
     crypto::Encryptable,
     ext_traits::{StringExt, ValueExt},
@@ -409,6 +409,16 @@ impl ForeignFrom<storage_enums::DisputeStatus> for storage_enums::EventType {
     }
 }
 
+impl ForeignFrom<storage_enums::MandateStatus> for Option<storage_enums::EventType> {
+    fn foreign_from(value: storage_enums::MandateStatus) -> Self {
+        match value {
+            storage_enums::MandateStatus::Active => Some(storage_enums::EventType::MandateActive),
+            storage_enums::MandateStatus::Revoked => Some(storage_enums::EventType::MandateRevoked),
+            storage_enums::MandateStatus::Inactive | storage_enums::MandateStatus::Pending => None,
+        }
+    }
+}
+
 impl ForeignTryFrom<api_models::webhooks::IncomingWebhookEvent> for storage_enums::RefundStatus {
     type Error = errors::ValidationError;
 
@@ -425,9 +435,24 @@ impl ForeignTryFrom<api_models::webhooks::IncomingWebhookEvent> for storage_enum
     }
 }
 
+impl ForeignTryFrom<api_models::webhooks::IncomingWebhookEvent> for storage_enums::MandateStatus {
+    type Error = errors::ValidationError;
+
+    fn foreign_try_from(
+        value: api_models::webhooks::IncomingWebhookEvent,
+    ) -> Result<Self, Self::Error> {
+        match value {
+            api_models::webhooks::IncomingWebhookEvent::MandateActive => Ok(Self::Active),
+            api_models::webhooks::IncomingWebhookEvent::MandateRevoked => Ok(Self::Revoked),
+            _ => Err(errors::ValidationError::IncorrectValueProvided {
+                field_name: "incoming_webhook_event_type",
+            }),
+        }
+    }
+}
+
 impl ForeignFrom<storage::Config> for api_types::Config {
     fn foreign_from(config: storage::Config) -> Self {
-        let config = config;
         Self {
             key: config.key,
             value: config.config,
@@ -437,16 +462,14 @@ impl ForeignFrom<storage::Config> for api_types::Config {
 
 impl<'a> ForeignFrom<&'a api_types::ConfigUpdate> for storage::ConfigUpdate {
     fn foreign_from(config: &api_types::ConfigUpdate) -> Self {
-        let config_update = config;
         Self::Update {
-            config: Some(config_update.value.clone()),
+            config: Some(config.value.clone()),
         }
     }
 }
 
 impl<'a> From<&'a domain::Address> for api_types::Address {
     fn from(address: &domain::Address) -> Self {
-        let address = address;
         Self {
             address: Some(api_types::AddressDetails {
                 city: address.city.clone(),
@@ -668,6 +691,7 @@ impl TryFrom<domain::MerchantConnectorAccount> for api_models::admin::MerchantCo
                 .transpose()?,
             profile_id: item.profile_id,
             applepay_verified_domains: item.applepay_verified_domains,
+            pm_auth_config: item.pm_auth_config,
         })
     }
 }
@@ -795,6 +819,22 @@ impl
             phone: customer.and_then(|cust| cust.phone.as_ref().map(|p| p.clone().into_inner())),
             name: customer.and_then(|cust| cust.name.as_ref().map(|n| n.clone().into_inner())),
             ..Self::default()
+        }
+    }
+}
+
+impl From<domain::Address> for payments::AddressDetails {
+    fn from(addr: domain::Address) -> Self {
+        Self {
+            city: addr.city,
+            country: addr.country,
+            line1: addr.line1.map(Encryptable::into_inner),
+            line2: addr.line2.map(Encryptable::into_inner),
+            line3: addr.line3.map(Encryptable::into_inner),
+            zip: addr.zip.map(Encryptable::into_inner),
+            state: addr.state.map(Encryptable::into_inner),
+            first_name: addr.first_name.map(Encryptable::into_inner),
+            last_name: addr.last_name.map(Encryptable::into_inner),
         }
     }
 }

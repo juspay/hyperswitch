@@ -195,11 +195,15 @@ impl
     // Not Implemented (R)
 }
 
-impl api::PreVerify for Fiserv {}
+impl api::MandateSetup for Fiserv {}
 
 #[allow(dead_code)]
-impl ConnectorIntegration<api::Verify, types::VerifyRequestData, types::PaymentsResponseData>
-    for Fiserv
+impl
+    ConnectorIntegration<
+        api::SetupMandate,
+        types::SetupMandateRequestData,
+        types::PaymentsResponseData,
+    > for Fiserv
 {
 }
 
@@ -515,7 +519,6 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         req: &types::PaymentsAuthorizeRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
-        self.validate_capture_method(req.request.capture_method)?;
         let request = Some(
             services::RequestBuilder::new()
                 .method(services::Method::Post)

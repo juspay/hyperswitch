@@ -3,7 +3,6 @@ use std::marker::PhantomData;
 use api_models::enums::FrmSuggestion;
 use async_trait::async_trait;
 use common_utils::{date_time, errors::CustomResult, ext_traits::AsyncExt};
-use data_models::payments::payment_attempt::PaymentAttempt;
 use error_stack::ResultExt;
 use router_derive::PaymentOperation;
 use router_env::{instrument, tracing};
@@ -13,6 +12,7 @@ use crate::{
     consts,
     core::{
         errors::{self, RouterResult, StorageErrorExt},
+        payment_methods::PaymentMethodRetrieve,
         payments::{self, helpers, operations, Operation, PaymentData},
         utils as core_utils,
     },
@@ -32,14 +32,16 @@ use crate::{
 #[operation(ops = "all", flow = "verify")]
 pub struct PaymentMethodValidate;
 
-impl<F: Send + Clone> ValidateRequest<F, api::VerifyRequest> for PaymentMethodValidate {
+impl<F: Send + Clone, Ctx: PaymentMethodRetrieve> ValidateRequest<F, api::VerifyRequest, Ctx>
+    for PaymentMethodValidate
+{
     #[instrument(skip_all)]
     fn validate_request<'a, 'b>(
         &'b self,
         request: &api::VerifyRequest,
         merchant_account: &'a domain::MerchantAccount,
     ) -> RouterResult<(
-        BoxedOperation<'b, F, api::VerifyRequest>,
+        BoxedOperation<'b, F, api::VerifyRequest, Ctx>,
         operations::ValidateResult<'a>,
     )> {
         let request_merchant_id = request.merchant_id.as_deref();
@@ -64,7 +66,9 @@ impl<F: Send + Clone> ValidateRequest<F, api::VerifyRequest> for PaymentMethodVa
 }
 
 #[async_trait]
-impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::VerifyRequest> for PaymentMethodValidate {
+impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
+    GetTracker<F, PaymentData<F>, api::VerifyRequest, Ctx> for PaymentMethodValidate
+{
     #[instrument(skip_all)]
     async fn get_trackers<'a>(
         &'a self,
@@ -76,7 +80,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::VerifyRequest> for Paym
         _mechant_key_store: &domain::MerchantKeyStore,
         _auth_flow: services::AuthFlow,
     ) -> RouterResult<(
-        BoxedOperation<'a, F, api::VerifyRequest>,
+        BoxedOperation<'a, F, api::VerifyRequest, Ctx>,
         PaymentData<F>,
         Option<payments::CustomerDetails>,
     )> {
@@ -117,7 +121,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::VerifyRequest> for Paym
                     &payment_id,
                     merchant_id,
                     request,
-                    payment_attempt.clone(),
+                    payment_attempt.attempt_id.clone(),
                 ),
                 storage_scheme,
             )
@@ -205,7 +209,9 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::VerifyRequest> for Paym
 }
 
 #[async_trait]
-impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::VerifyRequest> for PaymentMethodValidate {
+impl<F: Clone, Ctx: PaymentMethodRetrieve> UpdateTracker<F, PaymentData<F>, api::VerifyRequest, Ctx>
+    for PaymentMethodValidate
+{
     #[instrument(skip_all)]
     async fn update_trackers<'b>(
         &'b self,
@@ -217,7 +223,10 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::VerifyRequest> for PaymentM
         _mechant_key_store: &domain::MerchantKeyStore,
         _frm_suggestion: Option<FrmSuggestion>,
         _header_payload: api::HeaderPayload,
-    ) -> RouterResult<(BoxedOperation<'b, F, api::VerifyRequest>, PaymentData<F>)>
+    ) -> RouterResult<(
+        BoxedOperation<'b, F, api::VerifyRequest, Ctx>,
+        PaymentData<F>,
+    )>
     where
         F: 'b + Send,
     {
@@ -246,11 +255,11 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::VerifyRequest> for PaymentM
 }
 
 #[async_trait]
-impl<F, Op> Domain<F, api::VerifyRequest> for Op
+impl<F, Op, Ctx: PaymentMethodRetrieve> Domain<F, api::VerifyRequest, Ctx> for Op
 where
     F: Clone + Send,
-    Op: Send + Sync + Operation<F, api::VerifyRequest>,
-    for<'a> &'a Op: Operation<F, api::VerifyRequest>,
+    Op: Send + Sync + Operation<F, api::VerifyRequest, Ctx>,
+    for<'a> &'a Op: Operation<F, api::VerifyRequest, Ctx>,
 {
     #[instrument(skip_all)]
     async fn get_or_create_customer_details<'a>(
@@ -261,7 +270,7 @@ where
         key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<
         (
-            BoxedOperation<'a, F, api::VerifyRequest>,
+            BoxedOperation<'a, F, api::VerifyRequest, Ctx>,
             Option<domain::Customer>,
         ),
         errors::StorageError,
@@ -284,7 +293,7 @@ where
         payment_data: &mut PaymentData<F>,
         _storage_scheme: storage_enums::MerchantStorageScheme,
     ) -> RouterResult<(
-        BoxedOperation<'a, F, api::VerifyRequest>,
+        BoxedOperation<'a, F, api::VerifyRequest, Ctx>,
         Option<api::PaymentMethodData>,
     )> {
         helpers::make_pm_data(Box::new(self), state, payment_data).await
@@ -344,7 +353,7 @@ impl PaymentMethodValidate {
         payment_id: &str,
         merchant_id: &str,
         request: &api::VerifyRequest,
-        active_attempt: PaymentAttempt,
+        active_attempt_id: String,
     ) -> storage::PaymentIntentNew {
         let created_at @ modified_at @ last_synced = Some(date_time::now());
         let status = helpers::payment_intent_status_fsm(&request.payment_method_data, Some(true));
@@ -364,7 +373,7 @@ impl PaymentMethodValidate {
             client_secret: Some(client_secret),
             setup_future_usage: request.setup_future_usage,
             off_session: request.off_session,
-            active_attempt: active_attempt.into(),
+            active_attempt: data_models::RemoteStorageObject::ForeignID(active_attempt_id),
             attempt_count: 1,
             amount_captured: Default::default(),
             customer_id: Default::default(),

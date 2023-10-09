@@ -14,6 +14,7 @@ use crate::{
     consts,
     core::{
         errors::{self, CustomResult, RouterResult, StorageErrorExt},
+        payment_methods::PaymentMethodRetrieve,
         payments::{self, helpers, operations, CustomerDetails, PaymentAddress, PaymentData},
         utils::{self as core_utils},
     },
@@ -36,8 +37,12 @@ use crate::{
 #[operation(ops = "all", flow = "authorize")]
 pub struct PaymentCreate;
 
+/// The `get_trackers` function for `PaymentsCreate` is an entrypoint for new payments
+/// This will create all the entities required for a new payment from the request
 #[async_trait]
-impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for PaymentCreate {
+impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
+    GetTracker<F, PaymentData<F>, api::PaymentsRequest, Ctx> for PaymentCreate
+{
     #[instrument(skip_all)]
     async fn get_trackers<'a>(
         &'a self,
@@ -49,7 +54,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
         merchant_key_store: &domain::MerchantKeyStore,
         _auth_flow: services::AuthFlow,
     ) -> RouterResult<(
-        BoxedOperation<'a, F, api::PaymentsRequest>,
+        BoxedOperation<'a, F, api::PaymentsRequest, Ctx>,
         PaymentData<F>,
         Option<CustomerDetails>,
     )> {
@@ -92,23 +97,27 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
 
         let customer_details = helpers::get_customer_details_from_request(request);
 
-        let shipping_address = helpers::get_address_for_payment_request(
+        let shipping_address = helpers::create_or_find_address_for_payment_by_request(
             db,
             request.shipping.as_ref(),
             None,
             merchant_id,
             customer_details.customer_id.as_ref(),
             merchant_key_store,
+            &payment_id,
+            merchant_account.storage_scheme,
         )
         .await?;
 
-        let billing_address = helpers::get_address_for_payment_request(
+        let billing_address = helpers::create_or_find_address_for_payment_by_request(
             db,
             request.billing.as_ref(),
             None,
             merchant_id,
             customer_details.customer_id.as_ref(),
             merchant_key_store,
+            &payment_id,
+            merchant_account.storage_scheme,
         )
         .await?;
 
@@ -123,45 +132,53 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
                 field_name: "browser_info",
             })?;
 
-        payment_attempt = db
-            .insert_payment_attempt(
-                Self::make_payment_attempt(
-                    &payment_id,
-                    merchant_id,
-                    money,
-                    payment_method,
-                    payment_method_type,
-                    request,
-                    browser_info,
-                    state,
-                )
-                .await?,
-                storage_scheme,
-            )
+        let attempt_id = if core_utils::is_merchant_enabled_for_payment_id_as_connector_request_id(
+            &state.conf,
+            merchant_id,
+        ) {
+            payment_id.to_string()
+        } else {
+            utils::get_payment_attempt_id(payment_id.clone(), 1)
+        };
+
+        let payment_intent_new = Self::make_payment_intent(
+            &payment_id,
+            merchant_account,
+            money,
+            request,
+            shipping_address.clone().map(|x| x.address_id),
+            billing_address.clone().map(|x| x.address_id),
+            attempt_id,
+            state,
+        )
+        .await?;
+
+        let payment_attempt_new = Self::make_payment_attempt(
+            &payment_id,
+            merchant_id,
+            money,
+            payment_method,
+            payment_method_type,
+            request,
+            browser_info,
+            state,
+        )
+        .await?;
+
+        payment_intent = db
+            .insert_payment_intent(payment_intent_new, storage_scheme)
             .await
             .to_duplicate_response(errors::ApiErrorResponse::DuplicatePayment {
                 payment_id: payment_id.clone(),
             })?;
 
-        payment_intent = db
-            .insert_payment_intent(
-                Self::make_payment_intent(
-                    &payment_id,
-                    merchant_account,
-                    money,
-                    request,
-                    shipping_address.clone().map(|x| x.address_id),
-                    billing_address.clone().map(|x| x.address_id),
-                    payment_attempt.clone(),
-                    state,
-                )
-                .await?,
-                storage_scheme,
-            )
+        payment_attempt = db
+            .insert_payment_attempt(payment_attempt_new, storage_scheme)
             .await
             .to_duplicate_response(errors::ApiErrorResponse::DuplicatePayment {
                 payment_id: payment_id.clone(),
             })?;
+
         connector_response = db
             .insert_connector_response(
                 Self::make_connector_response(&payment_attempt),
@@ -217,7 +234,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
             .await
             .transpose()?;
 
-        let operation = payments::if_not_create_change_operation::<_, F>(
+        let operation = payments::if_not_create_change_operation::<_, F, Ctx>(
             payment_intent.status,
             request.confirm,
             self,
@@ -285,7 +302,9 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
 }
 
 #[async_trait]
-impl<F: Clone + Send> Domain<F, api::PaymentsRequest> for PaymentCreate {
+impl<F: Clone + Send, Ctx: PaymentMethodRetrieve> Domain<F, api::PaymentsRequest, Ctx>
+    for PaymentCreate
+{
     #[instrument(skip_all)]
     async fn get_or_create_customer_details<'a>(
         &'a self,
@@ -295,7 +314,7 @@ impl<F: Clone + Send> Domain<F, api::PaymentsRequest> for PaymentCreate {
         key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<
         (
-            BoxedOperation<'a, F, api::PaymentsRequest>,
+            BoxedOperation<'a, F, api::PaymentsRequest, Ctx>,
             Option<domain::Customer>,
         ),
         errors::StorageError,
@@ -318,7 +337,7 @@ impl<F: Clone + Send> Domain<F, api::PaymentsRequest> for PaymentCreate {
         payment_data: &mut PaymentData<F>,
         _storage_scheme: enums::MerchantStorageScheme,
     ) -> RouterResult<(
-        BoxedOperation<'a, F, api::PaymentsRequest>,
+        BoxedOperation<'a, F, api::PaymentsRequest, Ctx>,
         Option<api::PaymentMethodData>,
     )> {
         helpers::make_pm_data(Box::new(self), state, payment_data).await
@@ -348,7 +367,9 @@ impl<F: Clone + Send> Domain<F, api::PaymentsRequest> for PaymentCreate {
 }
 
 #[async_trait]
-impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for PaymentCreate {
+impl<F: Clone, Ctx: PaymentMethodRetrieve>
+    UpdateTracker<F, PaymentData<F>, api::PaymentsRequest, Ctx> for PaymentCreate
+{
     #[instrument(skip_all)]
     async fn update_trackers<'b>(
         &'b self,
@@ -360,7 +381,10 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
         _merchant_key_store: &domain::MerchantKeyStore,
         _frm_suggestion: Option<FrmSuggestion>,
         _header_payload: api::HeaderPayload,
-    ) -> RouterResult<(BoxedOperation<'b, F, api::PaymentsRequest>, PaymentData<F>)>
+    ) -> RouterResult<(
+        BoxedOperation<'b, F, api::PaymentsRequest, Ctx>,
+        PaymentData<F>,
+    )>
     where
         F: 'b + Send,
     {
@@ -430,14 +454,16 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
     }
 }
 
-impl<F: Send + Clone> ValidateRequest<F, api::PaymentsRequest> for PaymentCreate {
+impl<F: Send + Clone, Ctx: PaymentMethodRetrieve> ValidateRequest<F, api::PaymentsRequest, Ctx>
+    for PaymentCreate
+{
     #[instrument(skip_all)]
     fn validate_request<'a, 'b>(
         &'b self,
         request: &api::PaymentsRequest,
         merchant_account: &'a domain::MerchantAccount,
     ) -> RouterResult<(
-        BoxedOperation<'b, F, api::PaymentsRequest>,
+        BoxedOperation<'b, F, api::PaymentsRequest, Ctx>,
         operations::ValidateResult<'a>,
     )> {
         helpers::validate_customer_details_in_request(request)?;
@@ -589,7 +615,7 @@ impl PaymentCreate {
         request: &api::PaymentsRequest,
         shipping_address_id: Option<String>,
         billing_address_id: Option<String>,
-        active_attempt: PaymentAttempt,
+        active_attempt_id: String,
         state: &AppState,
     ) -> RouterResult<storage::PaymentIntentNew> {
         let created_at @ modified_at @ last_synced = Some(common_utils::date_time::now());
@@ -611,6 +637,7 @@ impl PaymentCreate {
             merchant_account,
             request.profile_id.as_ref(),
             &*state.store,
+            true,
         )
         .await?;
 
@@ -650,7 +677,7 @@ impl PaymentCreate {
             metadata: request.metadata.clone(),
             business_country: request.business_country,
             business_label: request.business_label.clone(),
-            active_attempt: active_attempt.into(),
+            active_attempt: data_models::RemoteStorageObject::ForeignID(active_attempt_id),
             order_details,
             amount_captured: None,
             customer_id: None,
@@ -690,7 +717,7 @@ impl PaymentCreate {
     ) -> Option<ephemeral_key::EphemeralKey> {
         match request.customer_id.clone() {
             Some(customer_id) => helpers::make_ephemeral_key(
-                state,
+                state.clone(),
                 customer_id,
                 merchant_account.merchant_id.clone(),
             )

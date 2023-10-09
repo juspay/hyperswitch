@@ -36,7 +36,7 @@ pub struct Powertranz;
 impl api::Payment for Powertranz {}
 impl api::PaymentSession for Powertranz {}
 impl api::ConnectorAccessToken for Powertranz {}
-impl api::PreVerify for Powertranz {}
+impl api::MandateSetup for Powertranz {}
 impl api::PaymentAuthorize for Powertranz {}
 impl api::PaymentsCompleteAuthorize for Powertranz {}
 impl api::PaymentSync for Powertranz {}
@@ -149,8 +149,12 @@ impl ConnectorIntegration<api::AccessTokenAuth, types::AccessTokenRequestData, t
 {
 }
 
-impl ConnectorIntegration<api::Verify, types::VerifyRequestData, types::PaymentsResponseData>
-    for Powertranz
+impl
+    ConnectorIntegration<
+        api::SetupMandate,
+        types::SetupMandateRequestData,
+        types::PaymentsResponseData,
+    > for Powertranz
 {
 }
 
@@ -204,7 +208,6 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         req: &types::PaymentsAuthorizeRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
-        self.validate_capture_method(req.request.capture_method)?;
         Ok(Some(
             services::RequestBuilder::new()
                 .method(services::Method::Post)

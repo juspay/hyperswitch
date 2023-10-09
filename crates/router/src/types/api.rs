@@ -38,6 +38,18 @@ pub trait ConnectorAccessToken:
 {
 }
 
+#[derive(Clone, Debug)]
+pub struct VerifyWebhookSource;
+
+pub trait ConnectorVerifyWebhookSource:
+    ConnectorIntegration<
+    VerifyWebhookSource,
+    types::VerifyWebhookSourceRequestData,
+    types::VerifyWebhookSourceResponseData,
+>
+{
+}
+
 pub trait ConnectorTransactionId: ConnectorCommon + Sync {
     fn connector_transaction_id(
         &self,
@@ -47,9 +59,19 @@ pub trait ConnectorTransactionId: ConnectorCommon + Sync {
     }
 }
 
+pub enum CurrencyUnit {
+    Base,
+    Minor,
+}
+
 pub trait ConnectorCommon {
     /// Name of the connector (in lowercase).
     fn id(&self) -> &'static str;
+
+    /// Connector accepted currency unit as either "Base" or "Minor"
+    fn get_currency_unit(&self) -> CurrencyUnit {
+        CurrencyUnit::Minor // Default implementation should be remove once it is implemented in all connectors
+    }
 
     /// HTTP header used for authorization.
     fn get_auth_header(
@@ -113,6 +135,7 @@ pub trait Connector:
     + FileUpload
     + ConnectorTransactionId
     + Payouts
+    + ConnectorVerifyWebhookSource
 {
 }
 
@@ -131,7 +154,8 @@ impl<
             + Dispute
             + FileUpload
             + ConnectorTransactionId
-            + Payouts,
+            + Payouts
+            + ConnectorVerifyWebhookSource,
     > Connector for T
 {
 }
@@ -305,6 +329,7 @@ impl ConnectorData {
                 enums::Connector::Forte => Ok(Box::new(&connector::Forte)),
                 enums::Connector::Globalpay => Ok(Box::new(&connector::Globalpay)),
                 enums::Connector::Globepay => Ok(Box::new(&connector::Globepay)),
+                enums::Connector::Gocardless => Ok(Box::new(&connector::Gocardless)),
                 //enums::Connector::Helcim => Ok(Box::new(&connector::Helcim)), , it is added as template code for future usage
                 enums::Connector::Iatapay => Ok(Box::new(&connector::Iatapay)),
                 enums::Connector::Klarna => Ok(Box::new(&connector::Klarna)),
@@ -331,7 +356,7 @@ impl ConnectorData {
                 enums::Connector::Trustpay => Ok(Box::new(&connector::Trustpay)),
                 enums::Connector::Tsys => Ok(Box::new(&connector::Tsys)),
                 enums::Connector::Zen => Ok(Box::new(&connector::Zen)),
-                enums::Connector::Signifyd => {
+                enums::Connector::Signifyd | enums::Connector::Plaid => {
                     Err(report!(errors::ConnectorError::InvalidConnectorName)
                         .attach_printable(format!("invalid connector name: {connector_name}")))
                     .change_context(errors::ApiErrorResponse::InternalServerError)
