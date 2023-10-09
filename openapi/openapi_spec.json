@@ -4998,7 +4998,9 @@
           "dispute_cancelled",
           "dispute_challenged",
           "dispute_won",
-          "dispute_lost"
+          "dispute_lost",
+          "mandate_active",
+          "mandate_revoked"
         ]
       },
       "FeatureMetadata": {
@@ -6111,6 +6113,7 @@
           "enable_payment_response_hash",
           "redirect_to_merchant_with_http_post",
           "primary_business_details",
+          "organization_id",
           "is_recon_enabled",
           "recon_status"
         ],
@@ -6239,8 +6242,7 @@
           },
           "organization_id": {
             "type": "string",
-            "description": "The organization id merchant is associated with",
-            "nullable": true
+            "description": "The organization id merchant is associated with"
           },
           "is_recon_enabled": {
             "type": "boolean",
@@ -7358,6 +7360,24 @@
                 "$ref": "#/components/schemas/DisputeResponse"
               }
             }
+          },
+          {
+            "type": "object",
+            "required": [
+              "type",
+              "object"
+            ],
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": [
+                  "mandate_details"
+                ]
+              },
+              "object": {
+                "$ref": "#/components/schemas/MandateResponse"
+              }
+            }
           }
         ],
         "discriminator": {
@@ -8048,7 +8068,8 @@
         "type": "object",
         "required": [
           "payment_methods",
-          "mandate_payment"
+          "mandate_payment",
+          "show_surcharge_breakup_screen"
         ],
         "properties": {
           "redirect_url": {
@@ -8079,6 +8100,18 @@
           },
           "merchant_name": {
             "type": "string",
+            "nullable": true
+          },
+          "show_surcharge_breakup_screen": {
+            "type": "boolean",
+            "description": "flag to indicate if surcharge and tax breakup screen should be shown or not"
+          },
+          "payment_type": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PaymentType"
+              }
+            ],
             "nullable": true
           }
         }
@@ -8328,6 +8361,15 @@
             "nullable": true
           }
         }
+      },
+      "PaymentType": {
+        "type": "string",
+        "enum": [
+          "normal",
+          "new_mandate",
+          "setup_mandate",
+          "recurring_mandate"
+        ]
       },
       "PaymentsCancelRequest": {
         "type": "object",
@@ -8731,6 +8773,14 @@
             "type": "string",
             "description": "The business profile to use for this payment, if not passed the default business profile\nassociated with the merchant account will be used.",
             "nullable": true
+          },
+          "payment_type": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PaymentType"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -9069,6 +9119,14 @@
           "profile_id": {
             "type": "string",
             "description": "The business profile to use for this payment, if not passed the default business profile\nassociated with the merchant account will be used.",
+            "nullable": true
+          },
+          "payment_type": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PaymentType"
+              }
+            ],
             "nullable": true
           }
         }
@@ -9790,6 +9848,11 @@
             "description": "Provide a reference to a stored payment method",
             "example": "187282ab-40ef-47a9-9206-5099ba31e432",
             "nullable": true
+          },
+          "profile_id": {
+            "type": "string",
+            "description": "The business profile to use for this payment, if not passed the default business profile\nassociated with the merchant account will be used.",
+            "nullable": true
           }
         }
       },
@@ -9939,6 +10002,11 @@
             "type": "string",
             "description": "If there was an error while calling the connectors the code is received here",
             "example": "E0001"
+          },
+          "profile_id": {
+            "type": "string",
+            "description": "The business profile that is associated with this payment",
+            "nullable": true
           }
         }
       },
@@ -10183,6 +10251,11 @@
               "refund_id": {
                 "type": "string",
                 "description": "The identifier for the refund",
+                "nullable": true
+              },
+              "profile_id": {
+                "type": "string",
+                "description": "The identifier for business profile",
                 "nullable": true
               },
               "limit": {

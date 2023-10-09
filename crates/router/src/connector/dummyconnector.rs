@@ -30,7 +30,7 @@ pub struct DummyConnector<const T: u8>;
 impl<const T: u8> api::Payment for DummyConnector<T> {}
 impl<const T: u8> api::PaymentSession for DummyConnector<T> {}
 impl<const T: u8> api::ConnectorAccessToken for DummyConnector<T> {}
-impl<const T: u8> api::PreVerify for DummyConnector<T> {}
+impl<const T: u8> api::MandateSetup for DummyConnector<T> {}
 impl<const T: u8> api::PaymentAuthorize for DummyConnector<T> {}
 impl<const T: u8> api::PaymentSync for DummyConnector<T> {}
 impl<const T: u8> api::PaymentCapture for DummyConnector<T> {}
@@ -144,8 +144,11 @@ impl<const T: u8>
 }
 
 impl<const T: u8>
-    ConnectorIntegration<api::Verify, types::VerifyRequestData, types::PaymentsResponseData>
-    for DummyConnector<T>
+    ConnectorIntegration<
+        api::SetupMandate,
+        types::SetupMandateRequestData,
+        types::PaymentsResponseData,
+    > for DummyConnector<T>
 {
 }
 

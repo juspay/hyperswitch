@@ -26,6 +26,8 @@ use crate::{
     },
     utils::{generate_id, generate_uuid, OptionExt, ValueExt},
 };
+use api_models::payouts::PayoutVendorAccountDetails;
+use masking::PeekInterface;
 
 pub const IRRELEVANT_CONNECTOR_REQUEST_REFERENCE_ID_IN_DISPUTE_FLOW: &str =
     "irrelevant_connector_request_reference_id_in_dispute_flow";
@@ -40,31 +42,32 @@ pub async fn get_mca_for_payout<'a>(
     merchant_account: &domain::MerchantAccount,
     key_store: &domain::MerchantKeyStore,
     payout_data: &PayoutData,
-) -> RouterResult<helpers::MerchantConnectorAccountType> {
+) -> RouterResult<(helpers::MerchantConnectorAccountType, String)> {
     let payout_attempt = &payout_data.payout_attempt;
+    let profile_id = get_profile_id_from_business_details(
+        payout_attempt.business_country,
+        payout_attempt.business_label.as_ref(),
+        merchant_account,
+        payout_attempt.profile_id.as_ref(),
+        &*state.store,
+        false,
+    )
+    .await
+    .change_context(errors::ApiErrorResponse::InternalServerError)
+    .attach_printable("profile_id is not set in payout_attempt")?;
     match payout_data.merchant_connector_account.to_owned() {
-        Some(mca) => Ok(mca),
+        Some(mca) => Ok((mca, profile_id)),
         None => {
-            let profile_id = payout_attempt
-                .profile_id
-                .as_ref()
-                .ok_or(errors::ApiErrorResponse::MissingRequiredField {
-                    field_name: "business_profile",
-                })
-                .into_report()
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("profile_id is not set in payment_intent")?;
-
             let merchant_connector_account = helpers::get_merchant_connector_account(
                 state,
                 merchant_account.merchant_id.as_str(),
                 None,
                 key_store,
-                profile_id,
+                &profile_id,
                 connector_id,
             )
             .await?;
-            Ok(merchant_connector_account)
+            Ok((merchant_connector_account, profile_id))
         }
     }
 }
@@ -77,16 +80,13 @@ pub async fn construct_payout_router_data<'a, F>(
     key_store: &domain::MerchantKeyStore,
     payout_data: &mut PayoutData,
 ) -> RouterResult<types::PayoutsRouterData<F>> {
-    use api_models::payouts::PayoutVendorAccountDetails;
-    use masking::PeekInterface;
-
     let connector_id = connector_name.to_string();
     let (business_country, business_label) = helpers::get_business_details(
         payout_data.payout_attempt.business_country,
         payout_data.payout_attempt.business_label.as_ref(),
         merchant_account,
     )?;
-    let merchant_connector_account = get_mca_for_payout(
+    let (merchant_connector_account, profile_id) = get_mca_for_payout(
         state,
         &connector_id,
         merchant_account,
@@ -132,7 +132,7 @@ pub async fn construct_payout_router_data<'a, F>(
     let payouts = &payout_data.payouts;
     let payout_attempt = &payout_data.payout_attempt;
     let customer_details = &payout_data.customer_details;
-    let connector_label = format!("{}_{}_{}", connector_id, business_country, business_label);
+    let connector_label = format!("{profile_id}_{}", payout_attempt.connector);
     let connector_customer_id = customer_details
         .as_ref()
         .and_then(|c| c.connector_customer.as_ref())
@@ -181,7 +181,6 @@ pub async fn construct_payout_router_data<'a, F>(
             source_currency: payouts.source_currency,
             entity_type: payouts.entity_type.to_owned(),
             payout_type: payouts.payout_type,
-            country_code: business_country,
             vendor_details,
             customer_details: customer_details
                 .to_owned()

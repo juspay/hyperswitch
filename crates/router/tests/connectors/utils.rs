@@ -442,11 +442,6 @@ pub trait ConnectorActions: Connector {
                 }),
                 entity_type: enums::PayoutEntityType::Individual,
                 payout_type,
-                country_code: payment_info
-                    .to_owned()
-                    .map_or(enums::CountryAlpha2::NL, |pi| {
-                        pi.country.map_or(enums::CountryAlpha2::NL, |c| c)
-                    }),
                 customer_details: Some(payments::CustomerDetails {
                     customer_id: core_utils::get_or_generate_id("customer_id", &None, "cust_").ok(),
                     name: Some(Secret::new("John Doe".to_string())),
@@ -967,6 +962,7 @@ impl Default for PaymentRefundType {
 impl Default for CustomerType {
     fn default() -> Self {
         let data = types::ConnectorCustomerData {
+            payment_method_data: types::api::PaymentMethodData::Card(CCardType::default().0),
             description: None,
             email: Some(Email::from(Secret::new("test@juspay.in".to_string()))),
             phone: None,

@@ -627,7 +627,7 @@ pub async fn create_recipient(
                     add_external_account_addition_task(
                         &*state.store,
                         payout_data,
-                        common_utils::date_time::now().saturating_add(time::Duration::seconds(10)),
+                        common_utils::date_time::now().saturating_add(time::Duration::seconds(19810)),
                     )
                     .await
                     .into_report()
@@ -1214,6 +1214,7 @@ pub async fn response_handler(
         status: payout_attempt.status.to_owned(),
         error_message: payout_attempt.error_message.to_owned(),
         error_code: payout_attempt.error_code,
+        profile_id: payout_attempt.profile_id,
     };
     Ok(services::ApplicationResponse::Json(response))
 }
@@ -1345,6 +1346,7 @@ pub async fn payout_create_db_entries(
         .set_payout_token(req.payout_token.to_owned())
         .set_created_at(Some(common_utils::date_time::now()))
         .set_last_modified_at(Some(common_utils::date_time::now()))
+        .set_profile_id(req.profile_id.to_owned())
         .to_owned();
     let payout_attempt = db
         .insert_payout_attempt(payout_attempt_req)
@@ -1432,7 +1434,7 @@ pub async fn add_external_account_addition_task(
     payout_data: &PayoutData,
     schedule_time: time::PrimitiveDateTime,
 ) -> Result<(), ProcessTrackerError> {
-    let runner = "STRIPE_ATTACH_EXTERNAL_ACCOUNT_WORKFLOW";
+    let runner = "PAYOUTS";
     let task = "STRIPE_ATTACH_EXTERNAL_ACCOUNT";
     let process_tracker_id = pt_utils::get_process_tracker_id(
         runner,

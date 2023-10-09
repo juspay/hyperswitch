@@ -1,6 +1,6 @@
 use crate::{
     core::payouts as payouts_core,
-    errors as core_errors,
+    errors as core_errors, logger,
     routes::AppState,
     types::{api, storage},
 };
@@ -51,6 +51,7 @@ impl ProcessTrackerWorkflow<AppState> for StripeAttachExternalAccountWorkflow {
         let connector_data =
             payouts_core::get_connector_data(state, &merchant_account, routed_through, None)
                 .await?;
+        logger::info!("ABCDEFGASDHJGBYDUJSHGFUYDJSGFUIDSGHIUDSGHDUI");
         // 1. Attach recipient's external accounts
         payouts_core::create_recipient_account(
             state,

@@ -498,7 +498,7 @@ impl
     }
 }
 
-impl api::PreVerify for Stripe {}
+impl api::MandateSetup for Stripe {}
 
 impl
     services::ConnectorIntegration<
@@ -1010,20 +1010,24 @@ impl
 }
 
 type Verify = dyn services::ConnectorIntegration<
-    api::Verify,
-    types::VerifyRequestData,
+    api::SetupMandate,
+    types::SetupMandateRequestData,
     types::PaymentsResponseData,
 >;
 impl
     services::ConnectorIntegration<
-        api::Verify,
-        types::VerifyRequestData,
+        api::SetupMandate,
+        types::SetupMandateRequestData,
         types::PaymentsResponseData,
     > for Stripe
 {
     fn get_headers(
         &self,
-        req: &types::RouterData<api::Verify, types::VerifyRequestData, types::PaymentsResponseData>,
+        req: &types::RouterData<
+            api::SetupMandate,
+            types::SetupMandateRequestData,
+            types::PaymentsResponseData,
+        >,
         _connectors: &settings::Connectors,
     ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
         let mut header = vec![(
@@ -1042,8 +1046,8 @@ impl
     fn get_url(
         &self,
         _req: &types::RouterData<
-            api::Verify,
-            types::VerifyRequestData,
+            api::SetupMandate,
+            types::SetupMandateRequestData,
             types::PaymentsResponseData,
         >,
         connectors: &settings::Connectors,
@@ -1057,7 +1061,11 @@ impl
 
     fn get_request_body(
         &self,
-        req: &types::RouterData<api::Verify, types::VerifyRequestData, types::PaymentsResponseData>,
+        req: &types::RouterData<
+            api::SetupMandate,
+            types::SetupMandateRequestData,
+            types::PaymentsResponseData,
+        >,
     ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
         let req = stripe::SetupIntentRequest::try_from(req)?;
         let stripe_req = types::RequestBody::log_and_get_request_body(
@@ -1070,7 +1078,11 @@ impl
 
     fn build_request(
         &self,
-        req: &types::RouterData<api::Verify, types::VerifyRequestData, types::PaymentsResponseData>,
+        req: &types::RouterData<
+            api::SetupMandate,
+            types::SetupMandateRequestData,
+            types::PaymentsResponseData,
+        >,
         connectors: &settings::Connectors,
     ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
         Ok(Some(
@@ -1087,18 +1099,22 @@ impl
     fn handle_response(
         &self,
         data: &types::RouterData<
-            api::Verify,
-            types::VerifyRequestData,
+            api::SetupMandate,
+            types::SetupMandateRequestData,
             types::PaymentsResponseData,
         >,
         res: types::Response,
     ) -> CustomResult<
-        types::RouterData<api::Verify, types::VerifyRequestData, types::PaymentsResponseData>,
+        types::RouterData<
+            api::SetupMandate,
+            types::SetupMandateRequestData,
+            types::PaymentsResponseData,
+        >,
         errors::ConnectorError,
     >
     where
-        api::Verify: Clone,
-        types::VerifyRequestData: Clone,
+        api::SetupMandate: Clone,
+        types::SetupMandateRequestData: Clone,
         types::PaymentsResponseData: Clone,
     {
         let response: stripe::SetupIntentResponse = res
@@ -1732,6 +1748,7 @@ impl api::IncomingWebhook for Stripe {
     fn get_webhook_source_verification_signature(
         &self,
         request: &api::IncomingWebhookRequestDetails<'_>,
+        _connector_webhook_secrets: &api_models::webhooks::ConnectorWebhookSecrets,
     ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
         let mut security_header_kvs = get_signature_elements_from_header(request.headers)?;
 
@@ -1749,7 +1766,7 @@ impl api::IncomingWebhook for Stripe {
         &self,
         request: &api::IncomingWebhookRequestDetails<'_>,
         _merchant_id: &str,
-        _secret: &[u8],
+        _connector_webhook_secrets: &api_models::webhooks::ConnectorWebhookSecrets,
     ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
         let mut security_header_kvs = get_signature_elements_from_header(request.headers)?;
 
