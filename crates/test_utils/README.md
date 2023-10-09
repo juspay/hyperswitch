@@ -42,6 +42,8 @@ Optional fields:
   --folder "<folder_name_1>,<folder_name_2>,...<folder_name_n>" --verbose
   ```
 
+**Note**: You can omit `--package test_utils` at the time of running the above command since it is optional.
+
 ## UI tests
 
 To run the UI tests, run the following command:
