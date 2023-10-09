@@ -13,6 +13,8 @@ pub(crate) const ALPHABETS: [char; 62] = [
 pub const REQUEST_TIME_OUT: u64 = 30;
 pub const REQUEST_TIMEOUT_ERROR_CODE: &str = "TIMEOUT";
 pub const REQUEST_TIMEOUT_ERROR_MESSAGE: &str = "Connector did not respond in specified time";
+pub const REQUEST_TIMEOUT_ERROR_MESSAGE_FROM_PSYNC: &str =
+    "This Payment has been moved to failed as there is no response from the connector";
 
 ///Payment intent fulfillment default timeout (in seconds)
 pub const DEFAULT_FULFILLMENT_TIME: i64 = 15 * 60;
