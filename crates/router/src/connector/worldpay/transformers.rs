@@ -119,10 +119,10 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for WorldpayPaymentsRequest {
                 debt_repayment: None,
             },
             merchant: Merchant {
-                entity: item.attempt_id.clone().replace('_', "-"),
+                entity: item.connector_request_reference_id.clone().replace('_', "-"),
                 ..Default::default()
             },
-            transaction_reference: item.attempt_id.clone(),
+            transaction_reference: item.connector_request_reference_id.clone(),
             channel: None,
             customer: None,
         })

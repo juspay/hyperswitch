@@ -106,7 +106,7 @@ impl TryFrom<(&types::PaymentsAuthorizeRouterData, &api::WalletData)> for BokuPa
             currency: item.request.currency.to_string(),
             country,
             merchant_id: auth_type.merchant_id,
-            merchant_transaction_id: Secret::new(item.payment_id.to_string()),
+            merchant_transaction_id: Secret::new(item.connector_request_reference_id.to_string()),
             merchant_request_id: Uuid::new_v4().to_string(),
             merchant_item_description,
             notification_url: item.request.webhook_url.clone(),
@@ -179,7 +179,7 @@ impl TryFrom<&types::PaymentsSyncRouterData> for BokuPsyncRequest {
         Ok(Self {
             country,
             merchant_id: auth_type.merchant_id,
-            merchant_transaction_id: Secret::new(item.payment_id.to_string()),
+            merchant_transaction_id: Secret::new(item.connector_request_reference_id.to_string()),
         })
     }
 }
@@ -383,7 +383,7 @@ impl TryFrom<&types::RefundSyncRouterData> for BokuRsyncRequest {
         Ok(Self {
             country,
             merchant_id: auth_type.merchant_id,
-            merchant_transaction_id: Secret::new(item.payment_id.to_string()),
+            merchant_transaction_id: Secret::new(item.connector_request_reference_id.to_string()),
         })
     }
 }

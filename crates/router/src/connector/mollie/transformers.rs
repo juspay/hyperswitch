@@ -551,7 +551,7 @@ pub struct RefundResponse {
     status: MollieRefundStatus,
     description: Option<String>,
     metadata: serde_json::Value,
-    payment_id: String,
+    connector_request_reference_id: String,
     #[serde(rename = "_links")]
     links: Links,
 }

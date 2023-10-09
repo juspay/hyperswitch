@@ -203,7 +203,7 @@ impl
                     bank_account_iban: None,
                     billing_country: Some(country.to_owned()),
                     merchant_customer_id: Some(Secret::new(item.get_customer_id()?)),
-                    merchant_transaction_id: Some(Secret::new(item.payment_id.clone())),
+                    merchant_transaction_id: Some(Secret::new(item.connector_request_reference_id.clone())),
                     customer_email: None,
                 }))
             }

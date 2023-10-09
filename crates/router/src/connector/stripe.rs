@@ -618,7 +618,7 @@ impl
                 self.base_url(connectors),
                 "v1/payment_intents",
                 x,
-                "?expand[0]=latest_charge" //updated payment_id(if present) reside inside latest_charge field
+                "?expand[0]=latest_charge" //updated connector_request_reference_id(if present) reside inside latest_charge field
             )),
             x => x.change_context(errors::ConnectorError::MissingConnectorTransactionID),
         }
@@ -885,11 +885,11 @@ impl
         req: &types::PaymentsCancelRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        let payment_id = &req.request.connector_transaction_id;
+        let connector_request_reference_id = &req.request.connector_transaction_id;
         Ok(format!(
             "{}v1/payment_intents/{}/cancel",
             self.base_url(connectors),
-            payment_id
+            connector_request_reference_id
         ))
     }
 
@@ -1808,8 +1808,8 @@ impl api::IncomingWebhook for Stripe {
                             Some(_) => api_models::webhooks::ObjectReferenceId::RefundId(
                                 api_models::webhooks::RefundIdType::RefundId(meta_data.order_id),
                             ),
-                            // if the order_id is payment_id
-                            // since payment_id was being passed before the deployment of this pr
+                            // if the order_id is connector_request_reference_id
+                            // since connector_request_reference_id was being passed before the deployment of this pr
                             _ => api_models::webhooks::ObjectReferenceId::RefundId(
                                 api_models::webhooks::RefundIdType::ConnectorRefundId(
                                     details.event_data.event_object.id,

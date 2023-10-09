@@ -2432,7 +2432,7 @@ impl<'a>
             amount,
             merchant_account: auth_type.merchant_account,
             payment_method,
-            reference: item.router_data.payment_id.to_string(),
+            reference: item.router_data.connector_request_reference_id.to_string(),
             return_url,
             browser_info,
             shopper_interaction,
@@ -2479,7 +2479,7 @@ impl<'a>
             amount,
             merchant_account: auth_type.merchant_account,
             payment_method,
-            reference: item.router_data.payment_id.to_string(),
+            reference: item.router_data.connector_request_reference_id.to_string(),
             return_url,
             browser_info: None,
             shopper_interaction,
@@ -2526,7 +2526,7 @@ impl<'a>
             amount,
             merchant_account: auth_type.merchant_account,
             payment_method,
-            reference: item.router_data.payment_id.to_string(),
+            reference: item.router_data.connector_request_reference_id.to_string(),
             return_url,
             browser_info: None,
             shopper_interaction,
@@ -2785,7 +2785,7 @@ impl<'a>
             amount,
             merchant_account: auth_type.merchant_account,
             payment_method,
-            reference: item.router_data.payment_id.to_string(),
+            reference: item.router_data.connector_request_reference_id.to_string(),
             return_url,
             shopper_interaction,
             recurring_processing_model: None,
@@ -3432,7 +3432,7 @@ impl TryFrom<&AdyenRouterData<&types::PaymentsCaptureRouterData>> for AdyenCaptu
         let reference = match item.router_data.request.multiple_capture_data.clone() {
             // if multiple capture request, send capture_id as our reference for the capture
             Some(multiple_capture_request_data) => multiple_capture_request_data.capture_reference,
-            // if single capture request, send connector_request_reference_id(attempt_id)
+            // if single capture request, send connector_request_reference_id(connector_request_reference_id)
             None => item.router_data.connector_request_reference_id.clone(),
         };
         Ok(Self {

@@ -160,11 +160,11 @@ impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsR
         req: &types::PaymentsCancelRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        let connector_payment_id = req.request.connector_transaction_id.clone();
+        let connector_connector_request_reference_id = req.request.connector_transaction_id.clone();
         Ok(format!(
             "{}/v1/payments/{}{}",
             self.base_url(connectors),
-            connector_payment_id,
+            connector_connector_request_reference_id,
             "/completions"
         ))
     }
@@ -255,7 +255,7 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
         req: &types::PaymentsSyncRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        let connector_payment_id = req
+        let connector_connector_request_reference_id = req
             .request
             .connector_transaction_id
             .get_connector_transaction_id()
@@ -264,7 +264,7 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
             "{}{}{}",
             self.base_url(connectors),
             "/v1/payments/",
-            connector_payment_id
+            connector_connector_request_reference_id
         ))
     }
 
@@ -521,12 +521,12 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
         req: &types::RefundsRouterData<api::Execute>,
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        let connector_payment_id = req.request.connector_transaction_id.clone();
+        let connector_connector_request_reference_id = req.request.connector_transaction_id.clone();
         Ok(format!(
             "{}{}{}{}",
             self.base_url(connectors),
             "/v1/payments/",
-            connector_payment_id,
+            connector_connector_request_reference_id,
             "/returns"
         ))
     }
@@ -604,7 +604,7 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
         req: &types::RefundSyncRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        let _connector_payment_id = req.request.connector_transaction_id.clone();
+        let _connector_connector_request_reference_id = req.request.connector_transaction_id.clone();
         let connector_refund_id = req.request.get_connector_refund_id()?;
         Ok(format!(
             "{}{}{}",

@@ -173,7 +173,7 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
                 "{}api/v1.0/gateway/partners/{}/orders/{}{query_params}",
                 self.base_url(connectors),
                 get_partner_code(&req.connector_auth_type)?,
-                req.payment_id
+                req.connector_request_reference_id
             ))
         } else {
             Err(errors::ConnectorError::FlowNotSupported {
@@ -266,7 +266,7 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
             "{}api/v1.0/gateway/partners/{}/orders/{}{query_params}",
             self.base_url(connectors),
             get_partner_code(&req.connector_auth_type)?,
-            req.payment_id
+            req.connector_request_reference_id
         ))
     }
 
@@ -355,7 +355,7 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
             "{}api/v1.0/gateway/partners/{}/orders/{}/refunds/{}{query_params}",
             self.base_url(connectors),
             get_partner_code(&req.connector_auth_type)?,
-            req.payment_id,
+            req.connector_request_reference_id,
             req.request.refund_id
         ))
     }
@@ -438,7 +438,7 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
             "{}api/v1.0/gateway/partners/{}/orders/{}/refunds/{}{query_params}",
             self.base_url(connectors),
             get_partner_code(&req.connector_auth_type)?,
-            req.payment_id,
+            req.connector_request_reference_id,
             req.request.refund_id
         ))
     }

@@ -64,7 +64,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for CashtocodePaymentsRequest 
                     item.request.amount,
                     item.request.currency,
                 )?,
-                transaction_id: item.attempt_id.clone(),
+                transaction_id: item.connector_request_reference_id.clone(),
                 currency: item.request.currency,
                 user_id: Secret::new(customer_id.to_owned()),
                 first_name: None,
@@ -229,7 +229,7 @@ impl<F, T>
                     enums::AttemptStatus::AuthenticationPending,
                     Ok(types::PaymentsResponseData::TransactionResponse {
                         resource_id: types::ResponseId::ConnectorTransactionId(
-                            item.data.attempt_id.clone(),
+                            item.data.connector_request_reference_id.clone(),
                         ),
                         redirection_data: Some(redirection_data),
                         mandate_reference: None,
@@ -272,7 +272,7 @@ impl<F, T>
             status: enums::AttemptStatus::Charged,
             response: Ok(types::PaymentsResponseData::TransactionResponse {
                 resource_id: types::ResponseId::ConnectorTransactionId(
-                    item.data.attempt_id.clone(),
+                    item.data.connector_request_reference_id.clone(),
                 ),
                 redirection_data: None,
                 mandate_reference: None,

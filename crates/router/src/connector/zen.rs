@@ -301,7 +301,7 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
         Ok(format!(
             "{}v1/transactions/merchant/{}",
             self.base_url(connectors),
-            req.attempt_id,
+            req.connector_request_reference_id,
         ))
     }
 

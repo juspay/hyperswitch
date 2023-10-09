@@ -1203,7 +1203,7 @@ impl api::IncomingWebhook for Checkout {
                 api_models::payments::PaymentIdType::ConnectorTransactionId(
                     details
                         .data
-                        .payment_id
+                        .connector_request_reference_id
                         .ok_or(errors::ConnectorError::WebhookReferenceIdNotFound)?,
                 ),
             ));
@@ -1380,7 +1380,7 @@ impl ConnectorErrorTypeMapping for Checkout {
             "payment_type_invalid" => ConnectorErrorType::UserError,
             "phone_number_invalid" => ConnectorErrorType::UserError,
             "phone_number_length_invalid" => ConnectorErrorType::UserError,
-            "previous_payment_id_invalid" => ConnectorErrorType::BusinessError,
+            "previous_connector_request_reference_id_invalid" => ConnectorErrorType::BusinessError,
             "recipient_account_number_invalid" => ConnectorErrorType::BusinessError,
             "recipient_account_number_required" => ConnectorErrorType::UserError,
             "recipient_dob_required" => ConnectorErrorType::UserError,

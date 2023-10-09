@@ -1322,11 +1322,11 @@ impl services::ConnectorIntegration<api::Execute, types::RefundsData, types::Ref
         req: &types::RefundsRouterData<api::Execute>,
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        let connector_payment_id = req.request.connector_transaction_id.clone();
+        let connector_connector_request_reference_id = req.request.connector_transaction_id.clone();
         Ok(format!(
             "{}v68/payments/{}/refunds",
             self.base_url(connectors),
-            connector_payment_id
+            connector_connector_request_reference_id
         ))
     }
 

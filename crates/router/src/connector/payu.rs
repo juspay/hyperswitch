@@ -161,12 +161,12 @@ impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsR
         req: &types::PaymentsCancelRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        let connector_payment_id = &req.request.connector_transaction_id;
+        let connector_connector_request_reference_id = &req.request.connector_transaction_id;
         Ok(format!(
             "{}{}{}",
             self.base_url(connectors),
             "api/v2_1/orders/",
-            connector_payment_id
+            connector_connector_request_reference_id
         ))
     }
     fn build_request(
@@ -329,7 +329,7 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
         req: &types::PaymentsSyncRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        let connector_payment_id = req
+        let connector_connector_request_reference_id = req
             .request
             .connector_transaction_id
             .get_connector_transaction_id()
@@ -338,7 +338,7 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
             "{}{}{}",
             self.base_url(connectors),
             "api/v2_1/orders/",
-            connector_payment_id
+            connector_connector_request_reference_id
         ))
     }
 

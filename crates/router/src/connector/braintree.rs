@@ -570,13 +570,13 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
             false => {
                 let auth_type = braintree::BraintreeAuthType::try_from(&req.connector_auth_type)
                     .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
-                let connector_payment_id = req
+                let connector_connector_request_reference_id = req
                     .request
                     .connector_transaction_id
                     .get_connector_transaction_id()
                     .change_context(errors::ConnectorError::MissingConnectorTransactionID)?;
                 Ok(format!(
-                    "{}/merchants/{}/transactions/{connector_payment_id}",
+                    "{}/merchants/{}/transactions/{connector_connector_request_reference_id}",
                     self.base_url(connectors),
                     auth_type.merchant_id.peek()
                 ))
@@ -1041,12 +1041,12 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
             false => {
                 let auth_type = braintree::BraintreeAuthType::try_from(&req.connector_auth_type)
                     .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
-                let connector_payment_id = req.request.connector_transaction_id.clone();
+                let connector_connector_request_reference_id = req.request.connector_transaction_id.clone();
                 Ok(format!(
                     "{}merchants/{}/transactions/{}",
                     self.base_url(connectors),
                     auth_type.merchant_id.peek(),
-                    connector_payment_id
+                    connector_connector_request_reference_id
                 ))
             }
         }

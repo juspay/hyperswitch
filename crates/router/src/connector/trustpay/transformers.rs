@@ -299,7 +299,7 @@ fn get_card_request_data(
             cvv: ccard.card_cvc.clone(),
             expiry_date: ccard.get_card_expiry_month_year_2_digit_with_delimiter("/".to_owned()),
             cardholder: get_full_name(params.billing_first_name, billing_last_name),
-            reference: item.payment_id.clone(),
+            reference: item.connector_request_reference_id.clone(),
             redirect_url: return_url,
             billing_city: params.billing_city,
             billing_country: params.billing_country,
@@ -377,7 +377,7 @@ fn get_bank_redirection_request_data(
                     currency: item.request.currency.to_string(),
                 },
                 references: References {
-                    merchant_reference: item.payment_id.clone(),
+                    merchant_reference: item.connector_request_reference_id.clone(),
                 },
                 debtor: get_debtor_info(item, pm, params)?,
             },
@@ -985,7 +985,7 @@ impl TryFrom<&TrustpayRouterData<&types::PaymentsPreProcessingRouterData>>
             currency: currency.to_string(),
             init_apple_pay: is_apple_pay,
             init_google_pay: is_google_pay,
-            reference: item.router_data.payment_id.clone(),
+            reference: item.router_data.connector_request_reference_id.clone(),
         })
     }
 }
@@ -1666,7 +1666,7 @@ impl TryFrom<WebhookStatus> for diesel_models::enums::RefundStatus {
 #[serde(rename_all = "PascalCase")]
 pub struct WebhookReferences {
     pub merchant_reference: String,
-    pub payment_id: String,
+    pub connector_request_reference_id: String,
     pub payment_request_id: Option<String>,
 }
 

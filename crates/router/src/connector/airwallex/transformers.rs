@@ -48,7 +48,7 @@ impl TryFrom<&types::PaymentsInitRouterData> for AirwallexIntentRequest {
             request_id: Uuid::new_v4().to_string(),
             amount: utils::to_currency_base_unit(item.request.amount, item.request.currency)?,
             currency: item.request.currency,
-            merchant_order_id: item.payment_id.clone(),
+            merchant_order_id: item.connector_request_reference_id.clone(),
         })
     }
 }

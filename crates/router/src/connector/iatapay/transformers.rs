@@ -70,7 +70,7 @@ pub struct PayerInfo {
 #[serde(rename_all = "camelCase")]
 pub struct IatapayPaymentsRequest {
     merchant_id: Secret<String>,
-    merchant_payment_id: Option<String>,
+    merchant_connector_request_reference_id: Option<String>,
     amount: f64,
     currency: String,
     country: String,
@@ -99,7 +99,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for IatapayPaymentsRequest {
             utils::to_currency_base_unit_asf64(item.request.amount, item.request.currency)?;
         let payload = Self {
             merchant_id: IatapayAuthType::try_from(&item.connector_auth_type)?.merchant_id,
-            merchant_payment_id: Some(item.payment_id.clone()),
+            merchant_connector_request_reference_id: Some(item.connector_request_reference_id.clone()),
             amount,
             currency: item.request.currency.to_string(),
             country: country.clone(),
@@ -190,10 +190,10 @@ pub struct CheckoutMethod {
 #[serde(rename_all = "camelCase")]
 pub struct IatapayPaymentsResponse {
     pub status: IatapayPaymentStatus,
-    pub iata_payment_id: Option<String>,
+    pub iata_connector_request_reference_id: Option<String>,
     pub iata_refund_id: Option<String>,
     pub merchant_id: Option<String>,
-    pub merchant_payment_id: Option<String>,
+    pub merchant_connector_request_reference_id: Option<String>,
     pub amount: f64,
     pub currency: String,
     pub country: Option<String>,
@@ -212,7 +212,7 @@ impl<F, T>
         item: types::ResponseRouterData<F, IatapayPaymentsResponse, T, types::PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
         let form_fields = HashMap::new();
-        let id = match item.response.iata_payment_id {
+        let id = match item.response.iata_connector_request_reference_id {
             Some(s) => types::ResponseId::ConnectorTransactionId(s),
             None => types::ResponseId::NoResponseId,
         };
@@ -320,8 +320,8 @@ pub struct RefundResponse {
     finish_date_time: Option<String>,
     update_date_time: Option<String>,
     clearance_date_time: Option<String>,
-    iata_payment_id: Option<String>,
-    merchant_payment_id: Option<String>,
+    iata_connector_request_reference_id: Option<String>,
+    merchant_connector_request_reference_id: Option<String>,
     payment_amount: Option<f64>,
     merchant_id: Option<String>,
     account_country: Option<String>,

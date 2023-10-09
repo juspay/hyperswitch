@@ -282,11 +282,11 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
         req: &types::PaymentsCaptureRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        let connector_payment_id = req.request.connector_transaction_id.clone();
+        let connector_connector_request_reference_id = req.request.connector_transaction_id.clone();
         Ok(format!(
             "{}pts/v2/payments/{}/captures",
             self.base_url(connectors),
-            connector_payment_id
+            connector_connector_request_reference_id
         ))
     }
 
@@ -370,7 +370,7 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
         req: &types::PaymentsSyncRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        let connector_payment_id = req
+        let connector_connector_request_reference_id = req
             .request
             .connector_transaction_id
             .get_connector_transaction_id()
@@ -378,7 +378,7 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
         Ok(format!(
             "{}tss/v2/transactions/{}",
             self.base_url(connectors),
-            connector_payment_id
+            connector_connector_request_reference_id
         ))
     }
 
@@ -543,11 +543,11 @@ impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsR
         req: &types::PaymentsCancelRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        let connector_payment_id = req.request.connector_transaction_id.clone();
+        let connector_connector_request_reference_id = req.request.connector_transaction_id.clone();
         Ok(format!(
             "{}pts/v2/payments/{}/voids",
             self.base_url(connectors),
-            connector_payment_id
+            connector_connector_request_reference_id
         ))
     }
 
@@ -634,11 +634,11 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
         req: &types::RefundExecuteRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        let connector_payment_id = req.request.connector_transaction_id.clone();
+        let connector_connector_request_reference_id = req.request.connector_transaction_id.clone();
         Ok(format!(
             "{}pts/v2/payments/{}/refunds",
             self.base_url(connectors),
-            connector_payment_id
+            connector_connector_request_reference_id
         ))
     }
 

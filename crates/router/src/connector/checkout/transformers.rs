@@ -1057,7 +1057,7 @@ pub struct CheckoutWebhookEventTypeBody {
 #[derive(Debug, Deserialize)]
 pub struct CheckoutWebhookData {
     pub id: String,
-    pub payment_id: Option<String>,
+    pub connector_request_reference_id: Option<String>,
     pub action_id: Option<String>,
     pub reference: Option<String>,
     pub amount: i32,
@@ -1079,7 +1079,7 @@ pub struct CheckoutWebhookBody {
 #[derive(Debug, Deserialize)]
 pub struct CheckoutDisputeWebhookData {
     pub id: String,
-    pub payment_id: Option<String>,
+    pub connector_request_reference_id: Option<String>,
     pub action_id: Option<String>,
     pub amount: i32,
     pub currency: String,
@@ -1215,7 +1215,7 @@ impl TryFrom<&api::IncomingWebhookRequestDetails<'_>> for PaymentsResponse {
             .change_context(errors::ConnectorError::WebhookReferenceIdNotFound)?;
         let data = details.data;
         let psync_struct = Self {
-            id: data.payment_id.unwrap_or(data.id),
+            id: data.connector_request_reference_id.unwrap_or(data.id),
             amount: Some(data.amount),
             status: CheckoutPaymentStatus::try_from(details.transaction_type)?,
             links: details.links,

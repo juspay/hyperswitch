@@ -106,7 +106,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for DlocalPaymentsRequest {
                         // [#595[FEATURE] Pass Mandate history information in payment flows/request]
                         installments: item.request.mandate_id.clone().map(|_| "1".to_string()),
                     }),
-                    order_id: item.payment_id.clone(),
+                    order_id: item.connector_request_reference_id.clone(),
                     three_dsecure: match item.auth_type {
                         diesel_models::enums::AuthenticationType::ThreeDs => {
                             Some(ThreeDSecureReqData { force: true })
@@ -185,7 +185,7 @@ impl TryFrom<&types::PaymentsCaptureRouterData> for DlocalPaymentsCaptureRequest
             authorization_id: item.request.connector_transaction_id.clone(),
             amount: item.request.amount_to_capture,
             currency: item.request.currency.to_string(),
-            order_id: item.payment_id.clone(),
+            order_id: item.connector_request_reference_id.clone(),
         })
     }
 }
@@ -392,7 +392,7 @@ impl<F, T>
 #[derive(Default, Debug, Serialize)]
 pub struct RefundRequest {
     pub amount: String,
-    pub payment_id: String,
+    pub connector_request_reference_id: String,
     pub currency: enums::Currency,
     pub id: String,
 }
@@ -403,7 +403,7 @@ impl<F> TryFrom<&types::RefundsRouterData<F>> for RefundRequest {
         let amount_to_refund = item.request.refund_amount.to_string();
         Ok(Self {
             amount: amount_to_refund,
-            payment_id: item.request.connector_transaction_id.clone(),
+            connector_request_reference_id: item.request.connector_transaction_id.clone(),
             currency: item.request.currency,
             id: item.request.refund_id.clone(),
         })

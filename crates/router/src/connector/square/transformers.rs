@@ -241,7 +241,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for SquarePaymentsRequest {
             api::PaymentMethodData::Card(_) => {
                 let pm_token = item.get_payment_method_token()?;
                 Ok(Self {
-                    idempotency_key: Secret::new(item.attempt_id.clone()),
+                    idempotency_key: Secret::new(item.connector_request_reference_id.clone()),
                     source_id: Secret::new(match pm_token {
                         types::PaymentMethodToken::Token(token) => token,
                         types::PaymentMethodToken::ApplePayDecrypt(_) => {
@@ -370,7 +370,7 @@ impl<F, T>
 pub struct SquareRefundRequest {
     amount_money: SquarePaymentsAmountData,
     idempotency_key: Secret<String>,
-    payment_id: Secret<String>,
+    connector_request_reference_id: Secret<String>,
 }
 
 impl<F> TryFrom<&types::RefundsRouterData<F>> for SquareRefundRequest {
@@ -382,7 +382,7 @@ impl<F> TryFrom<&types::RefundsRouterData<F>> for SquareRefundRequest {
                 currency: item.request.currency,
             },
             idempotency_key: Secret::new(item.request.refund_id.clone()),
-            payment_id: Secret::new(item.request.connector_transaction_id.clone()),
+            connector_request_reference_id: Secret::new(item.request.connector_transaction_id.clone()),
         })
     }
 }

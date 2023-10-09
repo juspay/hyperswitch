@@ -737,10 +737,10 @@ impl api::IncomingWebhook for Gocardless {
             .ok_or_else(|| errors::ConnectorError::WebhookReferenceIdNotFound)?;
         let reference_id = match &first_event.links {
             transformers::WebhooksLink::PaymentWebhooksLink(link) => {
-                let payment_id = api_models::payments::PaymentIdType::ConnectorTransactionId(
+                let connector_request_reference_id = api_models::payments::PaymentIdType::ConnectorTransactionId(
                     link.payment.to_owned(),
                 );
-                api::webhooks::ObjectReferenceId::PaymentId(payment_id)
+                api::webhooks::ObjectReferenceId::PaymentId(connector_request_reference_id)
             }
             transformers::WebhooksLink::RefundWebhookLink(link) => {
                 let refund_id =

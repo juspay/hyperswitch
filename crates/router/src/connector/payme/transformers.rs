@@ -369,7 +369,7 @@ impl TryFrom<&PaymeRouterData<&types::PaymentsPreProcessingRouterData>> for Gene
             product_name,
             sale_payment_method: SalePaymentMethod::try_from(&pmd)?,
             sale_type,
-            transaction_id: item.router_data.payment_id.clone(),
+            transaction_id: item.router_data.connector_request_reference_id.clone(),
             sale_return_url: item.router_data.request.get_return_url()?,
             sale_callback_url: item.router_data.request.get_webhook_url()?,
             language: LANGUAGE.to_string(),
@@ -614,7 +614,7 @@ impl TryFrom<&PaymeRouterData<&types::PaymentsAuthorizeRouterData>> for MandateR
         Ok(Self {
             currency: item.router_data.request.currency,
             sale_price: item.amount.to_owned(),
-            transaction_id: item.router_data.payment_id.clone(),
+            transaction_id: item.router_data.connector_request_reference_id.clone(),
             product_name,
             sale_return_url: item.router_data.request.get_return_url()?,
             seller_payme_id,

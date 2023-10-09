@@ -612,10 +612,10 @@ impl api::IncomingWebhook for Iatapay {
                 .body
                 .parse_struct("IatapayPaymentsResponse")
                 .change_context(errors::ConnectorError::WebhookReferenceIdNotFound)?;
-        if notif.iata_payment_id.is_some() {
+        if notif.iata_connector_request_reference_id.is_some() {
             Ok(api_models::webhooks::ObjectReferenceId::PaymentId(
                 api_models::payments::PaymentIdType::ConnectorTransactionId(
-                    notif.iata_payment_id.unwrap_or_default(),
+                    notif.iata_connector_request_reference_id.unwrap_or_default(),
                 ),
             ))
         } else {
@@ -637,11 +637,11 @@ impl api::IncomingWebhook for Iatapay {
                 .parse_struct("IatapayPaymentsResponse")
                 .change_context(errors::ConnectorError::WebhookEventTypeNotFound)?;
         match notif.status {
-            iatapay::IatapayPaymentStatus::Authorized => match notif.iata_payment_id.is_some() {
+            iatapay::IatapayPaymentStatus::Authorized => match notif.iata_connector_request_reference_id.is_some() {
                 true => Ok(api::IncomingWebhookEvent::PaymentIntentSuccess),
                 false => Ok(api::IncomingWebhookEvent::RefundSuccess),
             },
-            iatapay::IatapayPaymentStatus::Failed => match notif.iata_payment_id.is_some() {
+            iatapay::IatapayPaymentStatus::Failed => match notif.iata_connector_request_reference_id.is_some() {
                 true => Ok(api::IncomingWebhookEvent::PaymentIntentFailure),
                 false => Ok(api::IncomingWebhookEvent::RefundFailure),
             },

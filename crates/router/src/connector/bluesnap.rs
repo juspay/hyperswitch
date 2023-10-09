@@ -179,7 +179,7 @@ impl ConnectorValidation for Bluesnap {
         {
             return Ok(());
         }
-        // if merchant_id is present, psync can be made along with attempt_id
+        // if merchant_id is present, psync can be made along with connector_request_reference_id
         let meta_data: CustomResult<bluesnap::BluesnapConnectorMetaData, errors::ConnectorError> =
             connector_utils::to_connector_meta_from_secret(data.connector_meta_data.clone());
 
@@ -330,7 +330,7 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
             Ok(data) => get_url_with_merchant_transaction_id(
                 self.base_url(connectors).to_string(),
                 data.merchant_id,
-                req.attempt_id.to_owned(),
+                req.connector_request_reference_id.to_owned(),
             ),
             // otherwise psync is made using connector_transaction_id
             Err(_) => get_psync_url_with_connector_transaction_id(
@@ -918,7 +918,7 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
                 Ok(data) => get_url_with_merchant_transaction_id(
                     self.base_url(connectors).to_string(),
                     data.merchant_id,
-                    req.attempt_id.to_owned(),
+                    req.connector_request_reference_id.to_owned(),
                 ),
                 // otherwise rsync is made using connector_transaction_id
                 Err(_) => get_rsync_url_with_connector_refund_id(

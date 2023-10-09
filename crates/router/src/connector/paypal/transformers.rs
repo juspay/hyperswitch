@@ -260,7 +260,7 @@ impl TryFrom<&PaypalRouterData<&types::PaymentsAuthorizeRouterData>> for PaypalP
                     currency_code: item.router_data.request.currency,
                     value: item.amount.to_owned(),
                 };
-                let reference_id = item.router_data.attempt_id.clone();
+                let reference_id = item.router_data.connector_request_reference_id.clone();
 
                 let purchase_units = vec![PurchaseUnitRequest {
                     reference_id,
@@ -304,7 +304,7 @@ impl TryFrom<&PaypalRouterData<&types::PaymentsAuthorizeRouterData>> for PaypalP
                         currency_code: item.router_data.request.currency,
                         value: item.amount.to_owned(),
                     };
-                    let reference_id = item.router_data.attempt_id.clone();
+                    let reference_id = item.router_data.connector_request_reference_id.clone();
                     let purchase_units = vec![PurchaseUnitRequest {
                         reference_id,
                         amount,
@@ -367,7 +367,7 @@ impl TryFrom<&PaypalRouterData<&types::PaymentsAuthorizeRouterData>> for PaypalP
                     currency_code: item.router_data.request.currency,
                     value: item.amount.to_owned(),
                 };
-                let reference_id = item.router_data.attempt_id.clone();
+                let reference_id = item.router_data.connector_request_reference_id.clone();
                 let purchase_units = vec![PurchaseUnitRequest {
                     reference_id,
                     amount,
@@ -1162,7 +1162,7 @@ impl TryFrom<types::PaymentsCaptureResponseRouterData<PaypalCaptureResponse>>
     ) -> Result<Self, Self::Error> {
         let amount_captured = item.data.request.amount_to_capture;
         let status = storage_enums::AttemptStatus::from(item.response.status);
-        let connector_payment_id: PaypalMeta =
+        let connector_connector_request_reference_id: PaypalMeta =
             to_connector_meta(item.data.request.connector_meta.clone())?;
         Ok(Self {
             status,
@@ -1173,7 +1173,7 @@ impl TryFrom<types::PaymentsCaptureResponseRouterData<PaypalCaptureResponse>>
                 redirection_data: None,
                 mandate_reference: None,
                 connector_metadata: Some(serde_json::json!(PaypalMeta {
-                    authorize_id: connector_payment_id.authorize_id,
+                    authorize_id: connector_connector_request_reference_id.authorize_id,
                     capture_id: Some(item.response.id),
                     psync_flow: PaypalPaymentIntent::Capture
                 })),
