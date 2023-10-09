@@ -443,7 +443,7 @@ where
             payment_confirm_source.to_string(),
         ))
     }
-    if let Some(true) = is_latency_header_enabled {
+    if Some(true) == is_latency_header_enabled {
         headers.extend(
             external_latency
                 .map(|latency| vec![("x-hs-latency".to_string(), latency.to_string())])
