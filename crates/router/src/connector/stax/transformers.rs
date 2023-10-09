@@ -74,18 +74,260 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for StaxPaymentsRequest {
                     idempotency_id: Some(item.connector_request_reference_id.clone()),
                 })
             }
-            api::PaymentMethodData::BankDebit(_)
-            | api::PaymentMethodData::Wallet(_)
-            | api::PaymentMethodData::PayLater(_)
-            | api::PaymentMethodData::BankRedirect(_)
-            | api::PaymentMethodData::BankTransfer(_)
-            | api::PaymentMethodData::Crypto(_)
+            api::PaymentMethodData::BankDebit(
+                api_models::payments::BankDebitData::SepaBankDebit { .. },
+            )
+            | api::PaymentMethodData::BankDebit(
+                api_models::payments::BankDebitData::BecsBankDebit { .. },
+            )
+            | api::PaymentMethodData::BankDebit(
+                api_models::payments::BankDebitData::BacsBankDebit { .. },
+            )
+            | api::PaymentMethodData::Wallet(api_models::payments::WalletData::AliPayQr {
+                ..
+            })
+            | api::PaymentMethodData::Wallet(api_models::payments::WalletData::AliPayRedirect {
+                ..
+            })
+            | api::PaymentMethodData::Wallet(
+                api_models::payments::WalletData::AliPayHkRedirect { .. },
+            )
+            | api::PaymentMethodData::Wallet(api_models::payments::WalletData::MomoRedirect {
+                ..
+            })
+            | api::PaymentMethodData::Wallet(
+                api_models::payments::WalletData::KakaoPayRedirect { .. },
+            )
+            | api::PaymentMethodData::Wallet(api_models::payments::WalletData::GoPayRedirect {
+                ..
+            })
+            | api::PaymentMethodData::Wallet(api_models::payments::WalletData::GcashRedirect {
+                ..
+            })
+            | api::PaymentMethodData::Wallet(api_models::payments::WalletData::ApplePay {
+                ..
+            })
+            | api::PaymentMethodData::Wallet(
+                api_models::payments::WalletData::ApplePayRedirect { .. },
+            )
+            | api::PaymentMethodData::Wallet(
+                api_models::payments::WalletData::ApplePayThirdPartySdk { .. },
+            )
+            | api::PaymentMethodData::Wallet(api_models::payments::WalletData::DanaRedirect {
+                ..
+            })
+            | api::PaymentMethodData::Wallet(api_models::payments::WalletData::GooglePay {
+                ..
+            })
+            | api::PaymentMethodData::Wallet(
+                api_models::payments::WalletData::GooglePayRedirect { .. },
+            )
+            | api::PaymentMethodData::Wallet(
+                api_models::payments::WalletData::GooglePayThirdPartySdk { .. },
+            )
+            | api::PaymentMethodData::Wallet(api_models::payments::WalletData::MbWayRedirect {
+                ..
+            })
+            | api::PaymentMethodData::Wallet(
+                api_models::payments::WalletData::MobilePayRedirect { .. },
+            )
+            | api::PaymentMethodData::Wallet(api_models::payments::WalletData::PaypalRedirect {
+                ..
+            })
+            | api::PaymentMethodData::Wallet(api_models::payments::WalletData::PaypalSdk {
+                ..
+            })
+            | api::PaymentMethodData::Wallet(api_models::payments::WalletData::SamsungPay {
+                ..
+            })
+            | api::PaymentMethodData::Wallet(api_models::payments::WalletData::TwintRedirect {
+                ..
+            })
+            | api::PaymentMethodData::Wallet(api_models::payments::WalletData::VippsRedirect {
+                ..
+            })
+            | api::PaymentMethodData::Wallet(
+                api_models::payments::WalletData::TouchNGoRedirect { .. },
+            )
+            | api::PaymentMethodData::Wallet(
+                api_models::payments::WalletData::WeChatPayRedirect { .. },
+            )
+            | api::PaymentMethodData::Wallet(api_models::payments::WalletData::WeChatPayQr {
+                ..
+            })
+            | api::PaymentMethodData::Wallet(api_models::payments::WalletData::CashappQr {
+                ..
+            })
+            | api::PaymentMethodData::Wallet(api_models::payments::WalletData::SwishQr {
+                ..
+            })
+            | api::PaymentMethodData::PayLater(
+                api_models::payments::PayLaterData::KlarnaRedirect { .. },
+            )
+            | api::PaymentMethodData::PayLater(api_models::payments::PayLaterData::KlarnaSdk {
+                ..
+            })
+            | api::PaymentMethodData::PayLater(
+                api_models::payments::PayLaterData::AffirmRedirect { .. },
+            )
+            | api::PaymentMethodData::PayLater(
+                api_models::payments::PayLaterData::AfterpayClearpayRedirect { .. },
+            )
+            | api::PaymentMethodData::PayLater(
+                api_models::payments::PayLaterData::PayBrightRedirect { .. },
+            )
+            | api::PaymentMethodData::PayLater(
+                api_models::payments::PayLaterData::WalleyRedirect { .. },
+            )
+            | api::PaymentMethodData::PayLater(
+                api_models::payments::PayLaterData::AlmaRedirect { .. },
+            )
+            | api::PaymentMethodData::PayLater(
+                api_models::payments::PayLaterData::AtomeRedirect { .. },
+            )
+            | api::PaymentMethodData::BankRedirect(
+                api_models::payments::BankRedirectData::BancontactCard { .. },
+            )
+            | api::PaymentMethodData::BankRedirect(
+                api_models::payments::BankRedirectData::Bizum { .. },
+            )
+            | api::PaymentMethodData::BankRedirect(
+                api_models::payments::BankRedirectData::Blik { .. },
+            )
+            | api::PaymentMethodData::BankRedirect(api_models::payments::BankRedirectData::Eps {
+                ..
+            })
+            | api::PaymentMethodData::BankRedirect(
+                api_models::payments::BankRedirectData::Giropay { .. },
+            )
+            | api::PaymentMethodData::BankRedirect(
+                api_models::payments::BankRedirectData::Ideal { .. },
+            )
+            | api::PaymentMethodData::BankRedirect(
+                api_models::payments::BankRedirectData::Interac { .. },
+            )
+            | api::PaymentMethodData::BankRedirect(
+                api_models::payments::BankRedirectData::OnlineBankingCzechRepublic { .. },
+            )
+            | api::PaymentMethodData::BankRedirect(
+                api_models::payments::BankRedirectData::OnlineBankingFinland { .. },
+            )
+            | api::PaymentMethodData::BankRedirect(
+                api_models::payments::BankRedirectData::OnlineBankingPoland { .. },
+            )
+            | api::PaymentMethodData::BankRedirect(
+                api_models::payments::BankRedirectData::OnlineBankingSlovakia { .. },
+            )
+            | api::PaymentMethodData::BankRedirect(
+                api_models::payments::BankRedirectData::OpenBankingUk { .. },
+            )
+            | api::PaymentMethodData::BankRedirect(
+                api_models::payments::BankRedirectData::Przelewy24 { .. },
+            )
+            | api::PaymentMethodData::BankRedirect(
+                api_models::payments::BankRedirectData::Sofort { .. },
+            )
+            | api::PaymentMethodData::BankRedirect(
+                api_models::payments::BankRedirectData::Trustly { .. },
+            )
+            | api::PaymentMethodData::BankRedirect(
+                api_models::payments::BankRedirectData::OnlineBankingFpx { .. },
+            )
+            | api::PaymentMethodData::BankRedirect(
+                api_models::payments::BankRedirectData::OnlineBankingThailand { .. },
+            )
+            | api::PaymentMethodData::BankTransfer(_) // TODO: how to match against boxed enum? box syntax is experimental. And nested match complains that variables need to be matched in all patterns. The only working solution I found would be to double match against a tuple:
+            //match (&item.request.payment_method_data, &item.request.payment_method_data)
+
+            //| api::PaymentMethodData::BankTransfer(box api_models::payments::BankTransferData::AchBankTransfer { .. })
+
+            //| api::PaymentMethodData::BankTransfer(boxed_transfer_type) => {
+            //    match *boxed_transfer_type {
+            //                api_models::payments::BankTransferData::AchBankTransfer { .. }
+            //                | api_models::payments::BankTransferData::SepaBankTransfer { .. }
+            //                | api_models::payments::BankTransferData::BacsBankTransfer { .. }
+            //                | api_models::payments::BankTransferData::MultibancoBankTransfer { .. }
+            //                |
+            //                api_models::payments::BankTransferData::PermataBankTransfer { .. }
+
+            //                | api_models::payments::BankTransferData::BcaBankTransfer { .. }
+            //                |
+            //                api_models::payments::BankTransferData::BniVaBankTransfer { .. }
+            //                | api_models::payments::BankTransferData::BriVaBankTransfer { .. }
+            //                |
+            //                api_models::payments::BankTransferData::CimbVaBankTransfer { .. }
+
+            //                | api_models::payments::BankTransferData::DanamonVaBankTransfer { .. }
+            //                |
+            //                api_models::payments::BankTransferData::MandiriVaBankTransfer { .. }
+            //                | api_models::payments::BankTransferData::Pix { .. }
+            //                |
+            //                api_models::payments::BankTransferData::Pse { .. } => {
+            //                    Err(errors::ConnectorError::NotSupported {
+            //                        message: "SELECTED_PAYMENT_METHOD".to_string(),
+            //                        connector: "Stax",
+            //                    })?
+            //                }
+            //    }
+            //},
+            //
+            | api::PaymentMethodData::Crypto(api_models::payments::CryptoData { .. })
             | api::PaymentMethodData::MandatePayment
             | api::PaymentMethodData::Reward
-            | api::PaymentMethodData::Voucher(_)
+            | api::PaymentMethodData::Voucher(
+                api_models::payments::VoucherData::Boleto { .. },
+            )
+            | api::PaymentMethodData::Voucher(
+                api_models::payments::VoucherData::Efecty,
+            )
+            | api::PaymentMethodData::Voucher(
+                api_models::payments::VoucherData::PagoEfectivo,
+            )
+            | api::PaymentMethodData::Voucher(
+                api_models::payments::VoucherData::RedCompra,
+            )
+            | api::PaymentMethodData::Voucher(
+                api_models::payments::VoucherData::RedPagos,
+            )
+            | api::PaymentMethodData::Voucher(
+                api_models::payments::VoucherData::Alfamart{ .. },
+            )
+            | api::PaymentMethodData::Voucher(
+                api_models::payments::VoucherData::Indomaret{ .. },
+            )
+            | api::PaymentMethodData::Voucher(
+                api_models::payments::VoucherData::Oxxo,
+            )
+            | api::PaymentMethodData::Voucher(
+                api_models::payments::VoucherData::SevenEleven{ .. },
+            )
+            | api::PaymentMethodData::Voucher(
+                api_models::payments::VoucherData::Lawson{ .. },
+            )
+            | api::PaymentMethodData::Voucher(
+                api_models::payments::VoucherData::MiniStop{ .. },
+            )
+            | api::PaymentMethodData::Voucher(
+                api_models::payments::VoucherData::FamilyMart{ .. },
+            )
+            | api::PaymentMethodData::Voucher(
+                api_models::payments::VoucherData::Seicomart{ .. },
+            )
+            | api::PaymentMethodData::Voucher(
+                api_models::payments::VoucherData::PayEasy{ .. },
+            )
+            //TODO: same problem as for BankTransfer
             | api::PaymentMethodData::GiftCard(_)
-            | api::PaymentMethodData::CardRedirect(_)
-            | api::PaymentMethodData::Upi(_) => Err(errors::ConnectorError::NotSupported {
+            | api::PaymentMethodData::CardRedirect(
+                api_models::payments::CardRedirectData::Knet{ .. },
+            )
+            | api::PaymentMethodData::CardRedirect(
+                api_models::payments::CardRedirectData::Benefit{ .. },
+            )
+            | api::PaymentMethodData::CardRedirect(
+                api_models::payments::CardRedirectData::MomoAtm{ .. },
+            )
+            | api::PaymentMethodData::Upi( api_models::payments::UpiData{..}) => Err(errors::ConnectorError::NotSupported {
                 message: "SELECTED_PAYMENT_METHOD".to_string(),
                 connector: "Stax",
             })?,
@@ -224,18 +466,216 @@ impl TryFrom<&types::TokenizationRouterData> for StaxTokenRequest {
                 };
                 Ok(Self::Bank(stax_bank_data))
             }
-            api::PaymentMethodData::BankDebit(_)
-            | api::PaymentMethodData::Wallet(_)
-            | api::PaymentMethodData::PayLater(_)
-            | api::PaymentMethodData::BankRedirect(_)
+            api::PaymentMethodData::BankDebit(
+                api_models::payments::BankDebitData::SepaBankDebit { .. },
+            )
+            | api::PaymentMethodData::BankDebit(
+                api_models::payments::BankDebitData::BecsBankDebit { .. },
+            )
+            | api::PaymentMethodData::BankDebit(
+                api_models::payments::BankDebitData::BacsBankDebit { .. },
+            )
+            | api::PaymentMethodData::Wallet(api_models::payments::WalletData::AliPayQr {
+                ..
+            })
+            | api::PaymentMethodData::Wallet(api_models::payments::WalletData::AliPayRedirect {
+                ..
+            })
+            | api::PaymentMethodData::Wallet(
+                api_models::payments::WalletData::AliPayHkRedirect { .. },
+            )
+            | api::PaymentMethodData::Wallet(api_models::payments::WalletData::MomoRedirect {
+                ..
+            })
+            | api::PaymentMethodData::Wallet(
+                api_models::payments::WalletData::KakaoPayRedirect { .. },
+            )
+            | api::PaymentMethodData::Wallet(api_models::payments::WalletData::GoPayRedirect {
+                ..
+            })
+            | api::PaymentMethodData::Wallet(api_models::payments::WalletData::GcashRedirect {
+                ..
+            })
+            | api::PaymentMethodData::Wallet(api_models::payments::WalletData::ApplePay {
+                ..
+            })
+            | api::PaymentMethodData::Wallet(
+                api_models::payments::WalletData::ApplePayRedirect { .. },
+            )
+            | api::PaymentMethodData::Wallet(
+                api_models::payments::WalletData::ApplePayThirdPartySdk { .. },
+            )
+            | api::PaymentMethodData::Wallet(api_models::payments::WalletData::DanaRedirect {
+                ..
+            })
+            | api::PaymentMethodData::Wallet(api_models::payments::WalletData::GooglePay {
+                ..
+            })
+            | api::PaymentMethodData::Wallet(
+                api_models::payments::WalletData::GooglePayRedirect { .. },
+            )
+            | api::PaymentMethodData::Wallet(
+                api_models::payments::WalletData::GooglePayThirdPartySdk { .. },
+            )
+            | api::PaymentMethodData::Wallet(api_models::payments::WalletData::MbWayRedirect {
+                ..
+            })
+            | api::PaymentMethodData::Wallet(
+                api_models::payments::WalletData::MobilePayRedirect { .. },
+            )
+            | api::PaymentMethodData::Wallet(api_models::payments::WalletData::PaypalRedirect {
+                ..
+            })
+            | api::PaymentMethodData::Wallet(api_models::payments::WalletData::PaypalSdk {
+                ..
+            })
+            | api::PaymentMethodData::Wallet(api_models::payments::WalletData::SamsungPay {
+                ..
+            })
+            | api::PaymentMethodData::Wallet(api_models::payments::WalletData::TwintRedirect {
+                ..
+            })
+            | api::PaymentMethodData::Wallet(api_models::payments::WalletData::VippsRedirect {
+                ..
+            })
+            | api::PaymentMethodData::Wallet(
+                api_models::payments::WalletData::TouchNGoRedirect { .. },
+            )
+            | api::PaymentMethodData::Wallet(
+                api_models::payments::WalletData::WeChatPayRedirect { .. },
+            )
+            | api::PaymentMethodData::Wallet(api_models::payments::WalletData::WeChatPayQr {
+                ..
+            })
+            | api::PaymentMethodData::Wallet(api_models::payments::WalletData::CashappQr {
+                ..
+            })
+            | api::PaymentMethodData::Wallet(api_models::payments::WalletData::SwishQr {
+                ..
+            })
+            | api::PaymentMethodData::PayLater(
+                api_models::payments::PayLaterData::KlarnaRedirect { .. },
+            )
+            | api::PaymentMethodData::PayLater(api_models::payments::PayLaterData::KlarnaSdk {
+                ..
+            })
+            | api::PaymentMethodData::PayLater(
+                api_models::payments::PayLaterData::AffirmRedirect { .. },
+            )
+            | api::PaymentMethodData::PayLater(
+                api_models::payments::PayLaterData::AfterpayClearpayRedirect { .. },
+            )
+            | api::PaymentMethodData::PayLater(
+                api_models::payments::PayLaterData::PayBrightRedirect { .. },
+            )
+            | api::PaymentMethodData::PayLater(
+                api_models::payments::PayLaterData::WalleyRedirect { .. },
+            )
+            | api::PaymentMethodData::PayLater(
+                api_models::payments::PayLaterData::AlmaRedirect { .. },
+            )
+            | api::PaymentMethodData::PayLater(
+                api_models::payments::PayLaterData::AtomeRedirect { .. },
+            )
+            | api::PaymentMethodData::BankRedirect(
+                api_models::payments::BankRedirectData::BancontactCard { .. },
+            )
+            | api::PaymentMethodData::BankRedirect(
+                api_models::payments::BankRedirectData::Bizum { .. },
+            )
+            | api::PaymentMethodData::BankRedirect(
+                api_models::payments::BankRedirectData::Blik { .. },
+            )
+            | api::PaymentMethodData::BankRedirect(api_models::payments::BankRedirectData::Eps {
+                ..
+            })
+            | api::PaymentMethodData::BankRedirect(
+                api_models::payments::BankRedirectData::Giropay { .. },
+            )
+            | api::PaymentMethodData::BankRedirect(
+                api_models::payments::BankRedirectData::Ideal { .. },
+            )
+            | api::PaymentMethodData::BankRedirect(
+                api_models::payments::BankRedirectData::Interac { .. },
+            )
+            | api::PaymentMethodData::BankRedirect(
+                api_models::payments::BankRedirectData::OnlineBankingCzechRepublic { .. },
+            )
+            | api::PaymentMethodData::BankRedirect(
+                api_models::payments::BankRedirectData::OnlineBankingFinland { .. },
+            )
+            | api::PaymentMethodData::BankRedirect(
+                api_models::payments::BankRedirectData::OnlineBankingPoland { .. },
+            )
+            | api::PaymentMethodData::BankRedirect(
+                api_models::payments::BankRedirectData::OnlineBankingSlovakia { .. },
+            )
+            | api::PaymentMethodData::BankRedirect(
+                api_models::payments::BankRedirectData::OpenBankingUk { .. },
+            )
+            | api::PaymentMethodData::BankRedirect(
+                api_models::payments::BankRedirectData::Przelewy24 { .. },
+            )
+            | api::PaymentMethodData::BankRedirect(
+                api_models::payments::BankRedirectData::Sofort { .. },
+            )
+            | api::PaymentMethodData::BankRedirect(
+                api_models::payments::BankRedirectData::Trustly { .. },
+            )
+            | api::PaymentMethodData::BankRedirect(
+                api_models::payments::BankRedirectData::OnlineBankingFpx { .. },
+            )
+            | api::PaymentMethodData::BankRedirect(
+                api_models::payments::BankRedirectData::OnlineBankingThailand { .. },
+            )
             | api::PaymentMethodData::BankTransfer(_)
-            | api::PaymentMethodData::Crypto(_)
+            | api::PaymentMethodData::Crypto(api_models::payments::CryptoData { .. })
             | api::PaymentMethodData::MandatePayment
             | api::PaymentMethodData::Reward
-            | api::PaymentMethodData::Voucher(_)
+            | api::PaymentMethodData::Voucher(api_models::payments::VoucherData::Boleto {
+                ..
+            })
+            | api::PaymentMethodData::Voucher(api_models::payments::VoucherData::Efecty)
+            | api::PaymentMethodData::Voucher(api_models::payments::VoucherData::PagoEfectivo)
+            | api::PaymentMethodData::Voucher(api_models::payments::VoucherData::RedCompra)
+            | api::PaymentMethodData::Voucher(api_models::payments::VoucherData::RedPagos)
+            | api::PaymentMethodData::Voucher(api_models::payments::VoucherData::Alfamart {
+                ..
+            })
+            | api::PaymentMethodData::Voucher(api_models::payments::VoucherData::Indomaret {
+                ..
+            })
+            | api::PaymentMethodData::Voucher(api_models::payments::VoucherData::Oxxo)
+            | api::PaymentMethodData::Voucher(api_models::payments::VoucherData::SevenEleven {
+                ..
+            })
+            | api::PaymentMethodData::Voucher(api_models::payments::VoucherData::Lawson {
+                ..
+            })
+            | api::PaymentMethodData::Voucher(api_models::payments::VoucherData::MiniStop {
+                ..
+            })
+            | api::PaymentMethodData::Voucher(api_models::payments::VoucherData::FamilyMart {
+                ..
+            })
+            | api::PaymentMethodData::Voucher(api_models::payments::VoucherData::Seicomart {
+                ..
+            })
+            | api::PaymentMethodData::Voucher(api_models::payments::VoucherData::PayEasy {
+                ..
+            })
+            // TODO: same problem as for BankTransfer
             | api::PaymentMethodData::GiftCard(_)
-            | api::PaymentMethodData::CardRedirect(_)
-            | api::PaymentMethodData::Upi(_) => Err(errors::ConnectorError::NotSupported {
+            | api::PaymentMethodData::CardRedirect(
+                api_models::payments::CardRedirectData::Knet{ .. },
+            )
+            | api::PaymentMethodData::CardRedirect(
+                api_models::payments::CardRedirectData::Benefit{ .. },
+            )
+            | api::PaymentMethodData::CardRedirect(
+                api_models::payments::CardRedirectData::MomoAtm{ .. },
+            )
+            | api::PaymentMethodData::Upi( api_models::payments::UpiData{..}) => Err(errors::ConnectorError::NotSupported {
                 message: "SELECTED_PAYMENT_METHOD".to_string(),
                 connector: "Stax",
             })?,
