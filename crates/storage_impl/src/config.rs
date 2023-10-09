@@ -9,4 +9,6 @@ pub struct Database {
     pub dbname: String,
     pub pool_size: u32,
     pub connection_timeout: u64,
+    pub min_idle: Option<u32>,
+    pub idle_timeout: Option<u64>,
 }
