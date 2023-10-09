@@ -21,6 +21,7 @@ pub struct CybersourcePaymentsRequest {
     processing_information: ProcessingInformation,
     payment_information: PaymentInformation,
     order_information: OrderInformationWithBill,
+    reference: String,
 }
 
 #[derive(Default, Debug, Serialize, Eq, PartialEq)]
@@ -154,6 +155,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for CybersourcePaymentsRequest
                     processing_information,
                     payment_information,
                     order_information,
+                    reference: item.connector_request_reference_id.clone(),
                 })
             }
             _ => Err(errors::ConnectorError::NotImplemented("Payment methods".to_string()).into()),
@@ -179,6 +181,7 @@ impl TryFrom<&types::PaymentsCaptureRouterData> for CybersourcePaymentsRequest {
                 },
                 ..Default::default()
             },
+            reference: value.connector_request_reference_id.clone(),
             ..Default::default()
         })
     }
@@ -195,6 +198,7 @@ impl TryFrom<&types::RefundExecuteRouterData> for CybersourcePaymentsRequest {
                 },
                 ..Default::default()
             },
+            reference: value.connector_request_reference_id.clone(),
             ..Default::default()
         })
     }
