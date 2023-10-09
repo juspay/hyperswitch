@@ -638,21 +638,21 @@ mod storage {
             &self,
             merchant_id: &str,
             refund_details: &api_models::refunds::RefundListRequest,
-            storage_scheme: enums::MerchantStorageScheme,
+            _storage_scheme: enums::MerchantStorageScheme,
             limit: i64,
             offset: i64,
         ) -> CustomResult<Vec<diesel_models::refund::Refund>, errors::StorageError> {
-            match storage_scheme {
-                enums::MerchantStorageScheme::PostgresOnly => {
-                    let conn = connection::pg_connection_read(self).await?;
-                    <diesel_models::refund::Refund as storage_types::RefundDbExt>::filter_by_constraints(&conn, merchant_id, refund_details, limit, offset)
-                        .await
-                        .map_err(Into::into)
-                        .into_report()
-                }
-
-                enums::MerchantStorageScheme::RedisKv => Err(errors::StorageError::KVError.into()),
-            }
+            let conn = connection::pg_connection_read(self).await?;
+            <diesel_models::refund::Refund as storage_types::RefundDbExt>::filter_by_constraints(
+                &conn,
+                merchant_id,
+                refund_details,
+                limit,
+                offset,
+            )
+            .await
+            .map_err(Into::into)
+            .into_report()
         }
 
         #[cfg(feature = "olap")]
@@ -660,19 +660,13 @@ mod storage {
             &self,
             merchant_id: &str,
             refund_details: &api_models::refunds::TimeRange,
-            storage_scheme: enums::MerchantStorageScheme,
+            _storage_scheme: enums::MerchantStorageScheme,
         ) -> CustomResult<api_models::refunds::RefundListMetaData, errors::StorageError> {
-            match storage_scheme {
-                enums::MerchantStorageScheme::PostgresOnly => {
-                    let conn = connection::pg_connection_read(self).await?;
-                    <diesel_models::refund::Refund as storage_types::RefundDbExt>::filter_by_meta_constraints(&conn, merchant_id, refund_details)
+            let conn = connection::pg_connection_read(self).await?;
+            <diesel_models::refund::Refund as storage_types::RefundDbExt>::filter_by_meta_constraints(&conn, merchant_id, refund_details)
                         .await
                         .map_err(Into::into)
                         .into_report()
-                }
-
-                enums::MerchantStorageScheme::RedisKv => Err(errors::StorageError::KVError.into()),
-            }
         }
 
         #[cfg(feature = "olap")]
@@ -680,19 +674,17 @@ mod storage {
             &self,
             merchant_id: &str,
             refund_details: &api_models::refunds::RefundListRequest,
-            storage_scheme: enums::MerchantStorageScheme,
+            _storage_scheme: enums::MerchantStorageScheme,
         ) -> CustomResult<i64, errors::StorageError> {
-            match storage_scheme {
-                enums::MerchantStorageScheme::PostgresOnly => {
-                    let conn = connection::pg_connection_read(self).await?;
-                    <diesel_models::refund::Refund as storage_types::RefundDbExt>::get_refunds_count(&conn, merchant_id, refund_details)
-                        .await
-                        .map_err(Into::into)
-                        .into_report()
-                }
-
-                enums::MerchantStorageScheme::RedisKv => Err(errors::StorageError::KVError.into()),
-            }
+            let conn = connection::pg_connection_read(self).await?;
+            <diesel_models::refund::Refund as storage_types::RefundDbExt>::get_refunds_count(
+                &conn,
+                merchant_id,
+                refund_details,
+            )
+            .await
+            .map_err(Into::into)
+            .into_report()
         }
     }
 }
