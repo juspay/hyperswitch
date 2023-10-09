@@ -789,10 +789,17 @@ impl ForeignTryFrom<&HeaderMap> for api_models::payments::HeaderPayload {
                         )
                 })
                 .transpose()?;
+
+        let x_hs_latency = get_header_value_by_key("x-hs-latency".into(), headers)
+        .map(|value| value == Some("true"))
+        .unwrap_or(false);
+
         Ok(Self {
             payment_confirm_source,
+            x_hs_latency: Some(x_hs_latency),
         })
     }
+
 }
 
 impl

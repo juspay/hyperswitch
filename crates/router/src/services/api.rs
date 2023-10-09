@@ -889,13 +889,16 @@ where
             .map_into_boxed_body()
         }
         Ok(ApplicationResponse::JsonWithHeaders((response, headers))) => {
-            let request_elased_time = if state.get_ref().conf().latency_header.enabled {
-                Some(start_instant.elapsed())
-            } else {
-                None
-            };
+            let request_elapsed_time = request.headers().get("x-hs-latency")
+            .and_then(|value| {
+                if value == "true" {
+                    Some(start_instant.elapsed())
+                } else {
+                    None
+                }
+            });
             match serde_json::to_string(&response) {
-                Ok(res) => http_response_json_with_headers(res, headers, request_elased_time),
+                Ok(res) => http_response_json_with_headers(res, headers, request_elapsed_time),
                 Err(_) => http_response_err(
                     r#"{
                         "error": {

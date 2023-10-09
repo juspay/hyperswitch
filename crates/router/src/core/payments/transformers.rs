@@ -185,7 +185,7 @@ where
         connector_request_reference_id_config: &ConnectorRequestReferenceIdConfig,
         connector_http_status_code: Option<u16>,
         external_latency: Option<u128>,
-        is_latency_header_enabled: bool,
+        is_latency_header_enabled: Option<bool>,
     ) -> RouterResponse<Self>;
 }
 
@@ -205,7 +205,7 @@ where
         connector_request_reference_id_config: &ConnectorRequestReferenceIdConfig,
         connector_http_status_code: Option<u16>,
         external_latency: Option<u128>,
-        is_latency_header_enabled: bool,
+        is_latency_header_enabled: Option<bool>,
     ) -> RouterResponse<Self> {
         let captures = payment_data
             .multiple_capture_data
@@ -266,7 +266,7 @@ where
         _connector_request_reference_id_config: &ConnectorRequestReferenceIdConfig,
         _connector_http_status_code: Option<u16>,
         _external_latency: Option<u128>,
-        _is_latency_header_enabled: bool,
+        _is_latency_header_enabled: Option<bool>,
     ) -> RouterResponse<Self> {
         Ok(services::ApplicationResponse::JsonWithHeaders((
             Self {
@@ -300,7 +300,7 @@ where
         _connector_request_reference_id_config: &ConnectorRequestReferenceIdConfig,
         _connector_http_status_code: Option<u16>,
         _external_latency: Option<u128>,
-        _is_latency_header_enabled: bool,
+        _is_latency_header_enabled: Option<bool>,
     ) -> RouterResponse<Self> {
         let additional_payment_method_data: Option<api_models::payments::AdditionalPaymentData> =
             data.payment_attempt
@@ -366,7 +366,7 @@ pub fn payments_to_payments_response<R, Op>(
     connector_request_reference_id_config: &ConnectorRequestReferenceIdConfig,
     connector_http_status_code: Option<u16>,
     external_latency: Option<u128>,
-    is_latency_header_enabled: bool,
+    is_latency_header_enabled: Option<bool>,
 ) -> RouterResponse<api::PaymentsResponse>
 where
     Op: Debug,
@@ -451,7 +451,7 @@ where
             payment_confirm_source.to_string(),
         ))
     }
-    if is_latency_header_enabled {
+    if let Some(true) = is_latency_header_enabled {
         headers.extend(
             external_latency
                 .map(|latency| vec![("x-hs-latency".to_string(), latency.to_string())])

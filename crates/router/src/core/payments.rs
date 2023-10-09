@@ -42,7 +42,7 @@ use crate::{
     },
     db::StorageInterface,
     logger,
-    routes::{app::AppStateInfo, metrics, payment_methods::ParentPaymentMethodToken, AppState},
+    routes::{metrics, payment_methods::ParentPaymentMethodToken, AppState},
     services::{self, api::Authenticate},
     types::{
         self as router_types, api, domain,
@@ -305,7 +305,7 @@ where
         &state.conf.connector_request_reference_id_config,
         connector_http_status_code,
         external_latency,
-        state.conf().latency_header.enabled,
+        header_payload.x_hs_latency,
     )
 }
 
