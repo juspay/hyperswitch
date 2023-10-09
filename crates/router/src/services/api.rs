@@ -488,11 +488,9 @@ pub async fn send_request(
                 match request.content_type {
                     Some(ContentType::Json) => client.json(&request.payload),
 
-                    Some(ContentType::FormData) => client.multipart(
-                        request
-                            .form_data
-                            .unwrap_or_else(reqwest::multipart::Form::new),
-                    ),
+                    Some(ContentType::FormData) => {
+                        client.multipart(request.form_data.unwrap_or_default())
+                    }
 
                     // Currently this is not used remove this if not required
                     // If using this then handle the serde_part

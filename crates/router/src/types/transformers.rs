@@ -453,7 +453,6 @@ impl ForeignTryFrom<api_models::webhooks::IncomingWebhookEvent> for storage_enum
 
 impl ForeignFrom<storage::Config> for api_types::Config {
     fn foreign_from(config: storage::Config) -> Self {
-        let config = config;
         Self {
             key: config.key,
             value: config.config,
@@ -472,7 +471,6 @@ impl<'a> ForeignFrom<&'a api_types::ConfigUpdate> for storage::ConfigUpdate {
 
 impl<'a> From<&'a domain::Address> for api_types::Address {
     fn from(address: &domain::Address) -> Self {
-        let address = address;
         Self {
             address: Some(api_types::AddressDetails {
                 city: address.city.clone(),
