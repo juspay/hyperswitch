@@ -100,11 +100,7 @@ impl TryFrom<(&types::VerifyRouterData, &api::Card)> for HelcimVerifyRequest {
             card_number: req_card.card_number.clone(),
             card_c_v_v: req_card.card_cvc.clone(),
         };
-        let req_address = item
-            .get_billing()?
-            .to_owned()
-            .address
-            .ok_or_else(utils::missing_field_err("billing.address"))?;
+        let req_address = item.get_billing_address()?.to_owned();
 
         let billing_address = HelcimBillingAddress {
             name: req_address.get_full_name()?,
