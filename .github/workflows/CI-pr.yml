@@ -47,7 +47,7 @@ jobs:
           ref: ${{ github.event.pull_request.head.ref }}
 
       - name: Checkout repository with token for PRs with in hyperswitch repository
-        if: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.event.pull_request.base.repo.full_name }}
+        if: ${{ (github.event_name == 'pull_request') && (github.event.pull_request.head.repo.full_name == github.event.pull_request.base.repo.full_name) }}
         uses: actions/checkout@v3
         with:
           ref: ${{ github.event.pull_request.head.ref }}
@@ -70,6 +70,8 @@ jobs:
         run: |
           cargo +nightly fmt --all
           if ! git diff --exit-code --quiet -- crates; then
+            echo ${{ github.event.pull_request.head.repo.full_name}}
+            echo ${{ github.event.pull_request.base.repo.full_name}}
             echo "::notice::Formatting check failed"
             git config --local user.name 'github-actions[bot]'
             git config --local user.email '41898282+github-actions[bot]@users.noreply.github.com'
