@@ -246,8 +246,8 @@ impl mandate::MandateBehaviour for types::PaymentsAuthorizeData {
     fn get_mandate_id(&self) -> Option<&api_models::payments::MandateIds> {
         self.mandate_id.as_ref()
     }
-    fn get_payment_method_data(&self) -> api_models::payments::PaymentMethodData {
-        self.payment_method_data.clone()
+    fn get_payment_method_data(&self) -> Option<api_models::payments::PaymentMethodData> {
+        Some(self.payment_method_data.clone())
     }
     fn get_setup_future_usage(&self) -> Option<diesel_models::enums::FutureUsage> {
         self.setup_future_usage

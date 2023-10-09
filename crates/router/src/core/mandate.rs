@@ -132,10 +132,13 @@ fn get_insensitive_payment_method_data_if_exists<F, FData>(
 where
     FData: MandateBehaviour,
 {
-    match &router_data.request.get_payment_method_data() {
-        api_models::payments::PaymentMethodData::Card(_) => None,
-        _ => Some(router_data.request.get_payment_method_data()),
-    }
+    router_data
+        .request
+        .get_payment_method_data()
+        .and_then(|pmd| match pmd {
+            payments::PaymentMethodData::Card(_) => None,
+            _ => router_data.request.get_payment_method_data(),
+        })
 }
 
 pub async fn mandate_procedure<F, FData>(
@@ -324,6 +327,6 @@ pub trait MandateBehaviour {
     fn get_setup_future_usage(&self) -> Option<diesel_models::enums::FutureUsage>;
     fn get_mandate_id(&self) -> Option<&api_models::payments::MandateIds>;
     fn set_mandate_id(&mut self, new_mandate_id: Option<api_models::payments::MandateIds>);
-    fn get_payment_method_data(&self) -> api_models::payments::PaymentMethodData;
+    fn get_payment_method_data(&self) -> Option<api_models::payments::PaymentMethodData>;
     fn get_setup_mandate_details(&self) -> Option<&data_models::mandates::MandateData>;
 }

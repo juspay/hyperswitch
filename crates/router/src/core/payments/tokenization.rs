@@ -64,7 +64,7 @@ where
             let pm_id = if resp.request.get_setup_future_usage().is_some() {
                 let customer = maybe_customer.to_owned().get_required_value("customer")?;
                 let payment_method_create_request = helpers::get_payment_method_create_request(
-                    Some(&resp.request.get_payment_method_data()),
+                    resp.request.get_payment_method_data().as_ref(),
                     Some(resp.payment_method),
                     payment_method_type,
                     &customer,

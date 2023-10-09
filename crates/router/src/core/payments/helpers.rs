@@ -842,9 +842,9 @@ pub(crate) async fn get_payment_method_create_request(
                 }
             },
             None => Err(report!(errors::ApiErrorResponse::MissingRequiredField {
-                field_name: "payment_method_type"
+                field_name: "payment_method"
             })
-            .attach_printable("PaymentMethodType Required")),
+            .attach_printable("PaymentMethod Required")),
         },
         None => Err(report!(errors::ApiErrorResponse::MissingRequiredField {
             field_name: "payment_method_data"

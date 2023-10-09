@@ -62,7 +62,7 @@ where
         .payment_attempt
         .payment_method
         .or(payment_data.payment_attempt.payment_method)
-        .get_required_value("payment_method_type")?;
+        .get_required_value("payment_method")?;
 
     let resource_id = match payment_data
         .payment_attempt
@@ -1281,6 +1281,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::CompleteAuthoriz
             connector_transaction_id: payment_data.connector_response.connector_transaction_id,
             redirect_response,
             connector_meta: payment_data.payment_attempt.connector_metadata,
+            payment_method_type: payment_data.payment_attempt.payment_method_type,
         })
     }
 }
