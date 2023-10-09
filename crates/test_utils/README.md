@@ -4,7 +4,7 @@ The heart of `newman`(with directory support) and `UI-tests`
 
 ## Newman
 
-- Make sure you that you've _**do not**_ have the newman (from the Postman team) installed but rather the `newman` fork with directory support
+- Make sure you that you _**do not**_ have the newman (from the Postman team) installed but rather the `newman` fork with directory support
 - The `newman` fork can be installed by running `npm install -g 'https://github.com/knutties/newman.git#feature/newman-dir'`
 - To see the features that the fork of `newman` supports, click [_**here**_](https://github.com/knutties/newman/blob/feature/newman-dir/DIR_COMMANDS.md)
 
@@ -27,7 +27,7 @@ Required fields:
 Optional fields:
 
 - `--folder` -- To run individual folders in the collection
-  - Use double quotes to mention folder. If you wish to run multiple folders, separate them with a comma (`,`)
+  - Use double quotes to specify folder name. If you wish to run multiple folders, separate them with a comma (`,`)
   - Example: `--folder "QuickStart"` or `--folder "Health check,QuickStart"`
 - `--verbose` -- A boolean to print detailed logs (requests and responses)
 

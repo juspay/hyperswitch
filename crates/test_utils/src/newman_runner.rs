@@ -57,7 +57,6 @@ pub fn command_generate() -> Command {
     if let Some(auth_type) = inner_map.get(&connector_name) {
         match auth_type {
             ConnectorAuthType::HeaderKey { api_key } => {
-                // newman_command.args(["--env-var", &format!("connector_api_key={}", api_key.map(|val| val))]);
                 newman_command.args([
                     "--env-var",
                     &format!("connector_api_key={}", api_key.peek()),
@@ -135,17 +134,12 @@ pub fn command_generate() -> Command {
     newman_command.arg("--color").arg("on");
 
     // Add flags for running specific folders
-    if args.folder_s.is_some() {
-        let folder_names: Vec<String> = args
-            .folder_s
-            .unwrap_or_default()
-            .split(',')
-            .map(|s| s.trim().to_string())
-            .collect();
+    if let Some(folders) = &args.folder_s {
+        let folder_names: Vec<String> = folders.split(',').map(|s| s.trim().to_string()).collect();
 
         for folder_name in folder_names {
-            if !&folder_name.contains("QuickStart") {
-                // This is quick fix, "QuickStart" is intentional to have merchant account and API keys set up
+            if !folder_name.contains("QuickStart") {
+                // This is a quick fix, "QuickStart" is intentional to have merchant account and API keys set up
                 // This will be replaced by a more robust and efficient account creation or reuse existing old account
                 newman_command.args(["--folder", "QuickStart"]);
             }
