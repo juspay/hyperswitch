@@ -31,8 +31,8 @@ use crate::{
 pub struct PaymentDeviceDataCollection;
 
 #[async_trait]
-impl<F: Send + Clone>
-    GetTracker<F, PaymentData<F>, api_models::payments::PaymentsDeviceDataCollectionRequest>
+impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
+    GetTracker<F, PaymentData<F>, api_models::payments::PaymentsDeviceDataCollectionRequest, Ctx>
     for PaymentDeviceDataCollection
 {
     #[instrument(skip_all)]
@@ -46,7 +46,7 @@ impl<F: Send + Clone>
         mechant_key_store: &domain::MerchantKeyStore,
         _auth_flow: services::AuthFlow,
     ) -> RouterResult<(
-        BoxedOperation<'a, F, api_models::payments::PaymentsDeviceDataCollectionRequest>,
+        BoxedOperation<'a, F, api_models::payments::PaymentsDeviceDataCollectionRequest, Ctx>,
         PaymentData<F>,
         Option<CustomerDetails>,
     )> {
@@ -176,7 +176,8 @@ impl<F: Send + Clone>
     }
 }
 
-impl<F: Send + Clone> ValidateRequest<F, api_models::payments::PaymentsDeviceDataCollectionRequest>
+impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
+    ValidateRequest<F, api_models::payments::PaymentsDeviceDataCollectionRequest, Ctx>
     for PaymentDeviceDataCollection
 {
     #[instrument(skip_all)]
@@ -185,7 +186,7 @@ impl<F: Send + Clone> ValidateRequest<F, api_models::payments::PaymentsDeviceDat
         request: &api_models::payments::PaymentsDeviceDataCollectionRequest,
         merchant_account: &'a domain::MerchantAccount,
     ) -> RouterResult<(
-        BoxedOperation<'b, F, api_models::payments::PaymentsDeviceDataCollectionRequest>,
+        BoxedOperation<'b, F, api_models::payments::PaymentsDeviceDataCollectionRequest, Ctx>,
         operations::ValidateResult<'a>,
     )> {
         let request_merchant_id = Some(&request.merchant_id[..]);
@@ -213,10 +214,11 @@ impl<F: Send + Clone> ValidateRequest<F, api_models::payments::PaymentsDeviceDat
 #[async_trait]
 impl<
         F: Clone + Send,
-        Op: Send + Sync + Operation<F, api_models::payments::PaymentsDeviceDataCollectionRequest>,
-    > Domain<F, api_models::payments::PaymentsDeviceDataCollectionRequest> for Op
+        Ctx: PaymentMethodRetrieve,
+        Op: Send + Sync + Operation<F, api_models::payments::PaymentsDeviceDataCollectionRequest, Ctx>,
+    > Domain<F, api_models::payments::PaymentsDeviceDataCollectionRequest, Ctx> for Op
 where
-    for<'a> &'a Op: Operation<F, api_models::payments::PaymentsDeviceDataCollectionRequest>,
+    for<'a> &'a Op: Operation<F, api_models::payments::PaymentsDeviceDataCollectionRequest, Ctx>,
 {
     #[instrument(skip_all)]
     async fn get_or_create_customer_details<'a>(
@@ -227,7 +229,7 @@ where
         key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<
         (
-            BoxedOperation<'a, F, api_models::payments::PaymentsDeviceDataCollectionRequest>,
+            BoxedOperation<'a, F, api_models::payments::PaymentsDeviceDataCollectionRequest, Ctx>,
             Option<domain::Customer>,
         ),
         errors::StorageError,
@@ -250,7 +252,7 @@ where
         payment_data: &mut PaymentData<F>,
         _storage_scheme: storage_enums::MerchantStorageScheme,
     ) -> RouterResult<(
-        BoxedOperation<'a, F, api_models::payments::PaymentsDeviceDataCollectionRequest>,
+        BoxedOperation<'a, F, api_models::payments::PaymentsDeviceDataCollectionRequest, Ctx>,
         Option<api::PaymentMethodData>,
     )> {
         if payment_data
@@ -279,8 +281,8 @@ where
 }
 
 #[async_trait]
-impl<F: Clone>
-    UpdateTracker<F, PaymentData<F>, api_models::payments::PaymentsDeviceDataCollectionRequest>
+impl<F: Clone, Ctx: PaymentMethodRetrieve>
+    UpdateTracker<F, PaymentData<F>, api_models::payments::PaymentsDeviceDataCollectionRequest, Ctx>
     for PaymentDeviceDataCollection
 {
     #[instrument(skip_all)]
@@ -295,7 +297,7 @@ impl<F: Clone>
         _frm_suggestion: Option<FrmSuggestion>,
         _header_payload: api::HeaderPayload,
     ) -> RouterResult<(
-        BoxedOperation<'b, F, api_models::payments::PaymentsDeviceDataCollectionRequest>,
+        BoxedOperation<'b, F, api_models::payments::PaymentsDeviceDataCollectionRequest, Ctx>,
         PaymentData<F>,
     )>
     where

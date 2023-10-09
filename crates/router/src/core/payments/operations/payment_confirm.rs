@@ -482,6 +482,11 @@ impl<F: Clone, Ctx: PaymentMethodRetrieve>
                 storage_enums::AttemptStatus::Unresolved,
                 (None, None),
             ),
+            Some(FrmSuggestion::FrmDDC) => (
+                storage_enums::IntentStatus::RequiresCustomerAction,
+                storage_enums::AttemptStatus::DeviceDataCollectionPending,
+                (None, None),
+            ),
             _ => (
                 storage_enums::IntentStatus::Processing,
                 storage_enums::AttemptStatus::Pending,
@@ -535,7 +540,7 @@ impl<F: Clone, Ctx: PaymentMethodRetrieve>
         let authorized_amount = payment_data.payment_attempt.amount;
         let payment_attempt_fut = db
             .update_payment_attempt_with_attempt_id(
-                payment_data.payment_attempt,
+                payment_data.payment_attempt.clone(),
                 storage::PaymentAttemptUpdate::ConfirmUpdate {
                     amount: payment_data.amount.into(),
                     currency: payment_data.currency,
@@ -553,6 +558,7 @@ impl<F: Clone, Ctx: PaymentMethodRetrieve>
                     error_code,
                     error_message,
                     amount_capturable: Some(authorized_amount),
+                    connector_metadata: payment_data.payment_attempt.connector_metadata,
                 },
                 storage_scheme,
             )

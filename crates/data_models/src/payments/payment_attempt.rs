@@ -245,6 +245,7 @@ pub enum PaymentAttemptUpdate {
         error_code: Option<Option<String>>,
         error_message: Option<Option<String>>,
         amount_capturable: Option<i64>,
+        connector_metadata: Option<serde_json::Value>,
     },
     RejectUpdate {
         status: storage_enums::AttemptStatus,

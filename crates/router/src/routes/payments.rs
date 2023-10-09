@@ -1121,8 +1121,15 @@ pub async fn payments_ddc(
         state,
         &req,
         payload,
-        |state,auth, req| {
-            payments::payments_core::<api_types::Authorize, payment_types::PaymentsResponse, _, _, _>(
+        |state, auth, req| {
+            payments::payments_core::<
+                api_types::Authorize,
+                payment_types::PaymentsResponse,
+                _,
+                _,
+                _,
+                Oss,
+            >(
                 state,
                 auth.merchant_account,
                 auth.key_store,
@@ -1157,7 +1164,14 @@ pub async fn payments_complete_ddc(
         &req,
         payload,
         |state, auth, req| {
-            payments::payments_core::<api_types::Authorize, payment_types::PaymentsResponse, _, _, _>(
+            payments::payments_core::<
+                api_types::Authorize,
+                payment_types::PaymentsResponse,
+                _,
+                _,
+                _,
+                Oss,
+            >(
                 state,
                 auth.merchant_account,
                 auth.key_store,

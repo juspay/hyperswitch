@@ -161,6 +161,7 @@ pub enum PaymentAttemptUpdate {
         error_code: Option<Option<String>>,
         error_message: Option<Option<String>>,
         amount_capturable: Option<i64>,
+        connector_metadata: Option<serde_json::Value>,
     },
     VoidUpdate {
         status: storage_enums::AttemptStatus,
@@ -349,6 +350,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 error_code,
                 error_message,
                 amount_capturable,
+                connector_metadata,
             } => Self {
                 amount: Some(amount),
                 currency: Some(currency),
@@ -367,6 +369,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 error_code,
                 error_message,
                 amount_capturable,
+                connector_metadata,
                 ..Default::default()
             },
             PaymentAttemptUpdate::VoidUpdate {

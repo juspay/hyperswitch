@@ -1169,6 +1169,7 @@ impl DataModelExt for PaymentAttemptUpdate {
                 error_code,
                 error_message,
                 amount_capturable,
+                connector_metadata,
             } => DieselPaymentAttemptUpdate::ConfirmUpdate {
                 amount,
                 currency,
@@ -1186,6 +1187,7 @@ impl DataModelExt for PaymentAttemptUpdate {
                 error_code,
                 error_message,
                 amount_capturable,
+                connector_metadata,
             },
             Self::VoidUpdate {
                 status,
@@ -1362,6 +1364,7 @@ impl DataModelExt for PaymentAttemptUpdate {
                 error_code,
                 error_message,
                 amount_capturable,
+                connector_metadata,
             } => Self::ConfirmUpdate {
                 amount,
                 currency,
@@ -1379,6 +1382,7 @@ impl DataModelExt for PaymentAttemptUpdate {
                 error_code,
                 error_message,
                 amount_capturable,
+                connector_metadata,
             },
             DieselPaymentAttemptUpdate::VoidUpdate {
                 status,
