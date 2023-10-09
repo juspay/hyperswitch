@@ -4072,6 +4072,7 @@ impl<F> TryFrom<types::PayoutsResponseRouterData<F, StripeConnectPayoutCreateRes
                 status: Some(enums::PayoutStatus::RequiresFulfillment),
                 connector_payout_id: response.id,
                 payout_eligible: None,
+                should_add_next_step_to_process_tracker: false,
             }),
             ..item.data
         })
@@ -4107,6 +4108,7 @@ impl<F> TryFrom<types::PayoutsResponseRouterData<F, StripeConnectPayoutFulfillRe
                 status: Some(enums::PayoutStatus::from(response.status)),
                 connector_payout_id: response.id,
                 payout_eligible: None,
+                should_add_next_step_to_process_tracker: false,
             }),
             ..item.data
         })
@@ -4140,6 +4142,7 @@ impl<F> TryFrom<types::PayoutsResponseRouterData<F, StripeConnectReversalRespons
                 status: Some(enums::PayoutStatus::Cancelled),
                 connector_payout_id: response.id,
                 payout_eligible: None,
+                should_add_next_step_to_process_tracker: false,
             }),
             ..item.data
         })
@@ -4229,6 +4232,7 @@ impl<F> TryFrom<types::PayoutsResponseRouterData<F, StripeConnectRecipientCreate
                 status: Some(enums::PayoutStatus::RequiresPayoutMethodData),
                 connector_payout_id: response.id,
                 payout_eligible: None,
+                should_add_next_step_to_process_tracker: true,
             }),
             ..item.data
         })
@@ -4319,6 +4323,7 @@ impl<F> TryFrom<types::PayoutsResponseRouterData<F, StripeConnectRecipientAccoun
                     status: Some(enums::PayoutStatus::RequiresCreation),
                     connector_payout_id: bank_response.id,
                     payout_eligible: None,
+                    should_add_next_step_to_process_tracker: false,
                 }),
                 ..item.data
             }),
@@ -4327,6 +4332,7 @@ impl<F> TryFrom<types::PayoutsResponseRouterData<F, StripeConnectRecipientAccoun
                     status: Some(enums::PayoutStatus::RequiresCreation),
                     connector_payout_id: card_response.id,
                     payout_eligible: None,
+                    should_add_next_step_to_process_tracker: false,
                 }),
                 ..item.data
             }),

@@ -4115,6 +4115,7 @@ impl<F> TryFrom<types::PayoutsResponseRouterData<F, AdyenPayoutResponse>>
                 status,
                 connector_payout_id: response.psp_reference,
                 payout_eligible,
+                should_add_next_step_to_process_tracker: false,
             }),
             ..item.data
         })

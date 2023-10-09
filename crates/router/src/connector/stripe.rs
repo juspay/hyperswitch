@@ -2,19 +2,11 @@ pub mod transformers;
 
 use std::{collections::HashMap, fmt::Debug, ops::Deref};
 
-use diesel_models::enums;
-use error_stack::{IntoReport, ResultExt};
-use masking::PeekInterface;
-use router_env::{instrument, tracing};
 #[cfg(feature = "payouts")]
-use tokio::time::{sleep, Duration};
-
 use self::transformers as stripe;
 use super::utils::{self as connector_utils, RefundsRequestData};
 #[cfg(feature = "payouts")]
 use super::utils::{PayoutsCancelData, RouterData};
-#[cfg(feature = "payouts")]
-use crate::routes;
 use crate::{
     configs::settings,
     consts,
@@ -34,6 +26,10 @@ use crate::{
     },
     utils::{self, crypto, ByteSliceExt, BytesExt, OptionExt},
 };
+use diesel_models::enums;
+use error_stack::{IntoReport, ResultExt};
+use masking::PeekInterface;
+use router_env::{instrument, tracing};
 
 #[derive(Debug, Clone)]
 pub struct Stripe;
@@ -2292,40 +2288,6 @@ impl
 {
     fn get_content_type(&self) -> &'static str {
         self.common_get_content_type()
-    }
-
-    async fn execute_posttasks(
-        &self,
-        router_data: &mut types::PayoutsRouterData<api::PoRecipient>,
-        app_state: &routes::AppState,
-    ) -> CustomResult<(), errors::ConnectorError> {
-        // Adding artificial delay since account capabilities take some time to reflect in Stripe's platform
-        sleep(Duration::from_millis(
-            common_utils::consts::STRIPE_ACCOUNT_ONBOARDING_DELAY,
-        ))
-        .await;
-        // Create recipient's external account
-        let recipient_router_data =
-            &types::PayoutsRouterData::from((&router_data, router_data.request.clone()));
-        let recipient_connector_integration: Box<
-            &(dyn services::ConnectorIntegration<
-                api::PoRecipientAccount,
-                types::PayoutsData,
-                types::PayoutsResponseData,
-            > + Send
-                  + Sync
-                  + 'static),
-        > = Box::new(self);
-        services::execute_connector_processing_step(
-            app_state,
-            recipient_connector_integration,
-            recipient_router_data,
-            payments::CallConnectorAction::Trigger,
-            None,
-        )
-        .await?;
-
-        Ok(())
     }
 
     fn get_url(

@@ -411,6 +411,7 @@ impl<F> TryFrom<types::PayoutsResponseRouterData<F, WiseRecipientCreateResponse>
                 status: Some(storage_enums::PayoutStatus::RequiresCreation),
                 connector_payout_id: response.id.to_string(),
                 payout_eligible: None,
+                should_add_next_step_to_process_tracker: false,
             }),
             ..item.data
         })
@@ -455,6 +456,7 @@ impl<F> TryFrom<types::PayoutsResponseRouterData<F, WisePayoutQuoteResponse>>
                 status: Some(storage_enums::PayoutStatus::RequiresCreation),
                 connector_payout_id: response.id,
                 payout_eligible: None,
+                should_add_next_step_to_process_tracker: false,
             }),
             ..item.data
         })
@@ -516,6 +518,7 @@ impl<F> TryFrom<types::PayoutsResponseRouterData<F, WisePayoutResponse>>
                 status: Some(status),
                 connector_payout_id: response.id.to_string(),
                 payout_eligible: None,
+                should_add_next_step_to_process_tracker: false,
             }),
             ..item.data
         })
@@ -556,6 +559,7 @@ impl<F> TryFrom<types::PayoutsResponseRouterData<F, WiseFulfillResponse>>
                 status: Some(storage_enums::PayoutStatus::from(response.status)),
                 connector_payout_id: "".to_string(),
                 payout_eligible: None,
+                should_add_next_step_to_process_tracker: false,
             }),
             ..item.data
         })

@@ -382,6 +382,7 @@ pub struct PayoutCreateResponse {
 #[derive(Default, Debug, Clone, Deserialize, ToSchema)]
 pub struct PayoutRetrieveBody {
     pub force_sync: Option<bool>,
+    pub merchant_id: Option<String>,
 }
 
 #[derive(Default, Debug, Serialize, ToSchema, Clone, Deserialize)]
@@ -400,6 +401,9 @@ pub struct PayoutRetrieveRequest {
     /// (defaults to false)
     #[schema(value_type = Option<bool>, default = false, example = true)]
     pub force_sync: Option<bool>,
+
+    /// The identifier for the Merchant Account.
+    pub merchant_id: Option<String>,
 }
 
 #[derive(Default, Debug, Serialize, ToSchema, Clone, Deserialize)]
