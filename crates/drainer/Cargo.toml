@@ -8,6 +8,7 @@ readme = "README.md"
 license.workspace = true
 
 [features]
+release = ["kms","vergen"]
 kms = ["external_services/kms"]
 vergen = ["router_env/vergen"]
 

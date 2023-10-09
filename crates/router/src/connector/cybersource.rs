@@ -101,7 +101,7 @@ impl ConnectorCommon for Cybersource {
             .response
             .parse_struct("Cybersource ErrorResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-        let details = response.details.unwrap_or(vec![]);
+        let details = response.details.unwrap_or_default();
         let connector_reason = details
             .iter()
             .map(|det| format!("{} : {}", det.field, det.reason))
