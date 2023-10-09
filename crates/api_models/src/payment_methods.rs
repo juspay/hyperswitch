@@ -166,7 +166,6 @@ pub struct CardDetailsPaymentMethod {
 pub struct PaymentMethodDataBankCreds {
     pub mask: String,
     pub hash: String,
-    pub mca_id: String,
     pub payment_method_type: api_enums::PaymentMethodType,
     pub connector_details: Vec<BankAccountConnectorDetails>,
 }
@@ -175,6 +174,7 @@ pub struct PaymentMethodDataBankCreds {
 pub struct BankAccountConnectorDetails {
     pub connector: String,
     pub account_id: String,
+    pub mca_id: String,
     pub access_token: BankAccountAccessCreds,
 }
 
