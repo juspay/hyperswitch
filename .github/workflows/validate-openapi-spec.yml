@@ -16,20 +16,20 @@ jobs:
     name: Validate generated OpenAPI spec file
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout PR with token for PRs with in hyperswitch repository
-        if: ${{ github.event_name == 'pull_request' }}
-        uses: actions/checkout@v3
-        with:
-          ref: ${{ github.event.pull_request.head.ref }}
-          repository: ${{ github.event.pull_request.head.repo.full_name }}
-          token: ${{ secrets.AUTO_FILE_UPDATE_PAT }}
-
       - name: Checkout PR
         if: ${{ github.event_name == 'pull_request' }}
         uses: actions/checkout@v3
         with:
           ref: ${{ github.event.pull_request.head.ref }}
           repository: ${{ github.event.pull_request.head.repo.full_name }}
+          
+      - name: Checkout PR with token for PRs with in hyperswitch repository
+        if: ${{ (github.event_name == 'pull_request') && (github.event.pull_request.head.repo.full_name == github.event.pull_request.base.repo.full_name) }}
+        uses: actions/checkout@v3
+        with:
+          ref: ${{ github.event.pull_request.head.ref }}
+          repository: ${{ github.event.pull_request.head.repo.full_name }}
+          token: ${{ secrets.AUTO_FILE_UPDATE_PAT }}
 
       - name: Checkout merge group HEAD commit
         if: ${{ github.event_name == 'merge_group' }}
