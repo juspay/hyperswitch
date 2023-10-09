@@ -2264,8 +2264,8 @@ mod tests {
 
     use super::*;
 
-    #[tokio::test]
-    async fn test_authenticate_client_secret_fulfillment_time_not_expired() {
+    #[test]
+    fn test_authenticate_client_secret_fulfillment_time_not_expired() {
         let payment_intent = PaymentIntent {
             id: 21,
             payment_id: "23".to_string(),
@@ -2312,8 +2312,8 @@ mod tests {
         .is_ok()); // Check if the result is an Ok variant
     }
 
-    #[tokio::test]
-    async fn test_authenticate_client_secret_fulfillment_time_expired() {
+    #[test]
+    fn test_authenticate_client_secret_fulfillment_time_expired() {
         let payment_intent = PaymentIntent {
             id: 21,
             payment_id: "23".to_string(),
@@ -2360,8 +2360,8 @@ mod tests {
         .is_err())
     }
 
-    #[tokio::test]
-    async fn test_authenticate_client_secret_expired() {
+    #[test]
+    fn test_authenticate_client_secret_expired() {
         let payment_intent = PaymentIntent {
             id: 21,
             payment_id: "23".to_string(),

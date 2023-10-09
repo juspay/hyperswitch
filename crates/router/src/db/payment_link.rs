@@ -1,7 +1,6 @@
 use error_stack::IntoReport;
 
 use super::{MockDb, Store};
-// use diesel_models::payment_link;
 use crate::{
     connection,
     core::errors::{self, CustomResult},
