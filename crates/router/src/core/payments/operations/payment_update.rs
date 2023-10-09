@@ -82,10 +82,10 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
         let intent_fulfillment_time = helpers::get_merchant_fullfillment_time(
             payment_intent.payment_link_id.clone(),
             merchant_account.intent_fulfillment_time,
-            &merchant_account.merchant_id.clone(),
-            db.clone(),
+            &merchant_account.merchant_id,
+            db,
         )
-        .await;
+        .await?;
 
         helpers::authenticate_client_secret(
             request.client_secret.as_ref(),

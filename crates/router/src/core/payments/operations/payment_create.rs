@@ -5,7 +5,7 @@ use async_trait::async_trait;
 use common_utils::ext_traits::{AsyncExt, Encode, ValueExt};
 use data_models::mandates::MandateData;
 use diesel_models::ephemeral_key;
-use error_stack::{self, report, ResultExt};
+use error_stack::{self, ResultExt};
 use router_derive::PaymentOperation;
 use router_env::{instrument, tracing};
 
@@ -75,9 +75,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
                 state,
                 amount,
             )
-            .await
-            .ok()
-            .flatten()
+            .await?
         } else {
             None
         };
@@ -463,7 +461,7 @@ impl<F: Send + Clone> ValidateRequest<F, api::PaymentsRequest> for PaymentCreate
         helpers::validate_customer_details_in_request(request)?;
 
         if let Some(payment_link_object) = &request.payment_link_object {
-            helpers::validate_payment_link_expiry(payment_link_object)?;
+            helpers::validate_payment_link_request(payment_link_object, request.confirm)?;
         }
 
         let given_payment_id = match &request.payment_id {
@@ -754,49 +752,40 @@ async fn create_payment_link(
     state: &AppState,
     amount: api::Amount,
 ) -> RouterResult<Option<api_models::payments::PaymentLinkResponse>> {
-    if !request.confirm.unwrap_or(false) {
-        let created_at @ last_modified_at = Some(common_utils::date_time::now());
-        let domain = if let Some(domain_name) = payment_link_object.merchant_custom_domain_name {
-            format!("https://{domain_name}")
-        } else {
-            state.conf.server.base_url.clone()
-        };
-        if created_at > payment_link_object.link_expiry {
-            return Err(report!(errors::ApiErrorResponse::InvalidRequestData {
-                message: "link_expiry time cannot be less than current time".to_string(),
-            }));
-        }
-
-        let payment_link_id = utils::generate_id(consts::ID_LENGTH, "plink");
-        let payment_link = format!(
-            "{}/payment_link/{}/{}",
-            domain,
-            merchant_id.clone(),
-            payment_id.clone()
-        );
-        let payment_link_req = storage::PaymentLinkNew {
-            payment_link_id: payment_link_id.clone(),
-            payment_id: payment_id.clone(),
-            merchant_id: merchant_id.clone(),
-            link_to_pay: payment_link.clone(),
-            amount: amount.into(),
-            currency: request.currency,
-            created_at,
-            last_modified_at,
-            fullfilment_time: payment_link_object.link_expiry,
-        };
-        let _payment_link_db = db
-            .insert_payment_link(payment_link_req)
-            .await
-            .to_duplicate_response(errors::ApiErrorResponse::DuplicatePayment {
-                payment_id: payment_id.clone(),
-            })?;
-
-        Ok(Some(api_models::payments::PaymentLinkResponse {
-            payment_link,
-            payment_link_id,
-        }))
+    let created_at @ last_modified_at = Some(common_utils::date_time::now());
+    let domain = if let Some(domain_name) = payment_link_object.merchant_custom_domain_name {
+        format!("https://{domain_name}")
     } else {
-        Ok(None)
-    }
+        state.conf.server.base_url.clone()
+    };
+
+    let payment_link_id = utils::generate_id(consts::ID_LENGTH, "plink");
+    let payment_link = format!(
+        "{}/payment_link/{}/{}",
+        domain,
+        merchant_id.clone(),
+        payment_id.clone()
+    );
+    let payment_link_req = storage::PaymentLinkNew {
+        payment_link_id: payment_link_id.clone(),
+        payment_id: payment_id.clone(),
+        merchant_id: merchant_id.clone(),
+        link_to_pay: payment_link.clone(),
+        amount: amount.into(),
+        currency: request.currency,
+        created_at,
+        last_modified_at,
+        fullfilment_time: payment_link_object.link_expiry,
+    };
+    let _payment_link_db = db
+        .insert_payment_link(payment_link_req)
+        .await
+        .to_duplicate_response(errors::ApiErrorResponse::DuplicatePayment {
+            payment_id: payment_id.clone(),
+        })?;
+
+    Ok(Some(api_models::payments::PaymentLinkResponse {
+        payment_link,
+        payment_link_id,
+    }))
 }

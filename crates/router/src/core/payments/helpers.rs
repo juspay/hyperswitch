@@ -2094,19 +2094,19 @@ pub async fn get_merchant_fullfillment_time(
     intent_fulfillment_time: Option<i64>,
     merchant_id: &str,
     db: &dyn StorageInterface,
-) -> Option<i64> {
+) -> RouterResult<Option<i64>> {
     if let Some(payment_link_id) = payment_link_id {
         let payment_link_db = db
             .find_payment_link_by_payment_link_id(&payment_link_id, merchant_id)
             .await
-            .ok();
-        payment_link_db.and_then(|link_db| {
-            link_db
-                .fullfilment_time
-                .map(|time| time.assume_utc().unix_timestamp())
-        })
+            .to_not_found_response(errors::ApiErrorResponse::PaymentLinkNotFound)?;
+
+        let curr_time = common_utils::date_time::now();
+        Ok(payment_link_db
+            .fullfilment_time
+            .map(|merchant_expiry_time| (merchant_expiry_time - curr_time).whole_seconds()))
     } else {
-        intent_fulfillment_time
+        Ok(intent_fulfillment_time)
     }
 }
 
@@ -2174,7 +2174,7 @@ pub async fn verify_payment_intent_time_and_client_secret(
                 &merchant_account.merchant_id.clone(),
                 db.clone(),
             )
-            .await;
+            .await?;
 
             authenticate_client_secret(Some(&cs), &payment_intent, intent_fulfillment_time)?;
             Ok(payment_intent)
@@ -3295,14 +3295,23 @@ impl ApplePayData {
     }
 }
 
-pub fn validate_payment_link_expiry(
+pub fn validate_payment_link_request(
     payment_link_object: &api_models::payments::PaymentLinkObject,
+    confirm: Option<bool>,
 ) -> Result<(), errors::ApiErrorResponse> {
-    let current_time = Some(common_utils::date_time::now());
-    if current_time > payment_link_object.link_expiry {
-        return Err(errors::ApiErrorResponse::InvalidRequestData {
-            message: "link_expiry time cannot be less than current time".to_string(),
-        });
+    if let Some(cnf) = confirm {
+        if !cnf {
+            let current_time = Some(common_utils::date_time::now());
+            if current_time > payment_link_object.link_expiry {
+                return Err(errors::ApiErrorResponse::InvalidRequestData {
+                    message: "link_expiry time cannot be less than current time".to_string(),
+                });
+            }
+        } else {
+            return Err(errors::ApiErrorResponse::InvalidRequestData {
+                message: "cannot confirm a payment while creating a payment link".to_string(),
+            });
+        }
     }
     Ok(())
 }

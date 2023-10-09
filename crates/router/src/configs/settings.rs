@@ -98,12 +98,12 @@ pub struct Settings {
     pub multiple_api_version_supported_connectors: MultipleApiVersionSupportedConnectors,
     pub applepay_merchant_configs: ApplepayMerchantConfigs,
     pub temp_locker_disable_config: TempLockerDisableConfig,
-    pub payment_link_sdk_url: PaymentLinkSdkUrl,
+    pub payment_link: PaymentLink,
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
 #[serde(default)]
-pub struct PaymentLinkSdkUrl {
+pub struct PaymentLink {
     pub sdk_url: String,
 }
 

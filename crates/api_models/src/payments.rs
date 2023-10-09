@@ -294,7 +294,7 @@ pub struct PaymentsRequest {
 
     /// additional data that might be required by hyperswitch
     pub feature_metadata: Option<FeatureMetadata>,
-    /// payment link object for required for generating the payment_link
+    /// payment link object required for generating the payment_link
     pub payment_link_object: Option<PaymentLinkObject>,
 
     /// The business profile to use for this payment, if not passed the default business profile

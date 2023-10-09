@@ -11,5 +11,3 @@ CREATE TABLE payment_link (
     fullfilment_time TIMESTAMP,
     PRIMARY KEY (payment_link_id)
 );
-
-CREATE INDEX payment_link_index ON payment_link (payment_link_id);

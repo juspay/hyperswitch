@@ -6,7 +6,7 @@ use crate::{enums as storage_enums, schema::payment_link};
 
 #[derive(Clone, Debug, Eq, PartialEq, Identifiable, Queryable, Serialize, Deserialize)]
 #[diesel(table_name = payment_link)]
-#[diesel(primary_key(payment_id))]
+#[diesel(primary_key(payment_link_id))]
 pub struct PaymentLink {
     pub payment_link_id: String,
     pub payment_id: String,
