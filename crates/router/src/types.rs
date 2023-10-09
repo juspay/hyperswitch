@@ -335,7 +335,6 @@ pub struct PayoutsData {
     pub source_currency: storage_enums::Currency,
     pub payout_type: storage_enums::PayoutType,
     pub entity_type: storage_enums::PayoutEntityType,
-    pub country_code: storage_enums::CountryAlpha2,
     pub customer_details: Option<CustomerDetails>,
 }
 
