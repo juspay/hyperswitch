@@ -28,6 +28,8 @@ port = 5432                 # DB Port
 dbname = "hyperswitch_db"   # Name of Database
 pool_size = 5               # Number of connections to keep open
 connection_timeout = 10     # Timeout for database connection in seconds
+idle_timeout = 60           # Timeout for idle database connection in seconds
+min_idle = 5                # Minimum number of idle connections to keep open
 
 # Replica SQL data store credentials
 [replica_database]
@@ -38,6 +40,8 @@ port = 5432                 # DB Port
 dbname = "hyperswitch_db"   # Name of Database
 pool_size = 5               # Number of connections to keep open
 connection_timeout = 10     # Timeout for database connection in seconds
+idle_timeout = 60           # Timeout for idle database connection in seconds
+min_idle = 5                # Minimum number of idle connections to keep open
 
 # Redis credentials
 [redis]
