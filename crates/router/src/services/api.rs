@@ -889,8 +889,7 @@ where
             .map_into_boxed_body()
         }
         Ok(ApplicationResponse::JsonWithHeaders((response, headers))) => {
-            let request_elapsed_time = request.headers().get("x-hs-latency")
-            .and_then(|value| {
+            let request_elapsed_time = request.headers().get("x-hs-latency").and_then(|value| {
                 if value == "true" {
                     Some(start_instant.elapsed())
                 } else {
