@@ -1,4 +1,4 @@
-use api_models::enums::{Connector, PaymentMethod};
+use api_models::enums::{AuthenticationType, Connector, PaymentMethod, PaymentMethodType};
 use common_utils::errors::CustomResult;
 use data_models::{
     errors,
@@ -176,11 +176,20 @@ impl<T: DatabaseStore> PaymentAttemptInterface for RouterStore<T> {
                 er.change_context(new_err)
             })
             .map(
-                |(connector, currency, status, payment_method)| PaymentListFilters {
+                |(
                     connector,
                     currency,
                     status,
                     payment_method,
+                    payment_method_type,
+                    authentication_type,
+                )| PaymentListFilters {
+                    connector,
+                    currency,
+                    status,
+                    payment_method,
+                    payment_method_type,
+                    authentication_type,
                 },
             )
     }
@@ -248,7 +257,9 @@ impl<T: DatabaseStore> PaymentAttemptInterface for RouterStore<T> {
         merchant_id: &str,
         active_attempt_ids: &[String],
         connector: Option<Vec<Connector>>,
-        payment_methods: Option<Vec<PaymentMethod>>,
+        payment_method: Option<Vec<PaymentMethod>>,
+        payment_method_type: Option<Vec<PaymentMethodType>>,
+        authentication_type: Option<Vec<AuthenticationType>>,
         _storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<i64, errors::StorageError> {
         let conn = self
@@ -269,7 +280,9 @@ impl<T: DatabaseStore> PaymentAttemptInterface for RouterStore<T> {
             merchant_id,
             active_attempt_ids,
             connector_strings,
-            payment_methods,
+            payment_method,
+            payment_method_type,
+            authentication_type,
         )
         .await
         .map_err(|er| {
@@ -667,12 +680,11 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
                     .await
             }
             MerchantStorageScheme::RedisKv => {
-                let lookup_id = format!("{merchant_id}_{attempt_id}");
-                let lookup = self.get_lookup_by_lookup_id(&lookup_id).await?;
-                let key = &lookup.pk_id;
+                let key = format!("{merchant_id}_{payment_id}");
+                let field = format!("pa_{attempt_id}");
                 try_redis_get_else_try_database_get(
                     async {
-                        kv_wrapper(self, KvOperation::<PaymentAttempt>::Get(&lookup.sk_id), key)
+                        kv_wrapper(self, KvOperation::<PaymentAttempt>::Get(&field), key)
                             .await?
                             .try_into_get()
                     },
@@ -819,7 +831,9 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
         merchant_id: &str,
         active_attempt_ids: &[String],
         connector: Option<Vec<Connector>>,
-        payment_methods: Option<Vec<PaymentMethod>>,
+        payment_method: Option<Vec<PaymentMethod>>,
+        payment_method_type: Option<Vec<PaymentMethodType>>,
+        authentication_type: Option<Vec<AuthenticationType>>,
         storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<i64, errors::StorageError> {
         self.router_store
@@ -827,7 +841,9 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
                 merchant_id,
                 active_attempt_ids,
                 connector,
-                payment_methods,
+                payment_method,
+                payment_method_type,
+                authentication_type,
                 storage_scheme,
             )
             .await
