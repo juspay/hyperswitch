@@ -23,7 +23,6 @@ jobs:
           # Checkout pull request branch instead of merge commit
           ref: ${{ github.event.pull_request.head.ref }}
           repository: ${{ github.event.pull_request.head.repo.full_name }}
-          token: ${{ secrets.AUTO_FILE_UPDATE_PAT }}
 
       - name: Checkout merge group HEAD commit
         if: ${{ github.event_name == 'merge_group' }}
