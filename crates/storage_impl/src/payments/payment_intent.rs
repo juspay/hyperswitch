@@ -35,7 +35,7 @@ use router_env::logger;
 use router_env::{instrument, tracing};
 
 use crate::{
-    redis::kv_store::{PartitionKey, RedisConnInterface},
+    redis::kv_store::{kv_wrapper, KvOperation, PartitionKey},
     utils::{pg_connection_read, pg_connection_write},
     DataModelExt, DatabaseStore, KVRouterStore,
 };
@@ -93,11 +93,14 @@ impl<T: DatabaseStore> PaymentIntentInterface for KVRouterStore<T> {
                     payment_confirm_source: new.payment_confirm_source,
                 };
 
-                match self
-                    .get_redis_conn()
-                    .change_context(StorageError::DatabaseConnectionError)?
-                    .serialize_and_set_hash_field_if_not_exist(&key, &field, &created_intent)
-                    .await
+                match kv_wrapper::<PaymentIntent, _, _>(
+                    self,
+                    KvOperation::SetNx(&field, &created_intent),
+                    &key,
+                )
+                .await
+                .change_context(StorageError::KVError)?
+                .try_into_setnx()
                 {
                     Ok(HsetnxReply::KeyNotSet) => Err(StorageError::DuplicateValue {
                         entity: "payment_intent",
@@ -151,13 +154,15 @@ impl<T: DatabaseStore> PaymentIntentInterface for KVRouterStore<T> {
                     Encode::<PaymentIntent>::encode_to_string_of_json(&updated_intent)
                         .change_context(StorageError::SerializationFailed)?;
 
-                let updated_intent = self
-                    .get_redis_conn()
-                    .change_context(StorageError::DatabaseConnectionError)?
-                    .set_hash_fields(&key, (&field, &redis_value))
-                    .await
-                    .map(|_| updated_intent)
-                    .change_context(StorageError::KVError)?;
+                kv_wrapper::<(), _, _>(
+                    self,
+                    KvOperation::<PaymentIntent>::Set((&field, redis_value)),
+                    &key,
+                )
+                .await
+                .change_context(StorageError::KVError)?
+                .try_into_set()
+                .change_context(StorageError::KVError)?;
 
                 let redis_entry = kv::TypedSql {
                     op: kv::DBOperation::Update {
@@ -207,9 +212,15 @@ impl<T: DatabaseStore> PaymentIntentInterface for KVRouterStore<T> {
                 let key = format!("mid_{merchant_id}_pid_{payment_id}");
                 let field = format!("pi_{payment_id}");
                 crate::utils::try_redis_get_else_try_database_get(
-                    self.get_redis_conn()
-                        .change_context(StorageError::DatabaseConnectionError)?
-                        .get_hash_field_and_deserialize(&key, &field, "PaymentIntent"),
+                    async {
+                        kv_wrapper::<PaymentIntent, _, _>(
+                            self,
+                            KvOperation::<PaymentIntent>::Get(&field),
+                            &key,
+                        )
+                        .await?
+                        .try_into_get()
+                    },
                     database_call,
                 )
                 .await
@@ -224,15 +235,11 @@ impl<T: DatabaseStore> PaymentIntentInterface for KVRouterStore<T> {
         filters: &PaymentIntentFetchConstraints,
         storage_scheme: MerchantStorageScheme,
     ) -> error_stack::Result<Vec<PaymentIntent>, StorageError> {
-        match storage_scheme {
-            MerchantStorageScheme::PostgresOnly => {
-                self.router_store
-                    .filter_payment_intent_by_constraints(merchant_id, filters, storage_scheme)
-                    .await
-            }
-            MerchantStorageScheme::RedisKv => Err(StorageError::KVError.into()),
-        }
+        self.router_store
+            .filter_payment_intent_by_constraints(merchant_id, filters, storage_scheme)
+            .await
     }
+
     #[cfg(feature = "olap")]
     async fn filter_payment_intents_by_time_range_constraints(
         &self,
@@ -240,18 +247,13 @@ impl<T: DatabaseStore> PaymentIntentInterface for KVRouterStore<T> {
         time_range: &api_models::payments::TimeRange,
         storage_scheme: MerchantStorageScheme,
     ) -> error_stack::Result<Vec<PaymentIntent>, StorageError> {
-        match storage_scheme {
-            MerchantStorageScheme::PostgresOnly => {
-                self.router_store
-                    .filter_payment_intents_by_time_range_constraints(
-                        merchant_id,
-                        time_range,
-                        storage_scheme,
-                    )
-                    .await
-            }
-            MerchantStorageScheme::RedisKv => Err(StorageError::KVError.into()),
-        }
+        self.router_store
+            .filter_payment_intents_by_time_range_constraints(
+                merchant_id,
+                time_range,
+                storage_scheme,
+            )
+            .await
     }
 
     #[cfg(feature = "olap")]
@@ -261,14 +263,9 @@ impl<T: DatabaseStore> PaymentIntentInterface for KVRouterStore<T> {
         filters: &PaymentIntentFetchConstraints,
         storage_scheme: MerchantStorageScheme,
     ) -> error_stack::Result<Vec<(PaymentIntent, PaymentAttempt)>, StorageError> {
-        match storage_scheme {
-            MerchantStorageScheme::PostgresOnly => {
-                self.router_store
-                    .get_filtered_payment_intents_attempt(merchant_id, filters, storage_scheme)
-                    .await
-            }
-            MerchantStorageScheme::RedisKv => Err(StorageError::KVError.into()),
-        }
+        self.router_store
+            .get_filtered_payment_intents_attempt(merchant_id, filters, storage_scheme)
+            .await
     }
 
     #[cfg(feature = "olap")]
@@ -278,19 +275,13 @@ impl<T: DatabaseStore> PaymentIntentInterface for KVRouterStore<T> {
         constraints: &PaymentIntentFetchConstraints,
         storage_scheme: MerchantStorageScheme,
     ) -> error_stack::Result<Vec<String>, StorageError> {
-        match storage_scheme {
-            MerchantStorageScheme::PostgresOnly => {
-                self.router_store
-                    .get_filtered_active_attempt_ids_for_total_count(
-                        merchant_id,
-                        constraints,
-                        storage_scheme,
-                    )
-                    .await
-            }
-
-            MerchantStorageScheme::RedisKv => Err(StorageError::KVError.into()),
-        }
+        self.router_store
+            .get_filtered_active_attempt_ids_for_total_count(
+                merchant_id,
+                constraints,
+                storage_scheme,
+            )
+            .await
     }
 }
 

@@ -530,7 +530,9 @@ impl<F, T>
         Ok(Self {
             status: enums::AttemptStatus::from(status),
             response: Ok(types::PaymentsResponseData::TransactionResponse {
-                resource_id: types::ResponseId::ConnectorTransactionId(item.response.data.order_id),
+                resource_id: types::ResponseId::ConnectorTransactionId(
+                    item.response.data.order_id.clone(),
+                ),
                 redirection_data,
                 mandate_reference: item
                     .response
@@ -543,7 +545,7 @@ impl<F, T>
                     }),
                 connector_metadata: None,
                 network_txn_id: None,
-                connector_response_reference_id: None,
+                connector_response_reference_id: Some(item.response.data.order_id.clone()),
             }),
             ..item.data
         })
