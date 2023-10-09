@@ -2,12 +2,12 @@
 enabled = false
 
 [log.console]
-enabled = false
+enabled = true
 level = "DEBUG"
 log_format = "default"
 
 [log.telemetry]
-traces_enabled = true
+traces_enabled = false
 metrics_enabled = false
 use_xray_generator = false
 

@@ -464,6 +464,24 @@ pub struct Database {
     pub dbname: String,
     pub pool_size: u32,
     pub connection_timeout: u64,
+    pub queue_strategy: QueueStrategy,
+}
+
+#[derive(Debug, Deserialize, Clone, Default)]
+#[serde(rename_all = "PascalCase")]
+pub enum QueueStrategy {
+    #[default]
+    Fifo,
+    Lifo,
+}
+
+impl From<QueueStrategy> for bb8::QueueStrategy {
+    fn from(value: QueueStrategy) -> Self {
+        match value {
+            QueueStrategy::Fifo => Self::Fifo,
+            QueueStrategy::Lifo => Self::Lifo,
+        }
+    }
 }
 
 #[cfg(not(feature = "kms"))]
@@ -477,6 +495,7 @@ impl Into<storage_impl::config::Database> for Database {
             dbname: self.dbname,
             pool_size: self.pool_size,
             connection_timeout: self.connection_timeout,
+            queue_strategy: self.queue_strategy.into(),
         }
     }
 }

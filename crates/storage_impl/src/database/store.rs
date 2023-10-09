@@ -88,7 +88,7 @@ pub async fn diesel_make_pg_pool(
     let manager = async_bb8_diesel::ConnectionManager::<PgConnection>::new(database_url);
     let mut pool = bb8::Pool::builder()
         .max_size(database.pool_size)
-        .queue_strategy(bb8::QueueStrategy::Lifo)
+        .queue_strategy(database.queue_strategy)
         .connection_timeout(std::time::Duration::from_secs(database.connection_timeout));
 
     if test_transaction {

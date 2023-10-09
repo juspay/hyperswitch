@@ -9,4 +9,5 @@ pub struct Database {
     pub dbname: String,
     pub pool_size: u32,
     pub connection_timeout: u64,
+    pub queue_strategy: bb8::QueueStrategy
 }
