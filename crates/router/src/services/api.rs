@@ -365,6 +365,7 @@ where
                                             error
                                         })?;
                                     data.connector_http_status_code = connector_http_status_code;
+                                    // Add up multiple external latencies in case of multiple external calls within the same request.
                                     data.external_latency = Some(
                                         data.external_latency
                                             .map_or(external_latency, |val| val + external_latency),
