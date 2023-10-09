@@ -88,7 +88,7 @@ impl<T: DatabaseStore> ReverseLookupInterface for KVRouterStore<T> {
                 match kv_wrapper::<DieselReverseLookup, _, _>(
                     self,
                     KvOperation::SetNx(&created_rev_lookup),
-                    &created_rev_lookup.lookup_id,
+                    format!("reverse_lookup_{}", &created_rev_lookup.lookup_id),
                 )
                 .await
                 .change_context(errors::StorageError::KVError)?
@@ -134,9 +134,13 @@ impl<T: DatabaseStore> ReverseLookupInterface for KVRouterStore<T> {
             data_models::MerchantStorageScheme::PostgresOnly => database_call().await,
             data_models::MerchantStorageScheme::RedisKv => {
                 let redis_fut = async {
-                    kv_wrapper(self, KvOperation::<DieselReverseLookup>::Get, id)
-                        .await?
-                        .try_into_get()
+                    kv_wrapper(
+                        self,
+                        KvOperation::<DieselReverseLookup>::Get,
+                        format!("reverse_lookup_{id}"),
+                    )
+                    .await?
+                    .try_into_get()
                 };
 
                 try_redis_get_else_try_database_get(redis_fut, database_call).await
