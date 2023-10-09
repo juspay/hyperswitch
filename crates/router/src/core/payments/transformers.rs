@@ -463,16 +463,6 @@ where
                     amount,
                     currency: currency.to_string(),
                 }))
-            } else if payments::is_ddc_operation(&operation) {
-                services::ApplicationResponse::Form(Box::new(services::RedirectionFormData {
-                    redirect_form: RedirectForm::Kount {
-                        client_id: "700000".to_string(),
-                        payment_id: payment_attempt.payment_id,
-                    },
-                    payment_method_data: payment_data.payment_method_data,
-                    amount,
-                    currency: currency.to_string(),
-                }))
             } else {
                 let mut next_action_response = None;
 
