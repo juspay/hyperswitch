@@ -227,9 +227,6 @@ fn setup_tracing_pipeline(
     global::set_text_map_propagator(TraceContextPropagator::new());
 
     let mut trace_config = trace::config()
-        // .with_sampler(trace::Sampler::TraceIdRatioBased(
-        //     config.sampling_rate.unwrap_or(1.0),
-        // ))
         .with_sampler(trace::Sampler::ParentBased(Box::new(ConditionalSampler(
             TraceAssertion {
                 clauses: config
