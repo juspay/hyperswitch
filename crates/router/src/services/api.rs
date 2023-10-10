@@ -13,8 +13,8 @@ use std::{
 use actix_web::{body, web, FromRequest, HttpRequest, HttpResponse, Responder, ResponseError};
 use api_models::enums::CaptureMethod;
 pub use client::{proxy_bypass_urls, ApiClient, MockApiClient, ProxyClient};
-use common_utils::{errors::ReportSwitchExt, consts::X_HS_LATENCY};
 pub use common_utils::request::{ContentType, Method, Request, RequestBuilder};
+use common_utils::{consts::X_HS_LATENCY, errors::ReportSwitchExt};
 use error_stack::{report, IntoReport, Report, ResultExt};
 use masking::{ExposeOptionInterface, PeekInterface};
 use router_env::{instrument, tracing, tracing_actix_web::RequestId, Tag};

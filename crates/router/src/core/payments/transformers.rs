@@ -1,7 +1,7 @@
 use std::{fmt::Debug, marker::PhantomData, str::FromStr};
 
 use api_models::payments::FrmMessage;
-use common_utils::{fp_utils, consts::X_HS_LATENCY};
+use common_utils::{consts::X_HS_LATENCY, fp_utils};
 use diesel_models::ephemeral_key;
 use error_stack::{IntoReport, ResultExt};
 use router_env::{instrument, tracing};

@@ -2,9 +2,10 @@
 use actix_web::http::header::HeaderMap;
 use api_models::{enums as api_enums, payments};
 use common_utils::{
+    consts::X_HS_LATENCY,
     crypto::Encryptable,
     ext_traits::{StringExt, ValueExt},
-    pii, consts::X_HS_LATENCY,
+    pii,
 };
 use diesel_models::enums as storage_enums;
 use error_stack::ResultExt;
