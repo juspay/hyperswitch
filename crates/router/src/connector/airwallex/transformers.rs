@@ -53,6 +53,39 @@ impl TryFrom<&types::PaymentsInitRouterData> for AirwallexIntentRequest {
     }
 }
 
+//TODO: Implement AirwallexRouterData
+#[derive(Debug, Serialize)]
+pub struct AirwallexRouterData<T> {
+    amount: i64,
+    router_data: T,
+    //TODO: Checks Needed
+}
+
+impl<T>
+    TryFrom<(
+        &types::api::CurrencyUnit,
+        types::storage::enums::Currency,
+        i64,
+        T,
+    )> for AirwallexRouterData<T>
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+
+    fn try_from(
+        (_currency_unit, _currency, amount, router_data): (
+            &types::api::CurrencyUnit,
+            types::storage::enums::Currency,
+            i64,
+            T,
+        ),
+    ) -> Result<Self, Self::Error> {
+        Ok(Self {
+            amount,
+            router_data,
+        })
+    }
+}
+
 #[derive(Debug, Serialize)]
 pub struct AirwallexPaymentsRequest {
     // Unique ID to be sent for each transaction/operation request to the connector
@@ -125,11 +158,13 @@ pub struct AirwallexCardPaymentOptions {
     auto_capture: bool,
 }
 
-impl TryFrom<&types::PaymentsAuthorizeRouterData> for AirwallexPaymentsRequest {
+//TODO: Checks Needed
+impl TryFrom<&AirwallexRouterData<&types::PaymentsAuthorizeRouterData>> for AirwallexPaymentsRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(item: &types::PaymentsAuthorizeRouterData) -> Result<Self, Self::Error> {
+    fn try_from(item: &AirwallexRouterData<&types::PaymentsAuthorizeRouterData>) -> Result<Self, Self::Error> {
         let mut payment_method_options = None;
-        let payment_method = match item.request.payment_method_data.clone() {
+        let request = &item.router_data.request;
+        let payment_method = match request.payment_method_data.clone() {
             api::PaymentMethodData::Card(ccard) => {
                 payment_method_options =
                     Some(AirwallexPaymentOptions::Card(AirwallexCardPaymentOptions {
