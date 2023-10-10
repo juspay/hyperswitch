@@ -199,7 +199,7 @@ fn get_payments_response(connector_response: TsysResponse) -> types::PaymentsRes
         mandate_reference: None,
         connector_metadata: None,
         network_txn_id: None,
-        connector_response_reference_id: Some(connector_response.transaction_id.clone()),
+        connector_response_reference_id: Some(connector_response.transaction_id),
     }
 }
 
