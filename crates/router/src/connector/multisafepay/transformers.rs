@@ -380,7 +380,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for MultisafepayPaymentsReques
         Ok(Self {
             payment_type,
             gateway,
-            order_id: item.payment_id.to_string(),
+            order_id: item.connector_request_reference_id.to_string(),
             currency: item.request.currency.to_string(),
             amount: item.request.amount,
             description,
@@ -530,7 +530,9 @@ impl<F, T>
         Ok(Self {
             status: enums::AttemptStatus::from(status),
             response: Ok(types::PaymentsResponseData::TransactionResponse {
-                resource_id: types::ResponseId::ConnectorTransactionId(item.response.data.order_id),
+                resource_id: types::ResponseId::ConnectorTransactionId(
+                    item.response.data.order_id.clone(),
+                ),
                 redirection_data,
                 mandate_reference: item
                     .response
@@ -543,7 +545,7 @@ impl<F, T>
                     }),
                 connector_metadata: None,
                 network_txn_id: None,
-                connector_response_reference_id: None,
+                connector_response_reference_id: Some(item.response.data.order_id.clone()),
             }),
             ..item.data
         })

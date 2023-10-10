@@ -214,7 +214,7 @@ zen.secondary_base_url = "https://secure.zen-test.com/"
 
 #Payment Method Filters Based on Country and Currency
 [pm_filters.default]
-apple_pay = { country = "AU,CN,HK,JP,MO,MY,NZ,SG,TW,AM,AT,AZ,BY,BE,BG,HR,CY,CZ,DK,EE,FO,FI,FR,GE,DE,GR,GL,GG,HU,IS,IE,IM,IT,KZ,JE,LV,LI,LT,LU,MT,MD,MC,ME,NL,NO,PL,PT,RO,SM,RS,SK,SI,ES,SE,CH,UA,GB,AR,CO,CR,BR,MX,PE,BH,IL,JO,KW,PS,QA,SA,AE,CA,UM,US", currency = "AED,AUD,CHF,CAD,EUR,GBP,HKD,SGD,USD" }
+apple_pay = { country = "AU,CN,HK,JP,MO,MY,NZ,SG,TW,AM,AT,AZ,BY,BE,BG,HR,CY,CZ,DK,EE,FO,FI,FR,GE,DE,GR,GL,GG,HU,IS,IE,IM,IT,KZ,JE,LV,LI,LT,LU,MT,MD,MC,ME,NL,NO,PL,PT,RO,SM,RS,SK,SI,ES,SE,CH,UA,GB,AR,CO,CR,BR,MX,PE,BH,IL,JO,KW,PS,QA,SA,AE,CA,UM,US,KR,VN,MA,ZA,VA,CL,SV,GT,HN,PA", currency = "AED,AUD,CHF,CAD,EUR,GBP,HKD,SGD,USD" }
 
 # Bank redirect configs for allowed banks through online_banking_czech_republic payment method
 [bank_config.online_banking_czech_republic]
@@ -346,6 +346,7 @@ discord_invite_url = "https://www.example.com/" # Discord invite url for hypersw
 card.credit = {connector_list = "stripe,adyen"}     # Mandate supported payment method type and connector for card
 wallet.paypal = {connector_list = "adyen"}          # Mandate supported payment method type and connector for wallets
 pay_later.klarna = {connector_list = "adyen"}       # Mandate supported payment method type and connector for pay_later
+bank_debit.ach = { connector_list = "gocardless"}   # Mandate supported payment method type and connector for bank_debit
 
 # Required fields info used while listing the payment_method_data
 [required_fields.pay_later] # payment_method = "pay_later"

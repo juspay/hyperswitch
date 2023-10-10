@@ -110,7 +110,7 @@ impl ConnectorCommon for Checkout {
         };
 
         router_env::logger::info!(error_response=?response);
-        let errors_list = response.error_codes.clone().unwrap_or(vec![]);
+        let errors_list = response.error_codes.clone().unwrap_or_default();
         let option_error_code_message = conn_utils::get_error_code_error_message_based_on_priority(
             self.clone(),
             errors_list
@@ -275,10 +275,14 @@ impl ConnectorIntegration<api::AccessTokenAuth, types::AccessTokenRequestData, t
     // Not Implemented (R)
 }
 
-impl api::PreVerify for Checkout {}
+impl api::MandateSetup for Checkout {}
 
-impl ConnectorIntegration<api::Verify, types::VerifyRequestData, types::PaymentsResponseData>
-    for Checkout
+impl
+    ConnectorIntegration<
+        api::SetupMandate,
+        types::SetupMandateRequestData,
+        types::PaymentsResponseData,
+    > for Checkout
 {
     // Issue: #173
 }
@@ -1169,6 +1173,7 @@ impl api::IncomingWebhook for Checkout {
     fn get_webhook_source_verification_signature(
         &self,
         request: &api::IncomingWebhookRequestDetails<'_>,
+        _connector_webhook_secrets: &api_models::webhooks::ConnectorWebhookSecrets,
     ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
         let signature = conn_utils::get_header_key_value("cko-signature", request.headers)
             .change_context(errors::ConnectorError::WebhookSignatureNotFound)?;
@@ -1180,7 +1185,7 @@ impl api::IncomingWebhook for Checkout {
         &self,
         request: &api::IncomingWebhookRequestDetails<'_>,
         _merchant_id: &str,
-        _secret: &[u8],
+        _connector_webhook_secrets: &api_models::webhooks::ConnectorWebhookSecrets,
     ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
         Ok(format!("{}", String::from_utf8_lossy(request.body)).into_bytes())
     }

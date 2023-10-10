@@ -455,14 +455,20 @@ impl<F, T>
                     reason: Some(error_message),
                     status_code: item.http_code,
                 }),
-                _ => Ok(types::PaymentsResponseData::TransactionResponse {
-                    resource_id: types::ResponseId::ConnectorTransactionId(order.id.to_string()),
-                    redirection_data,
-                    mandate_reference,
-                    connector_metadata: None,
-                    network_txn_id: None,
-                    connector_response_reference_id: order.reference.or(Some(order.id.to_string())),
-                }),
+                _ => {
+                    let connector_response_reference_id =
+                        order.reference.or(Some(order.id.to_string()));
+                    Ok(types::PaymentsResponseData::TransactionResponse {
+                        resource_id: types::ResponseId::ConnectorTransactionId(
+                            order.id.to_string(),
+                        ),
+                        redirection_data,
+                        mandate_reference,
+                        connector_metadata: None,
+                        network_txn_id: None,
+                        connector_response_reference_id,
+                    })
+                }
             },
             ..item.data
         })

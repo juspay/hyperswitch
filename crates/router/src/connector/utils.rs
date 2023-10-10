@@ -256,6 +256,17 @@ impl PaymentsCaptureRequestData for types::PaymentsCaptureData {
     }
 }
 
+pub trait SetupMandateRequestData {
+    fn get_browser_info(&self) -> Result<types::BrowserInformation, Error>;
+}
+
+impl SetupMandateRequestData for types::SetupMandateRequestData {
+    fn get_browser_info(&self) -> Result<types::BrowserInformation, Error> {
+        self.browser_info
+            .clone()
+            .ok_or_else(missing_field_err("browser_info"))
+    }
+}
 pub trait PaymentsAuthorizeRequestData {
     fn is_auto_capture(&self) -> Result<bool, Error>;
     fn get_email(&self) -> Result<Email, Error>;

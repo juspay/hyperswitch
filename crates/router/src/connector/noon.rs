@@ -37,7 +37,7 @@ pub struct Noon;
 impl api::Payment for Noon {}
 impl api::PaymentSession for Noon {}
 impl api::ConnectorAccessToken for Noon {}
-impl api::PreVerify for Noon {}
+impl api::MandateSetup for Noon {}
 impl api::PaymentAuthorize for Noon {}
 impl api::PaymentSync for Noon {}
 impl api::PaymentCapture for Noon {}
@@ -166,8 +166,12 @@ impl ConnectorIntegration<api::AccessTokenAuth, types::AccessTokenRequestData, t
 {
 }
 
-impl ConnectorIntegration<api::Verify, types::VerifyRequestData, types::PaymentsResponseData>
-    for Noon
+impl
+    ConnectorIntegration<
+        api::SetupMandate,
+        types::SetupMandateRequestData,
+        types::PaymentsResponseData,
+    > for Noon
 {
 }
 
@@ -635,6 +639,7 @@ impl api::IncomingWebhook for Noon {
     fn get_webhook_source_verification_signature(
         &self,
         request: &api::IncomingWebhookRequestDetails<'_>,
+        _connector_webhook_secrets: &api_models::webhooks::ConnectorWebhookSecrets,
     ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
         let webhook_body: noon::NoonWebhookSignature = request
             .body
@@ -651,7 +656,7 @@ impl api::IncomingWebhook for Noon {
         &self,
         request: &api::IncomingWebhookRequestDetails<'_>,
         _merchant_id: &str,
-        _secret: &[u8],
+        _connector_webhook_secrets: &api_models::webhooks::ConnectorWebhookSecrets,
     ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
         let webhook_body: noon::NoonWebhookBody = request
             .body
