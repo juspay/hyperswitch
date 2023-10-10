@@ -977,9 +977,7 @@ pub async fn list_payment_methods(
                     .0
                     .get(&payment_method_type)
                     .map(|required_fields_hm_for_each_connector| {
-                        required_fields_hm
-                            .entry(payment_method)
-                            .or_insert(HashMap::new());
+                        required_fields_hm.entry(payment_method).or_default();
                         required_fields_hm_for_each_connector
                             .fields
                             .get(&connector_variant)

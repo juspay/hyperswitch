@@ -4180,6 +4180,7 @@ version = "0.1.0"
 dependencies = [
  "cargo_metadata 0.15.4",
  "config",
+ "error-stack",
  "gethostname",
  "once_cell",
  "opentelemetry",
@@ -4846,6 +4847,7 @@ dependencies = [
  "once_cell",
  "redis_interface",
  "ring",
+ "router_derive",
  "router_env",
  "serde",
  "serde_json",
