@@ -17,7 +17,7 @@ jobs:
       - name: Check if the input is valid tag
         shell: bash
         run: |
-          if [ ${{github.ref}} =~ ^refs/tags/v[0-9]+\.[0-9]+\.[0-9]+$ ]; then
+          if [[ ${{github.ref}} =~ ^refs/tags/v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
             echo "::notice::${{github.ref}} is a valid tag."
           else
             echo "::error::${{github.ref}} is not a valid tag."
