@@ -491,6 +491,12 @@ pub async fn merchant_account_delete(
             .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
         is_deleted = is_merchant_account_deleted && is_merchant_key_store_deleted;
     }
+
+    db.delete_config_by_key(format!("{}_requires_cvv", merchant_id).as_str())
+        .await
+        .map_err(|err| crate::logger::error!("Error while deleting requires_cvv config: {err:?}"))
+        .ok();
+
     let response = api::MerchantAccountDeleteResponse {
         merchant_id,
         deleted: is_deleted,
