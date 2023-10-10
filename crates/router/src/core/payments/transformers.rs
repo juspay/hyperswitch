@@ -1161,6 +1161,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsSessionD
                 billing_address.address.and_then(|address| address.country)
             }),
             order_details,
+            surcharge_details: None,
         })
     }
 }
