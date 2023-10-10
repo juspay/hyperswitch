@@ -380,7 +380,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for MultisafepayPaymentsReques
         Ok(Self {
             payment_type,
             gateway,
-            order_id: item.payment_id.to_string(),
+            order_id: item.connector_request_reference_id.to_string(),
             currency: item.request.currency.to_string(),
             amount: item.request.amount,
             description,
