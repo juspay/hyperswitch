@@ -2170,7 +2170,7 @@ pub async fn verify_payment_intent_time_and_client_secret(
             let intent_fulfillment_time = get_merchant_fullfillment_time(
                 payment_intent.payment_link_id.clone(),
                 merchant_account.intent_fulfillment_time,
-                db.clone(),
+                db,
             )
             .await?;
 

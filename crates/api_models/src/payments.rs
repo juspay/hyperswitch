@@ -1910,7 +1910,7 @@ pub struct PaymentsResponse {
     #[schema(value_type = Option<String>, example = "993672945374576J")]
     pub reference_id: Option<String>,
 
-    pub payment_link_response: Option<PaymentLinkResponse>,
+    pub payment_link: Option<PaymentLinkResponse>,
     /// The business profile that is associated with this payment
     pub profile_id: Option<String>,
 
@@ -2893,13 +2893,12 @@ pub struct PaymentLinkObject {
 
 #[derive(Default, Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
 pub struct RetrievePaymentLinkRequest {
-    pub payment_link_id: String,
     pub client_secret: Option<String>,
 }
 
 #[derive(Clone, Debug, serde::Serialize, PartialEq, serde::Deserialize)]
 pub struct PaymentLinkResponse {
-    pub payment_link: String,
+    pub link: String,
     pub payment_link_id: String,
 }
 

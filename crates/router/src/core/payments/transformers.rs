@@ -652,7 +652,7 @@ where
                         .set_feature_metadata(payment_intent.feature_metadata)
                         .set_connector_metadata(payment_intent.connector_metadata)
                         .set_reference_id(payment_attempt.connector_response_reference_id)
-                        .set_payment_link_response(payment_link_data)
+                        .set_payment_link(payment_link_data)
                         .set_profile_id(payment_intent.profile_id)
                         .set_attempt_count(payment_intent.attempt_count)
                         .to_owned(),
@@ -713,7 +713,7 @@ where
                 allowed_payment_method_types: payment_intent.allowed_payment_method_types,
                 reference_id: payment_attempt.connector_response_reference_id,
                 attempt_count: payment_intent.attempt_count,
-                payment_link_response: payment_link_data,
+                payment_link: payment_link_data,
                 ..Default::default()
             },
             headers,

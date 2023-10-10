@@ -67,7 +67,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
 
         let payment_link_data = if let Some(payment_link_object) = &request.payment_link_object {
             create_payment_link(
-                &request.clone(),
+                request,
                 payment_link_object.clone(),
                 merchant_id.clone(),
                 payment_id.clone(),
@@ -80,7 +80,6 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
             None
         };
 
-        // Validate whether profile_id passed in request is valid and is linked to the merchant
         helpers::validate_business_details(
             request.business_country,
             request.business_label.as_ref(),
@@ -777,15 +776,15 @@ async fn create_payment_link(
         last_modified_at,
         fullfilment_time: payment_link_object.link_expiry,
     };
-    let _payment_link_db = db
+    let payment_link_db = db
         .insert_payment_link(payment_link_req)
         .await
-        .to_duplicate_response(errors::ApiErrorResponse::DuplicatePayment {
-            payment_id: payment_id.clone(),
+        .to_duplicate_response(errors::ApiErrorResponse::GenericDuplicateError {
+            message: "payment link already exists!".to_string(),
         })?;
 
     Ok(Some(api_models::payments::PaymentLinkResponse {
-        payment_link,
-        payment_link_id,
+        link: payment_link_db.link_to_pay,
+        payment_link_id: payment_link_db.payment_link_id,
     }))
 }

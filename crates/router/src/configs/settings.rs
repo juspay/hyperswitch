@@ -102,7 +102,6 @@ pub struct Settings {
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
-#[serde(default)]
 pub struct PaymentLink {
     pub sdk_url: String,
 }
