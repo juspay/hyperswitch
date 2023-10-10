@@ -10,7 +10,7 @@ use router_env::{instrument, tracing};
 use super::{flows::Feature, PaymentAddress, PaymentData};
 use crate::{
     configs::settings::{ConnectorRequestReferenceIdConfig, Server},
-    connector::Nexinets,
+    connector::{Helcim, Nexinets},
     core::{
         errors::{self, RouterResponse, RouterResult},
         payments::{self, helpers},
@@ -1021,6 +1021,21 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsSyncData
                 None => types::SyncRequestType::SinglePaymentSync,
             },
         })
+    }
+}
+
+impl api::ConnectorTransactionId for Helcim {
+    fn connector_transaction_id(
+        &self,
+        payment_attempt: storage::PaymentAttempt,
+    ) -> Result<Option<String>, errors::ApiErrorResponse> {
+        if payment_attempt.connector_transaction_id.is_none() {
+            let metadata =
+                Self::connector_transaction_id(self, &payment_attempt.connector_metadata);
+            metadata.map_err(|_| errors::ApiErrorResponse::ResourceIdNotFound)
+        } else {
+            Ok(payment_attempt.connector_transaction_id)
+        }
     }
 }
 

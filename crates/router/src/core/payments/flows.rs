@@ -423,7 +423,6 @@ default_imp_for_connector_request_id!(
     connector::Globalpay,
     connector::Globepay,
     connector::Gocardless,
-    connector::Helcim,
     connector::Iatapay,
     connector::Klarna,
     connector::Mollie,

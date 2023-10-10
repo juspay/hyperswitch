@@ -359,8 +359,14 @@ impl<F>
             types::PaymentsResponseData,
         >,
     ) -> Result<Self, Self::Error> {
-        let resource_id =
-            types::ResponseId::ConnectorTransactionId(item.response.transaction_id.to_string());
+        //PreAuth Transaction ID is stored in connector metadata
+        //Initially resource_id is stored as NoResponseID for manual capture
+        //After Capture Transaction is completed it is updated to store the Capture ID
+        let resource_id = if item.data.request.is_auto_capture()? {
+            types::ResponseId::ConnectorTransactionId(item.response.transaction_id.to_string())
+        } else {
+            types::ResponseId::NoResponseId
+        };
         let connector_metadata = if !item.data.request.is_auto_capture()? {
             Some(serde_json::json!(HelcimMetaData {
                 preauth_transaction_id: item.response.transaction_id,

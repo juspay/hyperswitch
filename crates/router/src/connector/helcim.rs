@@ -7,7 +7,7 @@ use error_stack::{IntoReport, ResultExt};
 use masking::ExposeInterface;
 use transformers as helcim;
 
-use super::utils::PaymentsAuthorizeRequestData;
+use super::utils::{to_connector_meta, PaymentsAuthorizeRequestData};
 use crate::{
     configs::settings,
     consts::NO_ERROR_CODE,
@@ -41,6 +41,16 @@ impl api::Refund for Helcim {}
 impl api::RefundExecute for Helcim {}
 impl api::RefundSync for Helcim {}
 impl api::PaymentToken for Helcim {}
+
+impl Helcim {
+    pub fn connector_transaction_id(
+        &self,
+        connector_meta: &Option<serde_json::Value>,
+    ) -> CustomResult<Option<String>, errors::ConnectorError> {
+        let meta: helcim::HelcimMetaData = to_connector_meta(connector_meta.clone())?;
+        Ok(Some(meta.preauth_transaction_id.to_string()))
+    }
+}
 
 impl
     ConnectorIntegration<
