@@ -9,6 +9,7 @@ mod address;
 pub mod config;
 pub mod connection;
 mod connector_response;
+mod consts;
 pub mod database;
 pub mod errors;
 mod lookup;
