@@ -25,12 +25,8 @@ pub async fn get_payment_link(
         state,
         &req,
         payload.clone(),
-        |state, auth, _| {
-            payment_link::retrieve_payment_link(
-                state,
-                auth.merchant_account,
-                payload.payment_link_id.clone(),
-            )
+        |state, _auth, _| {
+            payment_link::retrieve_payment_link(state, payload.payment_link_id.clone())
         },
         &*auth_type,
     )

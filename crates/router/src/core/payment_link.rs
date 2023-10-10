@@ -10,12 +10,11 @@ use crate::{
 
 pub async fn retrieve_payment_link(
     state: AppState,
-    merchant_account: domain::MerchantAccount,
     payment_link_id: String,
 ) -> RouterResponse<api_models::payments::RetrievePaymentLinkResponse> {
     let db = &*state.store;
     let payment_link_object = db
-        .find_payment_link_by_payment_link_id(&payment_link_id, &merchant_account.merchant_id)
+        .find_payment_link_by_payment_link_id(&payment_link_id)
         .await
         .to_not_found_response(errors::ApiErrorResponse::PaymentLinkNotFound)?;
 

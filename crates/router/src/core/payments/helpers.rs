@@ -2092,12 +2092,11 @@ pub fn authenticate_client_secret(
 pub async fn get_merchant_fullfillment_time(
     payment_link_id: Option<String>,
     intent_fulfillment_time: Option<i64>,
-    merchant_id: &str,
     db: &dyn StorageInterface,
 ) -> RouterResult<Option<i64>> {
     if let Some(payment_link_id) = payment_link_id {
         let payment_link_db = db
-            .find_payment_link_by_payment_link_id(&payment_link_id, merchant_id)
+            .find_payment_link_by_payment_link_id(&payment_link_id)
             .await
             .to_not_found_response(errors::ApiErrorResponse::PaymentLinkNotFound)?;
 
@@ -2171,7 +2170,6 @@ pub async fn verify_payment_intent_time_and_client_secret(
             let intent_fulfillment_time = get_merchant_fullfillment_time(
                 payment_intent.payment_link_id.clone(),
                 merchant_account.intent_fulfillment_time,
-                &merchant_account.merchant_id.clone(),
                 db.clone(),
             )
             .await?;
