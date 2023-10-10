@@ -27,7 +27,7 @@ impl PaymentLinkInterface for Store {
         payment_link_id: &str,
     ) -> CustomResult<storage::PaymentLink, errors::StorageError> {
         let conn = connection::pg_connection_read(self).await?;
-        storage::PaymentLink::find_by_link_payment_link_id(&conn, payment_link_id)
+        storage::PaymentLink::find_link_by_payment_link_id(&conn, payment_link_id)
             .await
             .map_err(Into::into)
             .into_report()

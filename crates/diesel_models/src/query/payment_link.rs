@@ -16,7 +16,7 @@ impl PaymentLinkNew {
 }
 
 impl PaymentLink {
-    pub async fn find_by_link_payment_link_id(
+    pub async fn find_link_by_payment_link_id(
         conn: &PgPooledConn,
         payment_link_id: &str,
     ) -> StorageResult<Self> {
