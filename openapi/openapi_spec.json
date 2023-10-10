@@ -3878,7 +3878,8 @@
           "worldpay",
           "zen",
           "signifyd",
-          "plaid"
+          "plaid",
+          "riskified"
         ]
       },
       "ConnectorMetadata": {
