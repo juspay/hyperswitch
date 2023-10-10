@@ -35,7 +35,7 @@ use router_env::logger;
 use router_env::{instrument, tracing};
 
 use crate::{
-    redis::kv_store::{PartitionKey, RedisConnInterface},
+    redis::kv_store::{kv_wrapper, KvOperation, PartitionKey},
     utils::{pg_connection_read, pg_connection_write},
     DataModelExt, DatabaseStore, KVRouterStore,
 };
@@ -55,7 +55,8 @@ impl<T: DatabaseStore> PaymentIntentInterface for KVRouterStore<T> {
             }
 
             MerchantStorageScheme::RedisKv => {
-                let key = format!("{}_{}", new.merchant_id, new.payment_id);
+                let key = format!("mid_{}_pid_{}", new.merchant_id, new.payment_id);
+                let field = format!("pi_{}", new.payment_id);
                 let created_intent = PaymentIntent {
                     id: 0i32,
                     payment_id: new.payment_id.clone(),
@@ -92,11 +93,14 @@ impl<T: DatabaseStore> PaymentIntentInterface for KVRouterStore<T> {
                     payment_confirm_source: new.payment_confirm_source,
                 };
 
-                match self
-                    .get_redis_conn()
-                    .change_context(StorageError::DatabaseConnectionError)?
-                    .serialize_and_set_hash_field_if_not_exist(&key, "pi", &created_intent)
-                    .await
+                match kv_wrapper::<PaymentIntent, _, _>(
+                    self,
+                    KvOperation::HSetNx(&field, &created_intent),
+                    &key,
+                )
+                .await
+                .change_context(StorageError::KVError)?
+                .try_into_hsetnx()
                 {
                     Ok(HsetnxReply::KeyNotSet) => Err(StorageError::DuplicateValue {
                         entity: "payment_intent",
@@ -140,7 +144,8 @@ impl<T: DatabaseStore> PaymentIntentInterface for KVRouterStore<T> {
                     .await
             }
             MerchantStorageScheme::RedisKv => {
-                let key = format!("{}_{}", this.merchant_id, this.payment_id);
+                let key = format!("mid_{}_pid_{}", this.merchant_id, this.payment_id);
+                let field = format!("pi_{}", this.payment_id);
 
                 let updated_intent = payment_intent.clone().apply_changeset(this.clone());
                 // Check for database presence as well Maybe use a read replica here ?
@@ -149,13 +154,15 @@ impl<T: DatabaseStore> PaymentIntentInterface for KVRouterStore<T> {
                     Encode::<PaymentIntent>::encode_to_string_of_json(&updated_intent)
                         .change_context(StorageError::SerializationFailed)?;
 
-                let updated_intent = self
-                    .get_redis_conn()
-                    .change_context(StorageError::DatabaseConnectionError)?
-                    .set_hash_fields(&key, ("pi", &redis_value))
-                    .await
-                    .map(|_| updated_intent)
-                    .change_context(StorageError::KVError)?;
+                kv_wrapper::<(), _, _>(
+                    self,
+                    KvOperation::<PaymentIntent>::Hset((&field, redis_value)),
+                    &key,
+                )
+                .await
+                .change_context(StorageError::KVError)?
+                .try_into_hset()
+                .change_context(StorageError::KVError)?;
 
                 let redis_entry = kv::TypedSql {
                     op: kv::DBOperation::Update {
@@ -202,11 +209,18 @@ impl<T: DatabaseStore> PaymentIntentInterface for KVRouterStore<T> {
             MerchantStorageScheme::PostgresOnly => database_call().await,
 
             MerchantStorageScheme::RedisKv => {
-                let key = format!("{merchant_id}_{payment_id}");
+                let key = format!("mid_{merchant_id}_pid_{payment_id}");
+                let field = format!("pi_{payment_id}");
                 crate::utils::try_redis_get_else_try_database_get(
-                    self.get_redis_conn()
-                        .change_context(StorageError::DatabaseConnectionError)?
-                        .get_hash_field_and_deserialize(&key, "pi", "PaymentIntent"),
+                    async {
+                        kv_wrapper::<PaymentIntent, _, _>(
+                            self,
+                            KvOperation::<PaymentIntent>::HGet(&field),
+                            &key,
+                        )
+                        .await?
+                        .try_into_hget()
+                    },
                     database_call,
                 )
                 .await
@@ -221,15 +235,11 @@ impl<T: DatabaseStore> PaymentIntentInterface for KVRouterStore<T> {
         filters: &PaymentIntentFetchConstraints,
         storage_scheme: MerchantStorageScheme,
     ) -> error_stack::Result<Vec<PaymentIntent>, StorageError> {
-        match storage_scheme {
-            MerchantStorageScheme::PostgresOnly => {
-                self.router_store
-                    .filter_payment_intent_by_constraints(merchant_id, filters, storage_scheme)
-                    .await
-            }
-            MerchantStorageScheme::RedisKv => Err(StorageError::KVError.into()),
-        }
+        self.router_store
+            .filter_payment_intent_by_constraints(merchant_id, filters, storage_scheme)
+            .await
     }
+
     #[cfg(feature = "olap")]
     async fn filter_payment_intents_by_time_range_constraints(
         &self,
@@ -237,18 +247,13 @@ impl<T: DatabaseStore> PaymentIntentInterface for KVRouterStore<T> {
         time_range: &api_models::payments::TimeRange,
         storage_scheme: MerchantStorageScheme,
     ) -> error_stack::Result<Vec<PaymentIntent>, StorageError> {
-        match storage_scheme {
-            MerchantStorageScheme::PostgresOnly => {
-                self.router_store
-                    .filter_payment_intents_by_time_range_constraints(
-                        merchant_id,
-                        time_range,
-                        storage_scheme,
-                    )
-                    .await
-            }
-            MerchantStorageScheme::RedisKv => Err(StorageError::KVError.into()),
-        }
+        self.router_store
+            .filter_payment_intents_by_time_range_constraints(
+                merchant_id,
+                time_range,
+                storage_scheme,
+            )
+            .await
     }
 
     #[cfg(feature = "olap")]
@@ -258,14 +263,9 @@ impl<T: DatabaseStore> PaymentIntentInterface for KVRouterStore<T> {
         filters: &PaymentIntentFetchConstraints,
         storage_scheme: MerchantStorageScheme,
     ) -> error_stack::Result<Vec<(PaymentIntent, PaymentAttempt)>, StorageError> {
-        match storage_scheme {
-            MerchantStorageScheme::PostgresOnly => {
-                self.router_store
-                    .get_filtered_payment_intents_attempt(merchant_id, filters, storage_scheme)
-                    .await
-            }
-            MerchantStorageScheme::RedisKv => Err(StorageError::KVError.into()),
-        }
+        self.router_store
+            .get_filtered_payment_intents_attempt(merchant_id, filters, storage_scheme)
+            .await
     }
 
     #[cfg(feature = "olap")]
@@ -275,19 +275,13 @@ impl<T: DatabaseStore> PaymentIntentInterface for KVRouterStore<T> {
         constraints: &PaymentIntentFetchConstraints,
         storage_scheme: MerchantStorageScheme,
     ) -> error_stack::Result<Vec<String>, StorageError> {
-        match storage_scheme {
-            MerchantStorageScheme::PostgresOnly => {
-                self.router_store
-                    .get_filtered_active_attempt_ids_for_total_count(
-                        merchant_id,
-                        constraints,
-                        storage_scheme,
-                    )
-                    .await
-            }
-
-            MerchantStorageScheme::RedisKv => Err(StorageError::KVError.into()),
-        }
+        self.router_store
+            .get_filtered_active_attempt_ids_for_total_count(
+                merchant_id,
+                constraints,
+                storage_scheme,
+            )
+            .await
     }
 }
 
@@ -363,29 +357,20 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
             PaymentIntentFetchConstraints::Single { payment_intent_id } => {
                 query = query.filter(pi_dsl::payment_id.eq(payment_intent_id.to_owned()));
             }
-            PaymentIntentFetchConstraints::List {
-                offset,
-                starting_at,
-                ending_at,
-                connector: _,
-                currency,
-                status,
-                payment_methods: _,
-                customer_id,
-                starting_after_id,
-                ending_before_id,
-                limit,
-            } => {
-                if let Some(limit) = limit {
-                    query = query.limit((*limit).into());
-                };
-
-                if let Some(customer_id) = customer_id {
-                    query = query.filter(pi_dsl::customer_id.eq(customer_id.clone()));
+            PaymentIntentFetchConstraints::List(params) => {
+                if let Some(limit) = params.limit {
+                    query = query.limit(limit.into());
                 }
 
-                query = match (starting_at, starting_after_id) {
-                    (Some(starting_at), _) => query.filter(pi_dsl::created_at.ge(*starting_at)),
+                if let Some(customer_id) = &params.customer_id {
+                    query = query.filter(pi_dsl::customer_id.eq(customer_id.clone()));
+                }
+                if let Some(profile_id) = &params.profile_id {
+                    query = query.filter(pi_dsl::profile_id.eq(profile_id.clone()));
+                }
+
+                query = match (params.starting_at, &params.starting_after_id) {
+                    (Some(starting_at), _) => query.filter(pi_dsl::created_at.ge(starting_at)),
                     (None, Some(starting_after_id)) => {
                         // TODO: Fetch partial columns for this query since we only need some columns
                         let starting_at = self
@@ -401,8 +386,8 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
                     (None, None) => query,
                 };
 
-                query = match (ending_at, ending_before_id) {
-                    (Some(ending_at), _) => query.filter(pi_dsl::created_at.le(*ending_at)),
+                query = match (params.ending_at, &params.ending_before_id) {
+                    (Some(ending_at), _) => query.filter(pi_dsl::created_at.le(ending_at)),
                     (None, Some(ending_before_id)) => {
                         // TODO: Fetch partial columns for this query since we only need some columns
                         let ending_at = self
@@ -417,17 +402,26 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
                     }
                     (None, None) => query,
                 };
-                query = query.offset((*offset).into());
 
-                query = match currency {
+                query = query.offset(params.offset.into());
+
+                query = match &params.currency {
                     Some(currency) => query.filter(pi_dsl::currency.eq_any(currency.clone())),
                     None => query,
                 };
 
-                query = match status {
+                query = match &params.status {
                     Some(status) => query.filter(pi_dsl::status.eq_any(status.clone())),
                     None => query,
                 };
+
+                if let Some(currency) = &params.currency {
+                    query = query.filter(pi_dsl::currency.eq_any(currency.clone()));
+                }
+
+                if let Some(status) = &params.status {
+                    query = query.filter(pi_dsl::status.eq_any(status.clone()));
+                }
             }
         }
 
@@ -487,29 +481,21 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
             PaymentIntentFetchConstraints::Single { payment_intent_id } => {
                 query.filter(pi_dsl::payment_id.eq(payment_intent_id.to_owned()))
             }
-            PaymentIntentFetchConstraints::List {
-                offset,
-                starting_at,
-                ending_at,
-                connector,
-                currency,
-                status,
-                payment_methods,
-                customer_id,
-                starting_after_id,
-                ending_before_id,
-                limit,
-            } => {
-                if let Some(limit) = limit {
-                    query = query.limit((*limit).into());
+            PaymentIntentFetchConstraints::List(params) => {
+                if let Some(limit) = params.limit {
+                    query = query.limit(limit.into());
                 }
 
-                if let Some(customer_id) = customer_id {
+                if let Some(customer_id) = &params.customer_id {
                     query = query.filter(pi_dsl::customer_id.eq(customer_id.clone()));
                 }
 
-                query = match (starting_at, starting_after_id) {
-                    (Some(starting_at), _) => query.filter(pi_dsl::created_at.ge(*starting_at)),
+                if let Some(profile_id) = &params.profile_id {
+                    query = query.filter(pi_dsl::profile_id.eq(profile_id.clone()));
+                }
+
+                query = match (params.starting_at, &params.starting_after_id) {
+                    (Some(starting_at), _) => query.filter(pi_dsl::created_at.ge(starting_at)),
                     (None, Some(starting_after_id)) => {
                         // TODO: Fetch partial columns for this query since we only need some columns
                         let starting_at = self
@@ -525,8 +511,8 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
                     (None, None) => query,
                 };
 
-                query = match (ending_at, ending_before_id) {
-                    (Some(ending_at), _) => query.filter(pi_dsl::created_at.le(*ending_at)),
+                query = match (params.ending_at, &params.ending_before_id) {
+                    (Some(ending_at), _) => query.filter(pi_dsl::created_at.le(ending_at)),
                     (None, Some(ending_before_id)) => {
                         // TODO: Fetch partial columns for this query since we only need some columns
                         let ending_at = self
@@ -542,14 +528,14 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
                     (None, None) => query,
                 };
 
-                query = query.offset((*offset).into());
+                query = query.offset(params.offset.into());
 
-                query = match currency {
-                    Some(currency) => query.filter(pi_dsl::currency.eq_any(currency.clone())),
-                    None => query,
-                };
+                if let Some(currency) = &params.currency {
+                    query = query.filter(pi_dsl::currency.eq_any(currency.clone()));
+                }
 
-                let connectors = connector
+                let connectors = params
+                    .connector
                     .as_ref()
                     .map(|c| c.iter().map(|c| c.to_string()).collect::<Vec<String>>());
 
@@ -558,15 +544,27 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
                     None => query,
                 };
 
-                query = match status {
+                query = match &params.status {
                     Some(status) => query.filter(pi_dsl::status.eq_any(status.clone())),
                     None => query,
                 };
 
-                query = match payment_methods {
-                    Some(payment_methods) => {
-                        query.filter(pa_dsl::payment_method.eq_any(payment_methods.clone()))
+                query = match &params.payment_method {
+                    Some(payment_method) => {
+                        query.filter(pa_dsl::payment_method.eq_any(payment_method.clone()))
                     }
+                    None => query,
+                };
+
+                query = match &params.payment_method_type {
+                    Some(payment_method_type) => query
+                        .filter(pa_dsl::payment_method_type.eq_any(payment_method_type.clone())),
+                    None => query,
+                };
+
+                query = match &params.authentication_type {
+                    Some(authentication_type) => query
+                        .filter(pa_dsl::authentication_type.eq_any(authentication_type.clone())),
                     None => query,
                 };
 
@@ -617,34 +615,30 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
             PaymentIntentFetchConstraints::Single { payment_intent_id } => {
                 query.filter(pi_dsl::payment_id.eq(payment_intent_id.to_owned()))
             }
-            PaymentIntentFetchConstraints::List {
-                starting_at,
-                ending_at,
-                currency,
-                status,
-                customer_id,
-                ..
-            } => {
-                if let Some(customer_id) = customer_id {
+            PaymentIntentFetchConstraints::List(params) => {
+                if let Some(customer_id) = &params.customer_id {
                     query = query.filter(pi_dsl::customer_id.eq(customer_id.clone()));
                 }
+                if let Some(profile_id) = &params.profile_id {
+                    query = query.filter(pi_dsl::profile_id.eq(profile_id.clone()));
+                }
 
-                query = match starting_at {
-                    Some(starting_at) => query.filter(pi_dsl::created_at.ge(*starting_at)),
+                query = match params.starting_at {
+                    Some(starting_at) => query.filter(pi_dsl::created_at.ge(starting_at)),
                     None => query,
                 };
 
-                query = match ending_at {
-                    Some(ending_at) => query.filter(pi_dsl::created_at.le(*ending_at)),
+                query = match params.ending_at {
+                    Some(ending_at) => query.filter(pi_dsl::created_at.le(ending_at)),
                     None => query,
                 };
 
-                query = match currency {
+                query = match &params.currency {
                     Some(currency) => query.filter(pi_dsl::currency.eq_any(currency.clone())),
                     None => query,
                 };
 
-                query = match status {
+                query = match &params.status {
                     Some(status) => query.filter(pi_dsl::status.eq_any(status.clone())),
                     None => query,
                 };

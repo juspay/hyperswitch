@@ -16,6 +16,7 @@ use common_utils::{
 use error_stack::{IntoReport, ResultExt};
 use fred::{
     interfaces::{HashesInterface, KeysInterface, StreamsInterface},
+    prelude::RedisErrorKind,
     types::{
         Expiration, FromRedis, MultipleIDs, MultipleKeys, MultipleOrderedPairs, MultipleStrings,
         RedisKey, RedisMap, RedisValue, Scanner, SetOptions, XCap, XReadResponse,
@@ -62,6 +63,22 @@ impl super::RedisConnectionPool {
             .await
             .into_report()
             .change_context(errors::RedisError::SetFailed)
+    }
+
+    #[instrument(level = "DEBUG", skip(self))]
+    pub async fn serialize_and_set_key_if_not_exist<V>(
+        &self,
+        key: &str,
+        value: V,
+        ttl: Option<i64>,
+    ) -> CustomResult<SetnxReply, errors::RedisError>
+    where
+        V: serde::Serialize + Debug,
+    {
+        let serialized = Encode::<V>::encode_to_vec(&value)
+            .change_context(errors::RedisError::JsonSerializationFailed)?;
+        self.set_key_if_not_exists_with_expiry(key, serialized.as_slice(), ttl)
+            .await
     }
 
     #[instrument(level = "DEBUG", skip(self))]
@@ -231,6 +248,7 @@ impl super::RedisConnectionPool {
         &self,
         key: &str,
         values: V,
+        ttl: Option<u32>,
     ) -> CustomResult<(), errors::RedisError>
     where
         V: TryInto<RedisMap> + Debug + Send + Sync,
@@ -245,7 +263,9 @@ impl super::RedisConnectionPool {
 
         // setting expiry for the key
         output
-            .async_and_then(|_| self.set_expiry(key, self.config.default_hash_ttl.into()))
+            .async_and_then(|_| {
+                self.set_expiry(key, ttl.unwrap_or(self.config.default_hash_ttl).into())
+            })
             .await
     }
 
@@ -255,6 +275,7 @@ impl super::RedisConnectionPool {
         key: &str,
         field: &str,
         value: V,
+        ttl: Option<u32>,
     ) -> CustomResult<HsetnxReply, errors::RedisError>
     where
         V: TryInto<RedisValue> + Debug + Send + Sync,
@@ -269,7 +290,7 @@ impl super::RedisConnectionPool {
 
         output
             .async_and_then(|inner| async {
-                self.set_expiry(key, self.config.default_hash_ttl.into())
+                self.set_expiry(key, ttl.unwrap_or(self.config.default_hash_ttl).into())
                     .await?;
                 Ok(inner)
             })
@@ -282,6 +303,7 @@ impl super::RedisConnectionPool {
         key: &str,
         field: &str,
         value: V,
+        ttl: Option<u32>,
     ) -> CustomResult<HsetnxReply, errors::RedisError>
     where
         V: serde::Serialize + Debug,
@@ -289,7 +311,7 @@ impl super::RedisConnectionPool {
         let serialized = Encode::<V>::encode_to_vec(&value)
             .change_context(errors::RedisError::JsonSerializationFailed)?;
 
-        self.set_hash_field_if_not_exist(key, field, serialized.as_slice())
+        self.set_hash_field_if_not_exist(key, field, serialized.as_slice(), ttl)
             .await
     }
 
@@ -338,6 +360,7 @@ impl super::RedisConnectionPool {
         &self,
         kv: &[(&str, V)],
         field: &str,
+        ttl: Option<u32>,
     ) -> CustomResult<Vec<HsetnxReply>, errors::RedisError>
     where
         V: serde::Serialize + Debug,
@@ -345,7 +368,7 @@ impl super::RedisConnectionPool {
         let mut hsetnx: Vec<HsetnxReply> = Vec::with_capacity(kv.len());
         for (key, val) in kv {
             hsetnx.push(
-                self.serialize_and_set_hash_field_if_not_exist(key, field, val)
+                self.serialize_and_set_hash_field_if_not_exist(key, field, val, ttl)
                     .await?,
             );
         }
@@ -539,7 +562,12 @@ impl super::RedisConnectionPool {
             )
             .await
             .into_report()
-            .change_context(errors::RedisError::StreamReadFailed)
+            .map_err(|err| match err.current_context().kind() {
+                RedisErrorKind::NotFound => {
+                    err.change_context(errors::RedisError::StreamEmptyOrNotAvailable)
+                }
+                _ => err.change_context(errors::RedisError::StreamReadFailed),
+            })
     }
 
     #[instrument(level = "DEBUG", skip(self))]

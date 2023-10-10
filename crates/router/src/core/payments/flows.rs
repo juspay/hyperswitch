@@ -6,7 +6,7 @@ pub mod complete_authorize_flow;
 pub mod psync_flow;
 pub mod reject_flow;
 pub mod session_flow;
-pub mod verify_flow;
+pub mod setup_mandate_flow;
 
 use async_trait::async_trait;
 

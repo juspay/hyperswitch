@@ -275,6 +275,13 @@ pub struct CybersourcePaymentsResponse {
     id: String,
     status: CybersourcePaymentStatus,
     error_information: Option<CybersourceErrorInformation>,
+    client_reference_information: Option<ClientReferenceInformation>,
+}
+
+#[derive(Default, Debug, Clone, Deserialize, Eq, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct ClientReferenceInformation {
+    code: Option<String>,
 }
 
 #[derive(Default, Debug, Clone, Deserialize, Eq, PartialEq)]
@@ -313,12 +320,18 @@ impl<F, T>
                     status_code: item.http_code,
                 }),
                 _ => Ok(types::PaymentsResponseData::TransactionResponse {
-                    resource_id: types::ResponseId::ConnectorTransactionId(item.response.id),
+                    resource_id: types::ResponseId::ConnectorTransactionId(
+                        item.response.id.clone(),
+                    ),
                     redirection_data: None,
                     mandate_reference: None,
                     connector_metadata: None,
                     network_txn_id: None,
-                    connector_response_reference_id: None,
+                    connector_response_reference_id: item
+                        .response
+                        .client_reference_information
+                        .map(|cref| cref.code)
+                        .unwrap_or(Some(item.response.id)),
                 }),
             },
             ..item.data
@@ -331,6 +344,7 @@ impl<F, T>
 pub struct CybersourceTransactionResponse {
     id: String,
     application_information: ApplicationInformation,
+    client_reference_information: Option<ClientReferenceInformation>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -378,12 +392,16 @@ impl<F, T>
                 item.response.application_information.status.into(),
             ),
             response: Ok(types::PaymentsResponseData::TransactionResponse {
-                resource_id: types::ResponseId::ConnectorTransactionId(item.response.id),
+                resource_id: types::ResponseId::ConnectorTransactionId(item.response.id.clone()),
                 redirection_data: None,
                 mandate_reference: None,
                 connector_metadata: None,
                 network_txn_id: None,
-                connector_response_reference_id: None,
+                connector_response_reference_id: item
+                    .response
+                    .client_reference_information
+                    .map(|cref| cref.code)
+                    .unwrap_or(Some(item.response.id)),
             }),
             ..item.data
         })

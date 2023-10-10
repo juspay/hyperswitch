@@ -102,7 +102,7 @@ pub enum StripeErrorCode {
     #[error(error_type = StripeErrorType::InvalidRequestError, code = "resource_missing", message = "No such resource ID")]
     ResourceIdNotFound,
 
-    #[error(error_type = StripeErrorType::InvalidRequestError, code = "resource_missing", message = "Merchant connector account with id '{id}' does not exist in our records")]
+    #[error(error_type = StripeErrorType::InvalidRequestError, code = "resource_missing", message = "Merchant connector account does not exist in our records")]
     MerchantConnectorAccountNotFound { id: String },
 
     #[error(error_type = StripeErrorType::InvalidRequestError, code = "invalid_request", message = "The merchant connector account is disabled")]
@@ -193,7 +193,7 @@ pub enum StripeErrorCode {
     #[error(error_type = StripeErrorType::InvalidRequestError, code = "", message = "The mandate information is invalid. {message}")]
     PaymentIntentMandateInvalid { message: String },
 
-    #[error(error_type = StripeErrorType::InvalidRequestError, code = "", message = "The payment with the specified payment_id '{payment_id}' already exists in our records.")]
+    #[error(error_type = StripeErrorType::InvalidRequestError, code = "", message = "The payment with the specified payment_id already exists in our records.")]
     DuplicatePayment { payment_id: String },
 
     #[error(error_type = StripeErrorType::ConnectorError, code = "", message = "{code}: {message}")]
@@ -232,6 +232,8 @@ pub enum StripeErrorCode {
     HyperswitchUnprocessableEntity { message: String },
     #[error(error_type = StripeErrorType::InvalidRequestError, code = "", message = "{message}")]
     CurrencyNotSupported { message: String },
+    #[error(error_type = StripeErrorType::HyperswitchError, code = "", message = "Resource Busy. Please try again later")]
+    LockTimeout,
     // [#216]: https://github.com/juspay/hyperswitch/issues/216
     // Implement the remaining stripe error codes
 
@@ -574,10 +576,14 @@ impl From<errors::ApiErrorResponse> for StripeErrorCode {
             | errors::ApiErrorResponse::WebhookResourceNotFound
             | errors::ApiErrorResponse::WebhookProcessingFailure
             | errors::ApiErrorResponse::WebhookAuthenticationFailed
-            | errors::ApiErrorResponse::WebhookUnprocessableEntity => Self::WebhookProcessingError,
+            | errors::ApiErrorResponse::WebhookUnprocessableEntity
+            | errors::ApiErrorResponse::WebhookInvalidMerchantSecret => {
+                Self::WebhookProcessingError
+            }
             errors::ApiErrorResponse::IncorrectPaymentMethodConfiguration => {
                 Self::PaymentMethodUnactivated
             }
+            errors::ApiErrorResponse::ResourceBusy => Self::PaymentMethodUnactivated,
         }
     }
 }
@@ -654,6 +660,7 @@ impl actix_web::ResponseError for StripeErrorCode {
             Self::ExternalConnectorError { status_code, .. } => {
                 StatusCode::from_u16(*status_code).unwrap_or(StatusCode::INTERNAL_SERVER_ERROR)
             }
+            Self::LockTimeout => StatusCode::LOCKED,
         }
     }
 

@@ -565,6 +565,7 @@ pub async fn create_recipient(
         merchant_account,
         payout_data.payout_attempt.profile_id.as_ref(),
         &*state.store,
+        false,
     )
     .await?;
 
@@ -1166,6 +1167,7 @@ pub async fn payout_create_db_entries(
         Some(&customer_id.to_owned()),
         key_store,
         payout_id,
+        merchant_account.storage_scheme,
     )
     .await?;
     let address_id = billing_address
@@ -1203,10 +1205,7 @@ pub async fn payout_create_db_entries(
         .set_recurring(req.recurring.unwrap_or(false))
         .set_auto_fulfill(req.auto_fulfill.unwrap_or(false))
         .set_return_url(req.return_url.to_owned())
-        .set_entity_type(
-            req.entity_type
-                .unwrap_or(api_enums::PayoutEntityType::default()),
-        )
+        .set_entity_type(req.entity_type.unwrap_or_default())
         .set_metadata(req.metadata.to_owned())
         .set_created_at(Some(common_utils::date_time::now()))
         .set_last_modified_at(Some(common_utils::date_time::now()))
@@ -1302,6 +1301,7 @@ pub async fn make_payout_data(
         Some(&payouts.customer_id.to_owned()),
         key_store,
         &payouts.payout_id,
+        merchant_account.storage_scheme,
     )
     .await?;
 

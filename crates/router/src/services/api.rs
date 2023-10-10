@@ -13,8 +13,8 @@ use std::{
 use actix_web::{body, web, FromRequest, HttpRequest, HttpResponse, Responder, ResponseError};
 use api_models::enums::CaptureMethod;
 pub use client::{proxy_bypass_urls, ApiClient, MockApiClient, ProxyClient};
-use common_utils::errors::ReportSwitchExt;
 pub use common_utils::request::{ContentType, Method, Request, RequestBuilder};
+use common_utils::{consts::X_HS_LATENCY, errors::ReportSwitchExt};
 use error_stack::{report, IntoReport, Report, ResultExt};
 use masking::{ExposeOptionInterface, PeekInterface};
 use router_env::{instrument, tracing, tracing_actix_web::RequestId, Tag};
@@ -26,6 +26,7 @@ use crate::{
     configs::settings::{Connectors, Settings},
     consts,
     core::{
+        api_locking,
         errors::{self, CustomResult},
         payments,
     },
@@ -86,6 +87,10 @@ pub trait ConnectorValidation: ConnectorCommon {
             .get_connector_transaction_id()
             .change_context(errors::ConnectorError::MissingConnectorTransactionID)
             .map(|_| ())
+    }
+
+    fn is_webhook_source_verification_mandatory(&self) -> bool {
+        false
     }
 }
 
@@ -333,7 +338,9 @@ where
             match connector_request {
                 Some(request) => {
                     logger::debug!(connector_request=?request);
+                    let current_time = Instant::now();
                     let response = call_connector_api(state, request).await;
+                    let external_latency = current_time.elapsed().as_millis();
                     logger::debug!(connector_response=?response);
                     match response {
                         Ok(body) => {
@@ -358,10 +365,20 @@ where
                                             error
                                         })?;
                                     data.connector_http_status_code = connector_http_status_code;
+                                    // Add up multiple external latencies in case of multiple external calls within the same request.
+                                    data.external_latency = Some(
+                                        data.external_latency
+                                            .map_or(external_latency, |val| val + external_latency),
+                                    );
                                     data
                                 }
                                 Err(body) => {
                                     router_data.connector_http_status_code = Some(body.status_code);
+                                    router_data.external_latency = Some(
+                                        router_data
+                                            .external_latency
+                                            .map_or(external_latency, |val| val + external_latency),
+                                    );
                                     metrics::CONNECTOR_ERROR_RESPONSE_COUNT.add(
                                         &metrics::CONTEXT,
                                         1,
@@ -394,6 +411,11 @@ where
                                 };
                                 router_data.response = Err(error_response);
                                 router_data.connector_http_status_code = Some(504);
+                                router_data.external_latency = Some(
+                                    router_data
+                                        .external_latency
+                                        .map_or(external_latency, |val| val + external_latency),
+                                );
                                 Ok(router_data)
                             } else {
                                 Err(error.change_context(
@@ -467,11 +489,9 @@ pub async fn send_request(
                 match request.content_type {
                     Some(ContentType::Json) => client.json(&request.payload),
 
-                    Some(ContentType::FormData) => client.multipart(
-                        request
-                            .form_data
-                            .unwrap_or_else(reqwest::multipart::Form::new),
-                    ),
+                    Some(ContentType::FormData) => {
+                        client.multipart(request.form_data.unwrap_or_default())
+                    }
 
                     // Currently this is not used remove this if not required
                     // If using this then handle the serde_part
@@ -556,6 +576,7 @@ async fn handle_response(
             logger::info!(?response);
             let status_code = response.status().as_u16();
             let headers = Some(response.headers().to_owned());
+
             match status_code {
                 200..=202 | 302 | 204 => {
                     logger::debug!(response=?response);
@@ -712,6 +733,7 @@ pub async fn server_wrap_util<'a, 'b, A, U, T, Q, F, Fut, E, OErr>(
     payload: T,
     func: F,
     api_auth: &dyn auth::AuthenticateAndFetch<U, A>,
+    lock_action: api_locking::LockAction,
 ) -> CustomResult<ApplicationResponse<Q>, OErr>
 where
     F: Fn(A, U, T) -> Fut,
@@ -723,6 +745,7 @@ where
     U: auth::AuthInfo,
     CustomResult<ApplicationResponse<Q>, E>: ReportSwitchExt<ApplicationResponse<Q>, OErr>,
     CustomResult<U, errors::ApiErrorResponse>: ReportSwitchExt<U, OErr>,
+    CustomResult<(), errors::ApiErrorResponse>: ReportSwitchExt<(), OErr>,
     OErr: ResponseError + Sync + Send + 'static,
 {
     let request_id = RequestId::extract(request)
@@ -750,7 +773,21 @@ where
 
     tracing::Span::current().record("merchant_id", &merchant_id);
 
-    let output = func(request_state, auth_out, payload).await.switch();
+    let output = {
+        lock_action
+            .clone()
+            .perform_locking_action(&request_state, merchant_id.to_owned())
+            .await
+            .switch()?;
+        let res = func(request_state.clone(), auth_out, payload)
+            .await
+            .switch();
+        lock_action
+            .free_lock_action(&request_state, merchant_id.to_owned())
+            .await
+            .switch()?;
+        res
+    };
 
     let status_code = match output.as_ref() {
         Ok(res) => metrics::request::track_response_status_code(res),
@@ -773,6 +810,7 @@ pub async fn server_wrap<'a, A, T, U, Q, F, Fut, E>(
     payload: T,
     func: F,
     api_auth: &dyn auth::AuthenticateAndFetch<U, A>,
+    lock_action: api_locking::LockAction,
 ) -> HttpResponse
 where
     F: Fn(A, U, T) -> Fut,
@@ -794,7 +832,15 @@ where
     logger::info!(tag = ?Tag::BeginRequest, payload = ?payload);
 
     let res = match metrics::request::record_request_time_metric(
-        server_wrap_util(&flow, state.clone(), request, payload, func, api_auth),
+        server_wrap_util(
+            &flow,
+            state.clone(),
+            request,
+            payload,
+            func,
+            api_auth,
+            lock_action,
+        ),
         &flow,
     )
     .await
@@ -842,8 +888,15 @@ where
             .map_into_boxed_body()
         }
         Ok(ApplicationResponse::JsonWithHeaders((response, headers))) => {
+            let request_elapsed_time = request.headers().get(X_HS_LATENCY).and_then(|value| {
+                if value == "true" {
+                    Some(start_instant.elapsed())
+                } else {
+                    None
+                }
+            });
             match serde_json::to_string(&response) {
-                Ok(res) => http_response_json_with_headers(res, headers),
+                Ok(res) => http_response_json_with_headers(res, headers, request_elapsed_time),
                 Err(_) => http_response_err(
                     r#"{
                         "error": {
@@ -920,12 +973,23 @@ pub fn http_response_json<T: body::MessageBody + 'static>(response: T) -> HttpRe
 
 pub fn http_response_json_with_headers<T: body::MessageBody + 'static>(
     response: T,
-    headers: Vec<(String, String)>,
+    mut headers: Vec<(String, String)>,
+    request_duration: Option<Duration>,
 ) -> HttpResponse {
     let mut response_builder = HttpResponse::Ok();
-    for (name, value) in headers {
-        response_builder.append_header((name, value));
+
+    for (name, value) in headers.iter_mut() {
+        if name == X_HS_LATENCY {
+            if let Some(request_duration) = request_duration {
+                if let Ok(external_latency) = value.parse::<u128>() {
+                    let updated_duration = request_duration.as_millis() - external_latency;
+                    *value = updated_duration.to_string();
+                }
+            }
+        }
+        response_builder.append_header((name.clone(), value.clone()));
     }
+
     response_builder
         .content_type(mime::APPLICATION_JSON)
         .body(response)

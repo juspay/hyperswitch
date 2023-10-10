@@ -10,7 +10,7 @@ use std::sync::{atomic, Arc};
 use common_utils::signals::get_allowed_signals;
 use diesel_models::kv;
 use error_stack::{IntoReport, ResultExt};
-use tokio::sync::mpsc;
+use tokio::sync::{mpsc, oneshot};
 
 use crate::{connection::pg_connection, services::Store};
 
@@ -36,12 +36,22 @@ pub async fn start_drainer(
                 "Failed while getting allowed signals".to_string(),
             ))?;
 
+    let (redis_error_tx, redis_error_rx) = oneshot::channel();
     let (tx, mut rx) = mpsc::channel(1);
     let handle = signal.handle();
-    let task_handle = tokio::spawn(common_utils::signals::signal_handler(signal, tx));
+    let task_handle = tokio::spawn(common_utils::signals::signal_handler(signal, tx.clone()));
+
+    let redis_conn_clone = store.redis_conn.clone();
+
+    // Spawn a task to monitor if redis is down or not
+    tokio::spawn(async move { redis_conn_clone.on_error(redis_error_tx).await });
+
+    //Spawns a task to send shutdown signal if redis goes down
+    tokio::spawn(redis_error_receiver(redis_error_rx, tx));
 
     let active_tasks = Arc::new(atomic::AtomicU64::new(0));
     'event: loop {
+        metrics::DRAINER_HEALTH.add(&metrics::CONTEXT, 1, &[]);
         match rx.try_recv() {
             Err(mpsc::error::TryRecvError::Empty) => {
                 if utils::is_stream_available(stream_index, store.clone()).await {
@@ -89,6 +99,20 @@ pub async fn start_drainer(
     Ok(())
 }
 
+pub async fn redis_error_receiver(rx: oneshot::Receiver<()>, shutdown_channel: mpsc::Sender<()>) {
+    match rx.await {
+        Ok(_) => {
+            logger::error!("The redis server failed ");
+            let _ = shutdown_channel.send(()).await.map_err(|err| {
+                logger::error!("Failed to send signal to the shutdown channel {err}")
+            });
+        }
+        Err(err) => {
+            logger::error!("Channel receiver error{err}");
+        }
+    }
+}
+
 async fn drainer_handler(
     store: Arc<Store>,
     stream_index: u8,
@@ -118,8 +142,24 @@ async fn drainer(
     stream_name: &str,
 ) -> errors::DrainerResult<()> {
     let stream_read =
-        utils::read_from_stream(stream_name, max_read_count, store.redis_conn.as_ref()).await?; // this returns the error.
-
+        match utils::read_from_stream(stream_name, max_read_count, store.redis_conn.as_ref()).await
+        {
+            Ok(result) => result,
+            Err(error) => {
+                if let errors::DrainerError::RedisError(redis_err) = error.current_context() {
+                    if let redis_interface::errors::RedisError::StreamEmptyOrNotAvailable =
+                        redis_err.current_context()
+                    {
+                        metrics::STREAM_EMPTY.add(&metrics::CONTEXT, 1, &[]);
+                        return Ok(());
+                    } else {
+                        return Err(error);
+                    }
+                } else {
+                    return Err(error);
+                }
+            }
+        };
     // parse_stream_entries returns error if no entries is found, handle it
     let (entries, last_entry_id) = utils::parse_stream_entries(&stream_read, stream_name)?;
     let read_count = entries.len();
@@ -148,6 +188,9 @@ async fn drainer(
         let payment_intent = "payment_intent";
         let payment_attempt = "payment_attempt";
         let refund = "refund";
+        let reverse_lookup = "reverse_lookup";
+        let connector_response = "connector_response";
+        let address = "address";
         match db_op {
             // TODO: Handle errors
             kv::DBOperation::Insert { insertable } => {
@@ -169,6 +212,23 @@ async fn drainer(
                         }
                         kv::Insertable::Refund(a) => {
                             macro_util::handle_resp!(a.insert(&conn).await, insert_op, refund)
+                        }
+                        kv::Insertable::ConnectorResponse(a) => {
+                            macro_util::handle_resp!(
+                                a.insert(&conn).await,
+                                insert_op,
+                                connector_response
+                            )
+                        }
+                        kv::Insertable::Address(addr) => {
+                            macro_util::handle_resp!(addr.insert(&conn).await, insert_op, address)
+                        }
+                        kv::Insertable::ReverseLookUp(rev) => {
+                            macro_util::handle_resp!(
+                                rev.insert(&conn).await,
+                                insert_op,
+                                reverse_lookup
+                            )
                         }
                     }
                 })
@@ -206,6 +266,11 @@ async fn drainer(
                                 refund
                             )
                         }
+                        kv::Updateable::ConnectorResponseUpdate(a) => macro_util::handle_resp!(
+                            a.orig.update(&conn, a.update_data).await,
+                            update_op,
+                            connector_response
+                        ),
                     }
                 })
                 .await;

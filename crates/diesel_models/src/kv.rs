@@ -2,10 +2,13 @@ use error_stack::{IntoReport, ResultExt};
 use serde::{Deserialize, Serialize};
 
 use crate::{
+    address::AddressNew,
+    connector_response::{ConnectorResponse, ConnectorResponseNew, ConnectorResponseUpdate},
     errors,
     payment_attempt::{PaymentAttempt, PaymentAttemptNew, PaymentAttemptUpdate},
     payment_intent::{PaymentIntent, PaymentIntentNew, PaymentIntentUpdate},
     refund::{Refund, RefundNew, RefundUpdate},
+    reverse_lookup::ReverseLookupNew,
 };
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -39,6 +42,9 @@ pub enum Insertable {
     PaymentIntent(PaymentIntentNew),
     PaymentAttempt(PaymentAttemptNew),
     Refund(RefundNew),
+    ConnectorResponse(ConnectorResponseNew),
+    Address(Box<AddressNew>),
+    ReverseLookUp(ReverseLookupNew),
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -47,6 +53,13 @@ pub enum Updateable {
     PaymentIntentUpdate(PaymentIntentUpdateMems),
     PaymentAttemptUpdate(PaymentAttemptUpdateMems),
     RefundUpdate(RefundUpdateMems),
+    ConnectorResponseUpdate(ConnectorResponseUpdateMems),
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct ConnectorResponseUpdateMems {
+    pub orig: ConnectorResponse,
+    pub update_data: ConnectorResponseUpdate,
 }
 
 #[derive(Debug, Serialize, Deserialize)]

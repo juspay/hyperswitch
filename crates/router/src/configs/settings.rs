@@ -98,6 +98,7 @@ pub struct Settings {
     pub applepay_decrypt_keys: ApplePayDecryptConifg,
     pub multiple_api_version_supported_connectors: MultipleApiVersionSupportedConnectors,
     pub applepay_merchant_configs: ApplepayMerchantConfigs,
+    pub lock_settings: LockSettings,
     pub temp_locker_disable_config: TempLockerDisableConfig,
 }
 
@@ -463,6 +464,24 @@ pub struct Database {
     pub dbname: String,
     pub pool_size: u32,
     pub connection_timeout: u64,
+    pub queue_strategy: QueueStrategy,
+}
+
+#[derive(Debug, Deserialize, Clone, Default)]
+#[serde(rename_all = "PascalCase")]
+pub enum QueueStrategy {
+    #[default]
+    Fifo,
+    Lifo,
+}
+
+impl From<QueueStrategy> for bb8::QueueStrategy {
+    fn from(value: QueueStrategy) -> Self {
+        match value {
+            QueueStrategy::Fifo => Self::Fifo,
+            QueueStrategy::Lifo => Self::Lifo,
+        }
+    }
 }
 
 #[cfg(not(feature = "kms"))]
@@ -476,6 +495,7 @@ impl Into<storage_impl::config::Database> for Database {
             dbname: self.dbname,
             pool_size: self.pool_size,
             connection_timeout: self.connection_timeout,
+            queue_strategy: self.queue_strategy.into(),
         }
     }
 }
@@ -522,7 +542,7 @@ pub struct Connectors {
     pub multisafepay: ConnectorParams,
     pub nexinets: ConnectorParams,
     pub nmi: ConnectorParams,
-    pub noon: ConnectorParams,
+    pub noon: ConnectorParamsWithModeType,
     pub nuvei: ConnectorParams,
     pub opayo: ConnectorParams,
     pub opennode: ConnectorParams,
@@ -549,6 +569,15 @@ pub struct Connectors {
 pub struct ConnectorParams {
     pub base_url: String,
     pub secondary_base_url: Option<String>,
+}
+
+#[derive(Debug, Deserialize, Clone, Default, router_derive::ConfigValidate)]
+#[serde(default)]
+pub struct ConnectorParamsWithModeType {
+    pub base_url: String,
+    pub secondary_base_url: Option<String>,
+    /// Can take values like Test or Live for Noon
+    pub key_mode: String,
 }
 
 #[derive(Debug, Deserialize, Clone, Default, router_derive::ConfigValidate)]
@@ -694,9 +723,11 @@ impl Settings {
                     .try_parsing(true)
                     .separator("__")
                     .list_separator(",")
+                    .with_list_parse_key("log.telemetry.route_to_trace")
                     .with_list_parse_key("redis.cluster_urls")
                     .with_list_parse_key("connectors.supported.wallets")
                     .with_list_parse_key("connector_request_reference_id_config.merchant_ids_send_payment_id_as_connector_request_id"),
+
             )
             .build()?;
 
@@ -746,6 +777,7 @@ impl Settings {
             .map_err(|error| ApplicationError::InvalidConfigurationValueError(error.into()))?;
         #[cfg(feature = "s3")]
         self.file_upload_config.validate()?;
+        self.lock_settings.validate()?;
         Ok(())
     }
 }
@@ -772,4 +804,33 @@ mod payment_method_deserialization_test {
 #[derive(Debug, Deserialize, Clone, Default)]
 pub struct Payouts {
     pub payout_eligibility: bool,
+}
+
+#[derive(Debug, Clone, Default)]
+pub struct LockSettings {
+    pub redis_lock_expiry_seconds: u32,
+    pub delay_between_retries_in_milliseconds: u32,
+    pub lock_retries: u32,
+}
+
+impl<'de> Deserialize<'de> for LockSettings {
+    fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+        #[derive(Deserialize)]
+        #[serde(deny_unknown_fields)]
+        struct Inner {
+            redis_lock_expiry_seconds: u32,
+            delay_between_retries_in_milliseconds: u32,
+        }
+
+        let Inner {
+            redis_lock_expiry_seconds,
+            delay_between_retries_in_milliseconds,
+        } = Inner::deserialize(deserializer)?;
+        let redis_lock_expiry_seconds = redis_lock_expiry_seconds * 1000;
+        Ok(Self {
+            redis_lock_expiry_seconds,
+            delay_between_retries_in_milliseconds,
+            lock_retries: redis_lock_expiry_seconds / delay_between_retries_in_milliseconds,
+        })
+    }
 }

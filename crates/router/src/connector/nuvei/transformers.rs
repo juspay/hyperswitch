@@ -384,7 +384,7 @@ impl TryFrom<&types::PaymentsAuthorizeSessionTokenRouterData> for NuveiSessionRe
         let connector_meta: NuveiAuthType = NuveiAuthType::try_from(&item.connector_auth_type)?;
         let merchant_id = connector_meta.merchant_id;
         let merchant_site_id = connector_meta.merchant_site_id;
-        let client_request_id = item.attempt_id.clone();
+        let client_request_id = item.connector_request_reference_id.clone();
         let time_stamp = date_time::DateTime::<date_time::YYYYMMDDHHmmss>::from(date_time::now());
         let merchant_secret = connector_meta.merchant_secret;
         Ok(Self {
@@ -737,7 +737,7 @@ impl<F>
             amount: utils::to_currency_base_unit(item.request.amount, item.request.currency)?,
             currency: item.request.currency,
             connector_auth_type: item.connector_auth_type.clone(),
-            client_request_id: item.attempt_id.clone(),
+            client_request_id: item.connector_request_reference_id.clone(),
             session_token: data.1,
             capture_method: item.request.capture_method,
             ..Default::default()
@@ -914,7 +914,7 @@ impl TryFrom<(&types::PaymentsCompleteAuthorizeRouterData, String)> for NuveiPay
             amount: utils::to_currency_base_unit(item.request.amount, item.request.currency)?,
             currency: item.request.currency,
             connector_auth_type: item.connector_auth_type.clone(),
-            client_request_id: item.attempt_id.clone(),
+            client_request_id: item.connector_request_reference_id.clone(),
             session_token: data.1,
             capture_method: item.request.capture_method,
             ..Default::default()
@@ -1018,7 +1018,7 @@ impl TryFrom<&types::PaymentsCaptureRouterData> for NuveiPaymentFlowRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::PaymentsCaptureRouterData) -> Result<Self, Self::Error> {
         Self::try_from(NuveiPaymentRequestData {
-            client_request_id: item.attempt_id.clone(),
+            client_request_id: item.connector_request_reference_id.clone(),
             connector_auth_type: item.connector_auth_type.clone(),
             amount: utils::to_currency_base_unit(
                 item.request.amount_to_capture,
@@ -1034,7 +1034,7 @@ impl TryFrom<&types::RefundExecuteRouterData> for NuveiPaymentFlowRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::RefundExecuteRouterData) -> Result<Self, Self::Error> {
         Self::try_from(NuveiPaymentRequestData {
-            client_request_id: item.attempt_id.clone(),
+            client_request_id: item.connector_request_reference_id.clone(),
             connector_auth_type: item.connector_auth_type.clone(),
             amount: utils::to_currency_base_unit(
                 item.request.refund_amount,
@@ -1061,7 +1061,7 @@ impl TryFrom<&types::PaymentsCancelRouterData> for NuveiPaymentFlowRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::PaymentsCancelRouterData) -> Result<Self, Self::Error> {
         Self::try_from(NuveiPaymentRequestData {
-            client_request_id: item.attempt_id.clone(),
+            client_request_id: item.connector_request_reference_id.clone(),
             connector_auth_type: item.connector_auth_type.clone(),
             amount: utils::to_currency_base_unit(
                 item.request.get_amount()?,
@@ -1294,7 +1294,7 @@ where
                 Ok(types::PaymentsResponseData::TransactionResponse {
                     resource_id: response
                         .transaction_id
-                        .map_or(response.order_id, Some) // For paypal there will be no transaction_id, only order_id will be present
+                        .map_or(response.order_id.clone(), Some) // For paypal there will be no transaction_id, only order_id will be present
                         .map(types::ResponseId::ConnectorTransactionId)
                         .ok_or(errors::ConnectorError::MissingConnectorTransactionID)?,
                     redirection_data,
@@ -1318,7 +1318,7 @@ where
                         None
                     },
                     network_txn_id: None,
-                    connector_response_reference_id: None,
+                    connector_response_reference_id: response.order_id,
                 })
             },
             ..item.data
