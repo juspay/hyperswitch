@@ -212,10 +212,14 @@ impl<F, T>
         item: types::ResponseRouterData<F, IatapayPaymentsResponse, T, types::PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
         let form_fields = HashMap::new();
-        let id = match item.response.iata_payment_id {
+        let id = match item.response.iata_payment_id.clone() {
             Some(s) => types::ResponseId::ConnectorTransactionId(s),
             None => types::ResponseId::NoResponseId,
         };
+        let mut connector_response_reference_id = item.response.iata_payment_id.clone();
+        if connector_response_reference_id.is_none() {
+            connector_response_reference_id = item.response.merchant_payment_id.clone();
+        }
         Ok(Self {
             status: enums::AttemptStatus::from(item.response.status),
             response: item.response.checkout_methods.map_or(
@@ -225,7 +229,7 @@ impl<F, T>
                     mandate_reference: None,
                     connector_metadata: None,
                     network_txn_id: None,
-                    connector_response_reference_id: None,
+                    connector_response_reference_id: connector_response_reference_id.clone(),
                 }),
                 |checkout_methods| {
                     Ok(types::PaymentsResponseData::TransactionResponse {
@@ -238,7 +242,7 @@ impl<F, T>
                         mandate_reference: None,
                         connector_metadata: None,
                         network_txn_id: None,
-                        connector_response_reference_id: None,
+                        connector_response_reference_id: connector_response_reference_id.clone(),
                     })
                 },
             ),
