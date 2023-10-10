@@ -91,11 +91,7 @@ impl TryFrom<&api_models::payments::WalletData> for PaymentDetails {
                     account_id: None,
                 }))
             }
-            api_models::payments::WalletData::MbWayRedirect( _ ) => {
-                Err(errors::ConnectorError::NotImplemented(
-                    "Payment method".to_string(),
-                ))?
-            }
+            api_models::payments::WalletData::MbWayRedirect( _ ) |
             api_models::payments::WalletData::AliPayRedirect( _ ) => {
                 Err(errors::ConnectorError::NotImplemented(
                     "Payment method".to_string(),
@@ -233,9 +229,7 @@ impl TryFrom<&api_models::payments::WalletData> for PaymentDetails {
                 => Err(errors::ConnectorError::NotImplemented(
                     "Payment method".to_string(),
                 ))?,
-            // _ => Err(errors::ConnectorError::NotImplemented(
-            //     "Payment method".to_string(),
-            // ))?,
+            
         };
         Ok(payment_data)
     
@@ -926,4 +920,4 @@ impl<F> TryFrom<types::RefundsResponseRouterData<F, AciRefundResponse>>
         })
     }
 }
-}
+
