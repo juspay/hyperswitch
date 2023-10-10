@@ -1305,7 +1305,7 @@ pub async fn create_customer_if_not_exist<'a, F: Clone, R, Ctx>(
 
 pub async fn retrieve_payment_method_with_temporary_token(
     state: &AppState,
-    token: &String,
+    token: &str,
     payment_intent: &PaymentIntent,
     card_cvc: Option<masking::Secret<String>>,
 ) -> RouterResult<Option<(api::PaymentMethodData, enums::PaymentMethod)>> {
@@ -1332,7 +1332,7 @@ pub async fn retrieve_payment_method_with_temporary_token(
                 let updated_pm = api::PaymentMethodData::Card(updated_card);
                 vault::Vault::store_payment_method_data_in_locker(
                     state,
-                    Some(token.clone()),
+                    Some(token.to_owned()),
                     &updated_pm,
                     payment_intent.customer_id.to_owned(),
                     enums::PaymentMethod::Card,
