@@ -514,6 +514,7 @@ pub trait ConnectorActions: Connector {
             connector_api_version: None,
             connector_http_status_code: None,
             apple_pay_flow: None,
+            external_latency: None,
         }
     }
 
