@@ -13,7 +13,7 @@ use std::{
 use actix_web::{body, web, FromRequest, HttpRequest, HttpResponse, Responder, ResponseError};
 use api_models::enums::CaptureMethod;
 pub use client::{proxy_bypass_urls, ApiClient, MockApiClient, ProxyClient};
-use common_utils::errors::ReportSwitchExt;
+use common_utils::{errors::ReportSwitchExt, consts::X_HS_LATENCY};
 pub use common_utils::request::{ContentType, Method, Request, RequestBuilder};
 use error_stack::{report, IntoReport, Report, ResultExt};
 use masking::{ExposeOptionInterface, PeekInterface};
@@ -888,7 +888,7 @@ where
             .map_into_boxed_body()
         }
         Ok(ApplicationResponse::JsonWithHeaders((response, headers))) => {
-            let request_elapsed_time = request.headers().get("x-hs-latency").and_then(|value| {
+            let request_elapsed_time = request.headers().get(X_HS_LATENCY).and_then(|value| {
                 if value == "true" {
                     Some(start_instant.elapsed())
                 } else {
@@ -979,7 +979,7 @@ pub fn http_response_json_with_headers<T: body::MessageBody + 'static>(
     let mut response_builder = HttpResponse::Ok();
 
     for (name, value) in headers.iter_mut() {
-        if name == "x-hs-latency" {
+        if name == X_HS_LATENCY {
             if let Some(request_duration) = request_duration {
                 if let Ok(external_latency) = value.parse::<u128>() {
                     let updated_duration = request_duration.as_millis() - external_latency;

@@ -1,7 +1,7 @@
 use std::{fmt::Debug, marker::PhantomData, str::FromStr};
 
 use api_models::payments::FrmMessage;
-use common_utils::fp_utils;
+use common_utils::{fp_utils, consts::X_HS_LATENCY};
 use diesel_models::ephemeral_key;
 use error_stack::{IntoReport, ResultExt};
 use router_env::{instrument, tracing};
@@ -446,7 +446,7 @@ where
     if Some(true) == is_latency_header_enabled {
         headers.extend(
             external_latency
-                .map(|latency| vec![("x-hs-latency".to_string(), latency.to_string())])
+                .map(|latency| vec![(X_HS_LATENCY.to_string(), latency.to_string())])
                 .unwrap_or(vec![]),
         );
     }

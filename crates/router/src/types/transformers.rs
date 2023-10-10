@@ -4,7 +4,7 @@ use api_models::{enums as api_enums, payments};
 use common_utils::{
     crypto::Encryptable,
     ext_traits::{StringExt, ValueExt},
-    pii,
+    pii, consts::X_HS_LATENCY,
 };
 use diesel_models::enums as storage_enums;
 use error_stack::ResultExt;
@@ -788,7 +788,7 @@ impl ForeignTryFrom<&HeaderMap> for api_models::payments::HeaderPayload {
                 })
                 .transpose()?;
 
-        let x_hs_latency = get_header_value_by_key("x-hs-latency".into(), headers)
+        let x_hs_latency = get_header_value_by_key(X_HS_LATENCY.into(), headers)
             .map(|value| value == Some("true"))
             .unwrap_or(false);
 
