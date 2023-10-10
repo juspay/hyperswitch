@@ -1,5 +1,5 @@
 use async_trait::async_trait;
-use error_stack;
+use error_stack::{self, IntoReport, ResultExt};
 
 use super::{ConstructFlowSpecificData, Feature};
 use crate::{
@@ -89,30 +89,63 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
 
             metrics::PAYMENT_COUNT.add(&metrics::CONTEXT, 1, &[]); // Metrics
 
-            let save_payment_result = tokenization::save_payment_method(
-                state,
-                connector,
-                resp.to_owned(),
-                maybe_customer,
-                merchant_account,
-                self.request.payment_method_type,
-                key_store,
-            )
-            .await;
+            if resp.request.setup_mandate_details.clone().is_some() {
+                let payment_method_id = tokenization::save_payment_method(
+                    state,
+                    connector,
+                    resp.to_owned(),
+                    maybe_customer,
+                    merchant_account,
+                    self.request.payment_method_type,
+                    key_store,
+                )
+                .await?;
+                Ok(
+                    mandate::mandate_procedure(state, resp, maybe_customer, payment_method_id)
+                        .await?,
+                )
+            } else {
+                let arbiter = actix::Arbiter::try_current()
+                    .ok_or(errors::ApiErrorResponse::InternalServerError)
+                    .into_report()
+                    .attach_printable("arbiter retrieval failure")
+                    .map_err(|err| {
+                        logger::error!(?err);
+                        err
+                    })
+                    .ok();
 
-            let pm_id = match save_payment_result {
-                Ok(payment_method_id) => Ok(payment_method_id),
-                Err(error) => {
-                    if resp.request.setup_mandate_details.clone().is_some() {
-                        Err(error)
-                    } else {
-                        logger::error!(save_payment_method_error=?error);
-                        Ok(None)
-                    }
-                }
-            }?;
+                let connector = connector.clone();
+                let response = resp.clone();
+                let maybe_customer = maybe_customer.clone();
+                let merchant_account = merchant_account.clone();
+                let key_store = key_store.clone();
+                let state = state.clone();
 
-            Ok(mandate::mandate_procedure(state, resp, maybe_customer, pm_id).await?)
+                arbiter.map(|arb| {
+                    arb.spawn(async move {
+                        let result = tokenization::save_payment_method(
+                            &state,
+                            &connector,
+                            response,
+                            &maybe_customer,
+                            &merchant_account,
+                            self.request.payment_method_type,
+                            &key_store,
+                        )
+                        .await;
+
+                        if let Err(err) = result {
+                            logger::error!(
+                                "Asynchronously saving card in locker failed : {:?}",
+                                err
+                            );
+                        }
+                    })
+                });
+
+                Ok(resp)
+            }
         } else {
             Ok(self.clone())
         }
