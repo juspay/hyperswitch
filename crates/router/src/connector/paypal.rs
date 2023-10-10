@@ -8,8 +8,8 @@ use error_stack::{IntoReport, ResultExt};
 use masking::PeekInterface;
 use transformers as paypal;
 
-use self::transformers::{PaypalAuthResponse, {PaypalMeta};
-use super::utils::PaymentsCompleteAuthorizeRequestData, PaypalWebhookEventType};
+use self::transformers::{PaypalAuthResponse, PaypalMeta, PaypalWebhookEventType};
+use super::utils::PaymentsCompleteAuthorizeRequestData;
 use crate::{
     configs::settings,
     connector::{
