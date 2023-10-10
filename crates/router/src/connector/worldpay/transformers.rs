@@ -3,14 +3,17 @@ use common_utils::errors::CustomResult;
 use diesel_models::enums;
 use error_stack::{IntoReport, ResultExt};
 use masking::{PeekInterface, Secret};
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
 
-use super::{requests::*, response::*};
+use super::{requests::*, response::*, Worldpay};
 use crate::{
-    connector::utils,
+    connector::{
+        utils,
+        worldpay::{ConnectorCommon, Worldpay},
+    },
     consts,
     core::errors,
-    types::{self, api},
+    types::{self, api, PaymentsAuthorizeData, PaymentsResponseData},
 };
 
 #[derive(Debug, Serialize)]
@@ -151,15 +154,14 @@ impl
             >,
         >,
     ) -> Result<Self, Self::Error> {
-        let connector_common_instance = utils::get_connector_common_instance()?;
-
-        let currency_unit = connector_common_instance.get_currency_unit();
+        let worldpay_instance = Worldpay;
+        let currency_unit = worldpay_instance.get_currency_unit();
 
         Ok(Self {
             instruction: Instruction {
                 value: PaymentValue {
                     amount: item.amount,
-                    currency: currency_unit.clone(),
+                    currency: item.router_data.request.currency,
                 },
                 narrative: InstructionNarrative {
                     line1: item.router_data.merchant_id.clone().replace('_', "-"),
