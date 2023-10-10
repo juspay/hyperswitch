@@ -66,6 +66,11 @@ impl ConnectorCommon for Airwallex {
         "airwallex"
     }
 
+    fn get_currency_unit(&self) -> api::CurrencyUnit {
+        api::CurrencyUnit::Base
+        //TODO: Checks Needed
+    }
+
     fn common_get_content_type(&self) -> &'static str {
         "application/json"
     }
@@ -369,7 +374,14 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         &self,
         req: &types::PaymentsAuthorizeRouterData,
     ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
-        let connector_req = airwallex::AirwallexPaymentsRequest::try_from(req)?;
+        let connector_router_data = airwallex::AirwallexRouterData::try_from((
+            &self.get_currency_unit(),
+            req.request.currency,
+            req.request.amount,
+            req,
+            //TODO: Checks needed
+        ))?;
+        let connector_req = airwallex::AirwallexPaymentsRequest::try_from(&connector_router_data)?;
         let airwallex_req = types::RequestBody::log_and_get_request_body(
             &connector_req,
             utils::Encode::<airwallex::AirwallexPaymentsRequest>::encode_to_string_of_json,
@@ -810,7 +822,14 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
         &self,
         req: &types::RefundsRouterData<api::Execute>,
     ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
-        let connector_req = airwallex::AirwallexRefundRequest::try_from(req)?;
+        let connector_router_data = airwallex::AirwallexRouterData::try_from((
+            &self.get_currency_unit(),
+            req.request.currency,
+            req.request.refund_amount,
+            req,
+            //TODO: Checks Needed
+        ))?;
+        let connector_req = airwallex::AirwallexRefundRequest::try_from(&connector_router_data)?;
         let airwallex_req = types::RequestBody::log_and_get_request_body(
             &connector_req,
             utils::Encode::<airwallex::AirwallexRefundRequest>::encode_to_string_of_json,
