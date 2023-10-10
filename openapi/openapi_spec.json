@@ -794,6 +794,60 @@
         ]
       }
     },
+    "/payment_link/{payment_link_id}": {
+      "get": {
+        "tags": [
+          "Payments"
+        ],
+        "summary": "Payments Link - Retrieve",
+        "description": "Payments Link - Retrieve\n\nTo retrieve the properties of a Payment Link. This may be used to get the status of a previously initiated payment or next action for an ongoing payment",
+        "operationId": "Retrieve a Payment Link",
+        "parameters": [
+          {
+            "name": "payment_link_id",
+            "in": "path",
+            "description": "The identifier for payment link",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RetrievePaymentLinkRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Gets details regarding payment link",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RetrievePaymentLinkResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No payment link found"
+          }
+        },
+        "security": [
+          {
+            "api_key": []
+          },
+          {
+            "publishable_key": []
+          }
+        ]
+      }
+    },
     "/payment_methods": {
       "post": {
         "tags": [
@@ -7710,6 +7764,36 @@
           }
         ]
       },
+      "PaymentLinkInitiateRequest": {
+        "type": "object",
+        "required": [
+          "merchant_id",
+          "payment_id"
+        ],
+        "properties": {
+          "merchant_id": {
+            "type": "string"
+          },
+          "payment_id": {
+            "type": "string"
+          }
+        }
+      },
+      "PaymentLinkResponse": {
+        "type": "object",
+        "required": [
+          "link",
+          "payment_link_id"
+        ],
+        "properties": {
+          "link": {
+            "type": "string"
+          },
+          "payment_link_id": {
+            "type": "string"
+          }
+        }
+      },
       "PaymentListConstraints": {
         "type": "object",
         "properties": {
@@ -10587,6 +10671,66 @@
           }
         }
       },
+      "RetrievePaymentLinkRequest": {
+        "type": "object",
+        "properties": {
+          "client_secret": {
+            "type": "string",
+            "nullable": true
+          }
+        }
+      },
+      "RetrievePaymentLinkResponse": {
+        "type": "object",
+        "required": [
+          "payment_link_id",
+          "payment_id",
+          "merchant_id",
+          "link_to_pay",
+          "amount",
+          "created_at",
+          "last_modified_at"
+        ],
+        "properties": {
+          "payment_link_id": {
+            "type": "string"
+          },
+          "payment_id": {
+            "type": "string"
+          },
+          "merchant_id": {
+            "type": "string"
+          },
+          "link_to_pay": {
+            "type": "string"
+          },
+          "amount": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "currency": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/api_enums.Currency"
+              }
+            ],
+            "nullable": true
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "last_modified_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "link_expiry": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          }
+        }
+      },
       "RetryAction": {
         "type": "string",
         "enum": [
@@ -11522,6 +11666,10 @@
     {
       "name": "Payouts",
       "description": "Create and manage payouts"
+    },
+    {
+      "name": "payment link",
+      "description": "Create payment link"
     }
   ]
 }

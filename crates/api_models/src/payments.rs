@@ -2919,13 +2919,13 @@ pub struct RetrievePaymentLinkRequest {
     pub client_secret: Option<String>,
 }
 
-#[derive(Clone, Debug, serde::Serialize, PartialEq, serde::Deserialize)]
+#[derive(Clone, Debug, serde::Serialize, PartialEq, serde::Deserialize, ToSchema)]
 pub struct PaymentLinkResponse {
     pub link: String,
     pub payment_link_id: String,
 }
 
-#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize, ToSchema)]
 pub struct RetrievePaymentLinkResponse {
     pub payment_link_id: String,
     pub payment_id: String,
@@ -2941,7 +2941,7 @@ pub struct RetrievePaymentLinkResponse {
     pub link_expiry: Option<PrimitiveDateTime>,
 }
 
-#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize, ToSchema)]
 pub struct PaymentLinkInitiateRequest {
     pub merchant_id: String,
     pub payment_id: String,

@@ -582,7 +582,9 @@ impl PaymentLink {
     pub fn server(state: AppState) -> Scope {
         web::scope("/payment_link")
             .app_data(web::Data::new(state))
-            .service(web::resource("{payment_link_id}").route(web::get().to(get_payment_link)))
+            .service(
+                web::resource("/{payment_link_id}").route(web::get().to(payment_link_retrieve)),
+            )
             .service(
                 web::resource("{merchant_id}/{payment_id}")
                     .route(web::get().to(initiate_payment_link)),
