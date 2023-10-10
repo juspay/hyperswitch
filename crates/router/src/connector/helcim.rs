@@ -176,7 +176,7 @@ impl
 {
     fn get_headers(
         &self,
-        req: &types::VerifyRouterData,
+        req: &types::SetupMandateRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
         self.build_headers(req, connectors)
@@ -184,14 +184,14 @@ impl
 
     fn get_url(
         &self,
-        _req: &types::VerifyRouterData,
+        _req: &types::SetupMandateRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         Ok(format!("{}v2/payment/verify", self.base_url(connectors)))
     }
     fn get_request_body(
         &self,
-        req: &types::VerifyRouterData,
+        req: &types::SetupMandateRouterData,
     ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
         let connector_req = helcim::HelcimVerifyRequest::try_from(req)?;
 
@@ -204,26 +204,24 @@ impl
     }
     fn build_request(
         &self,
-        req: &types::VerifyRouterData,
+        req: &types::SetupMandateRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
         Ok(Some(
             services::RequestBuilder::new()
                 .method(services::Method::Post)
-                .url(&types::PaymentsVerifyType::get_url(self, req, connectors)?)
+                .url(&types::SetupMandateType::get_url(self, req, connectors)?)
                 .attach_default_headers()
-                .headers(types::PaymentsVerifyType::get_headers(
-                    self, req, connectors,
-                )?)
-                .body(types::PaymentsVerifyType::get_request_body(self, req)?)
+                .headers(types::SetupMandateType::get_headers(self, req, connectors)?)
+                .body(types::SetupMandateType::get_request_body(self, req)?)
                 .build(),
         ))
     }
     fn handle_response(
         &self,
-        data: &types::VerifyRouterData,
+        data: &types::SetupMandateRouterData,
         res: Response,
-    ) -> CustomResult<types::VerifyRouterData, errors::ConnectorError> {
+    ) -> CustomResult<types::SetupMandateRouterData, errors::ConnectorError> {
         let response: helcim::HelcimPaymentsResponse = res
             .response
             .parse_struct("Helcim PaymentsAuthorizeResponse")

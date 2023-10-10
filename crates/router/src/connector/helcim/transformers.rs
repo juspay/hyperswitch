@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 use crate::{
     connector::utils::{
         self, AddressDetailsData, BrowserInformationData, CardData, PaymentsAuthorizeRequestData,
-        PaymentsCancelRequestData, PaymentsCaptureRequestData, PaymentsVerifyRequestData,
+        PaymentsCancelRequestData, PaymentsCaptureRequestData, PaymentsSetupMandateRequestData,
         RefundsRequestData, RouterData,
     },
     core::errors,
@@ -91,9 +91,9 @@ pub struct HelcimCard {
     card_c_v_v: Secret<String>,
 }
 
-impl TryFrom<(&types::VerifyRouterData, &api::Card)> for HelcimVerifyRequest {
+impl TryFrom<(&types::SetupMandateRouterData, &api::Card)> for HelcimVerifyRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(value: (&types::VerifyRouterData, &api::Card)) -> Result<Self, Self::Error> {
+    fn try_from(value: (&types::SetupMandateRouterData, &api::Card)) -> Result<Self, Self::Error> {
         let (item, req_card) = value;
         let card_data = HelcimCard {
             card_expiry: req_card.get_card_expiry_month_year_2_digit_with_delimiter("".to_string()),
@@ -122,9 +122,9 @@ impl TryFrom<(&types::VerifyRouterData, &api::Card)> for HelcimVerifyRequest {
     }
 }
 
-impl TryFrom<&types::VerifyRouterData> for HelcimVerifyRequest {
+impl TryFrom<&types::SetupMandateRouterData> for HelcimVerifyRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(item: &types::VerifyRouterData) -> Result<Self, Self::Error> {
+    fn try_from(item: &types::SetupMandateRouterData) -> Result<Self, Self::Error> {
         match item.request.payment_method_data.clone() {
             api::PaymentMethodData::Card(req_card) => Self::try_from((item, &req_card)),
             api_models::payments::PaymentMethodData::BankTransfer(_) => Err(
@@ -304,17 +304,17 @@ impl<F>
         types::ResponseRouterData<
             F,
             HelcimPaymentsResponse,
-            types::VerifyRequestData,
+            types::SetupMandateRequestData,
             types::PaymentsResponseData,
         >,
-    > for types::RouterData<F, types::VerifyRequestData, types::PaymentsResponseData>
+    > for types::RouterData<F, types::SetupMandateRequestData, types::PaymentsResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
         item: types::ResponseRouterData<
             F,
             HelcimPaymentsResponse,
-            types::VerifyRequestData,
+            types::SetupMandateRequestData,
             types::PaymentsResponseData,
         >,
     ) -> Result<Self, Self::Error> {

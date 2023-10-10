@@ -262,23 +262,11 @@ impl PaymentsCaptureRequestData for types::PaymentsCaptureData {
     }
 }
 
-pub trait PaymentsVerifyRequestData {
+pub trait PaymentsSetupMandateRequestData {
     fn get_browser_info(&self) -> Result<types::BrowserInformation, Error>;
 }
 
-impl PaymentsVerifyRequestData for types::VerifyRequestData {
-    fn get_browser_info(&self) -> Result<types::BrowserInformation, Error> {
-        self.browser_info
-            .clone()
-            .ok_or_else(missing_field_err("browser_info"))
-    }
-}
-
-pub trait SetupMandateRequestData {
-    fn get_browser_info(&self) -> Result<types::BrowserInformation, Error>;
-}
-
-impl SetupMandateRequestData for types::SetupMandateRequestData {
+impl PaymentsSetupMandateRequestData for types::SetupMandateRequestData {
     fn get_browser_info(&self) -> Result<types::BrowserInformation, Error> {
         self.browser_info
             .clone()
