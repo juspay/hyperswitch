@@ -9,6 +9,7 @@ use error_stack::{IntoReport, ResultExt};
 use masking::PeekInterface;
 use transformers as noon;
 
+use super::utils::PaymentsSyncRequestData;
 use crate::{
     configs::settings,
     connector::utils as connector_utils,
@@ -275,10 +276,10 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
         req: &types::PaymentsSyncRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
+        let connector_transaction_id = req.request.get_connector_transaction_id()?;
         Ok(format!(
-            "{}payment/v1/order/getbyreference/{}",
-            self.base_url(connectors),
-            req.attempt_id
+            "{}payment/v1/order/{connector_transaction_id}",
+            self.base_url(connectors)
         ))
     }
 
