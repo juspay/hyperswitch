@@ -538,3 +538,41 @@ pub fn validate_config(input: proc_macro::TokenStream) -> proc_macro::TokenStrea
         .unwrap_or_else(|error| error.into_compile_error())
         .into()
 }
+
+/// Generates the function to get the value out of enum variant
+/// Usage
+/// ```
+/// #[derive(TryGetEnumVariant)]
+/// #[error(RedisError(UnknownResult))]
+/// struct Result {
+///     Set(String),
+///     Get(i32)
+/// }
+/// ```
+///
+/// This will generate the function to get `String` and `i32` out of the variants
+///
+/// ```
+/// impl Result {
+///     fn try_into_get(&self)-> Result<i32, RedisError> {
+///         match self {
+///             Self::Get(a) => Ok(a),
+///             _=>Err(RedisError::UnknownResult)
+///         }
+///     }
+///
+///     fn try_into_set(&self)-> Result<String, RedisError> {
+///         match self {
+///             Self::Set(a) => Ok(a),
+///             _=>Err(RedisError::UnknownResult)
+///         }
+///     }
+/// }
+#[proc_macro_derive(TryGetEnumVariant, attributes(error))]
+pub fn try_get_enum_variant(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
+    let input = syn::parse_macro_input!(input as syn::DeriveInput);
+
+    macros::try_get_enum::try_get_enum_variant(input)
+        .unwrap_or_else(|error| error.into_compile_error())
+        .into()
+}
