@@ -5003,6 +5003,10 @@
           "mandate_revoked"
         ]
       },
+      "PaymentLinkObject":{
+        "link_expiry": "2025-10-09T16:23:10Z",
+        "merchant_custom_domain_name": "merchant.hyperswitch.com"
+      },
       "FeatureMetadata": {
         "type": "object",
         "properties": {
