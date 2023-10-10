@@ -7779,6 +7779,20 @@
           }
         }
       },
+      "PaymentLinkObject": {
+        "type": "object",
+        "properties": {
+          "link_expiry": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "merchant_custom_domain_name": {
+            "type": "string",
+            "nullable": true
+          }
+        }
+      },
       "PaymentLinkResponse": {
         "type": "object",
         "required": [
