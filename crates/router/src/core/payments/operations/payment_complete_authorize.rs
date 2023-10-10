@@ -300,11 +300,6 @@ impl<F: Clone + Send, Ctx: PaymentMethodRetrieve> Domain<F, api::PaymentsRequest
     )> {
         let (op, payment_method_data) =
             helpers::make_pm_data(Box::new(self), state, payment_data).await?;
-
-        utils::when(payment_method_data.is_none(), || {
-            Err(errors::ApiErrorResponse::PaymentMethodNotFound)
-        })?;
-
         Ok((op, payment_method_data))
     }
 
