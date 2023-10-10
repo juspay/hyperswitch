@@ -1309,7 +1309,7 @@ pub async fn retrieve_payment_method_with_temporary_token(
     payment_intent: &PaymentIntent,
     card_cvc: Option<masking::Secret<String>>,
 ) -> RouterResult<Option<(api::PaymentMethodData, enums::PaymentMethod)>> {
-    let (pm, supplementary_data) = vault::Vault::get_payment_method_data_from_locker(state, &token)
+    let (pm, supplementary_data) = vault::Vault::get_payment_method_data_from_locker(state, token)
         .await
         .attach_printable(
             "Payment method for given token not found or there was a problem fetching it",
@@ -1370,7 +1370,7 @@ pub async fn retrieve_payment_method_with_temporary_token(
 
 pub async fn retrieve_card_with_permanent_token(
     state: &AppState,
-    token: &String,
+    token: &str,
     payment_intent: &PaymentIntent,
     card_cvc: Option<masking::Secret<String>>,
 ) -> RouterResult<api::PaymentMethodData> {
