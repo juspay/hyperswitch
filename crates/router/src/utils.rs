@@ -730,6 +730,8 @@ where
             &operation,
             &state.conf.connector_request_reference_id_config,
             None,
+            None,
+            None,
         )?;
 
         let event_type: enums::EventType = status
