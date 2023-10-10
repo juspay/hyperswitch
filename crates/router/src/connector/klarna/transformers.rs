@@ -2,8 +2,6 @@ use api_models::payments;
 use error_stack::report;
 use masking::Secret;
 use serde::{Deserialize, Serialize};
-use std::convert::TryFrom;
-
 
 use crate::{
     core::errors,
@@ -13,8 +11,8 @@ use crate::{
 #[derive(Debug, Serialize)]
 pub struct KlarnaRouterData<T> {
     amount: i64,
-    router_data: T,
     connector_request_reference_id: String,
+    router_data: T,
 }
 
 impl<T>
@@ -23,24 +21,22 @@ impl<T>
         types::storage::enums::Currency,
         i64,
         T,
-        String,
     )> for KlarnaRouterData<T>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
 
     fn try_from(
-        (_currency_unit, _currency, amount, router_data, connector_request_reference_id): (
+        (_currency_unit, _currency, amount, router_data): (
             &types::api::CurrencyUnit,
             types::storage::enums::Currency,
             i64,
             T,
-            String,
         ),
     ) -> Result<Self, Self::Error> {
         Ok(Self {
             amount,
+            connector_request_reference_id: payments::connector_request_reference_id(),
             router_data,
-            connector_request_reference_id,
         })
     }
 }
