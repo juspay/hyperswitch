@@ -885,6 +885,7 @@ impl Default for PaymentAuthorizeType {
             complete_authorize_url: None,
             webhook_url: None,
             customer_id: None,
+            surcharge_details: None,
         };
         Self(data)
     }
