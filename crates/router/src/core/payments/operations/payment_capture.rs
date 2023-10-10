@@ -11,6 +11,7 @@ use super::{BoxedOperation, Domain, GetTracker, Operation, UpdateTracker, Valida
 use crate::{
     core::{
         errors::{self, RouterResult, StorageErrorExt},
+        payment_methods::PaymentMethodRetrieve,
         payments::{self, helpers, operations, types::MultipleCaptureData},
     },
     db::StorageInterface,
@@ -29,8 +30,8 @@ use crate::{
 pub struct PaymentCapture;
 
 #[async_trait]
-impl<F: Send + Clone> GetTracker<F, payments::PaymentData<F>, api::PaymentsCaptureRequest>
-    for PaymentCapture
+impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
+    GetTracker<F, payments::PaymentData<F>, api::PaymentsCaptureRequest, Ctx> for PaymentCapture
 {
     #[instrument(skip_all)]
     async fn get_trackers<'a>(
@@ -43,7 +44,7 @@ impl<F: Send + Clone> GetTracker<F, payments::PaymentData<F>, api::PaymentsCaptu
         key_store: &domain::MerchantKeyStore,
         _auth_flow: services::AuthFlow,
     ) -> RouterResult<(
-        BoxedOperation<'a, F, api::PaymentsCaptureRequest>,
+        BoxedOperation<'a, F, api::PaymentsCaptureRequest, Ctx>,
         payments::PaymentData<F>,
         Option<payments::CustomerDetails>,
     )> {
@@ -153,23 +154,27 @@ impl<F: Send + Clone> GetTracker<F, payments::PaymentData<F>, api::PaymentsCaptu
 
         amount = payment_attempt.amount.into();
 
-        let shipping_address = helpers::get_address_for_payment_request(
+        let shipping_address = helpers::create_or_find_address_for_payment_by_request(
             db,
             None,
             payment_intent.shipping_address_id.as_deref(),
             merchant_id,
             payment_intent.customer_id.as_ref(),
             key_store,
+            &payment_intent.payment_id,
+            merchant_account.storage_scheme,
         )
         .await?;
 
-        let billing_address = helpers::get_address_for_payment_request(
+        let billing_address = helpers::create_or_find_address_for_payment_by_request(
             db,
             None,
             payment_intent.billing_address_id.as_deref(),
             merchant_id,
             payment_intent.customer_id.as_ref(),
             key_store,
+            &payment_intent.payment_id,
+            merchant_account.storage_scheme,
         )
         .await?;
 
@@ -233,7 +238,8 @@ impl<F: Send + Clone> GetTracker<F, payments::PaymentData<F>, api::PaymentsCaptu
 }
 
 #[async_trait]
-impl<F: Clone> UpdateTracker<F, payments::PaymentData<F>, api::PaymentsCaptureRequest>
+impl<F: Clone, Ctx: PaymentMethodRetrieve>
+    UpdateTracker<F, payments::PaymentData<F>, api::PaymentsCaptureRequest, Ctx>
     for PaymentCapture
 {
     #[instrument(skip_all)]
@@ -248,7 +254,7 @@ impl<F: Clone> UpdateTracker<F, payments::PaymentData<F>, api::PaymentsCaptureRe
         _frm_suggestion: Option<FrmSuggestion>,
         _header_payload: api::HeaderPayload,
     ) -> RouterResult<(
-        BoxedOperation<'b, F, api::PaymentsCaptureRequest>,
+        BoxedOperation<'b, F, api::PaymentsCaptureRequest, Ctx>,
         payments::PaymentData<F>,
     )>
     where
@@ -271,26 +277,23 @@ impl<F: Clone> UpdateTracker<F, payments::PaymentData<F>, api::PaymentsCaptureRe
     }
 }
 
-impl<F: Send + Clone> ValidateRequest<F, api::PaymentsCaptureRequest> for PaymentCapture {
+impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
+    ValidateRequest<F, api::PaymentsCaptureRequest, Ctx> for PaymentCapture
+{
     #[instrument(skip_all)]
     fn validate_request<'a, 'b>(
         &'b self,
         request: &api::PaymentsCaptureRequest,
         merchant_account: &'a domain::MerchantAccount,
     ) -> RouterResult<(
-        BoxedOperation<'b, F, api::PaymentsCaptureRequest>,
+        BoxedOperation<'b, F, api::PaymentsCaptureRequest, Ctx>,
         operations::ValidateResult<'a>,
     )> {
-        let payment_id = request
-            .payment_id
-            .as_ref()
-            .get_required_value("payment_id")?;
-
         Ok((
             Box::new(self),
             operations::ValidateResult {
                 merchant_id: &merchant_account.merchant_id,
-                payment_id: api::PaymentIdType::PaymentIntentId(payment_id.to_owned()),
+                payment_id: api::PaymentIdType::PaymentIntentId(request.payment_id.to_owned()),
                 mandate_type: None,
                 storage_scheme: merchant_account.storage_scheme,
                 requeue: false,

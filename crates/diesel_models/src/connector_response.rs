@@ -24,7 +24,6 @@ pub struct ConnectorResponseNew {
 #[derive(Clone, Debug, Deserialize, Serialize, Identifiable, Queryable)]
 #[diesel(table_name = connector_response)]
 pub struct ConnectorResponse {
-    #[serde(skip_serializing)]
     pub id: i32,
     pub payment_id: String,
     pub merchant_id: String,
@@ -49,7 +48,7 @@ pub struct ConnectorResponseUpdateInternal {
     pub connector_name: Option<String>,
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub enum ConnectorResponseUpdate {
     ResponseUpdate {
         connector_transaction_id: Option<String>,

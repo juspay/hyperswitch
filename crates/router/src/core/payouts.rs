@@ -565,6 +565,7 @@ pub async fn create_recipient(
         merchant_account,
         payout_data.payout_attempt.profile_id.as_ref(),
         &*state.store,
+        false,
     )
     .await?;
 
@@ -1158,13 +1159,15 @@ pub async fn payout_create_db_entries(
         .customer_id;
 
     // Get or create address
-    let billing_address = payment_helpers::get_address_for_payment_request(
+    let billing_address = payment_helpers::create_or_find_address_for_payment_by_request(
         db,
         req.billing.as_ref(),
         None,
         merchant_id,
         Some(&customer_id.to_owned()),
         key_store,
+        payout_id,
+        merchant_account.storage_scheme,
     )
     .await?;
     let address_id = billing_address
@@ -1202,10 +1205,7 @@ pub async fn payout_create_db_entries(
         .set_recurring(req.recurring.unwrap_or(false))
         .set_auto_fulfill(req.auto_fulfill.unwrap_or(false))
         .set_return_url(req.return_url.to_owned())
-        .set_entity_type(
-            req.entity_type
-                .unwrap_or(api_enums::PayoutEntityType::default()),
-        )
+        .set_entity_type(req.entity_type.unwrap_or_default())
         .set_metadata(req.metadata.to_owned())
         .set_created_at(Some(common_utils::date_time::now()))
         .set_last_modified_at(Some(common_utils::date_time::now()))
@@ -1293,13 +1293,15 @@ pub async fn make_payout_data(
         .await
         .to_not_found_response(errors::ApiErrorResponse::PayoutNotFound)?;
 
-    let billing_address = payment_helpers::get_address_for_payment_request(
+    let billing_address = payment_helpers::create_or_find_address_for_payment_by_request(
         db,
         None,
         Some(&payouts.address_id.to_owned()),
         merchant_id,
         Some(&payouts.customer_id.to_owned()),
         key_store,
+        &payouts.payout_id,
+        merchant_account.storage_scheme,
     )
     .await?;
 

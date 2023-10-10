@@ -3,7 +3,7 @@ use router_env::Flow;
 
 use super::app::AppState;
 use crate::{
-    core::payment_link::{self},
+    core::{api_locking, payment_link::*},
     services::{api, authentication as auth},
 };
 
@@ -24,8 +24,9 @@ pub async fn get_payment_link(
         state,
         &req,
         payload.clone(),
-        |state, _auth, _| payment_link::retrieve_payment_link(state, path.clone()),
+        |state, _auth, _| retrieve_payment_link(state, path.clone()),
         &*auth_type,
+        api_locking::LockAction::NotApplicable,
     )
     .await
 }
@@ -47,7 +48,7 @@ pub async fn initiate_payment_link(
         &req,
         payload.clone(),
         |state, auth, _| {
-            payment_link::intiate_payment_link_flow(
+            intiate_payment_link_flow(
                 state,
                 auth.merchant_account,
                 payload.merchant_id.clone(),
@@ -55,6 +56,7 @@ pub async fn initiate_payment_link(
             )
         },
         &crate::services::authentication::MerchantIdAuth(merchant_id),
+        api_locking::LockAction::NotApplicable,
     )
     .await
 }

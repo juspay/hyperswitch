@@ -5,7 +5,7 @@ diesel::table! {
     use crate::enums::diesel_exports::*;
 
     address (address_id) {
-        id -> Int4,
+        id -> Nullable<Int4>,
         #[max_length = 64]
         address_id -> Varchar,
         #[max_length = 128]
@@ -27,6 +27,8 @@ diesel::table! {
         customer_id -> Varchar,
         #[max_length = 64]
         merchant_id -> Varchar,
+        #[max_length = 64]
+        payment_id -> Nullable<Varchar>,
     }
 }
 
@@ -197,6 +199,8 @@ diesel::table! {
         metadata -> Nullable<Json>,
         connector_customer -> Nullable<Jsonb>,
         modified_at -> Timestamp,
+        #[max_length = 64]
+        address_id -> Nullable<Varchar>,
     }
 }
 
@@ -394,6 +398,8 @@ diesel::table! {
         end_date -> Nullable<Timestamp>,
         metadata -> Nullable<Jsonb>,
         connector_mandate_ids -> Nullable<Jsonb>,
+        #[max_length = 64]
+        original_payment_id -> Nullable<Varchar>,
     }
 }
 
@@ -431,7 +437,7 @@ diesel::table! {
         frm_routing_algorithm -> Nullable<Jsonb>,
         payout_routing_algorithm -> Nullable<Jsonb>,
         #[max_length = 32]
-        organization_id -> Nullable<Varchar>,
+        organization_id -> Varchar,
         is_recon_enabled -> Bool,
         #[max_length = 64]
         default_profile -> Nullable<Varchar>,
@@ -472,6 +478,7 @@ diesel::table! {
         #[max_length = 64]
         profile_id -> Nullable<Varchar>,
         applepay_verified_domains -> Nullable<Array<Nullable<Text>>>,
+        pm_auth_config -> Nullable<Jsonb>,
     }
 }
 
@@ -547,6 +554,7 @@ diesel::table! {
         #[max_length = 128]
         connector_response_reference_id -> Nullable<Varchar>,
         amount_capturable -> Int8,
+        surcharge_metadata -> Nullable<Jsonb>,
     }
 }
 

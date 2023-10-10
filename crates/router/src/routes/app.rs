@@ -55,6 +55,7 @@ pub trait AppStateInfo {
     fn add_request_id(&mut self, request_id: Option<String>);
     fn add_merchant_id(&mut self, merchant_id: Option<String>);
     fn add_flow_name(&mut self, flow_name: String);
+    fn get_request_id(&self) -> Option<String>;
 }
 
 impl AppStateInfo for AppState {
@@ -75,7 +76,10 @@ impl AppStateInfo for AppState {
         self.api_client.add_merchant_id(merchant_id);
     }
     fn add_flow_name(&mut self, flow_name: String) {
-        self.flow_name = flow_name;
+        self.api_client.add_flow_name(flow_name);
+    }
+    fn get_request_id(&self) -> Option<String> {
+        self.api_client.get_request_id()
     }
 }
 
@@ -616,7 +620,7 @@ impl Verify {
         web::scope("/verify")
             .app_data(web::Data::new(state))
             .service(
-                web::resource("/{merchant_id}/apple_pay")
+                web::resource("/apple_pay/{merchant_id}")
                     .route(web::post().to(apple_pay_merchant_registration)),
             )
             .service(

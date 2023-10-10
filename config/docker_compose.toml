@@ -105,6 +105,7 @@ multisafepay.base_url = "https://testapi.multisafepay.com/"
 nexinets.base_url = "https://apitest.payengine.de/v1"
 nmi.base_url = "https://secure.nmi.com/"
 noon.base_url = "https://api-test.noonpayments.com/"
+noon.key_mode = "Test"
 nuvei.base_url = "https://ppp-test.nuvei.com/"
 opayo.base_url = "https://pi-test.sagepay.com/"
 opennode.base_url = "https://dev-api.opennode.com"
@@ -131,7 +132,7 @@ zen.secondary_base_url = "https://secure.zen-test.com/"
 
 
 [pm_filters.default]
-apple_pay = { country = "AU,CN,HK,JP,MO,MY,NZ,SG,TW,AM,AT,AZ,BY,BE,BG,HR,CY,CZ,DK,EE,FO,FI,FR,GE,DE,GR,GL,GG,HU,IS,IE,IM,IT,KZ,JE,LV,LI,LT,LU,MT,MD,MC,ME,NL,NO,PL,PT,RO,SM,RS,SK,SI,ES,SE,CH,UA,GB,AR,CO,CR,BR,MX,PE,BH,IL,JO,KW,PS,QA,SA,AE,CA,UM,US", currency = "AED,AUD,CHF,CAD,EUR,GBP,HKD,SGD,USD" }
+apple_pay = { country = "AU,CN,HK,JP,MO,MY,NZ,SG,TW,AM,AT,AZ,BY,BE,BG,HR,CY,CZ,DK,EE,FO,FI,FR,GE,DE,GR,GL,GG,HU,IS,IE,IM,IT,KZ,JE,LV,LI,LT,LU,MT,MD,MC,ME,NL,NO,PL,PT,RO,SM,RS,SK,SI,ES,SE,CH,UA,GB,AR,CO,CR,BR,MX,PE,BH,IL,JO,KW,PS,QA,SA,AE,CA,UM,US,KR,VN,MA,ZA,VA,CL,SV,GT,HN,PA", currency = "AED,AUD,CHF,CAD,EUR,GBP,HKD,SGD,USD" }
 
 [connectors.supported]
 wallets = ["klarna", "braintree", "applepay"]
@@ -187,6 +188,8 @@ cards = [
 [delayed_session_response]
 connectors_with_delayed_session_response = "trustpay,payme"
 
+[webhook_source_verification_call]
+connectors_with_webhook_source_verification_call = "paypal"
 
 [scheduler]
 stream = "SCHEDULER_STREAM"
@@ -203,6 +206,7 @@ mollie = {long_lived_token = false, payment_method = "card"}
 stax = { long_lived_token = true, payment_method = "card,bank_debit" }
 square = {long_lived_token = false, payment_method = "card"}
 braintree = { long_lived_token = false, payment_method = "card" }
+gocardless = {long_lived_token = true, payment_method = "bank_debit"}
 
 [temp_locker_disable_config]
 trustpay = {payment_method = "card,bank_redirect,wallet"}
@@ -292,10 +296,15 @@ wallet.apple_pay = {connector_list = "stripe,adyen"}
 wallet.paypal = {connector_list = "adyen"}
 card.credit = {connector_list = "stripe,adyen,authorizedotnet,globalpay,worldpay,multisafepay,nmi,nexinets,noon"}
 card.debit = {connector_list = "stripe,adyen,authorizedotnet,globalpay,worldpay,multisafepay,nmi,nexinets,noon"}
+bank_debit.ach = { connector_list = "gocardless"}
 
 [connector_customer]
-connector_list = "stax,stripe"
+connector_list = "gocardless,stax,stripe"
 payout_connector_list = "wise"
 
 [multiple_api_version_supported_connectors]
 supported_connectors = "braintree"
+
+[lock_settings]
+redis_lock_expiry_seconds = 180 # 3 * 60 seconds
+delay_between_retries_in_milliseconds = 500

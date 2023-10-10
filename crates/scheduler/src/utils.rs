@@ -298,6 +298,7 @@ pub fn get_schedule_time(
         None => mapping.default_mapping,
     };
 
+    // For first try, get the `start_after` time
     if retry_count == 0 {
         Some(mapping.start_after)
     } else {
@@ -328,6 +329,7 @@ pub fn get_pm_schedule_time(
     }
 }
 
+/// Get the delay based on the retry count
 fn get_delay<'a>(
     retry_count: i32,
     mut array: impl Iterator<Item = (&'a i32, &'a i32)>,
@@ -376,11 +378,4 @@ where
     } else {
         Ok(())
     }
-}
-
-#[cfg(target_os = "windows")]
-pub(crate) async fn signal_handler(
-    _sig: common_utils::signals::DummySignal,
-    _sender: oneshot::Sender<()>,
-) {
 }
