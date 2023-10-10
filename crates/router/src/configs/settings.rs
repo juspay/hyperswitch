@@ -543,6 +543,7 @@ pub struct Connectors {
     pub worldline: ConnectorParams,
     pub worldpay: ConnectorParams,
     pub zen: ConnectorParams,
+    pub riskified: ConnectorParams,
 }
 
 #[derive(Debug, Deserialize, Clone, Default, router_derive::ConfigValidate)]
