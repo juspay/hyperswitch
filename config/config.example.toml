@@ -350,6 +350,8 @@ card.credit = {connector_list = "stripe,adyen"}     # Mandate supported payment 
 wallet.paypal = {connector_list = "adyen"}          # Mandate supported payment method type and connector for wallets
 pay_later.klarna = {connector_list = "adyen"}       # Mandate supported payment method type and connector for pay_later
 bank_debit.ach = { connector_list = "gocardless"}   # Mandate supported payment method type and connector for bank_debit
+bank_debit.becs = { connector_list = "gocardless"}   # Mandate supported payment method type and connector for bank_debit
+bank_debit.sepa = { connector_list = "gocardless"}   # Mandate supported payment method type and connector for bank_debit
 
 # Required fields info used while listing the payment_method_data
 [required_fields.pay_later] # payment_method = "pay_later"

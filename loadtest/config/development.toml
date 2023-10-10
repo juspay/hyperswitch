@@ -228,3 +228,5 @@ wallet.paypal = {connector_list = "adyen"}
 card.credit = {connector_list = "stripe,adyen,authorizedotnet,globalpay,worldpay,multisafepay,nmi,nexinets,noon"}
 card.debit = {connector_list = "stripe,adyen,authorizedotnet,globalpay,worldpay,multisafepay,nmi,nexinets,noon"}
 bank_debit.ach = { connector_list = "gocardless"}
+bank_debit.becs = { connector_list = "gocardless"}
+bank_debit.sepa = { connector_list = "gocardless"}
