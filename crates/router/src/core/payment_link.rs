@@ -1,5 +1,4 @@
 use super::errors::{self, StorageErrorExt};
-#[cfg(feature = "olap")]
 use crate::{
     core::payments::helpers,
     errors::RouterResponse,

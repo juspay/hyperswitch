@@ -2932,6 +2932,7 @@ pub struct RetrievePaymentLinkResponse {
     pub merchant_id: String,
     pub link_to_pay: String,
     pub amount: i64,
+    #[schema(value_type = Option<Currency>, example = "USD")]
     pub currency: Option<api_enums::Currency>,
     #[serde(with = "common_utils::custom_serde::iso8601")]
     pub created_at: PrimitiveDateTime,

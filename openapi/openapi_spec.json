@@ -10711,7 +10711,7 @@
           "currency": {
             "allOf": [
               {
-                "$ref": "#/components/schemas/api_enums.Currency"
+                "$ref": "#/components/schemas/Currency"
               }
             ],
             "nullable": true
