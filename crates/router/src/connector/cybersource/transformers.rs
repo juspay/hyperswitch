@@ -21,7 +21,7 @@ pub struct CybersourcePaymentsRequest {
     processing_information: ProcessingInformation,
     payment_information: PaymentInformation,
     order_information: OrderInformationWithBill,
-    reference: String,
+    client_reference_information: ClientReferenceInformation,
 }
 
 #[derive(Default, Debug, Serialize, Eq, PartialEq)]
@@ -151,11 +151,15 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for CybersourcePaymentsRequest
                     capture_options: None,
                 };
 
+                let client_reference_information = ClientReferenceInformation {
+                    code: Some(item.connector_request_reference_id.clone()),
+                };
+
                 Ok(Self {
                     processing_information,
                     payment_information,
                     order_information,
-                    reference: item.connector_request_reference_id.clone(),
+                    client_reference_information,
                 })
             }
             _ => Err(errors::ConnectorError::NotImplemented("Payment methods".to_string()).into()),
@@ -181,7 +185,9 @@ impl TryFrom<&types::PaymentsCaptureRouterData> for CybersourcePaymentsRequest {
                 },
                 ..Default::default()
             },
-            reference: value.connector_request_reference_id.clone(),
+            client_reference_information: ClientReferenceInformation {
+                code: Some(value.connector_request_reference_id.clone()),
+            },
             ..Default::default()
         })
     }
@@ -198,7 +204,9 @@ impl TryFrom<&types::RefundExecuteRouterData> for CybersourcePaymentsRequest {
                 },
                 ..Default::default()
             },
-            reference: value.connector_request_reference_id.clone(),
+            client_reference_information: ClientReferenceInformation {
+                code: Some(value.connector_request_reference_id.clone()),
+            },
             ..Default::default()
         })
     }
@@ -282,7 +290,7 @@ pub struct CybersourcePaymentsResponse {
     client_reference_information: Option<ClientReferenceInformation>,
 }
 
-#[derive(Default, Debug, Clone, Deserialize, Eq, PartialEq)]
+#[derive(Default, Debug, Clone, Serialize, Deserialize, Eq, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct ClientReferenceInformation {
     code: Option<String>,
