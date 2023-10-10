@@ -16,6 +16,8 @@ host = "db"
 port = 5432
 dbname = "loadtest_router"
 pool_size = 20
+min_idle = 5
+idle_timeout = 10
 connection_timeout = 10
 
 [server]

@@ -60,6 +60,8 @@ impl KmsDecrypt for settings::Database {
             username: self.username,
             password: self.password.decrypt_inner(kms_client).await?.into(),
             pool_size: self.pool_size,
+            min_idle: self.min_idle,
+            idle_timeout: self.idle_timeout,
             connection_timeout: self.connection_timeout,
         })
     }

@@ -1,6 +1,7 @@
 use bb8::PooledConnection;
 use diesel::PgConnection;
 use error_stack::{IntoReport, ResultExt};
+use router_env::{instrument, tracing};
 use storage_impl::errors as storage_errors;
 
 use crate::errors;
@@ -14,6 +15,7 @@ pub type PgPooledConn = async_bb8_diesel::Connection<PgConnection>;
 ///
 /// Panics if failed to create a redis pool
 #[allow(clippy::expect_used)]
+#[instrument(skip(conf))]
 pub async fn redis_connection(
     conf: &crate::configs::settings::Settings,
 ) -> redis_interface::RedisConnectionPool {
@@ -22,6 +24,7 @@ pub async fn redis_connection(
         .expect("Failed to create Redis Connection Pool")
 }
 
+#[instrument(skip(store))]
 pub async fn pg_connection_read<T: storage_impl::DatabaseStore>(
     store: &T,
 ) -> errors::CustomResult<
@@ -49,6 +52,7 @@ pub async fn pg_connection_read<T: storage_impl::DatabaseStore>(
         .change_context(storage_errors::StorageError::DatabaseConnectionError)
 }
 
+#[instrument(skip(store))]
 pub async fn pg_connection_write<T: storage_impl::DatabaseStore>(
     store: &T,
 ) -> errors::CustomResult<

@@ -27,6 +27,8 @@ host = "pg"
 port = 5432
 dbname = "hyperswitch_db"
 pool_size = 5
+idle_timeout = 60           # Timeout for idle database connection in seconds
+min_idle = 5                # Minimum number of idle connections to keep open
 
 [replica_database]
 username = "db_user"
@@ -35,6 +37,8 @@ host = "pg"
 port = 5432
 dbname = "hyperswitch_db"
 pool_size = 5
+idle_timeout = 60           # Timeout for idle database connection in seconds
+min_idle = 5                # Minimum number of idle connections to keep open
 
 [secrets]
 admin_api_key = "test_admin"
