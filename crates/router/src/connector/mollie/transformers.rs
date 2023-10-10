@@ -143,6 +143,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for MolliePaymentsRequest {
                                     Err(errors::ConnectorError::InvalidWalletToken)?
                                 }
                             })),
+                            mandate_id: Some(item.connector_request_reference_id.clone()),
                         },
                     )))
                 }
@@ -181,7 +182,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for MolliePaymentsRequest {
             payment_method_data,
             metadata: None,
             sequence_type: SequenceType::Oneoff,
-            mandate_id: None,
+            mandate_id:  Some(item.connector_request_reference_id.clone()),
         })
     }
 }
@@ -382,6 +383,7 @@ pub struct MolliePaymentsResponse {
     pub webhook_url: Option<String>,
     #[serde(rename = "_links")]
     pub links: Links,
+    pub mandate_id: Option<String>,
 }
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
