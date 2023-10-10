@@ -51,9 +51,11 @@ impl<const PRECISION: u8> Percentage<PRECISION> {
     fn is_valid_precision_length(value: &str) -> bool {
         if value.contains('.') {
             // if string has '.' then take the decimal part and verify precision length
-            value.split('.').last().is_some_and(|deciaml_part| {
-                deciaml_part.trim_end_matches('0').len() <= PRECISION.into()
-            })
+            match value.split('.').last() {
+                Some(decimal_part) => decimal_part.trim_end_matches('0').len() <= PRECISION.into(),
+                // will never be None
+                None => false,
+            }
         } else {
             // if there is no '.' then it is a whole number with no decimal part. So return true
             true
