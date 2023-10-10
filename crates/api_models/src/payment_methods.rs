@@ -250,11 +250,27 @@ pub struct PaymentExperienceTypes {
     pub eligible_connectors: Vec<String>,
 }
 
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema, PartialEq, Eq)]
+#[derive(Debug, Clone, serde::Serialize, ToSchema, PartialEq)]
 pub struct CardNetworkTypes {
     /// The card network enabled
     #[schema(value_type = Option<CardNetwork>, example = "Visa")]
     pub card_network: api_enums::CardNetwork,
+
+    /// surcharge details for this card network
+    #[schema(example = r#"
+        {
+            "surcharge": {
+                "type": "rate",
+                "value": {
+                    "percentage": "2.5"
+                }
+            },
+            "tax_on_surcharge": {
+                "percentage": 1.5
+            }
+        }
+    "#)]
+    pub surcharge_details: Option<SurchargeDetails>,
 
     /// The list of eligible connectors for a given card network
     #[schema(example = json!(["stripe", "adyen"]))]
@@ -295,7 +311,7 @@ pub struct ResponsePaymentMethodTypes {
             "surcharge": {
                 "type": "rate",
                 "value": {
-                    "percentage": 2.5
+                    "percentage": "2.5"
                 }
             },
             "tax_on_surcharge": {
@@ -309,9 +325,9 @@ pub struct ResponsePaymentMethodTypes {
 #[serde(rename_all = "snake_case")]
 pub struct SurchargeDetails {
     /// surcharge value
-    surcharge: Surcharge,
+    pub surcharge: Surcharge,
     /// tax on surcharge value
-    tax_on_surcharge: Option<Percentage<SURCHARGE_PERCENTAGE_PRECISION_LENGTH>>,
+    pub tax_on_surcharge: Option<Percentage<SURCHARGE_PERCENTAGE_PRECISION_LENGTH>>,
 }
 
 #[derive(Clone, Debug, PartialEq, serde::Serialize, ToSchema)]

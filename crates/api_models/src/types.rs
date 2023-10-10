@@ -8,7 +8,7 @@ pub struct Percentage<const PRECISION: u8> {
     // this value will range from 0 to 100, decimal length defined by precision macro
     /// Percentage value ranging between 0 and 100
     #[schema(example = 2.5)]
-    percentage: f32,
+    pub percentage: f32,
 }
 
 fn get_invalid_percentage_error_message(precision: u8) -> String {
