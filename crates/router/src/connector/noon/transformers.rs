@@ -326,6 +326,8 @@ pub enum NoonPaymentStatus {
     Failed,
     #[default]
     Pending,
+    Expired,
+    Rejected,
 }
 
 impl From<NoonPaymentStatus> for enums::AttemptStatus {
@@ -334,11 +336,11 @@ impl From<NoonPaymentStatus> for enums::AttemptStatus {
             NoonPaymentStatus::Authorized => Self::Authorized,
             NoonPaymentStatus::Captured | NoonPaymentStatus::PartiallyCaptured => Self::Charged,
             NoonPaymentStatus::Reversed => Self::Voided,
-            NoonPaymentStatus::Cancelled => Self::AuthenticationFailed,
+            NoonPaymentStatus::Cancelled | NoonPaymentStatus::Expired => Self::AuthenticationFailed,
             NoonPaymentStatus::ThreeDsEnrollInitiated | NoonPaymentStatus::ThreeDsEnrollChecked => {
                 Self::AuthenticationPending
             }
-            NoonPaymentStatus::Failed => Self::Failure,
+            NoonPaymentStatus::Failed | NoonPaymentStatus::Rejected => Self::Failure,
             NoonPaymentStatus::Pending => Self::Pending,
         }
     }
