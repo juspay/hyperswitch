@@ -266,7 +266,7 @@ pub struct CardNetworkTypes {
                 }
             },
             "tax_on_surcharge": {
-                "percentage": 1.5
+                "percentage": "1.5"
             }
         }
     "#)]
@@ -315,13 +315,13 @@ pub struct ResponsePaymentMethodTypes {
                 }
             },
             "tax_on_surcharge": {
-                "percentage": 1.5
+                "percentage": "1.5"
             }
         }
     "#)]
     pub surcharge_details: Option<SurchargeDetailsResponse>,
 }
-#[derive(Clone, Debug, PartialEq, serde::Serialize, ToSchema)]
+#[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
 #[serde(rename_all = "snake_case")]
 pub struct SurchargeDetailsResponse {
     /// surcharge value
@@ -336,7 +336,7 @@ pub struct SurchargeDetailsResponse {
     pub final_amount: i64,
 }
 
-#[derive(Clone, Debug, PartialEq, serde::Serialize, ToSchema)]
+#[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
 #[serde(rename_all = "snake_case", tag = "type", content = "value")]
 pub enum Surcharge {
     /// Fixed Surcharge value
