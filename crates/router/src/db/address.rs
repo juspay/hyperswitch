@@ -304,17 +304,17 @@ mod storage {
             let address = match storage_scheme {
                 MerchantStorageScheme::PostgresOnly => database_call().await,
                 MerchantStorageScheme::RedisKv => {
-                    let key = format!("{}_{}", merchant_id, payment_id);
+                    let key = format!("mid_{}_pid_{}", merchant_id, payment_id);
                     let field = format!("add_{}", address_id);
                     db_utils::try_redis_get_else_try_database_get(
                         async {
                             kv_wrapper(
                                 self,
-                                KvOperation::<diesel_models::Address>::Get(&field),
+                                KvOperation::<diesel_models::Address>::HGet(&field),
                                 key,
                             )
                             .await?
-                            .try_into_get()
+                            .try_into_hget()
                         },
                         database_call,
                     )
@@ -378,7 +378,7 @@ mod storage {
                         .await
                 }
                 MerchantStorageScheme::RedisKv => {
-                    let key = format!("{}_{}", merchant_id, payment_id);
+                    let key = format!("mid_{}_pid_{}", merchant_id, payment_id);
                     let field = format!("add_{}", &address_new.address_id);
                     let created_address = diesel_models::Address {
                         id: Some(0i32),
@@ -403,12 +403,12 @@ mod storage {
 
                     match kv_wrapper::<diesel_models::Address, _, _>(
                         self,
-                        KvOperation::SetNx(&field, &created_address),
+                        KvOperation::HSetNx(&field, &created_address),
                         &key,
                     )
                     .await
                     .change_context(errors::StorageError::KVError)?
-                    .try_into_setnx()
+                    .try_into_hsetnx()
                     {
                         Ok(HsetnxReply::KeyNotSet) => Err(errors::StorageError::DuplicateValue {
                             entity: "address",
