@@ -309,9 +309,9 @@ pub struct ResponsePaymentMethodTypes {
 #[serde(rename_all = "snake_case")]
 pub struct SurchargeDetails {
     /// surcharge value
-    pub surcharge: Surcharge,
+    surcharge: Surcharge,
     /// tax on surcharge value
-    pub tax_on_surcharge: Option<Percentage<SURCHARGE_PERCENTAGE_PRECISION_LENGTH>>,
+    tax_on_surcharge: Option<Percentage<SURCHARGE_PERCENTAGE_PRECISION_LENGTH>>,
 }
 
 #[derive(Clone, Debug, PartialEq, serde::Serialize, ToSchema)]

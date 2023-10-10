@@ -511,7 +511,6 @@ pub struct PaymentsSessionData {
     pub amount: i64,
     pub currency: storage_enums::Currency,
     pub country: Option<api::enums::CountryAlpha2>,
-    pub surcharge_details: Option<api_models::payment_methods::SurchargeDetails>,
     pub order_details: Option<Vec<api_models::payments::OrderDetailsWithAmount>>,
 }
 
