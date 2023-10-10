@@ -18,6 +18,7 @@ pub mod mock_db;
 pub mod payments;
 pub mod redis;
 pub mod refund;
+mod reverse_lookup;
 mod utils;
 
 use database::store::PgPool;
