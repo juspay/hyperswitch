@@ -1511,7 +1511,7 @@ pub fn should_store_payment_method_data_in_vault(
                 .map(|config| config.payment_method.contains(&payment_method))
                 .unwrap_or(false)
         })
-        .unwrap_or(false)
+        .unwrap_or(true)
 }
 
 #[instrument(skip_all)]
