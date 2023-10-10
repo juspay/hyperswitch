@@ -315,7 +315,9 @@ impl<F, T>
                 mandate_reference: None,
                 connector_metadata: None,
                 network_txn_id: None,
-                connector_response_reference_id: None,
+                connector_response_reference_id: Some(
+                    gateway_resp.transaction_processing_details.order_id,
+                ),
             }),
             ..item.data
         })
@@ -350,7 +352,13 @@ impl<F, T> TryFrom<types::ResponseRouterData<F, FiservSyncResponse, T, types::Pa
                 mandate_reference: None,
                 connector_metadata: None,
                 network_txn_id: None,
-                connector_response_reference_id: None,
+                connector_response_reference_id: Some(
+                    gateway_resp
+                        .gateway_response
+                        .transaction_processing_details
+                        .order_id
+                        .clone(),
+                ),
             }),
             ..item.data
         })

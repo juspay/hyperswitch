@@ -29,6 +29,7 @@ impl Default for super::settings::Database {
             dbname: String::new(),
             pool_size: 5,
             connection_timeout: 10,
+            queue_strategy: Default::default(),
         }
     }
 }
