@@ -103,7 +103,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             .find_payment_attempt_by_payment_id_merchant_id_attempt_id(
                 payment_intent.payment_id.as_str(),
                 merchant_id,
-                &attempt_id.as_str(),
+                attempt_id.as_str(),
                 storage_scheme,
             )
             .map(|x| x.to_not_found_response(errors::ApiErrorResponse::PaymentNotFound));
@@ -162,7 +162,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
                         db,
                         &payment_intent.payment_id,
                         &payment_intent.merchant_id,
-                        &attempt_id.as_str(),
+                        attempt_id.as_str(),
                         storage_scheme,
                     );
 
