@@ -2,6 +2,7 @@
 use actix_web::http::header::HeaderMap;
 use api_models::{enums as api_enums, payments};
 use common_utils::{
+    consts::X_HS_LATENCY,
     crypto::Encryptable,
     ext_traits::{StringExt, ValueExt},
     pii,
@@ -453,7 +454,6 @@ impl ForeignTryFrom<api_models::webhooks::IncomingWebhookEvent> for storage_enum
 
 impl ForeignFrom<storage::Config> for api_types::Config {
     fn foreign_from(config: storage::Config) -> Self {
-        let config = config;
         Self {
             key: config.key,
             value: config.config,
@@ -472,7 +472,6 @@ impl<'a> ForeignFrom<&'a api_types::ConfigUpdate> for storage::ConfigUpdate {
 
 impl<'a> From<&'a domain::Address> for api_types::Address {
     fn from(address: &domain::Address) -> Self {
-        let address = address;
         Self {
             address: Some(api_types::AddressDetails {
                 city: address.city.clone(),
@@ -789,8 +788,14 @@ impl ForeignTryFrom<&HeaderMap> for api_models::payments::HeaderPayload {
                         )
                 })
                 .transpose()?;
+
+        let x_hs_latency = get_header_value_by_key(X_HS_LATENCY.into(), headers)
+            .map(|value| value == Some("true"))
+            .unwrap_or(false);
+
         Ok(Self {
             payment_confirm_source,
+            x_hs_latency: Some(x_hs_latency),
         })
     }
 }
