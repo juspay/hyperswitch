@@ -379,6 +379,7 @@ pub struct PaymentsAuthorizeData {
     pub related_transaction_id: Option<String>,
     pub payment_experience: Option<storage_enums::PaymentExperience>,
     pub payment_method_type: Option<storage_enums::PaymentMethodType>,
+    pub surcharge_details: Option<api_models::payment_methods::SurchargeDetailsResponse>,
     pub customer_id: Option<String>,
 }
 
@@ -1073,6 +1074,7 @@ impl From<&SetupMandateRouterData> for PaymentsAuthorizeData {
             payment_experience: None,
             payment_method_type: None,
             customer_id: None,
+            surcharge_details: None,
         }
     }
 }

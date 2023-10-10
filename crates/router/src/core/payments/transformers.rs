@@ -1005,6 +1005,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
             webhook_url,
             complete_authorize_url,
             customer_id: None,
+            surcharge_details: None,
         })
     }
 }
