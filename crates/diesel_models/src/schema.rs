@@ -633,7 +633,7 @@ diesel::table! {
         currency -> Nullable<Currency>,
         created_at -> Timestamp,
         last_modified_at -> Timestamp,
-        fullfilment_time -> Nullable<Timestamp>,
+        fulfilment_time -> Nullable<Timestamp>,
     }
 }
 

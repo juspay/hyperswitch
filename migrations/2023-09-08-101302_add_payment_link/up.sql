@@ -8,6 +8,6 @@ CREATE TABLE payment_link (
     currency "Currency",
     created_at TIMESTAMP NOT NULL,
     last_modified_at TIMESTAMP NOT NULL,
-    fullfilment_time TIMESTAMP,
+    fulfilment_time TIMESTAMP,
     PRIMARY KEY (payment_link_id)
 );

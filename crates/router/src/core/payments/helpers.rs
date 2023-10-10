@@ -2191,7 +2191,7 @@ pub async fn get_merchant_fullfillment_time(
 
         let curr_time = common_utils::date_time::now();
         Ok(payment_link_db
-            .fullfilment_time
+            .fulfilment_time
             .map(|merchant_expiry_time| (merchant_expiry_time - curr_time).whole_seconds()))
     } else {
         Ok(intent_fulfillment_time)

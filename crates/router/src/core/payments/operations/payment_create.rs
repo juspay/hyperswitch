@@ -800,7 +800,7 @@ async fn create_payment_link(
         currency: request.currency,
         created_at,
         last_modified_at,
-        fullfilment_time: payment_link_object.link_expiry,
+        fulfilment_time: payment_link_object.link_expiry,
     };
     let payment_link_db = db
         .insert_payment_link(payment_link_req)

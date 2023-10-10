@@ -835,7 +835,7 @@ impl ForeignFrom<storage::PaymentLink> for api_models::payments::RetrievePayment
             currency: payment_link_object.currency,
             created_at: payment_link_object.created_at,
             last_modified_at: payment_link_object.last_modified_at,
-            link_expiry: payment_link_object.fullfilment_time,
+            link_expiry: payment_link_object.fulfilment_time,
         }
     }
 }
