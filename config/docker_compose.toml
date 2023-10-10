@@ -211,6 +211,8 @@ gocardless = {long_lived_token = true, payment_method = "bank_debit"}
 [temp_locker_enable_config]
 stripe = {payment_method = "bank_transfer"}
 nuvei = {payment_method = "card"}
+shift4 = {payment_method = "card"}
+bluesnap = {payment_method = "card"}
 
 [dummy_connector]
 enabled = true
