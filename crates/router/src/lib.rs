@@ -66,6 +66,7 @@ pub mod headers {
     pub const X_WEBHOOK_SIGNATURE: &str = "X-Webhook-Signature-512";
     pub const X_REQUEST_ID: &str = "X-Request-Id";
     pub const STRIPE_COMPATIBLE_WEBHOOK_SIGNATURE: &str = "Stripe-Signature";
+    pub const CONTENT_LENGTH: &str = "Content-Length";
 }
 
 pub mod pii {
