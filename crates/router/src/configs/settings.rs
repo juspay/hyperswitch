@@ -466,7 +466,7 @@ pub struct Database {
     pub connection_timeout: u64,
     pub min_idle: Option<u32>,
     pub idle_timeout: Option<u64>,
-    }
+}
 
 #[cfg(not(feature = "kms"))]
 impl Into<storage_impl::config::Database> for Database {
@@ -478,7 +478,7 @@ impl Into<storage_impl::config::Database> for Database {
             port: self.port,
             dbname: self.dbname,
             pool_size: self.pool_size,
-            min_idle : self.min_idle,
+            min_idle: self.min_idle,
             idle_timeout: self.idle_timeout,
             connection_timeout: self.connection_timeout,
         }

@@ -1,8 +1,8 @@
 use bb8::PooledConnection;
 use diesel::PgConnection;
 use error_stack::{IntoReport, ResultExt};
-use storage_impl::errors as storage_errors;
 use router_env::{instrument, tracing};
+use storage_impl::errors as storage_errors;
 
 use crate::errors;
 
@@ -23,7 +23,6 @@ pub async fn redis_connection(
         .await
         .expect("Failed to create Redis Connection Pool")
 }
-
 
 #[instrument(skip(store))]
 pub async fn pg_connection_read<T: storage_impl::DatabaseStore>(
