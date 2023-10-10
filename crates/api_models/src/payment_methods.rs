@@ -270,7 +270,7 @@ pub struct CardNetworkTypes {
             }
         }
     "#)]
-    pub surcharge_details: Option<SurchargeDetails>,
+    pub surcharge_details: Option<SurchargeDetailsResponse>,
 
     /// The list of eligible connectors for a given card network
     #[schema(example = json!(["stripe", "adyen"]))]
@@ -319,15 +319,21 @@ pub struct ResponsePaymentMethodTypes {
             }
         }
     "#)]
-    pub surcharge_details: Option<SurchargeDetails>,
+    pub surcharge_details: Option<SurchargeDetailsResponse>,
 }
 #[derive(Clone, Debug, PartialEq, serde::Serialize, ToSchema)]
 #[serde(rename_all = "snake_case")]
-pub struct SurchargeDetails {
+pub struct SurchargeDetailsResponse {
     /// surcharge value
     pub surcharge: Surcharge,
     /// tax on surcharge value
     pub tax_on_surcharge: Option<Percentage<SURCHARGE_PERCENTAGE_PRECISION_LENGTH>>,
+    /// surcharge amount for this payment
+    pub surcharge_amount: i64,
+    /// tax on surcharge amount for this payment
+    pub tax_on_surcharge_amount: i64,
+    /// sum of original amount,
+    pub final_amount: i64,
 }
 
 #[derive(Clone, Debug, PartialEq, serde::Serialize, ToSchema)]
