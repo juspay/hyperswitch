@@ -15,7 +15,7 @@ use scheduler::errors as sch_errors;
 use storage_impl::errors as storage_impl_errors;
 
 pub use self::{
-    api_error_response::ApiErrorResponse,
+    api_error_response::{ApiErrorResponse, NotImplementedMessage},
     customers_error_response::CustomersErrorResponse,
     sch_errors::*,
     storage_errors::*,
@@ -139,6 +139,8 @@ pub enum ConnectorError {
     WebhookSourceVerificationFailed,
     #[error("Could not find merchant secret in DB for incoming webhook source verification")]
     WebhookVerificationSecretNotFound,
+    #[error("Merchant secret found for incoming webhook source verification is invalid")]
+    WebhookVerificationSecretInvalid,
     #[error("Incoming webhook object reference ID not found")]
     WebhookReferenceIdNotFound,
     #[error("Incoming webhook event type not found")]

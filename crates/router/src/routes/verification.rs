@@ -4,7 +4,7 @@ use router_env::{instrument, tracing, Flow};
 
 use super::app::AppState;
 use crate::{
-    core::verification,
+    core::{api_locking, verification},
     services::{api, authentication as auth},
 };
 
@@ -33,6 +33,7 @@ pub async fn apple_pay_merchant_registration(
             )
         },
         auth::auth_type(&auth::ApiKeyAuth, &auth::JWTAuth, req.headers()),
+        api_locking::LockAction::NotApplicable,
     )
     .await
 }
@@ -60,6 +61,7 @@ pub async fn retrieve_apple_pay_verified_domains(
             )
         },
         auth::auth_type(&auth::ApiKeyAuth, &auth::JWTAuth, req.headers()),
+        api_locking::LockAction::NotApplicable,
     )
     .await
 }

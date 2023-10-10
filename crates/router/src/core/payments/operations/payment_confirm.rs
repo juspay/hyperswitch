@@ -12,6 +12,7 @@ use super::{BoxedOperation, Domain, GetTracker, Operation, UpdateTracker, Valida
 use crate::{
     core::{
         errors::{self, CustomResult, RouterResult, StorageErrorExt},
+        payment_methods::PaymentMethodRetrieve,
         payments::{self, helpers, operations, CustomerDetails, PaymentAddress, PaymentData},
     },
     db::StorageInterface,
@@ -30,7 +31,9 @@ use crate::{
 #[operation(ops = "all", flow = "authorize")]
 pub struct PaymentConfirm;
 #[async_trait]
-impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for PaymentConfirm {
+impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
+    GetTracker<F, PaymentData<F>, api::PaymentsRequest, Ctx> for PaymentConfirm
+{
     #[instrument(skip_all)]
     async fn get_trackers<'a>(
         &'a self,
@@ -42,7 +45,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
         key_store: &domain::MerchantKeyStore,
         auth_flow: services::AuthFlow,
     ) -> RouterResult<(
-        BoxedOperation<'a, F, api::PaymentsRequest>,
+        BoxedOperation<'a, F, api::PaymentsRequest, Ctx>,
         PaymentData<F>,
         Option<CustomerDetails>,
     )> {
@@ -104,7 +107,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
             )
             .map(|x| x.to_not_found_response(errors::ApiErrorResponse::PaymentNotFound));
 
-        let shipping_address_fut = helpers::get_address_for_payment_request(
+        let shipping_address_fut = helpers::create_or_find_address_for_payment_by_request(
             db,
             request.shipping.as_ref(),
             payment_intent.shipping_address_id.as_deref(),
@@ -114,9 +117,11 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
                 .as_ref()
                 .or(customer_details.customer_id.as_ref()),
             key_store,
+            &payment_intent.payment_id,
+            merchant_account.storage_scheme,
         );
 
-        let billing_address_fut = helpers::get_address_for_payment_request(
+        let billing_address_fut = helpers::create_or_find_address_for_payment_by_request(
             db,
             request.billing.as_ref(),
             payment_intent.billing_address_id.as_deref(),
@@ -126,6 +131,8 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
                 .as_ref()
                 .or(customer_details.customer_id.as_ref()),
             key_store,
+            &payment_intent.payment_id,
+            merchant_account.storage_scheme,
         );
 
         let config_update_fut = request
@@ -226,7 +233,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
             token,
             payment_method,
             payment_method_type,
-            setup_mandate,
+            mut setup_mandate,
             recurring_mandate_payment_data,
             mandate_connector,
         ) = mandate_details;
@@ -314,7 +321,10 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
             .or(payment_attempt.business_sub_label);
 
         // The operation merges mandate data from both request and payment_attempt
-        let setup_mandate = setup_mandate.map(Into::into);
+        setup_mandate = setup_mandate.map(|mut sm| {
+            sm.mandate_type = payment_attempt.mandate_details.clone().or(sm.mandate_type);
+            sm
+        });
 
         Ok((
             Box::new(self),
@@ -357,7 +367,9 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
 }
 
 #[async_trait]
-impl<F: Clone + Send> Domain<F, api::PaymentsRequest> for PaymentConfirm {
+impl<F: Clone + Send, Ctx: PaymentMethodRetrieve> Domain<F, api::PaymentsRequest, Ctx>
+    for PaymentConfirm
+{
     #[instrument(skip_all)]
     async fn get_or_create_customer_details<'a>(
         &'a self,
@@ -367,7 +379,7 @@ impl<F: Clone + Send> Domain<F, api::PaymentsRequest> for PaymentConfirm {
         key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<
         (
-            BoxedOperation<'a, F, api::PaymentsRequest>,
+            BoxedOperation<'a, F, api::PaymentsRequest, Ctx>,
             Option<domain::Customer>,
         ),
         errors::StorageError,
@@ -390,7 +402,7 @@ impl<F: Clone + Send> Domain<F, api::PaymentsRequest> for PaymentConfirm {
         payment_data: &mut PaymentData<F>,
         _storage_scheme: storage_enums::MerchantStorageScheme,
     ) -> RouterResult<(
-        BoxedOperation<'a, F, api::PaymentsRequest>,
+        BoxedOperation<'a, F, api::PaymentsRequest, Ctx>,
         Option<api::PaymentMethodData>,
     )> {
         let (op, payment_method_data) =
@@ -429,7 +441,9 @@ impl<F: Clone + Send> Domain<F, api::PaymentsRequest> for PaymentConfirm {
 }
 
 #[async_trait]
-impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for PaymentConfirm {
+impl<F: Clone, Ctx: PaymentMethodRetrieve>
+    UpdateTracker<F, PaymentData<F>, api::PaymentsRequest, Ctx> for PaymentConfirm
+{
     #[instrument(skip_all)]
     async fn update_trackers<'b>(
         &'b self,
@@ -441,7 +455,10 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
         key_store: &domain::MerchantKeyStore,
         frm_suggestion: Option<FrmSuggestion>,
         header_payload: api::HeaderPayload,
-    ) -> RouterResult<(BoxedOperation<'b, F, api::PaymentsRequest>, PaymentData<F>)>
+    ) -> RouterResult<(
+        BoxedOperation<'b, F, api::PaymentsRequest, Ctx>,
+        PaymentData<F>,
+    )>
     where
         F: 'b + Send,
     {
@@ -590,14 +607,16 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
     }
 }
 
-impl<F: Send + Clone> ValidateRequest<F, api::PaymentsRequest> for PaymentConfirm {
+impl<F: Send + Clone, Ctx: PaymentMethodRetrieve> ValidateRequest<F, api::PaymentsRequest, Ctx>
+    for PaymentConfirm
+{
     #[instrument(skip_all)]
     fn validate_request<'a, 'b>(
         &'b self,
         request: &api::PaymentsRequest,
         merchant_account: &'a domain::MerchantAccount,
     ) -> RouterResult<(
-        BoxedOperation<'b, F, api::PaymentsRequest>,
+        BoxedOperation<'b, F, api::PaymentsRequest, Ctx>,
         operations::ValidateResult<'a>,
     )> {
         helpers::validate_customer_details_in_request(request)?;

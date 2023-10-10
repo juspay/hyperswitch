@@ -26,6 +26,7 @@ dummy_connector = ["api_models/dummy_connector"]
 external_access_dc = ["dummy_connector"]
 detailed_errors = ["api_models/detailed_errors", "error-stack/serde"]
 payouts = []
+api_locking = []
 
 
 [dependencies]
@@ -86,11 +87,13 @@ utoipa-swagger-ui = { version = "3.1.3", features = ["actix-web"] }
 uuid = { version = "1.3.3", features = ["serde", "v4"] }
 openssl = "0.10.55"
 x509-parser = "0.15.0"
+sha-1 = { version = "0.9"}
+digest = "0.9"
 
 # First party crates
 api_models = { version = "0.1.0", path = "../api_models", features = ["errors"] }
 cards = { version = "0.1.0", path = "../cards" }
-common_utils = { version = "0.1.0", path = "../common_utils", features = ["signals", "async_ext"] }
+common_utils = { version = "0.1.0", path = "../common_utils", features = ["signals", "async_ext", "logs"] }
 external_services = { version = "0.1.0", path = "../external_services" }
 masking = { version = "0.1.0", path = "../masking" }
 redis_interface = { version = "0.1.0", path = "../redis_interface" }

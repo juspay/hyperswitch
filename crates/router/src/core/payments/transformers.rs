@@ -115,6 +115,11 @@ where
         None
     };
 
+    let apple_pay_flow = payments::decide_apple_pay_flow(
+        &payment_data.payment_attempt.payment_method_type,
+        &Some(merchant_connector_account.clone()),
+    );
+
     router_data = types::RouterData {
         flow: PhantomData,
         merchant_id: merchant_account.merchant_id.clone(),
@@ -157,6 +162,7 @@ where
         payment_method_balance: None,
         connector_api_version,
         connector_http_status_code: None,
+        apple_pay_flow,
     };
 
     Ok(router_data)
@@ -1154,7 +1160,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsSessionD
     }
 }
 
-impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::VerifyRequestData {
+impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::SetupMandateRequestData {
     type Error = error_stack::Report<errors::ApiErrorResponse>;
 
     fn try_from(additional_data: PaymentAdditionalData<'_, F>) -> Result<Self, Self::Error> {
@@ -1323,6 +1329,15 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsPreProce
             attempt,
             connector_name,
         ));
+        let browser_info: Option<types::BrowserInformation> = payment_data
+            .payment_attempt
+            .browser_info
+            .clone()
+            .map(|b| b.parse_value("BrowserInformation"))
+            .transpose()
+            .change_context(errors::ApiErrorResponse::InvalidDataValue {
+                field_name: "browser_info",
+            })?;
 
         Ok(Self {
             payment_method_data,
@@ -1336,6 +1351,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsPreProce
             router_return_url,
             webhook_url,
             complete_authorize_url,
+            browser_info,
         })
     }
 }

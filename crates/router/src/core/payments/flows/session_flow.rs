@@ -87,9 +87,28 @@ impl Feature<api::Session, types::PaymentsSessionData> for types::PaymentsSessio
 
 fn get_applepay_metadata(
     connector_metadata: Option<common_utils::pii::SecretSerdeValue>,
-) -> RouterResult<payment_types::ApplepaySessionTokenData> {
+) -> RouterResult<payment_types::ApplepaySessionTokenMetadata> {
     connector_metadata
-        .parse_value::<payment_types::ApplepaySessionTokenData>("ApplepaySessionTokenData")
+        .clone()
+        .parse_value::<api_models::payments::ApplepayCombinedSessionTokenData>(
+            "ApplepayCombinedSessionTokenData",
+        )
+        .map(|combined_metadata| {
+            api_models::payments::ApplepaySessionTokenMetadata::ApplePayCombined(
+                combined_metadata.apple_pay_combined,
+            )
+        })
+        .or_else(|_| {
+            connector_metadata
+                .parse_value::<api_models::payments::ApplepaySessionTokenData>(
+                    "ApplepaySessionTokenData",
+                )
+                .map(|old_metadata| {
+                    api_models::payments::ApplepaySessionTokenMetadata::ApplePay(
+                        old_metadata.apple_pay,
+                    )
+                })
+        })
         .change_context(errors::ApiErrorResponse::InvalidDataFormat {
             field_name: "connector_metadata".to_string(),
             expected_format: "applepay_metadata_format".to_string(),
@@ -154,7 +173,7 @@ async fn create_applepay_session_token(
             apple_pay_session_request,
             apple_pay_merchant_cert,
             apple_pay_merchant_cert_key,
-        ) = match apple_pay_metadata.data {
+        ) = match apple_pay_metadata {
             payment_types::ApplepaySessionTokenMetadata::ApplePayCombined(
                 apple_pay_combined_metadata,
             ) => match apple_pay_combined_metadata {

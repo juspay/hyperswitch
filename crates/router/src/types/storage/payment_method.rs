@@ -1,3 +1,4 @@
+use api_models::payment_methods;
 pub use diesel_models::payment_method::{
     PaymentMethod, PaymentMethodNew, PaymentMethodUpdate, PaymentMethodUpdateInternal,
     TokenizeCoreWorkflow,
@@ -11,23 +12,32 @@ pub enum PaymentTokenKind {
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-pub struct PaymentTokenData {
+pub struct CardTokenData {
     pub token: String,
-    pub kind: PaymentTokenKind,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct GenericTokenData {
+    pub token: String,
+}
+
+#[derive(Debug, serde::Serialize, serde::Deserialize)]
+pub enum PaymentTokenData {
+    // The variants 'Temporary' and 'Permanent' are added for backwards compatibility
+    // with any tokenized data present in Redis at the time of deployment of this change
+    Temporary(GenericTokenData),
+    TemporaryGeneric(GenericTokenData),
+    Permanent(CardTokenData),
+    PermanentCard(CardTokenData),
+    AuthBankDebit(payment_methods::BankAccountConnectorDetails),
 }
 
 impl PaymentTokenData {
-    pub fn temporary(token: String) -> Self {
-        Self {
-            token,
-            kind: PaymentTokenKind::Temporary,
-        }
+    pub fn permanent_card(token: String) -> Self {
+        Self::PermanentCard(CardTokenData { token })
     }
 
-    pub fn permanent(token: String) -> Self {
-        Self {
-            token,
-            kind: PaymentTokenKind::Permanent,
-        }
+    pub fn temporary_generic(token: String) -> Self {
+        Self::TemporaryGeneric(GenericTokenData { token })
     }
 }
