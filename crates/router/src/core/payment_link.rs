@@ -5,7 +5,10 @@ use crate::{
     routes::AppState,
     services,
     types::{domain, storage::enums as storage_enums, transformers::ForeignFrom},
+    utils::OptionExt,
 };
+use common_utils::ext_traits::AsyncExt;
+use error_stack::ResultExt;
 
 pub async fn retrieve_payment_link(
     state: AppState,
@@ -37,6 +40,20 @@ pub async fn intiate_payment_link_flow(
         )
         .await
         .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
+    let fulfillment_time = payment_intent
+        .payment_link_id
+        .as_ref()
+        .async_and_then(|pli| async move {
+            db.find_payment_link_by_payment_link_id(pli)
+                .await
+                .ok()?
+                .fulfilment_time
+                .ok_or(errors::ApiErrorResponse::PaymentNotFound)
+                .ok()
+        })
+        .await
+        .get_required_value("fulfillment_time")
+        .change_context(errors::ApiErrorResponse::PaymentNotFound)?;
 
     helpers::validate_payment_status_against_not_allowed_statuses(
         &payment_intent.status,
@@ -50,12 +67,15 @@ pub async fn intiate_payment_link_flow(
         "create payment link",
     )?;
 
+    let expiry = fulfillment_time.assume_utc().unix_timestamp();
+
     let js_script = get_js_script(
         payment_intent.amount.to_string(),
         payment_intent.currency.unwrap_or_default().to_string(),
         merchant_account.publishable_key.unwrap_or_default(),
         payment_intent.client_secret.unwrap_or_default(),
         payment_intent.payment_id,
+        expiry,
     );
 
     let payment_link_data = services::PaymentLinkFormData {
@@ -77,6 +97,7 @@ fn get_js_script(
     pub_key: String,
     secret: String,
     payment_id: String,
+    expiry: i64,
 ) -> String {
     format!(
         "window.__PAYMENT_DETAILS_STR = JSON.stringify({{
@@ -84,6 +105,7 @@ fn get_js_script(
         amount: '{amount}',
         currency: '{currency}',
         payment_id: '{payment_id}',
+        expiry: {expiry},
         // TODO: Remove hardcoded values
         merchant_logo: 'https://upload.wikimedia.org/wikipedia/commons/8/83/Steam_icon_logo.svg',
         return_url: 'http://localhost:5500/public/index.html',

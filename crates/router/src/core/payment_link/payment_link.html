@@ -4,7 +4,7 @@
     {{ hyperloader_sdk_link }}
     <style>
       :root {
-        --primary-color: #06a19e73;
+        --primary-color: #ffad05;
         --primary-accent-color: #f8e5a0;
         --secondary-color: #1c7ed9;
       }
@@ -84,7 +84,14 @@
         font-size: 13px;
       }
 
-      #hyper-checkout-merchant-image {
+      .hyper-checkout-image-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+      }
+
+      #hyper-checkout-merchant-image,
+      #hyper-checkout-cart-image {
         height: 64px;
         width: 64px;
         border: 1px solid #e6e6e6;
@@ -97,6 +104,15 @@
       #hyper-checkout-merchant-image > img {
         height: 48px;
         width: 48px;
+      }
+
+      #hyper-checkout-cart-image {
+        display: none;
+        cursor: pointer;
+        height: 60px;
+        width: 60px;
+        border-radius: 100px;
+        background-color: #f5f5f5;
       }
 
       #hyper-checkout-payment-footer {
@@ -132,6 +148,10 @@
       .hyper-checkout-cart-header > span {
         margin-left: 5px;
         font-weight: 500;
+      }
+
+      .cart-close {
+        display: none;
       }
 
       .hyper-checkout-cart-item {
@@ -433,6 +453,10 @@
           background-color: white;
         }
 
+        #hyper-checkout-cart-image {
+          display: flex;
+        }
+
         .hyper-checkout-payment-price {
           font-size: 48px;
           margin-top: 20px;
@@ -451,7 +475,38 @@
         }
 
         #hyper-checkout-cart {
-          display: none;
+          position: absolute;
+          top: 0;
+          right: 0;
+          z-index: 100;
+          margin: 0;
+          min-width: 300px;
+          max-width: 600px;
+          max-height: 100vh;
+          width: 100vw;
+          height: 100vh;
+          background-color: #f5f5f5;
+          box-shadow: 0px 10px 10px #aeaeae;
+        }
+
+        .hyper-checkout-cart-header {
+          margin: 10px 0 0 10px;
+        }
+
+        .cart-close {
+          margin: 0 10px 0 auto;
+          display: inline;
+        }
+
+        #hyper-checkout-cart-items {
+          margin: 20px;
+          padding: 0;
+          max-height: max-content;
+        }
+
+        .hyper-checkout-cart-button {
+          margin: 10px;
+          text-align: right;
         }
 
         #hyper-checkout-sdk {
@@ -517,7 +572,43 @@
             <div id="hyper-checkout-payment-context">
               <div id="hyper-checkout-payment-merchant-details"></div>
             </div>
-            <div id="hyper-checkout-merchant-image"></div>
+            <div class="hyper-checkout-image-header">
+              <div id="hyper-checkout-merchant-image"></div>
+              <div
+                id="hyper-checkout-cart-image"
+                onclick="viewCartInMobileView()"
+              >
+                <svg
+                  fill="#000000"
+                  version="1.1"
+                  id="Capa_1"
+                  xmlns="http://www.w3.org/2000/svg"
+                  xmlns:xlink="http://www.w3.org/1999/xlink"
+                  width="30px"
+                  height="30px"
+                  viewBox="0 0 902.86 902.86"
+                  xml:space="preserve"
+                >
+                  <g>
+                    <g>
+                      <path
+                        d="M671.504,577.829l110.485-432.609H902.86v-68H729.174L703.128,179.2L0,178.697l74.753,399.129h596.751V577.829z
+     M685.766,247.188l-67.077,262.64H131.199L81.928,246.756L685.766,247.188z"
+                      />
+                      <path
+                        d="M578.418,825.641c59.961,0,108.743-48.783,108.743-108.744s-48.782-108.742-108.743-108.742H168.717
+    c-59.961,0-108.744,48.781-108.744,108.742s48.782,108.744,108.744,108.744c59.962,0,108.743-48.783,108.743-108.744
+    c0-14.4-2.821-28.152-7.927-40.742h208.069c-5.107,12.59-7.928,26.342-7.928,40.742
+    C469.675,776.858,518.457,825.641,578.418,825.641z M209.46,716.897c0,22.467-18.277,40.744-40.743,40.744
+    c-22.466,0-40.744-18.277-40.744-40.744c0-22.465,18.277-40.742,40.744-40.742C191.183,676.155,209.46,694.432,209.46,716.897z
+     M619.162,716.897c0,22.467-18.277,40.744-40.743,40.744s-40.743-18.277-40.743-40.744c0-22.465,18.277-40.742,40.743-40.742
+    S619.162,694.432,619.162,716.897z"
+                      />
+                    </g>
+                  </g>
+                </svg>
+              </div>
+            </div>
           </div>
           <div id="hyper-checkout-payment-footer"></div>
         </div>
@@ -529,6 +620,7 @@
               viewBox="0 0 16 16"
               fill="none"
               xmlns="http://www.w3.org/2000/svg"
+              class="cart-icon"
             >
               <g clip-path="url(#clip0_11421_6708)">
                 <mask
@@ -556,6 +648,18 @@
               </defs>
             </svg>
             <span>Your Cart</span>
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              viewBox="0 0 50 50"
+              width="25px"
+              height="25px"
+              class="cart-close"
+              onclick="hideCartInMobileView()"
+            >
+              <path
+                d="M 9.15625 6.3125 L 6.3125 9.15625 L 22.15625 25 L 6.21875 40.96875 L 9.03125 43.78125 L 25 27.84375 L 40.9375 43.78125 L 43.78125 40.9375 L 27.84375 25 L 43.6875 9.15625 L 40.84375 6.3125 L 25 22.15625 Z"
+              />
+            </svg>
           </div>
           <div id="hyper-checkout-cart-items"></div>
         </div>
@@ -654,6 +758,12 @@
   <script>
     {{ payment_details_js_script }}
 
+    window.state = {
+      prevHeight: window.innerHeight,
+      prevWidth: window.innerWidth,
+      isMobileView: window.innerWidth <= 1200,
+    }
+
     var widgets = null;
 
     window.__PAYMENT_DETAILS = {};
@@ -666,7 +776,19 @@
     async function initialize() {
       const paymentDetails = window.__PAYMENT_DETAILS;
       var client_secret = paymentDetails.client_secret;
-      const appearance = { "variables": { "colorPrimary": "rgb(0, 109, 249)", "fontFamily": "Work Sans, sans-serif", "fontSizeBase": "16px", "colorText": "rgb(51, 65, 85)", "colorTextSecondary": "#334155B3", "colorPrimaryText": "rgb(51, 65, 85)", "colorTextPlaceholder": "#33415550", "borderColor": "#33415550", "colorBackground": "rgb(255, 255, 255)" } };
+      const appearance = {
+        variables: {
+          colorPrimary: "rgb(0, 109, 249)",
+          fontFamily: "Work Sans, sans-serif",
+          fontSizeBase: "16px",
+          colorText: "rgb(51, 65, 85)",
+          colorTextSecondary: "#334155B3",
+          colorPrimaryText: "rgb(51, 65, 85)",
+          colorTextPlaceholder: "#33415550",
+          borderColor: "#33415550",
+          colorBackground: "rgb(255, 255, 255)",
+        },
+      };
 
       widgets = hyper.widgets({
         appearance,
@@ -989,7 +1111,7 @@
       var merchantImageNode = document.getElementById(
         "hyper-checkout-merchant-image"
       );
-      merchantImageNode.append(merchantLogoNode);
+      merchantImageNode.prepend(merchantLogoNode);
       var footerNode = document.getElementById("hyper-checkout-payment-footer");
       footerNode.append(paymentExpiryNode);
     }
@@ -1109,6 +1231,16 @@
         : `Show More (${hiddenItemsCount})`;
     }
 
+    function hideCartInMobileView() {
+      window.history.back();
+      hide("#hyper-checkout-cart");
+    }
+
+    function viewCartInMobileView() {
+      show("#hyper-checkout-cart");
+      window.history.pushState("view-cart", "");
+    }
+
     function renderSDKHeader() {
       const paymentDetails = window.__PAYMENT_DETAILS;
 
@@ -1135,6 +1267,11 @@
     }
 
     function showSDK(e) {
+      if (window.state.isMobileView) {
+        hide("#hyper-checkout-cart");
+      } else {
+        show("#hyper-checkout-cart");
+      }
       setPageLoading(true);
       checkStatus()
         .then((res) => {
@@ -1154,5 +1291,20 @@
           setPageLoading(false);
         });
     }
+
+    window.addEventListener("resize", (event) => {
+      const currentHeight = window.innerHeight;
+      const currentWidth = window.innerWidth;
+
+      if (currentWidth <= 1200 && window.state.prevWidth > 1200) {
+        hide("#hyper-checkout-cart");
+      } else if (currentWidth > 1200 && window.state.prevWidth <= 1200) {
+        show("#hyper-checkout-cart");
+      }
+
+      window.state.prevHeight = currentHeight;
+      window.state.prevWidth = currentWidth;
+      window.state.isMobileView = currentWidth <= 1200;
+    });
   </script>
 </html>
