@@ -8,6 +8,7 @@ use crate::{
     payment_attempt::{PaymentAttempt, PaymentAttemptNew, PaymentAttemptUpdate},
     payment_intent::{PaymentIntent, PaymentIntentNew, PaymentIntentUpdate},
     refund::{Refund, RefundNew, RefundUpdate},
+    reverse_lookup::ReverseLookupNew,
 };
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -43,6 +44,7 @@ pub enum Insertable {
     Refund(RefundNew),
     ConnectorResponse(ConnectorResponseNew),
     Address(Box<AddressNew>),
+    ReverseLookUp(ReverseLookupNew),
 }
 
 #[derive(Debug, Serialize, Deserialize)]
