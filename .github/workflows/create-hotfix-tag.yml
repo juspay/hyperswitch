@@ -24,9 +24,10 @@ jobs:
         shell: bash
         run: |
           if [[ ${{github.ref}} =~ ^refs/heads/hotfix-[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-              echo "::notice::${{github.ref}} is a valid branch."
+            echo "::notice::${{github.ref}} is a valid branch."
           else
-              echo "::error::${{github.ref}} is not a valid branch."
+            echo "::error::${{github.ref}} is not a valid branch."
+            exit 1
           fi
 
       - name: Check if the latest commit is tag
@@ -36,6 +37,7 @@ jobs:
             echo "::notice::The latest commit is not a tag "
           else
             echo "::error::The latest commit on the branch is already a tag"
+            exit 1
           fi
 
       - name: Determine current and next tag
