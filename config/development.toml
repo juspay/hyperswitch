@@ -107,6 +107,7 @@ cards = [
     "stripe",
     "trustpay",
     "tsys",
+    "volt",
     "wise",
     "worldline",
     "worldpay",
@@ -182,6 +183,7 @@ worldline.base_url = "https://eu.sandbox.api-ingenico.com/"
 worldpay.base_url = "https://try.access.worldpay.com/"
 trustpay.base_url = "https://test-tpgw.trustpay.eu/"
 tsys.base_url = "https://stagegw.transnox.com/"
+volt.base_url = "https://api.sandbox.volt.io/"
 trustpay.base_url_bank_redirects = "https://aapi.trustpay.eu/"
 zen.base_url = "https://api.zen-test.com/"
 zen.secondary_base_url = "https://secure.zen-test.com/"
@@ -377,9 +379,11 @@ braintree = { long_lived_token = false, payment_method = "card" }
 payme = {long_lived_token = false, payment_method = "card"}
 gocardless = {long_lived_token = true, payment_method = "bank_debit"}
 
-[temp_locker_disable_config]
-trustpay = {payment_method = "card,bank_redirect,wallet"}
-stripe = {payment_method = "card,bank_redirect,pay_later,wallet,bank_debit"}
+[temp_locker_enable_config]
+stripe = {payment_method = "bank_transfer"}
+nuvei = {payment_method = "card"}
+shift4 = {payment_method = "card"}
+bluesnap = {payment_method = "card"}
 
 [connector_customer]
 connector_list = "gocardless,stax,stripe"
