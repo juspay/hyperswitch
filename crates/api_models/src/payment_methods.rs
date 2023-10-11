@@ -3,6 +3,7 @@ use std::collections::HashMap;
 use cards::CardNumber;
 use common_utils::{
     consts::SURCHARGE_PERCENTAGE_PRECISION_LENGTH, crypto::OptionalEncryptableName, pii,
+    types::Percentage,
 };
 use serde::de;
 use utoipa::ToSchema;
@@ -12,7 +13,6 @@ use crate::payouts;
 use crate::{
     admin, enums as api_enums,
     payments::{self, BankCodeResponse},
-    types::Percentage,
 };
 
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
