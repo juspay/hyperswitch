@@ -6,7 +6,7 @@ pub mod complete_authorize_flow;
 pub mod psync_flow;
 pub mod reject_flow;
 pub mod session_flow;
-pub mod verify_flow;
+pub mod setup_mandate_flow;
 
 use async_trait::async_trait;
 
@@ -142,7 +142,6 @@ impl<const T: u8>
 }
 
 default_imp_for_complete_authorize!(
-    connector::Gocardless,
     connector::Aci,
     connector::Adyen,
     connector::Bitpay,
@@ -156,6 +155,7 @@ default_imp_for_complete_authorize!(
     connector::Fiserv,
     connector::Forte,
     connector::Globepay,
+    connector::Gocardless,
     connector::Helcim,
     connector::Iatapay,
     connector::Klarna,
@@ -173,6 +173,82 @@ default_imp_for_complete_authorize!(
     connector::Stripe,
     connector::Trustpay,
     connector::Tsys,
+    connector::Volt,
+    connector::Wise,
+    connector::Worldline,
+    connector::Worldpay,
+    connector::Zen
+);
+macro_rules! default_imp_for_webhook_source_verification {
+    ($($path:ident::$connector:ident),*) => {
+        $(
+            impl api::ConnectorVerifyWebhookSource for $path::$connector {}
+            impl
+            services::ConnectorIntegration<
+            api::VerifyWebhookSource,
+            types::VerifyWebhookSourceRequestData,
+            types::VerifyWebhookSourceResponseData,
+        > for $path::$connector
+        {}
+    )*
+    };
+}
+
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8> api::ConnectorVerifyWebhookSource for connector::DummyConnector<T> {}
+#[cfg(feature = "dummy_connector")]
+impl<const T: u8>
+    services::ConnectorIntegration<
+        api::VerifyWebhookSource,
+        types::VerifyWebhookSourceRequestData,
+        types::VerifyWebhookSourceResponseData,
+    > for connector::DummyConnector<T>
+{
+}
+default_imp_for_webhook_source_verification!(
+    connector::Aci,
+    connector::Adyen,
+    connector::Airwallex,
+    connector::Authorizedotnet,
+    connector::Bambora,
+    connector::Bitpay,
+    connector::Bluesnap,
+    connector::Braintree,
+    connector::Boku,
+    connector::Cashtocode,
+    connector::Checkout,
+    connector::Coinbase,
+    connector::Cryptopay,
+    connector::Cybersource,
+    connector::Dlocal,
+    connector::Fiserv,
+    connector::Forte,
+    connector::Globalpay,
+    connector::Globepay,
+    connector::Gocardless,
+    connector::Helcim,
+    connector::Iatapay,
+    connector::Klarna,
+    connector::Mollie,
+    connector::Multisafepay,
+    connector::Nexinets,
+    connector::Nmi,
+    connector::Noon,
+    connector::Nuvei,
+    connector::Opayo,
+    connector::Opennode,
+    connector::Payeezy,
+    connector::Payme,
+    connector::Payu,
+    connector::Powertranz,
+    connector::Rapyd,
+    connector::Shift4,
+    connector::Square,
+    connector::Stax,
+    connector::Stripe,
+    connector::Trustpay,
+    connector::Tsys,
+    connector::Volt,
     connector::Wise,
     connector::Worldline,
     connector::Worldpay,
@@ -207,7 +283,6 @@ impl<const T: u8>
 }
 
 default_imp_for_create_customer!(
-    connector::Gocardless,
     connector::Aci,
     connector::Adyen,
     connector::Airwallex,
@@ -248,6 +323,7 @@ default_imp_for_create_customer!(
     connector::Square,
     connector::Trustpay,
     connector::Tsys,
+    connector::Volt,
     connector::Wise,
     connector::Worldline,
     connector::Worldpay,
@@ -284,7 +360,6 @@ impl<const T: u8> services::ConnectorRedirectResponse for connector::DummyConnec
 }
 
 default_imp_for_connector_redirect_response!(
-    connector::Gocardless,
     connector::Aci,
     connector::Adyen,
     connector::Bitpay,
@@ -297,6 +372,7 @@ default_imp_for_connector_redirect_response!(
     connector::Fiserv,
     connector::Forte,
     connector::Globepay,
+    connector::Gocardless,
     connector::Helcim,
     connector::Iatapay,
     connector::Klarna,
@@ -313,6 +389,7 @@ default_imp_for_connector_redirect_response!(
     connector::Square,
     connector::Stax,
     connector::Tsys,
+    connector::Volt,
     connector::Wise,
     connector::Worldline,
     connector::Worldpay
@@ -330,7 +407,6 @@ macro_rules! default_imp_for_connector_request_id {
 impl<const T: u8> api::ConnectorTransactionId for connector::DummyConnector<T> {}
 
 default_imp_for_connector_request_id!(
-    connector::Gocardless,
     connector::Aci,
     connector::Adyen,
     connector::Airwallex,
@@ -350,6 +426,7 @@ default_imp_for_connector_request_id!(
     connector::Forte,
     connector::Globalpay,
     connector::Globepay,
+    connector::Gocardless,
     connector::Helcim,
     connector::Iatapay,
     connector::Klarna,
@@ -372,6 +449,7 @@ default_imp_for_connector_request_id!(
     connector::Stripe,
     connector::Trustpay,
     connector::Tsys,
+    connector::Volt,
     connector::Wise,
     connector::Worldline,
     connector::Worldpay,
@@ -409,7 +487,6 @@ impl<const T: u8>
 }
 
 default_imp_for_accept_dispute!(
-    connector::Gocardless,
     connector::Aci,
     connector::Adyen,
     connector::Airwallex,
@@ -428,6 +505,7 @@ default_imp_for_accept_dispute!(
     connector::Forte,
     connector::Globalpay,
     connector::Globepay,
+    connector::Gocardless,
     connector::Helcim,
     connector::Iatapay,
     connector::Klarna,
@@ -438,6 +516,7 @@ default_imp_for_accept_dispute!(
     connector::Noon,
     connector::Nuvei,
     connector::Opayo,
+    connector::Opennode,
     connector::Payeezy,
     connector::Paypal,
     connector::Payme,
@@ -450,7 +529,7 @@ default_imp_for_accept_dispute!(
     connector::Stripe,
     connector::Trustpay,
     connector::Tsys,
-    connector::Opennode,
+    connector::Volt,
     connector::Wise,
     connector::Worldline,
     connector::Worldpay,
@@ -507,7 +586,6 @@ impl<const T: u8>
 }
 
 default_imp_for_file_upload!(
-    connector::Gocardless,
     connector::Aci,
     connector::Adyen,
     connector::Airwallex,
@@ -526,6 +604,7 @@ default_imp_for_file_upload!(
     connector::Forte,
     connector::Globalpay,
     connector::Globepay,
+    connector::Gocardless,
     connector::Helcim,
     connector::Iatapay,
     connector::Klarna,
@@ -547,6 +626,7 @@ default_imp_for_file_upload!(
     connector::Stax,
     connector::Trustpay,
     connector::Tsys,
+    connector::Volt,
     connector::Opennode,
     connector::Wise,
     connector::Worldline,
@@ -582,7 +662,6 @@ impl<const T: u8>
 }
 
 default_imp_for_submit_evidence!(
-    connector::Gocardless,
     connector::Aci,
     connector::Adyen,
     connector::Airwallex,
@@ -601,6 +680,7 @@ default_imp_for_submit_evidence!(
     connector::Forte,
     connector::Globalpay,
     connector::Globepay,
+    connector::Gocardless,
     connector::Helcim,
     connector::Iatapay,
     connector::Klarna,
@@ -622,6 +702,7 @@ default_imp_for_submit_evidence!(
     connector::Stax,
     connector::Trustpay,
     connector::Tsys,
+    connector::Volt,
     connector::Opennode,
     connector::Wise,
     connector::Worldline,
@@ -657,7 +738,6 @@ impl<const T: u8>
 }
 
 default_imp_for_defend_dispute!(
-    connector::Gocardless,
     connector::Aci,
     connector::Adyen,
     connector::Airwallex,
@@ -676,6 +756,7 @@ default_imp_for_defend_dispute!(
     connector::Globepay,
     connector::Forte,
     connector::Globalpay,
+    connector::Gocardless,
     connector::Helcim,
     connector::Iatapay,
     connector::Klarna,
@@ -698,6 +779,7 @@ default_imp_for_defend_dispute!(
     connector::Stripe,
     connector::Trustpay,
     connector::Tsys,
+    connector::Volt,
     connector::Opennode,
     connector::Wise,
     connector::Worldline,
@@ -733,7 +815,6 @@ impl<const T: u8>
 }
 
 default_imp_for_pre_processing_steps!(
-    connector::Gocardless,
     connector::Aci,
     connector::Adyen,
     connector::Airwallex,
@@ -773,6 +854,7 @@ default_imp_for_pre_processing_steps!(
     connector::Square,
     connector::Stax,
     connector::Tsys,
+    connector::Volt,
     connector::Wise,
     connector::Worldline,
     connector::Worldpay,
@@ -791,7 +873,6 @@ macro_rules! default_imp_for_payouts {
 impl<const T: u8> api::Payouts for connector::DummyConnector<T> {}
 
 default_imp_for_payouts!(
-    connector::Gocardless,
     connector::Aci,
     connector::Airwallex,
     connector::Authorizedotnet,
@@ -810,6 +891,7 @@ default_imp_for_payouts!(
     connector::Forte,
     connector::Globalpay,
     connector::Globepay,
+    connector::Gocardless,
     connector::Helcim,
     connector::Iatapay,
     connector::Klarna,
@@ -833,6 +915,7 @@ default_imp_for_payouts!(
     connector::Shift4,
     connector::Trustpay,
     connector::Tsys,
+    connector::Volt,
     connector::Worldline,
     connector::Worldpay,
     connector::Zen
@@ -867,7 +950,6 @@ impl<const T: u8>
 
 #[cfg(feature = "payouts")]
 default_imp_for_payouts_create!(
-    connector::Gocardless,
     connector::Aci,
     connector::Airwallex,
     connector::Authorizedotnet,
@@ -886,6 +968,7 @@ default_imp_for_payouts_create!(
     connector::Forte,
     connector::Globalpay,
     connector::Globepay,
+    connector::Gocardless,
     connector::Helcim,
     connector::Iatapay,
     connector::Klarna,
@@ -909,6 +992,7 @@ default_imp_for_payouts_create!(
     connector::Shift4,
     connector::Trustpay,
     connector::Tsys,
+    connector::Volt,
     connector::Worldline,
     connector::Worldpay,
     connector::Zen
@@ -946,7 +1030,6 @@ impl<const T: u8>
 
 #[cfg(feature = "payouts")]
 default_imp_for_payouts_eligibility!(
-    connector::Gocardless,
     connector::Aci,
     connector::Airwallex,
     connector::Authorizedotnet,
@@ -965,6 +1048,7 @@ default_imp_for_payouts_eligibility!(
     connector::Forte,
     connector::Globalpay,
     connector::Globepay,
+    connector::Gocardless,
     connector::Helcim,
     connector::Iatapay,
     connector::Klarna,
@@ -988,6 +1072,7 @@ default_imp_for_payouts_eligibility!(
     connector::Shift4,
     connector::Trustpay,
     connector::Tsys,
+    connector::Volt,
     connector::Worldline,
     connector::Worldpay,
     connector::Zen
@@ -1022,7 +1107,6 @@ impl<const T: u8>
 
 #[cfg(feature = "payouts")]
 default_imp_for_payouts_fulfill!(
-    connector::Gocardless,
     connector::Aci,
     connector::Airwallex,
     connector::Authorizedotnet,
@@ -1041,6 +1125,7 @@ default_imp_for_payouts_fulfill!(
     connector::Forte,
     connector::Globalpay,
     connector::Globepay,
+    connector::Gocardless,
     connector::Helcim,
     connector::Iatapay,
     connector::Klarna,
@@ -1064,6 +1149,7 @@ default_imp_for_payouts_fulfill!(
     connector::Shift4,
     connector::Trustpay,
     connector::Tsys,
+    connector::Volt,
     connector::Worldline,
     connector::Worldpay,
     connector::Zen
@@ -1098,7 +1184,6 @@ impl<const T: u8>
 
 #[cfg(feature = "payouts")]
 default_imp_for_payouts_cancel!(
-    connector::Gocardless,
     connector::Aci,
     connector::Airwallex,
     connector::Authorizedotnet,
@@ -1117,6 +1202,7 @@ default_imp_for_payouts_cancel!(
     connector::Forte,
     connector::Globalpay,
     connector::Globepay,
+    connector::Gocardless,
     connector::Helcim,
     connector::Iatapay,
     connector::Klarna,
@@ -1140,6 +1226,7 @@ default_imp_for_payouts_cancel!(
     connector::Shift4,
     connector::Trustpay,
     connector::Tsys,
+    connector::Volt,
     connector::Worldline,
     connector::Worldpay,
     connector::Zen
@@ -1174,7 +1261,6 @@ impl<const T: u8>
 
 #[cfg(feature = "payouts")]
 default_imp_for_payouts_quote!(
-    connector::Gocardless,
     connector::Aci,
     connector::Adyen,
     connector::Airwallex,
@@ -1194,6 +1280,7 @@ default_imp_for_payouts_quote!(
     connector::Forte,
     connector::Globalpay,
     connector::Globepay,
+    connector::Gocardless,
     connector::Helcim,
     connector::Iatapay,
     connector::Klarna,
@@ -1217,6 +1304,7 @@ default_imp_for_payouts_quote!(
     connector::Shift4,
     connector::Trustpay,
     connector::Tsys,
+    connector::Volt,
     connector::Worldline,
     connector::Worldpay,
     connector::Zen
@@ -1251,7 +1339,6 @@ impl<const T: u8>
 
 #[cfg(feature = "payouts")]
 default_imp_for_payouts_recipient!(
-    connector::Gocardless,
     connector::Aci,
     connector::Adyen,
     connector::Airwallex,
@@ -1271,6 +1358,7 @@ default_imp_for_payouts_recipient!(
     connector::Forte,
     connector::Globalpay,
     connector::Globepay,
+    connector::Gocardless,
     connector::Helcim,
     connector::Iatapay,
     connector::Klarna,
@@ -1294,6 +1382,7 @@ default_imp_for_payouts_recipient!(
     connector::Shift4,
     connector::Trustpay,
     connector::Tsys,
+    connector::Volt,
     connector::Worldline,
     connector::Worldpay,
     connector::Zen
@@ -1327,7 +1416,6 @@ impl<const T: u8>
 }
 
 default_imp_for_approve!(
-    connector::Gocardless,
     connector::Aci,
     connector::Adyen,
     connector::Airwallex,
@@ -1347,6 +1435,7 @@ default_imp_for_approve!(
     connector::Forte,
     connector::Globalpay,
     connector::Globepay,
+    connector::Gocardless,
     connector::Helcim,
     connector::Iatapay,
     connector::Klarna,
@@ -1370,6 +1459,7 @@ default_imp_for_approve!(
     connector::Shift4,
     connector::Trustpay,
     connector::Tsys,
+    connector::Volt,
     connector::Wise,
     connector::Worldline,
     connector::Worldpay,
@@ -1404,7 +1494,6 @@ impl<const T: u8>
 }
 
 default_imp_for_reject!(
-    connector::Gocardless,
     connector::Aci,
     connector::Adyen,
     connector::Airwallex,
@@ -1424,6 +1513,7 @@ default_imp_for_reject!(
     connector::Forte,
     connector::Globalpay,
     connector::Globepay,
+    connector::Gocardless,
     connector::Helcim,
     connector::Iatapay,
     connector::Klarna,
@@ -1447,6 +1537,7 @@ default_imp_for_reject!(
     connector::Shift4,
     connector::Trustpay,
     connector::Tsys,
+    connector::Volt,
     connector::Wise,
     connector::Worldline,
     connector::Worldpay,

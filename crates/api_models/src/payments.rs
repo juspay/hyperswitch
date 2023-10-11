@@ -294,17 +294,22 @@ pub struct PaymentsRequest {
 
     /// additional data that might be required by hyperswitch
     pub feature_metadata: Option<FeatureMetadata>,
-    /// payment link object for required for generating the payment_link
+    /// payment link object required for generating the payment_link
     pub payment_link_object: Option<PaymentLinkObject>,
 
     /// The business profile to use for this payment, if not passed the default business profile
     /// associated with the merchant account will be used.
     pub profile_id: Option<String>,
+
+    /// The type of the payment that differentiates between normal and various types of mandate payments
+    #[schema(value_type = Option<PaymentType>)]
+    pub payment_type: Option<api_enums::PaymentType>,
 }
 
 #[derive(Default, Debug, Clone, Copy)]
 pub struct HeaderPayload {
     pub payment_confirm_source: Option<api_enums::PaymentSource>,
+    pub x_hs_latency: Option<bool>,
 }
 
 #[derive(
@@ -755,6 +760,9 @@ pub enum BankDebitData {
         /// Bank-State-Branch (bsb) number
         #[schema(value_type = String, example = "000000")]
         bsb_number: Secret<String>,
+        /// Owner name for bank debit
+        #[schema(value_type = Option<String>, example = "A. Schneider")]
+        bank_account_holder_name: Option<Secret<String>>,
     },
     BacsBankDebit {
         /// Billing details for bank debit
@@ -867,7 +875,7 @@ pub enum BankRedirectData {
     Bizum {},
     Blik {
         // Blik Code
-        blik_code: String,
+        blik_code: Option<String>,
     },
     Eps {
         /// The billing details for bank redirection
@@ -1511,7 +1519,8 @@ pub struct PhoneDetails {
 #[derive(Debug, Clone, Default, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema)]
 pub struct PaymentsCaptureRequest {
     /// The unique identifier for the payment
-    pub payment_id: Option<String>,
+    #[serde(skip_deserializing)]
+    pub payment_id: String,
     /// The unique identifier for the merchant
     pub merchant_id: Option<String>,
     /// The Amount to be captured/ debited from the user's payment method.
@@ -1910,7 +1919,7 @@ pub struct PaymentsResponse {
     #[schema(value_type = Option<String>, example = "993672945374576J")]
     pub reference_id: Option<String>,
 
-    pub payment_link_response: Option<PaymentLinkResponse>,
+    pub payment_link: Option<PaymentLinkResponse>,
     /// The business profile that is associated with this payment
     pub profile_id: Option<String>,
 
@@ -1998,10 +2007,13 @@ pub struct PaymentListResponseV2 {
 }
 
 #[derive(Clone, Debug, serde::Deserialize)]
-#[serde(deny_unknown_fields)]
 pub struct PaymentListFilterConstraints {
     /// The identifier for payment
     pub payment_id: Option<String>,
+    /// The identifier for business profile
+    pub profile_id: Option<String>,
+    /// The identifier for customer
+    pub customer_id: Option<String>,
     /// The limit on the number of objects. The default limit is 10 and max limit is 20
     #[serde(default = "default_limit")]
     pub limit: u32,
@@ -2014,10 +2026,14 @@ pub struct PaymentListFilterConstraints {
     pub connector: Option<Vec<api_enums::Connector>>,
     /// The list of currencies to filter payments list
     pub currency: Option<Vec<enums::Currency>>,
-    /// The list of payment statuses to filter payments list
+    /// The list of payment status to filter payments list
     pub status: Option<Vec<enums::IntentStatus>>,
     /// The list of payment methods to filter payments list
-    pub payment_methods: Option<Vec<enums::PaymentMethod>>,
+    pub payment_method: Option<Vec<enums::PaymentMethod>>,
+    /// The list of payment method types to filter payments list
+    pub payment_method_type: Option<Vec<enums::PaymentMethodType>>,
+    /// The list of authentication types to filter payments list
+    pub authentication_type: Option<Vec<enums::AuthenticationType>>,
 }
 #[derive(Clone, Debug, serde::Serialize)]
 pub struct PaymentListFilters {
@@ -2029,6 +2045,10 @@ pub struct PaymentListFilters {
     pub status: Vec<enums::IntentStatus>,
     /// The list of available payment method filters
     pub payment_method: Vec<enums::PaymentMethod>,
+    /// The list of available payment method types
+    pub payment_method_type: Vec<enums::PaymentMethodType>,
+    /// The list of available authentication types
+    pub authentication_type: Vec<enums::AuthenticationType>,
 }
 
 #[derive(Debug, Clone, Copy, serde::Serialize, serde::Deserialize, PartialEq, Eq, Hash)]
@@ -2374,8 +2394,12 @@ pub struct ApplepayConnectorMetadataRequest {
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct ApplepaySessionTokenData {
-    #[serde(flatten)]
-    pub data: ApplepaySessionTokenMetadata,
+    pub apple_pay: ApplePayMetadata,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct ApplepayCombinedSessionTokenData {
+    pub apple_pay_combined: ApplePayCombinedMetadata,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
@@ -2893,23 +2917,23 @@ pub struct PaymentLinkObject {
 
 #[derive(Default, Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
 pub struct RetrievePaymentLinkRequest {
-    pub payment_link_id: String,
     pub client_secret: Option<String>,
 }
 
-#[derive(Clone, Debug, serde::Serialize, PartialEq, serde::Deserialize)]
+#[derive(Clone, Debug, serde::Serialize, PartialEq, serde::Deserialize, ToSchema)]
 pub struct PaymentLinkResponse {
-    pub payment_link: String,
+    pub link: String,
     pub payment_link_id: String,
 }
 
-#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize, ToSchema)]
 pub struct RetrievePaymentLinkResponse {
     pub payment_link_id: String,
     pub payment_id: String,
     pub merchant_id: String,
     pub link_to_pay: String,
     pub amount: i64,
+    #[schema(value_type = Option<Currency>, example = "USD")]
     pub currency: Option<api_enums::Currency>,
     #[serde(with = "common_utils::custom_serde::iso8601")]
     pub created_at: PrimitiveDateTime,
@@ -2919,7 +2943,7 @@ pub struct RetrievePaymentLinkResponse {
     pub link_expiry: Option<PrimitiveDateTime>,
 }
 
-#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize, ToSchema)]
 pub struct PaymentLinkInitiateRequest {
     pub merchant_id: String,
     pub payment_id: String,

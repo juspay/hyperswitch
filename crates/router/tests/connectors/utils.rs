@@ -513,6 +513,8 @@ pub trait ConnectorActions: Connector {
             payment_method_balance: None,
             connector_api_version: None,
             connector_http_status_code: None,
+            apple_pay_flow: None,
+            external_latency: None,
         }
     }
 
@@ -965,6 +967,7 @@ impl Default for PaymentRefundType {
 impl Default for CustomerType {
     fn default() -> Self {
         let data = types::ConnectorCustomerData {
+            payment_method_data: types::api::PaymentMethodData::Card(CCardType::default().0),
             description: None,
             email: Some(Email::from(Secret::new("test@juspay.in".to_string()))),
             phone: None,

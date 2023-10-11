@@ -269,7 +269,7 @@ pub struct MerchantAccountResponse {
     pub intent_fulfillment_time: Option<i64>,
 
     /// The organization id merchant is associated with
-    pub organization_id: Option<String>,
+    pub organization_id: String,
 
     ///  A boolean value to indicate if the merchant has recon service is enabled or not, by default value is false
     pub is_recon_enabled: bool,
@@ -655,6 +655,8 @@ pub struct MerchantConnectorCreate {
     pub connector_webhook_details: Option<MerchantConnectorWebhookDetails>,
     /// Identifier for the business profile, if not provided default will be chosen from merchant account
     pub profile_id: Option<String>,
+
+    pub pm_auth_config: Option<serde_json::Value>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
@@ -758,6 +760,8 @@ pub struct MerchantConnectorResponse {
     pub profile_id: Option<String>,
     /// identifier for the verified domains of a particular connector account
     pub applepay_verified_domains: Option<Vec<String>>,
+
+    pub pm_auth_config: Option<serde_json::Value>,
 }
 
 /// Create a new Merchant Connector for the merchant account. The connector could be a payment processor / facilitator / acquirer or specialized services like Fraud / Accounting etc."
@@ -827,6 +831,8 @@ pub struct MerchantConnectorUpdate {
         }
     }))]
     pub connector_webhook_details: Option<MerchantConnectorWebhookDetails>,
+
+    pub pm_auth_config: Option<serde_json::Value>,
 }
 
 ///Details of FrmConfigs are mentioned here... it should be passed in payment connector create api call, and stored in merchant_connector_table

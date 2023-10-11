@@ -91,6 +91,8 @@ fn construct_payment_router_data() -> types::PaymentsAuthorizeRouterData {
         payment_method_balance: None,
         connector_api_version: None,
         connector_http_status_code: None,
+        apple_pay_flow: None,
+        external_latency: None,
     }
 }
 
@@ -146,6 +148,8 @@ fn construct_refund_router_data<F>() -> types::RefundsRouterData<F> {
         payment_method_balance: None,
         connector_api_version: None,
         connector_http_status_code: None,
+        apple_pay_flow: None,
+        external_latency: None,
     }
 }
 

@@ -4,7 +4,7 @@
     {{ hyperloader_sdk_link }}
     <style>
       :root {
-        --primary-color: #18A7B5;
+        --primary-color: #06a19e73;
         --primary-accent-color: #f8e5a0;
         --secondary-color: #1c7ed9;
       }
@@ -340,8 +340,164 @@
         display: flex;
         flex-flow: column;
       }
+
+      @keyframes loading {
+        0% {
+          -webkit-transform: rotate(0deg);
+          transform: rotate(0deg);
+        }
+
+        100% {
+          -webkit-transform: rotate(360deg);
+          transform: rotate(360deg);
+        }
+      }
+
+      .spinner:before {
+        width: 10.4px;
+        height: 20.4px;
+        background: var(--primary-color);
+        border-radius: 20.4px 0 0 20.4px;
+        top: -0.2px;
+        left: -0.2px;
+        -webkit-transform-origin: 10.4px 10.2px;
+        transform-origin: 10.4px 10.2px;
+        -webkit-animation: loading 2s infinite ease 1.5s;
+        animation: loading 2s infinite ease 1.5s;
+      }
+
+      #payment-message {
+        font-size: 12px;
+        font-weight: 500;
+        padding: 2%;
+        color: #ff0000;
+        font-family: "Montserrat";
+      }
+
+      .spinner:after {
+        width: 10.4px;
+        height: 10.2px;
+        background: var(--primary-color);
+        border-radius: 0 10.2px 10.2px 0;
+        top: -0.1px;
+        left: 10.2px;
+        -webkit-transform-origin: 0px 10.2px;
+        transform-origin: 0px 10.2px;
+        -webkit-animation: loading 2s infinite ease;
+        animation: loading 2s infinite ease;
+      }
+
+      #payment-form {
+        max-width: 560px;
+        width: 100%;
+        margin: 0 auto;
+        text-align: center;
+      }
+
+      @media only screen and (max-width: 1200px) {
+        .checkoutButton {
+          width: 95%;
+          background-color: var(--primary-color);
+        }
+
+        .hyper-checkout {
+          flex-flow: column;
+          margin: 0;
+        }
+
+        .main {
+          width: auto;
+          min-width: 300px;
+        }
+
+        .hyper-checkout-payment {
+          min-width: 100px;
+          width: 100vw;
+          margin: 0;
+          border: 0;
+          border-radius: 0;
+          background-color: var(--primary-color);
+          display: flex;
+          flex-flow: column;
+          justify-self: flex-start;
+          align-self: flex-start;
+        }
+
+        .hyper-checkout-payment-content-details {
+          flex-flow: column;
+          flex-direction: column-reverse;
+          margin: 24px;
+        }
+
+        #hyper-checkout-merchant-image {
+          background-color: white;
+        }
+
+        .hyper-checkout-payment-price {
+          font-size: 48px;
+          margin-top: 20px;
+        }
+
+        .hyper-checkout-payment-merchant-name {
+          font-size: 18px;
+        }
+
+        #hyper-checkout-payment-footer {
+          background-color: var(--primary-accent-color);
+          border-radius: 50px;
+          width: auto;
+          align-self: center;
+          margin: 0 24px 24px 24px;
+        }
+
+        #hyper-checkout-cart {
+          display: none;
+        }
+
+        #hyper-checkout-sdk {
+          margin: 20px 0 0 0;
+          background-color: transparent;
+          min-width: 300px;
+          width: 100vw;
+        }
+
+        #payment-form-wrap {
+          min-width: 300px;
+          padding: 10px;
+          width: 100vw;
+        }
+
+        #hyper-checkout-status {
+          padding: 15px;
+        }
+
+        #status-img {
+          height: 60px;
+        }
+
+        #status-text {
+          font-size: 19px;
+        }
+
+        #status-date {
+          font-size: 12px;
+        }
+
+        .hyper-checkout-item-header {
+          font-size: 11px;
+        }
+
+        .hyper-checkout-item-value {
+          font-size: 17px;
+        }
+      }
     </style>
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800"
+    />
   </head>
+
   <body onload="showSDK()">
     <div class="page-spinner hidden" id="page-spinner"></div>
     <div class="hyper-checkout">

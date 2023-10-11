@@ -61,6 +61,7 @@ Never share your secret api keys. Keep them guarded and secure.
         (name = "Disputes", description = "Manage disputes"),
         // (name = "API Key", description = "Create and manage API Keys"),
         (name = "Payouts", description = "Create and manage payouts"),
+        (name = "payment link", description = "Create payment link"),
     ),
     paths(
         crate::routes::refunds::refunds_create,
@@ -112,6 +113,7 @@ Never share your secret api keys. Keep them guarded and secure.
         crate::routes::payouts::payouts_fulfill,
         crate::routes::payouts::payouts_retrieve,
         crate::routes::payouts::payouts_update,
+        crate::routes::payment_link::payment_link_retrieve
     ),
     components(schemas(
         crate::types::api::refunds::RefundRequest,
@@ -140,6 +142,7 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::admin::AcceptedCountries,
         api_models::admin::AcceptedCurrencies,
         api_models::enums::RoutingAlgorithm,
+        api_models::enums::PaymentType,
         api_models::enums::PaymentMethod,
         api_models::enums::PaymentMethodType,
         api_models::enums::ConnectorType,
@@ -335,7 +338,12 @@ Never share your secret api keys. Keep them guarded and secure.
         crate::types::api::api_keys::CreateApiKeyResponse,
         crate::types::api::api_keys::RetrieveApiKeyResponse,
         crate::types::api::api_keys::RevokeApiKeyResponse,
-        crate::types::api::api_keys::UpdateApiKeyRequest
+        crate::types::api::api_keys::UpdateApiKeyRequest,
+        api_models::payments::RetrievePaymentLinkRequest,
+        api_models::payments::PaymentLinkResponse,
+        api_models::payments::RetrievePaymentLinkResponse,
+        api_models::payments::PaymentLinkInitiateRequest,
+        api_models::payments::PaymentLinkObject
     )),
     modifiers(&SecurityAddon)
 )]

@@ -3,7 +3,7 @@ use router_env::{instrument, tracing, Flow};
 
 use super::app::AppState;
 use crate::{
-    core::api_keys,
+    core::{api_keys, api_locking},
     services::{api, authentication as auth},
     types::api as api_types,
 };
@@ -54,10 +54,10 @@ pub async fn api_key_create(
             .await
         },
         &auth::AdminApiAuth,
+        api_locking::LockAction::NotApplicable,
     )
     .await
 }
-
 /// API Key - Retrieve
 ///
 /// Retrieve information about the specified API Key.
@@ -92,10 +92,10 @@ pub async fn api_key_retrieve(
         (&merchant_id, &key_id),
         |state, _, (merchant_id, key_id)| api_keys::retrieve_api_key(state, merchant_id, key_id),
         &auth::AdminApiAuth,
+        api_locking::LockAction::NotApplicable,
     )
     .await
 }
-
 /// API Key - Update
 ///
 /// Update information for the specified API Key.
@@ -135,10 +135,10 @@ pub async fn api_key_update(
             api_keys::update_api_key(state, merchant_id, key_id, payload)
         },
         &auth::AdminApiAuth,
+        api_locking::LockAction::NotApplicable,
     )
     .await
 }
-
 /// API Key - Revoke
 ///
 /// Revoke the specified API Key. Once revoked, the API Key can no longer be used for
@@ -174,10 +174,10 @@ pub async fn api_key_revoke(
         (&merchant_id, &key_id),
         |state, _, (merchant_id, key_id)| api_keys::revoke_api_key(state, merchant_id, key_id),
         &auth::AdminApiAuth,
+        api_locking::LockAction::NotApplicable,
     )
     .await
 }
-
 /// API Key - List
 ///
 /// List all API Keys associated with your merchant account.
@@ -218,6 +218,7 @@ pub async fn api_key_list(
             api_keys::list_api_keys(state, merchant_id, limit, offset).await
         },
         &auth::AdminApiAuth,
+        api_locking::LockAction::NotApplicable,
     )
     .await
 }

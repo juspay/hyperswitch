@@ -17,9 +17,9 @@ use super::payouts::*;
 use super::verification::{apple_pay_merchant_registration, retrieve_apple_pay_verified_domains};
 #[cfg(feature = "olap")]
 use super::{admin::*, api_keys::*, disputes::*, files::*};
-use super::{cache::*, health::*};
+use super::{cache::*, health::*, payment_link::*};
 #[cfg(any(feature = "olap", feature = "oltp"))]
-use super::{configs::*, customers::*, mandates::*, payment_link::*, payments::*, refunds::*};
+use super::{configs::*, customers::*, mandates::*, payments::*, refunds::*};
 #[cfg(feature = "oltp")]
 use super::{ephemeral_key::*, payment_methods::*, webhooks::*};
 use crate::{
@@ -55,6 +55,7 @@ pub trait AppStateInfo {
     fn add_request_id(&mut self, request_id: Option<String>);
     fn add_merchant_id(&mut self, merchant_id: Option<String>);
     fn add_flow_name(&mut self, flow_name: String);
+    fn get_request_id(&self) -> Option<String>;
 }
 
 impl AppStateInfo for AppState {
@@ -75,7 +76,10 @@ impl AppStateInfo for AppState {
         self.api_client.add_merchant_id(merchant_id);
     }
     fn add_flow_name(&mut self, flow_name: String) {
-        self.flow_name = flow_name;
+        self.api_client.add_flow_name(flow_name);
+    }
+    fn get_request_id(&self) -> Option<String> {
+        self.api_client.get_request_id()
     }
 }
 
@@ -578,7 +582,9 @@ impl PaymentLink {
     pub fn server(state: AppState) -> Scope {
         web::scope("/payment_link")
             .app_data(web::Data::new(state))
-            .service(web::resource("").route(web::get().to(get_payment_link)))
+            .service(
+                web::resource("/{payment_link_id}").route(web::get().to(payment_link_retrieve)),
+            )
             .service(
                 web::resource("{merchant_id}/{payment_id}")
                     .route(web::get().to(initiate_payment_link)),
@@ -616,7 +622,7 @@ impl Verify {
         web::scope("/verify")
             .app_data(web::Data::new(state))
             .service(
-                web::resource("/{merchant_id}/apple_pay")
+                web::resource("/apple_pay/{merchant_id}")
                     .route(web::post().to(apple_pay_merchant_registration)),
             )
             .service(

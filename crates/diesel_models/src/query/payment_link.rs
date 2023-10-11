@@ -1,4 +1,4 @@
-use diesel::{associations::HasTable, BoolExpressionMethods, ExpressionMethods};
+use diesel::{associations::HasTable, ExpressionMethods};
 use router_env::{instrument, tracing};
 
 use super::generics;
@@ -16,16 +16,13 @@ impl PaymentLinkNew {
 }
 
 impl PaymentLink {
-    pub async fn find_by_link_payment_id_merchant_id(
+    pub async fn find_link_by_payment_link_id(
         conn: &PgPooledConn,
         payment_link_id: &str,
-        merchant_id: &str,
     ) -> StorageResult<Self> {
         generics::generic_find_one::<<Self as HasTable>::Table, _, _>(
             conn,
-            dsl::payment_link_id
-                .eq(payment_link_id.to_owned())
-                .and(dsl::merchant_id.eq(merchant_id.to_owned())),
+            dsl::payment_link_id.eq(payment_link_id.to_owned()),
         )
         .await
     }

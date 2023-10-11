@@ -3,7 +3,7 @@ use router_env::{instrument, tracing, Flow};
 
 use super::app::AppState;
 use crate::{
-    core::admin::*,
+    core::{admin::*, api_locking},
     services::{api, authentication as auth},
     types::api::admin,
 };
@@ -37,10 +37,10 @@ pub async fn merchant_account_create(
         json_payload.into_inner(),
         |state, _, req| create_merchant_account(state, req),
         &auth::AdminApiAuth,
+        api_locking::LockAction::NotApplicable,
     )
     .await
 }
-
 /// Merchant Account - Retrieve
 ///
 /// Retrieve a merchant account details.
@@ -73,10 +73,10 @@ pub async fn retrieve_merchant_account(
         payload,
         |state, _, req| get_merchant_account(state, req),
         &auth::AdminApiAuth,
+        api_locking::LockAction::NotApplicable,
     )
     .await
 }
-
 /// Merchant Account - Update
 ///
 /// To update an existing merchant account. Helpful in updating merchant details such as email, contact details, or other configuration details like webhook, routing algorithm etc
@@ -109,10 +109,10 @@ pub async fn update_merchant_account(
         json_payload.into_inner(),
         |state, _, req| merchant_account_update(state, &merchant_id, req),
         &auth::AdminApiAuth,
+        api_locking::LockAction::NotApplicable,
     )
     .await
 }
-
 /// Merchant Account - Delete
 ///
 /// To delete a merchant account
@@ -146,10 +146,10 @@ pub async fn delete_merchant_account(
         payload,
         |state, _, req| merchant_account_delete(state, req.merchant_id),
         &auth::AdminApiAuth,
+        api_locking::LockAction::NotApplicable,
     )
     .await
 }
-
 /// PaymentsConnectors - Create
 ///
 /// Create a new Merchant Connector for the merchant account. The connector could be a payment processor / facilitator / acquirer or specialized services like Fraud / Accounting etc."
@@ -181,10 +181,10 @@ pub async fn payment_connector_create(
         json_payload.into_inner(),
         |state, _, req| create_payment_connector(state, req, &merchant_id),
         &auth::AdminApiAuth,
+        api_locking::LockAction::NotApplicable,
     )
     .await
 }
-
 /// Merchant Connector - Retrieve
 ///
 /// Retrieve Merchant Connector Details
@@ -227,10 +227,10 @@ pub async fn payment_connector_retrieve(
             retrieve_payment_connector(state, req.merchant_id, req.merchant_connector_id)
         },
         &auth::AdminApiAuth,
+        api_locking::LockAction::NotApplicable,
     )
     .await
 }
-
 /// Merchant Connector - List
 ///
 /// List Merchant Connector Details for the merchant
@@ -265,10 +265,10 @@ pub async fn payment_connector_list(
         merchant_id,
         |state, _, merchant_id| list_payment_connectors(state, merchant_id),
         &auth::AdminApiAuth,
+        api_locking::LockAction::NotApplicable,
     )
     .await
 }
-
 /// Merchant Connector - Update
 ///
 /// To update an existing Merchant Connector. Helpful in enabling / disabling different payment methods and other settings for the connector etc.
@@ -306,10 +306,10 @@ pub async fn payment_connector_update(
         json_payload.into_inner(),
         |state, _, req| update_payment_connector(state, &merchant_id, &merchant_connector_id, req),
         &auth::AdminApiAuth,
+        api_locking::LockAction::NotApplicable,
     )
     .await
 }
-
 /// Merchant Connector - Delete
 ///
 /// Delete or Detach a Merchant Connector from Merchant Account
@@ -350,10 +350,10 @@ pub async fn payment_connector_delete(
         payload,
         |state, _, req| delete_payment_connector(state, req.merchant_id, req.merchant_connector_id),
         &auth::AdminApiAuth,
+        api_locking::LockAction::NotApplicable,
     )
     .await
 }
-
 /// Merchant Account - Toggle KV
 ///
 /// Toggle KV mode for the Merchant Account
@@ -375,10 +375,10 @@ pub async fn merchant_account_toggle_kv(
         (merchant_id, payload),
         |state, _, (merchant_id, payload)| kv_for_merchant(state, merchant_id, payload.kv_enabled),
         &auth::AdminApiAuth,
+        api_locking::LockAction::NotApplicable,
     )
     .await
 }
-
 #[instrument(skip_all, fields(flow = ?Flow::BusinessProfileCreate))]
 pub async fn business_profile_create(
     state: web::Data<AppState>,
@@ -397,10 +397,10 @@ pub async fn business_profile_create(
         payload,
         |state, _, req| create_business_profile(state, req, &merchant_id),
         &auth::AdminApiAuth,
+        api_locking::LockAction::NotApplicable,
     )
     .await
 }
-
 #[instrument(skip_all, fields(flow = ?Flow::BusinessProfileRetrieve))]
 pub async fn business_profile_retrieve(
     state: web::Data<AppState>,
@@ -417,10 +417,10 @@ pub async fn business_profile_retrieve(
         profile_id,
         |state, _, profile_id| retrieve_business_profile(state, profile_id),
         &auth::AdminApiAuth,
+        api_locking::LockAction::NotApplicable,
     )
     .await
 }
-
 #[instrument(skip_all, fields(flow = ?Flow::BusinessProfileUpdate))]
 pub async fn business_profile_update(
     state: web::Data<AppState>,
@@ -438,10 +438,10 @@ pub async fn business_profile_update(
         json_payload.into_inner(),
         |state, _, req| update_business_profile(state, &profile_id, &merchant_id, req),
         &auth::AdminApiAuth,
+        api_locking::LockAction::NotApplicable,
     )
     .await
 }
-
 #[instrument(skip_all, fields(flow = ?Flow::BusinessProfileDelete))]
 pub async fn business_profile_delete(
     state: web::Data<AppState>,
@@ -458,10 +458,10 @@ pub async fn business_profile_delete(
         profile_id,
         |state, _, profile_id| delete_business_profile(state, profile_id, &merchant_id),
         &auth::AdminApiAuth,
+        api_locking::LockAction::NotApplicable,
     )
     .await
 }
-
 #[instrument(skip_all, fields(flow = ?Flow::BusinessProfileList))]
 pub async fn business_profiles_list(
     state: web::Data<AppState>,
@@ -478,10 +478,10 @@ pub async fn business_profiles_list(
         merchant_id,
         |state, _, merchant_id| list_business_profile(state, merchant_id),
         &auth::AdminApiAuth,
+        api_locking::LockAction::NotApplicable,
     )
     .await
 }
-
 /// Merchant Account - KV Status
 ///
 /// Toggle KV mode for the Merchant Account
@@ -501,6 +501,7 @@ pub async fn merchant_account_kv_status(
         merchant_id,
         |state, _, req| check_merchant_account_kv_status(state, req),
         &auth::AdminApiAuth,
+        api_locking::LockAction::NotApplicable,
     )
     .await
 }

@@ -11,7 +11,9 @@ use crate::{
     core::{
         errors::{self, RouterResult, StorageErrorExt},
         mandate,
+        payment_methods::PaymentMethodRetrieve,
         payments::{types::MultipleCaptureData, PaymentData},
+        utils as core_utils,
     },
     db::StorageInterface,
     routes::metrics,
@@ -31,7 +33,7 @@ use crate::{
 #[derive(Debug, Clone, Copy, router_derive::PaymentOperation)]
 #[operation(
     ops = "post_tracker",
-    flow = "syncdata,authorizedata,canceldata,capturedata,completeauthorizedata,approvedata,rejectdata,verifydata,sessiondata"
+    flow = "syncdata,authorizedata,canceldata,capturedata,completeauthorizedata,approvedata,rejectdata,setupmandatedata,sessiondata"
 )]
 pub struct PaymentResponse;
 
@@ -229,13 +231,19 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsRejectData> f
 }
 
 #[async_trait]
-impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::VerifyRequestData> for PaymentResponse {
+impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::SetupMandateRequestData>
+    for PaymentResponse
+{
     async fn update_tracker<'b>(
         &'b self,
         db: &dyn StorageInterface,
         payment_id: &api::PaymentIdType,
         mut payment_data: PaymentData<F>,
-        router_data: types::RouterData<F, types::VerifyRequestData, types::PaymentsResponseData>,
+        router_data: types::RouterData<
+            F,
+            types::SetupMandateRequestData,
+            types::PaymentsResponseData,
+        >,
 
         storage_scheme: enums::MerchantStorageScheme,
     ) -> RouterResult<PaymentData<F>>
@@ -311,10 +319,21 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                     (Some((multiple_capture_data, capture_update_list)), None)
                 }
                 None => {
-                    let status = match err.status_code {
-                        500..=511 => storage::enums::AttemptStatus::Pending,
-                        _ => storage::enums::AttemptStatus::Failure,
-                    };
+                    let flow_name = core_utils::get_flow_name::<F>()?;
+                    let status =
+                        // mark previous attempt status for technical failures in PSync flow
+                        if flow_name == "PSync" {
+                            match err.status_code {
+                                // marking failure for 2xx because this is genuine payment failure
+                                200..=299 => storage::enums::AttemptStatus::Failure,
+                                _ => payment_data.payment_attempt.status,
+                            }
+                        } else {
+                            match err.status_code {
+                                500..=511 => storage::enums::AttemptStatus::Pending,
+                                _ => storage::enums::AttemptStatus::Failure,
+                            }
+                        };
                     (
                         None,
                         Some(storage::PaymentAttemptUpdate::ErrorUpdate {
@@ -406,6 +425,13 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                 if router_data.status == enums::AttemptStatus::Charged {
                     metrics::SUCCESSFUL_PAYMENT.add(&metrics::CONTEXT, 1, &[]);
                 }
+
+                utils::add_apple_pay_payment_status_metrics(
+                    router_data.status,
+                    router_data.apple_pay_flow,
+                    payment_data.payment_attempt.connector.clone(),
+                    payment_data.payment_attempt.merchant_id.clone(),
+                );
 
                 let (capture_updates, payment_attempt_update) =
                     match payment_data.multiple_capture_data {

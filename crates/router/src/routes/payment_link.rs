@@ -1,21 +1,40 @@
 use actix_web::{web, Responder};
-use router_env::Flow;
+use router_env::{instrument, tracing, Flow};
 
-use super::app::AppState;
 use crate::{
-    core::payment_link::{self},
+    core::{api_locking, payment_link::*},
     services::{api, authentication as auth},
+    AppState,
 };
 
-pub async fn get_payment_link(
+/// Payments Link - Retrieve
+///
+/// To retrieve the properties of a Payment Link. This may be used to get the status of a previously initiated payment or next action for an ongoing payment
+#[utoipa::path(
+    get,
+    path = "/payment_link/{payment_link_id}",
+    params(
+        ("payment_link_id" = String, Path, description = "The identifier for payment link")
+    ),
+    request_body=RetrievePaymentLinkRequest,
+    responses(
+        (status = 200, description = "Gets details regarding payment link", body = RetrievePaymentLinkResponse),
+        (status = 404, description = "No payment link found")
+    ),
+    tag = "Payments",
+    operation_id = "Retrieve a Payment Link",
+    security(("api_key" = []), ("publishable_key" = []))
+)]
+#[instrument(skip(state, req), fields(flow = ?Flow::PaymentLinkRetrieve))]
+
+pub async fn payment_link_retrieve(
     state: web::Data<AppState>,
     req: actix_web::HttpRequest,
-    query_payload: web::Query<api_models::payments::RetrievePaymentLinkRequest>,
+    path: web::Path<String>,
+    json_payload: web::Query<api_models::payments::RetrievePaymentLinkRequest>,
 ) -> impl Responder {
     let flow = Flow::PaymentLinkRetrieve;
-
-    let payload = query_payload.into_inner();
-
+    let payload = json_payload.into_inner();
     let (auth_type, _) = match auth::check_client_secret_and_get_auth(req.headers(), &payload) {
         Ok(auth) => auth,
         Err(err) => return api::log_and_return_error_response(error_stack::report!(err)),
@@ -25,14 +44,9 @@ pub async fn get_payment_link(
         state,
         &req,
         payload.clone(),
-        |state, auth, _| {
-            payment_link::retrieve_payment_link(
-                state,
-                auth.merchant_account,
-                payload.payment_link_id.clone(),
-            )
-        },
+        |state, _auth, _| retrieve_payment_link(state, path.clone()),
         &*auth_type,
+        api_locking::LockAction::NotApplicable,
     )
     .await
 }
@@ -44,18 +58,17 @@ pub async fn initiate_payment_link(
 ) -> impl Responder {
     let flow = Flow::PaymentLinkInitiate;
     let (merchant_id, payment_id) = path.into_inner();
-    let payload = web::Json(api_models::payments::PaymentLinkInitiateRequest {
+    let payload = api_models::payments::PaymentLinkInitiateRequest {
         payment_id,
         merchant_id: merchant_id.clone(),
-    })
-    .into_inner();
+    };
     api::server_wrap(
         flow,
         state,
         &req,
         payload.clone(),
         |state, auth, _| {
-            payment_link::intiate_payment_link_flow(
+            intiate_payment_link_flow(
                 state,
                 auth.merchant_account,
                 payload.merchant_id.clone(),
@@ -63,6 +76,7 @@ pub async fn initiate_payment_link(
             )
         },
         &crate::services::authentication::MerchantIdAuth(merchant_id),
+        api_locking::LockAction::NotApplicable,
     )
     .await
 }

@@ -1,47 +1,25 @@
 use super::errors::{self, StorageErrorExt};
-#[cfg(feature = "olap")]
 use crate::{
     core::payments::helpers,
     errors::RouterResponse,
     routes::AppState,
     services,
-    types::{
-        domain,
-        storage::{self, enums as storage_enums},
-        transformers::ForeignFrom,
-    },
+    types::{domain, storage::enums as storage_enums, transformers::ForeignFrom},
 };
 
 pub async fn retrieve_payment_link(
     state: AppState,
-    merchant_account: domain::MerchantAccount,
     payment_link_id: String,
 ) -> RouterResponse<api_models::payments::RetrievePaymentLinkResponse> {
     let db = &*state.store;
     let payment_link_object = db
-        .find_payment_link_by_payment_link_id(&payment_link_id, &merchant_account.merchant_id)
+        .find_payment_link_by_payment_link_id(&payment_link_id)
         .await
         .to_not_found_response(errors::ApiErrorResponse::PaymentLinkNotFound)?;
 
     let response =
         api_models::payments::RetrievePaymentLinkResponse::foreign_from(payment_link_object);
     Ok(services::ApplicationResponse::Json(response))
-}
-
-impl ForeignFrom<storage::PaymentLink> for api_models::payments::RetrievePaymentLinkResponse {
-    fn foreign_from(payment_link_object: storage::PaymentLink) -> Self {
-        Self {
-            payment_link_id: payment_link_object.payment_link_id,
-            payment_id: payment_link_object.payment_id,
-            merchant_id: payment_link_object.merchant_id,
-            link_to_pay: payment_link_object.link_to_pay,
-            amount: payment_link_object.amount,
-            currency: payment_link_object.currency,
-            created_at: payment_link_object.created_at,
-            last_modified_at: payment_link_object.last_modified_at,
-            link_expiry: payment_link_object.fullfilment_time,
-        }
-    }
 }
 
 pub async fn intiate_payment_link_flow(
@@ -69,7 +47,7 @@ pub async fn intiate_payment_link_flow(
             storage_enums::IntentStatus::RequiresCapture,
             storage_enums::IntentStatus::RequiresMerchantAction,
         ],
-        "create",
+        "create payment link",
     )?;
 
     let js_script = get_js_script(
@@ -82,7 +60,7 @@ pub async fn intiate_payment_link_flow(
 
     let payment_link_data = services::PaymentLinkFormData {
         js_script,
-        sdk_url: state.conf.payment_link_sdk_url.sdk_url.clone(),
+        sdk_url: state.conf.payment_link.sdk_url.clone(),
     };
     Ok(services::ApplicationResponse::PaymenkLinkForm(Box::new(
         payment_link_data,

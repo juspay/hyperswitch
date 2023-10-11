@@ -6,7 +6,7 @@ use router_env::{instrument, tracing, Tag};
 use serde::Serialize;
 
 use crate::{
-    core::errors::{self},
+    core::{api_locking, errors},
     routes::{app::AppStateInfo, metrics},
     services::{self, api, authentication as auth, logger},
 };
@@ -19,6 +19,7 @@ pub async fn compatibility_api_wrap<'a, 'b, A, U, T, Q, F, Fut, S, E, E2>(
     payload: T,
     func: F,
     api_authentication: &dyn auth::AuthenticateAndFetch<U, A>,
+    lock_action: api_locking::LockAction,
 ) -> HttpResponse
 where
     F: Fn(A, U, T) -> Fut,
@@ -49,6 +50,7 @@ where
             payload,
             func,
             api_authentication,
+            lock_action,
         ),
         &flow,
     )
@@ -83,7 +85,7 @@ where
             let response = S::try_from(response);
             match response {
                 Ok(response) => match serde_json::to_string(&response) {
-                    Ok(res) => api::http_response_json_with_headers(res, headers),
+                    Ok(res) => api::http_response_json_with_headers(res, headers, None),
                     Err(_) => api::http_response_err(
                         r#"{
                                 "error": {
