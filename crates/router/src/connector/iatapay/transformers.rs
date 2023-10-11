@@ -216,10 +216,6 @@ impl<F, T>
             Some(s) => types::ResponseId::ConnectorTransactionId(s),
             None => types::ResponseId::NoResponseId,
         };
-        let mut connector_response_reference_id = item.response.iata_payment_id.clone();
-        if connector_response_reference_id.is_none() {
-            connector_response_reference_id = item.response.merchant_payment_id.clone();
-        }
         Ok(Self {
             status: enums::AttemptStatus::from(item.response.status),
             response: item.response.checkout_methods.map_or(
