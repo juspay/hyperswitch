@@ -103,7 +103,7 @@ echo `aws rds create-db-instance  \
     --db-name hyperswitch_db \
     --tags "Key=ManagedBy,Value=hyperswitch" \
     --vpc-security-group-ids $RDS_SG_ID`
-curl https://raw.githubusercontent.com/juspay/hyperswitch/feat/create-prod-script/schema.sql >> schema.sql
+curl https://raw.githubusercontent.com/juspay/hyperswitch/feat/create-prod-script/schema.sql > schema.sql
 
 export RDS_STATUS=$(aws rds describe-db-instances \
 --db-instance-identifier $DB_INSTANCE_ID \
