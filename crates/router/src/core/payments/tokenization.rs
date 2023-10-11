@@ -126,7 +126,7 @@ where
                                             merchant_id,
                                             pm_metadata,
                                             pm_data_encrypted,
-                                            &key_store,
+                                            key_store,
                                         )
                                         .await
                                     }
@@ -152,7 +152,7 @@ where
                         merchant_id,
                         pm_metadata,
                         pm_data_encrypted,
-                        &key_store,
+                        key_store,
                     )
                     .await?;
                 };

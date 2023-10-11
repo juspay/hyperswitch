@@ -54,6 +54,7 @@ use crate::{
 };
 
 #[instrument(skip_all)]
+#[allow(clippy::too_many_arguments)]
 pub async fn create_payment_method(
     db: &dyn db::StorageInterface,
     req: &api::PaymentMethodCreate,
@@ -65,7 +66,7 @@ pub async fn create_payment_method(
     key_store: &domain::MerchantKeyStore,
 ) -> errors::CustomResult<storage::PaymentMethod, errors::ApiErrorResponse> {
     let _customer = db
-        .find_customer_by_customer_id_merchant_id(&customer_id, &merchant_id, &key_store)
+        .find_customer_by_customer_id_merchant_id(customer_id, merchant_id, key_store)
         .await
         .to_not_found_response(errors::ApiErrorResponse::CustomerNotFound)?;
 
@@ -148,7 +149,7 @@ pub async fn add_payment_method(
             &resp.merchant_id,
             pm_metadata.cloned(),
             pm_data_encrypted,
-            &key_store,
+            key_store,
         )
         .await?;
     }
