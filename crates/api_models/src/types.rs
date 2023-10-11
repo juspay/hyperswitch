@@ -1,7 +1,12 @@
+use std::collections::HashMap;
+
 use common_utils::errors::{ApiModelsError, CustomResult};
 use error_stack::ResultExt;
 use serde::{de::Visitor, Deserialize, Deserializer};
+use serde_with::serde_as;
 use utoipa::ToSchema;
+
+use crate::payment_methods::SurchargeDetailsResponse;
 
 #[derive(Clone, Default, Debug, PartialEq, serde::Serialize, ToSchema)]
 pub struct Percentage<const PRECISION: u8> {
@@ -89,4 +94,12 @@ impl<'de, const PRECISION: u8> Deserialize<'de> for Percentage<PRECISION> {
     {
         data.deserialize_map(PercentageVisitor::<PRECISION> {})
     }
+}
+
+// this type will be serialized to json_value and stored in PaymentAttempt.surcharge_metadata
+#[serde_as]
+#[derive(Clone, Debug, PartialEq, serde::Serialize, Deserialize)]
+pub struct SurchargeMetadata {
+    #[serde_as(as = "HashMap<_, _>")]
+    pub surcharge_results: HashMap<String, SurchargeDetailsResponse>,
 }
