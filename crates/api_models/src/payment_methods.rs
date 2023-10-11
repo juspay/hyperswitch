@@ -262,11 +262,11 @@ pub struct CardNetworkTypes {
             "surcharge": {
                 "type": "rate",
                 "value": {
-                    "percentage": "2.5"
+                    "percentage": 2.5
                 }
             },
             "tax_on_surcharge": {
-                "percentage": "1.5"
+                "percentage": 1.5
             }
         }
     "#)]
@@ -311,11 +311,11 @@ pub struct ResponsePaymentMethodTypes {
             "surcharge": {
                 "type": "rate",
                 "value": {
-                    "percentage": "2.5"
+                    "percentage": 2.5
                 }
             },
             "tax_on_surcharge": {
-                "percentage": "1.5"
+                "percentage": 1.5
             }
         }
     "#)]
