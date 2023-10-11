@@ -247,10 +247,9 @@ pub async fn save_payout_data_to_locker(
         &merchant_account.merchant_id,
         None,
         card_details_encrypted,
+        &key_store,
     )
-    .await
-    .change_context(errors::ApiErrorResponse::InternalServerError)
-    .attach_printable("Failed to save payment method")?;
+    .await?;
 
     Ok(())
 }

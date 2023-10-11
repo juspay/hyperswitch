@@ -62,7 +62,13 @@ pub async fn create_payment_method(
     merchant_id: &str,
     pm_metadata: Option<serde_json::Value>,
     payment_method_data: Option<Encryption>,
-) -> errors::CustomResult<storage::PaymentMethod, errors::StorageError> {
+    key_store: &domain::MerchantKeyStore,
+) -> errors::CustomResult<storage::PaymentMethod, errors::ApiErrorResponse> {
+    let _customer = db
+        .find_customer_by_customer_id_merchant_id(&customer_id, &merchant_id, &key_store)
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::CustomerNotFound)?;
+
     let response = db
         .insert_payment_method(storage::PaymentMethodNew {
             customer_id: customer_id.to_string(),
@@ -76,7 +82,8 @@ pub async fn create_payment_method(
             payment_method_data,
             ..storage::PaymentMethodNew::default()
         })
-        .await?;
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)?;
 
     Ok(response)
 }
@@ -141,10 +148,9 @@ pub async fn add_payment_method(
             &resp.merchant_id,
             pm_metadata.cloned(),
             pm_data_encrypted,
+            &key_store,
         )
-        .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Failed to save Payment Method")?;
+        .await?;
     }
 
     Ok(resp).map(services::ApplicationResponse::Json)

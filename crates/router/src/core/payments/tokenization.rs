@@ -126,12 +126,9 @@ where
                                             merchant_id,
                                             pm_metadata,
                                             pm_data_encrypted,
+                                            &key_store,
                                         )
                                         .await
-                                        .change_context(
-                                            errors::ApiErrorResponse::InternalServerError,
-                                        )
-                                        .attach_printable("Failed to add payment method in db")
                                     }
                                     _ => {
                                         Err(report!(errors::ApiErrorResponse::InternalServerError)
@@ -155,10 +152,9 @@ where
                         merchant_id,
                         pm_metadata,
                         pm_data_encrypted,
+                        &key_store,
                     )
-                    .await
-                    .change_context(errors::ApiErrorResponse::InternalServerError)
-                    .attach_printable("Failed to add payment method in db")?;
+                    .await?;
                 };
                 Some(locker_response.0.payment_method_id)
             } else {
