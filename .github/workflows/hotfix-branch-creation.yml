@@ -1,4 +1,4 @@
-name: Create a new hotfix branch
+name: Create hotfix branch
 
 on:
   workflow_dispatch:

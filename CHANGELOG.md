@@ -4,6 +4,39 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 1.55.0 (2023-10-10)
+
+### Features
+
+- **connector:**
+  - [Multisafepay] Use connector_request_reference_id as reference to the connector ([#2503](https://github.com/juspay/hyperswitch/pull/2503)) ([`c34f1bf`](https://github.com/juspay/hyperswitch/commit/c34f1bf36ffb3a3533dd51ac87e7f66ab0dcce79))
+  - [GlobalPayments] Introduce connector_request_reference_id for GlobalPayments ([#2519](https://github.com/juspay/hyperswitch/pull/2519)) ([`116139b`](https://github.com/juspay/hyperswitch/commit/116139ba7ae6878b7018068b0cb8303a8e8d1f7a))
+  - [Airwallex] Use connector_request_reference_id as merchant reference id #2291 ([#2516](https://github.com/juspay/hyperswitch/pull/2516)) ([`6e89e41`](https://github.com/juspay/hyperswitch/commit/6e89e4103da4ecf6d7f06f7a9ec7da64eb493a6e))
+- **trace:** Add optional sampling behaviour for routes ([#2511](https://github.com/juspay/hyperswitch/pull/2511)) ([`ec51e48`](https://github.com/juspay/hyperswitch/commit/ec51e48402da63e1250328485095b8665d7eca65))
+- Gracefully shutdown drainer if redis goes down ([#2391](https://github.com/juspay/hyperswitch/pull/2391)) ([`2870af1`](https://github.com/juspay/hyperswitch/commit/2870af1286e897be0d40c014bc5742eafc6795db))
+- Kv for reverse lookup ([#2445](https://github.com/juspay/hyperswitch/pull/2445)) ([`13aaf96`](https://github.com/juspay/hyperswitch/commit/13aaf96db0f62dc7a706ba2ba230912ee7ef7a68))
+- Add x-hs-latency header for application overhead measurement ([#2486](https://github.com/juspay/hyperswitch/pull/2486)) ([`cf0db35`](https://github.com/juspay/hyperswitch/commit/cf0db35923d39caca9bf267b7d87a3f215884b66))
+
+### Bug Fixes
+
+- **connector:**
+  - [Airwallex] convert expiry year to four digit ([#2527](https://github.com/juspay/hyperswitch/pull/2527)) ([`4b0fa12`](https://github.com/juspay/hyperswitch/commit/4b0fa1295ca8f4e611b65fbf2458c38b89303d3b))
+  - [noon] add missing response status ([#2528](https://github.com/juspay/hyperswitch/pull/2528)) ([`808ee45`](https://github.com/juspay/hyperswitch/commit/808ee45556f90b1c1360a3edbffe9ba3603439d4))
+
+### Refactors
+
+- **payment_methods:** Added mca_id in bank details ([#2495](https://github.com/juspay/hyperswitch/pull/2495)) ([`ac3c500`](https://github.com/juspay/hyperswitch/commit/ac3c5008f80172a575f2fb08b7a5e78016ce7595))
+- **test_utils:** Refactor `test_utils` crate and add `folder` support with updated documentation ([#2487](https://github.com/juspay/hyperswitch/pull/2487)) ([`6b52ac3`](https://github.com/juspay/hyperswitch/commit/6b52ac3d398d5a180c1dc67c5b53702ad01a0773))
+
+### Miscellaneous Tasks
+
+- [GOCARDLESS] env changes for becs and sepa mandates ([#2535](https://github.com/juspay/hyperswitch/pull/2535)) ([`4f5a383`](https://github.com/juspay/hyperswitch/commit/4f5a383bab567a1b46b2d6990c0c23ed60f1201b))
+
+**Full Changelog:** [`v1.54.0...v1.55.0`](https://github.com/juspay/hyperswitch/compare/v1.54.0...v1.55.0)
+
+- - -
+
+
 ## 1.54.0 (2023-10-09)
 
 ### Features
