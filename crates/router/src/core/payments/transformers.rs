@@ -1,7 +1,7 @@
 use std::{fmt::Debug, marker::PhantomData, str::FromStr};
 
 use api_models::payments::FrmMessage;
-use common_utils::fp_utils;
+use common_utils::{consts::X_HS_LATENCY, fp_utils};
 use diesel_models::ephemeral_key;
 use error_stack::{IntoReport, ResultExt};
 use router_env::{instrument, tracing};
@@ -161,6 +161,7 @@ where
         payment_method_balance: None,
         connector_api_version,
         connector_http_status_code: None,
+        external_latency: None,
         apple_pay_flow,
     };
 
@@ -182,6 +183,8 @@ where
         operation: Op,
         connector_request_reference_id_config: &ConnectorRequestReferenceIdConfig,
         connector_http_status_code: Option<u16>,
+        external_latency: Option<u128>,
+        is_latency_header_enabled: Option<bool>,
     ) -> RouterResponse<Self>;
 }
 
@@ -200,6 +203,8 @@ where
         operation: Op,
         connector_request_reference_id_config: &ConnectorRequestReferenceIdConfig,
         connector_http_status_code: Option<u16>,
+        external_latency: Option<u128>,
+        is_latency_header_enabled: Option<bool>,
     ) -> RouterResponse<Self> {
         let captures =
             payment_data
@@ -229,6 +234,8 @@ where
             &operation,
             connector_request_reference_id_config,
             connector_http_status_code,
+            external_latency,
+            is_latency_header_enabled,
         )
     }
 }
@@ -249,6 +256,8 @@ where
         _operation: Op,
         _connector_request_reference_id_config: &ConnectorRequestReferenceIdConfig,
         _connector_http_status_code: Option<u16>,
+        _external_latency: Option<u128>,
+        _is_latency_header_enabled: Option<bool>,
     ) -> RouterResponse<Self> {
         Ok(services::ApplicationResponse::JsonWithHeaders((
             Self {
@@ -281,6 +290,8 @@ where
         _operation: Op,
         _connector_request_reference_id_config: &ConnectorRequestReferenceIdConfig,
         _connector_http_status_code: Option<u16>,
+        _external_latency: Option<u128>,
+        _is_latency_header_enabled: Option<bool>,
     ) -> RouterResponse<Self> {
         let additional_payment_method_data: Option<api_models::payments::AdditionalPaymentData> =
             data.payment_attempt
@@ -334,6 +345,8 @@ pub fn payments_to_payments_response<R, Op, F: Clone>(
     operation: &Op,
     connector_request_reference_id_config: &ConnectorRequestReferenceIdConfig,
     connector_http_status_code: Option<u16>,
+    external_latency: Option<u128>,
+    is_latency_header_enabled: Option<bool>,
 ) -> RouterResponse<api::PaymentsResponse>
 where
     Op: Debug,
@@ -432,7 +445,13 @@ where
             payment_confirm_source.to_string(),
         ))
     }
-
+    if Some(true) == is_latency_header_enabled {
+        headers.extend(
+            external_latency
+                .map(|latency| vec![(X_HS_LATENCY.to_string(), latency.to_string())])
+                .unwrap_or(vec![]),
+        );
+    }
     let output = Ok(match payment_request {
         Some(_request) => {
             if payments::is_start_pay(&operation)

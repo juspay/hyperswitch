@@ -309,6 +309,7 @@ pub struct PaymentsRequest {
 #[derive(Default, Debug, Clone, Copy)]
 pub struct HeaderPayload {
     pub payment_confirm_source: Option<api_enums::PaymentSource>,
+    pub x_hs_latency: Option<bool>,
 }
 
 #[derive(

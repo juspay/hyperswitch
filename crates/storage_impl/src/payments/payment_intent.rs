@@ -55,7 +55,7 @@ impl<T: DatabaseStore> PaymentIntentInterface for KVRouterStore<T> {
             }
 
             MerchantStorageScheme::RedisKv => {
-                let key = format!("{}_{}", new.merchant_id, new.payment_id);
+                let key = format!("mid_{}_pid_{}", new.merchant_id, new.payment_id);
                 let field = format!("pi_{}", new.payment_id);
                 let created_intent = PaymentIntent {
                     id: 0i32,
@@ -96,12 +96,12 @@ impl<T: DatabaseStore> PaymentIntentInterface for KVRouterStore<T> {
 
                 match kv_wrapper::<PaymentIntent, _, _>(
                     self,
-                    KvOperation::SetNx(&field, &created_intent),
+                    KvOperation::HSetNx(&field, &created_intent),
                     &key,
                 )
                 .await
                 .change_context(StorageError::KVError)?
-                .try_into_setnx()
+                .try_into_hsetnx()
                 {
                     Ok(HsetnxReply::KeyNotSet) => Err(StorageError::DuplicateValue {
                         entity: "payment_intent",
@@ -145,7 +145,7 @@ impl<T: DatabaseStore> PaymentIntentInterface for KVRouterStore<T> {
                     .await
             }
             MerchantStorageScheme::RedisKv => {
-                let key = format!("{}_{}", this.merchant_id, this.payment_id);
+                let key = format!("mid_{}_pid_{}", this.merchant_id, this.payment_id);
                 let field = format!("pi_{}", this.payment_id);
 
                 let updated_intent = payment_intent.clone().apply_changeset(this.clone());
@@ -157,12 +157,12 @@ impl<T: DatabaseStore> PaymentIntentInterface for KVRouterStore<T> {
 
                 kv_wrapper::<(), _, _>(
                     self,
-                    KvOperation::<PaymentIntent>::Set((&field, redis_value)),
+                    KvOperation::<PaymentIntent>::Hset((&field, redis_value)),
                     &key,
                 )
                 .await
                 .change_context(StorageError::KVError)?
-                .try_into_set()
+                .try_into_hset()
                 .change_context(StorageError::KVError)?;
 
                 let redis_entry = kv::TypedSql {
@@ -210,17 +210,17 @@ impl<T: DatabaseStore> PaymentIntentInterface for KVRouterStore<T> {
             MerchantStorageScheme::PostgresOnly => database_call().await,
 
             MerchantStorageScheme::RedisKv => {
-                let key = format!("{merchant_id}_{payment_id}");
+                let key = format!("mid_{merchant_id}_pid_{payment_id}");
                 let field = format!("pi_{payment_id}");
                 crate::utils::try_redis_get_else_try_database_get(
                     async {
                         kv_wrapper::<PaymentIntent, _, _>(
                             self,
-                            KvOperation::<PaymentIntent>::Get(&field),
+                            KvOperation::<PaymentIntent>::HGet(&field),
                             &key,
                         )
                         .await?
-                        .try_into_get()
+                        .try_into_hget()
                     },
                     database_call,
                 )

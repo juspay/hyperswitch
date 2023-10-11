@@ -6,7 +6,7 @@ use url::Url;
 use uuid::Uuid;
 
 use crate::{
-    connector::utils,
+    connector::utils::{self, CardData},
     core::errors,
     pii::Secret,
     services,
@@ -48,7 +48,7 @@ impl TryFrom<&types::PaymentsInitRouterData> for AirwallexIntentRequest {
             request_id: Uuid::new_v4().to_string(),
             amount: utils::to_currency_base_unit(item.request.amount, item.request.currency)?,
             currency: item.request.currency,
-            merchant_order_id: item.payment_id.clone(),
+            merchant_order_id: item.connector_request_reference_id.clone(),
         })
     }
 }
@@ -140,9 +140,9 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for AirwallexPaymentsRequest {
                     }));
                 Ok(AirwallexPaymentMethod::Card(AirwallexCard {
                     card: AirwallexCardDetails {
-                        number: ccard.card_number,
+                        number: ccard.card_number.clone(),
                         expiry_month: ccard.card_exp_month.clone(),
-                        expiry_year: ccard.card_exp_year.clone(),
+                        expiry_year: ccard.get_expiry_year_4_digit(),
                         cvc: ccard.card_cvc,
                     },
                     payment_method_type: AirwallexPaymentType::Card,
