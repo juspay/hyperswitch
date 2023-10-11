@@ -2,13 +2,15 @@
 use async_bb8_diesel::AsyncRunQueryDsl;
 use common_utils::{date_time, ext_traits::Encode};
 #[cfg(feature = "olap")]
-use data_models::payments::{
-    payment_attempt::PaymentAttempt, payment_intent::PaymentIntentFetchConstraints,
-};
+use data_models::payments::payment_intent::PaymentIntentFetchConstraints;
 use data_models::{
     errors::StorageError,
     payments::{
-        payment_intent::{PaymentIntentInterface, PaymentIntentNew, PaymentIntentUpdate},
+        payment_attempt::PaymentAttempt,
+        payment_intent::{
+            PaymentIntentInterface, PaymentIntentNew,
+            PaymentIntentUpdate,
+        },
         PaymentIntent,
     },
     MerchantStorageScheme, RemoteStorageObject,
@@ -16,18 +18,14 @@ use data_models::{
 #[cfg(feature = "olap")]
 use diesel::{associations::HasTable, ExpressionMethods, JoinOnDsl, QueryDsl};
 #[cfg(feature = "olap")]
-use diesel_models::query::generics::db_metrics;
+use diesel_models::{query::generics::db_metrics ,schema::{payment_attempt::dsl as pa_dsl, payment_intent::dsl as pi_dsl}};
 use diesel_models::{
     kv,
+    payment_attempt::PaymentAttempt as DieselPaymentAttempt,
     payment_intent::{
         PaymentIntent as DieselPaymentIntent, PaymentIntentNew as DieselPaymentIntentNew,
         PaymentIntentUpdate as DieselPaymentIntentUpdate,
     },
-};
-#[cfg(feature = "olap")]
-use diesel_models::{
-    payment_attempt::PaymentAttempt as DieselPaymentAttempt,
-    schema::{payment_attempt::dsl as pa_dsl, payment_intent::dsl as pi_dsl},
 };
 use error_stack::{IntoReport, ResultExt};
 use redis_interface::HsetnxReply;
