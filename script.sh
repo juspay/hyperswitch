@@ -136,6 +136,7 @@ sudo usermod -a -G docker ec2-user
 docker pull juspaydotin/hyperswitch-router:beta
 
 curl https://raw.githubusercontent.com/juspay/hyperswitch/v1.55.0/config/development.toml > production.toml
+
 EOF
 
 export redis_status=$(aws elasticache describe-cache-clusters \
@@ -164,13 +165,14 @@ export REDIS_ENDPOINT=$(aws elasticache describe-cache-clusters \
 
 echo "\n# Add redis and DB configs\n" >> user_data.sh
 echo "cat << EOF >> .env" >> user_data.sh
-echo "ROUTER__REDIS__CLUSTER_URLS=$REDIS_ENDPOINT" >> user_data.sh
+echo "ROUTER__REDIS__HOST=$REDIS_ENDPOINT" >> user_data.sh
 echo "ROUTER__MASTER_DATABASE__HOST=$RDS_ENDPOINT" >> user_data.sh
 echo "ROUTER__REPLICA_DATABASE__HOST=$RDS_ENDPOINT" >> user_data.sh
+echo "ROUTER__SERVER__HOST=0.0.0.0" >> user_data.sh
 echo "EOF" >> user_data.sh
 
 
-echo "docker run --env-file .env -p 8080:8080 -v `pwd`/:/local/config juspaydotin/hyperswitch-router:beta ./router -f /local/config/production.toml
+echo "docker run --env-file .env -p 8080:8080 -v \`pwd\`/:/local/config juspaydotin/hyperswitch-router:beta ./router -f /local/config/production.toml
 " >> user_data.sh
 
 
