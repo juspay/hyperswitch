@@ -34,6 +34,7 @@ use router_env::logger;
 use router_env::{instrument, tracing};
 
 use crate::{
+    diesel_error_to_data_error,
     redis::kv_store::{kv_wrapper, KvOperation, PartitionKey},
     utils::{pg_connection_read, pg_connection_write},
     DataModelExt, DatabaseStore, KVRouterStore,
@@ -202,7 +203,7 @@ impl<T: DatabaseStore> PaymentIntentInterface for KVRouterStore<T> {
             DieselPaymentIntent::find_by_payment_id_merchant_id(&conn, payment_id, merchant_id)
                 .await
                 .map_err(|er| {
-                    let new_err = crate::diesel_error_to_data_error(er.current_context());
+                    let new_err = diesel_error_to_data_error(er.current_context());
                     er.change_context(new_err)
                 })
         };
@@ -246,7 +247,7 @@ impl<T: DatabaseStore> PaymentIntentInterface for KVRouterStore<T> {
                 )
                 .await
                 .map_err(|er| {
-                    let new_err = crate::diesel_error_to_data_error(er.current_context());
+                    let new_err = diesel_error_to_data_error(er.current_context());
                     er.change_context(new_err)
                 })
                 .map(PaymentAttempt::from_storage_model)?;
@@ -326,7 +327,7 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
             .insert(&conn)
             .await
             .map_err(|er| {
-                let new_err = crate::diesel_error_to_data_error(er.current_context());
+                let new_err = diesel_error_to_data_error(er.current_context());
                 er.change_context(new_err)
             })
             .map(PaymentIntent::from_storage_model)
@@ -343,7 +344,7 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
             .update(&conn, payment_intent.to_storage_model())
             .await
             .map_err(|er| {
-                let new_err = crate::diesel_error_to_data_error(er.current_context());
+                let new_err = diesel_error_to_data_error(er.current_context());
                 er.change_context(new_err)
             })
             .map(PaymentIntent::from_storage_model)
@@ -361,7 +362,7 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
             .await
             .map(PaymentIntent::from_storage_model)
             .map_err(|er| {
-                let new_err = crate::diesel_error_to_data_error(er.current_context());
+                let new_err = diesel_error_to_data_error(er.current_context());
                 er.change_context(new_err)
             })
     }
@@ -382,7 +383,7 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
                 )
                 .await
                 .map_err(|er| {
-                    let new_err = crate::diesel_error_to_data_error(er.current_context());
+                    let new_err = diesel_error_to_data_error(er.current_context());
                     er.change_context(new_err)
                 })
                 .map(PaymentAttempt::from_storage_model)?;

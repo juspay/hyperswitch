@@ -7,7 +7,7 @@ use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
 
 use super::{payment_attempt::PaymentAttempt, PaymentIntent};
-use crate::{errors, MerchantStorageScheme};
+use crate::{errors, MerchantStorageScheme, RemoteStorageObject};
 #[async_trait::async_trait]
 pub trait PaymentIntentInterface {
     async fn update_payment_intent(
@@ -92,7 +92,7 @@ pub struct PaymentIntentNew {
     pub setup_future_usage: Option<storage_enums::FutureUsage>,
     pub off_session: Option<bool>,
     pub client_secret: Option<String>,
-    pub active_attempt: crate::RemoteStorageObject<PaymentAttempt>,
+    pub active_attempt: RemoteStorageObject<PaymentAttempt>,
     pub business_country: Option<storage_enums::CountryAlpha2>,
     pub business_label: Option<String>,
     pub order_details: Option<Vec<pii::SecretSerdeValue>>,
