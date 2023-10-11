@@ -604,8 +604,8 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
         req: &types::RefundSyncRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        let _connector_payment_id = req.request.connector_request_reference_id.clone();
-        let id = req.request.get_connector_refund_id()?;
+        let _connector_payment_id = req.request.connector_transaction_id.clone();
+        let connector_refund_id = req.request.get_connector_refund_id()?;
         Ok(format!(
             "{}{}{}",
             self.base_url(connectors),
