@@ -108,7 +108,7 @@ fn deserialization_test_ok() -> Result<(), Box<dyn std::error::Error + Send + Sy
         let json_string = format!(
             r#"
             {{
-                "percentage" : "{}.{}"
+                "percentage" : {}.{}
             }}
         "#,
             integer, decimal
@@ -135,7 +135,7 @@ fn deserialization_test_ok() -> Result<(), Box<dyn std::error::Error + Send + Sy
 
     let json_string = r#"
         {
-            "percentage" : "18.7"
+            "percentage" : 18.7
         }
     "#;
     let percentage = serde_json::from_str::<Percentage<PRECISION_2>>(json_string);
@@ -146,7 +146,7 @@ fn deserialization_test_ok() -> Result<(), Box<dyn std::error::Error + Send + Sy
 
     let json_string = r#"
         {
-            "percentage" : "12.0" 
+            "percentage" : 12.0
         }
     "#;
     let percentage = serde_json::from_str::<Percentage<PRECISION_0>>(json_string);
@@ -162,31 +162,31 @@ fn deserialization_test_err() -> Result<(), Box<dyn std::error::Error + Send + S
     // invalid percentage precision
     let json_string = r#"
         {
-            "percentage" : "12.4"
+            "percentage" : 12.4
         }
     "#;
     let percentage = serde_json::from_str::<Percentage<PRECISION_0>>(json_string);
     assert!(percentage.is_err());
     if let Err(err) = percentage {
-        assert_eq!(err.to_string(), "invalid value: percentage value \"12.4\", expected value should be a string representation float between 0 to 100 and precise to only upto 0 decimal digits at line 4 column 9".to_string())
+        assert_eq!(err.to_string(), "invalid value: percentage value 12.4, expected value should be a float between 0 to 100 and precise to only upto 0 decimal digits at line 4 column 9".to_string())
     }
 
     // invalid percentage value
     let json_string = r#"
         {
-            "percentage" : "123.42"
+            "percentage" : 123.42
         }
     "#;
     let percentage = serde_json::from_str::<Percentage<PRECISION_2>>(json_string);
     assert!(percentage.is_err());
     if let Err(err) = percentage {
-        assert_eq!(err.to_string(), "invalid value: percentage value \"123.42\", expected value should be a string representation float between 0 to 100 and precise to only upto 2 decimal digits at line 4 column 9".to_string())
+        assert_eq!(err.to_string(), "invalid value: percentage value 123.42, expected value should be a float between 0 to 100 and precise to only upto 2 decimal digits at line 4 column 9".to_string())
     }
 
     // missing percentage field
     let json_string = r#"
         {
-            "percent": "22.0"
+            "percent": 22.0
         }
     "#;
     let percentage = serde_json::from_str::<Percentage<PRECISION_2>>(json_string);

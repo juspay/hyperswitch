@@ -13,7 +13,7 @@ pub struct Percentage<const PRECISION: u8> {
 
 fn get_invalid_percentage_error_message(precision: u8) -> String {
     format!(
-        "value should be a string representation float between 0 to 100 and precise to only upto {} decimal digits",
+        "value should be a float between 0 to 100 and precise to only upto {} decimal digits",
         precision
     )
 }
@@ -81,16 +81,17 @@ impl<'de, const PRECISION: u8> Visitor<'de> for PercentageVisitor<PRECISION> {
                 if percentage_value.is_some() {
                     return Err(serde::de::Error::duplicate_field("percentage"));
                 }
-                percentage_value = Some(map.next_value::<String>()?);
+                percentage_value = Some(map.next_value::<serde_json::Value>()?);
             } else {
                 // Ignore unknown fields
                 let _: serde::de::IgnoredAny = map.next_value()?;
             }
         }
         if let Some(value) = percentage_value {
-            Ok(Percentage::from_string(value.clone()).map_err(|_| {
+            let string_value = value.to_string();
+            Ok(Percentage::from_string(string_value.clone()).map_err(|_| {
                 serde::de::Error::invalid_value(
-                    serde::de::Unexpected::Other(&format!("percentage value \"{}\"", value)),
+                    serde::de::Unexpected::Other(&format!("percentage value {}", string_value)),
                     &&*get_invalid_percentage_error_message(PRECISION),
                 )
             })?)
