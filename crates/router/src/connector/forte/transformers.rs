@@ -10,6 +10,38 @@ use crate::{
     types::{self, api, storage::enums, transformers::ForeignFrom},
 };
 
+
+#[derive(Debug, Serialize)]
+pub struct ForteRouterData<T> {
+    amount: i64,
+    router_data: T,
+}
+
+impl<T>
+    TryFrom<(
+        &types::api::CurrencyUnit,
+        types::storage::enums::Currency,
+        i64,
+        T,
+    )> for ForteRouterData<T>
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+
+    fn try_from(
+        (_currency_unit, _currency, amount, router_data): (
+            &types::api::CurrencyUnit,
+            types::storage::enums::Currency,
+            i64,
+            T,
+        ),
+    ) -> Result<Self, Self::Error> {
+        Ok(Self {
+            amount,
+            router_data,
+        })
+    }
+}
+
 #[derive(Debug, Serialize)]
 pub struct FortePaymentsRequest {
     action: ForteAction,
@@ -63,16 +95,16 @@ impl TryFrom<utils::CardIssuer> for ForteCardType {
     }
 }
 
-impl TryFrom<&types::PaymentsAuthorizeRouterData> for FortePaymentsRequest {
+impl TryFrom<&ForteRouterData<&types::PaymentsAuthorizeRouterData>> for FortePaymentsRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(item: &types::PaymentsAuthorizeRouterData) -> Result<Self, Self::Error> {
-        if item.request.currency != enums::Currency::USD {
+    fn try_from(item: &ForteRouterData<&types::PaymentsAuthorizeRouterData>,) -> Result<Self, Self::Error> {
+        if item.router_data.request.currency != enums::Currency::USD {
             Err(errors::ConnectorError::NotSupported {
-                message: item.request.currency.to_string(),
+                message: item.router_data.request.currency.to_string(),
                 connector: "Forte",
             })?
         }
-        match item.request.payment_method_data {
+        match item.router_data.request.payment_method_data {
             api_models::payments::PaymentMethodData::Card(ref ccard) => {
                 let action = match item.request.is_auto_capture()? {
                     true => ForteAction::Sale,

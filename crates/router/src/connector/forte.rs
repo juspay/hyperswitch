@@ -80,6 +80,10 @@ impl ConnectorCommon for Forte {
         "forte"
     }
 
+    fn get_currency_unit(&self) -> api::CurrencyUnit {
+        api::CurrencyUnit::Base
+    }
+
     fn common_get_content_type(&self) -> &'static str {
         "application/json"
     }
@@ -201,7 +205,13 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         &self,
         req: &types::PaymentsAuthorizeRouterData,
     ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
-        let connector_req = forte::FortePaymentsRequest::try_from(req)?;
+        let connector_req = forte::FortePaymentsRequest::try_from(((
+            &self.get_currency_unit(),
+            req.request.currency,
+            req.request.amount,
+            req,
+        ))?;
+        let connector_req = forte::FortePaymentsRequest::try_from(&connector_router_data)?;
         let forte_req = types::RequestBody::log_and_get_request_body(
             &connector_req,
             utils::Encode::<forte::FortePaymentsRequest>::encode_to_string_of_json,
