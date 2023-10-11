@@ -119,7 +119,8 @@ done
 export RDS_ENDPOINT=$(aws rds describe-db-instances --db-instance-identifier $DB_INSTANCE_ID --region $REGION --query "DBInstances[*].Endpoint.Address" --output text)
 psql -d postgresql://hyperswitch:hyps1234@$RDS_ENDPOINT/hyperswitch_db -a -f schema.sql > /dev/null
 
-echo "#!/bin/bash
+cat << EOF > .user_data.sh
+#!/bin/bash
 
 sudo yum update -y
 sudo amazon-linux-extras install docker
@@ -128,7 +129,8 @@ sudo usermod -a -G docker ec2-user
 
 docker pull juspaydotin/hyperswitch-router:beta
 
-curl https://raw.githubusercontent.com/juspay/hyperswitch/v1.55.0/config/development.toml > production.toml" > user_data.sh
+curl https://raw.githubusercontent.com/juspay/hyperswitch/v1.55.0/config/development.toml > production.toml
+EOF
 
 export redis_status=$(aws elasticache describe-cache-clusters \
   --region $REGION \
