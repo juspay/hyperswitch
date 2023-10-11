@@ -85,11 +85,10 @@ pub struct BraintreeMeta {
 impl TryFrom<&Option<pii::SecretSerdeValue>> for BraintreeMeta {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(meta_data: &Option<pii::SecretSerdeValue>) -> Result<Self, Self::Error> {
-        let metadata: BraintreeMeta =
-            utils::to_connector_meta_from_secret::<BraintreeMeta>(meta_data.clone())
-                .change_context(errors::ConnectorError::InvalidConfig {
-                    field_name: "connector metadata",
-                })?;
+        let metadata: Self = utils::to_connector_meta_from_secret::<Self>(meta_data.clone())
+            .change_context(errors::ConnectorError::InvalidConfig {
+                field_name: "connector metadata",
+            })?;
         Ok(metadata)
     }
 }

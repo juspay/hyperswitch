@@ -658,18 +658,18 @@ pub async fn create_payment_connector(
         })?;
 
     validate_auth_and_metadata_type(req.connector_name, &auth, &req.metadata).map_err(|err| {
-        match err.current_context() {
-            &errors::ConnectorError::InvalidConnectorName => {
+        match *err.current_context() {
+            errors::ConnectorError::InvalidConnectorName => {
                 err.change_context(errors::ApiErrorResponse::InvalidRequestData {
                     message: "The connector name is invalid".to_string(),
                 })
             }
-            &errors::ConnectorError::InvalidConfig { field_name } => {
+            errors::ConnectorError::InvalidConfig { field_name } => {
                 err.change_context(errors::ApiErrorResponse::InvalidRequestData {
                     message: format!("The {} is invalid", field_name),
                 })
             }
-            &errors::ConnectorError::FailedToObtainAuthType => {
+            errors::ConnectorError::FailedToObtainAuthType => {
                 err.change_context(errors::ApiErrorResponse::InvalidRequestData {
                     message: "The auth type is invalid for the connector".to_string(),
                 })
