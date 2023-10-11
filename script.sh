@@ -105,6 +105,12 @@ echo `aws rds create-db-instance  \
     --vpc-security-group-ids $RDS_SG_ID`
 curl https://raw.githubusercontent.com/juspay/hyperswitch/feat/create-prod-script/schema.sql >> schema.sql
 
+export RDS_STATUS=$(aws rds describe-db-instances \
+--db-instance-identifier $DB_INSTANCE_ID \
+--region $REGION \
+--query "DBInstances[0].DBInstanceStatus" \
+--output text)
+
 while [[ $RDS_STATUS != 'available' ]]; do
 	echo $RDS_STATUS
 	sleep 10
@@ -119,7 +125,7 @@ done
 export RDS_ENDPOINT=$(aws rds describe-db-instances --db-instance-identifier $DB_INSTANCE_ID --region $REGION --query "DBInstances[*].Endpoint.Address" --output text)
 psql -d postgresql://hyperswitch:hyps1234@$RDS_ENDPOINT/hyperswitch_db -a -f schema.sql > /dev/null
 
-cat << EOF > .user_data.sh
+cat << EOF > user_data.sh
 #!/bin/bash
 
 sudo yum update -y
@@ -155,30 +161,6 @@ export REDIS_ENDPOINT=$(aws elasticache describe-cache-clusters \
     --show-cache-node-info \
     --query 'CacheClusters[0].CacheNodes[].Endpoint.Address' \
     --output text)
-
-export RDS_STATUS=$(aws rds describe-db-instances \
---db-instance-identifier $DB_INSTANCE_ID \
---region $REGION \
---query "DBInstances[0].DBInstanceStatus" \
---output text)
-
-while [ $RDS_STATUS -ne 'available' ]; do
-	echo $RDS_STATUS
-	sleep 10
-	
-export RDS_STATUS=$(aws rds describe-db-instances \
---db-instance-identifier $DB_INSTANCE_ID \
---region $REGION \
---query "DBInstances[0].DBInstanceStatus" \
---output text)
-done
-
-export RDS_ENDPOINT=$(aws rds describe-db-instances \
---db-instance-identifier $DB_INSTANCE_ID \
---region $REGION \
---query "DBInstances[*].Endpoint.Address" \
---output text)
-
 
 echo "\n# Add redis and DB configs\n" >> user_data.sh
 echo "cat << EOF >> .env" >> user_data.sh
