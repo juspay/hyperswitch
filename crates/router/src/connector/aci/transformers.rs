@@ -685,7 +685,7 @@ impl<F, T>
                 mandate_reference,
                 connector_metadata: None,
                 network_txn_id: None,
-                connector_response_reference_id: None,
+                connector_response_reference_id: item.response.id,
             }),
             ..item.data
         })
