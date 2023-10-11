@@ -216,6 +216,10 @@ impl<F, T>
             Some(s) => types::ResponseId::ConnectorTransactionId(s),
             None => types::ResponseId::NoResponseId,
         };
+        let connector_response_reference_id = item
+            .response
+            .merchant_payment_id
+            .or(item.response.iata_payment_id);
         Ok(Self {
             status: enums::AttemptStatus::from(item.response.status),
             response: item.response.checkout_methods.map_or(
@@ -225,10 +229,7 @@ impl<F, T>
                     mandate_reference: None,
                     connector_metadata: None,
                     network_txn_id: None,
-                    connector_response_reference_id: item
-                        .response
-                        .merchant_payment_id
-                        .or(item.response.iata_payment_id),
+                    connector_response_reference_id: connector_response_reference_id.clone(),
                 }),
                 |checkout_methods| {
                     Ok(types::PaymentsResponseData::TransactionResponse {
@@ -241,10 +242,7 @@ impl<F, T>
                         mandate_reference: None,
                         connector_metadata: None,
                         network_txn_id: None,
-                        connector_response_reference_id: item
-                         .response
-                         .merchant_payment_id
-                         .or(item.response.iata_payment_id),
+                        connector_response_reference_id: connector_response_reference_id.clone(),
                     })
                 },
             ),
