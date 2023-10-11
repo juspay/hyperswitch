@@ -5,12 +5,9 @@ use error_stack::{IntoReport, ResultExt};
 use masking::{PeekInterface, Secret};
 use serde::Serialize;
 
-use super::{requests::*, response::*, Worldpay};
+use super::{requests::*, response::*};
 use crate::{
-    connector::{
-        utils,
-        worldpay::{ConnectorCommon, Worldpay},
-    },
+    connector::utils,
     consts,
     core::errors,
     types::{self, api, PaymentsAuthorizeData, PaymentsResponseData},
@@ -154,14 +151,12 @@ impl
             >,
         >,
     ) -> Result<Self, Self::Error> {
-        let worldpay_instance = Worldpay;
-        let currency_unit = worldpay_instance.get_currency_unit();
 
         Ok(Self {
             instruction: Instruction {
                 value: PaymentValue {
                     amount: item.amount,
-                    currency: item.router_data.request.currency,
+                    currency: item.router_data.request.currency.to_string(),
                 },
                 narrative: InstructionNarrative {
                     line1: item.router_data.merchant_id.clone().replace('_', "-"),
