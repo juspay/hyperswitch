@@ -151,7 +151,6 @@ impl
             >,
         >,
     ) -> Result<Self, Self::Error> {
-
         Ok(Self {
             instruction: Instruction {
                 value: PaymentValue {
