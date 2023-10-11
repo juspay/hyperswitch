@@ -3878,7 +3878,8 @@
           "worldpay",
           "zen",
           "signifyd",
-          "plaid"
+          "plaid",
+          "kount"
         ]
       },
       "ConnectorMetadata": {
@@ -4735,6 +4736,18 @@
           }
         }
       },
+      "DdcNextStepsData": {
+        "type": "object",
+        "required": [
+          "ddc_connector"
+        ],
+        "properties": {
+          "ddc_connector": {
+            "type": "string",
+            "description": "The name of the DDC connector"
+          }
+        }
+      },
       "DisputeResponse": {
         "type": "object",
         "required": [
@@ -5236,6 +5249,11 @@
               "$ref": "#/components/schemas/FrmPaymentMethod"
             },
             "description": "payment methods that can be used in the payment"
+          },
+          "is_frm_sdk_invoke": {
+            "type": "boolean",
+            "description": "Check whether to invoke sdk of frm connector for ddc.",
+            "nullable": true
           }
         }
       },
@@ -8781,6 +8799,23 @@
               }
             ],
             "nullable": true
+          }
+        }
+      },
+      "PaymentsDeviceDataCollectionRequest": {
+        "type": "object",
+        "required": [
+          "payment_id",
+          "merchant_id"
+        ],
+        "properties": {
+          "payment_id": {
+            "type": "string",
+            "description": "Unique identifier for the payment. This ensures idempotency for multiple payments\nthat have been done by a single merchant. This field is auto generated and is returned in the API response."
+          },
+          "merchant_id": {
+            "type": "string",
+            "description": "The identifier for the Merchant Account."
           }
         }
       },
