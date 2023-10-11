@@ -19,10 +19,13 @@ crates/router/src/services/ @juspay/hyperswitch-framework
 crates/router/src/db/ @juspay/hyperswitch-framework
 crates/router/src/routes/ @juspay/hyperswitch-framework
 migrations/ @juspay/hyperswitch-framework
+openapi/ @juspay/hyperswitch-framework
 
 connector-template/ @juspay/hyperswitch-connector
 crates/router/src/connector/ @juspay/hyperswitch-connector
-crates/router/tests/connectors @juspay/hyperswitch-connector
+crates/router/tests/connectors/ @juspay/hyperswitch-connector
+crates/test_utils/tests/connectors/ @juspay/hyperswitch-connector
+crates/test_utils/tests/sample_auth.toml @juspay/hyperswitch-connector
 
 crates/router/src/compatibility/ @juspay/hyperswitch-compatibility
 
