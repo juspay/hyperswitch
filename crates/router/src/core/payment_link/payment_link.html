@@ -3,11 +3,7 @@
   <head>
     {{ hyperloader_sdk_link }}
     <style>
-      :root {
-        --primary-color: #06a19e73;
-        --primary-accent-color: #f8e5a0;
-        --secondary-color: #1c7ed9;
-      }
+      {{ css_color_scheme }}
 
       html,
       body {
@@ -954,7 +950,7 @@
       var priceNode = document.createElement("div");
       priceNode.className = "hyper-checkout-payment-price";
       priceNode.innerText =
-        paymentDetails.currency_symbol + paymentDetails.amount;
+        paymentDetails.currency_symbol + " " + paymentDetails.amount;
 
       // Create merchant name's node
       var merchantNameNode = document.createElement("div");
@@ -973,6 +969,7 @@
       // Create expiry node
       var paymentExpiryNode = document.createElement("div");
       paymentExpiryNode.className = "hyper-checkout-payment-footer-expiry";
+      
       paymentExpiryNode.innerText =
         "Link expires on: " + new Date(paymentDetails.expiry).toTimeString();
 

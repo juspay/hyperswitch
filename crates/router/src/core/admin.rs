@@ -135,6 +135,17 @@ pub async fn create_merchant_account(
         .transpose()?
         .map(Secret::new);
 
+    let payment_link_metadata = req
+        .payment_link_metadata
+        .as_ref()
+        .map(|pl_metadata| {
+            utils::Encode::<admin_types::PaymentLinkMetadata>::encode_to_value(pl_metadata)
+                .change_context(errors::ApiErrorResponse::InvalidDataValue {
+                    field_name: "payment_link_metadata",
+                })
+        })
+        .transpose()?;
+
     let mut merchant_account = async {
         Ok(domain::MerchantAccount {
             merchant_id: req.merchant_id,
@@ -170,6 +181,7 @@ pub async fn create_merchant_account(
             is_recon_enabled: false,
             default_profile: None,
             recon_status: diesel_models::enums::ReconStatus::NotRequested,
+            payment_link_metadata,
         })
     }
     .await
@@ -457,6 +469,7 @@ pub async fn merchant_account_update(
         intent_fulfillment_time: req.intent_fulfillment_time.map(i64::from),
         payout_routing_algorithm: req.payout_routing_algorithm,
         default_profile: business_profile_id_update,
+        payment_link_metadata: req.payment_link_metadata,
     };
 
     let response = db
