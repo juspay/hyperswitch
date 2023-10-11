@@ -7,18 +7,13 @@ use data_models::{
     errors::StorageError,
     payments::{
         payment_attempt::PaymentAttempt,
-        payment_intent::{
-            PaymentIntentInterface, PaymentIntentNew,
-            PaymentIntentUpdate,
-        },
+        payment_intent::{PaymentIntentInterface, PaymentIntentNew, PaymentIntentUpdate},
         PaymentIntent,
     },
     MerchantStorageScheme, RemoteStorageObject,
 };
 #[cfg(feature = "olap")]
 use diesel::{associations::HasTable, ExpressionMethods, JoinOnDsl, QueryDsl};
-#[cfg(feature = "olap")]
-use diesel_models::{query::generics::db_metrics ,schema::{payment_attempt::dsl as pa_dsl, payment_intent::dsl as pi_dsl}};
 use diesel_models::{
     kv,
     payment_attempt::PaymentAttempt as DieselPaymentAttempt,
@@ -26,6 +21,11 @@ use diesel_models::{
         PaymentIntent as DieselPaymentIntent, PaymentIntentNew as DieselPaymentIntentNew,
         PaymentIntentUpdate as DieselPaymentIntentUpdate,
     },
+};
+#[cfg(feature = "olap")]
+use diesel_models::{
+    query::generics::db_metrics,
+    schema::{payment_attempt::dsl as pa_dsl, payment_intent::dsl as pi_dsl},
 };
 use error_stack::{IntoReport, ResultExt};
 use redis_interface::HsetnxReply;
