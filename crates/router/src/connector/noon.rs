@@ -278,13 +278,7 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
         //Added as a fix for past payments before the given timestamp we can reconcile using payment_id
         let cutoff_timestamp: i64 = 1697023800;
 
-        let reference_id = if req
-            .request
-            .payment_attempt_created_at
-            .assume_utc()
-            .unix_timestamp()
-            < cutoff_timestamp
-        {
+        let reference_id = if req.request.payment_attempt_created_at_as_utc < cutoff_timestamp {
             req.payment_id.clone()
         } else {
             req.attempt_id.clone()

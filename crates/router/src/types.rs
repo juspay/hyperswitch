@@ -22,7 +22,6 @@ use common_utils::{pii, pii::Email};
 use data_models::mandates::MandateData;
 use error_stack::{IntoReport, ResultExt};
 use masking::Secret;
-use time::PrimitiveDateTime;
 
 use self::{api::payments, storage::enums as storage_enums};
 pub use crate::core::payments::{CustomerDetails, PaymentAddress};
@@ -468,7 +467,7 @@ pub struct CompleteAuthorizeRedirectResponse {
     pub payload: Option<pii::SecretSerdeValue>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Default, Clone)]
 pub struct PaymentsSyncData {
     //TODO : add fields based on the connector requirements
     pub connector_transaction_id: ResponseId,
@@ -478,7 +477,7 @@ pub struct PaymentsSyncData {
     pub sync_type: SyncRequestType,
     pub mandate_id: Option<api_models::payments::MandateIds>,
     //This is being added as a temporary fix, will be deprecated before or by v1.65.0
-    pub payment_attempt_created_at: PrimitiveDateTime,
+    pub payment_attempt_created_at_as_utc: i64,
 }
 
 #[derive(Debug, Default, Clone)]
