@@ -1496,10 +1496,55 @@ impl services::ConnectorRedirectResponse for Braintree {
     fn get_flow_type(
         &self,
         _query_params: &str,
-        _json_payload: Option<serde_json::Value>,
-        _action: services::PaymentAction,
+        json_payload: Option<serde_json::Value>,
+        action: services::PaymentAction,
     ) -> CustomResult<payments::CallConnectorAction, errors::ConnectorError> {
-        Ok(payments::CallConnectorAction::Trigger)
+        match action {
+            services::PaymentAction::PSync => {
+                let redirection_response: Option<
+                    braintree_graphql_transformers::BraintreeRedirectionResponse,
+                > = json_payload
+                    .map(|payload| {
+                        serde_json::from_value(payload)
+                            .into_report()
+                            .change_context(
+                                errors::ConnectorError::MissingConnectorRedirectionPayload {
+                                    field_name: "redirection_response",
+                                },
+                            )
+                    })
+                    .transpose()?;
+                let braintree_payload = redirection_response
+                    .map(|redirection_response_payload| {
+                        serde_json::from_str::<
+                            braintree_graphql_transformers::BraintreeThreeDsErrorResponse,
+                        >(
+                            &redirection_response_payload.authentication_response
+                        )
+                    })
+                    .transpose()
+                    .into_report()
+                    .change_context(errors::ConnectorError::MissingConnectorRedirectionPayload {
+                        field_name: "redirection_response",
+                    })?;
+                let (error_code, error_message) = braintree_payload.map_or(
+                    (
+                        consts::NO_ERROR_CODE.to_string(),
+                        consts::NO_ERROR_MESSAGE.to_string(),
+                    ),
+                    |err_payload| (err_payload.code.to_owned(), err_payload.name.to_owned()),
+                );
+
+                Ok(payments::CallConnectorAction::StatusUpdate {
+                    status: enums::AttemptStatus::AuthenticationFailed,
+                    error_code: Some(error_code),
+                    error_message: Some(error_message),
+                })
+            }
+            services::PaymentAction::CompleteAuthorize => {
+                Ok(payments::CallConnectorAction::Trigger)
+            }
+        }
     }
 }
 
