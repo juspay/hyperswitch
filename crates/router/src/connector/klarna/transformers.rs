@@ -35,7 +35,7 @@ impl<T>
     ) -> Result<Self, Self::Error> {
         Ok(Self {
             amount,
-            connector_request_reference_id: payments::connector_request_reference_id(),
+            connector_request_reference_id: api_models::payments::connector_request_reference_id(),
             router_data,
         })
     }
