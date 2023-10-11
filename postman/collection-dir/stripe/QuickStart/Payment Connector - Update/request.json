@@ -39,12 +39,9 @@
     },
     "raw_json_formatted": {
       "connector_type": "fiz_operations",
-      "connector_name": "stripe",
-      "business_country": "US",
-      "business_label": "default",
       "connector_account_details": {
         "auth_type": "HeaderKey",
-        "api_key": "{{connector_api_key}}_invalid_values"
+        "api_key": "{{connector_api_key}}"
       },
       "test_mode": false,
       "disabled": false,
@@ -311,22 +308,26 @@
     }
   },
   "url": {
-    "raw": "{{baseUrl}}/account/:account_id/connectors",
+    "raw": "{{baseUrl}}/account/:account_id/connectors/:connector_id",
     "host": [
       "{{baseUrl}}"
     ],
     "path": [
       "account",
       ":account_id",
-      "connectors"
+      "connectors",
+      ":connector_id"
     ],
     "variable": [
       {
         "key": "account_id",
-        "value": "{{merchant_id}}",
-        "description": "(Required) The unique identifier for the merchant account"
+        "value": "{{merchant_id}}"
+      },
+      {
+        "key": "connector_id",
+        "value": "{{merchant_connector_id}}"
       }
     ]
   },
-  "description": "Create a new Payment Connector for the merchant account. The connector could be a payment processor / facilitator / acquirer or specialised services like Fraud / Accounting etc."
+  "description": "To update an existing Payment Connector. Helpful in enabling / disabling different payment methods and other settings for the connector etc"
 }
