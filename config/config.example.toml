@@ -206,12 +206,13 @@ square.secondary_base_url = "https://pci-connect.squareupsandbox.com/"
 stax.base_url = "https://apiprod.fattlabs.com/"
 stripe.base_url = "https://api.stripe.com/"
 stripe.base_url_file_upload = "https://files.stripe.com/"
+trustpay.base_url = "https://test-tpgw.trustpay.eu/"
+trustpay.base_url_bank_redirects = "https://aapi.trustpay.eu/"
+tsys.base_url = "https://stagegw.transnox.com/"
+volt.base_url = "https://api.sandbox.volt.io/"
 wise.base_url = "https://api.sandbox.transferwise.tech/"
 worldline.base_url = "https://eu.sandbox.api-ingenico.com/"
 worldpay.base_url = "https://try.access.worldpay.com/"
-trustpay.base_url = "https://test-tpgw.trustpay.eu/"
-tsys.base_url = "https://stagegw.transnox.com/"
-trustpay.base_url_bank_redirects = "https://aapi.trustpay.eu/"
 zen.base_url = "https://api.zen-test.com/"
 zen.secondary_base_url = "https://secure.zen-test.com/"
 
@@ -321,9 +322,11 @@ square = {long_lived_token = false, payment_method = "card"}
 braintree = { long_lived_token = false, payment_method = "card" }
 gocardless = {long_lived_token = true, payment_method = "bank_debit"}
 
-[temp_locker_disable_config]
-trustpay = {payment_method = "card,bank_redirect,wallet"}
-stripe = {payment_method = "card,bank_redirect,pay_later,wallet,bank_debit"}
+[temp_locker_enable_config]
+stripe = {payment_method = "bank_transfer"}
+nuvei = {payment_method = "card"}
+shift4 = {payment_method = "card"}
+bluesnap = {payment_method = "card"}
 
 [dummy_connector]
 enabled = true                # Whether dummy connector is enabled or not
