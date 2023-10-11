@@ -9,7 +9,7 @@ pub mod types;
 
 use std::{fmt::Debug, marker::PhantomData, ops::Deref, time::Instant};
 
-use api_models::{enums, payments::HeaderPayload};
+use api_models::{enums, payment_methods::SurchargeDetailsResponse, payments::HeaderPayload};
 use common_utils::{ext_traits::AsyncExt, pii};
 use data_models::mandates::MandateData;
 use diesel_models::{ephemeral_key, fraud_check::FraudCheck};
@@ -1445,6 +1445,7 @@ where
     pub recurring_mandate_payment_data: Option<RecurringMandatePaymentData>,
     pub ephemeral_key: Option<ephemeral_key::EphemeralKey>,
     pub redirect_response: Option<api_models::payments::RedirectResponse>,
+    pub surcharge_details: Option<SurchargeDetailsResponse>,
     pub frm_message: Option<FraudCheck>,
 }
 
