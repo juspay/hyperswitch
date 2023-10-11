@@ -1205,10 +1205,7 @@ pub async fn payout_create_db_entries(
         .set_recurring(req.recurring.unwrap_or(false))
         .set_auto_fulfill(req.auto_fulfill.unwrap_or(false))
         .set_return_url(req.return_url.to_owned())
-        .set_entity_type(
-            req.entity_type
-                .unwrap_or(api_enums::PayoutEntityType::default()),
-        )
+        .set_entity_type(req.entity_type.unwrap_or_default())
         .set_metadata(req.metadata.to_owned())
         .set_created_at(Some(common_utils::date_time::now()))
         .set_last_modified_at(Some(common_utils::date_time::now()))

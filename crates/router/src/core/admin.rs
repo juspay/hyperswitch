@@ -492,6 +492,25 @@ pub async fn merchant_account_delete(
             .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
         is_deleted = is_merchant_account_deleted && is_merchant_key_store_deleted;
     }
+
+    match db
+        .delete_config_by_key(format!("{}_requires_cvv", merchant_id).as_str())
+        .await
+    {
+        Ok(_) => Ok::<_, errors::ApiErrorResponse>(()),
+        Err(err) => {
+            if err.current_context().is_db_not_found() {
+                crate::logger::error!("requires_cvv config not found in db: {err:?}");
+                Ok(())
+            } else {
+                Err(err
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Failed while deleting requires_cvv config"))?
+            }
+        }
+    }
+    .ok();
+
     let response = api::MerchantAccountDeleteResponse {
         merchant_id,
         deleted: is_deleted,
