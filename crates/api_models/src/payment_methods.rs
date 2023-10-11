@@ -174,6 +174,7 @@ pub struct PaymentMethodDataBankCreds {
 pub struct BankAccountConnectorDetails {
     pub connector: String,
     pub account_id: String,
+    pub mca_id: String,
     pub access_token: BankAccountAccessCreds,
 }
 
