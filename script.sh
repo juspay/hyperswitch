@@ -117,9 +117,7 @@ export RDS_STATUS=$(aws rds describe-db-instances \
 done
 
 export RDS_ENDPOINT=$(aws rds describe-db-instances --db-instance-identifier $DB_INSTANCE_ID --region $REGION --query "DBInstances[*].Endpoint.Address" --output text)
-echo "CREATE USER db_user WITH PASSWORD 'db_pass' SUPERUSER CREATEDB CREATEROLE INHERIT LOGIN;
-CREATE DATABASE hyperswitch_db;
-" | psql -h $RDS_ENDPOINT -U hyperswitch -P hyps1234 -W -d postgres && psql -h $RDS_ENDPOINT -U hyperswitch -W -d hyperswitch_db -a -f schema.sql
+psql -d postgresql://hyperswitch:hyps1234@$RDS_ENDPOINT/hyperswitch_db -a -f schema.sql > /dev/null
 
 #!/bin/bash
 
