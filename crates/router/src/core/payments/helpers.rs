@@ -31,7 +31,7 @@ use super::{
     CustomerDetails, PaymentData,
 };
 use crate::{
-    configs::settings::{ConnectorRequestReferenceIdConfig, Server, TempLockerDisableConfig},
+    configs::settings::{ConnectorRequestReferenceIdConfig, Server, TempLockerEnableConfig},
     connector,
     consts::{self, BASE64_ENGINE},
     core::{
@@ -1480,7 +1480,7 @@ pub async fn store_payment_method_data_in_vault(
     payment_method_data: &api::PaymentMethodData,
 ) -> RouterResult<Option<String>> {
     if should_store_payment_method_data_in_vault(
-        &state.conf.temp_locker_disable_config,
+        &state.conf.temp_locker_enable_config,
         payment_attempt.connector.clone(),
         payment_method,
     ) {
@@ -1499,18 +1499,17 @@ pub async fn store_payment_method_data_in_vault(
     Ok(None)
 }
 pub fn should_store_payment_method_data_in_vault(
-    temp_locker_disable_config: &TempLockerDisableConfig,
+    temp_locker_enable_config: &TempLockerEnableConfig,
     option_connector: Option<String>,
     payment_method: enums::PaymentMethod,
 ) -> bool {
     option_connector
         .map(|connector| {
-            temp_locker_disable_config
+            temp_locker_enable_config
                 .0
                 .get(&connector)
-                //should be true only if payment_method is not in the disable payment_method list for connector
-                .map(|config| !config.payment_method.contains(&payment_method))
-                .unwrap_or(true)
+                .map(|config| config.payment_method.contains(&payment_method))
+                .unwrap_or(false)
         })
         .unwrap_or(true)
 }

@@ -321,9 +321,11 @@ square = {long_lived_token = false, payment_method = "card"}
 braintree = { long_lived_token = false, payment_method = "card" }
 gocardless = {long_lived_token = true, payment_method = "bank_debit"}
 
-[temp_locker_disable_config]
-trustpay = {payment_method = "card,bank_redirect,wallet"}
-stripe = {payment_method = "card,bank_redirect,pay_later,wallet,bank_debit"}
+[temp_locker_enable_config]
+stripe = {payment_method = "bank_transfer"}
+nuvei = {payment_method = "card"}
+shift4 = {payment_method = "card"}
+bluesnap = {payment_method = "card"}
 
 [dummy_connector]
 enabled = true                # Whether dummy connector is enabled or not
@@ -350,6 +352,8 @@ card.credit = {connector_list = "stripe,adyen"}     # Mandate supported payment 
 wallet.paypal = {connector_list = "adyen"}          # Mandate supported payment method type and connector for wallets
 pay_later.klarna = {connector_list = "adyen"}       # Mandate supported payment method type and connector for pay_later
 bank_debit.ach = { connector_list = "gocardless"}   # Mandate supported payment method type and connector for bank_debit
+bank_debit.becs = { connector_list = "gocardless"}   # Mandate supported payment method type and connector for bank_debit
+bank_debit.sepa = { connector_list = "gocardless"}   # Mandate supported payment method type and connector for bank_debit
 
 # Required fields info used while listing the payment_method_data
 [required_fields.pay_later] # payment_method = "pay_later"
