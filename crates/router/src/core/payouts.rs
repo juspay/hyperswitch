@@ -2,10 +2,13 @@ pub mod helpers;
 pub mod validator;
 
 use api_models::enums as api_enums;
-use common_utils::{crypto::Encryptable, ext_traits::ValueExt};
+use common_utils::{consts, crypto::Encryptable, ext_traits::ValueExt};
 use diesel_models::enums as storage_enums;
-use error_stack::{report, ResultExt};
+use error_stack::{report, IntoReport, ResultExt};
 use router_env::{instrument, tracing};
+use scheduler::{
+    db::process_tracker::ProcessTrackerExt, errors::ProcessTrackerError, utils as pt_utils,
+};
 use serde_json;
 
 use super::{
@@ -27,9 +30,6 @@ use crate::{
         domain, storage,
     },
     utils::{self, OptionExt},
-};
-use scheduler::{
-    db::process_tracker::ProcessTrackerExt, errors::ProcessTrackerError, utils as pt_utils,
 };
 
 // ********************************************** TYPES **********************************************
@@ -534,8 +534,6 @@ pub async fn create_recipient(
     connector_data: &api::PayoutConnectorData,
     payout_data: &mut PayoutData,
 ) -> RouterResult<PayoutData> {
-    use error_stack::IntoReport;
-
     if payout_data.should_bubble_out {
         return Ok(payout_data.to_owned());
     }
@@ -627,7 +625,7 @@ pub async fn create_recipient(
                     add_external_account_addition_task(
                         &*state.store,
                         payout_data,
-                        common_utils::date_time::now().saturating_add(time::Duration::seconds(19810)),
+                        common_utils::date_time::now().saturating_add(time::Duration::seconds(consts::STRIPE_ACCOUNT_ONBOARDING_DELAY_IN_SECONDS)),
                     )
                     .await
                     .into_report()
@@ -1347,6 +1345,7 @@ pub async fn payout_create_db_entries(
         .set_created_at(Some(common_utils::date_time::now()))
         .set_last_modified_at(Some(common_utils::date_time::now()))
         .set_profile_id(req.profile_id.to_owned())
+        .set_confirm(req.confirm.unwrap_or(false))
         .to_owned();
     let payout_attempt = db
         .insert_payout_attempt(payout_attempt_req)
@@ -1434,8 +1433,8 @@ pub async fn add_external_account_addition_task(
     payout_data: &PayoutData,
     schedule_time: time::PrimitiveDateTime,
 ) -> Result<(), ProcessTrackerError> {
-    let runner = "PAYOUTS";
-    let task = "STRIPE_ATTACH_EXTERNAL_ACCOUNT";
+    let runner = "STRIPE_ATTACH_ACCOUNT";
+    let task = "ATTACH_ACCOUNT_WORKFLOW";
     let process_tracker_id = pt_utils::get_process_tracker_id(
         runner,
         task,

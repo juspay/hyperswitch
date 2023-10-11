@@ -76,6 +76,7 @@ pub enum PTRunner {
     PaymentsSyncWorkflow,
     RefundWorkflowRouter,
     DeleteTokenizeDataWorkflow,
+    StripeAttachAccount,
 }
 
 #[derive(Debug, Copy, Clone)]
@@ -100,6 +101,9 @@ impl ProcessTrackerWorkflows<routes::AppState> for WorkflowRunner {
             Some(PTRunner::DeleteTokenizeDataWorkflow) => {
                 Box::new(workflows::tokenized_data::DeleteTokenizeDataWorkflow)
             }
+            Some(PTRunner::StripeAttachAccount) => Box::new(
+                workflows::stripe_attach_external_account::StripeAttachExternalAccountWorkflow,
+            ),
             _ => Err(ProcessTrackerError::UnexpectedFlow)?,
         };
         let app_state = &state.clone();

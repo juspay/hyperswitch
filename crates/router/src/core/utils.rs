@@ -1,10 +1,14 @@
 use std::{marker::PhantomData, str::FromStr};
 
-use api_models::enums::{DisputeStage, DisputeStatus};
+use api_models::{
+    enums::{DisputeStage, DisputeStatus},
+    payouts::PayoutVendorAccountDetails,
+};
 #[cfg(feature = "payouts")]
 use common_utils::{crypto::Encryptable, pii::Email};
 use common_utils::{errors::CustomResult, ext_traits::AsyncExt};
 use error_stack::{report, IntoReport, ResultExt};
+use masking::PeekInterface;
 use router_env::{instrument, tracing};
 use uuid::Uuid;
 
@@ -26,8 +30,6 @@ use crate::{
     },
     utils::{generate_id, generate_uuid, OptionExt, ValueExt},
 };
-use api_models::payouts::PayoutVendorAccountDetails;
-use masking::PeekInterface;
 
 pub const IRRELEVANT_CONNECTOR_REQUEST_REFERENCE_ID_IN_DISPUTE_FLOW: &str =
     "irrelevant_connector_request_reference_id_in_dispute_flow";
@@ -81,11 +83,6 @@ pub async fn construct_payout_router_data<'a, F>(
     payout_data: &mut PayoutData,
 ) -> RouterResult<types::PayoutsRouterData<F>> {
     let connector_id = connector_name.to_string();
-    let (business_country, business_label) = helpers::get_business_details(
-        payout_data.payout_attempt.business_country,
-        payout_data.payout_attempt.business_label.as_ref(),
-        merchant_account,
-    )?;
     let (merchant_connector_account, profile_id) = get_mca_for_payout(
         state,
         &connector_id,

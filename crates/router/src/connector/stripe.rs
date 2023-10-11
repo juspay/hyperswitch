@@ -2,6 +2,11 @@ pub mod transformers;
 
 use std::{collections::HashMap, fmt::Debug, ops::Deref};
 
+use diesel_models::enums;
+use error_stack::{IntoReport, ResultExt};
+use masking::PeekInterface;
+use router_env::{instrument, tracing};
+
 #[cfg(feature = "payouts")]
 use self::transformers as stripe;
 use super::utils::{self as connector_utils, RefundsRequestData};
@@ -26,10 +31,6 @@ use crate::{
     },
     utils::{self, crypto, ByteSliceExt, BytesExt, OptionExt},
 };
-use diesel_models::enums;
-use error_stack::{IntoReport, ResultExt};
-use masking::PeekInterface;
-use router_env::{instrument, tracing};
 
 #[derive(Debug, Clone)]
 pub struct Stripe;

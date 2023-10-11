@@ -10090,6 +10090,10 @@
           "force_sync": {
             "type": "boolean",
             "nullable": true
+          },
+          "merchant_id": {
+            "type": "string",
+            "nullable": true
           }
         }
       },
@@ -10111,6 +10115,11 @@
             "description": "`force_sync` with the connector to get payout details\n(defaults to false)",
             "default": false,
             "example": true,
+            "nullable": true
+          },
+          "merchant_id": {
+            "type": "string",
+            "description": "The identifier for the Merchant Account.",
             "nullable": true
           }
         }

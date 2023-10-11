@@ -25,6 +25,6 @@ pub const PAYMENTS_LIST_MAX_LIMIT_V1: u32 = 100;
 pub const PAYMENTS_LIST_MAX_LIMIT_V2: u32 = 20;
 
 /// Average delay (in ms) between account onboarding's API response and the changes to actually reflect at Stripe's end
-pub const STRIPE_ACCOUNT_ONBOARDING_DELAY_IN_SECONDS: u64 = 5;
+pub const STRIPE_ACCOUNT_ONBOARDING_DELAY_IN_SECONDS: i64 = 15;
 /// surcharge percentage maximum precision length
 pub const SURCHARGE_PERCENTAGE_PRECISION_LENGTH: u8 = 2;

@@ -4290,10 +4290,6 @@ impl<F> TryFrom<&types::PayoutsRouterData<F>> for StripeConnectRecipientAccountC
             .change_context(errors::ConnectorError::MissingRequiredField {
                 field_name: "vendor_details",
             })?;
-        let (vendor_details, individual_details) = (
-            payout_vendor_details.vendor_details,
-            payout_vendor_details.individual_details,
-        );
         match payout_method_data {
             api_models::payouts::PayoutMethodData::Card(_c) => {
                 Ok(Self::Token(RecipientTokenRequest {
@@ -4307,7 +4303,8 @@ impl<F> TryFrom<&types::PayoutsRouterData<F>> for StripeConnectRecipientAccountC
                         external_account_country: bank_details.bank_country_code,
                         external_account_currency: request.destination_currency.to_owned(),
                         external_account_account_holder_name: customer_name,
-                        external_account_account_holder_type: individual_details
+                        external_account_account_holder_type: payout_vendor_details
+                            .individual_details
                             .external_account_account_holder_type
                             .get_required_value("external_account_account_holder_type")
                             .change_context(errors::ConnectorError::MissingRequiredField {

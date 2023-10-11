@@ -1,13 +1,15 @@
-use crate::{
-    core::payouts as payouts_core,
-    errors as core_errors, logger,
-    routes::AppState,
-    types::{api, storage},
-};
 use common_utils::ext_traits::{OptionExt, ValueExt};
+use diesel_models::enums;
 use scheduler::{
     consumer::{self, workflows::ProcessTrackerWorkflow},
     errors,
+};
+
+use crate::{
+    core::payouts as payouts_core,
+    errors as core_errors,
+    routes::AppState,
+    types::{api, storage},
 };
 
 pub struct StripeAttachExternalAccountWorkflow;
@@ -46,14 +48,34 @@ impl ProcessTrackerWorkflow<AppState> for StripeAttachExternalAccountWorkflow {
 
         let mut payout_data =
             payouts_core::make_payout_data(state, &merchant_account, &key_store, &request).await?;
+        let (payout_attempt, payouts) = (
+            payout_data.payout_attempt.clone(),
+            payout_data.payouts.clone(),
+        );
 
-        let routed_through = Some(payout_data.payout_attempt.connector.to_owned());
+        // Fetch payout method data
+        payout_data.payout_method_data = Some(
+            payouts_core::helpers::make_payout_method_data(
+                state,
+                None,
+                payout_attempt.payout_token.as_deref(),
+                &payout_attempt.customer_id,
+                &payout_attempt.merchant_id,
+                &payout_attempt.payout_id,
+                Some(&payouts.payout_type),
+            )
+            .await?
+            .get_required_value("payout_method_data")?,
+        );
+
+        // Form connector data
+        let routed_through = Some(payout_attempt.connector.to_owned());
         let connector_data =
             payouts_core::get_connector_data(state, &merchant_account, routed_through, None)
                 .await?;
-        logger::info!("ABCDEFGASDHJGBYDUJSHGFUYDJSGFUIDSGHIUDSGHDUI");
+
         // 1. Attach recipient's external accounts
-        payouts_core::create_recipient_account(
+        payout_data = payouts_core::create_recipient_account(
             state,
             &merchant_account,
             &key_store,
@@ -62,25 +84,33 @@ impl ProcessTrackerWorkflow<AppState> for StripeAttachExternalAccountWorkflow {
         )
         .await?;
 
-        // 2. Create payout
-        payouts_core::create_payout(
-            state,
-            &merchant_account,
-            &key_store,
-            &connector_data,
-            &mut payout_data,
-        )
-        .await?;
+        if payout_attempt.confirm
+            && payout_data.payout_attempt.status == enums::PayoutStatus::RequiresCreation
+        {
+            // 2. Create payout
+            payout_data = payouts_core::create_payout(
+                state,
+                &merchant_account,
+                &key_store,
+                &connector_data,
+                &mut payout_data,
+            )
+            .await?;
+        }
 
-        // 3. Fulfill payout
-        payouts_core::fulfill_payout(
-            state,
-            &merchant_account,
-            &key_store,
-            &connector_data,
-            &mut payout_data,
-        )
-        .await?;
+        if payouts.auto_fulfill
+            && payout_data.payout_attempt.status == enums::PayoutStatus::RequiresFulfillment
+        {
+            // 3. Fulfill payout
+            payouts_core::fulfill_payout(
+                state,
+                &merchant_account,
+                &key_store,
+                &connector_data,
+                &mut payout_data,
+            )
+            .await?;
+        }
 
         Ok(())
     }
