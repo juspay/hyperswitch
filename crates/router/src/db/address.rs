@@ -167,7 +167,7 @@ mod storage {
         async fn update_address_for_payments(
             &self,
             this: domain::Address,
-            address: domain::AddressUpdate,
+            address_update: domain::AddressUpdate,
             _payment_id: String,
             key_store: &domain::MerchantKeyStore,
             _storage_scheme: MerchantStorageScheme,
