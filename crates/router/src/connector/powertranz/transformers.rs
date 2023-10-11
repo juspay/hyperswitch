@@ -101,9 +101,24 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PowertranzPaymentsRequest 
     fn try_from(item: &types::PaymentsAuthorizeRouterData) -> Result<Self, Self::Error> {
         let source = match item.request.payment_method_data.clone() {
             api::PaymentMethodData::Card(card) => Ok(Source::from(&card)),
-            _ => Err(errors::ConnectorError::NotImplemented(
-                "Payment method".to_string(),
-            )),
+            api::PaymentMethodData::CardRedirect(_)
+            | api::PaymentMethodData::PayLater(_)
+            | api::PaymentMethodData::BankRedirect(_)
+            | api::PaymentMethodData::BankDebit(_)
+            | api::PaymentMethodData::BankTransfer(_)
+            | api::PaymentMethodData::Crypto(_)
+            | api::PaymentMethodData::MandatePayment
+            | api::PaymentMethodData::Reward
+            | api::PaymentMethodData::Upi(_)
+            | api::PaymentMethodData::Voucher(_)
+            | api::PaymentMethodData::GiftCard(_) => Err(errors::ConnectorError::NotSupported {
+                message: utils::SELECTED_PAYMENT_METHOD.to_string(),
+                connector: "powertranz",
+            })
+            .into_report(),
+            // _ => Err(errors::ConnectorError::NotImplemented(
+            //     "Payment method".to_string(),
+            // )),
         }?;
         // let billing_address = get_address_details(&item.address.billing, &item.request.email);
         // let shipping_address = get_address_details(&item.address.shipping, &item.request.email);
