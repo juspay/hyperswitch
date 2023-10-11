@@ -1,5 +1,5 @@
 #![allow(clippy::panic_in_result_fn)]
-use common_utils::{types::Percentage, errors::ApiModelsError};
+use common_utils::{errors::ApiModelsError, types::Percentage};
 const PRECISION_2: u8 = 2;
 const PRECISION_0: u8 = 0;
 
