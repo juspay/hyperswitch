@@ -1532,7 +1532,7 @@ impl services::ConnectorRedirectResponse for Braintree {
                         consts::NO_ERROR_CODE.to_string(),
                         consts::NO_ERROR_MESSAGE.to_string(),
                     ),
-                    |err_payload| (err_payload.code.to_owned(), err_payload.name.to_owned()),
+                    |err_payload| (err_payload.code.to_owned(), err_payload.message.to_owned()),
                 );
 
                 Ok(payments::CallConnectorAction::StatusUpdate {
