@@ -113,10 +113,47 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
 
         let token = token.or_else(|| payment_attempt.payment_token.clone());
 
+        let pmd = if merchant_account.frm_routing_algorithm.is_some() {
+            let redis_conn = state
+                .store
+                .get_redis_conn()
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Failed to get redis connection")?;
+            let key = format!(
+                "frm_pmd_for_payment_id_{}_merchant_id_{}",
+                payment_id, merchant_id
+            );
+
+            let redis_value = redis_conn
+                .get_key::<Option<String>>(&key)
+                .await
+                .ok()
+                .flatten()
+                .and_then(|value| {
+                    let pmd: Option<api_models::payments::PaymentMethodData> =
+                        serde_json::from_str(value.as_str()).ok();
+                    pmd
+                });
+
+            let pmd = match &request.payment_method_data {
+                Some(pmd) => Some(pmd.clone()),
+                None => redis_value,
+            };
+            pmd
+        } else {
+            request.payment_method_data.clone()
+        };
+
         helpers::validate_pm_or_token_given(
-            &request.payment_method,
-            &request.payment_method_data,
-            &request.payment_method_type,
+            &request
+                .payment_method
+                .clone()
+                .or(payment_attempt.payment_method.into()),
+            &request.payment_method_data.clone().or(pmd.clone()),
+            &request
+                .payment_method_type
+                .clone()
+                .or(payment_attempt.payment_method_type.into()),
             &mandate_type,
             &token,
         )?;
@@ -219,33 +256,6 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
         .attach_printable_lazy(|| {
             format!("Error while retrieving frm_response, merchant_id: {}, payment_id: {attempt_id}", &merchant_account.merchant_id)
         });
-
-        let pmd = if merchant_account.frm_routing_algorithm.is_some() {
-            let redis_conn = state
-                .store
-                .get_redis_conn()
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Failed to get redis connection")?;
-            let key = format!(
-                "frm_pmd_for_payment_id_{}_merchant_id_{}",
-                payment_id, merchant_id
-            );
-
-            let redis_value = redis_conn
-                .get_key::<Option<String>>(&key)
-                .await
-                .ok()
-                .flatten()
-                .and_then(|value| {
-                    let pmd: Option<api_models::payments::PaymentMethodData> =
-                        serde_json::from_str(value.as_str()).ok();
-                    pmd
-                });
-
-            request.payment_method_data.clone().or(redis_value)
-        } else {
-            request.payment_method_data.clone()
-        };
 
         Ok((
             Box::new(self),

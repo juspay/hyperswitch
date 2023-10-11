@@ -1211,19 +1211,19 @@ pub fn build_redirection_form(
                 _ => "TEST",
             };
             maud::html! {
-            (maud::DOCTYPE)
-            html {
-                head {
-                    meta name="viewport" content="width=device-width, initial-scale=1";
-                    (PreEscaped(r#"<script src="https://cdn.jsdelivr.net/gh/Kount/kount-web-sdk/kount-web-client-sdk.js"></script>"#))
-                }
-                    body style="background-color: #ffffff; padding: 20px; font-family: Arial, Helvetica, Sans-Serif;" {
+                         (maud::DOCTYPE)
+                         html {
+                             head {
+                                 meta name="viewport" content="width=device-width, initial-scale=1";
+                                  (PreEscaped(r#"<script src="https://cdn.jsdelivr.net/gh/Kount/kount-web-sdk/kount-web-client-sdk.js"></script>"#))
+                             }
+                                 body style="background-color: #ffffff; padding: 20px; font-family: Arial, Helvetica, Sans-Serif;" {
 
-                        div id="loader1" class="lottie" style="height: 150px; display: block; position: relative; margin-top: 150px; margin-left: auto; margin-right: auto;" { "" }
+                                     div id="loader1" class="lottie" style="height: 150px; display: block; position: relative; margin-top: 150px; margin-left: auto; margin-right: auto;" { "" }
 
-                        (PreEscaped(r#"<script src="https://cdnjs.cloudflare.com/ajax/libs/bodymovin/5.7.4/lottie.min.js"></script>"#))
+                                     (PreEscaped(r#"<script src="https://cdnjs.cloudflare.com/ajax/libs/bodymovin/5.7.4/lottie.min.js"></script>"#))
 
-                        (PreEscaped(r#"
+                                     (PreEscaped(r#"
                         <script>
                         var anime = bodymovin.loadAnimation({
                             container: document.getElementById('loader1'),
@@ -1237,29 +1237,35 @@ pub fn build_redirection_form(
                         "#))
 
 
-                        h3 style="text-align: center;" { "Please wait while we process your payment..." }
-                    }
+                                     h3 style="text-align: center;" { "Please wait while we process your payment..." }
+                                 }
 
-                (PreEscaped(format!("<script>
-                      const sessionID = '{payment_id}';
-                      const kountConfig = {{
-                        clientID: '{client_id}',
-                        environment: '{env}',
-                        isSinglePageApp: true,
-                      }};
-                      const sdk = kountSDK(kountConfig, sessionID);
-                      if (sdk) {{
+             (PreEscaped(format!(
+                 r#"
+                    <script type="module">
+                        import kountSDK from 'https://cdn.jsdelivr.net/gh/Kount/kount-web-sdk/kount-web-client-sdk.js';
+                        document.addEventListener('DOMContentLoaded', function() {{
+                            const sessionID = "{}";
+                            const kountConfig = {{
+                                clientID: "{}",
+                                environment: "{}",
+                                isSinglePageApp: true,
+                                isDebugEnabled: true
+                            }};
+                            const sdk = new kountSDK(kountConfig, sessionID);
+                        }});
                         var f = document.createElement('form');
-                        f.action=window.location.pathname.replace(/payments\\/redirect\\/(\\w+)\\/(\\w+)\\/\\w+/, \"payments/complete_ddc/$1/$2\");
+                        f.action = window.location.pathname.replace(new RegExp("payments/ddc/(\\w+)/(\\w+)"), "payments/complete_ddc/$1/$2");
                         f.method='POST';
                         document.body.appendChild(f);
                         f.submit();
-                       }} else {{
-                            f.submit();
-                       }}
-                </script>
-                ")))
-                }}
+                    </script>
+                    "#,
+                 payment_id,
+                 client_id,
+                 env
+             )))
+            }}
         }
         RedirectForm::Braintree {
             client_token,
