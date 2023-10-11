@@ -104,6 +104,18 @@ echo `aws rds create-db-instance  \
     --tags "Key=ManagedBy,Value=hyperswitch" \
     --vpc-security-group-ids $RDS_SG_ID`
 curl https://raw.githubusercontent.com/juspay/hyperswitch/feat/create-prod-script/schema.sql >> schema.sql
+
+while [[ $RDS_STATUS != 'available' ]]; do
+	echo $RDS_STATUS
+	sleep 10
+
+export RDS_STATUS=$(aws rds describe-db-instances \
+--db-instance-identifier $DB_INSTANCE_ID \
+--region $REGION \
+--query "DBInstances[0].DBInstanceStatus" \
+--output text)
+done
+
 export RDS_ENDPOINT=$(aws rds describe-db-instances --db-instance-identifier $DB_INSTANCE_ID --region $REGION --query "DBInstances[*].Endpoint.Address" --output text)
 echo "CREATE USER db_user WITH PASSWORD 'db_pass' SUPERUSER CREATEDB CREATEROLE INHERIT LOGIN;
 CREATE DATABASE hyperswitch_db;
