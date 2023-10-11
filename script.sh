@@ -122,7 +122,7 @@ export RDS_STATUS=$(aws rds describe-db-instances \
 --output text)
 done
 
-export RDS_ENDPOINT=$(aws rds describe-db-instances --db-instance-identifier $DB_INSTANCE_ID --region $REGION --query "DBInstances[*].Endpoint.Address" --output text)
+export RDS_ENDPOINT=$(aws rds describe-db-instances --db-instance-identifier $DB_INSTANCE_ID --region $REGION --query "DBInstances[0].Endpoint.Address" --output text)
 psql -d postgresql://hyperswitch:hyps1234@$RDS_ENDPOINT/hyperswitch_db -a -f schema.sql > /dev/null
 
 cat << EOF > user_data.sh
@@ -144,7 +144,7 @@ export redis_status=$(aws elasticache describe-cache-clusters \
   --query 'CacheClusters[0].CacheClusterStatus' \
   --output text)
 
-while [ $redis_status -ne 'available' ]
+while [ $redis_status != 'available' ]
 do
   echo "$redis_status"
   sleep 10
@@ -164,13 +164,13 @@ export REDIS_ENDPOINT=$(aws elasticache describe-cache-clusters \
 
 echo "\n# Add redis and DB configs\n" >> user_data.sh
 echo "cat << EOF >> .env" >> user_data.sh
-echo "ROUTER__REDIS__CLUSTER_URLS=$REDIS_ENDPOINT" >> user_data.sh 
+echo "ROUTER__REDIS__CLUSTER_URLS=$REDIS_ENDPOINT" >> user_data.sh
 echo "ROUTER__MASTER_DATABASE__HOST=$RDS_ENDPOINT" >> user_data.sh
 echo "ROUTER__REPLICA_DATABASE__HOST=$RDS_ENDPOINT" >> user_data.sh
 echo "EOF" >> user_data.sh
 
 
-docker run --env-file .env -p 8080:8080 -v `pwd`/:/local/config juspaydotin/hyperswitch-router:beta ./router -f /local/config/production.toml
+echo "docker run --env-file .env -p 8080:8080 -v `pwd`/:/local/config juspaydotin/hyperswitch-router:beta ./router -f /local/config/production.toml
 " >> user_data.sh
 
 
@@ -182,7 +182,7 @@ aws ec2 create-key-pair \
   --tag-specifications "ResourceType=key-pair,Tags=[{Key=ManagedBy,Value=hyperswitch}]" \
   --region $REGION \
     --output text > hyperswitch-keypair.pem
-  
+
 
 chmod 400 hyperswitch-keypair.pem
 
