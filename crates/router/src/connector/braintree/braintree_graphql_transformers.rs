@@ -87,7 +87,7 @@ impl TryFrom<&Option<pii::SecretSerdeValue>> for BraintreeMeta {
     fn try_from(meta_data: &Option<pii::SecretSerdeValue>) -> Result<Self, Self::Error> {
         let metadata: Self = utils::to_connector_meta_from_secret::<Self>(meta_data.clone())
             .change_context(errors::ConnectorError::InvalidConfig {
-                field_name: "connector metadata",
+                field_name: "merchant connector account metadata",
             })?;
         Ok(metadata)
     }
@@ -110,7 +110,7 @@ impl TryFrom<&BraintreeRouterData<&types::PaymentsAuthorizeRouterData>>
         let metadata: BraintreeMeta =
             utils::to_connector_meta_from_secret(item.router_data.connector_meta_data.clone())
                 .change_context(errors::ConnectorError::InvalidConfig {
-                    field_name: "connector metadata",
+                    field_name: "merchant connector account metadata",
                 })?;
         utils::validate_currency(
             item.router_data.request.currency,
@@ -155,26 +155,28 @@ impl TryFrom<&BraintreeRouterData<&types::PaymentsCompleteAuthorizeRouterData>>
     fn try_from(
         item: &BraintreeRouterData<&types::PaymentsCompleteAuthorizeRouterData>,
     ) -> Result<Self, Self::Error> {
-        match item.router_data.request.payment_method_data.clone() {
-            Some(api::PaymentMethodData::Card(_)) => {
+        match item.router_data.payment_method.clone() {
+            api_models::enums::PaymentMethod::Card => {
                 Ok(Self::Card(CardPaymentRequest::try_from(item)?))
             }
-            Some(api_models::payments::PaymentMethodData::CardRedirect(_))
-            | Some(api_models::payments::PaymentMethodData::Wallet(_))
-            | Some(api_models::payments::PaymentMethodData::PayLater(_))
-            | Some(api_models::payments::PaymentMethodData::BankRedirect(_))
-            | Some(api_models::payments::PaymentMethodData::BankDebit(_))
-            | Some(api_models::payments::PaymentMethodData::BankTransfer(_))
-            | Some(api_models::payments::PaymentMethodData::Crypto(_))
-            | Some(api_models::payments::PaymentMethodData::MandatePayment)
-            | Some(api_models::payments::PaymentMethodData::Reward)
-            | Some(api_models::payments::PaymentMethodData::Upi(_))
-            | Some(api_models::payments::PaymentMethodData::Voucher(_))
-            | Some(api_models::payments::PaymentMethodData::GiftCard(_))
-            | None => Err(errors::ConnectorError::NotImplemented(
-                utils::get_unimplemented_payment_method_error_message("complete authorize flow"),
-            )
-            .into()),
+            api_models::enums::PaymentMethod::CardRedirect
+            | api_models::enums::PaymentMethod::PayLater
+            | api_models::enums::PaymentMethod::Wallet
+            | api_models::enums::PaymentMethod::BankRedirect
+            | api_models::enums::PaymentMethod::BankTransfer
+            | api_models::enums::PaymentMethod::Crypto
+            | api_models::enums::PaymentMethod::BankDebit
+            | api_models::enums::PaymentMethod::Reward
+            | api_models::enums::PaymentMethod::Upi
+            | api_models::enums::PaymentMethod::Voucher
+            | api_models::enums::PaymentMethod::GiftCard => {
+                Err(errors::ConnectorError::NotImplemented(
+                    utils::get_unimplemented_payment_method_error_message(
+                        "complete authorize flow",
+                    ),
+                )
+                .into())
+            }
         }
     }
 }
@@ -603,7 +605,7 @@ impl<F> TryFrom<BraintreeRouterData<&types::RefundsRouterData<F>>> for Braintree
         let metadata: BraintreeMeta =
             utils::to_connector_meta_from_secret(item.router_data.connector_meta_data.clone())
                 .change_context(errors::ConnectorError::InvalidConfig {
-                    field_name: "connector metadata",
+                    field_name: "merchant connector account metadata",
                 })?;
 
         utils::validate_currency(
@@ -713,7 +715,7 @@ impl TryFrom<&types::RefundSyncRouterData> for BraintreeRSyncRequest {
             item.connector_meta_data.clone(),
         )
         .change_context(errors::ConnectorError::InvalidConfig {
-            field_name: "connector metadata",
+            field_name: "merchant connector account metadata",
         })?;
         utils::validate_currency(
             item.request.currency,
@@ -1346,7 +1348,7 @@ impl TryFrom<&BraintreeRouterData<&types::PaymentsCompleteAuthorizeRouterData>>
         let metadata: BraintreeMeta =
             utils::to_connector_meta_from_secret(item.router_data.connector_meta_data.clone())
                 .change_context(errors::ConnectorError::InvalidConfig {
-                    field_name: "connector metadata",
+                    field_name: "merchant connector account metadata",
                 })?;
         utils::validate_currency(
             item.router_data.request.currency,
