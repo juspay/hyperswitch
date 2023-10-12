@@ -187,14 +187,14 @@ fn get_color_scheme_css(
         .and_then(|pl_metadata| {
             pl_metadata.color_scheme.map(|color| {
                 (
-                    color.primary_color.unwrap_or("#6A8EF5".to_string()),
+                    color.primary_color.unwrap_or("#D1DADD".to_string()),
                     color.primary_accent_color.unwrap_or("#6A8EF5".to_string()),
                     color.secondary_color.unwrap_or("#0C48F6".to_string()),
                 )
             })
         })
         .unwrap_or((
-            "#6A8EF5".to_string(),
+            "#D1DADD".to_string(),
             "#6A8EF5".to_string(),
             "#0C48F6".to_string(),
         ));
