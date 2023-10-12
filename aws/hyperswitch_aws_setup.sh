@@ -336,5 +336,5 @@ do
     sleep 10
 done
 
-echo "Hurray\! You can try using hyperswitch at http:\/\/$PUBLIC_HYPERSWITCH_IP"
-echo "Health endpoint: http:\/\/$PUBLIC_HYPERSWITCH_IP\/health"
+echo "Hurray! You can try using hyperswitch at http://$PUBLIC_HYPERSWITCH_IP"
+echo "Health endpoint: http://$PUBLIC_HYPERSWITCH_IP/health"
