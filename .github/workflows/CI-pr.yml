@@ -359,7 +359,7 @@ jobs:
         if: ${{ (github.event.pull_request.head.repo.full_name == github.event.pull_request.base.repo.full_name) }}
         shell: bash
         run: |
-          if git diff --exit-code --quiet origin/$GITHUB_BASE_REF -- Cargo.lock; then
+          if ! git diff --exit-code --quiet origin/$GITHUB_BASE_REF -- Cargo.lock; then
             git config --local user.name 'github-actions[bot]'
             git config --local user.email '41898282+github-actions[bot]@users.noreply.github.com'
             git add Cargo.lock
