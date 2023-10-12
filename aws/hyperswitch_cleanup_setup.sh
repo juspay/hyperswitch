@@ -1,8 +1,5 @@
 #!/bin/bash
 
-export REGION=us-east-2
-
-
 command_discovery() {
   type $1 > /dev/null 2> /dev/null
   if [[ $? != 0 ]]; then
@@ -23,6 +20,13 @@ yes_or_no() {
 command_discovery aws
 command_discovery jq
 
+echo "Please enter the AWS region (us-east-2):"
+read REGION < /dev/tty
+
+if [ -z "$REGION" ]; then
+    echo "Using default region: us-east-2"
+    REGION="us-east-2"
+fi
 
 export ALL_ELASTIC_CACHE=($(aws elasticache describe-cache-clusters \
   --region $REGION \
@@ -32,7 +36,7 @@ for cluster_arn in $ALL_ELASTIC_CACHE; do
     cluster_id=${cluster_arn##*:}
 
     aws elasticache list-tags-for-resource \
-        --resource-name $cluster_id \
+        --resource-name $cluster_arn \
     --region $REGION \
         --output json | jq \
         '.TagList[] | select( [ .Key == "ManagedBy" and .Value == "hyperswitch" ] | any)' \

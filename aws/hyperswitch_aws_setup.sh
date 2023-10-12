@@ -15,6 +15,11 @@ command_discovery psql
 echo "Please enter the AWS region (us-east-2):"
 read REGION < /dev/tty
 
+if [ -z "$REGION" ]; then
+    echo "Using default region: us-east-2"
+    REGION="us-east-2"
+fi
+
 while [[ -z "$MASTER_DB_PASSWORD" ]]; do
     echo "Please enter the password for your RDS instance:"
     echo "Minimum length: 8 Characters [A-Z][a-z][0-9]"
@@ -25,11 +30,6 @@ while [[ -z "$ADMIN_API_KEY" ]]; do
     echo "Please enter the Admin api key:"
     read ADMIN_API_KEY < /dev/tty
 done
-
-if [ -z "$REGION" ]; then
-    echo "Using default region: us-east-2"
-    REGION="us-east-2"
-fi
 
 #############  APPLICATION ##################
 # CREATE SECURITY GROUP FOR APPLICATION
