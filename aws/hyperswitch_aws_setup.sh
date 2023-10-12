@@ -1,3 +1,19 @@
+#!/bin/bash
+
+command_discovery() {
+  type $1 > /dev/null 2> /dev/null
+  if [[ $? != 0 ]]; then
+    echo "\`$1\` command not found"
+    exit 1
+  fi
+}
+
+command_discovery curl
+command_discovery aws
+command_discovery psql
+
+
+
 export REGION=us-east-2
 
 #############  APPLICATION ##################

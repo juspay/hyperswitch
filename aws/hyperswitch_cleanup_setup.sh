@@ -2,6 +2,15 @@
 
 export REGION=us-east-2
 
+
+command_discovery() {
+  type $1 > /dev/null 2> /dev/null
+  if [[ $? != 0 ]]; then
+    echo "\`$1\` command not found"
+    exit 1
+  fi
+}
+
 yes_or_no() {
     read response
     case $response in
@@ -10,6 +19,8 @@ yes_or_no() {
         * ) return 1 ;;
     esac
 }
+
+command_discovery aws
 
 
 export ALL_ELASTIC_CACHE=($(aws elasticache describe-cache-clusters \
