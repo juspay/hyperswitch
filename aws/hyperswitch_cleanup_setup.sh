@@ -74,7 +74,6 @@ if yes_or_no; then
     for INSTANCE_ID in $ALL_INSTANCES; do
         aws ec2 terminate-instances --instance-ids $INSTANCE_ID --region $REGION
     done
-else
 fi
 
 export ALL_DB_RESOURCES=($(aws rds describe-db-instances \
@@ -126,6 +125,5 @@ if yes_or_no; then
     for GROUP_ID in $ALL_SECURITY_GROUPS; do
         aws ec2 delete-security-group --group-id $GROUP_ID --region $REGION
     done
-else
 fi
 
