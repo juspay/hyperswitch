@@ -1050,11 +1050,6 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsSyncData
                 ),
                 None => types::SyncRequestType::SinglePaymentSync,
             },
-            payment_attempt_created_at_as_utc: payment_data
-                .payment_attempt
-                .created_at
-                .assume_utc()
-                .unix_timestamp(),
         })
     }
 }
