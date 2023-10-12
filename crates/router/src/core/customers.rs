@@ -2,7 +2,7 @@ use common_utils::{
     crypto::{Encryptable, GcmAes256},
     errors::ReportSwitchExt,
 };
-use error_stack::ResultExt;
+use error_stack::{IntoReport, ResultExt};
 use masking::ExposeInterface;
 use router_env::{instrument, tracing};
 
@@ -44,10 +44,19 @@ pub async fn create_customer(
     //
     // Consider a scenerio where the address is inserted and then when inserting the customer,
     // it errors out, now the address that was inserted is not deleted
-    _ = db
+    match db
         .find_customer_by_customer_id_merchant_id(customer_id, merchant_id, &key_store)
         .await
-        .to_duplicate_response(errors::CustomersErrorResponse::CustomerAlreadyExists)?;
+    {
+        Err(err) => {
+            if !err.current_context().is_db_not_found() {
+                Err(err).switch()
+            } else {
+                Ok(())
+            }
+        }
+        Ok(_) => Err(errors::CustomersErrorResponse::CustomerAlreadyExists).into_report(),
+    }?;
 
     let key = key_store.key.get_inner().peek();
     let address = if let Some(addr) = &customer_data.address {
