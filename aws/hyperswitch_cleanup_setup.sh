@@ -20,7 +20,7 @@ yes_or_no() {
 command_discovery aws
 command_discovery jq
 
-echo "Please enter the AWS region (us-east-2): "
+echo -n "Please enter the AWS region (us-east-2): "
 read REGION < /dev/tty
 
 if [ -z "$REGION" ]; then
@@ -64,7 +64,7 @@ if yes_or_no; then
 fi
 
 export ALL_INSTANCES=$(aws ec2 describe-instances \
-            --filters 'Name=tag:ManagedBy,Values=hyperswitch' \
+            --filters 'Name=tag:ManagedBy,Values=hyperswitch' 'Name=instance-state-name,Values=running' \
 --region $REGION \
     --query 'Reservations[*].Instances[*].InstanceId' --output text)
 
