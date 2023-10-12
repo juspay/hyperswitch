@@ -271,8 +271,6 @@ pub struct Customers;
 #[cfg(any(feature = "olap", feature = "oltp"))]
 impl Customers {
     pub fn server(state: AppState) -> Scope {
-        let mut root_resource = web::resource("");
-
         let mut route = web::scope("/customers").app_data(web::Data::new(state));
 
         #[cfg(feature = "olap")]
