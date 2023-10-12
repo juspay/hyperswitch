@@ -29,6 +29,9 @@ const IRRELEVANT_ATTEMPT_ID_IN_SOURCE_VERIFICATION_FLOW: &str =
 const IRRELEVANT_CONNECTOR_REQUEST_REFERENCE_ID_IN_SOURCE_VERIFICATION_FLOW: &str =
     "irrelevant_connector_request_reference_id_in_source_verification_flow";
 
+/// Check whether the merchant has configured to process the webhook `event` for the `connector`
+/// First check for the key "whconf_{merchant_id}_{connector_id}" in redis,
+/// if not found, fetch from configs table in database, if not found use default
 pub async fn lookup_webhook_event(
     db: &dyn StorageInterface,
     connector_id: &str,
@@ -115,6 +118,7 @@ pub async fn construct_webhook_router_data<'a>(
         payment_method_balance: None,
         connector_api_version: None,
         connector_http_status_code: None,
+        external_latency: None,
         apple_pay_flow: None,
     };
     Ok(router_data)

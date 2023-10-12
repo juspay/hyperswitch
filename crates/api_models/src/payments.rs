@@ -298,11 +298,16 @@ pub struct PaymentsRequest {
     /// The business profile to use for this payment, if not passed the default business profile
     /// associated with the merchant account will be used.
     pub profile_id: Option<String>,
+
+    /// The type of the payment that differentiates between normal and various types of mandate payments
+    #[schema(value_type = Option<PaymentType>)]
+    pub payment_type: Option<api_enums::PaymentType>,
 }
 
 #[derive(Default, Debug, Clone, Copy)]
 pub struct HeaderPayload {
     pub payment_confirm_source: Option<api_enums::PaymentSource>,
+    pub x_hs_latency: Option<bool>,
 }
 
 #[derive(
@@ -790,6 +795,168 @@ pub enum PaymentMethodData {
     GiftCard(Box<GiftCardData>),
 }
 
+pub trait GetPaymentMethodType {
+    fn get_payment_method_type(&self) -> api_enums::PaymentMethodType;
+}
+
+impl GetPaymentMethodType for CardRedirectData {
+    fn get_payment_method_type(&self) -> api_enums::PaymentMethodType {
+        match self {
+            Self::Knet {} => api_enums::PaymentMethodType::Knet,
+            Self::Benefit {} => api_enums::PaymentMethodType::Benefit,
+            Self::MomoAtm {} => api_enums::PaymentMethodType::MomoAtm,
+        }
+    }
+}
+
+impl GetPaymentMethodType for WalletData {
+    fn get_payment_method_type(&self) -> api_enums::PaymentMethodType {
+        match self {
+            Self::AliPayQr(_) | Self::AliPayRedirect(_) => api_enums::PaymentMethodType::AliPay,
+            Self::AliPayHkRedirect(_) => api_enums::PaymentMethodType::AliPayHk,
+            Self::MomoRedirect(_) => api_enums::PaymentMethodType::Momo,
+            Self::KakaoPayRedirect(_) => api_enums::PaymentMethodType::KakaoPay,
+            Self::GoPayRedirect(_) => api_enums::PaymentMethodType::GoPay,
+            Self::GcashRedirect(_) => api_enums::PaymentMethodType::Gcash,
+            Self::ApplePay(_) | Self::ApplePayRedirect(_) | Self::ApplePayThirdPartySdk(_) => {
+                api_enums::PaymentMethodType::ApplePay
+            }
+            Self::DanaRedirect {} => api_enums::PaymentMethodType::Dana,
+            Self::GooglePay(_) | Self::GooglePayRedirect(_) | Self::GooglePayThirdPartySdk(_) => {
+                api_enums::PaymentMethodType::GooglePay
+            }
+            Self::MbWayRedirect(_) => api_enums::PaymentMethodType::MbWay,
+            Self::MobilePayRedirect(_) => api_enums::PaymentMethodType::MobilePay,
+            Self::PaypalRedirect(_) | Self::PaypalSdk(_) => api_enums::PaymentMethodType::Paypal,
+            Self::SamsungPay(_) => api_enums::PaymentMethodType::SamsungPay,
+            Self::TwintRedirect {} => api_enums::PaymentMethodType::Twint,
+            Self::VippsRedirect {} => api_enums::PaymentMethodType::Vipps,
+            Self::TouchNGoRedirect(_) => api_enums::PaymentMethodType::TouchNGo,
+            Self::WeChatPayRedirect(_) | Self::WeChatPayQr(_) => {
+                api_enums::PaymentMethodType::WeChatPay
+            }
+            Self::CashappQr(_) => api_enums::PaymentMethodType::Cashapp,
+            Self::SwishQr(_) => api_enums::PaymentMethodType::Swish,
+        }
+    }
+}
+
+impl GetPaymentMethodType for PayLaterData {
+    fn get_payment_method_type(&self) -> api_enums::PaymentMethodType {
+        match self {
+            Self::KlarnaRedirect { .. } => api_enums::PaymentMethodType::Klarna,
+            Self::KlarnaSdk { .. } => api_enums::PaymentMethodType::Klarna,
+            Self::AffirmRedirect {} => api_enums::PaymentMethodType::Affirm,
+            Self::AfterpayClearpayRedirect { .. } => api_enums::PaymentMethodType::AfterpayClearpay,
+            Self::PayBrightRedirect {} => api_enums::PaymentMethodType::PayBright,
+            Self::WalleyRedirect {} => api_enums::PaymentMethodType::Walley,
+            Self::AlmaRedirect {} => api_enums::PaymentMethodType::Alma,
+            Self::AtomeRedirect {} => api_enums::PaymentMethodType::Atome,
+        }
+    }
+}
+
+impl GetPaymentMethodType for BankRedirectData {
+    fn get_payment_method_type(&self) -> api_enums::PaymentMethodType {
+        match self {
+            Self::BancontactCard { .. } => api_enums::PaymentMethodType::BancontactCard,
+            Self::Bizum {} => api_enums::PaymentMethodType::Bizum,
+            Self::Blik { .. } => api_enums::PaymentMethodType::Blik,
+            Self::Eps { .. } => api_enums::PaymentMethodType::Eps,
+            Self::Giropay { .. } => api_enums::PaymentMethodType::Giropay,
+            Self::Ideal { .. } => api_enums::PaymentMethodType::Ideal,
+            Self::Interac { .. } => api_enums::PaymentMethodType::Interac,
+            Self::OnlineBankingCzechRepublic { .. } => {
+                api_enums::PaymentMethodType::OnlineBankingCzechRepublic
+            }
+            Self::OnlineBankingFinland { .. } => api_enums::PaymentMethodType::OnlineBankingFinland,
+            Self::OnlineBankingPoland { .. } => api_enums::PaymentMethodType::OnlineBankingPoland,
+            Self::OnlineBankingSlovakia { .. } => {
+                api_enums::PaymentMethodType::OnlineBankingSlovakia
+            }
+            Self::OpenBankingUk { .. } => api_enums::PaymentMethodType::OpenBankingUk,
+            Self::Przelewy24 { .. } => api_enums::PaymentMethodType::Przelewy24,
+            Self::Sofort { .. } => api_enums::PaymentMethodType::Sofort,
+            Self::Trustly { .. } => api_enums::PaymentMethodType::Trustly,
+            Self::OnlineBankingFpx { .. } => api_enums::PaymentMethodType::OnlineBankingFpx,
+            Self::OnlineBankingThailand { .. } => {
+                api_enums::PaymentMethodType::OnlineBankingThailand
+            }
+        }
+    }
+}
+
+impl GetPaymentMethodType for BankDebitData {
+    fn get_payment_method_type(&self) -> api_enums::PaymentMethodType {
+        match self {
+            Self::AchBankDebit { .. } => api_enums::PaymentMethodType::Ach,
+            Self::SepaBankDebit { .. } => api_enums::PaymentMethodType::Sepa,
+            Self::BecsBankDebit { .. } => api_enums::PaymentMethodType::Becs,
+            Self::BacsBankDebit { .. } => api_enums::PaymentMethodType::Bacs,
+        }
+    }
+}
+
+impl GetPaymentMethodType for BankTransferData {
+    fn get_payment_method_type(&self) -> api_enums::PaymentMethodType {
+        match self {
+            Self::AchBankTransfer { .. } => api_enums::PaymentMethodType::Ach,
+            Self::SepaBankTransfer { .. } => api_enums::PaymentMethodType::Sepa,
+            Self::BacsBankTransfer { .. } => api_enums::PaymentMethodType::Bacs,
+            Self::MultibancoBankTransfer { .. } => api_enums::PaymentMethodType::Multibanco,
+            Self::PermataBankTransfer { .. } => api_enums::PaymentMethodType::PermataBankTransfer,
+            Self::BcaBankTransfer { .. } => api_enums::PaymentMethodType::BcaBankTransfer,
+            Self::BniVaBankTransfer { .. } => api_enums::PaymentMethodType::BniVa,
+            Self::BriVaBankTransfer { .. } => api_enums::PaymentMethodType::BriVa,
+            Self::CimbVaBankTransfer { .. } => api_enums::PaymentMethodType::CimbVa,
+            Self::DanamonVaBankTransfer { .. } => api_enums::PaymentMethodType::DanamonVa,
+            Self::MandiriVaBankTransfer { .. } => api_enums::PaymentMethodType::MandiriVa,
+            Self::Pix {} => api_enums::PaymentMethodType::Pix,
+            Self::Pse {} => api_enums::PaymentMethodType::Pse,
+        }
+    }
+}
+
+impl GetPaymentMethodType for CryptoData {
+    fn get_payment_method_type(&self) -> api_enums::PaymentMethodType {
+        api_enums::PaymentMethodType::CryptoCurrency
+    }
+}
+
+impl GetPaymentMethodType for UpiData {
+    fn get_payment_method_type(&self) -> api_enums::PaymentMethodType {
+        api_enums::PaymentMethodType::UpiCollect
+    }
+}
+impl GetPaymentMethodType for VoucherData {
+    fn get_payment_method_type(&self) -> api_enums::PaymentMethodType {
+        match self {
+            Self::Boleto(_) => api_enums::PaymentMethodType::Boleto,
+            Self::Efecty => api_enums::PaymentMethodType::Efecty,
+            Self::PagoEfectivo => api_enums::PaymentMethodType::PagoEfectivo,
+            Self::RedCompra => api_enums::PaymentMethodType::RedCompra,
+            Self::RedPagos => api_enums::PaymentMethodType::RedPagos,
+            Self::Alfamart(_) => api_enums::PaymentMethodType::Alfamart,
+            Self::Indomaret(_) => api_enums::PaymentMethodType::Indomaret,
+            Self::Oxxo => api_enums::PaymentMethodType::Oxxo,
+            Self::SevenEleven(_) => api_enums::PaymentMethodType::SevenEleven,
+            Self::Lawson(_) => api_enums::PaymentMethodType::Lawson,
+            Self::MiniStop(_) => api_enums::PaymentMethodType::MiniStop,
+            Self::FamilyMart(_) => api_enums::PaymentMethodType::FamilyMart,
+            Self::Seicomart(_) => api_enums::PaymentMethodType::Seicomart,
+            Self::PayEasy(_) => api_enums::PaymentMethodType::PayEasy,
+        }
+    }
+}
+impl GetPaymentMethodType for GiftCardData {
+    fn get_payment_method_type(&self) -> api_enums::PaymentMethodType {
+        match self {
+            Self::Givex(_) => api_enums::PaymentMethodType::Givex,
+            Self::PaySafeCard {} => api_enums::PaymentMethodType::PaySafeCard,
+        }
+    }
+}
+
 #[derive(serde::Deserialize, serde::Serialize, Debug, Clone, ToSchema, Eq, PartialEq)]
 #[serde(rename_all = "snake_case")]
 pub enum GiftCardData {
@@ -868,7 +1035,7 @@ pub enum BankRedirectData {
     Bizum {},
     Blik {
         // Blik Code
-        blik_code: String,
+        blik_code: Option<String>,
     },
     Eps {
         /// The billing details for bank redirection
@@ -1999,10 +2166,13 @@ pub struct PaymentListResponseV2 {
 }
 
 #[derive(Clone, Debug, serde::Deserialize)]
-#[serde(deny_unknown_fields)]
 pub struct PaymentListFilterConstraints {
     /// The identifier for payment
     pub payment_id: Option<String>,
+    /// The identifier for business profile
+    pub profile_id: Option<String>,
+    /// The identifier for customer
+    pub customer_id: Option<String>,
     /// The limit on the number of objects. The default limit is 10 and max limit is 20
     #[serde(default = "default_limit")]
     pub limit: u32,
@@ -2015,10 +2185,14 @@ pub struct PaymentListFilterConstraints {
     pub connector: Option<Vec<api_enums::Connector>>,
     /// The list of currencies to filter payments list
     pub currency: Option<Vec<enums::Currency>>,
-    /// The list of payment statuses to filter payments list
+    /// The list of payment status to filter payments list
     pub status: Option<Vec<enums::IntentStatus>>,
     /// The list of payment methods to filter payments list
-    pub payment_methods: Option<Vec<enums::PaymentMethod>>,
+    pub payment_method: Option<Vec<enums::PaymentMethod>>,
+    /// The list of payment method types to filter payments list
+    pub payment_method_type: Option<Vec<enums::PaymentMethodType>>,
+    /// The list of authentication types to filter payments list
+    pub authentication_type: Option<Vec<enums::AuthenticationType>>,
 }
 #[derive(Clone, Debug, serde::Serialize)]
 pub struct PaymentListFilters {
@@ -2030,6 +2204,10 @@ pub struct PaymentListFilters {
     pub status: Vec<enums::IntentStatus>,
     /// The list of available payment method filters
     pub payment_method: Vec<enums::PaymentMethod>,
+    /// The list of available payment method types
+    pub payment_method_type: Vec<enums::PaymentMethodType>,
+    /// The list of available authentication types
+    pub authentication_type: Vec<enums::AuthenticationType>,
 }
 
 #[derive(Debug, Clone, Copy, serde::Serialize, serde::Deserialize, PartialEq, Eq, Hash)]

@@ -33,7 +33,7 @@ pub struct Mollie;
 impl api::Payment for Mollie {}
 impl api::PaymentSession for Mollie {}
 impl api::ConnectorAccessToken for Mollie {}
-impl api::PreVerify for Mollie {}
+impl api::MandateSetup for Mollie {}
 impl api::PaymentToken for Mollie {}
 impl api::PaymentAuthorize for Mollie {}
 impl api::PaymentsCompleteAuthorize for Mollie {}
@@ -197,8 +197,12 @@ impl
     }
 }
 
-impl ConnectorIntegration<api::Verify, types::VerifyRequestData, types::PaymentsResponseData>
-    for Mollie
+impl
+    ConnectorIntegration<
+        api::SetupMandate,
+        types::SetupMandateRequestData,
+        types::PaymentsResponseData,
+    > for Mollie
 {
 }
 

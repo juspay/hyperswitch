@@ -79,12 +79,15 @@ pub trait PaymentAttemptInterface {
         storage_scheme: MerchantStorageScheme,
     ) -> error_stack::Result<PaymentListFilters, errors::StorageError>;
 
+    #[allow(clippy::too_many_arguments)]
     async fn get_total_count_of_filtered_payment_attempts(
         &self,
         merchant_id: &str,
         active_attempt_ids: &[String],
         connector: Option<Vec<Connector>>,
-        payment_methods: Option<Vec<storage_enums::PaymentMethod>>,
+        payment_method: Option<Vec<storage_enums::PaymentMethod>>,
+        payment_method_type: Option<Vec<storage_enums::PaymentMethodType>>,
+        authentication_type: Option<Vec<storage_enums::AuthenticationType>>,
         storage_scheme: MerchantStorageScheme,
     ) -> error_stack::Result<i64, errors::StorageError>;
 }
@@ -147,6 +150,8 @@ pub struct PaymentListFilters {
     pub currency: Vec<storage_enums::Currency>,
     pub status: Vec<storage_enums::IntentStatus>,
     pub payment_method: Vec<storage_enums::PaymentMethod>,
+    pub payment_method_type: Vec<storage_enums::PaymentMethodType>,
+    pub authentication_type: Vec<storage_enums::AuthenticationType>,
 }
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
@@ -288,6 +293,10 @@ pub enum PaymentAttemptUpdate {
     },
     MultipleCaptureCountUpdate {
         multiple_capture_count: i16,
+    },
+    SurchargeAmountUpdate {
+        surcharge_amount: Option<i64>,
+        tax_amount: Option<i64>,
     },
     AmountToCaptureUpdate {
         status: storage_enums::AttemptStatus,

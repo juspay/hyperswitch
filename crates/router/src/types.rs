@@ -101,8 +101,11 @@ pub type RefundsResponseRouterData<F, R> =
 
 pub type PaymentsAuthorizeType =
     dyn services::ConnectorIntegration<api::Authorize, PaymentsAuthorizeData, PaymentsResponseData>;
-pub type PaymentsVerifyType =
-    dyn services::ConnectorIntegration<api::Verify, VerifyRequestData, PaymentsResponseData>;
+pub type SetupMandateType = dyn services::ConnectorIntegration<
+    api::SetupMandate,
+    SetupMandateRequestData,
+    PaymentsResponseData,
+>;
 pub type PaymentsPreProcessingType = dyn services::ConnectorIntegration<
     api::PreProcessing,
     PaymentsPreProcessingData,
@@ -204,7 +207,8 @@ pub type DefendDisputeType = dyn services::ConnectorIntegration<
     DefendDisputeResponse,
 >;
 
-pub type VerifyRouterData = RouterData<api::Verify, VerifyRequestData, PaymentsResponseData>;
+pub type SetupMandateRouterData =
+    RouterData<api::SetupMandate, SetupMandateRequestData, PaymentsResponseData>;
 
 pub type AcceptDisputeRouterData =
     RouterData<api::Accept, AcceptDisputeRequestData, AcceptDisputeResponse>;
@@ -285,7 +289,7 @@ pub struct RouterData<Flow, Request, Response> {
 
     pub test_mode: Option<bool>,
     pub connector_http_status_code: Option<u16>,
-
+    pub external_latency: Option<u128>,
     /// Contains apple pay flow type simplified or manual
     pub apple_pay_flow: Option<storage_enums::ApplePayFlow>,
 }
@@ -331,7 +335,6 @@ pub struct PayoutsData {
     pub source_currency: storage_enums::Currency,
     pub payout_type: storage_enums::PayoutType,
     pub entity_type: storage_enums::PayoutEntityType,
-    pub country_code: storage_enums::CountryAlpha2,
     pub customer_details: Option<CustomerDetails>,
 }
 
@@ -375,6 +378,7 @@ pub struct PaymentsAuthorizeData {
     pub related_transaction_id: Option<String>,
     pub payment_experience: Option<storage_enums::PaymentExperience>,
     pub payment_method_type: Option<storage_enums::PaymentMethodType>,
+    pub surcharge_details: Option<api_models::payment_methods::SurchargeDetailsResponse>,
     pub customer_id: Option<String>,
 }
 
@@ -410,6 +414,7 @@ pub struct ConnectorCustomerData {
     pub phone: Option<Secret<String>>,
     pub name: Option<String>,
     pub preprocessing_id: Option<String>,
+    pub payment_method_data: payments::PaymentMethodData,
 }
 
 #[derive(Debug, Clone)]
@@ -506,11 +511,12 @@ pub struct PaymentsSessionData {
     pub amount: i64,
     pub currency: storage_enums::Currency,
     pub country: Option<api::enums::CountryAlpha2>,
+    pub surcharge_details: Option<api_models::payment_methods::SurchargeDetailsResponse>,
     pub order_details: Option<Vec<api_models::payments::OrderDetailsWithAmount>>,
 }
 
 #[derive(Debug, Clone)]
-pub struct VerifyRequestData {
+pub struct SetupMandateRequestData {
     pub currency: storage_enums::Currency,
     pub payment_method_data: payments::PaymentMethodData,
     pub amount: Option<i64>,
@@ -557,7 +563,7 @@ impl Capturable for CompleteAuthorizeData {
         Some(self.amount)
     }
 }
-impl Capturable for VerifyRequestData {}
+impl Capturable for SetupMandateRequestData {}
 impl Capturable for PaymentsCancelData {}
 impl Capturable for PaymentsApproveData {}
 impl Capturable for PaymentsRejectData {}
@@ -989,6 +995,7 @@ impl From<&&mut PaymentsAuthorizeRouterData> for ConnectorCustomerData {
         Self {
             email: data.request.email.to_owned(),
             preprocessing_id: data.preprocessing_id.to_owned(),
+            payment_method_data: data.request.payment_method_data.to_owned(),
             description: None,
             phone: None,
             name: None,
@@ -1014,7 +1021,7 @@ pub trait Tokenizable {
     fn set_session_token(&mut self, token: Option<String>);
 }
 
-impl Tokenizable for VerifyRequestData {
+impl Tokenizable for SetupMandateRequestData {
     fn get_pm_data(&self) -> RouterResult<payments::PaymentMethodData> {
         Ok(self.payment_method_data.clone())
     }
@@ -1039,8 +1046,8 @@ impl Tokenizable for CompleteAuthorizeData {
     fn set_session_token(&mut self, _token: Option<String>) {}
 }
 
-impl From<&VerifyRouterData> for PaymentsAuthorizeData {
-    fn from(data: &VerifyRouterData) -> Self {
+impl From<&SetupMandateRouterData> for PaymentsAuthorizeData {
+    fn from(data: &SetupMandateRouterData) -> Self {
         Self {
             currency: data.request.currency,
             payment_method_data: data.request.payment_method_data.clone(),
@@ -1066,6 +1073,7 @@ impl From<&VerifyRouterData> for PaymentsAuthorizeData {
             payment_experience: None,
             payment_method_type: None,
             customer_id: None,
+            surcharge_details: None,
         }
     }
 }
@@ -1111,6 +1119,7 @@ impl<F1, F2, T1, T2> From<(&RouterData<F1, T1, PaymentsResponseData>, T2)>
             payment_method_balance: data.payment_method_balance.clone(),
             connector_api_version: data.connector_api_version.clone(),
             connector_http_status_code: data.connector_http_status_code,
+            external_latency: data.external_latency,
             apple_pay_flow: data.apple_pay_flow.clone(),
         }
     }
@@ -1165,6 +1174,7 @@ impl<F1, F2>
             payment_method_balance: None,
             connector_api_version: None,
             connector_http_status_code: data.connector_http_status_code,
+            external_latency: data.external_latency,
             apple_pay_flow: None,
         }
     }

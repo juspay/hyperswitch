@@ -9,6 +9,7 @@ mod address;
 pub mod config;
 pub mod connection;
 mod connector_response;
+mod consts;
 pub mod database;
 pub mod errors;
 mod lookup;
@@ -17,6 +18,7 @@ pub mod mock_db;
 pub mod payments;
 pub mod redis;
 pub mod refund;
+mod reverse_lookup;
 mod utils;
 
 use database::store::PgPool;
