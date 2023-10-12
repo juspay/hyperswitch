@@ -16,12 +16,7 @@ export APP_SG_ID=$(aws ec2 create-security-group \
 --output text \
 )
 
-if [ $? -eq 0 ]; then
-    echo "Security Group for Application CREATED successfully!"
-else
-    echo "Security Group for Application CREATION failed!"
-    exit 1
-fi
+echo "Security Group for Application CREATED successfully\!"
 
 echo "Creating Security Group ingress for port 8080..."
 
@@ -32,12 +27,8 @@ echo `aws ec2 authorize-security-group-ingress \
 --cidr 0.0.0.0/0 \
 --region $REGION`
 
-if [ $? -eq 0 ]; then
-    echo "Security Group ingress for port 8080 SUCCESS!"
-else
-    echo "Security Group ingress for port 8080 FAILED!"
-    exit 1
-fi
+echo "Security Group ingress for port 8080 SUCCESS\!"
+
 
 echo "Creating Security Group ingress for port 22..."
 
@@ -48,12 +39,7 @@ echo `aws ec2 authorize-security-group-ingress \
 --cidr 0.0.0.0/0 \
 --region $REGION`
 
-if [ $? -eq 0 ]; then
-    echo "Security Group ingress for port 22 SUCCESS!"
-else
-    echo "Security Group ingress for port 22 FAILED!"
-    exit 1
-fi
+echo "Security Group ingress for port 22 SUCCESS\!"
 
 #############  REDIS ##################
 # CREATE SECURITY GROUP FOR ELASTICACHE
@@ -67,12 +53,7 @@ echo `aws ec2 create-security-group \
 --tag-specifications "ResourceType=security-group,Tags=[{Key=ManagedBy,Value=hyperswitch}]" \
 --region $REGION`
 
-if [ $? -eq 0 ]; then
-    echo "Security Group for Elasticache CREATED successfully!"
-else
-    echo "Security Group for Elasticache CREATION failed!"
-    exit 1
-fi
+echo "Security Group for Elasticache CREATED successfully\!"
 
 echo "Creating Inbound rules for Redis..."
 
@@ -86,12 +67,7 @@ echo `aws ec2 authorize-security-group-ingress \
 --source-group $EC2_SG \
 --region $REGION`
 
-if [ $? -eq 0 ]; then
-    echo "Inbound rules for Redis CREATED successfully!"
-else
-    echo "Inbound rules for Redis CREATION failed!"
-    exit 1
-fi
+echo "Inbound rules for Redis CREATED successfully\!"
 
 #############  DB ##################
 
@@ -104,12 +80,7 @@ echo `aws ec2 create-security-group \
 --tag-specifications "ResourceType=security-group,Tags=[{Key=ManagedBy,Value=hyperswitch}]" \
 --region $REGION`
 
-if [ $? -eq 0 ]; then
-    echo "Security Group for RDS CREATED successfully!"
-else
-    echo "Security Group for RDS CREATION failed!"
-    exit 1
-fi
+echo "Security Group for RDS CREATED successfully\!"
 
 echo "Creating Inbound rules for RDS..."
 
@@ -123,12 +94,7 @@ echo `aws ec2 authorize-security-group-ingress \
 --source-group $EC2_SG \
 --region $REGION`
 
-if [ $? -eq 0 ]; then
-    echo "Inbound rules for RDS CREATED successfully!"
-else
-    echo "Inbound rules for RDS CREATION failed!"
-    exit 1
-fi
+echo "Inbound rules for RDS CREATED successfully\!"
 
 echo `aws ec2 authorize-security-group-ingress \
     --group-id $RDS_SG_ID \
@@ -137,12 +103,7 @@ echo `aws ec2 authorize-security-group-ingress \
     --cidr 0.0.0.0/0 \
     --region $REGION`
 
-if [ $? -eq 0 ]; then
-    echo "Inbound rules for RDS (from any IP) CREATED successfully!"
-else
-    echo "Inbound rules for RDS (from any IP) CREATION failed!"
-    exit 1
-fi
+echo "Inbound rules for RDS (from any IP) CREATED successfully\!"
 
 echo "Creating Elasticache with Redis engine..."
 
@@ -158,12 +119,7 @@ echo `aws elasticache create-cache-cluster \
 --tags "Key=ManagedBy,Value=hyperswitch" \
 --region $REGION`
 
-if [ $? -eq 0 ]; then
-    echo "Elasticache with Redis engine CREATED successfully!"
-else
-    echo "Elasticache with Redis engine CREATION failed!"
-    exit 1
-fi
+echo "Elasticache with Redis engine CREATED successfully\!"
 
 echo "Creating RDS with PSQL..."
 
@@ -181,23 +137,13 @@ echo `aws rds create-db-instance  \
     --tags "Key=ManagedBy,Value=hyperswitch" \
     --vpc-security-group-ids $RDS_SG_ID`
 
-if [ $? -eq 0 ]; then
-    echo "RDS with PSQL CREATED successfully!"
-else
-    echo "RDS with PSQL CREATION failed!"
-    exit 1
-fi
+echo "RDS with PSQL CREATED successfully\!"
 
 echo "Downloading Hyperswitch PSQL Schema..."
 
 curl https://raw.githubusercontent.com/juspay/hyperswitch/feat/create-prod-script/aws/schema.sql > schema.sql
 
-if [ $? -eq 0 ]; then
-    echo "Schema.sql downloaded successfully!"
-else
-    echo "Schema.sql download failed!"
-    exit 1
-fi
+echo "Schema.sql downloaded successfully\!"
 
 echo "Awaiting RDS Initialization..."
 
@@ -207,7 +153,7 @@ export RDS_STATUS=$(aws rds describe-db-instances \
 --query "DBInstances[0].DBInstanceStatus" \
 --output text)
 
-while [[ $RDS_STATUS != 'available' ]]; do
+while [[ $RDS_STATUS \!= 'available' ]]; do
     echo $RDS_STATUS
     sleep 10
 
@@ -218,32 +164,22 @@ while [[ $RDS_STATUS != 'available' ]]; do
     --output text)
 done
 
-echo "RDS Initialized successfully!"
+echo "RDS Initialized successfully\!"
 
 echo "Retrieving RDS Endpoint..."
 
 export RDS_ENDPOINT=$(aws rds describe-db-instances --db-instance-identifier $DB_INSTANCE_ID --region $REGION --query "DBInstances[0].Endpoint.Address" --output text)
 
-if [ $? -eq 0 ]; then
-    echo "RDS Endpoint retrieved successfully!"
-else
-    echo "RDS Endpoint retrieval failed!"
-    exit 1
-fi
+echo "RDS Endpoint retrieved successfully\!"
 
 echo "Applying Schema to DB..."
 
 psql -d postgresql://hyperswitch:hyps1234@$RDS_ENDPOINT/hyperswitch_db -a -f schema.sql > /dev/null
 
-if [ $? -eq 0 ]; then
-    echo "Schema applied to DB successfully!"
-else
-    echo "Schema application to DB failed!"
-    exit 1
-fi
+echo "Schema applied to DB successfully\!"
 
 cat << EOF > user_data.sh
-#!/bin/bash
+#\!/bin/bash
 
 sudo yum update -y
 sudo amazon-linux-extras install docker
@@ -264,7 +200,7 @@ export redis_status=$(aws elasticache describe-cache-clusters \
   --query 'CacheClusters[0].CacheClusterStatus' \
   --output text)
 
-while [ $redis_status != 'available' ]
+while [ $redis_status \!= 'available' ]
 do
     echo "$redis_status"
     sleep 10
@@ -275,7 +211,7 @@ do
         --output text)
 done
 
-echo "Redis Initialized successfully!"
+echo "Redis Initialized successfully\!"
 
 echo "Retrieving Redis Endpoint..."
 
@@ -286,12 +222,7 @@ export REDIS_ENDPOINT=$(aws elasticache describe-cache-clusters \
     --query 'CacheClusters[0].CacheNodes[].Endpoint.Address' \
     --output text)
 
-if [ $? -eq 0 ]; then
-    echo "Redis Endpoint retrieved successfully!"
-else
-    echo "Redis Endpoint retrieval failed!"
-    exit 1
-fi
+echo "Redis Endpoint retrieved successfully\!"
 
 
 echo "\n# Add redis and DB configs\n" >> user_data.sh
@@ -309,12 +240,7 @@ echo "Retrieving AWS AMI ID..."
 
 export AWS_AMI_ID=$(aws ec2 describe-images --owners amazon --filters "Name=name,Values=amzn2-ami-hvm-2.0.*" --query 'sort_by(Images, &CreationDate)[-1].ImageId' --output text --region $REGION)
 
-if [ $? -eq 0 ]; then
-    echo "AWS AMI ID retrieved successfully!"
-else
-    echo "AWS AMI ID retrieval failed!"
-    exit 1
-fi
+echo "AWS AMI ID retrieved successfully\!"
 
 echo "Creating EC2 Keypair..."
 
@@ -325,12 +251,7 @@ aws ec2 create-key-pair \
     --region $REGION \
     --output text > hyperswitch-keypair.pem
 
-if [ $? -eq 0 ]; then
-    echo "Keypair created and saved to hyperswitch-keypair.pem successfully!"
-else
-    echo "Keypair creation failed!"
-    exit 1
-fi
+echo "Keypair created and saved to hyperswitch-keypair.pem successfully\!"
 
 chmod 400 hyperswitch-keypair.pem
 
@@ -347,12 +268,7 @@ export HYPERSWITCH_INSTANCE_ID=$(aws ec2 run-instances \
     --output text \
     --region $REGION)
 
-if [ $? -eq 0 ]; then
-    echo "EC2 instance launched successfully!"
-else
-    echo "EC2 instance launch failed!"
-    exit 1
-fi
+echo "EC2 instance launched successfully\!"
 
 echo "Add Tags to EC2 instance..."
 
@@ -361,24 +277,14 @@ echo `aws ec2 create-tags \
 --tags "Key=Name,Value=hyperswitch-router" \
 --region $REGION`
 
-if [ $? -eq 0 ]; then
-    echo "Tag added to EC2 instance successfully!"
-else
-    echo "Tag addition to EC2 instance failed!"
-    exit 1
-fi
+echo "Tag added to EC2 instance successfully\!"
 
 echo `aws ec2 create-tags \
 --resources $HYPERSWITCH_INSTANCE_ID \
 --tags "Key=ManagedBy,Value=hyperswitch" \
 --region $REGION`
 
-if [ $? -eq 0 ]; then
-    echo "ManagedBy tag added to EC2 instance successfully!"
-else
-    echo "ManagedBy tag addition to EC2 instance failed!"
-    exit 1
-fi
+echo "ManagedBy tag added to EC2 instance successfully\!"
 
 echo "Retrieving the Public IP of Hyperswitch EC2 Instance..."
 export PUBLIC_HYPERSWITCH_IP=$(aws ec2 describe-instances \
@@ -387,9 +293,4 @@ export PUBLIC_HYPERSWITCH_IP=$(aws ec2 describe-instances \
 --output=text \
 --region $REGION)
 
-if [ $? -eq 0 ]; then
-    echo "Hurray! Public IP of EC2 instance retrieved: $PUBLIC_HYPERSWITCH_IP"
-else
-    echo "Public IP retrieval of EC2 instance failed!"
-    exit 1
-fi
+echo "Hurray\! Public IP of EC2 instance retrieved: $PUBLIC_HYPERSWITCH_IP"
