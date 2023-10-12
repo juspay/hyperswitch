@@ -169,6 +169,39 @@
         ]
       }
     },
+    "/customers/list": {
+      "post": {
+        "tags": [
+          "Customers List"
+        ],
+        "summary": "List customers for a merchant",
+        "description": "List customers for a merchant\n\nTo filter and list the customers for a particular merchant id",
+        "operationId": "List all Customers for a Merchant",
+        "responses": {
+          "200": {
+            "description": "Customers retrieved",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/CustomerResponse"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid Data"
+          }
+        },
+        "security": [
+          {
+            "api_key": []
+          }
+        ]
+      }
+    },
     "/customers/payment_methods": {
       "get": {
         "tags": [

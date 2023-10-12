@@ -93,7 +93,7 @@ pub async fn customers_retrieve(
     post,
     path = "/customers/list",
     responses(
-        (status = 200, description = "Customers retrieved", body = Vec<Customers>),
+        (status = 200, description = "Customers retrieved", body = Vec<CustomerResponse>),
         (status = 400, description = "Invalid Data"),
     ),
     tag = "Customers List",
