@@ -1486,6 +1486,7 @@ where
     pub redirect_response: Option<api_models::payments::RedirectResponse>,
     pub surcharge_details: Option<SurchargeDetailsResponse>,
     pub frm_message: Option<FraudCheck>,
+    pub payment_link_data: Option<api_models::payments::PaymentLinkResponse>,
 }
 
 #[derive(Debug, Default, Clone)]

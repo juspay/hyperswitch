@@ -2194,6 +2194,26 @@ pub fn authenticate_client_secret(
     }
 }
 
+pub async fn get_merchant_fullfillment_time(
+    payment_link_id: Option<String>,
+    intent_fulfillment_time: Option<i64>,
+    db: &dyn StorageInterface,
+) -> RouterResult<Option<i64>> {
+    if let Some(payment_link_id) = payment_link_id {
+        let payment_link_db = db
+            .find_payment_link_by_payment_link_id(&payment_link_id)
+            .await
+            .to_not_found_response(errors::ApiErrorResponse::PaymentLinkNotFound)?;
+
+        let curr_time = common_utils::date_time::now();
+        Ok(payment_link_db
+            .fulfilment_time
+            .map(|merchant_expiry_time| (merchant_expiry_time - curr_time).whole_seconds()))
+    } else {
+        Ok(intent_fulfillment_time)
+    }
+}
+
 pub(crate) fn validate_payment_status_against_not_allowed_statuses(
     intent_status: &storage_enums::IntentStatus,
     not_allowed_statuses: &[storage_enums::IntentStatus],
@@ -2252,11 +2272,14 @@ pub async fn verify_payment_intent_time_and_client_secret(
                 .await
                 .change_context(errors::ApiErrorResponse::PaymentNotFound)?;
 
-            authenticate_client_secret(
-                Some(&cs),
-                &payment_intent,
+            let intent_fulfillment_time = get_merchant_fullfillment_time(
+                payment_intent.payment_link_id.clone(),
                 merchant_account.intent_fulfillment_time,
-            )?;
+                db,
+            )
+            .await?;
+
+            authenticate_client_secret(Some(&cs), &payment_intent, intent_fulfillment_time)?;
             Ok(payment_intent)
         })
         .await
@@ -2377,6 +2400,7 @@ mod tests {
             connector_metadata: None,
             feature_metadata: None,
             attempt_count: 1,
+            payment_link_id: None,
             profile_id: None,
             merchant_decision: None,
             payment_confirm_source: None,
@@ -2386,7 +2410,7 @@ mod tests {
         assert!(authenticate_client_secret(
             req_cs.as_ref(),
             &payment_intent,
-            merchant_fulfillment_time
+            merchant_fulfillment_time,
         )
         .is_ok()); // Check if the result is an Ok variant
     }
@@ -2424,6 +2448,7 @@ mod tests {
             connector_metadata: None,
             feature_metadata: None,
             attempt_count: 1,
+            payment_link_id: None,
             profile_id: None,
             merchant_decision: None,
             payment_confirm_source: None,
@@ -2433,7 +2458,7 @@ mod tests {
         assert!(authenticate_client_secret(
             req_cs.as_ref(),
             &payment_intent,
-            merchant_fulfillment_time
+            merchant_fulfillment_time,
         )
         .is_err())
     }
@@ -2471,6 +2496,7 @@ mod tests {
             connector_metadata: None,
             feature_metadata: None,
             attempt_count: 1,
+            payment_link_id: None,
             profile_id: None,
             merchant_decision: None,
             payment_confirm_source: None,
@@ -2480,7 +2506,7 @@ mod tests {
         assert!(authenticate_client_secret(
             req_cs.as_ref(),
             &payment_intent,
-            merchant_fulfillment_time
+            merchant_fulfillment_time,
         )
         .is_err())
     }
@@ -3379,4 +3405,25 @@ impl ApplePayData {
 
         Ok(decrypted)
     }
+}
+
+pub fn validate_payment_link_request(
+    payment_link_object: &api_models::payments::PaymentLinkObject,
+    confirm: Option<bool>,
+) -> Result<(), errors::ApiErrorResponse> {
+    if let Some(cnf) = confirm {
+        if !cnf {
+            let current_time = Some(common_utils::date_time::now());
+            if current_time > payment_link_object.link_expiry {
+                return Err(errors::ApiErrorResponse::InvalidRequestData {
+                    message: "link_expiry time cannot be less than current time".to_string(),
+                });
+            }
+        } else {
+            return Err(errors::ApiErrorResponse::InvalidRequestData {
+                message: "cannot confirm a payment while creating a payment link".to_string(),
+            });
+        }
+    }
+    Ok(())
 }

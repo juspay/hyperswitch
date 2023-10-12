@@ -275,19 +275,10 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
         req: &types::PaymentsSyncRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        //Added as a fix for past payments before the given timestamp we can reconcile using payment_id
-        let cutoff_timestamp: i64 = 1697023800;
-
-        let reference_id = if req.request.payment_attempt_created_at_as_utc < cutoff_timestamp {
-            req.payment_id.clone()
-        } else {
-            req.attempt_id.clone()
-        };
-
         Ok(format!(
             "{}payment/v1/order/getbyreference/{}",
             self.base_url(connectors),
-            reference_id
+            req.connector_request_reference_id
         ))
     }
 
@@ -579,7 +570,7 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
         Ok(format!(
             "{}payment/v1/order/getbyreference/{}",
             self.base_url(connectors),
-            req.attempt_id
+            req.connector_request_reference_id
         ))
     }
 
