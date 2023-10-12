@@ -1,0 +1,24 @@
+{
+  "childrenOrder": [
+    "Scenario1-Create payment with confirm true",
+    "Scenario2-Create payment with confirm false",
+    "Scenario3-Create payment without PMD",
+    "Scenario4-Create payment with Manual capture",
+    "Scenario5-Void the payment",
+    "Scenario6-Create 3DS payment",
+    "Scenario7-Create 3DS payment with confrm false",
+    "Scenario9-Refund full payment",
+    "Scenario10-Partial refund",
+    "Scenario11-Create a mandate and recurring payment",
+    "Scenario12-Refund recurring payment",
+    "Scenario13-Bank Redirect-sofort",
+    "Scenario14-Bank Redirect-eps",
+    "Scenario15-Bank Redirect-giropay",
+    "Scenario16-Bank Redirect-Trustly",
+    "Scenario17-Bank debit-ach",
+    "Scenario18-Bank debit-Bacs",
+    "Scenario19-Add card flow",
+    "Scenario20-Pass Invalid CVV for save card flow and verify failed payment",
+    "Scenario21-Don't Pass CVV for save card flow and verify failed payment Copy"
+  ]
+}
