@@ -42,9 +42,16 @@ pub struct AmountOfMoney {
 
 #[derive(Default, Debug, Serialize, Eq, PartialEq)]
 #[serde(rename_all = "camelCase")]
+pub struct References {
+    pub merchant_reference: String,
+}
+
+#[derive(Default, Debug, Serialize, Eq, PartialEq)]
+#[serde(rename_all = "camelCase")]
 pub struct Order {
     pub amount_of_money: AmountOfMoney,
     pub customer: Customer,
+    pub references: References,
 }
 
 #[derive(Default, Debug, Serialize, Eq, PartialEq)]
@@ -202,6 +209,9 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PaymentsRequest {
                 currency_code: item.request.currency.to_string().to_uppercase(),
             },
             customer,
+            references: References {
+                merchant_reference: item.connector_request_reference_id.clone(),
+            },
         };
 
         let shipping = item
@@ -505,9 +515,7 @@ impl<F, T> TryFrom<types::ResponseRouterData<F, Payment, T, types::PaymentsRespo
                 mandate_reference: None,
                 connector_metadata: None,
                 network_txn_id: None,
-                connector_response_reference_id: Some(
-                    item.data.connector_request_reference_id.to_string(),
-                ),
+                connector_response_reference_id: None,
             }),
             ..item.data
         })
@@ -558,9 +566,7 @@ impl<F, T> TryFrom<types::ResponseRouterData<F, PaymentResponse, T, types::Payme
                 mandate_reference: None,
                 connector_metadata: None,
                 network_txn_id: None,
-                connector_response_reference_id: Some(
-                    item.data.connector_request_reference_id.to_string(),
-                ),
+                connector_response_reference_id: None,
             }),
             ..item.data
         })
