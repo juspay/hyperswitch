@@ -120,10 +120,10 @@ for resource_id in $ALL_DB_RESOURCES; do
 done
 
 
-export ALL_SECURITY_GROUPS=($(aws ec2 describe-security-groups \
+export ALL_SECURITY_GROUPS=$(aws ec2 describe-security-groups \
             --filters 'Name=tag:ManagedBy,Values=hyperswitch' \
 --region $REGION \
-    --query 'SecurityGroups[*].GroupId' --output text))
+--query 'SecurityGroups[*].GroupId' --output json | jq .[] --raw-output)
 
 echo -n "Deleting ( $ALL_SECURITY_GROUPS ) security groups? (Y/n)?"
 
