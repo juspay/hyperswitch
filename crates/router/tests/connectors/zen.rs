@@ -102,7 +102,6 @@ async fn should_sync_authorized_payment() {
                 sync_type: types::SyncRequestType::SinglePaymentSync,
                 connector_meta: None,
                 mandate_id: None,
-                payment_attempt_created_at_as_utc: 0,
             }),
             None,
         )
@@ -217,7 +216,6 @@ async fn should_sync_auto_captured_payment() {
                 sync_type: types::SyncRequestType::SinglePaymentSync,
                 connector_meta: None,
                 mandate_id: None,
-                payment_attempt_created_at_as_utc: 0,
             }),
             None,
         )
