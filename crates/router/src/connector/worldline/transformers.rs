@@ -282,51 +282,6 @@ impl
     }
 }
 
-// impl TryFrom<&types::PaymentsAuthorizeRouterData> for PaymentsRequest {
-//     type Error = error_stack::Report<errors::ConnectorError>;
-//     fn try_from(item: &types::PaymentsAuthorizeRouterData) -> Result<Self, Self::Error> {
-//         let payment_data = match item.request.payment_method_data {
-//             api::PaymentMethodData::Card(ref card) => {
-//                 WorldlinePaymentMethod::CardPaymentMethodSpecificInput(Box::new(make_card_request(
-//                     &item.request,
-//                     card,
-//                 )?))
-//             }
-//             api::PaymentMethodData::BankRedirect(ref bank_redirect) => {
-//                 WorldlinePaymentMethod::RedirectPaymentMethodSpecificInput(Box::new(
-//                     make_bank_redirect_request(&item.request, bank_redirect)?,
-//                 ))
-//             }
-//             _ => Err(errors::ConnectorError::NotImplemented(
-//                 "Payment methods".to_string(),
-//             ))?,
-//         };
-//         let customer = build_customer_info(&item.address, &item.request.email)?;
-//         let order = Order {
-//             amount_of_money: AmountOfMoney {
-//                 amount: item.request.amount,
-//                 currency_code: item.request.currency.to_string().to_uppercase(),
-//             },
-//             customer,
-//             references: References {
-//                 merchant_reference: item.connector_request_reference_id.clone(),
-//             },
-//         };
-
-//         let shipping = item
-//             .address
-//             .shipping
-//             .as_ref()
-//             .and_then(|shipping| shipping.address.clone())
-//             .map(Shipping::from);
-//         Ok(Self {
-//             payment_data,
-//             order,
-//             shipping,
-//         })
-//     }
-// }
-
 #[derive(Clone, Debug, Eq, Hash, PartialEq, Deserialize, Serialize)]
 pub enum Gateway {
     Amex = 2,
