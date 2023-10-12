@@ -82,10 +82,9 @@ pub async fn construct_payout_router_data<'a, F>(
     key_store: &domain::MerchantKeyStore,
     payout_data: &mut PayoutData,
 ) -> RouterResult<types::PayoutsRouterData<F>> {
-    let connector_id = connector_name.to_string();
     let (merchant_connector_account, profile_id) = get_mca_for_payout(
         state,
-        &connector_id,
+        &connector_name.to_string(),
         merchant_account,
         key_store,
         payout_data,
@@ -157,7 +156,7 @@ pub async fn construct_payout_router_data<'a, F>(
         merchant_id: merchant_account.merchant_id.to_owned(),
         customer_id: None,
         connector_customer: connector_customer_id,
-        connector: connector_id.to_string(),
+        connector: connector_name.to_string(),
         payment_id: "".to_string(),
         attempt_id: "".to_string(),
         status: enums::AttemptStatus::Failure,

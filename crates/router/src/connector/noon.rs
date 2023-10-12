@@ -9,6 +9,7 @@ use error_stack::{IntoReport, ResultExt};
 use masking::PeekInterface;
 use transformers as noon;
 
+use super::utils::PaymentsSyncRequestData;
 use crate::{
     configs::settings,
     connector::utils as connector_utils,
@@ -275,19 +276,10 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
         req: &types::PaymentsSyncRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        //Added as a fix for past payments before the given timestamp we can reconcile using payment_id
-        let cutoff_timestamp: i64 = 1697023800;
-
-        let reference_id = if req.request.payment_attempt_created_at_as_utc < cutoff_timestamp {
-            req.payment_id.clone()
-        } else {
-            req.attempt_id.clone()
-        };
-
+        let connector_transaction_id = req.request.get_connector_transaction_id()?;
         Ok(format!(
-            "{}payment/v1/order/getbyreference/{}",
-            self.base_url(connectors),
-            reference_id
+            "{}payment/v1/order/{connector_transaction_id}",
+            self.base_url(connectors)
         ))
     }
 
@@ -577,9 +569,9 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         Ok(format!(
-            "{}payment/v1/order/getbyreference/{}",
+            "{}payment/v1/order/{}",
             self.base_url(connectors),
-            req.attempt_id
+            req.request.connector_transaction_id
         ))
     }
 
