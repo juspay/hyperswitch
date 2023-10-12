@@ -2915,18 +2915,18 @@ pub struct PaymentLinkObject {
     pub merchant_custom_domain_name: Option<String>,
 }
 
-#[derive(Default, Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
+#[derive(Default, Debug, serde::Deserialize, Clone, ToSchema)]
 pub struct RetrievePaymentLinkRequest {
     pub client_secret: Option<String>,
 }
 
-#[derive(Clone, Debug, serde::Serialize, PartialEq, serde::Deserialize, ToSchema)]
+#[derive(Clone, Debug, serde::Serialize, PartialEq, ToSchema)]
 pub struct PaymentLinkResponse {
     pub link: String,
     pub payment_link_id: String,
 }
 
-#[derive(Clone, Debug, serde::Serialize, serde::Deserialize, ToSchema)]
+#[derive(Clone, Debug, serde::Serialize, ToSchema)]
 pub struct RetrievePaymentLinkResponse {
     pub payment_link_id: String,
     pub payment_id: String,
@@ -2943,7 +2943,7 @@ pub struct RetrievePaymentLinkResponse {
     pub link_expiry: Option<PrimitiveDateTime>,
 }
 
-#[derive(Clone, Debug, serde::Serialize, serde::Deserialize, ToSchema)]
+#[derive(Clone, Debug, serde::Deserialize, ToSchema)]
 pub struct PaymentLinkInitiateRequest {
     pub merchant_id: String,
     pub payment_id: String,
