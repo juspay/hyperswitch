@@ -315,4 +315,10 @@ export PUBLIC_HYPERSWITCH_IP=$(aws ec2 describe-instances \
 --output=text \
 --region $REGION)
 
-echo "Hurray! Public IP of EC2 instance retrieved: $PUBLIC_HYPERSWITCH_IP"
+while [[ $health_status != 'health is good' ]]
+do
+    health_status=$(curl https://api.hyperswitch.io/health)
+done
+
+echo "Hurray! You can try using hyperswitch at https://$PUBLIC_HYPERSWITCH_IP"
+echo "Health endpoint: https://$PUBLIC_HYPERSWITCH_IP/health"
