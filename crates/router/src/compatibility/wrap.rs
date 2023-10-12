@@ -132,6 +132,20 @@ where
             .respond_to(request)
             .map_into_boxed_body()
         }
+
+        Ok(api::ApplicationResponse::PaymenkLinkForm(payment_link_data)) => {
+            match api::build_payment_link_html(*payment_link_data) {
+                Ok(rendered_html) => api::http_response_html_data(rendered_html),
+                Err(_) => api::http_response_err(
+                    r#"{
+                        "error": {
+                            "message": "Error while rendering payment link html page"
+                        }
+                    }"#,
+                ),
+            }
+        }
+
         Err(error) => api::log_and_return_error_response(error),
     };
 

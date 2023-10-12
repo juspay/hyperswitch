@@ -197,6 +197,10 @@ pub enum Flow {
     RetrieveDisputeEvidence,
     /// Invalidate cache flow
     CacheInvalidate,
+    /// Payment Link Retrieve flow
+    PaymentLinkRetrieve,
+    /// payment Link Initiate flow
+    PaymentLinkInitiate,
     /// Create a business profile
     BusinessProfileCreate,
     /// Update a business profile

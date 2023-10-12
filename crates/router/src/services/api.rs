@@ -1,6 +1,5 @@
 pub mod client;
 pub mod request;
-
 use std::{
     collections::HashMap,
     error::Error,
@@ -20,6 +19,7 @@ use masking::{ExposeOptionInterface, PeekInterface};
 use router_env::{instrument, tracing, tracing_actix_web::RequestId, Tag};
 use serde::Serialize;
 use serde_json::json;
+use tera::{Context, Tera};
 
 use self::request::{HeaderExt, RequestBuilderExt};
 use crate::{
@@ -655,8 +655,15 @@ pub enum ApplicationResponse<R> {
     TextPlain(String),
     JsonForRedirection(api::RedirectionResponse),
     Form(Box<RedirectionFormData>),
+    PaymenkLinkForm(Box<PaymentLinkFormData>),
     FileData((Vec<u8>, mime::Mime)),
     JsonWithHeaders((R, Vec<(String, String)>)),
+}
+
+#[derive(Debug, Eq, PartialEq, Clone, serde::Serialize, serde::Deserialize)]
+pub struct PaymentLinkFormData {
+    pub js_script: String,
+    pub sdk_url: String,
 }
 
 #[derive(Debug, Eq, PartialEq)]
@@ -696,7 +703,6 @@ pub enum RedirectForm {
         client_token: String,
         card_token: String,
         bin: String,
-        amount: i64,
     },
 }
 
@@ -887,6 +893,20 @@ where
             .respond_to(request)
             .map_into_boxed_body()
         }
+
+        Ok(ApplicationResponse::PaymenkLinkForm(payment_link_data)) => {
+            match build_payment_link_html(*payment_link_data) {
+                Ok(rendered_html) => http_response_html_data(rendered_html),
+                Err(_) => http_response_err(
+                    r#"{
+                            "error": {
+                                "message": "Error while rendering payment link html page"
+                            }
+                        }"#,
+                ),
+            }
+        }
+
         Ok(ApplicationResponse::JsonWithHeaders((response, headers))) => {
             let request_elapsed_time = request.headers().get(X_HS_LATENCY).and_then(|value| {
                 if value == "true" {
@@ -1004,6 +1024,10 @@ pub fn http_response_file_data<T: body::MessageBody + 'static>(
     content_type: mime::Mime,
 ) -> HttpResponse {
     HttpResponse::Ok().content_type(content_type).body(res)
+}
+
+pub fn http_response_html_data<T: body::MessageBody + 'static>(res: T) -> HttpResponse {
+    HttpResponse::Ok().content_type(mime::TEXT_HTML).body(res)
 }
 
 pub fn http_response_ok() -> HttpResponse {
@@ -1237,7 +1261,6 @@ pub fn build_redirection_form(
             client_token,
             card_token,
             bin,
-            amount,
         } => {
             maud::html! {
             (maud::DOCTYPE)
@@ -1245,7 +1268,7 @@ pub fn build_redirection_form(
                 head {
                     meta name="viewport" content="width=device-width, initial-scale=1";
                     (PreEscaped(r#"<script src="https://js.braintreegateway.com/web/3.97.1/js/three-d-secure.js"></script>"#))
-                    (PreEscaped(r#"<script src="https://js.braintreegateway.com/web/3.97.1/js/hosted-fields.js"></script>"#))
+                    // (PreEscaped(r#"<script src="https://js.braintreegateway.com/web/3.97.1/js/hosted-fields.js"></script>"#))
 
                 }
                     body style="background-color: #ffffff; padding: 20px; font-family: Arial, Helvetica, Sans-Serif;" {
@@ -1293,15 +1316,26 @@ pub fn build_redirection_form(
                                                 }}
                                             }},
                                             onLookupComplete: function(data, next) {{
-                                                console.log(\"onLookup Complete\", data);
+                                                // console.log(\"onLookup Complete\", data);
                                                     next();
                                                 }}
                                             }},
                                             function(err, payload) {{
                                                 if(err) {{
                                                     console.error(err);
+                                                    var f = document.createElement('form');
+                                                    f.action=window.location.pathname.replace(/payments\\/redirect\\/(\\w+)\\/(\\w+)\\/\\w+/, \"payments/$1/$2/redirect/response/braintree\");
+                                                    var i = document.createElement('input');
+                                                    i.type = 'hidden';
+                                                    f.method='POST';
+                                                    i.name = 'authentication_response';
+                                                    i.value = JSON.stringify(err);
+                                                    f.appendChild(i);
+                                                    f.body = JSON.stringify(err);
+                                                    document.body.appendChild(f);
+                                                    f.submit();
                                                 }} else {{
-                                                    console.log(payload);
+                                                    // console.log(payload);
                                                     var f = document.createElement('form');
                                                     f.action=window.location.pathname.replace(/payments\\/redirect\\/(\\w+)\\/(\\w+)\\/\\w+/, \"payments/$1/$2/redirect/complete/braintree\");
                                                     var i = document.createElement('input');
@@ -1328,4 +1362,33 @@ mod tests {
     fn test_mime_essence() {
         assert_eq!(mime::APPLICATION_JSON.essence_str(), "application/json");
     }
+}
+
+pub fn build_payment_link_html(
+    payment_link_data: PaymentLinkFormData,
+) -> CustomResult<String, errors::ApiErrorResponse> {
+    let html_template = include_str!("../core/payment_link/payment_link.html").to_string();
+
+    let mut tera = Tera::default();
+
+    let _ = tera.add_raw_template("payment_link", &html_template);
+
+    let mut context = Context::new();
+    context.insert(
+        "hyperloader_sdk_link",
+        &get_hyper_loader_sdk(&payment_link_data.sdk_url),
+    );
+    context.insert("payment_details_js_script", &payment_link_data.js_script);
+
+    match tera.render("payment_link", &context) {
+        Ok(rendered_html) => Ok(rendered_html),
+        Err(tera_error) => {
+            crate::logger::warn!("{tera_error}");
+            Err(errors::ApiErrorResponse::InternalServerError)?
+        }
+    }
+}
+
+fn get_hyper_loader_sdk(sdk_url: &str) -> String {
+    format!("<script src=\"{sdk_url}\"></script>")
 }

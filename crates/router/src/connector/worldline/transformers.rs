@@ -42,9 +42,16 @@ pub struct AmountOfMoney {
 
 #[derive(Default, Debug, Serialize, Eq, PartialEq)]
 #[serde(rename_all = "camelCase")]
+pub struct References {
+    pub merchant_reference: String,
+}
+
+#[derive(Default, Debug, Serialize, Eq, PartialEq)]
+#[serde(rename_all = "camelCase")]
 pub struct Order {
     pub amount_of_money: AmountOfMoney,
     pub customer: Customer,
+    pub references: References,
 }
 
 #[derive(Default, Debug, Serialize, Eq, PartialEq)]
@@ -202,6 +209,9 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PaymentsRequest {
                 currency_code: item.request.currency.to_string().to_uppercase(),
             },
             customer,
+            references: References {
+                merchant_reference: item.connector_request_reference_id.clone(),
+            },
         };
 
         let shipping = item
