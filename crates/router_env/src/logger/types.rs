@@ -104,6 +104,8 @@ pub enum Flow {
     PaymentMethodsList,
     /// Customer payment methods list flow.
     CustomerPaymentMethodsList,
+    /// List Customers for a merchant
+    CustomersList,
     /// Payment methods retrieve flow.
     PaymentMethodsRetrieve,
     /// Payment methods update flow.

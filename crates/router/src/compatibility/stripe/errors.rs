@@ -69,6 +69,9 @@ pub enum StripeErrorCode {
     #[error(error_type = StripeErrorType::InvalidRequestError, code = "customer_redacted", message = "Customer has redacted")]
     CustomerRedacted,
 
+    #[error(error_type = StripeErrorType::InvalidRequestError, code = "customer_already_exists", message = "Customer with the given customer_id already exists")]
+    DuplicateCustomer,
+
     #[error(error_type = StripeErrorType::InvalidRequestError, code = "resource_missing", message = "No such refund")]
     RefundNotFound,
 
@@ -649,6 +652,7 @@ impl actix_web::ResponseError for StripeErrorCode {
             | Self::FileNotAvailable
             | Self::FileProviderNotSupported
             | Self::CurrencyNotSupported { .. }
+            | Self::DuplicateCustomer
             | Self::PaymentMethodUnactivated => StatusCode::BAD_REQUEST,
             Self::RefundFailed
             | Self::PayoutFailed
@@ -726,6 +730,7 @@ impl ErrorSwitch<StripeErrorCode> for CustomersErrorResponse {
             Self::InternalServerError => SC::InternalServerError,
             Self::MandateActive => SC::MandateActive,
             Self::CustomerNotFound => SC::CustomerNotFound,
+            Self::CustomerAlreadyExists => SC::DuplicateCustomer,
         }
     }
 }

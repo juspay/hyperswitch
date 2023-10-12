@@ -271,20 +271,23 @@ pub struct Customers;
 #[cfg(any(feature = "olap", feature = "oltp"))]
 impl Customers {
     pub fn server(state: AppState) -> Scope {
+        let mut root_resource = web::resource("");
+
         let mut route = web::scope("/customers").app_data(web::Data::new(state));
 
         #[cfg(feature = "olap")]
         {
+            root_resource = root_resource.route(web::get().to(customers_list));
             route = route.service(
                 web::resource("/{customer_id}/mandates")
                     .route(web::get().to(get_customer_mandates)),
-            );
+            )
         }
 
         #[cfg(feature = "oltp")]
         {
+            root_resource = root_resource.route(web::post().to(customers_create));
             route = route
-                .service(web::resource("").route(web::post().to(customers_create)))
                 .service(
                     web::resource("/payment_methods")
                         .route(web::get().to(list_customer_payment_method_api_client)),
@@ -300,7 +303,8 @@ impl Customers {
                         .route(web::delete().to(customers_delete)),
                 );
         }
-        route
+
+        route.service(root_resource)
     }
 }
 

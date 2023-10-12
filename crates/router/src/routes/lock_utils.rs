@@ -46,7 +46,8 @@ impl From<Flow> for ApiIdentifier {
             | Flow::CustomersRetrieve
             | Flow::CustomersUpdate
             | Flow::CustomersDelete
-            | Flow::CustomersGetMandates => Self::Customers,
+            | Flow::CustomersGetMandates
+            | Flow::CustomersList => Self::Customers,
 
             Flow::EphemeralKeyCreate | Flow::EphemeralKeyDelete => Self::Ephemeral,
 
