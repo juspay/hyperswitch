@@ -2,13 +2,13 @@ use common_utils::{
     crypto::{Encryptable, GcmAes256},
     errors::ReportSwitchExt,
 };
-use error_stack::ResultExt;
+use error_stack::{IntoReport, ResultExt};
 use masking::ExposeInterface;
 use router_env::{instrument, tracing};
 
 use crate::{
     core::{
-        errors::{self},
+        errors::{self, StorageErrorExt},
         payment_methods::cards,
     },
     pii::PeekInterface,
@@ -38,6 +38,25 @@ pub async fn create_customer(
     let customer_id = &customer_data.customer_id;
     let merchant_id = &merchant_account.merchant_id;
     customer_data.merchant_id = merchant_id.to_owned();
+
+    // We first need to validate whether the customer with the given customer id already exists
+    // this may seem like a redundant db call, as the insert_customer will anyway return this error
+    //
+    // Consider a scenerio where the address is inserted and then when inserting the customer,
+    // it errors out, now the address that was inserted is not deleted
+    match db
+        .find_customer_by_customer_id_merchant_id(customer_id, merchant_id, &key_store)
+        .await
+    {
+        Err(err) => {
+            if !err.current_context().is_db_not_found() {
+                Err(err).switch()
+            } else {
+                Ok(())
+            }
+        }
+        Ok(_) => Err(errors::CustomersErrorResponse::CustomerAlreadyExists).into_report(),
+    }?;
 
     let key = key_store.key.get_inner().peek();
     let address = if let Some(addr) = &customer_data.address {
@@ -89,23 +108,10 @@ pub async fn create_customer(
     .switch()
     .attach_printable("Failed while encrypting Customer")?;
 
-    let customer = match db.insert_customer(new_customer, &key_store).await {
-        Ok(customer) => customer,
-        Err(error) => {
-            if error.current_context().is_db_unique_violation() {
-                db.find_customer_by_customer_id_merchant_id(customer_id, merchant_id, &key_store)
-                    .await
-                    .switch()
-                    .attach_printable(format!(
-                        "Failed while fetching Customer, customer_id: {customer_id}",
-                    ))?
-            } else {
-                Err(error
-                    .change_context(errors::CustomersErrorResponse::InternalServerError)
-                    .attach_printable("Failed while inserting new customer"))?
-            }
-        }
-    };
+    let customer = db
+        .insert_customer(new_customer, &key_store)
+        .await
+        .to_duplicate_response(errors::CustomersErrorResponse::CustomerAlreadyExists)?;
 
     let address_details = address.map(api_models::payments::AddressDetails::from);
 
@@ -141,6 +147,27 @@ pub async fn retrieve_customer(
     Ok(services::ApplicationResponse::Json(
         customers::CustomerResponse::from((response, address)),
     ))
+}
+
+#[instrument(skip(state))]
+pub async fn list_customers(
+    state: AppState,
+    merchant_id: String,
+    key_store: domain::MerchantKeyStore,
+) -> errors::CustomerResponse<Vec<customers::CustomerResponse>> {
+    let db = state.store.as_ref();
+
+    let domain_customers = db
+        .list_customers_by_merchant_id(&merchant_id, &key_store)
+        .await
+        .switch()?;
+
+    let customers = domain_customers
+        .into_iter()
+        .map(|domain_customer| customers::CustomerResponse::from((domain_customer, None)))
+        .collect();
+
+    Ok(services::ApplicationResponse::Json(customers))
 }
 
 #[instrument(skip_all)]

@@ -49,7 +49,7 @@ pub struct Address {
     pub payment_id: Option<String>,
 }
 
-#[derive(Clone, Debug, AsChangeset, router_derive::DebugAsDisplay)]
+#[derive(Clone, Debug, AsChangeset, router_derive::DebugAsDisplay, Serialize, Deserialize)]
 #[diesel(table_name = address)]
 pub struct AddressUpdateInternal {
     pub city: Option<String>,

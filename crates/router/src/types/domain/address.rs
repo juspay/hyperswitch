@@ -125,7 +125,7 @@ impl behaviour::Conversion for Address {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum AddressUpdate {
     Update {
         city: Option<String>,
