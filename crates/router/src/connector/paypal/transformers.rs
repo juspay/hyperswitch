@@ -1,4 +1,4 @@
-use api_models::payments::{BankRedirectData, MandateReferenceId};
+use api_models::payments::BankRedirectData;
 use common_utils::errors::CustomResult;
 use error_stack::{IntoReport, ResultExt};
 use masking::Secret;
@@ -13,7 +13,7 @@ use crate::{
     core::errors,
     services,
     types::{
-        self, api, storage::enums as storage_enums, transformers::ForeignFrom, MandateReference,
+        self, api, storage::enums as storage_enums, transformers::ForeignFrom,
         VerifyWebhookSourceResponseData,
     },
 };
@@ -125,14 +125,7 @@ pub struct ContextStruct {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AttributesStruct {
-    vault: VaultType,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(untagged)]
-pub enum VaultType {
-    VaultRequest(VaultRequest),
-    VaultResponse(VaultResponse),
+    vault: VaultRequest,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -140,11 +133,6 @@ pub struct VaultRequest {
     permit_multiple_payment_tokens: bool,
     store_in_vault: VaultMethod,
     usage_type: UsageType,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct VaultResponse {
-    id: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -390,16 +378,18 @@ impl TryFrom<&PaypalRouterData<&types::PaymentsAuthorizeRouterData>> for PaypalP
                         reference_id,
                         amount,
                     }];
-                    let vault = VaultType::VaultRequest(VaultRequest {
+                    let vault = VaultRequest {
                         permit_multiple_payment_tokens: false,
                         store_in_vault: VaultMethod::OnSuccess,
                         usage_type: UsageType::Merchant,
-                    });
+                    };
                     let attributes = item
                         .router_data
                         .request
                         .setup_future_usage
+                        .clone()
                         .map(|_| AttributesStruct { vault });
+
                     let payment_source = Some(PaymentSourceItem::Paypal(
                         PaypalRedirectionRequest::PaypalRedirectionStruct(
                             PaypalRedirectionStruct {
@@ -509,50 +499,10 @@ impl TryFrom<&PaypalRouterData<&types::PaymentsAuthorizeRouterData>> for PaypalP
                 Self::try_from(giftcard_data.as_ref())
             }
             api_models::payments::PaymentMethodData::MandatePayment => {
-                let intent = if item.router_data.request.is_auto_capture()? {
-                    PaypalPaymentIntent::Capture
-                } else {
-                    PaypalPaymentIntent::Authorize
-                };
-                let amount = OrderAmount {
-                    currency_code: item.router_data.request.currency,
-                    value: utils::to_currency_base_unit_with_zero_decimal_check(
-                        item.router_data.request.amount,
-                        item.router_data.request.currency,
-                    )?,
-                };
-                let reference_id = item.router_data.attempt_id.clone();
-                let purchase_units = vec![PurchaseUnitRequest {
-                    reference_id,
-                    amount,
-                }];
-
-                let mandate_data = item
-                    .router_data
-                    .request
-                    .mandate_id
-                    .clone()
-                    .ok_or(errors::ConnectorError::MissingConnectorMandateID)?;
-                let mandate_reference_id = mandate_data
-                    .mandate_reference_id
-                    .ok_or(errors::ConnectorError::MissingConnectorMandateID)?;
-
-                let payment_source = match mandate_reference_id {
-                    MandateReferenceId::ConnectorMandateId(connector_mandate_data) => {
-                        connector_mandate_data.connector_mandate_id.map(|id| {
-                            PaymentSourceItem::Paypal(PaypalRedirectionRequest::PaypalVaultStruct(
-                                PaypalVaultStruct { vault_id: id },
-                            ))
-                        })
-                    }
-                    _ => Err(errors::ConnectorError::MissingConnectorMandateID)?,
-                };
-
-                Ok(Self {
-                    intent,
-                    purchase_units,
-                    payment_source,
-                })
+                Err(errors::ConnectorError::NotImplemented(
+                    utils::get_unimplemented_payment_method_error_message("Paypal"),
+                )
+                .into())
             }
             api_models::payments::PaymentMethodData::Reward
             | api_models::payments::PaymentMethodData::Crypto(_)
@@ -821,12 +771,34 @@ pub struct PaypalOrdersResponse {
     intent: PaypalPaymentIntent,
     status: PaypalOrderStatus,
     purchase_units: Vec<PurchaseUnitItem>,
-    payment_source: Option<VaultData>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PaypalVaultResponse {
+    id: String,
+    status: PaypalOrderStatus,
+    purchase_units: Vec<PurchaseUnitItem>,
+    payment_source: PaypalVaultSource,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PaypalVaultSource {
+    paypal: AttributeResponse,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AttributeResponse {
+    attributes: VaultData,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct VaultData {
-    paypal: PaypalRedirectionStruct,
+    vault: VaultResponse,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct VaultResponse {
+    id: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -860,6 +832,14 @@ pub enum PaypalSyncResponse {
     PaypalThreeDsSyncResponse(PaypalThreeDsSyncResponse),
     PaypalRedirectSyncResponse(PaypalRedirectResponse),
     PaypalPaymentsSyncResponse(PaypalPaymentsSyncResponse),
+}
+
+// Note: Don't change order of deserialization of variant, priority is in descending order
+#[derive(Debug, Deserialize)]
+#[serde(untagged)]
+pub enum PaypalCompleteAuthResponse {
+    PaypalVaultResponse(PaypalVaultResponse),
+    PaypalOrdersResponse(PaypalOrdersResponse),
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -926,6 +906,53 @@ fn get_id_based_on_intent(
 }
 
 impl<F, T>
+    TryFrom<types::ResponseRouterData<F, PaypalVaultResponse, T, types::PaymentsResponseData>>
+    for types::RouterData<F, T, types::PaymentsResponseData>
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        item: types::ResponseRouterData<F, PaypalVaultResponse, T, types::PaymentsResponseData>,
+    ) -> Result<Self, Self::Error> {
+        let vault_id = item.response.payment_source.paypal.attributes.vault.id;
+
+        println!("got_the_vault {:?}", vault_id);
+
+        //payment collection will always have only one element as we only make one transaction per order.
+        let payment_collection = &item
+            .response
+            .purchase_units
+            .first()
+            .ok_or(errors::ConnectorError::ResponseDeserializationFailed)?
+            .payments;
+        //payment collection item will either have "authorizations" field or "capture" field, not both at a time.
+        let payment_collection_item = match (
+            &payment_collection.authorizations,
+            &payment_collection.captures,
+        ) {
+            (Some(authorizations), None) => authorizations.first(),
+            (None, Some(captures)) => captures.first(),
+            (Some(_), Some(captures)) => captures.first(),
+            _ => None,
+        }
+        .ok_or(errors::ConnectorError::ResponseDeserializationFailed)?;
+        let status = payment_collection_item.status.clone();
+        let status = storage_enums::AttemptStatus::from(status);
+        Ok(Self {
+            status,
+            response: Ok(types::PaymentsResponseData::TransactionResponse {
+                resource_id: types::ResponseId::ConnectorTransactionId(vault_id),
+                redirection_data: None,
+                mandate_reference: None,
+                connector_metadata: None,
+                network_txn_id: None,
+                connector_response_reference_id: None,
+            }),
+            ..item.data
+        })
+    }
+}
+
+impl<F, T>
     TryFrom<types::ResponseRouterData<F, PaypalOrdersResponse, T, types::PaymentsResponseData>>
     for types::RouterData<F, T, types::PaymentsResponseData>
 {
@@ -933,22 +960,6 @@ impl<F, T>
     fn try_from(
         item: types::ResponseRouterData<F, PaypalOrdersResponse, T, types::PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
-        let vault_data = item
-            .response
-            .payment_source
-            .clone()
-            .ok_or(errors::ConnectorError::MissingConnectorMandateID)?;
-        let mandate_reference = match vault_data.paypal.attributes {
-            Some(vault_type) => match vault_type.vault {
-                VaultType::VaultResponse(res) => Some(MandateReference {
-                    connector_mandate_id: Some(res.id.clone()),
-                    payment_method_id: None,
-                }),
-                VaultType::VaultRequest(_) => None,
-            },
-            None => None,
-        };
-
         let purchase_units = item
             .response
             .purchase_units
@@ -1004,7 +1015,7 @@ impl<F, T>
             response: Ok(types::PaymentsResponseData::TransactionResponse {
                 resource_id: order_id,
                 redirection_data: None,
-                mandate_reference,
+                mandate_reference: None,
                 connector_metadata: Some(connector_meta),
                 network_txn_id: None,
                 connector_response_reference_id: None,
@@ -1713,7 +1724,6 @@ impl TryFrom<(PaypalRedirectsWebhooks, PaypalWebhookEventType)> for PaypalOrders
             intent: webhook_body.intent,
             status: PaypalOrderStatus::try_from(webhook_event)?,
             purchase_units: webhook_body.purchase_units,
-            payment_source: None,
         })
     }
 }

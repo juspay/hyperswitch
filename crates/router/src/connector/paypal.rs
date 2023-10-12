@@ -509,15 +509,27 @@ impl
         data: &types::PaymentsCompleteAuthorizeRouterData,
         res: Response,
     ) -> CustomResult<types::PaymentsCompleteAuthorizeRouterData, errors::ConnectorError> {
-        let response: paypal::PaypalOrdersResponse = res
+        let response: paypal::PaypalCompleteAuthResponse = res
             .response
-            .parse_struct("paypal PaypalOrdersResponse")
+            .parse_struct("paypal PaypalCompleteAuthResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-        types::RouterData::try_from(types::ResponseRouterData {
-            response,
-            data: data.clone(),
-            http_code: res.status_code,
-        })
+
+        match response {
+            paypal::PaypalCompleteAuthResponse::PaypalOrdersResponse(response) => {
+                types::RouterData::try_from(types::ResponseRouterData {
+                    response,
+                    data: data.clone(),
+                    http_code: res.status_code,
+                })
+            }
+            paypal::PaypalCompleteAuthResponse::PaypalVaultResponse(response) => {
+                types::RouterData::try_from(types::ResponseRouterData {
+                    response,
+                    data: data.clone(),
+                    http_code: res.status_code,
+                })
+            }
+        }
     }
 
     fn get_error_response(
