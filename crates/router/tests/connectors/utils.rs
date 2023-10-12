@@ -886,6 +886,7 @@ impl Default for PaymentAuthorizeType {
             complete_authorize_url: None,
             webhook_url: None,
             customer_id: None,
+            surcharge_details: None,
         };
         Self(data)
     }
@@ -942,6 +943,7 @@ impl Default for PaymentSyncType {
             capture_method: None,
             sync_type: types::SyncRequestType::SinglePaymentSync,
             connector_meta: None,
+            payment_attempt_created_at_as_utc: 0,
         };
         Self(data)
     }

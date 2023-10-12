@@ -100,6 +100,7 @@ impl WorldlineTest {
             webhook_url: None,
             complete_authorize_url: None,
             customer_id: None,
+            surcharge_details: None,
         })
     }
 }

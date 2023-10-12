@@ -392,6 +392,7 @@ dependencies = [
  "router_derive",
  "serde",
  "serde_json",
+ "serde_with",
  "strum 0.24.1",
  "thiserror",
  "time 0.3.22",

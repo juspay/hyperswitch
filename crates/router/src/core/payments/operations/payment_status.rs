@@ -410,6 +410,7 @@ async fn get_tracker_for_sync<
             multiple_capture_data,
             redirect_response: None,
             payment_link_data: None,
+            surcharge_details: None,
             frm_message: frm_response.ok(),
         },
         None,

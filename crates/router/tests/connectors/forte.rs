@@ -153,6 +153,7 @@ async fn should_sync_authorized_payment() {
                 sync_type: types::SyncRequestType::SinglePaymentSync,
                 connector_meta: None,
                 mandate_id: None,
+                payment_attempt_created_at_as_utc: 0,
             }),
             get_default_payment_info(),
         )
