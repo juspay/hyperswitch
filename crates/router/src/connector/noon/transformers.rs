@@ -4,8 +4,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     connector::utils::{
-        self as conn_utils, CardData, PaymentsAuthorizeRequestData, RefundsRequestData, RouterData,
-        WalletData,
+        self as conn_utils, CardData, PaymentsAuthorizeRequestData, RouterData, WalletData,
     },
     core::errors,
     services,
@@ -438,6 +437,7 @@ impl<F, T>
 pub struct NoonActionTransaction {
     amount: String,
     currency: diesel_models::enums::Currency,
+    transaction_reference: Option<String>,
 }
 
 #[derive(Debug, Serialize)]
@@ -466,6 +466,7 @@ impl TryFrom<&types::PaymentsCaptureRouterData> for NoonPaymentsActionRequest {
                 item.request.currency,
             )?,
             currency: item.request.currency,
+            transaction_reference: None,
         };
         Ok(Self {
             api_operation: NoonApiOperations::Capture,
@@ -507,6 +508,7 @@ impl<F> TryFrom<&types::RefundsRouterData<F>> for NoonPaymentsActionRequest {
                 item.request.currency,
             )?,
             currency: item.request.currency,
+            transaction_reference: Some(item.request.refund_id.clone()),
         };
         Ok(Self {
             api_operation: NoonApiOperations::Refund,
@@ -570,9 +572,11 @@ impl TryFrom<types::RefundsResponseRouterData<api::Execute, RefundResponse>>
 }
 
 #[derive(Default, Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct NoonRefundResponseTransactions {
     id: String,
     status: RefundStatus,
+    transaction_reference: Option<String>,
 }
 
 #[derive(Default, Debug, Deserialize)]
@@ -592,13 +596,19 @@ impl TryFrom<types::RefundsResponseRouterData<api::RSync, RefundSyncResponse>>
     fn try_from(
         item: types::RefundsResponseRouterData<api::RSync, RefundSyncResponse>,
     ) -> Result<Self, Self::Error> {
-        let connector_refund_id = item.data.request.get_connector_refund_id()?;
         let noon_transaction: &NoonRefundResponseTransactions = item
             .response
             .result
             .transactions
             .iter()
-            .find(|transaction| transaction.id == connector_refund_id)
+            .find(|transaction| {
+                transaction
+                    .transaction_reference
+                    .clone()
+                    .map_or(false, |transaction_instance| {
+                        transaction_instance == item.data.request.refund_id
+                    })
+            })
             .ok_or(errors::ConnectorError::ResponseHandlingFailed)?;
 
         Ok(Self {

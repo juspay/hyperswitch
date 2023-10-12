@@ -794,6 +794,60 @@
         ]
       }
     },
+    "/payment_link/{payment_link_id}": {
+      "get": {
+        "tags": [
+          "Payments"
+        ],
+        "summary": "Payments Link - Retrieve",
+        "description": "Payments Link - Retrieve\n\nTo retrieve the properties of a Payment Link. This may be used to get the status of a previously initiated payment or next action for an ongoing payment",
+        "operationId": "Retrieve a Payment Link",
+        "parameters": [
+          {
+            "name": "payment_link_id",
+            "in": "path",
+            "description": "The identifier for payment link",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RetrievePaymentLinkRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Gets details regarding payment link",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RetrievePaymentLinkResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No payment link found"
+          }
+        },
+        "security": [
+          {
+            "api_key": []
+          },
+          {
+            "publishable_key": []
+          }
+        ]
+      }
+    },
     "/payment_methods": {
       "post": {
         "tags": [
@@ -7710,6 +7764,50 @@
           }
         ]
       },
+      "PaymentLinkInitiateRequest": {
+        "type": "object",
+        "required": [
+          "merchant_id",
+          "payment_id"
+        ],
+        "properties": {
+          "merchant_id": {
+            "type": "string"
+          },
+          "payment_id": {
+            "type": "string"
+          }
+        }
+      },
+      "PaymentLinkObject": {
+        "type": "object",
+        "properties": {
+          "link_expiry": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "merchant_custom_domain_name": {
+            "type": "string",
+            "nullable": true
+          }
+        }
+      },
+      "PaymentLinkResponse": {
+        "type": "object",
+        "required": [
+          "link",
+          "payment_link_id"
+        ],
+        "properties": {
+          "link": {
+            "type": "string"
+          },
+          "payment_link_id": {
+            "type": "string"
+          }
+        }
+      },
       "PaymentListConstraints": {
         "type": "object",
         "properties": {
@@ -8769,6 +8867,14 @@
             ],
             "nullable": true
           },
+          "payment_link_object": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PaymentLinkObject"
+              }
+            ],
+            "nullable": true
+          },
           "profile_id": {
             "type": "string",
             "description": "The business profile to use for this payment, if not passed the default business profile\nassociated with the merchant account will be used.",
@@ -9112,6 +9218,14 @@
             "allOf": [
               {
                 "$ref": "#/components/schemas/FeatureMetadata"
+              }
+            ],
+            "nullable": true
+          },
+          "payment_link_object": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PaymentLinkObject"
               }
             ],
             "nullable": true
@@ -9510,6 +9624,14 @@
             "example": "993672945374576J",
             "nullable": true
           },
+          "payment_link": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PaymentLinkResponse"
+              }
+            ],
+            "nullable": true
+          },
           "profile_id": {
             "type": "string",
             "description": "The business profile that is associated with this payment",
@@ -9847,6 +9969,11 @@
             "description": "Provide a reference to a stored payment method",
             "example": "187282ab-40ef-47a9-9206-5099ba31e432",
             "nullable": true
+          },
+          "profile_id": {
+            "type": "string",
+            "description": "The business profile to use for this payment, if not passed the default business profile\nassociated with the merchant account will be used.",
+            "nullable": true
           }
         }
       },
@@ -9996,6 +10123,11 @@
             "type": "string",
             "description": "If there was an error while calling the connectors the code is received here",
             "example": "E0001"
+          },
+          "profile_id": {
+            "type": "string",
+            "description": "The business profile that is associated with this payment",
+            "nullable": true
           }
         }
       },
@@ -10560,6 +10692,66 @@
           },
           "expiration": {
             "$ref": "#/components/schemas/ApiKeyExpiration"
+          }
+        }
+      },
+      "RetrievePaymentLinkRequest": {
+        "type": "object",
+        "properties": {
+          "client_secret": {
+            "type": "string",
+            "nullable": true
+          }
+        }
+      },
+      "RetrievePaymentLinkResponse": {
+        "type": "object",
+        "required": [
+          "payment_link_id",
+          "payment_id",
+          "merchant_id",
+          "link_to_pay",
+          "amount",
+          "created_at",
+          "last_modified_at"
+        ],
+        "properties": {
+          "payment_link_id": {
+            "type": "string"
+          },
+          "payment_id": {
+            "type": "string"
+          },
+          "merchant_id": {
+            "type": "string"
+          },
+          "link_to_pay": {
+            "type": "string"
+          },
+          "amount": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "currency": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/Currency"
+              }
+            ],
+            "nullable": true
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "last_modified_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "link_expiry": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
           }
         }
       },
@@ -11498,6 +11690,10 @@
     {
       "name": "Payouts",
       "description": "Create and manage payouts"
+    },
+    {
+      "name": "payment link",
+      "description": "Create payment link"
     }
   ]
 }

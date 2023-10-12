@@ -90,6 +90,7 @@ impl<T: DatabaseStore> PaymentIntentInterface for KVRouterStore<T> {
                     attempt_count: new.attempt_count,
                     profile_id: new.profile_id.clone(),
                     merchant_decision: new.merchant_decision.clone(),
+                    payment_link_id: new.payment_link_id.clone(),
                     payment_confirm_source: new.payment_confirm_source,
                 };
                 let redis_entry = kv::TypedSql {
@@ -681,6 +682,7 @@ impl DataModelExt for PaymentIntentNew {
             attempt_count: self.attempt_count,
             profile_id: self.profile_id,
             merchant_decision: self.merchant_decision,
+            payment_link_id: self.payment_link_id,
             payment_confirm_source: self.payment_confirm_source,
         }
     }
@@ -718,6 +720,7 @@ impl DataModelExt for PaymentIntentNew {
             attempt_count: storage_model.attempt_count,
             profile_id: storage_model.profile_id,
             merchant_decision: storage_model.merchant_decision,
+            payment_link_id: storage_model.payment_link_id,
             payment_confirm_source: storage_model.payment_confirm_source,
         }
     }
@@ -750,9 +753,9 @@ impl DataModelExt for PaymentIntent {
             setup_future_usage: self.setup_future_usage,
             off_session: self.off_session,
             client_secret: self.client_secret,
-            active_attempt_id: self.active_attempt_id,
             business_country: self.business_country,
             business_label: self.business_label,
+            active_attempt_id: self.active_attempt_id,
             order_details: self.order_details,
             allowed_payment_method_types: self.allowed_payment_method_types,
             connector_metadata: self.connector_metadata,
@@ -760,6 +763,7 @@ impl DataModelExt for PaymentIntent {
             attempt_count: self.attempt_count,
             profile_id: self.profile_id,
             merchant_decision: self.merchant_decision,
+            payment_link_id: self.payment_link_id,
             payment_confirm_source: self.payment_confirm_source,
         }
     }
@@ -798,6 +802,7 @@ impl DataModelExt for PaymentIntent {
             attempt_count: storage_model.attempt_count,
             profile_id: storage_model.profile_id,
             merchant_decision: storage_model.merchant_decision,
+            payment_link_id: storage_model.payment_link_id,
             payment_confirm_source: storage_model.payment_confirm_source,
         }
     }

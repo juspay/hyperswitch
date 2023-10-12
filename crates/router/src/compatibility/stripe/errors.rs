@@ -232,6 +232,8 @@ pub enum StripeErrorCode {
     HyperswitchUnprocessableEntity { message: String },
     #[error(error_type = StripeErrorType::InvalidRequestError, code = "", message = "{message}")]
     CurrencyNotSupported { message: String },
+    #[error(error_type = StripeErrorType::HyperswitchError, code = "", message = "Payment Link does not exist in our records")]
+    PaymentLinkNotFound,
     #[error(error_type = StripeErrorType::HyperswitchError, code = "", message = "Resource Busy. Please try again later")]
     LockTimeout,
     // [#216]: https://github.com/juspay/hyperswitch/issues/216
@@ -490,6 +492,7 @@ impl From<errors::ApiErrorResponse> for StripeErrorCode {
             errors::ApiErrorResponse::ClientSecretNotGiven
             | errors::ApiErrorResponse::ClientSecretExpired => Self::ClientSecretNotFound,
             errors::ApiErrorResponse::MerchantAccountNotFound => Self::MerchantAccountNotFound,
+            errors::ApiErrorResponse::PaymentLinkNotFound => Self::PaymentLinkNotFound,
             errors::ApiErrorResponse::ResourceIdNotFound => Self::ResourceIdNotFound,
             errors::ApiErrorResponse::MerchantConnectorAccountNotFound { id } => {
                 Self::MerchantConnectorAccountNotFound { id }
@@ -652,6 +655,7 @@ impl actix_web::ResponseError for StripeErrorCode {
             | Self::PaymentMethodUnactivated => StatusCode::BAD_REQUEST,
             Self::RefundFailed
             | Self::PayoutFailed
+            | Self::PaymentLinkNotFound
             | Self::InternalServerError
             | Self::MandateActive
             | Self::CustomerRedacted
