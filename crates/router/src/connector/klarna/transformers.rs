@@ -11,7 +11,6 @@ use crate::{
 #[derive(Debug, Serialize)]
 pub struct KlarnaRouterData<T> {
     amount: i64,
-    connector_request_reference_id: String,
     router_data: T,
 }
 
@@ -21,7 +20,6 @@ impl<T>
         types::storage::enums::Currency,
         i64,
         T,
-        String,
     )> for KlarnaRouterData<T>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
@@ -32,13 +30,11 @@ impl<T>
             types::storage::enums::Currency,
             i64,
             T,
-            String,
         ),
     ) -> Result<Self, Self::Error> {
         Ok(Self {
             amount,
             router_data,
-            connector_request_reference_id,
         })
     }
 }
@@ -49,14 +45,13 @@ pub struct KlarnaPaymentsRequest {
     order_amount: i64,
     purchase_country: String,
     purchase_currency: enums::Currency,
-    connector_request_reference_id: String,
+    merchant_reference1: String,
 }
 
 #[derive(Default, Debug, Deserialize)]
 pub struct KlarnaPaymentsResponse {
     order_id: String,
     fraud_status: KlarnaFraudStatus,
-    connector_request_reference_id: String,
 }
 
 #[derive(Debug, Serialize)]
@@ -132,12 +127,16 @@ impl TryFrom<&KlarnaRouterData<&types::PaymentsAuthorizeRouterData>> for KlarnaP
         item: &KlarnaRouterData<&types::PaymentsAuthorizeRouterData>,
     ) -> Result<Self, Self::Error> {
         let request = &item.router_data.request;
-        let connector_request_reference_id = item.response.reference.unwrap_or_default();
+        let merchant_reference1 = item
+            .response
+            .connector_request_reference_id
+            .clone()
+            .unwrap_or_default();
         match request.order_details.clone() {
             Some(order_details) => Ok(Self {
                 purchase_country: "US".to_string(),
                 purchase_currency: request.currency,
-                connector_request_reference_id,
+                merchant_reference1,
                 order_amount: request.amount,
                 order_lines: order_details
                     .iter()
@@ -163,8 +162,6 @@ impl TryFrom<types::PaymentsResponseRouterData<KlarnaPaymentsResponse>>
     fn try_from(
         item: types::PaymentsResponseRouterData<KlarnaPaymentsResponse>,
     ) -> Result<Self, Self::Error> {
-        let response = &item.response;
-        let connector_request_reference_id = response.connector_request_reference_id;
         Ok(Self {
             response: Ok(types::PaymentsResponseData::TransactionResponse {
                 resource_id: types::ResponseId::ConnectorTransactionId(item.response.order_id),
@@ -172,7 +169,7 @@ impl TryFrom<types::PaymentsResponseRouterData<KlarnaPaymentsResponse>>
                 mandate_reference: None,
                 connector_metadata: None,
                 network_txn_id: None,
-                connector_response_reference_id: Some(connector_request_reference_id),
+                connector_response_reference_id: None,
             }),
             status: item.response.fraud_status.into(),
             ..item.data
