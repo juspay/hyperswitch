@@ -1,11 +1,11 @@
+use common_utils::pii;
 use error_stack::ResultExt;
 use masking::Secret;
 use serde::{Deserialize, Serialize};
 
 use crate::{
     connector::utils::{
-        self as conn_utils, CardData, PaymentsAuthorizeRequestData, RefundsRequestData, RouterData,
-        WalletData,
+        self as conn_utils, CardData, PaymentsAuthorizeRequestData, RouterData, WalletData,
     },
     core::errors,
     services,
@@ -39,6 +39,23 @@ pub struct NoonSubscriptionData {
 
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
+pub struct NoonBillingAddress {
+    street: Option<Secret<String>>,
+    street2: Option<Secret<String>>,
+    city: Option<String>,
+    state_province: Option<Secret<String>>,
+    country: Option<api_models::enums::CountryAlpha2>,
+    postal_code: Option<Secret<String>>,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct NoonBilling {
+    address: NoonBillingAddress,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct NoonOrder {
     amount: String,
     currency: Option<diesel_models::enums::Currency>,
@@ -47,6 +64,7 @@ pub struct NoonOrder {
     reference: String,
     //Short description of the order.
     name: String,
+    ip_address: Option<Secret<String, pii::IpAddress>>,
 }
 
 #[derive(Debug, Serialize)]
@@ -165,6 +183,7 @@ pub struct NoonPaymentsRequest {
     configuration: NoonConfiguration,
     payment_data: NoonPaymentData,
     subscription: Option<NoonSubscriptionData>,
+    billing: Option<NoonBilling>,
 }
 
 impl TryFrom<&types::PaymentsAuthorizeRouterData> for NoonPaymentsRequest {
@@ -248,6 +267,27 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for NoonPaymentsRequest {
             .take(50)
             .collect();
 
+        let ip_address = item.request.get_ip_address_as_optional();
+
+        let channel = NoonChannels::Web;
+
+        let billing = item
+            .address
+            .billing
+            .clone()
+            .and_then(|billing_address| billing_address.address)
+            .map(|address| NoonBilling {
+                address: NoonBillingAddress {
+                    street: address.line1,
+                    street2: address.line2,
+                    city: address.city,
+                    // If state is passed in request, country becomes mandatory, keep a check while debugging failed payments
+                    state_province: address.state,
+                    country: address.country,
+                    postal_code: address.zip,
+                },
+            });
+
         let (subscription, tokenize_c_c) =
             match item.request.setup_future_usage.is_some().then_some((
                 NoonSubscriptionData {
@@ -262,10 +302,11 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for NoonPaymentsRequest {
         let order = NoonOrder {
             amount: conn_utils::to_currency_base_unit(item.request.amount, item.request.currency)?,
             currency,
-            channel: NoonChannels::Web,
+            channel,
             category,
             reference: item.connector_request_reference_id.clone(),
             name,
+            ip_address,
         };
         let payment_action = if item.request.is_auto_capture()? {
             NoonPaymentActions::Sale
@@ -275,6 +316,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for NoonPaymentsRequest {
         Ok(Self {
             api_operation: NoonApiOperations::Initiate,
             order,
+            billing,
             configuration: NoonConfiguration {
                 payment_action,
                 return_url: item.request.router_return_url.clone(),
@@ -334,7 +376,8 @@ impl From<NoonPaymentStatus> for enums::AttemptStatus {
     fn from(item: NoonPaymentStatus) -> Self {
         match item {
             NoonPaymentStatus::Authorized => Self::Authorized,
-            NoonPaymentStatus::Captured | NoonPaymentStatus::PartiallyCaptured => Self::Charged,
+            NoonPaymentStatus::Captured => Self::Charged,
+            NoonPaymentStatus::PartiallyCaptured => Self::PartialCharged,
             NoonPaymentStatus::Reversed => Self::Voided,
             NoonPaymentStatus::Cancelled | NoonPaymentStatus::Expired => Self::AuthenticationFailed,
             NoonPaymentStatus::ThreeDsEnrollInitiated | NoonPaymentStatus::ThreeDsEnrollChecked => {
@@ -438,12 +481,14 @@ impl<F, T>
 pub struct NoonActionTransaction {
     amount: String,
     currency: diesel_models::enums::Currency,
+    transaction_reference: Option<String>,
 }
 
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct NoonActionOrder {
     id: String,
+    cancellation_reason: Option<String>,
 }
 
 #[derive(Debug, Serialize)]
@@ -459,6 +504,7 @@ impl TryFrom<&types::PaymentsCaptureRouterData> for NoonPaymentsActionRequest {
     fn try_from(item: &types::PaymentsCaptureRouterData) -> Result<Self, Self::Error> {
         let order = NoonActionOrder {
             id: item.request.connector_transaction_id.clone(),
+            cancellation_reason: None,
         };
         let transaction = NoonActionTransaction {
             amount: conn_utils::to_currency_base_unit(
@@ -466,6 +512,7 @@ impl TryFrom<&types::PaymentsCaptureRouterData> for NoonPaymentsActionRequest {
                 item.request.currency,
             )?,
             currency: item.request.currency,
+            transaction_reference: None,
         };
         Ok(Self {
             api_operation: NoonApiOperations::Capture,
@@ -487,6 +534,11 @@ impl TryFrom<&types::PaymentsCancelRouterData> for NoonPaymentsCancelRequest {
     fn try_from(item: &types::PaymentsCancelRouterData) -> Result<Self, Self::Error> {
         let order = NoonActionOrder {
             id: item.request.connector_transaction_id.clone(),
+            cancellation_reason: item
+                .request
+                .cancellation_reason
+                .clone()
+                .map(|reason| reason.chars().take(100).collect()), // Max 100 chars
         };
         Ok(Self {
             api_operation: NoonApiOperations::Reverse,
@@ -500,6 +552,7 @@ impl<F> TryFrom<&types::RefundsRouterData<F>> for NoonPaymentsActionRequest {
     fn try_from(item: &types::RefundsRouterData<F>) -> Result<Self, Self::Error> {
         let order = NoonActionOrder {
             id: item.request.connector_transaction_id.clone(),
+            cancellation_reason: None,
         };
         let transaction = NoonActionTransaction {
             amount: conn_utils::to_currency_base_unit(
@@ -507,6 +560,7 @@ impl<F> TryFrom<&types::RefundsRouterData<F>> for NoonPaymentsActionRequest {
                 item.request.currency,
             )?,
             currency: item.request.currency,
+            transaction_reference: Some(item.request.refund_id.clone()),
         };
         Ok(Self {
             api_operation: NoonApiOperations::Refund,
@@ -570,9 +624,11 @@ impl TryFrom<types::RefundsResponseRouterData<api::Execute, RefundResponse>>
 }
 
 #[derive(Default, Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct NoonRefundResponseTransactions {
     id: String,
     status: RefundStatus,
+    transaction_reference: Option<String>,
 }
 
 #[derive(Default, Debug, Deserialize)]
@@ -592,13 +648,19 @@ impl TryFrom<types::RefundsResponseRouterData<api::RSync, RefundSyncResponse>>
     fn try_from(
         item: types::RefundsResponseRouterData<api::RSync, RefundSyncResponse>,
     ) -> Result<Self, Self::Error> {
-        let connector_refund_id = item.data.request.get_connector_refund_id()?;
         let noon_transaction: &NoonRefundResponseTransactions = item
             .response
             .result
             .transactions
             .iter()
-            .find(|transaction| transaction.id == connector_refund_id)
+            .find(|transaction| {
+                transaction
+                    .transaction_reference
+                    .clone()
+                    .map_or(false, |transaction_instance| {
+                        transaction_instance == item.data.request.refund_id
+                    })
+            })
             .ok_or(errors::ConnectorError::ResponseHandlingFailed)?;
 
         Ok(Self {
