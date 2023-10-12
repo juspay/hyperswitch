@@ -190,7 +190,7 @@ fi
 
 echo "Downloading Hyperswitch PSQL Schema..."
 
-curl https://raw.githubusercontent.com/juspay/hyperswitch/feat/create-prod-script/schema.sql > schema.sql
+curl https://raw.githubusercontent.com/juspay/hyperswitch/feat/create-prod-script/aws/schema.sql > schema.sql
 
 if [ $? -eq 0 ]; then
     echo "Schema.sql downloaded successfully!"
