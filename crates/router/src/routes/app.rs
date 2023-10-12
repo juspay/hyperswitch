@@ -303,7 +303,7 @@ impl Customers {
                 );
         }
 
-        route.service(root_resource)
+        route
     }
 }
 
