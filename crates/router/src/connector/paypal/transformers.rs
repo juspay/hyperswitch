@@ -843,13 +843,6 @@ pub struct PaypalRedirectResponse {
     links: Vec<PaypalLinks>,
 }
 
-#[derive(Debug, Deserialize)]
-#[serde(untagged)]
-pub enum PaypalAuthResponse {
-    PaypalOrdersResponse(PaypalOrdersResponse),
-    PaypalRedirectResponse(PaypalRedirectResponse),
-}
-
 // Note: Don't change order of deserialization of variant, priority is in descending order
 #[derive(Debug, Deserialize)]
 #[serde(untagged)]
