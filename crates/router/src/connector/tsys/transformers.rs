@@ -192,12 +192,14 @@ fn get_error_response(
 
 fn get_payments_response(connector_response: TsysResponse) -> types::PaymentsResponseData {
     types::PaymentsResponseData::TransactionResponse {
-        resource_id: types::ResponseId::ConnectorTransactionId(connector_response.transaction_id),
+        resource_id: types::ResponseId::ConnectorTransactionId(
+            connector_response.transaction_id.clone(),
+        ),
         redirection_data: None,
         mandate_reference: None,
         connector_metadata: None,
         network_txn_id: None,
-        connector_response_reference_id: None,
+        connector_response_reference_id: Some(connector_response.transaction_id),
     }
 }
 
@@ -215,7 +217,12 @@ fn get_payments_sync_response(
         mandate_reference: None,
         connector_metadata: None,
         network_txn_id: None,
-        connector_response_reference_id: None,
+        connector_response_reference_id: Some(
+            connector_response
+                .transaction_details
+                .transaction_id
+                .clone(),
+        ),
     }
 }
 
