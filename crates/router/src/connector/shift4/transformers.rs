@@ -47,7 +47,7 @@ impl<T>
     }
 }
 
-type Error = error_stack::Report<errors::ConnectorError>;
+//type Error = error_stack::Report<errors::ConnectorError>;
 
 #[derive(Debug, Serialize)]
 pub struct Shift4PaymentsRequest {
@@ -151,15 +151,22 @@ pub enum CardPayment {
     CardToken(String),
 }
 
-impl<T> TryFrom<&Shift4RouterData<&types::RouterData<T, types::PaymentsAuthorizeRouterData, types::PaymentsResponseData>>
-    for Shift4PaymentsRequest
+impl<T>
+    TryFrom<
+        &Shift4RouterData<
+            &types::RouterData<T, types::PaymentsAuthorizeRouterData, types::PaymentsResponseData>,
+        >,
+    > for Shift4PaymentsRequest
 {
-    type Error = Error;
+    type Error = error_stack::Report<errors::ConnectorError>;
     // fn try_from(
     //     item: &types::RouterData<T, types::PaymentsAuthorizeData, types::PaymentsResponseData>,
     // ) -> Result<Self, Self::Error> {
     fn try_from(
-        value: (&Shift4RouterData<&types::PaymentsAuthorizeRouterData, types::PaymentsResponseData>),
+        value: (&Shift4RouterData<
+            &types::PaymentsAuthorizeRouterData,
+            types::PaymentsResponseData,
+        >),
     ) -> Result<Self, Self::Error> {
         let submit_for_settlement = value.request.is_auto_capture()?;
         let amount = value.request.amount.to_string();
@@ -174,12 +181,22 @@ impl<T> TryFrom<&Shift4RouterData<&types::RouterData<T, types::PaymentsAuthorize
     }
 }
 
-impl<T> TryFrom<&types::Shift4RouterData<T, types::PaymentsAuthorizeRouterData, types::PaymentsResponseData>>
-    for Shift4PaymentMethod
+impl<T>
+    TryFrom<
+        &types::Shift4RouterData<
+            T,
+            types::PaymentsAuthorizeRouterData,
+            types::PaymentsResponseData,
+        >,
+    > for Shift4PaymentMethod
 {
-    type Error = Error;
+    type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: &types::Shift4RouterData<T, types::PaymentsAuthorizeRouterData, types::PaymentsResponseData>,
+        item: &types::Shift4RouterData<
+            T,
+            types::PaymentsAuthorizeRouterData,
+            types::PaymentsResponseData,
+        >,
     ) -> Result<Self, Self::Error> {
         match item.request.payment_method_data {
             payments::PaymentMethodData::Card(ref ccard) => Self::try_from((item, ccard)),
@@ -332,14 +349,22 @@ impl TryFrom<&api_models::payments::GiftCardData> for Shift4PaymentMethod {
 
 impl<T>
     TryFrom<(
-        &types::Shift4RouterData<T, types::PaymentsAuthorizeRouterData, types::PaymentsResponseData>,
+        &types::Shift4RouterData<
+            T,
+            types::PaymentsAuthorizeRouterData,
+            types::PaymentsResponseData,
+        >,
         &api_models::payments::Card,
     )> for Shift4PaymentMethod
 {
     type Error = Error;
     fn try_from(
         (item, card): (
-            &types::Shift4RouterData<T, types::PaymentsAuthorizeRouterData, types::PaymentsResponseData>,
+            &types::Shift4RouterData<
+                T,
+                types::PaymentsAuthorizeRouterData,
+                types::PaymentsResponseData,
+            >,
             &api_models::payments::Card,
         ),
     ) -> Result<Self, Self::Error> {
@@ -372,14 +397,22 @@ impl<T>
 
 impl<T>
     TryFrom<(
-        &types::Shift4RouterData<T, types::PaymentsAuthorizeRouterData, types::PaymentsResponseData>,
+        &types::Shift4RouterData<
+            T,
+            types::PaymentsAuthorizeRouterData,
+            types::PaymentsResponseData,
+        >,
         &payments::BankRedirectData,
     )> for Shift4PaymentMethod
 {
     type Error = Error;
     fn try_from(
         (item, redirect_data): (
-            &types::Shift4RouterData<T, types::PaymentsAuthorizeRouterData, types::PaymentsResponseData>,
+            &types::Shift4RouterData<
+                T,
+                types::PaymentsAuthorizeRouterData,
+                types::PaymentsResponseData,
+            >,
             &payments::BankRedirectData,
         ),
     ) -> Result<Self, Self::Error> {
@@ -397,12 +430,17 @@ impl<T>
     }
 }
 
-impl<T> TryFrom<&types::Shift4RouterData<T, types::CompleteAuthorizeData, types::PaymentsResponseData>>
+impl<T>
+    TryFrom<&types::Shift4RouterData<T, types::CompleteAuthorizeData, types::PaymentsResponseData>>
     for Shift4PaymentsRequest
 {
     type Error = Error;
     fn try_from(
-        item: &types::Shift4RouterData<T, types::CompleteAuthorizeData, types::PaymentsResponseData>,
+        item: &types::Shift4RouterData<
+            T,
+            types::CompleteAuthorizeData,
+            types::PaymentsResponseData,
+        >,
     ) -> Result<Self, Self::Error> {
         match &item.request.payment_method_data {
             Some(api::PaymentMethodData::Card(_)) => {
@@ -488,12 +526,22 @@ impl TryFrom<&Option<String>> for Flow {
     }
 }
 
-impl<T> TryFrom<&types::Shift4RouterData<T, types::PaymentsAuthorizeRouterData, types::PaymentsResponseData>>
-    for Billing
+impl<T>
+    TryFrom<
+        &types::Shift4RouterData<
+            T,
+            types::PaymentsAuthorizeRouterData,
+            types::PaymentsResponseData,
+        >,
+    > for Billing
 {
     type Error = Error;
     fn try_from(
-        item: &types::Shift4RouterData<T, types::PaymentsAuthorizeRouterData, types::PaymentsResponseData>,
+        item: &types::Shift4RouterData<
+            T,
+            types::PaymentsAuthorizeRouterData,
+            types::PaymentsResponseData,
+        >,
     ) -> Result<Self, Self::Error> {
         let billing_address = item
             .address
@@ -695,7 +743,8 @@ impl<F>
             types::PaymentsAuthorizeRouterData,
             types::PaymentsResponseData,
         >,
-    > for types::Shift4RouterData<F, types::PaymentsAuthorizeRouterData, types::PaymentsResponseData>
+    >
+    for types::Shift4RouterData<F, types::PaymentsAuthorizeRouterData, types::PaymentsResponseData>
 {
     type Error = Error;
     fn try_from(
