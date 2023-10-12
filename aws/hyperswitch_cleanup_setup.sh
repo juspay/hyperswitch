@@ -37,7 +37,7 @@ for cluster_id in $ALL_ELASTIC_CACHE; do
         -e > /dev/null
 
     if [[ $? -eq 0 ]]; then
-        echo  "Delete $cluster_id (Y/n)? "
+        echo -n "Delete $cluster_id (Y/n)? "
         if yes_or_no; then
             aws elasticache delete-cache-cluster --region $REGION --cache-cluster-id $cluster_id
         fi
@@ -49,7 +49,7 @@ export ALL_KEY_PAIRS=($(aws ec2 describe-key-pairs \
 --region $REGION \
     --query 'KeyPairs[*].KeyPairId' --output text))
 
-echo  "Deleting ( $ALL_KEY_PAIRS ) key pairs? (Y/n)?"
+echo -n "Deleting ( $ALL_KEY_PAIRS ) key pairs? (Y/n)?"
 
 if yes_or_no; then
     for KEY_ID in $ALL_KEY_PAIRS; do
@@ -68,7 +68,7 @@ export ALL_EBS=($(aws ec2 describe-instances \
             --query 'Reservations[*].Instances[*].BlockDeviceMappings[*].Ebs.VolumeId' \
     --output text))
 
-echo  "Terminating ( $ALL_INSTANCES ) instances? (Y/n)?"
+echo -n "Terminating ( $ALL_INSTANCES ) instances? (Y/n)?"
 
 if yes_or_no; then
     for INSTANCE_ID in $ALL_INSTANCES; do
@@ -89,7 +89,7 @@ for resource_id in $ALL_DB_RESOURCES; do
         -e > /dev/null
 
     if [[ $? -eq 0 ]]; then
-        echo  "Delete $resource_id (Y/n)? "
+        echo -n "Delete $resource_id (Y/n)? "
         if yes_or_no; then
             export DB_INSTANCE_ID=$(aws rds describe-db-instances \
        --region $REGION \
@@ -119,7 +119,7 @@ export ALL_SECURITY_GROUPS=($(aws ec2 describe-security-groups \
 --region $REGION \
     --query 'SecurityGroups[*].GroupId' --output text))
 
-echo  "Deleting ( $ALL_SECURITY_GROUPS ) security groups? (Y/n)?"
+echo -n "Deleting ( $ALL_SECURITY_GROUPS ) security groups? (Y/n)?"
 
 if yes_or_no; then
     for GROUP_ID in $ALL_SECURITY_GROUPS; do
