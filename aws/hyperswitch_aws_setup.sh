@@ -47,7 +47,7 @@ echo `(aws ec2 create-security-group \
 
 export APP_SG_ID=$(aws ec2 describe-security-groups --group-names $EC2_SG --region $REGION --output text --query 'SecurityGroups[0].GroupId')
 
-echo "Security Group for Application CREATED successfully!"
+echo "Security Group for Application CREATED!"
 
 echo "Creating Security Group ingress for port 80..."
 
@@ -84,7 +84,7 @@ echo `aws ec2 create-security-group \
 --tag-specifications "ResourceType=security-group,Tags=[{Key=ManagedBy,Value=hyperswitch}]" \
 --region $REGION`
 
-echo "Security Group for Elasticache CREATED successfully!"
+echo "Security Group for Elasticache CREATED!"
 
 echo "Creating Inbound rules for Redis..."
 
@@ -98,7 +98,7 @@ echo `aws ec2 authorize-security-group-ingress \
 --source-group $EC2_SG \
 --region $REGION`
 
-echo "Inbound rules for Redis CREATED successfully!"
+echo "Inbound rules for Redis CREATED!"
 
 #############  DB ##################
 
@@ -111,7 +111,7 @@ echo `aws ec2 create-security-group \
 --tag-specifications "ResourceType=security-group,Tags=[{Key=ManagedBy,Value=hyperswitch}]" \
 --region $REGION`
 
-echo "Security Group for RDS CREATED successfully!"
+echo "Security Group for RDS CREATED!"
 
 echo "Creating Inbound rules for RDS..."
 
@@ -125,7 +125,7 @@ echo `aws ec2 authorize-security-group-ingress \
 --source-group $EC2_SG \
 --region $REGION`
 
-echo "Inbound rules for RDS CREATED successfully!"
+echo "Inbound rules for RDS CREATED!"
 
 echo `aws ec2 authorize-security-group-ingress \
     --group-id $RDS_SG_ID \
@@ -134,7 +134,7 @@ echo `aws ec2 authorize-security-group-ingress \
     --cidr 0.0.0.0/0 \
     --region $REGION`
 
-echo "Inbound rules for RDS (from any IP) CREATED successfully!"
+echo "Inbound rules for RDS (from any IP) CREATED!"
 
 echo "Creating Elasticache with Redis engine..."
 
@@ -150,7 +150,7 @@ echo `aws elasticache create-cache-cluster \
 --tags "Key=ManagedBy,Value=hyperswitch" \
 --region $REGION`
 
-echo "Elasticache with Redis engine CREATED successfully!"
+echo "Elasticache with Redis engine CREATED!"
 
 echo "Creating RDS with PSQL..."
 
@@ -168,13 +168,13 @@ echo `aws rds create-db-instance  \
     --tags "Key=ManagedBy,Value=hyperswitch" \
     --vpc-security-group-ids $RDS_SG_ID`
 
-echo "RDS with PSQL CREATED successfully!"
+echo "RDS with PSQL CREATED!"
 
 echo "Downloading Hyperswitch PSQL Schema..."
 
 curl https://raw.githubusercontent.com/juspay/hyperswitch/feat/create-prod-script/aws/schema.sql > schema.sql
 
-echo "Schema.sql downloaded successfully!"
+echo "Schema.sql downloaded!"
 
 echo "Awaiting RDS Initialization..."
 
@@ -195,19 +195,19 @@ while [[ $RDS_STATUS != 'available' ]]; do
     --output text)
 done
 
-echo "RDS Initialized successfully!"
+echo "RDS Initialized!"
 
 echo "Retrieving RDS Endpoint..."
 
 export RDS_ENDPOINT=$(aws rds describe-db-instances --db-instance-identifier $DB_INSTANCE_ID --region $REGION --query "DBInstances[0].Endpoint.Address" --output text)
 
-echo "RDS Endpoint retrieved successfully!"
+echo "RDS Endpoint retrieved!"
 
 echo "Applying Schema to DB..."
 
 psql -d postgresql://hyperswitch:$MASTER_DB_PASSWORD@$RDS_ENDPOINT/hyperswitch_db -a -f schema.sql > /dev/null
 
-echo "Schema applied to DB successfully!"
+echo "Schema applied to DB!"
 
 cat << EOF > user_data.sh
 #!/bin/bash
@@ -242,7 +242,7 @@ do
         --output text)
 done
 
-echo "Redis Initialized successfully!"
+echo "Redis Initialized!"
 
 echo "Retrieving Redis Endpoint..."
 
@@ -253,7 +253,7 @@ export REDIS_ENDPOINT=$(aws elasticache describe-cache-clusters \
     --query 'CacheClusters[0].CacheNodes[].Endpoint.Address' \
     --output text)
 
-echo "Redis Endpoint retrieved successfully!"
+echo "Redis Endpoint retrieved!"
 
 echo "\n# Add redis and DB configs\n" >> user_data.sh
 echo "cat << EOF >> .env" >> user_data.sh
@@ -274,7 +274,7 @@ echo "Retrieving AWS AMI ID..."
 
 export AWS_AMI_ID=$(aws ec2 describe-images --owners amazon --filters "Name=name,Values=amzn2-ami-hvm-2.0.*" --query 'sort_by(Images, &CreationDate)[-1].ImageId' --output text --region $REGION)
 
-echo "AWS AMI ID retrieved successfully!"
+echo "AWS AMI ID retrieved!"
 
 echo "Creating EC2 Keypair..."
 
@@ -287,7 +287,7 @@ aws ec2 create-key-pair \
     --region $REGION \
     --output text > hyperswitch-keypair.pem
 
-echo "Keypair created and saved to hyperswitch-keypair.pem successfully!"
+echo "Keypair created and saved to hyperswitch-keypair.pem!"
 
 chmod 400 hyperswitch-keypair.pem
 
@@ -304,7 +304,7 @@ export HYPERSWITCH_INSTANCE_ID=$(aws ec2 run-instances \
     --output text \
     --region $REGION)
 
-echo "EC2 instance launched successfully!"
+echo "EC2 instance launched!"
 
 echo "Add Tags to EC2 instance..."
 
@@ -313,14 +313,14 @@ echo `aws ec2 create-tags \
 --tags "Key=Name,Value=hyperswitch-router" \
 --region $REGION`
 
-echo "Tag added to EC2 instance successfully!"
+echo "Tag added to EC2 instance!"
 
 echo `aws ec2 create-tags \
 --resources $HYPERSWITCH_INSTANCE_ID \
 --tags "Key=ManagedBy,Value=hyperswitch" \
 --region $REGION`
 
-echo "ManagedBy tag added to EC2 instance successfully!"
+echo "ManagedBy tag added to EC2 instance!"
 
 echo "Retrieving the Public IP of Hyperswitch EC2 Instance..."
 export PUBLIC_HYPERSWITCH_IP=$(aws ec2 describe-instances \
