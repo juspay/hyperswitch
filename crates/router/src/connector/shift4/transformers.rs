@@ -227,7 +227,7 @@ impl<T>
 }
 
 impl TryFrom<&api_models::payments::WalletData> for Shift4PaymentMethod {
-    type Error = Error;
+    type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(wallet_data: &api_models::payments::WalletData) -> Result<Self, Self::Error> {
         match wallet_data {
             payments::WalletData::AliPayRedirect(_)
@@ -270,7 +270,7 @@ impl TryFrom<&api_models::payments::WalletData> for Shift4PaymentMethod {
 }
 
 impl TryFrom<&api_models::payments::BankTransferData> for Shift4PaymentMethod {
-    type Error = Error;
+    type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
         bank_transfer_data: &api_models::payments::BankTransferData,
     ) -> Result<Self, Self::Error> {
@@ -302,7 +302,7 @@ impl TryFrom<&api_models::payments::BankTransferData> for Shift4PaymentMethod {
 }
 
 impl TryFrom<&api_models::payments::VoucherData> for Shift4PaymentMethod {
-    type Error = Error;
+    type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(voucher_data: &api_models::payments::VoucherData) -> Result<Self, Self::Error> {
         match voucher_data {
             payments::VoucherData::Boleto(_) => Err(errors::ConnectorError::NotImplemented(
@@ -331,7 +331,7 @@ impl TryFrom<&api_models::payments::VoucherData> for Shift4PaymentMethod {
 }
 
 impl TryFrom<&api_models::payments::GiftCardData> for Shift4PaymentMethod {
-    type Error = Error;
+    type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(gift_card_data: &api_models::payments::GiftCardData) -> Result<Self, Self::Error> {
         match gift_card_data {
             payments::GiftCardData::Givex(_) => Err(errors::ConnectorError::NotSupported {
@@ -357,7 +357,7 @@ impl<T>
         &api_models::payments::Card,
     )> for Shift4PaymentMethod
 {
-    type Error = Error;
+    type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
         (item, card): (
             &types::Shift4RouterData<
@@ -405,7 +405,7 @@ impl<T>
         &payments::BankRedirectData,
     )> for Shift4PaymentMethod
 {
-    type Error = Error;
+    type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
         (item, redirect_data): (
             &types::Shift4RouterData<
@@ -434,7 +434,7 @@ impl<T>
     TryFrom<&types::Shift4RouterData<T, types::CompleteAuthorizeData, types::PaymentsResponseData>>
     for Shift4PaymentsRequest
 {
-    type Error = Error;
+    type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
         item: &types::Shift4RouterData<
             T,
@@ -480,7 +480,7 @@ impl<T>
 }
 
 impl TryFrom<&payments::BankRedirectData> for PaymentMethodType {
-    type Error = Error;
+    type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(value: &payments::BankRedirectData) -> Result<Self, Self::Error> {
         match value {
             payments::BankRedirectData::Eps { .. } => Ok(Self::Eps),
@@ -516,7 +516,7 @@ impl TryFrom<&payments::BankRedirectData> for PaymentMethodType {
 }
 
 impl TryFrom<&Option<String>> for Flow {
-    type Error = Error;
+    type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(router_return_url: &Option<String>) -> Result<Self, Self::Error> {
         Ok(Self {
             return_url: router_return_url
@@ -535,7 +535,7 @@ impl<T>
         >,
     > for Billing
 {
-    type Error = Error;
+    type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
         item: &types::Shift4RouterData<
             T,
@@ -576,7 +576,7 @@ pub struct Shift4AuthType {
 }
 
 impl TryFrom<&types::ConnectorAuthType> for Shift4AuthType {
-    type Error = Error;
+    type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::ConnectorAuthType) -> Result<Self, Self::Error> {
         if let types::ConnectorAuthType::HeaderKey { api_key } = item {
             Ok(Self {
@@ -746,7 +746,7 @@ impl<F>
     >
     for types::Shift4RouterData<F, types::PaymentsAuthorizeRouterData, types::PaymentsResponseData>
 {
-    type Error = Error;
+    type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
         item: types::ResponseRouterData<
             F,
@@ -792,7 +792,7 @@ impl<T, F>
     TryFrom<types::ResponseRouterData<F, Shift4NonThreeDsResponse, T, types::PaymentsResponseData>>
     for types::RouterData<F, T, types::PaymentsResponseData>
 {
-    type Error = Error;
+    type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
         item: types::ResponseRouterData<
             F,
@@ -838,7 +838,7 @@ pub struct Shift4RefundRequest {
 }
 
 impl<F> TryFrom<&types::RefundsRouterData<F>> for Shift4RefundRequest {
-    type Error = Error;
+    type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::RefundsRouterData<F>) -> Result<Self, Self::Error> {
         Ok(Self {
             charge_id: item.request.connector_transaction_id.clone(),
@@ -878,7 +878,7 @@ pub enum Shift4RefundStatus {
 impl TryFrom<types::RefundsResponseRouterData<api::Execute, RefundResponse>>
     for types::RefundsRouterData<api::Execute>
 {
-    type Error = Error;
+    type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
         item: types::RefundsResponseRouterData<api::Execute, RefundResponse>,
     ) -> Result<Self, Self::Error> {
@@ -896,7 +896,7 @@ impl TryFrom<types::RefundsResponseRouterData<api::Execute, RefundResponse>>
 impl TryFrom<types::RefundsResponseRouterData<api::RSync, RefundResponse>>
     for types::RefundsRouterData<api::RSync>
 {
-    type Error = Error;
+    type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
         item: types::RefundsResponseRouterData<api::RSync, RefundResponse>,
     ) -> Result<Self, Self::Error> {
