@@ -583,7 +583,7 @@ impl<F>
                 mandate_reference,
                 network_txn_id: None,
             }),
-            status: enums::AttemptStatus::Pending,
+            status: enums::AttemptStatus::Charged,
             ..item.data
         })
     }

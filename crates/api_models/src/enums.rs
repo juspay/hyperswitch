@@ -115,6 +115,7 @@ pub enum Connector {
     Trustpay,
     // Tsys,
     Tsys,
+    //Volt, added as template code for future usage,
     Wise,
     Worldline,
     Worldpay,
@@ -232,6 +233,7 @@ pub enum RoutableConnectors {
     Trustpay,
     // Tsys,
     Tsys,
+    // Volt, added as template code for future usage
     Wise,
     Worldline,
     Worldpay,

@@ -9848,6 +9848,11 @@
             "description": "Provide a reference to a stored payment method",
             "example": "187282ab-40ef-47a9-9206-5099ba31e432",
             "nullable": true
+          },
+          "profile_id": {
+            "type": "string",
+            "description": "The business profile to use for this payment, if not passed the default business profile\nassociated with the merchant account will be used.",
+            "nullable": true
           }
         }
       },
@@ -9997,6 +10002,11 @@
             "type": "string",
             "description": "If there was an error while calling the connectors the code is received here",
             "example": "E0001"
+          },
+          "profile_id": {
+            "type": "string",
+            "description": "The business profile that is associated with this payment",
+            "nullable": true
           }
         }
       },

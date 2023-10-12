@@ -9,7 +9,11 @@ pub mod types;
 
 use std::{fmt::Debug, marker::PhantomData, ops::Deref, time::Instant};
 
-use api_models::{enums, payments::HeaderPayload};
+use api_models::{
+    enums,
+    payment_methods::{SurchargeDetailsResponse, SurchargeMetadata},
+    payments::HeaderPayload,
+};
 use common_utils::{ext_traits::AsyncExt, pii};
 use data_models::mandates::MandateData;
 use diesel_models::{ephemeral_key, fraud_check::FraudCheck};
@@ -814,6 +818,18 @@ where
 {
     let call_connectors_start_time = Instant::now();
     let mut join_handlers = Vec::with_capacity(connectors.len());
+    let surcharge_metadata = payment_data
+        .payment_attempt
+        .surcharge_metadata
+        .as_ref()
+        .map(|surcharge_metadata_value| {
+            surcharge_metadata_value
+                .clone()
+                .parse_value::<SurchargeMetadata>("SurchargeMetadata")
+        })
+        .transpose()
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to Deserialize SurchargeMetadata")?;
 
     for session_connector_data in connectors.iter() {
         let connector_id = session_connector_data.connector.connector.id();
@@ -827,6 +843,14 @@ where
             false,
         )
         .await?;
+        payment_data.surcharge_details =
+            surcharge_metadata.as_ref().and_then(|surcharge_metadata| {
+                let payment_method_type = session_connector_data.payment_method_type;
+                surcharge_metadata
+                    .surcharge_results
+                    .get(&payment_method_type.to_string())
+                    .cloned()
+            });
 
         let router_data = payment_data
             .construct_router_data(
@@ -1460,6 +1484,7 @@ where
     pub recurring_mandate_payment_data: Option<RecurringMandatePaymentData>,
     pub ephemeral_key: Option<ephemeral_key::EphemeralKey>,
     pub redirect_response: Option<api_models::payments::RedirectResponse>,
+    pub surcharge_details: Option<SurchargeDetailsResponse>,
     pub frm_message: Option<FraudCheck>,
 }
 
