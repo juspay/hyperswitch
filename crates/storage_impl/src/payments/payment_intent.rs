@@ -952,19 +952,19 @@ impl DataModelExt for PaymentIntentUpdate {
                 payment_confirm_source,
             },
             Self::PaymentAttemptAndAttemptCountUpdate {
-                active_attempt,
+                active_attempt_id,
                 attempt_count,
             } => DieselPaymentIntentUpdate::PaymentAttemptAndAttemptCountUpdate {
-                active_attempt: active_attempt.to_storage_model(),
+                active_attempt_id,
                 attempt_count,
             },
             Self::StatusAndAttemptUpdate {
                 status,
-                active_attempt,
+                active_attempt_id,
                 attempt_count,
             } => DieselPaymentIntentUpdate::StatusAndAttemptUpdate {
                 status,
-                active_attempt_id: active_attempt.attempt_id,
+                active_attempt_id,
                 attempt_count,
             },
             Self::ApproveUpdate { merchant_decision } => {

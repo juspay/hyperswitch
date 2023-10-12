@@ -2887,7 +2887,7 @@ impl AttemptType {
                                 &request.payment_method_data,
                                 Some(true),
                             ),
-                            active_attempt: new_payment_attempt.clone(),
+                            active_attempt_id: new_payment_attempt.attempt_id.clone(),
                             attempt_count: new_attempt_count,
                         },
                         storage_scheme,

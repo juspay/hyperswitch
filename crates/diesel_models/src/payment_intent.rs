@@ -3,7 +3,7 @@ use diesel::{AsChangeset, Identifiable, Insertable, Queryable};
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
 
-use crate::{enums as storage_enums, schema::payment_intent, PaymentAttempt};
+use crate::{enums as storage_enums, schema::payment_intent};
 
 #[derive(Clone, Debug, Eq, PartialEq, Identifiable, Queryable, Serialize, Deserialize)]
 #[diesel(table_name = payment_intent)]
@@ -144,7 +144,7 @@ pub enum PaymentIntentUpdate {
         payment_confirm_source: Option<storage_enums::PaymentSource>,
     },
     PaymentAttemptAndAttemptCountUpdate {
-        active_attempt: PaymentAttempt,
+        active_attempt_id: String,
         attempt_count: i16,
     },
     StatusAndAttemptUpdate {
@@ -312,10 +312,10 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 ..Default::default()
             },
             PaymentIntentUpdate::PaymentAttemptAndAttemptCountUpdate {
-                active_attempt,
+                active_attempt_id,
                 attempt_count,
             } => Self {
-                active_attempt_id: Some(active_attempt.attempt_id),
+                active_attempt_id: Some(active_attempt_id),
                 attempt_count: Some(attempt_count),
                 ..Default::default()
             },
