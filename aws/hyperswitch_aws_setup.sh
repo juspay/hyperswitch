@@ -315,8 +315,10 @@ export PUBLIC_HYPERSWITCH_IP=$(aws ec2 describe-instances \
 --output=text \
 --region $REGION)
 
+health_status=null
 while [[ $health_status != 'health is good' ]]
 do
+    sleep 10
     health_status=$(curl https://api.hyperswitch.io/health)
 done
 

@@ -29,6 +29,8 @@ export ALL_ELASTIC_CACHE=($(aws elasticache describe-cache-clusters \
     --query "CacheClusters[*].ARN" --output text))
 
 for cluster_id in $ALL_ELASTIC_CACHE; do
+    cluster_id=${cluster_arn##*:}
+
     aws elasticache list-tags-for-resource \
         --resource-name $cluster_id \
     --region $REGION \
