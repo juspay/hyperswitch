@@ -1542,9 +1542,6 @@ CREATE TABLE merchant_key_store(
     created_at TIMESTAMP NOT NULL
 );
 
-
-
-
 -- File: migrations/2023-04-11-084958_pii-migration/up.sql
 -- Your SQL goes here
 ALTER TABLE merchant_connector_account
