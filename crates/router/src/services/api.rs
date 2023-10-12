@@ -696,7 +696,6 @@ pub enum RedirectForm {
         client_token: String,
         card_token: String,
         bin: String,
-        amount: i64,
     },
 }
 
@@ -1237,7 +1236,6 @@ pub fn build_redirection_form(
             client_token,
             card_token,
             bin,
-            amount,
         } => {
             maud::html! {
             (maud::DOCTYPE)
@@ -1293,7 +1291,7 @@ pub fn build_redirection_form(
                                                 }}
                                             }},
                                             onLookupComplete: function(data, next) {{
-                                                console.log(\"onLookup Complete\", data);
+                                                // console.log(\"onLookup Complete\", data);
                                                     next();
                                                 }}
                                             }},
@@ -1312,7 +1310,7 @@ pub fn build_redirection_form(
                                                     document.body.appendChild(f);
                                                     f.submit();
                                                 }} else {{
-                                                    console.log(payload);
+                                                    // console.log(payload);
                                                     var f = document.createElement('form');
                                                     f.action=window.location.pathname.replace(/payments\\/redirect\\/(\\w+)\\/(\\w+)\\/\\w+/, \"payments/$1/$2/redirect/complete/braintree\");
                                                     var i = document.createElement('input');

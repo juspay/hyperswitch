@@ -266,7 +266,6 @@ impl<F>
                         *client_token_data,
                         item.data.get_payment_method_token()?,
                         item.data.request.payment_method_data.clone(),
-                        item.data.request.amount,
                     )?),
                     mandate_reference: None,
                     connector_metadata: None,
@@ -445,7 +444,6 @@ impl<F>
                         *client_token_data,
                         item.data.get_payment_method_token()?,
                         item.data.request.payment_method_data.clone(),
-                        item.data.request.amount,
                     )?),
                     mandate_reference: None,
                     connector_metadata: None,
@@ -1397,7 +1395,6 @@ fn get_braintree_redirect_form(
     client_token_data: ClientTokenResponse,
     payment_method_token: types::PaymentMethodToken,
     card_details: api_models::payments::PaymentMethodData,
-    amount: i64,
 ) -> Result<services::RedirectForm, error_stack::Report<errors::ConnectorError>> {
     Ok(services::RedirectForm::Braintree {
         client_token: client_token_data
@@ -1430,7 +1427,6 @@ fn get_braintree_redirect_form(
                 errors::ConnectorError::NotImplemented("given payment method".to_owned()),
             )?,
         },
-        amount,
     })
 }
 

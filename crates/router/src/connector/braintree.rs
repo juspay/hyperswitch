@@ -1513,20 +1513,21 @@ impl services::ConnectorRedirectResponse for Braintree {
                         serde_json::from_str::<
                             braintree_graphql_transformers::BraintreeThreeDsErrorResponse,
                         >(&redirection_response.authentication_response);
-                    match braintree_payload {
-                        Ok(braintree_response_payload) => {
-                            Ok(payments::CallConnectorAction::StatusUpdate {
-                                status: enums::AttemptStatus::AuthenticationFailed,
-                                error_code: Some(braintree_response_payload.code),
-                                error_message: Some(braintree_response_payload.message),
-                            })
-                        }
-                        Err(_) => Ok(payments::CallConnectorAction::StatusUpdate {
-                            status: enums::AttemptStatus::AuthenticationFailed,
-                            error_code: Some(consts::NO_ERROR_CODE.to_string()),
-                            error_message: Some(consts::NO_ERROR_MESSAGE.to_string()),
-                        }),
-                    }
+                    let (error_code, error_message) = match braintree_payload {
+                        Ok(braintree_response_payload) => (
+                            braintree_response_payload.code,
+                            braintree_response_payload.message,
+                        ),
+                        Err(_) => (
+                            consts::NO_ERROR_CODE.to_string(),
+                            redirection_response.authentication_response,
+                        ),
+                    };
+                    Ok(payments::CallConnectorAction::StatusUpdate {
+                        status: enums::AttemptStatus::AuthenticationFailed,
+                        error_code: Some(error_code),
+                        error_message: Some(error_message),
+                    })
                 }
                 None => Ok(payments::CallConnectorAction::StatusUpdate {
                     status: enums::AttemptStatus::AuthenticationFailed,
