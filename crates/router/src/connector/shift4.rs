@@ -61,6 +61,10 @@ impl ConnectorCommon for Shift4 {
         "shift4"
     }
 
+    fn get_currency_unit(&self) -> api::CurrencyUnit {
+        api::CurrencyUnit::Base
+    }
+
     fn common_get_content_type(&self) -> &'static str {
         "application/json"
     }
@@ -186,7 +190,14 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         &self,
         req: &types::PaymentsAuthorizeRouterData,
     ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
-        let req_obj = shift4::Shift4PaymentsRequest::try_from(req)?;
+        //let req_obj = shift4::Shift4PaymentsRequest::try_from(req)?;
+        let connector_router_data = shift4::Shift4RouterData::try_from((
+            &self.get_currency_unit(),
+            req.request.currency,
+            req.request.amount,
+            req,
+        ))?;
+        let req_obj = shift4::Shift4PaymentsRequest::try_from(&connector_router_data)?;
         let req = types::RequestBody::log_and_get_request_body(
             &req_obj,
             utils::Encode::<shift4::Shift4PaymentsRequest>::encode_to_string_of_json,
@@ -474,7 +485,14 @@ impl
         &self,
         req: &types::PaymentsInitRouterData,
     ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
-        let req_obj = shift4::Shift4PaymentsRequest::try_from(req)?;
+        //let req_obj = shift4::Shift4PaymentsRequest::try_from(req)?;
+        let connector_router_data = shift4::Shift4RouterData::try_from((
+            &self.get_currency_unit(),
+            req.request.currency,
+            req.request.amount,
+            req,
+        ))?;
+        let req_obj = shift4::Shift4PaymentsRequest::try_from(&connector_router_data)?;
         let req = types::RequestBody::log_and_get_request_body(
             &req_obj,
             utils::Encode::<shift4::Shift4PaymentsRequest>::encode_to_string_of_json,
@@ -556,7 +574,14 @@ impl
         &self,
         req: &types::PaymentsCompleteAuthorizeRouterData,
     ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
-        let req_obj = shift4::Shift4PaymentsRequest::try_from(req)?;
+        //let req_obj = shift4::Shift4PaymentsRequest::try_from(req)?;
+        let connector_router_data = shift4::Shift4RouterData::try_from((
+            &self.get_currency_unit(),
+            req.request.currency,
+            req.request.amount,
+            req,
+        ))?;
+        let req_obj = shift4::Shift4PaymentsRequest::try_from(&connector_router_data)?;
         let req = types::RequestBody::log_and_get_request_body(
             &req_obj,
             utils::Encode::<shift4::Shift4PaymentsRequest>::encode_to_string_of_json,
@@ -636,7 +661,14 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
         &self,
         req: &types::RefundsRouterData<api::Execute>,
     ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
-        let connector_req = shift4::Shift4RefundRequest::try_from(req)?;
+        //let connector_req = shift4::Shift4RefundRequest::try_from(req)?;
+        let connector_router_data = shift4::Shift4RouterData::try_from((
+            &self.get_currency_unit(),
+            req.request.currency,
+            req.request.refund_amount,
+            req,
+        ))?;
+        let req_obj = shift4::Shift4RefundRequest::try_from(&connector_router_data)?;
         let shift4_req = types::RequestBody::log_and_get_request_body(
             &connector_req,
             utils::Encode::<shift4::Shift4RefundRequest>::encode_to_string_of_json,
