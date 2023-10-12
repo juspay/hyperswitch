@@ -544,7 +544,7 @@ pub fn validate_config(input: proc_macro::TokenStream) -> proc_macro::TokenStrea
 /// ```
 /// #[derive(TryGetEnumVariant)]
 /// #[error(RedisError(UnknownResult))]
-/// struct Result {
+/// enum Result {
 ///     Set(String),
 ///     Get(i32)
 /// }
@@ -564,7 +564,7 @@ pub fn validate_config(input: proc_macro::TokenStream) -> proc_macro::TokenStrea
 ///     fn try_into_set(&self)-> Result<String, RedisError> {
 ///         match self {
 ///             Self::Set(a) => Ok(a),
-///             _=>Err(RedisError::UnknownResult)
+///             _=> Err(RedisError::UnknownResult)
 ///         }
 ///     }
 /// }
