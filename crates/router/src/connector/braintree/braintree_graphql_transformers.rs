@@ -155,7 +155,7 @@ impl TryFrom<&BraintreeRouterData<&types::PaymentsCompleteAuthorizeRouterData>>
     fn try_from(
         item: &BraintreeRouterData<&types::PaymentsCompleteAuthorizeRouterData>,
     ) -> Result<Self, Self::Error> {
-        match item.router_data.payment_method.clone() {
+        match item.router_data.payment_method {
             api_models::enums::PaymentMethod::Card => {
                 Ok(Self::Card(CardPaymentRequest::try_from(item)?))
             }
