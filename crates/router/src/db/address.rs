@@ -28,6 +28,15 @@ where
         key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<domain::Address, errors::StorageError>;
 
+    async fn update_address_for_payments(
+        &self,
+        this: domain::Address,
+        address: domain::AddressUpdate,
+        payment_id: String,
+        key_store: &domain::MerchantKeyStore,
+        storage_scheme: MerchantStorageScheme,
+    ) -> CustomResult<domain::Address, errors::StorageError>;
+
     async fn find_address_by_address_id(
         &self,
         address_id: &str,
@@ -155,6 +164,32 @@ mod storage {
                 .await
         }
 
+        async fn update_address_for_payments(
+            &self,
+            this: domain::Address,
+            address_update: domain::AddressUpdate,
+            _payment_id: String,
+            key_store: &domain::MerchantKeyStore,
+            _storage_scheme: MerchantStorageScheme,
+        ) -> CustomResult<domain::Address, errors::StorageError> {
+            let conn = connection::pg_connection_write(self).await?;
+            let address = Conversion::convert(this)
+                .await
+                .change_context(errors::StorageError::EncryptionError)?;
+            address
+                .update(&conn, address_update.into())
+                .await
+                .map_err(Into::into)
+                .into_report()
+                .async_and_then(|address| async {
+                    address
+                        .convert(key_store.key.get_inner())
+                        .await
+                        .change_context(errors::StorageError::DecryptionError)
+                })
+                .await
+        }
+
         async fn insert_address_for_payments(
             &self,
             _payment_id: &str,
@@ -241,6 +276,7 @@ mod storage {
 mod storage {
     use common_utils::ext_traits::AsyncExt;
     use data_models::MerchantStorageScheme;
+    use diesel_models::AddressUpdateInternal;
     use error_stack::{IntoReport, ResultExt};
     use redis_interface::HsetnxReply;
     use router_env::{instrument, tracing};
@@ -346,6 +382,79 @@ mod storage {
                         .change_context(errors::StorageError::DecryptionError)
                 })
                 .await
+        }
+
+        async fn update_address_for_payments(
+            &self,
+            this: domain::Address,
+            address_update: domain::AddressUpdate,
+            payment_id: String,
+            key_store: &domain::MerchantKeyStore,
+            storage_scheme: MerchantStorageScheme,
+        ) -> CustomResult<domain::Address, errors::StorageError> {
+            let conn = connection::pg_connection_write(self).await?;
+            let address = Conversion::convert(this)
+                .await
+                .change_context(errors::StorageError::EncryptionError)?;
+            match storage_scheme {
+                MerchantStorageScheme::PostgresOnly => {
+                    address
+                        .update(&conn, address_update.into())
+                        .await
+                        .map_err(Into::into)
+                        .into_report()
+                        .async_and_then(|address| async {
+                            address
+                                .convert(key_store.key.get_inner())
+                                .await
+                                .change_context(errors::StorageError::DecryptionError)
+                        })
+                        .await
+                }
+                MerchantStorageScheme::RedisKv => {
+                    let key = format!("mid_{}_pid_{}", address.merchant_id.clone(), payment_id);
+                    let field = format!("add_{}", address.address_id);
+                    let updated_address = AddressUpdateInternal::from(address_update.clone())
+                        .create_address(address.clone());
+                    let redis_value = serde_json::to_string(&updated_address)
+                        .into_report()
+                        .change_context(errors::StorageError::KVError)?;
+                    kv_wrapper::<(), _, _>(
+                        self,
+                        KvOperation::Hset::<storage_types::Address>((&field, redis_value)),
+                        &key,
+                    )
+                    .await
+                    .change_context(errors::StorageError::KVError)?
+                    .try_into_hset()
+                    .change_context(errors::StorageError::KVError)?;
+
+                    let redis_entry = kv::TypedSql {
+                        op: kv::DBOperation::Update {
+                            updatable: kv::Updateable::AddressUpdate(Box::new(
+                                kv::AddressUpdateMems {
+                                    orig: address,
+                                    update_data: address_update.into(),
+                                },
+                            )),
+                        },
+                    };
+
+                    self.push_to_drainer_stream::<storage_types::Address>(
+                        redis_entry,
+                        PartitionKey::MerchantIdPaymentId {
+                            merchant_id: &updated_address.merchant_id,
+                            payment_id: &payment_id,
+                        },
+                    )
+                    .await
+                    .change_context(errors::StorageError::KVError)?;
+                    updated_address
+                        .convert(key_store.key.get_inner())
+                        .await
+                        .change_context(errors::StorageError::DecryptionError)
+                }
+            }
         }
 
         async fn insert_address_for_payments(
@@ -567,6 +676,37 @@ impl AddressInterface for MockDb {
             .await
             .iter_mut()
             .find(|address| address.address_id == address_id)
+            .map(|a| {
+                let address_updated =
+                    AddressUpdateInternal::from(address_update).create_address(a.clone());
+                *a = address_updated.clone();
+                address_updated
+            }) {
+            Some(address_updated) => address_updated
+                .convert(key_store.key.get_inner())
+                .await
+                .change_context(errors::StorageError::DecryptionError),
+            None => Err(errors::StorageError::ValueNotFound(
+                "cannot find address to update".to_string(),
+            )
+            .into()),
+        }
+    }
+
+    async fn update_address_for_payments(
+        &self,
+        this: domain::Address,
+        address_update: domain::AddressUpdate,
+        _payment_id: String,
+        key_store: &domain::MerchantKeyStore,
+        _storage_scheme: MerchantStorageScheme,
+    ) -> CustomResult<domain::Address, errors::StorageError> {
+        match self
+            .addresses
+            .lock()
+            .await
+            .iter_mut()
+            .find(|address| address.address_id == this.address_id)
             .map(|a| {
                 let address_updated =
                     AddressUpdateInternal::from(address_update).create_address(a.clone());

@@ -1172,6 +1172,7 @@ pub async fn list_payment_methods(
                 card_network_types.push(CardNetworkTypes {
                     card_network: card_network_type.0.clone(),
                     eligible_connectors: card_network_type.1.clone(),
+                    surcharge_details: None,
                 })
             }
 
