@@ -15,6 +15,17 @@ command_discovery psql
 echo "Please enter the AWS region (us-east-2):"
 read REGION < /dev/tty
 
+while [[ -z "$MASTER_DB_PASSWORD" ]]; do
+    echo "Please enter the password for your RDS instance:"
+    echo "Minimum length: 8 Characters [A-Z][a-z][0-9]"
+    read MASTER_DB_PASSWORD < /dev/tty
+done
+
+while [[ -z "$ADMIN_API_KEY" ]]; do
+    echo "Please enter the Admin api key:"
+    read ADMIN_API_KEY < /dev/tty
+done
+
 if [ -z "$REGION" ]; then
     echo "Using default region: us-east-2"
     REGION="us-east-2"
@@ -143,12 +154,6 @@ echo "Elasticache with Redis engine CREATED successfully!"
 
 echo "Creating RDS with PSQL..."
 
-while [[ -z "$MASTER_DB_PASSWORD" ]]; do
-    echo "Please enter the password for your RDS instance:"
-    echo "Minimum length: 8 Characters [A-Z][a-z][0-9]"
-    read MASTER_DB_PASSWORD < /dev/tty
-done
-
 export DB_INSTANCE_ID=hyperswitch-db
 echo `aws rds create-db-instance  \
     --db-instance-identifier $DB_INSTANCE_ID\
@@ -249,11 +254,6 @@ export REDIS_ENDPOINT=$(aws elasticache describe-cache-clusters \
     --output text)
 
 echo "Redis Endpoint retrieved successfully!"
-
-while [[ -z "$ADMIN_API_KEY" ]]; do
-    echo "Please enter the Admin api key:"
-    read ADMIN_API_KEY < /dev/tty
-done
 
 echo "\n# Add redis and DB configs\n" >> user_data.sh
 echo "cat << EOF >> .env" >> user_data.sh
