@@ -3,6 +3,8 @@ use error_stack::{IntoReport, ResultExt};
 #[cfg(feature = "accounts_cache")]
 use storage_impl::redis::cache::{CacheKind, ACCOUNTS_CACHE};
 
+use futures::future::try_join_all;
+
 use super::{MasterKeyInterface, MockDb, Store};
 use crate::{
     connection,
@@ -54,6 +56,12 @@ where
         &self,
         publishable_key: &str,
     ) -> CustomResult<authentication::AuthenticationData, errors::StorageError>;
+
+    #[cfg(feature = "olap")]
+    async fn list_merchant_accounts_by_organization_id(
+        &self,
+        organization_id: &str,
+    ) -> CustomResult<Vec<domain::MerchantAccount>, errors::StorageError>;
 
     async fn delete_merchant_account_by_merchant_id(
         &self,
@@ -212,6 +220,46 @@ impl MerchantAccountInterface for Store {
         })
     }
 
+    #[cfg(feature = "olap")]
+    async fn list_merchant_accounts_by_organization_id(
+        &self,
+        organization_id: &str,
+    ) -> CustomResult<Vec<domain::MerchantAccount>, errors::StorageError> {
+        let conn = connection::pg_connection_read(self).await?;
+
+        let encrypted_merchant_accounts =
+            storage::MerchantAccount::list_by_organization_id(&conn, organization_id)
+                .await
+                .map_err(Into::into)
+                .into_report()?;
+
+        let db_master_key = self.get_master_key().to_vec().into();
+
+        let merchant_key_stores =
+            try_join_all(encrypted_merchant_accounts.iter().map(|merchant_account| {
+                self.get_merchant_key_store_by_merchant_id(
+                    &merchant_account.merchant_id,
+                    &db_master_key,
+                )
+            }))
+            .await?;
+
+        let merchant_accounts = try_join_all(
+            encrypted_merchant_accounts
+                .into_iter()
+                .zip(merchant_key_stores.iter())
+                .map(|(merchant_account, key_store)| async {
+                    merchant_account
+                        .convert(key_store.key.get_inner())
+                        .await
+                        .change_context(errors::StorageError::DecryptionError)
+                }),
+        )
+        .await?;
+
+        Ok(merchant_accounts)
+    }
+
     async fn delete_merchant_account_by_merchant_id(
         &self,
         merchant_id: &str,
@@ -335,6 +383,14 @@ impl MerchantAccountInterface for MockDb {
         _merchant_id: &str,
     ) -> CustomResult<bool, errors::StorageError> {
         // [#172]: Implement function for `MockDb`
+        Err(errors::StorageError::MockDbError)?
+    }
+
+    #[cfg(feature = "olap")]
+    async fn list_merchant_accounts_by_organization_id(
+        &self,
+        _organization_id: &str,
+    ) -> CustomResult<Vec<domain::MerchantAccount>, errors::StorageError> {
         Err(errors::StorageError::MockDbError)?
     }
 }
