@@ -476,6 +476,9 @@ pub struct PaymentsSyncData {
     pub connector_meta: Option<serde_json::Value>,
     pub sync_type: SyncRequestType,
     pub mandate_id: Option<api_models::payments::MandateIds>,
+    //This is being added as a temporary fix, will be deprecated before or by v1.65.0
+    // #2628
+    pub payment_attempt_created_at_as_utc: i64,
 }
 
 #[derive(Debug, Default, Clone)]
