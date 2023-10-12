@@ -65,7 +65,7 @@ pub async fn create_payment_method(
     payment_method_data: Option<Encryption>,
     key_store: &domain::MerchantKeyStore,
 ) -> errors::CustomResult<storage::PaymentMethod, errors::ApiErrorResponse> {
-    let _customer = db
+    db
         .find_customer_by_customer_id_merchant_id(customer_id, merchant_id, key_store)
         .await
         .to_not_found_response(errors::ApiErrorResponse::CustomerNotFound)?;
@@ -84,7 +84,8 @@ pub async fn create_payment_method(
             ..storage::PaymentMethodNew::default()
         })
         .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)?;
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to add payment method in db")?;
 
     Ok(response)
 }
