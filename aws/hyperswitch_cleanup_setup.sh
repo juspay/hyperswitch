@@ -101,7 +101,7 @@ for resource_id in $ALL_DB_RESOURCES; do
 
             echo "Create a snapshot before deleting ( $DB_INSTANCE_ID ) the database (Y/n)? "
             if yes_or_no; then
-                cd aws rds delete-db-instance \
+                aws rds delete-db-instance \
                     --db-instance-identifier $DB_INSTANCE_ID \
    --region $REGION \
                     --final-db-snapshot-identifier hyperswitch-db-snapshot-`date +%s`
