@@ -12,7 +12,7 @@ command_discovery() {
 }
 
 yes_or_no() {
-    read response
+    read response < /dev/tty
     case $response in
         [Yy]* ) return 0 ;;
         [Nn]* ) return 1 ;;
