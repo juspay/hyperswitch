@@ -1529,11 +1529,7 @@ impl services::ConnectorRedirectResponse for Braintree {
                         error_message: Some(error_message),
                     })
                 }
-                None => Ok(payments::CallConnectorAction::StatusUpdate {
-                    status: enums::AttemptStatus::AuthenticationFailed,
-                    error_code: Some(consts::NO_ERROR_CODE.to_string()),
-                    error_message: Some(consts::NO_ERROR_MESSAGE.to_string()),
-                }),
+                None => Ok(payments::CallConnectorAction::Avoid),
             },
             services::PaymentAction::CompleteAuthorize => {
                 Ok(payments::CallConnectorAction::Trigger)
