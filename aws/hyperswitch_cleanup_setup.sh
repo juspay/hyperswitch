@@ -21,6 +21,7 @@ yes_or_no() {
 }
 
 command_discovery aws
+command_discovery jq
 
 
 export ALL_ELASTIC_CACHE=($(aws elasticache describe-cache-clusters \
