@@ -263,8 +263,7 @@ echo "ROUTER__REPLICA_DATABASE__HOST=$RDS_ENDPOINT" >> user_data.sh
 echo "ROUTER__SERVER__HOST=0.0.0.0" >> user_data.sh
 echo "ROUTER__MASTER_DATABASE__USERNAME=hyperswitch" >> user_data.sh
 echo "ROUTER__MASTER_DATABASE__PASSWORD=$MASTER_DB_PASSWORD" >> user_data.sh
-echo "export HOST=\$(curl ifconfig.me)" >> user_data.sh
-echo "ROUTER__SERVER__BASE_URL=$HOST" >> user_data.sh
+echo "ROUTER__SERVER__BASE_URL=\$(curl ifconfig.me)" >> user_data.sh
 echo "ROUTER__SECRETS__ADMIN_API_KEY=$ADMIN_API_KEY" >> user_data.sh
 echo "EOF" >> user_data.sh
 
