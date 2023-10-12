@@ -128,7 +128,25 @@ export ALL_SECURITY_GROUPS=$(aws ec2 describe-security-groups \
 echo -n "Deleting ( $ALL_SECURITY_GROUPS ) security groups? (Y/n)?"
 
 if yes_or_no; then
-    for GROUP_ID in $ALL_SECURITY_GROUPS; do
-       echo `aws ec2 delete-security-group --group-id $GROUP_ID --region $REGION`
+    export do_it=true
+
+    while do_it; do
+      export do_it=false
+      for GROUP_ID in $ALL_SECURITY_GROUPS; do
+         aws ec2 delete-security-group --group-id $GROUP_ID --region $REGION
+         if [[ $? != 0 ]]; then
+          export do_it=true
+         fi
+      done
+
+      if do_it; then
+        echo -n "Retry deleting the security group (Y/n)? "
+
+        if yes_or_no; then
+          export do_it=true
+        else
+          export do_it=false
+        fi
+      fi
     done
 fi
