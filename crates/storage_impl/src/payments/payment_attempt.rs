@@ -1307,7 +1307,7 @@ impl DataModelExt for PaymentAttemptUpdate {
             Self::SurchargeMetadataUpdate { surcharge_metadata } => {
                 DieselPaymentAttemptUpdate::SurchargeMetadataUpdate { surcharge_metadata }
             }
-            PaymentAttemptUpdate::SurchargeAmountUpdate {
+            Self::SurchargeAmountUpdate {
                 surcharge_amount,
                 tax_amount,
             } => DieselPaymentAttemptUpdate::SurchargeAmountUpdate {
