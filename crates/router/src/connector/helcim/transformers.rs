@@ -1,3 +1,9 @@
+use std::str::FromStr;
+
+use api_models::{
+    enums::{BankHolderType, BankType, CountryAlpha3},
+    payments::BankDebitData,
+};
 use common_utils::pii::{Email, IpAddress};
 use error_stack::{IntoReport, ResultExt};
 use masking::Secret;
@@ -62,6 +68,7 @@ pub struct HelcimPaymentsRequest {
     currency: enums::Currency,
     ip_address: Secret<String, IpAddress>,
     card_data: HelcimCard,
+    bank_data: HelcimBank,
     billing_address: HelcimBillingAddress,
     //The ecommerce field is an optional field in Connector Helcim.
     //Setting the ecommerce field to true activates the Helcim Fraud Defender.
@@ -89,6 +96,23 @@ pub struct HelcimCard {
     card_number: cards::CardNumber,
     card_expiry: Secret<String>,
     card_c_v_v: Secret<String>,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct HelcimBank {
+    bank_account_number: Secret<String>,
+    routing_number: Secret<String>,
+    account_type: BankType,
+    account_corporate: BankHolderType,
+    first_name: Secret<String>,
+    last_name: Secret<String>,
+    company_name: Secret<String>,
+    street_address: Secret<String>,
+    city: String,
+    country: CountryAlpha3,
+    province: Secret<String>,
+    postal_code: Secret<String>,
 }
 
 impl TryFrom<(&types::SetupMandateRouterData, &api::Card)> for HelcimVerifyRequest {
@@ -170,12 +194,7 @@ impl
             card_number: req_card.card_number.clone(),
             card_c_v_v: req_card.card_cvc.clone(),
         };
-        let req_address = item
-            .router_data
-            .get_billing()?
-            .to_owned()
-            .address
-            .ok_or_else(utils::missing_field_err("billing.address"))?;
+        let req_address = item.router_data.get_billing_address()?.to_owned();
 
         let billing_address = HelcimBillingAddress {
             name: req_address.get_full_name()?,
@@ -196,8 +215,106 @@ impl
             currency: item.router_data.request.currency,
             ip_address,
             card_data,
+            bank_data: None,
             billing_address,
             ecommerce: None,
+        })
+    }
+}
+
+impl
+    TryFrom<(
+        &HelcimRouterData<&types::PaymentsAuthorizeRouterData>,
+        BankDebitData,
+    )> for HelcimPaymentsRequest
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        value: (
+            &HelcimRouterData<&types::PaymentsAuthorizeRouterData>,
+            BankDebitData,
+        ),
+    ) -> Result<Self, Self::Error> {
+        let (item, bank_debit_data) = value;
+
+        let card_data = HelcimCard {
+            card_expiry: Secret::new("".to_string()),
+            card_number: cards::CardNumber::from_str("4242424242424242").unwrap(),
+            card_c_v_v: Secret::new("".to_string()),
+        };
+        let req_address = item.router_data.get_billing_address()?.to_owned();
+
+        let city = req_address.city.clone();
+        let street1 = req_address.get_line1()?.to_owned();
+        let postal_code = req_address.get_zip()?.to_owned();
+
+        let bank_data = match bank_debit_data {
+            BankDebitData::AchBankDebit {
+                billing_details,
+                account_number,
+                routing_number,
+                bank_type,
+                bank_holder_type,
+                ..
+            } => {
+                Some(HelcimBank {
+                    bank_account_number: account_number,
+                    routing_number: routing_number,
+                    account_type: bank_type.clone().ok_or(
+                        errors::ConnectorError::MissingRequiredField {
+                            field_name: "bank_type",
+                        },
+                    )?,
+                    account_corporate: bank_holder_type.clone().ok_or(
+                        errors::ConnectorError::MissingRequiredField {
+                            field_name: "bank_holder_type",
+                        },
+                    )?,
+                    first_name: req_address.get_first_name()?.clone(),
+                    last_name: req_address.get_last_name()?.to_owned(),
+                    company_name: billing_details.name,
+                    street_address: street1,
+                    city: city
+                        .clone()
+                        .ok_or(errors::ConnectorError::MissingRequiredField {
+                            field_name: "city",
+                        })?,
+                    postal_code,
+                    country: todo!(),
+                    province: todo!(),
+                });
+            }
+            BankDebitData::SepaBankDebit { .. }
+            | BankDebitData::BecsBankDebit { .. }
+            | BankDebitData::BacsBankDebit { .. } => Err(errors::ConnectorError::NotSupported {
+                message: format!("{:?}", item.router_data.request.payment_method_data),
+                connector: "Helcim",
+            })?,
+        };
+
+        let billing_address = HelcimBillingAddress {
+            name: req_address.get_full_name()?,
+            street1,
+            postal_code,
+            street2: req_address.line2,
+            city,
+            email: item.router_data.request.email.clone(),
+        };
+
+        let ip_address = item
+            .router_data
+            .request
+            .get_browser_info()?
+            .get_ip_address()?;
+
+        Ok(Self {
+            amount: item.amount.to_owned(),
+            currency: item.router_data.request.currency,
+            ip_address,
+            card_data,
+            billing_address,
+            ecommerce: None,
+            bank_data,
         })
     }
 }
