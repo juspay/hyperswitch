@@ -100,6 +100,12 @@ pub struct Settings {
     pub applepay_merchant_configs: ApplepayMerchantConfigs,
     pub lock_settings: LockSettings,
     pub temp_locker_enable_config: TempLockerEnableConfig,
+    pub payment_link: PaymentLink,
+}
+
+#[derive(Debug, Deserialize, Clone, Default)]
+pub struct PaymentLink {
+    pub sdk_url: String,
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
@@ -558,6 +564,7 @@ pub struct Connectors {
     pub stripe: ConnectorParamsWithFileUploadUrl,
     pub trustpay: ConnectorParamsWithMoreUrls,
     pub tsys: ConnectorParams,
+    pub volt: ConnectorParams,
     pub wise: ConnectorParams,
     pub worldline: ConnectorParams,
     pub worldpay: ConnectorParams,

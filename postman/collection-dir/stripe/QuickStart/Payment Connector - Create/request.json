@@ -44,7 +44,7 @@
       "business_label": "default",
       "connector_account_details": {
         "auth_type": "HeaderKey",
-        "api_key": "{{connector_api_key}}"
+        "api_key": "{{connector_api_key}}_invalid_values"
       },
       "test_mode": false,
       "disabled": false,
@@ -259,7 +259,10 @@
             {
               "type": "CARD",
               "parameters": {
-                "allowed_auth_methods": ["PAN_ONLY", "CRYPTOGRAM_3DS"],
+                "allowed_auth_methods": [
+                  "PAN_ONLY",
+                  "CRYPTOGRAM_3DS"
+                ],
                 "allowed_card_networks": [
                   "AMEX",
                   "DISCOVER",
@@ -293,8 +296,15 @@
           },
           "payment_request_data": {
             "label": "applepay pvt.ltd",
-            "supported_networks": ["visa", "masterCard", "amex", "discover"],
-            "merchant_capabilities": ["supports3DS"]
+            "supported_networks": [
+              "visa",
+              "masterCard",
+              "amex",
+              "discover"
+            ],
+            "merchant_capabilities": [
+              "supports3DS"
+            ]
           }
         }
       }
@@ -302,8 +312,14 @@
   },
   "url": {
     "raw": "{{baseUrl}}/account/:account_id/connectors",
-    "host": ["{{baseUrl}}"],
-    "path": ["account", ":account_id", "connectors"],
+    "host": [
+      "{{baseUrl}}"
+    ],
+    "path": [
+      "account",
+      ":account_id",
+      "connectors"
+    ],
     "variable": [
       {
         "key": "account_id",

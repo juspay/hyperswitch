@@ -272,6 +272,11 @@ async fn drainer(
                             update_op,
                             connector_response
                         ),
+                        kv::Updateable::AddressUpdate(a) => macro_util::handle_resp!(
+                            a.orig.update(&conn, a.update_data).await,
+                            update_op,
+                            address
+                        ),
                     }
                 })
                 .await;

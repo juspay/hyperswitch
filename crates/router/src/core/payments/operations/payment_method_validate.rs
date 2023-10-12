@@ -195,7 +195,9 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
                 ephemeral_key: None,
                 multiple_capture_data: None,
                 redirect_response: None,
+                surcharge_details: None,
                 frm_message: None,
+                payment_link_data: None,
             },
             Some(payments::CustomerDetails {
                 customer_id: request.customer_id.clone(),
@@ -393,6 +395,7 @@ impl PaymentMethodValidate {
             profile_id: Default::default(),
             merchant_decision: Default::default(),
             payment_confirm_source: Default::default(),
+            payment_link_id: Default::default(),
         }
     }
 }

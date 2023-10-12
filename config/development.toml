@@ -107,6 +107,7 @@ cards = [
     "stripe",
     "trustpay",
     "tsys",
+    "volt",
     "wise",
     "worldline",
     "worldpay",
@@ -182,6 +183,7 @@ worldline.base_url = "https://eu.sandbox.api-ingenico.com/"
 worldpay.base_url = "https://try.access.worldpay.com/"
 trustpay.base_url = "https://test-tpgw.trustpay.eu/"
 tsys.base_url = "https://stagegw.transnox.com/"
+volt.base_url = "https://api.sandbox.volt.io/"
 trustpay.base_url_bank_redirects = "https://aapi.trustpay.eu/"
 zen.base_url = "https://api.zen-test.com/"
 zen.secondary_base_url = "https://secure.zen-test.com/"
@@ -438,6 +440,9 @@ apple_pay_ppc = "APPLE_PAY_PAYMENT_PROCESSING_CERTIFICATE"
 apple_pay_ppc_key = "APPLE_PAY_PAYMENT_PROCESSING_CERTIFICATE_KEY"
 apple_pay_merchant_cert = "APPLE_PAY_MERCHNAT_CERTIFICATE"
 apple_pay_merchant_cert_key = "APPLE_PAY_MERCHNAT_CERTIFICATE_KEY"
+
+[payment_link]
+sdk_url = "http://localhost:9090/dist/HyperLoader.js"
 
 [lock_settings]
 redis_lock_expiry_seconds = 180 # 3 * 60 seconds

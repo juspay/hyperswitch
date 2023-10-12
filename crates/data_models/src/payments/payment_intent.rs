@@ -102,6 +102,7 @@ pub struct PaymentIntentNew {
     pub attempt_count: i16,
     pub profile_id: Option<String>,
     pub merchant_decision: Option<String>,
+    pub payment_link_id: Option<String>,
     pub payment_confirm_source: Option<storage_enums::PaymentSource>,
 }
 

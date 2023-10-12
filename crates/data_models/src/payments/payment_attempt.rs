@@ -294,6 +294,10 @@ pub enum PaymentAttemptUpdate {
     MultipleCaptureCountUpdate {
         multiple_capture_count: i16,
     },
+    SurchargeAmountUpdate {
+        surcharge_amount: Option<i64>,
+        tax_amount: Option<i64>,
+    },
     AmountToCaptureUpdate {
         status: storage_enums::AttemptStatus,
         amount_capturable: i64,

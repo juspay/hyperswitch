@@ -830,6 +830,22 @@ impl
     }
 }
 
+impl ForeignFrom<storage::PaymentLink> for api_models::payments::RetrievePaymentLinkResponse {
+    fn foreign_from(payment_link_object: storage::PaymentLink) -> Self {
+        Self {
+            payment_link_id: payment_link_object.payment_link_id,
+            payment_id: payment_link_object.payment_id,
+            merchant_id: payment_link_object.merchant_id,
+            link_to_pay: payment_link_object.link_to_pay,
+            amount: payment_link_object.amount,
+            currency: payment_link_object.currency,
+            created_at: payment_link_object.created_at,
+            last_modified_at: payment_link_object.last_modified_at,
+            link_expiry: payment_link_object.fulfilment_time,
+        }
+    }
+}
+
 impl From<domain::Address> for payments::AddressDetails {
     fn from(addr: domain::Address) -> Self {
         Self {

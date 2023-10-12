@@ -2,7 +2,7 @@ use error_stack::{IntoReport, ResultExt};
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    address::AddressNew,
+    address::{Address, AddressNew, AddressUpdateInternal},
     connector_response::{ConnectorResponse, ConnectorResponseNew, ConnectorResponseUpdate},
     errors,
     payment_attempt::{PaymentAttempt, PaymentAttemptNew, PaymentAttemptUpdate},
@@ -55,12 +55,19 @@ pub enum Updateable {
     PaymentAttemptUpdate(PaymentAttemptUpdateMems),
     RefundUpdate(RefundUpdateMems),
     ConnectorResponseUpdate(ConnectorResponseUpdateMems),
+    AddressUpdate(Box<AddressUpdateMems>),
 }
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct ConnectorResponseUpdateMems {
     pub orig: ConnectorResponse,
     pub update_data: ConnectorResponseUpdate,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct AddressUpdateMems {
+    pub orig: Address,
+    pub update_data: AddressUpdateInternal,
 }
 
 #[derive(Debug, Serialize, Deserialize)]

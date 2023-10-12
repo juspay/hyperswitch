@@ -157,7 +157,9 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
                 ephemeral_key: None,
                 multiple_capture_data: None,
                 redirect_response: None,
+                surcharge_details: None,
                 frm_message: frm_response.ok(),
+                payment_link_data: None,
             },
             None,
         ))
