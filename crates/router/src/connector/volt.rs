@@ -3,7 +3,7 @@ pub mod transformers;
 use std::fmt::Debug;
 
 use error_stack::{IntoReport, ResultExt};
-use masking::ExposeInterface;
+use masking::{ExposeInterface, PeekInterface};
 use transformers as volt;
 
 use crate::{
@@ -64,8 +64,20 @@ where
                 .to_string()
                 .into(),
         )];
-        let mut api_key = self.get_auth_header(&req.connector_auth_type)?;
-        header.append(&mut api_key);
+        // let mut api_key = self.get_auth_header(&req.connector_auth_type)?;
+        // let access_token = req
+        //     .access_token
+        //     .clone()
+        //     .ok_or(errors::ConnectorError::FailedToObtainAuthType)?;
+        // let auth_header = (
+        //     headers::AUTHORIZATION.to_string(),
+        //     format!("Bearer {}", access_token.token.peek()).into_masked(),
+        // );
+        let auth_header = (
+            headers::AUTHORIZATION.to_string(),
+            "Bearer dummmy".to_string().into_masked(),
+        );
+        header.push(auth_header);
         Ok(header)
     }
 }
@@ -159,9 +171,9 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
     fn get_url(
         &self,
         _req: &types::PaymentsAuthorizeRouterData,
-        _connectors: &settings::Connectors,
+        connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented("get_url method".to_string()).into())
+        Ok(format!("{}v2/payments", self.base_url(connectors)))
     }
 
     fn get_request_body(
@@ -244,10 +256,18 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
 
     fn get_url(
         &self,
-        _req: &types::PaymentsSyncRouterData,
-        _connectors: &settings::Connectors,
+        req: &types::PaymentsSyncRouterData,
+        connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented("get_url method".to_string()).into())
+        let connector_payment_id = req
+            .request
+            .connector_transaction_id
+            .get_connector_transaction_id()
+            .change_context(errors::ConnectorError::MissingConnectorTransactionID)?;
+        Ok(format!(
+            "{}payments/{connector_payment_id}",
+            self.base_url(connectors)
+        ))
     }
 
     fn build_request(
@@ -270,7 +290,7 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
         data: &types::PaymentsSyncRouterData,
         res: Response,
     ) -> CustomResult<types::PaymentsSyncRouterData, errors::ConnectorError> {
-        let response: volt::VoltPaymentsResponse = res
+        let response: volt::VoltPsyncResponse = res
             .response
             .parse_struct("volt PaymentsSyncResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;

@@ -355,7 +355,7 @@ impl ConnectorData {
                 enums::Connector::Paypal => Ok(Box::new(&connector::Paypal)),
                 enums::Connector::Trustpay => Ok(Box::new(&connector::Trustpay)),
                 enums::Connector::Tsys => Ok(Box::new(&connector::Tsys)),
-                // enums::Connector::Volt => Ok(Box::new(&connector::Volt)), it is added as template code for future usage
+                enums::Connector::Volt => Ok(Box::new(&connector::Volt)),
                 enums::Connector::Zen => Ok(Box::new(&connector::Zen)),
                 enums::Connector::Signifyd | enums::Connector::Plaid => {
                     Err(report!(errors::ConnectorError::InvalidConnectorName)
