@@ -9317,7 +9317,7 @@
           "modified": {
             "type": "string",
             "format": "date-time",
-            "description": "Time when the payment was modified",
+            "description": "Time when the payment was last modified",
             "example": "2022-09-10T10:11:12Z",
             "nullable": true
           },
