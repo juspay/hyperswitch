@@ -280,7 +280,7 @@ mod storage {
         logger,
         services::Store,
         types::storage::{self as storage_types, enums, kv},
-        utils::{self, db_utils, storage_partitioning::PartitionKey},
+        utils::{self, db_utils},
     };
     #[async_trait::async_trait]
     impl RefundInterface for Store {
@@ -373,9 +373,20 @@ mod storage {
                         "pa_{}_ref_{}",
                         &created_refund.attempt_id, &created_refund.refund_id
                     );
+
+                    let redis_entry = kv::TypedSql {
+                        op: kv::DBOperation::Insert {
+                            insertable: kv::Insertable::Refund(new),
+                        },
+                    };
+
                     match kv_wrapper::<storage_types::Refund, _, _>(
                         self,
-                        KvOperation::HSetNx(&field, &created_refund),
+                        KvOperation::<storage_types::Refund>::HSetNx(
+                            &field,
+                            &created_refund,
+                            redis_entry,
+                        ),
                         &key,
                     )
                     .await
@@ -430,21 +441,6 @@ mod storage {
                                 .map(|rev| self.insert_reverse_lookup(rev, storage_scheme));
 
                             futures::future::try_join_all(rev_look).await?;
-
-                            let redis_entry = kv::TypedSql {
-                                op: kv::DBOperation::Insert {
-                                    insertable: kv::Insertable::Refund(new),
-                                },
-                            };
-                            self.push_to_drainer_stream::<storage_types::Refund>(
-                                redis_entry,
-                                PartitionKey::MerchantIdPaymentId {
-                                    merchant_id: &created_refund.merchant_id,
-                                    payment_id: &created_refund.payment_id,
-                                },
-                            )
-                            .await
-                            .change_context(errors::StorageError::KVError)?;
 
                             Ok(created_refund)
                         }
@@ -531,16 +527,6 @@ mod storage {
                         )
                         .change_context(errors::StorageError::SerializationFailed)?;
 
-                    kv_wrapper::<(), _, _>(
-                        self,
-                        KvOperation::Hset::<storage_types::Refund>((&field, redis_value)),
-                        &key,
-                    )
-                    .await
-                    .change_context(errors::StorageError::KVError)?
-                    .try_into_hset()
-                    .change_context(errors::StorageError::KVError)?;
-
                     let redis_entry = kv::TypedSql {
                         op: kv::DBOperation::Update {
                             updatable: kv::Updateable::RefundUpdate(kv::RefundUpdateMems {
@@ -549,15 +535,20 @@ mod storage {
                             }),
                         },
                     };
-                    self.push_to_drainer_stream::<storage_types::Refund>(
-                        redis_entry,
-                        PartitionKey::MerchantIdPaymentId {
-                            merchant_id: &updated_refund.merchant_id,
-                            payment_id: &updated_refund.payment_id,
-                        },
+
+                    kv_wrapper::<(), _, _>(
+                        self,
+                        KvOperation::Hset::<storage_types::Refund>(
+                            (&field, redis_value),
+                            redis_entry,
+                        ),
+                        &key,
                     )
                     .await
+                    .change_context(errors::StorageError::KVError)?
+                    .try_into_hset()
                     .change_context(errors::StorageError::KVError)?;
+
                     Ok(updated_refund)
                 }
             }

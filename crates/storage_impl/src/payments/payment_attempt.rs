@@ -28,7 +28,7 @@ use router_env::{instrument, tracing};
 use crate::{
     diesel_error_to_data_error,
     lookup::ReverseLookupInterface,
-    redis::kv_store::{kv_wrapper, KvOperation, PartitionKey},
+    redis::kv_store::{kv_wrapper, KvOperation},
     utils::{pg_connection_read, pg_connection_write, try_redis_get_else_try_database_get},
     DataModelExt, DatabaseStore, KVRouterStore, RouterStore,
 };
@@ -363,9 +363,21 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
 
                 let field = format!("pa_{}", created_attempt.attempt_id);
 
+                let redis_entry = kv::TypedSql {
+                    op: kv::DBOperation::Insert {
+                        insertable: kv::Insertable::PaymentAttempt(
+                            payment_attempt.to_storage_model(),
+                        ),
+                    },
+                };
+
                 match kv_wrapper::<PaymentAttempt, _, _>(
                     self,
-                    KvOperation::HSetNx(&field, &created_attempt),
+                    KvOperation::HSetNx(
+                        &field,
+                        &created_attempt.clone().to_storage_model(),
+                        redis_entry,
+                    ),
                     &key,
                 )
                 .await
@@ -391,22 +403,6 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
                         self.insert_reverse_lookup(reverse_lookup, storage_scheme)
                             .await?;
 
-                        let redis_entry = kv::TypedSql {
-                            op: kv::DBOperation::Insert {
-                                insertable: kv::Insertable::PaymentAttempt(
-                                    payment_attempt.to_storage_model(),
-                                ),
-                            },
-                        };
-                        self.push_to_drainer_stream::<DieselPaymentAttempt>(
-                            redis_entry,
-                            PartitionKey::MerchantIdPaymentId {
-                                merchant_id: &created_attempt.merchant_id,
-                                payment_id: &created_attempt.payment_id,
-                            },
-                        )
-                        .await
-                        .change_context(errors::StorageError::KVError)?;
                         Ok(created_attempt)
                     }
                     Err(error) => Err(error.change_context(errors::StorageError::KVError)),
@@ -444,9 +440,20 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
                     .change_context(errors::StorageError::KVError)?;
                 let field = format!("pa_{}", updated_attempt.attempt_id);
 
+                let redis_entry = kv::TypedSql {
+                    op: kv::DBOperation::Update {
+                        updatable: kv::Updateable::PaymentAttemptUpdate(
+                            kv::PaymentAttemptUpdateMems {
+                                orig: this.clone().to_storage_model(),
+                                update_data: payment_attempt.to_storage_model(),
+                            },
+                        ),
+                    },
+                };
+
                 kv_wrapper::<(), _, _>(
                     self,
-                    KvOperation::Hset::<PaymentAttempt>((&field, redis_value)),
+                    KvOperation::Hset::<DieselPaymentAttempt>((&field, redis_value), redis_entry),
                     &key,
                 )
                 .await
@@ -513,25 +520,6 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
                     (_, _) => {}
                 }
 
-                let redis_entry = kv::TypedSql {
-                    op: kv::DBOperation::Update {
-                        updatable: kv::Updateable::PaymentAttemptUpdate(
-                            kv::PaymentAttemptUpdateMems {
-                                orig: this.to_storage_model(),
-                                update_data: payment_attempt.to_storage_model(),
-                            },
-                        ),
-                    },
-                };
-                self.push_to_drainer_stream::<DieselPaymentAttempt>(
-                    redis_entry,
-                    PartitionKey::MerchantIdPaymentId {
-                        merchant_id: &updated_attempt.merchant_id,
-                        payment_id: &updated_attempt.payment_id,
-                    },
-                )
-                .await
-                .change_context(errors::StorageError::KVError)?;
                 Ok(updated_attempt)
             }
         }
@@ -565,7 +553,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
 
                 try_redis_get_else_try_database_get(
                     async {
-                        kv_wrapper(self, KvOperation::<PaymentAttempt>::HGet(&lookup.sk_id), key).await?.try_into_hget()
+                        kv_wrapper(self, KvOperation::<DieselPaymentAttempt>::HGet(&lookup.sk_id), key).await?.try_into_hget()
                     },
                         || async {self.router_store.find_payment_attempt_by_connector_transaction_id_payment_id_merchant_id(connector_transaction_id, payment_id, merchant_id, storage_scheme).await},
                     )
@@ -597,7 +585,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
                 let redis_fut = async {
                     let kv_result = kv_wrapper::<PaymentAttempt, _, _>(
                         self,
-                        KvOperation::<PaymentAttempt>::Scan(pattern),
+                        KvOperation::<DieselPaymentAttempt>::Scan(pattern),
                         key,
                     )
                     .await?
@@ -645,7 +633,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
                     async {
                         kv_wrapper(
                             self,
-                            KvOperation::<PaymentAttempt>::HGet(&lookup.sk_id),
+                            KvOperation::<DieselPaymentAttempt>::HGet(&lookup.sk_id),
                             key,
                         )
                         .await?
@@ -690,7 +678,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
                 let field = format!("pa_{attempt_id}");
                 try_redis_get_else_try_database_get(
                     async {
-                        kv_wrapper(self, KvOperation::<PaymentAttempt>::HGet(&field), key)
+                        kv_wrapper(self, KvOperation::<DieselPaymentAttempt>::HGet(&field), key)
                             .await?
                             .try_into_hget()
                     },
@@ -736,7 +724,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
                     async {
                         kv_wrapper(
                             self,
-                            KvOperation::<PaymentAttempt>::HGet(&lookup.sk_id),
+                            KvOperation::<DieselPaymentAttempt>::HGet(&lookup.sk_id),
                             key,
                         )
                         .await?
@@ -784,7 +772,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
                     async {
                         kv_wrapper(
                             self,
-                            KvOperation::<PaymentAttempt>::HGet(&lookup.sk_id),
+                            KvOperation::<DieselPaymentAttempt>::HGet(&lookup.sk_id),
                             key,
                         )
                         .await?
@@ -824,7 +812,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
             MerchantStorageScheme::RedisKv => {
                 let key = format!("mid_{merchant_id}_pid_{payment_id}");
 
-                kv_wrapper(self, KvOperation::<PaymentAttempt>::Scan("pa_*"), key)
+                kv_wrapper(self, KvOperation::<DieselPaymentAttempt>::Scan("pa_*"), key)
                     .await
                     .change_context(errors::StorageError::KVError)?
                     .try_into_scan()

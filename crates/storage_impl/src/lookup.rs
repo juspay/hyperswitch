@@ -11,7 +11,7 @@ use redis_interface::SetnxReply;
 
 use crate::{
     diesel_error_to_data_error,
-    redis::kv_store::{kv_wrapper, KvOperation, PartitionKey},
+    redis::kv_store::{kv_wrapper, KvOperation},
     utils::{self, try_redis_get_else_try_database_get},
     DatabaseStore, KVRouterStore, RouterStore,
 };
@@ -84,31 +84,22 @@ impl<T: DatabaseStore> ReverseLookupInterface for KVRouterStore<T> {
                     pk_id: new.pk_id.clone(),
                     source: new.source.clone(),
                 };
-                let combination = &created_rev_lookup.pk_id;
+                let redis_entry = kv::TypedSql {
+                    op: kv::DBOperation::Insert {
+                        insertable: kv::Insertable::ReverseLookUp(new),
+                    },
+                };
+
                 match kv_wrapper::<DieselReverseLookup, _, _>(
                     self,
-                    KvOperation::SetNx(&created_rev_lookup),
+                    KvOperation::SetNx(&created_rev_lookup, redis_entry),
                     format!("reverse_lookup_{}", &created_rev_lookup.lookup_id),
                 )
                 .await
                 .change_context(errors::StorageError::KVError)?
                 .try_into_setnx()
                 {
-                    Ok(SetnxReply::KeySet) => {
-                        let redis_entry = kv::TypedSql {
-                            op: kv::DBOperation::Insert {
-                                insertable: kv::Insertable::ReverseLookUp(new),
-                            },
-                        };
-                        self.push_to_drainer_stream::<DieselReverseLookup>(
-                            redis_entry,
-                            PartitionKey::MerchantIdPaymentIdCombination { combination },
-                        )
-                        .await
-                        .change_context(errors::StorageError::KVError)?;
-
-                        Ok(created_rev_lookup)
-                    }
+                    Ok(SetnxReply::KeySet) => Ok(created_rev_lookup),
                     Ok(SetnxReply::KeyNotSet) => Err(errors::StorageError::DuplicateValue {
                         entity: "reverse_lookup",
                         key: Some(created_rev_lookup.lookup_id.clone()),

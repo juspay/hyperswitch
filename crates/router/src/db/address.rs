@@ -244,7 +244,7 @@ mod storage {
     use error_stack::{IntoReport, ResultExt};
     use redis_interface::HsetnxReply;
     use router_env::{instrument, tracing};
-    use storage_impl::redis::kv_store::{kv_wrapper, KvOperation, PartitionKey};
+    use storage_impl::redis::kv_store::{kv_wrapper, KvOperation};
 
     use super::AddressInterface;
     use crate::{
@@ -401,9 +401,19 @@ mod storage {
                         payment_id: address_new.payment_id.clone(),
                     };
 
+                    let redis_entry = kv::TypedSql {
+                        op: kv::DBOperation::Insert {
+                            insertable: kv::Insertable::Address(Box::new(address_new)),
+                        },
+                    };
+
                     match kv_wrapper::<diesel_models::Address, _, _>(
                         self,
-                        KvOperation::HSetNx(&field, &created_address),
+                        KvOperation::HSetNx::<diesel_models::Address>(
+                            &field,
+                            &created_address,
+                            redis_entry,
+                        ),
                         &key,
                     )
                     .await
@@ -412,30 +422,13 @@ mod storage {
                     {
                         Ok(HsetnxReply::KeyNotSet) => Err(errors::StorageError::DuplicateValue {
                             entity: "address",
-                            key: Some(address_new.address_id),
+                            key: Some(created_address.address_id),
                         })
                         .into_report(),
-                        Ok(HsetnxReply::KeySet) => {
-                            let redis_entry = kv::TypedSql {
-                                op: kv::DBOperation::Insert {
-                                    insertable: kv::Insertable::Address(Box::new(address_new)),
-                                },
-                            };
-                            self.push_to_drainer_stream::<diesel_models::Address>(
-                                redis_entry,
-                                PartitionKey::MerchantIdPaymentId {
-                                    merchant_id: &merchant_id,
-                                    payment_id,
-                                },
-                            )
+                        Ok(HsetnxReply::KeySet) => Ok(created_address
+                            .convert(key_store.key.get_inner())
                             .await
-                            .change_context(errors::StorageError::KVError)?;
-
-                            Ok(created_address
-                                .convert(key_store.key.get_inner())
-                                .await
-                                .change_context(errors::StorageError::DecryptionError)?)
-                        }
+                            .change_context(errors::StorageError::DecryptionError)?),
                         Err(er) => Err(er).change_context(errors::StorageError::KVError),
                     }
                 }
