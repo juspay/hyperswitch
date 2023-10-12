@@ -12,9 +12,13 @@ command_discovery curl
 command_discovery aws
 command_discovery psql
 
+echo "Please enter the AWS region (us-east-2):"
+read REGION < /dev/tty
 
-
-export REGION=us-east-2
+if [ -z "$REGION" ]; then
+    echo "Using default region: us-east-2"
+    REGION="us-east-2"
+fi
 
 #############  APPLICATION ##################
 # CREATE SECURITY GROUP FOR APPLICATION
@@ -139,6 +143,12 @@ echo "Elasticache with Redis engine CREATED successfully!"
 
 echo "Creating RDS with PSQL..."
 
+while [[ -z "$MASTER_DB_PASSWORD" ]]; do
+    echo "Please enter the password for your RDS instance:"
+    echo "Minimum length: 8 Characters [A-Z][a-z][0-9]"
+    read MASTER_DB_PASSWORD < /dev/tty
+done
+
 export DB_INSTANCE_ID=hyperswitch-db
 echo `aws rds create-db-instance  \
     --db-instance-identifier $DB_INSTANCE_ID\
@@ -146,7 +156,7 @@ echo `aws rds create-db-instance  \
     --engine postgres \
     --allocated-storage 20 \
     --master-username hyperswitch \
-    --master-user-password hyps1234 \
+    --master-user-password $MASTER_DB_PASSWORD \
     --backup-retention-period 7 \
     --region $REGION \
     --db-name hyperswitch_db \
@@ -190,7 +200,7 @@ echo "RDS Endpoint retrieved successfully!"
 
 echo "Applying Schema to DB..."
 
-psql -d postgresql://hyperswitch:hyps1234@$RDS_ENDPOINT/hyperswitch_db -a -f schema.sql > /dev/null
+psql -d postgresql://hyperswitch:$MASTER_DB_PASSWORD@$RDS_ENDPOINT/hyperswitch_db -a -f schema.sql > /dev/null
 
 echo "Schema applied to DB successfully!"
 
@@ -240,6 +250,10 @@ export REDIS_ENDPOINT=$(aws elasticache describe-cache-clusters \
 
 echo "Redis Endpoint retrieved successfully!"
 
+while [[ -z "$ADMIN_API_KEY" ]]; do
+    echo "Please enter the Admin api key:"
+    read ADMIN_API_KEY < /dev/tty
+done
 
 echo "\n# Add redis and DB configs\n" >> user_data.sh
 echo "cat << EOF >> .env" >> user_data.sh
@@ -248,9 +262,10 @@ echo "ROUTER__MASTER_DATABASE__HOST=$RDS_ENDPOINT" >> user_data.sh
 echo "ROUTER__REPLICA_DATABASE__HOST=$RDS_ENDPOINT" >> user_data.sh
 echo "ROUTER__SERVER__HOST=0.0.0.0" >> user_data.sh
 echo "ROUTER__MASTER_DATABASE__USERNAME=hyperswitch" >> user_data.sh
-echo "ROUTER__MASTER_DATABASE__PASSWORD=hyps1234" >> user_data.sh
-echo "export HOST=$(curl ifconfig.me)" >> user_data.sh
+echo "ROUTER__MASTER_DATABASE__PASSWORD=$MASTER_DB_PASSWORD" >> user_data.sh
+echo "export HOST=\$(curl ifconfig.me)" >> user_data.sh
 echo "ROUTER__SERVER__BASE_URL=$HOST" >> user_data.sh
+echo "ROUTER__SECRETS__ADMIN_API_KEY=$ADMIN_API_KEY" >> user_data.sh
 echo "EOF" >> user_data.sh
 
 echo "docker run --env-file .env -p 80:8080 -v \`pwd\`/:/local/config juspaydotin/hyperswitch-router:beta ./router -f /local/config/production.toml
@@ -318,9 +333,9 @@ export PUBLIC_HYPERSWITCH_IP=$(aws ec2 describe-instances \
 health_status=null
 while [[ $health_status != 'health is good' ]]
 do
+    health_status=$(curl http://$PUBLIC_HYPERSWITCH_IP/health)
     sleep 10
-    health_status=$(curl https://api.hyperswitch.io/health)
 done
 
-echo "Hurray! You can try using hyperswitch at https://$PUBLIC_HYPERSWITCH_IP"
-echo "Health endpoint: https://$PUBLIC_HYPERSWITCH_IP/health"
+echo "Hurray\! You can try using hyperswitch at http:\/\/$PUBLIC_HYPERSWITCH_IP"
+echo "Health endpoint: http:\/\/$PUBLIC_HYPERSWITCH_IP\/health"
