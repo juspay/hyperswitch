@@ -942,6 +942,7 @@ impl Default for PaymentSyncType {
             capture_method: None,
             sync_type: types::SyncRequestType::SinglePaymentSync,
             connector_meta: None,
+            payment_attempt_created_at_as_utc: 0,
         };
         Self(data)
     }

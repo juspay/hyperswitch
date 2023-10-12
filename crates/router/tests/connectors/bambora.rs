@@ -108,6 +108,7 @@ async fn should_sync_authorized_payment() {
                 capture_method: Some(diesel_models::enums::CaptureMethod::Manual),
                 sync_type: types::SyncRequestType::SinglePaymentSync,
                 connector_meta: None,
+                payment_attempt_created_at_as_utc: 0,
             }),
             None,
         )
@@ -222,6 +223,7 @@ async fn should_sync_auto_captured_payment() {
                 capture_method: Some(enums::CaptureMethod::Automatic),
                 sync_type: types::SyncRequestType::SinglePaymentSync,
                 connector_meta: None,
+                payment_attempt_created_at_as_utc: 0,
             }),
             None,
         )
