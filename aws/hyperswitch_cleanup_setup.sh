@@ -59,16 +59,16 @@ if yes_or_no; then
     done
 fi
 
-export ALL_INSTANCES=($(aws ec2 describe-instances \
+export ALL_INSTANCES=$(aws ec2 describe-instances \
             --filters 'Name=tag:ManagedBy,Values=hyperswitch' \
 --region $REGION \
-    --query 'Reservations[*].Instances[*].InstanceId' --output text))
+    --query 'Reservations[*].Instances[*].InstanceId' --output text)
 
-export ALL_EBS=($(aws ec2 describe-instances \
+export ALL_EBS=$(aws ec2 describe-instances \
             --filters 'Name=tag:ManagedBy,Values=hyperswitch' \
 --region $REGION \
             --query 'Reservations[*].Instances[*].BlockDeviceMappings[*].Ebs.VolumeId' \
-    --output text))
+    --output text)
 
 echo -n "Terminating ( $ALL_INSTANCES ) instances? (Y/n)?"
 
