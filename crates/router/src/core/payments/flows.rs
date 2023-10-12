@@ -1611,6 +1611,7 @@ default_imp_for_payouts_recipient_account!(
     connector::Shift4,
     connector::Trustpay,
     connector::Tsys,
+    connector::Volt,
     connector::Wise,
     connector::Worldline,
     connector::Worldpay,
