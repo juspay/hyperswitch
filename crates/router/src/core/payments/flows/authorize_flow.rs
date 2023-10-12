@@ -342,6 +342,7 @@ impl<F> TryFrom<&types::RouterData<F, types::PaymentsAuthorizeData, types::Payme
     ) -> Result<Self, Self::Error> {
         Ok(Self {
             email: data.request.email.clone(),
+            payment_method_data: data.request.payment_method_data.clone(),
             description: None,
             phone: None,
             name: None,

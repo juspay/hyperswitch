@@ -140,7 +140,7 @@ pub enum ApiErrorResponse {
     },
     #[error(error_type = ErrorType::DuplicateRequest, code = "HE_01", message = "The payment method with the specified details already exists in our records")]
     DuplicatePaymentMethod,
-    #[error(error_type = ErrorType::DuplicateRequest, code = "HE_01", message = "The payment with the specified payment_id '{payment_id}' already exists in our records")]
+    #[error(error_type = ErrorType::DuplicateRequest, code = "HE_01", message = "The payment with the specified payment_id already exists in our records")]
     DuplicatePayment { payment_id: String },
     #[error(error_type = ErrorType::DuplicateRequest, code = "HE_01", message = "The payout with the specified payout_id '{payout_id}' already exists in our records")]
     DuplicatePayout { payout_id: String },
@@ -158,7 +158,7 @@ pub enum ApiErrorResponse {
     PaymentMethodNotFound,
     #[error(error_type = ErrorType::ObjectNotFound, code = "HE_02", message = "Merchant account does not exist in our records")]
     MerchantAccountNotFound,
-    #[error(error_type = ErrorType::ObjectNotFound, code = "HE_02", message = "Merchant connector account with id '{id}' does not exist in our records")]
+    #[error(error_type = ErrorType::ObjectNotFound, code = "HE_02", message = "Merchant connector account does not exist in our records")]
     MerchantConnectorAccountNotFound { id: String },
     #[error(error_type = ErrorType::ObjectNotFound, code = "HE_02", message = "Business profile with the given id  '{id}' does not exist in our records")]
     BusinessProfileNotFound { id: String },
@@ -230,6 +230,8 @@ pub enum ApiErrorResponse {
     IncorrectPaymentMethodConfiguration,
     #[error(error_type = ErrorType::InvalidRequestError, code = "WE_05", message = "Unable to process the webhook body")]
     WebhookUnprocessableEntity,
+    #[error(error_type = ErrorType::InvalidRequestError, code = "WE_05", message = "Merchant Secret set my merchant for webhook source verification is invalid")]
+    WebhookInvalidMerchantSecret,
     #[error(error_type = ErrorType::InvalidRequestError, code = "IR_19", message = "{message}")]
     CurrencyNotSupported { message: String },
 }

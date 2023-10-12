@@ -15,8 +15,12 @@ use crate::{
 };
 
 #[async_trait]
-impl ConstructFlowSpecificData<api::Verify, types::VerifyRequestData, types::PaymentsResponseData>
-    for PaymentData<api::Verify>
+impl
+    ConstructFlowSpecificData<
+        api::SetupMandate,
+        types::SetupMandateRequestData,
+        types::PaymentsResponseData,
+    > for PaymentData<api::SetupMandate>
 {
     async fn construct_router_data<'a>(
         &self,
@@ -26,8 +30,11 @@ impl ConstructFlowSpecificData<api::Verify, types::VerifyRequestData, types::Pay
         key_store: &domain::MerchantKeyStore,
         customer: &Option<domain::Customer>,
         merchant_connector_account: &helpers::MerchantConnectorAccountType,
-    ) -> RouterResult<types::VerifyRouterData> {
-        transformers::construct_payment_router_data::<api::Verify, types::VerifyRequestData>(
+    ) -> RouterResult<types::SetupMandateRouterData> {
+        transformers::construct_payment_router_data::<
+            api::SetupMandate,
+            types::SetupMandateRequestData,
+        >(
             state,
             self.clone(),
             connector_id,
@@ -41,7 +48,7 @@ impl ConstructFlowSpecificData<api::Verify, types::VerifyRequestData, types::Pay
 }
 
 #[async_trait]
-impl Feature<api::Verify, types::VerifyRequestData> for types::VerifyRouterData {
+impl Feature<api::SetupMandate, types::SetupMandateRequestData> for types::SetupMandateRouterData {
     async fn decide_flows<'a>(
         self,
         state: &AppState,
@@ -54,8 +61,8 @@ impl Feature<api::Verify, types::VerifyRequestData> for types::VerifyRouterData 
     ) -> RouterResult<Self> {
         let connector_integration: services::BoxedConnectorIntegration<
             '_,
-            api::Verify,
-            types::VerifyRequestData,
+            api::SetupMandate,
+            types::SetupMandateRequestData,
             types::PaymentsResponseData,
         > = connector.connector.get_connector_integration();
         let resp = services::execute_connector_processing_step(
@@ -66,7 +73,7 @@ impl Feature<api::Verify, types::VerifyRequestData> for types::VerifyRouterData 
             connector_request,
         )
         .await
-        .to_verify_failed_response()?;
+        .to_setup_mandate_failed_response()?;
 
         let pm_id = tokenization::save_payment_method(
             state,
@@ -132,8 +139,8 @@ impl Feature<api::Verify, types::VerifyRequestData> for types::VerifyRouterData 
             payments::CallConnectorAction::Trigger => {
                 let connector_integration: services::BoxedConnectorIntegration<
                     '_,
-                    api::Verify,
-                    types::VerifyRequestData,
+                    api::SetupMandate,
+                    types::SetupMandateRequestData,
                     types::PaymentsResponseData,
                 > = connector.connector.get_connector_integration();
 
@@ -149,11 +156,12 @@ impl Feature<api::Verify, types::VerifyRequestData> for types::VerifyRouterData 
     }
 }
 
-impl TryFrom<types::VerifyRequestData> for types::ConnectorCustomerData {
+impl TryFrom<types::SetupMandateRequestData> for types::ConnectorCustomerData {
     type Error = error_stack::Report<errors::ApiErrorResponse>;
-    fn try_from(data: types::VerifyRequestData) -> Result<Self, Self::Error> {
+    fn try_from(data: types::SetupMandateRequestData) -> Result<Self, Self::Error> {
         Ok(Self {
             email: data.email,
+            payment_method_data: data.payment_method_data,
             description: None,
             phone: None,
             name: None,
@@ -163,7 +171,7 @@ impl TryFrom<types::VerifyRequestData> for types::ConnectorCustomerData {
 }
 
 #[allow(clippy::too_many_arguments)]
-impl types::VerifyRouterData {
+impl types::SetupMandateRouterData {
     pub async fn decide_flow<'a, 'b>(
         &'b self,
         state: &'a AppState,
@@ -178,8 +186,8 @@ impl types::VerifyRouterData {
             Some(true) => {
                 let connector_integration: services::BoxedConnectorIntegration<
                     '_,
-                    api::Verify,
-                    types::VerifyRequestData,
+                    api::SetupMandate,
+                    types::SetupMandateRequestData,
                     types::PaymentsResponseData,
                 > = connector.connector.get_connector_integration();
                 let resp = services::execute_connector_processing_step(
@@ -190,7 +198,7 @@ impl types::VerifyRouterData {
                     None,
                 )
                 .await
-                .to_verify_failed_response()?;
+                .to_setup_mandate_failed_response()?;
 
                 let payment_method_type = self.request.payment_method_type;
                 let pm_id = tokenization::save_payment_method(
@@ -211,7 +219,7 @@ impl types::VerifyRouterData {
     }
 }
 
-impl mandate::MandateBehaviour for types::VerifyRequestData {
+impl mandate::MandateBehaviour for types::SetupMandateRequestData {
     fn get_amount(&self) -> i64 {
         0
     }
@@ -237,10 +245,10 @@ impl mandate::MandateBehaviour for types::VerifyRequestData {
     }
 }
 
-impl TryFrom<types::VerifyRequestData> for types::PaymentMethodTokenizationData {
+impl TryFrom<types::SetupMandateRequestData> for types::PaymentMethodTokenizationData {
     type Error = error_stack::Report<errors::ApiErrorResponse>;
 
-    fn try_from(data: types::VerifyRequestData) -> Result<Self, Self::Error> {
+    fn try_from(data: types::SetupMandateRequestData) -> Result<Self, Self::Error> {
         Ok(Self {
             payment_method_data: data.payment_method_data,
             browser_info: None,

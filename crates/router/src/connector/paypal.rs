@@ -1,5 +1,5 @@
 pub mod transformers;
-use std::fmt::Debug;
+use std::fmt::{Debug, Write};
 
 use base64::Engine;
 use common_utils::ext_traits::ByteSliceExt;
@@ -9,6 +9,7 @@ use masking::PeekInterface;
 use transformers as paypal;
 
 use self::transformers::{PaypalAuthResponse, PaypalMeta};
+use super::utils::PaymentsCompleteAuthorizeRequestData;
 use crate::{
     configs::settings,
     connector::{
@@ -41,7 +42,7 @@ impl api::Payment for Paypal {}
 impl api::PaymentSession for Paypal {}
 impl api::PaymentToken for Paypal {}
 impl api::ConnectorAccessToken for Paypal {}
-impl api::PreVerify for Paypal {}
+impl api::MandateSetup for Paypal {}
 impl api::PaymentAuthorize for Paypal {}
 impl api::PaymentsCompleteAuthorize for Paypal {}
 impl api::PaymentSync for Paypal {}
@@ -168,12 +169,26 @@ impl ConnectorCommon for Paypal {
             .parse_struct("Paypal ErrorResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
 
-        let error_reason = response.details.map(|error_details| {
-            error_details
-                .iter()
-                .map(|error| format!("description - {} ; ", error.description))
-                .collect::<String>()
-        });
+        let error_reason = response
+            .details
+            .map(|error_details| {
+                error_details
+                    .iter()
+                    .try_fold::<_, _, CustomResult<_, errors::ConnectorError>>(
+                        String::new(),
+                        |mut acc, error| {
+                            write!(acc, "description - {} ;", error.description)
+                                .into_report()
+                                .change_context(
+                                    errors::ConnectorError::ResponseDeserializationFailed,
+                                )
+                                .attach_printable("Failed to concatenate error details")
+                                .map(|_| acc)
+                        },
+                    )
+            })
+            .transpose()?;
+
         Ok(ErrorResponse {
             status_code: res.status_code,
             code: response.name,
@@ -316,8 +331,12 @@ impl ConnectorIntegration<api::AccessTokenAuth, types::AccessTokenRequestData, t
     }
 }
 
-impl ConnectorIntegration<api::Verify, types::VerifyRequestData, types::PaymentsResponseData>
-    for Paypal
+impl
+    ConnectorIntegration<
+        api::SetupMandate,
+        types::SetupMandateRequestData,
+        types::PaymentsResponseData,
+    > for Paypal
 {
 }
 
@@ -407,6 +426,13 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
                     http_code: res.status_code,
                 })
             }
+            PaypalAuthResponse::PaypalThreeDsResponse(response) => {
+                types::RouterData::try_from(types::ResponseRouterData {
+                    response,
+                    data: data.clone(),
+                    http_code: res.status_code,
+                })
+            }
         }
     }
 
@@ -442,10 +468,10 @@ impl
         req: &types::PaymentsCompleteAuthorizeRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        let paypal_meta: PaypalMeta = to_connector_meta(req.request.connector_meta.clone())?;
-        let complete_authorize_url = match paypal_meta.psync_flow {
-            transformers::PaypalPaymentIntent::Authorize => "authorize".to_string(),
-            transformers::PaypalPaymentIntent::Capture => "capture".to_string(),
+        let complete_authorize_url = if req.request.is_auto_capture()? {
+            "capture".to_string()
+        } else {
+            "authorize".to_string()
         };
         Ok(format!(
             "{}v2/checkout/orders/{}/{complete_authorize_url}",
@@ -550,6 +576,19 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
                             ),
                         )?;
                         format!("v2/payments/captures/{capture_id}")
+                    }
+                    // only set when payment is done through card 3DS
+                    //because no authorize or capture id is generated during payment authorize call for card 3DS
+                    transformers::PaypalPaymentIntent::Authenticate => {
+                        format!(
+                            "v2/checkout/orders/{}",
+                            req.request
+                                .connector_transaction_id
+                                .get_connector_transaction_id()
+                                .change_context(
+                                    errors::ConnectorError::MissingConnectorTransactionID
+                                )?
+                        )
                     }
                 };
                 Ok(format!("{}{psync_url}", self.base_url(connectors)))

@@ -4,8 +4,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     connector::utils::{
-        self as conn_utils, CardData, PaymentsAuthorizeRequestData, RefundsRequestData, RouterData,
-        WalletData,
+        self as conn_utils, CardData, PaymentsAuthorizeRequestData, RouterData, WalletData,
     },
     core::errors,
     services,
@@ -238,7 +237,16 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for NoonPaymentsRequest {
                 item.request.order_category.clone(),
             ),
         };
-        let name = item.get_description()?;
+
+        // The description should not have leading or trailing whitespaces, also it should not have double whitespaces and a max 50 chars according to Noon's Docs
+        let name: String = item
+            .get_description()?
+            .trim()
+            .replace("  ", " ")
+            .chars()
+            .take(50)
+            .collect();
+
         let (subscription, tokenize_c_c) =
             match item.request.setup_future_usage.is_some().then_some((
                 NoonSubscriptionData {
@@ -255,7 +263,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for NoonPaymentsRequest {
             currency,
             channel: NoonChannels::Web,
             category,
-            reference: item.payment_id.clone(),
+            reference: item.connector_request_reference_id.clone(),
             name,
         };
         let payment_action = if item.request.is_auto_capture()? {
@@ -317,6 +325,8 @@ pub enum NoonPaymentStatus {
     Failed,
     #[default]
     Pending,
+    Expired,
+    Rejected,
 }
 
 impl From<NoonPaymentStatus> for enums::AttemptStatus {
@@ -325,11 +335,11 @@ impl From<NoonPaymentStatus> for enums::AttemptStatus {
             NoonPaymentStatus::Authorized => Self::Authorized,
             NoonPaymentStatus::Captured | NoonPaymentStatus::PartiallyCaptured => Self::Charged,
             NoonPaymentStatus::Reversed => Self::Voided,
-            NoonPaymentStatus::Cancelled => Self::AuthenticationFailed,
+            NoonPaymentStatus::Cancelled | NoonPaymentStatus::Expired => Self::AuthenticationFailed,
             NoonPaymentStatus::ThreeDsEnrollInitiated | NoonPaymentStatus::ThreeDsEnrollChecked => {
                 Self::AuthenticationPending
             }
-            NoonPaymentStatus::Failed => Self::Failure,
+            NoonPaymentStatus::Failed | NoonPaymentStatus::Rejected => Self::Failure,
             NoonPaymentStatus::Pending => Self::Pending,
         }
     }
@@ -347,6 +357,7 @@ pub struct NoonPaymentsOrderResponse {
     id: u64,
     error_code: u64,
     error_message: Option<String>,
+    reference: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -401,14 +412,20 @@ impl<F, T>
                     reason: Some(error_message),
                     status_code: item.http_code,
                 }),
-                _ => Ok(types::PaymentsResponseData::TransactionResponse {
-                    resource_id: types::ResponseId::ConnectorTransactionId(order.id.to_string()),
-                    redirection_data,
-                    mandate_reference,
-                    connector_metadata: None,
-                    network_txn_id: None,
-                    connector_response_reference_id: None,
-                }),
+                _ => {
+                    let connector_response_reference_id =
+                        order.reference.or(Some(order.id.to_string()));
+                    Ok(types::PaymentsResponseData::TransactionResponse {
+                        resource_id: types::ResponseId::ConnectorTransactionId(
+                            order.id.to_string(),
+                        ),
+                        redirection_data,
+                        mandate_reference,
+                        connector_metadata: None,
+                        network_txn_id: None,
+                        connector_response_reference_id,
+                    })
+                }
             },
             ..item.data
         })
@@ -420,6 +437,7 @@ impl<F, T>
 pub struct NoonActionTransaction {
     amount: String,
     currency: diesel_models::enums::Currency,
+    transaction_reference: Option<String>,
 }
 
 #[derive(Debug, Serialize)]
@@ -448,6 +466,7 @@ impl TryFrom<&types::PaymentsCaptureRouterData> for NoonPaymentsActionRequest {
                 item.request.currency,
             )?,
             currency: item.request.currency,
+            transaction_reference: None,
         };
         Ok(Self {
             api_operation: NoonApiOperations::Capture,
@@ -489,6 +508,7 @@ impl<F> TryFrom<&types::RefundsRouterData<F>> for NoonPaymentsActionRequest {
                 item.request.currency,
             )?,
             currency: item.request.currency,
+            transaction_reference: Some(item.request.refund_id.clone()),
         };
         Ok(Self {
             api_operation: NoonApiOperations::Refund,
@@ -552,9 +572,11 @@ impl TryFrom<types::RefundsResponseRouterData<api::Execute, RefundResponse>>
 }
 
 #[derive(Default, Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct NoonRefundResponseTransactions {
     id: String,
     status: RefundStatus,
+    transaction_reference: Option<String>,
 }
 
 #[derive(Default, Debug, Deserialize)]
@@ -574,13 +596,19 @@ impl TryFrom<types::RefundsResponseRouterData<api::RSync, RefundSyncResponse>>
     fn try_from(
         item: types::RefundsResponseRouterData<api::RSync, RefundSyncResponse>,
     ) -> Result<Self, Self::Error> {
-        let connector_refund_id = item.data.request.get_connector_refund_id()?;
         let noon_transaction: &NoonRefundResponseTransactions = item
             .response
             .result
             .transactions
             .iter()
-            .find(|transaction| transaction.id == connector_refund_id)
+            .find(|transaction| {
+                transaction
+                    .transaction_reference
+                    .clone()
+                    .map_or(false, |transaction_instance| {
+                        transaction_instance == item.data.request.refund_id
+                    })
+            })
             .ok_or(errors::ConnectorError::ResponseHandlingFailed)?;
 
         Ok(Self {
@@ -651,6 +679,7 @@ impl From<NoonWebhookObject> for NoonPaymentsResponse {
                     //For successful payments Noon Always populates error_code as 0.
                     error_code: 0,
                     error_message: None,
+                    reference: None,
                 },
                 checkout_data: None,
                 subscription: None,

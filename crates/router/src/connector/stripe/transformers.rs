@@ -1582,7 +1582,7 @@ impl TryFrom<&payments::BankRedirectData> for StripePaymentMethodData {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(bank_redirect_data: &payments::BankRedirectData) -> Result<Self, Self::Error> {
         let payment_method_data_type = StripePaymentMethodType::try_from(bank_redirect_data)?;
-        match bank_redirect_data.deref() {
+        match bank_redirect_data {
             payments::BankRedirectData::BancontactCard { .. } => Ok(Self::BankRedirect(
                 StripeBankRedirectData::StripeBancontactCard(Box::new(StripeBancontactCard {
                     payment_method_data_type,
@@ -1591,7 +1591,11 @@ impl TryFrom<&payments::BankRedirectData> for StripePaymentMethodData {
             payments::BankRedirectData::Blik { blik_code } => Ok(Self::BankRedirect(
                 StripeBankRedirectData::StripeBlik(Box::new(StripeBlik {
                     payment_method_data_type,
-                    code: blik_code.to_owned(),
+                    code: blik_code.clone().ok_or(
+                        errors::ConnectorError::MissingRequiredField {
+                            field_name: "blik_code",
+                        },
+                    )?,
                 })),
             )),
             payments::BankRedirectData::Eps { bank_name, .. } => Ok(Self::BankRedirect(
@@ -1925,9 +1929,9 @@ fn get_payment_method_type_for_saved_payment_method_payment(
     }
 }
 
-impl TryFrom<&types::VerifyRouterData> for SetupIntentRequest {
+impl TryFrom<&types::SetupMandateRouterData> for SetupIntentRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(item: &types::VerifyRouterData) -> Result<Self, Self::Error> {
+    fn try_from(item: &types::SetupMandateRouterData) -> Result<Self, Self::Error> {
         let metadata_order_id = item.connector_request_reference_id.clone();
         let metadata_txn_id = format!("{}_{}_{}", item.merchant_id, item.payment_id, "1");
         let metadata_txn_uuid = Uuid::new_v4().to_string();
@@ -2121,7 +2125,14 @@ pub struct PaymentIntentSyncResponse {
     #[serde(flatten)]
     payment_intent_fields: PaymentIntentResponse,
     pub last_payment_error: Option<LastPaymentError>,
-    pub latest_charge: Option<StripeCharge>,
+    pub latest_charge: Option<StripeChargeEnum>,
+}
+
+#[derive(Deserialize, Debug, Clone)]
+#[serde(untagged)]
+pub enum StripeChargeEnum {
+    ChargeId(String),
+    ChargeObject(StripeCharge),
 }
 
 #[derive(Deserialize, Clone, Debug)]
@@ -2181,6 +2192,7 @@ pub enum StripePaymentMethodDetailsResponse {
     #[serde(rename = "wechat_pay")]
     Wechatpay,
     Alipay,
+    CustomerBalance,
 }
 
 #[derive(Deserialize)]
@@ -2409,19 +2421,38 @@ impl<F, T>
             types::MandateReference::foreign_from((
                 item.response.payment_method_options.clone(),
                 match item.response.latest_charge.clone() {
-                    Some(charge) => match charge.payment_method_details {
-                        Some(StripePaymentMethodDetailsResponse::Bancontact { bancontact }) => {
-                            bancontact.attached_payment_method.unwrap_or(pm)
+                    Some(StripeChargeEnum::ChargeObject(charge)) => {
+                        match charge.payment_method_details {
+                            Some(StripePaymentMethodDetailsResponse::Bancontact { bancontact }) => {
+                                bancontact.attached_payment_method.unwrap_or(pm)
+                            }
+                            Some(StripePaymentMethodDetailsResponse::Ideal { ideal }) => {
+                                ideal.attached_payment_method.unwrap_or(pm)
+                            }
+                            Some(StripePaymentMethodDetailsResponse::Sofort { sofort }) => {
+                                sofort.attached_payment_method.unwrap_or(pm)
+                            }
+                            Some(StripePaymentMethodDetailsResponse::Blik)
+                            | Some(StripePaymentMethodDetailsResponse::Eps)
+                            | Some(StripePaymentMethodDetailsResponse::Fpx)
+                            | Some(StripePaymentMethodDetailsResponse::Giropay)
+                            | Some(StripePaymentMethodDetailsResponse::Przelewy24)
+                            | Some(StripePaymentMethodDetailsResponse::Card)
+                            | Some(StripePaymentMethodDetailsResponse::Klarna)
+                            | Some(StripePaymentMethodDetailsResponse::Affirm)
+                            | Some(StripePaymentMethodDetailsResponse::AfterpayClearpay)
+                            | Some(StripePaymentMethodDetailsResponse::ApplePay)
+                            | Some(StripePaymentMethodDetailsResponse::Ach)
+                            | Some(StripePaymentMethodDetailsResponse::Sepa)
+                            | Some(StripePaymentMethodDetailsResponse::Becs)
+                            | Some(StripePaymentMethodDetailsResponse::Bacs)
+                            | Some(StripePaymentMethodDetailsResponse::Wechatpay)
+                            | Some(StripePaymentMethodDetailsResponse::Alipay)
+                            | Some(StripePaymentMethodDetailsResponse::CustomerBalance)
+                            | None => pm,
                         }
-                        Some(StripePaymentMethodDetailsResponse::Ideal { ideal }) => {
-                            ideal.attached_payment_method.unwrap_or(pm)
-                        }
-                        Some(StripePaymentMethodDetailsResponse::Sofort { sofort }) => {
-                            sofort.attached_payment_method.unwrap_or(pm)
-                        }
-                        _ => pm,
-                    },
-                    None => pm,
+                    }
+                    Some(StripeChargeEnum::ChargeId(_)) | None => pm,
                 },
             ))
         });

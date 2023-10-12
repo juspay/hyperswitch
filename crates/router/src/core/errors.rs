@@ -139,6 +139,8 @@ pub enum ConnectorError {
     WebhookSourceVerificationFailed,
     #[error("Could not find merchant secret in DB for incoming webhook source verification")]
     WebhookVerificationSecretNotFound,
+    #[error("Merchant secret found for incoming webhook source verification is invalid")]
+    WebhookVerificationSecretInvalid,
     #[error("Incoming webhook object reference ID not found")]
     WebhookReferenceIdNotFound,
     #[error("Incoming webhook event type not found")]

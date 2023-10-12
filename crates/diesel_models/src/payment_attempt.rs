@@ -57,6 +57,7 @@ pub struct PaymentAttempt {
     // reference to the payment at connector side
     pub connector_response_reference_id: Option<String>,
     pub amount_capturable: i64,
+    pub surcharge_metadata: Option<serde_json::Value>,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Queryable, Serialize, Deserialize)]
@@ -115,6 +116,7 @@ pub struct PaymentAttemptNew {
     pub connector_response_reference_id: Option<String>,
     pub multiple_capture_count: Option<i16>,
     pub amount_capturable: i64,
+    pub surcharge_metadata: Option<serde_json::Value>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -220,6 +222,9 @@ pub enum PaymentAttemptUpdate {
         connector_transaction_id: Option<String>,
         connector_response_reference_id: Option<String>,
     },
+    SurchargeMetadataUpdate {
+        surcharge_metadata: Option<serde_json::Value>,
+    },
 }
 
 #[derive(Clone, Debug, Default, AsChangeset, router_derive::DebugAsDisplay)]
@@ -253,6 +258,7 @@ pub struct PaymentAttemptUpdateInternal {
     connector_response_reference_id: Option<String>,
     multiple_capture_count: Option<i16>,
     amount_capturable: Option<i64>,
+    surcharge_metadata: Option<serde_json::Value>,
 }
 
 impl PaymentAttemptUpdate {
@@ -279,6 +285,7 @@ impl PaymentAttemptUpdate {
             preprocessing_step_id: pa_update
                 .preprocessing_step_id
                 .or(source.preprocessing_step_id),
+            surcharge_metadata: pa_update.surcharge_metadata.or(source.surcharge_metadata),
             ..source
         }
     }
@@ -494,6 +501,10 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
             } => Self {
                 status: Some(status),
                 amount_capturable: Some(amount_capturable),
+                ..Default::default()
+            },
+            PaymentAttemptUpdate::SurchargeMetadataUpdate { surcharge_metadata } => Self {
+                surcharge_metadata,
                 ..Default::default()
             },
         }

@@ -135,7 +135,7 @@ impl ErrorSwitch<api_models::errors::types::ApiErrorResponse> for ApiErrorRespon
             }
             Self::DuplicatePaymentMethod => AER::BadRequest(ApiError::new("HE", 1, "The payment method with the specified details already exists in our records", None)),
             Self::DuplicatePayment { payment_id } => {
-                AER::BadRequest(ApiError::new("HE", 1, format!("The payment with the specified payment_id '{payment_id}' already exists in our records"), None))
+                AER::BadRequest(ApiError::new("HE", 1, "The payment with the specified payment_id already exists in our records", Some(Extra {reason: Some(format!("{payment_id} already exists")), ..Default::default()})))
             }
             Self::DuplicatePayout { payout_id } => {
                 AER::BadRequest(ApiError::new("HE", 1, format!("The payout with the specified payout_id '{payout_id}' already exists in our records"), None))
@@ -164,8 +164,8 @@ impl ErrorSwitch<api_models::errors::types::ApiErrorResponse> for ApiErrorRespon
             Self::MerchantAccountNotFound => {
                 AER::NotFound(ApiError::new("HE", 2, "Merchant account does not exist in our records", None))
             }
-            Self::MerchantConnectorAccountNotFound { id } => {
-                AER::NotFound(ApiError::new("HE", 2, format!("Merchant connector account with id '{id}' does not exist in our records"), None))
+            Self::MerchantConnectorAccountNotFound {id } => {
+                AER::NotFound(ApiError::new("HE", 2, "Merchant connector account does not exist in our records", Some(Extra {reason: Some(format!("{id} does not exist")), ..Default::default()})))
             }
             Self::MerchantConnectorAccountDisabled => {
                 AER::BadRequest(ApiError::new("HE", 3, "The selected merchant connector account is disabled", None))
@@ -252,6 +252,9 @@ impl ErrorSwitch<api_models::errors::types::ApiErrorResponse> for ApiErrorRespon
             Self::WebhookProcessingFailure => {
                 AER::InternalServerError(ApiError::new("WE", 3, "There was an issue processing the webhook", None))
             },
+            Self::WebhookInvalidMerchantSecret => {
+                AER::BadRequest(ApiError::new("WE", 2, "Merchant Secret set for webhook source verificartion is invalid", None))
+            }
             Self::IncorrectPaymentMethodConfiguration => {
                 AER::BadRequest(ApiError::new("HE", 4, "No eligible connector was found for the current payment method configuration", None))
             }
@@ -275,6 +278,9 @@ impl ErrorSwitch<ApiErrorResponse> for ConnectorError {
             | Self::WebhookBodyDecodingFailed
             | Self::WebhooksNotImplemented => ApiErrorResponse::WebhookBadRequest,
             Self::WebhookEventTypeNotFound => ApiErrorResponse::WebhookUnprocessableEntity,
+            Self::WebhookVerificationSecretInvalid => {
+                ApiErrorResponse::WebhookInvalidMerchantSecret
+            }
             _ => ApiErrorResponse::InternalServerError,
         }
     }
