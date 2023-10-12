@@ -54,6 +54,7 @@ use crate::{
 };
 
 #[instrument(skip_all)]
+#[allow(clippy::too_many_arguments)]
 pub async fn create_payment_method(
     db: &dyn db::StorageInterface,
     req: &api::PaymentMethodCreate,
@@ -62,7 +63,12 @@ pub async fn create_payment_method(
     merchant_id: &str,
     pm_metadata: Option<serde_json::Value>,
     payment_method_data: Option<Encryption>,
-) -> errors::CustomResult<storage::PaymentMethod, errors::StorageError> {
+    key_store: &domain::MerchantKeyStore,
+) -> errors::CustomResult<storage::PaymentMethod, errors::ApiErrorResponse> {
+    db.find_customer_by_customer_id_merchant_id(customer_id, merchant_id, key_store)
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::CustomerNotFound)?;
+
     let response = db
         .insert_payment_method(storage::PaymentMethodNew {
             customer_id: customer_id.to_string(),
@@ -76,7 +82,9 @@ pub async fn create_payment_method(
             payment_method_data,
             ..storage::PaymentMethodNew::default()
         })
-        .await?;
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to add payment method in db")?;
 
     Ok(response)
 }
@@ -141,10 +149,9 @@ pub async fn add_payment_method(
             &resp.merchant_id,
             pm_metadata.cloned(),
             pm_data_encrypted,
+            key_store,
         )
-        .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Failed to save Payment Method")?;
+        .await?;
     }
 
     Ok(resp).map(services::ApplicationResponse::Json)
@@ -1172,6 +1179,7 @@ pub async fn list_payment_methods(
                 card_network_types.push(CardNetworkTypes {
                     card_network: card_network_type.0.clone(),
                     eligible_connectors: card_network_type.1.clone(),
+                    surcharge_details: None,
                 })
             }
 
@@ -1350,9 +1358,11 @@ pub async fn filter_payment_methods(
                     payment_intent
                         .allowed_payment_method_types
                         .clone()
-                        .parse_value("Vec<PaymentMethodType>")
-                        .map_err(|error| logger::error!(%error, "Failed to deserialize PaymentIntent allowed_payment_method_types"))
-                        .ok()
+                        .map(|val| val.parse_value("Vec<PaymentMethodType>"))
+                        .transpose()
+                        .unwrap_or_else(|error| {
+                            logger::error!(%error, "Failed to deserialize PaymentIntent allowed_payment_method_types"); None
+                        })
                 });
 
             for payment_method_type_info in payment_methods_enabled

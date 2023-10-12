@@ -364,7 +364,7 @@ impl<F, T>
                 mandate_reference,
                 connector_metadata: Some(connector_metadata),
                 network_txn_id: None,
-                connector_response_reference_id: None,
+                connector_response_reference_id: Some(item.response.order_id),
             }),
             ..item.data
         })
@@ -425,7 +425,7 @@ impl<F, T>
         let transaction_id = Some(item.response.transaction_id.clone());
         let connector_metadata = serde_json::to_value(NexinetsPaymentsMetadata {
             transaction_id,
-            order_id: Some(item.response.order.order_id),
+            order_id: Some(item.response.order.order_id.clone()),
             psync_flow: item.response.transaction_type.clone(),
         })
         .into_report()
@@ -447,7 +447,7 @@ impl<F, T>
                 mandate_reference: None,
                 connector_metadata: Some(connector_metadata),
                 network_txn_id: None,
-                connector_response_reference_id: None,
+                connector_response_reference_id: Some(item.response.order.order_id),
             }),
             ..item.data
         })

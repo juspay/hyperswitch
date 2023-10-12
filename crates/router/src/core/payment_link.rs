@@ -1,4 +1,5 @@
 use api_models::admin as admin_types;
+use common_utils::ext_traits::AsyncExt;
 use error_stack::{IntoReport, ResultExt};
 
 use super::errors::{self, StorageErrorExt};
@@ -8,6 +9,7 @@ use crate::{
     routes::AppState,
     services,
     types::{domain, storage::enums as storage_enums, transformers::ForeignFrom},
+    utils::OptionExt,
 };
 
 pub async fn retrieve_payment_link(
@@ -41,6 +43,32 @@ pub async fn intiate_payment_link_flow(
         .await
         .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
 
+    let payment_link_metadata = merchant_account
+        .payment_link_metadata
+        .map(|pl_metadata| {
+            serde_json::from_value::<admin_types::PaymentLinkMetadata>(pl_metadata)
+                .into_report()
+                .change_context(errors::ApiErrorResponse::InvalidDataValue {
+                    field_name: "payment_link_metadata",
+                })
+        })
+        .transpose()?;
+
+    let fulfillment_time = payment_intent
+        .payment_link_id
+        .as_ref()
+        .async_and_then(|pli| async move {
+            db.find_payment_link_by_payment_link_id(pli)
+                .await
+                .ok()?
+                .fulfilment_time
+                .ok_or(errors::ApiErrorResponse::PaymentNotFound)
+                .ok()
+        })
+        .await
+        .get_required_value("fulfillment_time")
+        .change_context(errors::ApiErrorResponse::PaymentNotFound)?;
+
     helpers::validate_payment_status_against_not_allowed_statuses(
         &payment_intent.status,
         &[
@@ -53,16 +81,7 @@ pub async fn intiate_payment_link_flow(
         "create payment link",
     )?;
 
-    let payment_link_metadata = merchant_account
-        .payment_link_metadata
-        .map(|pl_metadata| {
-            serde_json::from_value::<admin_types::PaymentLinkMetadata>(pl_metadata)
-                .into_report()
-                .change_context(errors::ApiErrorResponse::InvalidDataValue {
-                    field_name: "payment_link_metadata",
-                })
-        })
-        .transpose()?;
+    let expiry = fulfillment_time.assume_utc().unix_timestamp();
 
     let js_script = get_js_script(
         payment_intent.amount.to_string(),
@@ -73,6 +92,7 @@ pub async fn intiate_payment_link_flow(
         payment_intent.return_url,
         merchant_account.merchant_id,
         payment_link_metadata.clone(),
+        expiry,
     );
 
     let css_script = get_color_scheme_css(payment_link_metadata.clone());
@@ -99,6 +119,7 @@ fn get_js_script(
     return_url: Option<String>,
     merchant_id: String,
     payment_link_metadata: Option<api_models::admin::PaymentLinkMetadata>,
+    expiry: i64,
 ) -> String {
     let merchant_logo = if let Some(pl_metadata) = payment_link_metadata {
         pl_metadata.merchant_logo.unwrap_or(
@@ -111,7 +132,8 @@ fn get_js_script(
     };
     let return_url = return_url.unwrap_or("https://hyperswitch.io/".to_string());
     format!(
-        "window.__PAYMENT_DETAILS_STR = JSON.stringify({{
+        "
+        window.__PAYMENT_DETAILS_STR = JSON.stringify({{
         client_secret: '{secret}',
         amount: '{amount}',
         currency: '{currency}',
@@ -121,11 +143,10 @@ fn get_js_script(
         return_url: '{return_url}',
         currency_symbol: '{currency}',
         merchant: '{merchant_id}',
-        max_items_visible_after_collapse: 3,
-        order_details: [
-            {{
-              product_name:
-                'dskjghbdsiuh sagfvbsajd ugbfiusedg fiudshgiu sdhgvishd givuhdsifu gnb gidsug biuesbdg iubsedg bsduxbg jhdxbgv jdskfbgi sdfgibuh ew87t54378 ghdfjbv jfdhgvb dufhvbfidu hg5784ghdfbjnk f (taxes incl.)',
+        expiry: {expiry},
+        // TODO: Remove hardcoded values
+        merchant_logo: 'https://upload.wikimedia.org/wikipedia/commons/8/83/Steam_icon_logo.svg',
+        return_url: 'http://localhost:5500/public/index.html',
               quantity: 2,
               amount: 100,
               product_image:

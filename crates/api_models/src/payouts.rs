@@ -146,6 +146,10 @@ pub struct PayoutCreateRequest {
     /// Provide a reference to a stored payment method
     #[schema(example = "187282ab-40ef-47a9-9206-5099ba31e432")]
     pub payout_token: Option<String>,
+
+    /// The business profile to use for this payment, if not passed the default business profile
+    /// associated with the merchant account will be used.
+    pub profile_id: Option<String>,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize, ToSchema)]
@@ -376,6 +380,9 @@ pub struct PayoutCreateResponse {
     /// If there was an error while calling the connectors the code is received here
     #[schema(value_type = String, example = "E0001")]
     pub error_code: Option<String>,
+
+    /// The business profile that is associated with this payment
+    pub profile_id: Option<String>,
 }
 
 #[derive(Default, Debug, Clone, Deserialize, ToSchema)]
