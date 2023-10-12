@@ -6,7 +6,7 @@ use router_derive::TryGetEnumVariant;
 use router_env::logger;
 use serde::de;
 
-use crate::{consts, store::kv::TypedSql, KVRouterStore};
+use crate::{consts, metrics, store::kv::TypedSql, KVRouterStore};
 
 pub trait KvStorePartition {
     fn partition_number(key: PartitionKey<'_>, num_partitions: u8) -> u32 {
@@ -104,64 +104,85 @@ where
 
     let partition_key = PartitionKey::MerchantIdPaymentIdCombination { combination: key };
 
-    let result = match op {
-        KvOperation::Hset(value, sql) => {
-            redis_conn
-                .set_hash_fields(key, value, Some(consts::KV_TTL))
-                .await?;
+    let result = async {
+        match op {
+            KvOperation::Hset(value, sql) => {
+                redis_conn
+                    .set_hash_fields(key, value, Some(consts::KV_TTL))
+                    .await?;
 
-            store
-                .push_to_drainer_stream::<S>(sql, partition_key)
-                .await?;
-
-            Ok(KvResult::Hset(()))
-        }
-
-        KvOperation::HGet(field) => {
-            let result = redis_conn
-                .get_hash_field_and_deserialize(key, field, type_name)
-                .await?;
-            Ok(KvResult::HGet(result))
-        }
-
-        KvOperation::Scan(pattern) => {
-            let result: Vec<T> = redis_conn.hscan_and_deserialize(key, pattern, None).await?;
-            Ok(KvResult::Scan(result))
-        }
-
-        KvOperation::HSetNx(field, value, sql) => {
-            let result = redis_conn
-                .serialize_and_set_hash_field_if_not_exist(key, field, value, Some(consts::KV_TTL))
-                .await?;
-
-            if matches!(result, redis_interface::HsetnxReply::KeySet) {
                 store
                     .push_to_drainer_stream::<S>(sql, partition_key)
                     .await?;
+
+                Ok(KvResult::Hset(()))
             }
-            Ok(KvResult::HSetNx(result))
-        }
 
-        KvOperation::SetNx(value, sql) => {
-            let result = redis_conn
-                .serialize_and_set_key_if_not_exist(key, value, Some(consts::KV_TTL.into()))
-                .await?;
-
-            if matches!(result, redis_interface::SetnxReply::KeySet) {
-                store
-                    .push_to_drainer_stream::<S>(sql, partition_key)
+            KvOperation::HGet(field) => {
+                let result = redis_conn
+                    .get_hash_field_and_deserialize(key, field, type_name)
                     .await?;
+                Ok(KvResult::HGet(result))
             }
 
-            Ok(KvResult::SetNx(result))
-        }
+            KvOperation::Scan(pattern) => {
+                let result: Vec<T> = redis_conn.hscan_and_deserialize(key, pattern, None).await?;
+                Ok(KvResult::Scan(result))
+            }
 
-        KvOperation::Get => {
-            let result = redis_conn.get_and_deserialize_key(key, type_name).await?;
-            Ok(KvResult::Get(result))
+            KvOperation::HSetNx(field, value, sql) => {
+                let result = redis_conn
+                    .serialize_and_set_hash_field_if_not_exist(
+                        key,
+                        field,
+                        value,
+                        Some(consts::KV_TTL),
+                    )
+                    .await?;
+
+                if matches!(result, redis_interface::HsetnxReply::KeySet) {
+                    store
+                        .push_to_drainer_stream::<S>(sql, partition_key)
+                        .await?;
+                }
+                Ok(KvResult::HSetNx(result))
+            }
+
+            KvOperation::SetNx(value, sql) => {
+                let result = redis_conn
+                    .serialize_and_set_key_if_not_exist(key, value, Some(consts::KV_TTL.into()))
+                    .await?;
+
+                if matches!(result, redis_interface::SetnxReply::KeySet) {
+                    store
+                        .push_to_drainer_stream::<S>(sql, partition_key)
+                        .await?;
+                }
+
+                Ok(KvResult::SetNx(result))
+            }
+
+            KvOperation::Get => {
+                let result = redis_conn.get_and_deserialize_key(key, type_name).await?;
+                Ok(KvResult::Get(result))
+            }
         }
     };
 
-    logger::debug!("KvOperation {operation} for {key} succeeded");
     result
+        .await
+        .map(|result| {
+            logger::debug!("KvOperation {operation} succeeded");
+            let keyvalue = router_env::opentelemetry::KeyValue::new("operation", operation.clone());
+
+            metrics::KV_OPERATION_SUCCESSFUL.add(&metrics::CONTEXT, 1, &[keyvalue]);
+            result
+        })
+        .map_err(|err| {
+            logger::error!("KvOperation for {operation} failed with {err:?}");
+            let keyvalue = router_env::opentelemetry::KeyValue::new("operation", operation);
+
+            metrics::KV_OPERATION_FAILED.add(&metrics::CONTEXT, 1, &[keyvalue]);
+            err
+        })
 }

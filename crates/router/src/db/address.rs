@@ -419,15 +419,6 @@ mod storage {
                     let redis_value = serde_json::to_string(&updated_address)
                         .into_report()
                         .change_context(errors::StorageError::KVError)?;
-                    kv_wrapper::<(), _, _>(
-                        self,
-                        KvOperation::Hset::<storage_types::Address>((&field, redis_value)),
-                        &key,
-                    )
-                    .await
-                    .change_context(errors::StorageError::KVError)?
-                    .try_into_hset()
-                    .change_context(errors::StorageError::KVError)?;
 
                     let redis_entry = kv::TypedSql {
                         op: kv::DBOperation::Update {
@@ -440,15 +431,19 @@ mod storage {
                         },
                     };
 
-                    self.push_to_drainer_stream::<storage_types::Address>(
-                        redis_entry,
-                        PartitionKey::MerchantIdPaymentId {
-                            merchant_id: &updated_address.merchant_id,
-                            payment_id: &payment_id,
-                        },
+                    kv_wrapper::<(), _, _>(
+                        self,
+                        KvOperation::Hset::<storage_types::Address>(
+                            (&field, redis_value),
+                            redis_entry,
+                        ),
+                        &key,
                     )
                     .await
+                    .change_context(errors::StorageError::KVError)?
+                    .try_into_hset()
                     .change_context(errors::StorageError::KVError)?;
+
                     updated_address
                         .convert(key_store.key.get_inner())
                         .await
