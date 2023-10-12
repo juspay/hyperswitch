@@ -31,7 +31,7 @@ pub struct Globepay;
 impl api::Payment for Globepay {}
 impl api::PaymentSession for Globepay {}
 impl api::ConnectorAccessToken for Globepay {}
-impl api::PreVerify for Globepay {}
+impl api::MandateSetup for Globepay {}
 impl api::PaymentAuthorize for Globepay {}
 impl api::PaymentSync for Globepay {}
 impl api::PaymentCapture for Globepay {}
@@ -138,8 +138,12 @@ impl ConnectorIntegration<api::AccessTokenAuth, types::AccessTokenRequestData, t
 {
 }
 
-impl ConnectorIntegration<api::Verify, types::VerifyRequestData, types::PaymentsResponseData>
-    for Globepay
+impl
+    ConnectorIntegration<
+        api::SetupMandate,
+        types::SetupMandateRequestData,
+        types::PaymentsResponseData,
+    > for Globepay
 {
 }
 

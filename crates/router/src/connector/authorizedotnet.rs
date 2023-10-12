@@ -104,10 +104,14 @@ impl ConnectorIntegration<api::AccessTokenAuth, types::AccessTokenRequestData, t
     // Not Implemented (R)
 }
 
-impl api::PreVerify for Authorizedotnet {}
+impl api::MandateSetup for Authorizedotnet {}
 
-impl ConnectorIntegration<api::Verify, types::VerifyRequestData, types::PaymentsResponseData>
-    for Authorizedotnet
+impl
+    ConnectorIntegration<
+        api::SetupMandate,
+        types::SetupMandateRequestData,
+        types::PaymentsResponseData,
+    > for Authorizedotnet
 {
     // Issue: #173
 }
@@ -741,6 +745,7 @@ impl api::IncomingWebhook for Authorizedotnet {
     fn get_webhook_source_verification_signature(
         &self,
         request: &api::IncomingWebhookRequestDetails<'_>,
+        _connector_webhook_secrets: &api_models::webhooks::ConnectorWebhookSecrets,
     ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
         let security_header = request
             .headers
@@ -768,7 +773,7 @@ impl api::IncomingWebhook for Authorizedotnet {
         &self,
         request: &api::IncomingWebhookRequestDetails<'_>,
         _merchant_id: &str,
-        _secret: &[u8],
+        _connector_webhook_secrets: &api_models::webhooks::ConnectorWebhookSecrets,
     ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
         Ok(request.body.to_vec())
     }

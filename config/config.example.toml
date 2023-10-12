@@ -28,6 +28,7 @@ port = 5432                 # DB Port
 dbname = "hyperswitch_db"   # Name of Database
 pool_size = 5               # Number of connections to keep open
 connection_timeout = 10     # Timeout for database connection in seconds
+queue_strategy = "Fifo"     # Add the queue strategy used by the database bb8 client
 
 # Replica SQL data store credentials
 [replica_database]
@@ -38,6 +39,7 @@ port = 5432                 # DB Port
 dbname = "hyperswitch_db"   # Name of Database
 pool_size = 5               # Number of connections to keep open
 connection_timeout = 10     # Timeout for database connection in seconds
+queue_strategy = "Fifo"     # Add the queue strategy used by the database bb8 client
 
 # Redis credentials
 [redis]
@@ -93,6 +95,7 @@ sampling_rate = 0.1                                   # decimal rate between 0.0
 otel_exporter_otlp_endpoint = "http://localhost:4317" # endpoint to send metrics and traces to, can include port number
 otel_exporter_otlp_timeout = 5000                     # timeout (in milliseconds) for sending metrics and traces
 use_xray_generator = false                            # Set this to true for AWS X-ray compatible traces
+route_to_trace = [ "*/confirm" ]
 
 # This section provides some secret values.
 [secrets]
@@ -203,18 +206,19 @@ square.secondary_base_url = "https://pci-connect.squareupsandbox.com/"
 stax.base_url = "https://apiprod.fattlabs.com/"
 stripe.base_url = "https://api.stripe.com/"
 stripe.base_url_file_upload = "https://files.stripe.com/"
+trustpay.base_url = "https://test-tpgw.trustpay.eu/"
+trustpay.base_url_bank_redirects = "https://aapi.trustpay.eu/"
+tsys.base_url = "https://stagegw.transnox.com/"
+volt.base_url = "https://api.sandbox.volt.io/"
 wise.base_url = "https://api.sandbox.transferwise.tech/"
 worldline.base_url = "https://eu.sandbox.api-ingenico.com/"
 worldpay.base_url = "https://try.access.worldpay.com/"
-trustpay.base_url = "https://test-tpgw.trustpay.eu/"
-tsys.base_url = "https://stagegw.transnox.com/"
-trustpay.base_url_bank_redirects = "https://aapi.trustpay.eu/"
 zen.base_url = "https://api.zen-test.com/"
 zen.secondary_base_url = "https://secure.zen-test.com/"
 
 #Payment Method Filters Based on Country and Currency
 [pm_filters.default]
-apple_pay = { country = "AU,CN,HK,JP,MO,MY,NZ,SG,TW,AM,AT,AZ,BY,BE,BG,HR,CY,CZ,DK,EE,FO,FI,FR,GE,DE,GR,GL,GG,HU,IS,IE,IM,IT,KZ,JE,LV,LI,LT,LU,MT,MD,MC,ME,NL,NO,PL,PT,RO,SM,RS,SK,SI,ES,SE,CH,UA,GB,AR,CO,CR,BR,MX,PE,BH,IL,JO,KW,PS,QA,SA,AE,CA,UM,US", currency = "AED,AUD,CHF,CAD,EUR,GBP,HKD,SGD,USD" }
+apple_pay = { country = "AU,CN,HK,JP,MO,MY,NZ,SG,TW,AM,AT,AZ,BY,BE,BG,HR,CY,CZ,DK,EE,FO,FI,FR,GE,DE,GR,GL,GG,HU,IS,IE,IM,IT,KZ,JE,LV,LI,LT,LU,MT,MD,MC,ME,NL,NO,PL,PT,RO,SM,RS,SK,SI,ES,SE,CH,UA,GB,AR,CO,CR,BR,MX,PE,BH,IL,JO,KW,PS,QA,SA,AE,CA,UM,US,KR,VN,MA,ZA,VA,CL,SV,GT,HN,PA", currency = "AED,AUD,CHF,CAD,EUR,GBP,HKD,SGD,USD" }
 
 # Bank redirect configs for allowed banks through online_banking_czech_republic payment method
 [bank_config.online_banking_czech_republic]
@@ -318,9 +322,11 @@ square = {long_lived_token = false, payment_method = "card"}
 braintree = { long_lived_token = false, payment_method = "card" }
 gocardless = {long_lived_token = true, payment_method = "bank_debit"}
 
-[temp_locker_disable_config]
-trustpay = {payment_method = "card,bank_redirect,wallet"}
-stripe = {payment_method = "card,bank_redirect,pay_later,wallet,bank_debit"}
+[temp_locker_enable_config]
+stripe = {payment_method = "bank_transfer"}
+nuvei = {payment_method = "card"}
+shift4 = {payment_method = "card"}
+bluesnap = {payment_method = "card"}
 
 [dummy_connector]
 enabled = true                # Whether dummy connector is enabled or not
@@ -346,6 +352,9 @@ discord_invite_url = "https://www.example.com/" # Discord invite url for hypersw
 card.credit = {connector_list = "stripe,adyen"}     # Mandate supported payment method type and connector for card
 wallet.paypal = {connector_list = "adyen"}          # Mandate supported payment method type and connector for wallets
 pay_later.klarna = {connector_list = "adyen"}       # Mandate supported payment method type and connector for pay_later
+bank_debit.ach = { connector_list = "gocardless"}   # Mandate supported payment method type and connector for bank_debit
+bank_debit.becs = { connector_list = "gocardless"}   # Mandate supported payment method type and connector for bank_debit
+bank_debit.sepa = { connector_list = "gocardless"}   # Mandate supported payment method type and connector for bank_debit
 
 # Required fields info used while listing the payment_method_data
 [required_fields.pay_later] # payment_method = "pay_later"

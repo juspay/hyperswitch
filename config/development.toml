@@ -107,6 +107,7 @@ cards = [
     "stripe",
     "trustpay",
     "tsys",
+    "volt",
     "wise",
     "worldline",
     "worldpay",
@@ -182,6 +183,7 @@ worldline.base_url = "https://eu.sandbox.api-ingenico.com/"
 worldpay.base_url = "https://try.access.worldpay.com/"
 trustpay.base_url = "https://test-tpgw.trustpay.eu/"
 tsys.base_url = "https://stagegw.transnox.com/"
+volt.base_url = "https://api.sandbox.volt.io/"
 trustpay.base_url_bank_redirects = "https://aapi.trustpay.eu/"
 zen.base_url = "https://api.zen-test.com/"
 zen.secondary_base_url = "https://secure.zen-test.com/"
@@ -229,7 +231,7 @@ adyen.banks = "bangkok_bank,krungsri_bank,krung_thai_bank,the_siam_commercial_ba
 
 [pm_filters.default]
 google_pay = { country = "AL,DZ,AS,AO,AG,AR,AU,AT,AZ,BH,BY,BE,BR,BG,CA,CL,CO,HR,CZ,DK,DO,EG,EE,FI,FR,DE,GR,HK,HU,IN,ID,IE,IL,IT,JP,JO,KZ,KE,KW,LV,LB,LT,LU,MY,MX,NL,NZ,NO,OM,PK,PA,PE,PH,PL,PT,QA,RO,RU,SA,SG,SK,ZA,ES,LK,SE,CH,TW,TH,TR,UA,AE,GB,US,UY,VN" }
-apple_pay = { country = "AU,CN,HK,JP,MO,MY,NZ,SG,TW,AM,AT,AZ,BY,BE,BG,HR,CY,CZ,DK,EE,FO,FI,FR,GE,DE,GR,GL,GG,HU,IS,IE,IM,IT,KZ,JE,LV,LI,LT,LU,MT,MD,MC,ME,NL,NO,PL,PT,RO,SM,RS,SK,SI,ES,SE,CH,UA,GB,AR,CO,CR,BR,MX,PE,BH,IL,JO,KW,PS,QA,SA,AE,CA,UM,US", currency = "AED,AUD,CHF,CAD,EUR,GBP,HKD,SGD,USD" }
+apple_pay = { country = "AU,CN,HK,JP,MO,MY,NZ,SG,TW,AM,AT,AZ,BY,BE,BG,HR,CY,CZ,DK,EE,FO,FI,FR,GE,DE,GR,GL,GG,HU,IS,IE,IM,IT,KZ,JE,LV,LI,LT,LU,MT,MD,MC,ME,NL,NO,PL,PT,RO,SM,RS,SK,SI,ES,SE,CH,UA,GB,AR,CO,CR,BR,MX,PE,BH,IL,JO,KW,PS,QA,SA,AE,CA,UM,US,KR,VN,MA,ZA,VA,CL,SV,GT,HN,PA", currency = "AED,AUD,CHF,CAD,EUR,GBP,HKD,SGD,USD" }
 paypal = { currency = "AUD,BRL,CAD,CZK,DKK,EUR,HKD,HUF,INR,JPY,MYR,MXN,NZD,NOK,PHP,PLN,RUB,GBP,SGD,SEK,CHF,THB,USD" }
 klarna = { country = "AT,BE,DK,FI,FR,DE,IE,IT,NL,NO,ES,SE,GB,US,CA", currency = "USD,GBP,EUR,CHF,DKK,SEK,NOK,AUD,PLN,CAD" }
 affirm = { country = "US", currency = "USD" }
@@ -241,7 +243,7 @@ ideal = { country = "NL", currency = "EUR" }
 
 [pm_filters.stripe]
 google_pay = { country = "AL,DZ,AS,AO,AG,AR,AU,AT,AZ,BH,BY,BE,BR,BG,CA,CL,CO,HR,CZ,DK,DO,EG,EE,FI,FR,DE,GR,HK,HU,IN,ID,IE,IL,IT,JP,JO,KZ,KE,KW,LV,LB,LT,LU,MY,MX,NL,NZ,NO,OM,PK,PA,PE,PH,PL,PT,QA,RO,RU,SA,SG,SK,ZA,ES,LK,SE,CH,TW,TH,TR,UA,AE,GB,US,UY,VN" }
-apple_pay = { country = "AU,CN,HK,JP,MO,MY,NZ,SG,TW,AM,AT,AZ,BY,BE,BG,HR,CY,CZ,DK,EE,FO,FI,FR,GE,DE,GR,GL,GG,HU,IS,IE,IM,IT,KZ,JE,LV,LI,LT,LU,MT,MD,MC,ME,NL,NO,PL,PT,RO,SM,RS,SK,SI,ES,SE,CH,UA,GB,AR,CO,CR,BR,MX,PE,BH,IL,JO,KW,PS,QA,SA,AE,CA,UM,US" }
+apple_pay = { country = "AU,CN,HK,JP,MO,MY,NZ,SG,TW,AM,AT,AZ,BY,BE,BG,HR,CY,CZ,DK,EE,FO,FI,FR,GE,DE,GR,GL,GG,HU,IS,IE,IM,IT,KZ,JE,LV,LI,LT,LU,MT,MD,MC,ME,NL,NO,PL,PT,RO,SM,RS,SK,SI,ES,SE,CH,UA,GB,AR,CO,CR,BR,MX,PE,BH,IL,JO,KW,PS,QA,SA,AE,CA,UM,US,KR,VN,MA,ZA,VA,CL,SV,GT,HN,PA" }
 klarna = { country = "US", currency = "USD" }
 affirm = { country = "US", currency = "USD" }
 afterpay_clearpay = { country = "US,CA,GB,AU,NZ,FR,ES", currency = "USD,CAD,GBP,AUD,NZD" }
@@ -377,9 +379,11 @@ braintree = { long_lived_token = false, payment_method = "card" }
 payme = {long_lived_token = false, payment_method = "card"}
 gocardless = {long_lived_token = true, payment_method = "bank_debit"}
 
-[temp_locker_disable_config]
-trustpay = {payment_method = "card,bank_redirect,wallet"}
-stripe = {payment_method = "card,bank_redirect,pay_later,wallet,bank_debit"}
+[temp_locker_enable_config]
+stripe = {payment_method = "bank_transfer"}
+nuvei = {payment_method = "card"}
+shift4 = {payment_method = "card"}
+bluesnap = {payment_method = "card"}
 
 [connector_customer]
 connector_list = "gocardless,stax,stripe"
@@ -418,6 +422,9 @@ wallet.apple_pay = { connector_list = "stripe,adyen" }
 wallet.paypal = { connector_list = "adyen" }
 card.credit = { connector_list = "stripe,adyen,authorizedotnet,globalpay,worldpay,multisafepay,nmi,nexinets,noon" }
 card.debit = { connector_list = "stripe,adyen,authorizedotnet,globalpay,worldpay,multisafepay,nmi,nexinets,noon" }
+bank_debit.ach = { connector_list = "gocardless"}
+bank_debit.becs = { connector_list = "gocardless"}
+bank_debit.sepa = { connector_list = "gocardless"}
 
 [connector_request_reference_id_config]
 merchant_ids_send_payment_id_as_connector_request_id = []
