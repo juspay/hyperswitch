@@ -1212,7 +1212,7 @@ pub fn build_redirection_form(
                 (PreEscaped(format!("<script>
                     bluesnap.threeDsPaymentsSetup(\"{payment_fields_token}\",
                     function(sdkResponse) {{
-                        console.log(sdkResponse);
+                        // console.log(sdkResponse);
                         var f = document.createElement('form');
                         f.action=window.location.pathname.replace(/payments\\/redirect\\/(\\w+)\\/(\\w+)\\/\\w+/, \"payments/$1/$2/redirect/complete/bluesnap?paymentToken={payment_fields_token}\");
                         f.method='POST';
