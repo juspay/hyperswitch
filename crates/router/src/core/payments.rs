@@ -10,7 +10,9 @@ pub mod types;
 use std::{fmt::Debug, marker::PhantomData, ops::Deref, time::Instant};
 
 use api_models::{
-    enums, payment_methods::SurchargeDetailsResponse, payments::HeaderPayload, types as api_types,
+    enums,
+    payment_methods::{SurchargeDetailsResponse, SurchargeMetadata},
+    payments::HeaderPayload,
 };
 use common_utils::{ext_traits::AsyncExt, pii};
 use data_models::mandates::MandateData;
@@ -823,7 +825,7 @@ where
         .map(|surcharge_metadata_value| {
             surcharge_metadata_value
                 .clone()
-                .parse_value::<api_types::SurchargeMetadata>("SurchargeMetadata")
+                .parse_value::<SurchargeMetadata>("SurchargeMetadata")
         })
         .transpose()
         .change_context(errors::ApiErrorResponse::InternalServerError)
