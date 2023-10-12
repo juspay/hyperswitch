@@ -55,7 +55,7 @@ impl<T: DatabaseStore> PaymentIntentInterface for KVRouterStore<T> {
             }
 
             MerchantStorageScheme::RedisKv => {
-                let key = format!("{}_{}", new.merchant_id, new.payment_id);
+                let key = format!("mid_{}_pid_{}", new.merchant_id, new.payment_id);
                 let field = format!("pi_{}", new.payment_id);
                 let created_intent = PaymentIntent {
                     id: 0i32,
@@ -90,17 +90,18 @@ impl<T: DatabaseStore> PaymentIntentInterface for KVRouterStore<T> {
                     attempt_count: new.attempt_count,
                     profile_id: new.profile_id.clone(),
                     merchant_decision: new.merchant_decision.clone(),
+                    payment_link_id: new.payment_link_id.clone(),
                     payment_confirm_source: new.payment_confirm_source,
                 };
 
                 match kv_wrapper::<PaymentIntent, _, _>(
                     self,
-                    KvOperation::SetNx(&field, &created_intent),
+                    KvOperation::HSetNx(&field, &created_intent),
                     &key,
                 )
                 .await
                 .change_context(StorageError::KVError)?
-                .try_into_setnx()
+                .try_into_hsetnx()
                 {
                     Ok(HsetnxReply::KeyNotSet) => Err(StorageError::DuplicateValue {
                         entity: "payment_intent",
@@ -144,7 +145,7 @@ impl<T: DatabaseStore> PaymentIntentInterface for KVRouterStore<T> {
                     .await
             }
             MerchantStorageScheme::RedisKv => {
-                let key = format!("{}_{}", this.merchant_id, this.payment_id);
+                let key = format!("mid_{}_pid_{}", this.merchant_id, this.payment_id);
                 let field = format!("pi_{}", this.payment_id);
 
                 let updated_intent = payment_intent.clone().apply_changeset(this.clone());
@@ -156,12 +157,12 @@ impl<T: DatabaseStore> PaymentIntentInterface for KVRouterStore<T> {
 
                 kv_wrapper::<(), _, _>(
                     self,
-                    KvOperation::<PaymentIntent>::Set((&field, redis_value)),
+                    KvOperation::<PaymentIntent>::Hset((&field, redis_value)),
                     &key,
                 )
                 .await
                 .change_context(StorageError::KVError)?
-                .try_into_set()
+                .try_into_hset()
                 .change_context(StorageError::KVError)?;
 
                 let redis_entry = kv::TypedSql {
@@ -209,17 +210,17 @@ impl<T: DatabaseStore> PaymentIntentInterface for KVRouterStore<T> {
             MerchantStorageScheme::PostgresOnly => database_call().await,
 
             MerchantStorageScheme::RedisKv => {
-                let key = format!("{merchant_id}_{payment_id}");
+                let key = format!("mid_{merchant_id}_pid_{payment_id}");
                 let field = format!("pi_{payment_id}");
                 crate::utils::try_redis_get_else_try_database_get(
                     async {
                         kv_wrapper::<PaymentIntent, _, _>(
                             self,
-                            KvOperation::<PaymentIntent>::Get(&field),
+                            KvOperation::<PaymentIntent>::HGet(&field),
                             &key,
                         )
                         .await?
-                        .try_into_get()
+                        .try_into_hget()
                     },
                     database_call,
                 )
@@ -697,6 +698,7 @@ impl DataModelExt for PaymentIntentNew {
             attempt_count: self.attempt_count,
             profile_id: self.profile_id,
             merchant_decision: self.merchant_decision,
+            payment_link_id: self.payment_link_id,
             payment_confirm_source: self.payment_confirm_source,
         }
     }
@@ -734,6 +736,7 @@ impl DataModelExt for PaymentIntentNew {
             attempt_count: storage_model.attempt_count,
             profile_id: storage_model.profile_id,
             merchant_decision: storage_model.merchant_decision,
+            payment_link_id: storage_model.payment_link_id,
             payment_confirm_source: storage_model.payment_confirm_source,
         }
     }
@@ -766,9 +769,9 @@ impl DataModelExt for PaymentIntent {
             setup_future_usage: self.setup_future_usage,
             off_session: self.off_session,
             client_secret: self.client_secret,
-            active_attempt_id: self.active_attempt_id,
             business_country: self.business_country,
             business_label: self.business_label,
+            active_attempt_id: self.active_attempt_id,
             order_details: self.order_details,
             allowed_payment_method_types: self.allowed_payment_method_types,
             connector_metadata: self.connector_metadata,
@@ -776,6 +779,7 @@ impl DataModelExt for PaymentIntent {
             attempt_count: self.attempt_count,
             profile_id: self.profile_id,
             merchant_decision: self.merchant_decision,
+            payment_link_id: self.payment_link_id,
             payment_confirm_source: self.payment_confirm_source,
         }
     }
@@ -814,6 +818,7 @@ impl DataModelExt for PaymentIntent {
             attempt_count: storage_model.attempt_count,
             profile_id: storage_model.profile_id,
             merchant_decision: storage_model.merchant_decision,
+            payment_link_id: storage_model.payment_link_id,
             payment_confirm_source: storage_model.payment_confirm_source,
         }
     }

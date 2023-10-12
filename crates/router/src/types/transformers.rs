@@ -2,6 +2,7 @@
 use actix_web::http::header::HeaderMap;
 use api_models::{enums as api_enums, payments};
 use common_utils::{
+    consts::X_HS_LATENCY,
     crypto::Encryptable,
     ext_traits::{StringExt, ValueExt},
     pii,
@@ -787,8 +788,14 @@ impl ForeignTryFrom<&HeaderMap> for api_models::payments::HeaderPayload {
                         )
                 })
                 .transpose()?;
+
+        let x_hs_latency = get_header_value_by_key(X_HS_LATENCY.into(), headers)
+            .map(|value| value == Some("true"))
+            .unwrap_or(false);
+
         Ok(Self {
             payment_confirm_source,
+            x_hs_latency: Some(x_hs_latency),
         })
     }
 }
@@ -820,6 +827,22 @@ impl
             phone: customer.and_then(|cust| cust.phone.as_ref().map(|p| p.clone().into_inner())),
             name: customer.and_then(|cust| cust.name.as_ref().map(|n| n.clone().into_inner())),
             ..Self::default()
+        }
+    }
+}
+
+impl ForeignFrom<storage::PaymentLink> for api_models::payments::RetrievePaymentLinkResponse {
+    fn foreign_from(payment_link_object: storage::PaymentLink) -> Self {
+        Self {
+            payment_link_id: payment_link_object.payment_link_id,
+            payment_id: payment_link_object.payment_id,
+            merchant_id: payment_link_object.merchant_id,
+            link_to_pay: payment_link_object.link_to_pay,
+            amount: payment_link_object.amount,
+            currency: payment_link_object.currency,
+            created_at: payment_link_object.created_at,
+            last_modified_at: payment_link_object.last_modified_at,
+            link_expiry: payment_link_object.fulfilment_time,
         }
     }
 }

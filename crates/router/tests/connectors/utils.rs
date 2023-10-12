@@ -442,11 +442,6 @@ pub trait ConnectorActions: Connector {
                 }),
                 entity_type: enums::PayoutEntityType::Individual,
                 payout_type,
-                country_code: payment_info
-                    .to_owned()
-                    .map_or(enums::CountryAlpha2::NL, |pi| {
-                        pi.country.map_or(enums::CountryAlpha2::NL, |c| c)
-                    }),
                 customer_details: Some(payments::CustomerDetails {
                     customer_id: core_utils::get_or_generate_id("customer_id", &None, "cust_").ok(),
                     name: Some(Secret::new("John Doe".to_string())),
@@ -514,6 +509,7 @@ pub trait ConnectorActions: Connector {
             connector_api_version: None,
             connector_http_status_code: None,
             apple_pay_flow: None,
+            external_latency: None,
         }
     }
 
@@ -885,6 +881,7 @@ impl Default for PaymentAuthorizeType {
             complete_authorize_url: None,
             webhook_url: None,
             customer_id: None,
+            surcharge_details: None,
         };
         Self(data)
     }
