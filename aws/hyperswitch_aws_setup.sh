@@ -34,16 +34,16 @@ export APP_SG_ID=$(aws ec2 describe-security-groups --group-names $EC2_SG --regi
 
 echo "Security Group for Application CREATED successfully!"
 
-echo "Creating Security Group ingress for port 8080..."
+echo "Creating Security Group ingress for port 80..."
 
 echo `aws ec2 authorize-security-group-ingress \
 --group-id $APP_SG_ID \
 --protocol tcp \
---port 8080 \
+--port 80 \
 --cidr 0.0.0.0/0 \
 --region $REGION`
 
-echo "Security Group ingress for port 8080 SUCCESS!"
+echo "Security Group ingress for port 80 SUCCESS!"
 
 
 echo "Creating Security Group ingress for port 22..."
@@ -253,7 +253,7 @@ echo "export HOST=$(curl ifconfig.me)" >> user_data.sh
 echo "ROUTER__SERVER__BASE_URL=$HOST" >> user_data.sh
 echo "EOF" >> user_data.sh
 
-echo "docker run --env-file .env -p 8080:8080 -v \`pwd\`/:/local/config juspaydotin/hyperswitch-router:beta ./router -f /local/config/production.toml
+echo "docker run --env-file .env -p 80:8080 -v \`pwd\`/:/local/config juspaydotin/hyperswitch-router:beta ./router -f /local/config/production.toml
 " >> user_data.sh
 
 echo "Retrieving AWS AMI ID..."
