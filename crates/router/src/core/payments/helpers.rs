@@ -1456,7 +1456,7 @@ pub async fn make_pm_data<'a, F: Clone, R, Ctx: PaymentMethodRetrieve>(
 
                 let token_data_result = token_data_string
                     .clone()
-                    .parse_struct("HyperswitchTokenData")
+                    .parse_struct("PaymentTokenData")
                     .change_context(errors::ApiErrorResponse::InternalServerError)
                     .attach_printable("failed to deserialize hyperswitch token data");
 
