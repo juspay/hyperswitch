@@ -153,7 +153,7 @@ export RDS_STATUS=$(aws rds describe-db-instances \
 --query "DBInstances[0].DBInstanceStatus" \
 --output text)
 
-while [[ $RDS_STATUS \!= 'available' ]]; do
+while [[ $RDS_STATUS != 'available' ]]; do
     echo $RDS_STATUS
     sleep 10
 
@@ -200,7 +200,7 @@ export redis_status=$(aws elasticache describe-cache-clusters \
   --query 'CacheClusters[0].CacheClusterStatus' \
   --output text)
 
-while [ $redis_status \!= 'available' ]
+while [ $redis_status != 'available' ]
 do
     echo "$redis_status"
     sleep 10
