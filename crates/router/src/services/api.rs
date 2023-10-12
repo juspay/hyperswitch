@@ -704,7 +704,6 @@ pub enum RedirectForm {
         client_token: String,
         card_token: String,
         bin: String,
-        amount: i64,
     },
 }
 
@@ -1214,7 +1213,7 @@ pub fn build_redirection_form(
                 (PreEscaped(format!("<script>
                     bluesnap.threeDsPaymentsSetup(\"{payment_fields_token}\",
                     function(sdkResponse) {{
-                        console.log(sdkResponse);
+                        // console.log(sdkResponse);
                         var f = document.createElement('form');
                         f.action=window.location.pathname.replace(/payments\\/redirect\\/(\\w+)\\/(\\w+)\\/\\w+/, \"payments/$1/$2/redirect/complete/bluesnap?paymentToken={payment_fields_token}\");
                         f.method='POST';
@@ -1263,7 +1262,6 @@ pub fn build_redirection_form(
             client_token,
             card_token,
             bin,
-            amount,
         } => {
             maud::html! {
             (maud::DOCTYPE)
@@ -1271,7 +1269,7 @@ pub fn build_redirection_form(
                 head {
                     meta name="viewport" content="width=device-width, initial-scale=1";
                     (PreEscaped(r#"<script src="https://js.braintreegateway.com/web/3.97.1/js/three-d-secure.js"></script>"#))
-                    (PreEscaped(r#"<script src="https://js.braintreegateway.com/web/3.97.1/js/hosted-fields.js"></script>"#))
+                    // (PreEscaped(r#"<script src="https://js.braintreegateway.com/web/3.97.1/js/hosted-fields.js"></script>"#))
 
                 }
                     body style="background-color: #ffffff; padding: 20px; font-family: Arial, Helvetica, Sans-Serif;" {
@@ -1319,15 +1317,26 @@ pub fn build_redirection_form(
                                                 }}
                                             }},
                                             onLookupComplete: function(data, next) {{
-                                                console.log(\"onLookup Complete\", data);
+                                                // console.log(\"onLookup Complete\", data);
                                                     next();
                                                 }}
                                             }},
                                             function(err, payload) {{
                                                 if(err) {{
                                                     console.error(err);
+                                                    var f = document.createElement('form');
+                                                    f.action=window.location.pathname.replace(/payments\\/redirect\\/(\\w+)\\/(\\w+)\\/\\w+/, \"payments/$1/$2/redirect/response/braintree\");
+                                                    var i = document.createElement('input');
+                                                    i.type = 'hidden';
+                                                    f.method='POST';
+                                                    i.name = 'authentication_response';
+                                                    i.value = JSON.stringify(err);
+                                                    f.appendChild(i);
+                                                    f.body = JSON.stringify(err);
+                                                    document.body.appendChild(f);
+                                                    f.submit();
                                                 }} else {{
-                                                    console.log(payload);
+                                                    // console.log(payload);
                                                     var f = document.createElement('form');
                                                     f.action=window.location.pathname.replace(/payments\\/redirect\\/(\\w+)\\/(\\w+)\\/\\w+/, \"payments/$1/$2/redirect/complete/braintree\");
                                                     var i = document.createElement('input');
