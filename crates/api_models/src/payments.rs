@@ -294,6 +294,8 @@ pub struct PaymentsRequest {
 
     /// additional data that might be required by hyperswitch
     pub feature_metadata: Option<FeatureMetadata>,
+    /// payment link object required for generating the payment_link
+    pub payment_link_object: Option<PaymentLinkObject>,
 
     /// The business profile to use for this payment, if not passed the default business profile
     /// associated with the merchant account will be used.
@@ -2079,6 +2081,7 @@ pub struct PaymentsResponse {
     #[schema(value_type = Option<String>, example = "993672945374576J")]
     pub reference_id: Option<String>,
 
+    pub payment_link: Option<PaymentLinkResponse>,
     /// The business profile that is associated with this payment
     pub profile_id: Option<String>,
 
@@ -3065,4 +3068,45 @@ mod tests {
             r#"{"multi_use":null}"#
         )
     }
+}
+
+#[derive(Clone, Debug, serde::Deserialize, serde::Serialize, PartialEq, ToSchema)]
+pub struct PaymentLinkObject {
+    #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
+    pub link_expiry: Option<PrimitiveDateTime>,
+    pub merchant_custom_domain_name: Option<String>,
+}
+
+#[derive(Default, Debug, serde::Deserialize, Clone, ToSchema)]
+pub struct RetrievePaymentLinkRequest {
+    pub client_secret: Option<String>,
+}
+
+#[derive(Clone, Debug, serde::Serialize, PartialEq, ToSchema)]
+pub struct PaymentLinkResponse {
+    pub link: String,
+    pub payment_link_id: String,
+}
+
+#[derive(Clone, Debug, serde::Serialize, ToSchema)]
+pub struct RetrievePaymentLinkResponse {
+    pub payment_link_id: String,
+    pub payment_id: String,
+    pub merchant_id: String,
+    pub link_to_pay: String,
+    pub amount: i64,
+    #[schema(value_type = Option<Currency>, example = "USD")]
+    pub currency: Option<api_enums::Currency>,
+    #[serde(with = "common_utils::custom_serde::iso8601")]
+    pub created_at: PrimitiveDateTime,
+    #[serde(with = "common_utils::custom_serde::iso8601")]
+    pub last_modified_at: PrimitiveDateTime,
+    #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
+    pub link_expiry: Option<PrimitiveDateTime>,
+}
+
+#[derive(Clone, Debug, serde::Deserialize, ToSchema)]
+pub struct PaymentLinkInitiateRequest {
+    pub merchant_id: String,
+    pub payment_id: String,
 }
