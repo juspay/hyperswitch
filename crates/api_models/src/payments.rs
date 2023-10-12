@@ -1900,6 +1900,13 @@ pub struct PaymentsResponse {
     #[serde(with = "common_utils::custom_serde::iso8601::option")]
     pub created: Option<PrimitiveDateTime>,
 
+
+    /// Time when the payment was modified
+    #[schema(example = "2022-09-10T10:11:12Z")]
+    #[serde(with = "common_utils::custom_serde::iso8601::option")]
+    pub modified: Option<PrimitiveDateTime> ,
+
+    
     /// The currency of the amount of the payment
     #[schema(value_type = Currency, example = "USD")]
     pub currency: String,
