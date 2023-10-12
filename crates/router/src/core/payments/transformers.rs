@@ -1024,6 +1024,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
             webhook_url,
             complete_authorize_url,
             customer_id: None,
+            surcharge_details: payment_data.surcharge_details,
         })
     }
 }
@@ -1185,6 +1186,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsSessionD
                 billing_address.address.and_then(|address| address.country)
             }),
             order_details,
+            surcharge_details: payment_data.surcharge_details,
         })
     }
 }
