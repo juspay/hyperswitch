@@ -609,9 +609,13 @@ impl services::ConnectorRedirectResponse for Noon {
         &self,
         _query_params: &str,
         _json_payload: Option<serde_json::Value>,
-        _action: services::PaymentAction,
+        action: services::PaymentAction,
     ) -> CustomResult<payments::CallConnectorAction, errors::ConnectorError> {
-        Ok(payments::CallConnectorAction::Trigger)
+        match action {
+            services::PaymentAction::PSync | services::PaymentAction::CompleteAuthorize => {
+                Ok(payments::CallConnectorAction::Trigger)
+            }
+        }
     }
 }
 
