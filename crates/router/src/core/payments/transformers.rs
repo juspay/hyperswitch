@@ -723,7 +723,7 @@ where
                     .as_ref()
                     .and_then(|cus| cus.phone.as_ref().map(|s| s.to_owned())),
                 mandate_id,
-                modified: Some(pi.modified_at),
+                modified: Some(payment_intent.modified_at),
                 shipping: payment_data.address.shipping,
                 billing: payment_data.address.billing,
                 cancellation_reason: payment_attempt.cancellation_reason,
