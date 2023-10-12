@@ -231,6 +231,8 @@ echo "ROUTER__REDIS__HOST=$REDIS_ENDPOINT" >> user_data.sh
 echo "ROUTER__MASTER_DATABASE__HOST=$RDS_ENDPOINT" >> user_data.sh
 echo "ROUTER__REPLICA_DATABASE__HOST=$RDS_ENDPOINT" >> user_data.sh
 echo "ROUTER__SERVER__HOST=0.0.0.0" >> user_data.sh
+echo "ROUTER__MASTER_DATABASE__USERNAME=hyperswitch" >> user_data.sh
+echo "ROUTER__MASTER_DATABASE__PASSWORD=hyps1234" >> user_data.sh
 echo "EOF" >> user_data.sh
 
 echo "docker run --env-file .env -p 8080:8080 -v \`pwd\`/:/local/config juspaydotin/hyperswitch-router:beta ./router -f /local/config/production.toml
