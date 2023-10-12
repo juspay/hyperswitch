@@ -57,6 +57,32 @@ impl Address {
     }
 
     #[instrument(skip(conn))]
+    pub async fn update(
+        self,
+        conn: &PgPooledConn,
+        address_update_internal: AddressUpdateInternal,
+    ) -> StorageResult<Self> {
+        match generics::generic_update_with_unique_predicate_get_result::<
+            <Self as HasTable>::Table,
+            _,
+            _,
+            _,
+        >(
+            conn,
+            dsl::address_id.eq(self.address_id.clone()),
+            address_update_internal,
+        )
+        .await
+        {
+            Err(error) => match error.current_context() {
+                errors::DatabaseError::NoFieldsToUpdate => Ok(self),
+                _ => Err(error),
+            },
+            result => result,
+        }
+    }
+
+    #[instrument(skip(conn))]
     pub async fn delete_by_address_id(
         conn: &PgPooledConn,
         address_id: &str,

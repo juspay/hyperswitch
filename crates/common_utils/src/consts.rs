@@ -28,3 +28,6 @@ pub const PAYMENTS_LIST_MAX_LIMIT_V2: u32 = 20;
 pub const STRIPE_ACCOUNT_ONBOARDING_DELAY_IN_SECONDS: i64 = 15;
 /// surcharge percentage maximum precision length
 pub const SURCHARGE_PERCENTAGE_PRECISION_LENGTH: u8 = 2;
+
+/// Header Key for application overhead of a request
+pub const X_HS_LATENCY: &str = "x-hs-latency";

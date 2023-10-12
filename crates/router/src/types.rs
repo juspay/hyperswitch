@@ -292,7 +292,7 @@ pub struct RouterData<Flow, Request, Response> {
 
     pub test_mode: Option<bool>,
     pub connector_http_status_code: Option<u16>,
-
+    pub external_latency: Option<u128>,
     /// Contains apple pay flow type simplified or manual
     pub apple_pay_flow: Option<storage_enums::ApplePayFlow>,
 }
@@ -383,6 +383,7 @@ pub struct PaymentsAuthorizeData {
     pub related_transaction_id: Option<String>,
     pub payment_experience: Option<storage_enums::PaymentExperience>,
     pub payment_method_type: Option<storage_enums::PaymentMethodType>,
+    pub surcharge_details: Option<api_models::payment_methods::SurchargeDetailsResponse>,
     pub customer_id: Option<String>,
 }
 
@@ -480,6 +481,9 @@ pub struct PaymentsSyncData {
     pub connector_meta: Option<serde_json::Value>,
     pub sync_type: SyncRequestType,
     pub mandate_id: Option<api_models::payments::MandateIds>,
+    //This is being added as a temporary fix, will be deprecated before or by v1.65.0
+    // #2628
+    pub payment_attempt_created_at_as_utc: i64,
 }
 
 #[derive(Debug, Default, Clone)]
@@ -515,6 +519,7 @@ pub struct PaymentsSessionData {
     pub amount: i64,
     pub currency: storage_enums::Currency,
     pub country: Option<api::enums::CountryAlpha2>,
+    pub surcharge_details: Option<api_models::payment_methods::SurchargeDetailsResponse>,
     pub order_details: Option<Vec<api_models::payments::OrderDetailsWithAmount>>,
 }
 
@@ -1076,6 +1081,7 @@ impl From<&SetupMandateRouterData> for PaymentsAuthorizeData {
             payment_experience: None,
             payment_method_type: None,
             customer_id: None,
+            surcharge_details: None,
         }
     }
 }
@@ -1121,6 +1127,7 @@ impl<F1, F2, T1, T2> From<(&RouterData<F1, T1, PaymentsResponseData>, T2)>
             payment_method_balance: data.payment_method_balance.clone(),
             connector_api_version: data.connector_api_version.clone(),
             connector_http_status_code: data.connector_http_status_code,
+            external_latency: data.external_latency,
             apple_pay_flow: data.apple_pay_flow.clone(),
         }
     }
@@ -1175,6 +1182,7 @@ impl<F1, F2>
             payment_method_balance: None,
             connector_api_version: None,
             connector_http_status_code: data.connector_http_status_code,
+            external_latency: data.external_latency,
             apple_pay_flow: None,
         }
     }

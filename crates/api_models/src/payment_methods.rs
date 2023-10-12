@@ -3,8 +3,10 @@ use std::collections::HashMap;
 use cards::CardNumber;
 use common_utils::{
     consts::SURCHARGE_PERCENTAGE_PRECISION_LENGTH, crypto::OptionalEncryptableName, pii,
+    types::Percentage,
 };
 use serde::de;
+use serde_with::serde_as;
 use utoipa::ToSchema;
 
 #[cfg(feature = "payouts")]
@@ -12,7 +14,6 @@ use crate::payouts;
 use crate::{
     admin, enums as api_enums,
     payments::{self, BankCodeResponse},
-    types::Percentage,
 };
 
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
@@ -174,6 +175,7 @@ pub struct PaymentMethodDataBankCreds {
 pub struct BankAccountConnectorDetails {
     pub connector: String,
     pub account_id: String,
+    pub mca_id: String,
     pub access_token: BankAccountAccessCreds,
 }
 
@@ -250,11 +252,27 @@ pub struct PaymentExperienceTypes {
     pub eligible_connectors: Vec<String>,
 }
 
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema, PartialEq, Eq)]
+#[derive(Debug, Clone, serde::Serialize, ToSchema, PartialEq)]
 pub struct CardNetworkTypes {
     /// The card network enabled
     #[schema(value_type = Option<CardNetwork>, example = "Visa")]
     pub card_network: api_enums::CardNetwork,
+
+    /// surcharge details for this card network
+    #[schema(example = r#"
+        {
+            "surcharge": {
+                "type": "rate",
+                "value": {
+                    "percentage": 2.5
+                }
+            },
+            "tax_on_surcharge": {
+                "percentage": 1.5
+            }
+        }
+    "#)]
+    pub surcharge_details: Option<SurchargeDetailsResponse>,
 
     /// The list of eligible connectors for a given card network
     #[schema(example = json!(["stripe", "adyen"]))]
@@ -303,18 +321,31 @@ pub struct ResponsePaymentMethodTypes {
             }
         }
     "#)]
-    pub surcharge_details: Option<SurchargeDetails>,
+    pub surcharge_details: Option<SurchargeDetailsResponse>,
 }
-#[derive(Clone, Debug, PartialEq, serde::Serialize, ToSchema)]
+#[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
 #[serde(rename_all = "snake_case")]
-pub struct SurchargeDetails {
+pub struct SurchargeDetailsResponse {
     /// surcharge value
-    surcharge: Surcharge,
+    pub surcharge: Surcharge,
     /// tax on surcharge value
-    tax_on_surcharge: Option<Percentage<SURCHARGE_PERCENTAGE_PRECISION_LENGTH>>,
+    pub tax_on_surcharge: Option<Percentage<SURCHARGE_PERCENTAGE_PRECISION_LENGTH>>,
+    /// surcharge amount for this payment
+    pub surcharge_amount: i64,
+    /// tax on surcharge amount for this payment
+    pub tax_on_surcharge_amount: i64,
+    /// sum of original amount,
+    pub final_amount: i64,
 }
 
-#[derive(Clone, Debug, PartialEq, serde::Serialize, ToSchema)]
+#[serde_as]
+#[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
+pub struct SurchargeMetadata {
+    #[serde_as(as = "HashMap<_, _>")]
+    pub surcharge_results: HashMap<String, SurchargeDetailsResponse>,
+}
+
+#[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize, ToSchema)]
 #[serde(rename_all = "snake_case", tag = "type", content = "value")]
 pub enum Surcharge {
     /// Fixed Surcharge value

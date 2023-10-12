@@ -204,6 +204,7 @@ pub async fn construct_payout_router_data<'a, F>(
         payment_method_balance: None,
         connector_api_version: None,
         connector_http_status_code: None,
+        external_latency: None,
         apple_pay_flow: None,
     };
 
@@ -343,6 +344,7 @@ pub async fn construct_refund_router_data<'a, F>(
         payment_method_balance: None,
         connector_api_version,
         connector_http_status_code: None,
+        external_latency: None,
         apple_pay_flow: None,
     };
 
@@ -570,6 +572,7 @@ pub async fn construct_accept_dispute_router_data<'a>(
         payment_method_balance: None,
         connector_api_version: None,
         connector_http_status_code: None,
+        external_latency: None,
         apple_pay_flow: None,
     };
     Ok(router_data)
@@ -655,6 +658,7 @@ pub async fn construct_submit_evidence_router_data<'a>(
         test_mode,
         connector_api_version: None,
         connector_http_status_code: None,
+        external_latency: None,
         apple_pay_flow: None,
     };
     Ok(router_data)
@@ -745,6 +749,7 @@ pub async fn construct_upload_file_router_data<'a>(
         test_mode,
         connector_api_version: None,
         connector_http_status_code: None,
+        external_latency: None,
         apple_pay_flow: None,
     };
     Ok(router_data)
@@ -833,6 +838,7 @@ pub async fn construct_defend_dispute_router_data<'a>(
         test_mode,
         connector_api_version: None,
         connector_http_status_code: None,
+        external_latency: None,
         apple_pay_flow: None,
     };
     Ok(router_data)
@@ -914,6 +920,7 @@ pub async fn construct_retrieve_file_router_data<'a>(
         test_mode,
         connector_api_version: None,
         connector_http_status_code: None,
+        external_latency: None,
         apple_pay_flow: None,
     };
     Ok(router_data)
