@@ -21,6 +21,7 @@ yes_or_no() {
 }
 
 command_discovery aws
+command_discovery jq
 
 
 export ALL_ELASTIC_CACHE=($(aws elasticache describe-cache-clusters \
@@ -54,7 +55,6 @@ if yes_or_no; then
     for KEY_ID in $ALL_KEY_PAIRS; do
         aws ec2 delete-key-pair --key-pair-id $KEY_ID --region $REGION
     done
-else
 fi
 
 export ALL_INSTANCES=($(aws ec2 describe-instances \
