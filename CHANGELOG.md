@@ -4,6 +4,16 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 1.52.0+hotfix.1 (2023-10-12)
+
+### Bug Fixes
+
+- **connector:** [noon] handle sync and response status ([#2562](https://github.com/juspay/hyperswitch/pull/2562)) ([`6f19ab6`](https://github.com/juspay/hyperswitch/commit/6f19ab6d9f5848aa47825830530427a058a1f4f8))
+
+**Full Changelog:** [`v1.52.0...v1.52.0+hotfix.1`](https://github.com/juspay/hyperswitch/compare/v1.52.0...v1.52.0+hotfix.1)
+
+- - -
+
 ## 1.52.0 (2023-10-06)
 
 ### Features
