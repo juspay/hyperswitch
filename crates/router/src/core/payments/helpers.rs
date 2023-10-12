@@ -181,10 +181,27 @@ pub async fn create_or_update_address_for_payment_by_request(
                 .await
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("Failed while encrypting address")?;
+                let address = db
+                    .find_address_by_merchant_id_payment_id_address_id(
+                        merchant_id,
+                        payment_id,
+                        id,
+                        merchant_key_store,
+                        storage_scheme,
+                    )
+                    .await
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Error while fetching address")?;
                 Some(
-                    db.update_address(id.to_owned(), address_update, merchant_key_store)
-                        .await
-                        .to_not_found_response(errors::ApiErrorResponse::AddressNotFound)?,
+                    db.update_address_for_payments(
+                        address,
+                        address_update,
+                        payment_id.to_string(),
+                        merchant_key_store,
+                        storage_scheme,
+                    )
+                    .await
+                    .to_not_found_response(errors::ApiErrorResponse::AddressNotFound)?,
                 )
             }
             None => Some(

@@ -402,6 +402,7 @@ async fn get_tracker_for_sync<
             ephemeral_key: None,
             multiple_capture_data,
             redirect_response: None,
+            surcharge_details: None,
             frm_message: frm_response.ok(),
         },
         None,
