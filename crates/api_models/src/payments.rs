@@ -301,9 +301,19 @@ pub struct PaymentsRequest {
     /// associated with the merchant account will be used.
     pub profile_id: Option<String>,
 
+    /// surcharge_details for this payment
+    #[schema(value_type = Option<RequestSurchargeDetails>)]
+    pub surcharge_details: Option<RequestSurchargeDetails>,
+
     /// The type of the payment that differentiates between normal and various types of mandate payments
     #[schema(value_type = Option<PaymentType>)]
     pub payment_type: Option<api_enums::PaymentType>,
+}
+
+#[derive(Default, Debug, Clone, serde::Serialize, serde::Deserialize, Copy)]
+pub struct RequestSurchargeDetails {
+    surcharge_amount: i64,
+    tax_amount: Option<i64>,
 }
 
 #[derive(Default, Debug, Clone, Copy)]
