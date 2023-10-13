@@ -4989,6 +4989,7 @@
           "payment_succeeded",
           "payment_failed",
           "payment_processing",
+          "payment_cancelled",
           "action_required",
           "refund_succeeded",
           "refund_failed",
