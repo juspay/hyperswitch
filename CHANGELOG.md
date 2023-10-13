@@ -4,6 +4,21 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 1.57.1+hotfix.1 (2023-10-13)
+
+### Features
+
+- **connector:** [Paypal] use connector request reference id as reference for paypal ([#2579](https://github.com/juspay/hyperswitch/pull/2579)) ([`59670cc`](https://github.com/juspay/hyperswitch/commit/59670cccf9a17e1fc6e68112a3d219daafb31169))
+- **router:** Add Cancel Event in Webhooks and Mapping it in Stripe ([#2576](https://github.com/juspay/hyperswitch/pull/2576)) ([`2dbe650`](https://github.com/juspay/hyperswitch/commit/2dbe6507a3fe1edc8ce44130ea91534c141ea6d4))
+
+### Refactors
+
+- **connector:** [noon] enhance response status mapping ([#2580](https://github.com/juspay/hyperswitch/pull/2580)) ([`d75075e`](https://github.com/juspay/hyperswitch/commit/d75075e3bf95ffdcd9cefa466832b7f7459a04c5))
+
+**Full Changelog:** [`v1.57.1...v1.57.1+hotfix.1`](https://github.com/juspay/hyperswitch/compare/v1.57.1...v1.57.1+hotfix.1)
+
+- - -
+
 ## 1.57.1 (2023-10-12)
 
 ### Bug Fixes
