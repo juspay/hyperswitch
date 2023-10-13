@@ -53,6 +53,25 @@ pub async fn intiate_payment_link_flow(
                 })
         })
         .transpose()?;
+    
+    println!("orderdetails sahkal{:?}",payment_intent.order_details);
+
+    let order_details =payment_intent
+            .order_details
+            .map(|order_details| {
+                order_details
+                    .iter()
+                    .map(|data| {
+                        data.to_owned()
+                            .parse_value("OrderDetailsWithAmount")
+                            .change_context(errors::ApiErrorResponse::InvalidDataValue {
+                                field_name: "OrderDetailsWithAmount",
+                            })
+                            .attach_printable("Unable to parse OrderDetailsWithAmount")
+                    })
+                    .collect::<Result<Vec<_>, _>>()
+            })
+            .transpose()?;
 
     let fulfillment_time = payment_intent
         .payment_link_id
@@ -93,6 +112,7 @@ pub async fn intiate_payment_link_flow(
         merchant_account.merchant_id,
         payment_link_metadata.clone(),
         expiry,
+        order_details
     );
 
     let css_script = get_color_scheme_css(payment_link_metadata.clone());
@@ -120,6 +140,7 @@ fn get_js_script(
     merchant_id: String,
     payment_link_metadata: Option<api_models::admin::PaymentLinkMetadata>,
     expiry: i64,
+    order_details: Option<Vec<api_models::payments::OrderDetailsWithAmount>>
 ) -> String {
     let merchant_logo = if let Some(pl_metadata) = payment_link_metadata {
         pl_metadata.merchant_logo.unwrap_or(

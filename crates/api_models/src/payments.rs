@@ -2408,6 +2408,8 @@ pub struct OrderDetailsWithAmount {
     pub quantity: u16,
     /// the amount per quantity of product
     pub amount: i64,
+    /// the product image link of the product
+    pub product_img_link: Option<String>
 }
 
 #[derive(Debug, Default, Eq, PartialEq, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
