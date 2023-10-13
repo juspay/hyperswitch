@@ -28,6 +28,11 @@ use crate::{
     },
     utils::{self, OptionExt},
 };
+#[cfg(feature = "payouts")]
+use crate::{
+    connector::utils::PayoutsData, core::payments::CustomerDetailsExt,
+    types::PayoutIndividualDetailsExt,
+};
 
 pub struct StripeAuthType {
     pub(super) api_key: Secret<String>,
@@ -3777,17 +3782,18 @@ mod test_validate_shipping_address_against_payment_method {
     }
 }
 
+#[cfg(feature = "payouts")]
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "snake_case")]
-pub enum StripeConnectStatus {
-    Succeeded,
-    Failed,
-    Processing,
+pub enum StripeConnectPayoutStatus {
     Canceled,
-    Consumed,
+    Failed,
+    InTransit,
+    Paid,
     Pending,
 }
 
+#[cfg(feature = "payouts")]
 #[derive(Debug, Deserialize, Serialize)]
 pub struct StripeConnectErrorResponse {
     pub error: ErrorDetails,
@@ -3863,7 +3869,7 @@ pub struct StripeConnectPayoutFulfillResponse {
     reversed_by: Option<String>,
     source_type: String,
     statement_descriptor: Option<String>,
-    status: StripeConnectStatus,
+    status: StripeConnectPayoutStatus,
     #[serde(rename = "type")]
     account_type: String,
 }
@@ -3993,11 +3999,11 @@ pub struct RecipientCardAccountRequest {
     #[serde(rename = "external_account[object]")]
     external_account_object: String,
     #[serde(rename = "external_account[number]")]
-    external_account_number: String,
+    external_account_number: Secret<String>,
     #[serde(rename = "external_account[exp_month]")]
-    external_account_exp_month: String,
+    external_account_exp_month: Secret<String>,
     #[serde(rename = "external_account[exp_year]")]
-    external_account_exp_year: String,
+    external_account_exp_year: Secret<String>,
 }
 
 #[cfg(feature = "payouts")]
@@ -4181,25 +4187,10 @@ impl<F> TryFrom<&types::PayoutsRouterData<F>> for StripeConnectRecipientCreateRe
     type Error = Error;
     fn try_from(item: &types::PayoutsRouterData<F>) -> Result<Self, Self::Error> {
         let request = item.request.to_owned();
-        let customer_details = request
-            .customer_details
-            .get_required_value("customer_details")
-            .change_context(errors::ConnectorError::MissingRequiredField {
-                field_name: "customer_details",
-            })?;
-        let customer_email = customer_details
-            .email
-            .get_required_value("email")
-            .change_context(errors::ConnectorError::MissingRequiredField {
-                field_name: "email",
-            })?;
+        let customer_details = request.get_customer_details()?;
+        let customer_email = customer_details.get_email()?;
         let address = item.get_billing_address()?.clone();
-        let payout_vendor_details = request
-            .vendor_details
-            .get_required_value("vendor_details")
-            .change_context(errors::ConnectorError::MissingRequiredFields {
-                field_names: ["vendor_details", "individual_details"].to_vec(),
-            })?;
+        let payout_vendor_details = request.get_vendor_details()?;
         let (vendor_details, individual_details) = (
             payout_vendor_details.vendor_details,
             payout_vendor_details.individual_details,
@@ -4272,24 +4263,9 @@ impl<F> TryFrom<&types::PayoutsRouterData<F>> for StripeConnectRecipientAccountC
     fn try_from(item: &types::PayoutsRouterData<F>) -> Result<Self, Self::Error> {
         let request = item.request.to_owned();
         let payout_method_data = item.get_payout_method_data()?;
-        let customer_details = request
-            .customer_details
-            .get_required_value("customer_details")
-            .change_context(errors::ConnectorError::MissingRequiredField {
-                field_name: "customer_details",
-            })?;
-        let customer_name = customer_details
-            .name
-            .get_required_value("name")
-            .change_context(errors::ConnectorError::MissingRequiredField {
-                field_name: "customer_details.name",
-            })?;
-        let payout_vendor_details = request
-            .vendor_details
-            .get_required_value("vendor_details")
-            .change_context(errors::ConnectorError::MissingRequiredField {
-                field_name: "vendor_details",
-            })?;
+        let customer_details = request.get_customer_details()?;
+        let customer_name = customer_details.get_name()?;
+        let payout_vendor_details = request.get_vendor_details()?;
         match payout_method_data {
             api_models::payouts::PayoutMethodData::Card(_c) => {
                 Ok(Self::Token(RecipientTokenRequest {
@@ -4305,11 +4281,7 @@ impl<F> TryFrom<&types::PayoutsRouterData<F>> for StripeConnectRecipientAccountC
                         external_account_account_holder_name: customer_name,
                         external_account_account_holder_type: payout_vendor_details
                             .individual_details
-                            .external_account_account_holder_type
-                            .get_required_value("external_account_account_holder_type")
-                            .change_context(errors::ConnectorError::MissingRequiredField {
-                                field_name: "external_account_account_holder_type",
-                            })?,
+                            .get_external_account_account_holder_type()?,
                         external_account_account_number: bank_details.bank_account_number,
                         external_account_routing_number: bank_details.bank_routing_number,
                     }))
@@ -4364,15 +4336,15 @@ impl<F> TryFrom<types::PayoutsResponseRouterData<F, StripeConnectRecipientAccoun
 }
 
 #[cfg(feature = "payouts")]
-impl From<StripeConnectStatus> for enums::PayoutStatus {
-    fn from(stripe_connect_status: StripeConnectStatus) -> Self {
+impl From<StripeConnectPayoutStatus> for enums::PayoutStatus {
+    fn from(stripe_connect_status: StripeConnectPayoutStatus) -> Self {
         match stripe_connect_status {
-            StripeConnectStatus::Succeeded => Self::Success,
-            StripeConnectStatus::Failed => Self::Failed,
-            StripeConnectStatus::Canceled => Self::Cancelled,
-            StripeConnectStatus::Pending
-            | StripeConnectStatus::Processing
-            | StripeConnectStatus::Consumed => Self::Pending,
+            StripeConnectPayoutStatus::Paid => Self::Success,
+            StripeConnectPayoutStatus::Failed => Self::Failed,
+            StripeConnectPayoutStatus::Canceled => Self::Cancelled,
+            StripeConnectPayoutStatus::Pending | StripeConnectPayoutStatus::InTransit => {
+                Self::Pending
+            }
         }
     }
 }

@@ -177,8 +177,6 @@ pub async fn fetch_consumer_tasks(
         .map(|task| task.id.to_owned())
         .collect::<Vec<_>>();
 
-    logger::info!("FETCHING CONSUMER TASKS");
-
     db.process_tracker_update_process_status_by_ids(
         task_ids,
         storage::ProcessTrackerUpdate::StatusUpdate {

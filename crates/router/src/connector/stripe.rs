@@ -7,11 +7,10 @@ use error_stack::{IntoReport, ResultExt};
 use masking::PeekInterface;
 use router_env::{instrument, tracing};
 
-#[cfg(feature = "payouts")]
 use self::transformers as stripe;
 use super::utils::{self as connector_utils, RefundsRequestData};
 #[cfg(feature = "payouts")]
-use super::utils::{PayoutsCancelData, RouterData};
+use super::utils::{PayoutsData, RouterData};
 use crate::{
     configs::settings,
     consts,
@@ -81,6 +80,7 @@ impl ConnectorCommon for Stripe {
         )])
     }
 
+    #[cfg(feature = "payouts")]
     fn build_error_response(
         &self,
         res: types::Response,

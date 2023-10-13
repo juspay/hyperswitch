@@ -1,5 +1,7 @@
 use std::collections::HashMap;
 
+#[cfg(feature = "payouts")]
+use api_models::payouts::PayoutVendorAccountDetails;
 use api_models::{
     enums::{CanadaStatesAbbreviation, UsStatesAbbreviation},
     payments::{self, BankDebitBilling, OrderDetailsWithAmount},
@@ -16,6 +18,8 @@ use masking::{ExposeInterface, Secret};
 use once_cell::sync::Lazy;
 use regex::Regex;
 use serde::Serializer;
+#[cfg(feature = "payouts")]
+use types::CustomerDetails;
 
 use crate::{
     consts,
@@ -540,16 +544,28 @@ impl RefundsRequestData for types::RefundsData {
 }
 
 #[cfg(feature = "payouts")]
-pub trait PayoutsCancelData {
+pub trait PayoutsData {
     fn get_transfer_id(&self) -> Result<String, Error>;
+    fn get_customer_details(&self) -> Result<CustomerDetails, Error>;
+    fn get_vendor_details(&self) -> Result<PayoutVendorAccountDetails, Error>;
 }
 
 #[cfg(feature = "payouts")]
-impl PayoutsCancelData for types::PayoutsData {
+impl PayoutsData for types::PayoutsData {
     fn get_transfer_id(&self) -> Result<String, Error> {
         self.connector_payout_id
             .clone()
             .ok_or_else(missing_field_err("transfer_id"))
+    }
+    fn get_customer_details(&self) -> Result<CustomerDetails, Error> {
+        self.customer_details
+            .clone()
+            .ok_or_else(missing_field_err("customer_details"))
+    }
+    fn get_vendor_details(&self) -> Result<PayoutVendorAccountDetails, Error> {
+        self.vendor_details
+            .clone()
+            .ok_or_else(missing_field_err("vendor_details"))
     }
 }
 

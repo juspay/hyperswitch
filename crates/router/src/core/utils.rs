@@ -1,13 +1,13 @@
 use std::{marker::PhantomData, str::FromStr};
 
-use api_models::{
-    enums::{DisputeStage, DisputeStatus},
-    payouts::PayoutVendorAccountDetails,
-};
+use api_models::enums::{DisputeStage, DisputeStatus};
+#[cfg(feature = "payouts")]
+use api_models::payouts::PayoutVendorAccountDetails;
 #[cfg(feature = "payouts")]
 use common_utils::{crypto::Encryptable, pii::Email};
 use common_utils::{errors::CustomResult, ext_traits::AsyncExt};
 use error_stack::{report, IntoReport, ResultExt};
+#[cfg(feature = "payouts")]
 use masking::PeekInterface;
 use router_env::{instrument, tracing};
 use uuid::Uuid;
@@ -33,6 +33,9 @@ use crate::{
 
 pub const IRRELEVANT_CONNECTOR_REQUEST_REFERENCE_ID_IN_DISPUTE_FLOW: &str =
     "irrelevant_connector_request_reference_id_in_dispute_flow";
+#[cfg(feature = "payouts")]
+pub const IRRELEVANT_CONNECTOR_REQUEST_REFERENCE_ID_IN_PAYOUTS_FLOW: &str =
+    "irrelevant_connector_request_reference_id_in_payouts_flow";
 const IRRELEVANT_PAYMENT_ID_IN_DISPUTE_FLOW: &str = "irrelevant_payment_id_in_dispute_flow";
 const IRRELEVANT_ATTEMPT_ID_IN_DISPUTE_FLOW: &str = "irrelevant_attempt_id_in_dispute_flow";
 
@@ -142,9 +145,6 @@ pub async fn construct_payout_router_data<'a, F>(
                     .peek()
                     .to_owned()
                     .parse_value("PayoutVendorAccountDetails")
-                    .change_context(errors::ApiErrorResponse::MissingRequiredFields {
-                        field_names: ["vendor_details", "individual_details"].to_vec(),
-                    })
                     .ok();
                 val
             })
@@ -195,7 +195,7 @@ pub async fn construct_payout_router_data<'a, F>(
         payment_method_token: None,
         recurring_mandate_payment_data: None,
         preprocessing_id: None,
-        connector_request_reference_id: IRRELEVANT_CONNECTOR_REQUEST_REFERENCE_ID_IN_DISPUTE_FLOW
+        connector_request_reference_id: IRRELEVANT_CONNECTOR_REQUEST_REFERENCE_ID_IN_PAYOUTS_FLOW
             .to_string(),
         payout_method_data: payout_data.payout_method_data.to_owned(),
         quote_id: None,

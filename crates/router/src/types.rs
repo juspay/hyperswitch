@@ -20,13 +20,16 @@ pub use api_models::{
 pub use common_utils::request::RequestBody;
 use common_utils::{pii, pii::Email};
 use data_models::mandates::MandateData;
-use error_stack::{IntoReport, ResultExt};
+use error_stack::{self, IntoReport, ResultExt};
 use masking::Secret;
 
 use self::{api::payments, storage::enums as storage_enums};
 pub use crate::core::payments::{CustomerDetails, PaymentAddress};
 #[cfg(feature = "payouts")]
-use crate::core::utils::IRRELEVANT_CONNECTOR_REQUEST_REFERENCE_ID_IN_DISPUTE_FLOW;
+use crate::{
+    connector::utils::missing_field_err,
+    core::utils::IRRELEVANT_CONNECTOR_REQUEST_REFERENCE_ID_IN_PAYOUTS_FLOW,
+};
 use crate::{
     core::{
         errors::{self, RouterResult},
@@ -343,18 +346,28 @@ pub struct PayoutsData {
 }
 
 #[cfg(feature = "payouts")]
+pub trait PayoutIndividualDetailsExt {
+    type Error;
+    fn get_external_account_account_holder_type(&self) -> Result<String, Self::Error>;
+}
+
+#[cfg(feature = "payouts")]
+impl PayoutIndividualDetailsExt for api_models::payouts::PayoutIndividualDetails {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn get_external_account_account_holder_type(&self) -> Result<String, Self::Error> {
+        self.external_account_account_holder_type
+            .clone()
+            .ok_or_else(missing_field_err("external_account_account_holder_type"))
+    }
+}
+
+#[cfg(feature = "payouts")]
 #[derive(Clone, Debug, Default)]
 pub struct PayoutsResponseData {
     pub status: Option<storage_enums::PayoutStatus>,
     pub connector_payout_id: String,
     pub payout_eligible: Option<bool>,
     pub should_add_next_step_to_process_tracker: bool,
-}
-
-#[derive(Clone, Debug, Default)]
-pub struct PayoutsFulfillResponseData {
-    pub status: Option<storage_enums::PayoutStatus>,
-    pub reference_id: Option<String>,
 }
 
 #[derive(Debug, Clone)]
@@ -1172,7 +1185,7 @@ impl<F1, F2>
             preprocessing_id: None,
             connector_customer: data.connector_customer.clone(),
             connector_request_reference_id:
-                IRRELEVANT_CONNECTOR_REQUEST_REFERENCE_ID_IN_DISPUTE_FLOW.to_string(),
+                IRRELEVANT_CONNECTOR_REQUEST_REFERENCE_ID_IN_PAYOUTS_FLOW.to_string(),
             payout_method_data: data.payout_method_data.clone(),
             quote_id: data.quote_id.clone(),
             test_mode: data.test_mode,
