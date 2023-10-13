@@ -130,7 +130,7 @@ echo -n "Deleting ( $ALL_SECURITY_GROUPS ) security groups? (Y/n)?"
 if yes_or_no; then
     export do_it=true
 
-    while do_it; do
+    while $do_it; do
       export do_it=false
       for GROUP_ID in $ALL_SECURITY_GROUPS; do
          aws ec2 delete-security-group --group-id $GROUP_ID --region $REGION
@@ -139,7 +139,7 @@ if yes_or_no; then
          fi
       done
 
-      if do_it; then
+      if $do_it; then
         echo -n "Retry deleting the security group (Y/n)? "
 
         if yes_or_no; then
