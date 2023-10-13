@@ -1060,7 +1060,7 @@ impl api::IncomingWebhook for Paypal {
                         resource
                             .purchase_units
                             .first()
-                            .map(|unit| unit.reference_id.clone())
+                            .map(|unit| unit.invoice_id.clone())
                             .ok_or(errors::ConnectorError::WebhookReferenceIdNotFound)?,
                     ),
                 ))
