@@ -438,6 +438,7 @@ pub struct PaymentsPreProcessingData {
     pub router_return_url: Option<String>,
     pub webhook_url: Option<String>,
     pub complete_authorize_url: Option<String>,
+    pub surcharge_details: Option<api_models::payment_methods::SurchargeDetailsResponse>,
     pub browser_info: Option<BrowserInformation>,
 }
 
