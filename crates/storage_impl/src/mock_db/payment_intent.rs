@@ -1,8 +1,10 @@
 use common_utils::errors::CustomResult;
 use data_models::{
     errors::StorageError,
-    payments::payment_intent::{
-        PaymentIntent, PaymentIntentInterface, PaymentIntentNew, PaymentIntentUpdate,
+    payments::{
+        payment_attempt::PaymentAttempt,
+        payment_intent::{PaymentIntentInterface, PaymentIntentNew, PaymentIntentUpdate},
+        PaymentIntent,
     },
     MerchantStorageScheme,
 };
@@ -48,13 +50,7 @@ impl PaymentIntentInterface for MockDb {
         _merchant_id: &str,
         _constraints: &data_models::payments::payment_intent::PaymentIntentFetchConstraints,
         _storage_scheme: MerchantStorageScheme,
-    ) -> error_stack::Result<
-        Vec<(
-            PaymentIntent,
-            data_models::payments::payment_attempt::PaymentAttempt,
-        )>,
-        StorageError,
-    > {
+    ) -> error_stack::Result<Vec<(PaymentIntent, PaymentAttempt)>, StorageError> {
         // [#172]: Implement function for `MockDb`
         Err(StorageError::MockDbError)?
     }
@@ -97,7 +93,7 @@ impl PaymentIntentInterface for MockDb {
             client_secret: new.client_secret,
             business_country: new.business_country,
             business_label: new.business_label,
-            active_attempt_id: new.active_attempt_id.to_owned(),
+            active_attempt: new.active_attempt,
             order_details: new.order_details,
             allowed_payment_method_types: new.allowed_payment_method_types,
             connector_metadata: new.connector_metadata,
@@ -146,5 +142,25 @@ impl PaymentIntentInterface for MockDb {
             })
             .cloned()
             .unwrap())
+    }
+
+    async fn get_active_payment_attempt(
+        &self,
+        payment: &mut PaymentIntent,
+        _storage_scheme: MerchantStorageScheme,
+    ) -> error_stack::Result<PaymentAttempt, StorageError> {
+        match payment.active_attempt.clone() {
+            data_models::RemoteStorageObject::ForeignID(id) => {
+                let attempts = self.payment_attempts.lock().await;
+                let attempt = attempts
+                    .iter()
+                    .find(|pa| pa.attempt_id == id && pa.merchant_id == payment.merchant_id)
+                    .ok_or(StorageError::ValueNotFound("Attempt not found".to_string()))?;
+
+                payment.active_attempt = attempt.clone().into();
+                Ok(attempt.clone())
+            }
+            data_models::RemoteStorageObject::Object(pa) => Ok(pa.clone()),
+        }
     }
 }

@@ -20,6 +20,8 @@
     "Scenario18-Bank Redirect-giropay",
     "Scenario19-Bank Transfer-ach",
     "Scenario19-Bank Debit-ach",
-    "Scenario22-Wallet-Wechatpay"
+    "Scenario22-Wallet-Wechatpay",
+    "Scenario22- Update address and List Payment method",
+    "Scenario23- Update Amount"
   ]
 }
