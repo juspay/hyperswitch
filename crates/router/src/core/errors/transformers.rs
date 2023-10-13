@@ -314,6 +314,12 @@ impl ErrorSwitch<api_models::errors::types::ApiErrorResponse> for CustomersError
                 "Customer does not exist in our records",
                 None,
             )),
+            Self::CustomerAlreadyExists => AER::BadRequest(ApiError::new(
+                "IR",
+                12,
+                "Customer with the given `customer_id` already exists",
+                None,
+            )),
         }
     }
 }

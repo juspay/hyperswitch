@@ -101,6 +101,7 @@ Never share your secret api keys. Keep them guarded and secure.
         crate::routes::customers::customers_retrieve,
         crate::routes::customers::customers_update,
         crate::routes::customers::customers_delete,
+        crate::routes::customers::customers_list,
         // crate::routes::api_keys::api_key_create,
         // crate::routes::api_keys::api_key_retrieve,
         // crate::routes::api_keys::api_key_update,
