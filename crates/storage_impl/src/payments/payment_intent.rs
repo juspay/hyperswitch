@@ -2,22 +2,21 @@
 use async_bb8_diesel::AsyncRunQueryDsl;
 use common_utils::{date_time, ext_traits::Encode};
 #[cfg(feature = "olap")]
-use data_models::payments::{
-    payment_attempt::PaymentAttempt, payment_intent::PaymentIntentFetchConstraints,
-};
+use data_models::payments::payment_intent::PaymentIntentFetchConstraints;
 use data_models::{
     errors::StorageError,
-    payments::payment_intent::{
-        PaymentIntent, PaymentIntentInterface, PaymentIntentNew, PaymentIntentUpdate,
+    payments::{
+        payment_attempt::PaymentAttempt,
+        payment_intent::{PaymentIntentInterface, PaymentIntentNew, PaymentIntentUpdate},
+        PaymentIntent,
     },
-    MerchantStorageScheme,
+    MerchantStorageScheme, RemoteStorageObject,
 };
 #[cfg(feature = "olap")]
 use diesel::{associations::HasTable, ExpressionMethods, JoinOnDsl, QueryDsl};
-#[cfg(feature = "olap")]
-use diesel_models::query::generics::db_metrics;
 use diesel_models::{
     kv,
+    payment_attempt::PaymentAttempt as DieselPaymentAttempt,
     payment_intent::{
         PaymentIntent as DieselPaymentIntent, PaymentIntentNew as DieselPaymentIntentNew,
         PaymentIntentUpdate as DieselPaymentIntentUpdate,
@@ -25,7 +24,7 @@ use diesel_models::{
 };
 #[cfg(feature = "olap")]
 use diesel_models::{
-    payment_attempt::PaymentAttempt as DieselPaymentAttempt,
+    query::generics::db_metrics,
     schema::{payment_attempt::dsl as pa_dsl, payment_intent::dsl as pi_dsl},
 };
 use error_stack::{IntoReport, ResultExt};
@@ -35,6 +34,7 @@ use router_env::logger;
 use router_env::{instrument, tracing};
 
 use crate::{
+    diesel_error_to_data_error,
     redis::kv_store::{kv_wrapper, KvOperation},
     utils::{pg_connection_read, pg_connection_write},
     DataModelExt, DatabaseStore, KVRouterStore,
@@ -82,7 +82,7 @@ impl<T: DatabaseStore> PaymentIntentInterface for KVRouterStore<T> {
                     client_secret: new.client_secret.clone(),
                     business_country: new.business_country,
                     business_label: new.business_label.clone(),
-                    active_attempt_id: new.active_attempt_id.to_owned(),
+                    active_attempt: new.active_attempt.clone(),
                     order_details: new.order_details.clone(),
                     allowed_payment_method_types: new.allowed_payment_method_types.clone(),
                     connector_metadata: new.connector_metadata.clone(),
@@ -99,7 +99,7 @@ impl<T: DatabaseStore> PaymentIntentInterface for KVRouterStore<T> {
                     },
                 };
 
-                match kv_wrapper::<PaymentIntent, _, _>(
+                match kv_wrapper::<DieselPaymentIntent, _, _>(
                     self,
                     KvOperation::<DieselPaymentIntent>::HSetNx(
                         &field,
@@ -142,10 +142,11 @@ impl<T: DatabaseStore> PaymentIntentInterface for KVRouterStore<T> {
                 let field = format!("pi_{}", this.payment_id);
 
                 let updated_intent = payment_intent.clone().apply_changeset(this.clone());
+                let diesel_intent = payment_intent.to_storage_model();
                 // Check for database presence as well Maybe use a read replica here ?
 
                 let redis_value =
-                    Encode::<PaymentIntent>::encode_to_string_of_json(&updated_intent)
+                    Encode::<DieselPaymentIntent>::encode_to_string_of_json(&diesel_intent)
                         .change_context(StorageError::SerializationFailed)?;
 
                 let redis_entry = kv::TypedSql {
@@ -153,7 +154,7 @@ impl<T: DatabaseStore> PaymentIntentInterface for KVRouterStore<T> {
                         updatable: kv::Updateable::PaymentIntentUpdate(
                             kv::PaymentIntentUpdateMems {
                                 orig: this.to_storage_model(),
-                                update_data: payment_intent.to_storage_model(),
+                                update_data: diesel_intent,
                             },
                         ),
                     },
@@ -182,13 +183,13 @@ impl<T: DatabaseStore> PaymentIntentInterface for KVRouterStore<T> {
         storage_scheme: MerchantStorageScheme,
     ) -> error_stack::Result<PaymentIntent, StorageError> {
         let database_call = || async {
-            self.router_store
-                .find_payment_intent_by_payment_id_merchant_id(
-                    payment_id,
-                    merchant_id,
-                    storage_scheme,
-                )
+            let conn = pg_connection_read(self).await?;
+            DieselPaymentIntent::find_by_payment_id_merchant_id(&conn, payment_id, merchant_id)
                 .await
+                .map_err(|er| {
+                    let new_err = diesel_error_to_data_error(er.current_context());
+                    er.change_context(new_err)
+                })
         };
         match storage_scheme {
             MerchantStorageScheme::PostgresOnly => database_call().await,
@@ -198,7 +199,7 @@ impl<T: DatabaseStore> PaymentIntentInterface for KVRouterStore<T> {
                 let field = format!("pi_{payment_id}");
                 crate::utils::try_redis_get_else_try_database_get(
                     async {
-                        kv_wrapper::<PaymentIntent, _, _>(
+                        kv_wrapper::<DieselPaymentIntent, _, _>(
                             self,
                             KvOperation::<DieselPaymentIntent>::HGet(&field),
                             &key,
@@ -210,6 +211,34 @@ impl<T: DatabaseStore> PaymentIntentInterface for KVRouterStore<T> {
                 )
                 .await
             }
+        }
+        .map(PaymentIntent::from_storage_model)
+    }
+
+    async fn get_active_payment_attempt(
+        &self,
+        payment: &mut PaymentIntent,
+        _storage_scheme: MerchantStorageScheme,
+    ) -> error_stack::Result<PaymentAttempt, StorageError> {
+        match payment.active_attempt.clone() {
+            data_models::RemoteStorageObject::ForeignID(attempt_id) => {
+                let conn = pg_connection_read(self).await?;
+
+                let pa = DieselPaymentAttempt::find_by_merchant_id_attempt_id(
+                    &conn,
+                    payment.merchant_id.as_str(),
+                    attempt_id.as_str(),
+                )
+                .await
+                .map_err(|er| {
+                    let new_err = diesel_error_to_data_error(er.current_context());
+                    er.change_context(new_err)
+                })
+                .map(PaymentAttempt::from_storage_model)?;
+                payment.active_attempt = data_models::RemoteStorageObject::Object(pa.clone());
+                Ok(pa)
+            }
+            data_models::RemoteStorageObject::Object(pa) => Ok(pa.clone()),
         }
     }
 
@@ -282,7 +311,7 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
             .insert(&conn)
             .await
             .map_err(|er| {
-                let new_err = crate::diesel_error_to_data_error(er.current_context());
+                let new_err = diesel_error_to_data_error(er.current_context());
                 er.change_context(new_err)
             })
             .map(PaymentIntent::from_storage_model)
@@ -299,7 +328,7 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
             .update(&conn, payment_intent.to_storage_model())
             .await
             .map_err(|er| {
-                let new_err = crate::diesel_error_to_data_error(er.current_context());
+                let new_err = diesel_error_to_data_error(er.current_context());
                 er.change_context(new_err)
             })
             .map(PaymentIntent::from_storage_model)
@@ -317,9 +346,36 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
             .await
             .map(PaymentIntent::from_storage_model)
             .map_err(|er| {
-                let new_err = crate::diesel_error_to_data_error(er.current_context());
+                let new_err = diesel_error_to_data_error(er.current_context());
                 er.change_context(new_err)
             })
+    }
+
+    async fn get_active_payment_attempt(
+        &self,
+        payment: &mut PaymentIntent,
+        _storage_scheme: MerchantStorageScheme,
+    ) -> error_stack::Result<PaymentAttempt, StorageError> {
+        match &payment.active_attempt {
+            data_models::RemoteStorageObject::ForeignID(attempt_id) => {
+                let conn = pg_connection_read(self).await?;
+
+                let pa = DieselPaymentAttempt::find_by_merchant_id_attempt_id(
+                    &conn,
+                    payment.merchant_id.as_str(),
+                    attempt_id.as_str(),
+                )
+                .await
+                .map_err(|er| {
+                    let new_err = diesel_error_to_data_error(er.current_context());
+                    er.change_context(new_err)
+                })
+                .map(PaymentAttempt::from_storage_model)?;
+                payment.active_attempt = data_models::RemoteStorageObject::Object(pa.clone());
+                Ok(pa)
+            }
+            data_models::RemoteStorageObject::Object(pa) => Ok(pa.clone()),
+        }
     }
 
     #[cfg(feature = "olap")]
@@ -672,7 +728,7 @@ impl DataModelExt for PaymentIntentNew {
             setup_future_usage: self.setup_future_usage,
             off_session: self.off_session,
             client_secret: self.client_secret,
-            active_attempt_id: self.active_attempt_id,
+            active_attempt_id: self.active_attempt.get_id(),
             business_country: self.business_country,
             business_label: self.business_label,
             order_details: self.order_details,
@@ -710,7 +766,7 @@ impl DataModelExt for PaymentIntentNew {
             setup_future_usage: storage_model.setup_future_usage,
             off_session: storage_model.off_session,
             client_secret: storage_model.client_secret,
-            active_attempt_id: storage_model.active_attempt_id,
+            active_attempt: RemoteStorageObject::ForeignID(storage_model.active_attempt_id),
             business_country: storage_model.business_country,
             business_label: storage_model.business_label,
             order_details: storage_model.order_details,
@@ -753,9 +809,9 @@ impl DataModelExt for PaymentIntent {
             setup_future_usage: self.setup_future_usage,
             off_session: self.off_session,
             client_secret: self.client_secret,
+            active_attempt_id: self.active_attempt.get_id(),
             business_country: self.business_country,
             business_label: self.business_label,
-            active_attempt_id: self.active_attempt_id,
             order_details: self.order_details,
             allowed_payment_method_types: self.allowed_payment_method_types,
             connector_metadata: self.connector_metadata,
@@ -792,7 +848,7 @@ impl DataModelExt for PaymentIntent {
             setup_future_usage: storage_model.setup_future_usage,
             off_session: storage_model.off_session,
             client_secret: storage_model.client_secret,
-            active_attempt_id: storage_model.active_attempt_id,
+            active_attempt: RemoteStorageObject::ForeignID(storage_model.active_attempt_id),
             business_country: storage_model.business_country,
             business_label: storage_model.business_label,
             order_details: storage_model.order_details,
@@ -912,104 +968,8 @@ impl DataModelExt for PaymentIntentUpdate {
         }
     }
 
-    fn from_storage_model(storage_model: Self::StorageModel) -> Self {
-        match storage_model {
-            DieselPaymentIntentUpdate::ResponseUpdate {
-                status,
-                amount_captured,
-                return_url,
-            } => Self::ResponseUpdate {
-                status,
-                amount_captured,
-                return_url,
-            },
-            DieselPaymentIntentUpdate::MetadataUpdate { metadata } => {
-                Self::MetadataUpdate { metadata }
-            }
-            DieselPaymentIntentUpdate::ReturnUrlUpdate {
-                return_url,
-                status,
-                customer_id,
-                shipping_address_id,
-                billing_address_id,
-            } => Self::ReturnUrlUpdate {
-                return_url,
-                status,
-                customer_id,
-                shipping_address_id,
-                billing_address_id,
-            },
-            DieselPaymentIntentUpdate::MerchantStatusUpdate {
-                status,
-                shipping_address_id,
-                billing_address_id,
-            } => Self::MerchantStatusUpdate {
-                status,
-                shipping_address_id,
-                billing_address_id,
-            },
-            DieselPaymentIntentUpdate::PGStatusUpdate { status } => Self::PGStatusUpdate { status },
-            DieselPaymentIntentUpdate::Update {
-                amount,
-                currency,
-                setup_future_usage,
-                status,
-                customer_id,
-                shipping_address_id,
-                billing_address_id,
-                return_url,
-                business_country,
-                business_label,
-                description,
-                statement_descriptor_name,
-                statement_descriptor_suffix,
-                order_details,
-                metadata,
-                payment_confirm_source,
-            } => Self::Update {
-                amount,
-                currency,
-                setup_future_usage,
-                status,
-                customer_id,
-                shipping_address_id,
-                billing_address_id,
-                return_url,
-                business_country,
-                business_label,
-                description,
-                statement_descriptor_name,
-                statement_descriptor_suffix,
-                order_details,
-                metadata,
-                payment_confirm_source,
-            },
-            DieselPaymentIntentUpdate::PaymentAttemptAndAttemptCountUpdate {
-                active_attempt_id,
-                attempt_count,
-            } => Self::PaymentAttemptAndAttemptCountUpdate {
-                active_attempt_id,
-                attempt_count,
-            },
-            DieselPaymentIntentUpdate::StatusAndAttemptUpdate {
-                status,
-                active_attempt_id,
-                attempt_count,
-            } => Self::StatusAndAttemptUpdate {
-                status,
-                active_attempt_id,
-                attempt_count,
-            },
-            DieselPaymentIntentUpdate::ApproveUpdate { merchant_decision } => {
-                Self::ApproveUpdate { merchant_decision }
-            }
-            DieselPaymentIntentUpdate::RejectUpdate {
-                status,
-                merchant_decision,
-            } => Self::RejectUpdate {
-                status,
-                merchant_decision,
-            },
-        }
+    #[allow(clippy::todo)]
+    fn from_storage_model(_storage_model: Self::StorageModel) -> Self {
+        todo!("Reverse map should no longer be needed")
     }
 }

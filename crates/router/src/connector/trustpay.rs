@@ -115,7 +115,7 @@ impl ConnectorCommon for Trustpay {
 
         match response {
             Ok(response_data) => {
-                let error_list = response_data.errors.clone().unwrap_or(vec![]);
+                let error_list = response_data.errors.clone().unwrap_or_default();
                 let option_error_code_message = get_error_code_error_message_based_on_priority(
                     self.clone(),
                     error_list.into_iter().map(|errors| errors.into()).collect(),
@@ -956,26 +956,15 @@ impl api::IncomingWebhook for Trustpay {
 impl services::ConnectorRedirectResponse for Trustpay {
     fn get_flow_type(
         &self,
-        query_params: &str,
+        _query_params: &str,
         _json_payload: Option<serde_json::Value>,
-        _action: services::PaymentAction,
+        action: services::PaymentAction,
     ) -> CustomResult<payments::CallConnectorAction, errors::ConnectorError> {
-        let query =
-            serde_urlencoded::from_str::<transformers::TrustpayRedirectResponse>(query_params)
-                .into_report()
-                .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-        crate::logger::debug!(trustpay_redirect_response=?query);
-        Ok(query.status.map_or(
-            payments::CallConnectorAction::Trigger,
-            |status| match status.as_str() {
-                "SuccessOk" => payments::CallConnectorAction::StatusUpdate {
-                    status: diesel_models::enums::AttemptStatus::Charged,
-                    error_code: None,
-                    error_message: None,
-                },
-                _ => payments::CallConnectorAction::Trigger,
-            },
-        ))
+        match action {
+            services::PaymentAction::PSync | services::PaymentAction::CompleteAuthorize => {
+                Ok(payments::CallConnectorAction::Trigger)
+            }
+        }
     }
 }
 

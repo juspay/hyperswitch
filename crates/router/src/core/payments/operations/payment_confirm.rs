@@ -105,11 +105,12 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
 
         // Stage 2
 
+        let attempt_id = payment_intent.active_attempt.get_id();
         let payment_attempt_fut = db
             .find_payment_attempt_by_payment_id_merchant_id_attempt_id(
                 payment_intent.payment_id.as_str(),
                 merchant_id,
-                payment_intent.active_attempt_id.as_str(),
+                attempt_id.as_str(),
                 storage_scheme,
             )
             .map(|x| x.to_not_found_response(errors::ApiErrorResponse::PaymentNotFound));
@@ -163,11 +164,12 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
                 | api_models::enums::IntentStatus::RequiresConfirmation => {
                     let attempt_type = helpers::AttemptType::SameOld;
 
+                    let attempt_id = payment_intent.active_attempt.get_id();
                     let connector_response_fut = attempt_type.get_connector_response(
                         db,
                         &payment_intent.payment_id,
                         &payment_intent.merchant_id,
-                        &payment_intent.active_attempt_id,
+                        attempt_id.as_str(),
                         storage_scheme,
                     );
 
