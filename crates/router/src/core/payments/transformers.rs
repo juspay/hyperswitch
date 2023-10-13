@@ -447,7 +447,7 @@ where
         headers.extend(
             external_latency
                 .map(|latency| vec![(X_HS_LATENCY.to_string(), latency.to_string())])
-                .unwrap_or(vec![]),
+                .unwrap_or_default(),
         );
     }
     let output = Ok(match payment_request {
