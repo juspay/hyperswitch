@@ -152,7 +152,8 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
             req.request.payment_amount,
             req,
         ))?;
-        let connector_req = authorizedotnet::CancelOrCaptureTransactionRequest::try_from(&connector_router_data)?;
+        let connector_req =
+            authorizedotnet::CancelOrCaptureTransactionRequest::try_from(&connector_router_data)?;
 
         let authorizedotnet_req = types::RequestBody::log_and_get_request_body(
             &connector_req,
@@ -331,7 +332,8 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
             req.request.amount,
             req,
         ))?;
-        let connector_req = authorizedotnet::CreateTransactionRequest::try_from(&connector_router_data)?;
+        let connector_req =
+            authorizedotnet::CreateTransactionRequest::try_from(&connector_router_data)?;
 
         let authorizedotnet_req = types::RequestBody::log_and_get_request_body(
             &connector_req,
@@ -429,7 +431,8 @@ impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsR
             req.request.amount.unwrap(),
             req,
         ))?;
-        let connector_req = authorizedotnet::CancelOrCaptureTransactionRequest::try_from(&connector_router_data)?;
+        let connector_req =
+            authorizedotnet::CancelOrCaptureTransactionRequest::try_from(&connector_router_data)?;
 
         let authorizedotnet_req = types::RequestBody::log_and_get_request_body(
             &connector_req,
@@ -617,7 +620,8 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
             req.request.refund_amount,
             req,
         ))?;
-        let connector_req = authorizedotnet::AuthorizedotnetCreateSyncRequest::try_from(&connector_router_data)?;
+        let connector_req =
+            authorizedotnet::AuthorizedotnetCreateSyncRequest::try_from(&connector_router_data)?;
 
         let sync_request = types::RequestBody::log_and_get_request_body(
             &connector_req,
@@ -711,7 +715,8 @@ impl
             req.request.amount,
             req,
         ))?;
-        let connector_req = authorizedotnet::PaypalConfirmRequest::try_from(&connector_router_data)?;
+        let connector_req =
+            authorizedotnet::PaypalConfirmRequest::try_from(&connector_router_data)?;
 
         let authorizedotnet_req = types::RequestBody::log_and_get_request_body(
             &connector_req,
@@ -929,4 +934,3 @@ impl services::ConnectorRedirectResponse for Authorizedotnet {
         }
     }
 }
-
