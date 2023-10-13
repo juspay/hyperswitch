@@ -110,7 +110,7 @@ impl ConnectorCommon for Checkout {
         };
 
         router_env::logger::info!(error_response=?response);
-        let errors_list = response.error_codes.clone().unwrap_or(vec![]);
+        let errors_list = response.error_codes.clone().unwrap_or_default();
         let option_error_code_message = conn_utils::get_error_code_error_message_based_on_priority(
             self.clone(),
             errors_list
@@ -1289,25 +1289,15 @@ impl api::IncomingWebhook for Checkout {
 impl services::ConnectorRedirectResponse for Checkout {
     fn get_flow_type(
         &self,
-        query_params: &str,
+        _query_params: &str,
         _json_payload: Option<serde_json::Value>,
-        _action: services::PaymentAction,
+        action: services::PaymentAction,
     ) -> CustomResult<payments::CallConnectorAction, errors::ConnectorError> {
-        let query =
-            serde_urlencoded::from_str::<transformers::CheckoutRedirectResponse>(query_params)
-                .into_report()
-                .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-        let connector_action = query
-            .status
-            .map(
-                |checkout_status| payments::CallConnectorAction::StatusUpdate {
-                    status: diesel_models::enums::AttemptStatus::from(checkout_status),
-                    error_code: None,
-                    error_message: None,
-                },
-            )
-            .unwrap_or(payments::CallConnectorAction::Trigger);
-        Ok(connector_action)
+        match action {
+            services::PaymentAction::PSync | services::PaymentAction::CompleteAuthorize => {
+                Ok(payments::CallConnectorAction::Trigger)
+            }
+        }
     }
 }
 

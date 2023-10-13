@@ -2,6 +2,7 @@
 use actix_web::http::header::HeaderMap;
 use api_models::{enums as api_enums, payments};
 use common_utils::{
+    consts::X_HS_LATENCY,
     crypto::Encryptable,
     ext_traits::{StringExt, ValueExt},
     pii,
@@ -453,7 +454,6 @@ impl ForeignTryFrom<api_models::webhooks::IncomingWebhookEvent> for storage_enum
 
 impl ForeignFrom<storage::Config> for api_types::Config {
     fn foreign_from(config: storage::Config) -> Self {
-        let config = config;
         Self {
             key: config.key,
             value: config.config,
@@ -463,16 +463,14 @@ impl ForeignFrom<storage::Config> for api_types::Config {
 
 impl<'a> ForeignFrom<&'a api_types::ConfigUpdate> for storage::ConfigUpdate {
     fn foreign_from(config: &api_types::ConfigUpdate) -> Self {
-        let config_update = config;
         Self::Update {
-            config: Some(config_update.value.clone()),
+            config: Some(config.value.clone()),
         }
     }
 }
 
 impl<'a> From<&'a domain::Address> for api_types::Address {
     fn from(address: &domain::Address) -> Self {
-        let address = address;
         Self {
             address: Some(api_types::AddressDetails {
                 city: address.city.clone(),
@@ -789,8 +787,14 @@ impl ForeignTryFrom<&HeaderMap> for api_models::payments::HeaderPayload {
                         )
                 })
                 .transpose()?;
+
+        let x_hs_latency = get_header_value_by_key(X_HS_LATENCY.into(), headers)
+            .map(|value| value == Some("true"))
+            .unwrap_or(false);
+
         Ok(Self {
             payment_confirm_source,
+            x_hs_latency: Some(x_hs_latency),
         })
     }
 }
@@ -822,6 +826,22 @@ impl
             phone: customer.and_then(|cust| cust.phone.as_ref().map(|p| p.clone().into_inner())),
             name: customer.and_then(|cust| cust.name.as_ref().map(|n| n.clone().into_inner())),
             ..Self::default()
+        }
+    }
+}
+
+impl ForeignFrom<storage::PaymentLink> for api_models::payments::RetrievePaymentLinkResponse {
+    fn foreign_from(payment_link_object: storage::PaymentLink) -> Self {
+        Self {
+            payment_link_id: payment_link_object.payment_link_id,
+            payment_id: payment_link_object.payment_id,
+            merchant_id: payment_link_object.merchant_id,
+            link_to_pay: payment_link_object.link_to_pay,
+            amount: payment_link_object.amount,
+            currency: payment_link_object.currency,
+            created_at: payment_link_object.created_at,
+            last_modified_at: payment_link_object.last_modified_at,
+            link_expiry: payment_link_object.fulfilment_time,
         }
     }
 }
