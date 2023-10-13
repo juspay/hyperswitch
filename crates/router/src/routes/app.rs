@@ -275,10 +275,12 @@ impl Customers {
 
         #[cfg(feature = "olap")]
         {
-            route = route.service(
-                web::resource("/{customer_id}/mandates")
-                    .route(web::get().to(get_customer_mandates)),
-            );
+            route = route
+                .service(
+                    web::resource("/{customer_id}/mandates")
+                        .route(web::get().to(get_customer_mandates)),
+                )
+                .service(web::resource("/list").route(web::get().to(customers_list)))
         }
 
         #[cfg(feature = "oltp")]
@@ -300,6 +302,7 @@ impl Customers {
                         .route(web::delete().to(customers_delete)),
                 );
         }
+
         route
     }
 }
