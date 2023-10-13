@@ -167,7 +167,7 @@ impl TryFrom<&AirwallexRouterData<&types::PaymentsAuthorizeRouterData>> for Airw
                 payment_method_options =
                     Some(AirwallexPaymentOptions::Card(AirwallexCardPaymentOptions {
                         auto_capture: matches!(
-                            item.request.capture_method,
+                            request.capture_method,
                             Some(enums::CaptureMethod::Automatic) | None
                         ),
                     }));
@@ -191,7 +191,7 @@ impl TryFrom<&AirwallexRouterData<&types::PaymentsAuthorizeRouterData>> for Airw
             request_id: Uuid::new_v4().to_string(),
             payment_method,
             payment_method_options,
-            return_url: item.request.complete_authorize_url.clone(),
+            return_url: request.complete_authorize_url.clone(),
         })
     }
 }
