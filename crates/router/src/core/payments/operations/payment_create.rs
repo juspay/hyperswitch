@@ -486,7 +486,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve> ValidateRequest<F, api::Paymen
         helpers::validate_customer_details_in_request(request)?;
 
         if let Some(payment_link_object) = &request.payment_link_object {
-            helpers::validate_payment_link_request(payment_link_object, request.confirm)?;
+            helpers::validate_payment_link_request(payment_link_object, request.confirm, request.order_details.clone())?;
         }
 
         let given_payment_id = match &request.payment_id {

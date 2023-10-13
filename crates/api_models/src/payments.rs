@@ -226,6 +226,7 @@ pub struct PaymentsRequest {
         "product_name": "gillete creme",
         "quantity": 15,
         "amount" : 900
+        "product_img_link" : "https://dummy-img-link.com"
     }]"#)]
     pub order_details: Option<Vec<OrderDetailsWithAmount>>,
 

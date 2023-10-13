@@ -77,8 +77,6 @@ pub async fn intiate_payment_link_flow(
             field_name: "order_details",
         })?;
 
-    println!("order_details sahkal {:?}", order_details);
-
     let payment_details = api_models::payments::PaymentLinkDetails {
         amount: payment_intent.amount,
         currency: payment_intent.currency.unwrap_or_default(),
