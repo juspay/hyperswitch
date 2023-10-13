@@ -123,11 +123,11 @@ fn get_js_script(
 ) -> String {
     let merchant_logo = if let Some(pl_metadata) = payment_link_metadata {
         pl_metadata.merchant_logo.unwrap_or(
-            "https://images.softwaresuggest.com/software_logo/1680595424_Hyperswitch_(2).png"
+            "https://static-00.iconduck.com/assets.00/clock-small-icon-2048x2048-srddipq8.png"
                 .to_string(),
         )
     } else {
-        "https://images.softwaresuggest.com/software_logo/1680595424_Hyperswitch_(2).png"
+        "https://static-00.iconduck.com/assets.00/clock-small-icon-2048x2048-srddipq8.png"
             .to_string()
     };
     let return_url = return_url.unwrap_or("https://hyperswitch.io/".to_string());
@@ -144,9 +144,12 @@ fn get_js_script(
         currency_symbol: '{currency}',
         merchant: '{merchant_id}',
         expiry: {expiry},
+        max_items_visible_after_collapse: 3,
         // TODO: Remove hardcoded values
-        merchant_logo: 'https://upload.wikimedia.org/wikipedia/commons/8/83/Steam_icon_logo.svg',
-        return_url: 'http://localhost:5500/public/index.html',
+        order_details: [
+            {{
+              product_name:
+                'dskjghbdsiuh sagfvbsajd ugbfiusedg fiudshgiu sdhgvishd givuhdsifu gnb gidsug biuesbdg iubsedg bsduxbg jhdxbgv jdskfbgi sdfgibuh ew87t54378 ghdfjbv jfdhgvb dufhvbfidu hg5784ghdfbjnk f (taxes incl.)',
               quantity: 2,
               amount: 100,
               product_image:
@@ -208,14 +211,14 @@ fn get_color_scheme_css(
         .and_then(|pl_metadata| {
             pl_metadata.color_scheme.map(|color| {
                 (
-                    color.primary_color.unwrap_or("#D1DADD".to_string()),
+                    color.primary_color.unwrap_or("#C6C7C8".to_string()),
                     color.primary_accent_color.unwrap_or("#6A8EF5".to_string()),
                     color.secondary_color.unwrap_or("#0C48F6".to_string()),
                 )
             })
         })
         .unwrap_or((
-            "#D1DADD".to_string(),
+            "#C6C7C8".to_string(),
             "#6A8EF5".to_string(),
             "#0C48F6".to_string(),
         ));
