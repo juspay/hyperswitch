@@ -157,9 +157,13 @@ pub struct AirwallexCardPaymentOptions {
     auto_capture: bool,
 }
 
-impl TryFrom<&AirwallexRouterData<&types::PaymentsAuthorizeRouterData>> for AirwallexPaymentsRequest {
+impl TryFrom<&AirwallexRouterData<&types::PaymentsAuthorizeRouterData>>
+    for AirwallexPaymentsRequest
+{
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(item: &AirwallexRouterData<&types::PaymentsAuthorizeRouterData>) -> Result<Self, Self::Error> {
+    fn try_from(
+        item: &AirwallexRouterData<&types::PaymentsAuthorizeRouterData>,
+    ) -> Result<Self, Self::Error> {
         let mut payment_method_options = None;
         let request = &item.router_data.request;
         let payment_method = match request.payment_method_data.clone() {
@@ -571,17 +575,19 @@ pub struct AirwallexRefundRequest {
     payment_intent_id: String,
 }
 
-impl<F> TryFrom<&types::RefundsRouterData<F>> for AirwallexRefundRequest {
+impl<F> TryFrom<&AirwallexRouterData<&types::RefundsRouterData<F>>> for AirwallexRefundRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(item: &types::RefundsRouterData<F>) -> Result<Self, Self::Error> {
+    fn try_from(
+        item: &AirwallexRouterData<&types::RefundsRouterData<F>>,
+    ) -> Result<Self, Self::Error> {
         Ok(Self {
             request_id: Uuid::new_v4().to_string(),
             amount: Some(utils::to_currency_base_unit(
-                item.request.refund_amount,
-                item.request.currency,
+                item.router_data.request.refund_amount,
+                item.router_data.request.currency,
             )?),
-            reason: item.request.reason.clone(),
-            payment_intent_id: item.request.connector_transaction_id.clone(),
+            reason: item.router_data.request.reason.clone(),
+            payment_intent_id: item.router_data.request.connector_transaction_id.clone(),
         })
     }
 }
