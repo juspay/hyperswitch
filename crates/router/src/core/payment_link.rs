@@ -1,7 +1,9 @@
-use common_utils::ext_traits::AsyncExt;
-use error_stack::ResultExt;
+use api_models::enums::Currency;
+use common_utils::{crypto::OptionalEncryptableName, ext_traits::AsyncExt, pii::SecretSerdeValue};
+use error_stack::{IntoReport, ResultExt};
+use time::PrimitiveDateTime;
 
-use super::errors::{self, StorageErrorExt};
+use super::errors::{self, RouterResult, StorageErrorExt};
 use crate::{
     core::payments::helpers,
     errors::RouterResponse,
@@ -68,17 +70,30 @@ pub async fn intiate_payment_link_flow(
         "create payment link",
     )?;
 
-    let expiry = fulfillment_time.assume_utc().unix_timestamp();
+    let order_details = payment_intent
+        .order_details
+        .get_required_value("order_details")
+        .change_context(errors::ApiErrorResponse::MissingRequiredField {
+            field_name: "order_details",
+        })?;
 
-    let js_script = get_js_script(
-        payment_intent.amount.to_string(),
-        payment_intent.currency.unwrap_or_default().to_string(),
-        merchant_account.publishable_key.unwrap_or_default(),
-        payment_intent.client_secret.unwrap_or_default(),
-        payment_intent.payment_id,
-        expiry,
-    );
+    let payment_details = PaymentLinkDetails {
+        amount: payment_intent.amount,
+        currency: payment_intent.currency.unwrap_or_default(),
+        payment_id: payment_intent.payment_id,
+        merchant_name: merchant_account.merchant_name,
+        order_details,
+        return_url: payment_intent.return_url.unwrap_or_default(),
+        expiry: fulfillment_time,
+        pub_key: merchant_account.publishable_key.unwrap_or_default(),
+        client_secret: payment_intent.client_secret.unwrap_or_default(),
+        // TODO: Remove hardcoded values
+        merchant_logo: "https://upload.wikimedia.org/wikipedia/commons/8/83/Steam_icon_logo.svg"
+            .to_string(),
+        max_items_visible_after_collapse: 3,
+    };
 
+    let js_script = get_js_script(payment_details)?;
     let payment_link_data = services::PaymentLinkFormData {
         js_script,
         sdk_url: state.conf.payment_link.sdk_url.clone(),
@@ -92,81 +107,26 @@ pub async fn intiate_payment_link_flow(
 The get_js_script function is used to inject dynamic value to payment_link sdk, which is unique to every payment.
 */
 
-fn get_js_script(
-    amount: String,
-    currency: String,
+#[derive(Debug, serde::Serialize)]
+struct PaymentLinkDetails {
+    amount: i64,
+    currency: Currency,
     pub_key: String,
-    secret: String,
+    client_secret: String,
     payment_id: String,
-    expiry: i64,
-) -> String {
-    format!(
-        "window.__PAYMENT_DETAILS_STR = JSON.stringify({{
-        client_secret: '{secret}',
-        amount: '{amount}',
-        currency: '{currency}',
-        payment_id: '{payment_id}',
-        expiry: {expiry},
-        // TODO: Remove hardcoded values
-        merchant_logo: 'https://upload.wikimedia.org/wikipedia/commons/8/83/Steam_icon_logo.svg',
-        return_url: 'http://localhost:5500/public/index.html',
-        currency_symbol: '$',
-        merchant: 'Steam',
-        max_items_visible_after_collapse: 3,
-        order_details: [
-            {{
-              product_name:
-                'dskjghbdsiuh sagfvbsajd ugbfiusedg fiudshgiu sdhgvishd givuhdsifu gnb gidsug biuesbdg iubsedg bsduxbg jhdxbgv jdskfbgi sdfgibuh ew87t54378 ghdfjbv jfdhgvb dufhvbfidu hg5784ghdfbjnk f (taxes incl.)',
-              quantity: 2,
-              amount: 100,
-              product_image:
-                'https://upload.wikimedia.org/wikipedia/commons/8/83/Steam_icon_logo.svg',
-            }},
-            {{
-              product_name: \"F1 '23\",
-              quantity: 4,
-              amount: 500,
-              product_image:
-                'https://upload.wikimedia.org/wikipedia/commons/8/83/Steam_icon_logo.svg',
-            }},
-            {{
-              product_name: \"Motosport '24\",
-              quantity: 4,
-              amount: 500,
-              product_image:
-                'https://upload.wikimedia.org/wikipedia/commons/8/83/Steam_icon_logo.svg',
-            }},
-            {{
-              product_name: 'Trackmania',
-              quantity: 4,
-              amount: 500,
-              product_image:
-                'https://upload.wikimedia.org/wikipedia/commons/8/83/Steam_icon_logo.svg',
-            }},
-            {{
-              product_name: 'Ghost Recon',
-              quantity: 4,
-              amount: 500,
-              product_image:
-                'https://upload.wikimedia.org/wikipedia/commons/8/83/Steam_icon_logo.svg',
-            }},
-            {{
-              product_name: 'Cup of Tea',
-              quantity: 4,
-              amount: 500,
-              product_image:
-                'https://upload.wikimedia.org/wikipedia/commons/8/83/Steam_icon_logo.svg',
-            }},
-            {{
-              product_name: 'Tea cups',
-              quantity: 4,
-              amount: 500,
-              product_image:
-                'https://upload.wikimedia.org/wikipedia/commons/8/83/Steam_icon_logo.svg',
-            }},
-          ]
-    }});
+    #[serde(with = "common_utils::custom_serde::iso8601")]
+    expiry: PrimitiveDateTime,
+    merchant_logo: String,
+    return_url: String,
+    merchant_name: OptionalEncryptableName,
+    order_details: Vec<SecretSerdeValue>,
+    max_items_visible_after_collapse: i8,
+}
 
-    const hyper = Hyper(\"{pub_key}\");"
-    )
+fn get_js_script(payment_details: PaymentLinkDetails) -> RouterResult<String> {
+    let payment_details_str = serde_json::to_string(&payment_details)
+        .into_report()
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to serialize PaymentLinkDetails")?;
+    Ok(format!("window.__PAYMENT_DETAILS = {payment_details_str};"))
 }
