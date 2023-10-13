@@ -77,7 +77,9 @@ pub async fn intiate_payment_link_flow(
             field_name: "order_details",
         })?;
 
-    let payment_details = PaymentLinkDetails {
+    println!("order_details sahkal {:?}", order_details);
+
+    let payment_details = api_models::payments::PaymentLinkDetails {
         amount: payment_intent.amount,
         currency: payment_intent.currency.unwrap_or_default(),
         payment_id: payment_intent.payment_id,
@@ -90,7 +92,7 @@ pub async fn intiate_payment_link_flow(
         // TODO: Remove hardcoded values
         merchant_logo: "https://upload.wikimedia.org/wikipedia/commons/8/83/Steam_icon_logo.svg"
             .to_string(),
-        max_items_visible_after_collapse: 3,
+        max_items_visible_after_collapse: 3
     };
 
     let js_script = get_js_script(payment_details)?;
@@ -107,23 +109,8 @@ pub async fn intiate_payment_link_flow(
 The get_js_script function is used to inject dynamic value to payment_link sdk, which is unique to every payment.
 */
 
-#[derive(Debug, serde::Serialize)]
-struct PaymentLinkDetails {
-    amount: i64,
-    currency: Currency,
-    pub_key: String,
-    client_secret: String,
-    payment_id: String,
-    #[serde(with = "common_utils::custom_serde::iso8601")]
-    expiry: PrimitiveDateTime,
-    merchant_logo: String,
-    return_url: String,
-    merchant_name: OptionalEncryptableName,
-    order_details: Vec<SecretSerdeValue>,
-    max_items_visible_after_collapse: i8,
-}
 
-fn get_js_script(payment_details: PaymentLinkDetails) -> RouterResult<String> {
+fn get_js_script(payment_details: api_models::payments::PaymentLinkDetails) -> RouterResult<String> {
     let payment_details_str = serde_json::to_string(&payment_details)
         .into_report()
         .change_context(errors::ApiErrorResponse::InternalServerError)
