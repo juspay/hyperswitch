@@ -101,8 +101,6 @@ pub async fn payments_incoming_webhook_flow<
                 )
                 .await;
 
-            println!("$$$$${:?}", response);
-
             lock_action
                 .free_lock_action(&state, merchant_account.merchant_id.to_owned())
                 .await?;
