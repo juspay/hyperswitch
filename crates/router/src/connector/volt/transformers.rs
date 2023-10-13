@@ -3,7 +3,7 @@ use masking::Secret;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    connector::utils::{self, AddressDetailsData, PaymentsAuthorizeRequestData, RouterData},
+    connector::utils::{self, AddressDetailsData, RouterData},
     core::errors,
     services,
     types::{self, api, storage::enums},
@@ -42,17 +42,16 @@ impl<T>
 #[serde(rename_all = "camelCase")]
 pub struct VoltPaymentsRequest {
     amount: i64,
-    // card: VoltCard,
     currency_code: String,
     #[serde(rename = "type")]
     transaction_type: String,
     merchant_internal_reference: String,
     shopper: ShopperDetails,
-    // notification_url: Option<String>,
-    // payment_success_url: Option<String>,
-    // payment_failure_url: Option<String>,
-    // payment_pending_url: Option<String>,
-    // payment_cancel_url: Option<String>,
+    notification_url: Option<String>,
+    payment_success_url: Option<String>,
+    payment_failure_url: Option<String>,
+    payment_pending_url: Option<String>,
+    payment_cancel_url: Option<String>,
 }
 
 #[derive(Default, Debug, Serialize, Eq, PartialEq)]
@@ -64,17 +63,6 @@ pub struct ShopperDetails {
     organisation_name: Secret<String>,
 }
 
-// #[derive(Default, Debug, Serialize, Eq, PartialEq)]
-// #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
-// pub enum TransactionType {
-//    Bills,
-//    Goods,
-//    PersonToPerson,
-//    Services,
-//    #[default]
-//    Other,
-// }
-
 impl TryFrom<&VoltRouterData<&types::PaymentsAuthorizeRouterData>> for VoltPaymentsRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
@@ -85,13 +73,13 @@ impl TryFrom<&VoltRouterData<&types::PaymentsAuthorizeRouterData>> for VoltPayme
                 api_models::payments::BankRedirectData::OpenBankingUk { .. } => {
                     let amount = item.amount;
                     let currency_code = item.router_data.request.currency.to_string();
-                    // let transaction_type = ;
                     let merchant_internal_reference =
                         item.router_data.connector_request_reference_id.clone();
-                    // let payment_success_url = item.router_data.request.router_return_url.clone();
-                    // let payment_failure_url = item.router_data.request.router_return_url.clone();
-                    // let payment_pending_url = item.router_data.request.router_return_url.clone();
-                    // let payment_cancel_url = item.router_data.request.router_return_url.clone();
+                    let payment_success_url = item.router_data.request.router_return_url.clone();
+                    let payment_failure_url = item.router_data.request.router_return_url.clone();
+                    let payment_pending_url = item.router_data.request.router_return_url.clone();
+                    let payment_cancel_url = item.router_data.request.router_return_url.clone();
+                    let notification_url = item.router_data.request.webhook_url.clone();
                     let address = item.router_data.get_billing_address()?;
                     let shopper = ShopperDetails {
                         email: item.router_data.request.email.clone(),
@@ -105,13 +93,13 @@ impl TryFrom<&VoltRouterData<&types::PaymentsAuthorizeRouterData>> for VoltPayme
                         amount,
                         currency_code,
                         merchant_internal_reference,
-                        // payment_success_url,
-                        // payment_failure_url,
-                        // payment_pending_url,
-                        // payment_cancel_url,
+                        payment_success_url,
+                        payment_failure_url,
+                        payment_pending_url,
+                        payment_cancel_url,
+                        notification_url,
                         shopper,
-                        // notification_url: Some("https://e3ae-103-159-11-202.ngrok-free.app/webhooks/{merchant-id}/volt".to_string()),
-                        transaction_type: "BILL".to_string(),
+                        transaction_type: "SERVICES".to_string(),
                     })
                 }
                 api_models::payments::BankRedirectData::BancontactCard { .. }
@@ -142,16 +130,75 @@ impl TryFrom<&VoltRouterData<&types::PaymentsAuthorizeRouterData>> for VoltPayme
     }
 }
 
+#[derive(Debug, Clone, Serialize, PartialEq)]
+pub struct VoltAuthUpdateRequest {
+    grant_type: String,
+    client_id: Secret<String>,
+    client_secret: Secret<String>,
+    username: Secret<String>,
+    password: Secret<String>,
+}
+
+impl TryFrom<&types::RefreshTokenRouterData> for VoltAuthUpdateRequest {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(item: &types::RefreshTokenRouterData) -> Result<Self, Self::Error> {
+        let auth = VoltAuthType::try_from(&item.connector_auth_type)?;
+        Ok(Self {
+            grant_type: "password".to_string(),
+            username: auth.username,
+            password: auth.password,
+            client_id: auth.client_id,
+            client_secret: auth.client_secret,
+        })
+    }
+}
+
+#[derive(Default, Debug, Clone, Deserialize, PartialEq)]
+pub struct VoltAuthUpdateResponse {
+    pub access_token: Secret<String>,
+    pub token_type: String,
+    pub expires_in: i64,
+    pub refresh_token: String,
+}
+
+impl<F, T> TryFrom<types::ResponseRouterData<F, VoltAuthUpdateResponse, T, types::AccessToken>>
+    for types::RouterData<F, T, types::AccessToken>
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        item: types::ResponseRouterData<F, VoltAuthUpdateResponse, T, types::AccessToken>,
+    ) -> Result<Self, Self::Error> {
+        Ok(Self {
+            response: Ok(types::AccessToken {
+                token: item.response.access_token,
+                expires: item.response.expires_in,
+            }),
+            ..item.data
+        })
+    }
+}
+
 pub struct VoltAuthType {
-    pub(super) api_key: Secret<String>,
+    pub(super) username: Secret<String>,
+    pub(super) password: Secret<String>,
+    pub(super) client_id: Secret<String>,
+    pub(super) client_secret: Secret<String>,
 }
 
 impl TryFrom<&types::ConnectorAuthType> for VoltAuthType {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(auth_type: &types::ConnectorAuthType) -> Result<Self, Self::Error> {
         match auth_type {
-            types::ConnectorAuthType::HeaderKey { api_key } => Ok(Self {
-                api_key: api_key.to_owned(),
+            types::ConnectorAuthType::MultiAuthKey {
+                api_key,
+                key1,
+                api_secret,
+                key2,
+            } => Ok(Self {
+                username: api_key.to_owned(),
+                password: api_secret.to_owned(),
+                client_id: key1.to_owned(),
+                client_secret: key2.to_owned(),
             }),
             _ => Err(errors::ConnectorError::FailedToObtainAuthType.into()),
         }
@@ -162,9 +209,10 @@ impl From<VoltPaymentStatus> for enums::AttemptStatus {
     fn from(item: VoltPaymentStatus) -> Self {
         match item {
             VoltPaymentStatus::Completed => Self::Charged,
-            VoltPaymentStatus::NewPayment | VoltPaymentStatus::Processing => {
-                Self::AuthenticationPending
-            }
+            VoltPaymentStatus::NewPayment
+            | VoltPaymentStatus::Processing
+            | VoltPaymentStatus::Received => Self::AuthenticationPending,
+            VoltPaymentStatus::AbandonedByUser => Self::AuthenticationFailed,
         }
     }
 }
@@ -210,6 +258,8 @@ impl<F, T>
 pub enum VoltPaymentStatus {
     NewPayment,
     Completed,
+    Received,
+    AbandonedByUser,
     #[default]
     Processing,
 }
@@ -247,13 +297,15 @@ impl<F, T> TryFrom<types::ResponseRouterData<F, VoltPsyncResponse, T, types::Pay
 #[derive(Default, Debug, Serialize)]
 pub struct VoltRefundRequest {
     pub amount: i64,
+    pub external_reference: String,
 }
 
 impl<F> TryFrom<&VoltRouterData<&types::RefundsRouterData<F>>> for VoltRefundRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &VoltRouterData<&types::RefundsRouterData<F>>) -> Result<Self, Self::Error> {
         Ok(Self {
-            amount: item.amount.to_owned(),
+            amount: item.router_data.request.refund_amount,
+            external_reference: item.router_data.request.refund_id.clone(),
         })
     }
 }
@@ -283,7 +335,7 @@ impl From<RefundStatus> for enums::RefundStatus {
 #[derive(Default, Debug, Clone, Serialize, Deserialize)]
 pub struct RefundResponse {
     id: String,
-    status: RefundStatus,
+    status: Option<RefundStatus>,
 }
 
 impl TryFrom<types::RefundsResponseRouterData<api::Execute, RefundResponse>>
@@ -296,7 +348,7 @@ impl TryFrom<types::RefundsResponseRouterData<api::Execute, RefundResponse>>
         Ok(Self {
             response: Ok(types::RefundsResponseData {
                 connector_refund_id: item.response.id.to_string(),
-                refund_status: enums::RefundStatus::from(item.response.status),
+                refund_status: enums::RefundStatus::Pending,
             }),
             ..item.data
         })
@@ -313,7 +365,11 @@ impl TryFrom<types::RefundsResponseRouterData<api::RSync, RefundResponse>>
         Ok(Self {
             response: Ok(types::RefundsResponseData {
                 connector_refund_id: item.response.id.to_string(),
-                refund_status: enums::RefundStatus::from(item.response.status),
+                refund_status: enums::RefundStatus::from(
+                    item.response
+                        .status
+                        .ok_or(errors::ConnectorError::ResponseDeserializationFailed)?,
+                ),
             }),
             ..item.data
         })
@@ -322,8 +378,19 @@ impl TryFrom<types::RefundsResponseRouterData<api::RSync, RefundResponse>>
 
 #[derive(Default, Debug, Serialize, Deserialize, PartialEq)]
 pub struct VoltErrorResponse {
-    pub status_code: u16,
-    pub code: String,
+    pub exception: VoltErrorException,
+}
+
+#[derive(Default, Debug, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct VoltErrorException {
+    pub code: u64,
     pub message: String,
-    pub reason: Option<String>,
+    pub error_list: Option<Vec<VoltErrorList>>,
+}
+
+#[derive(Default, Debug, Serialize, Deserialize, PartialEq)]
+pub struct VoltErrorList {
+    pub property: String,
+    pub message: String,
 }
