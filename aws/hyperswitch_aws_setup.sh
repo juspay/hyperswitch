@@ -58,7 +58,7 @@ echo `aws ec2 authorize-security-group-ingress \
 --cidr 0.0.0.0/0 \
 --region $REGION`
 
-echo "Security Group ingress for port 80 SUCCESS.\n"
+echo "Security Group ingress for port 80 CREATED.\n"
 
 
 echo "Creating Security Group ingress for port 22..."
@@ -70,7 +70,7 @@ echo `aws ec2 authorize-security-group-ingress \
 --cidr 0.0.0.0/0 \
 --region $REGION`
 
-echo "Security Group ingress for port 22 SUCCESS.\n"
+echo "Security Group ingress for port 22 CREATED.\n"
 
 #############  REDIS ##################
 # CREATE SECURITY GROUP FOR ELASTICACHE
