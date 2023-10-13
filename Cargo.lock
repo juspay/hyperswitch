@@ -240,6 +240,8 @@ dependencies = [
  "actix-macros",
  "actix-router",
  "actix-rt",
+ "actix-server",
+ "actix-service",
  "actix-utils",
  "actix-web-codegen",
  "ahash 0.7.6",
