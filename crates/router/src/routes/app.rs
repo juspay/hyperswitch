@@ -17,7 +17,7 @@ use super::payouts::*;
 use super::verification::{apple_pay_merchant_registration, retrieve_apple_pay_verified_domains};
 #[cfg(feature = "olap")]
 use super::{admin::*, api_keys::*, disputes::*, files::*};
-use super::{cache::*, health::*};
+use super::{cache::*, health::*, payment_link::*};
 #[cfg(any(feature = "olap", feature = "oltp"))]
 use super::{configs::*, customers::*, mandates::*, payments::*, refunds::*};
 #[cfg(feature = "oltp")]
@@ -275,10 +275,12 @@ impl Customers {
 
         #[cfg(feature = "olap")]
         {
-            route = route.service(
-                web::resource("/{customer_id}/mandates")
-                    .route(web::get().to(get_customer_mandates)),
-            );
+            route = route
+                .service(
+                    web::resource("/{customer_id}/mandates")
+                        .route(web::get().to(get_customer_mandates)),
+                )
+                .service(web::resource("/list").route(web::get().to(customers_list)))
         }
 
         #[cfg(feature = "oltp")]
@@ -300,6 +302,7 @@ impl Customers {
                         .route(web::delete().to(customers_delete)),
                 );
         }
+
         route
     }
 }
@@ -573,6 +576,22 @@ impl Cache {
         web::scope("/cache")
             .app_data(web::Data::new(state))
             .service(web::resource("/invalidate/{key}").route(web::post().to(invalidate)))
+    }
+}
+
+pub struct PaymentLink;
+
+impl PaymentLink {
+    pub fn server(state: AppState) -> Scope {
+        web::scope("/payment_link")
+            .app_data(web::Data::new(state))
+            .service(
+                web::resource("/{payment_link_id}").route(web::get().to(payment_link_retrieve)),
+            )
+            .service(
+                web::resource("{merchant_id}/{payment_id}")
+                    .route(web::get().to(initiate_payment_link)),
+            )
     }
 }
 

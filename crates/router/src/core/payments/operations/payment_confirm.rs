@@ -88,21 +88,29 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             "confirm",
         )?;
 
+        let intent_fulfillment_time = helpers::get_merchant_fullfillment_time(
+            payment_intent.payment_link_id.clone(),
+            merchant_account.intent_fulfillment_time,
+            db,
+        )
+        .await?;
+
         helpers::authenticate_client_secret(
             request.client_secret.as_ref(),
             &payment_intent,
-            merchant_account.intent_fulfillment_time,
+            intent_fulfillment_time,
         )?;
 
         let customer_details = helpers::get_customer_details_from_request(request);
 
         // Stage 2
 
+        let attempt_id = payment_intent.active_attempt.get_id();
         let payment_attempt_fut = db
             .find_payment_attempt_by_payment_id_merchant_id_attempt_id(
                 payment_intent.payment_id.as_str(),
                 merchant_id,
-                payment_intent.active_attempt_id.as_str(),
+                attempt_id.as_str(),
                 storage_scheme,
             )
             .map(|x| x.to_not_found_response(errors::ApiErrorResponse::PaymentNotFound));
@@ -156,11 +164,12 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
                 | api_models::enums::IntentStatus::RequiresConfirmation => {
                     let attempt_type = helpers::AttemptType::SameOld;
 
+                    let attempt_id = payment_intent.active_attempt.get_id();
                     let connector_response_fut = attempt_type.get_connector_response(
                         db,
                         &payment_intent.payment_id,
                         &payment_intent.merchant_id,
-                        &payment_intent.active_attempt_id,
+                        attempt_id.as_str(),
                         storage_scheme,
                     );
 
@@ -359,7 +368,9 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
                 ephemeral_key: None,
                 multiple_capture_data: None,
                 redirect_response: None,
+                surcharge_details: None,
                 frm_message: None,
+                payment_link_data: None,
             },
             Some(customer_details),
         ))
