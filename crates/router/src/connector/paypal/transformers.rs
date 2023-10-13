@@ -668,8 +668,8 @@ pub struct PaymentsCollection {
 
 #[derive(Default, Debug, Clone, Serialize, Deserialize)]
 pub struct PurchaseUnitItem {
-    pub reference_id: String,
-    pub invoice_id: String,
+    pub reference_id: Option<String>,
+    pub invoice_id: Option<String>,
     pub payments: PaymentsCollection,
 }
 
@@ -813,7 +813,7 @@ impl<F, T>
                     capture_id: Some(id),
                     psync_flow: item.response.intent.clone()
                 }),
-                types::ResponseId::ConnectorTransactionId(item.response.id),
+                types::ResponseId::ConnectorTransactionId(item.response.id.clone()),
             ),
 
             PaypalPaymentIntent::Authorize => (
@@ -822,7 +822,7 @@ impl<F, T>
                     capture_id: None,
                     psync_flow: item.response.intent.clone()
                 }),
-                types::ResponseId::ConnectorTransactionId(item.response.id),
+                types::ResponseId::ConnectorTransactionId(item.response.id.clone()),
             ),
 
             PaypalPaymentIntent::Authenticate => {
@@ -857,7 +857,10 @@ impl<F, T>
                 mandate_reference: None,
                 connector_metadata: Some(connector_meta),
                 network_txn_id: None,
-                connector_response_reference_id: Some(purchase_units.invoice_id.clone()),
+                connector_response_reference_id: purchase_units
+                    .invoice_id
+                    .clone()
+                    .or(Some(item.response.id)),
             }),
             ..item.data
         })
@@ -946,16 +949,12 @@ impl<F, T>
             capture_id: None,
             psync_flow: item.response.intent
         });
-        let purchase_units = item
-            .response
-            .purchase_units
-            .first()
-            .ok_or(errors::ConnectorError::MissingConnectorTransactionID)?;
+        let purchase_units = item.response.purchase_units.first();
 
         Ok(Self {
             status,
             response: Ok(types::PaymentsResponseData::TransactionResponse {
-                resource_id: types::ResponseId::ConnectorTransactionId(item.response.id),
+                resource_id: types::ResponseId::ConnectorTransactionId(item.response.id.clone()),
                 redirection_data: Some(services::RedirectForm::from((
                     link.ok_or(errors::ConnectorError::ResponseDeserializationFailed)?,
                     services::Method::Get,
@@ -963,7 +962,9 @@ impl<F, T>
                 mandate_reference: None,
                 connector_metadata: Some(connector_meta),
                 network_txn_id: None,
-                connector_response_reference_id: Some(purchase_units.invoice_id.clone()),
+                connector_response_reference_id: Some(
+                    purchase_units.map_or(item.response.id, |item| item.invoice_id.clone()),
+                ),
             }),
             ..item.data
         })
@@ -1201,11 +1202,14 @@ impl TryFrom<types::PaymentsCaptureResponseRouterData<PaypalCaptureResponse>>
                 mandate_reference: None,
                 connector_metadata: Some(serde_json::json!(PaypalMeta {
                     authorize_id: connector_payment_id.authorize_id,
-                    capture_id: Some(item.response.id),
+                    capture_id: Some(item.response.id.clone()),
                     psync_flow: PaypalPaymentIntent::Capture
                 })),
                 network_txn_id: None,
-                connector_response_reference_id: item.response.invoice_id.clone(),
+                connector_response_reference_id: item
+                    .response
+                    .invoice_id
+                    .or(Some(item.response.id)),
             }),
             amount_captured: Some(amount_captured),
             ..item.data
@@ -1247,12 +1251,15 @@ impl<F, T>
         Ok(Self {
             status,
             response: Ok(types::PaymentsResponseData::TransactionResponse {
-                resource_id: types::ResponseId::ConnectorTransactionId(item.response.id),
+                resource_id: types::ResponseId::ConnectorTransactionId(item.response.id.clone()),
                 redirection_data: None,
                 mandate_reference: None,
                 connector_metadata: None,
                 network_txn_id: None,
-                connector_response_reference_id: item.response.invoice_id.clone(),
+                connector_response_reference_id: item
+                    .response
+                    .invoice_id
+                    .or(Some(item.response.id)),
             }),
             ..item.data
         })
