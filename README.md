@@ -37,7 +37,7 @@ The single API to access payment ecosystems across 130+ countries</div>
 
 <h1 align="center">🎉 Hacktoberfest is here! 🎉</h1>
 
-New to Rust? Hyperswitch is the perfect place to start this hacktoberfest! 😁
+New to Rust? Hyperswitch is the perfect place to start this HacktoberFest! 😁
 
 > ⭐️ If you're new to Hacktoberfest, you can learn more and register to participate [here](https://hacktoberfest.com/participation/). Registration is from **September 26th - October 31st**.
 
@@ -45,7 +45,7 @@ New to Rust? Hyperswitch is the perfect place to start this hacktoberfest! 😁
 <hr>
 <img src="./docs/imgs/switch.png" />
 
-Hyperswitch is an open source payments switch to make payments fast, reliable, and, affordable.
+Hyperswitch is an open-source payment switch to make payments fast, reliable, and, affordable.
 It lets you connect with multiple payment processors and route traffic effortlessly, all with a single API integration.
 
 
@@ -84,7 +84,7 @@ Ways to get started with Hyperswitch:
 
 3. Install in your local system: Configurations and
    setup required in your system.
-   Suitable if you like to customise the core offering, [setup guide](/docs/try_local_system.md)
+   Suitable if you like to customize the core offering, [setup guide](/docs/try_local_system.md)
 
 <a href="#Fast-Integration-for-Stripe-Users">
   <h2 id="Fast Integration for Stripe Users">🔌 Fast Integration for Stripe Users</h2>
@@ -124,14 +124,14 @@ analytics, and operations end-to-end:
 
 - **System Performance & Reliability**
 
-  - Scalable to support 50000 tps
+  - Scalable to support 50,000 tps
   - System uptime of up to 99.99%
   - Deployment with very low latency
   - Hosting option with AWS or GCP
 
 - **Value Added Services**
 
-  - Compliance Support, incl. PCI, GDPR, Card Vault etc
+  - Compliance Support, incl. PCI, GDPR, Card Vault, etc
   - Customise the integration or payment experience
   - Control Center with elaborate analytics and reporting
   - Integration with Risk Management Solutions
@@ -190,7 +190,7 @@ should be introduced, checking it agrees with the actual structure -->
 
 ```text
 .
-├── config                             : Initial startup config files for the router
+├── config                             : Initial startup-config files for the router
 ├── connector-template                 : boilerplate code for connectors
 ├── crates                             : sub-crates
 │   ├── api_models                     : Request/response models for the `router` crate
@@ -199,7 +199,7 @@ should be introduced, checking it agrees with the actual structure -->
 │   ├── common_utils                   : Utilities shared across `router` and other crates
 │   ├── data_models                    : Represents the data/domain models used by the business/domain layer
 │   ├── diesel_models                  : Database models shared across `router` and other crates
-│   ├── drainer                        : Application that reads Redis streams and executes queries in database
+│   ├── drainer                        : Application that reads Redis streams and executes queries in the database
 │   ├── external_services              : Interactions with external systems like emails, KMS, etc.
 │   ├── masking                        : Personal Identifiable Information protection
 │   ├── redis_interface                : A user-friendly interface to Redis
@@ -224,7 +224,7 @@ should be introduced, checking it agrees with the actual structure -->
 
 ### 🤝 Our Belief
 
-> Payments should be open, fast, reliable and affordable to serve
+> Payments should be open, fast, reliable, and affordable to serve
 > the billions of people at scale.
 
 Globally payment diversity has been growing at a rapid pace.
@@ -232,10 +232,10 @@ There are hundreds of payment processors and new payment methods like BNPL,
 RTP etc.
 Businesses need to embrace this diversity to increase conversion, reduce cost
 and improve control.
-But integrating and maintaining multiple processors needs a lot of dev effort.
+However, integrating and maintaining multiple processors needs a lot of dev effort.
 Why should devs across companies repeat the same work?
 Why can't it be unified and reused? Hence, Hyperswitch was born to create that
-reusable core and let companies build and customise it as per their specific requirements.
+reusable core and let companies build and customize it as per their specific requirements.
 
 ### ✨ Our Values
 
@@ -243,7 +243,7 @@ reusable core and let companies build and customise it as per their specific req
    multiple ways.
 2. Make it Open Source: Increases trust; Improves the quality and reusability of
    software.
-3. Be community driven: It enables participatory design and development.
+3. Be community-driven: It enables participatory design and development.
 4. Build it like Systems Software: This sets a high bar for Reliability,
    Security and Performance SLAs.
 5. Maximise Value Creation: For developers, customers & partners.
@@ -260,14 +260,14 @@ It is built afresh for the global markets as an open-source product in Rust.
 We are long-term committed to building and making it useful for the community.
 
 The product roadmap is open for the community's feedback.
-We shall evolve a prioritisation process that is open and community-driven.
+We shall evolve a prioritization process that is open and community-driven.
 We welcome contributions from the community. Please read through our
 [contributing guidelines](/docs/CONTRIBUTING.md).
 Included are directions for opening issues, coding standards, and notes on
 development.
 
 🦀 **Important note for Rust developers**: We aim for contributions from the community
-across a broad range of tracks. Hence, we have prioritised simplicity and code
+across a broad range of tracks. Hence, we have prioritized simplicity and code
 readability over purely idiomatic code. For example, some of the code in core
 functions (e.g., `payments_core`) is written to be more readable than
 pure-idiomatic.
@@ -333,7 +333,7 @@ This product is licensed under the [Apache 2.0 License](LICENSE).
   <h2 id="Thanks to all contributors">✨ Thanks to all contributors</h2>
 </a>
 
-Thank you for your support in hyperswitch's growth. Keep up the great work! 🥂
+Thank you for your support in Hyperswitch's growth. Keep up the great work! 🥂
 
 <a href="https://github.com/juspay/hyperswitch/graphs/contributors">
   <img src="https://contributors-img.web.app/image?repo=juspay/hyperswitch" alt="Contributors"/>
