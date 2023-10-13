@@ -3940,6 +3940,7 @@
           "globalpay",
           "globepay",
           "gocardless",
+          "helcim",
           "iatapay",
           "klarna",
           "mollie",
@@ -5076,6 +5077,7 @@
           "payment_succeeded",
           "payment_failed",
           "payment_processing",
+          "payment_cancelled",
           "action_required",
           "refund_succeeded",
           "refund_failed",
@@ -6164,7 +6166,7 @@
             "description": "Will be used to expire client secret after certain amount of time to be supplied in seconds\n(900) for 15 mins",
             "example": 900,
             "nullable": true,
-            "minimum": 0.0
+            "minimum": 0
           },
           "organization_id": {
             "type": "string",
@@ -6468,7 +6470,7 @@
             "format": "int32",
             "description": "Will be used to expire client secret after certain amount of time to be supplied in seconds\n(900) for 15 mins",
             "nullable": true,
-            "minimum": 0.0
+            "minimum": 0
           },
           "default_profile": {
             "type": "string",
@@ -6483,8 +6485,7 @@
         "description": "Create a new Merchant Connector for the merchant account. The connector could be a payment processor / facilitator / acquirer or specialized services like Fraud / Accounting etc.\"",
         "required": [
           "connector_type",
-          "connector_name",
-          "connector_label"
+          "connector_name"
         ],
         "properties": {
           "connector_type": {
@@ -6492,10 +6493,6 @@
           },
           "connector_name": {
             "$ref": "#/components/schemas/Connector"
-          },
-          "connector_label": {
-            "type": "string",
-            "example": "stripe_US_travel"
           },
           "merchant_connector_id": {
             "type": "string",
@@ -6708,11 +6705,6 @@
             "type": "string",
             "description": "Name of the Connector",
             "example": "stripe"
-          },
-          "connector_label": {
-            "type": "string",
-            "example": "stripe_US_travel",
-            "nullable": true
           },
           "merchant_connector_id": {
             "type": "string",
@@ -7236,13 +7228,13 @@
             "type": "integer",
             "format": "int64",
             "description": "Timestamp at which session is requested",
-            "minimum": 0.0
+            "minimum": 0
           },
           "expires_at": {
             "type": "integer",
             "format": "int64",
             "description": "Timestamp at which session expires",
-            "minimum": 0.0
+            "minimum": 0
           },
           "merchant_session_identifier": {
             "type": "string",
@@ -7276,7 +7268,7 @@
             "type": "integer",
             "format": "int32",
             "description": "The number of retries to get the session response",
-            "minimum": 0.0
+            "minimum": 0
           },
           "psp_id": {
             "type": "string",
@@ -7330,7 +7322,7 @@
             "format": "int32",
             "description": "The quantity of the product to be purchased",
             "example": 1,
-            "minimum": 0.0
+            "minimum": 0
           }
         }
       },
@@ -7353,7 +7345,7 @@
             "format": "int32",
             "description": "The quantity of the product to be purchased",
             "example": 1,
-            "minimum": 0.0
+            "minimum": 0
           },
           "amount": {
             "type": "integer",
@@ -7683,6 +7675,7 @@
                 "$ref": "#/components/schemas/AuthenticationType"
               }
             ],
+            "default": "three_ds",
             "nullable": true
           },
           "cancellation_reason": {
@@ -7867,8 +7860,8 @@
             "format": "int32",
             "description": "limit on the number of objects to return",
             "default": 10,
-            "maximum": 100.0,
-            "minimum": 0.0
+            "maximum": 100,
+            "minimum": 0
           },
           "created": {
             "type": "string",
@@ -7917,7 +7910,7 @@
           "size": {
             "type": "integer",
             "description": "The number of payments included in the list",
-            "minimum": 0.0
+            "minimum": 0
           },
           "data": {
             "type": "array",
@@ -8520,14 +8513,7 @@
       },
       "PaymentsCaptureRequest": {
         "type": "object",
-        "required": [
-          "payment_id"
-        ],
         "properties": {
-          "payment_id": {
-            "type": "string",
-            "description": "The unique identifier for the payment"
-          },
           "merchant_id": {
             "type": "string",
             "description": "The unique identifier for the merchant",
@@ -8592,7 +8578,7 @@
             "description": "The payment amount. Amount for the payment in lowest denomination of the currency. (i.e) in cents for USD denomination, in paisa for INR denomination etc.,",
             "example": 6540,
             "nullable": true,
-            "minimum": 0.0
+            "minimum": 0
           },
           "routing": {
             "allOf": [
@@ -8726,6 +8712,7 @@
                 "$ref": "#/components/schemas/AuthenticationType"
               }
             ],
+            "default": "three_ds",
             "nullable": true
           },
           "payment_method_data": {
@@ -8947,7 +8934,7 @@
             "description": "The payment amount. Amount for the payment in lowest denomination of the currency. (i.e) in cents for USD denomination, in paisa for INR denomination etc.,",
             "example": 6540,
             "nullable": true,
-            "minimum": 0.0
+            "minimum": 0
           },
           "routing": {
             "allOf": [
@@ -9081,6 +9068,7 @@
                 "$ref": "#/components/schemas/AuthenticationType"
               }
             ],
+            "default": "three_ds",
             "nullable": true
           },
           "payment_method_data": {
@@ -9304,7 +9292,12 @@
             "maxLength": 255
           },
           "status": {
-            "$ref": "#/components/schemas/IntentStatus"
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/IntentStatus"
+              }
+            ],
+            "default": "requires_confirmation"
           },
           "amount": {
             "type": "integer",
@@ -9318,7 +9311,7 @@
             "description": "The maximum amount that could be captured from the payment",
             "example": 6540,
             "nullable": true,
-            "minimum": 100.0
+            "minimum": 100
           },
           "amount_received": {
             "type": "integer",
@@ -9326,7 +9319,7 @@
             "description": "The amount which is already captured from the payment",
             "example": 6540,
             "nullable": true,
-            "minimum": 100.0
+            "minimum": 100
           },
           "connector": {
             "type": "string",
@@ -9514,6 +9507,7 @@
                 "$ref": "#/components/schemas/AuthenticationType"
               }
             ],
+            "default": "three_ds",
             "nullable": true
           },
           "statement_descriptor_name": {
@@ -10463,7 +10457,7 @@
           "count": {
             "type": "integer",
             "description": "The number of refunds included in the list",
-            "minimum": 0.0
+            "minimum": 0
           },
           "total_count": {
             "type": "integer",
@@ -10513,7 +10507,7 @@
             "description": "Total amount for which the refund is to be initiated. Amount for the payment in lowest denomination of the currency. (i.e) in cents for USD denomination, in paisa for INR denomination etc., If not provided, this will default to the full payment amount",
             "example": 6540,
             "nullable": true,
-            "minimum": 100.0
+            "minimum": 100
           },
           "reason": {
             "type": "string",
@@ -10528,6 +10522,7 @@
                 "$ref": "#/components/schemas/RefundType"
               }
             ],
+            "default": "Instant",
             "nullable": true
           },
           "metadata": {

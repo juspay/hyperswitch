@@ -6,7 +6,8 @@ use common_utils::{
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
 
-use crate::{errors, MerchantStorageScheme};
+use super::{payment_attempt::PaymentAttempt, PaymentIntent};
+use crate::{errors, MerchantStorageScheme, RemoteStorageObject};
 #[async_trait::async_trait]
 pub trait PaymentIntentInterface {
     async fn update_payment_intent(
@@ -28,6 +29,12 @@ pub trait PaymentIntentInterface {
         merchant_id: &str,
         storage_scheme: MerchantStorageScheme,
     ) -> error_stack::Result<PaymentIntent, errors::StorageError>;
+
+    async fn get_active_payment_attempt(
+        &self,
+        payment: &mut PaymentIntent,
+        storage_scheme: MerchantStorageScheme,
+    ) -> error_stack::Result<PaymentAttempt, errors::StorageError>;
 
     #[cfg(feature = "olap")]
     async fn filter_payment_intent_by_constraints(
@@ -51,10 +58,7 @@ pub trait PaymentIntentInterface {
         merchant_id: &str,
         constraints: &PaymentIntentFetchConstraints,
         storage_scheme: MerchantStorageScheme,
-    ) -> error_stack::Result<
-        Vec<(PaymentIntent, super::payment_attempt::PaymentAttempt)>,
-        errors::StorageError,
-    >;
+    ) -> error_stack::Result<Vec<(PaymentIntent, PaymentAttempt)>, errors::StorageError>;
 
     #[cfg(feature = "olap")]
     async fn get_filtered_active_attempt_ids_for_total_count(
@@ -65,50 +69,7 @@ pub trait PaymentIntentInterface {
     ) -> error_stack::Result<Vec<String>, errors::StorageError>;
 }
 
-#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
-pub struct PaymentIntent {
-    pub id: i32,
-    pub payment_id: String,
-    pub merchant_id: String,
-    pub status: storage_enums::IntentStatus,
-    pub amount: i64,
-    pub currency: Option<storage_enums::Currency>,
-    pub amount_captured: Option<i64>,
-    pub customer_id: Option<String>,
-    pub description: Option<String>,
-    pub return_url: Option<String>,
-    pub metadata: Option<pii::SecretSerdeValue>,
-    pub connector_id: Option<String>,
-    pub shipping_address_id: Option<String>,
-    pub billing_address_id: Option<String>,
-    pub statement_descriptor_name: Option<String>,
-    pub statement_descriptor_suffix: Option<String>,
-    #[serde(with = "common_utils::custom_serde::iso8601")]
-    pub created_at: PrimitiveDateTime,
-    #[serde(with = "common_utils::custom_serde::iso8601")]
-    pub modified_at: PrimitiveDateTime,
-    #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
-    pub last_synced: Option<PrimitiveDateTime>,
-    pub setup_future_usage: Option<storage_enums::FutureUsage>,
-    pub off_session: Option<bool>,
-    pub client_secret: Option<String>,
-    pub active_attempt_id: String,
-    pub business_country: Option<storage_enums::CountryAlpha2>,
-    pub business_label: Option<String>,
-    pub order_details: Option<Vec<pii::SecretSerdeValue>>,
-    pub allowed_payment_method_types: Option<serde_json::Value>,
-    pub connector_metadata: Option<serde_json::Value>,
-    pub feature_metadata: Option<serde_json::Value>,
-    pub attempt_count: i16,
-    pub profile_id: Option<String>,
-    // Denotes the action(approve or reject) taken by merchant in case of manual review.
-    // Manual review can occur when the transaction is marked as risky by the frm_processor, payment processor or when there is underpayment/over payment incase of crypto payment
-    pub merchant_decision: Option<String>,
-    pub payment_link_id: Option<String>,
-    pub payment_confirm_source: Option<storage_enums::PaymentSource>,
-}
-
-#[derive(Clone, Debug, Default, Eq, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct PaymentIntentNew {
     pub payment_id: String,
     pub merchant_id: String,
@@ -125,16 +86,13 @@ pub struct PaymentIntentNew {
     pub billing_address_id: Option<String>,
     pub statement_descriptor_name: Option<String>,
     pub statement_descriptor_suffix: Option<String>,
-    #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
     pub created_at: Option<PrimitiveDateTime>,
-    #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
     pub modified_at: Option<PrimitiveDateTime>,
-    #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
     pub last_synced: Option<PrimitiveDateTime>,
     pub setup_future_usage: Option<storage_enums::FutureUsage>,
     pub off_session: Option<bool>,
     pub client_secret: Option<String>,
-    pub active_attempt_id: String,
+    pub active_attempt: RemoteStorageObject<PaymentAttempt>,
     pub business_country: Option<storage_enums::CountryAlpha2>,
     pub business_label: Option<String>,
     pub order_details: Option<Vec<pii::SecretSerdeValue>>,

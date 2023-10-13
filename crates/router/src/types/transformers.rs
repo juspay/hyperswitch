@@ -257,8 +257,8 @@ impl ForeignFrom<api_enums::IntentStatus> for Option<storage_enums::EventType> {
             | api_enums::IntentStatus::RequiresCustomerAction => {
                 Some(storage_enums::EventType::ActionRequired)
             }
-            api_enums::IntentStatus::Cancelled
-            | api_enums::IntentStatus::RequiresPaymentMethod
+            api_enums::IntentStatus::Cancelled => Some(storage_enums::EventType::PaymentCancelled),
+            api_enums::IntentStatus::RequiresPaymentMethod
             | api_enums::IntentStatus::RequiresConfirmation
             | api_enums::IntentStatus::RequiresCapture
             | api_enums::IntentStatus::PartiallyCaptured => None,
@@ -463,9 +463,8 @@ impl ForeignFrom<storage::Config> for api_types::Config {
 
 impl<'a> ForeignFrom<&'a api_types::ConfigUpdate> for storage::ConfigUpdate {
     fn foreign_from(config: &api_types::ConfigUpdate) -> Self {
-        let config_update = config;
         Self::Update {
-            config: Some(config_update.value.clone()),
+            config: Some(config.value.clone()),
         }
     }
 }
