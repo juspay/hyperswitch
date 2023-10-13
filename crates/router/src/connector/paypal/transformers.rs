@@ -310,7 +310,8 @@ impl TryFrom<&PaypalRouterData<&types::PaymentsAuthorizeRouterData>> for PaypalP
                         value: item.amount.to_owned(),
                     };
 
-                    let connector_req_reference_id = item.router_data.attempt_id.clone();
+                    let connector_req_reference_id =
+                        item.router_data.connector_request_reference_id.clone();
 
                     let purchase_units = vec![PurchaseUnitRequest {
                         reference_id: Some(connector_req_reference_id.clone()),
