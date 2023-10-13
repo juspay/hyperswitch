@@ -34,7 +34,7 @@ pub enum TransactionType {
 
 #[derive(Debug, Serialize)]
 pub struct AuthorizedotnetRouterData<T> {
-    pub amount: String,
+    pub amount: f64,
     pub router_data: T,
 }
 
@@ -55,7 +55,7 @@ impl<T>
             T,
         ),
     ) -> Result<Self, Self::Error> {
-        let amount = utils::get_amount_as_string(currency_unit, amount, currency)?;
+        let amount = utils::get_amount_as_f64(currency_unit, amount, currency)?;
         Ok(Self {
             amount,
             router_data: item,
@@ -317,10 +317,7 @@ impl TryFrom<&AuthorizedotnetRouterData<&types::PaymentsAuthorizeRouterData>>
                 });
         let transaction_request = TransactionRequest {
             transaction_type: TransactionType::from(item.router_data.request.capture_method),
-            amount: utils::to_currency_base_unit_asf64(
-                item.router_data.request.amount,
-                item.router_data.request.currency,
-            )?,
+            amount: item.amount,
             payment: payment_details,
             currency_code: item.router_data.request.currency.to_string(),
             processing_options,
@@ -340,25 +337,16 @@ impl TryFrom<&AuthorizedotnetRouterData<&types::PaymentsAuthorizeRouterData>>
     }
 }
 
-impl TryFrom<&AuthorizedotnetRouterData<&types::PaymentsCancelRouterData>>
-    for CancelOrCaptureTransactionRequest
-{
+impl TryFrom<&types::PaymentsCancelRouterData> for CancelOrCaptureTransactionRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(
-        item: &AuthorizedotnetRouterData<&types::PaymentsCancelRouterData>,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(item: &types::PaymentsCancelRouterData) -> Result<Self, Self::Error> {
         let transaction_request = TransactionVoidOrCaptureRequest {
             amount: None, //amount is not required for void
             transaction_type: TransactionType::Void,
-            ref_trans_id: item
-                .router_data
-                .request
-                .connector_transaction_id
-                .to_string(),
+            ref_trans_id: item.request.connector_transaction_id.to_string(),
         };
 
-        let merchant_authentication =
-            AuthorizedotnetAuthType::try_from(&item.router_data.connector_auth_type)?;
+        let merchant_authentication = AuthorizedotnetAuthType::try_from(&item.connector_auth_type)?;
 
         Ok(Self {
             create_transaction_request: AuthorizedotnetPaymentCancelOrCaptureRequest {
@@ -377,10 +365,7 @@ impl TryFrom<&AuthorizedotnetRouterData<&types::PaymentsCaptureRouterData>>
         item: &AuthorizedotnetRouterData<&types::PaymentsCaptureRouterData>,
     ) -> Result<Self, Self::Error> {
         let transaction_request = TransactionVoidOrCaptureRequest {
-            amount: Some(utils::to_currency_base_unit_asf64(
-                item.router_data.request.amount_to_capture,
-                item.router_data.request.currency,
-            )?),
+            amount: Some(item.amount),
             transaction_type: TransactionType::Capture,
             ref_trans_id: item
                 .router_data
@@ -734,10 +719,7 @@ impl<F> TryFrom<&AuthorizedotnetRouterData<&types::RefundsRouterData<F>>> for Cr
 
         let transaction_request = RefundTransactionRequest {
             transaction_type: TransactionType::Refund,
-            amount: utils::to_currency_base_unit_asf64(
-                item.router_data.request.refund_amount,
-                item.router_data.request.currency,
-            )?,
+            amount: item.amount,
             payment: payment_details
                 .parse_value("PaymentDetails")
                 .change_context(errors::ConnectorError::MissingRequiredField {

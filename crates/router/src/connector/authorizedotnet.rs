@@ -149,7 +149,7 @@ impl ConnectorIntegration<api::Capture, types::PaymentsCaptureData, types::Payme
         let connector_router_data = authorizedotnet::AuthorizedotnetRouterData::try_from((
             &self.get_currency_unit(),
             req.request.currency,
-            req.request.payment_amount,
+            req.request.amount_to_capture,
             req,
         ))?;
         let connector_req =
@@ -425,14 +425,7 @@ impl ConnectorIntegration<api::Void, types::PaymentsCancelData, types::PaymentsR
         &self,
         req: &types::PaymentsCancelRouterData,
     ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
-        let connector_router_data = authorizedotnet::AuthorizedotnetRouterData::try_from((
-            &self.get_currency_unit(),
-            req.request.currency.unwrap(),
-            req.request.amount.unwrap(),
-            req,
-        ))?;
-        let connector_req =
-            authorizedotnet::CancelOrCaptureTransactionRequest::try_from(&connector_router_data)?;
+        let connector_req = authorizedotnet::CancelOrCaptureTransactionRequest::try_from(req)?;
 
         let authorizedotnet_req = types::RequestBody::log_and_get_request_body(
             &connector_req,
