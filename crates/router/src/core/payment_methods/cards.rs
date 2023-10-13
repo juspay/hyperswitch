@@ -2001,7 +2001,7 @@ pub async fn get_lookup_key_from_locker(
         .attach_printable("Get Card Details Failed")?;
     let card = card_detail.clone();
     let resp =
-        BasiliskCardSupport::create_payment_method_data_in_locker(state, payment_token, card, pm)
+        BasiliskCardSupport::create_payment_method_data_in_temp_locker(state, payment_token, card, pm)
             .await?;
     Ok(resp)
 }
@@ -2050,104 +2050,9 @@ pub async fn get_lookup_key_for_payout_method(
 
 pub struct BasiliskCardSupport;
 
-#[cfg(not(feature = "basilisk"))]
-impl BasiliskCardSupport {
-    async fn create_payment_method_data_in_locker(
-        state: &routes::AppState,
-        payment_token: &str,
-        card: api::CardDetailFromLocker,
-        pm: &storage::PaymentMethod,
-    ) -> errors::RouterResult<api::CardDetailFromLocker> {
-        let card_number = card.card_number.clone().get_required_value("card_number")?;
-        let card_exp_month = card
-            .expiry_month
-            .clone()
-            .expose_option()
-            .get_required_value("expiry_month")?;
-        let card_exp_year = card
-            .expiry_year
-            .clone()
-            .expose_option()
-            .get_required_value("expiry_year")?;
-        let card_holder_name = card
-            .card_holder_name
-            .clone()
-            .expose_option()
-            .unwrap_or_default();
-        let value1 = payment_methods::mk_card_value1(
-            card_number,
-            card_exp_year,
-            card_exp_month,
-            Some(card_holder_name),
-            None,
-            None,
-            None,
-        )
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Error getting Value1 for locker")?;
-        let value2 = payment_methods::mk_card_value2(
-            None,
-            None,
-            None,
-            Some(pm.customer_id.to_string()),
-            Some(pm.payment_method_id.to_string()),
-        )
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Error getting Value2 for locker")?;
-
-        let value1 = vault::VaultPaymentMethod::Card(value1);
-        let value2 = vault::VaultPaymentMethod::Card(value2);
-
-        let value1 = utils::Encode::<vault::VaultPaymentMethod>::encode_to_string_of_json(&value1)
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Wrapped value1 construction failed when saving card to locker")?;
-
-        let value2 = utils::Encode::<vault::VaultPaymentMethod>::encode_to_string_of_json(&value2)
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Wrapped value2 construction failed when saving card to locker")?;
-
-        let db_value = vault::MockTokenizeDBValue { value1, value2 };
-
-        let value_string =
-            utils::Encode::<vault::MockTokenizeDBValue>::encode_to_string_of_json(&db_value)
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable(
-                    "Mock tokenize value construction failed when saving card to locker",
-                )?;
-
-        let db = &*state.store;
-
-        let already_present = db.find_config_by_key(payment_token).await;
-
-        if already_present.is_err() {
-            let config = storage::ConfigNew {
-                key: payment_token.to_string(),
-                config: value_string,
-            };
-
-            db.insert_config(config)
-                .await
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Mock tokenization save to db failed")?;
-        } else {
-            let config_update = storage::ConfigUpdate::Update {
-                config: Some(value_string),
-            };
-
-            db.update_config_by_key(payment_token, config_update)
-                .await
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Mock tokenization db update failed")?;
-        }
-
-        Ok(card)
-    }
-}
-
-#[cfg(feature = "basilisk")]
 impl BasiliskCardSupport {
     #[instrument(skip_all)]
-    async fn create_payment_method_data_in_locker(
+    async fn create_payment_method_data_in_temp_locker(
         state: &routes::AppState,
         payment_token: &str,
         card: api::CardDetailFromLocker,
