@@ -590,9 +590,11 @@ impl<F, T>
                             mandate_reference: None,
                             connector_metadata: metadata,
                             network_txn_id: transaction_response.network_trans_id.clone(),
-                            connector_response_reference_id: Some(
-                                transaction_response.transaction_id.clone(),
-                            ),
+
+                            connector_response_reference_id: Some(transaction_response.transaction_id),
+
+
+
                         }),
                     },
                     ..item.data
@@ -656,9 +658,11 @@ impl<F, T>
                             mandate_reference: None,
                             connector_metadata: metadata,
                             network_txn_id: transaction_response.network_trans_id.clone(),
+
                             connector_response_reference_id: Some(
                                 transaction_response.transaction_id.clone(),
                             ),
+
                         }),
                     },
                     ..item.data
