@@ -300,8 +300,16 @@ jobs:
 
     steps:
       - name: Checkout repository for fork
-        # if: ${{ (github.event.pull_request.head.repo.full_name != github.event.pull_request.base.repo.full_name) }}
+        if: ${{ (github.event.pull_request.head.repo.full_name != github.event.pull_request.base.repo.full_name) }}
         uses: actions/checkout@v3
+
+      - name: Checkout repository with token
+        if: ${{ (github.event.pull_request.head.repo.full_name == github.event.pull_request.base.repo.full_name) }}
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event.pull_request.head.ref }}
+          token: ${{ secrets.AUTO_FILE_UPDATE_PAT }}
 
       - name: "Fetch base branch"
         shell: bash
@@ -346,14 +354,6 @@ jobs:
       - name: Run clippy
         shell: bash
         run: cargo clippy --all-features --all-targets
-
-      - name: Checkout repository with token
-        if: ${{ (github.event.pull_request.head.repo.full_name == github.event.pull_request.base.repo.full_name) }}
-        uses: actions/checkout@v3
-        with:
-          fetch-depth: 0
-          ref: ${{ github.event.pull_request.head.ref }}
-          token: ${{ secrets.AUTO_FILE_UPDATE_PAT }}
 
       - name: Check Cargo.lock changed
         if: ${{ (github.event.pull_request.head.repo.full_name == github.event.pull_request.base.repo.full_name) }}
