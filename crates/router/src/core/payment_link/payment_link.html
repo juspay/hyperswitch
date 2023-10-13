@@ -3,11 +3,7 @@
   <head>
     {{ hyperloader_sdk_link }}
     <style>
-      :root {
-        --primary-color: #85cb33;
-        --primary-accent-color: #edf0da;
-        --secondary-color: #141301;
-      }
+      {{ css_color_scheme }}
 
       html,
       body {
@@ -1311,6 +1307,16 @@
       cartNode.style.animation = "slide-from-right 0.3s linear";
       cartNode.style.right = "0px";
       show("#hyper-checkout-cart");
+    }
+
+    function hideCartInMobileView() {
+      window.history.back();
+      hide("#hyper-checkout-cart");
+    }
+
+    function viewCartInMobileView() {
+      show("#hyper-checkout-cart");
+      window.history.pushState("view-cart", "");
     }
 
     function renderSDKHeader() {

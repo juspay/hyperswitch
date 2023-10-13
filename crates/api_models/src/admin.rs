@@ -95,6 +95,8 @@ pub struct MerchantAccountCreate {
 
     /// The id of the organization to which the merchant belongs to
     pub organization_id: Option<String>,
+
+    pub payment_link_metadata: Option<PaymentLinkMetadata>,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize, ToSchema)]
@@ -184,6 +186,8 @@ pub struct MerchantAccountUpdate {
     /// To unset this field, pass an empty string
     #[schema(max_length = 64)]
     pub default_profile: Option<String>,
+
+    pub payment_link_metadata: Option<serde_json::Value>,
 }
 
 #[derive(Clone, Debug, ToSchema, Serialize)]
@@ -277,6 +281,8 @@ pub struct MerchantAccountResponse {
     /// A enum value to indicate the status of recon service. By default it is not_requested.
     #[schema(value_type = ReconStatus, example = "not_requested")]
     pub recon_status: enums::ReconStatus,
+
+    pub payment_link_metadata: Option<serde_json::Value>,
 }
 
 #[derive(Clone, Debug, Deserialize, ToSchema, Serialize)]
@@ -495,6 +501,22 @@ pub struct PrimaryBusinessDetails {
     pub country: api_enums::CountryAlpha2,
     #[schema(example = "food")]
     pub business: String,
+}
+
+#[derive(Clone, Debug, Deserialize, ToSchema, Serialize, PartialEq)]
+#[serde(deny_unknown_fields)]
+pub struct PaymentLinkMetadata {
+    pub merchant_logo: Option<String>,
+    pub color_scheme: Option<PaymentLinkColorSchema>,
+}
+
+#[derive(Clone, Debug, Deserialize, ToSchema, Serialize, PartialEq)]
+#[serde(deny_unknown_fields)]
+
+pub struct PaymentLinkColorSchema {
+    pub primary_color: Option<String>,
+    pub primary_accent_color: Option<String>,
+    pub secondary_color: Option<String>,
 }
 
 #[derive(Clone, Debug, Deserialize, ToSchema, Serialize)]

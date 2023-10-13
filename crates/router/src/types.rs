@@ -335,7 +335,6 @@ pub struct PayoutsData {
     pub source_currency: storage_enums::Currency,
     pub payout_type: storage_enums::PayoutType,
     pub entity_type: storage_enums::PayoutEntityType,
-    pub country_code: storage_enums::CountryAlpha2,
     pub customer_details: Option<CustomerDetails>,
 }
 
@@ -477,9 +476,6 @@ pub struct PaymentsSyncData {
     pub connector_meta: Option<serde_json::Value>,
     pub sync_type: SyncRequestType,
     pub mandate_id: Option<api_models::payments::MandateIds>,
-    //This is being added as a temporary fix, will be deprecated before or by v1.65.0
-    // #2628
-    pub payment_attempt_created_at_as_utc: i64,
 }
 
 #[derive(Debug, Default, Clone)]

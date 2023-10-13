@@ -74,6 +74,21 @@ impl Customer {
     }
 
     #[instrument(skip(conn))]
+    pub async fn list_by_merchant_id(
+        conn: &PgPooledConn,
+        merchant_id: &str,
+    ) -> StorageResult<Vec<Self>> {
+        generics::generic_filter::<<Self as HasTable>::Table, _, _, _>(
+            conn,
+            dsl::merchant_id.eq(merchant_id.to_owned()),
+            None,
+            None,
+            Some(dsl::created_at),
+        )
+        .await
+    }
+
+    #[instrument(skip(conn))]
     pub async fn find_optional_by_customer_id_merchant_id(
         conn: &PgPooledConn,
         customer_id: &str,

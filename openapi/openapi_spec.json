@@ -169,6 +169,39 @@
         ]
       }
     },
+    "/customers/list": {
+      "post": {
+        "tags": [
+          "Customers List"
+        ],
+        "summary": "List customers for a merchant",
+        "description": "List customers for a merchant\n\nTo filter and list the customers for a particular merchant id",
+        "operationId": "List all Customers for a Merchant",
+        "responses": {
+          "200": {
+            "description": "Customers retrieved",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/CustomerResponse"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid Data"
+          }
+        },
+        "security": [
+          {
+            "api_key": []
+          }
+        ]
+      }
+    },
     "/customers/payment_methods": {
       "get": {
         "tags": [
@@ -9969,6 +10002,11 @@
             "description": "Provide a reference to a stored payment method",
             "example": "187282ab-40ef-47a9-9206-5099ba31e432",
             "nullable": true
+          },
+          "profile_id": {
+            "type": "string",
+            "description": "The business profile to use for this payment, if not passed the default business profile\nassociated with the merchant account will be used.",
+            "nullable": true
           }
         }
       },
@@ -10118,6 +10156,11 @@
             "type": "string",
             "description": "If there was an error while calling the connectors the code is received here",
             "example": "E0001"
+          },
+          "profile_id": {
+            "type": "string",
+            "description": "The business profile that is associated with this payment",
+            "nullable": true
           }
         }
       },

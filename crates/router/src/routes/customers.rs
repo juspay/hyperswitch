@@ -85,6 +85,37 @@ pub async fn customers_retrieve(
     )
     .await
 }
+
+/// List customers for a merchant
+///
+/// To filter and list the customers for a particular merchant id
+#[utoipa::path(
+    post,
+    path = "/customers/list",
+    responses(
+        (status = 200, description = "Customers retrieved", body = Vec<CustomerResponse>),
+        (status = 400, description = "Invalid Data"),
+    ),
+    tag = "Customers List",
+    operation_id = "List all Customers for a Merchant",
+    security(("api_key" = []))
+)]
+#[instrument(skip_all, fields(flow = ?Flow::CustomersList))]
+pub async fn customers_list(state: web::Data<AppState>, req: HttpRequest) -> HttpResponse {
+    let flow = Flow::CustomersList;
+
+    api::server_wrap(
+        flow,
+        state,
+        &req,
+        (),
+        |state, auth, _| list_customers(state, auth.merchant_account.merchant_id, auth.key_store),
+        &auth::ApiKeyAuth,
+        api_locking::LockAction::NotApplicable,
+    )
+    .await
+}
+
 /// Update Customer
 ///
 /// Updates the customer's details in a customer object.

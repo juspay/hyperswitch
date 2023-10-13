@@ -442,6 +442,7 @@ diesel::table! {
         #[max_length = 64]
         default_profile -> Nullable<Varchar>,
         recon_status -> ReconStatus,
+        payment_link_metadata -> Nullable<Jsonb>,
     }
 }
 

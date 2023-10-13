@@ -442,11 +442,6 @@ pub trait ConnectorActions: Connector {
                 }),
                 entity_type: enums::PayoutEntityType::Individual,
                 payout_type,
-                country_code: payment_info
-                    .to_owned()
-                    .map_or(enums::CountryAlpha2::NL, |pi| {
-                        pi.country.map_or(enums::CountryAlpha2::NL, |c| c)
-                    }),
                 customer_details: Some(payments::CustomerDetails {
                     customer_id: core_utils::get_or_generate_id("customer_id", &None, "cust_").ok(),
                     name: Some(Secret::new("John Doe".to_string())),
@@ -943,7 +938,6 @@ impl Default for PaymentSyncType {
             capture_method: None,
             sync_type: types::SyncRequestType::SinglePaymentSync,
             connector_meta: None,
-            payment_attempt_created_at_as_utc: 0,
         };
         Self(data)
     }

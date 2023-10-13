@@ -916,7 +916,7 @@ pub fn change_order_details_to_new_type(
         product_name: order_details.product_name,
         quantity: order_details.quantity,
         amount: order_amount,
-        product_img_link:None
+        product_img_link: None,
     }])
 }
 
@@ -1056,11 +1056,6 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsSyncData
                 ),
                 None => types::SyncRequestType::SinglePaymentSync,
             },
-            payment_attempt_created_at_as_utc: payment_data
-                .payment_attempt
-                .created_at
-                .assume_utc()
-                .unix_timestamp(),
         })
     }
 }

@@ -3114,7 +3114,6 @@ pub struct PaymentLinkInitiateRequest {
     pub payment_id: String,
 }
 
-
 #[derive(Debug, serde::Serialize)]
 pub struct PaymentLinkDetails {
     pub amount: i64,
@@ -3128,5 +3127,5 @@ pub struct PaymentLinkDetails {
     pub return_url: String,
     pub merchant_name: crypto::OptionalEncryptableName,
     pub order_details: Vec<pii::SecretSerdeValue>,
-    pub max_items_visible_after_collapse: i8
+    pub max_items_visible_after_collapse: i8,
 }

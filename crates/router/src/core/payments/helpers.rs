@@ -3419,8 +3419,7 @@ pub fn validate_payment_link_request(
                 return Err(errors::ApiErrorResponse::InvalidRequestData {
                     message: "link_expiry time cannot be less than current time".to_string(),
                 });
-            }
-            else if order_details.is_none(){
+            } else if order_details.is_none() {
                 return Err(errors::ApiErrorResponse::InvalidRequestData {
                     message: "cannot create payment link without order details".to_string(),
                 });
