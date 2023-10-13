@@ -57,7 +57,6 @@ impl TryFrom<&types::PaymentsInitRouterData> for AirwallexIntentRequest {
 pub struct AirwallexRouterData<T> {
     pub amount: String,
     pub router_data: T,
-    //TODO: Checks Needed
 }
 
 impl<T>
@@ -158,7 +157,6 @@ pub struct AirwallexCardPaymentOptions {
     auto_capture: bool,
 }
 
-//TODO: Checks Needed
 impl TryFrom<&AirwallexRouterData<&types::PaymentsAuthorizeRouterData>> for AirwallexPaymentsRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &AirwallexRouterData<&types::PaymentsAuthorizeRouterData>) -> Result<Self, Self::Error> {
