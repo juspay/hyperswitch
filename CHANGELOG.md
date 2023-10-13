@@ -4,6 +4,16 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 1.52.0+hotfix.2 (2023-10-13)
+
+### Features
+
+- **router:** Add Cancel Event in Webhooks and Mapping it in Stripe ([#2574](https://github.com/juspay/hyperswitch/pull/2574)) ([`e52c111`](https://github.com/juspay/hyperswitch/commit/e52c111200cb8e46d917e934a035a04081e0163b))
+
+**Full Changelog:** [`v1.52.0+hotfix.1...v1.52.0+hotfix.2`](https://github.com/juspay/hyperswitch/compare/v1.52.0+hotfix.1...v1.52.0+hotfix.2)
+
+- - -
+
 ## 1.52.0+hotfix.1 (2023-10-12)
 
 ### Bug Fixes
