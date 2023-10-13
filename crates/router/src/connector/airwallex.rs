@@ -68,7 +68,6 @@ impl ConnectorCommon for Airwallex {
 
     fn get_currency_unit(&self) -> api::CurrencyUnit {
         api::CurrencyUnit::Base
-        //TODO: Checks Needed
     }
 
     fn common_get_content_type(&self) -> &'static str {
@@ -379,7 +378,6 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
             req.request.currency,
             req.request.amount,
             req,
-            //TODO: Checks needed
         ))?;
         let connector_req = airwallex::AirwallexPaymentsRequest::try_from(&connector_router_data)?;
         let airwallex_req = types::RequestBody::log_and_get_request_body(
@@ -827,7 +825,6 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
             req.request.currency,
             req.request.refund_amount,
             req,
-            //TODO: Checks Needed
         ))?;
         let connector_req = airwallex::AirwallexRefundRequest::try_from(&connector_router_data)?;
         let airwallex_req = types::RequestBody::log_and_get_request_body(

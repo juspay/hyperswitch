@@ -53,11 +53,10 @@ impl TryFrom<&types::PaymentsInitRouterData> for AirwallexIntentRequest {
     }
 }
 
-//TODO: Implement AirwallexRouterData
 #[derive(Debug, Serialize)]
 pub struct AirwallexRouterData<T> {
-    amount: i64,
-    router_data: T,
+    pub amount: String,
+    pub router_data: T,
     //TODO: Checks Needed
 }
 
@@ -72,13 +71,14 @@ impl<T>
     type Error = error_stack::Report<errors::ConnectorError>;
 
     fn try_from(
-        (_currency_unit, _currency, amount, router_data): (
+        (currency_unit, currency, amount, router_data): (
             &types::api::CurrencyUnit,
             types::storage::enums::Currency,
             i64,
             T,
         ),
     ) -> Result<Self, Self::Error> {
+        let amount = utils::get_amount_as_string(currency_unit, amount, currency)?;
         Ok(Self {
             amount,
             router_data,
