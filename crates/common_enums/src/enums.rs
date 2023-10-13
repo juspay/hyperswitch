@@ -794,6 +794,7 @@ pub enum EventType {
     PaymentSucceeded,
     PaymentFailed,
     PaymentProcessing,
+    PaymentCancelled,
     ActionRequired,
     RefundSucceeded,
     RefundFailed,
