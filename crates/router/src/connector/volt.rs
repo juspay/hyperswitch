@@ -125,7 +125,7 @@ impl ConnectorCommon for Volt {
 
         Ok(ErrorResponse {
             status_code: res.status_code,
-            code: response.exception.code.to_string(),
+            code: response.exception.message.to_string(),
             message: response.exception.message.clone(),
             reason,
         })
@@ -154,7 +154,7 @@ impl ConnectorIntegration<api::AccessTokenAuth, types::AccessTokenRequestData, t
     }
 
     fn get_content_type(&self) -> &'static str {
-        "application/x-www-form-urlencoded"
+        self.common_get_content_type()
     }
     fn get_headers(
         &self,
@@ -174,13 +174,13 @@ impl ConnectorIntegration<api::AccessTokenAuth, types::AccessTokenRequestData, t
         req: &types::RefreshTokenRouterData,
     ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
         let req_obj = volt::VoltAuthUpdateRequest::try_from(req)?;
-        let paypal_req = types::RequestBody::log_and_get_request_body(
+        let volt_req = types::RequestBody::log_and_get_request_body(
             &req_obj,
             utils::Encode::<volt::VoltAuthUpdateRequest>::url_encode,
         )
         .change_context(errors::ConnectorError::RequestEncodingFailed)?;
 
-        Ok(Some(paypal_req))
+        Ok(Some(volt_req))
     }
 
     fn build_request(
