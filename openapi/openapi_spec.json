@@ -6170,6 +6170,14 @@
             "type": "string",
             "description": "The id of the organization to which the merchant belongs to",
             "nullable": true
+          },
+          "payment_link_metadata": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PaymentLinkMetadata"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -6343,6 +6351,9 @@
           },
           "recon_status": {
             "$ref": "#/components/schemas/ReconStatus"
+          },
+          "payment_link_metadata": {
+            "nullable": true
           }
         }
       },
@@ -6475,6 +6486,9 @@
             "description": "The default business profile that must be used for creating merchant accounts and payments\nTo unset this field, pass an empty string",
             "nullable": true,
             "maxLength": 64
+          },
+          "payment_link_metadata": {
+            "nullable": true
           }
         }
       },
@@ -7359,6 +7373,11 @@
             "type": "integer",
             "format": "int64",
             "description": "the amount per quantity of product"
+          },
+          "product_img_link": {
+            "type": "string",
+            "description": "The image URL of the product",
+            "nullable": true
           }
         }
       },
@@ -7809,6 +7828,23 @@
           },
           "payment_id": {
             "type": "string"
+          }
+        }
+      },
+      "PaymentLinkMetadata": {
+        "type": "object",
+        "properties": {
+          "merchant_logo": {
+            "type": "string",
+            "nullable": true
+          },
+          "color_scheme": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PaymentLinkColorSchema"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -8791,7 +8827,7 @@
               "$ref": "#/components/schemas/OrderDetailsWithAmount"
             },
             "description": "Information about the product , quantity and amount for connectors. (e.g. Klarna)",
-            "example": "[{\n        \"product_name\": \"gillete creme\",\n        \"quantity\": 15,\n        \"amount\" : 900\n    }]",
+            "example": "[{\n        \"product_name\": \"gillete creme\",\n        \"quantity\": 15,\n        \"amount\" : 900\n        \"product_img_link\" : \"https://dummy-img-link.com\"\n    }]",
             "nullable": true
           },
           "client_secret": {
@@ -9146,7 +9182,7 @@
               "$ref": "#/components/schemas/OrderDetailsWithAmount"
             },
             "description": "Information about the product , quantity and amount for connectors. (e.g. Klarna)",
-            "example": "[{\n        \"product_name\": \"gillete creme\",\n        \"quantity\": 15,\n        \"amount\" : 900\n    }]",
+            "example": "[{\n        \"product_name\": \"gillete creme\",\n        \"quantity\": 15,\n        \"amount\" : 900\n        \"product_img_link\" : \"https://dummy-img-link.com\"\n    }]",
             "nullable": true
           },
           "client_secret": {
