@@ -463,9 +463,8 @@ impl ForeignFrom<storage::Config> for api_types::Config {
 
 impl<'a> ForeignFrom<&'a api_types::ConfigUpdate> for storage::ConfigUpdate {
     fn foreign_from(config: &api_types::ConfigUpdate) -> Self {
-        let config_update = config;
         Self::Update {
-            config: Some(config_update.value.clone()),
+            config: Some(config.value.clone()),
         }
     }
 }

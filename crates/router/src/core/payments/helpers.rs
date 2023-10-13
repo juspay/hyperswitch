@@ -7,7 +7,7 @@ use common_utils::{
 };
 use data_models::{
     mandates::MandateData,
-    payments::{payment_attempt::PaymentAttempt, payment_intent::PaymentIntent},
+    payments::{payment_attempt::PaymentAttempt, PaymentIntent},
 };
 use diesel_models::enums;
 // TODO : Evaluate all the helper functions ()
@@ -2392,7 +2392,7 @@ mod tests {
             setup_future_usage: None,
             off_session: None,
             client_secret: Some("1".to_string()),
-            active_attempt_id: "nopes".to_string(),
+            active_attempt: data_models::RemoteStorageObject::ForeignID("nopes".to_string()),
             business_country: None,
             business_label: None,
             order_details: None,
@@ -2440,7 +2440,7 @@ mod tests {
             setup_future_usage: None,
             off_session: None,
             client_secret: Some("1".to_string()),
-            active_attempt_id: "nopes".to_string(),
+            active_attempt: data_models::RemoteStorageObject::ForeignID("nopes".to_string()),
             business_country: None,
             business_label: None,
             order_details: None,
@@ -2488,7 +2488,7 @@ mod tests {
             setup_future_usage: None,
             off_session: None,
             client_secret: None,
-            active_attempt_id: "nopes".to_string(),
+            active_attempt: data_models::RemoteStorageObject::ForeignID("nopes".to_string()),
             business_country: None,
             business_label: None,
             order_details: None,
@@ -2930,7 +2930,7 @@ impl AttemptType {
                                 &request.payment_method_data,
                                 Some(true),
                             ),
-                            active_attempt_id: new_payment_attempt.attempt_id.to_owned(),
+                            active_attempt_id: new_payment_attempt.attempt_id.clone(),
                             attempt_count: new_attempt_count,
                         },
                         storage_scheme,
