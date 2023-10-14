@@ -50,6 +50,7 @@ mod stripe;
 mod trustpay;
 mod tsys;
 mod utils;
+mod volt;
 mod wise;
 mod worldline;
 mod worldpay;

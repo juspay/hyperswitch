@@ -56,6 +56,10 @@ impl ConnectorCommon for Worldpay {
         "worldpay"
     }
 
+    fn get_currency_unit(&self) -> api::CurrencyUnit {
+        api::CurrencyUnit::Minor
+    }
+
     fn common_get_content_type(&self) -> &'static str {
         "application/vnd.worldpay.payments-v6+json"
     }
@@ -428,7 +432,13 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         &self,
         req: &types::PaymentsAuthorizeRouterData,
     ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
-        let connector_request = WorldpayPaymentsRequest::try_from(req)?;
+        let connector_router_data = worldpay::WorldpayRouterData::try_from((
+            &self.get_currency_unit(),
+            req.request.currency,
+            req.request.amount,
+            req,
+        ))?;
+        let connector_request = WorldpayPaymentsRequest::try_from(&connector_router_data)?;
         let worldpay_payment_request = types::RequestBody::log_and_get_request_body(
             &connector_request,
             ext_traits::Encode::<WorldpayPaymentsRequest>::encode_to_string_of_json,
