@@ -8898,6 +8898,14 @@
             "description": "The business profile to use for this payment, if not passed the default business profile\nassociated with the merchant account will be used.",
             "nullable": true
           },
+          "surcharge_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/RequestSurchargeDetails"
+              }
+            ],
+            "nullable": true
+          },
           "payment_type": {
             "allOf": [
               {
@@ -9252,6 +9260,14 @@
           "profile_id": {
             "type": "string",
             "description": "The business profile to use for this payment, if not passed the default business profile\nassociated with the merchant account will be used.",
+            "nullable": true
+          },
+          "surcharge_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/RequestSurchargeDetails"
+              }
+            ],
             "nullable": true
           },
           "payment_type": {
@@ -10638,6 +10654,23 @@
           "metadata": {
             "type": "object",
             "description": "You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Metadata is useful for storing additional, structured information on an object.",
+            "nullable": true
+          }
+        }
+      },
+      "RequestSurchargeDetails": {
+        "type": "object",
+        "required": [
+          "surcharge_amount"
+        ],
+        "properties": {
+          "surcharge_amount": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "tax_amount": {
+            "type": "integer",
+            "format": "int64",
             "nullable": true
           }
         }

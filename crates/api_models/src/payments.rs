@@ -310,7 +310,7 @@ pub struct PaymentsRequest {
     pub payment_type: Option<api_enums::PaymentType>,
 }
 
-#[derive(Default, Debug, Clone, serde::Serialize, serde::Deserialize, Copy)]
+#[derive(Default, Debug, Clone, serde::Serialize, serde::Deserialize, Copy, ToSchema)]
 pub struct RequestSurchargeDetails {
     surcharge_amount: i64,
     tax_amount: Option<i64>,
