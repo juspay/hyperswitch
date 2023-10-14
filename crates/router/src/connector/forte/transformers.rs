@@ -8,39 +8,9 @@ use crate::{
     },
     core::errors,
     types::{self, api, storage::enums, transformers::ForeignFrom},
+    PaymentsAuthorizeData,
+    PaymentsResponseData
 };
-
-
-#[derive(Debug, Serialize)]
-pub struct ForteRouterData<T> {
-    amount: i64,
-    router_data: T,
-}
-
-impl<T>
-    TryFrom<(
-        &types::api::CurrencyUnit,
-        types::storage::enums::Currency,
-        i64,
-        T,
-    )> for ForteRouterData<T>
-{
-    type Error = error_stack::Report<errors::ConnectorError>;
-
-    fn try_from(
-        (_currency_unit, _currency, amount, router_data): (
-            &types::api::CurrencyUnit,
-            types::storage::enums::Currency,
-            i64,
-            T,
-        ),
-    ) -> Result<Self, Self::Error> {
-        Ok(Self {
-            amount,
-            router_data,
-        })
-    }
-}
 
 #[derive(Debug, Serialize)]
 pub struct FortePaymentsRequest {
@@ -95,18 +65,59 @@ impl TryFrom<utils::CardIssuer> for ForteCardType {
     }
 }
 
-impl TryFrom<&ForteRouterData<&types::PaymentsAuthorizeRouterData>> for FortePaymentsRequest {
+#[derive(Debug, Serialize)]
+pub struct ForteRouterData<T> {
+    amount: i64,
+    router_data: T,
+}
+impl<T>
+    TryFrom<(
+        &types::api::CurrencyUnit,
+        types::storage::enums::Currency,
+        i64,
+        T,
+    )> for ForteRouterData<T>
+{
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(item: &ForteRouterData<&types::PaymentsAuthorizeRouterData>,) -> Result<Self, Self::Error> {
-        if item.router_data.request.currency != enums::Currency::USD {
-            Err(errors::ConnectorError::NotSupported {
-                message: item.router_data.request.currency.to_string(),
-                connector: "Forte",
-            })?
-        }
-        match item.router_data.request.payment_method_data {
-            api_models::payments::PaymentMethodData::Card(ref ccard) => {
-                let action = match item.request.is_auto_capture()? {
+    fn try_from(
+        (_currency_unit, _currency, amount, item): (
+            &types::api::CurrencyUnit,
+            types::storage::enums::Currency,
+            i64,
+            T,
+        ),
+    ) -> Result<Self, Self::Error> {
+        Ok(Self {
+            amount,
+            router_data: item,
+        })
+    }
+}
+
+impl
+    TryFrom<
+        &ForteRouterData<
+            &types::RouterData<
+                types::api::payments::Authorize,
+                PaymentsAuthorizeData,
+                PaymentsResponseData,
+            >,
+        >,
+    > for PaymentsRequest
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        item: &ForteRouterData<
+            &types::RouterData<
+                types::api::payments::Authorize,
+                PaymentsAuthorizeData,
+                PaymentsResponseData,
+            >,
+        >,
+    ) -> Result<Self, Self::Error> {
+        let payment_data = match &item.router_data.request.payment_method_data {
+            api::PaymentMethodData::Card(card) => {
+                let action = match item.router_data.request.is_auto_capture()? {
                     true => ForteAction::Sale,
                     false => ForteAction::Authorize,
                 };
@@ -125,7 +136,7 @@ impl TryFrom<&ForteRouterData<&types::PaymentsAuthorizeRouterData>> for FortePay
                     last_name: address.get_last_name()?.to_owned(),
                 };
                 let authorization_amount =
-                    utils::to_currency_base_unit_asf64(item.request.amount, item.request.currency)?;
+                    utils::to_currency_base_unit_asf64(item.router_data.request.amount, item.router_data.request.currency)?;
                 Ok(Self {
                     action,
                     authorization_amount,
@@ -133,9 +144,11 @@ impl TryFrom<&ForteRouterData<&types::PaymentsAuthorizeRouterData>> for FortePay
                     card,
                 })
             }
-            _ => Err(errors::ConnectorError::NotImplemented(
-                "Payment Method".to_string(),
-            ))?,
+            _ => {
+                return Err(
+                    errors::ConnectorError::NotImplemented("Payment methods".to_string()).into(),
+                )
+            }
         }
     }
 }
