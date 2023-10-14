@@ -7,9 +7,10 @@ use api_models::{
     admin::{self, PaymentMethodsEnabled},
     enums::{self as api_enums},
     payment_methods::{
-        CardDetailsPaymentMethod, CardNetworkTypes, PaymentExperienceTypes, PaymentMethodsData,
-        RequestPaymentMethodTypes, RequiredFieldInfo, ResponsePaymentMethodIntermediate,
-        ResponsePaymentMethodTypes, ResponsePaymentMethodsEnabled,
+        BankAccountConnectorDetails, CardDetailsPaymentMethod, CardNetworkTypes, MaskedBankDetails,
+        PaymentExperienceTypes, PaymentMethodsData, RequestPaymentMethodTypes, RequiredFieldInfo,
+        ResponsePaymentMethodIntermediate, ResponsePaymentMethodTypes,
+        ResponsePaymentMethodsEnabled,
     },
     payments::BankCodeResponse,
 };
@@ -1876,21 +1877,44 @@ pub async fn list_customer_payment_method(
         let parent_payment_method_token = generate_id(consts::ID_LENGTH, "token");
         let hyperswitch_token = generate_id(consts::ID_LENGTH, "token");
 
-        let card = if pm.payment_method == enums::PaymentMethod::Card {
-            get_card_details(&pm, key, state, &hyperswitch_token).await?
+        let (card, pmd, hyperswitch_token_data) = match pm.payment_method {
+            enums::PaymentMethod::Card => (
+                Some(get_card_details(&pm, key, state).await?),
+                None,
+                PaymentTokenData::permanent_card(pm.payment_method_id.clone()),
+            ),
+
+            #[cfg(feature = "payouts")]
+            enums::PaymentMethod::BankTransfer => {
+                let token = generate_id(consts::ID_LENGTH, "token");
+                let token_data = PaymentTokenData::temporary_generic(token.clone());
+                (
+                    None,
+                    Some(get_lookup_key_for_payout_method(state, &key_store, &token, &pm).await?),
+                    token_data,
+                )
+            }
+
+            enums::PaymentMethod::BankDebit => {
+                let bank_account_connector_details =
+                    get_bank_account_connector_details(&pm, key).await?;
+                let token_data = PaymentTokenData::AuthBankDebit(bank_account_connector_details);
+                (None, None, token_data)
+            }
+
+            _ => (
+                None,
+                None,
+                PaymentTokenData::temporary_generic(generate_id(consts::ID_LENGTH, "token")),
+            ),
+        };
+
+        let bank_details = if pm.payment_method == enums::PaymentMethod::BankDebit {
+            get_masked_bank_details(&pm, key).await
         } else {
             None
         };
 
-        #[cfg(feature = "payouts")]
-        let pmd = if pm.payment_method == enums::PaymentMethod::BankTransfer {
-            Some(
-                get_lookup_key_for_payout_method(state, &key_store, &hyperswitch_token, &pm)
-                    .await?,
-            )
-        } else {
-            None
-        };
         //Need validation for enabled payment method ,querying MCA
         let pma = api::CustomerPaymentMethod {
             payment_token: parent_payment_method_token.to_owned(),
@@ -1907,8 +1931,7 @@ pub async fn list_customer_payment_method(
             created: Some(pm.created_at),
             #[cfg(feature = "payouts")]
             bank_transfer: pmd,
-            #[cfg(not(feature = "payouts"))]
-            bank_transfer: None,
+            bank: bank_details,
             requires_cvv,
         };
         customer_pms.push(pma.to_owned());
@@ -1921,12 +1944,7 @@ pub async fn list_customer_payment_method(
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to get redis connection")?;
         ParentPaymentMethodToken::create_key_for_token((
-            &parent_payment_method_token,
-            pma.payment_method,
-        ))
-        .insert(intent_created, hyperswitch_token, state)
         .await?;
-
         if let Some(metadata) = pma.metadata {
             let pm_metadata_vec: payment_methods::PaymentMethodMetadata = metadata
                 .parse_value("PaymentMethodMetadata")
@@ -1993,6 +2011,89 @@ async fn get_card_details(
 }
 
 pub async fn get_lookup_key_from_locker(
+    state: &routes::AppState,
+    payment_token: &str,
+    pm: &storage::PaymentMethod,
+) -> errors::RouterResult<api::CardDetailFromLocker> {
+    let card_detail = get_card_details_from_locker(state, pm).await?;
+    let card = card_detail.clone();
+    let resp =
+        BasiliskCardSupport::create_payment_method_data_in_locker(state, payment_token, card, pm)
+            .await?;
+    Ok(resp)
+}
+
+async fn get_masked_bank_details(
+    pm: &payment_method::PaymentMethod,
+    key: &[u8],
+) -> Option<MaskedBankDetails> {
+    decrypt::<serde_json::Value, masking::WithType>(pm.payment_method_data.clone(), key)
+        .await
+        .change_context(errors::StorageError::DecryptionError)
+        .attach_printable("unable to decrypt bank details")
+        .ok()
+        .flatten()
+        .map(|x| x.into_inner().expose())
+        .and_then(|v| {
+            serde_json::from_value::<PaymentMethodsData>(v)
+                .map_err(|err| {
+                    logger::error!(serde_error=?err);
+                })
+                .ok()
+        })
+        .and_then(|pm_data| match pm_data {
+            PaymentMethodsData::Card(_) => None,
+            PaymentMethodsData::BankDetails(bank_details) => Some(MaskedBankDetails {
+                mask: bank_details.mask,
+            }),
+        })
+}
+
+async fn get_bank_account_connector_details(
+    pm: &payment_method::PaymentMethod,
+    key: &[u8],
+) -> errors::RouterResult<BankAccountConnectorDetails> {
+    let payment_method_data =
+        decrypt::<serde_json::Value, masking::WithType>(pm.payment_method_data.clone(), key)
+            .await
+            .change_context(errors::StorageError::DecryptionError)
+            .attach_printable("unable to decrypt bank details")
+            .ok()
+            .flatten()
+            .map(|x| x.into_inner().expose())
+            .and_then(|v| {
+                serde_json::from_value::<PaymentMethodsData>(v)
+                    .map_err(|err| {
+                        logger::error!(serde_error=?err);
+                    })
+                    .ok()
+            });
+
+    if let Some(pmd) = payment_method_data {
+        match pmd {
+            PaymentMethodsData::Card(_) => Err(errors::ApiErrorResponse::UnprocessableEntity {
+                message: "Card is not a valid entity".to_string(),
+            })
+            .into_report(),
+            PaymentMethodsData::BankDetails(bank_details) => {
+                let connector_details = bank_details
+                    .connector_details
+                    .first()
+                    .ok_or(errors::ApiErrorResponse::InternalServerError)?;
+                Ok(BankAccountConnectorDetails {
+                    connector: connector_details.connector.clone(),
+                    account_id: connector_details.account_id.clone(),
+                    mca_id: connector_details.mca_id.clone(),
+                    access_token: connector_details.access_token.clone(),
+                })
+            }
+        }
+    } else {
+        Err(errors::ApiErrorResponse::PaymentMethodDataNotFound.into())
+    }
+}
+
+pub async fn get_card_details_from_locker(
     state: &routes::AppState,
     payment_token: &str,
     pm: &storage::PaymentMethod,

@@ -161,6 +161,9 @@ impl ErrorSwitch<api_models::errors::types::ApiErrorResponse> for ApiErrorRespon
             Self::PaymentMethodNotFound => {
                 AER::NotFound(ApiError::new("HE", 2, "Payment method does not exist in our records", None))
             }
+             Self::PaymentMethodDataNotFound => {
+                AER::NotFound(ApiError::new("HE", 2, "Payment method data not found", None))
+            }
             Self::MerchantAccountNotFound => {
                 AER::NotFound(ApiError::new("HE", 2, "Merchant account does not exist in our records", None))
             }
