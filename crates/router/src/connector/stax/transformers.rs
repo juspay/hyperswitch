@@ -50,7 +50,7 @@ pub struct StaxPaymentsRequestMetaData {
 #[derive(Debug, Serialize)]
 pub struct StaxPaymentsRequest {
     payment_method_id: Secret<String>,
-    total: f64,
+    total: String,
     is_refundable: bool,
     pre_auth: bool,
     meta: StaxPaymentsRequestMetaData,
@@ -68,10 +68,7 @@ impl TryFrom<&StaxRouterData<&types::PaymentsAuthorizeRouterData>> for StaxPayme
                 connector: "Stax",
             })?
         }
-        let total = utils::to_currency_base_unit_asf64(
-            item.router_data.request.amount,
-            item.router_data.request.currency,
-        )?;
+        let total = item.amount.to_owned();
 
         match item.router_data.request.payment_method_data.clone() {
             api::PaymentMethodData::Card(_) => {
@@ -398,17 +395,14 @@ impl TryFrom<&types::PaymentsCaptureRouterData> for StaxCaptureRequest {
 // Type definition for RefundRequest
 #[derive(Debug, Serialize)]
 pub struct StaxRefundRequest {
-    pub total: f64,
+    pub total: String,
 }
 
 impl<F> TryFrom<&StaxRouterData<&types::RefundsRouterData<F>>> for StaxRefundRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &StaxRouterData<&types::RefundsRouterData<F>>) -> Result<Self, Self::Error> {
         Ok(Self {
-            total: utils::to_currency_base_unit_asf64(
-                item.router_data.request.refund_amount,
-                item.router_data.request.currency,
-            )?,
+            total: item.amount.to_owned(),
         })
     }
 }
