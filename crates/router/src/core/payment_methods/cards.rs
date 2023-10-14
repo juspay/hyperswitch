@@ -2018,6 +2018,26 @@ pub async fn get_card_details_from_locker(
     state: &routes::AppState,
     pm: &storage::PaymentMethod,
 ) -> errors::RouterResult<api::CardDetailFromLocker> {
+    let card = get_card_from_locker(
+        state,
+        &pm.customer_id,
+        &pm.merchant_id,
+        &pm.payment_method_id,
+    )
+    .await
+    .change_context(errors::ApiErrorResponse::InternalServerError)
+    .attach_printable("Error getting card from card vault")?;
+
+    payment_methods::get_card_detail(pm, card)
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Get Card Details Failed")
+}
+
+pub async fn get_lookup_key_from_locker(
+    state: &routes::AppState,
+    payment_token: &str,
+    pm: &storage::PaymentMethod,
+) -> errors::RouterResult<api::CardDetailFromLocker> {
     let card_detail = get_card_details_from_locker(state, pm).await?;
     let card = card_detail.clone();
     let resp =
@@ -2094,39 +2114,6 @@ async fn get_bank_account_connector_details(
     } else {
         Err(errors::ApiErrorResponse::PaymentMethodDataNotFound.into())
     }
-}
-
-pub async fn get_card_details_from_locker(
-    state: &routes::AppState,
-    payment_token: &str,
-    pm: &storage::PaymentMethod,
-) -> errors::RouterResult<api::CardDetailFromLocker> {
-    let card = get_card_from_locker(
-        state,
-        &pm.customer_id,
-        &pm.merchant_id,
-        &pm.payment_method_id,
-    )
-    .await
-    .change_context(errors::ApiErrorResponse::InternalServerError)
-    .attach_printable("Error getting card from card vault")?;
-
-    payment_methods::get_card_detail(pm, card)
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Get Card Details Failed")
-}
-
-pub async fn get_lookup_key_from_locker(
-    state: &routes::AppState,
-    payment_token: &str,
-    pm: &storage::PaymentMethod,
-) -> errors::RouterResult<api::CardDetailFromLocker> {
-    let card_detail = get_card_details_from_locker(state, pm).await?;
-    let card = card_detail.clone();
-    let resp =
-        BasiliskCardSupport::create_payment_method_data_in_locker(state, payment_token, card, pm)
-            .await?;
-    Ok(resp)
 }
 
 #[cfg(feature = "payouts")]
