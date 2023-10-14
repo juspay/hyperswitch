@@ -717,7 +717,7 @@ pub struct CustomerPaymentMethod {
     pub bank_transfer: Option<payouts::Bank>,
 
     /// Masked bank details from PM auth services
-    #[schema(value_type = Option<MaskedBankDetails>)]
+    #[schema(example = json!({"mask": "0000"}))]
     pub bank: Option<MaskedBankDetails>,
 
     /// Whether this payment method requires CVV to be collected
@@ -725,7 +725,7 @@ pub struct CustomerPaymentMethod {
     pub requires_cvv: bool,
 }
 
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
 pub struct MaskedBankDetails {
     pub mask: String,
 }

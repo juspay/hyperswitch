@@ -4672,6 +4672,14 @@
             ],
             "nullable": true
           },
+          "bank": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MaskedBankDetails"
+              }
+            ],
+            "nullable": true
+          },
           "requires_cvv": {
             "type": "boolean",
             "description": "Whether this payment method requires CVV to be collected",
@@ -6030,6 +6038,17 @@
             }
           }
         ]
+      },
+      "MaskedBankDetails": {
+        "type": "object",
+        "required": [
+          "mask"
+        ],
+        "properties": {
+          "mask": {
+            "type": "string"
+          }
+        }
       },
       "MbWayRedirection": {
         "type": "object",

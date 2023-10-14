@@ -1459,7 +1459,6 @@ pub async fn make_pm_data<'a, F: Clone, R, Ctx: PaymentMethodRetrieve>(
                         .to_owned()
                         .get_required_value("payment_method")?,
                 );
-
                 let token_data_string = redis_conn
                     .get_key::<Option<String>>(&key)
                     .await
