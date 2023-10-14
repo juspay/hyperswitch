@@ -250,6 +250,7 @@ pub struct DlocalPaymentsResponse {
     status: DlocalPaymentStatus,
     id: String,
     three_dsecure: Option<ThreeDSecureResData>,
+    order_id: String,
 }
 
 impl<F, T>
@@ -288,6 +289,7 @@ impl<F, T>
 pub struct DlocalPaymentsSyncResponse {
     status: DlocalPaymentStatus,
     id: String,
+    order_id: String,
 }
 
 impl<F, T>
@@ -325,6 +327,7 @@ impl<F, T>
 pub struct DlocalPaymentsCaptureResponse {
     status: DlocalPaymentStatus,
     id: String,
+    order_id: String,
 }
 
 impl<F, T>
@@ -361,6 +364,7 @@ impl<F, T>
 pub struct DlocalPaymentsCancelResponse {
     status: DlocalPaymentStatus,
     id: String,
+    order_id: String,
 }
 
 impl<F, T>
