@@ -126,6 +126,7 @@ fn construct_refund_router_data<F>() -> types::RefundsRouterData<F> {
             connector_metadata: None,
             reason: None,
             connector_refund_id: None,
+            browser_info: None,
         },
         payment_method_id: None,
         response: Err(types::ErrorResponse::default()),
