@@ -616,7 +616,7 @@ impl<F> TryFrom<&NoonRouterData<&types::RefundsRouterData<F>>> for NoonPaymentsA
             cancellation_reason: None,
         };
         let transaction = NoonActionTransaction {
-            amount: item.amount,
+            amount: item.amount.to_owned(),
             currency: item.router_data.request.currency,
             transaction_reference: Some(item.router_data.request.refund_id.clone()),
         };
