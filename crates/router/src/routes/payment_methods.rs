@@ -9,7 +9,11 @@ use super::app::AppState;
 use crate::{
     core::{api_locking, errors, payment_methods::cards},
     services::{api, authentication as auth},
-    types::api::payment_methods::{self, PaymentMethodId},
+    types::{
+        api::payment_methods::{self, PaymentMethodId},
+        storage::payment_method::PaymentTokenData,
+    },
+    utils::Encode,
 };
 
 /// PaymentMethods - Create
@@ -379,9 +383,12 @@ impl ParentPaymentMethodToken {
     pub async fn insert(
         &self,
         intent_created_at: Option<PrimitiveDateTime>,
-        token: String,
+        token: PaymentTokenData,
         state: &AppState,
     ) -> CustomResult<(), errors::ApiErrorResponse> {
+        let token_json_str = Encode::<PaymentTokenData>::encode_to_string_of_json(&token)
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("failed to serialize hyperswitch token to json")?;
         let redis_conn = state
             .store
             .get_redis_conn()
@@ -392,7 +399,7 @@ impl ParentPaymentMethodToken {
         redis_conn
             .set_key_with_expiry(
                 &self.key_for_token,
-                token,
+                token_json_str,
                 TOKEN_TTL - time_elapsed.whole_seconds(),
             )
             .await

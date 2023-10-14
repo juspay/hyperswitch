@@ -48,7 +48,7 @@ use crate::{
             self,
             types::{decrypt, encrypt_optional, AsyncLift},
         },
-        storage::{self, enums},
+        storage::{self, enums, PaymentTokenData},
         transformers::ForeignFrom,
     },
     utils::{self, ConnectorResponseExt, OptionExt},
@@ -1875,7 +1875,6 @@ pub async fn list_customer_payment_method(
     let mut customer_pms = Vec::new();
     for pm in resp.into_iter() {
         let parent_payment_method_token = generate_id(consts::ID_LENGTH, "token");
-        let hyperswitch_token = generate_id(consts::ID_LENGTH, "token");
 
         let (card, pmd, hyperswitch_token_data) = match pm.payment_method {
             enums::PaymentMethod::Card => (
@@ -1929,7 +1928,6 @@ pub async fn list_customer_payment_method(
             installment_payment_enabled: false,
             payment_experience: Some(vec![api_models::enums::PaymentExperience::RedirectToUrl]),
             created: Some(pm.created_at),
-            #[cfg(feature = "payouts")]
             bank_transfer: pmd,
             bank: bank_details,
             requires_cvv,
@@ -1944,6 +1942,10 @@ pub async fn list_customer_payment_method(
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to get redis connection")?;
         ParentPaymentMethodToken::create_key_for_token((
+            &parent_payment_method_token,
+            pma.payment_method,
+        ))
+        .insert(intent_created, hyperswitch_token_data, state)
         .await?;
         if let Some(metadata) = pma.metadata {
             let pm_metadata_vec: payment_methods::PaymentMethodMetadata = metadata
@@ -1989,9 +1991,8 @@ async fn get_card_details(
     pm: &payment_method::PaymentMethod,
     key: &[u8],
     state: &routes::AppState,
-    hyperswitch_token: &str,
-) -> errors::RouterResult<Option<api::CardDetailFromLocker>> {
-    let mut _card_decrypted =
+) -> errors::RouterResult<api::CardDetailFromLocker> {
+    let card_decrypted =
         decrypt::<serde_json::Value, masking::WithType>(pm.payment_method_data.clone(), key)
             .await
             .change_context(errors::StorageError::DecryptionError)
@@ -2005,14 +2006,16 @@ async fn get_card_details(
                 _ => None,
             });
 
-    Ok(Some(
-        get_lookup_key_from_locker(state, hyperswitch_token, pm).await?,
-    ))
+    Ok(if let Some(mut crd) = card_decrypted {
+        crd.scheme = pm.scheme.clone();
+        crd
+    } else {
+        get_card_details_from_locker(state, pm).await?
+    })
 }
 
-pub async fn get_lookup_key_from_locker(
+pub async fn get_card_details_from_locker(
     state: &routes::AppState,
-    payment_token: &str,
     pm: &storage::PaymentMethod,
 ) -> errors::RouterResult<api::CardDetailFromLocker> {
     let card_detail = get_card_details_from_locker(state, pm).await?;
@@ -2107,9 +2110,18 @@ pub async fn get_card_details_from_locker(
     .await
     .change_context(errors::ApiErrorResponse::InternalServerError)
     .attach_printable("Error getting card from card vault")?;
-    let card_detail = payment_methods::get_card_detail(pm, card)
+
+    payment_methods::get_card_detail(pm, card)
         .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Get Card Details Failed")?;
+        .attach_printable("Get Card Details Failed")
+}
+
+pub async fn get_lookup_key_from_locker(
+    state: &routes::AppState,
+    payment_token: &str,
+    pm: &storage::PaymentMethod,
+) -> errors::RouterResult<api::CardDetailFromLocker> {
+    let card_detail = get_card_details_from_locker(state, pm).await?;
     let card = card_detail.clone();
     let resp =
         BasiliskCardSupport::create_payment_method_data_in_locker(state, payment_token, card, pm)
