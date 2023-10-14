@@ -139,7 +139,11 @@ impl TryFrom<&types::ConnectorAuthType> for IatapayAuthType {
                 merchant_id: key1.to_owned(),
                 client_secret: api_secret.to_owned(),
             }),
-            _ => Err(errors::ConnectorError::FailedToObtainAuthType)?,
+
+            types::ConnectorAuthType::HeaderKey{..}
+            | types::ConnectorAuthType::BodyKey{..}
+            | types::ConnectorAuthType::MultiAuthKey{..}
+            | types::ConnectorAuthType::CurrencyAuthKey{..} => Err(errors::ConnectorError::FailedToObtainAuthType)?,
         }
     }
 }
