@@ -312,8 +312,8 @@ pub struct PaymentsRequest {
 
 #[derive(Default, Debug, Clone, serde::Serialize, serde::Deserialize, Copy, ToSchema)]
 pub struct RequestSurchargeDetails {
-    surcharge_amount: i64,
-    tax_amount: Option<i64>,
+    pub surcharge_amount: i64,
+    pub tax_amount: Option<i64>,
 }
 
 #[derive(Default, Debug, Clone, Copy)]
