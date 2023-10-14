@@ -46,6 +46,7 @@ pub struct PaymentIntent {
     // Denotes the action(approve or reject) taken by merchant in case of manual review.
     // Manual review can occur when the transaction is marked as risky by the frm_processor, payment processor or when there is underpayment/over payment incase of crypto payment
     pub merchant_decision: Option<String>,
+    pub payment_link_id: Option<String>,
     pub payment_confirm_source: Option<storage_enums::PaymentSource>,
 }
 
@@ -97,6 +98,7 @@ pub struct PaymentIntentNew {
     pub attempt_count: i16,
     pub profile_id: Option<String>,
     pub merchant_decision: Option<String>,
+    pub payment_link_id: Option<String>,
     pub payment_confirm_source: Option<storage_enums::PaymentSource>,
 }
 
@@ -163,7 +165,6 @@ pub enum PaymentIntentUpdate {
 
 #[derive(Clone, Debug, Default, AsChangeset, router_derive::DebugAsDisplay)]
 #[diesel(table_name = payment_intent)]
-
 pub struct PaymentIntentUpdateInternal {
     pub amount: Option<i64>,
     pub currency: Option<storage_enums::Currency>,

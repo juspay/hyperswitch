@@ -103,7 +103,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             .find_payment_attempt_by_payment_id_merchant_id_attempt_id(
                 &payment_intent.payment_id,
                 merchant_id,
-                &payment_intent.active_attempt_id,
+                &payment_intent.active_attempt.get_id(),
                 storage_scheme,
             )
             .await
@@ -115,7 +115,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             let should_validate_pm_or_token_given =
                 //this validation should happen if data was stored in the vault
                 helpers::should_store_payment_method_data_in_vault(
-                    &state.conf.temp_locker_disable_config,
+                    &state.conf.temp_locker_enable_config,
                     payment_attempt.connector.clone(),
                     payment_method,
                 );
@@ -246,7 +246,9 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
                 ephemeral_key: None,
                 multiple_capture_data: None,
                 redirect_response,
+                surcharge_details: None,
                 frm_message: None,
+                payment_link_data: None,
             },
             Some(CustomerDetails {
                 customer_id: request.customer_id.clone(),
@@ -300,11 +302,6 @@ impl<F: Clone + Send, Ctx: PaymentMethodRetrieve> Domain<F, api::PaymentsRequest
     )> {
         let (op, payment_method_data) =
             helpers::make_pm_data(Box::new(self), state, payment_data).await?;
-
-        utils::when(payment_method_data.is_none(), || {
-            Err(errors::ApiErrorResponse::PaymentMethodNotFound)
-        })?;
-
         Ok((op, payment_method_data))
     }
 

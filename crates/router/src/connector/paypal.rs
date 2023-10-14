@@ -1,5 +1,5 @@
 pub mod transformers;
-use std::fmt::Debug;
+use std::fmt::{Debug, Write};
 
 use base64::Engine;
 use common_utils::ext_traits::ByteSliceExt;
@@ -169,12 +169,26 @@ impl ConnectorCommon for Paypal {
             .parse_struct("Paypal ErrorResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
 
-        let error_reason = response.details.map(|error_details| {
-            error_details
-                .iter()
-                .map(|error| format!("description - {} ; ", error.description))
-                .collect::<String>()
-        });
+        let error_reason = response
+            .details
+            .map(|error_details| {
+                error_details
+                    .iter()
+                    .try_fold::<_, _, CustomResult<_, errors::ConnectorError>>(
+                        String::new(),
+                        |mut acc, error| {
+                            write!(acc, "description - {} ;", error.description)
+                                .into_report()
+                                .change_context(
+                                    errors::ConnectorError::ResponseDeserializationFailed,
+                                )
+                                .attach_printable("Failed to concatenate error details")
+                                .map(|_| acc)
+                        },
+                    )
+            })
+            .transpose()?;
+
         Ok(ErrorResponse {
             status_code: res.status_code,
             code: response.name,
@@ -1077,7 +1091,7 @@ impl api::IncomingWebhook for Paypal {
                         resource
                             .purchase_units
                             .first()
-                            .map(|unit| unit.reference_id.clone())
+                            .and_then(|unit| unit.invoice_id.clone().or(unit.reference_id.clone()))
                             .ok_or(errors::ConnectorError::WebhookReferenceIdNotFound)?,
                     ),
                 ))
@@ -1136,8 +1150,12 @@ impl services::ConnectorRedirectResponse for Paypal {
         &self,
         _query_params: &str,
         _json_payload: Option<serde_json::Value>,
-        _action: PaymentAction,
+        action: PaymentAction,
     ) -> CustomResult<payments::CallConnectorAction, errors::ConnectorError> {
-        Ok(payments::CallConnectorAction::Trigger)
+        match action {
+            services::PaymentAction::PSync | services::PaymentAction::CompleteAuthorize => {
+                Ok(payments::CallConnectorAction::Trigger)
+            }
+        }
     }
 }

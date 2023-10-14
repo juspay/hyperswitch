@@ -1,46 +1,68 @@
-use common_utils::errors::{ApiModelsError, CustomResult};
-use error_stack::ResultExt;
+//! Types that can be used in other crates
+use error_stack::{IntoReport, ResultExt};
 use serde::{de::Visitor, Deserialize, Deserializer};
-use utoipa::ToSchema;
 
-#[derive(Clone, Default, Debug, PartialEq, serde::Serialize, ToSchema)]
+use crate::errors::{ApiModelsError, CustomResult};
+
+/// Represents Percentage Value between 0 and 100 both inclusive
+#[derive(Clone, Default, Debug, PartialEq, serde::Serialize)]
 pub struct Percentage<const PRECISION: u8> {
     // this value will range from 0 to 100, decimal length defined by precision macro
     /// Percentage value ranging between 0 and 100
-    #[schema(example = 2.5)]
     percentage: f32,
 }
 
 fn get_invalid_percentage_error_message(precision: u8) -> String {
     format!(
-        "value should be between 0 to 100 and precise to only upto {} decimal digits",
+        "value should be a float between 0 to 100 and precise to only upto {} decimal digits",
         precision
     )
 }
 
 impl<const PRECISION: u8> Percentage<PRECISION> {
-    pub fn from_float(value: f32) -> CustomResult<Self, ApiModelsError> {
-        if Self::is_valid_value(value) {
-            Ok(Self { percentage: value })
+    /// construct percentage using a string representation of float value
+    pub fn from_string(value: String) -> CustomResult<Self, ApiModelsError> {
+        if Self::is_valid_string_value(&value)? {
+            Ok(Self {
+                percentage: value
+                    .parse()
+                    .into_report()
+                    .change_context(ApiModelsError::InvalidPercentageValue)?,
+            })
         } else {
             Err(ApiModelsError::InvalidPercentageValue.into())
                 .attach_printable(get_invalid_percentage_error_message(PRECISION))
         }
     }
+    /// function to get percentage value
     pub fn get_percentage(&self) -> f32 {
         self.percentage
     }
-    fn is_valid_value(value: f32) -> bool {
-        Self::is_valid_range(value) && Self::is_valid_precision_length(value)
+    fn is_valid_string_value(value: &str) -> CustomResult<bool, ApiModelsError> {
+        let float_value = Self::is_valid_float_string(value)?;
+        Ok(Self::is_valid_range(float_value) && Self::is_valid_precision_length(value))
+    }
+    fn is_valid_float_string(value: &str) -> CustomResult<f32, ApiModelsError> {
+        value
+            .parse()
+            .into_report()
+            .change_context(ApiModelsError::InvalidPercentageValue)
     }
     fn is_valid_range(value: f32) -> bool {
         (0.0..=100.0).contains(&value)
     }
-    fn is_valid_precision_length(value: f32) -> bool {
-        let multiplier = f32::powf(10.0, PRECISION.into());
-        let multiplied_value = value * multiplier;
-        // if fraction part is 0, then the percentage value is valid
-        multiplied_value.fract() == 0.0
+    fn is_valid_precision_length(value: &str) -> bool {
+        if value.contains('.') {
+            // if string has '.' then take the decimal part and verify precision length
+            match value.split('.').last() {
+                Some(decimal_part) => decimal_part.trim_end_matches('0').len() <= PRECISION.into(),
+                // will never be None
+                None => false,
+            }
+        } else {
+            // if there is no '.' then it is a whole number with no decimal part. So return true
+            true
+        }
     }
 }
 
@@ -62,17 +84,17 @@ impl<'de, const PRECISION: u8> Visitor<'de> for PercentageVisitor<PRECISION> {
                 if percentage_value.is_some() {
                     return Err(serde::de::Error::duplicate_field("percentage"));
                 }
-                percentage_value = Some(map.next_value::<f32>()?);
+                percentage_value = Some(map.next_value::<serde_json::Value>()?);
             } else {
                 // Ignore unknown fields
                 let _: serde::de::IgnoredAny = map.next_value()?;
             }
         }
         if let Some(value) = percentage_value {
-            let str_value = value.to_string();
-            Ok(Percentage::from_float(value).map_err(|_| {
+            let string_value = value.to_string();
+            Ok(Percentage::from_string(string_value.clone()).map_err(|_| {
                 serde::de::Error::invalid_value(
-                    serde::de::Unexpected::Other(&format!("percentage value `{}`", str_value)),
+                    serde::de::Unexpected::Other(&format!("percentage value {}", string_value)),
                     &&*get_invalid_percentage_error_message(PRECISION),
                 )
             })?)

@@ -4,6 +4,8 @@
     "API Key - Create",
     "Payment Connector - Create",
     "Payments - Create",
+    "Payment Connector - Update",
+    "Payments - Create-copy",
     "Payments - Retrieve",
     "Refunds - Create",
     "Refunds - Retrieve"
