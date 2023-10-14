@@ -12,6 +12,37 @@ use crate::{
 };
 
 #[derive(Debug, Serialize)]
+pub struct StaxRouterData<T> {
+    pub amount: String,
+    pub router_data: T,
+}
+
+impl<T>
+    TryFrom<(
+        &types::api::CurrencyUnit,
+        types::storage::enums::Currency,
+        i64,
+        T,
+    )> for StaxRouterData<T>
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        (currency_unit, currency, amount, item): (
+            &types::api::CurrencyUnit,
+            types::storage::enums::Currency,
+            i64,
+            T,
+        ),
+    ) -> Result<Self, Self::Error> {
+        let amount = utils::get_amount_as_string(currency_unit, amount, currency)?;
+        Ok(Self {
+            amount,
+            router_data: item,
+        })
+    }
+}
+
+#[derive(Debug, Serialize)]
 pub struct StaxPaymentsRequestMetaData {
     tax: i64,
 }
@@ -26,21 +57,26 @@ pub struct StaxPaymentsRequest {
     idempotency_id: Option<String>,
 }
 
-impl TryFrom<&types::PaymentsAuthorizeRouterData> for StaxPaymentsRequest {
+impl TryFrom<&StaxRouterData<&types::PaymentsAuthorizeRouterData>> for StaxPaymentsRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(item: &types::PaymentsAuthorizeRouterData) -> Result<Self, Self::Error> {
-        if item.request.currency != enums::Currency::USD {
+    fn try_from(
+        item: &StaxRouterData<&types::PaymentsAuthorizeRouterData>,
+    ) -> Result<Self, Self::Error> {
+        if item.router_data.request.currency != enums::Currency::USD {
             Err(errors::ConnectorError::NotSupported {
-                message: item.request.currency.to_string(),
+                message: item.router_data.request.currency.to_string(),
                 connector: "Stax",
             })?
         }
-        let total = utils::to_currency_base_unit_asf64(item.request.amount, item.request.currency)?;
+        let total = utils::to_currency_base_unit_asf64(
+            item.router_data.request.amount,
+            item.router_data.request.currency,
+        )?;
 
-        match item.request.payment_method_data.clone() {
+        match item.router_data.request.payment_method_data.clone() {
             api::PaymentMethodData::Card(_) => {
-                let pm_token = item.get_payment_method_token()?;
-                let pre_auth = !item.request.is_auto_capture()?;
+                let pm_token = item.router_data.get_payment_method_token()?;
+                let pre_auth = !item.router_data.request.is_auto_capture()?;
                 Ok(Self {
                     meta: StaxPaymentsRequestMetaData { tax: 0 },
                     total,
@@ -52,14 +88,14 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for StaxPaymentsRequest {
                             Err(errors::ConnectorError::InvalidWalletToken)?
                         }
                     }),
-                    idempotency_id: Some(item.connector_request_reference_id.clone()),
+                    idempotency_id: Some(item.router_data.connector_request_reference_id.clone()),
                 })
             }
             api::PaymentMethodData::BankDebit(
                 api_models::payments::BankDebitData::AchBankDebit { .. },
             ) => {
-                let pm_token = item.get_payment_method_token()?;
-                let pre_auth = !item.request.is_auto_capture()?;
+                let pm_token = item.router_data.get_payment_method_token()?;
+                let pre_auth = !item.router_data.request.is_auto_capture()?;
                 Ok(Self {
                     meta: StaxPaymentsRequestMetaData { tax: 0 },
                     total,
@@ -71,7 +107,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for StaxPaymentsRequest {
                             Err(errors::ConnectorError::InvalidWalletToken)?
                         }
                     }),
-                    idempotency_id: Some(item.connector_request_reference_id.clone()),
+                    idempotency_id: Some(item.router_data.connector_request_reference_id.clone()),
                 })
             }
             api::PaymentMethodData::BankDebit(_)
@@ -365,13 +401,13 @@ pub struct StaxRefundRequest {
     pub total: f64,
 }
 
-impl<F> TryFrom<&types::RefundsRouterData<F>> for StaxRefundRequest {
+impl<F> TryFrom<&StaxRouterData<&types::RefundsRouterData<F>>> for StaxRefundRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(item: &types::RefundsRouterData<F>) -> Result<Self, Self::Error> {
+    fn try_from(item: &StaxRouterData<&types::RefundsRouterData<F>>) -> Result<Self, Self::Error> {
         Ok(Self {
             total: utils::to_currency_base_unit_asf64(
-                item.request.refund_amount,
-                item.request.currency,
+                item.router_data.request.refund_amount,
+                item.router_data.request.currency,
             )?,
         })
     }
