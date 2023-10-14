@@ -115,7 +115,7 @@ impl ConnectorCommon for Trustpay {
 
         match response {
             Ok(response_data) => {
-                let error_list = response_data.errors.clone().unwrap_or(vec![]);
+                let error_list = response_data.errors.clone().unwrap_or_default();
                 let option_error_code_message = get_error_code_error_message_based_on_priority(
                     self.clone(),
                     error_list.into_iter().map(|errors| errors.into()).collect(),

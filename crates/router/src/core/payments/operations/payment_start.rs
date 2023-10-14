@@ -86,7 +86,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             .find_payment_attempt_by_payment_id_merchant_id_attempt_id(
                 payment_intent.payment_id.as_str(),
                 merchant_id,
-                payment_intent.active_attempt_id.as_str(),
+                payment_intent.active_attempt.get_id().as_str(),
                 storage_scheme,
             )
             .await

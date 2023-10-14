@@ -41,18 +41,42 @@ jobs:
     name: Check formatting
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout repository
+      - name: Checkout repository with token
+        if: ${{ github.event.pull_request.head.repo.full_name == github.event.pull_request.base.repo.full_name }}
         uses: actions/checkout@v3
-          
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event.pull_request.head.ref }}
+          token: ${{ secrets.AUTO_FILE_UPDATE_PAT }}
+
+      - name: Checkout repository for fork
+        if: ${{ github.event.pull_request.head.repo.full_name != github.event.pull_request.base.repo.full_name }}
+        uses: actions/checkout@v3
+
       - name: Install Rust
         uses: dtolnay/rust-toolchain@master
         with:
           toolchain: nightly
           components: rustfmt
 
-      - name: Check formatting
+      - name: Check formatting for forked pull requests
+        if: ${{ github.event.pull_request.head.repo.full_name != github.event.pull_request.base.repo.full_name }}
         shell: bash
         run: cargo +nightly fmt --all --check
+
+      - name: Run formatter
+        if: ${{ github.event.pull_request.head.repo.full_name == github.event.pull_request.base.repo.full_name }}
+        shell: bash
+        run: |
+          cargo +nightly fmt --all
+          if ! git diff --exit-code --quiet -- crates; then
+            echo "::notice::Formatting check failed"
+            git config --local user.name 'github-actions[bot]'
+            git config --local user.email '41898282+github-actions[bot]@users.noreply.github.com'
+            git add crates
+            git commit --message 'chore: run formatter'
+            git push
+          fi
 
   check-msrv:
     name: Check compilation on MSRV toolchain
@@ -275,8 +299,17 @@ jobs:
         # - windows-latest
 
     steps:
-      - name: Checkout repository
+      - name: Checkout repository for fork
+        if: ${{ (github.event.pull_request.head.repo.full_name != github.event.pull_request.base.repo.full_name) }}
         uses: actions/checkout@v3
+
+      - name: Checkout repository with token
+        if: ${{ (github.event.pull_request.head.repo.full_name == github.event.pull_request.base.repo.full_name) }}
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event.pull_request.head.ref }}
+          token: ${{ secrets.AUTO_FILE_UPDATE_PAT }}
 
       - name: "Fetch base branch"
         shell: bash
@@ -321,6 +354,18 @@ jobs:
       - name: Run clippy
         shell: bash
         run: cargo clippy --all-features --all-targets
+
+      - name: Check Cargo.lock changed
+        if: ${{ (github.event.pull_request.head.repo.full_name == github.event.pull_request.base.repo.full_name) }}
+        shell: bash
+        run: |
+          if ! git diff --quiet --exit-code -- Cargo.lock ; then
+            git config --local user.name 'github-actions[bot]'
+            git config --local user.email '41898282+github-actions[bot]@users.noreply.github.com'
+            git add Cargo.lock
+            git commit --message 'chore: update Cargo.lock'
+            git push
+          fi
 
       - name: Check files changed
         shell: bash

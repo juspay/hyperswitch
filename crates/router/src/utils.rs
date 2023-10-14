@@ -15,7 +15,7 @@ pub use common_utils::{
     fp_utils::when,
     validation::validate_email,
 };
-use data_models::payments::payment_intent::PaymentIntent;
+use data_models::payments::PaymentIntent;
 use error_stack::{IntoReport, ResultExt};
 use image::Luma;
 use nanoid::nanoid;
