@@ -363,7 +363,6 @@ impl<F, T>
 
 pub struct DlocalPaymentsCancelResponse {
     status: DlocalPaymentStatus,
-    id: String,
     order_id: String,
 }
 
