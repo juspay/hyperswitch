@@ -283,6 +283,7 @@ pub trait PaymentsAuthorizeRequestData {
     fn get_payment_method_type(&self) -> Result<diesel_models::enums::PaymentMethodType, Error>;
     fn get_connector_mandate_id(&self) -> Result<String, Error>;
     fn get_complete_authorize_url(&self) -> Result<String, Error>;
+    fn get_ip_address_as_optional(&self) -> Option<Secret<String, IpAddress>>;
 }
 
 impl PaymentsAuthorizeRequestData for types::PaymentsAuthorizeData {
@@ -369,6 +370,13 @@ impl PaymentsAuthorizeRequestData for types::PaymentsAuthorizeData {
     fn get_connector_mandate_id(&self) -> Result<String, Error> {
         self.connector_mandate_id()
             .ok_or_else(missing_field_err("connector_mandate_id"))
+    }
+    fn get_ip_address_as_optional(&self) -> Option<Secret<String, IpAddress>> {
+        self.browser_info.clone().and_then(|browser_info| {
+            browser_info
+                .ip_address
+                .map(|ip| Secret::new(ip.to_string()))
+        })
     }
 }
 

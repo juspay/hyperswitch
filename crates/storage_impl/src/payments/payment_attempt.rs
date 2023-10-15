@@ -8,7 +8,7 @@ use data_models::{
             PaymentAttempt, PaymentAttemptInterface, PaymentAttemptNew, PaymentAttemptUpdate,
             PaymentListFilters,
         },
-        payment_intent::PaymentIntent,
+        PaymentIntent,
     },
     MerchantStorageScheme,
 };
@@ -168,7 +168,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for RouterStore<T> {
             .iter()
             .cloned()
             .map(|pi| pi.to_storage_model())
-            .collect::<Vec<diesel_models::payment_intent::PaymentIntent>>();
+            .collect::<Vec<diesel_models::PaymentIntent>>();
         DieselPaymentAttempt::get_filters_for_payments(&conn, intents.as_slice(), merchant_id)
             .await
             .map_err(|er| {
@@ -1307,6 +1307,13 @@ impl DataModelExt for PaymentAttemptUpdate {
             Self::SurchargeMetadataUpdate { surcharge_metadata } => {
                 DieselPaymentAttemptUpdate::SurchargeMetadataUpdate { surcharge_metadata }
             }
+            Self::SurchargeAmountUpdate {
+                surcharge_amount,
+                tax_amount,
+            } => DieselPaymentAttemptUpdate::SurchargeAmountUpdate {
+                surcharge_amount,
+                tax_amount,
+            },
         }
     }
 
@@ -1500,6 +1507,13 @@ impl DataModelExt for PaymentAttemptUpdate {
             DieselPaymentAttemptUpdate::SurchargeMetadataUpdate { surcharge_metadata } => {
                 Self::SurchargeMetadataUpdate { surcharge_metadata }
             }
+            DieselPaymentAttemptUpdate::SurchargeAmountUpdate {
+                surcharge_amount,
+                tax_amount,
+            } => Self::SurchargeAmountUpdate {
+                surcharge_amount,
+                tax_amount,
+            },
         }
     }
 }

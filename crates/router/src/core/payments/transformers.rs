@@ -353,6 +353,7 @@ where
 {
     let payment_attempt = payment_data.payment_attempt;
     let payment_intent = payment_data.payment_intent;
+    let payment_link_data = payment_data.payment_link_data;
 
     let currency = payment_attempt
         .currency
@@ -423,6 +424,7 @@ where
             .change_context(errors::ApiErrorResponse::InvalidDataValue {
                 field_name: "payment_method_data",
             })?;
+
     let merchant_decision = payment_intent.merchant_decision.to_owned();
     let frm_message = payment_data.frm_message.map(FrmMessage::foreign_from);
 
@@ -679,6 +681,7 @@ where
                         .set_feature_metadata(payment_intent.feature_metadata)
                         .set_connector_metadata(payment_intent.connector_metadata)
                         .set_reference_id(payment_attempt.connector_response_reference_id)
+                        .set_payment_link(payment_link_data)
                         .set_profile_id(payment_intent.profile_id)
                         .set_attempt_count(payment_intent.attempt_count)
                         .to_owned(),
@@ -739,6 +742,7 @@ where
                 allowed_payment_method_types: payment_intent.allowed_payment_method_types,
                 reference_id: payment_attempt.connector_response_reference_id,
                 attempt_count: payment_intent.attempt_count,
+                payment_link: payment_link_data,
                 ..Default::default()
             },
             headers,
@@ -1024,6 +1028,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
             webhook_url,
             complete_authorize_url,
             customer_id: None,
+            surcharge_details: payment_data.surcharge_details,
         })
     }
 }
@@ -1180,6 +1185,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsSessionD
                 billing_address.address.and_then(|address| address.country)
             }),
             order_details,
+            surcharge_details: payment_data.surcharge_details,
         })
     }
 }

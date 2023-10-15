@@ -122,7 +122,8 @@ async fn drainer_handler(
     active_tasks.fetch_add(1, atomic::Ordering::Release);
 
     let stream_name = utils::get_drainer_stream_name(store.clone(), stream_index);
-    let drainer_result = drainer(store.clone(), max_read_count, stream_name.as_str()).await;
+    let drainer_result =
+        Box::pin(drainer(store.clone(), max_read_count, stream_name.as_str())).await;
 
     if let Err(error) = drainer_result {
         logger::error!(?error)
@@ -270,6 +271,11 @@ async fn drainer(
                             a.orig.update(&conn, a.update_data).await,
                             update_op,
                             connector_response
+                        ),
+                        kv::Updateable::AddressUpdate(a) => macro_util::handle_resp!(
+                            a.orig.update(&conn, a.update_data).await,
+                            update_op,
+                            address
                         ),
                     }
                 })
