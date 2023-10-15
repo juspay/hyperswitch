@@ -27,6 +27,7 @@ pub struct NexinetsPaymentsRequest {
     payment: Option<NexinetsPaymentDetails>,
     #[serde(rename = "async")]
     nexinets_async: NexinetsAsyncDetails,
+    merchant_order_id: Option<String>,
 }
 
 #[derive(Debug, Serialize, Default)]
@@ -172,6 +173,11 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for NexinetsPaymentsRequest {
             failure_url: return_url,
         };
         let (payment, product) = get_payment_details_and_product(item)?;
+        let merchant_order_id = match item.payment_method {
+            // Merchant order id is sent only in case of card payment
+            enums::PaymentMethod::Card => Some(item.connector_request_reference_id.clone()),
+            _ => None,
+        };
         Ok(Self {
             initial_amount: item.request.amount,
             currency: item.request.currency,
@@ -179,6 +185,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for NexinetsPaymentsRequest {
             product,
             payment,
             nexinets_async,
+            merchant_order_id,
         })
     }
 }

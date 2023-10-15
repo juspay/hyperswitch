@@ -3,15 +3,44 @@ use common_utils::errors::CustomResult;
 use diesel_models::enums;
 use error_stack::{IntoReport, ResultExt};
 use masking::{PeekInterface, Secret};
+use serde::Serialize;
 
 use super::{requests::*, response::*};
 use crate::{
     connector::utils,
     consts,
     core::errors,
-    types::{self, api},
+    types::{self, api, PaymentsAuthorizeData, PaymentsResponseData},
 };
 
+#[derive(Debug, Serialize)]
+pub struct WorldpayRouterData<T> {
+    amount: i64,
+    router_data: T,
+}
+impl<T>
+    TryFrom<(
+        &types::api::CurrencyUnit,
+        types::storage::enums::Currency,
+        i64,
+        T,
+    )> for WorldpayRouterData<T>
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        (_currency_unit, _currency, amount, item): (
+            &types::api::CurrencyUnit,
+            types::storage::enums::Currency,
+            i64,
+            T,
+        ),
+    ) -> Result<Self, Self::Error> {
+        Ok(Self {
+            amount,
+            router_data: item,
+        })
+    }
+}
 fn fetch_payment_instrument(
     payment_method: api::PaymentMethodData,
 ) -> CustomResult<PaymentInstrument, errors::ConnectorError> {
@@ -100,29 +129,48 @@ fn fetch_payment_instrument(
     }
 }
 
-impl TryFrom<&types::PaymentsAuthorizeRouterData> for WorldpayPaymentsRequest {
+impl
+    TryFrom<
+        &WorldpayRouterData<
+            &types::RouterData<
+                types::api::payments::Authorize,
+                PaymentsAuthorizeData,
+                PaymentsResponseData,
+            >,
+        >,
+    > for WorldpayPaymentsRequest
+{
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(item: &types::PaymentsAuthorizeRouterData) -> Result<Self, Self::Error> {
+
+    fn try_from(
+        item: &WorldpayRouterData<
+            &types::RouterData<
+                types::api::payments::Authorize,
+                PaymentsAuthorizeData,
+                PaymentsResponseData,
+            >,
+        >,
+    ) -> Result<Self, Self::Error> {
         Ok(Self {
             instruction: Instruction {
                 value: PaymentValue {
-                    amount: item.request.amount,
-                    currency: item.request.currency.to_string(),
+                    amount: item.amount,
+                    currency: item.router_data.request.currency.to_string(),
                 },
                 narrative: InstructionNarrative {
-                    line1: item.merchant_id.clone().replace('_', "-"),
+                    line1: item.router_data.merchant_id.clone().replace('_', "-"),
                     ..Default::default()
                 },
                 payment_instrument: fetch_payment_instrument(
-                    item.request.payment_method_data.clone(),
+                    item.router_data.request.payment_method_data.clone(),
                 )?,
                 debt_repayment: None,
             },
             merchant: Merchant {
-                entity: item.attempt_id.clone().replace('_', "-"),
+                entity: item.router_data.attempt_id.clone().replace('_', "-"),
                 ..Default::default()
             },
-            transaction_reference: item.attempt_id.clone(),
+            transaction_reference: item.router_data.attempt_id.clone(),
             channel: None,
             customer: None,
         })

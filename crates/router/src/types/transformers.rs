@@ -257,8 +257,8 @@ impl ForeignFrom<api_enums::IntentStatus> for Option<storage_enums::EventType> {
             | api_enums::IntentStatus::RequiresCustomerAction => {
                 Some(storage_enums::EventType::ActionRequired)
             }
-            api_enums::IntentStatus::Cancelled
-            | api_enums::IntentStatus::RequiresPaymentMethod
+            api_enums::IntentStatus::Cancelled => Some(storage_enums::EventType::PaymentCancelled),
+            api_enums::IntentStatus::RequiresPaymentMethod
             | api_enums::IntentStatus::RequiresConfirmation
             | api_enums::IntentStatus::RequiresCapture
             | api_enums::IntentStatus::PartiallyCaptured => None,
@@ -463,9 +463,8 @@ impl ForeignFrom<storage::Config> for api_types::Config {
 
 impl<'a> ForeignFrom<&'a api_types::ConfigUpdate> for storage::ConfigUpdate {
     fn foreign_from(config: &api_types::ConfigUpdate) -> Self {
-        let config_update = config;
         Self::Update {
-            config: Some(config_update.value.clone()),
+            config: Some(config.value.clone()),
         }
     }
 }
@@ -827,6 +826,22 @@ impl
             phone: customer.and_then(|cust| cust.phone.as_ref().map(|p| p.clone().into_inner())),
             name: customer.and_then(|cust| cust.name.as_ref().map(|n| n.clone().into_inner())),
             ..Self::default()
+        }
+    }
+}
+
+impl ForeignFrom<storage::PaymentLink> for api_models::payments::RetrievePaymentLinkResponse {
+    fn foreign_from(payment_link_object: storage::PaymentLink) -> Self {
+        Self {
+            payment_link_id: payment_link_object.payment_link_id,
+            payment_id: payment_link_object.payment_id,
+            merchant_id: payment_link_object.merchant_id,
+            link_to_pay: payment_link_object.link_to_pay,
+            amount: payment_link_object.amount,
+            currency: payment_link_object.currency,
+            created_at: payment_link_object.created_at,
+            last_modified_at: payment_link_object.last_modified_at,
+            link_expiry: payment_link_object.fulfilment_time,
         }
     }
 }
