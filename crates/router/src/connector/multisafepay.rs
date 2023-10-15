@@ -387,14 +387,14 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
         let response: multisafepay::MultisafepayRefundResponse = res
             .response
             .parse_struct("multisafepay RefundResponse")
-            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         types::ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
         }
         .try_into()
-        .change_context(errors::ConnectorError::ResponseHandlingFailed)
+        .change_context(errors::ConnectorError::ResponseDeserializationFailed)
     }
 
     fn get_error_response(
@@ -460,14 +460,14 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
         let response: multisafepay::MultisafepayRefundResponse = res
             .response
             .parse_struct("multisafepay RefundResponse")
-            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         types::ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
         }
         .try_into()
-        .change_context(errors::ConnectorError::ResponseHandlingFailed)
+        .change_context(errors::ConnectorError::ResponseDeserializationFailed)
     }
 
     fn get_error_response(
