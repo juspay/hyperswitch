@@ -1,29 +1,25 @@
-use crate::routes::metrics;
-
-#[cfg(feature = "payouts")]
-use crate::types::api::payouts;
-
-use crate::{
-    configs::settings,
-    core::errors::{self, CustomResult, RouterResult},
-    db, logger, routes,
-    types::storage::ProcessTrackerExt,
-    types::{
-        api,
-        storage::{self, enums},
-    },
-    utils::{self, StringExt},
-};
 use common_utils::{
     crypto::{DecodeMessage, EncodeMessage, GcmAes256},
     ext_traits::BytesExt,
     generate_id_with_default_len,
 };
-
 use error_stack::{report, IntoReport, ResultExt};
 use masking::PeekInterface;
 use router_env::{instrument, tracing};
 use scheduler::{types::process_data, utils as process_tracker_utils};
+
+#[cfg(feature = "payouts")]
+use crate::types::api::payouts;
+use crate::{
+    core::errors::{self, CustomResult, RouterResult},
+    db, logger, routes,
+    routes::metrics,
+    types::{
+        api,
+        storage::{self, enums, ProcessTrackerExt},
+    },
+    utils::{self, StringExt},
+};
 
 const VAULT_SERVICE_NAME: &str = "CARD";
 
@@ -718,14 +714,6 @@ impl Vault {
 }
 
 //------------------------------------------------TokenizeService------------------------------------------------
-pub fn get_key_id(keys: &settings::Jwekey) -> &str {
-    let key_identifier = "1"; // [#46]: Fetch this value from redis or external sources
-    if key_identifier == "1" {
-        &keys.locker_key_identifier1
-    } else {
-        &keys.locker_key_identifier2
-    }
-}
 
 #[instrument(skip(state, value1, value2))]
 pub async fn create_tokenize(
@@ -820,9 +808,7 @@ pub async fn get_tokenized_data(
             let decrypted_payload = GcmAes256
                 .decode_message(secret.as_ref(), masking::Secret::new(resp.into()))
                 .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable(
-                    "GetTokenizedApi: Decrypt Jwe failed for TokenizePayloadEncrypted",
-                )?;
+                .attach_printable("Failed to decode redis temp locker data")?;
 
             let get_response: api::TokenizePayloadRequest = bytes::Bytes::from(decrypted_payload)
                 .parse_struct("TokenizePayloadRequest")

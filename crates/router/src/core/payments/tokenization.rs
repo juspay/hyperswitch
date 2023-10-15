@@ -1,6 +1,7 @@
 use common_utils::{ext_traits::ValueExt, pii};
 use error_stack::{report, ResultExt};
 use masking::ExposeInterface;
+use router_env::{instrument, tracing};
 
 use super::helpers;
 use crate::{
@@ -20,6 +21,7 @@ use crate::{
     utils::OptionExt,
 };
 
+#[instrument(skip_all)]
 pub async fn save_payment_method<F: Clone, FData>(
     state: &AppState,
     connector: &api::ConnectorData,

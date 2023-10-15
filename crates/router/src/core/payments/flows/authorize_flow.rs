@@ -122,8 +122,12 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
                 let key_store = key_store.clone();
                 let state = state.clone();
 
+                logger::info!("Initiating async call to save_payment_method in locker");
+
                 arbiter.map(|arb| {
                     arb.spawn(async move {
+                        logger::info!("Starting async call to save_payment_method in locker");
+
                         let result = tokenization::save_payment_method(
                             &state,
                             &connector,

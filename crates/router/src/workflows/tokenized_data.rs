@@ -1,7 +1,8 @@
 use scheduler::consumer::workflows::ProcessTrackerWorkflow;
 
-use crate::core::payment_methods::vault;
-use crate::{errors, logger::error, routes::AppState, types::storage};
+use crate::{
+    core::payment_methods::vault, errors, logger::error, routes::AppState, types::storage,
+};
 
 pub struct DeleteTokenizeDataWorkflow;
 
