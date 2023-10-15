@@ -324,7 +324,7 @@ impl TryFrom<&AuthorizedotnetRouterData<&types::PaymentsAuthorizeRouterData>>
             processing_options,
             subsequent_auth_information,
             authorization_indicator_type,
-            reference: item.connector_request_reference_id.clone(),
+            reference: item.router_data.connector_request_reference_id.clone(),
         };
 
         let merchant_authentication =
@@ -594,9 +594,7 @@ impl<F, T>
                             connector_metadata: metadata,
                             network_txn_id: transaction_response.network_trans_id.clone(),
                             connector_response_reference_id: Some(
-                                transaction_response
-                                .reference 
-                                .unwrap_or(transaction_response.transaction_id),
+                                transaction_response.transaction_id.clone(),
                             ),
                         }),
                     },
@@ -662,9 +660,7 @@ impl<F, T>
                             connector_metadata: metadata,
                             network_txn_id: transaction_response.network_trans_id.clone(),
                             connector_response_reference_id: Some(
-                                transaction_response
-                                .reference 
-                                .unwrap_or(transaction_response.transaction_id),
+                                transaction_response.transaction_id.clone(),
                             ),
                         }),
                     },
@@ -961,9 +957,7 @@ impl<F, Req>
                         connector_metadata: None,
                         network_txn_id: None,
                         connector_response_reference_id: Some(
-                                transaction_response
-                                .reference 
-                                .unwrap_or(transaction_response.transaction_id),
+                                transaction_response.transaction_id.clone(),
                             ),
                     }),
                     status: payment_status,
