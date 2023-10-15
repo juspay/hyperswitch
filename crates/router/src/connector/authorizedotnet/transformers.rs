@@ -261,6 +261,7 @@ struct TransactionVoidOrCaptureRequest {
 pub struct AuthorizedotnetPaymentsRequest {
     merchant_authentication: AuthorizedotnetAuthType,
     transaction_request: TransactionRequest,
+    reference: String,
 }
 
 #[derive(Debug, Serialize)]
@@ -323,6 +324,7 @@ impl TryFrom<&AuthorizedotnetRouterData<&types::PaymentsAuthorizeRouterData>>
             processing_options,
             subsequent_auth_information,
             authorization_indicator_type,
+            reference: item.connector_request_reference_id.clone(),
         };
 
         let merchant_authentication =
@@ -488,6 +490,7 @@ pub struct SecureAcceptance {
 pub struct AuthorizedotnetPaymentsResponse {
     pub transaction_response: Option<TransactionResponse>,
     pub messages: ResponseMessages,
+    pub reference: Option<String>,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -591,7 +594,9 @@ impl<F, T>
                             connector_metadata: metadata,
                             network_txn_id: transaction_response.network_trans_id.clone(),
                             connector_response_reference_id: Some(
-                                transaction_response.transaction_id.clone(),
+                                transaction_response
+                                .reference 
+                                .unwrap_or(transaction_response.transaction_id),
                             ),
                         }),
                     },
@@ -657,7 +662,9 @@ impl<F, T>
                             connector_metadata: metadata,
                             network_txn_id: transaction_response.network_trans_id.clone(),
                             connector_response_reference_id: Some(
-                                transaction_response.transaction_id.clone(),
+                                transaction_response
+                                .reference 
+                                .unwrap_or(transaction_response.transaction_id),
                             ),
                         }),
                     },
@@ -953,7 +960,11 @@ impl<F, Req>
                         mandate_reference: None,
                         connector_metadata: None,
                         network_txn_id: None,
-                        connector_response_reference_id: Some(transaction.transaction_id.clone()),
+                        connector_response_reference_id: Some(
+                                transaction_response
+                                .reference 
+                                .unwrap_or(transaction_response.transaction_id),
+                            ),
                     }),
                     status: payment_status,
                     ..item.data
