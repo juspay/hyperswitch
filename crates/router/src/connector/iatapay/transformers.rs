@@ -140,10 +140,13 @@ impl TryFrom<&types::ConnectorAuthType> for IatapayAuthType {
                 client_secret: api_secret.to_owned(),
             }),
 
-            types::ConnectorAuthType::HeaderKey{..}
-            | types::ConnectorAuthType::BodyKey{..}
-            | types::ConnectorAuthType::MultiAuthKey{..}
-            | types::ConnectorAuthType::CurrencyAuthKey{..} => Err(errors::ConnectorError::FailedToObtainAuthType)?,
+            types::ConnectorAuthType::HeaderKey { .. }
+            | types::ConnectorAuthType::BodyKey { .. }
+            | types::ConnectorAuthType::MultiAuthKey { .. }
+            | types::ConnectorAuthType::CurrencyAuthKey { .. }
+            | types::ConnectorAuthType::NoKey { .. } => {
+                Err(errors::ConnectorError::FailedToObtainAuthType)?
+            }
         }
     }
 }
