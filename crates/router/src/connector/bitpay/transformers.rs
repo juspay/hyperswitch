@@ -128,7 +128,7 @@ impl<F, T>
             .data
             .url
             .map(|x| services::RedirectForm::from((x, services::Method::Get)));
-        let connector_id = types::ResponseId::ConnectorTransactionId(item.response.data.id);
+        let connector_id = types::ResponseId::ConnectorTransactionId(item.response.data.id.clone());
         let attempt_status = item.response.data.status;
         Ok(Self {
             status: enums::AttemptStatus::from(attempt_status),
@@ -138,7 +138,7 @@ impl<F, T>
                 mandate_reference: None,
                 connector_metadata: None,
                 network_txn_id: None,
-                connector_response_reference_id: None,
+                connector_response_reference_id: Some(item.response.data.id),
             }),
             ..item.data
         })
