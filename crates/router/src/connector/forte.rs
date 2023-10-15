@@ -210,7 +210,7 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
             req.request.currency,
             req.request.amount,
             req,
-        )}?;
+        ))?;
         let connector_req = forte::FortePaymentsRequest::try_from(&connector_router_data)?;
         let forte_req = types::RequestBody::log_and_get_request_body(
             &connector_req,

@@ -103,7 +103,7 @@ impl
                 PaymentsResponseData,
             >,
         >,
-    > for PaymentsRequest
+    > for FortePaymentsRequest
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
@@ -121,15 +121,15 @@ impl
                     true => ForteAction::Sale,
                     false => ForteAction::Authorize,
                 };
-                let card_type = ForteCardType::try_from(ccard.get_card_issuer()?)?;
+                let card_type = ForteCardType::try_from(card.get_card_issuer()?)?;
                 let address = item.get_billing_address()?;
                 let card = Card {
                     card_type,
-                    name_on_card: ccard.card_holder_name.clone(),
-                    account_number: ccard.card_number.clone(),
-                    expire_month: ccard.card_exp_month.clone(),
-                    expire_year: ccard.card_exp_year.clone(),
-                    card_verification_value: ccard.card_cvc.clone(),
+                    name_on_card: card.card_holder_name.clone(),
+                    account_number: card.card_number.clone(),
+                    expire_month: card.card_exp_month.clone(),
+                    expire_year: card.card_exp_year.clone(),
+                    card_verification_value: card.card_cvc.clone(),
                 };
                 let billing_address = BillingAddress {
                     first_name: address.get_first_name()?.to_owned(),
@@ -149,7 +149,7 @@ impl
                     errors::ConnectorError::NotImplemented("Payment methods".to_string()).into(),
                 )
             }
-        }
+        };
     }
 }
 
