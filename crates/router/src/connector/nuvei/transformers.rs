@@ -490,7 +490,6 @@ impl TryFrom<api_models::enums::BankNames> for NuveiBIC {
             api_models::enums::BankNames::TriodosBank => Ok(Self::TriodosBank),
             api_models::enums::BankNames::VanLanschot => Ok(Self::VanLanschotBankiers),
             api_models::enums::BankNames::Moneyou => Ok(Self::Moneyou),
-            
 
             api_models::enums::BankNames::AmericanExpress
             | api_models::enums::BankNames::AffinBank
@@ -623,11 +622,13 @@ impl TryFrom<api_models::enums::BankNames> for NuveiBIC {
             | api_models::enums::BankNames::Starling
             | api_models::enums::BankNames::TsbBank
             | api_models::enums::BankNames::TescoBank
-            | api_models::enums::BankNames::UlsterBank => Err(errors::ConnectorError::FlowNotSupported {
-                flow: bank.to_string(),
-                connector: "Nuvei".to_string(),
+            | api_models::enums::BankNames::UlsterBank => {
+                Err(errors::ConnectorError::FlowNotSupported {
+                    flow: bank.to_string(),
+                    connector: "Nuvei".to_string(),
+                }
+                .into())
             }
-            .into()),
         }
     }
 }
