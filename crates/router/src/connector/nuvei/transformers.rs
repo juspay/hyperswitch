@@ -623,9 +623,9 @@ impl TryFrom<api_models::enums::BankNames> for NuveiBIC {
             | api_models::enums::BankNames::TsbBank
             | api_models::enums::BankNames::TescoBank
             | api_models::enums::BankNames::UlsterBank => {
-                Err(errors::ConnectorError::FlowNotSupported {
-                    flow: bank.to_string(),
-                    connector: "Nuvei".to_string(),
+                Err(errors::ConnectorError::NotSupported {
+                    message: bank.to_string(),
+                    connector: "Nuvei",
                 }
                 .into())
             }
