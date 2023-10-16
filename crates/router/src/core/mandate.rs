@@ -210,6 +210,7 @@ where
                     };
 
                     let mandate_ids = mandate_reference
+                        .as_ref()
                         .map(|md| {
                             Encode::<types::MandateReference>::encode_to_value(&md)
                                 .change_context(
@@ -221,6 +222,7 @@ where
 
                     if let Some(new_mandate_data) = helpers::generate_mandate(
                         resp.merchant_id.clone(),
+                        resp.payment_id.clone(),
                         resp.connector.clone(),
                         resp.request.get_setup_mandate_details().map(Clone::clone),
                         maybe_customer,
@@ -228,6 +230,7 @@ where
                         mandate_ids,
                         network_txn_id,
                         get_insensitive_payment_method_data_if_exists(&resp),
+                        mandate_reference,
                     )? {
                         let connector = new_mandate_data.connector.clone();
                         logger::debug!("{:?}", new_mandate_data);

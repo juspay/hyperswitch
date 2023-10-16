@@ -5,6 +5,8 @@ pub mod ext_traits;
 #[cfg(feature = "kv_store")]
 pub mod storage_partitioning;
 
+use std::fmt::Debug;
+
 use api_models::{enums, payments, webhooks};
 use base64::Engine;
 pub use common_utils::{
@@ -13,7 +15,7 @@ pub use common_utils::{
     fp_utils::when,
     validation::validate_email,
 };
-use data_models::payments::payment_intent::PaymentIntent;
+use data_models::payments::PaymentIntent;
 use error_stack::{IntoReport, ResultExt};
 use image::Luma;
 use nanoid::nanoid;
@@ -27,11 +29,12 @@ use crate::{
     consts,
     core::{
         errors::{self, CustomResult, RouterResult, StorageErrorExt},
-        utils,
+        utils, webhooks as webhooks_core,
     },
     db::StorageInterface,
     logger,
     routes::metrics,
+    services,
     types::{
         self,
         domain::{
@@ -39,6 +42,7 @@ use crate::{
             types::{encrypt_optional, AsyncLift},
         },
         storage,
+        transformers::{ForeignTryFrom, ForeignTryInto},
     },
 };
 
@@ -289,6 +293,40 @@ pub async fn find_payment_intent_from_refund_id_type(
     .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)
 }
 
+pub async fn find_payment_intent_from_mandate_id_type(
+    db: &dyn StorageInterface,
+    mandate_id_type: webhooks::MandateIdType,
+    merchant_account: &domain::MerchantAccount,
+) -> CustomResult<PaymentIntent, errors::ApiErrorResponse> {
+    let mandate = match mandate_id_type {
+        webhooks::MandateIdType::MandateId(mandate_id) => db
+            .find_mandate_by_merchant_id_mandate_id(
+                &merchant_account.merchant_id,
+                mandate_id.as_str(),
+            )
+            .await
+            .to_not_found_response(errors::ApiErrorResponse::MandateNotFound)?,
+        webhooks::MandateIdType::ConnectorMandateId(connector_mandate_id) => db
+            .find_mandate_by_merchant_id_connector_mandate_id(
+                &merchant_account.merchant_id,
+                connector_mandate_id.as_str(),
+            )
+            .await
+            .to_not_found_response(errors::ApiErrorResponse::MandateNotFound)?,
+    };
+    db.find_payment_intent_by_payment_id_merchant_id(
+        &mandate
+            .original_payment_id
+            .ok_or(errors::ApiErrorResponse::InternalServerError)
+            .into_report()
+            .attach_printable("original_payment_id not present in mandate record")?,
+        &merchant_account.merchant_id,
+        merchant_account.storage_scheme,
+    )
+    .await
+    .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)
+}
+
 pub async fn get_profile_id_using_object_reference_id(
     db: &dyn StorageInterface,
     object_reference_id: webhooks::ObjectReferenceId,
@@ -311,6 +349,10 @@ pub async fn get_profile_id_using_object_reference_id(
                         connector_name,
                     )
                     .await?
+                }
+                webhooks::ObjectReferenceId::MandateId(mandate_id_type) => {
+                    find_payment_intent_from_mandate_id_type(db, mandate_id_type, merchant_account)
+                        .await?
                 }
             };
 
@@ -630,4 +672,92 @@ pub fn add_apple_pay_payment_status_metrics(
             }
         }
     }
+}
+
+impl ForeignTryFrom<enums::IntentStatus> for enums::EventType {
+    type Error = errors::ValidationError;
+
+    fn foreign_try_from(value: enums::IntentStatus) -> Result<Self, Self::Error> {
+        match value {
+            enums::IntentStatus::Succeeded => Ok(Self::PaymentSucceeded),
+            enums::IntentStatus::Failed => Ok(Self::PaymentFailed),
+            enums::IntentStatus::Processing => Ok(Self::PaymentProcessing),
+            enums::IntentStatus::RequiresMerchantAction
+            | enums::IntentStatus::RequiresCustomerAction => Ok(Self::ActionRequired),
+            _ => Err(errors::ValidationError::IncorrectValueProvided {
+                field_name: "intent_status",
+            }),
+        }
+    }
+}
+
+pub async fn trigger_payments_webhook<F, Req, Op>(
+    merchant_account: domain::MerchantAccount,
+    payment_data: crate::core::payments::PaymentData<F>,
+    req: Option<Req>,
+    customer: Option<domain::Customer>,
+    state: &crate::routes::AppState,
+    operation: Op,
+) -> RouterResult<()>
+where
+    F: Send + Clone + Sync,
+    Op: Debug,
+{
+    let status = payment_data.payment_intent.status;
+    let payment_id = payment_data.payment_intent.payment_id.clone();
+    let captures = payment_data
+        .multiple_capture_data
+        .clone()
+        .map(|multiple_capture_data| {
+            multiple_capture_data
+                .get_all_captures()
+                .into_iter()
+                .cloned()
+                .collect()
+        });
+
+    if matches!(
+        status,
+        enums::IntentStatus::Succeeded | enums::IntentStatus::Failed
+    ) {
+        let payments_response = crate::core::payments::transformers::payments_to_payments_response(
+            req,
+            payment_data,
+            captures,
+            customer,
+            services::AuthFlow::Merchant,
+            &state.conf.server,
+            &operation,
+            &state.conf.connector_request_reference_id_config,
+            None,
+            None,
+            None,
+        )?;
+
+        let event_type: enums::EventType = status
+            .foreign_try_into()
+            .into_report()
+            .change_context(errors::ApiErrorResponse::WebhookProcessingFailure)
+            .attach_printable("payment event type mapping failed")?;
+
+        if let services::ApplicationResponse::JsonWithHeaders((payments_response_json, _)) =
+            payments_response
+        {
+            Box::pin(
+                webhooks_core::create_event_and_trigger_appropriate_outgoing_webhook(
+                    state.clone(),
+                    merchant_account,
+                    event_type,
+                    diesel_models::enums::EventClass::Payments,
+                    None,
+                    payment_id,
+                    diesel_models::enums::EventObjectType::PaymentDetails,
+                    webhooks::OutgoingWebhookContent::PaymentDetails(payments_response_json),
+                ),
+            )
+            .await?;
+        }
+    }
+
+    Ok(())
 }

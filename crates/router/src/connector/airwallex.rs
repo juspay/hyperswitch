@@ -66,6 +66,10 @@ impl ConnectorCommon for Airwallex {
         "airwallex"
     }
 
+    fn get_currency_unit(&self) -> api::CurrencyUnit {
+        api::CurrencyUnit::Base
+    }
+
     fn common_get_content_type(&self) -> &'static str {
         "application/json"
     }
@@ -110,9 +114,13 @@ impl ConnectorValidation for Airwallex {
 
 impl api::Payment for Airwallex {}
 impl api::PaymentsCompleteAuthorize for Airwallex {}
-impl api::PreVerify for Airwallex {}
-impl ConnectorIntegration<api::Verify, types::VerifyRequestData, types::PaymentsResponseData>
-    for Airwallex
+impl api::MandateSetup for Airwallex {}
+impl
+    ConnectorIntegration<
+        api::SetupMandate,
+        types::SetupMandateRequestData,
+        types::PaymentsResponseData,
+    > for Airwallex
 {
 }
 
@@ -365,7 +373,13 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         &self,
         req: &types::PaymentsAuthorizeRouterData,
     ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
-        let connector_req = airwallex::AirwallexPaymentsRequest::try_from(req)?;
+        let connector_router_data = airwallex::AirwallexRouterData::try_from((
+            &self.get_currency_unit(),
+            req.request.currency,
+            req.request.amount,
+            req,
+        ))?;
+        let connector_req = airwallex::AirwallexPaymentsRequest::try_from(&connector_router_data)?;
         let airwallex_req = types::RequestBody::log_and_get_request_body(
             &connector_req,
             utils::Encode::<airwallex::AirwallexPaymentsRequest>::encode_to_string_of_json,
@@ -806,7 +820,13 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
         &self,
         req: &types::RefundsRouterData<api::Execute>,
     ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
-        let connector_req = airwallex::AirwallexRefundRequest::try_from(req)?;
+        let connector_router_data = airwallex::AirwallexRouterData::try_from((
+            &self.get_currency_unit(),
+            req.request.currency,
+            req.request.refund_amount,
+            req,
+        ))?;
+        let connector_req = airwallex::AirwallexRefundRequest::try_from(&connector_router_data)?;
         let airwallex_req = types::RequestBody::log_and_get_request_body(
             &connector_req,
             utils::Encode::<airwallex::AirwallexRefundRequest>::encode_to_string_of_json,
@@ -942,6 +962,7 @@ impl api::IncomingWebhook for Airwallex {
     fn get_webhook_source_verification_signature(
         &self,
         request: &api::IncomingWebhookRequestDetails<'_>,
+        _connector_webhook_secrets: &api_models::webhooks::ConnectorWebhookSecrets,
     ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
         let security_header = request
             .headers
@@ -965,7 +986,7 @@ impl api::IncomingWebhook for Airwallex {
         &self,
         request: &api::IncomingWebhookRequestDetails<'_>,
         _merchant_id: &str,
-        _secret: &[u8],
+        _connector_webhook_secrets: &api_models::webhooks::ConnectorWebhookSecrets,
     ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
         let timestamp = request
             .headers

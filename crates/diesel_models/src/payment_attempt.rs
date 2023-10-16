@@ -57,6 +57,7 @@ pub struct PaymentAttempt {
     // reference to the payment at connector side
     pub connector_response_reference_id: Option<String>,
     pub amount_capturable: i64,
+    pub surcharge_metadata: Option<serde_json::Value>,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Queryable, Serialize, Deserialize)]
@@ -115,6 +116,7 @@ pub struct PaymentAttemptNew {
     pub connector_response_reference_id: Option<String>,
     pub multiple_capture_count: Option<i16>,
     pub amount_capturable: i64,
+    pub surcharge_metadata: Option<serde_json::Value>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -212,6 +214,10 @@ pub enum PaymentAttemptUpdate {
         status: storage_enums::AttemptStatus,
         amount_capturable: i64,
     },
+    SurchargeAmountUpdate {
+        surcharge_amount: Option<i64>,
+        tax_amount: Option<i64>,
+    },
     PreprocessingUpdate {
         status: storage_enums::AttemptStatus,
         payment_method_id: Option<Option<String>>,
@@ -219,6 +225,9 @@ pub enum PaymentAttemptUpdate {
         preprocessing_step_id: Option<String>,
         connector_transaction_id: Option<String>,
         connector_response_reference_id: Option<String>,
+    },
+    SurchargeMetadataUpdate {
+        surcharge_metadata: Option<serde_json::Value>,
     },
 }
 
@@ -252,7 +261,10 @@ pub struct PaymentAttemptUpdateInternal {
     capture_method: Option<storage_enums::CaptureMethod>,
     connector_response_reference_id: Option<String>,
     multiple_capture_count: Option<i16>,
+    surcharge_amount: Option<i64>,
+    tax_amount: Option<i64>,
     amount_capturable: Option<i64>,
+    surcharge_metadata: Option<serde_json::Value>,
 }
 
 impl PaymentAttemptUpdate {
@@ -279,6 +291,7 @@ impl PaymentAttemptUpdate {
             preprocessing_step_id: pa_update
                 .preprocessing_step_id
                 .or(source.preprocessing_step_id),
+            surcharge_metadata: pa_update.surcharge_metadata.or(source.surcharge_metadata),
             ..source
         }
     }
@@ -494,6 +507,18 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
             } => Self {
                 status: Some(status),
                 amount_capturable: Some(amount_capturable),
+                ..Default::default()
+            },
+            PaymentAttemptUpdate::SurchargeMetadataUpdate { surcharge_metadata } => Self {
+                surcharge_metadata,
+                ..Default::default()
+            },
+            PaymentAttemptUpdate::SurchargeAmountUpdate {
+                surcharge_amount,
+                tax_amount,
+            } => Self {
+                surcharge_amount,
+                tax_amount,
                 ..Default::default()
             },
         }

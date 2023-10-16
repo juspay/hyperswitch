@@ -12,7 +12,7 @@ pub mod diesel_exports {
         DbDisputeStage as DisputeStage, DbDisputeStatus as DisputeStatus, DbEventType as EventType,
         DbFutureUsage as FutureUsage, DbIntentStatus as IntentStatus,
         DbMandateStatus as MandateStatus, DbPaymentMethodIssuerCode as PaymentMethodIssuerCode,
-        DbRefundStatus as RefundStatus,
+        DbPaymentType as PaymentType, DbRefundStatus as RefundStatus,
     };
 }
 
@@ -208,6 +208,8 @@ pub enum ConnectorType {
     NonBankingFinance,
     /// Acquirers, Gateways etc
     PayoutProcessor,
+    /// PaymentMethods Auth Services
+    PaymentMethodAuth,
 }
 
 #[allow(clippy::upper_case_acronyms)]
@@ -792,6 +794,7 @@ pub enum EventType {
     PaymentSucceeded,
     PaymentFailed,
     PaymentProcessing,
+    PaymentCancelled,
     ActionRequired,
     RefundSucceeded,
     RefundFailed,
@@ -802,6 +805,8 @@ pub enum EventType {
     DisputeChallenged,
     DisputeWon,
     DisputeLost,
+    MandateActive,
+    MandateRevoked,
 }
 
 #[derive(
@@ -1061,6 +1066,30 @@ pub enum PaymentMethod {
     Upi,
     Voucher,
     GiftCard,
+}
+
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Default,
+    Eq,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    strum::EnumString,
+    ToSchema,
+)]
+#[router_derive::diesel_enum(storage_type = "pg_enum")]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum PaymentType {
+    #[default]
+    Normal,
+    NewMandate,
+    SetupMandate,
+    RecurringMandate,
 }
 
 #[derive(

@@ -342,6 +342,7 @@ impl<F> TryFrom<&types::RouterData<F, types::PaymentsAuthorizeData, types::Payme
     ) -> Result<Self, Self::Error> {
         Ok(Self {
             email: data.request.email.clone(),
+            payment_method_data: data.request.payment_method_data.clone(),
             description: None,
             phone: None,
             name: None,
@@ -380,6 +381,7 @@ impl TryFrom<types::PaymentsAuthorizeData> for types::PaymentsPreProcessingData 
             webhook_url: data.webhook_url,
             complete_authorize_url: data.complete_authorize_url,
             browser_info: data.browser_info,
+            surcharge_details: data.surcharge_details,
         })
     }
 }

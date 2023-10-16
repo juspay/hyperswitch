@@ -8,12 +8,44 @@ use crate::{
     types::{self, storage::enums},
 };
 
+#[derive(Debug, Serialize)]
+pub struct KlarnaRouterData<T> {
+    amount: i64,
+    router_data: T,
+}
+
+impl<T>
+    TryFrom<(
+        &types::api::CurrencyUnit,
+        types::storage::enums::Currency,
+        i64,
+        T,
+    )> for KlarnaRouterData<T>
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+
+    fn try_from(
+        (_currency_unit, _currency, amount, router_data): (
+            &types::api::CurrencyUnit,
+            types::storage::enums::Currency,
+            i64,
+            T,
+        ),
+    ) -> Result<Self, Self::Error> {
+        Ok(Self {
+            amount,
+            router_data,
+        })
+    }
+}
+
 #[derive(Default, Debug, Serialize)]
 pub struct KlarnaPaymentsRequest {
     order_lines: Vec<OrderLines>,
     order_amount: i64,
     purchase_country: String,
     purchase_currency: enums::Currency,
+    merchant_reference1: String,
 }
 
 #[derive(Default, Debug, Deserialize)]
@@ -88,10 +120,13 @@ impl TryFrom<types::PaymentsSessionResponseRouterData<KlarnaSessionResponse>>
     }
 }
 
-impl TryFrom<&types::PaymentsAuthorizeRouterData> for KlarnaPaymentsRequest {
+impl TryFrom<&KlarnaRouterData<&types::PaymentsAuthorizeRouterData>> for KlarnaPaymentsRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(item: &types::PaymentsAuthorizeRouterData) -> Result<Self, Self::Error> {
-        let request = &item.request;
+
+    fn try_from(
+        item: &KlarnaRouterData<&types::PaymentsAuthorizeRouterData>,
+    ) -> Result<Self, Self::Error> {
+        let request = &item.router_data.request;
         match request.order_details.clone() {
             Some(order_details) => Ok(Self {
                 purchase_country: "US".to_string(),
@@ -106,6 +141,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for KlarnaPaymentsRequest {
                         total_amount: i64::from(data.quantity) * (data.amount),
                     })
                     .collect(),
+                merchant_reference1: item.router_data.connector_request_reference_id.clone(),
             }),
             None => Err(report!(errors::ConnectorError::MissingRequiredField {
                 field_name: "product_name"
