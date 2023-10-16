@@ -6,7 +6,7 @@ pub mod compatibility;
 pub mod configs;
 pub mod connection;
 pub mod connector;
-pub(crate) mod consts;
+pub mod consts;
 pub mod core;
 pub mod cors;
 pub mod db;
