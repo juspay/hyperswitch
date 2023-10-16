@@ -25,19 +25,21 @@ jobs:
         shell: bash
         run: |
 
-          # Extract a list of strings with the format 'juspay/hyperswitch/pull/1200' or '#1200'
-          # - First, use 'grep' to find these specific patterns in the 'hotfix_pr_body.txt' file
-          # - Then, 'sed' is used to process the matched strings:
-          #   - For former matched strings, it removes the part preceding the last "/" character
-          #   - For latter matched strings, it removes any "#" characters to extract the numeric part
-          # Finally, the extracted numeric parts are stored in the 'PR_NUMBERS' array.
-          PR_NUMBERS=($(grep -oE "Chethan-rao/rust_codes/pull/[0-9]+|#([0-9]+)" hotfix_pr_body.txt | sed 's/.*\///' | sed 's/#//')) 
-          if [[ ${#PR_NUMBERS[@]} -eq 0 ]]; then
+          # Extract a list of lines with the format 'juspay/hyperswitch/pull/1200' or '#1200' using 'sed'
+          # If empty, then error out and exit
+          # else, use 'grep' to extract out 'juspay/hyperswitch/pull/1200' or '#1200' patterns from each line
+          # Finally use 'sed' to remove the part of the matched strings that precedes the last "/" character and
+          # sed again to remove any "#" characters from the extracted numeric part, ultimately getting PR/issue number 
+
+          SED_OUTPUT=$(sed -E '/\/juspay\/hyperswitch\/pull\/[0-9]+|#[0-9]+/!d' hotfix_pr_body.txt)
+
+          if [ -z "$SED_OUTPUT" ]; then
             echo "::error::No original PRs found"
             exit 1
           else
-            echo "PR_NUMBERS=${PR_NUMBERS[@]}" >> $GITHUB_ENV
-            echo "Original PR's found: ("${PR_NUMBERS[*]/#/#}")"
+             PR_NUMBERS=($(echo "$SED_OUTPUT" | grep -oE 'juspay/hyperswitch/pull/[0-9]+|#([0-9]+)' | sed 's/.*\///' | sed 's/#//'))
+             echo "PR_NUMBERS=${PR_NUMBERS[@]}" >> $GITHUB_ENV
+             echo "Original PR's found: ("${PR_NUMBERS[*]/#/#}")"
           fi
 
       - name: Verify Original PRs
@@ -45,7 +47,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          PR_NUMBERS="${PR_NUMBERS}"
+          PR_NUMBERS="${PR_NUMBERS[*]}"
           all_checks_failed=1
 
           PR_AUTHORS=()
@@ -145,8 +147,8 @@ jobs:
 
             # Print all Original PR's (number), (pr_title), (pr_author), (pr_base_ref) and (pr_state)
             i=0
+            echo "Original PR info:"
             for pr_number in ${PR_NUMBERS}; do
-              echo "Original PR info:"
               echo "#${pr_number} - pr_title: '${PR_TITLES[i]}' - pr_author: '${PR_AUTHORS[i]}' - pr_base_ref: '${PR_BASE_REFS[i]}' - pr_state: '${PR_STATES[i]}'"
               i+=1
             done
