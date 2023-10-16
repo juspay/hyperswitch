@@ -7,9 +7,9 @@ use crate::{
         self, AddressDetailsData, CardData, PaymentsAuthorizeRequestData, RouterData,
     },
     core::errors,
-    types::{self, api, storage::enums, transformers::ForeignFrom},
+    types::{self, api, storage::enums, transformers::ForeignFrom,
     PaymentsAuthorizeData,
-    PaymentsResponseData
+    PaymentsResponseData},
 };
 
 #[derive(Debug, Serialize)]
@@ -122,7 +122,7 @@ impl
                     false => ForteAction::Authorize,
                 };
                 let card_type = ForteCardType::try_from(card.get_card_issuer()?)?;
-                let address = item.get_billing_address()?;
+                let address = item.router_data.get_billing_address()?;
                 let card = Card {
                     card_type,
                     name_on_card: card.card_holder_name.clone(),
@@ -284,12 +284,12 @@ pub struct ForteMeta {
 }
 
 impl<F, T>
-    TryFrom<types::ResponseRouterData<F, FortePaymentsResponse, T, types::PaymentsResponseData>>
-    for types::RouterData<F, T, types::PaymentsResponseData>
+    TryFrom<types::ResponseRouterData<F, FortePaymentsResponse, T, PaymentsResponseData>>
+    for types::RouterData<F, T, PaymentsResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: types::ResponseRouterData<F, FortePaymentsResponse, T, types::PaymentsResponseData>,
+        item: types::ResponseRouterData<F, FortePaymentsResponse, T, PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
         let response_code = item.response.response.response_code;
         let action = item.response.action;
@@ -328,8 +328,8 @@ pub struct FortePaymentsSyncResponse {
 }
 
 impl<F, T>
-    TryFrom<types::ResponseRouterData<F, FortePaymentsSyncResponse, T, types::PaymentsResponseData>>
-    for types::RouterData<F, T, types::PaymentsResponseData>
+    TryFrom<types::ResponseRouterData<F, FortePaymentsSyncResponse, T, PaymentsResponseData>>
+    for types::RouterData<F, T, PaymentsResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
@@ -337,7 +337,7 @@ impl<F, T>
             F,
             FortePaymentsSyncResponse,
             T,
-            types::PaymentsResponseData,
+            PaymentsResponseData,
         >,
     ) -> Result<Self, Self::Error> {
         let transaction_id = &item.response.transaction_id;
@@ -467,12 +467,12 @@ pub struct ForteCancelResponse {
 }
 
 impl<F, T>
-    TryFrom<types::ResponseRouterData<F, ForteCancelResponse, T, types::PaymentsResponseData>>
-    for types::RouterData<F, T, types::PaymentsResponseData>
+    TryFrom<types::ResponseRouterData<F, ForteCancelResponse, T, PaymentsResponseData>>
+    for types::RouterData<F, T, PaymentsResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: types::ResponseRouterData<F, ForteCancelResponse, T, types::PaymentsResponseData>,
+        item: types::ResponseRouterData<F, ForteCancelResponse, T, PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
         let transaction_id = &item.response.transaction_id;
         Ok(Self {
