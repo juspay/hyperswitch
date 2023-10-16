@@ -97,6 +97,7 @@ mod storage {
 #[cfg(feature = "kv_store")]
 mod storage {
 
+    use diesel_models::enums as storage_enums;
     use error_stack::{IntoReport, ResultExt};
     use redis_interface::HsetnxReply;
     use router_env::{instrument, tracing};
@@ -121,12 +122,12 @@ mod storage {
             let conn = connection::pg_connection_write(self).await?;
 
             match storage_scheme {
-                data_models::MerchantStorageScheme::PostgresOnly => connector_response
+                storage_enums::MerchantStorageScheme::PostgresOnly => connector_response
                     .insert(&conn)
                     .await
                     .map_err(Into::into)
                     .into_report(),
-                data_models::MerchantStorageScheme::RedisKv => {
+                storage_enums::MerchantStorageScheme::RedisKv => {
                     let merchant_id = &connector_response.merchant_id;
                     let payment_id = &connector_response.payment_id;
                     let attempt_id = &connector_response.attempt_id;
@@ -147,6 +148,7 @@ mod storage {
                             .clone(),
                         authentication_data: connector_response.authentication_data.clone(),
                         encoded_data: connector_response.encoded_data.clone(),
+                        updated_by: storage_scheme,
                     };
 
                     match kv_wrapper::<storage_type::ConnectorResponse, _, _>(
@@ -209,8 +211,8 @@ mod storage {
                 .into_report()
             };
             match storage_scheme {
-                data_models::MerchantStorageScheme::PostgresOnly => database_call().await,
-                data_models::MerchantStorageScheme::RedisKv => {
+                storage_enums::MerchantStorageScheme::PostgresOnly => database_call().await,
+                storage_enums::MerchantStorageScheme::RedisKv => {
                     let key = format!("mid_{merchant_id}_pid_{payment_id}");
                     let field = format!("connector_resp_{merchant_id}_{payment_id}_{attempt_id}");
 
@@ -239,12 +241,12 @@ mod storage {
         ) -> CustomResult<storage_type::ConnectorResponse, errors::StorageError> {
             let conn = connection::pg_connection_write(self).await?;
             match storage_scheme {
-                data_models::MerchantStorageScheme::PostgresOnly => this
+                storage_enums::MerchantStorageScheme::PostgresOnly => this
                     .update(&conn, connector_response_update)
                     .await
                     .map_err(Into::into)
                     .into_report(),
-                data_models::MerchantStorageScheme::RedisKv => {
+                storage_enums::MerchantStorageScheme::RedisKv => {
                     let key = format!("mid_{}_pid_{}", this.merchant_id, this.payment_id);
                     let updated_connector_response = connector_response_update
                         .clone()
@@ -302,7 +304,7 @@ impl ConnectorResponseInterface for MockDb {
     async fn insert_connector_response(
         &self,
         new: storage_type::ConnectorResponseNew,
-        _storage_scheme: enums::MerchantStorageScheme,
+        storage_scheme: enums::MerchantStorageScheme,
     ) -> CustomResult<storage_type::ConnectorResponse, errors::StorageError> {
         let mut connector_response = self.connector_response.lock().await;
         let response = storage_type::ConnectorResponse {
@@ -320,6 +322,7 @@ impl ConnectorResponseInterface for MockDb {
             connector_transaction_id: new.connector_transaction_id,
             authentication_data: new.authentication_data,
             encoded_data: new.encoded_data,
+            updated_by: storage_scheme,
         };
         connector_response.push(response.clone());
         Ok(response)

@@ -63,7 +63,13 @@ pub async fn create_customer(
         let customer_address: api_models::payments::AddressDetails = addr.clone();
 
         let address = customer_data
-            .get_domain_address(customer_address, merchant_id, customer_id, key)
+            .get_domain_address(
+                customer_address,
+                merchant_id,
+                customer_id,
+                key,
+                merchant_account.storage_scheme,
+            )
             .await
             .switch()
             .attach_printable("Failed while encrypting address")?;
@@ -359,6 +365,7 @@ pub async fn update_customer(
                         &merchant_account.merchant_id,
                         &customer.customer_id,
                         key,
+                        merchant_account.storage_scheme,
                     )
                     .await
                     .switch()

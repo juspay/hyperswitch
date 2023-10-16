@@ -38,6 +38,7 @@ pub struct Address {
     pub customer_id: String,
     pub merchant_id: String,
     pub payment_id: Option<String>,
+    pub updated_by: enums::MerchantStorageScheme,
 }
 
 #[async_trait]
@@ -65,6 +66,7 @@ impl behaviour::Conversion for Address {
             customer_id: self.customer_id,
             merchant_id: self.merchant_id,
             payment_id: self.payment_id,
+            updated_by: self.updated_by,
         })
     }
 
@@ -93,6 +95,7 @@ impl behaviour::Conversion for Address {
                 customer_id: other.customer_id,
                 merchant_id: other.merchant_id,
                 payment_id: other.payment_id,
+                updated_by: other.updated_by,
             })
         }
         .await
@@ -121,6 +124,7 @@ impl behaviour::Conversion for Address {
             payment_id: self.payment_id,
             created_at: now,
             modified_at: now,
+            updated_by: self.updated_by,
         })
     }
 }

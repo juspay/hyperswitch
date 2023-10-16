@@ -10,11 +10,12 @@ use data_models::{
         payment_intent::{PaymentIntentInterface, PaymentIntentNew, PaymentIntentUpdate},
         PaymentIntent,
     },
-    MerchantStorageScheme, RemoteStorageObject,
+    RemoteStorageObject,
 };
 #[cfg(feature = "olap")]
 use diesel::{associations::HasTable, ExpressionMethods, JoinOnDsl, QueryDsl};
 use diesel_models::{
+    enums::MerchantStorageScheme,
     kv,
     payment_attempt::PaymentAttempt as DieselPaymentAttempt,
     payment_intent::{
@@ -92,6 +93,7 @@ impl<T: DatabaseStore> PaymentIntentInterface for KVRouterStore<T> {
                     merchant_decision: new.merchant_decision.clone(),
                     payment_link_id: new.payment_link_id.clone(),
                     payment_confirm_source: new.payment_confirm_source,
+                    updated_by: storage_scheme,
                 };
                 let diesel_intent = created_intent.clone().to_storage_model();
 
@@ -757,6 +759,7 @@ impl DataModelExt for PaymentIntentNew {
             merchant_decision: self.merchant_decision,
             payment_link_id: self.payment_link_id,
             payment_confirm_source: self.payment_confirm_source,
+            updated_by: self.updated_by,
         }
     }
 
@@ -795,6 +798,7 @@ impl DataModelExt for PaymentIntentNew {
             merchant_decision: storage_model.merchant_decision,
             payment_link_id: storage_model.payment_link_id,
             payment_confirm_source: storage_model.payment_confirm_source,
+            updated_by: storage_model.updated_by,
         }
     }
 }
@@ -838,6 +842,7 @@ impl DataModelExt for PaymentIntent {
             merchant_decision: self.merchant_decision,
             payment_link_id: self.payment_link_id,
             payment_confirm_source: self.payment_confirm_source,
+            updated_by: self.updated_by,
         }
     }
 
@@ -877,6 +882,7 @@ impl DataModelExt for PaymentIntent {
             merchant_decision: storage_model.merchant_decision,
             payment_link_id: storage_model.payment_link_id,
             payment_confirm_source: storage_model.payment_confirm_source,
+            updated_by: storage_model.updated_by,
         }
     }
 }

@@ -24,6 +24,7 @@ pub struct AddressNew {
     pub payment_id: Option<String>,
     pub created_at: PrimitiveDateTime,
     pub modified_at: PrimitiveDateTime,
+    pub updated_by: enums::MerchantStorageScheme,
 }
 
 #[derive(Clone, Debug, Queryable, Identifiable, Serialize, Deserialize)]
@@ -47,6 +48,7 @@ pub struct Address {
     pub customer_id: String,
     pub merchant_id: String,
     pub payment_id: Option<String>,
+    pub updated_by: enums::MerchantStorageScheme,
 }
 
 #[derive(Clone, Debug, AsChangeset, router_derive::DebugAsDisplay, Serialize, Deserialize)]

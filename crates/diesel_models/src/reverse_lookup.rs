@@ -1,6 +1,6 @@
 use diesel::{Identifiable, Insertable, Queryable};
 
-use crate::schema::reverse_lookup;
+use crate::{enums, schema::reverse_lookup};
 
 ///
 /// This reverse lookup table basically looks up id's and get result_id that you want. This is
@@ -19,6 +19,7 @@ pub struct ReverseLookup {
     pub pk_id: String,
     /// the source of insertion for reference
     pub source: String,
+    pub updated_by: enums::MerchantStorageScheme,
 }
 
 #[derive(
@@ -37,6 +38,7 @@ pub struct ReverseLookupNew {
     pub pk_id: String,
     pub sk_id: String,
     pub source: String,
+    pub updated_by: enums::MerchantStorageScheme,
 }
 
 impl From<ReverseLookupNew> for ReverseLookup {
@@ -46,6 +48,7 @@ impl From<ReverseLookupNew> for ReverseLookup {
             sk_id: new.sk_id,
             pk_id: new.pk_id,
             source: new.source,
+            updated_by: new.updated_by,
         }
     }
 }

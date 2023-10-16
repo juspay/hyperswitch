@@ -4,21 +4,21 @@ use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
 
 use super::PaymentIntent;
-use crate::{errors, mandates::MandateDataType, ForeignIDRef, MerchantStorageScheme};
+use crate::{errors, mandates::MandateDataType, ForeignIDRef};
 
 #[async_trait::async_trait]
 pub trait PaymentAttemptInterface {
     async fn insert_payment_attempt(
         &self,
         payment_attempt: PaymentAttemptNew,
-        storage_scheme: MerchantStorageScheme,
+        storage_scheme: storage_enums::MerchantStorageScheme,
     ) -> error_stack::Result<PaymentAttempt, errors::StorageError>;
 
     async fn update_payment_attempt_with_attempt_id(
         &self,
         this: PaymentAttempt,
         payment_attempt: PaymentAttemptUpdate,
-        storage_scheme: MerchantStorageScheme,
+        storage_scheme: storage_enums::MerchantStorageScheme,
     ) -> error_stack::Result<PaymentAttempt, errors::StorageError>;
 
     async fn find_payment_attempt_by_connector_transaction_id_payment_id_merchant_id(
@@ -26,21 +26,21 @@ pub trait PaymentAttemptInterface {
         connector_transaction_id: &str,
         payment_id: &str,
         merchant_id: &str,
-        storage_scheme: MerchantStorageScheme,
+        storage_scheme: storage_enums::MerchantStorageScheme,
     ) -> error_stack::Result<PaymentAttempt, errors::StorageError>;
 
     async fn find_payment_attempt_last_successful_attempt_by_payment_id_merchant_id(
         &self,
         payment_id: &str,
         merchant_id: &str,
-        storage_scheme: MerchantStorageScheme,
+        storage_scheme: storage_enums::MerchantStorageScheme,
     ) -> error_stack::Result<PaymentAttempt, errors::StorageError>;
 
     async fn find_payment_attempt_by_merchant_id_connector_txn_id(
         &self,
         merchant_id: &str,
         connector_txn_id: &str,
-        storage_scheme: MerchantStorageScheme,
+        storage_scheme: storage_enums::MerchantStorageScheme,
     ) -> error_stack::Result<PaymentAttempt, errors::StorageError>;
 
     async fn find_payment_attempt_by_payment_id_merchant_id_attempt_id(
@@ -48,35 +48,35 @@ pub trait PaymentAttemptInterface {
         payment_id: &str,
         merchant_id: &str,
         attempt_id: &str,
-        storage_scheme: MerchantStorageScheme,
+        storage_scheme: storage_enums::MerchantStorageScheme,
     ) -> error_stack::Result<PaymentAttempt, errors::StorageError>;
 
     async fn find_payment_attempt_by_attempt_id_merchant_id(
         &self,
         attempt_id: &str,
         merchant_id: &str,
-        storage_scheme: MerchantStorageScheme,
+        storage_scheme: storage_enums::MerchantStorageScheme,
     ) -> error_stack::Result<PaymentAttempt, errors::StorageError>;
 
     async fn find_payment_attempt_by_preprocessing_id_merchant_id(
         &self,
         preprocessing_id: &str,
         merchant_id: &str,
-        storage_scheme: MerchantStorageScheme,
+        storage_scheme: storage_enums::MerchantStorageScheme,
     ) -> error_stack::Result<PaymentAttempt, errors::StorageError>;
 
     async fn find_attempts_by_merchant_id_payment_id(
         &self,
         merchant_id: &str,
         payment_id: &str,
-        storage_scheme: MerchantStorageScheme,
+        storage_scheme: storage_enums::MerchantStorageScheme,
     ) -> error_stack::Result<Vec<PaymentAttempt>, errors::StorageError>;
 
     async fn get_filters_for_payments(
         &self,
         pi: &[PaymentIntent],
         merchant_id: &str,
-        storage_scheme: MerchantStorageScheme,
+        storage_scheme: storage_enums::MerchantStorageScheme,
     ) -> error_stack::Result<PaymentListFilters, errors::StorageError>;
 
     #[allow(clippy::too_many_arguments)]
@@ -88,7 +88,7 @@ pub trait PaymentAttemptInterface {
         payment_method: Option<Vec<storage_enums::PaymentMethod>>,
         payment_method_type: Option<Vec<storage_enums::PaymentMethodType>>,
         authentication_type: Option<Vec<storage_enums::AuthenticationType>>,
-        storage_scheme: MerchantStorageScheme,
+        storage_scheme: storage_enums::MerchantStorageScheme,
     ) -> error_stack::Result<i64, errors::StorageError>;
 }
 
@@ -142,6 +142,7 @@ pub struct PaymentAttempt {
     pub connector_response_reference_id: Option<String>,
     pub amount_capturable: i64,
     pub surcharge_metadata: Option<serde_json::Value>,
+    pub updated_by: storage_enums::MerchantStorageScheme,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -201,6 +202,7 @@ pub struct PaymentAttemptNew {
     pub multiple_capture_count: Option<i16>,
     pub amount_capturable: i64,
     pub surcharge_metadata: Option<serde_json::Value>,
+    pub updated_by: storage_enums::MerchantStorageScheme,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

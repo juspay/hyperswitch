@@ -10,10 +10,12 @@ use data_models::{
         },
         PaymentIntent,
     },
-    MerchantStorageScheme,
 };
 use diesel_models::{
-    enums::{MandateAmountData as DieselMandateAmountData, MandateDataType as DieselMandateType},
+    enums::{
+        MandateAmountData as DieselMandateAmountData, MandateDataType as DieselMandateType,
+        MerchantStorageScheme,
+    },
     kv,
     payment_attempt::{
         PaymentAttempt as DieselPaymentAttempt, PaymentAttemptNew as DieselPaymentAttemptNew,
@@ -359,6 +361,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
                     connector_response_reference_id: None,
                     amount_capturable: payment_attempt.amount_capturable,
                     surcharge_metadata: payment_attempt.surcharge_metadata.clone(),
+                    updated_by: storage_scheme,
                 };
 
                 let field = format!("pa_{}", created_attempt.attempt_id);
@@ -387,6 +390,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
                             pk_id: key,
                             sk_id: field,
                             source: "payment_attempt".to_string(),
+                            updated_by: storage_scheme,
                         };
                         self.insert_reverse_lookup(reverse_lookup, storage_scheme)
                             .await?;
@@ -965,6 +969,7 @@ impl DataModelExt for PaymentAttempt {
             connector_response_reference_id: self.connector_response_reference_id,
             amount_capturable: self.amount_capturable,
             surcharge_metadata: self.surcharge_metadata,
+            updated_by: self.updated_by,
         }
     }
 
@@ -1014,6 +1019,7 @@ impl DataModelExt for PaymentAttempt {
             connector_response_reference_id: storage_model.connector_response_reference_id,
             amount_capturable: storage_model.amount_capturable,
             surcharge_metadata: storage_model.surcharge_metadata,
+            updated_by: storage_model.updated_by,
         }
     }
 }
@@ -1063,6 +1069,7 @@ impl DataModelExt for PaymentAttemptNew {
             multiple_capture_count: self.multiple_capture_count,
             amount_capturable: self.amount_capturable,
             surcharge_metadata: self.surcharge_metadata,
+            updated_by: self.updated_by,
         }
     }
 
@@ -1110,6 +1117,7 @@ impl DataModelExt for PaymentAttemptNew {
             multiple_capture_count: storage_model.multiple_capture_count,
             amount_capturable: storage_model.amount_capturable,
             surcharge_metadata: storage_model.surcharge_metadata,
+            updated_by: storage_model.updated_by,
         }
     }
 }
@@ -1533,6 +1541,7 @@ async fn add_connector_txn_id_to_reverse_lookup<T: DatabaseStore>(
         pk_id: key.to_owned(),
         sk_id: field.clone(),
         source: "payment_attempt".to_string(),
+        updated_by: storage_scheme,
     };
     store
         .insert_reverse_lookup(reverse_lookup_new, storage_scheme)
@@ -1554,6 +1563,7 @@ async fn add_preprocessing_id_to_reverse_lookup<T: DatabaseStore>(
         pk_id: key.to_owned(),
         sk_id: field.clone(),
         source: "payment_attempt".to_string(),
+        updated_by: storage_scheme,
     };
     store
         .insert_reverse_lookup(reverse_lookup_new, storage_scheme)

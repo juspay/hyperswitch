@@ -462,6 +462,7 @@ pub trait CustomerAddress {
         merchant_id: &str,
         customer_id: &str,
         key: &[u8],
+        storage_scheme: storage::enums::MerchantStorageScheme,
     ) -> CustomResult<domain::Address, common_utils::errors::CryptoError>;
 }
 
@@ -521,6 +522,7 @@ impl CustomerAddress for api_models::customers::CustomerRequest {
         merchant_id: &str,
         customer_id: &str,
         key: &[u8],
+        storage_scheme: storage::enums::MerchantStorageScheme,
     ) -> CustomResult<domain::Address, common_utils::errors::CryptoError> {
         async {
             Ok(domain::Address {
@@ -567,6 +569,7 @@ impl CustomerAddress for api_models::customers::CustomerRequest {
                 payment_id: None,
                 created_at: common_utils::date_time::now(),
                 modified_at: common_utils::date_time::now(),
+                updated_by: storage_scheme,
             })
         }
         .await

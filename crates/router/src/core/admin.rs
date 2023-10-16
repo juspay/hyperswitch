@@ -5,7 +5,6 @@ use common_utils::{
     ext_traits::{AsyncExt, ConfigExt, Encode, ValueExt},
     pii,
 };
-use data_models::MerchantStorageScheme;
 use error_stack::{report, FutureExt, ResultExt};
 use masking::{PeekInterface, Secret};
 use uuid::Uuid;
@@ -26,7 +25,7 @@ use crate::{
             self,
             types::{self as domain_types, AsyncLift},
         },
-        storage,
+        storage::{self, enums::MerchantStorageScheme},
         transformers::ForeignTryFrom,
     },
     utils::{self, OptionExt},

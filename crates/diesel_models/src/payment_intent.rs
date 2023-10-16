@@ -48,6 +48,7 @@ pub struct PaymentIntent {
     pub merchant_decision: Option<String>,
     pub payment_link_id: Option<String>,
     pub payment_confirm_source: Option<storage_enums::PaymentSource>,
+    pub updated_by: storage_enums::MerchantStorageScheme,
 }
 
 #[derive(
@@ -100,6 +101,7 @@ pub struct PaymentIntentNew {
     pub merchant_decision: Option<String>,
     pub payment_link_id: Option<String>,
     pub payment_confirm_source: Option<storage_enums::PaymentSource>,
+    pub updated_by: storage_enums::MerchantStorageScheme,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

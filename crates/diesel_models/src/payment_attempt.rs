@@ -58,6 +58,7 @@ pub struct PaymentAttempt {
     pub connector_response_reference_id: Option<String>,
     pub amount_capturable: i64,
     pub surcharge_metadata: Option<serde_json::Value>,
+    pub updated_by: storage_enums::MerchantStorageScheme,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Queryable, Serialize, Deserialize)]
@@ -117,6 +118,7 @@ pub struct PaymentAttemptNew {
     pub multiple_capture_count: Option<i16>,
     pub amount_capturable: i64,
     pub surcharge_metadata: Option<serde_json::Value>,
+    pub updated_by: storage_enums::MerchantStorageScheme,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

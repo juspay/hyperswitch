@@ -397,6 +397,7 @@ mod storage {
                                     ),
                                     pk_id: key.clone(),
                                     source: "refund".to_string(),
+                                    updated_by: storage_scheme,
                                 },
                                 // [#492]: A discussion is required on whether this is required?
                                 storage_types::ReverseLookupNew {
@@ -408,6 +409,7 @@ mod storage {
                                     ),
                                     pk_id: key.clone(),
                                     source: "refund".to_string(),
+                                    updated_by: storage_scheme,
                                 },
                             ];
                             if let Some(connector_refund_id) =
@@ -423,6 +425,7 @@ mod storage {
                                     ),
                                     pk_id: key,
                                     source: "refund".to_string(),
+                                    updated_by: storage_scheme,
                                 })
                             };
                             let rev_look = reverse_lookups

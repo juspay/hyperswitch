@@ -2,7 +2,7 @@ use diesel::{AsChangeset, Identifiable, Insertable, Queryable};
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
 
-use crate::schema::connector_response;
+use crate::{enums, schema::connector_response};
 
 #[derive(Clone, Debug, Deserialize, Serialize, Insertable, router_derive::DebugAsDisplay)]
 #[diesel(table_name = connector_response)]
@@ -19,6 +19,7 @@ pub struct ConnectorResponseNew {
     pub connector_transaction_id: Option<String>,
     pub authentication_data: Option<serde_json::Value>,
     pub encoded_data: Option<String>,
+    pub updated_by: enums::MerchantStorageScheme,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize, Identifiable, Queryable)]
@@ -36,6 +37,7 @@ pub struct ConnectorResponse {
     pub connector_transaction_id: Option<String>,
     pub authentication_data: Option<serde_json::Value>,
     pub encoded_data: Option<String>,
+    pub updated_by: enums::MerchantStorageScheme,
 }
 
 #[derive(Clone, Default, Debug, Deserialize, AsChangeset, Serialize)]

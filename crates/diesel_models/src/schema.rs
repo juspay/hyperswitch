@@ -29,6 +29,7 @@ diesel::table! {
         merchant_id -> Varchar,
         #[max_length = 64]
         payment_id -> Nullable<Varchar>,
+        updated_by -> MerchantStorageScheme,
     }
 }
 
@@ -175,6 +176,7 @@ diesel::table! {
         connector_transaction_id -> Nullable<Varchar>,
         authentication_data -> Nullable<Json>,
         encoded_data -> Nullable<Text>,
+        updated_by -> MerchantStorageScheme,
     }
 }
 
@@ -555,6 +557,7 @@ diesel::table! {
         connector_response_reference_id -> Nullable<Varchar>,
         amount_capturable -> Int8,
         surcharge_metadata -> Nullable<Jsonb>,
+        updated_by -> MerchantStorageScheme,
     }
 }
 
@@ -613,6 +616,7 @@ diesel::table! {
         #[max_length = 255]
         payment_link_id -> Nullable<Varchar>,
         payment_confirm_source -> Nullable<PaymentSource>,
+        updated_by -> MerchantStorageScheme,
     }
 }
 
@@ -833,6 +837,7 @@ diesel::table! {
         pk_id -> Varchar,
         #[max_length = 128]
         source -> Varchar,
+        updated_by -> MerchantStorageScheme,
     }
 }
 

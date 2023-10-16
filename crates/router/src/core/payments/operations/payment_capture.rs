@@ -125,6 +125,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
                         capture.merchant_id.clone(),
                         capture.capture_id.clone(),
                         Some(capture.connector.clone()),
+                        storage_scheme,
                     ),
                     storage_scheme,
                 )
