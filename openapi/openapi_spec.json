@@ -7816,6 +7816,23 @@
           }
         ]
       },
+      "PaymentLinkColorSchema": {
+        "type": "object",
+        "properties": {
+          "primary_color": {
+            "type": "string",
+            "nullable": true
+          },
+          "primary_accent_color": {
+            "type": "string",
+            "nullable": true
+          },
+          "secondary_color": {
+            "type": "string",
+            "nullable": true
+          }
+        }
+      },
       "PaymentLinkInitiateRequest": {
         "type": "object",
         "required": [
