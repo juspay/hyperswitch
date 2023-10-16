@@ -555,7 +555,7 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                 multiple_capture_data.update_capture(updated_capture);
             }
 
-            let authorized_amount = payment_data.payment_attempt.amount;
+            let authorized_amount = payment_data.payment_attempt.get_total_amount();
 
             payment_attempt_update = Some(storage::PaymentAttemptUpdate::AmountToCaptureUpdate {
                 status: multiple_capture_data.get_attempt_status(authorized_amount),

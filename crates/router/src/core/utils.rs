@@ -269,6 +269,15 @@ pub async fn construct_refund_router_data<'a, F>(
         None
     };
 
+    let browser_info: Option<types::BrowserInformation> = payment_attempt
+        .browser_info
+        .clone()
+        .map(|b| b.parse_value("BrowserInformation"))
+        .transpose()
+        .change_context(errors::ApiErrorResponse::InvalidDataValue {
+            field_name: "browser_info",
+        })?;
+
     let router_data = types::RouterData {
         flow: PhantomData,
         merchant_id: merchant_account.merchant_id.clone(),
@@ -297,6 +306,7 @@ pub async fn construct_refund_router_data<'a, F>(
             connector_metadata: payment_attempt.connector_metadata.clone(),
             reason: refund.refund_reason.clone(),
             connector_refund_id: refund.connector_refund_id.clone(),
+            browser_info,
         },
 
         response: Ok(types::RefundsResponseData {
