@@ -806,6 +806,9 @@ pub enum EventType {
     DisputeLost,
     MandateActive,
     MandateRevoked,
+    PayoutSucceeded,
+    PayoutFailed,
+    PayoutProcessing,
 }
 
 #[derive(

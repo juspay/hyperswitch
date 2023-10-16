@@ -5000,7 +5000,10 @@
           "dispute_won",
           "dispute_lost",
           "mandate_active",
-          "mandate_revoked"
+          "mandate_revoked",
+          "payout_succeeded",
+          "payout_failed",
+          "payout_processing"
         ]
       },
       "FeatureMetadata": {
@@ -7376,6 +7379,24 @@
               },
               "object": {
                 "$ref": "#/components/schemas/MandateResponse"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "type",
+              "object"
+            ],
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": [
+                  "payout_details"
+                ]
+              },
+              "object": {
+                "$ref": "#/components/schemas/PayoutCreateResponse"
               }
             }
           }
@@ -10006,6 +10027,13 @@
           "profile_id": {
             "type": "string",
             "description": "The business profile that is associated with this payment",
+            "nullable": true
+          },
+          "created": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Time when the payout was created",
+            "example": "2022-09-10T10:11:12Z",
             "nullable": true
           }
         }

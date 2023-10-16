@@ -54,4 +54,18 @@ impl PayoutAttempt {
             report!(errors::DatabaseError::NotFound).attach_printable("Error while updating payout")
         })
     }
+
+    pub async fn find_by_merchant_id_connector_payout_id(
+        conn: &PgPooledConn,
+        merchant_id: &str,
+        connector_payout_id: &str,
+    ) -> StorageResult<Self> {
+        generics::generic_find_one::<<Self as HasTable>::Table, _, _>(
+            conn,
+            dsl::merchant_id
+                .eq(merchant_id.to_owned())
+                .and(dsl::connector_payout_id.eq(connector_payout_id.to_owned())),
+        )
+        .await
+    }
 }

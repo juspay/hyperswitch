@@ -95,8 +95,11 @@ pub struct PayoutAttemptNew {
 
 #[derive(Debug)]
 pub enum PayoutAttemptUpdate {
-    StatusUpdate {
+    ConnectorPayoutIdUpdate {
         connector_payout_id: String,
+        last_modified_at: Option<PrimitiveDateTime>,
+    },
+    StatusUpdate {
         status: storage_enums::PayoutStatus,
         error_message: Option<String>,
         error_code: Option<String>,
@@ -139,15 +142,21 @@ impl From<PayoutAttemptUpdate> for PayoutAttemptUpdateInternal {
                 payout_token: Some(payout_token),
                 ..Default::default()
             },
-            PayoutAttemptUpdate::StatusUpdate {
+            PayoutAttemptUpdate::ConnectorPayoutIdUpdate {
                 connector_payout_id,
+                last_modified_at,
+            } => Self {
+                last_modified_at,
+                connector_payout_id: Some(connector_payout_id),
+                ..Default::default()
+            },
+            PayoutAttemptUpdate::StatusUpdate {
                 status,
                 error_message,
                 error_code,
                 is_eligible,
                 last_modified_at,
             } => Self {
-                connector_payout_id: Some(connector_payout_id),
                 status: Some(status),
                 error_message,
                 error_code,

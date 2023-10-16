@@ -269,4 +269,11 @@ pub trait IncomingWebhook: ConnectorCommon + Sync {
     ) -> CustomResult<super::disputes::DisputePayload, errors::ConnectorError> {
         Err(errors::ConnectorError::NotImplemented("get_dispute_details method".to_string()).into())
     }
+
+    fn get_payout_details(
+        &self,
+        _request: &IncomingWebhookRequestDetails<'_>,
+    ) -> CustomResult<super::payouts::PayoutPayload, errors::ConnectorError> {
+        Err(errors::ConnectorError::NotImplemented("get_payout_details method".to_string()).into())
+    }
 }
