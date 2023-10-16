@@ -370,7 +370,10 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         let connector_router_data = paypal::PaypalRouterData::try_from((
             &self.get_currency_unit(),
             req.request.currency,
-            req.request.amount,
+            req.request
+                .surcharge_details
+                .as_ref()
+                .map_or(req.request.amount, |surcharge| surcharge.final_amount),
             req,
         ))?;
         let req_obj = paypal::PaypalPaymentsRequest::try_from(&connector_router_data)?;
@@ -1091,7 +1094,7 @@ impl api::IncomingWebhook for Paypal {
                         resource
                             .purchase_units
                             .first()
-                            .map(|unit| unit.reference_id.clone())
+                            .and_then(|unit| unit.invoice_id.clone().or(unit.reference_id.clone()))
                             .ok_or(errors::ConnectorError::WebhookReferenceIdNotFound)?,
                     ),
                 ))
@@ -1150,8 +1153,12 @@ impl services::ConnectorRedirectResponse for Paypal {
         &self,
         _query_params: &str,
         _json_payload: Option<serde_json::Value>,
-        _action: PaymentAction,
+        action: PaymentAction,
     ) -> CustomResult<payments::CallConnectorAction, errors::ConnectorError> {
-        Ok(payments::CallConnectorAction::Trigger)
+        match action {
+            services::PaymentAction::PSync | services::PaymentAction::CompleteAuthorize => {
+                Ok(payments::CallConnectorAction::Trigger)
+            }
+        }
     }
 }

@@ -9,7 +9,7 @@ use router_env::{instrument, tracing};
 use super::{flows::Feature, PaymentData};
 use crate::{
     configs::settings::{ConnectorRequestReferenceIdConfig, Server},
-    connector::Nexinets,
+    connector::{Helcim, Nexinets},
     core::{
         errors::{self, RouterResponse, RouterResult},
         payments::{self, helpers},
@@ -1059,6 +1059,21 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsSyncData
     }
 }
 
+impl api::ConnectorTransactionId for Helcim {
+    fn connector_transaction_id(
+        &self,
+        payment_attempt: storage::PaymentAttempt,
+    ) -> Result<Option<String>, errors::ApiErrorResponse> {
+        if payment_attempt.connector_transaction_id.is_none() {
+            let metadata =
+                Self::connector_transaction_id(self, &payment_attempt.connector_metadata);
+            metadata.map_err(|_| errors::ApiErrorResponse::ResourceIdNotFound)
+        } else {
+            Ok(payment_attempt.connector_transaction_id)
+        }
+    }
+}
+
 impl api::ConnectorTransactionId for Nexinets {
     fn connector_transaction_id(
         &self,
@@ -1083,6 +1098,16 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsCaptureD
             .payment_attempt
             .amount_to_capture
             .map_or(payment_data.amount.into(), |capture_amount| capture_amount);
+        let browser_info: Option<types::BrowserInformation> = payment_data
+            .payment_attempt
+            .browser_info
+            .clone()
+            .map(|b| b.parse_value("BrowserInformation"))
+            .transpose()
+            .change_context(errors::ApiErrorResponse::InvalidDataValue {
+                field_name: "browser_info",
+            })?;
+
         Ok(Self {
             amount_to_capture,
             currency: payment_data.currency,
@@ -1102,6 +1127,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsCaptureD
                 }),
                 None => None,
             },
+            browser_info,
         })
     }
 }
@@ -1116,6 +1142,15 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsCancelDa
             &additional_data.connector_name,
             api::GetToken::Connector,
         )?;
+        let browser_info: Option<types::BrowserInformation> = payment_data
+            .payment_attempt
+            .browser_info
+            .clone()
+            .map(|b| b.parse_value("BrowserInformation"))
+            .transpose()
+            .change_context(errors::ApiErrorResponse::InvalidDataValue {
+                field_name: "browser_info",
+            })?;
         Ok(Self {
             amount: Some(payment_data.amount.into()),
             currency: Some(payment_data.currency),
@@ -1125,6 +1160,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsCancelDa
                 .ok_or(errors::ApiErrorResponse::ResourceIdNotFound)?,
             cancellation_reason: payment_data.payment_attempt.cancellation_reason,
             connector_meta: payment_data.payment_attempt.connector_metadata,
+            browser_info,
         })
     }
 }
@@ -1382,6 +1418,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsPreProce
             webhook_url,
             complete_authorize_url,
             browser_info,
+            surcharge_details: payment_data.surcharge_details,
         })
     }
 }

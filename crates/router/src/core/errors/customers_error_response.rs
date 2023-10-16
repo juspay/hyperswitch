@@ -13,6 +13,9 @@ pub enum CustomersErrorResponse {
 
     #[error("Customer does not exist in our records")]
     CustomerNotFound,
+
+    #[error("Customer with the given customer id already exists")]
+    CustomerAlreadyExists,
 }
 
 impl actix_web::ResponseError for CustomersErrorResponse {
