@@ -100,16 +100,12 @@ impl Feature<api::CompleteAuthorize, types::CompleteAuthorizeData>
         .await;
 
         let pm_id = match save_payment_result {
-            Ok(payment_method_id) => Ok(payment_method_id),
+            Ok(payment_method_id) => payment_method_id,
             Err(error) => {
-                if resp.request.setup_mandate_details.clone().is_some() {
-                    Err(error)
-                } else {
-                    services::logger::error!(save_payment_method_error=?error);
-                    Ok(None)
-                }
+                services::logger::error!(save_payment_method_error=?error);
+                None
             }
-        }?;
+        };
 
         Ok(mandate::mandate_procedure(state, resp, customer, pm_id).await?)
     }
