@@ -737,10 +737,16 @@ pub async fn create_tokenize(
         &payload_to_be_encrypted,
     )
     .change_context(errors::ApiErrorResponse::InternalServerError)?;
-    let secret = hex::decode(state.conf.locker.redis_temp_locker_encryption_key)
-        .into_report()
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Failed to decode redis temp locker data")?;
+    let secret = hex::decode(
+        state
+            .conf
+            .locker
+            .redis_temp_locker_encryption_key
+            .to_owned(),
+    )
+    .into_report()
+    .change_context(errors::ApiErrorResponse::InternalServerError)
+    .attach_printable("Failed to decode redis temp locker data")?;
     let encrypted_payload = GcmAes256
         .encode_message(secret.as_ref(), payload.as_bytes())
         .change_context(errors::ApiErrorResponse::InternalServerError)

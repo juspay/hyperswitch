@@ -51,8 +51,7 @@ impl Default for super::settings::Locker {
             mock_locker: true,
             basilisk_host: "localhost".into(),
             locker_signing_key_id: "1".into(),
-            redis_temp_locker_encryption_key:
-                "000102030405060708090a0b0c0d0e0f000102030405060708090a0b0c0d0e0f".into(),
+            redis_temp_locker_encryption_key: "".into(),
         }
     }
 }
