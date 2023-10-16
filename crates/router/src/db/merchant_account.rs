@@ -1,9 +1,8 @@
 use common_utils::ext_traits::AsyncExt;
 use error_stack::{IntoReport, ResultExt};
+use futures::future::try_join_all;
 #[cfg(feature = "accounts_cache")]
 use storage_impl::redis::cache::{CacheKind, ACCOUNTS_CACHE};
-
-use futures::future::try_join_all;
 
 use super::{MasterKeyInterface, MockDb, Store};
 use crate::{
