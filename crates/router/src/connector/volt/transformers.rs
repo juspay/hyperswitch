@@ -73,7 +73,6 @@ impl TryFrom<&VoltRouterData<&types::PaymentsAuthorizeRouterData>> for VoltPayme
                 api_models::payments::BankRedirectData::OpenBankingUk { .. } => {
                     let amount = item.amount;
                     let currency_code = item.router_data.request.currency.to_string();
-                    // let currency_code = "abc".to_string();
                     let merchant_internal_reference =
                         item.router_data.connector_request_reference_id.clone();
                     let payment_success_url = item.router_data.request.router_return_url.clone();
