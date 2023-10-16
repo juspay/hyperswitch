@@ -96,7 +96,7 @@ pub struct MerchantAccountCreate {
     /// The id of the organization to which the merchant belongs to
     pub organization_id: Option<String>,
 
-    pub payment_link_metadata: Option<PaymentLinkMetadata>,
+    pub payment_link_config: Option<PaymentLinkConfig>,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize, ToSchema)]
@@ -505,7 +505,7 @@ pub struct PrimaryBusinessDetails {
 
 #[derive(Clone, Debug, Deserialize, ToSchema, Serialize, PartialEq)]
 #[serde(deny_unknown_fields)]
-pub struct PaymentLinkMetadata {
+pub struct PaymentLinkConfig {
     pub merchant_logo: Option<String>,
     pub color_scheme: Option<PaymentLinkColorSchema>,
 }

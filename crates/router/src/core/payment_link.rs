@@ -70,13 +70,13 @@ pub async fn intiate_payment_link_flow(
         .get_required_value("fulfillment_time")
         .change_context(errors::ApiErrorResponse::PaymentNotFound)?;
 
-    let payment_link_metadata = merchant_account
-        .payment_link_metadata
-        .map(|pl_metadata| {
-            serde_json::from_value::<admin_types::PaymentLinkMetadata>(pl_metadata)
+    let payment_link_config = merchant_account
+        .payment_link_config
+        .map(|pl_config| {
+            serde_json::from_value::<admin_types::PaymentLinkConfig>(pl_config)
                 .into_report()
                 .change_context(errors::ApiErrorResponse::InvalidDataValue {
-                    field_name: "payment_link_metadata",
+                    field_name: "payment_link_config",
                 })
         })
         .transpose()?;
@@ -98,7 +98,7 @@ pub async fn intiate_payment_link_flow(
         expiry: fulfillment_time,
         pub_key: merchant_account.publishable_key.unwrap_or_default(),
         client_secret: payment_intent.client_secret.unwrap_or_default(),
-        merchant_logo: payment_link_metadata
+        merchant_logo: payment_link_config
             .clone()
             .map(|pl_metadata| pl_metadata.merchant_logo.unwrap_or_default())
             .unwrap_or_default(),
@@ -106,7 +106,7 @@ pub async fn intiate_payment_link_flow(
     };
 
     let js_script = get_js_script(payment_details)?;
-    let css_script = get_color_scheme_css(payment_link_metadata.clone());
+    let css_script = get_color_scheme_css(payment_link_config.clone());
     let payment_link_data = services::PaymentLinkFormData {
         js_script,
         sdk_url: state.conf.payment_link.sdk_url.clone(),
@@ -132,7 +132,7 @@ fn get_js_script(
 }
 
 fn get_color_scheme_css(
-    payment_link_metadata: Option<api_models::admin::PaymentLinkMetadata>,
+    payment_link_metadata: Option<api_models::admin::PaymentLinkConfig>,
 ) -> String {
     let (primary_color, primary_accent_color, secondary_color) = payment_link_metadata
         .and_then(|pl_metadata| {
