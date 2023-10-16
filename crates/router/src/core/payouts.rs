@@ -35,6 +35,7 @@ pub struct PayoutData {
     pub payout_attempt: storage::PayoutAttempt,
     pub payout_method_data: Option<payouts::PayoutMethodData>,
     pub merchant_connector_account: Option<payment_helpers::MerchantConnectorAccountType>,
+    pub profile_id: String,
 }
 
 // ********************************************** CORE FLOWS **********************************************
@@ -96,9 +97,7 @@ pub async fn payouts_create_core(
     merchant_account: domain::MerchantAccount,
     key_store: domain::MerchantKeyStore,
     req: payouts::PayoutCreateRequest,
-) -> RouterResponse<payouts::PayoutCreateResponse>
-where
-{
+) -> RouterResponse<payouts::PayoutCreateResponse> {
     // Form connector data
     let connector_data = get_connector_data(
         &state,
@@ -111,7 +110,7 @@ where
     .await?;
 
     // Validate create request
-    let (payout_id, payout_method_data) =
+    let (payout_id, payout_method_data, profile_id) =
         validator::validate_create_request(&state, &merchant_account, &req).await?;
 
     // Create DB entries
@@ -121,6 +120,7 @@ where
         &key_store,
         &req,
         &payout_id,
+        &profile_id,
         &connector_data.connector_name,
         payout_method_data.as_ref(),
     )
@@ -559,18 +559,8 @@ pub async fn create_recipient(
     let customer_details = payout_data.customer_details.to_owned();
     let connector_name = connector_data.connector_name.to_string();
 
-    let profile_id = core_utils::get_profile_id_from_business_details(
-        payout_data.payout_attempt.business_country,
-        payout_data.payout_attempt.business_label.as_ref(),
-        merchant_account,
-        payout_data.payout_attempt.profile_id.as_ref(),
-        &*state.store,
-        false,
-    )
-    .await?;
-
     // Create the connector label using {profile_id}_{connector_name}
-    let connector_label = format!("{profile_id}_{}", connector_name);
+    let connector_label = format!("{}_{}", payout_data.profile_id, connector_name);
 
     let (should_call_connector, _connector_customer_id) =
         helpers::should_call_payout_connector_create_customer(
@@ -1122,6 +1112,7 @@ pub async fn response_handler(
 }
 
 // DB entries
+#[allow(clippy::too_many_arguments)]
 #[cfg(feature = "payouts")]
 pub async fn payout_create_db_entries(
     state: &AppState,
@@ -1129,6 +1120,7 @@ pub async fn payout_create_db_entries(
     key_store: &domain::MerchantKeyStore,
     req: &payouts::PayoutCreateRequest,
     payout_id: &String,
+    profile_id: &String,
     connector_name: &api_enums::PayoutConnectors,
     stored_payout_method_data: Option<&payouts::PayoutMethodData>,
 ) -> RouterResult<PayoutData> {
@@ -1267,6 +1259,7 @@ pub async fn payout_create_db_entries(
             .cloned()
             .or(stored_payout_method_data.cloned()),
         merchant_connector_account: None,
+        profile_id: profile_id.to_owned(),
     })
 }
 
@@ -1277,6 +1270,8 @@ pub async fn make_payout_data(
     key_store: &domain::MerchantKeyStore,
     req: &payouts::PayoutRequest,
 ) -> RouterResult<PayoutData> {
+    use error_stack::IntoReport;
+
     let db = &*state.store;
     let merchant_id = &merchant_account.merchant_id;
     let payout_id = match req {
@@ -1316,6 +1311,14 @@ pub async fn make_payout_data(
         .await
         .map_or(None, |c| c);
 
+    let profile_id = payout_attempt
+        .profile_id
+        .clone()
+        .ok_or(errors::ApiErrorResponse::MissingRequiredField {
+            field_name: "profile_id or business_country, business_label",
+        })
+        .into_report()?;
+
     Ok(PayoutData {
         billing_address,
         customer_details,
@@ -1323,5 +1326,6 @@ pub async fn make_payout_data(
         payout_attempt,
         payout_method_data: None,
         merchant_connector_account: None,
+        profile_id,
     })
 }

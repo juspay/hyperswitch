@@ -40,32 +40,20 @@ pub async fn get_mca_for_payout<'a>(
     merchant_account: &domain::MerchantAccount,
     key_store: &domain::MerchantKeyStore,
     payout_data: &PayoutData,
-) -> RouterResult<(helpers::MerchantConnectorAccountType, String)> {
-    let payout_attempt = &payout_data.payout_attempt;
-    let profile_id = get_profile_id_from_business_details(
-        payout_attempt.business_country,
-        payout_attempt.business_label.as_ref(),
-        merchant_account,
-        payout_attempt.profile_id.as_ref(),
-        &*state.store,
-        false,
-    )
-    .await
-    .change_context(errors::ApiErrorResponse::InternalServerError)
-    .attach_printable("profile_id is not set in payout_attempt")?;
+) -> RouterResult<helpers::MerchantConnectorAccountType> {
     match payout_data.merchant_connector_account.to_owned() {
-        Some(mca) => Ok((mca, profile_id)),
+        Some(mca) => Ok(mca),
         None => {
             let merchant_connector_account = helpers::get_merchant_connector_account(
                 state,
                 merchant_account.merchant_id.as_str(),
                 None,
                 key_store,
-                &profile_id,
+                &payout_data.profile_id,
                 connector_id,
             )
             .await?;
-            Ok((merchant_connector_account, profile_id))
+            Ok(merchant_connector_account)
         }
     }
 }
@@ -80,7 +68,7 @@ pub async fn construct_payout_router_data<'a, F>(
     _request: &api_models::payouts::PayoutRequest,
     payout_data: &mut PayoutData,
 ) -> RouterResult<types::PayoutsRouterData<F>> {
-    let (merchant_connector_account, profile_id) = get_mca_for_payout(
+    let merchant_connector_account = get_mca_for_payout(
         state,
         connector_id,
         merchant_account,
@@ -126,7 +114,7 @@ pub async fn construct_payout_router_data<'a, F>(
     let payouts = &payout_data.payouts;
     let payout_attempt = &payout_data.payout_attempt;
     let customer_details = &payout_data.customer_details;
-    let connector_label = format!("{profile_id}_{}", payout_attempt.connector);
+    let connector_label = format!("{}_{}", payout_data.profile_id, payout_attempt.connector);
     let connector_customer_id = customer_details
         .as_ref()
         .and_then(|c| c.connector_customer.as_ref())

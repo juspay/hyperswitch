@@ -3999,8 +3999,12 @@ impl<F> TryFrom<&AdyenRouterData<&types::PayoutsRouterData<F>>> for AdyenPayoutC
                         iban: Some(b.iban),
                         tax_id: None,
                     },
-                    _ => Err(errors::ConnectorError::NotSupported {
-                        message: "Bank transfers via ACH or Bacs are not supported".to_string(),
+                    payouts::BankPayout::Ach(..) => Err(errors::ConnectorError::NotSupported {
+                        message: "Bank transfer via ACH is not supported".to_string(),
+                        connector: "Adyen",
+                    })?,
+                    payouts::BankPayout::Bacs(..) => Err(errors::ConnectorError::NotSupported {
+                        message: "Bank transfer via Bacs is not supported".to_string(),
                         connector: "Adyen",
                     })?,
                 };

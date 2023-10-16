@@ -57,7 +57,7 @@ pub async fn validate_create_request(
     state: &AppState,
     merchant_account: &domain::MerchantAccount,
     req: &payouts::PayoutCreateRequest,
-) -> RouterResult<(String, Option<payouts::PayoutMethodData>)> {
+) -> RouterResult<(String, Option<payouts::PayoutMethodData>, String)> {
     let merchant_id = &merchant_account.merchant_id;
 
     // Merchant ID
@@ -109,5 +109,16 @@ pub async fn validate_create_request(
         None => None,
     };
 
-    Ok((payout_id, payout_method_data))
+    // Profile ID
+    let profile_id = core_utils::get_profile_id_from_business_details(
+        req.business_country,
+        req.business_label.as_ref(),
+        merchant_account,
+        req.profile_id.as_ref(),
+        &*state.store,
+        false,
+    )
+    .await?;
+
+    Ok((payout_id, payout_method_data, profile_id))
 }

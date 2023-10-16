@@ -303,6 +303,11 @@ impl<T> ConnectorErrorExt<T> for error_stack::Result<T, errors::ConnectorError> 
                         field_names: field_names.to_vec(),
                     }
                 }
+                errors::ConnectorError::NotSupported { message, connector } => {
+                    errors::ApiErrorResponse::NotSupported {
+                        message: format!("{} by {}", message, connector),
+                    }
+                }
                 _ => errors::ApiErrorResponse::InternalServerError,
             };
             err.change_context(error)
