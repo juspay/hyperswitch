@@ -187,7 +187,7 @@ pub struct MerchantAccountUpdate {
     #[schema(max_length = 64)]
     pub default_profile: Option<String>,
 
-    pub payment_link_metadata: Option<serde_json::Value>,
+    pub payment_link_config: Option<serde_json::Value>,
 }
 
 #[derive(Clone, Debug, ToSchema, Serialize)]
@@ -282,7 +282,7 @@ pub struct MerchantAccountResponse {
     #[schema(value_type = ReconStatus, example = "not_requested")]
     pub recon_status: enums::ReconStatus,
 
-    pub payment_link_metadata: Option<serde_json::Value>,
+    pub payment_link_config: Option<serde_json::Value>,
 }
 
 #[derive(Clone, Debug, Deserialize, ToSchema, Serialize)]

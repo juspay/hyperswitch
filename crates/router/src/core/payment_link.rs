@@ -88,16 +88,23 @@ pub async fn intiate_payment_link_flow(
             field_name: "order_details",
         })?;
 
+    let (pub_key, currency, client_secret, return_url) = validate_sdk_requirements(
+        merchant_account.publishable_key,
+        payment_intent.currency,
+        payment_intent.client_secret,
+        (payment_intent.return_url, merchant_account.return_url),
+    )?;
+
     let payment_details = api_models::payments::PaymentLinkDetails {
         amount: payment_intent.amount,
-        currency: payment_intent.currency.unwrap_or_default(),
+        currency,
         payment_id: payment_intent.payment_id,
         merchant_name: merchant_account.merchant_name,
         order_details,
-        return_url: payment_intent.return_url.unwrap_or_default(),
+        return_url,
         expiry: fulfillment_time,
-        pub_key: merchant_account.publishable_key.unwrap_or_default(),
-        client_secret: payment_intent.client_secret.unwrap_or_default(),
+        pub_key,
+        client_secret,
         merchant_logo: payment_link_config
             .clone()
             .map(|pl_metadata| pl_metadata.merchant_logo.unwrap_or_default())
@@ -132,22 +139,32 @@ fn get_js_script(
 }
 
 fn get_color_scheme_css(
-    payment_link_metadata: Option<api_models::admin::PaymentLinkConfig>,
+    payment_link_config: Option<api_models::admin::PaymentLinkConfig>,
 ) -> String {
-    let (primary_color, primary_accent_color, secondary_color) = payment_link_metadata
-        .and_then(|pl_metadata| {
-            pl_metadata.color_scheme.map(|color| {
+    let (default_primary_color, default_accent_color, default_secondary_color) = (
+        "#C6C7C8".to_string(),
+        "#6A8EF5".to_string(),
+        "#0C48F6".to_string(),
+    );
+
+    let (primary_color, primary_accent_color, secondary_color) = payment_link_config
+        .and_then(|pl_config| {
+            pl_config.color_scheme.map(|color| {
                 (
-                    color.primary_color.unwrap_or("#C6C7C8".to_string()),
-                    color.primary_accent_color.unwrap_or("#6A8EF5".to_string()),
-                    color.secondary_color.unwrap_or("#0C48F6".to_string()),
+                    color.primary_color.unwrap_or(default_primary_color.clone()),
+                    color
+                        .primary_accent_color
+                        .unwrap_or(default_accent_color.clone()),
+                    color
+                        .secondary_color
+                        .unwrap_or(default_secondary_color.clone()),
                 )
             })
         })
         .unwrap_or((
-            "#C6C7C8".to_string(),
-            "#6A8EF5".to_string(),
-            "#0C48F6".to_string(),
+            default_primary_color,
+            default_accent_color,
+            default_secondary_color,
         ));
 
     format!(
@@ -157,4 +174,35 @@ fn get_color_scheme_css(
       --secondary-color: {secondary_color};
     }}"
     )
+}
+
+fn validate_sdk_requirements(
+    pub_key: Option<String>,
+    currency: Option<api_models::enums::Currency>,
+    client_secret: Option<String>,
+    return_url: (Option<String>, Option<String>),
+) -> Result<(String, api_models::enums::Currency, String, String), errors::ApiErrorResponse> {
+    let pub_key = pub_key.ok_or(errors::ApiErrorResponse::MissingRequiredField {
+        field_name: "pub_key",
+    })?;
+
+    let currency = currency.ok_or(errors::ApiErrorResponse::MissingRequiredField {
+        field_name: "currency",
+    })?;
+
+    let client_secret = client_secret.ok_or(errors::ApiErrorResponse::MissingRequiredField {
+        field_name: "client_secret",
+    })?;
+
+    let return_url = if let Some(merchant_account_return_url) = return_url.0 {
+        merchant_account_return_url
+    } else {
+        return_url
+            .1
+            .ok_or(errors::ApiErrorResponse::MissingRequiredField {
+                field_name: "return_url",
+            })?
+    };
+
+    Ok((pub_key, currency, client_secret, return_url))
 }

@@ -46,7 +46,7 @@ impl TryFrom<domain::MerchantAccount> for MerchantAccountResponse {
             is_recon_enabled: item.is_recon_enabled,
             default_profile: item.default_profile,
             recon_status: item.recon_status,
-            payment_link_metadata: item.payment_link_metadata,
+            payment_link_config: item.payment_link_config,
         })
     }
 }

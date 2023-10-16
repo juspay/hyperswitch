@@ -142,7 +142,7 @@ pub async fn create_merchant_account(
         .map(|pl_metadata| {
             utils::Encode::<admin_types::PaymentLinkConfig>::encode_to_value(pl_metadata)
                 .change_context(errors::ApiErrorResponse::InvalidDataValue {
-                    field_name: "payment_link_metadata",
+                    field_name: "payment_link_config",
                 })
         })
         .transpose()?;

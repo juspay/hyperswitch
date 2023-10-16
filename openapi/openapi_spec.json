@@ -6171,10 +6171,10 @@
             "description": "The id of the organization to which the merchant belongs to",
             "nullable": true
           },
-          "payment_link_metadata": {
+          "payment_link_config": {
             "allOf": [
               {
-                "$ref": "#/components/schemas/PaymentLinkMetadata"
+                "$ref": "#/components/schemas/PaymentLinkConfig"
               }
             ],
             "nullable": true
@@ -6352,7 +6352,7 @@
           "recon_status": {
             "$ref": "#/components/schemas/ReconStatus"
           },
-          "payment_link_metadata": {
+          "payment_link_config": {
             "nullable": true
           }
         }
@@ -6487,7 +6487,7 @@
             "nullable": true,
             "maxLength": 64
           },
-          "payment_link_metadata": {
+          "payment_link_config": {
             "nullable": true
           }
         }
@@ -7833,22 +7833,7 @@
           }
         }
       },
-      "PaymentLinkInitiateRequest": {
-        "type": "object",
-        "required": [
-          "merchant_id",
-          "payment_id"
-        ],
-        "properties": {
-          "merchant_id": {
-            "type": "string"
-          },
-          "payment_id": {
-            "type": "string"
-          }
-        }
-      },
-      "PaymentLinkMetadata": {
+      "PaymentLinkConfig": {
         "type": "object",
         "properties": {
           "merchant_logo": {
@@ -7862,6 +7847,21 @@
               }
             ],
             "nullable": true
+          }
+        }
+      },
+      "PaymentLinkInitiateRequest": {
+        "type": "object",
+        "required": [
+          "merchant_id",
+          "payment_id"
+        ],
+        "properties": {
+          "merchant_id": {
+            "type": "string"
+          },
+          "payment_id": {
+            "type": "string"
           }
         }
       },
