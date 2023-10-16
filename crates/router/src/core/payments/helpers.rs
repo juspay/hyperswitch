@@ -1413,11 +1413,7 @@ pub async fn retrieve_card_with_permanent_token(
             .attach_printable("card holder name was not saved in permanent locker")?,
         card_exp_month: card.card_exp_month,
         card_exp_year: card.card_exp_year,
-        card_cvc: card_cvc.get_required_value("card_cvc").change_context(
-            errors::ApiErrorResponse::MissingRequiredField {
-                field_name: "card_cvc",
-            },
-        )?,
+        card_cvc: card_cvc,
         card_issuer: card.card_brand,
         nick_name: card.nick_name.map(masking::Secret::new),
         card_network: None,
@@ -1433,6 +1429,7 @@ pub async fn make_pm_data<'a, F: Clone, R, Ctx: PaymentMethodRetrieve>(
     operation: BoxedOperation<'a, F, R, Ctx>,
     state: &'a AppState,
     payment_data: &mut PaymentData<F>,
+    key_store: &domain::MerchantKeyStore,
 ) -> RouterResult<(
     BoxedOperation<'a, F, R, Ctx>,
     Option<api::PaymentMethodData>,
@@ -1503,6 +1500,7 @@ pub async fn make_pm_data<'a, F: Clone, R, Ctx: PaymentMethodRetrieve>(
         (_, Some(hyperswitch_token)) => {
             let payment_method_details = Ctx::retrieve_payment_method_with_token(
                 state,
+                key_store,
                 &hyperswitch_token,
                 &payment_data.payment_intent,
                 card_cvc,
