@@ -557,16 +557,14 @@ impl<F: Clone, Ctx: PaymentMethodRetrieve>
         let order_details = payment_data.payment_intent.order_details.clone();
         let metadata = payment_data.payment_intent.metadata.clone();
         let authorized_amount = payment_data.payment_attempt.amount;
-        let (surcharge_amount, tax_amount) = payment_data
+        let surcharge_amount = payment_data
             .surcharge_details
             .as_ref()
-            .map(|surcharge_details| {
-                (
-                    surcharge_details.surcharge_amount,
-                    surcharge_details.tax_on_surcharge_amount,
-                )
-            })
-            .unzip();
+            .map(|surcharge_details| surcharge_details.surcharge_amount);
+        let tax_amount = payment_data
+            .surcharge_details
+            .as_ref()
+            .map(|surcharge_details| surcharge_details.tax_on_surcharge_amount);
         let payment_attempt_fut = db
             .update_payment_attempt_with_attempt_id(
                 payment_data.payment_attempt,
