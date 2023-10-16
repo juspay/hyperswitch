@@ -216,10 +216,6 @@ pub enum PaymentAttemptUpdate {
         status: storage_enums::AttemptStatus,
         amount_capturable: i64,
     },
-    SurchargeAmountUpdate {
-        surcharge_amount: Option<i64>,
-        tax_amount: Option<i64>,
-    },
     PreprocessingUpdate {
         status: storage_enums::AttemptStatus,
         payment_method_id: Option<Option<String>>,
@@ -517,14 +513,6 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
             },
             PaymentAttemptUpdate::SurchargeMetadataUpdate { surcharge_metadata } => Self {
                 surcharge_metadata,
-                ..Default::default()
-            },
-            PaymentAttemptUpdate::SurchargeAmountUpdate {
-                surcharge_amount,
-                tax_amount,
-            } => Self {
-                surcharge_amount,
-                tax_amount,
                 ..Default::default()
             },
         }
