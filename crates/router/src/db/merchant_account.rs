@@ -224,6 +224,7 @@ impl MerchantAccountInterface for Store {
         &self,
         organization_id: &str,
     ) -> CustomResult<Vec<domain::MerchantAccount>, errors::StorageError> {
+        use futures::future::try_join_all;
         let conn = connection::pg_connection_read(self).await?;
 
         let encrypted_merchant_accounts =
