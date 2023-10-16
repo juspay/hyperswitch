@@ -6,9 +6,10 @@ use crate::{
     connector_response::{ConnectorResponse, ConnectorResponseNew, ConnectorResponseUpdate},
     errors,
     payment_attempt::{PaymentAttempt, PaymentAttemptNew, PaymentAttemptUpdate},
-    payment_intent::{PaymentIntent, PaymentIntentNew, PaymentIntentUpdate},
+    payment_intent::{PaymentIntentNew, PaymentIntentUpdate},
     refund::{Refund, RefundNew, RefundUpdate},
     reverse_lookup::ReverseLookupNew,
+    PaymentIntent,
 };
 
 #[derive(Debug, Serialize, Deserialize)]

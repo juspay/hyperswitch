@@ -3,8 +3,8 @@ use common_enums as storage_enums;
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
 
-use super::payment_intent::PaymentIntent;
-use crate::{errors, mandates::MandateDataType, MerchantStorageScheme};
+use super::PaymentIntent;
+use crate::{errors, mandates::MandateDataType, ForeignIDRef, MerchantStorageScheme};
 
 #[async_trait::async_trait]
 pub trait PaymentAttemptInterface {
@@ -313,4 +313,10 @@ pub enum PaymentAttemptUpdate {
     SurchargeMetadataUpdate {
         surcharge_metadata: Option<serde_json::Value>,
     },
+}
+
+impl ForeignIDRef for PaymentAttempt {
+    fn foreign_id(&self) -> String {
+        self.attempt_id.clone()
+    }
 }

@@ -134,8 +134,8 @@ impl ConnectorCommon for Noon {
         Ok(ErrorResponse {
             status_code: res.status_code,
             code: response.result_code.to_string(),
-            message: response.message,
-            reason: Some(response.class_description),
+            message: response.class_description,
+            reason: Some(response.message),
         })
     }
 }
@@ -621,9 +621,13 @@ impl services::ConnectorRedirectResponse for Noon {
         &self,
         _query_params: &str,
         _json_payload: Option<serde_json::Value>,
-        _action: services::PaymentAction,
+        action: services::PaymentAction,
     ) -> CustomResult<payments::CallConnectorAction, errors::ConnectorError> {
-        Ok(payments::CallConnectorAction::Trigger)
+        match action {
+            services::PaymentAction::PSync | services::PaymentAction::CompleteAuthorize => {
+                Ok(payments::CallConnectorAction::Trigger)
+            }
+        }
     }
 }
 

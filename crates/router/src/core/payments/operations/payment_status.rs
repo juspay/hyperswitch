@@ -466,7 +466,7 @@ pub async fn get_payment_intent_payment_attempt(
                     .find_payment_attempt_by_payment_id_merchant_id_attempt_id(
                         pi.payment_id.as_str(),
                         merchant_id,
-                        pi.active_attempt_id.as_str(),
+                        pi.active_attempt.get_id().as_str(),
                         storage_scheme,
                     )
                     .await?;

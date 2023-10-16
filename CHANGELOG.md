@@ -4,6 +4,88 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 1.58.0 (2023-10-15)
+
+### Features
+
+- **connector:**
+  - [HELCIM] Implement Cards for Helcim ([#2210](https://github.com/juspay/hyperswitch/pull/2210)) ([`b5feab6`](https://github.com/juspay/hyperswitch/commit/b5feab61d950921c75267ad88e944e7e2c4af3ca))
+  - [Paypal] use connector request reference id as reference for paypal ([#2577](https://github.com/juspay/hyperswitch/pull/2577)) ([`500405d`](https://github.com/juspay/hyperswitch/commit/500405d78938772e0e9f8e3ce4f930d782c670fa))
+  - [Airwallex] Currency Unit Conversion ([#2571](https://github.com/juspay/hyperswitch/pull/2571)) ([`8971b17`](https://github.com/juspay/hyperswitch/commit/8971b17b073315f869e3c843b0aee7644dcf6479))
+  - [Klarna] Use connector_request_reference_id as reference to connector ([#2494](https://github.com/juspay/hyperswitch/pull/2494)) ([`2609ef6`](https://github.com/juspay/hyperswitch/commit/2609ef6aeb17e1e89d8f98ff84a2c33b9704e6b2))
+  - [Dlocal] Use connector_response_reference_id as reference to merchant ([#2446](https://github.com/juspay/hyperswitch/pull/2446)) ([`f6677b8`](https://github.com/juspay/hyperswitch/commit/f6677b8e9300a75810a39de5b60243e34cf1d76c))
+- **nexinets:** Use connector_request_reference_id as reference to the connector - Work In Progress  ([#2515](https://github.com/juspay/hyperswitch/pull/2515)) ([`088dce0`](https://github.com/juspay/hyperswitch/commit/088dce076d8d8ff86769717368150e09d7d92593))
+- **router:** Add Cancel Event in Webhooks and Mapping it in Stripe ([#2573](https://github.com/juspay/hyperswitch/pull/2573)) ([`92f7918`](https://github.com/juspay/hyperswitch/commit/92f7918e6f98460fb739d50b908ae33fda2f80b8))
+
+### Refactors
+
+- **connector:**
+  - [Worldline] Currency Unit Conversion ([#2569](https://github.com/juspay/hyperswitch/pull/2569)) ([`9f03a41`](https://github.com/juspay/hyperswitch/commit/9f03a4118ccdd6036d27074c9126a79d6e9b0495))
+  - [Authorizedotnet] Enhance currency Mapping with ConnectorCurrencyCommon Trait ([#2570](https://github.com/juspay/hyperswitch/pull/2570)) ([`d401975`](https://github.com/juspay/hyperswitch/commit/d4019751ff4acbd26abb2c32a600e8e6c55893f6))
+  - [noon] enhance response status mapping ([#2575](https://github.com/juspay/hyperswitch/pull/2575)) ([`053c79d`](https://github.com/juspay/hyperswitch/commit/053c79d248df0ff6ec702c3c301acc5654a1735a))
+- **storage:** Update paymentintent object to provide a relation with attempts ([#2502](https://github.com/juspay/hyperswitch/pull/2502)) ([`fbf3c03`](https://github.com/juspay/hyperswitch/commit/fbf3c03d418242b1f5f1a15c69029023d0b25b4e))
+
+### Testing
+
+- **postman:** Update postman collection files ([`08141ab`](https://github.com/juspay/hyperswitch/commit/08141abb3e87504bb4fe54fdfea92e6c889d729a))
+
+**Full Changelog:** [`v1.57.1+hotfix.1...v1.58.0`](https://github.com/juspay/hyperswitch/compare/v1.57.1+hotfix.1...v1.58.0)
+
+- - -
+
+
+## 1.57.1 (2023-10-12)
+
+### Bug Fixes
+
+- **connector:** Trigger Psync after redirection url ([#2422](https://github.com/juspay/hyperswitch/pull/2422)) ([`8029a89`](https://github.com/juspay/hyperswitch/commit/8029a895b2c27a1ac14a19aea23bbc06cc364809))
+
+**Full Changelog:** [`v1.57.0...v1.57.1`](https://github.com/juspay/hyperswitch/compare/v1.57.0...v1.57.1)
+
+- - -
+
+
+## 1.57.0 (2023-10-12)
+
+### Features
+
+- **connector:**
+  - [Tsys] Use `connector_response_reference_id` as reference to the connector ([#2546](https://github.com/juspay/hyperswitch/pull/2546)) ([`550377a`](https://github.com/juspay/hyperswitch/commit/550377a6c3943d9fec4ca6a8be5a5f3aafe109ab))
+  - [Cybersource] Use connector_request_reference_id as reference to the connector ([#2512](https://github.com/juspay/hyperswitch/pull/2512)) ([`81cb8da`](https://github.com/juspay/hyperswitch/commit/81cb8da4d47fe2a75330d39c665bb259faa35b00))
+  - [Iatapay] use connector_response_reference_id as reference to connector ([#2524](https://github.com/juspay/hyperswitch/pull/2524)) ([`ef647b7`](https://github.com/juspay/hyperswitch/commit/ef647b7ab942707a06971b6545c81168f28cb94c))
+  - [ACI] Use connector_request_reference_id as reference to the connector ([#2549](https://github.com/juspay/hyperswitch/pull/2549)) ([`c2ad200`](https://github.com/juspay/hyperswitch/commit/c2ad2002c0e6d673f62ec4c72c8fd98b07a05c0b))
+- **customers:** Add customer list endpoint ([#2564](https://github.com/juspay/hyperswitch/pull/2564)) ([`c26620e`](https://github.com/juspay/hyperswitch/commit/c26620e041add914abc60c6149787be62ea5985d))
+- **router:**
+  - Add kv implementation for update address in update payments flow ([#2542](https://github.com/juspay/hyperswitch/pull/2542)) ([`9f446bc`](https://github.com/juspay/hyperswitch/commit/9f446bc1742c06a7fab3d92128ba4e7d3be80ea6))
+  - Add payment link support ([#2105](https://github.com/juspay/hyperswitch/pull/2105)) ([`642085d`](https://github.com/juspay/hyperswitch/commit/642085dc745f87b4edd2f7a744c31b8979b23cfa))
+
+### Bug Fixes
+
+- **connector:**
+  - [noon] sync with reference_id ([#2544](https://github.com/juspay/hyperswitch/pull/2544)) ([`9ef60e4`](https://github.com/juspay/hyperswitch/commit/9ef60e425d0cbe764ce66c65c8c09b1992cbe99f))
+  - [braintree] add 3ds redirection error mapping and metadata validation ([#2552](https://github.com/juspay/hyperswitch/pull/2552)) ([`28d02f9`](https://github.com/juspay/hyperswitch/commit/28d02f94c6d52d05b6f520e4d48ba88adf7be619))
+- **router:** Add customer_id validation for `payment method create` flow ([#2543](https://github.com/juspay/hyperswitch/pull/2543)) ([`53d7604`](https://github.com/juspay/hyperswitch/commit/53d760460305e16f03d86f699acb035151dfdfad))
+- Percentage float inconsistency problem and api models changes to support surcharge feature ([#2550](https://github.com/juspay/hyperswitch/pull/2550)) ([`1ee1184`](https://github.com/juspay/hyperswitch/commit/1ee11849d4a60afbf3d05103cb491a11e905b811))
+- Consume profile_id throughout payouts flow ([#2501](https://github.com/juspay/hyperswitch/pull/2501)) ([`7eabd24`](https://github.com/juspay/hyperswitch/commit/7eabd24a4da6f82fd30f8a4be739962538654214))
+- Parse allowed_payment_method_types only if there is some value p… ([#2161](https://github.com/juspay/hyperswitch/pull/2161)) ([`46f1419`](https://github.com/juspay/hyperswitch/commit/46f14191ab7e036539ef3fd58acd9376b6b6b63c))
+
+### Refactors
+
+- **connector:**
+  - [Worldpay] Currency Unit Conversion ([#2436](https://github.com/juspay/hyperswitch/pull/2436)) ([`b78109b`](https://github.com/juspay/hyperswitch/commit/b78109bc93433e0886b0b8656231899df84da8cf))
+  - [noon] use connector_request_reference_id for sync ([#2558](https://github.com/juspay/hyperswitch/pull/2558)) ([`0889a6e`](https://github.com/juspay/hyperswitch/commit/0889a6ed0691abeed7bba44e7024545abcc74aef))
+  - [noon] update and add recommended fields  ([#2381](https://github.com/juspay/hyperswitch/pull/2381)) ([`751f16e`](https://github.com/juspay/hyperswitch/commit/751f16eaee254ab8f0068e2e9e81e3e4b7fe133f))
+- **worldline:** Use `connector_request_reference_id` as reference to the connector ([#2498](https://github.com/juspay/hyperswitch/pull/2498)) ([`efa5320`](https://github.com/juspay/hyperswitch/commit/efa53204e8ab1ef1192bcdc07ed99306475badbc))
+
+### Revert
+
+- Fix(connector): [noon] sync with reference_id ([#2556](https://github.com/juspay/hyperswitch/pull/2556)) ([`13be4d3`](https://github.com/juspay/hyperswitch/commit/13be4d36eac3d1e17d8ad9b3f3ef8993547f548b))
+
+**Full Changelog:** [`v1.56.0...v1.57.0`](https://github.com/juspay/hyperswitch/compare/v1.56.0...v1.57.0)
+
+- - -
+
+
 ## 1.56.0 (2023-10-11)
 
 ### Features
