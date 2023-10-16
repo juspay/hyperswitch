@@ -25,21 +25,25 @@ use super::{ephemeral_key::*, payment_methods::*, webhooks::*};
 use crate::{
     configs::settings,
     db::{StorageImpl, StorageInterface},
+    events::{event_logger::EventLogger, EventHandler},
     routes::cards_info::card_iin_info,
     services::get_store,
 };
 
 #[derive(Clone)]
-pub struct AppState {
+pub struct AppStateBase<E: EventHandler> {
     pub flow_name: String,
     pub store: Box<dyn StorageInterface>,
     pub conf: Arc<settings::Settings>,
+    pub event_handler: E,
     #[cfg(feature = "email")]
     pub email_client: Arc<dyn EmailClient>,
     #[cfg(feature = "kms")]
     pub kms_secrets: Arc<settings::ActiveKmsSecrets>,
     pub api_client: Box<dyn crate::services::ApiClient>,
 }
+
+pub type AppState = AppStateBase<EventLogger>;
 
 impl scheduler::SchedulerAppState for AppState {
     fn get_db(&self) -> Box<dyn SchedulerInterface> {
@@ -48,8 +52,10 @@ impl scheduler::SchedulerAppState for AppState {
 }
 
 pub trait AppStateInfo {
+    type Event: EventHandler;
     fn conf(&self) -> settings::Settings;
     fn store(&self) -> Box<dyn StorageInterface>;
+    fn event_handler(&self) -> &Self::Event;
     #[cfg(feature = "email")]
     fn email_client(&self) -> Arc<dyn EmailClient>;
     fn add_request_id(&mut self, request_id: Option<String>);
@@ -59,6 +65,7 @@ pub trait AppStateInfo {
 }
 
 impl AppStateInfo for AppState {
+    type Event = EventLogger;
     fn conf(&self) -> settings::Settings {
         self.conf.as_ref().to_owned()
     }
@@ -68,6 +75,9 @@ impl AppStateInfo for AppState {
     #[cfg(feature = "email")]
     fn email_client(&self) -> Arc<dyn EmailClient> {
         self.email_client.to_owned()
+    }
+    fn event_handler(&self) -> &Self::Event {
+        &self.event_handler
     }
     fn add_request_id(&mut self, request_id: Option<String>) {
         self.api_client.add_request_id(request_id);
@@ -137,6 +147,7 @@ impl AppState {
             #[cfg(feature = "kms")]
             kms_secrets: Arc::new(kms_secrets),
             api_client,
+            event_handler: EventLogger::default(),
         }
     }
 
