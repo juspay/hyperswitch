@@ -169,6 +169,39 @@
         ]
       }
     },
+    "/customers/list": {
+      "post": {
+        "tags": [
+          "Customers List"
+        ],
+        "summary": "List customers for a merchant",
+        "description": "List customers for a merchant\n\nTo filter and list the customers for a particular merchant id",
+        "operationId": "List all Customers for a Merchant",
+        "responses": {
+          "200": {
+            "description": "Customers retrieved",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/CustomerResponse"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid Data"
+          }
+        },
+        "security": [
+          {
+            "api_key": []
+          }
+        ]
+      }
+    },
     "/customers/payment_methods": {
       "get": {
         "tags": [
@@ -790,6 +823,60 @@
         "security": [
           {
             "api_key": []
+          }
+        ]
+      }
+    },
+    "/payment_link/{payment_link_id}": {
+      "get": {
+        "tags": [
+          "Payments"
+        ],
+        "summary": "Payments Link - Retrieve",
+        "description": "Payments Link - Retrieve\n\nTo retrieve the properties of a Payment Link. This may be used to get the status of a previously initiated payment or next action for an ongoing payment",
+        "operationId": "Retrieve a Payment Link",
+        "parameters": [
+          {
+            "name": "payment_link_id",
+            "in": "path",
+            "description": "The identifier for payment link",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RetrievePaymentLinkRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Gets details regarding payment link",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RetrievePaymentLinkResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No payment link found"
+          }
+        },
+        "security": [
+          {
+            "api_key": []
+          },
+          {
+            "publishable_key": []
           }
         ]
       }
@@ -3853,6 +3940,7 @@
           "globalpay",
           "globepay",
           "gocardless",
+          "helcim",
           "iatapay",
           "klarna",
           "mollie",
@@ -4989,6 +5077,7 @@
           "payment_succeeded",
           "payment_failed",
           "payment_processing",
+          "payment_cancelled",
           "action_required",
           "refund_succeeded",
           "refund_failed",
@@ -6077,7 +6166,7 @@
             "description": "Will be used to expire client secret after certain amount of time to be supplied in seconds\n(900) for 15 mins",
             "example": 900,
             "nullable": true,
-            "minimum": 0.0
+            "minimum": 0
           },
           "organization_id": {
             "type": "string",
@@ -6381,7 +6470,7 @@
             "format": "int32",
             "description": "Will be used to expire client secret after certain amount of time to be supplied in seconds\n(900) for 15 mins",
             "nullable": true,
-            "minimum": 0.0
+            "minimum": 0
           },
           "default_profile": {
             "type": "string",
@@ -6396,8 +6485,7 @@
         "description": "Create a new Merchant Connector for the merchant account. The connector could be a payment processor / facilitator / acquirer or specialized services like Fraud / Accounting etc.\"",
         "required": [
           "connector_type",
-          "connector_name",
-          "connector_label"
+          "connector_name"
         ],
         "properties": {
           "connector_type": {
@@ -6405,10 +6493,6 @@
           },
           "connector_name": {
             "$ref": "#/components/schemas/Connector"
-          },
-          "connector_label": {
-            "type": "string",
-            "example": "stripe_US_travel"
           },
           "merchant_connector_id": {
             "type": "string",
@@ -6621,11 +6705,6 @@
             "type": "string",
             "description": "Name of the Connector",
             "example": "stripe"
-          },
-          "connector_label": {
-            "type": "string",
-            "example": "stripe_US_travel",
-            "nullable": true
           },
           "merchant_connector_id": {
             "type": "string",
@@ -7149,13 +7228,13 @@
             "type": "integer",
             "format": "int64",
             "description": "Timestamp at which session is requested",
-            "minimum": 0.0
+            "minimum": 0
           },
           "expires_at": {
             "type": "integer",
             "format": "int64",
             "description": "Timestamp at which session expires",
-            "minimum": 0.0
+            "minimum": 0
           },
           "merchant_session_identifier": {
             "type": "string",
@@ -7189,7 +7268,7 @@
             "type": "integer",
             "format": "int32",
             "description": "The number of retries to get the session response",
-            "minimum": 0.0
+            "minimum": 0
           },
           "psp_id": {
             "type": "string",
@@ -7243,7 +7322,7 @@
             "format": "int32",
             "description": "The quantity of the product to be purchased",
             "example": 1,
-            "minimum": 0.0
+            "minimum": 0
           }
         }
       },
@@ -7266,7 +7345,7 @@
             "format": "int32",
             "description": "The quantity of the product to be purchased",
             "example": 1,
-            "minimum": 0.0
+            "minimum": 0
           },
           "amount": {
             "type": "integer",
@@ -7596,6 +7675,7 @@
                 "$ref": "#/components/schemas/AuthenticationType"
               }
             ],
+            "default": "three_ds",
             "nullable": true
           },
           "cancellation_reason": {
@@ -7710,6 +7790,50 @@
           }
         ]
       },
+      "PaymentLinkInitiateRequest": {
+        "type": "object",
+        "required": [
+          "merchant_id",
+          "payment_id"
+        ],
+        "properties": {
+          "merchant_id": {
+            "type": "string"
+          },
+          "payment_id": {
+            "type": "string"
+          }
+        }
+      },
+      "PaymentLinkObject": {
+        "type": "object",
+        "properties": {
+          "link_expiry": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "merchant_custom_domain_name": {
+            "type": "string",
+            "nullable": true
+          }
+        }
+      },
+      "PaymentLinkResponse": {
+        "type": "object",
+        "required": [
+          "link",
+          "payment_link_id"
+        ],
+        "properties": {
+          "link": {
+            "type": "string"
+          },
+          "payment_link_id": {
+            "type": "string"
+          }
+        }
+      },
       "PaymentListConstraints": {
         "type": "object",
         "properties": {
@@ -7736,8 +7860,8 @@
             "format": "int32",
             "description": "limit on the number of objects to return",
             "default": 10,
-            "maximum": 100.0,
-            "minimum": 0.0
+            "maximum": 100,
+            "minimum": 0
           },
           "created": {
             "type": "string",
@@ -7786,7 +7910,7 @@
           "size": {
             "type": "integer",
             "description": "The number of payments included in the list",
-            "minimum": 0.0
+            "minimum": 0
           },
           "data": {
             "type": "array",
@@ -8389,14 +8513,7 @@
       },
       "PaymentsCaptureRequest": {
         "type": "object",
-        "required": [
-          "payment_id"
-        ],
         "properties": {
-          "payment_id": {
-            "type": "string",
-            "description": "The unique identifier for the payment"
-          },
           "merchant_id": {
             "type": "string",
             "description": "The unique identifier for the merchant",
@@ -8461,7 +8578,7 @@
             "description": "The payment amount. Amount for the payment in lowest denomination of the currency. (i.e) in cents for USD denomination, in paisa for INR denomination etc.,",
             "example": 6540,
             "nullable": true,
-            "minimum": 0.0
+            "minimum": 0
           },
           "routing": {
             "allOf": [
@@ -8595,6 +8712,7 @@
                 "$ref": "#/components/schemas/AuthenticationType"
               }
             ],
+            "default": "three_ds",
             "nullable": true
           },
           "payment_method_data": {
@@ -8765,6 +8883,14 @@
             "allOf": [
               {
                 "$ref": "#/components/schemas/FeatureMetadata"
+              }
+            ],
+            "nullable": true
+          },
+          "payment_link_object": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PaymentLinkObject"
               }
             ],
             "nullable": true
@@ -8808,7 +8934,7 @@
             "description": "The payment amount. Amount for the payment in lowest denomination of the currency. (i.e) in cents for USD denomination, in paisa for INR denomination etc.,",
             "example": 6540,
             "nullable": true,
-            "minimum": 0.0
+            "minimum": 0
           },
           "routing": {
             "allOf": [
@@ -8942,6 +9068,7 @@
                 "$ref": "#/components/schemas/AuthenticationType"
               }
             ],
+            "default": "three_ds",
             "nullable": true
           },
           "payment_method_data": {
@@ -9112,6 +9239,14 @@
             "allOf": [
               {
                 "$ref": "#/components/schemas/FeatureMetadata"
+              }
+            ],
+            "nullable": true
+          },
+          "payment_link_object": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PaymentLinkObject"
               }
             ],
             "nullable": true
@@ -9157,7 +9292,12 @@
             "maxLength": 255
           },
           "status": {
-            "$ref": "#/components/schemas/IntentStatus"
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/IntentStatus"
+              }
+            ],
+            "default": "requires_confirmation"
           },
           "amount": {
             "type": "integer",
@@ -9171,7 +9311,7 @@
             "description": "The maximum amount that could be captured from the payment",
             "example": 6540,
             "nullable": true,
-            "minimum": 100.0
+            "minimum": 100
           },
           "amount_received": {
             "type": "integer",
@@ -9179,7 +9319,7 @@
             "description": "The amount which is already captured from the payment",
             "example": 6540,
             "nullable": true,
-            "minimum": 100.0
+            "minimum": 100
           },
           "connector": {
             "type": "string",
@@ -9367,6 +9507,7 @@
                 "$ref": "#/components/schemas/AuthenticationType"
               }
             ],
+            "default": "three_ds",
             "nullable": true
           },
           "statement_descriptor_name": {
@@ -9508,6 +9649,14 @@
             "type": "string",
             "description": "reference to the payment at connector side",
             "example": "993672945374576J",
+            "nullable": true
+          },
+          "payment_link": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PaymentLinkResponse"
+              }
+            ],
             "nullable": true
           },
           "profile_id": {
@@ -9847,6 +9996,11 @@
             "description": "Provide a reference to a stored payment method",
             "example": "187282ab-40ef-47a9-9206-5099ba31e432",
             "nullable": true
+          },
+          "profile_id": {
+            "type": "string",
+            "description": "The business profile to use for this payment, if not passed the default business profile\nassociated with the merchant account will be used.",
+            "nullable": true
           }
         }
       },
@@ -9996,6 +10150,11 @@
             "type": "string",
             "description": "If there was an error while calling the connectors the code is received here",
             "example": "E0001"
+          },
+          "profile_id": {
+            "type": "string",
+            "description": "The business profile that is associated with this payment",
+            "nullable": true
           }
         }
       },
@@ -10298,7 +10457,7 @@
           "count": {
             "type": "integer",
             "description": "The number of refunds included in the list",
-            "minimum": 0.0
+            "minimum": 0
           },
           "total_count": {
             "type": "integer",
@@ -10348,7 +10507,7 @@
             "description": "Total amount for which the refund is to be initiated. Amount for the payment in lowest denomination of the currency. (i.e) in cents for USD denomination, in paisa for INR denomination etc., If not provided, this will default to the full payment amount",
             "example": 6540,
             "nullable": true,
-            "minimum": 100.0
+            "minimum": 100
           },
           "reason": {
             "type": "string",
@@ -10363,6 +10522,7 @@
                 "$ref": "#/components/schemas/RefundType"
               }
             ],
+            "default": "Instant",
             "nullable": true
           },
           "metadata": {
@@ -10560,6 +10720,66 @@
           },
           "expiration": {
             "$ref": "#/components/schemas/ApiKeyExpiration"
+          }
+        }
+      },
+      "RetrievePaymentLinkRequest": {
+        "type": "object",
+        "properties": {
+          "client_secret": {
+            "type": "string",
+            "nullable": true
+          }
+        }
+      },
+      "RetrievePaymentLinkResponse": {
+        "type": "object",
+        "required": [
+          "payment_link_id",
+          "payment_id",
+          "merchant_id",
+          "link_to_pay",
+          "amount",
+          "created_at",
+          "last_modified_at"
+        ],
+        "properties": {
+          "payment_link_id": {
+            "type": "string"
+          },
+          "payment_id": {
+            "type": "string"
+          },
+          "merchant_id": {
+            "type": "string"
+          },
+          "link_to_pay": {
+            "type": "string"
+          },
+          "amount": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "currency": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/Currency"
+              }
+            ],
+            "nullable": true
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "last_modified_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "link_expiry": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
           }
         }
       },
@@ -11498,6 +11718,10 @@
     {
       "name": "Payouts",
       "description": "Create and manage payouts"
+    },
+    {
+      "name": "payment link",
+      "description": "Create payment link"
     }
   ]
 }

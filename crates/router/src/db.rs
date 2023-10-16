@@ -17,6 +17,7 @@ pub mod mandate;
 pub mod merchant_account;
 pub mod merchant_connector_account;
 pub mod merchant_key_store;
+pub mod payment_link;
 pub mod payment_method;
 pub mod payout_attempt;
 pub mod payouts;
@@ -74,6 +75,7 @@ pub trait StorageInterface:
     + cards_info::CardsInfoInterface
     + merchant_key_store::MerchantKeyStoreInterface
     + MasterKeyInterface
+    + payment_link::PaymentLinkInterface
     + RedisConnInterface
     + business_profile::BusinessProfileInterface
     + 'static
