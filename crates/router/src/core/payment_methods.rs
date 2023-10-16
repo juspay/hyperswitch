@@ -19,7 +19,7 @@ use crate::{
     routes::AppState,
     types::{
         api::{self, payments},
-        storage,
+        domain, storage,
     },
 };
 
@@ -36,6 +36,7 @@ pub trait PaymentMethodRetrieve {
 
     async fn retrieve_payment_method_with_token(
         state: &AppState,
+        key_store: &domain::MerchantKeyStore,
         token: &storage::PaymentTokenData,
         payment_intent: &PaymentIntent,
         card_cvc: Option<masking::Secret<String>>,
@@ -113,6 +114,7 @@ impl PaymentMethodRetrieve for Oss {
 
     async fn retrieve_payment_method_with_token(
         state: &AppState,
+        _key_store: &domain::MerchantKeyStore,
         token_data: &storage::PaymentTokenData,
         payment_intent: &PaymentIntent,
         card_cvc: Option<masking::Secret<String>>,

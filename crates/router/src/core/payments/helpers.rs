@@ -1433,6 +1433,7 @@ pub async fn make_pm_data<'a, F: Clone, R, Ctx: PaymentMethodRetrieve>(
     operation: BoxedOperation<'a, F, R, Ctx>,
     state: &'a AppState,
     payment_data: &mut PaymentData<F>,
+    key_store: &domain::MerchantKeyStore,
 ) -> RouterResult<(
     BoxedOperation<'a, F, R, Ctx>,
     Option<api::PaymentMethodData>,
@@ -1504,6 +1505,7 @@ pub async fn make_pm_data<'a, F: Clone, R, Ctx: PaymentMethodRetrieve>(
         (_, Some(hyperswitch_token)) => {
             let payment_method_details = Ctx::retrieve_payment_method_with_token(
                 state,
+                key_store,
                 &hyperswitch_token,
                 &payment_data.payment_intent,
                 card_cvc,
