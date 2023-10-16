@@ -883,40 +883,26 @@ fn get_error_response(
         .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
 
     match response.transaction_response {
-        Some(transaction_response) => Ok({
-            match transaction_response {
-                authorizedotnet::TransactionResponse::AuthorizedotnetTransactionResponse(
-                    payment_response,
-                ) => payment_response
-                    .errors
-                    .and_then(|errors| {
-                        errors.into_iter().next().map(|error| types::ErrorResponse {
-                            code: error.error_code,
-                            message: error.error_text.to_owned(),
-                            reason: Some(error.error_text),
-                            status_code,
-                        })
-                    })
-                    .unwrap_or_else(|| types::ErrorResponse {
-                        code: consts::NO_ERROR_CODE.to_string(), // authorizedotnet sends 200 in case of bad request so , this are hard coded to NO_ERROR_CODE and NO_ERROR_MESSAGE
-                        message: consts::NO_ERROR_MESSAGE.to_string(),
-                        reason: None,
-                        status_code,
-                    }),
-                authorizedotnet::TransactionResponse::AuthorizedotnetTransactionResponseError(
-                    _,
-                ) => {
-                    let message = &response.messages.message[0].text;
-                    types::ErrorResponse {
-                        code: consts::NO_ERROR_CODE.to_string(),
-                        message: message.to_string(),
-                        reason: Some(message.to_string()),
-                        status_code,
-                    }
-                }
-            }
-        }),
-        None => {
+        Some(authorizedotnet::TransactionResponse::AuthorizedotnetTransactionResponse(
+            payment_response,
+        )) => Ok(payment_response
+            .errors
+            .and_then(|errors| {
+                errors.into_iter().next().map(|error| types::ErrorResponse {
+                    code: error.error_code,
+                    message: error.error_text.to_owned(),
+                    reason: Some(error.error_text),
+                    status_code,
+                })
+            })
+            .unwrap_or_else(|| types::ErrorResponse {
+                code: consts::NO_ERROR_CODE.to_string(), // authorizedotnet sends 200 in case of bad request so this are hard coded to NO_ERROR_CODE and NO_ERROR_MESSAGE
+                message: consts::NO_ERROR_MESSAGE.to_string(),
+                reason: None,
+                status_code,
+            })),
+        Some(authorizedotnet::TransactionResponse::AuthorizedotnetTransactionResponseError(_))
+        | None => {
             let message = &response.messages.message[0].text;
             Ok(types::ErrorResponse {
                 code: consts::NO_ERROR_CODE.to_string(),
