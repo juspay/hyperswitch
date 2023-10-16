@@ -235,7 +235,10 @@ impl<F: Clone, Ctx: PaymentMethodRetrieve>
             Some(metadata) => db
                 .update_payment_intent(
                     payment_data.payment_intent,
-                    storage::PaymentIntentUpdate::MetadataUpdate { metadata },
+                    storage::PaymentIntentUpdate::MetadataUpdate {
+                        metadata,
+                        updated_by: storage_scheme,
+                    },
                     storage_scheme,
                 )
                 .await

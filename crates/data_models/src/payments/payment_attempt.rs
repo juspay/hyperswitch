@@ -220,15 +220,18 @@ pub enum PaymentAttemptUpdate {
         business_sub_label: Option<String>,
         amount_to_capture: Option<i64>,
         capture_method: Option<storage_enums::CaptureMethod>,
+        updated_by: storage_enums::MerchantStorageScheme,
     },
     UpdateTrackers {
         payment_token: Option<String>,
         connector: Option<String>,
         straight_through_algorithm: Option<serde_json::Value>,
         amount_capturable: Option<i64>,
+        updated_by: storage_enums::MerchantStorageScheme,
     },
     AuthenticationTypeUpdate {
         authentication_type: storage_enums::AuthenticationType,
+        updated_by: storage_enums::MerchantStorageScheme,
     },
     ConfirmUpdate {
         amount: i64,
@@ -247,15 +250,18 @@ pub enum PaymentAttemptUpdate {
         error_code: Option<Option<String>>,
         error_message: Option<Option<String>>,
         amount_capturable: Option<i64>,
+        updated_by: storage_enums::MerchantStorageScheme,
     },
     RejectUpdate {
         status: storage_enums::AttemptStatus,
         error_code: Option<Option<String>>,
         error_message: Option<Option<String>>,
+        updated_by: storage_enums::MerchantStorageScheme,
     },
     VoidUpdate {
         status: storage_enums::AttemptStatus,
         cancellation_reason: Option<String>,
+        updated_by: storage_enums::MerchantStorageScheme,
     },
     ResponseUpdate {
         status: storage_enums::AttemptStatus,
@@ -271,6 +277,7 @@ pub enum PaymentAttemptUpdate {
         error_reason: Option<Option<String>>,
         connector_response_reference_id: Option<String>,
         amount_capturable: Option<i64>,
+        updated_by: storage_enums::MerchantStorageScheme,
     },
     UnresolvedResponseUpdate {
         status: storage_enums::AttemptStatus,
@@ -281,9 +288,11 @@ pub enum PaymentAttemptUpdate {
         error_message: Option<Option<String>>,
         error_reason: Option<Option<String>>,
         connector_response_reference_id: Option<String>,
+        updated_by: storage_enums::MerchantStorageScheme,
     },
     StatusUpdate {
         status: storage_enums::AttemptStatus,
+        updated_by: storage_enums::MerchantStorageScheme,
     },
     ErrorUpdate {
         connector: Option<String>,
@@ -292,17 +301,21 @@ pub enum PaymentAttemptUpdate {
         error_message: Option<Option<String>>,
         error_reason: Option<Option<String>>,
         amount_capturable: Option<i64>,
+        updated_by: storage_enums::MerchantStorageScheme,
     },
     MultipleCaptureCountUpdate {
         multiple_capture_count: i16,
+        updated_by: storage_enums::MerchantStorageScheme,
     },
     SurchargeAmountUpdate {
         surcharge_amount: Option<i64>,
         tax_amount: Option<i64>,
+        updated_by: storage_enums::MerchantStorageScheme,
     },
     AmountToCaptureUpdate {
         status: storage_enums::AttemptStatus,
         amount_capturable: i64,
+        updated_by: storage_enums::MerchantStorageScheme,
     },
     PreprocessingUpdate {
         status: storage_enums::AttemptStatus,
@@ -311,9 +324,11 @@ pub enum PaymentAttemptUpdate {
         preprocessing_step_id: Option<String>,
         connector_transaction_id: Option<String>,
         connector_response_reference_id: Option<String>,
+        updated_by: storage_enums::MerchantStorageScheme,
     },
     SurchargeMetadataUpdate {
         surcharge_metadata: Option<serde_json::Value>,
+        updated_by: storage_enums::MerchantStorageScheme,
     },
 }
 

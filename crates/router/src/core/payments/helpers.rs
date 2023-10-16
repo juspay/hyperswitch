@@ -2942,6 +2942,7 @@ impl AttemptType {
                             ),
                             active_attempt_id: new_payment_attempt.attempt_id.clone(),
                             attempt_count: new_attempt_count,
+                            updated_by: storage_scheme,
                         },
                         storage_scheme,
                     )

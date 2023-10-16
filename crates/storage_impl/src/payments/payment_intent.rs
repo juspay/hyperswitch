@@ -896,37 +896,49 @@ impl DataModelExt for PaymentIntentUpdate {
                 status,
                 amount_captured,
                 return_url,
+                updated_by,
             } => DieselPaymentIntentUpdate::ResponseUpdate {
                 status,
                 amount_captured,
                 return_url,
+                updated_by,
             },
-            Self::MetadataUpdate { metadata } => {
-                DieselPaymentIntentUpdate::MetadataUpdate { metadata }
-            }
+            Self::MetadataUpdate {
+                metadata,
+                updated_by,
+            } => DieselPaymentIntentUpdate::MetadataUpdate {
+                metadata,
+                updated_by,
+            },
             Self::ReturnUrlUpdate {
                 return_url,
                 status,
                 customer_id,
                 shipping_address_id,
                 billing_address_id,
+                updated_by,
             } => DieselPaymentIntentUpdate::ReturnUrlUpdate {
                 return_url,
                 status,
                 customer_id,
                 shipping_address_id,
                 billing_address_id,
+                updated_by,
             },
             Self::MerchantStatusUpdate {
                 status,
                 shipping_address_id,
                 billing_address_id,
+                updated_by,
             } => DieselPaymentIntentUpdate::MerchantStatusUpdate {
                 status,
                 shipping_address_id,
                 billing_address_id,
+                updated_by,
             },
-            Self::PGStatusUpdate { status } => DieselPaymentIntentUpdate::PGStatusUpdate { status },
+            Self::PGStatusUpdate { status, updated_by } => {
+                DieselPaymentIntentUpdate::PGStatusUpdate { status, updated_by }
+            }
             Self::Update {
                 amount,
                 currency,
@@ -944,6 +956,7 @@ impl DataModelExt for PaymentIntentUpdate {
                 order_details,
                 metadata,
                 payment_confirm_source,
+                updated_by,
             } => DieselPaymentIntentUpdate::Update {
                 amount,
                 currency,
@@ -961,32 +974,43 @@ impl DataModelExt for PaymentIntentUpdate {
                 order_details,
                 metadata,
                 payment_confirm_source,
+                updated_by,
             },
             Self::PaymentAttemptAndAttemptCountUpdate {
                 active_attempt_id,
                 attempt_count,
+                updated_by,
             } => DieselPaymentIntentUpdate::PaymentAttemptAndAttemptCountUpdate {
                 active_attempt_id,
                 attempt_count,
+                updated_by,
             },
             Self::StatusAndAttemptUpdate {
                 status,
                 active_attempt_id,
                 attempt_count,
+                updated_by,
             } => DieselPaymentIntentUpdate::StatusAndAttemptUpdate {
                 status,
                 active_attempt_id,
                 attempt_count,
+                updated_by,
             },
-            Self::ApproveUpdate { merchant_decision } => {
-                DieselPaymentIntentUpdate::ApproveUpdate { merchant_decision }
-            }
+            Self::ApproveUpdate {
+                merchant_decision,
+                updated_by,
+            } => DieselPaymentIntentUpdate::ApproveUpdate {
+                merchant_decision,
+                updated_by,
+            },
             Self::RejectUpdate {
                 status,
                 merchant_decision,
+                updated_by,
             } => DieselPaymentIntentUpdate::RejectUpdate {
                 status,
                 merchant_decision,
+                updated_by,
             },
         }
     }

@@ -440,6 +440,7 @@ impl<F: Clone, Ctx: PaymentMethodRetrieve>
                         true => Some(authorized_amount),
                         false => None,
                     },
+                    updated_by: storage_scheme,
                 },
                 storage_scheme,
             )
@@ -457,6 +458,7 @@ impl<F: Clone, Ctx: PaymentMethodRetrieve>
                     customer_id,
                     shipping_address_id: None,
                     billing_address_id: None,
+                    updated_by: storage_scheme,
                 },
                 storage_scheme,
             )

@@ -136,15 +136,18 @@ pub enum PaymentAttemptUpdate {
         business_sub_label: Option<String>,
         amount_to_capture: Option<i64>,
         capture_method: Option<storage_enums::CaptureMethod>,
+        updated_by: storage_enums::MerchantStorageScheme,
     },
     UpdateTrackers {
         payment_token: Option<String>,
         connector: Option<String>,
         straight_through_algorithm: Option<serde_json::Value>,
         amount_capturable: Option<i64>,
+        updated_by: storage_enums::MerchantStorageScheme,
     },
     AuthenticationTypeUpdate {
         authentication_type: storage_enums::AuthenticationType,
+        updated_by: storage_enums::MerchantStorageScheme,
     },
     ConfirmUpdate {
         amount: i64,
@@ -163,15 +166,18 @@ pub enum PaymentAttemptUpdate {
         error_code: Option<Option<String>>,
         error_message: Option<Option<String>>,
         amount_capturable: Option<i64>,
+        updated_by: storage_enums::MerchantStorageScheme,
     },
     VoidUpdate {
         status: storage_enums::AttemptStatus,
         cancellation_reason: Option<String>,
+        updated_by: storage_enums::MerchantStorageScheme,
     },
     RejectUpdate {
         status: storage_enums::AttemptStatus,
         error_code: Option<Option<String>>,
         error_message: Option<Option<String>>,
+        updated_by: storage_enums::MerchantStorageScheme,
     },
     ResponseUpdate {
         status: storage_enums::AttemptStatus,
@@ -187,6 +193,7 @@ pub enum PaymentAttemptUpdate {
         error_reason: Option<Option<String>>,
         connector_response_reference_id: Option<String>,
         amount_capturable: Option<i64>,
+        updated_by: storage_enums::MerchantStorageScheme,
     },
     UnresolvedResponseUpdate {
         status: storage_enums::AttemptStatus,
@@ -197,9 +204,11 @@ pub enum PaymentAttemptUpdate {
         error_message: Option<Option<String>>,
         error_reason: Option<Option<String>>,
         connector_response_reference_id: Option<String>,
+        updated_by: storage_enums::MerchantStorageScheme,
     },
     StatusUpdate {
         status: storage_enums::AttemptStatus,
+        updated_by: storage_enums::MerchantStorageScheme,
     },
     ErrorUpdate {
         connector: Option<String>,
@@ -208,17 +217,21 @@ pub enum PaymentAttemptUpdate {
         error_message: Option<Option<String>>,
         error_reason: Option<Option<String>>,
         amount_capturable: Option<i64>,
+        updated_by: storage_enums::MerchantStorageScheme,
     },
     MultipleCaptureCountUpdate {
         multiple_capture_count: i16,
+        updated_by: storage_enums::MerchantStorageScheme,
     },
     AmountToCaptureUpdate {
         status: storage_enums::AttemptStatus,
         amount_capturable: i64,
+        updated_by: storage_enums::MerchantStorageScheme,
     },
     SurchargeAmountUpdate {
         surcharge_amount: Option<i64>,
         tax_amount: Option<i64>,
+        updated_by: storage_enums::MerchantStorageScheme,
     },
     PreprocessingUpdate {
         status: storage_enums::AttemptStatus,
@@ -227,9 +240,11 @@ pub enum PaymentAttemptUpdate {
         preprocessing_step_id: Option<String>,
         connector_transaction_id: Option<String>,
         connector_response_reference_id: Option<String>,
+        updated_by: storage_enums::MerchantStorageScheme,
     },
     SurchargeMetadataUpdate {
         surcharge_metadata: Option<serde_json::Value>,
+        updated_by: storage_enums::MerchantStorageScheme,
     },
 }
 
@@ -267,6 +282,7 @@ pub struct PaymentAttemptUpdateInternal {
     tax_amount: Option<i64>,
     amount_capturable: Option<i64>,
     surcharge_metadata: Option<serde_json::Value>,
+    updated_by: storage_enums::MerchantStorageScheme,
 }
 
 impl PaymentAttemptUpdate {
@@ -294,6 +310,7 @@ impl PaymentAttemptUpdate {
                 .preprocessing_step_id
                 .or(source.preprocessing_step_id),
             surcharge_metadata: pa_update.surcharge_metadata.or(source.surcharge_metadata),
+            updated_by: pa_update.updated_by,
             ..source
         }
     }
@@ -316,6 +333,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 business_sub_label,
                 amount_to_capture,
                 capture_method,
+                updated_by,
             } => Self {
                 amount: Some(amount),
                 currency: Some(currency),
@@ -331,13 +349,16 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 business_sub_label,
                 amount_to_capture,
                 capture_method,
+                updated_by,
                 ..Default::default()
             },
             PaymentAttemptUpdate::AuthenticationTypeUpdate {
                 authentication_type,
+                updated_by,
             } => Self {
                 authentication_type: Some(authentication_type),
                 modified_at: Some(common_utils::date_time::now()),
+                updated_by,
                 ..Default::default()
             },
             PaymentAttemptUpdate::ConfirmUpdate {
@@ -357,6 +378,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 error_code,
                 error_message,
                 amount_capturable,
+                updated_by,
             } => Self {
                 amount: Some(amount),
                 currency: Some(currency),
@@ -375,24 +397,29 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 error_code,
                 error_message,
                 amount_capturable,
+                updated_by,
                 ..Default::default()
             },
             PaymentAttemptUpdate::VoidUpdate {
                 status,
                 cancellation_reason,
+                updated_by,
             } => Self {
                 status: Some(status),
                 cancellation_reason,
+                updated_by,
                 ..Default::default()
             },
             PaymentAttemptUpdate::RejectUpdate {
                 status,
                 error_code,
                 error_message,
+                updated_by,
             } => Self {
                 status: Some(status),
                 error_code,
                 error_message,
+                updated_by,
                 ..Default::default()
             },
             PaymentAttemptUpdate::ResponseUpdate {
@@ -409,6 +436,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 error_reason,
                 connector_response_reference_id,
                 amount_capturable,
+                updated_by,
             } => Self {
                 status: Some(status),
                 connector,
@@ -424,6 +452,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 error_reason,
                 connector_response_reference_id,
                 amount_capturable,
+                updated_by,
                 ..Default::default()
             },
             PaymentAttemptUpdate::ErrorUpdate {
@@ -433,6 +462,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 error_message,
                 error_reason,
                 amount_capturable,
+                updated_by,
             } => Self {
                 connector,
                 status: Some(status),
@@ -441,10 +471,12 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 modified_at: Some(common_utils::date_time::now()),
                 error_reason,
                 amount_capturable,
+                updated_by,
                 ..Default::default()
             },
-            PaymentAttemptUpdate::StatusUpdate { status } => Self {
+            PaymentAttemptUpdate::StatusUpdate { status, updated_by } => Self {
                 status: Some(status),
+                updated_by,
                 ..Default::default()
             },
             PaymentAttemptUpdate::UpdateTrackers {
@@ -452,11 +484,13 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 connector,
                 straight_through_algorithm,
                 amount_capturable,
+                updated_by,
             } => Self {
                 payment_token,
                 connector,
                 straight_through_algorithm,
                 amount_capturable,
+                updated_by,
                 ..Default::default()
             },
             PaymentAttemptUpdate::UnresolvedResponseUpdate {
@@ -468,6 +502,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 error_message,
                 error_reason,
                 connector_response_reference_id,
+                updated_by,
             } => Self {
                 status: Some(status),
                 connector,
@@ -478,6 +513,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 error_message,
                 error_reason,
                 connector_response_reference_id,
+                updated_by,
                 ..Default::default()
             },
             PaymentAttemptUpdate::PreprocessingUpdate {
@@ -487,6 +523,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 preprocessing_step_id,
                 connector_transaction_id,
                 connector_response_reference_id,
+                updated_by,
             } => Self {
                 status: Some(status),
                 payment_method_id,
@@ -495,32 +532,43 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 preprocessing_step_id,
                 connector_transaction_id,
                 connector_response_reference_id,
+                updated_by,
                 ..Default::default()
             },
             PaymentAttemptUpdate::MultipleCaptureCountUpdate {
                 multiple_capture_count,
+                updated_by,
             } => Self {
                 multiple_capture_count: Some(multiple_capture_count),
+                updated_by,
                 ..Default::default()
             },
             PaymentAttemptUpdate::AmountToCaptureUpdate {
                 status,
                 amount_capturable,
+                updated_by,
             } => Self {
                 status: Some(status),
                 amount_capturable: Some(amount_capturable),
+                updated_by,
                 ..Default::default()
             },
-            PaymentAttemptUpdate::SurchargeMetadataUpdate { surcharge_metadata } => Self {
+            PaymentAttemptUpdate::SurchargeMetadataUpdate {
                 surcharge_metadata,
+                updated_by,
+            } => Self {
+                surcharge_metadata,
+                updated_by,
                 ..Default::default()
             },
             PaymentAttemptUpdate::SurchargeAmountUpdate {
                 surcharge_amount,
                 tax_amount,
+                updated_by,
             } => Self {
                 surcharge_amount,
                 tax_amount,
+                updated_by,
                 ..Default::default()
             },
         }

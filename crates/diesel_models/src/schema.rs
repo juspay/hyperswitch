@@ -821,6 +821,7 @@ diesel::table! {
         refund_error_code -> Nullable<Text>,
         #[max_length = 64]
         profile_id -> Nullable<Varchar>,
+        updated_by -> MerchantStorageScheme,
     }
 }
 

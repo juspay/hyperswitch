@@ -268,6 +268,7 @@ impl<F: Clone, Ctx: PaymentMethodRetrieve>
                     payment_data.payment_attempt,
                     storage::PaymentAttemptUpdate::MultipleCaptureCountUpdate {
                         multiple_capture_count: multiple_capture_data.get_captures_count()?,
+                        updated_by: storage_scheme,
                     },
                     storage_scheme,
                 )

@@ -8,5 +8,6 @@ ALTER TABLE address DROP column updated_by;
 
 ALTER TABLE connector_response DROP column updated_by;
 
+ALTER TABLE refund DROP column updated_by;
 
 

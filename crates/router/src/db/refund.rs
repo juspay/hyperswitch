@@ -367,6 +367,7 @@ mod storage {
                         description: new.description.clone(),
                         refund_reason: new.refund_reason.clone(),
                         profile_id: new.profile_id.clone(),
+                        updated_by: new.updated_by,
                     };
 
                     let field = format!(
@@ -803,6 +804,7 @@ impl RefundInterface for MockDb {
             description: new.description,
             refund_reason: new.refund_reason.clone(),
             profile_id: new.profile_id,
+            updated_by: new.updated_by,
         };
         refunds.push(refund.clone());
         Ok(refund)
