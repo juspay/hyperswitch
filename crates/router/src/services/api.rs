@@ -92,6 +92,13 @@ pub trait ConnectorValidation: ConnectorCommon {
     fn is_webhook_source_verification_mandatory(&self) -> bool {
         false
     }
+
+    fn validate_if_surcharge_supported(&self) -> CustomResult<(), errors::ConnectorError> {
+        Err(errors::ConnectorError::NotSupported {
+            message: "Surcharge",
+            connector: self.id(),
+        })
+    }
 }
 
 #[async_trait::async_trait]

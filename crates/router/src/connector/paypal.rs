@@ -211,6 +211,10 @@ impl ConnectorValidation for Paypal {
             ),
         }
     }
+
+    fn validate_if_surcharge_supported(&self) -> CustomResult<(), errors::ConnectorError> {
+        Ok(())
+    }
 }
 
 impl
