@@ -76,7 +76,7 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
         if self.request.surcharge_details.is_some() {
             connector
                 .connector
-                .validate_if_surcharge_implemeted()
+                .validate_if_surcharge_implemented()
                 .to_payment_failed_response()?;
         }
 
