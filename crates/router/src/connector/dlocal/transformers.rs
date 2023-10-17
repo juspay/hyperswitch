@@ -1,4 +1,4 @@
-use api_models::payments::{AddressDetails};
+use api_models::payments::AddressDetails;
 use common_utils::pii::Email;
 use error_stack::ResultExt;
 use masking::{PeekInterface, Secret};
