@@ -388,7 +388,7 @@ async fn should_fail_payment_for_invalid_exp_month() {
                     quantity: 1,
                     amount: 1000,
                     product_img_link: None,
-                    requires_shipping: false
+                    requires_shipping: false,
                 }]),
                 email: Some(Email::from_str("test@gmail.com").unwrap()),
                 webhook_url: Some("https://1635-116-74-253-164.ngrok-free.app".to_string()),

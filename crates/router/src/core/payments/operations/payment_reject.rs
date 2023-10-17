@@ -160,7 +160,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
                 surcharge_details: None,
                 frm_message: frm_response.ok(),
                 payment_link_data: None,
-                frm_metadata: None
+                frm_metadata: None,
             },
             None,
         ))

@@ -336,7 +336,7 @@ pub async fn construct_refund_router_data<'a, F>(
         connector_http_status_code: None,
         external_latency: None,
         apple_pay_flow: None,
-        frm_metadata: None
+        frm_metadata: None,
     };
 
     Ok(router_data)
@@ -744,7 +744,7 @@ pub async fn construct_upload_file_router_data<'a>(
         connector_http_status_code: None,
         external_latency: None,
         apple_pay_flow: None,
-        frm_metadata: None
+        frm_metadata: None,
     };
     Ok(router_data)
 }
@@ -834,7 +834,7 @@ pub async fn construct_defend_dispute_router_data<'a>(
         connector_http_status_code: None,
         external_latency: None,
         apple_pay_flow: None,
-        frm_metadata: None
+        frm_metadata: None,
     };
     Ok(router_data)
 }
@@ -917,7 +917,7 @@ pub async fn construct_retrieve_file_router_data<'a>(
         connector_http_status_code: None,
         external_latency: None,
         apple_pay_flow: None,
-        frm_metadata: None
+        frm_metadata: None,
     };
     Ok(router_data)
 }

@@ -309,16 +309,9 @@ pub struct PaymentsRequest {
     /// The type of the payment that differentiates between normal and various types of mandate payments
     #[schema(value_type = Option<PaymentType>)]
     pub payment_type: Option<api_enums::PaymentType>,
-    
+
     /// additional data related to some frm connectors
     pub frm_metadata: Option<serde_json::Value>,
-
-}
-
-#[derive(Default, Debug, Clone, serde::Serialize, serde::Deserialize, Copy, ToSchema)]
-pub struct RequestSurchargeDetails {
-    pub surcharge_amount: i64,
-    pub tax_amount: Option<i64>,
 }
 
 #[derive(Default, Debug, Clone, serde::Serialize, serde::Deserialize, Copy, ToSchema)]

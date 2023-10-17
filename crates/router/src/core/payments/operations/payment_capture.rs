@@ -234,7 +234,6 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
                 frm_message: None,
                 payment_link_data: None,
                 frm_metadata: None,
-            
             },
             None,
         ))
