@@ -684,9 +684,9 @@ diesel::table! {
     use crate::enums::diesel_exports::*;
 
     payout_attempt (payout_attempt_id) {
-        #[max_length = 64]
+        #[max_length = 128]
         payout_attempt_id -> Varchar,
-        #[max_length = 64]
+        #[max_length = 128]
         payout_id -> Varchar,
         #[max_length = 64]
         customer_id -> Varchar,
@@ -711,7 +711,7 @@ diesel::table! {
         created_at -> Timestamp,
         last_modified_at -> Timestamp,
         #[max_length = 64]
-        profile_id -> Nullable<Varchar>,
+        profile_id -> Varchar,
     }
 }
 
@@ -720,7 +720,7 @@ diesel::table! {
     use crate::enums::diesel_exports::*;
 
     payouts (payout_id) {
-        #[max_length = 64]
+        #[max_length = 128]
         payout_id -> Varchar,
         #[max_length = 64]
         merchant_id -> Varchar,

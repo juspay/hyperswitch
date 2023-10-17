@@ -1221,7 +1221,6 @@ pub async fn payout_create_db_entries(
     } else {
         storage_enums::PayoutStatus::RequiresPayoutMethodData
     };
-    let _id = core_utils::get_or_generate_uuid("payout_attempt_id", None)?;
     let payout_attempt_id = format!("{}_{}", merchant_id.to_owned(), payout_id.to_owned());
 
     let payout_attempt_req = storage::PayoutAttemptNew::default()
@@ -1237,7 +1236,7 @@ pub async fn payout_create_db_entries(
         .set_payout_token(req.payout_token.to_owned())
         .set_created_at(Some(common_utils::date_time::now()))
         .set_last_modified_at(Some(common_utils::date_time::now()))
-        .set_profile_id(req.profile_id.to_owned())
+        .set_profile_id(Some(profile_id.to_string()))
         .to_owned();
     let payout_attempt = db
         .insert_payout_attempt(payout_attempt_req)
@@ -1270,8 +1269,6 @@ pub async fn make_payout_data(
     key_store: &domain::MerchantKeyStore,
     req: &payouts::PayoutRequest,
 ) -> RouterResult<PayoutData> {
-    use error_stack::IntoReport;
-
     let db = &*state.store;
     let merchant_id = &merchant_account.merchant_id;
     let payout_id = match req {
@@ -1311,13 +1308,7 @@ pub async fn make_payout_data(
         .await
         .map_or(None, |c| c);
 
-    let profile_id = payout_attempt
-        .profile_id
-        .clone()
-        .ok_or(errors::ApiErrorResponse::MissingRequiredField {
-            field_name: "profile_id or business_country, business_label",
-        })
-        .into_report()?;
+    let profile_id = payout_attempt.profile_id.clone();
 
     Ok(PayoutData {
         billing_address,

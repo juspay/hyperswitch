@@ -2,7 +2,7 @@
   "variable": [
     {
       "key": "baseUrl",
-      "value": "https://integ.hyperswitch.io",
+      "value": "",
       "type": "string"
     },
     {
