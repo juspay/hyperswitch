@@ -2,6 +2,8 @@
 
 The heart of `newman`(with directory support) and `UI-tests`
 
+> If you're developing a collection and you want to learn more about it, click [_**here**_](/README.md)
+
 ## Newman
 
 - Make sure you that you _**do not**_ have the newman (from the Postman team) installed but rather the `newman` fork with directory support

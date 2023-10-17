@@ -180,6 +180,8 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::admin::MerchantConnectorDetailsWrap,
         api_models::admin::MerchantConnectorDetails,
         api_models::admin::MerchantConnectorWebhookDetails,
+        api_models::admin::PaymentLinkConfig,
+        api_models::admin::PaymentLinkColorSchema,
         api_models::disputes::DisputeResponse,
         api_models::disputes::DisputeResponsePaymentsRetrieve,
         api_models::payments::AddressDetails,

@@ -74,7 +74,7 @@ mod storage {
             enums, kv,
             reverse_lookup::{ReverseLookup, ReverseLookupNew},
         },
-        utils::{db_utils, storage_partitioning::PartitionKey},
+        utils::db_utils,
     };
 
     #[async_trait::async_trait]
@@ -85,42 +85,34 @@ mod storage {
             storage_scheme: enums::MerchantStorageScheme,
         ) -> CustomResult<ReverseLookup, errors::StorageError> {
             match storage_scheme {
-                data_models::MerchantStorageScheme::PostgresOnly => {
+                enums::MerchantStorageScheme::PostgresOnly => {
                     let conn = connection::pg_connection_write(self).await?;
                     new.insert(&conn).await.map_err(Into::into).into_report()
                 }
-                data_models::MerchantStorageScheme::RedisKv => {
+                enums::MerchantStorageScheme::RedisKv => {
                     let created_rev_lookup = ReverseLookup {
                         lookup_id: new.lookup_id.clone(),
                         sk_id: new.sk_id.clone(),
                         pk_id: new.pk_id.clone(),
                         source: new.source.clone(),
+                        updated_by: storage_scheme.to_string(),
                     };
-                    let combination = &created_rev_lookup.pk_id;
+                    let redis_entry = kv::TypedSql {
+                        op: kv::DBOperation::Insert {
+                            insertable: kv::Insertable::ReverseLookUp(new),
+                        },
+                    };
+
                     match kv_wrapper::<ReverseLookup, _, _>(
                         self,
-                        KvOperation::SetNx(&created_rev_lookup),
+                        KvOperation::SetNx(&created_rev_lookup, redis_entry),
                         format!("reverse_lookup_{}", &created_rev_lookup.lookup_id),
                     )
                     .await
                     .change_context(errors::StorageError::KVError)?
                     .try_into_setnx()
                     {
-                        Ok(SetnxReply::KeySet) => {
-                            let redis_entry = kv::TypedSql {
-                                op: kv::DBOperation::Insert {
-                                    insertable: kv::Insertable::ReverseLookUp(new),
-                                },
-                            };
-                            self.push_to_drainer_stream::<ReverseLookup>(
-                                redis_entry,
-                                PartitionKey::MerchantIdPaymentIdCombination { combination },
-                            )
-                            .await
-                            .change_context(errors::StorageError::KVError)?;
-
-                            Ok(created_rev_lookup)
-                        }
+                        Ok(SetnxReply::KeySet) => Ok(created_rev_lookup),
                         Ok(SetnxReply::KeyNotSet) => Err(errors::StorageError::DuplicateValue {
                             entity: "reverse_lookup",
                             key: Some(created_rev_lookup.lookup_id.clone()),
@@ -146,8 +138,8 @@ mod storage {
             };
 
             match storage_scheme {
-                data_models::MerchantStorageScheme::PostgresOnly => database_call().await,
-                data_models::MerchantStorageScheme::RedisKv => {
+                enums::MerchantStorageScheme::PostgresOnly => database_call().await,
+                enums::MerchantStorageScheme::RedisKv => {
                     let redis_fut = async {
                         kv_wrapper(
                             self,
