@@ -7337,6 +7337,11 @@
             "description": "The quantity of the product to be purchased",
             "example": 1,
             "minimum": 0
+          },
+          "product_img_link": {
+            "type": "string",
+            "description": "The image URL of the product",
+            "nullable": true
           }
         }
       },
