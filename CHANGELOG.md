@@ -4,6 +4,24 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 1.59.0 (2023-10-16)
+
+### Features
+
+- **connector:**
+  - Add support for surcharge in trustpay ([#2581](https://github.com/juspay/hyperswitch/pull/2581)) ([`2d5d3b8`](https://github.com/juspay/hyperswitch/commit/2d5d3b8efbf782bf03e5f5ef1aa557d3dd3f5860))
+  - Add surcharge support in paypal connector ([#2568](https://github.com/juspay/hyperswitch/pull/2568)) ([`92ee1db`](https://github.com/juspay/hyperswitch/commit/92ee1db107ac41326ecfb31b4565664a29a4b80a))
+- **events:** Add basic event handler to collect application events ([#2602](https://github.com/juspay/hyperswitch/pull/2602)) ([`5d88dbc`](https://github.com/juspay/hyperswitch/commit/5d88dbc92ce470c951717debe246e182b3fe5656))
+
+### Refactors
+
+- **connector:** [multisafepay] Remove Default Case Handling ([#2586](https://github.com/juspay/hyperswitch/pull/2586)) ([`7adc6a0`](https://github.com/juspay/hyperswitch/commit/7adc6a05b60fa9143260b2a7f623907647557621))
+
+**Full Changelog:** [`v1.58.0...v1.59.0`](https://github.com/juspay/hyperswitch/compare/v1.58.0...v1.59.0)
+
+- - -
+
+
 ## 1.58.0 (2023-10-15)
 
 ### Features
