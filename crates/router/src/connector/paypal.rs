@@ -189,13 +189,10 @@ impl ConnectorCommon for Paypal {
                     })
             })
             .transpose()?;
-        let reason = match error_reason {
-            Some(err_reason) => err_reason
-                .is_empty()
-                .then(|| response.message.to_owned())
-                .or(Some(err_reason)),
-            None => Some(response.message.to_owned()),
-        };
+        let reason = error_reason
+            .unwrap_or(response.message.to_owned())
+            .is_empty()
+            .then_some(response.message.to_owned());
 
         Ok(ErrorResponse {
             status_code: res.status_code,
