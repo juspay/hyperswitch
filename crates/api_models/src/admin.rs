@@ -15,11 +15,6 @@ use crate::{
 };
 
 #[derive(Clone, Debug, Deserialize, ToSchema)]
-pub struct MerchantAccountListRequest {
-    pub organization_id: String,
-}
-
-#[derive(Clone, Debug, Deserialize, ToSchema)]
 #[serde(deny_unknown_fields)]
 pub struct MerchantAccountCreate {
     /// The identifier for the Merchant Account
