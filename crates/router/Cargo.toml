@@ -35,7 +35,7 @@ actix-cors = "0.6.4"
 actix-multipart = "0.6.0"
 actix-rt = "2.8.0"
 actix-web = "4.3.1"
-async-bb8-diesel = { git = "https://github.com/oxidecomputer/async-bb8-diesel", rev = "be3d9bce50051d8c0e0c06078e8066cc27db3001" }
+async-bb8-diesel = "0.1.0"
 async-trait = "0.1.68"
 aws-config = { version = "0.55.3", optional = true }
 aws-sdk-s3 = { version = "0.28.0", optional = true }

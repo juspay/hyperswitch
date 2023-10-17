@@ -487,7 +487,8 @@ dependencies = [
 [[package]]
 name = "async-bb8-diesel"
 version = "0.1.0"
-source = "git+https://github.com/oxidecomputer/async-bb8-diesel?rev=be3d9bce50051d8c0e0c06078e8066cc27db3001#be3d9bce50051d8c0e0c06078e8066cc27db3001"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "779f1fa3defe66bf147fe5c811b23a02cfcaa528a25293e0b20d1911eac1fb05"
 dependencies = [
  "async-trait",
  "bb8",
