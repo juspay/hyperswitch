@@ -1418,6 +1418,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsPreProce
             webhook_url,
             complete_authorize_url,
             browser_info,
+            surcharge_details: payment_data.surcharge_details,
         })
     }
 }
