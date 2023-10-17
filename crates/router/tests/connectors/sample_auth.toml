@@ -176,14 +176,11 @@ key1 = "transaction key"
 [helcim]
 api_key="API Key"
 
-
 [gocardless]
 api_key="API Key"
 
-
 [volt]
 api_key="API Key"
-
 
 [prophetpay]
 api_key="API Key"

@@ -226,8 +226,7 @@ pub enum RoutableConnectors {
     Paypal,
     Payu,
     Powertranz,
-    // Prophetpay added as a template code for future usage
-    Prophetpay,
+    // Prophetpay, added as a template code for future usage
     Rapyd,
     Shift4,
     Square,
