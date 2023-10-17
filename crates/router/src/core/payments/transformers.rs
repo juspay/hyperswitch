@@ -1,6 +1,6 @@
 use std::{fmt::Debug, marker::PhantomData, str::FromStr};
 
-use api_models::payments::FrmMessage;
+use api_models::payments::{FrmMessage, RequestSurchargeDetails};
 use common_utils::{consts::X_HS_LATENCY, fp_utils};
 use diesel_models::ephemeral_key;
 use error_stack::{IntoReport, ResultExt};
@@ -424,7 +424,12 @@ where
             .change_context(errors::ApiErrorResponse::InvalidDataValue {
                 field_name: "payment_method_data",
             })?;
-
+    let surcharge_details = payment_data
+        .surcharge_details
+        .map(|surcharge_details_response| RequestSurchargeDetails {
+            surcharge_amount: surcharge_details_response.surcharge_amount,
+            tax_amount: Some(surcharge_details_response.tax_on_surcharge_amount),
+        });
     let merchant_decision = payment_intent.merchant_decision.to_owned();
     let frm_message = payment_data.frm_message.map(FrmMessage::foreign_from);
 
@@ -557,6 +562,7 @@ where
                         .set_amount(payment_attempt.amount)
                         .set_amount_capturable(Some(payment_attempt.amount_capturable))
                         .set_amount_received(payment_intent.amount_captured)
+                        .set_surcharge_details(surcharge_details)
                         .set_connector(routed_through)
                         .set_client_secret(payment_intent.client_secret.map(masking::Secret::new))
                         .set_created(Some(payment_intent.created_at))
@@ -743,6 +749,7 @@ where
                 reference_id: payment_attempt.connector_response_reference_id,
                 attempt_count: payment_intent.attempt_count,
                 payment_link: payment_link_data,
+                surcharge_details,
                 ..Default::default()
             },
             headers,

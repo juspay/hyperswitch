@@ -28,6 +28,7 @@ use crate::{
         storage::{
             self,
             enums::{self, IntentStatus},
+            payment_attempt::PaymentAttemptExt,
         },
     },
     utils::{self, OptionExt},
@@ -427,7 +428,7 @@ impl<F: Clone, Ctx: PaymentMethodRetrieve>
             .payment_attempt
             .straight_through_algorithm
             .clone();
-        let authorized_amount = payment_data.payment_attempt.amount;
+        let authorized_amount = payment_data.payment_attempt.get_total_amount();
 
         payment_data.payment_attempt = db
             .update_payment_attempt_with_attempt_id(
