@@ -107,6 +107,8 @@ where
     let result = async {
         match op {
             KvOperation::Hset(value, sql) => {
+                logger::debug!("Operation: {operation} value: {value:?}");
+
                 redis_conn
                     .set_hash_fields(key, value, Some(consts::KV_TTL))
                     .await?;
@@ -131,6 +133,8 @@ where
             }
 
             KvOperation::HSetNx(field, value, sql) => {
+                logger::debug!("Operation: {operation} value: {value:?}");
+
                 let result = redis_conn
                     .serialize_and_set_hash_field_if_not_exist(
                         key,
@@ -149,6 +153,8 @@ where
             }
 
             KvOperation::SetNx(value, sql) => {
+                logger::debug!("Operation: {operation} value: {value:?}");
+
                 let result = redis_conn
                     .serialize_and_set_key_if_not_exist(key, value, Some(consts::KV_TTL.into()))
                     .await?;
