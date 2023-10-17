@@ -440,6 +440,7 @@ impl<F: Clone, Ctx: PaymentMethodRetrieve>
                         true => Some(authorized_amount),
                         false => None,
                     },
+                    updated_by: storage_scheme.to_string(),
                 },
                 storage_scheme,
             )
@@ -457,6 +458,7 @@ impl<F: Clone, Ctx: PaymentMethodRetrieve>
                     customer_id,
                     shipping_address_id: None,
                     billing_address_id: None,
+                    updated_by: storage_scheme.to_string(),
                 },
                 storage_scheme,
             )
@@ -718,6 +720,7 @@ impl PaymentCreate {
             merchant_decision: None,
             payment_link_id,
             payment_confirm_source: None,
+            updated_by: merchant_account.storage_scheme.to_string(),
         })
     }
 
@@ -735,6 +738,7 @@ impl PaymentCreate {
             connector_transaction_id: None,
             authentication_data: None,
             encoded_data: None,
+            updated_by: payment_attempt.updated_by.clone(),
         }
     }
 

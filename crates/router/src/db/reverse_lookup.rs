@@ -85,16 +85,17 @@ mod storage {
             storage_scheme: enums::MerchantStorageScheme,
         ) -> CustomResult<ReverseLookup, errors::StorageError> {
             match storage_scheme {
-                data_models::MerchantStorageScheme::PostgresOnly => {
+                enums::MerchantStorageScheme::PostgresOnly => {
                     let conn = connection::pg_connection_write(self).await?;
                     new.insert(&conn).await.map_err(Into::into).into_report()
                 }
-                data_models::MerchantStorageScheme::RedisKv => {
+                enums::MerchantStorageScheme::RedisKv => {
                     let created_rev_lookup = ReverseLookup {
                         lookup_id: new.lookup_id.clone(),
                         sk_id: new.sk_id.clone(),
                         pk_id: new.pk_id.clone(),
                         source: new.source.clone(),
+                        updated_by: storage_scheme.to_string(),
                     };
                     let redis_entry = kv::TypedSql {
                         op: kv::DBOperation::Insert {
@@ -137,8 +138,8 @@ mod storage {
             };
 
             match storage_scheme {
-                data_models::MerchantStorageScheme::PostgresOnly => database_call().await,
-                data_models::MerchantStorageScheme::RedisKv => {
+                enums::MerchantStorageScheme::PostgresOnly => database_call().await,
+                enums::MerchantStorageScheme::RedisKv => {
                     let redis_fut = async {
                         kv_wrapper(
                             self,

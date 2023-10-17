@@ -10,11 +10,12 @@ use data_models::{
         payment_intent::{PaymentIntentInterface, PaymentIntentNew, PaymentIntentUpdate},
         PaymentIntent,
     },
-    MerchantStorageScheme, RemoteStorageObject,
+    RemoteStorageObject,
 };
 #[cfg(feature = "olap")]
 use diesel::{associations::HasTable, ExpressionMethods, JoinOnDsl, QueryDsl};
 use diesel_models::{
+    enums::MerchantStorageScheme,
     kv,
     payment_attempt::PaymentAttempt as DieselPaymentAttempt,
     payment_intent::{
@@ -92,6 +93,7 @@ impl<T: DatabaseStore> PaymentIntentInterface for KVRouterStore<T> {
                     merchant_decision: new.merchant_decision.clone(),
                     payment_link_id: new.payment_link_id.clone(),
                     payment_confirm_source: new.payment_confirm_source,
+                    updated_by: storage_scheme.to_string(),
                 };
                 let redis_entry = kv::TypedSql {
                     op: kv::DBOperation::Insert {
@@ -740,6 +742,7 @@ impl DataModelExt for PaymentIntentNew {
             merchant_decision: self.merchant_decision,
             payment_link_id: self.payment_link_id,
             payment_confirm_source: self.payment_confirm_source,
+            updated_by: self.updated_by,
         }
     }
 
@@ -778,6 +781,7 @@ impl DataModelExt for PaymentIntentNew {
             merchant_decision: storage_model.merchant_decision,
             payment_link_id: storage_model.payment_link_id,
             payment_confirm_source: storage_model.payment_confirm_source,
+            updated_by: storage_model.updated_by,
         }
     }
 }
@@ -821,6 +825,7 @@ impl DataModelExt for PaymentIntent {
             merchant_decision: self.merchant_decision,
             payment_link_id: self.payment_link_id,
             payment_confirm_source: self.payment_confirm_source,
+            updated_by: self.updated_by,
         }
     }
 
@@ -860,6 +865,7 @@ impl DataModelExt for PaymentIntent {
             merchant_decision: storage_model.merchant_decision,
             payment_link_id: storage_model.payment_link_id,
             payment_confirm_source: storage_model.payment_confirm_source,
+            updated_by: storage_model.updated_by,
         }
     }
 }
@@ -873,37 +879,49 @@ impl DataModelExt for PaymentIntentUpdate {
                 status,
                 amount_captured,
                 return_url,
+                updated_by,
             } => DieselPaymentIntentUpdate::ResponseUpdate {
                 status,
                 amount_captured,
                 return_url,
+                updated_by,
             },
-            Self::MetadataUpdate { metadata } => {
-                DieselPaymentIntentUpdate::MetadataUpdate { metadata }
-            }
+            Self::MetadataUpdate {
+                metadata,
+                updated_by,
+            } => DieselPaymentIntentUpdate::MetadataUpdate {
+                metadata,
+                updated_by,
+            },
             Self::ReturnUrlUpdate {
                 return_url,
                 status,
                 customer_id,
                 shipping_address_id,
                 billing_address_id,
+                updated_by,
             } => DieselPaymentIntentUpdate::ReturnUrlUpdate {
                 return_url,
                 status,
                 customer_id,
                 shipping_address_id,
                 billing_address_id,
+                updated_by,
             },
             Self::MerchantStatusUpdate {
                 status,
                 shipping_address_id,
                 billing_address_id,
+                updated_by,
             } => DieselPaymentIntentUpdate::MerchantStatusUpdate {
                 status,
                 shipping_address_id,
                 billing_address_id,
+                updated_by,
             },
-            Self::PGStatusUpdate { status } => DieselPaymentIntentUpdate::PGStatusUpdate { status },
+            Self::PGStatusUpdate { status, updated_by } => {
+                DieselPaymentIntentUpdate::PGStatusUpdate { status, updated_by }
+            }
             Self::Update {
                 amount,
                 currency,
@@ -921,6 +939,7 @@ impl DataModelExt for PaymentIntentUpdate {
                 order_details,
                 metadata,
                 payment_confirm_source,
+                updated_by,
             } => DieselPaymentIntentUpdate::Update {
                 amount,
                 currency,
@@ -938,32 +957,43 @@ impl DataModelExt for PaymentIntentUpdate {
                 order_details,
                 metadata,
                 payment_confirm_source,
+                updated_by,
             },
             Self::PaymentAttemptAndAttemptCountUpdate {
                 active_attempt_id,
                 attempt_count,
+                updated_by,
             } => DieselPaymentIntentUpdate::PaymentAttemptAndAttemptCountUpdate {
                 active_attempt_id,
                 attempt_count,
+                updated_by,
             },
             Self::StatusAndAttemptUpdate {
                 status,
                 active_attempt_id,
                 attempt_count,
+                updated_by,
             } => DieselPaymentIntentUpdate::StatusAndAttemptUpdate {
                 status,
                 active_attempt_id,
                 attempt_count,
+                updated_by,
             },
-            Self::ApproveUpdate { merchant_decision } => {
-                DieselPaymentIntentUpdate::ApproveUpdate { merchant_decision }
-            }
+            Self::ApproveUpdate {
+                merchant_decision,
+                updated_by,
+            } => DieselPaymentIntentUpdate::ApproveUpdate {
+                merchant_decision,
+                updated_by,
+            },
             Self::RejectUpdate {
                 status,
                 merchant_decision,
+                updated_by,
             } => DieselPaymentIntentUpdate::RejectUpdate {
                 status,
                 merchant_decision,
+                updated_by,
             },
         }
     }

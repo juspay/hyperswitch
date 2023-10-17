@@ -176,6 +176,7 @@ pub async fn create_or_update_address_for_payment_by_request(
                             .phone
                             .as_ref()
                             .and_then(|value| value.country_code.clone()),
+                        updated_by: storage_scheme.to_string(),
                     })
                 }
                 .await
@@ -233,6 +234,7 @@ pub async fn create_or_update_address_for_payment_by_request(
                             customer_id,
                             payment_id,
                             key,
+                            storage_scheme,
                         )
                         .await
                         .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -293,6 +295,7 @@ pub async fn create_or_find_address_for_payment_by_request(
                             customer_id,
                             payment_id,
                             key,
+                            storage_scheme,
                         )
                         .await
                         .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -317,6 +320,7 @@ pub async fn get_domain_address_for_payments(
     customer_id: &str,
     payment_id: &str,
     key: &[u8],
+    storage_scheme: enums::MerchantStorageScheme,
 ) -> CustomResult<domain::Address, common_utils::errors::CryptoError> {
     async {
         Ok(domain::Address {
@@ -364,6 +368,7 @@ pub async fn get_domain_address_for_payments(
                 .async_lift(|inner| types::encrypt_optional(inner, key))
                 .await?,
             payment_id: Some(payment_id.to_owned()),
+            updated_by: storage_scheme.to_string(),
         })
     }
     .await
@@ -2404,6 +2409,7 @@ mod tests {
             profile_id: None,
             merchant_decision: None,
             payment_confirm_source: None,
+            updated_by: storage_enums::MerchantStorageScheme::PostgresOnly.to_string(),
         };
         let req_cs = Some("1".to_string());
         let merchant_fulfillment_time = Some(900);
@@ -2452,6 +2458,7 @@ mod tests {
             profile_id: None,
             merchant_decision: None,
             payment_confirm_source: None,
+            updated_by: storage_enums::MerchantStorageScheme::PostgresOnly.to_string(),
         };
         let req_cs = Some("1".to_string());
         let merchant_fulfillment_time = Some(10);
@@ -2500,6 +2507,7 @@ mod tests {
             profile_id: None,
             merchant_decision: None,
             payment_confirm_source: None,
+            updated_by: storage_enums::MerchantStorageScheme::PostgresOnly.to_string(),
         };
         let req_cs = Some("1".to_string());
         let merchant_fulfillment_time = Some(10);
@@ -2831,6 +2839,7 @@ impl AttemptType {
         payment_method_data: &Option<api_models::payments::PaymentMethodData>,
         old_payment_attempt: PaymentAttempt,
         new_attempt_count: i16,
+        storage_scheme: enums::MerchantStorageScheme,
     ) -> storage::PaymentAttemptNew {
         let created_at @ modified_at @ last_synced = Some(common_utils::date_time::now());
 
@@ -2892,6 +2901,7 @@ impl AttemptType {
             connector_response_reference_id: None,
             amount_capturable: old_payment_attempt.amount,
             surcharge_metadata: old_payment_attempt.surcharge_metadata,
+            updated_by: storage_scheme.to_string(),
         }
     }
 
@@ -2914,6 +2924,7 @@ impl AttemptType {
                             &request.payment_method_data,
                             fetched_payment_attempt,
                             new_attempt_count,
+                            storage_scheme,
                         ),
                         storage_scheme,
                     )
@@ -2932,6 +2943,7 @@ impl AttemptType {
                             ),
                             active_attempt_id: new_payment_attempt.attempt_id.clone(),
                             attempt_count: new_attempt_count,
+                            updated_by: storage_scheme.to_string(),
                         },
                         storage_scheme,
                     )

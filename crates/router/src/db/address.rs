@@ -1,5 +1,4 @@
-use data_models::MerchantStorageScheme;
-use diesel_models::address::AddressUpdateInternal;
+use diesel_models::{address::AddressUpdateInternal, enums::MerchantStorageScheme};
 use error_stack::ResultExt;
 use router_env::{instrument, tracing};
 
@@ -78,7 +77,6 @@ where
 #[cfg(not(feature = "kv_store"))]
 mod storage {
     use common_utils::ext_traits::AsyncExt;
-    use data_models::MerchantStorageScheme;
     use error_stack::{IntoReport, ResultExt};
     use router_env::{instrument, tracing};
 
@@ -92,7 +90,7 @@ mod storage {
                 self,
                 behaviour::{Conversion, ReverseConversion},
             },
-            storage::{self as storage_types},
+            storage::{self as storage_types, enums::MerchantStorageScheme},
         },
     };
     #[async_trait::async_trait]
@@ -275,8 +273,7 @@ mod storage {
 #[cfg(feature = "kv_store")]
 mod storage {
     use common_utils::ext_traits::AsyncExt;
-    use data_models::MerchantStorageScheme;
-    use diesel_models::AddressUpdateInternal;
+    use diesel_models::{enums::MerchantStorageScheme, AddressUpdateInternal};
     use error_stack::{IntoReport, ResultExt};
     use redis_interface::HsetnxReply;
     use router_env::{instrument, tracing};
@@ -503,6 +500,7 @@ mod storage {
                         customer_id: address_new.customer_id.clone(),
                         merchant_id: address_new.merchant_id.clone(),
                         payment_id: address_new.payment_id.clone(),
+                        updated_by: storage_scheme.to_string(),
                     };
 
                     let redis_entry = kv::TypedSql {

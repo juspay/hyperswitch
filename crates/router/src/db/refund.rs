@@ -367,6 +367,7 @@ mod storage {
                         description: new.description.clone(),
                         refund_reason: new.refund_reason.clone(),
                         profile_id: new.profile_id.clone(),
+                        updated_by: new.updated_by.clone(),
                     };
 
                     let field = format!(
@@ -408,6 +409,7 @@ mod storage {
                                     ),
                                     pk_id: key.clone(),
                                     source: "refund".to_string(),
+                                    updated_by: storage_scheme.to_string(),
                                 },
                                 // [#492]: A discussion is required on whether this is required?
                                 storage_types::ReverseLookupNew {
@@ -419,6 +421,7 @@ mod storage {
                                     ),
                                     pk_id: key.clone(),
                                     source: "refund".to_string(),
+                                    updated_by: storage_scheme.to_string(),
                                 },
                             ];
                             if let Some(connector_refund_id) =
@@ -434,6 +437,7 @@ mod storage {
                                     ),
                                     pk_id: key,
                                     source: "refund".to_string(),
+                                    updated_by: storage_scheme.to_string(),
                                 })
                             };
                             let rev_look = reverse_lookups
@@ -791,6 +795,7 @@ impl RefundInterface for MockDb {
             description: new.description,
             refund_reason: new.refund_reason.clone(),
             profile_id: new.profile_id,
+            updated_by: new.updated_by,
         };
         refunds.push(refund.clone());
         Ok(refund)
