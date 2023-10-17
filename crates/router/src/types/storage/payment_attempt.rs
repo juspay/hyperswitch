@@ -17,6 +17,7 @@ pub trait PaymentAttemptExt {
 
     fn get_next_capture_id(&self) -> String;
     fn get_intent_status(&self, amount_captured: Option<i64>) -> enums::IntentStatus;
+    fn get_total_amount(&self) -> i64;
 }
 
 impl PaymentAttemptExt for PaymentAttempt {
@@ -66,6 +67,10 @@ impl PaymentAttemptExt for PaymentAttempt {
         } else {
             intent_status
         }
+    }
+
+    fn get_total_amount(&self) -> i64 {
+        self.amount + self.surcharge_amount.unwrap_or(0) + self.tax_amount.unwrap_or(0)
     }
 }
 

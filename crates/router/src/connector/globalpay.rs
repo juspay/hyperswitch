@@ -926,25 +926,14 @@ impl api::IncomingWebhook for Globalpay {
 impl services::ConnectorRedirectResponse for Globalpay {
     fn get_flow_type(
         &self,
-        query_params: &str,
+        _query_params: &str,
         _json_payload: Option<Value>,
-        _action: services::PaymentAction,
+        action: services::PaymentAction,
     ) -> CustomResult<payments::CallConnectorAction, errors::ConnectorError> {
-        let query = serde_urlencoded::from_str::<response::GlobalpayRedirectResponse>(query_params)
-            .into_report()
-            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-        Ok(query.status.map_or(
-            payments::CallConnectorAction::Trigger,
-            |status| match status {
-                response::GlobalpayPaymentStatus::Captured => {
-                    payments::CallConnectorAction::StatusUpdate {
-                        status: diesel_models::enums::AttemptStatus::from(status),
-                        error_code: None,
-                        error_message: None,
-                    }
-                }
-                _ => payments::CallConnectorAction::Trigger,
-            },
-        ))
+        match action {
+            services::PaymentAction::PSync | services::PaymentAction::CompleteAuthorize => {
+                Ok(payments::CallConnectorAction::Trigger)
+            }
+        }
     }
 }
