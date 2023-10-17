@@ -7,7 +7,7 @@
 <h1 align="center">The open-source payments switch</h1>
 
 <div align="center" >
-The single API to access payment ecosystems across 130+ countries</div>
+The single API to access payment ecosystems across 130+ countries.</div>
 
 <p align="center">
   <a href="#%EF%B8%8F-quick-start-guide">Quick Start Guide</a> •
@@ -16,7 +16,7 @@ The single API to access payment ecosystems across 130+ countries</div>
   <a href="#-FAQs">FAQs</a>
   <br>
   <a href="#whats-included">What's Included</a> •
-  <a href="#-join-us-in-building-hyperswitch">Join us in building HyperSwitch</a> •
+  <a href="#-join-us-in-building-hyperswitch">Join us in building Hyperswitch</a> •
   <a href="#-community">Community</a> •
   <a href="#-bugs-and-feature-requests">Bugs and feature requests</a> •
   <a href="#-versioning">Versioning</a> •
@@ -39,14 +39,14 @@ The single API to access payment ecosystems across 130+ countries</div>
 
 New to Rust? Hyperswitch is the perfect place to start this hacktoberfest! 😁
 
-> ⭐️ If you're new to Hacktoberfest, you can learn more and register to participate [here](https://hacktoberfest.com/participation/). Registration is from **September 26th - October 31st**.
+> ⭐️ If you're new to Hacktoberfest, you can learn more and register to participate [here].(https://hacktoberfest.com/participation/). Registration is from **September 26th - October 31st**.
 
 
 <hr>
 <img src="./docs/imgs/switch.png" />
 
-Hyperswitch is an open source payments switch to make payments fast, reliable, and, affordable.
-It lets you connect with multiple payment processors and route traffic effortlessly, all with a single API integration.
+Hyperswitch is an open-source payments switch to make payments fast, reliable, and affordable.
+It lets you connect with multiple payment processors and routing traffic effortlessly, all with a single API integration.
 
 
 Using Hyperswitch, you can:
@@ -74,7 +74,7 @@ Ways to get started with Hyperswitch:
 
 1. Try it in our Sandbox Environment: Fast and easy to
    start.
-   No code or setup is required in your system, [learn more](/docs/try_sandbox.md)
+   No code or setup is required in your system. [learn more](/docs/try_sandbox.md)
 
 
 <a href="https://app.hyperswitch.io/register"><img src="./docs/imgs/get-api-keys.svg" height="35"></a>
@@ -90,7 +90,7 @@ Ways to get started with Hyperswitch:
   <h2 id="Fast Integration for Stripe Users">🔌 Fast Integration for Stripe Users</h2>
 </a>
 
-If you are already using Stripe, integrating with Hyperswitch is fun, fast &
+If you are already using Stripe, integrating with Hyperswitch is fun, fast and
 easy.
 Try the steps below to get a feel for how quick the setup is:
 
@@ -107,7 +107,7 @@ Try the steps below to get a feel for how quick the setup is:
 
 ### 🌟 Supported Payment Processors and Methods
 
-As of Sept 2023, we support 50+ payment processors and multiple global payment methods.
+As of September 2023, we support 50+ payment processors and multiple global payment methods.
 In addition, we are continuously integrating new processors based on their reach and community requests.
 Our target is to support 100+ processors by H2 2023.
 You can find the latest list of payment processors, supported methods, and
@@ -140,7 +140,7 @@ analytics, and operations end-to-end:
 
 - **Enterprise Support**
 
-  - 24x7 Email / On-call Support
+  - 24x7 Email , On-call Support
   - Dedicated Relationship Manager
   - Custom dashboards with deep analytics, alerts, and reporting
   - Expert team to consult and improve business metrics
@@ -227,7 +227,7 @@ should be introduced, checking it agrees with the actual structure -->
 > Payments should be open, fast, reliable and affordable to serve
 > the billions of people at scale.
 
-Globally payment diversity has been growing at a rapid pace.
+Globally, the payment diversity has been growing at a rapid pace.
 There are hundreds of payment processors and new payment methods like BNPL,
 RTP etc.
 Businesses need to embrace this diversity to increase conversion, reduce cost
@@ -261,7 +261,7 @@ We are long-term committed to building and making it useful for the community.
 
 The product roadmap is open for the community's feedback.
 We shall evolve a prioritisation process that is open and community-driven.
-We welcome contributions from the community. Please read through our
+We welcome contributions from the community. Please, read through our
 [contributing guidelines](/docs/CONTRIBUTING.md).
 Included are directions for opening issues, coding standards, and notes on
 development.
