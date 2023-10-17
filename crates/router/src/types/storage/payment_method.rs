@@ -22,6 +22,7 @@ pub struct GenericTokenData {
 }
 
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
+#[serde(tag = "kind", rename_all = "snake_case")]
 pub enum PaymentTokenData {
     // The variants 'Temporary' and 'Permanent' are added for backwards compatibility
     // with any tokenized data present in Redis at the time of deployment of this change
