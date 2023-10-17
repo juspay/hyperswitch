@@ -655,7 +655,7 @@ impl TryFrom<types::RefundsResponseRouterData<api::Execute, MultisafepayRefundRe
                 Ok(Self {
                     response: Ok(types::RefundsResponseData {
                         connector_refund_id: refund_data.data.refund_id.to_string(),
-                        refund_status: enums::RefundStatus::from(refund_stat),
+                        refund_status: enums::RefundStatus::from(refund_status),
                     }),
                     ..item.data
                 })
