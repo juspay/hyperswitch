@@ -560,10 +560,9 @@ pub struct MerchantConnectorCreate {
     /// Name of the Connector
     #[schema(value_type = Connector, example = "stripe")]
     pub connector_name: api_enums::Connector,
-    // /// Connector label for specific country and Business
-    #[serde(skip_deserializing)]
+    /// Connector label for a connector, this can serve as a field to identify the connector as per business details
     #[schema(example = "stripe_US_travel")]
-    pub connector_label: String,
+    pub connector_label: Option<String>,
 
     /// Unique ID of the connector
     #[schema(example = "mca_5apGeP94tMts6rg3U3kR")]
