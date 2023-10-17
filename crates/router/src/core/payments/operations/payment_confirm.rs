@@ -22,7 +22,7 @@ use crate::{
         self,
         api::{self, PaymentIdTypeExt},
         domain,
-        storage::{self, enums as storage_enums, payment_attempt::PaymentAttemptExt},
+        storage::{self, enums as storage_enums},
     },
     utils::{self, OptionExt},
 };
@@ -556,7 +556,6 @@ impl<F: Clone, Ctx: PaymentMethodRetrieve>
             .take();
         let order_details = payment_data.payment_intent.order_details.clone();
         let metadata = payment_data.payment_intent.metadata.clone();
-        let authorized_amount = payment_data.payment_attempt.get_total_amount();
         let surcharge_amount = payment_data
             .surcharge_details
             .as_ref()
@@ -565,6 +564,11 @@ impl<F: Clone, Ctx: PaymentMethodRetrieve>
             .surcharge_details
             .as_ref()
             .map(|surcharge_details| surcharge_details.tax_on_surcharge_amount);
+        let authorized_amount = payment_data
+            .surcharge_details
+            .as_ref()
+            .map(|surcharge_details| surcharge_details.final_amount)
+            .unwrap_or(payment_data.payment_attempt.amount);
         let payment_attempt_fut = db
             .update_payment_attempt_with_attempt_id(
                 payment_data.payment_attempt,

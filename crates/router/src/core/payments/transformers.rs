@@ -424,12 +424,13 @@ where
             .change_context(errors::ApiErrorResponse::InvalidDataValue {
                 field_name: "payment_method_data",
             })?;
-    let surcharge_details = payment_data
-        .surcharge_details
-        .map(|surcharge_details_response| RequestSurchargeDetails {
-            surcharge_amount: surcharge_details_response.surcharge_amount,
-            tax_amount: Some(surcharge_details_response.tax_on_surcharge_amount),
-        });
+    let surcharge_details =
+        payment_attempt
+            .surcharge_amount
+            .map(|surcharge_amount| RequestSurchargeDetails {
+                surcharge_amount,
+                tax_amount: payment_attempt.tax_amount,
+            });
     let merchant_decision = payment_intent.merchant_decision.to_owned();
     let frm_message = payment_data.frm_message.map(FrmMessage::foreign_from);
 
