@@ -88,11 +88,20 @@ pub async fn intiate_payment_link_flow(
             field_name: "order_details",
         })?;
 
-    let (pub_key, currency, client_secret, return_url) = validate_sdk_requirements(
+    let return_url = if let Some(payment_create_return_url) = payment_intent.return_url {
+        payment_create_return_url
+    } else {
+        merchant_account
+            .return_url
+            .ok_or(errors::ApiErrorResponse::MissingRequiredField {
+                field_name: "return_url",
+            })?
+    };
+
+    let (pub_key, currency, client_secret) = validate_sdk_requirements(
         merchant_account.publishable_key,
         payment_intent.currency,
         payment_intent.client_secret,
-        (payment_intent.return_url, merchant_account.return_url),
     )?;
 
     let payment_details = api_models::payments::PaymentLinkDetails {
@@ -180,8 +189,7 @@ fn validate_sdk_requirements(
     pub_key: Option<String>,
     currency: Option<api_models::enums::Currency>,
     client_secret: Option<String>,
-    return_url: (Option<String>, Option<String>),
-) -> Result<(String, api_models::enums::Currency, String, String), errors::ApiErrorResponse> {
+) -> Result<(String, api_models::enums::Currency, String), errors::ApiErrorResponse> {
     let pub_key = pub_key.ok_or(errors::ApiErrorResponse::MissingRequiredField {
         field_name: "pub_key",
     })?;
@@ -193,16 +201,5 @@ fn validate_sdk_requirements(
     let client_secret = client_secret.ok_or(errors::ApiErrorResponse::MissingRequiredField {
         field_name: "client_secret",
     })?;
-
-    let return_url = if let Some(merchant_account_return_url) = return_url.0 {
-        merchant_account_return_url
-    } else {
-        return_url
-            .1
-            .ok_or(errors::ApiErrorResponse::MissingRequiredField {
-                field_name: "return_url",
-            })?
-    };
-
-    Ok((pub_key, currency, client_secret, return_url))
+    Ok((pub_key, currency, client_secret))
 }
