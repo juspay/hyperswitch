@@ -9,7 +9,7 @@ use masking::PeekInterface;
 use transformers as paypal;
 
 use self::transformers::{PaypalAuthResponse, PaypalMeta};
-use super::utils::{PaymentsCompleteAuthorizeRequestData, ConnectorErrorType};
+use super::utils::{ConnectorErrorType, PaymentsCompleteAuthorizeRequestData};
 use crate::{
     configs::settings,
     connector::{
@@ -171,6 +171,7 @@ impl ConnectorCommon for Paypal {
 
         let error_reason = response
             .details
+            .clone()
             .map(|error_details| {
                 error_details
                     .iter()
@@ -1287,4 +1288,3 @@ impl ConnectorErrorTypeMapping for Paypal {
         }
     }
 }
-
