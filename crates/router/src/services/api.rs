@@ -95,9 +95,10 @@ pub trait ConnectorValidation: ConnectorCommon {
 
     fn validate_if_surcharge_supported(&self) -> CustomResult<(), errors::ConnectorError> {
         Err(errors::ConnectorError::NotSupported {
-            message: "Surcharge",
+            message: "Surcharge".to_string(),
             connector: self.id(),
-        })
+        }
+        .into())
     }
 }
 
