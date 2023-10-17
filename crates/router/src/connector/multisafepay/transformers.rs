@@ -646,7 +646,7 @@ impl TryFrom<types::RefundsResponseRouterData<api::Execute, MultisafepayRefundRe
     ) -> Result<Self, Self::Error> {
         match item.response {
             MultisafepayRefundResponse::RefundResponse(refund_data) => {
-                let refund_stat = if refund_data.success {
+                let refund_status = if refund_data.success {
                     RefundStatus::Succeeded
                 } else {
                     RefundStatus::Failed
