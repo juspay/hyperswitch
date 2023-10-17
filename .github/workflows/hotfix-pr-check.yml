@@ -5,6 +5,7 @@ on:
     types:
       - opened
       - edited
+      - synchronize
     branches:
       - "hotfix-*"
 
@@ -56,7 +57,7 @@ jobs:
           PR_STATES=()
 
           for pr_number in ${PR_NUMBERS}; do
-           is_pull_request="$(gh api -H "Accept: application/vnd.github+json" -H "X-GitHub-Api-Version: 2022-11-28" "/repos/juspay/hyperswitch/issues/${pr_number}" | jq '.pull_request')"
+            is_pull_request="$(gh api -H "Accept: application/vnd.github+json" -H "X-GitHub-Api-Version: 2022-11-28" "/repos/juspay/hyperswitch/issues/${pr_number}" | jq '.pull_request')"
 
             if [[ "$is_pull_request" == null ]]; then
               continue
@@ -67,7 +68,11 @@ jobs:
               pr_base_ref=$(echo "${pr_info}" | jq -r '.baseRefName')
               pr_state=$(echo "${pr_info}" | jq -r '.state')
 
-              if [[ "${pr_author}" == "${{ github.event.pull_request.user.login }}" && "${pr_title}" == "${{ github.event.pull_request.title }}" && "${pr_base_ref}" == "main" && "${pr_state}" == "MERGED" ]]; then
+              if [[ "${pr_author}" == "${{ github.event.pull_request.user.login }}" && \
+                    "${pr_title}" == "${{ github.event.pull_request.title }}" && \
+                    "${pr_base_ref}" == "main" && \
+                    "${pr_state}" == "MERGED" ]]; then
+
                 all_checks_failed=0
                 break
               fi
@@ -156,6 +161,6 @@ jobs:
             exit 1
 
           else
-            echo "Hotfix PR satisfies all the required conditions"
+            echo "::notice::Hotfix PR satisfies all the required conditions"
 
           fi
