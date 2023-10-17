@@ -1,9 +1,10 @@
 use serde::Serialize;
 
+pub mod api_logs;
 pub mod event_logger;
 
 pub trait EventHandler: Sync + Send + dyn_clone::DynClone {
-    fn log_event<T: Event>(&self, event: T, previous: Option<T>);
+    fn log_event<T: Event>(&self, event: T);
 }
 
 #[derive(Debug, Serialize)]
