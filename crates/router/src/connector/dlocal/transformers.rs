@@ -1,4 +1,4 @@
-use api_models::payments::{AddressDetails, PaymentsRequest};
+use api_models::payments::{AddressDetails};
 use common_utils::pii::Email;
 use error_stack::ResultExt;
 use masking::{PeekInterface, Secret};
@@ -113,7 +113,7 @@ impl TryFrom<&DlocalRouterData<&types::PaymentsAuthorizeRouterData>> for DlocalP
                     item.router_data.request.capture_method,
                     Some(enums::CaptureMethod::Automatic)
                 );
-                let payment_request = DlocalPaymentsRequest {
+                let payment_request = Self {
                     amount: item.router_data.request.amount,
                     currency: item.router_data.request.currency,
                     payment_method_id: PaymentMethodId::Card,
