@@ -78,6 +78,7 @@ pub async fn retrieve_merchant_account(
     .await
 }
 
+#[cfg(feature = "olap")]
 #[instrument(skip_all, fields(flow = ?Flow::MerchantAccountList))]
 pub async fn merchant_account_list(
     state: web::Data<AppState>,
