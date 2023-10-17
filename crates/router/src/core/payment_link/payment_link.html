@@ -3,15 +3,12 @@
   <head>
     {{ hyperloader_sdk_link }}
     <style>
-      :root {
-        --primary-color: #26c5a0;
-        --primary-accent-color: #f8e5a0;
-        --secondary-color: #1c7ed9;
-      }
+      {{ css_color_scheme }}
 
       html,
       body {
         height: 100%;
+        overflow: hidden;
       }
 
       body {
@@ -22,6 +19,19 @@
         margin: 0;
         background-color: #fafafa;
         color: #292929;
+      }
+
+      /* Hide scrollbar for Chrome, Safari and Opera */
+      .hide-scrollbar::-webkit-scrollbar {
+        display: none;
+      }
+
+      /* Hide scrollbar for IE, Edge and Firefox */
+      .hide-scrollbar {
+        -ms-overflow-style: none;
+        /* IE and Edge */
+        scrollbar-width: none;
+        /* Firefox */
       }
 
       .hidden {
@@ -125,17 +135,18 @@
       #hyper-checkout-cart {
         display: flex;
         flex-flow: column;
-        min-width: 582px;
-        width: min-content;
+        min-width: 584px;
+        width: 400px;
         margin-top: 30px;
         max-height: 600px;
       }
 
       #hyper-checkout-cart-items {
-        margin: 10px 0;
-        max-height: 600px;
+        margin: 10px 20px 10px 0;
+        max-height: 354px;
+        height: 354px;
         overflow: scroll;
-        padding-right: 20px;
+        transition: all 0.3s ease;
       }
 
       .hyper-checkout-cart-header {
@@ -152,18 +163,20 @@
 
       .cart-close {
         display: none;
+        cursor: pointer;
       }
 
       .hyper-checkout-cart-item {
         display: flex;
         flex-flow: row;
-        margin: 20px 0;
+        padding: 20px 10px;
         font-size: 15px;
+        box-shadow: 0px 0px 10px #efefef;
       }
 
       .hyper-checkout-cart-product-image {
-        height: 88px;
-        width: 88px;
+        height: 72px;
+        width: 72px;
       }
 
       .hyper-checkout-card-item-name {
@@ -199,6 +212,7 @@
         font-size: 16px;
         padding-left: 30px;
         text-align: end;
+        min-width: max-content;
       }
 
       .hyper-checkout-cart-item-divider {
@@ -373,6 +387,24 @@
         }
       }
 
+      @keyframes slide-from-right {
+        from {
+          right: -582px;
+        }
+        to {
+          right: 0;
+        }
+      }
+
+      @keyframes slide-to-right {
+        from {
+          right: 0;
+        }
+        to {
+          right: -582px;
+        }
+      }
+
       .spinner:before {
         width: 10.4px;
         height: 20.4px;
@@ -481,12 +513,14 @@
           z-index: 100;
           margin: 0;
           min-width: 300px;
-          max-width: 600px;
+          max-width: 582px;
           max-height: 100vh;
           width: 100vw;
           height: 100vh;
           background-color: #f5f5f5;
           box-shadow: 0px 10px 10px #aeaeae;
+          right: 0px;
+          animation: slide-from-right 0.3s linear;
         }
 
         .hyper-checkout-cart-header {
@@ -499,7 +533,7 @@
         }
 
         #hyper-checkout-cart-items {
-          margin: 20px;
+          margin: 20px 20px 0 20px;
           padding: 0;
           max-height: max-content;
         }
@@ -593,17 +627,17 @@
                     <g>
                       <path
                         d="M671.504,577.829l110.485-432.609H902.86v-68H729.174L703.128,179.2L0,178.697l74.753,399.129h596.751V577.829z
-     M685.766,247.188l-67.077,262.64H131.199L81.928,246.756L685.766,247.188z"
-                      />
+   M685.766,247.188l-67.077,262.64H131.199L81.928,246.756L685.766,247.188z"
+                      ></path>
                       <path
                         d="M578.418,825.641c59.961,0,108.743-48.783,108.743-108.744s-48.782-108.742-108.743-108.742H168.717
-    c-59.961,0-108.744,48.781-108.744,108.742s48.782,108.744,108.744,108.744c59.962,0,108.743-48.783,108.743-108.744
-    c0-14.4-2.821-28.152-7.927-40.742h208.069c-5.107,12.59-7.928,26.342-7.928,40.742
-    C469.675,776.858,518.457,825.641,578.418,825.641z M209.46,716.897c0,22.467-18.277,40.744-40.743,40.744
-    c-22.466,0-40.744-18.277-40.744-40.744c0-22.465,18.277-40.742,40.744-40.742C191.183,676.155,209.46,694.432,209.46,716.897z
-     M619.162,716.897c0,22.467-18.277,40.744-40.743,40.744s-40.743-18.277-40.743-40.744c0-22.465,18.277-40.742,40.743-40.742
-    S619.162,694.432,619.162,716.897z"
-                      />
+  c-59.961,0-108.744,48.781-108.744,108.742s48.782,108.744,108.744,108.744c59.962,0,108.743-48.783,108.743-108.744
+  c0-14.4-2.821-28.152-7.927-40.742h208.069c-5.107,12.59-7.928,26.342-7.928,40.742
+  C469.675,776.858,518.457,825.641,578.418,825.641z M209.46,716.897c0,22.467-18.277,40.744-40.743,40.744
+  c-22.466,0-40.744-18.277-40.744-40.744c0-22.465,18.277-40.742,40.744-40.742C191.183,676.155,209.46,694.432,209.46,716.897z
+   M619.162,716.897c0,22.467-18.277,40.744-40.743,40.744s-40.743-18.277-40.743-40.744c0-22.465,18.277-40.742,40.743-40.742
+  S619.162,694.432,619.162,716.897z"
+                      ></path>
                     </g>
                   </g>
                 </svg>
@@ -612,7 +646,7 @@
           </div>
           <div id="hyper-checkout-payment-footer"></div>
         </div>
-        <div id="hyper-checkout-cart">
+        <div id="hyper-checkout-cart" class="hidden">
           <div class="hyper-checkout-cart-header">
             <svg
               width="16"
@@ -632,18 +666,18 @@
                   width="16"
                   height="16"
                 >
-                  <rect width="16" height="16" fill="#D9D9D9" />
+                  <rect width="16" height="16" fill="#D9D9D9"></rect>
                 </mask>
                 <g mask="url(#mask0_11421_6708)">
                   <path
                     d="M3.53716 14.3331C3.20469 14.3331 2.92071 14.2153 2.68525 13.9798C2.44977 13.7444 2.33203 13.4604 2.33203 13.1279V5.53823C2.33203 5.20575 2.44977 4.92178 2.68525 4.68631C2.92071 4.45083 3.20469 4.3331 3.53716 4.3331H4.9987C4.9987 3.50063 5.29058 2.79252 5.87433 2.20876C6.4581 1.62501 7.16621 1.33313 7.99868 1.33313C8.83115 1.33313 9.53927 1.62501 10.123 2.20876C10.7068 2.79252 10.9987 3.50063 10.9987 4.3331H12.4602C12.7927 4.3331 13.0766 4.45083 13.3121 4.68631C13.5476 4.92178 13.6653 5.20575 13.6653 5.53823V13.1279C13.6653 13.4604 13.5476 13.7444 13.3121 13.9798C13.0766 14.2153 12.7927 14.3331 12.4602 14.3331H3.53716ZM3.53716 13.3331H12.4602C12.5115 13.3331 12.5585 13.3117 12.6012 13.269C12.644 13.2262 12.6653 13.1792 12.6653 13.1279V5.53823C12.6653 5.48694 12.644 5.43992 12.6012 5.39718C12.5585 5.35445 12.5115 5.33308 12.4602 5.33308H3.53716C3.48588 5.33308 3.43886 5.35445 3.39611 5.39718C3.35338 5.43992 3.33201 5.48694 3.33201 5.53823V13.1279C3.33201 13.1792 3.35338 13.2262 3.39611 13.269C3.43886 13.3117 3.48588 13.3331 3.53716 13.3331ZM7.99868 8.99973C8.83115 8.99973 9.53927 8.70785 10.123 8.1241C10.7068 7.54033 10.9987 6.83221 10.9987 5.99975H9.99868C9.99868 6.5553 9.80424 7.02752 9.41535 7.41641C9.02646 7.8053 8.55424 7.99975 7.99868 7.99975C7.44313 7.99975 6.9709 7.8053 6.58202 7.41641C6.19313 7.02752 5.99868 6.5553 5.99868 5.99975H4.9987C4.9987 6.83221 5.29058 7.54033 5.87433 8.1241C6.4581 8.70785 7.16621 8.99973 7.99868 8.99973ZM5.99868 4.3331H9.99868C9.99868 3.77754 9.80424 3.30532 9.41535 2.91643C9.02646 2.52754 8.55424 2.3331 7.99868 2.3331C7.44313 2.3331 6.9709 2.52754 6.58202 2.91643C6.19313 3.30532 5.99868 3.77754 5.99868 4.3331Z"
                     fill="#333333"
-                  />
+                  ></path>
                 </g>
               </g>
               <defs>
                 <clipPath id="clip0_11421_6708">
-                  <rect width="16" height="16" fill="white" />
+                  <rect width="16" height="16" fill="white"></rect>
                 </clipPath>
               </defs>
             </svg>
@@ -658,10 +692,10 @@
             >
               <path
                 d="M 9.15625 6.3125 L 6.3125 9.15625 L 22.15625 25 L 6.21875 40.96875 L 9.03125 43.78125 L 25 27.84375 L 40.9375 43.78125 L 43.78125 40.9375 L 27.84375 25 L 43.6875 9.15625 L 40.84375 6.3125 L 25 22.15625 Z"
-              />
+              ></path>
             </svg>
           </div>
-          <div id="hyper-checkout-cart-items"></div>
+          <div id="hyper-checkout-cart-items" class="hide-scrollbar"></div>
         </div>
       </div>
       <div class="hyper-checkout-sdk" id="hyper-checkout-sdk">
@@ -762,16 +796,11 @@
       prevHeight: window.innerHeight,
       prevWidth: window.innerWidth,
       isMobileView: window.innerWidth <= 1200,
-    }
+    };
 
     var widgets = null;
-
-    window.__PAYMENT_DETAILS = {};
-    try {
-      window.__PAYMENT_DETAILS = JSON.parse(window.__PAYMENT_DETAILS_STR);
-    } catch (error) {
-      console.error("Failed to parse payment details");
-    }
+    const pub_key = window.__PAYMENT_DETAILS.pub_key;
+    const hyper = Hyper(pub_key);
 
     async function initialize() {
       const paymentDetails = window.__PAYMENT_DETAILS;
@@ -1076,12 +1105,13 @@
       var priceNode = document.createElement("div");
       priceNode.className = "hyper-checkout-payment-price";
       priceNode.innerText =
-        paymentDetails.currency_symbol + paymentDetails.amount;
+        paymentDetails.currency + " " + paymentDetails.amount;
 
       // Create merchant name's node
       var merchantNameNode = document.createElement("div");
       merchantNameNode.className = "hyper-checkout-payment-merchant-name";
-      merchantNameNode.innerText = "Requested by " + paymentDetails.merchant;
+      merchantNameNode.innerText =
+        "Requested by " + paymentDetails.merchant_name;
 
       // Create payment ID node
       var paymentIdNode = document.createElement("div");
@@ -1128,46 +1158,15 @@
       // Cart items
       if (Array.isArray(orderDetails)) {
         orderDetails.map((item, index) => {
-          // Wrappers
-          var itemWrapperNode = document.createElement("div");
-          itemWrapperNode.className = `${
-            index >= MAX_ITEMS_VISIBLE_AFTER_COLLAPSE ? "hidden " : ""
-          }hyper-checkout-cart-item`;
-          var nameAndQuantityWrapperNode = document.createElement("div");
-          nameAndQuantityWrapperNode.className =
-            "hyper-checkout-cart-product-details";
-
-          // Image
-          var productImageNode = document.createElement("img");
-          productImageNode.className = "hyper-checkout-cart-product-image";
-          productImageNode.src = item.product_image;
-          // Product title
-          var productNameNode = document.createElement("div");
-          productNameNode.className = "hyper-checkout-card-item-name";
-          productNameNode.innerText = item.product_name;
-          // Product quantity
-          var quantityNode = document.createElement("div");
-          quantityNode.className = "hyper-checkout-card-item-quantity";
-          quantityNode.innerText = "Qty: " + item.quantity;
-          // Product price
-          var priceNode = document.createElement("div");
-          priceNode.className = "hyper-checkout-card-item-price";
-          priceNode.innerText = paymentDetails.currency_symbol + item.amount;
-          // Divider node
-          var dividerNode = document.createElement("div");
-          dividerNode.className = `${
-            index !== 0 && index < MAX_ITEMS_VISIBLE_AFTER_COLLAPSE
-              ? ""
-              : "hidden "
-          }hyper-checkout-cart-item-divider`;
-          // Append items
-          nameAndQuantityWrapperNode.append(productNameNode, quantityNode);
-          itemWrapperNode.append(
-            productImageNode,
-            nameAndQuantityWrapperNode,
-            priceNode
+          if (index >= MAX_ITEMS_VISIBLE_AFTER_COLLAPSE) {
+            return;
+          }
+          renderCartItem(
+            item,
+            paymentDetails,
+            index !== 0 && index < MAX_ITEMS_VISIBLE_AFTER_COLLAPSE,
+            cartItemsNode
           );
-          cartItemsNode.append(dividerNode, itemWrapperNode);
         });
       }
 
@@ -1188,6 +1187,49 @@
       }
     }
 
+    function renderCartItem(
+      item,
+      paymentDetails,
+      shouldAddDividerNode,
+      cartItemsNode
+    ) {
+      // Wrappers
+      var itemWrapperNode = document.createElement("div");
+      itemWrapperNode.className = "hyper-checkout-cart-item";
+      var nameAndQuantityWrapperNode = document.createElement("div");
+      nameAndQuantityWrapperNode.className =
+        "hyper-checkout-cart-product-details";
+      // Image
+      var productImageNode = document.createElement("img");
+      productImageNode.className = "hyper-checkout-cart-product-image";
+      productImageNode.src = item.product_img_link;
+      // Product title
+      var productNameNode = document.createElement("div");
+      productNameNode.className = "hyper-checkout-card-item-name";
+      productNameNode.innerText = item.product_name;
+      // Product quantity
+      var quantityNode = document.createElement("div");
+      quantityNode.className = "hyper-checkout-card-item-quantity";
+      quantityNode.innerText = "Qty: " + item.quantity;
+      // Product price
+      var priceNode = document.createElement("div");
+      priceNode.className = "hyper-checkout-card-item-price";
+      priceNode.innerText = paymentDetails.currency + " " + item.amount;
+      // Append items
+      nameAndQuantityWrapperNode.append(productNameNode, quantityNode);
+      itemWrapperNode.append(
+        productImageNode,
+        nameAndQuantityWrapperNode,
+        priceNode
+      );
+      if (shouldAddDividerNode) {
+        var dividerNode = document.createElement("div");
+        dividerNode.className = "hyper-checkout-cart-item-divider";
+        cartItemsNode.append(dividerNode);
+      }
+      cartItemsNode.append(itemWrapperNode);
+    }
+
     function handleCartView() {
       const paymentDetails = window.__PAYMENT_DETAILS;
       const orderDetails = paymentDetails.order_details;
@@ -1201,34 +1243,70 @@
       );
       var cartItems = [].slice.call(itemsHTMLCollection);
       var dividerItems = [].slice.call(dividerHTMLCollection);
-      var isHidden = false;
-      cartItems.map((item) => {
-        isHidden = item.classList.contains("hidden");
-      });
-
-      cartItems.map((item, index) => {
-        if (index >= MAX_ITEMS_VISIBLE_AFTER_COLLAPSE) {
-          item.className = `${
-            isHidden ? "" : "hidden "
-          }hyper-checkout-cart-item`;
-        }
-      });
-      dividerItems.map((divider, index) => {
-        if (index >= MAX_ITEMS_VISIBLE_AFTER_COLLAPSE) {
-          divider.className = `${
-            isHidden ? "" : "hidden "
-          }hyper-checkout-cart-item-divider`;
-        }
-      });
-
+      var isHidden = cartItems.length < orderDetails.length;
+      var cartItemsNode = document.getElementById("hyper-checkout-cart-items");
       var cartButtonTextNode = document.getElementById(
         "hyper-checkout-cart-button-text"
       );
-      const hiddenItemsCount =
-        orderDetails.length - MAX_ITEMS_VISIBLE_AFTER_COLLAPSE;
-      cartButtonTextNode.innerText = isHidden
-        ? "Show Less"
-        : `Show More (${hiddenItemsCount})`;
+      if (isHidden) {
+        if (Array.isArray(orderDetails)) {
+          orderDetails.map((item, index) => {
+            if (index < MAX_ITEMS_VISIBLE_AFTER_COLLAPSE) {
+              return;
+            }
+            renderCartItem(
+              item,
+              paymentDetails,
+              index >= MAX_ITEMS_VISIBLE_AFTER_COLLAPSE,
+              cartItemsNode
+            );
+          });
+        }
+        cartItemsNode.style.maxHeight = cartItemsNode.scrollHeight + "px";
+        cartItemsNode.style.height = cartItemsNode.scrollHeight + "px";
+        cartButtonTextNode.innerText = "Show Less";
+      } else {
+        cartItemsNode.style.maxHeight = "354px";
+        cartItemsNode.style.height = "354px";
+        cartItemsNode.scrollTo({ top: 0, behavior: "smooth" });
+        setTimeout(() => {
+          cartItems.map((item, index) => {
+            if (index < MAX_ITEMS_VISIBLE_AFTER_COLLAPSE) {
+              return;
+            }
+            cartItemsNode.removeChild(item);
+          });
+          dividerItems.map((item, index) => {
+            if (index < MAX_ITEMS_VISIBLE_AFTER_COLLAPSE - 1) {
+              return;
+            }
+            cartItemsNode.removeChild(item);
+          });
+        }, 300);
+        setTimeout(() => {
+          const hiddenItemsCount =
+            orderDetails.length - MAX_ITEMS_VISIBLE_AFTER_COLLAPSE;
+          cartButtonTextNode.innerText = `Show More (${hiddenItemsCount})`;
+        }, 250);
+      }
+    }
+
+    function hideCartInMobileView() {
+      window.history.back();
+      const cartNode = document.getElementById("hyper-checkout-cart");
+      cartNode.style.animation = "slide-to-right 0.3s linear";
+      cartNode.style.right = "-582px";
+      setTimeout(() => {
+        hide("#hyper-checkout-cart");
+      }, 300);
+    }
+
+    function viewCartInMobileView() {
+      window.history.pushState("view-cart", "");
+      const cartNode = document.getElementById("hyper-checkout-cart");
+      cartNode.style.animation = "slide-from-right 0.3s linear";
+      cartNode.style.right = "0px";
+      show("#hyper-checkout-cart");
     }
 
     function hideCartInMobileView() {
@@ -1250,7 +1328,7 @@
       var sdkHeaderMerchantNameNode = document.createElement("div");
       sdkHeaderMerchantNameNode.className =
         "hyper-checkout-sdk-header-brand-name";
-      sdkHeaderMerchantNameNode.innerText = paymentDetails.merchant;
+      sdkHeaderMerchantNameNode.innerText = paymentDetails.merchant_name;
       var sdkHeaderAmountNode = document.createElement("div");
       sdkHeaderAmountNode.className = "hyper-checkout-sdk-header-amount";
       sdkHeaderAmountNode.innerText =
@@ -1295,7 +1373,6 @@
     window.addEventListener("resize", (event) => {
       const currentHeight = window.innerHeight;
       const currentWidth = window.innerWidth;
-
       if (currentWidth <= 1200 && window.state.prevWidth > 1200) {
         hide("#hyper-checkout-cart");
       } else if (currentWidth > 1200 && window.state.prevWidth <= 1200) {
