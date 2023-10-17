@@ -159,12 +159,12 @@ impl TryFrom<types::PaymentsResponseRouterData<KlarnaPaymentsResponse>>
     ) -> Result<Self, Self::Error> {
         Ok(Self {
             response: Ok(types::PaymentsResponseData::TransactionResponse {
-                resource_id: types::ResponseId::ConnectorTransactionId(item.response.order_id),
+                resource_id: types::ResponseId::ConnectorTransactionId(item.response.order_id.clone()),
                 redirection_data: None,
                 mandate_reference: None,
                 connector_metadata: None,
                 network_txn_id: None,
-                connector_response_reference_id: None,
+                connector_response_reference_id: Some(item.resposne.order_id.clone())
             }),
             status: item.response.fraud_status.into(),
             ..item.data
