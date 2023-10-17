@@ -48,6 +48,7 @@ pub struct PaymentIntent {
     pub merchant_decision: Option<String>,
     pub payment_link_id: Option<String>,
     pub payment_confirm_source: Option<storage_enums::PaymentSource>,
+    pub updated_by: String,
 }
 
 #[derive(
@@ -100,6 +101,7 @@ pub struct PaymentIntentNew {
     pub merchant_decision: Option<String>,
     pub payment_link_id: Option<String>,
     pub payment_confirm_source: Option<storage_enums::PaymentSource>,
+    pub updated_by: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -108,9 +110,11 @@ pub enum PaymentIntentUpdate {
         status: storage_enums::IntentStatus,
         amount_captured: Option<i64>,
         return_url: Option<String>,
+        updated_by: String,
     },
     MetadataUpdate {
         metadata: pii::SecretSerdeValue,
+        updated_by: String,
     },
     ReturnUrlUpdate {
         return_url: Option<String>,
@@ -118,14 +122,17 @@ pub enum PaymentIntentUpdate {
         customer_id: Option<String>,
         shipping_address_id: Option<String>,
         billing_address_id: Option<String>,
+        updated_by: String,
     },
     MerchantStatusUpdate {
         status: storage_enums::IntentStatus,
         shipping_address_id: Option<String>,
         billing_address_id: Option<String>,
+        updated_by: String,
     },
     PGStatusUpdate {
         status: storage_enums::IntentStatus,
+        updated_by: String,
     },
     Update {
         amount: i64,
@@ -144,22 +151,27 @@ pub enum PaymentIntentUpdate {
         order_details: Option<Vec<pii::SecretSerdeValue>>,
         metadata: Option<pii::SecretSerdeValue>,
         payment_confirm_source: Option<storage_enums::PaymentSource>,
+        updated_by: String,
     },
     PaymentAttemptAndAttemptCountUpdate {
         active_attempt_id: String,
         attempt_count: i16,
+        updated_by: String,
     },
     StatusAndAttemptUpdate {
         status: storage_enums::IntentStatus,
         active_attempt_id: String,
         attempt_count: i16,
+        updated_by: String,
     },
     ApproveUpdate {
         merchant_decision: Option<String>,
+        updated_by: String,
     },
     RejectUpdate {
         status: storage_enums::IntentStatus,
         merchant_decision: Option<String>,
+        updated_by: String,
     },
 }
 
@@ -190,6 +202,7 @@ pub struct PaymentIntentUpdateInternal {
     pub profile_id: Option<String>,
     merchant_decision: Option<String>,
     payment_confirm_source: Option<storage_enums::PaymentSource>,
+    pub updated_by: String,
 }
 
 impl PaymentIntentUpdate {
@@ -240,6 +253,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 order_details,
                 metadata,
                 payment_confirm_source,
+                updated_by,
             } => Self {
                 amount: Some(amount),
                 currency: Some(currency),
@@ -258,11 +272,16 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 order_details,
                 metadata,
                 payment_confirm_source,
+                updated_by,
                 ..Default::default()
             },
-            PaymentIntentUpdate::MetadataUpdate { metadata } => Self {
+            PaymentIntentUpdate::MetadataUpdate {
+                metadata,
+                updated_by,
+            } => Self {
                 metadata: Some(metadata),
                 modified_at: Some(common_utils::date_time::now()),
+                updated_by,
                 ..Default::default()
             },
             PaymentIntentUpdate::ReturnUrlUpdate {
@@ -271,6 +290,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 customer_id,
                 shipping_address_id,
                 billing_address_id,
+                updated_by,
             } => Self {
                 return_url,
                 status,
@@ -278,22 +298,26 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 shipping_address_id,
                 billing_address_id,
                 modified_at: Some(common_utils::date_time::now()),
+                updated_by,
                 ..Default::default()
             },
-            PaymentIntentUpdate::PGStatusUpdate { status } => Self {
+            PaymentIntentUpdate::PGStatusUpdate { status, updated_by } => Self {
                 status: Some(status),
                 modified_at: Some(common_utils::date_time::now()),
+                updated_by,
                 ..Default::default()
             },
             PaymentIntentUpdate::MerchantStatusUpdate {
                 status,
                 shipping_address_id,
                 billing_address_id,
+                updated_by,
             } => Self {
                 status: Some(status),
                 shipping_address_id,
                 billing_address_id,
                 modified_at: Some(common_utils::date_time::now()),
+                updated_by,
                 ..Default::default()
             },
             PaymentIntentUpdate::ResponseUpdate {
@@ -303,6 +327,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 amount_captured,
                 // customer_id,
                 return_url,
+                updated_by,
             } => Self {
                 // amount,
                 // currency: Some(currency),
@@ -311,36 +336,47 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 // customer_id,
                 return_url,
                 modified_at: Some(common_utils::date_time::now()),
+                updated_by,
                 ..Default::default()
             },
             PaymentIntentUpdate::PaymentAttemptAndAttemptCountUpdate {
                 active_attempt_id,
                 attempt_count,
+                updated_by,
             } => Self {
                 active_attempt_id: Some(active_attempt_id),
                 attempt_count: Some(attempt_count),
+                updated_by,
                 ..Default::default()
             },
             PaymentIntentUpdate::StatusAndAttemptUpdate {
                 status,
                 active_attempt_id,
                 attempt_count,
+                updated_by,
             } => Self {
                 status: Some(status),
                 active_attempt_id: Some(active_attempt_id),
                 attempt_count: Some(attempt_count),
+                updated_by,
                 ..Default::default()
             },
-            PaymentIntentUpdate::ApproveUpdate { merchant_decision } => Self {
+            PaymentIntentUpdate::ApproveUpdate {
                 merchant_decision,
+                updated_by,
+            } => Self {
+                merchant_decision,
+                updated_by,
                 ..Default::default()
             },
             PaymentIntentUpdate::RejectUpdate {
                 status,
                 merchant_decision,
+                updated_by,
             } => Self {
                 status: Some(status),
                 merchant_decision,
+                updated_by,
                 ..Default::default()
             },
         }
