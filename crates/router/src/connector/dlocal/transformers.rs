@@ -1,4 +1,4 @@
-use api_models::payments::AddressDetails;
+use api_models::payments::{AddressDetails, PaymentsRequest};
 use common_utils::pii::Email;
 use error_stack::ResultExt;
 use masking::{PeekInterface, Secret};
@@ -98,7 +98,7 @@ pub struct DlocalPaymentsRequest {
     pub description: Option<String>,
 }
 
-impl TryFrom<&DlocalRouterData<&types::PaymentsAuthorizeRouterData>> for DlocalRouterData<T> {
+impl TryFrom<&DlocalRouterData<&types::PaymentsAuthorizeRouterData>> for DlocalPaymentsRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
         item: &DlocalRouterData<&types::PaymentsAuthorizeRouterData>,
@@ -113,7 +113,7 @@ impl TryFrom<&DlocalRouterData<&types::PaymentsAuthorizeRouterData>> for DlocalR
                     item.router_data.request.capture_method,
                     Some(enums::CaptureMethod::Automatic)
                 );
-                let payment_request = PaymentsAuthorizeRouterData {
+                let payment_request = DlocalPaymentsRequest {
                     amount: item.router_data.request.amount,
                     currency: item.router_data.request.currency,
                     payment_method_id: PaymentMethodId::Card,
@@ -133,6 +133,7 @@ impl TryFrom<&DlocalRouterData<&types::PaymentsAuthorizeRouterData>> for DlocalR
                         expiration_year: ccard.card_exp_year.clone(),
                         capture: should_capture.to_string(),
                         installments_id: item
+                            .router_data
                             .request
                             .mandate_id
                             .as_ref()
