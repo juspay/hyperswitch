@@ -449,7 +449,7 @@ where
         headers.extend(
             external_latency
                 .map(|latency| vec![(X_HS_LATENCY.to_string(), latency.to_string())])
-                .unwrap_or(vec![]),
+                .unwrap_or_default(),
         );
     }
     let output = Ok(match payment_request {
@@ -916,6 +916,7 @@ pub fn change_order_details_to_new_type(
         product_name: order_details.product_name,
         quantity: order_details.quantity,
         amount: order_amount,
+        product_img_link: order_details.product_img_link,
     }])
 }
 
@@ -1418,6 +1419,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsPreProce
             webhook_url,
             complete_authorize_url,
             browser_info,
+            surcharge_details: payment_data.surcharge_details,
         })
     }
 }

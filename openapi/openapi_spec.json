@@ -6172,6 +6172,14 @@
             "type": "string",
             "description": "The id of the organization to which the merchant belongs to",
             "nullable": true
+          },
+          "payment_link_config": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PaymentLinkConfig"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -6345,6 +6353,9 @@
           },
           "recon_status": {
             "$ref": "#/components/schemas/ReconStatus"
+          },
+          "payment_link_config": {
+            "nullable": true
           }
         }
       },
@@ -6477,6 +6488,9 @@
             "description": "The default business profile that must be used for creating merchant accounts and payments\nTo unset this field, pass an empty string",
             "nullable": true,
             "maxLength": 64
+          },
+          "payment_link_config": {
+            "nullable": true
           }
         }
       },
@@ -7323,6 +7337,11 @@
             "description": "The quantity of the product to be purchased",
             "example": 1,
             "minimum": 0
+          },
+          "product_img_link": {
+            "type": "string",
+            "description": "The image URL of the product",
+            "nullable": true
           }
         }
       },
@@ -7351,6 +7370,11 @@
             "type": "integer",
             "format": "int64",
             "description": "the amount per quantity of product"
+          },
+          "product_img_link": {
+            "type": "string",
+            "description": "The image URL of the product",
+            "nullable": true
           }
         }
       },
@@ -7789,6 +7813,40 @@
             }
           }
         ]
+      },
+      "PaymentLinkColorSchema": {
+        "type": "object",
+        "properties": {
+          "primary_color": {
+            "type": "string",
+            "nullable": true
+          },
+          "primary_accent_color": {
+            "type": "string",
+            "nullable": true
+          },
+          "secondary_color": {
+            "type": "string",
+            "nullable": true
+          }
+        }
+      },
+      "PaymentLinkConfig": {
+        "type": "object",
+        "properties": {
+          "merchant_logo": {
+            "type": "string",
+            "nullable": true
+          },
+          "color_scheme": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PaymentLinkColorSchema"
+              }
+            ],
+            "nullable": true
+          }
+        }
       },
       "PaymentLinkInitiateRequest": {
         "type": "object",
@@ -8778,7 +8836,7 @@
               "$ref": "#/components/schemas/OrderDetailsWithAmount"
             },
             "description": "Information about the product , quantity and amount for connectors. (e.g. Klarna)",
-            "example": "[{\n        \"product_name\": \"gillete creme\",\n        \"quantity\": 15,\n        \"amount\" : 900\n    }]",
+            "example": "[{\n        \"product_name\": \"gillete creme\",\n        \"quantity\": 15,\n        \"amount\" : 900\n        \"product_img_link\" : \"https://dummy-img-link.com\"\n    }]",
             "nullable": true
           },
           "client_secret": {
@@ -8898,6 +8956,14 @@
           "profile_id": {
             "type": "string",
             "description": "The business profile to use for this payment, if not passed the default business profile\nassociated with the merchant account will be used.",
+            "nullable": true
+          },
+          "surcharge_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/RequestSurchargeDetails"
+              }
+            ],
             "nullable": true
           },
           "payment_type": {
@@ -9134,7 +9200,7 @@
               "$ref": "#/components/schemas/OrderDetailsWithAmount"
             },
             "description": "Information about the product , quantity and amount for connectors. (e.g. Klarna)",
-            "example": "[{\n        \"product_name\": \"gillete creme\",\n        \"quantity\": 15,\n        \"amount\" : 900\n    }]",
+            "example": "[{\n        \"product_name\": \"gillete creme\",\n        \"quantity\": 15,\n        \"amount\" : 900\n        \"product_img_link\" : \"https://dummy-img-link.com\"\n    }]",
             "nullable": true
           },
           "client_secret": {
@@ -9254,6 +9320,14 @@
           "profile_id": {
             "type": "string",
             "description": "The business profile to use for this payment, if not passed the default business profile\nassociated with the merchant account will be used.",
+            "nullable": true
+          },
+          "surcharge_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/RequestSurchargeDetails"
+              }
+            ],
             "nullable": true
           },
           "payment_type": {
@@ -10640,6 +10714,23 @@
           "metadata": {
             "type": "object",
             "description": "You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Metadata is useful for storing additional, structured information on an object.",
+            "nullable": true
+          }
+        }
+      },
+      "RequestSurchargeDetails": {
+        "type": "object",
+        "required": [
+          "surcharge_amount"
+        ],
+        "properties": {
+          "surcharge_amount": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "tax_amount": {
+            "type": "integer",
+            "format": "int64",
             "nullable": true
           }
         }

@@ -67,27 +67,6 @@ pub enum EventObjectType {
     Clone,
     Copy,
     Debug,
-    Default,
-    Eq,
-    PartialEq,
-    serde::Deserialize,
-    serde::Serialize,
-    strum::Display,
-    strum::EnumString,
-)]
-#[router_derive::diesel_enum(storage_type = "pg_enum")]
-#[serde(rename_all = "snake_case")]
-#[strum(serialize_all = "snake_case")]
-pub enum MerchantStorageScheme {
-    #[default]
-    PostgresOnly,
-    RedisKv,
-}
-
-#[derive(
-    Clone,
-    Copy,
-    Debug,
     Eq,
     PartialEq,
     serde::Deserialize,

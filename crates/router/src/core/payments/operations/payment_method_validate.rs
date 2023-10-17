@@ -104,6 +104,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
                     request.payment_method,
                     request,
                     state,
+                    merchant_account.storage_scheme,
                 ),
                 storage_scheme,
             )
@@ -122,6 +123,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
                     merchant_id,
                     request,
                     payment_attempt.attempt_id.clone(),
+                    merchant_account.storage_scheme,
                 ),
                 storage_scheme,
             )
@@ -246,6 +248,7 @@ impl<F: Clone, Ctx: PaymentMethodRetrieve> UpdateTracker<F, PaymentData<F>, api:
                     customer_id,
                     shipping_address_id: None,
                     billing_address_id: None,
+                    updated_by: storage_scheme.to_string(),
                 },
                 storage_scheme,
             )
@@ -321,6 +324,7 @@ impl PaymentMethodValidate {
         payment_method: Option<api_enums::PaymentMethod>,
         _request: &api::VerifyRequest,
         state: &AppState,
+        storage_scheme: storage_enums::MerchantStorageScheme,
     ) -> storage::PaymentAttemptNew {
         let created_at @ modified_at @ last_synced = Some(date_time::now());
         let status = storage_enums::AttemptStatus::Pending;
@@ -347,6 +351,7 @@ impl PaymentMethodValidate {
             created_at,
             modified_at,
             last_synced,
+            updated_by: storage_scheme.to_string(),
             ..Default::default()
         }
     }
@@ -356,6 +361,7 @@ impl PaymentMethodValidate {
         merchant_id: &str,
         request: &api::VerifyRequest,
         active_attempt_id: String,
+        storage_scheme: storage_enums::MerchantStorageScheme,
     ) -> storage::PaymentIntentNew {
         let created_at @ modified_at @ last_synced = Some(date_time::now());
         let status = helpers::payment_intent_status_fsm(&request.payment_method_data, Some(true));
@@ -396,6 +402,7 @@ impl PaymentMethodValidate {
             merchant_decision: Default::default(),
             payment_confirm_source: Default::default(),
             payment_link_id: Default::default(),
+            updated_by: storage_scheme.to_string(),
         }
     }
 }
