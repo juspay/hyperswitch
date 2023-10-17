@@ -1,6 +1,6 @@
 use diesel::{Identifiable, Insertable, Queryable};
 
-use crate::{schema::reverse_lookup};
+use crate::schema::reverse_lookup;
 
 ///
 /// This reverse lookup table basically looks up id's and get result_id that you want. This is
