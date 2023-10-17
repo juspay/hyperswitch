@@ -172,7 +172,7 @@ impl<T: DatabaseStore> PaymentIntentInterface for KVRouterStore<T> {
                         updatable: kv::Updateable::PaymentIntentUpdate(
                             kv::PaymentIntentUpdateMems {
                                 orig: this.to_storage_model(),
-                                update_data: diesel_intent,
+                                update_data: payment_intent_update,
                             },
                         ),
                     },
