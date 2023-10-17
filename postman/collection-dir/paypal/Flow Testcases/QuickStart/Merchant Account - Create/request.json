@@ -79,6 +79,10 @@
       "metadata": {
         "city": "NY",
         "unit": "245"
+      },
+      "routing_algorithm": {
+        "type": "single",
+        "data": "paypal"
       }
     }
   },
