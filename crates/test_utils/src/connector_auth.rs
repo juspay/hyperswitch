@@ -48,6 +48,7 @@ pub struct ConnectorAuthentication {
     pub paypal: Option<BodyKey>,
     pub payu: Option<BodyKey>,
     pub powertranz: Option<BodyKey>,
+    pub prophetpay: Option<HeaderKey>,
     pub rapyd: Option<BodyKey>,
     pub shift4: Option<HeaderKey>,
     pub square: Option<BodyKey>,
@@ -78,7 +79,7 @@ impl ConnectorAuthentication {
     /// Will panic if `CONNECTOR_AUTH_FILE_PATH` env is not set
     #[allow(clippy::expect_used)]
     pub fn new() -> Self {
-        // Do `export CONNECTOR_AUTH_FILE_PATH="/hyperswitch/crates/router/tests/connectors/sample_sample_auth.toml"`
+        // Do `export CONNECTOR_AUTH_FILE_PATH="/hyperswitch/crates/router/tests/connectors/sample_sample_sample_auth.toml"`
         // before running tests in shell
         let path = env::var("CONNECTOR_AUTH_FILE_PATH")
             .expect("Connector authentication file path not set");
@@ -110,7 +111,7 @@ impl ConnectorAuthenticationMap {
     /// Will panic if `CONNECTOR_AUTH_FILE_PATH` env  is not set
     #[allow(clippy::expect_used)]
     pub fn new() -> Self {
-        // Do `export CONNECTOR_AUTH_FILE_PATH="/hyperswitch/crates/router/tests/connectors/sample_sample_auth.toml"`
+        // Do `export CONNECTOR_AUTH_FILE_PATH="/hyperswitch/crates/router/tests/connectors/sample_sample_sample_auth.toml"`
         // before running tests in shell
         let path = env::var("CONNECTOR_AUTH_FILE_PATH")
             .expect("connector authentication file path not set");
