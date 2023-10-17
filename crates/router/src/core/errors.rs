@@ -179,7 +179,7 @@ pub enum ConnectorError {
         connector: &'static str,
     },
     #[error("Invalid Configuration")]
-    InvalidConfig { field_name: &'static str },
+    InvalidConnectorConfig { config: &'static str },
 }
 
 #[derive(Debug, thiserror::Error)]

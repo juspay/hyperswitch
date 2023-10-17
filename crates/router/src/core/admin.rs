@@ -664,11 +664,10 @@ pub async fn create_payment_connector(
                     message: "The connector name is invalid".to_string(),
                 })
             }
-            errors::ConnectorError::InvalidConfig { field_name } => {
-                err.change_context(errors::ApiErrorResponse::InvalidRequestData {
+            errors::ConnectorError::InvalidConnectorConfig { config: field_name } => err
+                .change_context(errors::ApiErrorResponse::InvalidRequestData {
                     message: format!("The {} is invalid", field_name),
-                })
-            }
+                }),
             errors::ConnectorError::FailedToObtainAuthType => {
                 err.change_context(errors::ApiErrorResponse::InvalidRequestData {
                     message: "The auth type is invalid for the connector".to_string(),

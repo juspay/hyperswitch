@@ -236,6 +236,8 @@ pub enum ApiErrorResponse {
     WebhookInvalidMerchantSecret,
     #[error(error_type = ErrorType::InvalidRequestError, code = "IR_19", message = "{message}")]
     CurrencyNotSupported { message: String },
+    #[error(error_type = ErrorType::InvalidRequestError, code = "IR_24", message = "Merchant connector account is configured with invalid {config}")]
+    InvalidConnectorConfiguration { config: String },
 }
 
 impl PTError for ApiErrorResponse {
