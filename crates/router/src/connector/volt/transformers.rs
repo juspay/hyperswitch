@@ -9,6 +9,8 @@ use crate::{
     types::{self, api, storage::enums},
 };
 
+const PASSWORD: &str = "password";
+
 pub struct VoltRouterData<T> {
     pub amount: i64, // The type of amount that a connector accepts, for example, String, i64, f64, etc.
     pub router_data: T,
@@ -38,13 +40,13 @@ impl<T>
     }
 }
 
-#[derive(Default, Debug, Serialize, Eq, PartialEq)]
+#[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct VoltPaymentsRequest {
     amount: i64,
     currency_code: String,
     #[serde(rename = "type")]
-    transaction_type: String,
+    transaction_type: TransactionType,
     merchant_internal_reference: String,
     shopper: ShopperDetails,
     notification_url: Option<String>,
@@ -54,13 +56,22 @@ pub struct VoltPaymentsRequest {
     payment_cancel_url: Option<String>,
 }
 
-#[derive(Default, Debug, Serialize, Eq, PartialEq)]
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum TransactionType {
+    Bills,
+    Goods,
+    PersonToPerson,
+    Other,
+    Services,
+}
+
+#[derive(Debug, Serialize)]
 pub struct ShopperDetails {
     reference: String,
     email: Option<Email>,
     first_name: Secret<String>,
     last_name: Secret<String>,
-    organisation_name: Secret<String>,
 }
 
 impl TryFrom<&VoltRouterData<&types::PaymentsAuthorizeRouterData>> for VoltPaymentsRequest {
@@ -85,9 +96,9 @@ impl TryFrom<&VoltRouterData<&types::PaymentsAuthorizeRouterData>> for VoltPayme
                         email: item.router_data.request.email.clone(),
                         first_name: address.get_first_name()?.to_owned(),
                         last_name: address.get_last_name()?.to_owned(),
-                        organisation_name: address.get_full_name()?.to_owned(),
                         reference: item.router_data.get_customer_id()?.to_owned(),
                     };
+                    let transaction_type = TransactionType::Services; //transaction_type is a form of enum, it is pre defined and value for this can not be taken from user so we are keeping it as Services as this transaction is type of service.
 
                     Ok(Self {
                         amount,
@@ -99,7 +110,7 @@ impl TryFrom<&VoltRouterData<&types::PaymentsAuthorizeRouterData>> for VoltPayme
                         payment_cancel_url,
                         notification_url,
                         shopper,
-                        transaction_type: "SERVICES".to_string(),
+                        transaction_type,
                     })
                 }
                 api_models::payments::BankRedirectData::BancontactCard { .. }
@@ -125,7 +136,24 @@ impl TryFrom<&VoltRouterData<&types::PaymentsAuthorizeRouterData>> for VoltPayme
                     .into())
                 }
             },
-            _ => Err(errors::ConnectorError::NotImplemented("Payment methods".to_string()).into()),
+            api_models::payments::PaymentMethodData::Card(_)
+            | api_models::payments::PaymentMethodData::CardRedirect(_)
+            | api_models::payments::PaymentMethodData::Wallet(_)
+            | api_models::payments::PaymentMethodData::PayLater(_)
+            | api_models::payments::PaymentMethodData::BankDebit(_)
+            | api_models::payments::PaymentMethodData::BankTransfer(_)
+            | api_models::payments::PaymentMethodData::Crypto(_)
+            | api_models::payments::PaymentMethodData::MandatePayment
+            | api_models::payments::PaymentMethodData::Reward
+            | api_models::payments::PaymentMethodData::Upi(_)
+            | api_models::payments::PaymentMethodData::Voucher(_)
+            | api_models::payments::PaymentMethodData::GiftCard(_) => {
+                Err(errors::ConnectorError::NotSupported {
+                    message: utils::SELECTED_PAYMENT_METHOD.to_string(),
+                    connector: "Volt",
+                }
+                .into())
+            }
         }
     }
 }
@@ -144,7 +172,7 @@ impl TryFrom<&types::RefreshTokenRouterData> for VoltAuthUpdateRequest {
     fn try_from(item: &types::RefreshTokenRouterData) -> Result<Self, Self::Error> {
         let auth = VoltAuthType::try_from(&item.connector_auth_type)?;
         Ok(Self {
-            grant_type: "password".to_string(),
+            grant_type: PASSWORD.to_string(),
             username: auth.username,
             password: auth.password,
             client_id: auth.client_id,
@@ -153,7 +181,7 @@ impl TryFrom<&types::RefreshTokenRouterData> for VoltAuthUpdateRequest {
     }
 }
 
-#[derive(Default, Debug, Clone, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Deserialize)]
 pub struct VoltAuthUpdateResponse {
     pub access_token: Secret<String>,
     pub token_type: String,
@@ -209,15 +237,16 @@ impl From<VoltPaymentStatus> for enums::AttemptStatus {
     fn from(item: VoltPaymentStatus) -> Self {
         match item {
             VoltPaymentStatus::Completed => Self::Charged,
-            VoltPaymentStatus::NewPayment
-            | VoltPaymentStatus::Processing
-            | VoltPaymentStatus::Received => Self::AuthenticationPending,
+            VoltPaymentStatus::Processing => Self::Pending,
+            VoltPaymentStatus::NewPayment | VoltPaymentStatus::Received => {
+                Self::AuthenticationPending
+            }
             VoltPaymentStatus::AbandonedByUser => Self::AuthenticationFailed,
         }
     }
 }
 
-#[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct VoltPaymentsResponse {
     checkout_url: String,
@@ -253,17 +282,16 @@ impl<F, T>
     }
 }
 
-#[derive(Debug, Default, Deserialize)]
+#[derive(Debug, Deserialize)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum VoltPaymentStatus {
     NewPayment,
     Completed,
     Received,
     AbandonedByUser,
-    #[default]
     Processing,
 }
-#[derive(Default, Debug, Deserialize)]
+#[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct VoltPsyncResponse {
     status: VoltPaymentStatus,
