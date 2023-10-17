@@ -150,7 +150,7 @@ impl<T: DatabaseStore> PaymentIntentInterface for KVRouterStore<T> {
                 let field = format!("pi_{}", this.payment_id);
 
                 let updated_intent = payment_intent.clone().apply_changeset(this.clone());
-                let diesel_intent = payment_intent.to_storage_model();
+                let diesel_intent = updated_intent.to_storage_model();
                 // Check for database presence as well Maybe use a read replica here ?
 
                 let redis_value =
