@@ -26,11 +26,12 @@ jobs:
         shell: bash
         run: |
 
-          # Extract a list of lines with the format 'juspay/hyperswitch/pull/1200' or '#1200' using 'sed'
-          # If empty, then error out and exit
-          # else, use 'grep' to extract out 'juspay/hyperswitch/pull/1200' or '#1200' patterns from each line
-          # Finally use 'sed' to remove the part of the matched strings that precedes the last "/" character and
-          # sed again to remove any "#" characters from the extracted numeric part, ultimately getting PR/issue number 
+          # Extract a list of lines with the format 'juspay/hyperswitch/pull/1200' or '#1200' using 'sed'.
+          # If empty, then error out and exit.
+          # else, use 'grep' to extract out 'juspay/hyperswitch/pull/1200' or '#1200' patterns from each line.
+          # Use 'sed' to remove the part of the matched strings that precedes the last "/" character (in cases like, juspay/hyperswitch/pull/1200 - 1200) 
+          # and sed again to remove any "#" characters from the extracted numeric part (in cases like #1200 - 1200), ultimately getting PR/issue number. 
+          # Finally, remove (if any) duplicates from the list
 
           SED_OUTPUT=$(sed -E '/\/juspay\/hyperswitch\/pull\/[0-9]+|#[0-9]+/!d' hotfix_pr_body.txt)
 
@@ -38,7 +39,7 @@ jobs:
             echo "::error::No original PRs found"
             exit 1
           else
-             PR_NUMBERS=($(echo "$SED_OUTPUT" | grep -oE 'juspay/hyperswitch/pull/[0-9]+|#([0-9]+)' | sed 's/.*\///' | sed 's/#//'))
+             PR_NUMBERS=($(echo "$SED_OUTPUT" | grep -oE 'juspay/hyperswitch/pull/[0-9]+|#([0-9]+)' | sed 's/.*\///' | sed 's/#//' | sort -u))
              echo "PR_NUMBERS=${PR_NUMBERS[@]}" >> $GITHUB_ENV
              echo "Original PR's found: ("${PR_NUMBERS[*]/#/#}")"
           fi
