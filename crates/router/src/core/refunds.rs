@@ -533,21 +533,20 @@ pub async fn validate_and_create_refund(
         .attach_printable("invalid merchant_id in request"))
     })?;
 
-    let refund = match validator::validate_uniqueness_of_refund_id_against_merchant_id(
-        db,
-        &payment_intent.payment_id,
-        &merchant_account.merchant_id,
-        &refund_id,
-        merchant_account.storage_scheme,
-    )
-    .await
-    .change_context(errors::ApiErrorResponse::InternalServerError)
-    .attach_printable_lazy(|| {
-        format!(
-            "Unique violation while checking refund_id: {} against merchant_id: {}",
-            refund_id, merchant_account.merchant_id
+    let refund = match db
+        .find_refund_by_merchant_id_refund_id(
+            &merchant_account.merchant_id,
+            &refund_id,
+            merchant_account.storage_scheme,
         )
-    })? {
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable_lazy(|| {
+            format!(
+                "Unique violation while checking refund_id: {} against merchant_id: {}",
+                refund_id, merchant_account.merchant_id
+            )
+        })? {
         Some(refund) => refund,
         None => {
             let connecter_transaction_id = payment_attempt.clone().connector_transaction_id.ok_or_else(|| {
