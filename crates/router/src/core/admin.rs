@@ -241,6 +241,31 @@ pub async fn create_merchant_account(
     ))
 }
 
+#[cfg(feature = "olap")]
+pub async fn list_merchant_account(
+    state: AppState,
+    req: api_models::admin::MerchantAccountListRequest,
+) -> RouterResponse<Vec<api::MerchantAccountResponse>> {
+    let merchant_accounts = state
+        .store
+        .list_merchant_accounts_by_organization_id(&req.organization_id)
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
+
+    let merchant_accounts = merchant_accounts
+        .into_iter()
+        .map(|merchant_account| {
+            merchant_account
+                .try_into()
+                .change_context(errors::ApiErrorResponse::InvalidDataValue {
+                    field_name: "merchant_account",
+                })
+        })
+        .collect::<Result<Vec<_>, _>>()?;
+
+    Ok(services::ApplicationResponse::Json(merchant_accounts))
+}
+
 pub async fn get_merchant_account(
     state: AppState,
     req: api::MerchantId,

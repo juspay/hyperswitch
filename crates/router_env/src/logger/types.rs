@@ -66,6 +66,8 @@ pub enum Flow {
     MerchantConnectorsCreate,
     /// Merchant Connectors retrieve flow.
     MerchantConnectorsRetrieve,
+    /// Merchant account list
+    MerchantAccountList,
     /// Merchant Connectors update flow.
     MerchantConnectorsUpdate,
     /// Merchant Connectors delete flow.
