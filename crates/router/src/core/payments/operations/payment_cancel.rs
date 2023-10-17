@@ -76,7 +76,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             .find_payment_attempt_by_payment_id_merchant_id_attempt_id(
                 payment_intent.payment_id.as_str(),
                 merchant_id,
-                payment_intent.active_attempt_id.as_str(),
+                payment_intent.active_attempt.get_id().as_str(),
                 storage_scheme,
             )
             .await
@@ -171,7 +171,9 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
                 ephemeral_key: None,
                 multiple_capture_data: None,
                 redirect_response: None,
+                surcharge_details: None,
                 frm_message: None,
+                payment_link_data: None,
                 frm_metadata: None,
             },
             None,
@@ -206,6 +208,7 @@ impl<F: Clone, Ctx: PaymentMethodRetrieve>
             if payment_data.payment_intent.status != enums::IntentStatus::RequiresCapture {
                 let payment_intent_update = storage::PaymentIntentUpdate::PGStatusUpdate {
                     status: enums::IntentStatus::Cancelled,
+                    updated_by: storage_scheme.to_string(),
                 };
                 (Some(payment_intent_update), enums::AttemptStatus::Voided)
             } else {
@@ -228,6 +231,7 @@ impl<F: Clone, Ctx: PaymentMethodRetrieve>
             storage::PaymentAttemptUpdate::VoidUpdate {
                 status: attempt_status_update,
                 cancellation_reason,
+                updated_by: storage_scheme.to_string(),
             },
             storage_scheme,
         )

@@ -337,7 +337,6 @@ pub struct PayoutsData {
     pub source_currency: storage_enums::Currency,
     pub payout_type: storage_enums::PayoutType,
     pub entity_type: storage_enums::PayoutEntityType,
-    pub country_code: storage_enums::CountryAlpha2,
     pub customer_details: Option<CustomerDetails>,
 }
 
@@ -381,6 +380,7 @@ pub struct PaymentsAuthorizeData {
     pub related_transaction_id: Option<String>,
     pub payment_experience: Option<storage_enums::PaymentExperience>,
     pub payment_method_type: Option<storage_enums::PaymentMethodType>,
+    pub surcharge_details: Option<api_models::payment_methods::SurchargeDetailsResponse>,
     pub customer_id: Option<String>,
 }
 
@@ -392,6 +392,7 @@ pub struct PaymentsCaptureData {
     pub payment_amount: i64,
     pub multiple_capture_data: Option<MultipleCaptureRequestData>,
     pub connector_meta: Option<serde_json::Value>,
+    pub browser_info: Option<BrowserInformation>,
 }
 
 #[allow(dead_code)]
@@ -440,6 +441,7 @@ pub struct PaymentsPreProcessingData {
     pub router_return_url: Option<String>,
     pub webhook_url: Option<String>,
     pub complete_authorize_url: Option<String>,
+    pub surcharge_details: Option<api_models::payment_methods::SurchargeDetailsResponse>,
     pub browser_info: Option<BrowserInformation>,
 }
 
@@ -494,6 +496,7 @@ pub struct PaymentsCancelData {
     pub connector_transaction_id: String,
     pub cancellation_reason: Option<String>,
     pub connector_meta: Option<serde_json::Value>,
+    pub browser_info: Option<BrowserInformation>,
 }
 
 #[derive(Debug, Default, Clone)]
@@ -513,6 +516,7 @@ pub struct PaymentsSessionData {
     pub amount: i64,
     pub currency: storage_enums::Currency,
     pub country: Option<api::enums::CountryAlpha2>,
+    pub surcharge_details: Option<api_models::payment_methods::SurchargeDetailsResponse>,
     pub order_details: Option<Vec<api_models::payments::OrderDetailsWithAmount>>,
 }
 
@@ -712,6 +716,7 @@ pub struct RefundsData {
     pub refund_amount: i64,
     /// Arbitrary metadata required for refund
     pub connector_metadata: Option<serde_json::Value>,
+    pub browser_info: Option<BrowserInformation>,
 }
 
 #[derive(Clone, Debug, Default, serde::Serialize, serde::Deserialize)]
@@ -1074,6 +1079,7 @@ impl From<&SetupMandateRouterData> for PaymentsAuthorizeData {
             payment_experience: None,
             payment_method_type: None,
             customer_id: None,
+            surcharge_details: None,
         }
     }
 }

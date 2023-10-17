@@ -66,7 +66,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             .find_payment_attempt_by_payment_id_merchant_id_attempt_id(
                 payment_intent.payment_id.as_str(),
                 merchant_id,
-                payment_intent.active_attempt_id.as_str(),
+                payment_intent.active_attempt.get_id().as_str(),
                 storage_scheme,
             )
             .await
@@ -125,6 +125,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
                         capture.merchant_id.clone(),
                         capture.capture_id.clone(),
                         Some(capture.connector.clone()),
+                        storage_scheme.to_string(),
                     ),
                     storage_scheme,
                 )
@@ -229,7 +230,9 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
                 ephemeral_key: None,
                 multiple_capture_data,
                 redirect_response: None,
+                surcharge_details: None,
                 frm_message: None,
+                payment_link_data: None,
                 frm_metadata: None,
             
             },
@@ -267,6 +270,7 @@ impl<F: Clone, Ctx: PaymentMethodRetrieve>
                     payment_data.payment_attempt,
                     storage::PaymentAttemptUpdate::MultipleCaptureCountUpdate {
                         multiple_capture_count: multiple_capture_data.get_captures_count()?,
+                        updated_by: storage_scheme.to_string(),
                     },
                     storage_scheme,
                 )

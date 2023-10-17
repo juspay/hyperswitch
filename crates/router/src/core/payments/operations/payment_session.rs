@@ -70,16 +70,24 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             "create a session token for",
         )?;
 
+        let intent_fulfillment_time = helpers::get_merchant_fullfillment_time(
+            payment_intent.payment_link_id.clone(),
+            merchant_account.intent_fulfillment_time,
+            db,
+        )
+        .await?;
+
         helpers::authenticate_client_secret(
             Some(&request.client_secret),
             &payment_intent,
-            merchant_account.intent_fulfillment_time,
+            intent_fulfillment_time,
         )?;
+
         let mut payment_attempt = db
             .find_payment_attempt_by_payment_id_merchant_id_attempt_id(
                 payment_intent.payment_id.as_str(),
                 merchant_id,
-                payment_intent.active_attempt_id.as_str(),
+                payment_intent.active_attempt.get_id().as_str(),
                 storage_scheme,
             )
             .await
@@ -191,7 +199,9 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
                 ephemeral_key: None,
                 multiple_capture_data: None,
                 redirect_response: None,
+                surcharge_details: None,
                 frm_message: None,
+                payment_link_data: None,
                 frm_metadata: None,
             },
             Some(customer_details),
@@ -226,7 +236,10 @@ impl<F: Clone, Ctx: PaymentMethodRetrieve>
             Some(metadata) => db
                 .update_payment_intent(
                     payment_data.payment_intent,
-                    storage::PaymentIntentUpdate::MetadataUpdate { metadata },
+                    storage::PaymentIntentUpdate::MetadataUpdate {
+                        metadata,
+                        updated_by: storage_scheme.to_string(),
+                    },
                     storage_scheme,
                 )
                 .await

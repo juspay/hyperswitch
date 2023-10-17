@@ -3,8 +3,8 @@ use common_utils::{
     crypto::{generate_cryptographically_secure_random_string, OptionalSecretValue},
     date_time,
     ext_traits::{AsyncExt, ConfigExt, Encode, ValueExt},
+    pii,
 };
-use data_models::MerchantStorageScheme;
 use error_stack::{report, FutureExt, ResultExt};
 use masking::{PeekInterface, Secret};
 use uuid::Uuid;
@@ -25,7 +25,7 @@ use crate::{
             self,
             types::{self as domain_types, AsyncLift},
         },
-        storage,
+        storage::{self, enums::MerchantStorageScheme},
         transformers::ForeignTryFrom,
     },
     utils::{self, OptionExt},
@@ -135,6 +135,17 @@ pub async fn create_merchant_account(
         .transpose()?
         .map(Secret::new);
 
+    let payment_link_config = req
+        .payment_link_config
+        .as_ref()
+        .map(|pl_metadata| {
+            utils::Encode::<admin_types::PaymentLinkConfig>::encode_to_value(pl_metadata)
+                .change_context(errors::ApiErrorResponse::InvalidDataValue {
+                    field_name: "payment_link_config",
+                })
+        })
+        .transpose()?;
+
     let mut merchant_account = async {
         Ok(domain::MerchantAccount {
             merchant_id: req.merchant_id,
@@ -170,6 +181,7 @@ pub async fn create_merchant_account(
             is_recon_enabled: false,
             default_profile: None,
             recon_status: diesel_models::enums::ReconStatus::NotRequested,
+            payment_link_config,
         })
     }
     .await
@@ -457,6 +469,7 @@ pub async fn merchant_account_update(
         intent_fulfillment_time: req.intent_fulfillment_time.map(i64::from),
         payout_routing_algorithm: req.payout_routing_algorithm,
         default_profile: business_profile_id_update,
+        payment_link_config: req.payment_link_config,
     };
 
     let response = db
@@ -491,6 +504,25 @@ pub async fn merchant_account_delete(
             .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
         is_deleted = is_merchant_account_deleted && is_merchant_key_store_deleted;
     }
+
+    match db
+        .delete_config_by_key(format!("{}_requires_cvv", merchant_id).as_str())
+        .await
+    {
+        Ok(_) => Ok::<_, errors::ApiErrorResponse>(()),
+        Err(err) => {
+            if err.current_context().is_db_not_found() {
+                crate::logger::error!("requires_cvv config not found in db: {err:?}");
+                Ok(())
+            } else {
+                Err(err
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Failed while deleting requires_cvv config"))?
+            }
+        }
+    }
+    .ok();
+
     let response = api::MerchantAccountDeleteResponse {
         merchant_id,
         deleted: is_deleted,
@@ -637,15 +669,26 @@ pub async fn create_payment_connector(
             expected_format: "auth_type and api_key".to_string(),
         })?;
 
-    validate_auth_type(req.connector_name, &auth).map_err(|err| {
-        if err.current_context() == &errors::ConnectorError::InvalidConnectorName {
-            err.change_context(errors::ApiErrorResponse::InvalidRequestData {
-                message: "The connector name is invalid".to_string(),
-            })
-        } else {
-            err.change_context(errors::ApiErrorResponse::InvalidRequestData {
-                message: "The auth type is invalid for the connector".to_string(),
-            })
+    validate_auth_and_metadata_type(req.connector_name, &auth, &req.metadata).map_err(|err| {
+        match *err.current_context() {
+            errors::ConnectorError::InvalidConnectorName => {
+                err.change_context(errors::ApiErrorResponse::InvalidRequestData {
+                    message: "The connector name is invalid".to_string(),
+                })
+            }
+            errors::ConnectorError::InvalidConfig { field_name } => {
+                err.change_context(errors::ApiErrorResponse::InvalidRequestData {
+                    message: format!("The {} is invalid", field_name),
+                })
+            }
+            errors::ConnectorError::FailedToObtainAuthType => {
+                err.change_context(errors::ApiErrorResponse::InvalidRequestData {
+                    message: "The auth type is invalid for the connector".to_string(),
+                })
+            }
+            _ => err.change_context(errors::ApiErrorResponse::InvalidRequestData {
+                message: "The request body is invalid".to_string(),
+            }),
         }
     })?;
 
@@ -1231,9 +1274,10 @@ pub async fn update_business_profile(
     ))
 }
 
-pub(crate) fn validate_auth_type(
+pub(crate) fn validate_auth_and_metadata_type(
     connector_name: api_models::enums::Connector,
     val: &types::ConnectorAuthType,
+    connector_meta_data: &Option<pii::SecretSerdeValue>,
 ) -> Result<(), error_stack::Report<errors::ConnectorError>> {
     use crate::connector::*;
 
@@ -1283,6 +1327,9 @@ pub(crate) fn validate_auth_type(
         }
         api_enums::Connector::Braintree => {
             braintree::transformers::BraintreeAuthType::try_from(val)?;
+            braintree::braintree_graphql_transformers::BraintreeMeta::try_from(
+                connector_meta_data,
+            )?;
             Ok(())
         }
         api_enums::Connector::Cashtocode => {
@@ -1328,6 +1375,10 @@ pub(crate) fn validate_auth_type(
         }
         api_enums::Connector::Gocardless => {
             gocardless::transformers::GocardlessAuthType::try_from(val)?;
+            Ok(())
+        }
+        api_enums::Connector::Helcim => {
+            helcim::transformers::HelcimAuthType::try_from(val)?;
             Ok(())
         }
         api_enums::Connector::Iatapay => {

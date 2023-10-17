@@ -235,11 +235,18 @@ async fn get_tracker_for_sync<
     )
     .await?;
 
+    let intent_fulfillment_time = helpers::get_merchant_fullfillment_time(
+        payment_intent.payment_link_id.clone(),
+        merchant_account.intent_fulfillment_time,
+        db,
+    )
+    .await?;
     helpers::authenticate_client_secret(
         request.client_secret.as_ref(),
         &payment_intent,
-        merchant_account.intent_fulfillment_time,
+        intent_fulfillment_time,
     )?;
+
     let payment_id_str = payment_attempt.payment_id.clone();
 
     let mut connector_response = db
@@ -402,6 +409,8 @@ async fn get_tracker_for_sync<
             ephemeral_key: None,
             multiple_capture_data,
             redirect_response: None,
+            payment_link_data: None,
+            surcharge_details: None,
             frm_message: frm_response.ok(),
             frm_metadata: None,
         },
@@ -458,7 +467,7 @@ pub async fn get_payment_intent_payment_attempt(
                     .find_payment_attempt_by_payment_id_merchant_id_attempt_id(
                         pi.payment_id.as_str(),
                         merchant_id,
-                        pi.active_attempt_id.as_str(),
+                        pi.active_attempt.get_id().as_str(),
                         storage_scheme,
                     )
                     .await?;

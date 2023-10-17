@@ -4,12 +4,13 @@ use common_utils::{
     ext_traits::ValueExt,
     pii,
 };
-use data_models::MerchantStorageScheme;
-use diesel_models::{encryption::Encryption, merchant_account::MerchantAccountUpdateInternal};
+use diesel_models::{
+    encryption::Encryption, enums::MerchantStorageScheme,
+    merchant_account::MerchantAccountUpdateInternal,
+};
 use error_stack::ResultExt;
 use masking::{PeekInterface, Secret};
 use router_env::logger;
-use storage_impl::DataModelExt;
 
 use crate::{
     errors::{CustomResult, ValidationError},
@@ -44,6 +45,7 @@ pub struct MerchantAccount {
     pub is_recon_enabled: bool,
     pub default_profile: Option<String>,
     pub recon_status: diesel_models::enums::ReconStatus,
+    pub payment_link_config: Option<serde_json::Value>,
 }
 
 #[allow(clippy::large_enum_variant)]
@@ -68,6 +70,7 @@ pub enum MerchantAccountUpdate {
         frm_routing_algorithm: Option<serde_json::Value>,
         payout_routing_algorithm: Option<serde_json::Value>,
         default_profile: Option<Option<String>>,
+        payment_link_config: Option<serde_json::Value>,
     },
     StorageSchemeUpdate {
         storage_scheme: MerchantStorageScheme,
@@ -100,6 +103,7 @@ impl From<MerchantAccountUpdate> for MerchantAccountUpdateInternal {
                 frm_routing_algorithm,
                 payout_routing_algorithm,
                 default_profile,
+                payment_link_config,
             } => Self {
                 merchant_name: merchant_name.map(Encryption::from),
                 merchant_details: merchant_details.map(Encryption::from),
@@ -120,10 +124,11 @@ impl From<MerchantAccountUpdate> for MerchantAccountUpdateInternal {
                 intent_fulfillment_time,
                 payout_routing_algorithm,
                 default_profile,
+                payment_link_config,
                 ..Default::default()
             },
             MerchantAccountUpdate::StorageSchemeUpdate { storage_scheme } => Self {
-                storage_scheme: Some(storage_scheme.to_storage_model()),
+                storage_scheme: Some(storage_scheme),
                 modified_at: Some(date_time::now()),
                 ..Default::default()
             },
@@ -159,7 +164,7 @@ impl super::behaviour::Conversion for MerchantAccount {
             sub_merchants_enabled: self.sub_merchants_enabled,
             parent_merchant_id: self.parent_merchant_id,
             publishable_key: self.publishable_key,
-            storage_scheme: self.storage_scheme.to_storage_model(),
+            storage_scheme: self.storage_scheme,
             locker_id: self.locker_id,
             metadata: self.metadata,
             routing_algorithm: self.routing_algorithm,
@@ -173,6 +178,7 @@ impl super::behaviour::Conversion for MerchantAccount {
             is_recon_enabled: self.is_recon_enabled,
             default_profile: self.default_profile,
             recon_status: self.recon_status,
+            payment_link_config: self.payment_link_config,
         })
     }
 
@@ -203,7 +209,7 @@ impl super::behaviour::Conversion for MerchantAccount {
                 sub_merchants_enabled: item.sub_merchants_enabled,
                 parent_merchant_id: item.parent_merchant_id,
                 publishable_key: item.publishable_key,
-                storage_scheme: MerchantStorageScheme::from_storage_model(item.storage_scheme),
+                storage_scheme: item.storage_scheme,
                 locker_id: item.locker_id,
                 metadata: item.metadata,
                 routing_algorithm: item.routing_algorithm,
@@ -217,6 +223,7 @@ impl super::behaviour::Conversion for MerchantAccount {
                 is_recon_enabled: item.is_recon_enabled,
                 default_profile: item.default_profile,
                 recon_status: item.recon_status,
+                payment_link_config: item.payment_link_config,
             })
         }
         .await
@@ -252,6 +259,7 @@ impl super::behaviour::Conversion for MerchantAccount {
             is_recon_enabled: self.is_recon_enabled,
             default_profile: self.default_profile,
             recon_status: self.recon_status,
+            payment_link_config: self.payment_link_config,
         })
     }
 }

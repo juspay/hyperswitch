@@ -99,7 +99,13 @@ pub struct Settings {
     pub multiple_api_version_supported_connectors: MultipleApiVersionSupportedConnectors,
     pub applepay_merchant_configs: ApplepayMerchantConfigs,
     pub lock_settings: LockSettings,
-    pub temp_locker_disable_config: TempLockerDisableConfig,
+    pub temp_locker_enable_config: TempLockerEnableConfig,
+    pub payment_link: PaymentLink,
+}
+
+#[derive(Debug, Deserialize, Clone, Default)]
+pub struct PaymentLink {
+    pub sdk_url: String,
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
@@ -123,7 +129,7 @@ pub struct TokenizationConfig(pub HashMap<String, PaymentMethodTokenFilter>);
 
 #[derive(Debug, Deserialize, Clone, Default)]
 #[serde(transparent)]
-pub struct TempLockerDisableConfig(pub HashMap<String, TempLockerDisablePaymentMethodFilter>);
+pub struct TempLockerEnableConfig(pub HashMap<String, TempLockerEnablePaymentMethodFilter>);
 
 #[derive(Debug, Deserialize, Clone, Default)]
 pub struct ConnectorCustomer {
@@ -216,7 +222,7 @@ pub struct PaymentMethodTokenFilter {
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
-pub struct TempLockerDisablePaymentMethodFilter {
+pub struct TempLockerEnablePaymentMethodFilter {
     #[serde(deserialize_with = "pm_deser")]
     pub payment_method: HashSet<diesel_models::enums::PaymentMethod>,
 }
@@ -558,6 +564,7 @@ pub struct Connectors {
     pub stripe: ConnectorParamsWithFileUploadUrl,
     pub trustpay: ConnectorParamsWithMoreUrls,
     pub tsys: ConnectorParams,
+    pub volt: ConnectorParams,
     pub wise: ConnectorParams,
     pub worldline: ConnectorParams,
     pub worldpay: ConnectorParams,
