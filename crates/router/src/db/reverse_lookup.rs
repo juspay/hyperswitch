@@ -74,7 +74,7 @@ mod storage {
             enums, kv,
             reverse_lookup::{ReverseLookup, ReverseLookupNew},
         },
-        utils::{db_utils, storage_partitioning::PartitionKey},
+        utils::db_utils,
     };
 
     #[async_trait::async_trait]
@@ -96,31 +96,22 @@ mod storage {
                         pk_id: new.pk_id.clone(),
                         source: new.source.clone(),
                     };
-                    let combination = &created_rev_lookup.pk_id;
+                    let redis_entry = kv::TypedSql {
+                        op: kv::DBOperation::Insert {
+                            insertable: kv::Insertable::ReverseLookUp(new),
+                        },
+                    };
+
                     match kv_wrapper::<ReverseLookup, _, _>(
                         self,
-                        KvOperation::SetNx(&created_rev_lookup),
+                        KvOperation::SetNx(&created_rev_lookup, redis_entry),
                         format!("reverse_lookup_{}", &created_rev_lookup.lookup_id),
                     )
                     .await
                     .change_context(errors::StorageError::KVError)?
                     .try_into_setnx()
                     {
-                        Ok(SetnxReply::KeySet) => {
-                            let redis_entry = kv::TypedSql {
-                                op: kv::DBOperation::Insert {
-                                    insertable: kv::Insertable::ReverseLookUp(new),
-                                },
-                            };
-                            self.push_to_drainer_stream::<ReverseLookup>(
-                                redis_entry,
-                                PartitionKey::MerchantIdPaymentIdCombination { combination },
-                            )
-                            .await
-                            .change_context(errors::StorageError::KVError)?;
-
-                            Ok(created_rev_lookup)
-                        }
+                        Ok(SetnxReply::KeySet) => Ok(created_rev_lookup),
                         Ok(SetnxReply::KeyNotSet) => Err(errors::StorageError::DuplicateValue {
                             entity: "reverse_lookup",
                             key: Some(created_rev_lookup.lookup_id.clone()),

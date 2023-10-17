@@ -100,7 +100,7 @@ mod storage {
     use error_stack::{IntoReport, ResultExt};
     use redis_interface::HsetnxReply;
     use router_env::{instrument, tracing};
-    use storage_impl::redis::kv_store::{kv_wrapper, KvOperation, PartitionKey};
+    use storage_impl::redis::kv_store::{kv_wrapper, KvOperation};
 
     use super::Store;
     use crate::{
@@ -149,9 +149,17 @@ mod storage {
                         encoded_data: connector_response.encoded_data.clone(),
                     };
 
+                    let redis_entry = kv::TypedSql {
+                        op: kv::DBOperation::Insert {
+                            insertable: kv::Insertable::ConnectorResponse(
+                                connector_response.clone(),
+                            ),
+                        },
+                    };
+
                     match kv_wrapper::<storage_type::ConnectorResponse, _, _>(
                         self,
-                        KvOperation::HSetNx(&field, &created_connector_resp),
+                        KvOperation::HSetNx(&field, &created_connector_resp, redis_entry),
                         &key,
                     )
                     .await
@@ -163,25 +171,7 @@ mod storage {
                             key: Some(key),
                         })
                         .into_report(),
-                        Ok(HsetnxReply::KeySet) => {
-                            let redis_entry = kv::TypedSql {
-                                op: kv::DBOperation::Insert {
-                                    insertable: kv::Insertable::ConnectorResponse(
-                                        connector_response.clone(),
-                                    ),
-                                },
-                            };
-                            self.push_to_drainer_stream::<diesel_models::ConnectorResponse>(
-                                redis_entry,
-                                PartitionKey::MerchantIdPaymentId {
-                                    merchant_id,
-                                    payment_id,
-                                },
-                            )
-                            .await
-                            .change_context(errors::StorageError::KVError)?;
-                            Ok(created_connector_resp)
-                        }
+                        Ok(HsetnxReply::KeySet) => Ok(created_connector_resp),
                         Err(er) => Err(er).change_context(errors::StorageError::KVError),
                     }
                 }
@@ -259,16 +249,6 @@ mod storage {
                         &updated_connector_response.attempt_id
                     );
 
-                    kv_wrapper::<(), _, _>(
-                        self,
-                        KvOperation::Hset::<storage_type::ConnectorResponse>((&field, redis_value)),
-                        &key,
-                    )
-                    .await
-                    .change_context(errors::StorageError::KVError)?
-                    .try_into_hset()
-                    .change_context(errors::StorageError::KVError)?;
-
                     let redis_entry = kv::TypedSql {
                         op: kv::DBOperation::Update {
                             updatable: kv::Updateable::ConnectorResponseUpdate(
@@ -280,15 +260,19 @@ mod storage {
                         },
                     };
 
-                    self.push_to_drainer_stream::<storage_type::ConnectorResponse>(
-                        redis_entry,
-                        PartitionKey::MerchantIdPaymentId {
-                            merchant_id: &updated_connector_response.merchant_id,
-                            payment_id: &updated_connector_response.payment_id,
-                        },
+                    kv_wrapper::<(), _, _>(
+                        self,
+                        KvOperation::Hset::<storage_type::ConnectorResponse>(
+                            (&field, redis_value),
+                            redis_entry,
+                        ),
+                        &key,
                     )
                     .await
+                    .change_context(errors::StorageError::KVError)?
+                    .try_into_hset()
                     .change_context(errors::StorageError::KVError)?;
+
                     Ok(updated_connector_response)
                 }
             }

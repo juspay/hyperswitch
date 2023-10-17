@@ -35,7 +35,7 @@ use router_env::{instrument, tracing};
 
 use crate::{
     diesel_error_to_data_error,
-    redis::kv_store::{kv_wrapper, KvOperation, PartitionKey},
+    redis::kv_store::{kv_wrapper, KvOperation},
     utils::{pg_connection_read, pg_connection_write},
     DataModelExt, DatabaseStore, KVRouterStore,
 };
@@ -93,11 +93,19 @@ impl<T: DatabaseStore> PaymentIntentInterface for KVRouterStore<T> {
                     payment_link_id: new.payment_link_id.clone(),
                     payment_confirm_source: new.payment_confirm_source,
                 };
-                let diesel_intent = created_intent.clone().to_storage_model();
+                let redis_entry = kv::TypedSql {
+                    op: kv::DBOperation::Insert {
+                        insertable: kv::Insertable::PaymentIntent(new.to_storage_model()),
+                    },
+                };
 
                 match kv_wrapper::<DieselPaymentIntent, _, _>(
                     self,
-                    KvOperation::HSetNx(&field, &diesel_intent),
+                    KvOperation::<DieselPaymentIntent>::HSetNx(
+                        &field,
+                        &created_intent.clone().to_storage_model(),
+                        redis_entry,
+                    ),
                     &key,
                 )
                 .await
@@ -109,23 +117,7 @@ impl<T: DatabaseStore> PaymentIntentInterface for KVRouterStore<T> {
                         key: Some(key),
                     })
                     .into_report(),
-                    Ok(HsetnxReply::KeySet) => {
-                        let redis_entry = kv::TypedSql {
-                            op: kv::DBOperation::Insert {
-                                insertable: kv::Insertable::PaymentIntent(new.to_storage_model()),
-                            },
-                        };
-                        self.push_to_drainer_stream::<DieselPaymentIntent>(
-                            redis_entry,
-                            PartitionKey::MerchantIdPaymentId {
-                                merchant_id: &created_intent.merchant_id,
-                                payment_id: &created_intent.payment_id,
-                            },
-                        )
-                        .await
-                        .change_context(StorageError::KVError)?;
-                        Ok(created_intent)
-                    }
+                    Ok(HsetnxReply::KeySet) => Ok(created_intent),
                     Err(error) => Err(error.change_context(StorageError::KVError)),
                 }
             }
@@ -157,16 +149,6 @@ impl<T: DatabaseStore> PaymentIntentInterface for KVRouterStore<T> {
                     Encode::<DieselPaymentIntent>::encode_to_string_of_json(&diesel_intent)
                         .change_context(StorageError::SerializationFailed)?;
 
-                kv_wrapper::<(), _, _>(
-                    self,
-                    KvOperation::<DieselPaymentIntent>::Hset((&field, redis_value)),
-                    &key,
-                )
-                .await
-                .change_context(StorageError::KVError)?
-                .try_into_hset()
-                .change_context(StorageError::KVError)?;
-
                 let redis_entry = kv::TypedSql {
                     op: kv::DBOperation::Update {
                         updatable: kv::Updateable::PaymentIntentUpdate(
@@ -178,15 +160,16 @@ impl<T: DatabaseStore> PaymentIntentInterface for KVRouterStore<T> {
                     },
                 };
 
-                self.push_to_drainer_stream::<DieselPaymentIntent>(
-                    redis_entry,
-                    PartitionKey::MerchantIdPaymentId {
-                        merchant_id: &updated_intent.merchant_id,
-                        payment_id: &updated_intent.payment_id,
-                    },
+                kv_wrapper::<(), _, _>(
+                    self,
+                    KvOperation::<DieselPaymentIntent>::Hset((&field, redis_value), redis_entry),
+                    &key,
                 )
                 .await
+                .change_context(StorageError::KVError)?
+                .try_into_hset()
                 .change_context(StorageError::KVError)?;
+
                 Ok(updated_intent)
             }
         }
