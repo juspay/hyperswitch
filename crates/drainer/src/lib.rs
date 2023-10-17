@@ -122,7 +122,8 @@ async fn drainer_handler(
     active_tasks.fetch_add(1, atomic::Ordering::Release);
 
     let stream_name = utils::get_drainer_stream_name(store.clone(), stream_index);
-    let drainer_result = drainer(store.clone(), max_read_count, stream_name.as_str()).await;
+    let drainer_result =
+        Box::pin(drainer(store.clone(), max_read_count, stream_name.as_str())).await;
 
     if let Err(error) = drainer_result {
         logger::error!(?error)
@@ -188,6 +189,7 @@ async fn drainer(
         let payment_intent = "payment_intent";
         let payment_attempt = "payment_attempt";
         let refund = "refund";
+        let reverse_lookup = "reverse_lookup";
         let connector_response = "connector_response";
         let address = "address";
         match db_op {
@@ -221,6 +223,13 @@ async fn drainer(
                         }
                         kv::Insertable::Address(addr) => {
                             macro_util::handle_resp!(addr.insert(&conn).await, insert_op, address)
+                        }
+                        kv::Insertable::ReverseLookUp(rev) => {
+                            macro_util::handle_resp!(
+                                rev.insert(&conn).await,
+                                insert_op,
+                                reverse_lookup
+                            )
                         }
                     }
                 })
@@ -262,6 +271,11 @@ async fn drainer(
                             a.orig.update(&conn, a.update_data).await,
                             update_op,
                             connector_response
+                        ),
+                        kv::Updateable::AddressUpdate(a) => macro_util::handle_resp!(
+                            a.orig.update(&conn, a.update_data).await,
+                            update_op,
+                            address
                         ),
                     }
                 })

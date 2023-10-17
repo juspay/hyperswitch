@@ -82,10 +82,17 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             "update",
         )?;
 
+        let intent_fulfillment_time = helpers::get_merchant_fullfillment_time(
+            payment_intent.payment_link_id.clone(),
+            merchant_account.intent_fulfillment_time,
+            db,
+        )
+        .await?;
+
         helpers::authenticate_client_secret(
             request.client_secret.as_ref(),
             &payment_intent,
-            merchant_account.intent_fulfillment_time,
+            intent_fulfillment_time,
         )?;
         let (
             token,
@@ -117,7 +124,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             .find_payment_attempt_by_payment_id_merchant_id_attempt_id(
                 payment_intent.payment_id.as_str(),
                 merchant_id,
-                payment_intent.active_attempt_id.as_str(),
+                payment_intent.active_attempt.get_id().as_str(),
                 storage_scheme,
             )
             .await
@@ -345,7 +352,9 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
                 ephemeral_key: None,
                 multiple_capture_data: None,
                 redirect_response: None,
+                surcharge_details: None,
                 frm_message: None,
+                payment_link_data: None,
             },
             Some(customer_details),
         ))
@@ -489,6 +498,7 @@ impl<F: Clone, Ctx: PaymentMethodRetrieve>
                     business_sub_label,
                     amount_to_capture,
                     capture_method,
+                    updated_by: storage_scheme.to_string(),
                 },
                 storage_scheme,
             )
@@ -551,6 +561,7 @@ impl<F: Clone, Ctx: PaymentMethodRetrieve>
                     order_details,
                     metadata,
                     payment_confirm_source: None,
+                    updated_by: storage_scheme.to_string(),
                 },
                 storage_scheme,
             )

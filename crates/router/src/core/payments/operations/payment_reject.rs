@@ -69,7 +69,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             "reject",
         )?;
 
-        let attempt_id = payment_intent.active_attempt_id.clone();
+        let attempt_id = payment_intent.active_attempt.get_id().clone();
         let payment_attempt = db
             .find_payment_attempt_by_payment_id_merchant_id_attempt_id(
                 payment_intent.payment_id.as_str(),
@@ -157,7 +157,9 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
                 ephemeral_key: None,
                 multiple_capture_data: None,
                 redirect_response: None,
+                surcharge_details: None,
                 frm_message: frm_response.ok(),
+                payment_link_data: None,
             },
             None,
         ))
@@ -189,6 +191,7 @@ impl<F: Clone, Ctx: PaymentMethodRetrieve>
         let intent_status_update = storage::PaymentIntentUpdate::RejectUpdate {
             status: enums::IntentStatus::Failed,
             merchant_decision: Some(enums::MerchantDecision::Rejected.to_string()),
+            updated_by: storage_scheme.to_string(),
         };
         let (error_code, error_message) =
             payment_data
@@ -204,6 +207,7 @@ impl<F: Clone, Ctx: PaymentMethodRetrieve>
             status: enums::AttemptStatus::Failure,
             error_code,
             error_message,
+            updated_by: storage_scheme.to_string(),
         };
 
         payment_data.payment_intent = db

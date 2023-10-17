@@ -18,6 +18,7 @@ pub mod mock_db;
 pub mod payments;
 pub mod redis;
 pub mod refund;
+mod reverse_lookup;
 mod utils;
 
 use database::store::PgPool;
@@ -222,24 +223,6 @@ pub trait DataModelExt {
     type StorageModel;
     fn to_storage_model(self) -> Self::StorageModel;
     fn from_storage_model(storage_model: Self::StorageModel) -> Self;
-}
-
-impl DataModelExt for data_models::MerchantStorageScheme {
-    type StorageModel = diesel_models::enums::MerchantStorageScheme;
-
-    fn to_storage_model(self) -> Self::StorageModel {
-        match self {
-            Self::PostgresOnly => diesel_models::enums::MerchantStorageScheme::PostgresOnly,
-            Self::RedisKv => diesel_models::enums::MerchantStorageScheme::RedisKv,
-        }
-    }
-
-    fn from_storage_model(storage_model: Self::StorageModel) -> Self {
-        match storage_model {
-            diesel_models::enums::MerchantStorageScheme::PostgresOnly => Self::PostgresOnly,
-            diesel_models::enums::MerchantStorageScheme::RedisKv => Self::RedisKv,
-        }
-    }
 }
 
 pub(crate) fn diesel_error_to_data_error(

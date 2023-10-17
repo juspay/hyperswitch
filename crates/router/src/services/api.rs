@@ -1,6 +1,5 @@
 pub mod client;
 pub mod request;
-
 use std::{
     collections::HashMap,
     error::Error,
@@ -13,13 +12,14 @@ use std::{
 use actix_web::{body, web, FromRequest, HttpRequest, HttpResponse, Responder, ResponseError};
 use api_models::enums::CaptureMethod;
 pub use client::{proxy_bypass_urls, ApiClient, MockApiClient, ProxyClient};
-use common_utils::errors::ReportSwitchExt;
 pub use common_utils::request::{ContentType, Method, Request, RequestBuilder};
+use common_utils::{consts::X_HS_LATENCY, errors::ReportSwitchExt};
 use error_stack::{report, IntoReport, Report, ResultExt};
 use masking::{ExposeOptionInterface, PeekInterface};
 use router_env::{instrument, tracing, tracing_actix_web::RequestId, Tag};
 use serde::Serialize;
 use serde_json::json;
+use tera::{Context, Tera};
 
 use self::request::{HeaderExt, RequestBuilderExt};
 use crate::{
@@ -338,7 +338,9 @@ where
             match connector_request {
                 Some(request) => {
                     logger::debug!(connector_request=?request);
+                    let current_time = Instant::now();
                     let response = call_connector_api(state, request).await;
+                    let external_latency = current_time.elapsed().as_millis();
                     logger::debug!(connector_response=?response);
                     match response {
                         Ok(body) => {
@@ -363,10 +365,20 @@ where
                                             error
                                         })?;
                                     data.connector_http_status_code = connector_http_status_code;
+                                    // Add up multiple external latencies in case of multiple external calls within the same request.
+                                    data.external_latency = Some(
+                                        data.external_latency
+                                            .map_or(external_latency, |val| val + external_latency),
+                                    );
                                     data
                                 }
                                 Err(body) => {
                                     router_data.connector_http_status_code = Some(body.status_code);
+                                    router_data.external_latency = Some(
+                                        router_data
+                                            .external_latency
+                                            .map_or(external_latency, |val| val + external_latency),
+                                    );
                                     metrics::CONNECTOR_ERROR_RESPONSE_COUNT.add(
                                         &metrics::CONTEXT,
                                         1,
@@ -399,6 +411,11 @@ where
                                 };
                                 router_data.response = Err(error_response);
                                 router_data.connector_http_status_code = Some(504);
+                                router_data.external_latency = Some(
+                                    router_data
+                                        .external_latency
+                                        .map_or(external_latency, |val| val + external_latency),
+                                );
                                 Ok(router_data)
                             } else {
                                 Err(error.change_context(
@@ -559,6 +576,7 @@ async fn handle_response(
             logger::info!(?response);
             let status_code = response.status().as_u16();
             let headers = Some(response.headers().to_owned());
+
             match status_code {
                 200..=202 | 302 | 204 => {
                     logger::debug!(response=?response);
@@ -637,8 +655,16 @@ pub enum ApplicationResponse<R> {
     TextPlain(String),
     JsonForRedirection(api::RedirectionResponse),
     Form(Box<RedirectionFormData>),
+    PaymenkLinkForm(Box<PaymentLinkFormData>),
     FileData((Vec<u8>, mime::Mime)),
     JsonWithHeaders((R, Vec<(String, String)>)),
+}
+
+#[derive(Debug, Eq, PartialEq, Clone, serde::Serialize, serde::Deserialize)]
+pub struct PaymentLinkFormData {
+    pub js_script: String,
+    pub css_script: String,
+    pub sdk_url: String,
 }
 
 #[derive(Debug, Eq, PartialEq)]
@@ -678,7 +704,6 @@ pub enum RedirectForm {
         client_token: String,
         card_token: String,
         bin: String,
-        amount: i64,
     },
 }
 
@@ -869,9 +894,30 @@ where
             .respond_to(request)
             .map_into_boxed_body()
         }
+
+        Ok(ApplicationResponse::PaymenkLinkForm(payment_link_data)) => {
+            match build_payment_link_html(*payment_link_data) {
+                Ok(rendered_html) => http_response_html_data(rendered_html),
+                Err(_) => http_response_err(
+                    r#"{
+                            "error": {
+                                "message": "Error while rendering payment link html page"
+                            }
+                        }"#,
+                ),
+            }
+        }
+
         Ok(ApplicationResponse::JsonWithHeaders((response, headers))) => {
+            let request_elapsed_time = request.headers().get(X_HS_LATENCY).and_then(|value| {
+                if value == "true" {
+                    Some(start_instant.elapsed())
+                } else {
+                    None
+                }
+            });
             match serde_json::to_string(&response) {
-                Ok(res) => http_response_json_with_headers(res, headers),
+                Ok(res) => http_response_json_with_headers(res, headers, request_elapsed_time),
                 Err(_) => http_response_err(
                     r#"{
                         "error": {
@@ -948,12 +994,23 @@ pub fn http_response_json<T: body::MessageBody + 'static>(response: T) -> HttpRe
 
 pub fn http_response_json_with_headers<T: body::MessageBody + 'static>(
     response: T,
-    headers: Vec<(String, String)>,
+    mut headers: Vec<(String, String)>,
+    request_duration: Option<Duration>,
 ) -> HttpResponse {
     let mut response_builder = HttpResponse::Ok();
-    for (name, value) in headers {
-        response_builder.append_header((name, value));
+
+    for (name, value) in headers.iter_mut() {
+        if name == X_HS_LATENCY {
+            if let Some(request_duration) = request_duration {
+                if let Ok(external_latency) = value.parse::<u128>() {
+                    let updated_duration = request_duration.as_millis() - external_latency;
+                    *value = updated_duration.to_string();
+                }
+            }
+        }
+        response_builder.append_header((name.clone(), value.clone()));
     }
+
     response_builder
         .content_type(mime::APPLICATION_JSON)
         .body(response)
@@ -968,6 +1025,10 @@ pub fn http_response_file_data<T: body::MessageBody + 'static>(
     content_type: mime::Mime,
 ) -> HttpResponse {
     HttpResponse::Ok().content_type(content_type).body(res)
+}
+
+pub fn http_response_html_data<T: body::MessageBody + 'static>(res: T) -> HttpResponse {
+    HttpResponse::Ok().content_type(mime::TEXT_HTML).body(res)
 }
 
 pub fn http_response_ok() -> HttpResponse {
@@ -1152,7 +1213,7 @@ pub fn build_redirection_form(
                 (PreEscaped(format!("<script>
                     bluesnap.threeDsPaymentsSetup(\"{payment_fields_token}\",
                     function(sdkResponse) {{
-                        console.log(sdkResponse);
+                        // console.log(sdkResponse);
                         var f = document.createElement('form');
                         f.action=window.location.pathname.replace(/payments\\/redirect\\/(\\w+)\\/(\\w+)\\/\\w+/, \"payments/$1/$2/redirect/complete/bluesnap?paymentToken={payment_fields_token}\");
                         f.method='POST';
@@ -1201,7 +1262,6 @@ pub fn build_redirection_form(
             client_token,
             card_token,
             bin,
-            amount,
         } => {
             maud::html! {
             (maud::DOCTYPE)
@@ -1209,7 +1269,7 @@ pub fn build_redirection_form(
                 head {
                     meta name="viewport" content="width=device-width, initial-scale=1";
                     (PreEscaped(r#"<script src="https://js.braintreegateway.com/web/3.97.1/js/three-d-secure.js"></script>"#))
-                    (PreEscaped(r#"<script src="https://js.braintreegateway.com/web/3.97.1/js/hosted-fields.js"></script>"#))
+                    // (PreEscaped(r#"<script src="https://js.braintreegateway.com/web/3.97.1/js/hosted-fields.js"></script>"#))
 
                 }
                     body style="background-color: #ffffff; padding: 20px; font-family: Arial, Helvetica, Sans-Serif;" {
@@ -1257,15 +1317,26 @@ pub fn build_redirection_form(
                                                 }}
                                             }},
                                             onLookupComplete: function(data, next) {{
-                                                console.log(\"onLookup Complete\", data);
+                                                // console.log(\"onLookup Complete\", data);
                                                     next();
                                                 }}
                                             }},
                                             function(err, payload) {{
                                                 if(err) {{
                                                     console.error(err);
+                                                    var f = document.createElement('form');
+                                                    f.action=window.location.pathname.replace(/payments\\/redirect\\/(\\w+)\\/(\\w+)\\/\\w+/, \"payments/$1/$2/redirect/response/braintree\");
+                                                    var i = document.createElement('input');
+                                                    i.type = 'hidden';
+                                                    f.method='POST';
+                                                    i.name = 'authentication_response';
+                                                    i.value = JSON.stringify(err);
+                                                    f.appendChild(i);
+                                                    f.body = JSON.stringify(err);
+                                                    document.body.appendChild(f);
+                                                    f.submit();
                                                 }} else {{
-                                                    console.log(payload);
+                                                    // console.log(payload);
                                                     var f = document.createElement('form');
                                                     f.action=window.location.pathname.replace(/payments\\/redirect\\/(\\w+)\\/(\\w+)\\/\\w+/, \"payments/$1/$2/redirect/complete/braintree\");
                                                     var i = document.createElement('input');
@@ -1292,4 +1363,34 @@ mod tests {
     fn test_mime_essence() {
         assert_eq!(mime::APPLICATION_JSON.essence_str(), "application/json");
     }
+}
+
+pub fn build_payment_link_html(
+    payment_link_data: PaymentLinkFormData,
+) -> CustomResult<String, errors::ApiErrorResponse> {
+    let html_template = include_str!("../core/payment_link/payment_link.html").to_string();
+
+    let mut tera = Tera::default();
+
+    let _ = tera.add_raw_template("payment_link", &html_template);
+
+    let mut context = Context::new();
+    context.insert(
+        "hyperloader_sdk_link",
+        &get_hyper_loader_sdk(&payment_link_data.sdk_url),
+    );
+    context.insert("css_color_scheme", &payment_link_data.css_script);
+    context.insert("payment_details_js_script", &payment_link_data.js_script);
+
+    match tera.render("payment_link", &context) {
+        Ok(rendered_html) => Ok(rendered_html),
+        Err(tera_error) => {
+            crate::logger::warn!("{tera_error}");
+            Err(errors::ApiErrorResponse::InternalServerError)?
+        }
+    }
+}
+
+fn get_hyper_loader_sdk(sdk_url: &str) -> String {
+    format!("<script src=\"{sdk_url}\"></script>")
 }

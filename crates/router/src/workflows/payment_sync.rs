@@ -60,7 +60,7 @@ impl ProcessTrackerWorkflow<AppState> for PaymentsSyncWorkflow {
             )
             .await?;
 
-        let (mut payment_data, _, customer, _) =
+        let (mut payment_data, _, customer, _, _) =
             payment_flows::payments_operation_core::<api::PSync, _, _, _, Oss>(
                 state,
                 merchant_account.clone(),
@@ -117,7 +117,7 @@ impl ProcessTrackerWorkflow<AppState> for PaymentsSyncWorkflow {
                         .as_ref()
                         .is_none()
                 {
-                    let payment_intent_update = data_models::payments::payment_intent::PaymentIntentUpdate::PGStatusUpdate { status: api_models::enums::IntentStatus::Failed };
+                    let payment_intent_update = data_models::payments::payment_intent::PaymentIntentUpdate::PGStatusUpdate { status: api_models::enums::IntentStatus::Failed,updated_by: merchant_account.storage_scheme.to_string() };
                     let payment_attempt_update =
                         data_models::payments::payment_attempt::PaymentAttemptUpdate::ErrorUpdate {
                             connector: None,
@@ -128,6 +128,7 @@ impl ProcessTrackerWorkflow<AppState> for PaymentsSyncWorkflow {
                                 consts::REQUEST_TIMEOUT_ERROR_MESSAGE_FROM_PSYNC.to_string(),
                             )),
                             amount_capturable: Some(0),
+                            updated_by: merchant_account.storage_scheme.to_string(),
                         };
 
                     payment_data.payment_attempt = db

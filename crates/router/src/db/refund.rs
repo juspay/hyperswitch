@@ -280,7 +280,7 @@ mod storage {
         logger,
         services::Store,
         types::storage::{self as storage_types, enums, kv},
-        utils::{self, db_utils, storage_partitioning::PartitionKey},
+        utils::{self, db_utils},
     };
     #[async_trait::async_trait]
     impl RefundInterface for Store {
@@ -305,18 +305,20 @@ mod storage {
                 enums::MerchantStorageScheme::PostgresOnly => database_call().await,
                 enums::MerchantStorageScheme::RedisKv => {
                     let lookup_id = format!("{merchant_id}_{internal_reference_id}");
-                    let lookup = self.get_lookup_by_lookup_id(&lookup_id).await?;
+                    let lookup = self
+                        .get_lookup_by_lookup_id(&lookup_id, storage_scheme)
+                        .await?;
 
                     let key = &lookup.pk_id;
                     db_utils::try_redis_get_else_try_database_get(
                         async {
                             kv_wrapper(
                                 self,
-                                KvOperation::<storage_types::Refund>::Get(&lookup.sk_id),
+                                KvOperation::<storage_types::Refund>::HGet(&lookup.sk_id),
                                 key,
                             )
                             .await?
-                            .try_into_get()
+                            .try_into_hget()
                         },
                         database_call,
                     )
@@ -336,7 +338,7 @@ mod storage {
                     new.insert(&conn).await.map_err(Into::into).into_report()
                 }
                 enums::MerchantStorageScheme::RedisKv => {
-                    let key = format!("{}_{}", new.merchant_id, new.payment_id);
+                    let key = format!("mid_{}_pid_{}", new.merchant_id, new.payment_id);
                     // TODO: need to add an application generated payment attempt id to distinguish between multiple attempts for the same payment id
                     // Check for database presence as well Maybe use a read replica here ?
                     let created_refund = storage_types::Refund {
@@ -365,20 +367,32 @@ mod storage {
                         description: new.description.clone(),
                         refund_reason: new.refund_reason.clone(),
                         profile_id: new.profile_id.clone(),
+                        updated_by: new.updated_by.clone(),
                     };
 
                     let field = format!(
                         "pa_{}_ref_{}",
                         &created_refund.attempt_id, &created_refund.refund_id
                     );
+
+                    let redis_entry = kv::TypedSql {
+                        op: kv::DBOperation::Insert {
+                            insertable: kv::Insertable::Refund(new),
+                        },
+                    };
+
                     match kv_wrapper::<storage_types::Refund, _, _>(
                         self,
-                        KvOperation::SetNx(&field, &created_refund),
+                        KvOperation::<storage_types::Refund>::HSetNx(
+                            &field,
+                            &created_refund,
+                            redis_entry,
+                        ),
                         &key,
                     )
                     .await
                     .change_context(errors::StorageError::KVError)?
-                    .try_into_setnx()
+                    .try_into_hsetnx()
                     {
                         Ok(HsetnxReply::KeyNotSet) => Err(errors::StorageError::DuplicateValue {
                             entity: "refund",
@@ -386,8 +400,6 @@ mod storage {
                         })
                         .into_report(),
                         Ok(HsetnxReply::KeySet) => {
-                            let conn = connection::pg_connection_write(self).await?;
-
                             let mut reverse_lookups = vec![
                                 storage_types::ReverseLookupNew {
                                     sk_id: field.clone(),
@@ -397,6 +409,7 @@ mod storage {
                                     ),
                                     pk_id: key.clone(),
                                     source: "refund".to_string(),
+                                    updated_by: storage_scheme.to_string(),
                                 },
                                 // [#492]: A discussion is required on whether this is required?
                                 storage_types::ReverseLookupNew {
@@ -408,6 +421,7 @@ mod storage {
                                     ),
                                     pk_id: key.clone(),
                                     source: "refund".to_string(),
+                                    updated_by: storage_scheme.to_string(),
                                 },
                             ];
                             if let Some(connector_refund_id) =
@@ -423,26 +437,14 @@ mod storage {
                                     ),
                                     pk_id: key,
                                     source: "refund".to_string(),
+                                    updated_by: storage_scheme.to_string(),
                                 })
                             };
-                            storage_types::ReverseLookupNew::batch_insert(reverse_lookups, &conn)
-                                .await
-                                .change_context(errors::StorageError::KVError)?;
+                            let rev_look = reverse_lookups
+                                .into_iter()
+                                .map(|rev| self.insert_reverse_lookup(rev, storage_scheme));
 
-                            let redis_entry = kv::TypedSql {
-                                op: kv::DBOperation::Insert {
-                                    insertable: kv::Insertable::Refund(new),
-                                },
-                            };
-                            self.push_to_drainer_stream::<storage_types::Refund>(
-                                redis_entry,
-                                PartitionKey::MerchantIdPaymentId {
-                                    merchant_id: &created_refund.merchant_id,
-                                    payment_id: &created_refund.payment_id,
-                                },
-                            )
-                            .await
-                            .change_context(errors::StorageError::KVError)?;
+                            futures::future::try_join_all(rev_look).await?;
 
                             Ok(created_refund)
                         }
@@ -473,7 +475,10 @@ mod storage {
                 enums::MerchantStorageScheme::PostgresOnly => database_call().await,
                 enums::MerchantStorageScheme::RedisKv => {
                     let lookup_id = format!("{merchant_id}_{connector_transaction_id}");
-                    let lookup = match self.get_lookup_by_lookup_id(&lookup_id).await {
+                    let lookup = match self
+                        .get_lookup_by_lookup_id(&lookup_id, storage_scheme)
+                        .await
+                    {
                         Ok(l) => l,
                         Err(err) => {
                             logger::error!(?err);
@@ -516,7 +521,7 @@ mod storage {
                         .into_report()
                 }
                 enums::MerchantStorageScheme::RedisKv => {
-                    let key = format!("{}_{}", this.merchant_id, this.payment_id);
+                    let key = format!("mid_{}_pid_{}", this.merchant_id, this.payment_id);
                     let field = format!("pa_{}_ref_{}", &this.attempt_id, &this.refund_id);
                     let updated_refund = refund.clone().apply_changeset(this.clone());
 
@@ -526,16 +531,6 @@ mod storage {
                         )
                         .change_context(errors::StorageError::SerializationFailed)?;
 
-                    kv_wrapper::<(), _, _>(
-                        self,
-                        KvOperation::Set::<storage_types::Refund>((&field, redis_value)),
-                        &key,
-                    )
-                    .await
-                    .change_context(errors::StorageError::KVError)?
-                    .try_into_set()
-                    .change_context(errors::StorageError::KVError)?;
-
                     let redis_entry = kv::TypedSql {
                         op: kv::DBOperation::Update {
                             updatable: kv::Updateable::RefundUpdate(kv::RefundUpdateMems {
@@ -544,15 +539,20 @@ mod storage {
                             }),
                         },
                     };
-                    self.push_to_drainer_stream::<storage_types::Refund>(
-                        redis_entry,
-                        PartitionKey::MerchantIdPaymentId {
-                            merchant_id: &updated_refund.merchant_id,
-                            payment_id: &updated_refund.payment_id,
-                        },
+
+                    kv_wrapper::<(), _, _>(
+                        self,
+                        KvOperation::Hset::<storage_types::Refund>(
+                            (&field, redis_value),
+                            redis_entry,
+                        ),
+                        &key,
                     )
                     .await
+                    .change_context(errors::StorageError::KVError)?
+                    .try_into_hset()
                     .change_context(errors::StorageError::KVError)?;
+
                     Ok(updated_refund)
                 }
             }
@@ -575,18 +575,20 @@ mod storage {
                 enums::MerchantStorageScheme::PostgresOnly => database_call().await,
                 enums::MerchantStorageScheme::RedisKv => {
                     let lookup_id = format!("{merchant_id}_{refund_id}");
-                    let lookup = self.get_lookup_by_lookup_id(&lookup_id).await?;
+                    let lookup = self
+                        .get_lookup_by_lookup_id(&lookup_id, storage_scheme)
+                        .await?;
 
                     let key = &lookup.pk_id;
                     db_utils::try_redis_get_else_try_database_get(
                         async {
                             kv_wrapper(
                                 self,
-                                KvOperation::<storage_types::Refund>::Get(&lookup.sk_id),
+                                KvOperation::<storage_types::Refund>::HGet(&lookup.sk_id),
                                 key,
                             )
                             .await?
-                            .try_into_get()
+                            .try_into_hget()
                         },
                         database_call,
                     )
@@ -618,18 +620,20 @@ mod storage {
                 enums::MerchantStorageScheme::PostgresOnly => database_call().await,
                 enums::MerchantStorageScheme::RedisKv => {
                     let lookup_id = format!("{merchant_id}_{connector_refund_id}_{connector}");
-                    let lookup = self.get_lookup_by_lookup_id(&lookup_id).await?;
+                    let lookup = self
+                        .get_lookup_by_lookup_id(&lookup_id, storage_scheme)
+                        .await?;
 
                     let key = &lookup.pk_id;
                     db_utils::try_redis_get_else_try_database_get(
                         async {
                             kv_wrapper(
                                 self,
-                                KvOperation::<storage_types::Refund>::Get(&lookup.sk_id),
+                                KvOperation::<storage_types::Refund>::HGet(&lookup.sk_id),
                                 key,
                             )
                             .await?
-                            .try_into_get()
+                            .try_into_hget()
                         },
                         database_call,
                     )
@@ -658,7 +662,7 @@ mod storage {
             match storage_scheme {
                 enums::MerchantStorageScheme::PostgresOnly => database_call().await,
                 enums::MerchantStorageScheme::RedisKv => {
-                    let key = format!("{merchant_id}_{payment_id}");
+                    let key = format!("mid_{merchant_id}_pid_{payment_id}");
                     db_utils::try_redis_get_else_try_database_get(
                         async {
                             kv_wrapper(
@@ -791,6 +795,7 @@ impl RefundInterface for MockDb {
             description: new.description,
             refund_reason: new.refund_reason.clone(),
             profile_id: new.profile_id,
+            updated_by: new.updated_by,
         };
         refunds.push(refund.clone());
         Ok(refund)
