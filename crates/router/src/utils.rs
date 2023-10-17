@@ -454,6 +454,7 @@ pub trait CustomerAddress {
         &self,
         address_details: api_models::payments::AddressDetails,
         key: &[u8],
+        storage_scheme: storage::enums::MerchantStorageScheme,
     ) -> CustomResult<storage::AddressUpdate, common_utils::errors::CryptoError>;
 
     async fn get_domain_address(
@@ -472,6 +473,7 @@ impl CustomerAddress for api_models::customers::CustomerRequest {
         &self,
         address_details: api_models::payments::AddressDetails,
         key: &[u8],
+        storage_scheme: storage::enums::MerchantStorageScheme,
     ) -> CustomResult<storage::AddressUpdate, common_utils::errors::CryptoError> {
         async {
             Ok(storage::AddressUpdate::Update {
@@ -511,6 +513,7 @@ impl CustomerAddress for api_models::customers::CustomerRequest {
                     .async_lift(|inner| encrypt_optional(inner, key))
                     .await?,
                 country_code: self.phone_country_code.clone(),
+                updated_by: storage_scheme.to_string(),
             })
         }
         .await
@@ -569,7 +572,7 @@ impl CustomerAddress for api_models::customers::CustomerRequest {
                 payment_id: None,
                 created_at: common_utils::date_time::now(),
                 modified_at: common_utils::date_time::now(),
-                updated_by: storage_scheme,
+                updated_by: storage_scheme.to_string(),
             })
         }
         .await

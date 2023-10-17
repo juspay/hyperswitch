@@ -2,7 +2,7 @@ use diesel::{AsChangeset, Identifiable, Insertable, Queryable};
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
 
-use crate::{enums, schema::connector_response};
+use crate::schema::connector_response;
 
 #[derive(Clone, Debug, Deserialize, Serialize, Insertable, router_derive::DebugAsDisplay)]
 #[diesel(table_name = connector_response)]
@@ -19,7 +19,7 @@ pub struct ConnectorResponseNew {
     pub connector_transaction_id: Option<String>,
     pub authentication_data: Option<serde_json::Value>,
     pub encoded_data: Option<String>,
-    pub updated_by: enums::MerchantStorageScheme,
+    pub updated_by: String,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize, Identifiable, Queryable)]
@@ -37,7 +37,7 @@ pub struct ConnectorResponse {
     pub connector_transaction_id: Option<String>,
     pub authentication_data: Option<serde_json::Value>,
     pub encoded_data: Option<String>,
-    pub updated_by: enums::MerchantStorageScheme,
+    pub updated_by: String,
 }
 
 #[derive(Clone, Default, Debug, Deserialize, AsChangeset, Serialize)]
@@ -48,7 +48,7 @@ pub struct ConnectorResponseUpdateInternal {
     pub modified_at: Option<PrimitiveDateTime>,
     pub encoded_data: Option<String>,
     pub connector_name: Option<String>,
-    pub updated_by: enums::MerchantStorageScheme,
+    pub updated_by: String,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -58,11 +58,11 @@ pub enum ConnectorResponseUpdate {
         authentication_data: Option<serde_json::Value>,
         encoded_data: Option<String>,
         connector_name: Option<String>,
-        updated_by: enums::MerchantStorageScheme,
+        updated_by: String,
     },
     ErrorUpdate {
         connector_name: Option<String>,
-        updated_by: enums::MerchantStorageScheme,
+        updated_by: String,
     },
 }
 

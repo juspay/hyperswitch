@@ -83,7 +83,7 @@ impl<T: DatabaseStore> ReverseLookupInterface for KVRouterStore<T> {
                     sk_id: new.sk_id.clone(),
                     pk_id: new.pk_id.clone(),
                     source: new.source.clone(),
-                    updated_by: storage_scheme,
+                    updated_by: storage_scheme.to_string(),
                 };
                 let combination = &created_rev_lookup.pk_id;
                 match kv_wrapper::<DieselReverseLookup, _, _>(

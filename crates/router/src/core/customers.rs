@@ -261,6 +261,7 @@ pub async fn delete_customer(
         last_name: Some(redacted_encrypted_value.clone()),
         phone_number: Some(redacted_encrypted_value.clone()),
         country_code: Some(REDACTED.to_string()),
+        updated_by: merchant_account.storage_scheme.to_string(),
     };
 
     match db
@@ -342,7 +343,7 @@ pub async fn update_customer(
             Some(address_id) => {
                 let customer_address: api_models::payments::AddressDetails = addr.clone();
                 let update_address = update_customer
-                    .get_address_update(customer_address, key)
+                    .get_address_update(customer_address, key, merchant_account.storage_scheme)
                     .await
                     .switch()
                     .attach_printable("Failed while encrypting Address while Update")?;

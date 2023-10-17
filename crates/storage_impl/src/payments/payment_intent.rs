@@ -93,7 +93,7 @@ impl<T: DatabaseStore> PaymentIntentInterface for KVRouterStore<T> {
                     merchant_decision: new.merchant_decision.clone(),
                     payment_link_id: new.payment_link_id.clone(),
                     payment_confirm_source: new.payment_confirm_source,
-                    updated_by: storage_scheme,
+                    updated_by: storage_scheme.to_string(),
                 };
                 let diesel_intent = created_intent.clone().to_storage_model();
 

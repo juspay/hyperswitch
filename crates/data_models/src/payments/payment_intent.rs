@@ -104,7 +104,7 @@ pub struct PaymentIntentNew {
     pub merchant_decision: Option<String>,
     pub payment_link_id: Option<String>,
     pub payment_confirm_source: Option<storage_enums::PaymentSource>,
-    pub updated_by: storage_enums::MerchantStorageScheme,
+    pub updated_by: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -113,11 +113,11 @@ pub enum PaymentIntentUpdate {
         status: storage_enums::IntentStatus,
         amount_captured: Option<i64>,
         return_url: Option<String>,
-        updated_by: storage_enums::MerchantStorageScheme,
+        updated_by: String,
     },
     MetadataUpdate {
         metadata: pii::SecretSerdeValue,
-        updated_by: storage_enums::MerchantStorageScheme,
+        updated_by: String,
     },
     ReturnUrlUpdate {
         return_url: Option<String>,
@@ -125,17 +125,17 @@ pub enum PaymentIntentUpdate {
         customer_id: Option<String>,
         shipping_address_id: Option<String>,
         billing_address_id: Option<String>,
-        updated_by: storage_enums::MerchantStorageScheme,
+        updated_by: String,
     },
     MerchantStatusUpdate {
         status: storage_enums::IntentStatus,
         shipping_address_id: Option<String>,
         billing_address_id: Option<String>,
-        updated_by: storage_enums::MerchantStorageScheme,
+        updated_by: String,
     },
     PGStatusUpdate {
         status: storage_enums::IntentStatus,
-        updated_by: storage_enums::MerchantStorageScheme,
+        updated_by: String,
     },
     Update {
         amount: i64,
@@ -154,27 +154,27 @@ pub enum PaymentIntentUpdate {
         order_details: Option<Vec<pii::SecretSerdeValue>>,
         metadata: Option<pii::SecretSerdeValue>,
         payment_confirm_source: Option<storage_enums::PaymentSource>,
-        updated_by: storage_enums::MerchantStorageScheme,
+        updated_by: String,
     },
     PaymentAttemptAndAttemptCountUpdate {
         active_attempt_id: String,
         attempt_count: i16,
-        updated_by: storage_enums::MerchantStorageScheme,
+        updated_by: String,
     },
     StatusAndAttemptUpdate {
         status: storage_enums::IntentStatus,
         active_attempt_id: String,
         attempt_count: i16,
-        updated_by: storage_enums::MerchantStorageScheme,
+        updated_by: String,
     },
     ApproveUpdate {
         merchant_decision: Option<String>,
-        updated_by: storage_enums::MerchantStorageScheme,
+        updated_by: String,
     },
     RejectUpdate {
         status: storage_enums::IntentStatus,
         merchant_decision: Option<String>,
-        updated_by: storage_enums::MerchantStorageScheme,
+        updated_by: String,
     },
 }
 
@@ -204,7 +204,7 @@ pub struct PaymentIntentUpdateInternal {
     // Manual review can occur when the transaction is marked as risky by the frm_processor, payment processor or when there is underpayment/over payment incase of crypto payment
     pub merchant_decision: Option<String>,
     pub payment_confirm_source: Option<storage_enums::PaymentSource>,
-    pub updated_by: storage_enums::MerchantStorageScheme,
+    pub updated_by: String,
 }
 
 impl PaymentIntentUpdate {

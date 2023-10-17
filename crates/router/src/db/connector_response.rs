@@ -148,7 +148,7 @@ mod storage {
                             .clone(),
                         authentication_data: connector_response.authentication_data.clone(),
                         encoded_data: connector_response.encoded_data.clone(),
-                        updated_by: storage_scheme,
+                        updated_by: storage_scheme.to_string(),
                     };
 
                     match kv_wrapper::<storage_type::ConnectorResponse, _, _>(
@@ -322,7 +322,7 @@ impl ConnectorResponseInterface for MockDb {
             connector_transaction_id: new.connector_transaction_id,
             authentication_data: new.authentication_data,
             encoded_data: new.encoded_data,
-            updated_by: storage_scheme,
+            updated_by: storage_scheme.to_string(),
         };
         connector_response.push(response.clone());
         Ok(response)

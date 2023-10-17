@@ -207,7 +207,7 @@ pub async fn trigger_refund_to_gateway(
             refund_status: Some(enums::RefundStatus::Failure),
             refund_error_message: err.reason.or(Some(err.message)),
             refund_error_code: Some(err.code),
-            updated_by: storage_scheme,
+            updated_by: storage_scheme.to_string(),
         },
         Ok(response) => {
             if response.refund_status == diesel_models::enums::RefundStatus::Success {
@@ -226,7 +226,7 @@ pub async fn trigger_refund_to_gateway(
                 sent_to_gateway: true,
                 refund_error_message: None,
                 refund_arn: "".to_string(),
-                updated_by: storage_scheme,
+                updated_by: storage_scheme.to_string(),
             }
         }
     };
@@ -439,7 +439,7 @@ pub async fn sync_refund_with_gateway(
             refund_status: None,
             refund_error_message: error_message.reason.or(Some(error_message.message)),
             refund_error_code: Some(error_message.code),
-            updated_by: storage_scheme,
+            updated_by: storage_scheme.to_string(),
         },
         Ok(response) => storage::RefundUpdate::Update {
             connector_refund_id: response.connector_refund_id,
@@ -447,7 +447,7 @@ pub async fn sync_refund_with_gateway(
             sent_to_gateway: true,
             refund_error_message: None,
             refund_arn: "".to_string(),
-            updated_by: storage_scheme,
+            updated_by: storage_scheme.to_string(),
         },
     };
 
@@ -493,7 +493,7 @@ pub async fn refund_update_core(
             storage::RefundUpdate::MetadataAndReasonUpdate {
                 metadata: req.metadata,
                 reason: req.reason,
-                updated_by: merchant_account.storage_scheme,
+                updated_by: merchant_account.storage_scheme.to_string(),
             },
             merchant_account.storage_scheme,
         )

@@ -12,7 +12,7 @@ pub trait ConnectorResponseExt {
         merchant_id: String,
         attempt_id: String,
         connector: Option<String>,
-        storage_scheme: MerchantStorageScheme,
+        storage_scheme: String,
     ) -> ConnectorResponseNew;
 }
 
@@ -22,7 +22,7 @@ impl ConnectorResponseExt for ConnectorResponse {
         merchant_id: String,
         attempt_id: String,
         connector: Option<String>,
-        storage_scheme: MerchantStorageScheme,
+        storage_scheme: String,
     ) -> ConnectorResponseNew {
         let now = common_utils::date_time::now();
         ConnectorResponseNew {

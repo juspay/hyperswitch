@@ -237,7 +237,7 @@ impl<F: Clone, Ctx: PaymentMethodRetrieve>
                     payment_data.payment_intent,
                     storage::PaymentIntentUpdate::MetadataUpdate {
                         metadata,
-                        updated_by: storage_scheme,
+                        updated_by: storage_scheme.to_string(),
                     },
                     storage_scheme,
                 )

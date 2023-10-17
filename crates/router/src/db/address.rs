@@ -505,7 +505,7 @@ mod storage {
                         customer_id: address_new.customer_id.clone(),
                         merchant_id: address_new.merchant_id.clone(),
                         payment_id: address_new.payment_id.clone(),
-                        updated_by: storage_scheme,
+                        updated_by: storage_scheme.to_string(),
                     };
 
                     match kv_wrapper::<diesel_models::Address, _, _>(

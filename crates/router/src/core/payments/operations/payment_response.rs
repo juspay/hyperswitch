@@ -351,7 +351,7 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                             } else {
                                 None
                             },
-                            updated_by: storage_scheme,
+                            updated_by: storage_scheme.to_string(),
                         }),
                     )
                 }
@@ -361,7 +361,7 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                 attempt_update,
                 Some(storage::ConnectorResponseUpdate::ErrorUpdate {
                     connector_name: Some(router_data.connector.clone()),
-                    updated_by: storage_scheme,
+                    updated_by: storage_scheme.to_string(),
                 }),
             )
         }
@@ -391,7 +391,7 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                     preprocessing_step_id,
                     connector_transaction_id,
                     connector_response_reference_id,
-                    updated_by: storage_scheme,
+                    updated_by: storage_scheme.to_string(),
                 };
 
                 (None, Some(payment_attempt_update), None)
@@ -477,7 +477,7 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                                 } else {
                                     None
                                 },
-                                updated_by: storage_scheme,
+                                updated_by: storage_scheme.to_string(),
                             }),
                         ),
                     };
@@ -487,7 +487,7 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                     authentication_data,
                     encoded_data,
                     connector_name: Some(connector_name),
-                    updated_by: storage_scheme,
+                    updated_by: storage_scheme.to_string(),
                 };
 
                 (
@@ -517,7 +517,7 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                         error_message: Some(reason.clone().map(|cd| cd.message)),
                         error_reason: Some(reason.map(|cd| cd.message)),
                         connector_response_reference_id,
-                        updated_by: storage_scheme,
+                        updated_by: storage_scheme.to_string(),
                     }),
                     None,
                 )
@@ -561,7 +561,7 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                 status: multiple_capture_data.get_attempt_status(authorized_amount),
                 amount_capturable: payment_data.payment_attempt.amount
                     - multiple_capture_data.get_total_blocked_amount(),
-                updated_by: storage_scheme,
+                updated_by: storage_scheme.to_string(),
             });
             Some(multiple_capture_data)
         }
@@ -617,7 +617,7 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
             status: payment_data
                 .payment_attempt
                 .get_intent_status(payment_data.payment_intent.amount_captured),
-            updated_by: storage_scheme,
+            updated_by: storage_scheme.to_string(),
         },
         Ok(_) => storage::PaymentIntentUpdate::ResponseUpdate {
             status: payment_data
@@ -625,7 +625,7 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                 .get_intent_status(payment_data.payment_intent.amount_captured),
             return_url: router_data.return_url.clone(),
             amount_captured,
-            updated_by: storage_scheme,
+            updated_by: storage_scheme.to_string(),
         },
     };
 

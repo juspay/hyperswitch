@@ -361,7 +361,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
                     connector_response_reference_id: None,
                     amount_capturable: payment_attempt.amount_capturable,
                     surcharge_metadata: payment_attempt.surcharge_metadata.clone(),
-                    updated_by: storage_scheme,
+                    updated_by: storage_scheme.to_string(),
                 };
 
                 let field = format!("pa_{}", created_attempt.attempt_id);
@@ -390,7 +390,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
                             pk_id: key,
                             sk_id: field,
                             source: "payment_attempt".to_string(),
-                            updated_by: storage_scheme,
+                            updated_by: storage_scheme.to_string(),
                         };
                         self.insert_reverse_lookup(reverse_lookup, storage_scheme)
                             .await?;
@@ -1605,7 +1605,7 @@ async fn add_connector_txn_id_to_reverse_lookup<T: DatabaseStore>(
         pk_id: key.to_owned(),
         sk_id: field.clone(),
         source: "payment_attempt".to_string(),
-        updated_by: storage_scheme,
+        updated_by: storage_scheme.to_string(),
     };
     store
         .insert_reverse_lookup(reverse_lookup_new, storage_scheme)
@@ -1627,7 +1627,7 @@ async fn add_preprocessing_id_to_reverse_lookup<T: DatabaseStore>(
         pk_id: key.to_owned(),
         sk_id: field.clone(),
         source: "payment_attempt".to_string(),
-        updated_by: storage_scheme,
+        updated_by: storage_scheme.to_string(),
     };
     store
         .insert_reverse_lookup(reverse_lookup_new, storage_scheme)

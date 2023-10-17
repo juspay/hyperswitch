@@ -37,7 +37,7 @@ pub struct Refund {
     pub refund_reason: Option<String>,
     pub refund_error_code: Option<String>,
     pub profile_id: Option<String>,
-    pub updated_by: storage_enums::MerchantStorageScheme,
+    pub updated_by: String,
 }
 
 #[derive(
@@ -78,7 +78,7 @@ pub struct RefundNew {
     pub attempt_id: String,
     pub refund_reason: Option<String>,
     pub profile_id: Option<String>,
-    pub updated_by: storage_enums::MerchantStorageScheme,
+    pub updated_by: String,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
@@ -89,24 +89,24 @@ pub enum RefundUpdate {
         sent_to_gateway: bool,
         refund_error_message: Option<String>,
         refund_arn: String,
-        updated_by: storage_enums::MerchantStorageScheme,
+        updated_by: String,
     },
     MetadataAndReasonUpdate {
         metadata: Option<pii::SecretSerdeValue>,
         reason: Option<String>,
-        updated_by: storage_enums::MerchantStorageScheme,
+        updated_by: String,
     },
     StatusUpdate {
         connector_refund_id: Option<String>,
         sent_to_gateway: bool,
         refund_status: storage_enums::RefundStatus,
-        updated_by: storage_enums::MerchantStorageScheme,
+        updated_by: String,
     },
     ErrorUpdate {
         refund_status: Option<storage_enums::RefundStatus>,
         refund_error_message: Option<String>,
         refund_error_code: Option<String>,
-        updated_by: storage_enums::MerchantStorageScheme,
+        updated_by: String,
     },
 }
 
@@ -121,7 +121,7 @@ pub struct RefundUpdateInternal {
     metadata: Option<pii::SecretSerdeValue>,
     refund_reason: Option<String>,
     refund_error_code: Option<String>,
-    updated_by: storage_enums::MerchantStorageScheme,
+    updated_by: String,
 }
 
 impl RefundUpdateInternal {

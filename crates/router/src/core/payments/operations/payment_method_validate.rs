@@ -248,7 +248,7 @@ impl<F: Clone, Ctx: PaymentMethodRetrieve> UpdateTracker<F, PaymentData<F>, api:
                     customer_id,
                     shipping_address_id: None,
                     billing_address_id: None,
-                    updated_by: storage_scheme,
+                    updated_by: storage_scheme.to_string(),
                 },
                 storage_scheme,
             )
@@ -351,7 +351,7 @@ impl PaymentMethodValidate {
             created_at,
             modified_at,
             last_synced,
-            updated_by: storage_scheme,
+            updated_by: storage_scheme.to_string(),
             ..Default::default()
         }
     }
@@ -402,7 +402,7 @@ impl PaymentMethodValidate {
             merchant_decision: Default::default(),
             payment_confirm_source: Default::default(),
             payment_link_id: Default::default(),
-            updated_by: storage_scheme,
+            updated_by: storage_scheme.to_string(),
         }
     }
 }

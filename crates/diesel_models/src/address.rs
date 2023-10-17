@@ -24,7 +24,7 @@ pub struct AddressNew {
     pub payment_id: Option<String>,
     pub created_at: PrimitiveDateTime,
     pub modified_at: PrimitiveDateTime,
-    pub updated_by: enums::MerchantStorageScheme,
+    pub updated_by: String,
 }
 
 #[derive(Clone, Debug, Queryable, Identifiable, Serialize, Deserialize)]
@@ -48,7 +48,7 @@ pub struct Address {
     pub customer_id: String,
     pub merchant_id: String,
     pub payment_id: Option<String>,
-    pub updated_by: enums::MerchantStorageScheme,
+    pub updated_by: String,
 }
 
 #[derive(Clone, Debug, AsChangeset, router_derive::DebugAsDisplay, Serialize, Deserialize)]
@@ -66,6 +66,7 @@ pub struct AddressUpdateInternal {
     pub phone_number: Option<Encryption>,
     pub country_code: Option<String>,
     pub modified_at: PrimitiveDateTime,
+    pub updated_by: String,
 }
 
 impl AddressUpdateInternal {
@@ -83,7 +84,7 @@ impl AddressUpdateInternal {
             phone_number: self.phone_number,
             country_code: self.country_code,
             modified_at: self.modified_at,
-
+            updated_by: self.updated_by,
             ..source
         }
     }

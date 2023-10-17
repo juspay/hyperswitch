@@ -191,7 +191,7 @@ impl<F: Clone, Ctx: PaymentMethodRetrieve>
         let intent_status_update = storage::PaymentIntentUpdate::RejectUpdate {
             status: enums::IntentStatus::Failed,
             merchant_decision: Some(enums::MerchantDecision::Rejected.to_string()),
-            updated_by: storage_scheme,
+            updated_by: storage_scheme.to_string(),
         };
         let (error_code, error_message) =
             payment_data
@@ -207,7 +207,7 @@ impl<F: Clone, Ctx: PaymentMethodRetrieve>
             status: enums::AttemptStatus::Failure,
             error_code,
             error_message,
-            updated_by: storage_scheme,
+            updated_by: storage_scheme.to_string(),
         };
 
         payment_data.payment_intent = db
