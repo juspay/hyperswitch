@@ -1581,11 +1581,11 @@ impl From<OutcomeCode> for api::IncomingWebhookEvent {
         match outcome_code {
             OutcomeCode::ResolvedBuyerFavour => Self::DisputeLost,
             OutcomeCode::ResolvedSellerFavour => Self::DisputeWon,
-            OutcomeCode::ResolvedWithPayout => Self::DisputeWon,
             OutcomeCode::CanceledByBuyer => Self::DisputeCancelled,
             OutcomeCode::ACCEPTED => Self::DisputeAccepted,
             OutcomeCode::DENIED => Self::DisputeCancelled,
             OutcomeCode::NONE => Self::DisputeCancelled,
+            OutcomeCode::ResolvedWithPayout => Self::EventNotSupported,
         }
     }
 }
