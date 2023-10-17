@@ -624,12 +624,39 @@ pub async fn create_payment_connector(
         &merchant_account,
     )?;
 
-    let connector_label = core_utils::get_connector_label(
+    // Business label support will be deprecated soon
+    let profile_id = core_utils::get_profile_id_from_business_details(
         req.business_country,
         req.business_label.as_ref(),
-        req.business_sub_label.as_ref(),
-        &req.connector_name.to_string(),
-    );
+        &merchant_account,
+        req.profile_id.as_ref(),
+        store,
+        true,
+    )
+    .await?;
+
+    let business_profile = state
+        .store
+        .find_business_profile_by_profile_id(&profile_id)
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::BusinessProfileNotFound {
+            id: profile_id.to_owned(),
+        })?;
+
+    // If connector label is not passed in the request, generate one
+    let connector_label = req
+        .connector_label
+        .or(core_utils::get_connector_label(
+            req.business_country,
+            req.business_label.as_ref(),
+            req.business_sub_label.as_ref(),
+            &req.connector_name.to_string(),
+        ))
+        .unwrap_or(format!(
+            "{}_{}",
+            req.connector_name.to_string(),
+            business_profile.profile_name
+        ));
 
     let mut vec = Vec::new();
     let payment_methods_enabled = match req.payment_methods_enabled {
@@ -682,16 +709,6 @@ pub async fn create_payment_connector(
 
     let frm_configs = get_frm_config_as_secret(req.frm_configs);
 
-    let profile_id = core_utils::get_profile_id_from_business_details(
-        req.business_country,
-        req.business_label.as_ref(),
-        &merchant_account,
-        req.profile_id.as_ref(),
-        &*state.store,
-        true,
-    )
-    .await?;
-
     let merchant_connector_account = domain::MerchantConnectorAccount {
         merchant_id: merchant_id.to_string(),
         connector_type: req.connector_type,
@@ -713,7 +730,7 @@ pub async fn create_payment_connector(
         disabled: req.disabled,
         metadata: req.metadata,
         frm_configs,
-        connector_label: connector_label.clone(),
+        connector_label: Some(connector_label),
         business_country: req.business_country,
         business_label: req.business_label.clone(),
         business_sub_label: req.business_sub_label,
