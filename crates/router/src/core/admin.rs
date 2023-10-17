@@ -1378,6 +1378,10 @@ pub(crate) fn validate_auth_and_metadata_type(
             gocardless::transformers::GocardlessAuthType::try_from(val)?;
             Ok(())
         }
+        api_enums::Connector::Helcim => {
+            helcim::transformers::HelcimAuthType::try_from(val)?;
+            Ok(())
+        }
         api_enums::Connector::Iatapay => {
             iatapay::transformers::IatapayAuthType::try_from(val)?;
             Ok(())

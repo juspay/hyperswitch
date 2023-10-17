@@ -3,7 +3,7 @@ use std::marker::PhantomData;
 use api_models::enums::FrmSuggestion;
 use async_trait::async_trait;
 use common_utils::ext_traits::{AsyncExt, Encode, ValueExt};
-use data_models::mandates::MandateData;
+use data_models::{mandates::MandateData, payments::payment_attempt::PaymentAttempt};
 use diesel_models::ephemeral_key;
 use error_stack::{self, ResultExt};
 use router_derive::PaymentOperation;
@@ -364,7 +364,7 @@ impl<F: Clone + Send, Ctx: PaymentMethodRetrieve> Domain<F, api::PaymentsRequest
     async fn add_task_to_process_tracker<'a>(
         &'a self,
         _state: &'a AppState,
-        _payment_attempt: &storage::PaymentAttempt,
+        _payment_attempt: &PaymentAttempt,
         _requeue: bool,
         _schedule_time: Option<time::PrimitiveDateTime>,
     ) -> CustomResult<(), errors::ApiErrorResponse> {
@@ -705,7 +705,7 @@ impl PaymentCreate {
             metadata: request.metadata.clone(),
             business_country: request.business_country,
             business_label: request.business_label.clone(),
-            active_attempt_id,
+            active_attempt: data_models::RemoteStorageObject::ForeignID(active_attempt_id),
             order_details,
             amount_captured: None,
             customer_id: None,
@@ -723,7 +723,7 @@ impl PaymentCreate {
 
     #[instrument(skip_all)]
     pub fn make_connector_response(
-        payment_attempt: &storage::PaymentAttempt,
+        payment_attempt: &PaymentAttempt,
     ) -> storage::ConnectorResponseNew {
         storage::ConnectorResponseNew {
             payment_id: payment_attempt.payment_id.clone(),

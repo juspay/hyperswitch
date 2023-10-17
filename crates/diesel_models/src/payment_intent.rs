@@ -165,7 +165,6 @@ pub enum PaymentIntentUpdate {
 
 #[derive(Clone, Debug, Default, AsChangeset, router_derive::DebugAsDisplay)]
 #[diesel(table_name = payment_intent)]
-
 pub struct PaymentIntentUpdateInternal {
     pub amount: Option<i64>,
     pub currency: Option<storage_enums::Currency>,
