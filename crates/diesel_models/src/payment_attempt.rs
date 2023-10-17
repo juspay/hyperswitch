@@ -311,6 +311,25 @@ impl PaymentAttemptUpdate {
                 .or(source.preprocessing_step_id),
             surcharge_metadata: pa_update.surcharge_metadata.or(source.surcharge_metadata),
             updated_by: pa_update.updated_by,
+            payment_method_data: pa_update.payment_method_data.or(source.payment_method_data),
+            payment_method_type: pa_update.payment_method_type.or(source.payment_method_type),
+            capture_method: pa_update.capture_method.or(source.capture_method),
+            cancellation_reason: pa_update.cancellation_reason.or(source.cancellation_reason),
+            error_code: pa_update.error_code.unwrap_or(source.error_code),
+            straight_through_algorithm: pa_update
+                .straight_through_algorithm
+                .or(source.straight_through_algorithm),
+            error_reason: pa_update.error_reason.unwrap_or(source.error_reason),
+            multiple_capture_count: pa_update
+                .multiple_capture_count
+                .or(source.multiple_capture_count),
+            connector_response_reference_id: pa_update
+                .connector_response_reference_id
+                .or(source.connector_response_reference_id),
+            amount_capturable: pa_update
+                .amount_capturable
+                .unwrap_or(source.amount_capturable),
+            surcharge_amount: pa_update.surcharge_amount.or(source.surcharge_amount),
             ..source
         }
     }
