@@ -302,6 +302,10 @@ pub struct PaymentsRequest {
     /// The type of the payment that differentiates between normal and various types of mandate payments
     #[schema(value_type = Option<PaymentType>)]
     pub payment_type: Option<api_enums::PaymentType>,
+
+    /// additional data related to some frm connectors
+    pub frm_metadata: Option<serde_json::Value>,
+
 }
 
 #[derive(Default, Debug, Clone, Copy)]
@@ -2243,6 +2247,8 @@ pub struct OrderDetailsWithAmount {
     pub quantity: u16,
     /// the amount per quantity of product
     pub amount: i64,
+    // Does the order includes shipping
+    pub requires_shipping: bool,
 }
 
 #[derive(Debug, Default, Eq, PartialEq, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
@@ -2253,6 +2259,9 @@ pub struct OrderDetails {
     /// The quantity of the product to be purchased
     #[schema(example = 1)]
     pub quantity: u16,
+    // Does the order include shipping
+    pub requires_shipping: bool,
+
 }
 
 #[derive(Default, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize, Clone, ToSchema)]

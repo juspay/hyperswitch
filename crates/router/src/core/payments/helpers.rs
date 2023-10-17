@@ -2659,6 +2659,7 @@ pub fn router_data_type_conversion<F1, F2, Req1, Req2, Res1, Res2>(
         connector_http_status_code: router_data.connector_http_status_code,
         external_latency: router_data.external_latency,
         apple_pay_flow: router_data.apple_pay_flow,
+        frm_metadata: router_data.frm_metadata,
     }
 }
 

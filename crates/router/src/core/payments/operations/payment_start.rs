@@ -167,6 +167,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
                 multiple_capture_data: None,
                 redirect_response: None,
                 frm_message: None,
+                frm_metadata: None,
             },
             Some(customer_details),
         ))

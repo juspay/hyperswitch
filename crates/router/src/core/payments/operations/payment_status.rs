@@ -403,6 +403,7 @@ async fn get_tracker_for_sync<
             multiple_capture_data,
             redirect_response: None,
             frm_message: frm_response.ok(),
+            frm_metadata: None,
         },
         None,
     ))

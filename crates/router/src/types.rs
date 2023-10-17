@@ -292,6 +292,8 @@ pub struct RouterData<Flow, Request, Response> {
     pub external_latency: Option<u128>,
     /// Contains apple pay flow type simplified or manual
     pub apple_pay_flow: Option<storage_enums::ApplePayFlow>,
+
+    pub frm_metadata: Option<serde_json::Value>,
 }
 
 #[derive(Debug, Clone, serde::Deserialize)]
@@ -1119,6 +1121,7 @@ impl<F1, F2, T1, T2> From<(&RouterData<F1, T1, PaymentsResponseData>, T2)>
             connector_http_status_code: data.connector_http_status_code,
             external_latency: data.external_latency,
             apple_pay_flow: data.apple_pay_flow.clone(),
+            frm_metadata: data.frm_metadata.clone(),
         }
     }
 }
@@ -1174,6 +1177,7 @@ impl<F1, F2>
             connector_http_status_code: data.connector_http_status_code,
             external_latency: data.external_latency,
             apple_pay_flow: None,
+            frm_metadata: None,
         }
     }
 }

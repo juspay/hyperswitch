@@ -1461,6 +1461,7 @@ where
     pub ephemeral_key: Option<ephemeral_key::EphemeralKey>,
     pub redirect_response: Option<api_models::payments::RedirectResponse>,
     pub frm_message: Option<FraudCheck>,
+    pub frm_metadata: Option<serde_json::Value>,
 }
 
 #[derive(Debug, Default, Clone)]

@@ -163,6 +163,7 @@ where
         connector_http_status_code: None,
         external_latency: None,
         apple_pay_flow,
+        frm_metadata: None,
     };
 
     Ok(router_data)
@@ -912,6 +913,7 @@ pub fn change_order_details_to_new_type(
         product_name: order_details.product_name,
         quantity: order_details.quantity,
         amount: order_amount,
+        requires_shipping: order_details.requires_shipping,
     }])
 }
 

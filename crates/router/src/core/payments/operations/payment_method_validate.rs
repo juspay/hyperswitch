@@ -196,6 +196,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
                 multiple_capture_data: None,
                 redirect_response: None,
                 frm_message: None,
+                frm_metadata: None,
             },
             Some(payments::CustomerDetails {
                 customer_id: request.customer_id.clone(),

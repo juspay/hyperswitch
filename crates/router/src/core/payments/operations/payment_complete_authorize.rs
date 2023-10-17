@@ -247,6 +247,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
                 multiple_capture_data: None,
                 redirect_response,
                 frm_message: None,
+                frm_metadata: request.frm_metadata.clone(),
             },
             Some(CustomerDetails {
                 customer_id: request.customer_id.clone(),
