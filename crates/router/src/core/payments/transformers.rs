@@ -916,7 +916,7 @@ pub fn change_order_details_to_new_type(
         product_name: order_details.product_name,
         quantity: order_details.quantity,
         amount: order_amount,
-        product_img_link: None,
+        product_img_link: order_details.product_img_link,
     }])
 }
 
