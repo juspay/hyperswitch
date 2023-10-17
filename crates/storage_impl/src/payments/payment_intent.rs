@@ -130,21 +130,21 @@ impl<T: DatabaseStore> PaymentIntentInterface for KVRouterStore<T> {
     async fn update_payment_intent(
         &self,
         this: PaymentIntent,
-        payment_intent: PaymentIntentUpdate,
+        payment_intent_update: PaymentIntentUpdate,
         storage_scheme: MerchantStorageScheme,
     ) -> error_stack::Result<PaymentIntent, StorageError> {
         match storage_scheme {
             MerchantStorageScheme::PostgresOnly => {
                 self.router_store
-                    .update_payment_intent(this, payment_intent, storage_scheme)
+                    .update_payment_intent(this, payment_intent_update, storage_scheme)
                     .await
             }
             MerchantStorageScheme::RedisKv => {
                 let key = format!("mid_{}_pid_{}", this.merchant_id, this.payment_id);
                 let field = format!("pi_{}", this.payment_id);
 
-                let updated_intent = payment_intent.clone().apply_changeset(this.clone());
-                let diesel_intent = payment_intent.to_storage_model();
+                let updated_intent = payment_intent_update.clone().apply_changeset(this.clone());
+                let diesel_intent = updated_intent.clone().to_storage_model();
                 // Check for database presence as well Maybe use a read replica here ?
 
                 let redis_value =
@@ -156,7 +156,7 @@ impl<T: DatabaseStore> PaymentIntentInterface for KVRouterStore<T> {
                         updatable: kv::Updateable::PaymentIntentUpdate(
                             kv::PaymentIntentUpdateMems {
                                 orig: this.to_storage_model(),
-                                update_data: diesel_intent,
+                                update_data: payment_intent_update.to_storage_model(),
                             },
                         ),
                     },
