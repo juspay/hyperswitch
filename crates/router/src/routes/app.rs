@@ -17,7 +17,7 @@ use super::payouts::*;
 use super::verification::{apple_pay_merchant_registration, retrieve_apple_pay_verified_domains};
 #[cfg(feature = "olap")]
 use super::{admin::*, api_keys::*, disputes::*, files::*};
-use super::{cache::*, health::*};
+use super::{cache::*, health::*, payment_link::*};
 #[cfg(any(feature = "olap", feature = "oltp"))]
 use super::{configs::*, customers::*, mandates::*, payments::*, refunds::*};
 #[cfg(feature = "oltp")]
@@ -25,21 +25,25 @@ use super::{ephemeral_key::*, payment_methods::*, webhooks::*};
 use crate::{
     configs::settings,
     db::{StorageImpl, StorageInterface},
+    events::{event_logger::EventLogger, EventHandler},
     routes::cards_info::card_iin_info,
     services::get_store,
 };
 
 #[derive(Clone)]
-pub struct AppState {
+pub struct AppStateBase<E: EventHandler> {
     pub flow_name: String,
     pub store: Box<dyn StorageInterface>,
     pub conf: Arc<settings::Settings>,
+    pub event_handler: E,
     #[cfg(feature = "email")]
     pub email_client: Arc<dyn EmailClient>,
     #[cfg(feature = "kms")]
     pub kms_secrets: Arc<settings::ActiveKmsSecrets>,
     pub api_client: Box<dyn crate::services::ApiClient>,
 }
+
+pub type AppState = AppStateBase<EventLogger>;
 
 impl scheduler::SchedulerAppState for AppState {
     fn get_db(&self) -> Box<dyn SchedulerInterface> {
@@ -48,8 +52,10 @@ impl scheduler::SchedulerAppState for AppState {
 }
 
 pub trait AppStateInfo {
+    type Event: EventHandler;
     fn conf(&self) -> settings::Settings;
     fn store(&self) -> Box<dyn StorageInterface>;
+    fn event_handler(&self) -> &Self::Event;
     #[cfg(feature = "email")]
     fn email_client(&self) -> Arc<dyn EmailClient>;
     fn add_request_id(&mut self, request_id: Option<String>);
@@ -59,6 +65,7 @@ pub trait AppStateInfo {
 }
 
 impl AppStateInfo for AppState {
+    type Event = EventLogger;
     fn conf(&self) -> settings::Settings {
         self.conf.as_ref().to_owned()
     }
@@ -68,6 +75,9 @@ impl AppStateInfo for AppState {
     #[cfg(feature = "email")]
     fn email_client(&self) -> Arc<dyn EmailClient> {
         self.email_client.to_owned()
+    }
+    fn event_handler(&self) -> &Self::Event {
+        &self.event_handler
     }
     fn add_request_id(&mut self, request_id: Option<String>) {
         self.api_client.add_request_id(request_id);
@@ -137,6 +147,7 @@ impl AppState {
             #[cfg(feature = "kms")]
             kms_secrets: Arc::new(kms_secrets),
             api_client,
+            event_handler: EventLogger::default(),
         }
     }
 
@@ -277,10 +288,12 @@ impl Customers {
 
         #[cfg(feature = "olap")]
         {
-            route = route.service(
-                web::resource("/{customer_id}/mandates")
-                    .route(web::get().to(get_customer_mandates)),
-            );
+            route = route
+                .service(
+                    web::resource("/{customer_id}/mandates")
+                        .route(web::get().to(get_customer_mandates)),
+                )
+                .service(web::resource("/list").route(web::get().to(customers_list)))
         }
 
         #[cfg(feature = "oltp")]
@@ -302,6 +315,7 @@ impl Customers {
                         .route(web::delete().to(customers_delete)),
                 );
         }
+
         route
     }
 }
@@ -575,6 +589,22 @@ impl Cache {
         web::scope("/cache")
             .app_data(web::Data::new(state))
             .service(web::resource("/invalidate/{key}").route(web::post().to(invalidate)))
+    }
+}
+
+pub struct PaymentLink;
+
+impl PaymentLink {
+    pub fn server(state: AppState) -> Scope {
+        web::scope("/payment_link")
+            .app_data(web::Data::new(state))
+            .service(
+                web::resource("/{payment_link_id}").route(web::get().to(payment_link_retrieve)),
+            )
+            .service(
+                web::resource("{merchant_id}/{payment_id}")
+                    .route(web::get().to(initiate_payment_link)),
+            )
     }
 }
 

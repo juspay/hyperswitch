@@ -61,6 +61,7 @@ Never share your secret api keys. Keep them guarded and secure.
         (name = "Disputes", description = "Manage disputes"),
         // (name = "API Key", description = "Create and manage API Keys"),
         (name = "Payouts", description = "Create and manage payouts"),
+        (name = "payment link", description = "Create payment link"),
     ),
     paths(
         crate::routes::refunds::refunds_create,
@@ -100,6 +101,7 @@ Never share your secret api keys. Keep them guarded and secure.
         crate::routes::customers::customers_retrieve,
         crate::routes::customers::customers_update,
         crate::routes::customers::customers_delete,
+        crate::routes::customers::customers_list,
         // crate::routes::api_keys::api_key_create,
         // crate::routes::api_keys::api_key_retrieve,
         // crate::routes::api_keys::api_key_update,
@@ -112,6 +114,7 @@ Never share your secret api keys. Keep them guarded and secure.
         crate::routes::payouts::payouts_fulfill,
         crate::routes::payouts::payouts_retrieve,
         crate::routes::payouts::payouts_update,
+        crate::routes::payment_link::payment_link_retrieve
     ),
     components(schemas(
         crate::types::api::refunds::RefundRequest,
@@ -296,6 +299,7 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::payments::SepaBankTransferInstructions,
         api_models::payments::BacsBankTransferInstructions,
         api_models::payments::RedirectResponse,
+        api_models::payments::RequestSurchargeDetails,
         api_models::payments::PaymentAttemptResponse,
         api_models::payments::CaptureResponse,
         api_models::payment_methods::RequiredFieldInfo,
@@ -338,7 +342,12 @@ Never share your secret api keys. Keep them guarded and secure.
         crate::types::api::api_keys::CreateApiKeyResponse,
         crate::types::api::api_keys::RetrieveApiKeyResponse,
         crate::types::api::api_keys::RevokeApiKeyResponse,
-        crate::types::api::api_keys::UpdateApiKeyRequest
+        crate::types::api::api_keys::UpdateApiKeyRequest,
+        api_models::payments::RetrievePaymentLinkRequest,
+        api_models::payments::PaymentLinkResponse,
+        api_models::payments::RetrievePaymentLinkResponse,
+        api_models::payments::PaymentLinkInitiateRequest,
+        api_models::payments::PaymentLinkObject
     )),
     modifiers(&SecurityAddon)
 )]

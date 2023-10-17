@@ -21,6 +21,7 @@ pub enum ApiIdentifier {
     Business,
     Verification,
     ApiKeys,
+    PaymentLink,
 }
 
 impl From<Flow> for ApiIdentifier {
@@ -46,7 +47,8 @@ impl From<Flow> for ApiIdentifier {
             | Flow::CustomersRetrieve
             | Flow::CustomersUpdate
             | Flow::CustomersDelete
-            | Flow::CustomersGetMandates => Self::Customers,
+            | Flow::CustomersGetMandates
+            | Flow::CustomersList => Self::Customers,
 
             Flow::EphemeralKeyCreate | Flow::EphemeralKeyDelete => Self::Ephemeral,
 
@@ -113,6 +115,8 @@ impl From<Flow> for ApiIdentifier {
             | Flow::BusinessProfileList => Self::Business,
 
             Flow::Verification => Self::Verification,
+
+            Flow::PaymentLinkInitiate | Flow::PaymentLinkRetrieve => Self::PaymentLink,
         }
     }
 }

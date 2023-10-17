@@ -12,6 +12,7 @@ pub enum IncomingWebhookEvent {
     PaymentIntentSuccess,
     PaymentIntentProcessing,
     PaymentIntentPartiallyFunded,
+    PaymentIntentCancelled,
     PaymentActionRequired,
     EventNotSupported,
     SourceChargeable,
@@ -84,7 +85,8 @@ impl From<IncomingWebhookEvent> for WebhookFlow {
             | IncomingWebhookEvent::PaymentIntentSuccess
             | IncomingWebhookEvent::PaymentIntentProcessing
             | IncomingWebhookEvent::PaymentActionRequired
-            | IncomingWebhookEvent::PaymentIntentPartiallyFunded => Self::Payment,
+            | IncomingWebhookEvent::PaymentIntentPartiallyFunded
+            | IncomingWebhookEvent::PaymentIntentCancelled => Self::Payment,
             IncomingWebhookEvent::EventNotSupported => Self::ReturnResponse,
             IncomingWebhookEvent::RefundSuccess | IncomingWebhookEvent::RefundFailure => {
                 Self::Refund

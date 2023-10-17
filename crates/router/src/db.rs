@@ -17,6 +17,7 @@ pub mod mandate;
 pub mod merchant_account;
 pub mod merchant_connector_account;
 pub mod merchant_key_store;
+pub mod payment_link;
 pub mod payment_method;
 pub mod payout_attempt;
 pub mod payouts;
@@ -74,6 +75,7 @@ pub trait StorageInterface:
     + cards_info::CardsInfoInterface
     + merchant_key_store::MerchantKeyStoreInterface
     + MasterKeyInterface
+    + payment_link::PaymentLinkInterface
     + RedisConnInterface
     + business_profile::BusinessProfileInterface
     + 'static
@@ -133,8 +135,9 @@ where
 }
 
 pub enum KvOperation<'a, S: serde::Serialize + Debug> {
-    Set((&'a str, String)),
-    SetNx(&'a str, S),
+    Hset((&'a str, String)),
+    SetNx(S),
+    HSetNx(&'a str, S),
     Get(&'a str),
     Scan(&'a str),
 }
@@ -143,8 +146,9 @@ pub enum KvOperation<'a, S: serde::Serialize + Debug> {
 #[error(RedisError(UnknownResult))]
 pub enum KvResult<T: de::DeserializeOwned> {
     Get(T),
-    Set(()),
-    SetNx(redis_interface::HsetnxReply),
+    Hset(()),
+    SetNx(redis_interface::SetnxReply),
+    HSetNx(redis_interface::HsetnxReply),
     Scan(Vec<T>),
 }
 
@@ -163,11 +167,11 @@ where
     let type_name = std::any::type_name::<T>();
 
     match op {
-        KvOperation::Set(value) => {
+        KvOperation::Hset(value) => {
             redis_conn
                 .set_hash_fields(key, value, Some(consts::KV_TTL))
                 .await?;
-            Ok(KvResult::Set(()))
+            Ok(KvResult::Hset(()))
         }
         KvOperation::Get(field) => {
             let result = redis_conn
@@ -179,9 +183,15 @@ where
             let result: Vec<T> = redis_conn.hscan_and_deserialize(key, pattern, None).await?;
             Ok(KvResult::Scan(result))
         }
-        KvOperation::SetNx(field, value) => {
+        KvOperation::HSetNx(field, value) => {
             let result = redis_conn
                 .serialize_and_set_hash_field_if_not_exist(key, field, value, Some(consts::KV_TTL))
+                .await?;
+            Ok(KvResult::HSetNx(result))
+        }
+        KvOperation::SetNx(value) => {
+            let result = redis_conn
+                .serialize_and_set_key_if_not_exist(key, value, Some(consts::KV_TTL.into()))
                 .await?;
             Ok(KvResult::SetNx(result))
         }
