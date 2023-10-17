@@ -1040,7 +1040,7 @@ pub fn get_amount_as_string(
     currency: diesel_models::enums::Currency,
 ) -> Result<String, error_stack::Report<errors::ConnectorError>> {
     let amount = match currency_unit {
-        types::api::CurrencyUnit::Minor => amount.to_string(),
+        types::api::CurrencyUnit::Minor => to_currency_lower_unit(amount.to_string(), currency)?,
         types::api::CurrencyUnit::Base => to_currency_base_unit(amount, currency)?,
     };
     Ok(amount)
