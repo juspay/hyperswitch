@@ -7323,7 +7323,8 @@
         "type": "object",
         "required": [
           "product_name",
-          "quantity"
+          "quantity",
+          "requires_shipping"
         ],
         "properties": {
           "product_name": {
@@ -7339,6 +7340,9 @@
             "example": 1,
             "minimum": 0
           },
+          "requires_shipping": {
+            "type": "boolean"
+          },
           "product_img_link": {
             "type": "string",
             "description": "The image URL of the product",
@@ -7351,7 +7355,8 @@
         "required": [
           "product_name",
           "quantity",
-          "amount"
+          "amount",
+          "requires_shipping"
         ],
         "properties": {
           "product_name": {
@@ -7371,6 +7376,9 @@
             "type": "integer",
             "format": "int64",
             "description": "the amount per quantity of product"
+          },
+          "requires_shipping": {
+            "type": "boolean"
           },
           "product_img_link": {
             "type": "string",
@@ -8974,6 +8982,10 @@
               }
             ],
             "nullable": true
+          },
+          "frm_metadata": {
+            "description": "additional data related to some frm connectors",
+            "nullable": true
           }
         }
       },
@@ -9337,6 +9349,10 @@
                 "$ref": "#/components/schemas/PaymentType"
               }
             ],
+            "nullable": true
+          },
+          "frm_metadata": {
+            "description": "additional data related to some frm connectors",
             "nullable": true
           }
         }
