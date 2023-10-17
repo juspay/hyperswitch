@@ -527,7 +527,7 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
         let connector_request = dlocal::DlocalRefundRequest::try_from(&connector_router_data)?;
         let dlocal_refund_request = types::RequestBody::log_and_get_request_body(
             &connector_request,
-            utils::Encode::<dlocal::RefundRequest>::encode_to_string_of_json,
+            utils::Encode::<dlocal::DlocalRefundRequest>::encode_to_string_of_json,
         )
         .change_context(errors::ConnectorError::RequestEncodingFailed)?;
         Ok(Some(dlocal_refund_request))

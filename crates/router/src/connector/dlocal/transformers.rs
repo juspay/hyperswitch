@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 use url::Url;
 
 use crate::{
-    connector::utils::{AddressDetailsData, PaymentsAuthorizeRequestData, RouterData},
+    connector::utils::{self, AddressDetailsData, PaymentsAuthorizeRequestData, RouterData},
     core::errors,
     services,
     types::{self, api, storage::enums},
@@ -98,7 +98,7 @@ pub struct DlocalPaymentsRequest {
     pub description: Option<String>,
 }
 
-impl TryFrom<&DlocalRouterData<&types::PaymentsAuthorizeRouterData>> for DlocalRouterData {
+impl TryFrom<&DlocalRouterData<&types::PaymentsAuthorizeRouterData>> for DlocalRouterData<T> {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
         item: &DlocalRouterData<&types::PaymentsAuthorizeRouterData>,
