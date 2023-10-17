@@ -226,6 +226,7 @@ pub async fn refunds_incoming_webhook_flow<W: types::OutgoingWebhookType>(
                 .into_report()
                 .change_context(errors::ApiErrorResponse::WebhookProcessingFailure)
                 .attach_printable("failed refund status mapping from event type")?,
+            updated_by: merchant_account.storage_scheme.to_string(),
         };
         db.update_refund(
             refund.to_owned(),

@@ -441,6 +441,7 @@ impl<F: Clone, Ctx: PaymentMethodRetrieve>
                         true => Some(authorized_amount),
                         false => None,
                     },
+                    updated_by: storage_scheme.to_string(),
                 },
                 storage_scheme,
             )
@@ -458,6 +459,7 @@ impl<F: Clone, Ctx: PaymentMethodRetrieve>
                     customer_id,
                     shipping_address_id: None,
                     billing_address_id: None,
+                    updated_by: storage_scheme.to_string(),
                 },
                 storage_scheme,
             )
@@ -487,7 +489,11 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve> ValidateRequest<F, api::Paymen
         helpers::validate_customer_details_in_request(request)?;
 
         if let Some(payment_link_object) = &request.payment_link_object {
-            helpers::validate_payment_link_request(payment_link_object, request.confirm)?;
+            helpers::validate_payment_link_request(
+                payment_link_object,
+                request.confirm,
+                request.order_details.clone(),
+            )?;
         }
 
         let given_payment_id = match &request.payment_id {
@@ -715,6 +721,7 @@ impl PaymentCreate {
             merchant_decision: None,
             payment_link_id,
             payment_confirm_source: None,
+            updated_by: merchant_account.storage_scheme.to_string(),
         })
     }
 
@@ -732,6 +739,7 @@ impl PaymentCreate {
             connector_transaction_id: None,
             authentication_data: None,
             encoded_data: None,
+            updated_by: payment_attempt.updated_by.clone(),
         }
     }
 

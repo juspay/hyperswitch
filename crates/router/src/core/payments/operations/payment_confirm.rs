@@ -587,6 +587,7 @@ impl<F: Clone, Ctx: PaymentMethodRetrieve>
                     amount_capturable: Some(authorized_amount),
                     surcharge_amount,
                     tax_amount,
+                    updated_by: storage_scheme.to_string(),
                 },
                 storage_scheme,
             )
@@ -612,6 +613,7 @@ impl<F: Clone, Ctx: PaymentMethodRetrieve>
                     order_details,
                     metadata,
                     payment_confirm_source: header_payload.payment_confirm_source,
+                    updated_by: storage_scheme.to_string(),
                 },
                 storage_scheme,
             )

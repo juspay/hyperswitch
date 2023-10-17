@@ -671,6 +671,7 @@ pub enum ApplicationResponse<R> {
 #[derive(Debug, Eq, PartialEq, Clone, serde::Serialize, serde::Deserialize)]
 pub struct PaymentLinkFormData {
     pub js_script: String,
+    pub css_script: String,
     pub sdk_url: String,
 }
 
@@ -1386,6 +1387,7 @@ pub fn build_payment_link_html(
         "hyperloader_sdk_link",
         &get_hyper_loader_sdk(&payment_link_data.sdk_url),
     );
+    context.insert("css_color_scheme", &payment_link_data.css_script);
     context.insert("payment_details_js_script", &payment_link_data.js_script);
 
     match tera.render("payment_link", &context) {

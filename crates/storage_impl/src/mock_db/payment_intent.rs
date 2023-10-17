@@ -6,8 +6,8 @@ use data_models::{
         payment_intent::{PaymentIntentInterface, PaymentIntentNew, PaymentIntentUpdate},
         PaymentIntent,
     },
-    MerchantStorageScheme,
 };
+use diesel_models::enums as storage_enums;
 use error_stack::{IntoReport, ResultExt};
 
 use super::MockDb;
@@ -19,7 +19,7 @@ impl PaymentIntentInterface for MockDb {
         &self,
         _merchant_id: &str,
         _filters: &data_models::payments::payment_intent::PaymentIntentFetchConstraints,
-        _storage_scheme: MerchantStorageScheme,
+        _storage_scheme: storage_enums::MerchantStorageScheme,
     ) -> CustomResult<Vec<PaymentIntent>, StorageError> {
         // [#172]: Implement function for `MockDb`
         Err(StorageError::MockDbError)?
@@ -29,7 +29,7 @@ impl PaymentIntentInterface for MockDb {
         &self,
         _merchant_id: &str,
         _time_range: &api_models::payments::TimeRange,
-        _storage_scheme: MerchantStorageScheme,
+        _storage_scheme: storage_enums::MerchantStorageScheme,
     ) -> CustomResult<Vec<PaymentIntent>, StorageError> {
         // [#172]: Implement function for `MockDb`
         Err(StorageError::MockDbError)?
@@ -39,7 +39,7 @@ impl PaymentIntentInterface for MockDb {
         &self,
         _merchant_id: &str,
         _constraints: &data_models::payments::payment_intent::PaymentIntentFetchConstraints,
-        _storage_scheme: MerchantStorageScheme,
+        _storage_scheme: storage_enums::MerchantStorageScheme,
     ) -> error_stack::Result<Vec<String>, StorageError> {
         // [#172]: Implement function for `MockDb`
         Err(StorageError::MockDbError)?
@@ -49,7 +49,7 @@ impl PaymentIntentInterface for MockDb {
         &self,
         _merchant_id: &str,
         _constraints: &data_models::payments::payment_intent::PaymentIntentFetchConstraints,
-        _storage_scheme: MerchantStorageScheme,
+        _storage_scheme: storage_enums::MerchantStorageScheme,
     ) -> error_stack::Result<Vec<(PaymentIntent, PaymentAttempt)>, StorageError> {
         // [#172]: Implement function for `MockDb`
         Err(StorageError::MockDbError)?
@@ -59,7 +59,7 @@ impl PaymentIntentInterface for MockDb {
     async fn insert_payment_intent(
         &self,
         new: PaymentIntentNew,
-        _storage_scheme: MerchantStorageScheme,
+        storage_scheme: storage_enums::MerchantStorageScheme,
     ) -> CustomResult<PaymentIntent, StorageError> {
         let mut payment_intents = self.payment_intents.lock().await;
         let time = common_utils::date_time::now();
@@ -103,6 +103,7 @@ impl PaymentIntentInterface for MockDb {
             merchant_decision: new.merchant_decision,
             payment_link_id: new.payment_link_id,
             payment_confirm_source: new.payment_confirm_source,
+            updated_by: storage_scheme.to_string(),
         };
         payment_intents.push(payment_intent.clone());
         Ok(payment_intent)
@@ -114,7 +115,7 @@ impl PaymentIntentInterface for MockDb {
         &self,
         this: PaymentIntent,
         update: PaymentIntentUpdate,
-        _storage_scheme: MerchantStorageScheme,
+        _storage_scheme: storage_enums::MerchantStorageScheme,
     ) -> CustomResult<PaymentIntent, StorageError> {
         let mut payment_intents = self.payment_intents.lock().await;
         let payment_intent = payment_intents
@@ -131,7 +132,7 @@ impl PaymentIntentInterface for MockDb {
         &self,
         payment_id: &str,
         merchant_id: &str,
-        _storage_scheme: MerchantStorageScheme,
+        _storage_scheme: storage_enums::MerchantStorageScheme,
     ) -> CustomResult<PaymentIntent, StorageError> {
         let payment_intents = self.payment_intents.lock().await;
 
@@ -147,7 +148,7 @@ impl PaymentIntentInterface for MockDb {
     async fn get_active_payment_attempt(
         &self,
         payment: &mut PaymentIntent,
-        _storage_scheme: MerchantStorageScheme,
+        _storage_scheme: storage_enums::MerchantStorageScheme,
     ) -> error_stack::Result<PaymentAttempt, StorageError> {
         match payment.active_attempt.clone() {
             data_models::RemoteStorageObject::ForeignID(id) => {
