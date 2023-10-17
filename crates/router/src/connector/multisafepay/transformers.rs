@@ -561,8 +561,8 @@ impl<F, T>
             MultisafepayAuthResponse::ErrorResponse(error_response) => Ok(Self {
                 response: Err(types::ErrorResponse {
                     code: error_response.error_code.to_string(),
-                    message: error_response.error_info,
-                    reason: None,
+                    message: error_response.error_info.clone(),
+                    reason: Some(error_response.error_info),
                     status_code: item.http_code,
                 }),
                 ..item.data
@@ -663,8 +663,8 @@ impl TryFrom<types::RefundsResponseRouterData<api::Execute, MultisafepayRefundRe
             MultisafepayRefundResponse::ErrorResponse(error_response) => Ok(Self {
                 response: Err(types::ErrorResponse {
                     code: error_response.error_code.to_string(),
-                    message: error_response.error_info,
-                    reason: None,
+                    message: error_response.error_info.clone(),
+                    reason: Some(error_response.error_info),
                     status_code: item.http_code,
                 }),
                 ..item.data
@@ -699,8 +699,8 @@ impl TryFrom<types::RefundsResponseRouterData<api::RSync, MultisafepayRefundResp
             MultisafepayRefundResponse::ErrorResponse(error_response) => Ok(Self {
                 response: Err(types::ErrorResponse {
                     code: error_response.error_code.to_string(),
-                    message: error_response.error_info,
-                    reason: None,
+                    message: error_response.error_info.clone(),
+                    reason: Some(error_response.error_info),
                     status_code: item.http_code,
                 }),
                 ..item.data
