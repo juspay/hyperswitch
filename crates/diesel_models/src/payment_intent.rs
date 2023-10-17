@@ -228,6 +228,7 @@ impl PaymentIntentUpdate {
                 .or(source.shipping_address_id),
             modified_at: common_utils::date_time::now(),
             order_details: internal_update.order_details.or(source.order_details),
+            description: internal_update.description.or(source.description),
             ..source
         }
     }
