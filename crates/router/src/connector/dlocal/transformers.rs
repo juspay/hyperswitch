@@ -98,9 +98,7 @@ pub struct DlocalPaymentsRequest {
     pub description: Option<String>,
 }
 
-impl TryFrom<&DlocalRouterData<&types::PaymentsAuthorizeRouterData>>
-    for DlocalRouterData
-{
+impl TryFrom<&DlocalRouterData<&types::PaymentsAuthorizeRouterData>> for DlocalRouterData {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
         item: &DlocalRouterData<&types::PaymentsAuthorizeRouterData>,
@@ -140,7 +138,12 @@ impl TryFrom<&DlocalRouterData<&types::PaymentsAuthorizeRouterData>>
                             .as_ref()
                             .map(|ids| ids.mandate_id.clone()),
                         // [#595[FEATURE] Pass Mandate history information in payment flows/request]
-                        installments: item.router_data.request.mandate_id.clone().map(|_| "1".to_string()),
+                        installments: item
+                            .router_data
+                            .request
+                            .mandate_id
+                            .clone()
+                            .map(|_| "1".to_string()),
                     }),
                     order_id: item.router_data.payment_id.clone(),
                     three_dsecure: match item.router_data.auth_type {
