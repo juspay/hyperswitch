@@ -169,6 +169,39 @@
         ]
       }
     },
+    "/customers/list": {
+      "post": {
+        "tags": [
+          "Customers List"
+        ],
+        "summary": "List customers for a merchant",
+        "description": "List customers for a merchant\n\nTo filter and list the customers for a particular merchant id",
+        "operationId": "List all Customers for a Merchant",
+        "responses": {
+          "200": {
+            "description": "Customers retrieved",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/CustomerResponse"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid Data"
+          }
+        },
+        "security": [
+          {
+            "api_key": []
+          }
+        ]
+      }
+    },
     "/customers/payment_methods": {
       "get": {
         "tags": [
@@ -790,6 +823,60 @@
         "security": [
           {
             "api_key": []
+          }
+        ]
+      }
+    },
+    "/payment_link/{payment_link_id}": {
+      "get": {
+        "tags": [
+          "Payments"
+        ],
+        "summary": "Payments Link - Retrieve",
+        "description": "Payments Link - Retrieve\n\nTo retrieve the properties of a Payment Link. This may be used to get the status of a previously initiated payment or next action for an ongoing payment",
+        "operationId": "Retrieve a Payment Link",
+        "parameters": [
+          {
+            "name": "payment_link_id",
+            "in": "path",
+            "description": "The identifier for payment link",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RetrievePaymentLinkRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Gets details regarding payment link",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RetrievePaymentLinkResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No payment link found"
+          }
+        },
+        "security": [
+          {
+            "api_key": []
+          },
+          {
+            "publishable_key": []
           }
         ]
       }
@@ -2911,12 +2998,10 @@
             "properties": {
               "blik": {
                 "type": "object",
-                "required": [
-                  "blik_code"
-                ],
                 "properties": {
                   "blik_code": {
-                    "type": "string"
+                    "type": "string",
+                    "nullable": true
                   }
                 }
               }
@@ -3855,6 +3940,7 @@
           "globalpay",
           "globepay",
           "gocardless",
+          "helcim",
           "iatapay",
           "klarna",
           "mollie",
@@ -3922,7 +4008,8 @@
           "networks",
           "banking_entities",
           "non_banking_finance",
-          "payout_processor"
+          "payout_processor",
+          "payment_method_auth"
         ]
       },
       "CountryAlpha2": {
@@ -4990,6 +5077,7 @@
           "payment_succeeded",
           "payment_failed",
           "payment_processing",
+          "payment_cancelled",
           "action_required",
           "refund_succeeded",
           "refund_failed",
@@ -4999,7 +5087,9 @@
           "dispute_cancelled",
           "dispute_challenged",
           "dispute_won",
-          "dispute_lost"
+          "dispute_lost",
+          "mandate_active",
+          "mandate_revoked"
         ]
       },
       "FeatureMetadata": {
@@ -6076,11 +6166,19 @@
             "description": "Will be used to expire client secret after certain amount of time to be supplied in seconds\n(900) for 15 mins",
             "example": 900,
             "nullable": true,
-            "minimum": 0.0
+            "minimum": 0
           },
           "organization_id": {
             "type": "string",
             "description": "The id of the organization to which the merchant belongs to",
+            "nullable": true
+          },
+          "payment_link_config": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PaymentLinkConfig"
+              }
+            ],
             "nullable": true
           }
         }
@@ -6112,6 +6210,7 @@
           "enable_payment_response_hash",
           "redirect_to_merchant_with_http_post",
           "primary_business_details",
+          "organization_id",
           "is_recon_enabled",
           "recon_status"
         ],
@@ -6240,8 +6339,7 @@
           },
           "organization_id": {
             "type": "string",
-            "description": "The organization id merchant is associated with",
-            "nullable": true
+            "description": "The organization id merchant is associated with"
           },
           "is_recon_enabled": {
             "type": "boolean",
@@ -6255,6 +6353,9 @@
           },
           "recon_status": {
             "$ref": "#/components/schemas/ReconStatus"
+          },
+          "payment_link_config": {
+            "nullable": true
           }
         }
       },
@@ -6380,13 +6481,16 @@
             "format": "int32",
             "description": "Will be used to expire client secret after certain amount of time to be supplied in seconds\n(900) for 15 mins",
             "nullable": true,
-            "minimum": 0.0
+            "minimum": 0
           },
           "default_profile": {
             "type": "string",
             "description": "The default business profile that must be used for creating merchant accounts and payments\nTo unset this field, pass an empty string",
             "nullable": true,
             "maxLength": 64
+          },
+          "payment_link_config": {
+            "nullable": true
           }
         }
       },
@@ -6395,8 +6499,7 @@
         "description": "Create a new Merchant Connector for the merchant account. The connector could be a payment processor / facilitator / acquirer or specialized services like Fraud / Accounting etc.\"",
         "required": [
           "connector_type",
-          "connector_name",
-          "connector_label"
+          "connector_name"
         ],
         "properties": {
           "connector_type": {
@@ -6404,10 +6507,6 @@
           },
           "connector_name": {
             "$ref": "#/components/schemas/Connector"
-          },
-          "connector_label": {
-            "type": "string",
-            "example": "stripe_US_travel"
           },
           "merchant_connector_id": {
             "type": "string",
@@ -6522,6 +6621,9 @@
             "type": "string",
             "description": "Identifier for the business profile, if not provided default will be chosen from merchant account",
             "nullable": true
+          },
+          "pm_auth_config": {
+            "nullable": true
           }
         }
       },
@@ -6617,11 +6719,6 @@
             "type": "string",
             "description": "Name of the Connector",
             "example": "stripe"
-          },
-          "connector_label": {
-            "type": "string",
-            "example": "stripe_US_travel",
-            "nullable": true
           },
           "merchant_connector_id": {
             "type": "string",
@@ -6746,6 +6843,9 @@
             },
             "description": "identifier for the verified domains of a particular connector account",
             "nullable": true
+          },
+          "pm_auth_config": {
+            "nullable": true
           }
         }
       },
@@ -6842,6 +6942,9 @@
                 "$ref": "#/components/schemas/MerchantConnectorWebhookDetails"
               }
             ],
+            "nullable": true
+          },
+          "pm_auth_config": {
             "nullable": true
           }
         }
@@ -7139,13 +7242,13 @@
             "type": "integer",
             "format": "int64",
             "description": "Timestamp at which session is requested",
-            "minimum": 0.0
+            "minimum": 0
           },
           "expires_at": {
             "type": "integer",
             "format": "int64",
             "description": "Timestamp at which session expires",
-            "minimum": 0.0
+            "minimum": 0
           },
           "merchant_session_identifier": {
             "type": "string",
@@ -7179,7 +7282,7 @@
             "type": "integer",
             "format": "int32",
             "description": "The number of retries to get the session response",
-            "minimum": 0.0
+            "minimum": 0
           },
           "psp_id": {
             "type": "string",
@@ -7233,7 +7336,12 @@
             "format": "int32",
             "description": "The quantity of the product to be purchased",
             "example": 1,
-            "minimum": 0.0
+            "minimum": 0
+          },
+          "product_img_link": {
+            "type": "string",
+            "description": "The image URL of the product",
+            "nullable": true
           }
         }
       },
@@ -7256,12 +7364,17 @@
             "format": "int32",
             "description": "The quantity of the product to be purchased",
             "example": 1,
-            "minimum": 0.0
+            "minimum": 0
           },
           "amount": {
             "type": "integer",
             "format": "int64",
             "description": "the amount per quantity of product"
+          },
+          "product_img_link": {
+            "type": "string",
+            "description": "The image URL of the product",
+            "nullable": true
           }
         }
       },
@@ -7348,6 +7461,24 @@
               },
               "object": {
                 "$ref": "#/components/schemas/DisputeResponse"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "type",
+              "object"
+            ],
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": [
+                  "mandate_details"
+                ]
+              },
+              "object": {
+                "$ref": "#/components/schemas/MandateResponse"
               }
             }
           }
@@ -7568,6 +7699,7 @@
                 "$ref": "#/components/schemas/AuthenticationType"
               }
             ],
+            "default": "three_ds",
             "nullable": true
           },
           "cancellation_reason": {
@@ -7682,6 +7814,84 @@
           }
         ]
       },
+      "PaymentLinkColorSchema": {
+        "type": "object",
+        "properties": {
+          "primary_color": {
+            "type": "string",
+            "nullable": true
+          },
+          "primary_accent_color": {
+            "type": "string",
+            "nullable": true
+          },
+          "secondary_color": {
+            "type": "string",
+            "nullable": true
+          }
+        }
+      },
+      "PaymentLinkConfig": {
+        "type": "object",
+        "properties": {
+          "merchant_logo": {
+            "type": "string",
+            "nullable": true
+          },
+          "color_scheme": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PaymentLinkColorSchema"
+              }
+            ],
+            "nullable": true
+          }
+        }
+      },
+      "PaymentLinkInitiateRequest": {
+        "type": "object",
+        "required": [
+          "merchant_id",
+          "payment_id"
+        ],
+        "properties": {
+          "merchant_id": {
+            "type": "string"
+          },
+          "payment_id": {
+            "type": "string"
+          }
+        }
+      },
+      "PaymentLinkObject": {
+        "type": "object",
+        "properties": {
+          "link_expiry": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "merchant_custom_domain_name": {
+            "type": "string",
+            "nullable": true
+          }
+        }
+      },
+      "PaymentLinkResponse": {
+        "type": "object",
+        "required": [
+          "link",
+          "payment_link_id"
+        ],
+        "properties": {
+          "link": {
+            "type": "string"
+          },
+          "payment_link_id": {
+            "type": "string"
+          }
+        }
+      },
       "PaymentListConstraints": {
         "type": "object",
         "properties": {
@@ -7708,8 +7918,8 @@
             "format": "int32",
             "description": "limit on the number of objects to return",
             "default": 10,
-            "maximum": 100.0,
-            "minimum": 0.0
+            "maximum": 100,
+            "minimum": 0
           },
           "created": {
             "type": "string",
@@ -7758,7 +7968,7 @@
           "size": {
             "type": "integer",
             "description": "The number of payments included in the list",
-            "minimum": 0.0
+            "minimum": 0
           },
           "data": {
             "type": "array",
@@ -8040,7 +8250,8 @@
         "type": "object",
         "required": [
           "payment_methods",
-          "mandate_payment"
+          "mandate_payment",
+          "show_surcharge_breakup_screen"
         ],
         "properties": {
           "redirect_url": {
@@ -8071,6 +8282,18 @@
           },
           "merchant_name": {
             "type": "string",
+            "nullable": true
+          },
+          "show_surcharge_breakup_screen": {
+            "type": "boolean",
+            "description": "flag to indicate if surcharge and tax breakup screen should be shown or not"
+          },
+          "payment_type": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PaymentType"
+              }
+            ],
             "nullable": true
           }
         }
@@ -8321,6 +8544,15 @@
           }
         }
       },
+      "PaymentType": {
+        "type": "string",
+        "enum": [
+          "normal",
+          "new_mandate",
+          "setup_mandate",
+          "recurring_mandate"
+        ]
+      },
       "PaymentsCancelRequest": {
         "type": "object",
         "required": [
@@ -8339,14 +8571,7 @@
       },
       "PaymentsCaptureRequest": {
         "type": "object",
-        "required": [
-          "payment_id"
-        ],
         "properties": {
-          "payment_id": {
-            "type": "string",
-            "description": "The unique identifier for the payment"
-          },
           "merchant_id": {
             "type": "string",
             "description": "The unique identifier for the merchant",
@@ -8411,7 +8636,7 @@
             "description": "The payment amount. Amount for the payment in lowest denomination of the currency. (i.e) in cents for USD denomination, in paisa for INR denomination etc.,",
             "example": 6540,
             "nullable": true,
-            "minimum": 0.0
+            "minimum": 0
           },
           "routing": {
             "allOf": [
@@ -8545,6 +8770,7 @@
                 "$ref": "#/components/schemas/AuthenticationType"
               }
             ],
+            "default": "three_ds",
             "nullable": true
           },
           "payment_method_data": {
@@ -8610,7 +8836,7 @@
               "$ref": "#/components/schemas/OrderDetailsWithAmount"
             },
             "description": "Information about the product , quantity and amount for connectors. (e.g. Klarna)",
-            "example": "[{\n        \"product_name\": \"gillete creme\",\n        \"quantity\": 15,\n        \"amount\" : 900\n    }]",
+            "example": "[{\n        \"product_name\": \"gillete creme\",\n        \"quantity\": 15,\n        \"amount\" : 900\n        \"product_img_link\" : \"https://dummy-img-link.com\"\n    }]",
             "nullable": true
           },
           "client_secret": {
@@ -8719,9 +8945,33 @@
             ],
             "nullable": true
           },
+          "payment_link_object": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PaymentLinkObject"
+              }
+            ],
+            "nullable": true
+          },
           "profile_id": {
             "type": "string",
             "description": "The business profile to use for this payment, if not passed the default business profile\nassociated with the merchant account will be used.",
+            "nullable": true
+          },
+          "surcharge_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/RequestSurchargeDetails"
+              }
+            ],
+            "nullable": true
+          },
+          "payment_type": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PaymentType"
+              }
+            ],
             "nullable": true
           }
         }
@@ -8750,7 +9000,7 @@
             "description": "The payment amount. Amount for the payment in lowest denomination of the currency. (i.e) in cents for USD denomination, in paisa for INR denomination etc.,",
             "example": 6540,
             "nullable": true,
-            "minimum": 0.0
+            "minimum": 0
           },
           "routing": {
             "allOf": [
@@ -8884,6 +9134,7 @@
                 "$ref": "#/components/schemas/AuthenticationType"
               }
             ],
+            "default": "three_ds",
             "nullable": true
           },
           "payment_method_data": {
@@ -8949,7 +9200,7 @@
               "$ref": "#/components/schemas/OrderDetailsWithAmount"
             },
             "description": "Information about the product , quantity and amount for connectors. (e.g. Klarna)",
-            "example": "[{\n        \"product_name\": \"gillete creme\",\n        \"quantity\": 15,\n        \"amount\" : 900\n    }]",
+            "example": "[{\n        \"product_name\": \"gillete creme\",\n        \"quantity\": 15,\n        \"amount\" : 900\n        \"product_img_link\" : \"https://dummy-img-link.com\"\n    }]",
             "nullable": true
           },
           "client_secret": {
@@ -9058,9 +9309,33 @@
             ],
             "nullable": true
           },
+          "payment_link_object": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PaymentLinkObject"
+              }
+            ],
+            "nullable": true
+          },
           "profile_id": {
             "type": "string",
             "description": "The business profile to use for this payment, if not passed the default business profile\nassociated with the merchant account will be used.",
+            "nullable": true
+          },
+          "surcharge_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/RequestSurchargeDetails"
+              }
+            ],
+            "nullable": true
+          },
+          "payment_type": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PaymentType"
+              }
+            ],
             "nullable": true
           }
         }
@@ -9091,7 +9366,12 @@
             "maxLength": 255
           },
           "status": {
-            "$ref": "#/components/schemas/IntentStatus"
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/IntentStatus"
+              }
+            ],
+            "default": "requires_confirmation"
           },
           "amount": {
             "type": "integer",
@@ -9105,7 +9385,7 @@
             "description": "The maximum amount that could be captured from the payment",
             "example": 6540,
             "nullable": true,
-            "minimum": 100.0
+            "minimum": 100
           },
           "amount_received": {
             "type": "integer",
@@ -9113,7 +9393,7 @@
             "description": "The amount which is already captured from the payment",
             "example": 6540,
             "nullable": true,
-            "minimum": 100.0
+            "minimum": 100
           },
           "connector": {
             "type": "string",
@@ -9301,6 +9581,7 @@
                 "$ref": "#/components/schemas/AuthenticationType"
               }
             ],
+            "default": "three_ds",
             "nullable": true
           },
           "statement_descriptor_name": {
@@ -9442,6 +9723,14 @@
             "type": "string",
             "description": "reference to the payment at connector side",
             "example": "993672945374576J",
+            "nullable": true
+          },
+          "payment_link": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PaymentLinkResponse"
+              }
+            ],
             "nullable": true
           },
           "profile_id": {
@@ -9781,6 +10070,11 @@
             "description": "Provide a reference to a stored payment method",
             "example": "187282ab-40ef-47a9-9206-5099ba31e432",
             "nullable": true
+          },
+          "profile_id": {
+            "type": "string",
+            "description": "The business profile to use for this payment, if not passed the default business profile\nassociated with the merchant account will be used.",
+            "nullable": true
           }
         }
       },
@@ -9930,6 +10224,11 @@
             "type": "string",
             "description": "If there was an error while calling the connectors the code is received here",
             "example": "E0001"
+          },
+          "profile_id": {
+            "type": "string",
+            "description": "The business profile that is associated with this payment",
+            "nullable": true
           }
         }
       },
@@ -10176,6 +10475,11 @@
                 "description": "The identifier for the refund",
                 "nullable": true
               },
+              "profile_id": {
+                "type": "string",
+                "description": "The identifier for business profile",
+                "nullable": true
+              },
               "limit": {
                 "type": "integer",
                 "format": "int64",
@@ -10227,7 +10531,7 @@
           "count": {
             "type": "integer",
             "description": "The number of refunds included in the list",
-            "minimum": 0.0
+            "minimum": 0
           },
           "total_count": {
             "type": "integer",
@@ -10277,7 +10581,7 @@
             "description": "Total amount for which the refund is to be initiated. Amount for the payment in lowest denomination of the currency. (i.e) in cents for USD denomination, in paisa for INR denomination etc., If not provided, this will default to the full payment amount",
             "example": 6540,
             "nullable": true,
-            "minimum": 100.0
+            "minimum": 100
           },
           "reason": {
             "type": "string",
@@ -10292,6 +10596,7 @@
                 "$ref": "#/components/schemas/RefundType"
               }
             ],
+            "default": "Instant",
             "nullable": true
           },
           "metadata": {
@@ -10413,6 +10718,23 @@
           }
         }
       },
+      "RequestSurchargeDetails": {
+        "type": "object",
+        "required": [
+          "surcharge_amount"
+        ],
+        "properties": {
+          "surcharge_amount": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "tax_amount": {
+            "type": "integer",
+            "format": "int64",
+            "nullable": true
+          }
+        }
+      },
       "RequiredFieldInfo": {
         "type": "object",
         "description": "Required fields info used while listing the payment_method_data",
@@ -10489,6 +10811,66 @@
           },
           "expiration": {
             "$ref": "#/components/schemas/ApiKeyExpiration"
+          }
+        }
+      },
+      "RetrievePaymentLinkRequest": {
+        "type": "object",
+        "properties": {
+          "client_secret": {
+            "type": "string",
+            "nullable": true
+          }
+        }
+      },
+      "RetrievePaymentLinkResponse": {
+        "type": "object",
+        "required": [
+          "payment_link_id",
+          "payment_id",
+          "merchant_id",
+          "link_to_pay",
+          "amount",
+          "created_at",
+          "last_modified_at"
+        ],
+        "properties": {
+          "payment_link_id": {
+            "type": "string"
+          },
+          "payment_id": {
+            "type": "string"
+          },
+          "merchant_id": {
+            "type": "string"
+          },
+          "link_to_pay": {
+            "type": "string"
+          },
+          "amount": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "currency": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/Currency"
+              }
+            ],
+            "nullable": true
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "last_modified_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "link_expiry": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
           }
         }
       },
@@ -11427,6 +11809,10 @@
     {
       "name": "Payouts",
       "description": "Create and manage payouts"
+    },
+    {
+      "name": "payment link",
+      "description": "Create payment link"
     }
   ]
 }

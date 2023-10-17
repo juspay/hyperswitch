@@ -3,15 +3,16 @@ use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
 use utoipa::ToSchema;
 
-use crate::{disputes, enums as api_enums, payments, refunds};
+use crate::{disputes, enums as api_enums, mandates, payments, refunds};
 
-#[derive(Clone, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash, Serialize, Deserialize, Copy)]
 #[serde(rename_all = "snake_case")]
 pub enum IncomingWebhookEvent {
     PaymentIntentFailure,
     PaymentIntentSuccess,
     PaymentIntentProcessing,
     PaymentIntentPartiallyFunded,
+    PaymentIntentCancelled,
     PaymentActionRequired,
     EventNotSupported,
     SourceChargeable,
@@ -27,6 +28,8 @@ pub enum IncomingWebhookEvent {
     DisputeWon,
     // dispute has been unsuccessfully challenged
     DisputeLost,
+    MandateActive,
+    MandateRevoked,
     EndpointVerification,
 }
 
@@ -37,6 +40,42 @@ pub enum WebhookFlow {
     Subscription,
     ReturnResponse,
     BankTransfer,
+    Mandate,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+/// This enum tells about the affect a webhook had on an object
+pub enum WebhookResponseTracker {
+    Payment {
+        payment_id: String,
+        status: common_enums::IntentStatus,
+    },
+    Refund {
+        payment_id: String,
+        refund_id: String,
+        status: common_enums::RefundStatus,
+    },
+    Dispute {
+        dispute_id: String,
+        payment_id: String,
+        status: common_enums::DisputeStatus,
+    },
+    Mandate {
+        mandate_id: String,
+        status: common_enums::MandateStatus,
+    },
+    NoEffect,
+}
+
+impl WebhookResponseTracker {
+    pub fn get_payment_id(&self) -> Option<String> {
+        match self {
+            Self::Payment { payment_id, .. }
+            | Self::Refund { payment_id, .. }
+            | Self::Dispute { payment_id, .. } => Some(payment_id.to_string()),
+            Self::NoEffect | Self::Mandate { .. } => None,
+        }
+    }
 }
 
 impl From<IncomingWebhookEvent> for WebhookFlow {
@@ -46,10 +85,14 @@ impl From<IncomingWebhookEvent> for WebhookFlow {
             | IncomingWebhookEvent::PaymentIntentSuccess
             | IncomingWebhookEvent::PaymentIntentProcessing
             | IncomingWebhookEvent::PaymentActionRequired
-            | IncomingWebhookEvent::PaymentIntentPartiallyFunded => Self::Payment,
+            | IncomingWebhookEvent::PaymentIntentPartiallyFunded
+            | IncomingWebhookEvent::PaymentIntentCancelled => Self::Payment,
             IncomingWebhookEvent::EventNotSupported => Self::ReturnResponse,
             IncomingWebhookEvent::RefundSuccess | IncomingWebhookEvent::RefundFailure => {
                 Self::Refund
+            }
+            IncomingWebhookEvent::MandateActive | IncomingWebhookEvent::MandateRevoked => {
+                Self::Mandate
             }
             IncomingWebhookEvent::DisputeOpened
             | IncomingWebhookEvent::DisputeAccepted
@@ -74,9 +117,16 @@ pub enum RefundIdType {
 }
 
 #[derive(Clone)]
+pub enum MandateIdType {
+    MandateId(String),
+    ConnectorMandateId(String),
+}
+
+#[derive(Clone)]
 pub enum ObjectReferenceId {
     PaymentId(payments::PaymentIdType),
     RefundId(RefundIdType),
+    MandateId(MandateIdType),
 }
 
 pub struct IncomingWebhookDetails {
@@ -113,6 +163,8 @@ pub enum OutgoingWebhookContent {
     RefundDetails(refunds::RefundResponse),
     #[schema(value_type = DisputeResponse)]
     DisputeDetails(Box<disputes::DisputeResponse>),
+    #[schema(value_type = MandateResponse)]
+    MandateDetails(Box<mandates::MandateResponse>),
 }
 
 #[derive(Debug, Clone, Serialize)]

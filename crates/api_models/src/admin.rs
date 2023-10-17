@@ -95,6 +95,8 @@ pub struct MerchantAccountCreate {
 
     /// The id of the organization to which the merchant belongs to
     pub organization_id: Option<String>,
+
+    pub payment_link_config: Option<PaymentLinkConfig>,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize, ToSchema)]
@@ -184,6 +186,8 @@ pub struct MerchantAccountUpdate {
     /// To unset this field, pass an empty string
     #[schema(max_length = 64)]
     pub default_profile: Option<String>,
+
+    pub payment_link_config: Option<serde_json::Value>,
 }
 
 #[derive(Clone, Debug, ToSchema, Serialize)]
@@ -265,7 +269,7 @@ pub struct MerchantAccountResponse {
     pub intent_fulfillment_time: Option<i64>,
 
     /// The organization id merchant is associated with
-    pub organization_id: Option<String>,
+    pub organization_id: String,
 
     ///  A boolean value to indicate if the merchant has recon service is enabled or not, by default value is false
     pub is_recon_enabled: bool,
@@ -277,6 +281,8 @@ pub struct MerchantAccountResponse {
     /// A enum value to indicate the status of recon service. By default it is not_requested.
     #[schema(value_type = ReconStatus, example = "not_requested")]
     pub recon_status: enums::ReconStatus,
+
+    pub payment_link_config: Option<serde_json::Value>,
 }
 
 #[derive(Clone, Debug, Deserialize, ToSchema, Serialize)]
@@ -497,6 +503,22 @@ pub struct PrimaryBusinessDetails {
     pub business: String,
 }
 
+#[derive(Clone, Debug, Deserialize, ToSchema, Serialize, PartialEq)]
+#[serde(deny_unknown_fields)]
+pub struct PaymentLinkConfig {
+    pub merchant_logo: Option<String>,
+    pub color_scheme: Option<PaymentLinkColorSchema>,
+}
+
+#[derive(Clone, Debug, Deserialize, ToSchema, Serialize, PartialEq)]
+#[serde(deny_unknown_fields)]
+
+pub struct PaymentLinkColorSchema {
+    pub primary_color: Option<String>,
+    pub primary_accent_color: Option<String>,
+    pub secondary_color: Option<String>,
+}
+
 #[derive(Clone, Debug, Deserialize, ToSchema, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct WebhookDetails {
@@ -633,6 +655,8 @@ pub struct MerchantConnectorCreate {
     pub connector_webhook_details: Option<MerchantConnectorWebhookDetails>,
     /// Identifier for the business profile, if not provided default will be chosen from merchant account
     pub profile_id: Option<String>,
+
+    pub pm_auth_config: Option<serde_json::Value>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
@@ -736,6 +760,8 @@ pub struct MerchantConnectorResponse {
     pub profile_id: Option<String>,
     /// identifier for the verified domains of a particular connector account
     pub applepay_verified_domains: Option<Vec<String>>,
+
+    pub pm_auth_config: Option<serde_json::Value>,
 }
 
 /// Create a new Merchant Connector for the merchant account. The connector could be a payment processor / facilitator / acquirer or specialized services like Fraud / Accounting etc."
@@ -805,6 +831,8 @@ pub struct MerchantConnectorUpdate {
         }
     }))]
     pub connector_webhook_details: Option<MerchantConnectorWebhookDetails>,
+
+    pub pm_auth_config: Option<serde_json::Value>,
 }
 
 ///Details of FrmConfigs are mentioned here... it should be passed in payment connector create api call, and stored in merchant_connector_table

@@ -104,6 +104,9 @@ impl ConnectorValidation for Adyen {
         }
         .into())
     }
+    fn is_webhook_source_verification_mandatory(&self) -> bool {
+        true
+    }
 }
 
 impl api::Payment for Adyen {}
@@ -111,7 +114,7 @@ impl api::PaymentAuthorize for Adyen {}
 impl api::PaymentSync for Adyen {}
 impl api::PaymentVoid for Adyen {}
 impl api::PaymentCapture for Adyen {}
-impl api::PreVerify for Adyen {}
+impl api::MandateSetup for Adyen {}
 impl api::ConnectorAccessToken for Adyen {}
 impl api::PaymentToken for Adyen {}
 
@@ -137,19 +140,19 @@ impl
 
 impl
     services::ConnectorIntegration<
-        api::Verify,
-        types::VerifyRequestData,
+        api::SetupMandate,
+        types::SetupMandateRequestData,
         types::PaymentsResponseData,
     > for Adyen
 {
     fn get_headers(
         &self,
-        req: &types::VerifyRouterData,
+        req: &types::SetupMandateRouterData,
         _connectors: &settings::Connectors,
     ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
         let mut header = vec![(
             headers::CONTENT_TYPE.to_string(),
-            types::PaymentsVerifyType::get_content_type(self)
+            types::SetupMandateType::get_content_type(self)
                 .to_string()
                 .into(),
         )];
@@ -160,14 +163,14 @@ impl
 
     fn get_url(
         &self,
-        _req: &types::VerifyRouterData,
+        _req: &types::SetupMandateRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         Ok(format!("{}{}", self.base_url(connectors), "v68/payments"))
     }
     fn get_request_body(
         &self,
-        req: &types::VerifyRouterData,
+        req: &types::SetupMandateRouterData,
     ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
         let authorize_req = types::PaymentsAuthorizeRouterData::from((
             req,
@@ -190,32 +193,34 @@ impl
     }
     fn build_request(
         &self,
-        req: &types::VerifyRouterData,
+        req: &types::SetupMandateRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
         Ok(Some(
             services::RequestBuilder::new()
                 .method(services::Method::Post)
-                .url(&types::PaymentsVerifyType::get_url(self, req, connectors)?)
+                .url(&types::SetupMandateType::get_url(self, req, connectors)?)
                 .attach_default_headers()
-                .headers(types::PaymentsVerifyType::get_headers(
-                    self, req, connectors,
-                )?)
-                .body(types::PaymentsVerifyType::get_request_body(self, req)?)
+                .headers(types::SetupMandateType::get_headers(self, req, connectors)?)
+                .body(types::SetupMandateType::get_request_body(self, req)?)
                 .build(),
         ))
     }
     fn handle_response(
         &self,
-        data: &types::VerifyRouterData,
+        data: &types::SetupMandateRouterData,
         res: types::Response,
     ) -> CustomResult<
-        types::RouterData<api::Verify, types::VerifyRequestData, types::PaymentsResponseData>,
+        types::RouterData<
+            api::SetupMandate,
+            types::SetupMandateRequestData,
+            types::PaymentsResponseData,
+        >,
         errors::ConnectorError,
     >
     where
-        api::Verify: Clone,
-        types::VerifyRequestData: Clone,
+        api::SetupMandate: Clone,
+        types::SetupMandateRequestData: Clone,
         types::PaymentsResponseData: Clone,
     {
         let response: adyen::AdyenPaymentResponse = res
@@ -1431,6 +1436,7 @@ impl api::IncomingWebhook for Adyen {
     fn get_webhook_source_verification_signature(
         &self,
         request: &api::IncomingWebhookRequestDetails<'_>,
+        _connector_webhook_secrets: &api_models::webhooks::ConnectorWebhookSecrets,
     ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
         let notif_item = get_webhook_object_from_body(request.body)
             .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
@@ -1443,7 +1449,7 @@ impl api::IncomingWebhook for Adyen {
         &self,
         request: &api::IncomingWebhookRequestDetails<'_>,
         _merchant_id: &str,
-        _secret: &[u8],
+        _connector_webhook_secrets: &api_models::webhooks::ConnectorWebhookSecrets,
     ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
         let notif = get_webhook_object_from_body(request.body)
             .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
@@ -1470,9 +1476,6 @@ impl api::IncomingWebhook for Adyen {
         merchant_connector_account: domain::MerchantConnectorAccount,
         connector_label: &str,
     ) -> CustomResult<bool, errors::ConnectorError> {
-        let signature = self
-            .get_webhook_source_verification_signature(request)
-            .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
         let connector_webhook_secrets = self
             .get_webhook_source_verification_merchant_secret(
                 merchant_account,
@@ -1481,17 +1484,22 @@ impl api::IncomingWebhook for Adyen {
             )
             .await
             .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
+
+        let signature = self
+            .get_webhook_source_verification_signature(request, &connector_webhook_secrets)
+            .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
+
         let message = self
             .get_webhook_source_verification_message(
                 request,
                 &merchant_account.merchant_id,
-                &connector_webhook_secrets.secret,
+                &connector_webhook_secrets,
             )
             .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
 
         let raw_key = hex::decode(connector_webhook_secrets.secret)
             .into_report()
-            .change_context(errors::ConnectorError::WebhookSignatureNotFound)?;
+            .change_context(errors::ConnectorError::WebhookVerificationSecretInvalid)?;
 
         let signing_key = hmac::Key::new(hmac::HMAC_SHA256, &raw_key);
         let signed_messaged = hmac::sign(&signing_key, &message);

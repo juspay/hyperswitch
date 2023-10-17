@@ -54,6 +54,7 @@ use crate::{
 };
 
 #[instrument(skip_all)]
+#[allow(clippy::too_many_arguments)]
 pub async fn create_payment_method(
     db: &dyn db::StorageInterface,
     req: &api::PaymentMethodCreate,
@@ -62,7 +63,12 @@ pub async fn create_payment_method(
     merchant_id: &str,
     pm_metadata: Option<serde_json::Value>,
     payment_method_data: Option<Encryption>,
-) -> errors::CustomResult<storage::PaymentMethod, errors::StorageError> {
+    key_store: &domain::MerchantKeyStore,
+) -> errors::CustomResult<storage::PaymentMethod, errors::ApiErrorResponse> {
+    db.find_customer_by_customer_id_merchant_id(customer_id, merchant_id, key_store)
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::CustomerNotFound)?;
+
     let response = db
         .insert_payment_method(storage::PaymentMethodNew {
             customer_id: customer_id.to_string(),
@@ -76,7 +82,9 @@ pub async fn create_payment_method(
             payment_method_data,
             ..storage::PaymentMethodNew::default()
         })
-        .await?;
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to add payment method in db")?;
 
     Ok(response)
 }
@@ -141,10 +149,9 @@ pub async fn add_payment_method(
             &resp.merchant_id,
             pm_metadata.cloned(),
             pm_data_encrypted,
+            key_store,
         )
-        .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Failed to save Payment Method")?;
+        .await?;
     }
 
     Ok(resp).map(services::ApplicationResponse::Json)
@@ -852,7 +859,7 @@ pub async fn list_payment_methods(
             db.find_payment_attempt_by_payment_id_merchant_id_attempt_id(
                 &pi.payment_id,
                 &pi.merchant_id,
-                &pi.active_attempt_id,
+                &pi.active_attempt.get_id(),
                 merchant_account.storage_scheme,
             )
             .await
@@ -860,6 +867,19 @@ pub async fn list_payment_methods(
         })
         .await
         .transpose()?;
+
+    let payment_type = payment_attempt.as_ref().map(|pa| {
+        let amount = api::Amount::from(pa.amount);
+        let mandate_type = if pa.mandate_id.is_some() {
+            Some(api::MandateTransactionType::RecurringMandateTransaction)
+        } else if pa.mandate_details.is_some() {
+            Some(api::MandateTransactionType::NewMandateTransaction)
+        } else {
+            None
+        };
+
+        helpers::infer_payment_type(&amount, mandate_type.as_ref())
+    });
 
     let all_mcas = db
         .find_merchant_connector_account_by_merchant_id_and_disabled_list(
@@ -964,9 +984,7 @@ pub async fn list_payment_methods(
                     .0
                     .get(&payment_method_type)
                     .map(|required_fields_hm_for_each_connector| {
-                        required_fields_hm
-                            .entry(payment_method)
-                            .or_insert(HashMap::new());
+                        required_fields_hm.entry(payment_method).or_default();
                         required_fields_hm_for_each_connector
                             .fields
                             .get(&connector_variant)
@@ -1143,6 +1161,7 @@ pub async fn list_payment_methods(
                     .get(key.0)
                     .and_then(|inner_hm| inner_hm.get(payment_method_types_hm.0))
                     .cloned(),
+                surcharge_details: None,
             })
         }
 
@@ -1160,6 +1179,7 @@ pub async fn list_payment_methods(
                 card_network_types.push(CardNetworkTypes {
                     card_network: card_network_type.0.clone(),
                     eligible_connectors: card_network_type.1.clone(),
+                    surcharge_details: None,
                 })
             }
 
@@ -1175,6 +1195,7 @@ pub async fn list_payment_methods(
                     .get(key.0)
                     .and_then(|inner_hm| inner_hm.get(payment_method_types_hm.0))
                     .cloned(),
+                surcharge_details: None,
             })
         }
 
@@ -1203,6 +1224,7 @@ pub async fn list_payment_methods(
                     .get(&api_enums::PaymentMethod::BankRedirect)
                     .and_then(|inner_hm| inner_hm.get(key.0))
                     .cloned(),
+                surcharge_details: None,
             }
         })
     }
@@ -1234,6 +1256,7 @@ pub async fn list_payment_methods(
                     .get(&api_enums::PaymentMethod::BankDebit)
                     .and_then(|inner_hm| inner_hm.get(key.0))
                     .cloned(),
+                surcharge_details: None,
             }
         })
     }
@@ -1265,6 +1288,7 @@ pub async fn list_payment_methods(
                     .get(&api_enums::PaymentMethod::BankTransfer)
                     .and_then(|inner_hm| inner_hm.get(key.0))
                     .cloned(),
+                surcharge_details: None,
             }
         })
     }
@@ -1280,6 +1304,7 @@ pub async fn list_payment_methods(
         api::PaymentMethodListResponse {
             redirect_url: merchant_account.return_url,
             merchant_name: merchant_account.merchant_name,
+            payment_type,
             payment_methods: payment_method_responses,
             mandate_payment: payment_attempt.and_then(|inner| inner.mandate_details).map(
                 |d| match d {
@@ -1306,6 +1331,7 @@ pub async fn list_payment_methods(
                     }
                 },
             ),
+            show_surcharge_breakup_screen: false,
         },
     ))
 }
@@ -1332,9 +1358,11 @@ pub async fn filter_payment_methods(
                     payment_intent
                         .allowed_payment_method_types
                         .clone()
-                        .parse_value("Vec<PaymentMethodType>")
-                        .map_err(|error| logger::error!(%error, "Failed to deserialize PaymentIntent allowed_payment_method_types"))
-                        .ok()
+                        .map(|val| val.parse_value("Vec<PaymentMethodType>"))
+                        .transpose()
+                        .unwrap_or_else(|error| {
+                            logger::error!(%error, "Failed to deserialize PaymentIntent allowed_payment_method_types"); None
+                        })
                 });
 
             for payment_method_type_info in payment_methods_enabled
@@ -1825,23 +1853,15 @@ pub async fn list_customer_payment_method(
     let key = key_store.key.get_inner().peek();
 
     let is_requires_cvv = db
-        .find_config_by_key(format!("{}_requires_cvv", merchant_account.merchant_id).as_str())
-        .await;
+        .find_config_by_key_unwrap_or(
+            format!("{}_requires_cvv", merchant_account.merchant_id).as_str(),
+            Some("true".to_string()),
+        )
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to fetch requires_cvv config")?;
 
-    let requires_cvv = match is_requires_cvv {
-        // If an entry is found with the config value as `false`, we set requires_cvv to false
-        Ok(value) => value.config != "false",
-        Err(err) => {
-            if err.current_context().is_db_not_found() {
-                // By default, cvv is made required field for all merchants
-                true
-            } else {
-                Err(err
-                    .change_context(errors::ApiErrorResponse::InternalServerError)
-                    .attach_printable("Failed to fetch merchant_id config for requires_cvv"))?
-            }
-        }
-    };
+    let requires_cvv = is_requires_cvv.config != "false";
 
     let resp = db
         .find_payment_method_by_customer_id_merchant_id_list(
@@ -1962,8 +1982,9 @@ async fn get_card_details(
             .flatten()
             .map(|x| x.into_inner().expose())
             .and_then(|v| serde_json::from_value::<PaymentMethodsData>(v).ok())
-            .map(|pmd| match pmd {
-                PaymentMethodsData::Card(crd) => api::CardDetailFromLocker::from(crd),
+            .and_then(|pmd| match pmd {
+                PaymentMethodsData::Card(crd) => Some(api::CardDetailFromLocker::from(crd)),
+                _ => None,
             });
 
     Ok(Some(
