@@ -715,6 +715,31 @@ impl Vault {
 
 //------------------------------------------------TokenizeService------------------------------------------------
 
+fn get_redis_temp_locker_encryption_key(state: &routes::AppState) -> RouterResult<Vec<u8>> {
+    #[cfg(feature = "kms")]
+    let secret = state
+        .kms_secrets
+        .redis_temp_locker_encryption_key
+        .peek()
+        .as_bytes()
+        .to_owned();
+
+    #[cfg(not(feature = "kms"))]
+    let secret = hex::decode(
+        state
+            .conf
+            .locker
+            .redis_temp_locker_encryption_key
+            .peek()
+            .to_owned(),
+    )
+    .into_report()
+    .change_context(errors::ApiErrorResponse::InternalServerError)
+    .attach_printable("Failed to decode redis temp locker data")?;
+
+    Ok(secret)
+}
+
 #[instrument(skip(state, value1, value2))]
 pub async fn create_tokenize(
     state: &routes::AppState,
@@ -737,16 +762,9 @@ pub async fn create_tokenize(
         &payload_to_be_encrypted,
     )
     .change_context(errors::ApiErrorResponse::InternalServerError)?;
-    let secret = hex::decode(
-        state
-            .conf
-            .locker
-            .redis_temp_locker_encryption_key
-            .to_owned(),
-    )
-    .into_report()
-    .change_context(errors::ApiErrorResponse::InternalServerError)
-    .attach_printable("Failed to decode redis temp locker data")?;
+
+    let secret = get_redis_temp_locker_encryption_key(state)?;
+
     let encrypted_payload = GcmAes256
         .encode_message(secret.as_ref(), payload.as_bytes())
         .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -794,16 +812,7 @@ pub async fn get_tokenized_data(
 
     match response {
         Ok(resp) => {
-            let secret = hex::decode(
-                state
-                    .conf
-                    .locker
-                    .redis_temp_locker_encryption_key
-                    .to_owned(),
-            )
-            .into_report()
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Failed to decode redis temp locker data")?;
+            let secret = get_redis_temp_locker_encryption_key(state)?;
 
             let decrypted_payload = GcmAes256
                 .decode_message(secret.as_ref(), masking::Secret::new(resp.into()))
