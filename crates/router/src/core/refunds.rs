@@ -541,7 +541,6 @@ pub async fn validate_and_create_refund(
         .attach_printable("invalid merchant_id in request"))
     })?;
 
-
     let connecter_transaction_id = payment_attempt.clone().connector_transaction_id.ok_or_else(|| {
         report!(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Transaction in invalid. Missing field \"connector_transaction_id\" in payment_attempt.")
@@ -559,17 +558,14 @@ pub async fn validate_and_create_refund(
     currency = payment_attempt.currency.get_required_value("currency")?;
 
     //[#249]: Add Connector Based Validation here.
-    validator::validate_payment_order_age(
-        &payment_intent.created_at,
-        state.conf.refund.max_age,
-    )
-    .change_context(errors::ApiErrorResponse::InvalidDataFormat {
-        field_name: "created_at".to_string(),
-        expected_format: format!(
-            "created_at not older than {} days",
-            state.conf.refund.max_age,
-        ),
-    })?;
+    validator::validate_payment_order_age(&payment_intent.created_at, state.conf.refund.max_age)
+        .change_context(errors::ApiErrorResponse::InvalidDataFormat {
+            field_name: "created_at".to_string(),
+            expected_format: format!(
+                "created_at not older than {} days",
+                state.conf.refund.max_age,
+            ),
+        })?;
 
     validator::validate_refund_amount(payment_attempt.amount, &all_refunds, refund_amount)
         .change_context(errors::ApiErrorResponse::RefundAmountExceedsPaymentAmount)?;
