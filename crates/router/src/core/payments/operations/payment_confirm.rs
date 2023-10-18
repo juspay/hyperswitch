@@ -3,7 +3,7 @@ use std::marker::PhantomData;
 use api_models::enums::FrmSuggestion;
 use async_trait::async_trait;
 use common_utils::ext_traits::{AsyncExt, Encode};
-use error_stack::ResultExt;
+use error_stack::{IntoReport, ResultExt};
 use futures::FutureExt;
 use router_derive::PaymentOperation;
 use router_env::{instrument, tracing};
@@ -49,6 +49,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
         PaymentData<F>,
         Option<CustomerDetails>,
     )> {
+        
         let db = &*state.store;
         let merchant_id = &merchant_account.merchant_id;
         let storage_scheme = merchant_account.storage_scheme;
@@ -59,20 +60,43 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             .change_context(errors::ApiErrorResponse::PaymentNotFound)?;
 
         // Stage 1
+        let m_payment_id = payment_id.clone();
+        let m_merchant_id = merchant_id.clone();
+        // let m_state = state.clone();
+        let m_storage_scheme = storage_scheme.clone();
+        let m_state = state.clone();
+        let m_db = m_state.store;
+        let payment_intent_fut = tokio::spawn(async move {
+            m_db.find_payment_intent_by_payment_id_merchant_id(
+                &m_payment_id,
+                m_merchant_id.as_str(),
+                m_storage_scheme,
+            )
+            .map(|x| x.change_context(errors::ApiErrorResponse::PaymentNotFound))
+            .await
+        });
+        let m_mandate_type = mandate_type.clone();
+        let m_merchant_account = merchant_account.clone();
+        let m_state = state.clone();
+        let m_request = request.clone();
+        let mandate_details_fut = tokio::spawn(async move {
+            helpers::get_token_pm_type_mandate_details(
+                &m_state,
+                &m_request,
+                m_mandate_type,
+                &m_merchant_account,
+            )
+            .await
+        });
 
-        let payment_intent_fut = db
-            .find_payment_intent_by_payment_id_merchant_id(&payment_id, merchant_id, storage_scheme)
-            .map(|x| x.change_context(errors::ApiErrorResponse::PaymentNotFound));
+        let (payment_intent1, mandate_details1) =
+            futures::try_join!(payment_intent_fut, mandate_details_fut)
+                .into_report()
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("failed join")?;
 
-        let mandate_details_fut = helpers::get_token_pm_type_mandate_details(
-            state,
-            request,
-            mandate_type.clone(),
-            merchant_account,
-        );
-
-        let (mut payment_intent, mandate_details) =
-            futures::try_join!(payment_intent_fut, mandate_details_fut)?;
+        let mut payment_intent = payment_intent1?;
+        let mandate_details = mandate_details1?;
 
         helpers::validate_customer_access(&payment_intent, auth_flow, request)?;
 
@@ -265,7 +289,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             &request.payment_method,
             &request.payment_method_data,
             &request.payment_method_type,
-            &mandate_type,
+            &mandate_type.clone(),
             &token,
         )?;
 
