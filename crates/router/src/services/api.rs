@@ -13,7 +13,10 @@ use actix_web::{body, web, FromRequest, HttpRequest, HttpResponse, Responder, Re
 use api_models::enums::CaptureMethod;
 pub use client::{proxy_bypass_urls, ApiClient, MockApiClient, ProxyClient};
 pub use common_utils::request::{ContentType, Method, Request, RequestBuilder};
-use common_utils::{consts::X_HS_LATENCY, errors::ReportSwitchExt};
+use common_utils::{
+    consts::X_HS_LATENCY,
+    errors::{ErrorSwitch, ReportSwitchExt},
+};
 use error_stack::{report, IntoReport, Report, ResultExt};
 use masking::{ExposeOptionInterface, PeekInterface};
 use router_env::{instrument, tracing, tracing_actix_web::RequestId, Tag};
@@ -30,6 +33,7 @@ use crate::{
         errors::{self, CustomResult},
         payments,
     },
+    events::{api_logs::ApiEvent, EventHandler},
     logger,
     routes::{
         app::AppStateInfo,
@@ -750,19 +754,20 @@ where
     T: Debug,
     A: AppStateInfo + Clone,
     U: auth::AuthInfo,
-    CustomResult<ApplicationResponse<Q>, E>: ReportSwitchExt<ApplicationResponse<Q>, OErr>,
-    CustomResult<U, errors::ApiErrorResponse>: ReportSwitchExt<U, OErr>,
-    CustomResult<(), errors::ApiErrorResponse>: ReportSwitchExt<(), OErr>,
-    OErr: ResponseError + Sync + Send + 'static,
+    E: ErrorSwitch<OErr> + error_stack::Context,
+    OErr: ResponseError + error_stack::Context,
+    errors::ApiErrorResponse: ErrorSwitch<OErr>,
 {
     let request_id = RequestId::extract(request)
         .await
-        .ok()
-        .map(|id| id.as_hyphenated().to_string());
+        .into_report()
+        .attach_printable("Unable to extract request id from request")
+        .change_context(errors::ApiErrorResponse::InternalServerError.switch())?;
 
     let mut request_state = state.get_ref().clone();
 
     request_state.add_request_id(request_id);
+    let start_instant = Instant::now();
 
     let auth_out = api_auth
         .authenticate_and_fetch(request.headers(), &request_state)
@@ -795,11 +800,20 @@ where
             .switch()?;
         res
     };
+    let request_duration = Instant::now()
+        .saturating_duration_since(start_instant)
+        .as_millis();
 
     let status_code = match output.as_ref() {
         Ok(res) => metrics::request::track_response_status_code(res),
         Err(err) => err.current_context().status_code().as_u16().into(),
     };
+    state.event_handler().log_event(ApiEvent::new(
+        flow,
+        &request_id,
+        request_duration,
+        status_code,
+    ));
 
     metrics::request::status_code_metrics(status_code, flow.to_string(), merchant_id.to_string());
 
@@ -827,8 +841,7 @@ where
     U: auth::AuthInfo,
     A: AppStateInfo + Clone,
     ApplicationResponse<Q>: Debug,
-    CustomResult<ApplicationResponse<Q>, E>:
-        ReportSwitchExt<ApplicationResponse<Q>, api_models::errors::types::ApiErrorResponse>,
+    E: ErrorSwitch<api_models::errors::types::ApiErrorResponse> + error_stack::Context,
 {
     let request_method = request.method().as_str();
     let url_path = request.path();

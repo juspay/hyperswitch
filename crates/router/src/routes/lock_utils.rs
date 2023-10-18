@@ -30,7 +30,8 @@ impl From<Flow> for ApiIdentifier {
             Flow::MerchantsAccountCreate
             | Flow::MerchantsAccountRetrieve
             | Flow::MerchantsAccountUpdate
-            | Flow::MerchantsAccountDelete => Self::MerchantAccount,
+            | Flow::MerchantsAccountDelete
+            | Flow::MerchantAccountList => Self::MerchantAccount,
 
             Flow::MerchantConnectorsCreate
             | Flow::MerchantConnectorsRetrieve
