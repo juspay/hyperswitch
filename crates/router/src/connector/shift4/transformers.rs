@@ -32,7 +32,7 @@ impl<T>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        (currency_unit, currency, amount, item): (
+        (currency_unit, currency, amount, router_data): (
             &types::api::CurrencyUnit,
             types::storage::enums::Currency,
             i64,
@@ -42,7 +42,7 @@ impl<T>
         let amount = utils::get_amount_as_string(currency_unit, amount, currency)?;
         Ok(Self {
             amount,
-            router_data: item,
+            router_data,
         })
     }
 }
@@ -159,17 +159,14 @@ impl<T>
     > for Shift4PaymentsRequest
 {
     type Error = error_stack::Report<errors::ConnectorError>;
-    // fn try_from(
-    //     item: &types::RouterData<T, types::PaymentsAuthorizeData, types::PaymentsResponseData>,
-    // ) -> Result<Self, Self::Error> {
     fn try_from(
-        value: (&Shift4RouterData<
+        item: (&Shift4RouterData<
             &types::PaymentsAuthorizeRouterData,
             types::PaymentsResponseData,
         >),
     ) -> Result<Self, Self::Error> {
         let submit_for_settlement = value.request.is_auto_capture()?;
-        let amount = value.request.amount.to_string();
+        let amount = item.amount.clone();
         let currency = value.request.currency;
         let payment_method = Shift4PaymentMethod::try_from(value)?;
         Ok(Self {
