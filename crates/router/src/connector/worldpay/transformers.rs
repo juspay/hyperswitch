@@ -167,7 +167,11 @@ impl
                 debt_repayment: None,
             },
             merchant: Merchant {
-                entity: item.router_data.connector_request_reference_id.clone().replace('_', "-"),
+                entity: item
+                .router_data
+                .connector_request_reference_id
+                .clone()
+                .replace('_', "-"),
                 ..Default::default()
             },
             transaction_reference: item.router_data.connector_request_reference_id.clone(),
