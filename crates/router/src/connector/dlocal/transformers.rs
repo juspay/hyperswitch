@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 use url::Url;
 
 use crate::{
-    connector::utils::{self, AddressDetailsData, PaymentsAuthorizeRequestData, RouterData},
+    connector::utils::{AddressDetailsData, PaymentsAuthorizeRequestData, RouterData},
     core::errors,
     services,
     types::{self, api, storage::enums},
@@ -68,7 +68,7 @@ impl<T>
     type Error = error_stack::Report<errors::ConnectorError>;
 
     fn try_from(
-        (currency_unit, currency, amount, router_data): (
+        (_currency_unit, _currency, amount, router_data): (
             &types::api::CurrencyUnit,
             types::storage::enums::Currency,
             i64,
