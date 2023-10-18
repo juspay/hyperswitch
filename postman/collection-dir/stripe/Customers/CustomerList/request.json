@@ -1,0 +1,23 @@
+{
+  "method": "GET",
+  "header": [
+    {
+      "key": "Accept",
+      "value": "application/json"
+    },
+    {
+      "key": "api-key",
+      "value": "dev_GjNoSP4hVX8opfmczYhmg6zMzbYWRwK9O49aw9XC6Pia8qnUyrccQLBRE07PFHdg"
+    }
+  ],
+  "url": {
+    "raw": "{{baseUrl}}/customers/list",
+    "host": [
+      "{{baseUrl}}"
+    ],
+    "path": [
+      "customers",
+      "list"
+    ]
+  }
+}
