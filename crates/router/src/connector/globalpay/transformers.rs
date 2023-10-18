@@ -39,7 +39,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for GlobalpayPaymentsRequest {
             account_name,
             amount: Some(item.request.amount.to_string()),
             currency: item.request.currency.to_string(),
-            reference: item.attempt_id.to_string(),
+            reference: item.connector_request_reference_id.to_string(),
             country: item.get_billing_country()?,
             capture_mode: Some(requests::CaptureMode::from(item.request.capture_method)),
             payment_method: requests::PaymentMethod {

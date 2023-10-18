@@ -331,9 +331,13 @@ impl
     // Not Implemented (R)
 }
 
-impl api::PreVerify for Globalpay {}
-impl ConnectorIntegration<api::Verify, types::VerifyRequestData, types::PaymentsResponseData>
-    for Globalpay
+impl api::MandateSetup for Globalpay {}
+impl
+    ConnectorIntegration<
+        api::SetupMandate,
+        types::SetupMandateRequestData,
+        types::PaymentsResponseData,
+    > for Globalpay
 {
 }
 
@@ -848,6 +852,7 @@ impl api::IncomingWebhook for Globalpay {
     fn get_webhook_source_verification_signature(
         &self,
         request: &api::IncomingWebhookRequestDetails<'_>,
+        _connector_webhook_secrets: &api_models::webhooks::ConnectorWebhookSecrets,
     ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
         let signature = conn_utils::get_header_key_value("x-gp-signature", request.headers)?;
         Ok(signature.as_bytes().to_vec())
@@ -857,13 +862,13 @@ impl api::IncomingWebhook for Globalpay {
         &self,
         request: &api::IncomingWebhookRequestDetails<'_>,
         _merchant_id: &str,
-        secret: &[u8],
+        connector_webhook_secrets: &api_models::webhooks::ConnectorWebhookSecrets,
     ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
         let payload: Value = request.body.parse_struct("GlobalpayWebhookBody").switch()?;
         let mut payload_str = serde_json::to_string(&payload)
             .into_report()
             .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
-        let sec = std::str::from_utf8(secret)
+        let sec = std::str::from_utf8(&connector_webhook_secrets.secret)
             .into_report()
             .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
         payload_str.push_str(sec);
@@ -921,25 +926,14 @@ impl api::IncomingWebhook for Globalpay {
 impl services::ConnectorRedirectResponse for Globalpay {
     fn get_flow_type(
         &self,
-        query_params: &str,
+        _query_params: &str,
         _json_payload: Option<Value>,
-        _action: services::PaymentAction,
+        action: services::PaymentAction,
     ) -> CustomResult<payments::CallConnectorAction, errors::ConnectorError> {
-        let query = serde_urlencoded::from_str::<response::GlobalpayRedirectResponse>(query_params)
-            .into_report()
-            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-        Ok(query.status.map_or(
-            payments::CallConnectorAction::Trigger,
-            |status| match status {
-                response::GlobalpayPaymentStatus::Captured => {
-                    payments::CallConnectorAction::StatusUpdate {
-                        status: diesel_models::enums::AttemptStatus::from(status),
-                        error_code: None,
-                        error_message: None,
-                    }
-                }
-                _ => payments::CallConnectorAction::Trigger,
-            },
-        ))
+        match action {
+            services::PaymentAction::PSync | services::PaymentAction::CompleteAuthorize => {
+                Ok(payments::CallConnectorAction::Trigger)
+            }
+        }
     }
 }

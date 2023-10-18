@@ -65,6 +65,7 @@ impl CashtocodeTest {
             webhook_url: None,
             complete_authorize_url: None,
             customer_id: Some("John Doe".to_owned()),
+            surcharge_details: None,
         })
     }
 

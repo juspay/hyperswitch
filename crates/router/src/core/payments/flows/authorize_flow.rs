@@ -73,6 +73,12 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
             .connector
             .validate_capture_method(self.request.capture_method)
             .to_payment_failed_response()?;
+        if self.request.surcharge_details.is_some() {
+            connector
+                .connector
+                .validate_if_surcharge_implemented()
+                .to_payment_failed_response()?;
+        }
 
         if self.should_proceed_with_authorize() {
             self.decide_authentication_type();
@@ -342,6 +348,7 @@ impl<F> TryFrom<&types::RouterData<F, types::PaymentsAuthorizeData, types::Payme
     ) -> Result<Self, Self::Error> {
         Ok(Self {
             email: data.request.email.clone(),
+            payment_method_data: data.request.payment_method_data.clone(),
             description: None,
             phone: None,
             name: None,
@@ -380,6 +387,7 @@ impl TryFrom<types::PaymentsAuthorizeData> for types::PaymentsPreProcessingData 
             webhook_url: data.webhook_url,
             complete_authorize_url: data.complete_authorize_url,
             browser_info: data.browser_info,
+            surcharge_details: data.surcharge_details,
         })
     }
 }

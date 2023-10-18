@@ -5,6 +5,7 @@ use http::{HeaderValue, Method};
 use masking::PeekInterface;
 use once_cell::sync::OnceCell;
 use reqwest::multipart::Form;
+use router_env::tracing_actix_web::RequestId;
 
 use super::{request::Maskable, Request};
 use crate::{
@@ -167,10 +168,10 @@ where
         forward_to_kafka: bool,
     ) -> CustomResult<reqwest::Response, ApiClientError>;
 
-    fn add_request_id(&mut self, _request_id: Option<String>);
+    fn add_request_id(&mut self, request_id: RequestId);
     fn get_request_id(&self) -> Option<String>;
     fn add_merchant_id(&mut self, _merchant_id: Option<String>);
-    fn add_flow_name(&mut self, _flow_name: String);
+    fn add_flow_name(&mut self, flow_name: String);
 }
 
 dyn_clone::clone_trait_object!(ApiClient);
@@ -350,8 +351,9 @@ impl ApiClient for ProxyClient {
         crate::services::send_request(state, request, option_timeout_secs).await
     }
 
-    fn add_request_id(&mut self, _request_id: Option<String>) {
-        self.request_id = _request_id
+    fn add_request_id(&mut self, request_id: RequestId) {
+        self.request_id
+            .replace(request_id.as_hyphenated().to_string());
     }
 
     fn get_request_id(&self) -> Option<String> {
@@ -402,7 +404,7 @@ impl ApiClient for MockApiClient {
         Err(ApiClientError::UnexpectedState.into())
     }
 
-    fn add_request_id(&mut self, _request_id: Option<String>) {
+    fn add_request_id(&mut self, _request_id: RequestId) {
         // [#2066]: Add Mock implementation for ApiClient
     }
 

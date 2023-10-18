@@ -327,6 +327,7 @@ pub struct SquarePaymentsResponseDetails {
     status: SquarePaymentStatus,
     id: String,
     amount_money: SquarePaymentsAmountData,
+    reference_id: Option<String>,
 }
 #[derive(Debug, Deserialize)]
 pub struct SquarePaymentsResponse {
@@ -355,7 +356,7 @@ impl<F, T>
                 mandate_reference: None,
                 connector_metadata: None,
                 network_txn_id: None,
-                connector_response_reference_id: None,
+                connector_response_reference_id: item.response.payment.reference_id,
             }),
             amount_captured,
             ..item.data

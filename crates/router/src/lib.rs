@@ -6,7 +6,7 @@ pub mod compatibility;
 pub mod configs;
 pub mod connection;
 pub mod connector;
-pub(crate) mod consts;
+pub mod consts;
 pub mod core;
 pub mod cors;
 pub mod db;
@@ -15,6 +15,7 @@ pub(crate) mod macros;
 pub mod routes;
 pub mod workflows;
 
+pub mod events;
 pub mod middleware;
 pub mod openapi;
 pub mod services;
@@ -47,9 +48,11 @@ pub mod headers {
     pub const API_KEY: &str = "API-KEY";
     pub const APIKEY: &str = "apikey";
     pub const X_CC_API_KEY: &str = "X-CC-Api-Key";
+    pub const API_TOKEN: &str = "Api-Token";
     pub const AUTHORIZATION: &str = "Authorization";
     pub const CONTENT_TYPE: &str = "Content-Type";
     pub const DATE: &str = "Date";
+    pub const IDEMPOTENCY_KEY: &str = "Idempotency-Key";
     pub const NONCE: &str = "nonce";
     pub const TIMESTAMP: &str = "Timestamp";
     pub const TOKEN: &str = "token";
@@ -127,7 +130,8 @@ pub fn mk_app(
         server_app = server_app
             .service(routes::PaymentMethods::server(state.clone()))
             .service(routes::EphemeralKey::server(state.clone()))
-            .service(routes::Webhooks::server(state.clone()));
+            .service(routes::Webhooks::server(state.clone()))
+            .service(routes::PaymentLink::server(state.clone()));
     }
 
     #[cfg(feature = "olap")]

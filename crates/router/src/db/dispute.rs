@@ -562,6 +562,7 @@ mod tests {
                         received_time_gt: None,
                         received_time_lte: None,
                         received_time_gte: None,
+                        profile_id: None,
                     },
                 )
                 .await

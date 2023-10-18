@@ -4,6 +4,6 @@
   "private": true,
   "description": "This is just to run automated newman tests for this service",
   "devDependencies": {
-    "newman": "git+ssh://git@github.com:knutties/newman.git#37708c1fbf6b36240ac796a42dc5a7b435990764"
+    "newman": "git+ssh://git@github.com:knutties/newman.git#7106e194c15d49d066fa09d9a2f18b2238f3dba8"
   }
 }

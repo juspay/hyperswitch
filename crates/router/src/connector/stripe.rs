@@ -453,7 +453,7 @@ impl
     }
 }
 
-impl api::PreVerify for Stripe {}
+impl api::MandateSetup for Stripe {}
 
 impl
     services::ConnectorIntegration<
@@ -965,20 +965,24 @@ impl
 }
 
 type Verify = dyn services::ConnectorIntegration<
-    api::Verify,
-    types::VerifyRequestData,
+    api::SetupMandate,
+    types::SetupMandateRequestData,
     types::PaymentsResponseData,
 >;
 impl
     services::ConnectorIntegration<
-        api::Verify,
-        types::VerifyRequestData,
+        api::SetupMandate,
+        types::SetupMandateRequestData,
         types::PaymentsResponseData,
     > for Stripe
 {
     fn get_headers(
         &self,
-        req: &types::RouterData<api::Verify, types::VerifyRequestData, types::PaymentsResponseData>,
+        req: &types::RouterData<
+            api::SetupMandate,
+            types::SetupMandateRequestData,
+            types::PaymentsResponseData,
+        >,
         _connectors: &settings::Connectors,
     ) -> CustomResult<Vec<(String, request::Maskable<String>)>, errors::ConnectorError> {
         let mut header = vec![(
@@ -997,8 +1001,8 @@ impl
     fn get_url(
         &self,
         _req: &types::RouterData<
-            api::Verify,
-            types::VerifyRequestData,
+            api::SetupMandate,
+            types::SetupMandateRequestData,
             types::PaymentsResponseData,
         >,
         connectors: &settings::Connectors,
@@ -1012,7 +1016,11 @@ impl
 
     fn get_request_body(
         &self,
-        req: &types::RouterData<api::Verify, types::VerifyRequestData, types::PaymentsResponseData>,
+        req: &types::RouterData<
+            api::SetupMandate,
+            types::SetupMandateRequestData,
+            types::PaymentsResponseData,
+        >,
     ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
         let req = stripe::SetupIntentRequest::try_from(req)?;
         let stripe_req = types::RequestBody::log_and_get_request_body(
@@ -1025,7 +1033,11 @@ impl
 
     fn build_request(
         &self,
-        req: &types::RouterData<api::Verify, types::VerifyRequestData, types::PaymentsResponseData>,
+        req: &types::RouterData<
+            api::SetupMandate,
+            types::SetupMandateRequestData,
+            types::PaymentsResponseData,
+        >,
         connectors: &settings::Connectors,
     ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
         Ok(Some(
@@ -1042,18 +1054,22 @@ impl
     fn handle_response(
         &self,
         data: &types::RouterData<
-            api::Verify,
-            types::VerifyRequestData,
+            api::SetupMandate,
+            types::SetupMandateRequestData,
             types::PaymentsResponseData,
         >,
         res: types::Response,
     ) -> CustomResult<
-        types::RouterData<api::Verify, types::VerifyRequestData, types::PaymentsResponseData>,
+        types::RouterData<
+            api::SetupMandate,
+            types::SetupMandateRequestData,
+            types::PaymentsResponseData,
+        >,
         errors::ConnectorError,
     >
     where
-        api::Verify: Clone,
-        types::VerifyRequestData: Clone,
+        api::SetupMandate: Clone,
+        types::SetupMandateRequestData: Clone,
         types::PaymentsResponseData: Clone,
     {
         let response: stripe::SetupIntentResponse = res
@@ -1687,6 +1703,7 @@ impl api::IncomingWebhook for Stripe {
     fn get_webhook_source_verification_signature(
         &self,
         request: &api::IncomingWebhookRequestDetails<'_>,
+        _connector_webhook_secrets: &api_models::webhooks::ConnectorWebhookSecrets,
     ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
         let mut security_header_kvs = get_signature_elements_from_header(request.headers)?;
 
@@ -1704,7 +1721,7 @@ impl api::IncomingWebhook for Stripe {
         &self,
         request: &api::IncomingWebhookRequestDetails<'_>,
         _merchant_id: &str,
-        _secret: &[u8],
+        _connector_webhook_secrets: &api_models::webhooks::ConnectorWebhookSecrets,
     ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
         let mut security_header_kvs = get_signature_elements_from_header(request.headers)?;
 
@@ -1827,6 +1844,9 @@ impl api::IncomingWebhook for Stripe {
             stripe::WebhookEventType::PaymentIntentSucceed => {
                 api::IncomingWebhookEvent::PaymentIntentSuccess
             }
+            stripe::WebhookEventType::PaymentIntentCanceled => {
+                api::IncomingWebhookEvent::PaymentIntentCancelled
+            }
             stripe::WebhookEventType::ChargeSucceeded => {
                 if let Some(stripe::WebhookPaymentMethodDetails {
                     payment_method:
@@ -1881,7 +1901,6 @@ impl api::IncomingWebhook for Stripe {
             | stripe::WebhookEventType::ChargePending
             | stripe::WebhookEventType::ChargeUpdated
             | stripe::WebhookEventType::ChargeRefunded
-            | stripe::WebhookEventType::PaymentIntentCanceled
             | stripe::WebhookEventType::PaymentIntentCreated
             | stripe::WebhookEventType::PaymentIntentProcessing
             | stripe::WebhookEventType::PaymentIntentAmountCapturableUpdated
@@ -1945,33 +1964,14 @@ impl api::IncomingWebhook for Stripe {
 impl services::ConnectorRedirectResponse for Stripe {
     fn get_flow_type(
         &self,
-        query_params: &str,
+        _query_params: &str,
         _json_payload: Option<serde_json::Value>,
-        _action: services::PaymentAction,
+        action: services::PaymentAction,
     ) -> CustomResult<crate::core::payments::CallConnectorAction, errors::ConnectorError> {
-        let query =
-            serde_urlencoded::from_str::<transformers::StripeRedirectResponse>(query_params)
-                .into_report()
-                .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-
-        crate::logger::debug!(stripe_redirect_response=?query);
-
-        Ok(query
-            .redirect_status
-            .map_or(
-                payments::CallConnectorAction::Trigger,
-                |status| match status {
-                    transformers::StripePaymentStatus::Failed
-                    | transformers::StripePaymentStatus::Pending
-                    | transformers::StripePaymentStatus::Succeeded => {
-                        payments::CallConnectorAction::Trigger
-                    }
-                    _ => payments::CallConnectorAction::StatusUpdate {
-                        status: enums::AttemptStatus::from(status),
-                        error_code: None,
-                        error_message: None,
-                    },
-                },
-            ))
+        match action {
+            services::PaymentAction::PSync | services::PaymentAction::CompleteAuthorize => {
+                Ok(payments::CallConnectorAction::Trigger)
+            }
+        }
     }
 }

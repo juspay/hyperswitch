@@ -252,6 +252,9 @@ impl ErrorSwitch<api_models::errors::types::ApiErrorResponse> for ApiErrorRespon
             Self::WebhookProcessingFailure => {
                 AER::InternalServerError(ApiError::new("WE", 3, "There was an issue processing the webhook", None))
             },
+            Self::WebhookInvalidMerchantSecret => {
+                AER::BadRequest(ApiError::new("WE", 2, "Merchant Secret set for webhook source verificartion is invalid", None))
+            }
             Self::IncorrectPaymentMethodConfiguration => {
                 AER::BadRequest(ApiError::new("HE", 4, "No eligible connector was found for the current payment method configuration", None))
             }
@@ -260,6 +263,12 @@ impl ErrorSwitch<api_models::errors::types::ApiErrorResponse> for ApiErrorRespon
             },
             Self::ResourceBusy => {
                 AER::Unprocessable(ApiError::new("WE", 5, "There was an issue processing the webhook body", None))
+            }
+            Self::PaymentLinkNotFound => {
+                AER::NotFound(ApiError::new("HE", 2, "Payment Link does not exist in our records", None))
+            }
+            Self::InvalidConnectorConfiguration {config} => {
+                AER::BadRequest(ApiError::new("IR", 24, format!("Merchant connector account is configured with invalid {config}"), None))
             }
         }
     }
@@ -275,6 +284,9 @@ impl ErrorSwitch<ApiErrorResponse> for ConnectorError {
             | Self::WebhookBodyDecodingFailed
             | Self::WebhooksNotImplemented => ApiErrorResponse::WebhookBadRequest,
             Self::WebhookEventTypeNotFound => ApiErrorResponse::WebhookUnprocessableEntity,
+            Self::WebhookVerificationSecretInvalid => {
+                ApiErrorResponse::WebhookInvalidMerchantSecret
+            }
             _ => ApiErrorResponse::InternalServerError,
         }
     }
@@ -303,6 +315,12 @@ impl ErrorSwitch<api_models::errors::types::ApiErrorResponse> for CustomersError
                 "HE",
                 2,
                 "Customer does not exist in our records",
+                None,
+            )),
+            Self::CustomerAlreadyExists => AER::BadRequest(ApiError::new(
+                "IR",
+                12,
+                "Customer with the given `customer_id` already exists",
                 None,
             )),
         }
