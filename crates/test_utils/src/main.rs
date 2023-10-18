@@ -21,7 +21,8 @@ fn main() {
         let output = cmd
             .args([
                 "checkout",
-                "main",
+                "HEAD",
+                "--",
                 format!("{}/event.prerequest.js", runner.2).as_str(),
             ])
             .output();
