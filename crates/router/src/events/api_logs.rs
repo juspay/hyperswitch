@@ -36,6 +36,6 @@ impl Event for ApiEvent {
     }
 
     fn key(&self) -> String {
-        "HEALTH".to_string()
+        self.request_id.to_string()
     }
 }
