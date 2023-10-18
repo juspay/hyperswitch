@@ -27,7 +27,7 @@ struct Args {
     /// Minimum delay to be added before sending a request
     /// By default, 7 milliseconds will be the delay
     #[arg(short, long = "delay_request", default_value_t = 7)]
-    delay_request: u8,
+    delay_request: u32,
     /// Folder name of specific tests
     #[arg(short, long = "folder")]
     folders: Option<String>,
@@ -53,7 +53,7 @@ fn insert_content(dir: &String, content_to_insert: &str) -> io::Result<bool> {
     let mut file = OpenOptions::new()
         .write(true)
         .create(true)
-        .open(&file_path)?;
+        .open(file_path)?;
 
     // Write the content to the file
     file.write_all(content_to_insert.as_bytes())?;
