@@ -166,6 +166,8 @@ pub enum PaymentAttemptUpdate {
         error_code: Option<Option<String>>,
         error_message: Option<Option<String>>,
         amount_capturable: Option<i64>,
+        surcharge_amount: Option<i64>,
+        tax_amount: Option<i64>,
         updated_by: String,
     },
     VoidUpdate {
@@ -226,11 +228,6 @@ pub enum PaymentAttemptUpdate {
     AmountToCaptureUpdate {
         status: storage_enums::AttemptStatus,
         amount_capturable: i64,
-        updated_by: String,
-    },
-    SurchargeAmountUpdate {
-        surcharge_amount: Option<i64>,
-        tax_amount: Option<i64>,
         updated_by: String,
     },
     PreprocessingUpdate {
@@ -378,6 +375,8 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 error_code,
                 error_message,
                 amount_capturable,
+                surcharge_amount,
+                tax_amount,
                 updated_by,
             } => Self {
                 amount: Some(amount),
@@ -397,6 +396,8 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 error_code,
                 error_message,
                 amount_capturable,
+                surcharge_amount,
+                tax_amount,
                 updated_by,
                 ..Default::default()
             },
@@ -558,16 +559,6 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 updated_by,
             } => Self {
                 surcharge_metadata,
-                updated_by,
-                ..Default::default()
-            },
-            PaymentAttemptUpdate::SurchargeAmountUpdate {
-                surcharge_amount,
-                tax_amount,
-                updated_by,
-            } => Self {
-                surcharge_amount,
-                tax_amount,
                 updated_by,
                 ..Default::default()
             },
