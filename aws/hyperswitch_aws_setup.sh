@@ -27,7 +27,7 @@ while [[ -z "$MASTER_DB_PASSWORD" ]]; do
 done
 
 while [[ -z "$ADMIN_API_KEY" ]]; do
-    echo "Please enter the Admin api key: "
+    echo "Please configure the Admin api key: (Required to access Hyperswitch APIs)"
     read ADMIN_API_KEY < /dev/tty
 done
 
