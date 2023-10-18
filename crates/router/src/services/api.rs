@@ -34,6 +34,7 @@ use crate::{
         errors::{self, CustomResult},
         payments,
     },
+    events::api_logs::ApiEvent,
     logger,
     routes::{
         app::AppStateInfo,
@@ -760,11 +761,10 @@ where
     Q: Serialize + Debug + 'a,
     T: Debug,
     A: AppStateInfo + Clone,
-    U: auth::AuthInfo,
-    CustomResult<ApplicationResponse<Q>, E>: ReportSwitchExt<ApplicationResponse<Q>, OErr>,
-    CustomResult<U, errors::ApiErrorResponse>: ReportSwitchExt<U, OErr>,
-    CustomResult<(), errors::ApiErrorResponse>: ReportSwitchExt<(), OErr>,
-    OErr: ResponseError + Sync + Send + 'static,
+    U: AuthInfo,
+    E: ErrorSwitch<OErr> + error_stack::Context,
+    OErr: ResponseError + error_stack::Context,
+    errors::ApiErrorResponse: ErrorSwitch<OErr>,
 {
     let request_id = RequestId::extract(request)
         .await
