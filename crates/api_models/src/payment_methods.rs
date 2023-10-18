@@ -754,13 +754,6 @@ pub struct DeleteTokenizeByTokenRequest {
     pub service_name: String,
 }
 
-#[derive(Debug, serde::Serialize)] // Blocked: Yet to be implemented by `basilisk`
-pub struct DeleteTokenizeByDateRequest {
-    pub buffer_minutes: i32,
-    pub service_name: String,
-    pub max_rows: i32,
-}
-
 #[derive(Debug, serde::Deserialize)]
 pub struct GetTokenizePayloadResponse {
     pub lookup_key: String,
