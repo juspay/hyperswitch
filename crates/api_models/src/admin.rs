@@ -655,8 +655,8 @@ pub struct MerchantConnectorResponse {
     /// Name of the Connector
     #[schema(example = "stripe")]
     pub connector_name: String,
-    // /// Connector label for specific country and Business
-    #[serde(skip_deserializing)]
+
+    /// Connector label for a connector, this can serve as a field to identify the connector as per business details
     #[schema(example = "stripe_US_travel")]
     pub connector_label: Option<String>,
 
@@ -748,6 +748,9 @@ pub struct MerchantConnectorUpdate {
     /// Type of the Connector for the financial use case. Could range from Payments to Accounting to Banking.
     #[schema(value_type = ConnectorType, example = "payment_processor")]
     pub connector_type: api_enums::ConnectorType,
+
+    /// Connector label for a connector, this can serve as a field to identify the connector as per business details
+    pub connector_label: Option<String>,
 
     /// Account details of the Connector. You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Useful for storing additional, structured information on an object.
     #[schema(value_type = Option<Object>,example = json!({ "auth_type": "HeaderKey","api_key": "Basic MyVerySecretApiKey" }))]

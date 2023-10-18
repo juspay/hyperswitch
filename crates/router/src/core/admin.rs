@@ -892,6 +892,7 @@ pub async fn update_payment_connector(
         connector_type: Some(req.connector_type),
         connector_name: None,
         merchant_connector_id: None,
+        connector_label: req.connector_label,
         connector_account_details: req
             .connector_account_details
             .async_lift(|inner| {
