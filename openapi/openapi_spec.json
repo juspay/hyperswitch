@@ -9738,6 +9738,14 @@
             "description": "The business profile that is associated with this payment",
             "nullable": true
           },
+          "surcharge_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/RequestSurchargeDetails"
+              }
+            ],
+            "nullable": true
+          },
           "attempt_count": {
             "type": "integer",
             "format": "int32",

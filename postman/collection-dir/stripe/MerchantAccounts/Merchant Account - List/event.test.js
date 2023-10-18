@@ -1,10 +1,10 @@
 // Validate status 2xx
-pm.test("[POST]::/accounts - Status code is 2xx", function () {
+pm.test("[GET]::/accounts/list - Status code is 2xx", function () {
   pm.response.to.be.success;
 });
 
 // Validate if response header has matching content-type
-pm.test("[POST]::/accounts - Content-Type is application/json", function () {
+pm.test("[GET]::/accounts/list - Content-Type is application/json", function () {
   pm.expect(pm.response.headers.get("Content-Type")).to.include(
     "application/json",
   );
@@ -15,19 +15,6 @@ let jsonData = {};
 try {
   jsonData = pm.response.json();
 } catch (e) { }
-
-// pm.collectionVariables - Set merchant_id as variable for jsonData.merchant_id
-if (jsonData?.merchant_id) {
-  pm.collectionVariables.set("merchant_id", jsonData.merchant_id);
-  console.log(
-    "- use {{merchant_id}} as collection variable for value",
-    jsonData.merchant_id,
-  );
-} else {
-  console.log(
-    "INFO - Unable to assign variable {{merchant_id}}, as jsonData.merchant_id is undefined.",
-  );
-}
 
 // pm.collectionVariables - Set api_key as variable for jsonData.api_key
 if (jsonData?.api_key) {
@@ -52,18 +39,5 @@ if (jsonData?.publishable_key) {
 } else {
   console.log(
     "INFO - Unable to assign variable {{publishable_key}}, as jsonData.publishable_key is undefined.",
-  );
-}
-
-// pm.collectionVariables - Set merchant_id as variable for jsonData.merchant_id
-if (jsonData?.merchant_id) {
-  pm.collectionVariables.set("organization_id", jsonData.organization_id);
-  console.log(
-    "- use {{organization_id}} as collection variable for value",
-    jsonData.organization_id,
-  );
-} else {
-  console.log(
-    "INFO - Unable to assign variable {{organization_id}}, as jsonData.organization_id is undefined.",
   );
 }

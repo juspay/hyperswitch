@@ -34,7 +34,6 @@ use crate::{
         errors::{self, CustomResult},
         payments,
     },
-    events::api_logs::ApiEvent,
     logger,
     routes::{
         app::AppStateInfo,
@@ -95,6 +94,14 @@ pub trait ConnectorValidation: ConnectorCommon {
 
     fn is_webhook_source_verification_mandatory(&self) -> bool {
         false
+    }
+
+    fn validate_if_surcharge_implemented(&self) -> CustomResult<(), errors::ConnectorError> {
+        Err(errors::ConnectorError::NotImplemented(format!(
+            "Surcharge not implemented for {}",
+            self.id()
+        ))
+        .into())
     }
 }
 
@@ -753,10 +760,11 @@ where
     Q: Serialize + Debug + 'a,
     T: Debug,
     A: AppStateInfo + Clone,
-    U: AuthInfo,
-    E: ErrorSwitch<OErr> + error_stack::Context,
-    OErr: ResponseError + error_stack::Context,
-    errors::ApiErrorResponse: ErrorSwitch<OErr>,
+    U: auth::AuthInfo,
+    CustomResult<ApplicationResponse<Q>, E>: ReportSwitchExt<ApplicationResponse<Q>, OErr>,
+    CustomResult<U, errors::ApiErrorResponse>: ReportSwitchExt<U, OErr>,
+    CustomResult<(), errors::ApiErrorResponse>: ReportSwitchExt<(), OErr>,
+    OErr: ResponseError + Sync + Send + 'static,
 {
     let request_id = RequestId::extract(request)
         .await
