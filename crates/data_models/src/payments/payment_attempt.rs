@@ -250,6 +250,8 @@ pub enum PaymentAttemptUpdate {
         error_code: Option<Option<String>>,
         error_message: Option<Option<String>>,
         amount_capturable: Option<i64>,
+        surcharge_amount: Option<i64>,
+        tax_amount: Option<i64>,
         updated_by: String,
     },
     RejectUpdate {
@@ -305,11 +307,6 @@ pub enum PaymentAttemptUpdate {
     },
     MultipleCaptureCountUpdate {
         multiple_capture_count: i16,
-        updated_by: String,
-    },
-    SurchargeAmountUpdate {
-        surcharge_amount: Option<i64>,
-        tax_amount: Option<i64>,
         updated_by: String,
     },
     AmountToCaptureUpdate {
