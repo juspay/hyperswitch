@@ -19,6 +19,7 @@ pub struct ReverseLookup {
     pub pk_id: String,
     /// the source of insertion for reference
     pub source: String,
+    pub updated_by: String,
 }
 
 #[derive(
@@ -37,6 +38,7 @@ pub struct ReverseLookupNew {
     pub pk_id: String,
     pub sk_id: String,
     pub source: String,
+    pub updated_by: String,
 }
 
 impl From<ReverseLookupNew> for ReverseLookup {
@@ -46,6 +48,7 @@ impl From<ReverseLookupNew> for ReverseLookup {
             sk_id: new.sk_id,
             pk_id: new.pk_id,
             source: new.source,
+            updated_by: new.updated_by,
         }
     }
 }

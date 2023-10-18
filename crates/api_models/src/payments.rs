@@ -226,6 +226,7 @@ pub struct PaymentsRequest {
         "product_name": "gillete creme",
         "quantity": 15,
         "amount" : 900
+        "product_img_link" : "https://dummy-img-link.com"
     }]"#)]
     pub order_details: Option<Vec<OrderDetailsWithAmount>>,
 
@@ -2418,6 +2419,8 @@ pub struct OrderDetailsWithAmount {
     pub quantity: u16,
     /// the amount per quantity of product
     pub amount: i64,
+    /// The image URL of the product
+    pub product_img_link: Option<String>,
 }
 
 #[derive(Debug, Default, Eq, PartialEq, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
@@ -2428,6 +2431,8 @@ pub struct OrderDetails {
     /// The quantity of the product to be purchased
     #[schema(example = 1)]
     pub quantity: u16,
+    /// The image URL of the product
+    pub product_img_link: Option<String>,
 }
 
 #[derive(Default, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
@@ -3119,4 +3124,20 @@ pub struct RetrievePaymentLinkResponse {
 pub struct PaymentLinkInitiateRequest {
     pub merchant_id: String,
     pub payment_id: String,
+}
+
+#[derive(Debug, serde::Serialize)]
+pub struct PaymentLinkDetails {
+    pub amount: i64,
+    pub currency: api_enums::Currency,
+    pub pub_key: String,
+    pub client_secret: String,
+    pub payment_id: String,
+    #[serde(with = "common_utils::custom_serde::iso8601")]
+    pub expiry: PrimitiveDateTime,
+    pub merchant_logo: String,
+    pub return_url: String,
+    pub merchant_name: crypto::OptionalEncryptableName,
+    pub order_details: Vec<pii::SecretSerdeValue>,
+    pub max_items_visible_after_collapse: i8,
 }

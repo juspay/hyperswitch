@@ -1,6 +1,9 @@
-pub use diesel_models::connector_response::{
-    ConnectorResponse, ConnectorResponseNew, ConnectorResponseUpdate,
-    ConnectorResponseUpdateInternal,
+pub use diesel_models::{
+    connector_response::{
+        ConnectorResponse, ConnectorResponseNew, ConnectorResponseUpdate,
+        ConnectorResponseUpdateInternal,
+    },
+    enums::MerchantStorageScheme,
 };
 
 pub trait ConnectorResponseExt {
@@ -9,6 +12,7 @@ pub trait ConnectorResponseExt {
         merchant_id: String,
         attempt_id: String,
         connector: Option<String>,
+        storage_scheme: String,
     ) -> ConnectorResponseNew;
 }
 
@@ -18,6 +22,7 @@ impl ConnectorResponseExt for ConnectorResponse {
         merchant_id: String,
         attempt_id: String,
         connector: Option<String>,
+        storage_scheme: String,
     ) -> ConnectorResponseNew {
         let now = common_utils::date_time::now();
         ConnectorResponseNew {
@@ -30,6 +35,7 @@ impl ConnectorResponseExt for ConnectorResponse {
             connector_transaction_id: None,
             authentication_data: None,
             encoded_data: None,
+            updated_by: storage_scheme,
         }
     }
 }
