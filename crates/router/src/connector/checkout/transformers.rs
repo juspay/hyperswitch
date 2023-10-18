@@ -295,7 +295,6 @@ impl TryFrom<&CheckoutRouterData<&types::PaymentsAuthorizeRouterData>> for Payme
                 }
                 api_models::payments::WalletData::ApplePay(_applepay_data) => {
                     let payment_method_token = item.router_data.get_payment_method_token()?;
-                    let apple_pay_decrypt_data =
                         if let Some(types::PaymentMethodToken::ApplePayDecrypt(decrypt_data)) =
                             Some(payment_method_token.clone())
                         {
@@ -341,8 +340,7 @@ impl TryFrom<&CheckoutRouterData<&types::PaymentsAuthorizeRouterData>> for Payme
                                     }
                                 },
                             }))
-                        };
-                    apple_pay_decrypt_data
+                        }
                 }
                 api_models::payments::WalletData::AliPayQr(_)
                 | api_models::payments::WalletData::AliPayRedirect(_)
