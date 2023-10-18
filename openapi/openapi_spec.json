@@ -8658,7 +8658,7 @@
           "routing": {
             "allOf": [
               {
-                "$ref": "#/components/schemas/RoutingAlgorithm"
+                "$ref": "#/components/schemas/StraightThroughAlgorithm"
               }
             ],
             "nullable": true
@@ -9022,7 +9022,7 @@
           "routing": {
             "allOf": [
               {
-                "$ref": "#/components/schemas/RoutingAlgorithm"
+                "$ref": "#/components/schemas/StraightThroughAlgorithm"
               }
             ],
             "nullable": true
@@ -10946,17 +10946,6 @@
           }
         }
       },
-      "RoutingAlgorithm": {
-        "type": "string",
-        "description": "The routing algorithm to be used to process the incoming request from merchant to outgoing payment processor or payment method. The default is 'Custom'",
-        "enum": [
-          "round_robin",
-          "max_conversion",
-          "min_cost",
-          "custom"
-        ],
-        "example": "custom"
-      },
       "SamsungPayWalletData": {
         "type": "object",
         "required": [
@@ -11209,6 +11198,31 @@
           "initiative_context": {
             "type": "string"
           }
+        }
+      },
+      "StraightThroughAlgorithm": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "type",
+              "data"
+            ],
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": [
+                  "single"
+                ]
+              },
+              "data": {
+                "$ref": "#/components/schemas/api_enums.RoutableConnectors"
+              }
+            }
+          }
+        ],
+        "discriminator": {
+          "propertyName": "type"
         }
       },
       "SwishQrData": {
