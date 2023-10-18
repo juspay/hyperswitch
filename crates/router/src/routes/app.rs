@@ -144,7 +144,7 @@ impl AppState {
             #[cfg(feature = "kms")]
             kms_secrets: Arc::new(kms_secrets),
             api_client,
-            event_handler: Box::new(EventLogger::default()),
+            event_handler: Box::<EventLogger>::default(),
         }
     }
 
