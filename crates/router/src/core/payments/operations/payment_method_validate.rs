@@ -217,7 +217,7 @@ impl<F: Clone, Ctx: PaymentMethodRetrieve> UpdateTracker<F, PaymentData<F>, api:
     #[instrument(skip_all)]
     async fn update_trackers<'b>(
         &'b self,
-        db: &dyn StorageInterface,
+        state: AppState,
         mut payment_data: PaymentData<F>,
         _customer: Option<domain::Customer>,
         storage_scheme: storage_enums::MerchantStorageScheme,
@@ -232,6 +232,7 @@ impl<F: Clone, Ctx: PaymentMethodRetrieve> UpdateTracker<F, PaymentData<F>, api:
     where
         F: 'b + Send,
     {
+        let db = state.store;
         // There is no fsm involved in this operation all the change of states must happen in a single request
         let status = Some(storage_enums::IntentStatus::Processing);
 

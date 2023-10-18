@@ -153,7 +153,7 @@ pub trait Domain<F: Clone, R, Ctx: PaymentMethodRetrieve>: Send + Sync {
 pub trait UpdateTracker<F, D, Req, Ctx: PaymentMethodRetrieve>: Send {
     async fn update_trackers<'b>(
         &'b self,
-        db: &dyn StorageInterface,
+        state: AppState,
         payment_data: D,
         customer: Option<domain::Customer>,
         storage_scheme: enums::MerchantStorageScheme,
@@ -170,7 +170,7 @@ pub trait UpdateTracker<F, D, Req, Ctx: PaymentMethodRetrieve>: Send {
 pub trait PostUpdateTracker<F, D, R>: Send {
     async fn update_tracker<'b>(
         &'b self,
-        db: &dyn StorageInterface,
+        state: AppState,
         payment_id: &api::PaymentIdType,
         payment_data: D,
         response: types::RouterData<F, R, PaymentsResponseData>,

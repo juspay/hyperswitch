@@ -14,7 +14,7 @@ use crate::{
         payment_methods::PaymentMethodRetrieve,
         payments::{helpers, operations, CustomerDetails, PaymentAddress, PaymentData},
     },
-    db::StorageInterface,
+    
     routes::AppState,
     services,
     types::{
@@ -187,7 +187,7 @@ impl<F: Clone, Ctx: PaymentMethodRetrieve>
     #[instrument(skip_all)]
     async fn update_trackers<'b>(
         &'b self,
-        db: &dyn StorageInterface,
+        state: AppState,
         mut payment_data: PaymentData<F>,
         _customer: Option<domain::Customer>,
         storage_scheme: enums::MerchantStorageScheme,
@@ -202,6 +202,7 @@ impl<F: Clone, Ctx: PaymentMethodRetrieve>
     where
         F: 'b + Send,
     {
+        let db = state.store;
         let cancellation_reason = payment_data.payment_attempt.cancellation_reason.clone();
         let (intent_status_update, attempt_status_update) =
             if payment_data.payment_intent.status != enums::IntentStatus::RequiresCapture {

@@ -347,7 +347,7 @@ impl<F: Clone, Ctx: PaymentMethodRetrieve>
     #[instrument(skip_all)]
     async fn update_trackers<'b>(
         &'b self,
-        db: &dyn StorageInterface,
+        state: AppState,
         mut payment_data: PaymentData<F>,
         _customer: Option<domain::Customer>,
         storage_scheme: storage_enums::MerchantStorageScheme,
@@ -362,6 +362,7 @@ impl<F: Clone, Ctx: PaymentMethodRetrieve>
     where
         F: 'b + Send,
     {
+        let db = state.store;
         let intent_status_update = storage::PaymentIntentUpdate::ApproveUpdate {
             merchant_decision: Some(api_models::enums::MerchantDecision::Approved.to_string()),
         };

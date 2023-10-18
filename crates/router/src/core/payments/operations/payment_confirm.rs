@@ -49,7 +49,6 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
         PaymentData<F>,
         Option<CustomerDetails>,
     )> {
-        
         let db = &*state.store;
         let merchant_id = &merchant_account.merchant_id;
         let storage_scheme = merchant_account.storage_scheme;
@@ -130,55 +129,87 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
         // Stage 2
 
         let attempt_id = payment_intent.active_attempt.get_id();
-        let payment_attempt_fut = db
-            .find_payment_attempt_by_payment_id_merchant_id_attempt_id(
-                payment_intent.payment_id.as_str(),
-                merchant_id,
-                attempt_id.as_str(),
-                storage_scheme,
+
+        let m_payment_id = payment_intent.payment_id.clone();
+        let m_merchant_id = merchant_id.clone();
+        let m_db = state.clone().store;
+        let m_attempt_id = attempt_id.clone();
+        let payment_attempt_fut = tokio::spawn(async move {
+            m_db.find_payment_attempt_by_payment_id_merchant_id_attempt_id(
+                m_payment_id.as_str(),
+                m_merchant_id.as_str(),
+                m_attempt_id.as_str(),
+                m_storage_scheme,
             )
-            .map(|x| x.to_not_found_response(errors::ApiErrorResponse::PaymentNotFound));
+            .map(|x| x.to_not_found_response(errors::ApiErrorResponse::PaymentNotFound))
+            .await
+        });
 
-        let shipping_address_fut = helpers::create_or_find_address_for_payment_by_request(
-            db,
-            request.shipping.as_ref(),
-            payment_intent.shipping_address_id.as_deref(),
-            merchant_id,
-            payment_intent
-                .customer_id
-                .as_ref()
-                .or(customer_details.customer_id.as_ref()),
-            key_store,
-            &payment_intent.payment_id,
-            merchant_account.storage_scheme,
-        );
+        let m_merchant_id = merchant_id.clone();
+        let m_db = state.clone().store;
+        let m_request_shipping = request.shipping.clone();
+        let m_payment_intent_shipping_address_id = payment_intent.shipping_address_id.clone();
+        let m_customer_details_customer_id = customer_details.customer_id.clone();
+        let m_payment_intent_customer_id = payment_intent.customer_id.clone();
+        let m_payment_intent_payment_id = payment_intent.payment_id.clone();
+        let m_key_store = key_store.clone();
+        let shipping_address_fut = tokio::spawn(async move {
+            helpers::create_or_find_address_for_payment_by_request(
+                m_db.as_ref(),
+                m_request_shipping.as_ref(),
+                m_payment_intent_shipping_address_id.as_deref(),
+                m_merchant_id.as_ref(),
+                m_payment_intent_customer_id
+                    .as_ref()
+                    .or(m_customer_details_customer_id.as_ref()),
+                &m_key_store,
+                m_payment_intent_payment_id.as_ref(),
+                m_storage_scheme,
+            )
+            .await
+        });
 
-        let billing_address_fut = helpers::create_or_find_address_for_payment_by_request(
-            db,
-            request.billing.as_ref(),
-            payment_intent.billing_address_id.as_deref(),
-            merchant_id,
-            payment_intent
-                .customer_id
-                .as_ref()
-                .or(customer_details.customer_id.as_ref()),
-            key_store,
-            &payment_intent.payment_id,
-            merchant_account.storage_scheme,
-        );
+        let m_payment_id = payment_intent.payment_id.clone();
+        let m_merchant_id = merchant_id.clone();
+        let m_db = state.clone().store;
+        let m_request_billing = request.billing.clone();
+        let m_customer_details_customer_id = customer_details.customer_id.clone();
+        let m_payment_intent_customer_id = payment_intent.customer_id.clone();
+        let m_key_store = key_store.clone();
+        let m_payment_intent_billing_address_id = payment_intent.billing_address_id.clone();
+        let billing_address_fut = tokio::spawn(async move {
+            helpers::create_or_find_address_for_payment_by_request(
+                m_db.as_ref(),
+                m_request_billing.as_ref(),
+                m_payment_intent_billing_address_id.as_deref(),
+                m_merchant_id.as_ref(),
+                m_payment_intent_customer_id
+                    .as_ref()
+                    .or(m_customer_details_customer_id.as_ref()),
+                &m_key_store,
+                m_payment_id.as_ref(),
+                m_storage_scheme,
+            )
+            .await
+        });
 
-        let config_update_fut = request
-            .merchant_connector_details
-            .to_owned()
-            .async_map(|mcd| async {
-                helpers::insert_merchant_connector_creds_to_config(
-                    db,
-                    merchant_account.merchant_id.as_str(),
-                    mcd,
-                )
+        let m_merchant_id = merchant_id.clone();
+        let m_db = state.clone().store;
+        let m_request_merchant_connector_details = request.merchant_connector_details.clone();
+
+        let config_update_fut = tokio::spawn(async move {
+            m_request_merchant_connector_details
+                .async_map(|mcd| async {
+                    helpers::insert_merchant_connector_creds_to_config(
+                        m_db.as_ref(),
+                        m_merchant_id.as_str(),
+                        mcd,
+                    )
+                    .await
+                })
+                .map(|x| x.transpose())
                 .await
-            })
-            .map(|x| x.transpose());
+        });
 
         let (mut payment_attempt, shipping_address, billing_address, connector_response) =
             match payment_intent.status {
@@ -189,13 +220,23 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
                     let attempt_type = helpers::AttemptType::SameOld;
 
                     let attempt_id = payment_intent.active_attempt.get_id();
-                    let connector_response_fut = attempt_type.get_connector_response(
-                        db,
-                        &payment_intent.payment_id,
-                        &payment_intent.merchant_id,
-                        attempt_id.as_str(),
-                        storage_scheme,
-                    );
+
+                    
+                    let m_db = state.clone().store;
+                    let m_attempt_id = attempt_id.clone();
+                    let m_payment_intent_payment_id = payment_intent.payment_id.clone();
+                    let m_payment_intent_merchant_id = payment_intent.merchant_id.clone();
+                    let connector_response_fut = tokio::spawn(async move {
+                        attempt_type
+                            .get_connector_response(
+                                m_db.as_ref(),
+                                &m_payment_intent_payment_id,
+                                &m_payment_intent_merchant_id,
+                                m_attempt_id.as_str(),
+                                m_storage_scheme,
+                            )
+                            .await
+                    });
 
                     let (payment_attempt, shipping_address, billing_address, connector_response, _) =
                         futures::try_join!(
@@ -204,22 +245,32 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
                             billing_address_fut,
                             connector_response_fut,
                             config_update_fut
-                        )?;
+                        )
+                        .into_report()
+                        .change_context(errors::ApiErrorResponse::InternalServerError)
+                        .attach_printable("failed join")?;
 
                     (
-                        payment_attempt,
-                        shipping_address,
-                        billing_address,
-                        connector_response,
+                        payment_attempt?,
+                        shipping_address?,
+                        billing_address?,
+                        connector_response?,
                     )
                 }
                 _ => {
-                    let (mut payment_attempt, shipping_address, billing_address, _) = futures::try_join!(
-                        payment_attempt_fut,
-                        shipping_address_fut,
-                        billing_address_fut,
-                        config_update_fut
-                    )?;
+                    let (payment_attempt, shipping_address, billing_address, _) =
+                        futures::try_join!(
+                            payment_attempt_fut,
+                            shipping_address_fut,
+                            billing_address_fut,
+                            config_update_fut
+                        )
+                        .into_report()
+                        .change_context(errors::ApiErrorResponse::InternalServerError)
+                        .attach_printable("failed join")?;
+
+                    let (mut payment_attempt, shipping_address, billing_address) =
+                        (payment_attempt?, shipping_address?, billing_address?);
 
                     let attempt_type = helpers::get_attempt_type(
                         &payment_intent,
@@ -482,7 +533,7 @@ impl<F: Clone, Ctx: PaymentMethodRetrieve>
     #[instrument(skip_all)]
     async fn update_trackers<'b>(
         &'b self,
-        db: &dyn StorageInterface,
+        state: AppState,
         mut payment_data: PaymentData<F>,
         customer: Option<domain::Customer>,
         storage_scheme: storage_enums::MerchantStorageScheme,
@@ -497,6 +548,8 @@ impl<F: Clone, Ctx: PaymentMethodRetrieve>
     where
         F: 'b + Send,
     {
+
+        let db = state.store;
         let payment_method = payment_data.payment_attempt.payment_method;
         let browser_info = payment_data.payment_attempt.browser_info.clone();
         let frm_message = payment_data.frm_message.clone();
@@ -536,7 +589,7 @@ impl<F: Clone, Ctx: PaymentMethodRetrieve>
             .payment_method_data
             .as_ref()
             .async_map(|payment_method_data| async {
-                helpers::get_additional_payment_data(payment_method_data, db).await
+                helpers::get_additional_payment_data(payment_method_data, db.as_ref()).await
             })
             .await
             .as_ref()
@@ -568,73 +621,124 @@ impl<F: Clone, Ctx: PaymentMethodRetrieve>
         let order_details = payment_data.payment_intent.order_details.clone();
         let metadata = payment_data.payment_intent.metadata.clone();
         let authorized_amount = payment_data.payment_attempt.amount;
-        let payment_attempt_fut = db
-            .update_payment_attempt_with_attempt_id(
-                payment_data.payment_attempt,
+
+        let m_payment_data_payment_attempt = payment_data.payment_attempt.clone();
+        let m_payment_data_amount = payment_data.amount.clone();
+        let m_payment_data_currency = payment_data.currency.clone();
+        let m_payment_method = payment_method.clone();
+        let m_authentication_type = authentication_type.clone();
+        let m_browser_info = browser_info.clone();
+        let m_connector = connector.clone();
+        let m_payment_token = payment_token.clone();
+        let m_additional_pm_data = additional_pm_data.clone();
+        let m_payment_method_type = payment_method_type.clone();
+        let m_payment_experience = payment_experience.clone();
+        let m_business_sub_label = business_sub_label.clone();
+        let m_straight_through_algorithm = straight_through_algorithm.clone();
+        let m_error_code = error_code.clone();
+        let m_error_message = error_message.clone();
+        let m_db = db.clone();
+        let payment_attempt_fut = tokio::spawn(async move {
+            m_db.update_payment_attempt_with_attempt_id(
+                m_payment_data_payment_attempt,
                 storage::PaymentAttemptUpdate::ConfirmUpdate {
-                    amount: payment_data.amount.into(),
-                    currency: payment_data.currency,
+                    amount: m_payment_data_amount.into(),
+                    currency: m_payment_data_currency,
                     status: attempt_status,
-                    payment_method,
-                    authentication_type,
-                    browser_info,
-                    connector,
-                    payment_token,
-                    payment_method_data: additional_pm_data,
-                    payment_method_type,
-                    payment_experience,
-                    business_sub_label,
-                    straight_through_algorithm,
-                    error_code,
-                    error_message,
+                    payment_method: m_payment_method,
+                    authentication_type: m_authentication_type,
+                    browser_info: m_browser_info,
+                    connector: m_connector,
+                    payment_token: m_payment_token,
+                    payment_method_data: m_additional_pm_data,
+                    payment_method_type: m_payment_method_type,
+                    payment_experience: m_payment_experience,
+                    business_sub_label: m_business_sub_label,
+                    straight_through_algorithm: m_straight_through_algorithm,
+                    error_code: m_error_code,
+                    error_message: m_error_message,
                     amount_capturable: Some(authorized_amount),
                 },
                 storage_scheme,
             )
-            .map(|x| x.to_not_found_response(errors::ApiErrorResponse::PaymentNotFound));
+            .map(|x| x.to_not_found_response(errors::ApiErrorResponse::PaymentNotFound))
+            .await
+        });
 
-        let payment_intent_fut = db
-            .update_payment_intent(
-                payment_data.payment_intent,
+        let m_payment_data_payment_intent = payment_data.payment_intent.clone();
+        let m_setup_future_usage = setup_future_usage.clone();
+
+        let m_customer_id = customer_id.clone();
+        let m_shipping_address_id = shipping_address.clone();
+        let m_billing_address_id = billing_address.clone();
+        let m_return_url = return_url.clone();
+        let m_business_country = business_country.clone();
+        let m_business_label = business_label.clone();
+        let m_description = description.clone();
+        let m_statement_descriptor_name = statement_descriptor_name.clone();
+        let m_statement_descriptor_suffix = statement_descriptor_suffix.clone();
+        let m_order_details = order_details.clone();
+        let m_metadata = metadata.clone();
+        let m_header_payload_payment_confirm_source = header_payload.payment_confirm_source.clone();
+        let m_db = db.clone();
+        let payment_intent_fut = tokio::spawn(async move {
+            m_db.update_payment_intent(
+                m_payment_data_payment_intent,
                 storage::PaymentIntentUpdate::Update {
                     amount: payment_data.amount.into(),
                     currency: payment_data.currency,
-                    setup_future_usage,
+                    setup_future_usage: m_setup_future_usage,
                     status: intent_status,
-                    customer_id,
-                    shipping_address_id: shipping_address,
-                    billing_address_id: billing_address,
-                    return_url,
-                    business_country,
-                    business_label,
-                    description,
-                    statement_descriptor_name,
-                    statement_descriptor_suffix,
-                    order_details,
-                    metadata,
-                    payment_confirm_source: header_payload.payment_confirm_source,
+                    customer_id: m_customer_id,
+                    shipping_address_id: m_shipping_address_id,
+                    billing_address_id: m_billing_address_id,
+                    return_url: m_return_url,
+                    business_country: m_business_country,
+                    business_label: m_business_label,
+                    description: m_description,
+                    statement_descriptor_name: m_statement_descriptor_name,
+                    statement_descriptor_suffix: m_statement_descriptor_suffix,
+                    order_details: m_order_details,
+                    metadata: m_metadata,
+                    payment_confirm_source: m_header_payload_payment_confirm_source,
                 },
                 storage_scheme,
             )
-            .map(|x| x.to_not_found_response(errors::ApiErrorResponse::PaymentNotFound));
+            .map(|x| x.to_not_found_response(errors::ApiErrorResponse::PaymentNotFound))
+            .await
+        });
 
-        let customer_fut = Box::pin(async {
-            if let Some((updated_customer, customer)) = updated_customer.zip(customer) {
-                db.update_customer_by_customer_id_merchant_id(
-                    customer.customer_id.to_owned(),
-                    customer.merchant_id.to_owned(),
-                    updated_customer,
-                    key_store,
+        let customer_fut = if let Some((updated_customer, customer)) =
+            updated_customer.zip(customer)
+        {
+            let m_customer_customer_id = customer.customer_id.to_owned();
+            let m_customer_merchant_id = customer.merchant_id.to_owned();
+            let m_key_store = key_store.clone();
+            let m_updated_customer = updated_customer.clone();
+            let m_db = db.clone();
+            tokio::spawn(async move {
+                m_db.update_customer_by_customer_id_merchant_id(
+                    m_customer_customer_id,
+                    m_customer_merchant_id,
+                    m_updated_customer,
+                    &m_key_store,
                 )
                 .await
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("Failed to update CustomerConnector in customer")?;
-            };
-            Ok::<_, error_stack::Report<errors::ApiErrorResponse>>(())
-        });
+
+                Ok::<_, error_stack::Report<errors::ApiErrorResponse>>(())
+            })
+        } else {
+            tokio::spawn(async move { Ok::<_, error_stack::Report<errors::ApiErrorResponse>>(()) })
+        };
 
         let (payment_intent, payment_attempt, _) =
-            futures::try_join!(payment_intent_fut, payment_attempt_fut, customer_fut)?;
+            futures::try_join!(payment_intent_fut, payment_attempt_fut, customer_fut)
+                .into_report()
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("failed join")?;
+        let (payment_intent, payment_attempt) = (payment_intent?, payment_attempt?);
         payment_data.payment_intent = payment_intent;
         payment_data.payment_attempt = payment_attempt;
 

@@ -2816,7 +2816,7 @@ pub fn get_attempt_type(
     }
 }
 
-#[derive(Debug, Eq, PartialEq, Clone)]
+#[derive(Debug, Eq, PartialEq, Clone, Copy)]
 pub enum AttemptType {
     New,
     SameOld,

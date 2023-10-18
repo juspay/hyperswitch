@@ -433,7 +433,7 @@ impl<F: Clone, Ctx: PaymentMethodRetrieve>
     #[instrument(skip_all)]
     async fn update_trackers<'b>(
         &'b self,
-        db: &dyn StorageInterface,
+        state: AppState,
         mut payment_data: PaymentData<F>,
         customer: Option<domain::Customer>,
         storage_scheme: storage_enums::MerchantStorageScheme,
@@ -448,6 +448,7 @@ impl<F: Clone, Ctx: PaymentMethodRetrieve>
     where
         F: 'b + Send,
     {
+        let db = state.store;
         let is_payment_method_unavailable =
             payment_data.payment_attempt.payment_method_id.is_none()
                 && payment_data.payment_intent.status
@@ -467,7 +468,7 @@ impl<F: Clone, Ctx: PaymentMethodRetrieve>
             .payment_method_data
             .as_ref()
             .async_map(|payment_method_data| async {
-                helpers::get_additional_payment_data(payment_method_data, db).await
+                helpers::get_additional_payment_data(payment_method_data, db.as_ref()).await
             })
             .await
             .as_ref()
