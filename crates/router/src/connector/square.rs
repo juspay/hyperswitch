@@ -37,7 +37,7 @@ pub struct Square;
 impl api::Payment for Square {}
 impl api::PaymentSession for Square {}
 impl api::ConnectorAccessToken for Square {}
-impl api::PreVerify for Square {}
+impl api::MandateSetup for Square {}
 impl api::PaymentAuthorize for Square {}
 impl api::PaymentSync for Square {}
 impl api::PaymentCapture for Square {}
@@ -153,8 +153,12 @@ impl ConnectorIntegration<api::AccessTokenAuth, types::AccessTokenRequestData, t
 {
 }
 
-impl ConnectorIntegration<api::Verify, types::VerifyRequestData, types::PaymentsResponseData>
-    for Square
+impl
+    ConnectorIntegration<
+        api::SetupMandate,
+        types::SetupMandateRequestData,
+        types::PaymentsResponseData,
+    > for Square
 {
 }
 
@@ -424,7 +428,6 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         req: &types::PaymentsAuthorizeRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
-        self.validate_capture_method(req.request.capture_method)?;
         Ok(Some(
             services::RequestBuilder::new()
                 .method(services::Method::Post)
@@ -828,6 +831,7 @@ impl api::IncomingWebhook for Square {
     fn get_webhook_source_verification_signature(
         &self,
         request: &api::IncomingWebhookRequestDetails<'_>,
+        _connector_webhook_secrets: &api_models::webhooks::ConnectorWebhookSecrets,
     ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
         let encoded_signature =
             super_utils::get_header_key_value("x-square-hmacsha256-signature", request.headers)?;
@@ -842,9 +846,24 @@ impl api::IncomingWebhook for Square {
         &self,
         request: &api::IncomingWebhookRequestDetails<'_>,
         _merchant_id: &str,
-        _secret: &[u8],
+        _connector_webhook_secrets: &api_models::webhooks::ConnectorWebhookSecrets,
     ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
-        Ok(format!("{}{}", request.uri, String::from_utf8_lossy(request.body)).into_bytes())
+        let header_value = request
+            .headers
+            .get(actix_web::http::header::HOST)
+            .ok_or(errors::ConnectorError::WebhookSourceVerificationFailed)?;
+        let authority = header_value
+            .to_str()
+            .into_report()
+            .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
+
+        Ok(format!(
+            "https://{}{}{}",
+            authority,
+            request.uri,
+            String::from_utf8_lossy(request.body)
+        )
+        .into_bytes())
     }
 
     fn get_webhook_object_reference_id(

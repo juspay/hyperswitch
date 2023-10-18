@@ -4,9 +4,11 @@
     "Session Token",
     "Payments - Update",
     "Payments - Retrieve",
-    "Payments - Confirm",
+    "Payments - Confirm (Through Client Secret)",
     "Payments - Capture",
     "Payments - Create Again",
+    "Payments - Confirm Again (Through API Key)",
+    "Payments - Create Yet Again",
     "Payments - Cancel",
     "Payment-List"
   ],

@@ -34,7 +34,7 @@ impl api::Payment for Coinbase {}
 impl api::PaymentToken for Coinbase {}
 impl api::PaymentSession for Coinbase {}
 impl api::ConnectorAccessToken for Coinbase {}
-impl api::PreVerify for Coinbase {}
+impl api::MandateSetup for Coinbase {}
 impl api::PaymentAuthorize for Coinbase {}
 impl api::PaymentSync for Coinbase {}
 impl api::PaymentCapture for Coinbase {}
@@ -148,8 +148,12 @@ impl ConnectorIntegration<api::AccessTokenAuth, types::AccessTokenRequestData, t
 {
 }
 
-impl ConnectorIntegration<api::Verify, types::VerifyRequestData, types::PaymentsResponseData>
-    for Coinbase
+impl
+    ConnectorIntegration<
+        api::SetupMandate,
+        types::SetupMandateRequestData,
+        types::PaymentsResponseData,
+    > for Coinbase
 {
 }
 
@@ -194,7 +198,6 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         req: &types::PaymentsAuthorizeRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
-        self.validate_capture_method(req.request.capture_method)?;
         Ok(Some(
             services::RequestBuilder::new()
                 .method(services::Method::Post)
@@ -358,6 +361,7 @@ impl api::IncomingWebhook for Coinbase {
     fn get_webhook_source_verification_signature(
         &self,
         request: &api::IncomingWebhookRequestDetails<'_>,
+        _connector_webhook_secrets: &api_models::webhooks::ConnectorWebhookSecrets,
     ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
         let base64_signature =
             utils::get_header_key_value("X-CC-Webhook-Signature", request.headers)?;
@@ -370,7 +374,7 @@ impl api::IncomingWebhook for Coinbase {
         &self,
         request: &api::IncomingWebhookRequestDetails<'_>,
         _merchant_id: &str,
-        _secret: &[u8],
+        _connector_webhook_secrets: &api_models::webhooks::ConnectorWebhookSecrets,
     ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
         let message = std::str::from_utf8(request.body)
             .into_report()

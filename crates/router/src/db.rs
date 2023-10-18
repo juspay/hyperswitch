@@ -17,6 +17,7 @@ pub mod mandate;
 pub mod merchant_account;
 pub mod merchant_connector_account;
 pub mod merchant_key_store;
+pub mod payment_link;
 pub mod payment_method;
 pub mod payout_attempt;
 pub mod payouts;
@@ -27,9 +28,10 @@ use data_models::payments::{
     payment_attempt::PaymentAttemptInterface, payment_intent::PaymentIntentInterface,
 };
 use masking::PeekInterface;
+use redis_interface::errors::RedisError;
 use storage_impl::{redis::kv_store::RedisConnInterface, MockDb};
 
-use crate::services::Store;
+use crate::{errors::CustomResult, services::Store};
 
 #[derive(PartialEq, Eq)]
 pub enum StorageImpl {
@@ -70,6 +72,7 @@ pub trait StorageInterface:
     + cards_info::CardsInfoInterface
     + merchant_key_store::MerchantKeyStoreInterface
     + MasterKeyInterface
+    + payment_link::PaymentLinkInterface
     + RedisConnInterface
     + business_profile::BusinessProfileInterface
     + 'static
@@ -115,7 +118,7 @@ pub async fn get_and_deserialize_key<T>(
     db: &dyn StorageInterface,
     key: &str,
     type_name: &'static str,
-) -> common_utils::errors::CustomResult<T, redis_interface::errors::RedisError>
+) -> CustomResult<T, RedisError>
 where
     T: serde::de::DeserializeOwned,
 {

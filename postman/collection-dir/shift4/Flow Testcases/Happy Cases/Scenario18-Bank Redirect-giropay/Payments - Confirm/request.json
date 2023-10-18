@@ -1,4 +1,24 @@
 {
+  "auth": {
+    "type": "apikey",
+    "apikey": [
+      {
+        "key": "value",
+        "value": "{{publishable_key}}",
+        "type": "string"
+      },
+      {
+        "key": "key",
+        "value": "api-key",
+        "type": "string"
+      },
+      {
+        "key": "in",
+        "value": "header",
+        "type": "string"
+      }
+    ]
+  },
   "method": "POST",
   "header": [
     {
@@ -18,6 +38,7 @@
       }
     },
     "raw_json_formatted": {
+      "client_secret": "{{client_secret}}",
       "payment_method": "bank_redirect",
       "payment_method_type": "giropay",
       "payment_method_data": {
@@ -36,14 +57,8 @@
   },
   "url": {
     "raw": "{{baseUrl}}/payments/:id/confirm",
-    "host": [
-      "{{baseUrl}}"
-    ],
-    "path": [
-      "payments",
-      ":id",
-      "confirm"
-    ],
+    "host": ["{{baseUrl}}"],
+    "path": ["payments", ":id", "confirm"],
     "variable": [
       {
         "key": "id",

@@ -104,6 +104,8 @@ pub struct DisputeEvidenceBlock {
 pub struct DisputeListConstraints {
     /// limit on the number of objects to return
     pub limit: Option<i64>,
+    /// The identifier for business profile
+    pub profile_id: Option<String>,
     /// status of the dispute
     pub dispute_status: Option<DisputeStatus>,
     /// stage of the dispute

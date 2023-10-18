@@ -12,6 +12,7 @@ use super::{BoxedOperation, Domain, GetTracker, Operation, UpdateTracker, Valida
 use crate::{
     core::{
         errors::{self, CustomResult, RouterResult, StorageErrorExt},
+        payment_methods::PaymentMethodRetrieve,
         payments::{self, helpers, operations, CustomerDetails, PaymentAddress, PaymentData},
     },
     db::StorageInterface,
@@ -30,7 +31,10 @@ use crate::{
 #[operation(ops = "all", flow = "authorize")]
 pub struct PaymentConfirm;
 #[async_trait]
-impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for PaymentConfirm {
+impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
+    GetTracker<F, PaymentData<F>, api::PaymentsRequest, Ctx> for PaymentConfirm
+{
+    #[instrument(skip_all)]
     async fn get_trackers<'a>(
         &'a self,
         state: &'a AppState,
@@ -41,7 +45,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
         key_store: &domain::MerchantKeyStore,
         auth_flow: services::AuthFlow,
     ) -> RouterResult<(
-        BoxedOperation<'a, F, api::PaymentsRequest>,
+        BoxedOperation<'a, F, api::PaymentsRequest, Ctx>,
         PaymentData<F>,
         Option<CustomerDetails>,
     )> {
@@ -84,26 +88,34 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
             "confirm",
         )?;
 
+        let intent_fulfillment_time = helpers::get_merchant_fullfillment_time(
+            payment_intent.payment_link_id.clone(),
+            merchant_account.intent_fulfillment_time,
+            db,
+        )
+        .await?;
+
         helpers::authenticate_client_secret(
             request.client_secret.as_ref(),
             &payment_intent,
-            merchant_account.intent_fulfillment_time,
+            intent_fulfillment_time,
         )?;
 
         let customer_details = helpers::get_customer_details_from_request(request);
 
         // Stage 2
 
+        let attempt_id = payment_intent.active_attempt.get_id();
         let payment_attempt_fut = db
             .find_payment_attempt_by_payment_id_merchant_id_attempt_id(
                 payment_intent.payment_id.as_str(),
                 merchant_id,
-                payment_intent.active_attempt_id.as_str(),
+                attempt_id.as_str(),
                 storage_scheme,
             )
             .map(|x| x.to_not_found_response(errors::ApiErrorResponse::PaymentNotFound));
 
-        let shipping_address_fut = helpers::get_address_for_payment_request(
+        let shipping_address_fut = helpers::create_or_find_address_for_payment_by_request(
             db,
             request.shipping.as_ref(),
             payment_intent.shipping_address_id.as_deref(),
@@ -113,9 +125,11 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
                 .as_ref()
                 .or(customer_details.customer_id.as_ref()),
             key_store,
+            &payment_intent.payment_id,
+            merchant_account.storage_scheme,
         );
 
-        let billing_address_fut = helpers::get_address_for_payment_request(
+        let billing_address_fut = helpers::create_or_find_address_for_payment_by_request(
             db,
             request.billing.as_ref(),
             payment_intent.billing_address_id.as_deref(),
@@ -125,6 +139,8 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
                 .as_ref()
                 .or(customer_details.customer_id.as_ref()),
             key_store,
+            &payment_intent.payment_id,
+            merchant_account.storage_scheme,
         );
 
         let config_update_fut = request
@@ -148,11 +164,12 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
                 | api_models::enums::IntentStatus::RequiresConfirmation => {
                     let attempt_type = helpers::AttemptType::SameOld;
 
+                    let attempt_id = payment_intent.active_attempt.get_id();
                     let connector_response_fut = attempt_type.get_connector_response(
                         db,
                         &payment_intent.payment_id,
                         &payment_intent.merchant_id,
-                        &payment_intent.active_attempt_id,
+                        attempt_id.as_str(),
                         storage_scheme,
                     );
 
@@ -225,7 +242,7 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
             token,
             payment_method,
             payment_method_type,
-            setup_mandate,
+            mut setup_mandate,
             recurring_mandate_payment_data,
             mandate_connector,
         ) = mandate_details;
@@ -313,7 +330,10 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
             .or(payment_attempt.business_sub_label);
 
         // The operation merges mandate data from both request and payment_attempt
-        let setup_mandate = setup_mandate.map(Into::into);
+        setup_mandate = setup_mandate.map(|mut sm| {
+            sm.mandate_type = payment_attempt.mandate_details.clone().or(sm.mandate_type);
+            sm
+        });
 
         Ok((
             Box::new(self),
@@ -348,7 +368,9 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
                 ephemeral_key: None,
                 multiple_capture_data: None,
                 redirect_response: None,
+                surcharge_details: None,
                 frm_message: None,
+                payment_link_data: None,
             },
             Some(customer_details),
         ))
@@ -356,7 +378,9 @@ impl<F: Send + Clone> GetTracker<F, PaymentData<F>, api::PaymentsRequest> for Pa
 }
 
 #[async_trait]
-impl<F: Clone + Send> Domain<F, api::PaymentsRequest> for PaymentConfirm {
+impl<F: Clone + Send, Ctx: PaymentMethodRetrieve> Domain<F, api::PaymentsRequest, Ctx>
+    for PaymentConfirm
+{
     #[instrument(skip_all)]
     async fn get_or_create_customer_details<'a>(
         &'a self,
@@ -366,7 +390,7 @@ impl<F: Clone + Send> Domain<F, api::PaymentsRequest> for PaymentConfirm {
         key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<
         (
-            BoxedOperation<'a, F, api::PaymentsRequest>,
+            BoxedOperation<'a, F, api::PaymentsRequest, Ctx>,
             Option<domain::Customer>,
         ),
         errors::StorageError,
@@ -389,7 +413,7 @@ impl<F: Clone + Send> Domain<F, api::PaymentsRequest> for PaymentConfirm {
         payment_data: &mut PaymentData<F>,
         _storage_scheme: storage_enums::MerchantStorageScheme,
     ) -> RouterResult<(
-        BoxedOperation<'a, F, api::PaymentsRequest>,
+        BoxedOperation<'a, F, api::PaymentsRequest, Ctx>,
         Option<api::PaymentMethodData>,
     )> {
         let (op, payment_method_data) =
@@ -428,7 +452,10 @@ impl<F: Clone + Send> Domain<F, api::PaymentsRequest> for PaymentConfirm {
 }
 
 #[async_trait]
-impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for PaymentConfirm {
+impl<F: Clone, Ctx: PaymentMethodRetrieve>
+    UpdateTracker<F, PaymentData<F>, api::PaymentsRequest, Ctx> for PaymentConfirm
+{
+    #[instrument(skip_all)]
     async fn update_trackers<'b>(
         &'b self,
         db: &dyn StorageInterface,
@@ -439,7 +466,10 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
         key_store: &domain::MerchantKeyStore,
         frm_suggestion: Option<FrmSuggestion>,
         header_payload: api::HeaderPayload,
-    ) -> RouterResult<(BoxedOperation<'b, F, api::PaymentsRequest>, PaymentData<F>)>
+    ) -> RouterResult<(
+        BoxedOperation<'b, F, api::PaymentsRequest, Ctx>,
+        PaymentData<F>,
+    )>
     where
         F: 'b + Send,
     {
@@ -513,7 +543,7 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
             .take();
         let order_details = payment_data.payment_intent.order_details.clone();
         let metadata = payment_data.payment_intent.metadata.clone();
-
+        let authorized_amount = payment_data.payment_attempt.amount;
         let payment_attempt_fut = db
             .update_payment_attempt_with_attempt_id(
                 payment_data.payment_attempt,
@@ -533,6 +563,8 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
                     straight_through_algorithm,
                     error_code,
                     error_message,
+                    amount_capturable: Some(authorized_amount),
+                    updated_by: storage_scheme.to_string(),
                 },
                 storage_scheme,
             )
@@ -558,6 +590,7 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
                     order_details,
                     metadata,
                     payment_confirm_source: header_payload.payment_confirm_source,
+                    updated_by: storage_scheme.to_string(),
                 },
                 storage_scheme,
             )
@@ -587,14 +620,16 @@ impl<F: Clone> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for Paymen
     }
 }
 
-impl<F: Send + Clone> ValidateRequest<F, api::PaymentsRequest> for PaymentConfirm {
+impl<F: Send + Clone, Ctx: PaymentMethodRetrieve> ValidateRequest<F, api::PaymentsRequest, Ctx>
+    for PaymentConfirm
+{
     #[instrument(skip_all)]
     fn validate_request<'a, 'b>(
         &'b self,
         request: &api::PaymentsRequest,
         merchant_account: &'a domain::MerchantAccount,
     ) -> RouterResult<(
-        BoxedOperation<'b, F, api::PaymentsRequest>,
+        BoxedOperation<'b, F, api::PaymentsRequest, Ctx>,
         operations::ValidateResult<'a>,
     )> {
         helpers::validate_customer_details_in_request(request)?;

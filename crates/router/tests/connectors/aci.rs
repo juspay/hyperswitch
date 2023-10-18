@@ -68,6 +68,7 @@ fn construct_payment_router_data() -> types::PaymentsAuthorizeRouterData {
             webhook_url: None,
             complete_authorize_url: None,
             customer_id: None,
+            surcharge_details: None,
         },
         response: Err(types::ErrorResponse::default()),
         payment_method_id: None,
@@ -91,6 +92,8 @@ fn construct_payment_router_data() -> types::PaymentsAuthorizeRouterData {
         payment_method_balance: None,
         connector_api_version: None,
         connector_http_status_code: None,
+        apple_pay_flow: None,
+        external_latency: None,
     }
 }
 
@@ -123,6 +126,7 @@ fn construct_refund_router_data<F>() -> types::RefundsRouterData<F> {
             connector_metadata: None,
             reason: None,
             connector_refund_id: None,
+            browser_info: None,
         },
         payment_method_id: None,
         response: Err(types::ErrorResponse::default()),
@@ -146,6 +150,8 @@ fn construct_refund_router_data<F>() -> types::RefundsRouterData<F> {
         payment_method_balance: None,
         connector_api_version: None,
         connector_http_status_code: None,
+        apple_pay_flow: None,
+        external_latency: None,
     }
 }
 

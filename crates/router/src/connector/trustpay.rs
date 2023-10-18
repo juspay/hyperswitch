@@ -10,7 +10,7 @@ use transformers as trustpay;
 
 use super::utils::{
     collect_and_sort_values_by_removing_signature, get_error_code_error_message_based_on_priority,
-    ConnectorErrorType, ConnectorErrorTypeMapping,
+    ConnectorErrorType, ConnectorErrorTypeMapping, PaymentsPreProcessingData,
 };
 use crate::{
     configs::settings,
@@ -80,6 +80,10 @@ impl ConnectorCommon for Trustpay {
         "trustpay"
     }
 
+    fn get_currency_unit(&self) -> api::CurrencyUnit {
+        api::CurrencyUnit::Base
+    }
+
     fn common_get_content_type(&self) -> &'static str {
         "application/x-www-form-urlencoded"
     }
@@ -111,7 +115,7 @@ impl ConnectorCommon for Trustpay {
 
         match response {
             Ok(response_data) => {
-                let error_list = response_data.errors.clone().unwrap_or(vec![]);
+                let error_list = response_data.errors.clone().unwrap_or_default();
                 let option_error_code_message = get_error_code_error_message_based_on_priority(
                     self.clone(),
                     error_list.into_iter().map(|errors| errors.into()).collect(),
@@ -160,9 +164,13 @@ impl
     // Not Implemented (R)
 }
 
-impl api::PreVerify for Trustpay {}
-impl ConnectorIntegration<api::Verify, types::VerifyRequestData, types::PaymentsResponseData>
-    for Trustpay
+impl api::MandateSetup for Trustpay {}
+impl
+    ConnectorIntegration<
+        api::SetupMandate,
+        types::SetupMandateRequestData,
+        types::PaymentsResponseData,
+    > for Trustpay
 {
 }
 
@@ -422,7 +430,21 @@ impl
         &self,
         req: &types::PaymentsPreProcessingRouterData,
     ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
-        let create_intent_req = trustpay::TrustpayCreateIntentRequest::try_from(req)?;
+        let currency = req.request.get_currency()?;
+        let amount = req
+            .request
+            .surcharge_details
+            .as_ref()
+            .map(|surcharge_details| surcharge_details.final_amount)
+            .unwrap_or(req.request.get_amount()?);
+        let connector_router_data = trustpay::TrustpayRouterData::try_from((
+            &self.get_currency_unit(),
+            currency,
+            amount,
+            req,
+        ))?;
+        let create_intent_req =
+            trustpay::TrustpayCreateIntentRequest::try_from(&connector_router_data)?;
         let trustpay_req = types::RequestBody::log_and_get_request_body(
             &create_intent_req,
             utils::Encode::<trustpay::TrustpayCreateIntentRequest>::url_encode,
@@ -525,7 +547,19 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         &self,
         req: &types::PaymentsAuthorizeRouterData,
     ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
-        let connector_req = trustpay::TrustpayPaymentsRequest::try_from(req)?;
+        let amount = req
+            .request
+            .surcharge_details
+            .as_ref()
+            .map(|surcharge_details| surcharge_details.final_amount)
+            .unwrap_or(req.request.amount);
+        let connector_router_data = trustpay::TrustpayRouterData::try_from((
+            &self.get_currency_unit(),
+            req.request.currency,
+            amount,
+            req,
+        ))?;
+        let connector_req = trustpay::TrustpayPaymentsRequest::try_from(&connector_router_data)?;
         let trustpay_req_string = match req.payment_method {
             diesel_models::enums::PaymentMethod::BankRedirect => {
                 types::RequestBody::log_and_get_request_body(
@@ -548,7 +582,6 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         req: &types::PaymentsAuthorizeRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
-        self.validate_capture_method(req.request.capture_method)?;
         Ok(Some(
             services::RequestBuilder::new()
                 .method(services::Method::Post)
@@ -629,7 +662,13 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
         &self,
         req: &types::RefundsRouterData<api::Execute>,
     ) -> CustomResult<Option<types::RequestBody>, errors::ConnectorError> {
-        let connector_req = trustpay::TrustpayRefundRequest::try_from(req)?;
+        let connector_router_data = trustpay::TrustpayRouterData::try_from((
+            &self.get_currency_unit(),
+            req.request.currency,
+            req.request.refund_amount,
+            req,
+        ))?;
+        let connector_req = trustpay::TrustpayRefundRequest::try_from(&connector_router_data)?;
         let trustpay_req_string = match req.payment_method {
             diesel_models::enums::PaymentMethod::BankRedirect => {
                 types::RequestBody::log_and_get_request_body(
@@ -872,6 +911,7 @@ impl api::IncomingWebhook for Trustpay {
     fn get_webhook_source_verification_signature(
         &self,
         request: &api::IncomingWebhookRequestDetails<'_>,
+        _connector_webhook_secrets: &api_models::webhooks::ConnectorWebhookSecrets,
     ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
         let response: trustpay::TrustpayWebhookResponse = request
             .body
@@ -886,7 +926,7 @@ impl api::IncomingWebhook for Trustpay {
         &self,
         request: &api::IncomingWebhookRequestDetails<'_>,
         _merchant_id: &str,
-        _secret: &[u8],
+        _connector_webhook_secrets: &api_models::webhooks::ConnectorWebhookSecrets,
     ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
         let trustpay_response: trustpay::TrustpayWebhookResponse = request
             .body
@@ -927,26 +967,15 @@ impl api::IncomingWebhook for Trustpay {
 impl services::ConnectorRedirectResponse for Trustpay {
     fn get_flow_type(
         &self,
-        query_params: &str,
+        _query_params: &str,
         _json_payload: Option<serde_json::Value>,
-        _action: services::PaymentAction,
+        action: services::PaymentAction,
     ) -> CustomResult<payments::CallConnectorAction, errors::ConnectorError> {
-        let query =
-            serde_urlencoded::from_str::<transformers::TrustpayRedirectResponse>(query_params)
-                .into_report()
-                .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-        crate::logger::debug!(trustpay_redirect_response=?query);
-        Ok(query.status.map_or(
-            payments::CallConnectorAction::Trigger,
-            |status| match status.as_str() {
-                "SuccessOk" => payments::CallConnectorAction::StatusUpdate {
-                    status: diesel_models::enums::AttemptStatus::Charged,
-                    error_code: None,
-                    error_message: None,
-                },
-                _ => payments::CallConnectorAction::Trigger,
-            },
-        ))
+        match action {
+            services::PaymentAction::PSync | services::PaymentAction::CompleteAuthorize => {
+                Ok(payments::CallConnectorAction::Trigger)
+            }
+        }
     }
 }
 

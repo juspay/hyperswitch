@@ -122,12 +122,12 @@ impl
     // Not Implemented (R)
 }
 
-impl api::PreVerify for Aci {}
+impl api::MandateSetup for Aci {}
 
 impl
     services::ConnectorIntegration<
-        api::Verify,
-        types::VerifyRequestData,
+        api::SetupMandate,
+        types::SetupMandateRequestData,
         types::PaymentsResponseData,
     > for Aci
 {
@@ -298,7 +298,6 @@ impl
         >,
         connectors: &settings::Connectors,
     ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
-        self.validate_capture_method(req.request.capture_method)?;
         Ok(Some(
             services::RequestBuilder::new()
                 .method(services::Method::Post)

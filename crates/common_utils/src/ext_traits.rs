@@ -442,6 +442,12 @@ pub trait ConfigExt {
     }
 }
 
+impl ConfigExt for u32 {
+    fn is_empty_after_trim(&self) -> bool {
+        false
+    }
+}
+
 impl ConfigExt for String {
     fn is_empty_after_trim(&self) -> bool {
         self.trim().is_empty()

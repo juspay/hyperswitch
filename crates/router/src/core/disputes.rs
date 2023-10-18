@@ -25,7 +25,7 @@ use crate::{
 
 #[instrument(skip(state))]
 pub async fn retrieve_dispute(
-    state: &AppState,
+    state: AppState,
     merchant_account: domain::MerchantAccount,
     req: disputes::DisputeId,
 ) -> RouterResponse<api_models::disputes::DisputeResponse> {
@@ -42,7 +42,7 @@ pub async fn retrieve_dispute(
 
 #[instrument(skip(state))]
 pub async fn retrieve_disputes_list(
-    state: &AppState,
+    state: AppState,
     merchant_account: domain::MerchantAccount,
     constraints: api_models::disputes::DisputeListConstraints,
 ) -> RouterResponse<Vec<api_models::disputes::DisputeResponse>> {
@@ -61,7 +61,7 @@ pub async fn retrieve_disputes_list(
 
 #[instrument(skip(state))]
 pub async fn accept_dispute(
-    state: &AppState,
+    state: AppState,
     merchant_account: domain::MerchantAccount,
     key_store: domain::MerchantKeyStore,
     req: disputes::DisputeId,
@@ -116,7 +116,7 @@ pub async fn accept_dispute(
         AcceptDisputeResponse,
     > = connector_data.connector.get_connector_integration();
     let router_data = core_utils::construct_accept_dispute_router_data(
-        state,
+        &state,
         &payment_intent,
         &payment_attempt,
         &merchant_account,
@@ -125,7 +125,7 @@ pub async fn accept_dispute(
     )
     .await?;
     let response = services::execute_connector_processing_step(
-        state,
+        &state,
         connector_integration,
         &router_data,
         payments::CallConnectorAction::Trigger,
@@ -161,7 +161,7 @@ pub async fn accept_dispute(
 
 #[instrument(skip(state))]
 pub async fn submit_evidence(
-    state: &AppState,
+    state: AppState,
     merchant_account: domain::MerchantAccount,
     key_store: domain::MerchantKeyStore,
     req: dispute_models::SubmitEvidenceRequest,
@@ -193,7 +193,7 @@ pub async fn submit_evidence(
         },
     )?;
     let submit_evidence_request_data = transformers::get_evidence_request_data(
-        state,
+        &state,
         &merchant_account,
         &key_store,
         req,
@@ -228,7 +228,7 @@ pub async fn submit_evidence(
         SubmitEvidenceResponse,
     > = connector_data.connector.get_connector_integration();
     let router_data = core_utils::construct_submit_evidence_router_data(
-        state,
+        &state,
         &payment_intent,
         &payment_attempt,
         &merchant_account,
@@ -238,7 +238,7 @@ pub async fn submit_evidence(
     )
     .await?;
     let response = services::execute_connector_processing_step(
-        state,
+        &state,
         connector_integration,
         &router_data,
         payments::CallConnectorAction::Trigger,
@@ -267,7 +267,7 @@ pub async fn submit_evidence(
                 DefendDisputeResponse,
             > = connector_data.connector.get_connector_integration();
             let defend_dispute_router_data = core_utils::construct_defend_dispute_router_data(
-                state,
+                &state,
                 &payment_intent,
                 &payment_attempt,
                 &merchant_account,
@@ -276,7 +276,7 @@ pub async fn submit_evidence(
             )
             .await?;
             let defend_response = services::execute_connector_processing_step(
-                state,
+                &state,
                 connector_integration_defend_dispute,
                 &defend_dispute_router_data,
                 payments::CallConnectorAction::Trigger,
@@ -322,7 +322,7 @@ pub async fn submit_evidence(
 }
 
 pub async fn attach_evidence(
-    state: &AppState,
+    state: AppState,
     merchant_account: domain::MerchantAccount,
     key_store: domain::MerchantKeyStore,
     attach_evidence_request: api::AttachEvidenceRequest,
@@ -357,7 +357,7 @@ pub async fn attach_evidence(
         },
     )?;
     let create_file_response = files::files_create_core(
-        state,
+        state.clone(),
         merchant_account,
         key_store,
         attach_evidence_request.create_file_request,
@@ -399,7 +399,7 @@ pub async fn attach_evidence(
 
 #[instrument(skip(state))]
 pub async fn retrieve_dispute_evidence(
-    state: &AppState,
+    state: AppState,
     merchant_account: domain::MerchantAccount,
     req: disputes::DisputeId,
 ) -> RouterResponse<Vec<api_models::disputes::DisputeEvidenceBlock>> {
@@ -417,6 +417,6 @@ pub async fn retrieve_dispute_evidence(
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Error while parsing dispute evidence record")?;
     let dispute_evidence_vec =
-        transformers::get_dispute_evidence_vec(state, merchant_account, dispute_evidence).await?;
+        transformers::get_dispute_evidence_vec(&state, merchant_account, dispute_evidence).await?;
     Ok(services::ApplicationResponse::Json(dispute_evidence_vec))
 }

@@ -30,7 +30,7 @@ use crate::{
 
 #[instrument(skip_all)]
 pub async fn refund_create_core(
-    state: &AppState,
+    state: AppState,
     merchant_account: domain::MerchantAccount,
     key_store: domain::MerchantKeyStore,
     req: refunds::RefundRequest,
@@ -102,7 +102,7 @@ pub async fn refund_create_core(
         .transpose()?;
 
     validate_and_create_refund(
-        state,
+        &state,
         &merchant_account,
         &key_store,
         &payment_attempt,
@@ -132,6 +132,7 @@ pub async fn trigger_refund_to_gateway(
         .into_report()
         .attach_printable("Failed to retrieve connector from payment attempt")?;
 
+    let storage_scheme = merchant_account.storage_scheme;
     metrics::REFUND_COUNT.add(
         &metrics::CONTEXT,
         1,
@@ -206,6 +207,7 @@ pub async fn trigger_refund_to_gateway(
             refund_status: Some(enums::RefundStatus::Failure),
             refund_error_message: err.reason.or(Some(err.message)),
             refund_error_code: Some(err.code),
+            updated_by: storage_scheme.to_string(),
         },
         Ok(response) => {
             if response.refund_status == diesel_models::enums::RefundStatus::Success {
@@ -224,6 +226,7 @@ pub async fn trigger_refund_to_gateway(
                 sent_to_gateway: true,
                 refund_error_message: None,
                 refund_arn: "".to_string(),
+                updated_by: storage_scheme.to_string(),
             }
         }
     };
@@ -249,14 +252,14 @@ pub async fn trigger_refund_to_gateway(
 // ********************************************** REFUND SYNC **********************************************
 
 pub async fn refund_response_wrapper<'a, F, Fut, T, Req>(
-    state: &'a AppState,
+    state: AppState,
     merchant_account: domain::MerchantAccount,
     key_store: domain::MerchantKeyStore,
     request: Req,
     f: F,
 ) -> RouterResponse<refunds::RefundResponse>
 where
-    F: Fn(&'a AppState, domain::MerchantAccount, domain::MerchantKeyStore, Req) -> Fut,
+    F: Fn(AppState, domain::MerchantAccount, domain::MerchantKeyStore, Req) -> Fut,
     Fut: futures::Future<Output = RouterResult<T>>,
     T: ForeignInto<refunds::RefundResponse>,
 {
@@ -269,7 +272,7 @@ where
 
 #[instrument(skip_all)]
 pub async fn refund_retrieve_core(
-    state: &AppState,
+    state: AppState,
     merchant_account: domain::MerchantAccount,
     key_store: domain::MerchantKeyStore,
     request: refunds::RefundsRetrieveRequest,
@@ -329,7 +332,7 @@ pub async fn refund_retrieve_core(
 
     response = if should_call_refund(&refund, request.force_sync.unwrap_or(false)) {
         sync_refund_with_gateway(
-            state,
+            &state,
             &merchant_account,
             &key_store,
             &payment_attempt,
@@ -380,6 +383,8 @@ pub async fn sync_refund_with_gateway(
     )
     .change_context(errors::ApiErrorResponse::InternalServerError)
     .attach_printable("Failed to get the connector")?;
+
+    let storage_scheme = merchant_account.storage_scheme;
 
     let currency = payment_attempt.currency.get_required_value("currency")?;
 
@@ -434,6 +439,7 @@ pub async fn sync_refund_with_gateway(
             refund_status: None,
             refund_error_message: error_message.reason.or(Some(error_message.message)),
             refund_error_code: Some(error_message.code),
+            updated_by: storage_scheme.to_string(),
         },
         Ok(response) => storage::RefundUpdate::Update {
             connector_refund_id: response.connector_refund_id,
@@ -441,6 +447,7 @@ pub async fn sync_refund_with_gateway(
             sent_to_gateway: true,
             refund_error_message: None,
             refund_arn: "".to_string(),
+            updated_by: storage_scheme.to_string(),
         },
     };
 
@@ -465,11 +472,12 @@ pub async fn sync_refund_with_gateway(
 // ********************************************** REFUND UPDATE **********************************************
 
 pub async fn refund_update_core(
-    db: &dyn db::StorageInterface,
+    state: AppState,
     merchant_account: domain::MerchantAccount,
     refund_id: &str,
     req: refunds::RefundUpdateRequest,
 ) -> RouterResponse<refunds::RefundResponse> {
+    let db = state.store.as_ref();
     let refund = db
         .find_refund_by_merchant_id_refund_id(
             &merchant_account.merchant_id,
@@ -485,6 +493,7 @@ pub async fn refund_update_core(
             storage::RefundUpdate::MetadataAndReasonUpdate {
                 metadata: req.metadata,
                 reason: req.reason,
+                updated_by: merchant_account.storage_scheme.to_string(),
             },
             merchant_account.storage_scheme,
         )
@@ -644,10 +653,11 @@ pub async fn validate_and_create_refund(
 #[instrument(skip_all)]
 #[cfg(feature = "olap")]
 pub async fn refund_list(
-    db: &dyn db::StorageInterface,
+    state: AppState,
     merchant_account: domain::MerchantAccount,
     req: api_models::refunds::RefundListRequest,
 ) -> RouterResponse<api_models::refunds::RefundListResponse> {
+    let db = state.store;
     let limit = validator::validate_refund_list(req.limit)?;
     let offset = req.offset.unwrap_or_default();
 
@@ -688,10 +698,11 @@ pub async fn refund_list(
 #[instrument(skip_all)]
 #[cfg(feature = "olap")]
 pub async fn refund_filter_list(
-    db: &dyn db::StorageInterface,
+    state: AppState,
     merchant_account: domain::MerchantAccount,
     req: api_models::refunds::TimeRange,
 ) -> RouterResponse<api_models::refunds::RefundListMetaData> {
+    let db = state.store;
     let filter_list = db
         .filter_refund_by_meta_constraints(
             &merchant_account.merchant_id,
@@ -834,7 +845,7 @@ pub async fn sync_refund_with_gateway_workflow(
         .await?;
 
     let response = refund_retrieve_core(
-        state,
+        state.clone(),
         merchant_account,
         key_store,
         refunds::RefundsRetrieveRequest {
@@ -858,13 +869,13 @@ pub async fn sync_refund_with_gateway_workflow(
                 .await?
         }
         _ => {
-            payment_sync::retry_sync_task(
+            _ = payment_sync::retry_sync_task(
                 &*state.store,
                 response.connector,
                 response.merchant_id,
                 refund_tracker.to_owned(),
             )
-            .await?
+            .await?;
         }
     }
 

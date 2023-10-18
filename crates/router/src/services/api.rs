@@ -1,6 +1,5 @@
-mod client;
+pub mod client;
 pub mod request;
-
 use std::{
     collections::HashMap,
     error::Error,
@@ -10,25 +9,31 @@ use std::{
     time::{Duration, Instant},
 };
 
-use actix_web::{body, HttpRequest, HttpResponse, Responder, ResponseError};
+use actix_web::{body, web, FromRequest, HttpRequest, HttpResponse, Responder, ResponseError};
 use api_models::enums::CaptureMethod;
 pub use client::{proxy_bypass_urls, ApiClient, MockApiClient, ProxyClient};
-use common_utils::errors::ReportSwitchExt;
+pub use common_utils::request::{ContentType, Method, Request, RequestBuilder};
+use common_utils::{
+    consts::X_HS_LATENCY,
+    errors::{ErrorSwitch, ReportSwitchExt},
+};
 use error_stack::{report, IntoReport, Report, ResultExt};
 use masking::{ExposeOptionInterface, PeekInterface};
-use router_env::{instrument, tracing, Tag};
+use router_env::{instrument, tracing, tracing_actix_web::RequestId, Tag};
 use serde::Serialize;
 use serde_json::json;
+use tera::{Context, Tera};
 
-use self::request::{ContentType, HeaderExt, RequestBuilderExt};
-pub use self::request::{Method, Request, RequestBuilder};
+use self::request::{HeaderExt, RequestBuilderExt};
 use crate::{
     configs::settings::{Connectors, Settings},
     consts,
     core::{
+        api_locking,
         errors::{self, CustomResult},
         payments,
     },
+    events::{api_logs::ApiEvent, EventHandler},
     logger,
     routes::{
         app::AppStateInfo,
@@ -86,6 +91,10 @@ pub trait ConnectorValidation: ConnectorCommon {
             .get_connector_transaction_id()
             .change_context(errors::ConnectorError::MissingConnectorTransactionID)
             .map(|_| ())
+    }
+
+    fn is_webhook_source_verification_mandatory(&self) -> bool {
+        false
     }
 }
 
@@ -333,7 +342,9 @@ where
             match connector_request {
                 Some(request) => {
                     logger::debug!(connector_request=?request);
+                    let current_time = Instant::now();
                     let response = call_connector_api(state, request).await;
+                    let external_latency = current_time.elapsed().as_millis();
                     logger::debug!(connector_response=?response);
                     match response {
                         Ok(body) => {
@@ -358,10 +369,20 @@ where
                                             error
                                         })?;
                                     data.connector_http_status_code = connector_http_status_code;
+                                    // Add up multiple external latencies in case of multiple external calls within the same request.
+                                    data.external_latency = Some(
+                                        data.external_latency
+                                            .map_or(external_latency, |val| val + external_latency),
+                                    );
                                     data
                                 }
                                 Err(body) => {
                                     router_data.connector_http_status_code = Some(body.status_code);
+                                    router_data.external_latency = Some(
+                                        router_data
+                                            .external_latency
+                                            .map_or(external_latency, |val| val + external_latency),
+                                    );
                                     metrics::CONNECTOR_ERROR_RESPONSE_COUNT.add(
                                         &metrics::CONTEXT,
                                         1,
@@ -394,6 +415,11 @@ where
                                 };
                                 router_data.response = Err(error_response);
                                 router_data.connector_http_status_code = Some(504);
+                                router_data.external_latency = Some(
+                                    router_data
+                                        .external_latency
+                                        .map_or(external_latency, |val| val + external_latency),
+                                );
                                 Ok(router_data)
                             } else {
                                 Err(error.change_context(
@@ -416,7 +442,10 @@ pub async fn call_connector_api(
 ) -> CustomResult<Result<types::Response, types::Response>, errors::ApiClientError> {
     let current_time = Instant::now();
 
-    let response = send_request(state, request, None).await;
+    let response = state
+        .api_client
+        .send_request(state, request, None, true)
+        .await;
 
     let elapsed_time = current_time.elapsed();
     logger::info!(request_time=?elapsed_time);
@@ -449,8 +478,8 @@ pub async fn send_request(
         request.certificate,
         request.certificate_key,
     )?;
-    let headers = request.headers.construct_header_map()?;
 
+    let headers = request.headers.construct_header_map()?;
     let metrics_tag = router_env::opentelemetry::KeyValue {
         key: consts::METRICS_HOST_TAG_NAME.into(),
         value: url.host_str().unwrap_or_default().to_string().into(),
@@ -464,11 +493,9 @@ pub async fn send_request(
                 match request.content_type {
                     Some(ContentType::Json) => client.json(&request.payload),
 
-                    Some(ContentType::FormData) => client.multipart(
-                        request
-                            .form_data
-                            .unwrap_or_else(reqwest::multipart::Form::new),
-                    ),
+                    Some(ContentType::FormData) => {
+                        client.multipart(request.form_data.unwrap_or_default())
+                    }
 
                     // Currently this is not used remove this if not required
                     // If using this then handle the serde_part
@@ -553,6 +580,7 @@ async fn handle_response(
             logger::info!(?response);
             let status_code = response.status().as_u16();
             let headers = Some(response.headers().to_owned());
+
             match status_code {
                 200..=202 | 302 | 204 => {
                     logger::debug!(response=?response);
@@ -631,8 +659,16 @@ pub enum ApplicationResponse<R> {
     TextPlain(String),
     JsonForRedirection(api::RedirectionResponse),
     Form(Box<RedirectionFormData>),
+    PaymenkLinkForm(Box<PaymentLinkFormData>),
     FileData((Vec<u8>, mime::Mime)),
     JsonWithHeaders((R, Vec<(String, String)>)),
+}
+
+#[derive(Debug, Eq, PartialEq, Clone, serde::Serialize, serde::Deserialize)]
+pub struct PaymentLinkFormData {
+    pub js_script: String,
+    pub css_script: String,
+    pub sdk_url: String,
 }
 
 #[derive(Debug, Eq, PartialEq)]
@@ -672,7 +708,6 @@ pub enum RedirectForm {
         client_token: String,
         card_token: String,
         bin: String,
-        amount: i64,
     },
 }
 
@@ -704,37 +739,81 @@ pub enum AuthFlow {
 #[instrument(skip(request, payload, state, func, api_auth), fields(merchant_id))]
 pub async fn server_wrap_util<'a, 'b, A, U, T, Q, F, Fut, E, OErr>(
     flow: &'a impl router_env::types::FlowMetric,
-    state: &'b A,
+    state: web::Data<A>,
     request: &'a HttpRequest,
     payload: T,
     func: F,
     api_auth: &dyn auth::AuthenticateAndFetch<U, A>,
+    lock_action: api_locking::LockAction,
 ) -> CustomResult<ApplicationResponse<Q>, OErr>
 where
-    F: Fn(&'b A, U, T) -> Fut,
+    F: Fn(A, U, T) -> Fut,
     'b: 'a,
     Fut: Future<Output = CustomResult<ApplicationResponse<Q>, E>>,
     Q: Serialize + Debug + 'a,
     T: Debug,
-    A: AppStateInfo,
+    A: AppStateInfo + Clone,
     U: auth::AuthInfo,
-    CustomResult<ApplicationResponse<Q>, E>: ReportSwitchExt<ApplicationResponse<Q>, OErr>,
-    CustomResult<U, errors::ApiErrorResponse>: ReportSwitchExt<U, OErr>,
-    OErr: ResponseError + Sync + Send + 'static,
+    E: ErrorSwitch<OErr> + error_stack::Context,
+    OErr: ResponseError + error_stack::Context,
+    errors::ApiErrorResponse: ErrorSwitch<OErr>,
 {
+    let request_id = RequestId::extract(request)
+        .await
+        .into_report()
+        .attach_printable("Unable to extract request id from request")
+        .change_context(errors::ApiErrorResponse::InternalServerError.switch())?;
+
+    let mut request_state = state.get_ref().clone();
+
+    request_state.add_request_id(request_id);
+    let start_instant = Instant::now();
+
     let auth_out = api_auth
-        .authenticate_and_fetch(request.headers(), state)
+        .authenticate_and_fetch(request.headers(), &request_state)
         .await
         .switch()?;
-    let merchant_id = auth_out.get_merchant_id().unwrap_or("").to_string();
+
+    let merchant_id = auth_out
+        .get_merchant_id()
+        .unwrap_or("MERCHANT_ID_NOT_FOUND")
+        .to_string();
+
+    request_state.add_merchant_id(Some(merchant_id.clone()));
+
+    request_state.add_flow_name(flow.to_string());
+
     tracing::Span::current().record("merchant_id", &merchant_id);
 
-    let output = func(state, auth_out, payload).await.switch();
+    let output = {
+        lock_action
+            .clone()
+            .perform_locking_action(&request_state, merchant_id.to_owned())
+            .await
+            .switch()?;
+        let res = func(request_state.clone(), auth_out, payload)
+            .await
+            .switch();
+        lock_action
+            .free_lock_action(&request_state, merchant_id.to_owned())
+            .await
+            .switch()?;
+        res
+    };
+    let request_duration = Instant::now()
+        .saturating_duration_since(start_instant)
+        .as_millis();
 
     let status_code = match output.as_ref() {
         Ok(res) => metrics::request::track_response_status_code(res),
         Err(err) => err.current_context().status_code().as_u16().into(),
     };
+    state.event_handler().log_event(ApiEvent::new(
+        flow,
+        &request_id,
+        request_duration,
+        status_code,
+    ));
 
     metrics::request::status_code_metrics(status_code, flow.to_string(), merchant_id.to_string());
 
@@ -745,24 +824,24 @@ where
     skip(request, state, func, api_auth, payload),
     fields(request_method, request_url_path)
 )]
-pub async fn server_wrap<'a, 'b, A, T, U, Q, F, Fut, E>(
+pub async fn server_wrap<'a, A, T, U, Q, F, Fut, E>(
     flow: impl router_env::types::FlowMetric,
-    state: &'b A,
+    state: web::Data<A>,
     request: &'a HttpRequest,
     payload: T,
     func: F,
     api_auth: &dyn auth::AuthenticateAndFetch<U, A>,
+    lock_action: api_locking::LockAction,
 ) -> HttpResponse
 where
-    F: Fn(&'b A, U, T) -> Fut,
+    F: Fn(A, U, T) -> Fut,
     Fut: Future<Output = CustomResult<ApplicationResponse<Q>, E>>,
     Q: Serialize + Debug + 'a,
     T: Debug,
     U: auth::AuthInfo,
-    A: AppStateInfo,
+    A: AppStateInfo + Clone,
     ApplicationResponse<Q>: Debug,
-    CustomResult<ApplicationResponse<Q>, E>:
-        ReportSwitchExt<ApplicationResponse<Q>, api_models::errors::types::ApiErrorResponse>,
+    E: ErrorSwitch<api_models::errors::types::ApiErrorResponse> + error_stack::Context,
 {
     let request_method = request.method().as_str();
     let url_path = request.path();
@@ -773,7 +852,15 @@ where
     logger::info!(tag = ?Tag::BeginRequest, payload = ?payload);
 
     let res = match metrics::request::record_request_time_metric(
-        server_wrap_util(&flow, state, request, payload, func, api_auth),
+        server_wrap_util(
+            &flow,
+            state.clone(),
+            request,
+            payload,
+            func,
+            api_auth,
+            lock_action,
+        ),
         &flow,
     )
     .await
@@ -820,9 +907,30 @@ where
             .respond_to(request)
             .map_into_boxed_body()
         }
+
+        Ok(ApplicationResponse::PaymenkLinkForm(payment_link_data)) => {
+            match build_payment_link_html(*payment_link_data) {
+                Ok(rendered_html) => http_response_html_data(rendered_html),
+                Err(_) => http_response_err(
+                    r#"{
+                            "error": {
+                                "message": "Error while rendering payment link html page"
+                            }
+                        }"#,
+                ),
+            }
+        }
+
         Ok(ApplicationResponse::JsonWithHeaders((response, headers))) => {
+            let request_elapsed_time = request.headers().get(X_HS_LATENCY).and_then(|value| {
+                if value == "true" {
+                    Some(start_instant.elapsed())
+                } else {
+                    None
+                }
+            });
             match serde_json::to_string(&response) {
-                Ok(res) => http_response_json_with_headers(res, headers),
+                Ok(res) => http_response_json_with_headers(res, headers, request_elapsed_time),
                 Err(_) => http_response_err(
                     r#"{
                         "error": {
@@ -899,12 +1007,23 @@ pub fn http_response_json<T: body::MessageBody + 'static>(response: T) -> HttpRe
 
 pub fn http_response_json_with_headers<T: body::MessageBody + 'static>(
     response: T,
-    headers: Vec<(String, String)>,
+    mut headers: Vec<(String, String)>,
+    request_duration: Option<Duration>,
 ) -> HttpResponse {
     let mut response_builder = HttpResponse::Ok();
-    for (name, value) in headers {
-        response_builder.append_header((name, value));
+
+    for (name, value) in headers.iter_mut() {
+        if name == X_HS_LATENCY {
+            if let Some(request_duration) = request_duration {
+                if let Ok(external_latency) = value.parse::<u128>() {
+                    let updated_duration = request_duration.as_millis() - external_latency;
+                    *value = updated_duration.to_string();
+                }
+            }
+        }
+        response_builder.append_header((name.clone(), value.clone()));
     }
+
     response_builder
         .content_type(mime::APPLICATION_JSON)
         .body(response)
@@ -919,6 +1038,10 @@ pub fn http_response_file_data<T: body::MessageBody + 'static>(
     content_type: mime::Mime,
 ) -> HttpResponse {
     HttpResponse::Ok().content_type(content_type).body(res)
+}
+
+pub fn http_response_html_data<T: body::MessageBody + 'static>(res: T) -> HttpResponse {
+    HttpResponse::Ok().content_type(mime::TEXT_HTML).body(res)
 }
 
 pub fn http_response_ok() -> HttpResponse {
@@ -1058,29 +1181,24 @@ pub fn build_redirection_form(
         RedirectForm::BlueSnap {
             payment_fields_token,
         } => {
-            let card_details = if let Some(api::PaymentMethodData::Card(ccard)) =
-                payment_method_data
-            {
-                format!(
-                    "var newCard={{ccNumber: \"{}\",cvv: \"{}\",expDate: \"{}/{}\",amount: {},currency: \"{}\"}};",
-                    ccard.card_number.peek(),
-                    ccard.card_cvc.peek(),
-                    ccard.card_exp_month.peek(),
-                    ccard.card_exp_year.peek(),
-                    amount,
-                    currency
-                )
-            } else {
-                "".to_string()
-            };
-
-            let bluesnap_url = config.connectors.bluesnap.secondary_base_url;
+            let card_details =
+                if let Some(api::PaymentMethodData::Card(ccard)) = payment_method_data {
+                    format!(
+                        "var saveCardDirectly={{cvv: \"{}\",amount: {},currency: \"{}\"}};",
+                        ccard.card_cvc.peek(),
+                        amount,
+                        currency
+                    )
+                } else {
+                    "".to_string()
+                };
+            let bluesnap_sdk_url = config.connectors.bluesnap.secondary_base_url;
             maud::html! {
             (maud::DOCTYPE)
             html {
                 head {
                     meta name="viewport" content="width=device-width, initial-scale=1";
-                    (PreEscaped(format!("<script src=\"{bluesnap_url}web-sdk/5/bluesnap.js\"></script>")))
+                    (PreEscaped(format!("<script src=\"{bluesnap_sdk_url}web-sdk/5/bluesnap.js\"></script>")))
                 }
                     body style="background-color: #ffffff; padding: 20px; font-family: Arial, Helvetica, Sans-Serif;" {
 
@@ -1108,9 +1226,9 @@ pub fn build_redirection_form(
                 (PreEscaped(format!("<script>
                     bluesnap.threeDsPaymentsSetup(\"{payment_fields_token}\",
                     function(sdkResponse) {{
-                        console.log(sdkResponse);
+                        // console.log(sdkResponse);
                         var f = document.createElement('form');
-                        f.action=window.location.pathname.replace(/payments\\/redirect\\/(\\w+)\\/(\\w+)\\/\\w+/, \"payments/$1/$2/redirect/complete/bluesnap\");
+                        f.action=window.location.pathname.replace(/payments\\/redirect\\/(\\w+)\\/(\\w+)\\/\\w+/, \"payments/$1/$2/redirect/complete/bluesnap?paymentToken={payment_fields_token}\");
                         f.method='POST';
                         var i=document.createElement('input');
                         i.type='hidden';
@@ -1121,7 +1239,7 @@ pub fn build_redirection_form(
                         f.submit();
                     }});
                     {card_details}
-                    bluesnap.threeDsPaymentsSubmitData(newCard);
+                    bluesnap.threeDsPaymentsSubmitData(saveCardDirectly);
                 </script>
                 ")))
                 }}
@@ -1157,7 +1275,6 @@ pub fn build_redirection_form(
             client_token,
             card_token,
             bin,
-            amount,
         } => {
             maud::html! {
             (maud::DOCTYPE)
@@ -1165,7 +1282,7 @@ pub fn build_redirection_form(
                 head {
                     meta name="viewport" content="width=device-width, initial-scale=1";
                     (PreEscaped(r#"<script src="https://js.braintreegateway.com/web/3.97.1/js/three-d-secure.js"></script>"#))
-                    (PreEscaped(r#"<script src="https://js.braintreegateway.com/web/3.97.1/js/hosted-fields.js"></script>"#))
+                    // (PreEscaped(r#"<script src="https://js.braintreegateway.com/web/3.97.1/js/hosted-fields.js"></script>"#))
 
                 }
                     body style="background-color: #ffffff; padding: 20px; font-family: Arial, Helvetica, Sans-Serif;" {
@@ -1213,15 +1330,26 @@ pub fn build_redirection_form(
                                                 }}
                                             }},
                                             onLookupComplete: function(data, next) {{
-                                                console.log(\"onLookup Complete\", data);
+                                                // console.log(\"onLookup Complete\", data);
                                                     next();
                                                 }}
                                             }},
                                             function(err, payload) {{
                                                 if(err) {{
                                                     console.error(err);
+                                                    var f = document.createElement('form');
+                                                    f.action=window.location.pathname.replace(/payments\\/redirect\\/(\\w+)\\/(\\w+)\\/\\w+/, \"payments/$1/$2/redirect/response/braintree\");
+                                                    var i = document.createElement('input');
+                                                    i.type = 'hidden';
+                                                    f.method='POST';
+                                                    i.name = 'authentication_response';
+                                                    i.value = JSON.stringify(err);
+                                                    f.appendChild(i);
+                                                    f.body = JSON.stringify(err);
+                                                    document.body.appendChild(f);
+                                                    f.submit();
                                                 }} else {{
-                                                    console.log(payload);
+                                                    // console.log(payload);
                                                     var f = document.createElement('form');
                                                     f.action=window.location.pathname.replace(/payments\\/redirect\\/(\\w+)\\/(\\w+)\\/\\w+/, \"payments/$1/$2/redirect/complete/braintree\");
                                                     var i = document.createElement('input');
@@ -1229,9 +1357,9 @@ pub fn build_redirection_form(
                                                     f.method='POST';
                                                     i.name = 'authentication_response';
                                                     i.value = JSON.stringify(payload);
-                                                    f.appendChild(i); 
+                                                    f.appendChild(i);
                                                     f.body = JSON.stringify(payload);
-                                                    document.body.appendChild(f); 
+                                                    document.body.appendChild(f);
                                                     f.submit();
                                                     }}
                                                 }});
@@ -1248,4 +1376,34 @@ mod tests {
     fn test_mime_essence() {
         assert_eq!(mime::APPLICATION_JSON.essence_str(), "application/json");
     }
+}
+
+pub fn build_payment_link_html(
+    payment_link_data: PaymentLinkFormData,
+) -> CustomResult<String, errors::ApiErrorResponse> {
+    let html_template = include_str!("../core/payment_link/payment_link.html").to_string();
+
+    let mut tera = Tera::default();
+
+    let _ = tera.add_raw_template("payment_link", &html_template);
+
+    let mut context = Context::new();
+    context.insert(
+        "hyperloader_sdk_link",
+        &get_hyper_loader_sdk(&payment_link_data.sdk_url),
+    );
+    context.insert("css_color_scheme", &payment_link_data.css_script);
+    context.insert("payment_details_js_script", &payment_link_data.js_script);
+
+    match tera.render("payment_link", &context) {
+        Ok(rendered_html) => Ok(rendered_html),
+        Err(tera_error) => {
+            crate::logger::warn!("{tera_error}");
+            Err(errors::ApiErrorResponse::InternalServerError)?
+        }
+    }
+}
+
+fn get_hyper_loader_sdk(sdk_url: &str) -> String {
+    format!("<script src=\"{sdk_url}\"></script>")
 }

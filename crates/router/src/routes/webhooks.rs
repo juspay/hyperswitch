@@ -3,7 +3,11 @@ use router_env::{instrument, tracing, Flow};
 
 use super::app::AppState;
 use crate::{
-    core::webhooks::{self, types},
+    core::{
+        api_locking,
+        payment_methods::Oss,
+        webhooks::{self, types},
+    },
     services::{api, authentication as auth},
 };
 
@@ -19,12 +23,12 @@ pub async fn receive_incoming_webhook<W: types::OutgoingWebhookType>(
 
     api::server_wrap(
         flow,
-        state.get_ref(),
+        state,
         &req,
         body,
         |state, auth, body| {
-            webhooks::webhooks_core::<W>(
-                state,
+            webhooks::webhooks_wrapper::<W, Oss>(
+                state.to_owned(),
                 &req,
                 auth.merchant_account,
                 auth.key_store,
@@ -33,6 +37,7 @@ pub async fn receive_incoming_webhook<W: types::OutgoingWebhookType>(
             )
         },
         &auth::MerchantIdAuth(merchant_id),
+        api_locking::LockAction::NotApplicable,
     )
     .await
 }

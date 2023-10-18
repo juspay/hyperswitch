@@ -30,6 +30,7 @@ pub struct Mandate {
     pub end_date: Option<PrimitiveDateTime>,
     pub metadata: Option<pii::SecretSerdeValue>,
     pub connector_mandate_ids: Option<pii::SecretSerdeValue>,
+    pub original_payment_id: Option<String>,
 }
 
 #[derive(
@@ -58,6 +59,7 @@ pub struct MandateNew {
     pub end_date: Option<PrimitiveDateTime>,
     pub metadata: Option<pii::SecretSerdeValue>,
     pub connector_mandate_ids: Option<pii::SecretSerdeValue>,
+    pub original_payment_id: Option<String>,
 }
 
 #[derive(Debug)]

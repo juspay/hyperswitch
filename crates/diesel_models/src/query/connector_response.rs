@@ -26,9 +26,17 @@ impl ConnectorResponse {
         conn: &PgPooledConn,
         connector_response: ConnectorResponseUpdate,
     ) -> StorageResult<Self> {
-        match generics::generic_update_by_id::<<Self as HasTable>::Table, _, _, _>(
+        match generics::generic_update_with_unique_predicate_get_result::<
+            <Self as HasTable>::Table,
+            _,
+            _,
+            _,
+        >(
             conn,
-            self.id,
+            dsl::merchant_id
+                .eq(self.merchant_id.clone())
+                .and(dsl::payment_id.eq(self.payment_id.clone()))
+                .and(dsl::attempt_id.eq(self.attempt_id.clone())),
             ConnectorResponseUpdateInternal::from(connector_response),
         )
         .await

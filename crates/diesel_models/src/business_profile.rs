@@ -121,6 +121,7 @@ impl BusinessProfileUpdateInternal {
             frm_routing_algorithm: self.frm_routing_algorithm,
             payout_routing_algorithm: self.payout_routing_algorithm,
             is_recon_enabled: self.is_recon_enabled.unwrap_or(source.is_recon_enabled),
+            applepay_verified_domains: self.applepay_verified_domains,
             ..source
         }
     }

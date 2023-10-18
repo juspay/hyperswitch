@@ -8,14 +8,8 @@
   ],
   "url": {
     "raw": "{{baseUrl}}/customers/:customer_id/payment_methods",
-    "host": [
-      "{{baseUrl}}"
-    ],
-    "path": [
-      "customers",
-      ":customer_id",
-      "payment_methods"
-    ],
+    "host": ["{{baseUrl}}"],
+    "path": ["customers", ":customer_id", "payment_methods"],
     "query": [
       {
         "key": "accepted_country",

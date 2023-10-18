@@ -253,14 +253,8 @@
   },
   "url": {
     "raw": "{{baseUrl}}/account/:account_id/connectors",
-    "host": [
-      "{{baseUrl}}"
-    ],
-    "path": [
-      "account",
-      ":account_id",
-      "connectors"
-    ],
+    "host": ["{{baseUrl}}"],
+    "path": ["account", ":account_id", "connectors"],
     "variable": [
       {
         "key": "account_id",

@@ -54,3 +54,7 @@ pub mod prelude {
 
 #[cfg(feature = "diesel")]
 mod diesel;
+
+pub mod maskable;
+
+pub use maskable::*;
