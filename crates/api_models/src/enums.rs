@@ -7,30 +7,6 @@ use utoipa::ToSchema;
     Debug,
     Eq,
     PartialEq,
-    serde::Deserialize,
-    serde::Serialize,
-    strum::Display,
-    strum::EnumString,
-    ToSchema,
-)]
-
-/// The routing algorithm to be used to process the incoming request from merchant to outgoing payment processor or payment method. The default is 'Custom'
-#[schema(example = "custom")]
-#[serde(rename_all = "snake_case")]
-#[strum(serialize_all = "snake_case")]
-pub enum RoutingAlgorithm {
-    RoundRobin,
-    MaxConversion,
-    MinCost,
-    Custom,
-}
-
-#[derive(
-    Clone,
-    Copy,
-    Debug,
-    Eq,
-    PartialEq,
     ToSchema,
     serde::Deserialize,
     serde::Serialize,

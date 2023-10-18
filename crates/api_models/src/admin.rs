@@ -449,7 +449,7 @@ pub enum RoutingAlgorithm {
     Single(api_enums::RoutableConnectors),
 }
 
-#[derive(Clone, Debug, Deserialize, Serialize)]
+#[derive(Clone, Debug, Deserialize, Serialize, ToSchema)]
 #[serde(
     tag = "type",
     content = "data",
