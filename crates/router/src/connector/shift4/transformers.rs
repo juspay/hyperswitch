@@ -160,10 +160,7 @@ impl<T>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: (&Shift4RouterData<
-            &types::PaymentsAuthorizeRouterData,
-            types::PaymentsResponseData,
-        >),
+        item: (&Shift4RouterData<&types::PaymentsAuthorizeRouterData, types::PaymentsResponseData>),
     ) -> Result<Self, Self::Error> {
         let submit_for_settlement = value.request.is_auto_capture()?;
         let amount = item.amount.clone();
