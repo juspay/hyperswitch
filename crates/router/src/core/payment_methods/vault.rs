@@ -730,7 +730,6 @@ fn get_redis_temp_locker_encryption_key(state: &routes::AppState) -> RouterResul
             .conf
             .locker
             .redis_temp_locker_encryption_key
-            .peek()
             .to_owned(),
     )
     .into_report()
