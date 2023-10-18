@@ -5,6 +5,7 @@ use actix_web::{web, Scope};
 use external_services::email::{AwsSes, EmailClient};
 #[cfg(feature = "kms")]
 use external_services::kms::{self, decrypt::KmsDecrypt};
+use router_env::tracing_actix_web::RequestId;
 use scheduler::SchedulerInterface;
 use storage_impl::MockDb;
 use tokio::sync::oneshot;
@@ -55,7 +56,7 @@ pub trait AppStateInfo {
     fn event_handler(&self) -> Box<dyn EventHandler>;
     #[cfg(feature = "email")]
     fn email_client(&self) -> Arc<dyn EmailClient>;
-    fn add_request_id(&mut self, request_id: Option<String>);
+    fn add_request_id(&mut self, request_id: RequestId);
     fn add_merchant_id(&mut self, merchant_id: Option<String>);
     fn add_flow_name(&mut self, flow_name: String);
     fn get_request_id(&self) -> Option<String>;
@@ -75,7 +76,7 @@ impl AppStateInfo for AppState {
     fn event_handler(&self) -> Box<dyn EventHandler> {
         self.event_handler.to_owned()
     }
-    fn add_request_id(&mut self, request_id: Option<String>) {
+    fn add_request_id(&mut self, request_id: RequestId) {
         self.api_client.add_request_id(request_id);
     }
     fn add_merchant_id(&mut self, merchant_id: Option<String>) {

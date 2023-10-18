@@ -1,9 +1,10 @@
 use serde::Serialize;
 
+pub mod api_logs;
 pub mod event_logger;
 
 pub trait EventHandler: Sync + Send + dyn_clone::DynClone {
-    fn log_event(&self, event: RawEvent, previous: Option<RawEvent>);
+    fn log_event(&self, event: RawEvent);
 }
 
 dyn_clone::clone_trait_object!(EventHandler);
@@ -21,13 +22,4 @@ pub enum EventType {
     PaymentAttempt,
     Refund,
     ApiLogs,
-}
-
-pub trait Event
-where
-    Self: Serialize,
-{
-    fn event_type() -> EventType;
-
-    fn key(&self) -> String;
 }
