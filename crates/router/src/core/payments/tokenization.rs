@@ -1,6 +1,7 @@
 use common_utils::{ext_traits::ValueExt, pii};
 use error_stack::{report, ResultExt};
 use masking::ExposeInterface;
+use router_env::{instrument, tracing};
 
 use super::helpers;
 use crate::{
@@ -20,6 +21,7 @@ use crate::{
     utils::OptionExt,
 };
 
+#[instrument(skip_all)]
 pub async fn save_payment_method<F: Clone, FData>(
     state: &AppState,
     connector: &api::ConnectorData,
@@ -126,12 +128,9 @@ where
                                             merchant_id,
                                             pm_metadata,
                                             pm_data_encrypted,
+                                            key_store,
                                         )
                                         .await
-                                        .change_context(
-                                            errors::ApiErrorResponse::InternalServerError,
-                                        )
-                                        .attach_printable("Failed to add payment method in db")
                                     }
                                     _ => {
                                         Err(report!(errors::ApiErrorResponse::InternalServerError)
@@ -155,10 +154,9 @@ where
                         merchant_id,
                         pm_metadata,
                         pm_data_encrypted,
+                        key_store,
                     )
-                    .await
-                    .change_context(errors::ApiErrorResponse::InternalServerError)
-                    .attach_printable("Failed to add payment method in db")?;
+                    .await?;
                 };
                 Some(locker_response.0.payment_method_id)
             } else {
