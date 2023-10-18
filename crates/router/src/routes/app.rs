@@ -128,6 +128,11 @@ impl AppState {
         #[allow(clippy::expect_used)]
         let kms_secrets = settings::ActiveKmsSecrets {
             jwekey: conf.jwekey.clone().into(),
+            redis_temp_locker_encryption_key: conf
+                .locker
+                .redis_temp_locker_encryption_key
+                .clone()
+                .into(),
         }
         .decrypt_inner(kms_client)
         .await
@@ -135,6 +140,7 @@ impl AppState {
 
         #[cfg(feature = "email")]
         let email_client = Arc::new(AwsSes::new(&conf.email).await);
+
         Self {
             flow_name: String::from("default"),
             store,
