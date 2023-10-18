@@ -205,7 +205,48 @@ impl<T> ConnectorErrorExt<T> for error_stack::Result<T, errors::ConnectorError> 
                     errors::ApiErrorResponse::InvalidDataValue { field_name }
                 },
                 errors::ConnectorError::CurrencyNotSupported { message, connector} => errors::ApiErrorResponse::CurrencyNotSupported { message: format!("Credentials for the currency {message} are not configured with the connector {connector}/hyperswitch") },
-                _ => errors::ApiErrorResponse::InternalServerError,
+                errors::ConnectorError::FailedToObtainAuthType =>  errors::ApiErrorResponse::InvalidConnectorConfiguration {config: "connector_account_details".to_string()},
+                errors::ConnectorError::InvalidConnectorConfig { config }  => errors::ApiErrorResponse::InvalidConnectorConfiguration { config: config.to_string() },
+                errors::ConnectorError::FailedToObtainIntegrationUrl |
+                errors::ConnectorError::RequestEncodingFailed |
+                errors::ConnectorError::RequestEncodingFailedWithReason(_) |
+                errors::ConnectorError::ParsingFailed |
+                errors::ConnectorError::ResponseDeserializationFailed |
+                errors::ConnectorError::UnexpectedResponseError(_) |
+                errors::ConnectorError::RoutingRulesParsingError |
+                errors::ConnectorError::FailedToObtainPreferredConnector |
+                errors::ConnectorError::InvalidConnectorName |
+                errors::ConnectorError::InvalidWallet |
+                errors::ConnectorError::ResponseHandlingFailed |
+                errors::ConnectorError::FailedToObtainCertificate |
+                errors::ConnectorError::NoConnectorMetaData |
+                errors::ConnectorError::FailedToObtainCertificateKey |
+                errors::ConnectorError::CaptureMethodNotSupported |
+                errors::ConnectorError::MissingConnectorMandateID |
+                errors::ConnectorError::MissingConnectorTransactionID |
+                errors::ConnectorError::MissingConnectorRefundID |
+                errors::ConnectorError::MissingApplePayTokenData |
+                errors::ConnectorError::WebhooksNotImplemented |
+                errors::ConnectorError::WebhookBodyDecodingFailed |
+                errors::ConnectorError::WebhookSignatureNotFound |
+                errors::ConnectorError::WebhookSourceVerificationFailed |
+                errors::ConnectorError::WebhookVerificationSecretNotFound |
+                errors::ConnectorError::WebhookVerificationSecretInvalid |
+                errors::ConnectorError::WebhookReferenceIdNotFound |
+                errors::ConnectorError::WebhookEventTypeNotFound |
+                errors::ConnectorError::WebhookResourceObjectNotFound |
+                errors::ConnectorError::WebhookResponseEncodingFailed |
+                errors::ConnectorError::InvalidDateFormat |
+                errors::ConnectorError::DateFormattingFailed |
+                errors::ConnectorError::InvalidWalletToken |
+                errors::ConnectorError::MissingConnectorRelatedTransactionID { .. } |
+                errors::ConnectorError::FileValidationFailed { .. } |
+                errors::ConnectorError::MissingConnectorRedirectionPayload { .. } |
+                errors::ConnectorError::FailedAtConnector { .. } |
+                errors::ConnectorError::MissingPaymentMethodType |
+                errors::ConnectorError::InSufficientBalanceInPaymentMethod |
+                errors::ConnectorError::RequestTimeoutReceived |
+                errors::ConnectorError::ProcessingStepFailed(None) => errors::ApiErrorResponse::InternalServerError
             };
             err.change_context(error)
         })
@@ -235,8 +276,64 @@ impl<T> ConnectorErrorExt<T> for error_stack::Result<T, errors::ConnectorError> 
                 errors::ConnectorError::MissingRequiredField { field_name } => {
                     errors::ApiErrorResponse::MissingRequiredField { field_name }
                 }
-                _ => {
-                    logger::error!(%error,"Verify flow failed");
+                errors::ConnectorError::FailedToObtainIntegrationUrl => {
+                    errors::ApiErrorResponse::InvalidConnectorConfiguration {
+                        config: "connector_account_details".to_string(),
+                    }
+                }
+                errors::ConnectorError::InvalidConnectorConfig { config: field_name } => {
+                    errors::ApiErrorResponse::InvalidConnectorConfiguration {
+                        config: field_name.to_string(),
+                    }
+                }
+                errors::ConnectorError::RequestEncodingFailed
+                | errors::ConnectorError::RequestEncodingFailedWithReason(_)
+                | errors::ConnectorError::ParsingFailed
+                | errors::ConnectorError::ResponseDeserializationFailed
+                | errors::ConnectorError::UnexpectedResponseError(_)
+                | errors::ConnectorError::RoutingRulesParsingError
+                | errors::ConnectorError::FailedToObtainPreferredConnector
+                | errors::ConnectorError::InvalidConnectorName
+                | errors::ConnectorError::InvalidWallet
+                | errors::ConnectorError::ResponseHandlingFailed
+                | errors::ConnectorError::MissingRequiredFields { .. }
+                | errors::ConnectorError::FailedToObtainAuthType
+                | errors::ConnectorError::FailedToObtainCertificate
+                | errors::ConnectorError::NoConnectorMetaData
+                | errors::ConnectorError::FailedToObtainCertificateKey
+                | errors::ConnectorError::NotImplemented(_)
+                | errors::ConnectorError::NotSupported { .. }
+                | errors::ConnectorError::FlowNotSupported { .. }
+                | errors::ConnectorError::CaptureMethodNotSupported
+                | errors::ConnectorError::MissingConnectorMandateID
+                | errors::ConnectorError::MissingConnectorTransactionID
+                | errors::ConnectorError::MissingConnectorRefundID
+                | errors::ConnectorError::MissingApplePayTokenData
+                | errors::ConnectorError::WebhooksNotImplemented
+                | errors::ConnectorError::WebhookBodyDecodingFailed
+                | errors::ConnectorError::WebhookSignatureNotFound
+                | errors::ConnectorError::WebhookSourceVerificationFailed
+                | errors::ConnectorError::WebhookVerificationSecretNotFound
+                | errors::ConnectorError::WebhookVerificationSecretInvalid
+                | errors::ConnectorError::WebhookReferenceIdNotFound
+                | errors::ConnectorError::WebhookEventTypeNotFound
+                | errors::ConnectorError::WebhookResourceObjectNotFound
+                | errors::ConnectorError::WebhookResponseEncodingFailed
+                | errors::ConnectorError::InvalidDateFormat
+                | errors::ConnectorError::DateFormattingFailed
+                | errors::ConnectorError::InvalidDataFormat { .. }
+                | errors::ConnectorError::MismatchedPaymentData
+                | errors::ConnectorError::InvalidWalletToken
+                | errors::ConnectorError::MissingConnectorRelatedTransactionID { .. }
+                | errors::ConnectorError::FileValidationFailed { .. }
+                | errors::ConnectorError::MissingConnectorRedirectionPayload { .. }
+                | errors::ConnectorError::FailedAtConnector { .. }
+                | errors::ConnectorError::MissingPaymentMethodType
+                | errors::ConnectorError::InSufficientBalanceInPaymentMethod
+                | errors::ConnectorError::RequestTimeoutReceived
+                | errors::ConnectorError::CurrencyNotSupported { .. }
+                | errors::ConnectorError::ProcessingStepFailed(None) => {
+                    logger::error!(%error,"Setup Mandate flow failed");
                     errors::ApiErrorResponse::PaymentAuthorizationFailed { data: None }
                 }
             };

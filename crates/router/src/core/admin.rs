@@ -252,6 +252,31 @@ pub async fn create_merchant_account(
     ))
 }
 
+#[cfg(feature = "olap")]
+pub async fn list_merchant_account(
+    state: AppState,
+    req: api_models::admin::MerchantAccountListRequest,
+) -> RouterResponse<Vec<api::MerchantAccountResponse>> {
+    let merchant_accounts = state
+        .store
+        .list_merchant_accounts_by_organization_id(&req.organization_id)
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
+
+    let merchant_accounts = merchant_accounts
+        .into_iter()
+        .map(|merchant_account| {
+            merchant_account
+                .try_into()
+                .change_context(errors::ApiErrorResponse::InvalidDataValue {
+                    field_name: "merchant_account",
+                })
+        })
+        .collect::<Result<Vec<_>, _>>()?;
+
+    Ok(services::ApplicationResponse::Json(merchant_accounts))
+}
+
 pub async fn get_merchant_account(
     state: AppState,
     req: api::MerchantId,
@@ -676,11 +701,10 @@ pub async fn create_payment_connector(
                     message: "The connector name is invalid".to_string(),
                 })
             }
-            errors::ConnectorError::InvalidConfig { field_name } => {
-                err.change_context(errors::ApiErrorResponse::InvalidRequestData {
+            errors::ConnectorError::InvalidConnectorConfig { config: field_name } => err
+                .change_context(errors::ApiErrorResponse::InvalidRequestData {
                     message: format!("The {} is invalid", field_name),
-                })
-            }
+                }),
             errors::ConnectorError::FailedToObtainAuthType => {
                 err.change_context(errors::ApiErrorResponse::InvalidRequestData {
                     message: "The auth type is invalid for the connector".to_string(),

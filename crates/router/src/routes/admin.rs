@@ -77,6 +77,28 @@ pub async fn retrieve_merchant_account(
     )
     .await
 }
+
+#[cfg(feature = "olap")]
+#[instrument(skip_all, fields(flow = ?Flow::MerchantAccountList))]
+pub async fn merchant_account_list(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    query_params: web::Query<api_models::admin::MerchantAccountListRequest>,
+) -> HttpResponse {
+    let flow = Flow::MerchantAccountList;
+
+    Box::pin(api::server_wrap(
+        flow,
+        state,
+        &req,
+        query_params.into_inner(),
+        |state, _, request| list_merchant_account(state, request),
+        &auth::AdminApiAuth,
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
 /// Merchant Account - Update
 ///
 /// To update an existing merchant account. Helpful in updating merchant details such as email, contact details, or other configuration details like webhook, routing algorithm etc
@@ -113,6 +135,7 @@ pub async fn update_merchant_account(
     )
     .await
 }
+
 /// Merchant Account - Delete
 ///
 /// To delete a merchant account

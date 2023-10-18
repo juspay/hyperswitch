@@ -1181,6 +1181,8 @@ impl DataModelExt for PaymentAttemptUpdate {
                 error_code,
                 error_message,
                 amount_capturable,
+                surcharge_amount,
+                tax_amount,
                 updated_by,
             } => DieselPaymentAttemptUpdate::ConfirmUpdate {
                 amount,
@@ -1199,6 +1201,8 @@ impl DataModelExt for PaymentAttemptUpdate {
                 error_code,
                 error_message,
                 amount_capturable,
+                surcharge_amount,
+                tax_amount,
                 updated_by,
             },
             Self::VoidUpdate {
@@ -1333,15 +1337,6 @@ impl DataModelExt for PaymentAttemptUpdate {
                 surcharge_metadata,
                 updated_by,
             },
-            Self::SurchargeAmountUpdate {
-                surcharge_amount,
-                tax_amount,
-                updated_by,
-            } => DieselPaymentAttemptUpdate::SurchargeAmountUpdate {
-                surcharge_amount,
-                tax_amount,
-                updated_by,
-            },
         }
     }
 
@@ -1413,6 +1408,8 @@ impl DataModelExt for PaymentAttemptUpdate {
                 error_code,
                 error_message,
                 amount_capturable,
+                surcharge_amount,
+                tax_amount,
                 updated_by,
             } => Self::ConfirmUpdate {
                 amount,
@@ -1431,6 +1428,8 @@ impl DataModelExt for PaymentAttemptUpdate {
                 error_code,
                 error_message,
                 amount_capturable,
+                surcharge_amount,
+                tax_amount,
                 updated_by,
             },
             DieselPaymentAttemptUpdate::VoidUpdate {
@@ -1563,15 +1562,6 @@ impl DataModelExt for PaymentAttemptUpdate {
                 updated_by,
             } => Self::SurchargeMetadataUpdate {
                 surcharge_metadata,
-                updated_by,
-            },
-            DieselPaymentAttemptUpdate::SurchargeAmountUpdate {
-                surcharge_amount,
-                tax_amount,
-                updated_by,
-            } => Self::SurchargeAmountUpdate {
-                surcharge_amount,
-                tax_amount,
                 updated_by,
             },
         }
