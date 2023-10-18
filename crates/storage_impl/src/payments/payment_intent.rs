@@ -1,6 +1,4 @@
 #[cfg(feature = "olap")]
-use crate::connection;
-#[cfg(feature = "olap")]
 use async_bb8_diesel::{AsyncConnection, AsyncRunQueryDsl};
 use common_utils::{date_time, ext_traits::Encode};
 #[cfg(feature = "olap")]
@@ -36,6 +34,8 @@ use redis_interface::HsetnxReply;
 use router_env::logger;
 use router_env::{instrument, tracing};
 
+#[cfg(feature = "olap")]
+use crate::connection;
 use crate::{
     diesel_error_to_data_error,
     redis::kv_store::{kv_wrapper, KvOperation},
