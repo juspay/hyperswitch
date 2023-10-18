@@ -20,7 +20,7 @@ pm.test(
 let jsonData = {};
 try {
   jsonData = pm.response.json();
-} catch (e) {}
+} catch (e) { }
 
 // pm.collectionVariables - Set merchant_connector_id as variable for jsonData.merchant_connector_id
 if (jsonData?.merchant_connector_id) {
@@ -35,5 +35,12 @@ if (jsonData?.merchant_connector_id) {
 } else {
   console.log(
     "INFO - Unable to assign variable {{merchant_connector_id}}, as jsonData.merchant_connector_id is undefined.",
+  );
+}
+
+// Validate if the connector label is the one that is passed in the request
+if (jsonData?.connector_label != "updated_stripe_connector`") {
+  console.log(
+    "ERROR - The connector_label is not updated",
   );
 }
