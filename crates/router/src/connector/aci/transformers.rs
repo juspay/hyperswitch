@@ -203,7 +203,9 @@ impl
                     bank_account_iban: None,
                     billing_country: Some(country.to_owned()),
                     merchant_customer_id: Some(Secret::new(item.get_customer_id()?)),
-                    merchant_transaction_id: Some(Secret::new(item.payment_id.clone())),
+                    merchant_transaction_id: Some(Secret::new(
+                        item.connector_request_reference_id.clone(),
+                    )),
                     customer_email: None,
                 }))
             }
@@ -680,12 +682,12 @@ impl<F, T>
                 }
             },
             response: Ok(types::PaymentsResponseData::TransactionResponse {
-                resource_id: types::ResponseId::ConnectorTransactionId(item.response.id),
+                resource_id: types::ResponseId::ConnectorTransactionId(item.response.id.clone()),
                 redirection_data,
                 mandate_reference,
                 connector_metadata: None,
                 network_txn_id: None,
-                connector_response_reference_id: None,
+                connector_response_reference_id: Some(item.response.id),
             }),
             ..item.data
         })

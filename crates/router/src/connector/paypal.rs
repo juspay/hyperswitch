@@ -174,26 +174,31 @@ impl ConnectorCommon for Paypal {
             .map(|error_details| {
                 error_details
                     .iter()
-                    .try_fold::<_, _, CustomResult<_, errors::ConnectorError>>(
-                        String::new(),
-                        |mut acc, error| {
-                            write!(acc, "description - {} ;", error.description)
+                    .try_fold(String::new(), |mut acc, error| {
+                        if let Some(description) = &error.description {
+                            write!(acc, "description - {} ;", description)
                                 .into_report()
                                 .change_context(
                                     errors::ConnectorError::ResponseDeserializationFailed,
                                 )
                                 .attach_printable("Failed to concatenate error details")
                                 .map(|_| acc)
-                        },
-                    )
+                        } else {
+                            Ok(acc)
+                        }
+                    })
             })
             .transpose()?;
+        let reason = error_reason
+            .unwrap_or(response.message.to_owned())
+            .is_empty()
+            .then_some(response.message.to_owned());
 
         Ok(ErrorResponse {
             status_code: res.status_code,
             code: response.name,
             message: response.message.clone(),
-            reason: error_reason.or(Some(response.message)),
+            reason,
         })
     }
 }
@@ -210,6 +215,10 @@ impl ConnectorValidation for Paypal {
                 connector_utils::construct_not_implemented_error_report(capture_method, self.id()),
             ),
         }
+    }
+
+    fn validate_if_surcharge_implemented(&self) -> CustomResult<(), errors::ConnectorError> {
+        Ok(())
     }
 }
 
@@ -370,7 +379,10 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         let connector_router_data = paypal::PaypalRouterData::try_from((
             &self.get_currency_unit(),
             req.request.currency,
-            req.request.amount,
+            req.request
+                .surcharge_details
+                .as_ref()
+                .map_or(req.request.amount, |surcharge| surcharge.final_amount),
             req,
         ))?;
         let req_obj = paypal::PaypalPaymentsRequest::try_from(&connector_router_data)?;
@@ -1091,7 +1103,7 @@ impl api::IncomingWebhook for Paypal {
                         resource
                             .purchase_units
                             .first()
-                            .map(|unit| unit.reference_id.clone())
+                            .and_then(|unit| unit.invoice_id.clone().or(unit.reference_id.clone()))
                             .ok_or(errors::ConnectorError::WebhookReferenceIdNotFound)?,
                     ),
                 ))
@@ -1150,8 +1162,12 @@ impl services::ConnectorRedirectResponse for Paypal {
         &self,
         _query_params: &str,
         _json_payload: Option<serde_json::Value>,
-        _action: PaymentAction,
+        action: PaymentAction,
     ) -> CustomResult<payments::CallConnectorAction, errors::ConnectorError> {
-        Ok(payments::CallConnectorAction::Trigger)
+        match action {
+            services::PaymentAction::PSync | services::PaymentAction::CompleteAuthorize => {
+                Ok(payments::CallConnectorAction::Trigger)
+            }
+        }
     }
 }
