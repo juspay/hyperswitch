@@ -79,6 +79,7 @@ pub struct MerchantConnectorAccountUpdateInternal {
     pub connector_type: Option<storage_enums::ConnectorType>,
     pub connector_name: Option<String>,
     pub connector_account_details: Option<Encryption>,
+    pub connector_label: Option<String>,
     pub test_mode: Option<bool>,
     pub disabled: Option<bool>,
     pub merchant_connector_id: Option<String>,
