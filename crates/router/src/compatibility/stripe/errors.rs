@@ -93,9 +93,6 @@ pub enum StripeErrorCode {
     #[error(error_type = StripeErrorType::InvalidRequestError, code = "resource_missing", message = "No such payment method")]
     PaymentMethodNotFound,
 
-    #[error(error_type = StripeErrorType::InvalidRequestError, code = "resource_missing", message = "No payment method data")]
-    PaymentMethodDataNotFound,
-
     #[error(error_type = StripeErrorType::InvalidRequestError, code = "resource_missing", message = "{message}")]
     GenericNotFoundError { message: String },
 
@@ -495,7 +492,6 @@ impl From<errors::ApiErrorResponse> for StripeErrorCode {
             errors::ApiErrorResponse::CustomerNotFound => Self::CustomerNotFound,
             errors::ApiErrorResponse::PaymentNotFound => Self::PaymentNotFound,
             errors::ApiErrorResponse::PaymentMethodNotFound => Self::PaymentMethodNotFound,
-            errors::ApiErrorResponse::PaymentMethodDataNotFound => Self::PaymentMethodDataNotFound,
             errors::ApiErrorResponse::ClientSecretNotGiven
             | errors::ApiErrorResponse::ClientSecretExpired => Self::ClientSecretNotFound,
             errors::ApiErrorResponse::MerchantAccountNotFound => Self::MerchantAccountNotFound,
@@ -623,7 +619,6 @@ impl actix_web::ResponseError for StripeErrorCode {
             | Self::ClientSecretNotFound
             | Self::PaymentNotFound
             | Self::PaymentMethodNotFound
-            | Self::PaymentMethodDataNotFound
             | Self::MerchantAccountNotFound
             | Self::MerchantConnectorAccountNotFound { .. }
             | Self::MerchantConnectorAccountDisabled

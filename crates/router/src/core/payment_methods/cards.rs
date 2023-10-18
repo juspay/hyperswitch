@@ -1895,10 +1895,18 @@ pub async fn list_customer_payment_method(
             }
 
             enums::PaymentMethod::BankDebit => {
-                let bank_account_connector_details =
-                    get_bank_account_connector_details(&pm, key).await?;
-                let token_data = PaymentTokenData::AuthBankDebit(bank_account_connector_details);
-                (None, None, token_data)
+                let bank_account_connector_details = get_bank_account_connector_details(&pm, key)
+                    .await
+                    .unwrap_or_else(|err| {
+                        logger::error!(error=?err);
+                        None
+                    });
+                if let Some(connector_details) = bank_account_connector_details {
+                    let token_data = PaymentTokenData::AuthBankDebit(connector_details);
+                    (None, None, token_data)
+                } else {
+                    continue;
+                }
             }
 
             _ => (
@@ -1909,7 +1917,12 @@ pub async fn list_customer_payment_method(
         };
 
         let bank_details = if pm.payment_method == enums::PaymentMethod::BankDebit {
-            get_masked_bank_details(&pm, key).await
+            get_masked_bank_details(&pm, key)
+                .await
+                .unwrap_or_else(|err| {
+                    logger::error!(error=?err);
+                    None
+                })
         } else {
             None
         };
@@ -1947,6 +1960,7 @@ pub async fn list_customer_payment_method(
         ))
         .insert(intent_created, hyperswitch_token_data, state)
         .await?;
+
         if let Some(metadata) = pma.metadata {
             let pm_metadata_vec: payment_methods::PaymentMethodMetadata = metadata
                 .parse_value("PaymentMethodMetadata")
@@ -2049,51 +2063,59 @@ pub async fn get_lookup_key_from_locker(
 async fn get_masked_bank_details(
     pm: &payment_method::PaymentMethod,
     key: &[u8],
-) -> Option<MaskedBankDetails> {
-    decrypt::<serde_json::Value, masking::WithType>(pm.payment_method_data.clone(), key)
-        .await
-        .change_context(errors::StorageError::DecryptionError)
-        .attach_printable("unable to decrypt bank details")
-        .ok()
-        .flatten()
-        .map(|x| x.into_inner().expose())
-        .and_then(|v| {
-            serde_json::from_value::<PaymentMethodsData>(v)
-                .map_err(|err| {
-                    logger::error!(serde_error=?err);
-                })
-                .ok()
-        })
-        .and_then(|pm_data| match pm_data {
-            PaymentMethodsData::Card(_) => None,
-            PaymentMethodsData::BankDetails(bank_details) => Some(MaskedBankDetails {
+) -> errors::RouterResult<Option<MaskedBankDetails>> {
+    let payment_method_data =
+        decrypt::<serde_json::Value, masking::WithType>(pm.payment_method_data.clone(), key)
+            .await
+            .change_context(errors::StorageError::DecryptionError)
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("unable to decrypt bank details")?
+            .map(|x| x.into_inner().expose())
+            .map(
+                |v| -> Result<PaymentMethodsData, error_stack::Report<errors::ApiErrorResponse>> {
+                    v.parse_value::<PaymentMethodsData>("PaymentMethodsData")
+                        .change_context(errors::StorageError::DeserializationFailed)
+                        .change_context(errors::ApiErrorResponse::InternalServerError)
+                        .attach_printable("Failed to deserialize Payment Method Auth config")
+                },
+            )
+            .transpose()?;
+
+    match payment_method_data {
+        Some(pmd) => match pmd {
+            PaymentMethodsData::Card(_) => Ok(None),
+            PaymentMethodsData::BankDetails(bank_details) => Ok(Some(MaskedBankDetails {
                 mask: bank_details.mask,
-            }),
-        })
+            })),
+        },
+        None => Err(errors::ApiErrorResponse::InternalServerError.into())
+            .attach_printable("Unable to fetch payment method data"),
+    }
 }
 
 async fn get_bank_account_connector_details(
     pm: &payment_method::PaymentMethod,
     key: &[u8],
-) -> errors::RouterResult<BankAccountConnectorDetails> {
+) -> errors::RouterResult<Option<BankAccountConnectorDetails>> {
     let payment_method_data =
         decrypt::<serde_json::Value, masking::WithType>(pm.payment_method_data.clone(), key)
             .await
             .change_context(errors::StorageError::DecryptionError)
-            .attach_printable("unable to decrypt bank details")
-            .ok()
-            .flatten()
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("unable to decrypt bank details")?
             .map(|x| x.into_inner().expose())
-            .and_then(|v| {
-                serde_json::from_value::<PaymentMethodsData>(v)
-                    .map_err(|err| {
-                        logger::error!(serde_error=?err);
-                    })
-                    .ok()
-            });
+            .map(
+                |v| -> Result<PaymentMethodsData, error_stack::Report<errors::ApiErrorResponse>> {
+                    v.parse_value::<PaymentMethodsData>("PaymentMethodsData")
+                        .change_context(errors::StorageError::DeserializationFailed)
+                        .change_context(errors::ApiErrorResponse::InternalServerError)
+                        .attach_printable("Failed to deserialize Payment Method Auth config")
+                },
+            )
+            .transpose()?;
 
-    if let Some(pmd) = payment_method_data {
-        match pmd {
+    match payment_method_data {
+        Some(pmd) => match pmd {
             PaymentMethodsData::Card(_) => Err(errors::ApiErrorResponse::UnprocessableEntity {
                 message: "Card is not a valid entity".to_string(),
             })
@@ -2103,16 +2125,16 @@ async fn get_bank_account_connector_details(
                     .connector_details
                     .first()
                     .ok_or(errors::ApiErrorResponse::InternalServerError)?;
-                Ok(BankAccountConnectorDetails {
+                Ok(Some(BankAccountConnectorDetails {
                     connector: connector_details.connector.clone(),
                     account_id: connector_details.account_id.clone(),
                     mca_id: connector_details.mca_id.clone(),
                     access_token: connector_details.access_token.clone(),
-                })
+                }))
             }
-        }
-    } else {
-        Err(errors::ApiErrorResponse::PaymentMethodDataNotFound.into())
+        },
+        None => Err(errors::ApiErrorResponse::InternalServerError.into())
+            .attach_printable("Unable to fetch payment method data"),
     }
 }
 
