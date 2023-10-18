@@ -48,6 +48,7 @@ pub struct BamboraBrowserInfo {
 
 #[derive(Default, Debug, Serialize, Eq, PartialEq)]
 pub struct BamboraPaymentsRequest {
+    order_number: String,
     amount: i64,
     payment_method: PaymentMethod,
     customer_ip: Option<std::net::IpAddr>,
@@ -126,6 +127,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for BamboraPaymentsRequest {
                 };
                 let browser_info = item.request.get_browser_info()?;
                 Ok(Self {
+                    order_number: item.connector_request_reference_id.clone(),
                     amount: item.request.amount,
                     payment_method: PaymentMethod::Card,
                     card: bambora_card,

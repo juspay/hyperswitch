@@ -5,6 +5,7 @@ use actix_web::{web, Scope};
 use external_services::email::{AwsSes, EmailClient};
 #[cfg(feature = "kms")]
 use external_services::kms::{self, decrypt::KmsDecrypt};
+use router_env::tracing_actix_web::RequestId;
 use scheduler::SchedulerInterface;
 use storage_impl::MockDb;
 use tokio::sync::oneshot;
@@ -25,6 +26,7 @@ use super::{ephemeral_key::*, payment_methods::*, webhooks::*};
 use crate::{
     configs::settings,
     db::{StorageImpl, StorageInterface},
+    events::{event_logger::EventLogger, EventHandler},
     routes::cards_info::card_iin_info,
     services::get_store,
 };
@@ -34,6 +36,7 @@ pub struct AppState {
     pub flow_name: String,
     pub store: Box<dyn StorageInterface>,
     pub conf: Arc<settings::Settings>,
+    pub event_handler: Box<dyn EventHandler>,
     #[cfg(feature = "email")]
     pub email_client: Arc<dyn EmailClient>,
     #[cfg(feature = "kms")]
@@ -50,9 +53,10 @@ impl scheduler::SchedulerAppState for AppState {
 pub trait AppStateInfo {
     fn conf(&self) -> settings::Settings;
     fn store(&self) -> Box<dyn StorageInterface>;
+    fn event_handler(&self) -> Box<dyn EventHandler>;
     #[cfg(feature = "email")]
     fn email_client(&self) -> Arc<dyn EmailClient>;
-    fn add_request_id(&mut self, request_id: Option<String>);
+    fn add_request_id(&mut self, request_id: RequestId);
     fn add_merchant_id(&mut self, merchant_id: Option<String>);
     fn add_flow_name(&mut self, flow_name: String);
     fn get_request_id(&self) -> Option<String>;
@@ -69,7 +73,10 @@ impl AppStateInfo for AppState {
     fn email_client(&self) -> Arc<dyn EmailClient> {
         self.email_client.to_owned()
     }
-    fn add_request_id(&mut self, request_id: Option<String>) {
+    fn event_handler(&self) -> Box<dyn EventHandler> {
+        self.event_handler.to_owned()
+    }
+    fn add_request_id(&mut self, request_id: RequestId) {
         self.api_client.add_request_id(request_id);
     }
     fn add_merchant_id(&mut self, merchant_id: Option<String>) {
@@ -121,6 +128,11 @@ impl AppState {
         #[allow(clippy::expect_used)]
         let kms_secrets = settings::ActiveKmsSecrets {
             jwekey: conf.jwekey.clone().into(),
+            redis_temp_locker_encryption_key: conf
+                .locker
+                .redis_temp_locker_encryption_key
+                .clone()
+                .into(),
         }
         .decrypt_inner(kms_client)
         .await
@@ -128,6 +140,7 @@ impl AppState {
 
         #[cfg(feature = "email")]
         let email_client = Arc::new(AwsSes::new(&conf.email).await);
+
         Self {
             flow_name: String::from("default"),
             store,
@@ -137,6 +150,7 @@ impl AppState {
             #[cfg(feature = "kms")]
             kms_secrets: Arc::new(kms_secrets),
             api_client,
+            event_handler: Box::<EventLogger>::default(),
         }
     }
 
@@ -383,6 +397,7 @@ impl MerchantAccount {
         web::scope("/accounts")
             .app_data(web::Data::new(state))
             .service(web::resource("").route(web::post().to(merchant_account_create)))
+            .service(web::resource("/list").route(web::get().to(merchant_account_list)))
             .service(
                 web::resource("/{id}/kv")
                     .route(web::post().to(merchant_account_toggle_kv))
