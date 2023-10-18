@@ -4,7 +4,7 @@ mod utils;
 
 use router::{
     configs,
-    core::payments,
+    core::{payment_methods::Oss, payments},
     db::StorageImpl,
     routes, services,
     types::{
@@ -226,7 +226,7 @@ async fn payments_todo() {
     let client = awc::Client::default();
     let mut response;
     let mut response_body;
-    let _post_endpoints = vec!["123/update", "123/confirm", "cancel"];
+    let _post_endpoints = ["123/update", "123/confirm", "cancel"];
     let get_endpoints = vec!["list"];
 
     for endpoint in get_endpoints {
@@ -275,7 +275,13 @@ async fn payments_create_core() {
     use configs::settings::Settings;
     let conf = Settings::new().expect("invalid settings");
     let tx: oneshot::Sender<()> = oneshot::channel().0;
-    let state = routes::AppState::with_storage(conf, StorageImpl::PostgresqlTest, tx).await;
+    let state = routes::AppState::with_storage(
+        conf,
+        StorageImpl::PostgresqlTest,
+        tx,
+        Box::new(services::MockApiClient),
+    )
+    .await;
 
     let key_store = state
         .store
@@ -355,14 +361,15 @@ async fn payments_create_core() {
     let expected_response =
         services::ApplicationResponse::JsonWithHeaders((expected_response, vec![]));
     let actual_response =
-        payments::payments_core::<api::Authorize, api::PaymentsResponse, _, _, _>(
-            &state,
+        payments::payments_core::<api::Authorize, api::PaymentsResponse, _, _, _, Oss>(
+            state,
             merchant_account,
             key_store,
             payments::PaymentCreate,
             req,
             services::AuthFlow::Merchant,
             payments::CallConnectorAction::Trigger,
+            api::HeaderPayload::default(),
         )
         .await
         .unwrap();
@@ -437,7 +444,13 @@ async fn payments_create_core_adyen_no_redirect() {
     use crate::configs::settings::Settings;
     let conf = Settings::new().expect("invalid settings");
     let tx: oneshot::Sender<()> = oneshot::channel().0;
-    let state = routes::AppState::with_storage(conf, StorageImpl::PostgresqlTest, tx).await;
+    let state = routes::AppState::with_storage(
+        conf,
+        StorageImpl::PostgresqlTest,
+        tx,
+        Box::new(services::MockApiClient),
+    )
+    .await;
 
     let customer_id = format!("cust_{}", Uuid::new_v4());
     let merchant_id = "arunraj".to_string();
@@ -518,14 +531,15 @@ async fn payments_create_core_adyen_no_redirect() {
         vec![],
     ));
     let actual_response =
-        payments::payments_core::<api::Authorize, api::PaymentsResponse, _, _, _>(
-            &state,
+        payments::payments_core::<api::Authorize, api::PaymentsResponse, _, _, _, Oss>(
+            state,
             merchant_account,
             key_store,
             payments::PaymentCreate,
             req,
             services::AuthFlow::Merchant,
             payments::CallConnectorAction::Trigger,
+            api::HeaderPayload::default(),
         )
         .await
         .unwrap();

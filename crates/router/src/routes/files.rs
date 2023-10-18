@@ -1,6 +1,8 @@
 use actix_multipart::Multipart;
 use actix_web::{web, HttpRequest, HttpResponse};
 use router_env::{instrument, tracing, Flow};
+
+use crate::core::api_locking;
 pub mod transformers;
 
 use super::app::AppState;
@@ -39,15 +41,15 @@ pub async fn files_create(
     };
     api::server_wrap(
         flow,
-        state.get_ref(),
+        state,
         &req,
         create_file_request,
         |state, auth, req| files_create_core(state, auth.merchant_account, auth.key_store, req),
         auth::auth_type(&auth::ApiKeyAuth, &auth::JWTAuth, req.headers()),
+        api_locking::LockAction::NotApplicable,
     )
     .await
 }
-
 /// Files - Delete
 ///
 /// To delete a file
@@ -77,15 +79,15 @@ pub async fn files_delete(
     };
     api::server_wrap(
         flow,
-        state.get_ref(),
+        state,
         &req,
         file_id,
         |state, auth, req| files_delete_core(state, auth.merchant_account, req),
         auth::auth_type(&auth::ApiKeyAuth, &auth::JWTAuth, req.headers()),
+        api_locking::LockAction::NotApplicable,
     )
     .await
 }
-
 /// Files - Retrieve
 ///
 /// To retrieve a file
@@ -115,11 +117,12 @@ pub async fn files_retrieve(
     };
     api::server_wrap(
         flow,
-        state.get_ref(),
+        state,
         &req,
         file_id,
         |state, auth, req| files_retrieve_core(state, auth.merchant_account, auth.key_store, req),
         auth::auth_type(&auth::ApiKeyAuth, &auth::JWTAuth, req.headers()),
+        api_locking::LockAction::NotApplicable,
     )
     .await
 }

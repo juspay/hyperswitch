@@ -169,7 +169,7 @@ async fn should_fail_payment_for_incorrect_card_number() {
         .unwrap();
     let x = response.response.unwrap_err();
     assert_eq!(
-        x.message,
+        x.reason.unwrap(),
         "Your card was declined. Your request was in test mode, but used a non test (live) card. For a list of valid test cards, visit: https://stripe.com/docs/testing.",
     );
 }
@@ -190,7 +190,10 @@ async fn should_fail_payment_for_invalid_exp_month() {
         .await
         .unwrap();
     let x = response.response.unwrap_err();
-    assert_eq!(x.message, "Your card's expiration month is invalid.",);
+    assert_eq!(
+        x.reason.unwrap(),
+        "Your card's expiration month is invalid.",
+    );
 }
 
 #[actix_web::test]
@@ -209,7 +212,7 @@ async fn should_fail_payment_for_invalid_exp_year() {
         .await
         .unwrap();
     let x = response.response.unwrap_err();
-    assert_eq!(x.message, "Your card's expiration year is invalid.",);
+    assert_eq!(x.reason.unwrap(), "Your card's expiration year is invalid.",);
 }
 
 #[actix_web::test]
@@ -228,7 +231,7 @@ async fn should_fail_payment_for_invalid_card_cvc() {
         .await
         .unwrap();
     let x = response.response.unwrap_err();
-    assert_eq!(x.message, "Your card's security code is invalid.",);
+    assert_eq!(x.reason.unwrap(), "Your card's security code is invalid.",);
 }
 
 // Voids a payment using automatic capture flow (Non 3DS).
@@ -250,7 +253,7 @@ async fn should_fail_void_payment_for_auto_capture() {
         .await
         .unwrap();
     assert_eq!(
-        void_response.response.unwrap_err().message,
+        void_response.response.unwrap_err().reason.unwrap(),
         "You cannot cancel this PaymentIntent because it has a status of succeeded. Only a PaymentIntent with one of the following statuses may be canceled: requires_payment_method, requires_capture, requires_confirmation, requires_action, processing."
     );
 }
@@ -263,7 +266,10 @@ async fn should_fail_capture_for_invalid_payment() {
         .await
         .unwrap();
     let err = response.response.unwrap_err();
-    assert_eq!(err.message, "No such payment_intent: '12345'".to_string());
+    assert_eq!(
+        err.reason.unwrap(),
+        "No such payment_intent: '12345'".to_string()
+    );
     assert_eq!(err.code, "resource_missing".to_string());
 }
 
@@ -363,7 +369,7 @@ async fn should_fail_refund_for_invalid_amount() {
         .await
         .unwrap();
     assert_eq!(
-        response.response.unwrap_err().message,
+        response.response.unwrap_err().reason.unwrap(),
         "Refund amount ($1.50) is greater than charge amount ($1.00)",
     );
 }

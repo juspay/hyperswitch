@@ -45,6 +45,8 @@ impl TryFrom<domain::MerchantAccount> for MerchantAccountResponse {
             organization_id: item.organization_id,
             is_recon_enabled: item.is_recon_enabled,
             default_profile: item.default_profile,
+            recon_status: item.recon_status,
+            payment_link_config: item.payment_link_config,
         })
     }
 }
@@ -69,6 +71,7 @@ impl ForeignTryFrom<storage::business_profile::BusinessProfile> for BusinessProf
             intent_fulfillment_time: item.intent_fulfillment_time,
             frm_routing_algorithm: item.frm_routing_algorithm,
             payout_routing_algorithm: item.payout_routing_algorithm,
+            applepay_verified_domains: item.applepay_verified_domains,
         })
     }
 }
@@ -135,6 +138,7 @@ impl ForeignTryFrom<(domain::MerchantAccount, BusinessProfileCreate)>
                 .payout_routing_algorithm
                 .or(merchant_account.payout_routing_algorithm),
             is_recon_enabled: merchant_account.is_recon_enabled,
+            applepay_verified_domains: request.applepay_verified_domains,
         })
     }
 }

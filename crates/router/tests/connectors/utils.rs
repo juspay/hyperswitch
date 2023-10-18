@@ -68,6 +68,7 @@ pub trait ConnectorActions: Connector {
             Settings::new().unwrap(),
             StorageImpl::PostgresqlTest,
             tx,
+            Box::new(services::MockApiClient),
         )
         .await;
         integration.execute_pretasks(&mut request, &state).await?;
@@ -91,6 +92,7 @@ pub trait ConnectorActions: Connector {
             Settings::new().unwrap(),
             StorageImpl::PostgresqlTest,
             tx,
+            Box::new(services::MockApiClient),
         )
         .await;
         integration.execute_pretasks(&mut request, &state).await?;
@@ -114,6 +116,7 @@ pub trait ConnectorActions: Connector {
             Settings::new().unwrap(),
             StorageImpl::PostgresqlTest,
             tx,
+            Box::new(services::MockApiClient),
         )
         .await;
         integration.execute_pretasks(&mut request, &state).await?;
@@ -141,6 +144,7 @@ pub trait ConnectorActions: Connector {
             Settings::new().unwrap(),
             StorageImpl::PostgresqlTest,
             tx,
+            Box::new(services::MockApiClient),
         )
         .await;
         integration.execute_pretasks(&mut request, &state).await?;
@@ -384,6 +388,7 @@ pub trait ConnectorActions: Connector {
                 connector_metadata: None,
                 reason: None,
                 connector_refund_id: Some(refund_id),
+                browser_info: None,
             }),
             payment_info,
         );
@@ -438,11 +443,6 @@ pub trait ConnectorActions: Connector {
                 }),
                 entity_type: enums::PayoutEntityType::Individual,
                 payout_type,
-                country_code: payment_info
-                    .to_owned()
-                    .map_or(enums::CountryAlpha2::NL, |pi| {
-                        pi.country.map_or(enums::CountryAlpha2::NL, |c| c)
-                    }),
                 customer_details: Some(payments::CustomerDetails {
                     customer_id: core_utils::get_or_generate_id("customer_id", &None, "cust_").ok(),
                     name: Some(Secret::new("John Doe".to_string())),
@@ -493,7 +493,9 @@ pub trait ConnectorActions: Connector {
             access_token: info.clone().and_then(|a| a.access_token),
             session_token: None,
             reference_id: None,
-            payment_method_token: info.clone().and_then(|a| a.payment_method_token),
+            payment_method_token: info
+                .clone()
+                .and_then(|a| a.payment_method_token.map(types::PaymentMethodToken::Token)),
             connector_customer: info.clone().and_then(|a| a.connector_customer),
             recurring_mandate_payment_data: None,
 
@@ -507,6 +509,8 @@ pub trait ConnectorActions: Connector {
             payment_method_balance: None,
             connector_api_version: None,
             connector_http_status_code: None,
+            apple_pay_flow: None,
+            external_latency: None,
         }
     }
 
@@ -551,6 +555,7 @@ pub trait ConnectorActions: Connector {
             Settings::new().unwrap(),
             StorageImpl::PostgresqlTest,
             tx,
+            Box::new(services::MockApiClient),
         )
         .await;
         connector_integration
@@ -589,6 +594,7 @@ pub trait ConnectorActions: Connector {
             Settings::new().unwrap(),
             StorageImpl::PostgresqlTest,
             tx,
+            Box::new(services::MockApiClient),
         )
         .await;
         connector_integration
@@ -628,6 +634,7 @@ pub trait ConnectorActions: Connector {
             Settings::new().unwrap(),
             StorageImpl::PostgresqlTest,
             tx,
+            Box::new(services::MockApiClient),
         )
         .await;
         connector_integration
@@ -667,6 +674,7 @@ pub trait ConnectorActions: Connector {
             Settings::new().unwrap(),
             StorageImpl::PostgresqlTest,
             tx,
+            Box::new(services::MockApiClient),
         )
         .await;
         connector_integration
@@ -750,6 +758,7 @@ pub trait ConnectorActions: Connector {
             Settings::new().unwrap(),
             StorageImpl::PostgresqlTest,
             tx,
+            Box::new(services::MockApiClient),
         )
         .await;
         connector_integration
@@ -777,7 +786,13 @@ async fn call_connector<
 ) -> Result<RouterData<T, Req, Resp>, Report<ConnectorError>> {
     let conf = Settings::new().unwrap();
     let tx: oneshot::Sender<()> = oneshot::channel().0;
-    let state = routes::AppState::with_storage(conf, StorageImpl::PostgresqlTest, tx).await;
+    let state = routes::AppState::with_storage(
+        conf,
+        StorageImpl::PostgresqlTest,
+        tx,
+        Box::new(services::MockApiClient),
+    )
+    .await;
     services::api::execute_connector_processing_step(
         &state,
         integration,
@@ -867,6 +882,7 @@ impl Default for PaymentAuthorizeType {
             complete_authorize_url: None,
             webhook_url: None,
             customer_id: None,
+            surcharge_details: None,
         };
         Self(data)
     }
@@ -921,7 +937,7 @@ impl Default for PaymentSyncType {
             ),
             encoded_data: None,
             capture_method: None,
-            capture_sync_type: types::CaptureSyncType::SingleCaptureSync,
+            sync_type: types::SyncRequestType::SinglePaymentSync,
             connector_meta: None,
         };
         Self(data)
@@ -940,6 +956,7 @@ impl Default for PaymentRefundType {
             connector_metadata: None,
             reason: Some("Customer returned product".to_string()),
             connector_refund_id: None,
+            browser_info: None,
         };
         Self(data)
     }
@@ -948,6 +965,7 @@ impl Default for PaymentRefundType {
 impl Default for CustomerType {
     fn default() -> Self {
         let data = types::ConnectorCustomerData {
+            payment_method_data: types::api::PaymentMethodData::Card(CCardType::default().0),
             description: None,
             email: Some(Email::from(Secret::new("test@juspay.in".to_string()))),
             phone: None,
@@ -963,6 +981,8 @@ impl Default for TokenType {
         let data = types::PaymentMethodTokenizationData {
             payment_method_data: types::api::PaymentMethodData::Card(CCardType::default().0),
             browser_info: None,
+            amount: Some(100),
+            currency: enums::Currency::USD,
         };
         Self(data)
     }

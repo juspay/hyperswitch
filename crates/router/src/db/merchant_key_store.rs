@@ -1,7 +1,7 @@
 use error_stack::{IntoReport, ResultExt};
 use masking::Secret;
 #[cfg(feature = "accounts_cache")]
-use storage_impl::redis::cache::ACCOUNTS_CACHE;
+use storage_impl::redis::cache::{CacheKind, ACCOUNTS_CACHE};
 
 use crate::{
     connection,
@@ -27,6 +27,11 @@ pub trait MerchantKeyStoreInterface {
         merchant_id: &str,
         key: &Secret<Vec<u8>>,
     ) -> CustomResult<domain::MerchantKeyStore, errors::StorageError>;
+
+    async fn delete_merchant_key_store_by_merchant_id(
+        &self,
+        merchant_id: &str,
+    ) -> CustomResult<bool, errors::StorageError>;
 }
 
 #[async_trait::async_trait]
@@ -66,6 +71,7 @@ impl MerchantKeyStoreInterface for Store {
             .map_err(Into::into)
             .into_report()
         };
+
         #[cfg(not(feature = "accounts_cache"))]
         {
             fetch_func()
@@ -88,6 +94,38 @@ impl MerchantKeyStoreInterface for Store {
             .convert(key)
             .await
             .change_context(errors::StorageError::DecryptionError)
+        }
+    }
+
+    async fn delete_merchant_key_store_by_merchant_id(
+        &self,
+        merchant_id: &str,
+    ) -> CustomResult<bool, errors::StorageError> {
+        let delete_func = || async {
+            let conn = connection::pg_connection_write(self).await?;
+            diesel_models::merchant_key_store::MerchantKeyStore::delete_by_merchant_id(
+                &conn,
+                merchant_id,
+            )
+            .await
+            .map_err(Into::into)
+            .into_report()
+        };
+
+        #[cfg(not(feature = "accounts_cache"))]
+        {
+            delete_func().await
+        }
+
+        #[cfg(feature = "accounts_cache")]
+        {
+            let key_store_cache_key = format!("merchant_key_store_{}", merchant_id);
+            super::cache::publish_and_redact(
+                self,
+                CacheKind::Accounts(key_store_cache_key.into()),
+                delete_func,
+            )
+            .await
         }
     }
 }
@@ -140,6 +178,22 @@ impl MerchantKeyStoreInterface for MockDb {
             .await
             .change_context(errors::StorageError::DecryptionError)
     }
+
+    async fn delete_merchant_key_store_by_merchant_id(
+        &self,
+        merchant_id: &str,
+    ) -> CustomResult<bool, errors::StorageError> {
+        let mut merchant_key_stores = self.merchant_key_store.lock().await;
+        let index = merchant_key_stores
+            .iter()
+            .position(|mks| mks.merchant_id == merchant_id)
+            .ok_or(errors::StorageError::ValueNotFound(format!(
+                "No merchant key store found for merchant_id = {}",
+                merchant_id
+            )))?;
+        merchant_key_stores.remove(index);
+        Ok(true)
+    }
 }
 
 #[cfg(test)]
@@ -149,13 +203,16 @@ mod tests {
     use crate::{
         db::{merchant_key_store::MerchantKeyStoreInterface, MasterKeyInterface, MockDb},
         services,
-        types::domain::{self, types as domain_types},
+        types::domain::{self},
     };
 
     #[allow(clippy::unwrap_used)]
     #[tokio::test]
     async fn test_mock_db_merchant_key_store_interface() {
-        let mock_db = MockDb::new(&Default::default()).await;
+        #[allow(clippy::expect_used)]
+        let mock_db = MockDb::new(&redis_interface::RedisSettings::default())
+            .await
+            .expect("Failed to create mock DB");
         let master_key = mock_db.get_master_key();
         let merchant_id = "merchant1";
 
@@ -163,7 +220,7 @@ mod tests {
             .insert_merchant_key_store(
                 domain::MerchantKeyStore {
                     merchant_id: merchant_id.into(),
-                    key: domain_types::encrypt(
+                    key: domain::types::encrypt(
                         services::generate_aes256_key().unwrap().to_vec().into(),
                         master_key,
                     )
@@ -188,7 +245,7 @@ mod tests {
             .insert_merchant_key_store(
                 domain::MerchantKeyStore {
                     merchant_id: merchant_id.into(),
-                    key: domain_types::encrypt(
+                    key: domain::types::encrypt(
                         services::generate_aes256_key().unwrap().to_vec().into(),
                         master_key,
                     )

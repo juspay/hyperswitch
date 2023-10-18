@@ -33,7 +33,7 @@ pub struct Nexinets;
 impl api::Payment for Nexinets {}
 impl api::PaymentSession for Nexinets {}
 impl api::ConnectorAccessToken for Nexinets {}
-impl api::PreVerify for Nexinets {}
+impl api::MandateSetup for Nexinets {}
 impl api::PaymentAuthorize for Nexinets {}
 impl api::PaymentSync for Nexinets {}
 impl api::PaymentCapture for Nexinets {}
@@ -159,8 +159,12 @@ impl ConnectorIntegration<api::AccessTokenAuth, types::AccessTokenRequestData, t
 {
 }
 
-impl ConnectorIntegration<api::Verify, types::VerifyRequestData, types::PaymentsResponseData>
-    for Nexinets
+impl
+    ConnectorIntegration<
+        api::SetupMandate,
+        types::SetupMandateRequestData,
+        types::PaymentsResponseData,
+    > for Nexinets
 {
 }
 
@@ -210,7 +214,6 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         req: &types::PaymentsAuthorizeRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
-        self.validate_capture_method(req.request.capture_method)?;
         Ok(Some(
             services::RequestBuilder::new()
                 .method(services::Method::Post)

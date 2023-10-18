@@ -44,7 +44,7 @@
       "business_label": "default",
       "connector_account_details": {
         "auth_type": "HeaderKey",
-        "api_key": "{{connector_api_key}}"
+        "api_key": "{{connector_api_key}}_invalid_values"
       },
       "test_mode": false,
       "disabled": false,

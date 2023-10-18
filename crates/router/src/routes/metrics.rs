@@ -12,6 +12,7 @@ counter_metric!(AWS_KMS_FAILURES, GLOBAL_METER); // No. of AWS KMS API failures
 counter_metric!(REQUESTS_RECEIVED, GLOBAL_METER);
 counter_metric!(REQUEST_STATUS, GLOBAL_METER);
 histogram_metric!(REQUEST_TIME, GLOBAL_METER);
+histogram_metric!(EXTERNAL_REQUEST_TIME, GLOBAL_METER);
 
 // Operation Level Metrics
 counter_metric!(PAYMENT_OPS_COUNT, GLOBAL_METER);
@@ -40,6 +41,8 @@ counter_metric!(DELETE_FROM_LOCKER, GLOBAL_METER);
 counter_metric!(CREATED_TOKENIZED_CARD, GLOBAL_METER);
 counter_metric!(DELETED_TOKENIZED_CARD, GLOBAL_METER);
 counter_metric!(GET_TOKENIZED_CARD, GLOBAL_METER);
+counter_metric!(TOKENIZED_DATA_COUNT, GLOBAL_METER); // Tokenized data added
+counter_metric!(RETRIED_DELETE_DATA_COUNT, GLOBAL_METER); // Tokenized data retried
 
 counter_metric!(CUSTOMER_CREATED, GLOBAL_METER);
 counter_metric!(CUSTOMER_REDACTED, GLOBAL_METER);
@@ -90,6 +93,14 @@ histogram_metric!(CARD_DELETE_TIME, GLOBAL_METER);
 // Encryption and Decryption metrics
 histogram_metric!(ENCRYPTION_TIME, GLOBAL_METER);
 histogram_metric!(DECRYPTION_TIME, GLOBAL_METER);
+
+// Apple Pay Flow Metrics
+counter_metric!(APPLE_PAY_MANUAL_FLOW, GLOBAL_METER);
+counter_metric!(APPLE_PAY_SIMPLIFIED_FLOW, GLOBAL_METER);
+counter_metric!(APPLE_PAY_MANUAL_FLOW_SUCCESSFUL_PAYMENT, GLOBAL_METER);
+counter_metric!(APPLE_PAY_SIMPLIFIED_FLOW_SUCCESSFUL_PAYMENT, GLOBAL_METER);
+counter_metric!(APPLE_PAY_MANUAL_FLOW_FAILED_PAYMENT, GLOBAL_METER);
+counter_metric!(APPLE_PAY_SIMPLIFIED_FLOW_FAILED_PAYMENT, GLOBAL_METER);
 
 pub mod request;
 pub mod utils;

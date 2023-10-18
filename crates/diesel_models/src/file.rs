@@ -17,6 +17,7 @@ pub struct FileMetadataNew {
     pub file_upload_provider: Option<common_enums::FileUploadProvider>,
     pub available: bool,
     pub connector_label: Option<String>,
+    pub profile_id: Option<String>,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize, Identifiable, Queryable)]
@@ -34,6 +35,7 @@ pub struct FileMetadata {
     #[serde(with = "custom_serde::iso8601")]
     pub created_at: time::PrimitiveDateTime,
     pub connector_label: Option<String>,
+    pub profile_id: Option<String>,
 }
 
 #[derive(Debug)]

@@ -153,6 +153,7 @@ impl AdyenTest {
             webhook_url: None,
             complete_authorize_url: None,
             customer_id: None,
+            surcharge_details: None,
         })
     }
 }
@@ -477,7 +478,7 @@ async fn should_fail_payment_for_invalid_exp_month() {
         )
         .await
         .unwrap();
-    let errors = vec!["The provided Expiry Date is not valid.: Expiry month should be between 1 and 12 inclusive: 20","Refused"];
+    let errors = ["The provided Expiry Date is not valid.: Expiry month should be between 1 and 12 inclusive: 20","Refused"];
     assert!(errors.contains(&response.response.unwrap_err().message.as_str()))
 }
 

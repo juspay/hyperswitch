@@ -69,7 +69,7 @@
         "payment_succeeded_enabled": true,
         "payment_failed_enabled": true
       },
-      
+
       "sub_merchants_enabled": false,
       "parent_merchant_id": "xkkdf909012sdjki2dkh5sdf",
       "metadata": {
@@ -80,13 +80,8 @@
   },
   "url": {
     "raw": "{{baseUrl}}/accounts/:id",
-    "host": [
-      "{{baseUrl}}"
-    ],
-    "path": [
-      "accounts",
-      ":id"
-    ],
+    "host": ["{{baseUrl}}"],
+    "path": ["accounts", ":id"],
     "variable": [
       {
         "key": "id",

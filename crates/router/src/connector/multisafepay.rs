@@ -115,9 +115,13 @@ impl
     // Not Implemented (R)
 }
 
-impl api::PreVerify for Multisafepay {}
-impl ConnectorIntegration<api::Verify, types::VerifyRequestData, types::PaymentsResponseData>
-    for Multisafepay
+impl api::MandateSetup for Multisafepay {}
+impl
+    ConnectorIntegration<
+        api::SetupMandate,
+        types::SetupMandateRequestData,
+        types::PaymentsResponseData,
+    > for Multisafepay
 {
 }
 
@@ -161,7 +165,7 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?
             .api_key
             .expose();
-        let ord_id = req.payment_id.clone();
+        let ord_id = req.connector_request_reference_id.clone();
         Ok(format!("{url}v1/json/orders/{ord_id}?api_key={api_key}"))
     }
 
@@ -267,7 +271,6 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         req: &types::PaymentsAuthorizeRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
-        self.validate_capture_method(req.request.capture_method)?;
         Ok(Some(
             services::RequestBuilder::new()
                 .method(services::Method::Post)
@@ -338,7 +341,7 @@ impl ConnectorIntegration<api::Execute, types::RefundsData, types::RefundsRespon
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?
             .api_key
             .expose();
-        let ord_id = req.payment_id.clone();
+        let ord_id = req.connector_request_reference_id.clone();
         Ok(format!(
             "{url}v1/json/orders/{ord_id}/refunds?api_key={api_key}"
         ))
@@ -425,7 +428,7 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?
             .api_key
             .expose();
-        let ord_id = req.payment_id.clone();
+        let ord_id = req.connector_request_reference_id.clone();
         Ok(format!(
             "{url}v1/json/orders/{ord_id}/refunds?api_key={api_key}"
         ))

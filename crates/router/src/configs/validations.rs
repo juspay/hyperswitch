@@ -1,6 +1,5 @@
 use common_utils::ext_traits::ConfigExt;
-
-use crate::core::errors::ApplicationError;
+use storage_impl::errors::ApplicationError;
 
 impl super::settings::Secrets {
     pub fn validate(&self) -> Result<(), ApplicationError> {
@@ -117,38 +116,6 @@ impl super::settings::SupportedConnectors {
     }
 }
 
-impl super::settings::SchedulerSettings {
-    pub fn validate(&self) -> Result<(), ApplicationError> {
-        use common_utils::fp_utils::when;
-
-        when(self.stream.is_default_or_empty(), || {
-            Err(ApplicationError::InvalidConfigurationValueError(
-                "scheduler stream must not be empty".into(),
-            ))
-        })?;
-
-        when(self.consumer.consumer_group.is_default_or_empty(), || {
-            Err(ApplicationError::InvalidConfigurationValueError(
-                "scheduler consumer group must not be empty".into(),
-            ))
-        })?;
-
-        self.producer.validate()?;
-
-        Ok(())
-    }
-}
-
-impl super::settings::ProducerSettings {
-    pub fn validate(&self) -> Result<(), ApplicationError> {
-        common_utils::fp_utils::when(self.lock_key.is_default_or_empty(), || {
-            Err(ApplicationError::InvalidConfigurationValueError(
-                "producer lock key must not be empty".into(),
-            ))
-        })
-    }
-}
-
 #[cfg(feature = "kv_store")]
 impl super::settings::DrainerSettings {
     pub fn validate(&self) -> Result<(), ApplicationError> {
@@ -194,6 +161,34 @@ impl super::settings::ApiKeys {
         when(self.hash_key.is_empty(), || {
             Err(ApplicationError::InvalidConfigurationValueError(
                 "API key hashing key must not be empty".into(),
+            ))
+        })
+    }
+}
+
+impl super::settings::LockSettings {
+    pub fn validate(&self) -> Result<(), ApplicationError> {
+        use common_utils::fp_utils::when;
+
+        when(self.redis_lock_expiry_seconds.is_default_or_empty(), || {
+            Err(ApplicationError::InvalidConfigurationValueError(
+                "redis_lock_expiry_seconds must not be empty or 0".into(),
+            ))
+        })?;
+
+        when(
+            self.delay_between_retries_in_milliseconds
+                .is_default_or_empty(),
+            || {
+                Err(ApplicationError::InvalidConfigurationValueError(
+                    "delay_between_retries_in_milliseconds must not be empty or 0".into(),
+                ))
+            },
+        )?;
+
+        when(self.lock_retries.is_default_or_empty(), || {
+            Err(ApplicationError::InvalidConfigurationValueError(
+                "lock_retries must not be empty or 0".into(),
             ))
         })
     }

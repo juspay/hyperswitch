@@ -36,9 +36,11 @@ pub struct MerchantAccount {
     pub modified_at: time::PrimitiveDateTime,
     pub frm_routing_algorithm: Option<serde_json::Value>,
     pub payout_routing_algorithm: Option<serde_json::Value>,
-    pub organization_id: Option<String>,
+    pub organization_id: String,
     pub is_recon_enabled: bool,
     pub default_profile: Option<String>,
+    pub recon_status: storage_enums::ReconStatus,
+    pub payment_link_config: Option<serde_json::Value>,
 }
 
 #[derive(Clone, Debug, Insertable, router_derive::DebugAsDisplay)]
@@ -64,9 +66,11 @@ pub struct MerchantAccountNew {
     pub modified_at: time::PrimitiveDateTime,
     pub frm_routing_algorithm: Option<serde_json::Value>,
     pub payout_routing_algorithm: Option<serde_json::Value>,
-    pub organization_id: Option<String>,
+    pub organization_id: String,
     pub is_recon_enabled: bool,
     pub default_profile: Option<String>,
+    pub recon_status: storage_enums::ReconStatus,
+    pub payment_link_config: Option<serde_json::Value>,
 }
 
 #[derive(Clone, Debug, Default, AsChangeset, router_derive::DebugAsDisplay)]
@@ -94,4 +98,6 @@ pub struct MerchantAccountUpdateInternal {
     pub organization_id: Option<String>,
     pub is_recon_enabled: bool,
     pub default_profile: Option<Option<String>>,
+    pub recon_status: storage_enums::ReconStatus,
+    pub payment_link_config: Option<serde_json::Value>,
 }

@@ -4,15 +4,17 @@ use error_stack::{IntoReport, ResultExt};
 use http::{HeaderValue, Method};
 use masking::PeekInterface;
 use once_cell::sync::OnceCell;
-use reqwest::{multipart::Form, IntoUrl};
+use reqwest::multipart::Form;
+use router_env::tracing_actix_web::RequestId;
 
-use super::request::Maskable;
+use super::{request::Maskable, Request};
 use crate::{
     configs::settings::{Locker, Proxy},
     core::{
         errors::{ApiClientError, CustomResult},
         payments,
     },
+    routes::AppState,
 };
 
 static NON_PROXIED_CLIENT: OnceCell<reqwest::Client> = OnceCell::new();
@@ -106,7 +108,7 @@ pub(super) fn create_client(
     }
 }
 
-pub(super) fn proxy_bypass_urls(locker: &Locker) -> Vec<String> {
+pub fn proxy_bypass_urls(locker: &Locker) -> Vec<String> {
     let locker_host = locker.host.to_owned();
     let basilisk_host = locker.basilisk_host.to_owned();
     vec![
@@ -140,15 +142,12 @@ pub trait RequestBuilder: Send + Sync {
     >;
 }
 
-pub trait ApiClient
+#[async_trait::async_trait]
+pub trait ApiClient: dyn_clone::DynClone
 where
-    Self: Sized + Send + Sync,
+    Self: Send + Sync,
 {
-    fn new(
-        proxy_config: Proxy,
-        whitelisted_urls: Vec<String>,
-    ) -> CustomResult<Self, ApiClientError>;
-    fn request<U: IntoUrl>(
+    fn request(
         &self,
         method: Method,
         url: String,
@@ -160,17 +159,74 @@ where
         certificate: Option<String>,
         certificate_key: Option<String>,
     ) -> CustomResult<Box<dyn RequestBuilder>, ApiClientError>;
+
+    async fn send_request(
+        &self,
+        state: &AppState,
+        request: Request,
+        option_timeout_secs: Option<u64>,
+        forward_to_kafka: bool,
+    ) -> CustomResult<reqwest::Response, ApiClientError>;
+
+    fn add_request_id(&mut self, request_id: RequestId);
+    fn get_request_id(&self) -> Option<String>;
+    fn add_merchant_id(&mut self, _merchant_id: Option<String>);
+    fn add_flow_name(&mut self, flow_name: String);
 }
+
+dyn_clone::clone_trait_object!(ApiClient);
 
 #[derive(Clone)]
 pub struct ProxyClient {
     proxy_client: reqwest::Client,
     non_proxy_client: reqwest::Client,
     whitelisted_urls: Vec<String>,
+    request_id: Option<String>,
 }
 
 impl ProxyClient {
-    fn get_reqwest_client(
+    pub fn new(
+        proxy_config: Proxy,
+        whitelisted_urls: Vec<String>,
+    ) -> CustomResult<Self, ApiClientError> {
+        let non_proxy_client = reqwest::Client::builder()
+            .redirect(reqwest::redirect::Policy::none())
+            .build()
+            .into_report()
+            .change_context(ApiClientError::ClientConstructionFailed)?;
+
+        let mut proxy_builder =
+            reqwest::Client::builder().redirect(reqwest::redirect::Policy::none());
+
+        if let Some(url) = proxy_config.https_url.as_ref() {
+            proxy_builder = proxy_builder.proxy(
+                reqwest::Proxy::https(url)
+                    .into_report()
+                    .change_context(ApiClientError::InvalidProxyConfiguration)?,
+            );
+        }
+
+        if let Some(url) = proxy_config.http_url.as_ref() {
+            proxy_builder = proxy_builder.proxy(
+                reqwest::Proxy::http(url)
+                    .into_report()
+                    .change_context(ApiClientError::InvalidProxyConfiguration)?,
+            );
+        }
+
+        let proxy_client = proxy_builder
+            .build()
+            .into_report()
+            .change_context(ApiClientError::InvalidProxyConfiguration)?;
+        Ok(Self {
+            proxy_client,
+            non_proxy_client,
+            whitelisted_urls,
+            request_id: None,
+        })
+    }
+
+    pub fn get_reqwest_client(
         &self,
         base_url: String,
         client_certificate: Option<String>,
@@ -261,48 +317,9 @@ impl RequestBuilder for RouterRequestBuilder {
 
 // TODO: remove this when integrating this trait
 #[allow(dead_code)]
+#[async_trait::async_trait]
 impl ApiClient for ProxyClient {
-    fn new(
-        proxy_config: Proxy,
-        whitelisted_urls: Vec<String>,
-    ) -> CustomResult<Self, ApiClientError> {
-        let non_proxy_client = reqwest::Client::builder()
-            .redirect(reqwest::redirect::Policy::none())
-            .build()
-            .into_report()
-            .change_context(ApiClientError::ClientConstructionFailed)?;
-
-        let mut proxy_builder =
-            reqwest::Client::builder().redirect(reqwest::redirect::Policy::none());
-
-        if let Some(url) = proxy_config.https_url.as_ref() {
-            proxy_builder = proxy_builder.proxy(
-                reqwest::Proxy::https(url)
-                    .into_report()
-                    .change_context(ApiClientError::InvalidProxyConfiguration)?,
-            );
-        }
-
-        if let Some(url) = proxy_config.http_url.as_ref() {
-            proxy_builder = proxy_builder.proxy(
-                reqwest::Proxy::http(url)
-                    .into_report()
-                    .change_context(ApiClientError::InvalidProxyConfiguration)?,
-            );
-        }
-
-        let proxy_client = proxy_builder
-            .build()
-            .into_report()
-            .change_context(ApiClientError::InvalidProxyConfiguration)?;
-        Ok(Self {
-            proxy_client,
-            non_proxy_client,
-            whitelisted_urls,
-        })
-    }
-
-    fn request<U: IntoUrl>(
+    fn request(
         &self,
         method: Method,
         url: String,
@@ -324,4 +341,79 @@ impl ApiClient for ProxyClient {
             inner: Some(client_builder.request(method, url)),
         }))
     }
+    async fn send_request(
+        &self,
+        state: &AppState,
+        request: Request,
+        option_timeout_secs: Option<u64>,
+        _forward_to_kafka: bool,
+    ) -> CustomResult<reqwest::Response, ApiClientError> {
+        crate::services::send_request(state, request, option_timeout_secs).await
+    }
+
+    fn add_request_id(&mut self, request_id: RequestId) {
+        self.request_id
+            .replace(request_id.as_hyphenated().to_string());
+    }
+
+    fn get_request_id(&self) -> Option<String> {
+        self.request_id.clone()
+    }
+
+    fn add_merchant_id(&mut self, _merchant_id: Option<String>) {}
+
+    fn add_flow_name(&mut self, _flow_name: String) {}
+}
+
+///
+/// Api client for testing sending request
+///
+#[derive(Clone)]
+pub struct MockApiClient;
+
+#[async_trait::async_trait]
+impl ApiClient for MockApiClient {
+    fn request(
+        &self,
+        _method: Method,
+        _url: String,
+    ) -> CustomResult<Box<dyn RequestBuilder>, ApiClientError> {
+        // [#2066]: Add Mock implementation for ApiClient
+        Err(ApiClientError::UnexpectedState.into())
+    }
+
+    fn request_with_certificate(
+        &self,
+        _method: Method,
+        _url: String,
+        _certificate: Option<String>,
+        _certificate_key: Option<String>,
+    ) -> CustomResult<Box<dyn RequestBuilder>, ApiClientError> {
+        // [#2066]: Add Mock implementation for ApiClient
+        Err(ApiClientError::UnexpectedState.into())
+    }
+
+    async fn send_request(
+        &self,
+        _state: &AppState,
+        _request: Request,
+        _option_timeout_secs: Option<u64>,
+        _forward_to_kafka: bool,
+    ) -> CustomResult<reqwest::Response, ApiClientError> {
+        // [#2066]: Add Mock implementation for ApiClient
+        Err(ApiClientError::UnexpectedState.into())
+    }
+
+    fn add_request_id(&mut self, _request_id: RequestId) {
+        // [#2066]: Add Mock implementation for ApiClient
+    }
+
+    fn get_request_id(&self) -> Option<String> {
+        // [#2066]: Add Mock implementation for ApiClient
+        None
+    }
+
+    fn add_merchant_id(&mut self, _merchant_id: Option<String>) {}
+
+    fn add_flow_name(&mut self, _flow_name: String) {}
 }

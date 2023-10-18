@@ -12,7 +12,6 @@ use crate::{
     configs::settings::{self},
     connector::{utils as connector_utils, utils as conn_utils},
     core::errors::{self, CustomResult},
-    db::StorageInterface,
     headers,
     services::{
         self,
@@ -33,7 +32,7 @@ pub struct Cashtocode;
 impl api::Payment for Cashtocode {}
 impl api::PaymentSession for Cashtocode {}
 impl api::ConnectorAccessToken for Cashtocode {}
-impl api::PreVerify for Cashtocode {}
+impl api::MandateSetup for Cashtocode {}
 impl api::PaymentAuthorize for Cashtocode {}
 impl api::PaymentSync for Cashtocode {}
 impl api::PaymentCapture for Cashtocode {}
@@ -150,8 +149,12 @@ impl ConnectorIntegration<api::AccessTokenAuth, types::AccessTokenRequestData, t
 {
 }
 
-impl ConnectorIntegration<api::Verify, types::VerifyRequestData, types::PaymentsResponseData>
-    for Cashtocode
+impl
+    ConnectorIntegration<
+        api::SetupMandate,
+        types::SetupMandateRequestData,
+        types::PaymentsResponseData,
+    > for Cashtocode
 {
 }
 
@@ -214,7 +217,6 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
         req: &types::PaymentsAuthorizeRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<Option<services::Request>, errors::ConnectorError> {
-        self.validate_capture_method(req.request.capture_method)?;
         Ok(Some(
             services::RequestBuilder::new()
                 .method(services::Method::Post)
@@ -323,6 +325,7 @@ impl api::IncomingWebhook for Cashtocode {
     fn get_webhook_source_verification_signature(
         &self,
         request: &api::IncomingWebhookRequestDetails<'_>,
+        _connector_webhook_secrets: &api_models::webhooks::ConnectorWebhookSecrets,
     ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
         let base64_signature = conn_utils::get_header_key_value("authorization", request.headers)?;
         let signature = base64_signature.as_bytes().to_owned();
@@ -331,27 +334,25 @@ impl api::IncomingWebhook for Cashtocode {
 
     async fn verify_webhook_source(
         &self,
-        db: &dyn StorageInterface,
         request: &api::IncomingWebhookRequestDetails<'_>,
         merchant_account: &domain::MerchantAccount,
+        merchant_connector_account: domain::MerchantConnectorAccount,
         connector_label: &str,
-        key_store: &domain::MerchantKeyStore,
-        object_reference_id: api_models::webhooks::ObjectReferenceId,
     ) -> CustomResult<bool, errors::ConnectorError> {
-        let signature = self
-            .get_webhook_source_verification_signature(request)
-            .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
-        let secret = self
+        let connector_webhook_secrets = self
             .get_webhook_source_verification_merchant_secret(
-                db,
                 merchant_account,
                 connector_label,
-                key_store,
-                object_reference_id,
+                merchant_connector_account,
             )
             .await
             .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
-        let secret_auth = String::from_utf8(secret.to_vec())
+
+        let signature = self
+            .get_webhook_source_verification_signature(request, &connector_webhook_secrets)
+            .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
+
+        let secret_auth = String::from_utf8(connector_webhook_secrets.secret.to_vec())
             .into_report()
             .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)
             .attach_printable("Could not convert secret to UTF-8")?;

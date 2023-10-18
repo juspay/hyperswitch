@@ -1,5 +1,5 @@
 #![allow(clippy::unwrap_used)]
-use router::{configs::settings::Settings, routes};
+use router::{configs::settings::Settings, routes, services};
 use storage_impl::redis::cache;
 
 mod utils;
@@ -9,7 +9,8 @@ async fn invalidate_existing_cache_success() {
     // Arrange
     utils::setup().await;
     let (tx, _) = tokio::sync::oneshot::channel();
-    let state = routes::AppState::new(Settings::default(), tx).await;
+    let state =
+        routes::AppState::new(Settings::default(), tx, Box::new(services::MockApiClient)).await;
 
     let cache_key = "cacheKey".to_string();
     let cache_key_value = "val".to_string();

@@ -27,7 +27,7 @@
         "card_exp_year": "25",
         "card_holder_name": "John Doe"
       },
-      "customer_id": "cus_mnewerunwiuwiwqw",
+      "customer_id": "{{customer_id}}",
       "metadata": {
         "city": "NY",
         "unit": "245"
@@ -36,12 +36,8 @@
   },
   "url": {
     "raw": "{{baseUrl}}/payment_methods",
-    "host": [
-      "{{baseUrl}}"
-    ],
-    "path": [
-      "payment_methods"
-    ]
+    "host": ["{{baseUrl}}"],
+    "path": ["payment_methods"]
   },
   "description": "To create a payment method against a customer object. In case of cards, this API could be used only by PCI compliant merchants"
 }

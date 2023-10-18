@@ -28,15 +28,8 @@
   ],
   "url": {
     "raw": "{{baseUrl}}/account/:account_id/connectors/:connector_id",
-    "host": [
-      "{{baseUrl}}"
-    ],
-    "path": [
-      "account",
-      ":account_id",
-      "connectors",
-      ":connector_id"
-    ],
+    "host": ["{{baseUrl}}"],
+    "path": ["account", ":account_id", "connectors", ":connector_id"],
     "variable": [
       {
         "key": "account_id",

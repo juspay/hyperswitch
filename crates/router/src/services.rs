@@ -3,6 +3,9 @@ pub mod authentication;
 pub mod encryption;
 pub mod logger;
 
+#[cfg(feature = "kms")]
+use data_models::errors::StorageError;
+use data_models::errors::StorageResult;
 use error_stack::{IntoReport, ResultExt};
 #[cfg(feature = "kms")]
 use external_services::kms::{self, decrypt::KmsDecrypt};
@@ -18,9 +21,9 @@ pub use self::{api::*, encryption::*};
 use crate::{configs::settings, consts, core::errors};
 
 #[cfg(not(feature = "olap"))]
-type StoreType = storage_impl::database::store::Store;
+pub type StoreType = storage_impl::database::store::Store;
 #[cfg(feature = "olap")]
-type StoreType = storage_impl::database::store::ReplicaStore;
+pub type StoreType = storage_impl::database::store::ReplicaStore;
 
 #[cfg(not(feature = "kv_store"))]
 pub type Store = RouterStore<StoreType>;
@@ -31,29 +34,29 @@ pub async fn get_store(
     config: &settings::Settings,
     shut_down_signal: oneshot::Sender<()>,
     test_transaction: bool,
-) -> Store {
+) -> StorageResult<Store> {
     #[cfg(feature = "kms")]
     let kms_client = kms::get_kms_client(&config.kms).await;
 
     #[cfg(feature = "kms")]
-    #[allow(clippy::expect_used)]
     let master_config = config
         .master_database
         .clone()
         .decrypt_inner(kms_client)
         .await
-        .expect("Failed to decrypt master database config");
+        .change_context(StorageError::InitializationError)
+        .attach_printable("Failed to decrypt master database config")?;
     #[cfg(not(feature = "kms"))]
     let master_config = config.master_database.clone().into();
 
     #[cfg(all(feature = "olap", feature = "kms"))]
-    #[allow(clippy::expect_used)]
     let replica_config = config
         .replica_database
         .clone()
         .decrypt_inner(kms_client)
         .await
-        .expect("Failed to decrypt replica database config");
+        .change_context(StorageError::InitializationError)
+        .attach_printable("Failed to decrypt replica database config")?;
 
     #[cfg(all(feature = "olap", not(feature = "kms")))]
     let replica_config = config.replica_database.clone().into();
@@ -70,7 +73,7 @@ pub async fn get_store(
     let conf = (master_config, replica_config);
 
     let store: RouterStore<StoreType> = if test_transaction {
-        RouterStore::test_store(conf, &config.redis, master_enc_key).await
+        RouterStore::test_store(conf, &config.redis, master_enc_key).await?
     } else {
         RouterStore::from_config(
             conf,
@@ -79,7 +82,7 @@ pub async fn get_store(
             shut_down_signal,
             consts::PUB_SUB_CHANNEL,
         )
-        .await
+        .await?
     };
 
     #[cfg(feature = "kv_store")]
@@ -89,7 +92,7 @@ pub async fn get_store(
         config.drainer.num_partitions,
     );
 
-    store
+    Ok(store)
 }
 
 #[allow(clippy::expect_used)]

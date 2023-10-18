@@ -64,12 +64,13 @@ mod storage {
                 .serialize_and_set_multiple_hash_field_if_not_exist(
                     &[(&secret_key, &created_ek), (&id_key, &created_ek)],
                     "ephkey",
+                    None,
                 )
                 .await
             {
                 Ok(v) if v.contains(&HsetnxReply::KeyNotSet) => {
                     Err(errors::StorageError::DuplicateValue {
-                        entity: "ephimeral key",
+                        entity: "ephemeral key",
                         key: None,
                     }
                     .into())

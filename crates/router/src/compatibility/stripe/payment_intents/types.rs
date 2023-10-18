@@ -24,7 +24,7 @@ use crate::{
 
 #[derive(Default, Serialize, PartialEq, Eq, Deserialize, Clone)]
 pub struct StripeBillingDetails {
-    pub address: Option<payments::AddressDetails>,
+    pub address: Option<AddressDetails>,
     pub email: Option<Email>,
     pub name: Option<String>,
     pub phone: Option<masking::Secret<String>>,
@@ -39,8 +39,17 @@ impl From<StripeBillingDetails> for payments::Address {
                     address.country.as_ref().map(|country| country.to_string())
                 }),
             }),
-
-            address: details.address,
+            address: details.address.map(|address| payments::AddressDetails {
+                city: address.city,
+                country: address.country,
+                line1: address.line1,
+                line2: address.line2,
+                zip: address.postal_code,
+                state: address.state,
+                first_name: None,
+                line3: None,
+                last_name: None,
+            }),
         }
     }
 }
@@ -470,6 +479,7 @@ pub struct StripePaymentIntentResponse {
     pub capture_method: Option<api_models::enums::CaptureMethod>,
     pub name: Option<masking::Secret<String>>,
     pub last_payment_error: Option<LastPaymentError>,
+    pub connector_transaction_id: Option<String>,
 }
 
 #[derive(Default, Eq, PartialEq, Serialize, Debug)]
@@ -542,6 +552,7 @@ impl From<payments::PaymentsResponse> for StripePaymentIntentResponse {
                 },
                 error_type: code,
             }),
+            connector_transaction_id: resp.connector_transaction_id,
         }
     }
 }

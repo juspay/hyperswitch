@@ -123,7 +123,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for PowertranzPaymentsRequest 
                 .to_string(),
             three_d_secure,
             source,
-            order_identifier: item.payment_id.clone(),
+            order_identifier: item.connector_request_reference_id.clone(),
             // billing_address,
             // shipping_address,
             extended_data,
@@ -239,6 +239,7 @@ pub struct PowertranzBaseResponse {
     iso_response_code: String,
     redirect_data: Option<String>,
     response_message: String,
+    order_identifier: String,
 }
 
 impl ForeignFrom<(u8, bool, bool)> for enums::AttemptStatus {
@@ -297,7 +298,7 @@ impl<F, T>
         let connector_transaction_id = item
             .response
             .original_trxn_identifier
-            .unwrap_or(item.response.transaction_identifier);
+            .unwrap_or(item.response.transaction_identifier.clone());
         let redirection_data =
             item.response
                 .redirect_data
@@ -311,7 +312,7 @@ impl<F, T>
                 mandate_reference: None,
                 connector_metadata: None,
                 network_txn_id: None,
-                connector_response_reference_id: None,
+                connector_response_reference_id: Some(item.response.order_identifier),
             }),
             Err,
         );

@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use api_models::{
     enums::{CanadaStatesAbbreviation, UsStatesAbbreviation},
-    payments::{self, OrderDetailsWithAmount},
+    payments::{self, BankDebitBilling, OrderDetailsWithAmount},
 };
 use base64::Engine;
 use common_utils::{
@@ -65,7 +65,7 @@ pub trait RouterData {
     where
         T: serde::de::DeserializeOwned;
     fn is_three_ds(&self) -> bool;
-    fn get_payment_method_token(&self) -> Result<String, Error>;
+    fn get_payment_method_token(&self) -> Result<types::PaymentMethodToken, Error>;
     fn get_customer_id(&self) -> Result<String, Error>;
     fn get_connector_customer_id(&self) -> Result<String, Error>;
     fn get_preprocessing_id(&self) -> Result<String, Error>;
@@ -74,9 +74,10 @@ pub trait RouterData {
     #[cfg(feature = "payouts")]
     fn get_quote_id(&self) -> Result<String, Error>;
 }
+pub const SELECTED_PAYMENT_METHOD: &str = "Selected payment method";
 
 pub fn get_unimplemented_payment_method_error_message(connector: &str) -> String {
-    format!("Selected payment method through {}", connector)
+    format!("{} through {}", SELECTED_PAYMENT_METHOD, connector)
 }
 
 impl<Flow, Request, Response> RouterData for types::RouterData<Flow, Request, Response> {
@@ -155,7 +156,7 @@ impl<Flow, Request, Response> RouterData for types::RouterData<Flow, Request, Re
             .and_then(|a| a.address.as_ref())
             .ok_or_else(missing_field_err("shipping.address"))
     }
-    fn get_payment_method_token(&self) -> Result<String, Error> {
+    fn get_payment_method_token(&self) -> Result<types::PaymentMethodToken, Error> {
         self.payment_method_token
             .clone()
             .ok_or_else(missing_field_err("payment_method_token"))
@@ -198,6 +199,7 @@ pub trait PaymentsPreProcessingData {
     fn get_order_details(&self) -> Result<Vec<OrderDetailsWithAmount>, Error>;
     fn get_webhook_url(&self) -> Result<String, Error>;
     fn get_return_url(&self) -> Result<String, Error>;
+    fn get_browser_info(&self) -> Result<types::BrowserInformation, Error>;
 }
 
 impl PaymentsPreProcessingData for types::PaymentsPreProcessingData {
@@ -237,8 +239,40 @@ impl PaymentsPreProcessingData for types::PaymentsPreProcessingData {
             .clone()
             .ok_or_else(missing_field_err("return_url"))
     }
+    fn get_browser_info(&self) -> Result<types::BrowserInformation, Error> {
+        self.browser_info
+            .clone()
+            .ok_or_else(missing_field_err("browser_info"))
+    }
 }
 
+pub trait PaymentsCaptureRequestData {
+    fn is_multiple_capture(&self) -> bool;
+    fn get_browser_info(&self) -> Result<types::BrowserInformation, Error>;
+}
+
+impl PaymentsCaptureRequestData for types::PaymentsCaptureData {
+    fn is_multiple_capture(&self) -> bool {
+        self.multiple_capture_data.is_some()
+    }
+    fn get_browser_info(&self) -> Result<types::BrowserInformation, Error> {
+        self.browser_info
+            .clone()
+            .ok_or_else(missing_field_err("browser_info"))
+    }
+}
+
+pub trait PaymentsSetupMandateRequestData {
+    fn get_browser_info(&self) -> Result<types::BrowserInformation, Error>;
+}
+
+impl PaymentsSetupMandateRequestData for types::SetupMandateRequestData {
+    fn get_browser_info(&self) -> Result<types::BrowserInformation, Error> {
+        self.browser_info
+            .clone()
+            .ok_or_else(missing_field_err("browser_info"))
+    }
+}
 pub trait PaymentsAuthorizeRequestData {
     fn is_auto_capture(&self) -> Result<bool, Error>;
     fn get_email(&self) -> Result<Email, Error>;
@@ -251,9 +285,11 @@ pub trait PaymentsAuthorizeRequestData {
     fn get_webhook_url(&self) -> Result<String, Error>;
     fn get_router_return_url(&self) -> Result<String, Error>;
     fn is_wallet(&self) -> bool;
+    fn is_card(&self) -> bool;
     fn get_payment_method_type(&self) -> Result<diesel_models::enums::PaymentMethodType, Error>;
     fn get_connector_mandate_id(&self) -> Result<String, Error>;
     fn get_complete_authorize_url(&self) -> Result<String, Error>;
+    fn get_ip_address_as_optional(&self) -> Option<Secret<String, IpAddress>>;
 }
 
 impl PaymentsAuthorizeRequestData for types::PaymentsAuthorizeData {
@@ -327,6 +363,9 @@ impl PaymentsAuthorizeRequestData for types::PaymentsAuthorizeData {
     fn is_wallet(&self) -> bool {
         matches!(self.payment_method_data, api::PaymentMethodData::Wallet(_))
     }
+    fn is_card(&self) -> bool {
+        matches!(self.payment_method_data, api::PaymentMethodData::Card(_))
+    }
 
     fn get_payment_method_type(&self) -> Result<diesel_models::enums::PaymentMethodType, Error> {
         self.payment_method_type
@@ -337,6 +376,23 @@ impl PaymentsAuthorizeRequestData for types::PaymentsAuthorizeData {
     fn get_connector_mandate_id(&self) -> Result<String, Error> {
         self.connector_mandate_id()
             .ok_or_else(missing_field_err("connector_mandate_id"))
+    }
+    fn get_ip_address_as_optional(&self) -> Option<Secret<String, IpAddress>> {
+        self.browser_info.clone().and_then(|browser_info| {
+            browser_info
+                .ip_address
+                .map(|ip| Secret::new(ip.to_string()))
+        })
+    }
+}
+
+pub trait ConnectorCustomerData {
+    fn get_email(&self) -> Result<Email, Error>;
+}
+
+impl ConnectorCustomerData for types::ConnectorCustomerData {
+    fn get_email(&self) -> Result<Email, Error> {
+        self.email.clone().ok_or_else(missing_field_err("email"))
     }
 }
 
@@ -461,6 +517,7 @@ pub trait PaymentsCancelRequestData {
     fn get_amount(&self) -> Result<i64, Error>;
     fn get_currency(&self) -> Result<diesel_models::enums::Currency, Error>;
     fn get_cancellation_reason(&self) -> Result<String, Error>;
+    fn get_browser_info(&self) -> Result<types::BrowserInformation, Error>;
 }
 
 impl PaymentsCancelRequestData for PaymentsCancelData {
@@ -475,11 +532,17 @@ impl PaymentsCancelRequestData for PaymentsCancelData {
             .clone()
             .ok_or_else(missing_field_err("cancellation_reason"))
     }
+    fn get_browser_info(&self) -> Result<types::BrowserInformation, Error> {
+        self.browser_info
+            .clone()
+            .ok_or_else(missing_field_err("browser_info"))
+    }
 }
 
 pub trait RefundsRequestData {
     fn get_connector_refund_id(&self) -> Result<String, Error>;
     fn get_webhook_url(&self) -> Result<String, Error>;
+    fn get_browser_info(&self) -> Result<types::BrowserInformation, Error>;
 }
 
 impl RefundsRequestData for types::RefundsData {
@@ -494,6 +557,11 @@ impl RefundsRequestData for types::RefundsData {
         self.webhook_url
             .clone()
             .ok_or_else(missing_field_err("webhook_url"))
+    }
+    fn get_browser_info(&self) -> Result<types::BrowserInformation, Error> {
+        self.browser_info
+            .clone()
+            .ok_or_else(missing_field_err("browser_info"))
     }
 }
 
@@ -580,6 +648,7 @@ pub trait CardData {
         delimiter: String,
     ) -> Secret<String>;
     fn get_expiry_date_as_yyyymm(&self, delimiter: &str) -> Secret<String>;
+    fn get_expiry_date_as_mmyyyy(&self, delimiter: &str) -> Secret<String>;
     fn get_expiry_year_4_digit(&self) -> Secret<String>;
     fn get_expiry_date_as_yymm(&self) -> Secret<String>;
 }
@@ -612,6 +681,15 @@ impl CardData for api::Card {
             year.peek(),
             delimiter,
             self.card_exp_month.peek().clone()
+        ))
+    }
+    fn get_expiry_date_as_mmyyyy(&self, delimiter: &str) -> Secret<String> {
+        let year = self.get_expiry_year_4_digit();
+        Secret::new(format!(
+            "{}{}{}",
+            self.card_exp_month.peek().clone(),
+            delimiter,
+            year.peek()
         ))
     }
     fn get_expiry_year_4_digit(&self) -> Secret<String> {
@@ -780,16 +858,16 @@ impl AddressDetailsData for api::AddressDetails {
             .ok_or_else(missing_field_err("address.city"))
     }
 
-    fn get_line2(&self) -> Result<&Secret<String>, Error> {
-        self.line2
-            .as_ref()
-            .ok_or_else(missing_field_err("address.line2"))
-    }
-
     fn get_state(&self) -> Result<&Secret<String>, Error> {
         self.state
             .as_ref()
             .ok_or_else(missing_field_err("address.state"))
+    }
+
+    fn get_line2(&self) -> Result<&Secret<String>, Error> {
+        self.line2
+            .as_ref()
+            .ok_or_else(missing_field_err("address.line2"))
     }
 
     fn get_zip(&self) -> Result<&Secret<String>, Error> {
@@ -835,6 +913,19 @@ impl BankRedirectBillingData for payments::BankRedirectBilling {
         self.billing_name
             .clone()
             .ok_or_else(missing_field_err("billing_details.billing_name"))
+    }
+}
+
+pub trait BankDirectDebitBillingData {
+    fn get_billing_country(&self) -> Result<api_models::enums::CountryAlpha2, Error>;
+}
+
+impl BankDirectDebitBillingData for BankDebitBilling {
+    fn get_billing_country(&self) -> Result<api_models::enums::CountryAlpha2, Error> {
+        self.address
+            .as_ref()
+            .and_then(|address| address.country)
+            .ok_or_else(missing_field_err("billing_details.country"))
     }
 }
 
@@ -925,6 +1016,23 @@ where
     json.parse_value(std::any::type_name::<T>()).switch()
 }
 
+pub fn to_connector_meta_from_secret_with_required_field<T>(
+    connector_meta: Option<Secret<serde_json::Value>>,
+    error_message: &'static str,
+) -> Result<T, Error>
+where
+    T: serde::de::DeserializeOwned,
+{
+    let connector_error = errors::ConnectorError::MissingRequiredField {
+        field_name: error_message,
+    };
+    let parsed_meta = to_connector_meta_from_secret(connector_meta).ok();
+    match parsed_meta {
+        Some(meta) => Ok(meta),
+        _ => Err(connector_error.into()),
+    }
+}
+
 pub fn to_connector_meta_from_secret<T>(
     connector_meta: Option<Secret<serde_json::Value>>,
 ) -> Result<T, Error>
@@ -963,6 +1071,33 @@ pub fn to_currency_base_unit_from_optional_amount(
     }
 }
 
+pub fn get_amount_as_string(
+    currency_unit: &types::api::CurrencyUnit,
+    amount: i64,
+    currency: diesel_models::enums::Currency,
+) -> Result<String, error_stack::Report<errors::ConnectorError>> {
+    let amount = match currency_unit {
+        types::api::CurrencyUnit::Minor => amount.to_string(),
+        types::api::CurrencyUnit::Base => to_currency_base_unit(amount, currency)?,
+    };
+    Ok(amount)
+}
+
+pub fn get_amount_as_f64(
+    currency_unit: &types::api::CurrencyUnit,
+    amount: i64,
+    currency: diesel_models::enums::Currency,
+) -> Result<f64, error_stack::Report<errors::ConnectorError>> {
+    let amount = match currency_unit {
+        types::api::CurrencyUnit::Base => to_currency_base_unit_asf64(amount, currency)?,
+        types::api::CurrencyUnit::Minor => u32::try_from(amount)
+            .into_report()
+            .change_context(errors::ConnectorError::ParsingFailed)?
+            .into(),
+    };
+    Ok(amount)
+}
+
 pub fn to_currency_base_unit(
     amount: i64,
     currency: diesel_models::enums::Currency,
@@ -970,7 +1105,17 @@ pub fn to_currency_base_unit(
     currency
         .to_currency_base_unit(amount)
         .into_report()
-        .change_context(errors::ConnectorError::RequestEncodingFailed)
+        .change_context(errors::ConnectorError::ParsingFailed)
+}
+
+pub fn to_currency_lower_unit(
+    amount: String,
+    currency: diesel_models::enums::Currency,
+) -> Result<String, error_stack::Report<errors::ConnectorError>> {
+    currency
+        .to_currency_lower_unit(amount)
+        .into_report()
+        .change_context(errors::ConnectorError::ResponseHandlingFailed)
 }
 
 pub fn construct_not_implemented_error_report(
@@ -1009,7 +1154,7 @@ pub fn to_currency_base_unit_asf64(
     currency
         .to_currency_base_unit_asf64(amount)
         .into_report()
-        .change_context(errors::ConnectorError::RequestEncodingFailed)
+        .change_context(errors::ConnectorError::ParsingFailed)
 }
 
 pub fn str_to_f32<S>(value: &str, serializer: S) -> Result<S::Ok, S::Error>
@@ -1292,6 +1437,48 @@ mod error_code_error_message_tests {
         );
         assert_eq!(error_code_error_message_none, None);
     }
+}
+
+pub trait MultipleCaptureSyncResponse {
+    fn get_connector_capture_id(&self) -> String;
+    fn get_capture_attempt_status(&self) -> enums::AttemptStatus;
+    fn is_capture_response(&self) -> bool;
+    fn get_connector_reference_id(&self) -> Option<String> {
+        None
+    }
+    fn get_amount_captured(&self) -> Option<i64>;
+}
+
+pub fn construct_captures_response_hashmap<T>(
+    capture_sync_response_list: Vec<T>,
+) -> HashMap<String, types::CaptureSyncResponse>
+where
+    T: MultipleCaptureSyncResponse,
+{
+    let mut hashmap = HashMap::new();
+    capture_sync_response_list
+        .into_iter()
+        .for_each(|capture_sync_response| {
+            let connector_capture_id = capture_sync_response.get_connector_capture_id();
+            if capture_sync_response.is_capture_response() {
+                hashmap.insert(
+                    connector_capture_id.clone(),
+                    types::CaptureSyncResponse::Success {
+                        resource_id: ResponseId::ConnectorTransactionId(connector_capture_id),
+                        status: capture_sync_response.get_capture_attempt_status(),
+                        connector_response_reference_id: capture_sync_response
+                            .get_connector_reference_id(),
+                        amount: capture_sync_response.get_amount_captured(),
+                    },
+                );
+            }
+        });
+    hashmap
+}
+
+pub fn is_manual_capture(capture_method: Option<enums::CaptureMethod>) -> bool {
+    capture_method == Some(enums::CaptureMethod::Manual)
+        || capture_method == Some(enums::CaptureMethod::ManualMultiple)
 }
 
 pub fn validate_currency(

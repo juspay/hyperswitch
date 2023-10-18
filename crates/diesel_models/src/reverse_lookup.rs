@@ -19,10 +19,18 @@ pub struct ReverseLookup {
     pub pk_id: String,
     /// the source of insertion for reference
     pub source: String,
+    pub updated_by: String,
 }
 
 #[derive(
-    Clone, Debug, Insertable, router_derive::DebugAsDisplay, Eq, PartialEq, serde::Serialize,
+    Clone,
+    Debug,
+    Insertable,
+    router_derive::DebugAsDisplay,
+    Eq,
+    PartialEq,
+    serde::Serialize,
+    serde::Deserialize,
 )]
 #[diesel(table_name = reverse_lookup)]
 pub struct ReverseLookupNew {
@@ -30,4 +38,17 @@ pub struct ReverseLookupNew {
     pub pk_id: String,
     pub sk_id: String,
     pub source: String,
+    pub updated_by: String,
+}
+
+impl From<ReverseLookupNew> for ReverseLookup {
+    fn from(new: ReverseLookupNew) -> Self {
+        Self {
+            lookup_id: new.lookup_id,
+            sk_id: new.sk_id,
+            pk_id: new.pk_id,
+            source: new.source,
+            updated_by: new.updated_by,
+        }
+    }
 }

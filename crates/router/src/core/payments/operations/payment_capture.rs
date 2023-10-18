@@ -1,6 +1,6 @@
 use std::marker::PhantomData;
 
-use api_models::enums::CancelTransaction;
+use api_models::enums::FrmSuggestion;
 use async_trait::async_trait;
 use common_utils::ext_traits::AsyncExt;
 use diesel_models::connector_response::ConnectorResponse;
@@ -11,6 +11,7 @@ use super::{BoxedOperation, Domain, GetTracker, Operation, UpdateTracker, Valida
 use crate::{
     core::{
         errors::{self, RouterResult, StorageErrorExt},
+        payment_methods::PaymentMethodRetrieve,
         payments::{self, helpers, operations, types::MultipleCaptureData},
     },
     db::StorageInterface,
@@ -19,7 +20,7 @@ use crate::{
     types::{
         api::{self, PaymentIdTypeExt},
         domain,
-        storage::{self, enums, ConnectorResponseExt, PaymentAttemptExt},
+        storage::{self, enums, payment_attempt::PaymentAttemptExt, ConnectorResponseExt},
     },
     utils::OptionExt,
 };
@@ -29,8 +30,8 @@ use crate::{
 pub struct PaymentCapture;
 
 #[async_trait]
-impl<F: Send + Clone> GetTracker<F, payments::PaymentData<F>, api::PaymentsCaptureRequest>
-    for PaymentCapture
+impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
+    GetTracker<F, payments::PaymentData<F>, api::PaymentsCaptureRequest, Ctx> for PaymentCapture
 {
     #[instrument(skip_all)]
     async fn get_trackers<'a>(
@@ -43,7 +44,7 @@ impl<F: Send + Clone> GetTracker<F, payments::PaymentData<F>, api::PaymentsCaptu
         key_store: &domain::MerchantKeyStore,
         _auth_flow: services::AuthFlow,
     ) -> RouterResult<(
-        BoxedOperation<'a, F, api::PaymentsCaptureRequest>,
+        BoxedOperation<'a, F, api::PaymentsCaptureRequest, Ctx>,
         payments::PaymentData<F>,
         Option<payments::CustomerDetails>,
     )> {
@@ -61,15 +62,11 @@ impl<F: Send + Clone> GetTracker<F, payments::PaymentData<F>, api::PaymentsCaptu
             .await
             .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
 
-        helpers::validate_status(payment_intent.status)?;
-
-        helpers::validate_amount_to_capture(payment_intent.amount, request.amount_to_capture)?;
-
         payment_attempt = db
             .find_payment_attempt_by_payment_id_merchant_id_attempt_id(
                 payment_intent.payment_id.as_str(),
                 merchant_id,
-                payment_intent.active_attempt_id.as_str(),
+                payment_intent.active_attempt.get_id().as_str(),
                 storage_scheme,
             )
             .await
@@ -83,6 +80,13 @@ impl<F: Send + Clone> GetTracker<F, payments::PaymentData<F>, api::PaymentsCaptu
             .capture_method
             .get_required_value("capture_method")?;
 
+        helpers::validate_status_with_capture_method(payment_intent.status, capture_method)?;
+
+        helpers::validate_amount_to_capture(
+            payment_attempt.amount_capturable,
+            request.amount_to_capture,
+        )?;
+
         helpers::validate_capture_method(capture_method)?;
 
         let (multiple_capture_data, connector_response) = if capture_method
@@ -91,6 +95,12 @@ impl<F: Send + Clone> GetTracker<F, payments::PaymentData<F>, api::PaymentsCaptu
             let amount_to_capture = request
                 .amount_to_capture
                 .get_required_value("amount_to_capture")?;
+
+            helpers::validate_amount_to_capture(
+                payment_attempt.amount_capturable,
+                Some(amount_to_capture),
+            )?;
+
             let previous_captures = db
                 .find_all_captures_by_merchant_id_payment_id_authorized_attempt_id(
                     &payment_attempt.merchant_id,
@@ -100,20 +110,6 @@ impl<F: Send + Clone> GetTracker<F, payments::PaymentData<F>, api::PaymentsCaptu
                 )
                 .await
                 .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
-            let previously_blocked_amount =
-                previous_captures.iter().fold(0, |accumulator, capture| {
-                    accumulator
-                        + match capture.status {
-                            enums::CaptureStatus::Charged | enums::CaptureStatus::Pending => {
-                                capture.amount
-                            }
-                            enums::CaptureStatus::Started | enums::CaptureStatus::Failed => 0,
-                        }
-                });
-            helpers::validate_amount_to_capture(
-                payment_attempt.amount - previously_blocked_amount,
-                Some(amount_to_capture),
-            )?;
 
             let capture = db
                 .insert_capture(
@@ -132,6 +128,7 @@ impl<F: Send + Clone> GetTracker<F, payments::PaymentData<F>, api::PaymentsCaptu
                         capture.merchant_id.clone(),
                         capture.capture_id.clone(),
                         Some(capture.connector.clone()),
+                        storage_scheme.to_string(),
                     ),
                     storage_scheme,
                 )
@@ -161,23 +158,27 @@ impl<F: Send + Clone> GetTracker<F, payments::PaymentData<F>, api::PaymentsCaptu
 
         amount = payment_attempt.amount.into();
 
-        let shipping_address = helpers::get_address_for_payment_request(
+        let shipping_address = helpers::create_or_find_address_for_payment_by_request(
             db,
             None,
             payment_intent.shipping_address_id.as_deref(),
             merchant_id,
             payment_intent.customer_id.as_ref(),
             key_store,
+            &payment_intent.payment_id,
+            merchant_account.storage_scheme,
         )
         .await?;
 
-        let billing_address = helpers::get_address_for_payment_request(
+        let billing_address = helpers::create_or_find_address_for_payment_by_request(
             db,
             None,
             payment_intent.billing_address_id.as_deref(),
             merchant_id,
             payment_intent.customer_id.as_ref(),
             key_store,
+            &payment_intent.payment_id,
+            merchant_account.storage_scheme,
         )
         .await?;
 
@@ -232,7 +233,9 @@ impl<F: Send + Clone> GetTracker<F, payments::PaymentData<F>, api::PaymentsCaptu
                 ephemeral_key: None,
                 multiple_capture_data,
                 redirect_response: None,
+                surcharge_details: None,
                 frm_message: None,
+                payment_link_data: None,
             },
             None,
         ))
@@ -240,7 +243,8 @@ impl<F: Send + Clone> GetTracker<F, payments::PaymentData<F>, api::PaymentsCaptu
 }
 
 #[async_trait]
-impl<F: Clone> UpdateTracker<F, payments::PaymentData<F>, api::PaymentsCaptureRequest>
+impl<F: Clone, Ctx: PaymentMethodRetrieve>
+    UpdateTracker<F, payments::PaymentData<F>, api::PaymentsCaptureRequest, Ctx>
     for PaymentCapture
 {
     #[instrument(skip_all)]
@@ -252,9 +256,10 @@ impl<F: Clone> UpdateTracker<F, payments::PaymentData<F>, api::PaymentsCaptureRe
         storage_scheme: enums::MerchantStorageScheme,
         _updated_customer: Option<storage::CustomerUpdate>,
         _mechant_key_store: &domain::MerchantKeyStore,
-        _should_cancel_transaction: Option<CancelTransaction>,
+        _frm_suggestion: Option<FrmSuggestion>,
+        _header_payload: api::HeaderPayload,
     ) -> RouterResult<(
-        BoxedOperation<'b, F, api::PaymentsCaptureRequest>,
+        BoxedOperation<'b, F, api::PaymentsCaptureRequest, Ctx>,
         payments::PaymentData<F>,
     )>
     where
@@ -266,6 +271,7 @@ impl<F: Clone> UpdateTracker<F, payments::PaymentData<F>, api::PaymentsCaptureRe
                     payment_data.payment_attempt,
                     storage::PaymentAttemptUpdate::MultipleCaptureCountUpdate {
                         multiple_capture_count: multiple_capture_data.get_captures_count()?,
+                        updated_by: storage_scheme.to_string(),
                     },
                     storage_scheme,
                 )
@@ -277,26 +283,23 @@ impl<F: Clone> UpdateTracker<F, payments::PaymentData<F>, api::PaymentsCaptureRe
     }
 }
 
-impl<F: Send + Clone> ValidateRequest<F, api::PaymentsCaptureRequest> for PaymentCapture {
+impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
+    ValidateRequest<F, api::PaymentsCaptureRequest, Ctx> for PaymentCapture
+{
     #[instrument(skip_all)]
     fn validate_request<'a, 'b>(
         &'b self,
         request: &api::PaymentsCaptureRequest,
         merchant_account: &'a domain::MerchantAccount,
     ) -> RouterResult<(
-        BoxedOperation<'b, F, api::PaymentsCaptureRequest>,
+        BoxedOperation<'b, F, api::PaymentsCaptureRequest, Ctx>,
         operations::ValidateResult<'a>,
     )> {
-        let payment_id = request
-            .payment_id
-            .as_ref()
-            .get_required_value("payment_id")?;
-
         Ok((
             Box::new(self),
             operations::ValidateResult {
                 merchant_id: &merchant_account.merchant_id,
-                payment_id: api::PaymentIdType::PaymentIntentId(payment_id.to_owned()),
+                payment_id: api::PaymentIdType::PaymentIntentId(request.payment_id.to_owned()),
                 mandate_type: None,
                 storage_scheme: merchant_account.storage_scheme,
                 requeue: false,

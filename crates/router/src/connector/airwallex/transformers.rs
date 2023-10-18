@@ -6,7 +6,7 @@ use url::Url;
 use uuid::Uuid;
 
 use crate::{
-    connector::utils,
+    connector::utils::{self, CardData},
     core::errors,
     pii::Secret,
     services,
@@ -48,7 +48,39 @@ impl TryFrom<&types::PaymentsInitRouterData> for AirwallexIntentRequest {
             request_id: Uuid::new_v4().to_string(),
             amount: utils::to_currency_base_unit(item.request.amount, item.request.currency)?,
             currency: item.request.currency,
-            merchant_order_id: item.payment_id.clone(),
+            merchant_order_id: item.connector_request_reference_id.clone(),
+        })
+    }
+}
+
+#[derive(Debug, Serialize)]
+pub struct AirwallexRouterData<T> {
+    pub amount: String,
+    pub router_data: T,
+}
+
+impl<T>
+    TryFrom<(
+        &types::api::CurrencyUnit,
+        types::storage::enums::Currency,
+        i64,
+        T,
+    )> for AirwallexRouterData<T>
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+
+    fn try_from(
+        (currency_unit, currency, amount, router_data): (
+            &types::api::CurrencyUnit,
+            types::storage::enums::Currency,
+            i64,
+            T,
+        ),
+    ) -> Result<Self, Self::Error> {
+        let amount = utils::get_amount_as_string(currency_unit, amount, currency)?;
+        Ok(Self {
+            amount,
+            router_data,
         })
     }
 }
@@ -125,24 +157,29 @@ pub struct AirwallexCardPaymentOptions {
     auto_capture: bool,
 }
 
-impl TryFrom<&types::PaymentsAuthorizeRouterData> for AirwallexPaymentsRequest {
+impl TryFrom<&AirwallexRouterData<&types::PaymentsAuthorizeRouterData>>
+    for AirwallexPaymentsRequest
+{
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(item: &types::PaymentsAuthorizeRouterData) -> Result<Self, Self::Error> {
+    fn try_from(
+        item: &AirwallexRouterData<&types::PaymentsAuthorizeRouterData>,
+    ) -> Result<Self, Self::Error> {
         let mut payment_method_options = None;
-        let payment_method = match item.request.payment_method_data.clone() {
+        let request = &item.router_data.request;
+        let payment_method = match request.payment_method_data.clone() {
             api::PaymentMethodData::Card(ccard) => {
                 payment_method_options =
                     Some(AirwallexPaymentOptions::Card(AirwallexCardPaymentOptions {
                         auto_capture: matches!(
-                            item.request.capture_method,
+                            request.capture_method,
                             Some(enums::CaptureMethod::Automatic) | None
                         ),
                     }));
                 Ok(AirwallexPaymentMethod::Card(AirwallexCard {
                     card: AirwallexCardDetails {
-                        number: ccard.card_number,
+                        number: ccard.card_number.clone(),
                         expiry_month: ccard.card_exp_month.clone(),
-                        expiry_year: ccard.card_exp_year.clone(),
+                        expiry_year: ccard.get_expiry_year_4_digit(),
                         cvc: ccard.card_cvc,
                     },
                     payment_method_type: AirwallexPaymentType::Card,
@@ -158,7 +195,7 @@ impl TryFrom<&types::PaymentsAuthorizeRouterData> for AirwallexPaymentsRequest {
             request_id: Uuid::new_v4().to_string(),
             payment_method,
             payment_method_options,
-            return_url: item.request.complete_authorize_url.clone(),
+            return_url: request.complete_authorize_url.clone(),
         })
     }
 }
@@ -538,17 +575,16 @@ pub struct AirwallexRefundRequest {
     payment_intent_id: String,
 }
 
-impl<F> TryFrom<&types::RefundsRouterData<F>> for AirwallexRefundRequest {
+impl<F> TryFrom<&AirwallexRouterData<&types::RefundsRouterData<F>>> for AirwallexRefundRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(item: &types::RefundsRouterData<F>) -> Result<Self, Self::Error> {
+    fn try_from(
+        item: &AirwallexRouterData<&types::RefundsRouterData<F>>,
+    ) -> Result<Self, Self::Error> {
         Ok(Self {
             request_id: Uuid::new_v4().to_string(),
-            amount: Some(utils::to_currency_base_unit(
-                item.request.refund_amount,
-                item.request.currency,
-            )?),
-            reason: item.request.reason.clone(),
-            payment_intent_id: item.request.connector_transaction_id.clone(),
+            amount: Some(item.amount.to_owned()),
+            reason: item.router_data.request.reason.clone(),
+            payment_intent_id: item.router_data.request.connector_transaction_id.clone(),
         })
     }
 }

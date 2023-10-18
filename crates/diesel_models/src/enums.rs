@@ -10,8 +10,9 @@ pub mod diesel_exports {
         DbFutureUsage as FutureUsage, DbIntentStatus as IntentStatus,
         DbMandateStatus as MandateStatus, DbMandateType as MandateType,
         DbMerchantStorageScheme as MerchantStorageScheme,
-        DbPaymentMethodIssuerCode as PaymentMethodIssuerCode, DbPayoutStatus as PayoutStatus,
-        DbPayoutType as PayoutType, DbProcessTrackerStatus as ProcessTrackerStatus,
+        DbPaymentMethodIssuerCode as PaymentMethodIssuerCode, DbPaymentSource as PaymentSource,
+        DbPaymentType as PaymentType, DbPayoutStatus as PayoutStatus, DbPayoutType as PayoutType,
+        DbProcessTrackerStatus as ProcessTrackerStatus, DbReconStatus as ReconStatus,
         DbRefundStatus as RefundStatus, DbRefundType as RefundType,
     };
 }
@@ -38,6 +39,7 @@ pub enum EventClass {
     Payments,
     Refunds,
     Disputes,
+    Mandates,
 }
 
 #[derive(
@@ -58,27 +60,7 @@ pub enum EventObjectType {
     PaymentDetails,
     RefundDetails,
     DisputeDetails,
-}
-
-#[derive(
-    Clone,
-    Copy,
-    Debug,
-    Default,
-    Eq,
-    PartialEq,
-    serde::Deserialize,
-    serde::Serialize,
-    strum::Display,
-    strum::EnumString,
-)]
-#[router_derive::diesel_enum(storage_type = "pg_enum")]
-#[serde(rename_all = "snake_case")]
-#[strum(serialize_all = "snake_case")]
-pub enum MerchantStorageScheme {
-    #[default]
-    PostgresOnly,
-    RedisKv,
+    MandateDetails,
 }
 
 #[derive(
@@ -395,5 +377,5 @@ pub enum FraudCheckLastStep {
     Processing,
     CheckoutOrSale,
     TransactionOrRecordRefund,
-    Fullfillment,
+    Fulfillment,
 }

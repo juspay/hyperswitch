@@ -60,6 +60,7 @@ pub enum Assert<'a> {
     Eq(Selector, &'a str),
     Contains(Selector, &'a str),
     ContainsAny(Selector, Vec<&'a str>),
+    EitherOfThemExist(&'a str, &'a str),
     IsPresent(&'a str),
     IsElePresent(By),
     IsPresentNow(&'a str),
@@ -117,6 +118,10 @@ pub trait SeleniumTest {
                         }
                         _ => assert!(driver.title().await?.contains(search_keys.first().unwrap())),
                     },
+                    Assert::EitherOfThemExist(text_1, text_2) => assert!(
+                        is_text_present_now(driver, text_1).await?
+                            || is_text_present_now(driver, text_2).await?
+                    ),
                     Assert::Eq(_selector, text) => assert_eq!(driver.title().await?, text),
                     Assert::IsPresent(text) => {
                         assert!(is_text_present(driver, text).await?)
@@ -149,6 +154,13 @@ pub trait SeleniumTest {
                     },
                     Assert::Eq(_selector, text) => {
                         if text == driver.title().await? {
+                            self.complete_actions(driver, events).await?;
+                        }
+                    }
+                    Assert::EitherOfThemExist(text_1, text_2) => {
+                        if is_text_present_now(driver, text_1).await.is_ok()
+                            || is_text_present_now(driver, text_2).await.is_ok()
+                        {
                             self.complete_actions(driver, events).await?;
                         }
                     }
@@ -203,6 +215,19 @@ pub trait SeleniumTest {
                         self.complete_actions(
                             driver,
                             if text == driver.title().await? {
+                                success
+                            } else {
+                                failure
+                            },
+                        )
+                        .await?;
+                    }
+                    Assert::EitherOfThemExist(text_1, text_2) => {
+                        self.complete_actions(
+                            driver,
+                            if is_text_present_now(driver, text_1).await.is_ok()
+                                || is_text_present_now(driver, text_2).await.is_ok()
+                            {
                                 success
                             } else {
                                 failure
@@ -400,7 +425,7 @@ pub trait SeleniumTest {
             Event::Trigger(Trigger::SwitchTab(Position::Next)),
             Event::Trigger(Trigger::Sleep(5)),
             Event::RunIf(
-                Assert::IsPresentNow("Sign in"),
+                Assert::EitherOfThemExist("Use your Google Account", "Sign in"),
                 vec![
                     Event::Trigger(Trigger::SendKeys(By::Id("identifierId"), email)),
                     Event::Trigger(Trigger::ClickNth(By::Tag("button"), 2)),
@@ -807,6 +832,8 @@ pub fn make_capabilities(browser: &str) -> Capabilities {
                 let profile_path = &format!("-profile={}", get_firefox_profile_path().unwrap());
                 caps.add_firefox_arg(profile_path).unwrap();
             } else {
+                let profile_path = &format!("-profile={}", get_firefox_profile_path().unwrap());
+                caps.add_firefox_arg(profile_path).unwrap();
                 caps.add_firefox_arg("--headless").ok();
             }
             caps.into()
@@ -832,7 +859,10 @@ fn get_chrome_profile_path() -> Result<String, WebDriverError> {
             fp.join(&MAIN_SEPARATOR.to_string())
         })
         .unwrap();
-    base_path.push_str(r#"/Library/Application\ Support/Google/Chrome/Default"#); //Issue: 1573
+    if env::consts::OS == "macos" {
+        base_path.push_str(r"/Library/Application\ Support/Google/Chrome/Default");
+        //Issue: 1573
+    } // We're only using Firefox on Ubuntu runner
     Ok(base_path)
 }
 
@@ -847,7 +877,17 @@ fn get_firefox_profile_path() -> Result<String, WebDriverError> {
             fp.join(&MAIN_SEPARATOR.to_string())
         })
         .unwrap();
-    base_path.push_str(r#"/Library/Application Support/Firefox/Profiles/hs-test"#); //Issue: 1573
+    if env::consts::OS == "macos" {
+        base_path.push_str(r#"/Library/Application Support/Firefox/Profiles/hs-test"#);
+    //Issue: 1573
+    } else if env::consts::OS == "linux" {
+        if let Some(home_dir) = env::var_os("HOME") {
+            if let Some(home_path) = home_dir.to_str() {
+                let profile_path = format!("{}/.mozilla/firefox/hs-test", home_path);
+                return Ok(profile_path);
+            }
+        }
+    }
     Ok(base_path)
 }
 

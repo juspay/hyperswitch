@@ -14,11 +14,7 @@
   },
   "url": {
     "raw": "{{baseUrl}}/ephemeral_keys",
-    "host": [
-      "{{baseUrl}}"
-    ],
-    "path": [
-      "ephemeral_keys"
-    ]
+    "host": ["{{baseUrl}}"],
+    "path": ["ephemeral_keys"]
   }
 }

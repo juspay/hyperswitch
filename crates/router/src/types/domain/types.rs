@@ -192,6 +192,7 @@ where
     request::record_operation_time(
         crypto::Encryptable::encrypt(inner, key, crypto::GcmAes256),
         &ENCRYPTION_TIME,
+        &[],
     )
     .await
 }
@@ -220,6 +221,7 @@ where
     request::record_operation_time(
         inner.async_map(|item| crypto::Encryptable::decrypt(item, key, crypto::GcmAes256)),
         &DECRYPTION_TIME,
+        &[],
     )
     .await
     .transpose()

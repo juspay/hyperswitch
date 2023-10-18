@@ -79,17 +79,17 @@
       "metadata": {
         "city": "NY",
         "unit": "245"
+      },
+      "routing_algorithm": {
+        "type": "single",
+        "data": "paypal"
       }
     }
   },
   "url": {
     "raw": "{{baseUrl}}/accounts",
-    "host": [
-      "{{baseUrl}}"
-    ],
-    "path": [
-      "accounts"
-    ]
+    "host": ["{{baseUrl}}"],
+    "path": ["accounts"]
   },
   "description": "Create a new account for a merchant. The merchant could be a seller or retailer or client who likes to receive and send payments."
 }
