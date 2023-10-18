@@ -179,3 +179,7 @@ api_key="API Key"
 
 [gocardless]
 api_key="API Key"
+
+
+[volt]
+api_key="API Key"

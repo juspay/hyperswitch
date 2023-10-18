@@ -861,13 +861,13 @@ pub async fn sync_refund_with_gateway_workflow(
                 .await?
         }
         _ => {
-            payment_sync::retry_sync_task(
+            _ = payment_sync::retry_sync_task(
                 &*state.store,
                 response.connector,
                 response.merchant_id,
                 refund_tracker.to_owned(),
             )
-            .await?
+            .await?;
         }
     }
 

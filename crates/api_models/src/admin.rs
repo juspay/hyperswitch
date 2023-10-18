@@ -822,6 +822,8 @@ pub struct FrmConfigs {
     pub gateway: Option<api_enums::Connector>,
     ///payment methods that can be used in the payment
     pub payment_methods: Vec<FrmPaymentMethod>,
+    /// Check whether to invoke sdk of frm connector for ddc.
+    pub is_frm_sdk_invoke: Option<bool>,
 }
 
 ///Details of FrmPaymentMethod are mentioned here... it should be passed in payment connector create api call, and stored in merchant_connector_table

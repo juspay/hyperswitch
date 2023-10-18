@@ -26,7 +26,7 @@ impl PaymentAttemptInterface for MockDb {
 
     async fn get_filters_for_payments(
         &self,
-        _pi: &[data_models::payments::payment_intent::PaymentIntent],
+        _pi: &[data_models::payments::PaymentIntent],
         _merchant_id: &str,
         _storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<data_models::payments::payment_attempt::PaymentListFilters, StorageError>

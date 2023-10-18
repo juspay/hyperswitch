@@ -121,7 +121,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
                     &payment_id,
                     merchant_id,
                     request,
-                    payment_attempt.attempt_id.to_owned(),
+                    payment_attempt.attempt_id.clone(),
                 ),
                 storage_scheme,
             )
@@ -195,7 +195,9 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
                 ephemeral_key: None,
                 multiple_capture_data: None,
                 redirect_response: None,
+                surcharge_details: None,
                 frm_message: None,
+                payment_link_data: None,
             },
             Some(payments::CustomerDetails {
                 customer_id: request.customer_id.clone(),
@@ -373,9 +375,27 @@ impl PaymentMethodValidate {
             client_secret: Some(client_secret),
             setup_future_usage: request.setup_future_usage,
             off_session: request.off_session,
-            active_attempt_id,
+            active_attempt: data_models::RemoteStorageObject::ForeignID(active_attempt_id),
             attempt_count: 1,
-            ..Default::default()
+            amount_captured: Default::default(),
+            customer_id: Default::default(),
+            description: Default::default(),
+            return_url: Default::default(),
+            metadata: Default::default(),
+            shipping_address_id: Default::default(),
+            billing_address_id: Default::default(),
+            statement_descriptor_name: Default::default(),
+            statement_descriptor_suffix: Default::default(),
+            business_country: Default::default(),
+            business_label: Default::default(),
+            order_details: Default::default(),
+            allowed_payment_method_types: Default::default(),
+            connector_metadata: Default::default(),
+            feature_metadata: Default::default(),
+            profile_id: Default::default(),
+            merchant_decision: Default::default(),
+            payment_confirm_source: Default::default(),
+            payment_link_id: Default::default(),
         }
     }
 }

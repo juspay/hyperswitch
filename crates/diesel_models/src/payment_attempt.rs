@@ -161,6 +161,7 @@ pub enum PaymentAttemptUpdate {
         error_code: Option<Option<String>>,
         error_message: Option<Option<String>>,
         amount_capturable: Option<i64>,
+        connector_metadata: Option<serde_json::Value>,
     },
     VoidUpdate {
         status: storage_enums::AttemptStatus,
@@ -214,6 +215,10 @@ pub enum PaymentAttemptUpdate {
         status: storage_enums::AttemptStatus,
         amount_capturable: i64,
     },
+    SurchargeAmountUpdate {
+        surcharge_amount: Option<i64>,
+        tax_amount: Option<i64>,
+    },
     PreprocessingUpdate {
         status: storage_enums::AttemptStatus,
         payment_method_id: Option<Option<String>>,
@@ -257,6 +262,8 @@ pub struct PaymentAttemptUpdateInternal {
     capture_method: Option<storage_enums::CaptureMethod>,
     connector_response_reference_id: Option<String>,
     multiple_capture_count: Option<i16>,
+    surcharge_amount: Option<i64>,
+    tax_amount: Option<i64>,
     amount_capturable: Option<i64>,
     surcharge_metadata: Option<serde_json::Value>,
 }
@@ -349,6 +356,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 error_code,
                 error_message,
                 amount_capturable,
+                connector_metadata,
             } => Self {
                 amount: Some(amount),
                 currency: Some(currency),
@@ -367,6 +375,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 error_code,
                 error_message,
                 amount_capturable,
+                connector_metadata,
                 ..Default::default()
             },
             PaymentAttemptUpdate::VoidUpdate {
@@ -505,6 +514,14 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
             },
             PaymentAttemptUpdate::SurchargeMetadataUpdate { surcharge_metadata } => Self {
                 surcharge_metadata,
+                ..Default::default()
+            },
+            PaymentAttemptUpdate::SurchargeAmountUpdate {
+                surcharge_amount,
+                tax_amount,
+            } => Self {
+                surcharge_amount,
+                tax_amount,
                 ..Default::default()
             },
         }

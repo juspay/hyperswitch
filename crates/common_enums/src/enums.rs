@@ -794,6 +794,7 @@ pub enum EventType {
     PaymentSucceeded,
     PaymentFailed,
     PaymentProcessing,
+    PaymentCancelled,
     ActionRequired,
     RefundSucceeded,
     RefundFailed,
@@ -1797,6 +1798,7 @@ pub enum FrmSuggestion {
     #[default]
     FrmCancelTransaction,
     FrmManualReview,
+    FrmDDC,
     FrmAutoRefund,
 }
 

@@ -330,7 +330,7 @@ impl ConnectorData {
                 enums::Connector::Globalpay => Ok(Box::new(&connector::Globalpay)),
                 enums::Connector::Globepay => Ok(Box::new(&connector::Globepay)),
                 enums::Connector::Gocardless => Ok(Box::new(&connector::Gocardless)),
-                //enums::Connector::Helcim => Ok(Box::new(&connector::Helcim)), , it is added as template code for future usage
+                enums::Connector::Helcim => Ok(Box::new(&connector::Helcim)),
                 enums::Connector::Iatapay => Ok(Box::new(&connector::Iatapay)),
                 enums::Connector::Klarna => Ok(Box::new(&connector::Klarna)),
                 enums::Connector::Mollie => Ok(Box::new(&connector::Mollie)),
@@ -355,6 +355,7 @@ impl ConnectorData {
                 enums::Connector::Paypal => Ok(Box::new(&connector::Paypal)),
                 enums::Connector::Trustpay => Ok(Box::new(&connector::Trustpay)),
                 enums::Connector::Tsys => Ok(Box::new(&connector::Tsys)),
+                // enums::Connector::Volt => Ok(Box::new(&connector::Volt)), it is added as template code for future usage
                 enums::Connector::Zen => Ok(Box::new(&connector::Zen)),
                 enums::Connector::Signifyd | enums::Connector::Plaid | enums::Connector::Kount => {
                     Err(report!(errors::ConnectorError::InvalidConnectorName)

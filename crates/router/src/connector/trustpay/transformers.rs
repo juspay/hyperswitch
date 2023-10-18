@@ -238,7 +238,23 @@ impl TryFrom<&BankRedirectData> for TrustpayPaymentMethod {
             api_models::payments::BankRedirectData::Ideal { .. } => Ok(Self::IDeal),
             api_models::payments::BankRedirectData::Sofort { .. } => Ok(Self::Sofort),
             api_models::payments::BankRedirectData::Blik { .. } => Ok(Self::Blik),
-            _ => Err(errors::ConnectorError::NotImplemented("Payment methods".to_string()).into()),
+            api_models::payments::BankRedirectData::BancontactCard { .. }
+            | api_models::payments::BankRedirectData::Bizum {}
+            | api_models::payments::BankRedirectData::Interac { .. }
+            | api_models::payments::BankRedirectData::OnlineBankingCzechRepublic { .. }
+            | api_models::payments::BankRedirectData::OnlineBankingFinland { .. }
+            | api_models::payments::BankRedirectData::OnlineBankingPoland { .. }
+            | api_models::payments::BankRedirectData::OnlineBankingSlovakia { .. }
+            | api_models::payments::BankRedirectData::OpenBankingUk { .. }
+            | api_models::payments::BankRedirectData::Przelewy24 { .. }
+            | api_models::payments::BankRedirectData::Trustly { .. }
+            | api_models::payments::BankRedirectData::OnlineBankingFpx { .. }
+            | api_models::payments::BankRedirectData::OnlineBankingThailand { .. } => {
+                Err(errors::ConnectorError::NotImplemented(
+                    utils::get_unimplemented_payment_method_error_message("trustpay"),
+                )
+                .into())
+            }
         }
     }
 }
@@ -419,7 +435,20 @@ impl TryFrom<&TrustpayRouterData<&types::PaymentsAuthorizeRouterData>> for Trust
                     auth,
                 )
             }
-            _ => Err(errors::ConnectorError::NotImplemented("Payment methods".to_string()).into()),
+            api::PaymentMethodData::CardRedirect(_)
+            | api::PaymentMethodData::Wallet(_)
+            | api::PaymentMethodData::PayLater(_)
+            | api::PaymentMethodData::BankDebit(_)
+            | api::PaymentMethodData::BankTransfer(_)
+            | api::PaymentMethodData::Crypto(_)
+            | api::PaymentMethodData::MandatePayment
+            | api::PaymentMethodData::Reward
+            | api::PaymentMethodData::Upi(_)
+            | api::PaymentMethodData::Voucher(_)
+            | api::PaymentMethodData::GiftCard(_) => Err(errors::ConnectorError::NotImplemented(
+                utils::get_unimplemented_payment_method_error_message("trustpay"),
+            )
+            .into()),
         }
     }
 }

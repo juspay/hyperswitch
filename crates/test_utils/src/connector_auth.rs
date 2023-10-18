@@ -57,6 +57,7 @@ pub struct ConnectorAuthentication {
     pub stripe_uk: Option<HeaderKey>,
     pub trustpay: Option<SignatureKey>,
     pub tsys: Option<SignatureKey>,
+    pub volt: Option<HeaderKey>,
     pub wise: Option<BodyKey>,
     pub worldpay: Option<BodyKey>,
     pub worldline: Option<SignatureKey>,

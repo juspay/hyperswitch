@@ -22,7 +22,14 @@ pub struct ReverseLookup {
 }
 
 #[derive(
-    Clone, Debug, Insertable, router_derive::DebugAsDisplay, Eq, PartialEq, serde::Serialize,
+    Clone,
+    Debug,
+    Insertable,
+    router_derive::DebugAsDisplay,
+    Eq,
+    PartialEq,
+    serde::Serialize,
+    serde::Deserialize,
 )]
 #[diesel(table_name = reverse_lookup)]
 pub struct ReverseLookupNew {
