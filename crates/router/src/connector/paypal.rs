@@ -174,26 +174,31 @@ impl ConnectorCommon for Paypal {
             .map(|error_details| {
                 error_details
                     .iter()
-                    .try_fold::<_, _, CustomResult<_, errors::ConnectorError>>(
-                        String::new(),
-                        |mut acc, error| {
-                            write!(acc, "description - {} ;", error.description)
+                    .try_fold(String::new(), |mut acc, error| {
+                        if let Some(description) = &error.description {
+                            write!(acc, "description - {} ;", description)
                                 .into_report()
                                 .change_context(
                                     errors::ConnectorError::ResponseDeserializationFailed,
                                 )
                                 .attach_printable("Failed to concatenate error details")
                                 .map(|_| acc)
-                        },
-                    )
+                        } else {
+                            Ok(acc)
+                        }
+                    })
             })
             .transpose()?;
+        let reason = error_reason
+            .unwrap_or(response.message.to_owned())
+            .is_empty()
+            .then_some(response.message.to_owned());
 
         Ok(ErrorResponse {
             status_code: res.status_code,
             code: response.name,
             message: response.message.clone(),
-            reason: error_reason.or(Some(response.message)),
+            reason,
         })
     }
 }
