@@ -618,7 +618,7 @@ pub async fn create_recipient(
                     let merchant_id = merchant_account.merchant_id.to_owned();
                     let updated_customer = storage::CustomerUpdate::ConnectorCustomer {
                         connector_customer: Some(
-                            serde_json::json!({"id": recipient_create_data.connector_payout_id}),
+                            serde_json::json!({connector_label: recipient_create_data.connector_payout_id}),
                         ),
                     };
                     payout_data.customer_details = Some(
@@ -1116,6 +1116,7 @@ pub async fn response_handler(
         status: payout_attempt.status.to_owned(),
         error_message: payout_attempt.error_message.to_owned(),
         error_code: payout_attempt.error_code,
+        profile_id: payout_attempt.profile_id,
     };
     Ok(services::ApplicationResponse::Json(response))
 }
@@ -1244,6 +1245,7 @@ pub async fn payout_create_db_entries(
         .set_payout_token(req.payout_token.to_owned())
         .set_created_at(Some(common_utils::date_time::now()))
         .set_last_modified_at(Some(common_utils::date_time::now()))
+        .set_profile_id(req.profile_id.to_owned())
         .to_owned();
     let payout_attempt = db
         .insert_payout_attempt(payout_attempt_req)

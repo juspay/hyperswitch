@@ -7,7 +7,7 @@ use common_utils::{
 };
 use data_models::{
     mandates::MandateData,
-    payments::{payment_attempt::PaymentAttempt, payment_intent::PaymentIntent},
+    payments::{payment_attempt::PaymentAttempt, PaymentIntent},
 };
 use diesel_models::enums;
 // TODO : Evaluate all the helper functions ()
@@ -176,15 +176,33 @@ pub async fn create_or_update_address_for_payment_by_request(
                             .phone
                             .as_ref()
                             .and_then(|value| value.country_code.clone()),
+                        updated_by: storage_scheme.to_string(),
                     })
                 }
                 .await
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("Failed while encrypting address")?;
+                let address = db
+                    .find_address_by_merchant_id_payment_id_address_id(
+                        merchant_id,
+                        payment_id,
+                        id,
+                        merchant_key_store,
+                        storage_scheme,
+                    )
+                    .await
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Error while fetching address")?;
                 Some(
-                    db.update_address(id.to_owned(), address_update, merchant_key_store)
-                        .await
-                        .to_not_found_response(errors::ApiErrorResponse::AddressNotFound)?,
+                    db.update_address_for_payments(
+                        address,
+                        address_update,
+                        payment_id.to_string(),
+                        merchant_key_store,
+                        storage_scheme,
+                    )
+                    .await
+                    .to_not_found_response(errors::ApiErrorResponse::AddressNotFound)?,
                 )
             }
             None => Some(
@@ -216,6 +234,7 @@ pub async fn create_or_update_address_for_payment_by_request(
                             customer_id,
                             payment_id,
                             key,
+                            storage_scheme,
                         )
                         .await
                         .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -276,6 +295,7 @@ pub async fn create_or_find_address_for_payment_by_request(
                             customer_id,
                             payment_id,
                             key,
+                            storage_scheme,
                         )
                         .await
                         .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -300,6 +320,7 @@ pub async fn get_domain_address_for_payments(
     customer_id: &str,
     payment_id: &str,
     key: &[u8],
+    storage_scheme: enums::MerchantStorageScheme,
 ) -> CustomResult<domain::Address, common_utils::errors::CryptoError> {
     async {
         Ok(domain::Address {
@@ -347,6 +368,7 @@ pub async fn get_domain_address_for_payments(
                 .async_lift(|inner| types::encrypt_optional(inner, key))
                 .await?,
             payment_id: Some(payment_id.to_owned()),
+            updated_by: storage_scheme.to_string(),
         })
     }
     .await
@@ -2177,6 +2199,26 @@ pub fn authenticate_client_secret(
     }
 }
 
+pub async fn get_merchant_fullfillment_time(
+    payment_link_id: Option<String>,
+    intent_fulfillment_time: Option<i64>,
+    db: &dyn StorageInterface,
+) -> RouterResult<Option<i64>> {
+    if let Some(payment_link_id) = payment_link_id {
+        let payment_link_db = db
+            .find_payment_link_by_payment_link_id(&payment_link_id)
+            .await
+            .to_not_found_response(errors::ApiErrorResponse::PaymentLinkNotFound)?;
+
+        let curr_time = common_utils::date_time::now();
+        Ok(payment_link_db
+            .fulfilment_time
+            .map(|merchant_expiry_time| (merchant_expiry_time - curr_time).whole_seconds()))
+    } else {
+        Ok(intent_fulfillment_time)
+    }
+}
+
 pub(crate) fn validate_payment_status_against_not_allowed_statuses(
     intent_status: &storage_enums::IntentStatus,
     not_allowed_statuses: &[storage_enums::IntentStatus],
@@ -2235,11 +2277,14 @@ pub async fn verify_payment_intent_time_and_client_secret(
                 .await
                 .change_context(errors::ApiErrorResponse::PaymentNotFound)?;
 
-            authenticate_client_secret(
-                Some(&cs),
-                &payment_intent,
+            let intent_fulfillment_time = get_merchant_fullfillment_time(
+                payment_intent.payment_link_id.clone(),
                 merchant_account.intent_fulfillment_time,
-            )?;
+                db,
+            )
+            .await?;
+
+            authenticate_client_secret(Some(&cs), &payment_intent, intent_fulfillment_time)?;
             Ok(payment_intent)
         })
         .await
@@ -2352,7 +2397,7 @@ mod tests {
             setup_future_usage: None,
             off_session: None,
             client_secret: Some("1".to_string()),
-            active_attempt_id: "nopes".to_string(),
+            active_attempt: data_models::RemoteStorageObject::ForeignID("nopes".to_string()),
             business_country: None,
             business_label: None,
             order_details: None,
@@ -2360,16 +2405,18 @@ mod tests {
             connector_metadata: None,
             feature_metadata: None,
             attempt_count: 1,
+            payment_link_id: None,
             profile_id: None,
             merchant_decision: None,
             payment_confirm_source: None,
+            updated_by: storage_enums::MerchantStorageScheme::PostgresOnly.to_string(),
         };
         let req_cs = Some("1".to_string());
         let merchant_fulfillment_time = Some(900);
         assert!(authenticate_client_secret(
             req_cs.as_ref(),
             &payment_intent,
-            merchant_fulfillment_time
+            merchant_fulfillment_time,
         )
         .is_ok()); // Check if the result is an Ok variant
     }
@@ -2399,7 +2446,7 @@ mod tests {
             setup_future_usage: None,
             off_session: None,
             client_secret: Some("1".to_string()),
-            active_attempt_id: "nopes".to_string(),
+            active_attempt: data_models::RemoteStorageObject::ForeignID("nopes".to_string()),
             business_country: None,
             business_label: None,
             order_details: None,
@@ -2407,16 +2454,18 @@ mod tests {
             connector_metadata: None,
             feature_metadata: None,
             attempt_count: 1,
+            payment_link_id: None,
             profile_id: None,
             merchant_decision: None,
             payment_confirm_source: None,
+            updated_by: storage_enums::MerchantStorageScheme::PostgresOnly.to_string(),
         };
         let req_cs = Some("1".to_string());
         let merchant_fulfillment_time = Some(10);
         assert!(authenticate_client_secret(
             req_cs.as_ref(),
             &payment_intent,
-            merchant_fulfillment_time
+            merchant_fulfillment_time,
         )
         .is_err())
     }
@@ -2446,7 +2495,7 @@ mod tests {
             setup_future_usage: None,
             off_session: None,
             client_secret: None,
-            active_attempt_id: "nopes".to_string(),
+            active_attempt: data_models::RemoteStorageObject::ForeignID("nopes".to_string()),
             business_country: None,
             business_label: None,
             order_details: None,
@@ -2454,16 +2503,18 @@ mod tests {
             connector_metadata: None,
             feature_metadata: None,
             attempt_count: 1,
+            payment_link_id: None,
             profile_id: None,
             merchant_decision: None,
             payment_confirm_source: None,
+            updated_by: storage_enums::MerchantStorageScheme::PostgresOnly.to_string(),
         };
         let req_cs = Some("1".to_string());
         let merchant_fulfillment_time = Some(10);
         assert!(authenticate_client_secret(
             req_cs.as_ref(),
             &payment_intent,
-            merchant_fulfillment_time
+            merchant_fulfillment_time,
         )
         .is_err())
     }
@@ -2788,6 +2839,7 @@ impl AttemptType {
         payment_method_data: &Option<api_models::payments::PaymentMethodData>,
         old_payment_attempt: PaymentAttempt,
         new_attempt_count: i16,
+        storage_scheme: enums::MerchantStorageScheme,
     ) -> storage::PaymentAttemptNew {
         let created_at @ modified_at @ last_synced = Some(common_utils::date_time::now());
 
@@ -2849,6 +2901,7 @@ impl AttemptType {
             connector_response_reference_id: None,
             amount_capturable: old_payment_attempt.amount,
             surcharge_metadata: old_payment_attempt.surcharge_metadata,
+            updated_by: storage_scheme.to_string(),
         }
     }
 
@@ -2871,6 +2924,7 @@ impl AttemptType {
                             &request.payment_method_data,
                             fetched_payment_attempt,
                             new_attempt_count,
+                            storage_scheme,
                         ),
                         storage_scheme,
                     )
@@ -2887,8 +2941,9 @@ impl AttemptType {
                                 &request.payment_method_data,
                                 Some(true),
                             ),
-                            active_attempt_id: new_payment_attempt.attempt_id.to_owned(),
+                            active_attempt_id: new_payment_attempt.attempt_id.clone(),
                             attempt_count: new_attempt_count,
+                            updated_by: storage_scheme.to_string(),
                         },
                         storage_scheme,
                     )
@@ -3362,4 +3417,30 @@ impl ApplePayData {
 
         Ok(decrypted)
     }
+}
+
+pub fn validate_payment_link_request(
+    payment_link_object: &api_models::payments::PaymentLinkObject,
+    confirm: Option<bool>,
+    order_details: Option<Vec<api_models::payments::OrderDetailsWithAmount>>,
+) -> Result<(), errors::ApiErrorResponse> {
+    if let Some(cnf) = confirm {
+        if !cnf {
+            let current_time = Some(common_utils::date_time::now());
+            if current_time > payment_link_object.link_expiry {
+                return Err(errors::ApiErrorResponse::InvalidRequestData {
+                    message: "link_expiry time cannot be less than current time".to_string(),
+                });
+            } else if order_details.is_none() {
+                return Err(errors::ApiErrorResponse::InvalidRequestData {
+                    message: "cannot create payment link without order details".to_string(),
+                });
+            }
+        } else {
+            return Err(errors::ApiErrorResponse::InvalidRequestData {
+                message: "cannot confirm a payment while creating a payment link".to_string(),
+            });
+        }
+    }
+    Ok(())
 }

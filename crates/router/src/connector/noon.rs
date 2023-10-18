@@ -9,7 +9,6 @@ use error_stack::{IntoReport, ResultExt};
 use masking::PeekInterface;
 use transformers as noon;
 
-use super::utils::PaymentsSyncRequestData;
 use crate::{
     configs::settings,
     connector::utils as connector_utils,
@@ -135,8 +134,8 @@ impl ConnectorCommon for Noon {
         Ok(ErrorResponse {
             status_code: res.status_code,
             code: response.result_code.to_string(),
-            message: response.message,
-            reason: Some(response.class_description),
+            message: response.class_description,
+            reason: Some(response.message),
         })
     }
 }
@@ -276,10 +275,10 @@ impl ConnectorIntegration<api::PSync, types::PaymentsSyncData, types::PaymentsRe
         req: &types::PaymentsSyncRouterData,
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        let connector_transaction_id = req.request.get_connector_transaction_id()?;
         Ok(format!(
-            "{}payment/v1/order/{connector_transaction_id}",
-            self.base_url(connectors)
+            "{}payment/v1/order/getbyreference/{}",
+            self.base_url(connectors),
+            req.connector_request_reference_id
         ))
     }
 
@@ -569,9 +568,9 @@ impl ConnectorIntegration<api::RSync, types::RefundsData, types::RefundsResponse
         connectors: &settings::Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         Ok(format!(
-            "{}payment/v1/order/{}",
+            "{}payment/v1/order/getbyreference/{}",
             self.base_url(connectors),
-            req.request.connector_transaction_id
+            req.connector_request_reference_id
         ))
     }
 
@@ -622,9 +621,13 @@ impl services::ConnectorRedirectResponse for Noon {
         &self,
         _query_params: &str,
         _json_payload: Option<serde_json::Value>,
-        _action: services::PaymentAction,
+        action: services::PaymentAction,
     ) -> CustomResult<payments::CallConnectorAction, errors::ConnectorError> {
-        Ok(payments::CallConnectorAction::Trigger)
+        match action {
+            services::PaymentAction::PSync | services::PaymentAction::CompleteAuthorize => {
+                Ok(payments::CallConnectorAction::Trigger)
+            }
+        }
     }
 }
 
