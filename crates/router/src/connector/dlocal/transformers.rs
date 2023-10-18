@@ -114,7 +114,7 @@ impl TryFrom<&DlocalRouterData<&types::PaymentsAuthorizeRouterData>> for DlocalP
                     Some(enums::CaptureMethod::Automatic)
                 );
                 let payment_request = Self {
-                    amount: item.amount.clone(),
+                    amount: connector::utils::get_amount_as_f64(item.amount.clone()),
                     currency: item.router_data.request.currency,
                     payment_method_id: PaymentMethodId::Card,
                     payment_method_flow: PaymentMethodFlow::Direct,
