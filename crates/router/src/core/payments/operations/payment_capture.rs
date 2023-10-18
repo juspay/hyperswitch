@@ -82,7 +82,10 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
 
         helpers::validate_status_with_capture_method(payment_intent.status, capture_method)?;
 
-        helpers::validate_amount_to_capture(payment_intent.amount, request.amount_to_capture)?;
+        helpers::validate_amount_to_capture(
+            payment_attempt.amount_capturable,
+            request.amount_to_capture,
+        )?;
 
         helpers::validate_capture_method(capture_method)?;
 
