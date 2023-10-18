@@ -77,7 +77,7 @@ pub struct PaymentsRequest {
     // Makes the field mandatory in PaymentsCreateRequest
     pub amount: Option<Amount>,
 
-    #[schema(value_type = Option<RoutingAlgorithm>, example = json!({
+    #[schema(value_type = Option<StraightThroughAlgorithm>, example = json!({
         "type": "single",
         "data": "stripe"
     }))]
