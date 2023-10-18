@@ -27,7 +27,7 @@ pub struct {{project-name | downcase | pascal_case}};
 impl api::Payment for {{project-name | downcase | pascal_case}} {}
 impl api::PaymentSession for {{project-name | downcase | pascal_case}} {}
 impl api::ConnectorAccessToken for {{project-name | downcase | pascal_case}} {}
-impl api::PreVerify for {{project-name | downcase | pascal_case}} {}
+impl api::MandateSetup for {{project-name | downcase | pascal_case}} {}
 impl api::PaymentAuthorize for {{project-name | downcase | pascal_case}} {}
 impl api::PaymentSync for {{project-name | downcase | pascal_case}} {}
 impl api::PaymentCapture for {{project-name | downcase | pascal_case}} {}

@@ -78,7 +78,7 @@ git checkout ${tests}/main.rs ${test_utils}/connector_auth.rs ${tests}/sample_au
 
 # Add enum for this connector in test folder
 sed -i'' -e "s/mod utils;/mod ${payment_gateway};\nmod utils;/" ${tests}/main.rs
-sed -i'' -e "s/    pub $previous_connector: \(.*\)/\tpub $previous_connector: \1\n\tpub ${payment_gateway}: Option<HeaderKey>,/; s/auth.toml/sample_auth.toml/" ${test_utils}/connector_auth.rs
+sed -i'' -e "s/    pub $previous_connector: \(.*\)/\tpub $previous_connector: \1\n\tpub ${payment_gateway}: Option<HeaderKey>,/" ${test_utils}/connector_auth.rs
 echo "\n\n[${payment_gateway}]\napi_key=\"API Key\"" >> ${tests}/sample_auth.toml
 
 # Remove temporary files created in above step
