@@ -82,7 +82,7 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
             .find_payment_attempt_by_payment_id_merchant_id_attempt_id(
                 payment_intent.payment_id.as_str(),
                 merchant_id,
-                payment_intent.active_attempt_id.as_str(),
+                payment_intent.active_attempt.get_id().as_str(),
                 storage_scheme,
             )
             .await
@@ -170,6 +170,8 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
                 multiple_capture_data: None,
                 redirect_response: None,
                 frm_message: None,
+                payment_link_data: None,
+                surcharge_details: None,
             },
             Some(customer_details),
         ))

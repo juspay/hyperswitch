@@ -135,25 +135,20 @@ impl<F: Send + Clone, Ctx: PaymentMethodRetrieve>
                     pmd
                 });
 
-            let pmd = match &request.payment_method_data {
+            match &request.payment_method_data {
                 Some(pmd) => Some(pmd.clone()),
                 None => redis_value,
-            };
-            pmd
+            }
         } else {
             request.payment_method_data.clone()
         };
 
         helpers::validate_pm_or_token_given(
-            &request
-                .payment_method
-                .clone()
-                .or(payment_attempt.payment_method.into()),
+            &request.payment_method.or(payment_attempt.payment_method),
             &request.payment_method_data.clone().or(pmd.clone()),
             &request
                 .payment_method_type
-                .clone()
-                .or(payment_attempt.payment_method_type.into()),
+                .or(payment_attempt.payment_method_type),
             &mandate_type,
             &token,
         )?;
@@ -403,6 +398,7 @@ impl<F: Clone, Ctx: PaymentMethodRetrieve>
     {
         let intent_status_update = storage::PaymentIntentUpdate::ApproveUpdate {
             merchant_decision: Some(api_models::enums::MerchantDecision::Approved.to_string()),
+            updated_by: storage_scheme.to_string(),
         };
         payment_data.payment_intent = db
             .update_payment_intent(

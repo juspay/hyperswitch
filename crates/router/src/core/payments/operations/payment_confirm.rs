@@ -570,6 +570,7 @@ impl<F: Clone, Ctx: PaymentMethodRetrieve>
                     error_message,
                     amount_capturable: Some(authorized_amount),
                     connector_metadata: payment_data.payment_attempt.connector_metadata,
+                    updated_by: storage_scheme.to_string(),
                 },
                 storage_scheme,
             )
@@ -595,6 +596,7 @@ impl<F: Clone, Ctx: PaymentMethodRetrieve>
                     order_details,
                     metadata,
                     payment_confirm_source: header_payload.payment_confirm_source,
+                    updated_by: storage_scheme.to_string(),
                 },
                 storage_scheme,
             )
