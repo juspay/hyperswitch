@@ -153,12 +153,14 @@ impl TryFrom<&CybersourceRouterData<&types::PaymentsAuthorizeRouterData>>
                 let country_code = phone.get_country_code()?;
                 let number_with_code =
                     Secret::new(format!("{}{}", country_code, phone_number.peek()));
-                let email = item.router_data
+                let email = item
+                    .router_data
                     .request
                     .email
                     .clone()
                     .ok_or_else(utils::missing_field_err("email"))?;
-                let bill_to = build_bill_to(item.router_data.get_billing()?, email, number_with_code)?;
+                let bill_to =
+                    build_bill_to(item.router_data.get_billing()?, email, number_with_code)?;
 
                 let order_information = OrderInformationWithBill {
                     amount_details: Amount {

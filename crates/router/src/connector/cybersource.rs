@@ -474,7 +474,8 @@ impl ConnectorIntegration<api::Authorize, types::PaymentsAuthorizeData, types::P
             req.request.amount,
             req,
         ))?;
-        let connector_request = cybersource::CybersourcePaymentsRequest::try_from(&connector_router_data)?;
+        let connector_request =
+            cybersource::CybersourcePaymentsRequest::try_from(&connector_router_data)?;
         let cybersource_payments_request = types::RequestBody::log_and_get_request_body(
             &connector_request,
             utils::Encode::<cybersource::CybersourcePaymentsRequest>::encode_to_string_of_json,
