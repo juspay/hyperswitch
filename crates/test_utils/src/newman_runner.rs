@@ -1,10 +1,14 @@
-use std::{env, process::Command};
+use std::{
+    env,
+    fs::OpenOptions,
+    io::{self, Write},
+    process::Command,
+};
 
 use clap::{arg, command, Parser};
 use masking::PeekInterface;
 
 use crate::connector_auth::{ConnectorAuthType, ConnectorAuthenticationMap};
-
 #[derive(Parser)]
 #[command(version, about = "Postman collection runner using newman!", long_about = None)]
 struct Args {
@@ -17,6 +21,13 @@ struct Args {
     /// Name of the connector
     #[arg(short, long = "connector_name")]
     connector_name: String,
+    /// Custom headers
+    #[arg(long = "custom_headers")]
+    custom_headers: Option<String>,
+    /// Minimum delay to be added before sending a request
+    /// By default, 7 milliseconds will be the delay
+    #[arg(short, long = "delay_request", default_value_t = 7)]
+    delay_request: u8,
     /// Folder name of specific tests
     #[arg(short, long = "folder")]
     folders: Option<String>,
@@ -32,7 +43,25 @@ fn get_path(name: impl AsRef<str>) -> String {
     format!("postman/collection-dir/{}", name.as_ref())
 }
 
-pub fn command_generate() -> Command {
+// This function currently allows you to add only custom headers.
+// In future, as we scale, this can be modified based on the need
+fn insert_content(dir: &String, content_to_insert: &str) -> io::Result<bool> {
+    let file_name = "event.prerequest.js";
+    let file_path = format!("{}/{}", dir, file_name);
+
+    // Open the file in write mode or create it if it doesn't exist
+    let mut file = OpenOptions::new()
+        .write(true)
+        .create(true)
+        .open(&file_path)?;
+
+    // Write the content to the file
+    file.write_all(content_to_insert.as_bytes())?;
+
+    Ok(true)
+}
+
+pub fn command_generate() -> (Command, bool, String) {
     let args = Args::parse();
 
     let connector_name = args.connector_name;
@@ -129,7 +158,10 @@ pub fn command_generate() -> Command {
         ]);
     }
 
-    newman_command.arg("--delay-request").arg("7"); // 7 milli seconds delay
+    newman_command.args([
+        "--delay-request",
+        format!("{}", &args.delay_request).as_str(),
+    ]);
 
     newman_command.arg("--color").arg("on");
 
@@ -151,5 +183,32 @@ pub fn command_generate() -> Command {
         newman_command.arg("--verbose");
     }
 
-    newman_command
+    let mut modified = false;
+    if args.custom_headers.is_some() {
+        if let Some(headers) = &args.custom_headers {
+            let individual_headers: Vec<String> =
+                headers.split(',').map(|s| s.trim().to_string()).collect();
+
+            let mut content_to_insert = String::new();
+
+            for (index, header) in individual_headers.iter().enumerate() {
+                let kv_pair: Vec<&str> = header.splitn(2, '=').collect();
+
+                content_to_insert.push_str(&format!(
+                    "pm.request.headers.add({{key: \"{}\", value: \"{}\"}});",
+                    kv_pair[0], kv_pair[1]
+                ));
+
+                if index < individual_headers.len() - 1 {
+                    content_to_insert.push('\n'); // Add a newline between headers
+                }
+            }
+
+            if insert_content(&collection_path, &content_to_insert).is_ok() {
+                modified = true;
+            }
+        }
+    }
+
+    (newman_command, modified, collection_path)
 }

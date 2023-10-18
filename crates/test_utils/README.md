@@ -32,6 +32,8 @@ Optional fields:
   - Use double quotes to specify folder name. If you wish to run multiple folders, separate them with a comma (`,`)
   - Example: `--folder "QuickStart"` or `--folder "Health check,QuickStart"`
 - `--verbose` -- A boolean to print detailed logs (requests and responses)
+- `--custom_headers` -- If you wish to add custom headers to the requests, you can pass them as a string
+  - Example: `--custom_headers "key1=value,key2=value"`
 
 **Note:** Passing `--verbose` will also print the connector as well as admin API keys in the logs. So, make sure you don't push the commands with `--verbose` to any public repository.
 
