@@ -53,7 +53,7 @@ pub enum PaymentMethodFlow {
 
 #[derive(Debug, Serialize)]
 pub struct DlocalRouterData<T> {
-    pub amount: String,
+    pub amount: i64,
     pub router_data: T,
 }
 
@@ -75,7 +75,6 @@ impl<T>
             T,
         ),
     ) -> Result<Self, Self::Error> {
-        let amount = utils::get_amount_as_string(currency_unit, amount, currency)?;
         Ok(Self {
             amount,
             router_data,
@@ -114,7 +113,7 @@ impl TryFrom<&DlocalRouterData<&types::PaymentsAuthorizeRouterData>> for DlocalP
                     Some(enums::CaptureMethod::Automatic)
                 );
                 let payment_request = Self {
-                    amount: connector::utils::get_amount_as_f64(item.amount.clone()),
+                    amount: item.amount.clone(),
                     currency: item.router_data.request.currency,
                     payment_method_id: PaymentMethodId::Card,
                     payment_method_flow: PaymentMethodFlow::Direct,
