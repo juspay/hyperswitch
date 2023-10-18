@@ -654,8 +654,7 @@ pub async fn create_payment_connector(
         ))
         .unwrap_or(format!(
             "{}_{}",
-            req.connector_name.to_string(),
-            business_profile.profile_name
+            req.connector_name, business_profile.profile_name
         ));
 
     let mut vec = Vec::new();
