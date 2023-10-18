@@ -294,7 +294,7 @@ impl TryFrom<&CheckoutRouterData<&types::PaymentsAuthorizeRouterData>> for Payme
                     }))
                 }
                 api_models::payments::WalletData::ApplePay(_applepay_data) => {
-                    let payment_method_token = item.get_payment_method_token()?;
+                    let payment_method_token = item.router_data.get_payment_method_token()?;
                     let apple_pay_decrypt_data =
                         if let Some(types::PaymentMethodToken::ApplePayDecrypt(decrypt_data)) =
                             Some(payment_method_token.clone())
