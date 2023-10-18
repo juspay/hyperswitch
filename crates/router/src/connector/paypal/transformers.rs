@@ -1380,7 +1380,7 @@ pub struct PaypalOrderErrorResponse {
 #[derive(Default, Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub struct ErrorDetails {
     pub issue: String,
-    pub description: String,
+    pub description: Option<String>,
 }
 
 #[derive(Default, Debug, Serialize, Deserialize, PartialEq)]
