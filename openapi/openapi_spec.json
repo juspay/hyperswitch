@@ -6508,6 +6508,12 @@
           "connector_name": {
             "$ref": "#/components/schemas/Connector"
           },
+          "connector_label": {
+            "type": "string",
+            "description": "Connector label for a connector, this can serve as a field to identify the connector as per business details",
+            "example": "stripe_US_travel",
+            "nullable": true
+          },
           "merchant_connector_id": {
             "type": "string",
             "description": "Unique ID of the connector",
@@ -6720,6 +6726,12 @@
             "description": "Name of the Connector",
             "example": "stripe"
           },
+          "connector_label": {
+            "type": "string",
+            "description": "Connector label for a connector, this can serve as a field to identify the connector as per business details",
+            "example": "stripe_US_travel",
+            "nullable": true
+          },
           "merchant_connector_id": {
             "type": "string",
             "description": "Unique ID of the connector",
@@ -6858,6 +6870,11 @@
         "properties": {
           "connector_type": {
             "$ref": "#/components/schemas/ConnectorType"
+          },
+          "connector_label": {
+            "type": "string",
+            "description": "Connector label for a connector, this can serve as a field to identify the connector as per business details",
+            "nullable": true
           },
           "connector_account_details": {
             "type": "object",
