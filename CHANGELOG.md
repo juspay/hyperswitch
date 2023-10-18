@@ -4,6 +4,28 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 1.60.0 (2023-10-17)
+
+### Features
+
+- **compatibility:** Added support to connector txn id ([#2606](https://github.com/juspay/hyperswitch/pull/2606)) ([`82980a8`](https://github.com/juspay/hyperswitch/commit/82980a86ad7966c6645d26a4abec85c8c7e3bdad))
+- **router:** Better UI payment link and order details product image and merchant config support ([#2583](https://github.com/juspay/hyperswitch/pull/2583)) ([`fdd9580`](https://github.com/juspay/hyperswitch/commit/fdd95800127bb79fe2a9eeca1b7e0e158b6d2783))
+- Add updated_by to tracker tables ([#2604](https://github.com/juspay/hyperswitch/pull/2604)) ([`6a74e8c`](https://github.com/juspay/hyperswitch/commit/6a74e8cba9078529fd9662d29ac7b941a191fbf4))
+
+### Bug Fixes
+
+- Make push to drainer generic and add application metrics for KV ([#2563](https://github.com/juspay/hyperswitch/pull/2563)) ([`274a783`](https://github.com/juspay/hyperswitch/commit/274a78343e5e3de614cfb1476570b5c449ee0c1e))
+
+### Refactors
+
+- **connector:** [Nuvei] remove default case handling ([#2584](https://github.com/juspay/hyperswitch/pull/2584)) ([`3807601`](https://github.com/juspay/hyperswitch/commit/3807601ee1c140310abf7a7e6ee4b83d44de9558))
+- **router:** Throw bad request error on applepay verification failure ([#2607](https://github.com/juspay/hyperswitch/pull/2607)) ([`cecea87`](https://github.com/juspay/hyperswitch/commit/cecea8718a48b4e896b2bafce0f909ef8d9a6e8a))
+
+**Full Changelog:** [`v1.59.0...v1.60.0`](https://github.com/juspay/hyperswitch/compare/v1.59.0...v1.60.0)
+
+- - -
+
+
 ## 1.59.0 (2023-10-16)
 
 ### Features
