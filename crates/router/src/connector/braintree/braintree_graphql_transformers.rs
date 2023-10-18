@@ -86,8 +86,8 @@ impl TryFrom<&Option<pii::SecretSerdeValue>> for BraintreeMeta {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(meta_data: &Option<pii::SecretSerdeValue>) -> Result<Self, Self::Error> {
         let metadata: Self = utils::to_connector_meta_from_secret::<Self>(meta_data.clone())
-            .change_context(errors::ConnectorError::InvalidConfig {
-                field_name: "merchant connector account metadata",
+            .change_context(errors::ConnectorError::InvalidConnectorConfig {
+                config: "metadata",
             })?;
         Ok(metadata)
     }
@@ -109,8 +109,8 @@ impl TryFrom<&BraintreeRouterData<&types::PaymentsAuthorizeRouterData>>
     ) -> Result<Self, Self::Error> {
         let metadata: BraintreeMeta =
             utils::to_connector_meta_from_secret(item.router_data.connector_meta_data.clone())
-                .change_context(errors::ConnectorError::InvalidConfig {
-                    field_name: "merchant connector account metadata",
+                .change_context(errors::ConnectorError::InvalidConnectorConfig {
+                    config: "metadata",
                 })?;
         utils::validate_currency(
             item.router_data.request.currency,
@@ -602,8 +602,8 @@ impl<F> TryFrom<BraintreeRouterData<&types::RefundsRouterData<F>>> for Braintree
     ) -> Result<Self, Self::Error> {
         let metadata: BraintreeMeta =
             utils::to_connector_meta_from_secret(item.router_data.connector_meta_data.clone())
-                .change_context(errors::ConnectorError::InvalidConfig {
-                    field_name: "merchant connector account metadata",
+                .change_context(errors::ConnectorError::InvalidConnectorConfig {
+                    config: "metadata",
                 })?;
 
         utils::validate_currency(
@@ -712,9 +712,7 @@ impl TryFrom<&types::RefundSyncRouterData> for BraintreeRSyncRequest {
         let metadata: BraintreeMeta = utils::to_connector_meta_from_secret(
             item.connector_meta_data.clone(),
         )
-        .change_context(errors::ConnectorError::InvalidConfig {
-            field_name: "merchant connector account metadata",
-        })?;
+        .change_context(errors::ConnectorError::InvalidConnectorConfig { config: "metadata" })?;
         utils::validate_currency(
             item.request.currency,
             Some(metadata.merchant_config_currency),
@@ -1345,8 +1343,8 @@ impl TryFrom<&BraintreeRouterData<&types::PaymentsCompleteAuthorizeRouterData>>
     ) -> Result<Self, Self::Error> {
         let metadata: BraintreeMeta =
             utils::to_connector_meta_from_secret(item.router_data.connector_meta_data.clone())
-                .change_context(errors::ConnectorError::InvalidConfig {
-                    field_name: "merchant connector account metadata",
+                .change_context(errors::ConnectorError::InvalidConnectorConfig {
+                    config: "metadata",
                 })?;
         utils::validate_currency(
             item.router_data.request.currency,
