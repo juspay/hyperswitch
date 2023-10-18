@@ -81,7 +81,7 @@ if (jsonData?.amount) {
 }
 
 // Response body should have value "null" for "amount_received"
-if (jsonData?.amount) {
+if (jsonData?.amount_received) {
   pm.test(
     "[post]:://payments/:id/capture - Content check if value for 'amount_received' matches 'null'",
     function () {
