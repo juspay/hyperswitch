@@ -1413,7 +1413,7 @@ pub async fn retrieve_card_with_permanent_token(
             .attach_printable("card holder name was not saved in permanent locker")?,
         card_exp_month: card.card_exp_month,
         card_exp_year: card.card_exp_year,
-        card_cvc: card_cvc,
+        card_cvc: card_cvc.unwrap_or_default(),
         card_issuer: card.card_brand,
         nick_name: card.nick_name.map(masking::Secret::new),
         card_network: None,
