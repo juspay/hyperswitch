@@ -2010,7 +2010,7 @@ pub async fn get_lookup_key_from_locker(
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Get Card Details Failed")?;
     let card = card_detail.clone();
-    
+
     let resp = TempLockerCardSupport::create_payment_method_data_in_temp_locker(
         state,
         payment_token,
