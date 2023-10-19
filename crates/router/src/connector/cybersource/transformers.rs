@@ -188,10 +188,15 @@ impl TryFrom<&CybersourceRouterData<&types::PaymentsAuthorizeRouterData>>
                     capture_options: None,
                 };
 
+                let client_reference_information = ClientReferenceInformation {
+                    code: Some(item.router_data.connector_request_reference_id.clone()),
+                };
+
                 Ok(Self {
                     processing_information,
                     payment_information,
                     order_information,
+                    client_reference_information
                 })
             }
             _ => Err(errors::ConnectorError::NotImplemented("Payment methods".to_string()).into()),
